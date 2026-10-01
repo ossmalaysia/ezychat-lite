@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+out/
+release/
+*.tsbuildinfo
+
+# runtime data (never commit WhatsApp auth/session data or databases)
+data/
+*.db
+*.db-*
+wa-auth/
+tmp-data/
+.e2e-data/
+
+# env / secrets
+.env*
+
+# test output
+coverage/
+playwright-report/
+test-results/
+
+# downloaded binaries
+resources/cloudflared/*/cloudflared*
+resources/winsw/*.exe
+
+# misc
+.DS_Store
+Thumbs.db
+graphify-out/
+*.log

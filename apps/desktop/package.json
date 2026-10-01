@@ -1,0 +1,26 @@
+{
+  "name": "@wa-team-inbox/desktop",
+  "productName": "WA Team Inbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "WA Team Inbox desktop app",
+  "author": "OSS Malaysia and contributors",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "npm run build -w @wa-team-inbox/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron .",
+    "dist": "npm run build -w @wa-team-inbox/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron-builder --config electron-builder.yml",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "sudo-prompt": "^9.2.1"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2"
+  }
+}
