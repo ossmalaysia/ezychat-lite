@@ -1,0 +1,122 @@
+import { z } from 'zod';
+import { ChatStatus, MessageType, Role } from './enums.js';
+import { ChatEventSchema, ChatSchema, MessageSchema, QuickReplySchema, SettingsSchema, UserSchema } from './models.js';
+
+export const SetupStatusResponse = z.object({ needsSetup: z.boolean() });
+export type SetupStatusResponse = z.infer<typeof SetupStatusResponse>;
+
+export const SetupAdminBody = z.object({
+  username: z
+    .string()
+    .min(3)
+    .max(32)
+    .regex(/^[a-zA-Z0-9_.-]+$/),
+  displayName: z.string().min(1).max(64),
+  password: z.string().min(8).max(256),
+});
+export type SetupAdminBody = z.infer<typeof SetupAdminBody>;
+
+export const LoginBody = z.object({ username: z.string(), password: z.string() });
+export type LoginBody = z.infer<typeof LoginBody>;
+
+export const ChangePasswordBody = z.object({ currentPassword: z.string(), newPassword: z.string().min(8).max(256) });
+export type ChangePasswordBody = z.infer<typeof ChangePasswordBody>;
+
+export const MeResponse = UserSchema;
+export type MeResponse = z.infer<typeof MeResponse>;
+
+export const ChatListQuery = z.object({
+  status: ChatStatus.optional(),
+  assigned: z.enum(['me', 'none', 'any']).default('any'),
+  q: z.string().optional(),
+  cursor: z.string().optional(),
+  since: z.coerce.number().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+export type ChatListQuery = z.infer<typeof ChatListQuery>;
+/** Input shape (before defaults/coercion), for clients building query strings. */
+export type ChatListQueryInput = z.input<typeof ChatListQuery>;
+
+export const ChatListResponse = z.object({ chats: z.array(ChatSchema), nextCursor: z.string().nullable() });
+export type ChatListResponse = z.infer<typeof ChatListResponse>;
+
+export const ChatPatchBody = z.object({ assignedTo: z.number().nullable().optional(), status: ChatStatus.optional() });
+export type ChatPatchBody = z.infer<typeof ChatPatchBody>;
+
+export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
+export type ChatDetailResponse = z.infer<typeof ChatDetailResponse>;
+
+export const MessageListQuery = z.object({
+  before: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+export type MessageListQuery = z.infer<typeof MessageListQuery>;
+export type MessageListQueryInput = z.input<typeof MessageListQuery>;
+
+export const MessageListResponse = z.object({ messages: z.array(MessageSchema), nextBefore: z.string().nullable() });
+export type MessageListResponse = z.infer<typeof MessageListResponse>;
+
+export const SendTextBody = z.object({
+  text: z.string().min(1).max(65536),
+  quotedId: z.string().optional(),
+  clientId: z.string().min(1).max(64),
+});
+export type SendTextBody = z.infer<typeof SendTextBody>;
+
+export const NoteBody = z.object({ body: z.string().min(1).max(8192) });
+export type NoteBody = z.infer<typeof NoteBody>;
+
+export const QuickReplyBody = z.object({
+  shortcut: QuickReplySchema.shape.shortcut,
+  body: QuickReplySchema.shape.body,
+});
+export type QuickReplyBody = z.infer<typeof QuickReplyBody>;
+
+export const CreateUserBody = z.object({
+  username: SetupAdminBody.shape.username,
+  displayName: SetupAdminBody.shape.displayName,
+  role: Role,
+  password: z.string().min(8).max(256),
+});
+export type CreateUserBody = z.infer<typeof CreateUserBody>;
+
+export const PatchUserBody = z.object({
+  displayName: z.string().min(1).max(64).optional(),
+  role: Role.optional(),
+  disabled: z.boolean().optional(),
+});
+export type PatchUserBody = z.infer<typeof PatchUserBody>;
+
+export const ResetPasswordResponse = z.object({ password: z.string() });
+export type ResetPasswordResponse = z.infer<typeof ResetPasswordResponse>;
+
+export const TunnelStartBody = z.object({
+  mode: z.enum(['quick', 'named']),
+  token: z.string().min(10).optional(),
+  hostname: z.string().optional(),
+});
+export type TunnelStartBody = z.infer<typeof TunnelStartBody>;
+
+export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true }).partial();
+export type SettingsPatchBody = z.infer<typeof SettingsPatchBody>;
+
+export const PushSubscribeBody = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({ p256dh: z.string(), auth: z.string() }),
+});
+export type PushSubscribeBody = z.infer<typeof PushSubscribeBody>;
+
+export const HealthResponse = z.object({
+  app: z.literal('wa-team-inbox'),
+  version: z.string(),
+  mode: z.enum(['standalone', 'service', 'dev']),
+});
+export type HealthResponse = z.infer<typeof HealthResponse>;
+
+export const FakeIncomingBody = z.object({
+  chatJid: z.string(),
+  text: z.string(),
+  senderName: z.string().optional(),
+  type: MessageType.optional(),
+});
+export type FakeIncomingBody = z.infer<typeof FakeIncomingBody>;
