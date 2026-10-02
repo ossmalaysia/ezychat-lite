@@ -19,3 +19,6 @@ initializers.push(initAdmin);
 
 import { initMessaging } from './wa-bridge/index.js';
 initializers.push(initMessaging);
+
+import { initPush } from './push/index.js';
+initializers.push(initPush);

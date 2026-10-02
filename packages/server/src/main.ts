@@ -12,6 +12,7 @@ import { SettingsStore } from './db/settings.js';
 import { acquireLock } from './lock.js';
 import { createLogger } from './logger.js';
 import { initializers } from './services.js';
+import { attachRealtime } from './realtime/index.js';
 
 /** Loads the Baileys adapter lazily (keeps baileys out of tests / --fake-wa runs). */
 async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
@@ -93,6 +94,7 @@ export async function startServer(
   const app = await buildApp(ctx);
   await app.listen({ port: cfg.port, host: cfg.host });
   log.info({ port: cfg.port, host: cfg.host, mode: cfg.mode, version: cfg.version, fakeWa: cfg.fakeWa }, 'server listening');
+  const realtime = attachRealtime(app.server, ctx);
 
   ctx.wa.connect().catch((err: unknown) => log.error({ err }, 'wa connect failed'));
 
@@ -100,6 +102,7 @@ export async function startServer(
   const close = (): Promise<void> => {
     closing ??= (async () => {
       log.info('shutting down');
+      realtime.close(); // drop websocket clients first so the HTTP server can close
       try {
         await app.close();
       } catch (err) {
