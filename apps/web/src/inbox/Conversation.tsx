@@ -19,7 +19,20 @@ import {
   type MessagesData,
 } from '../api/queries';
 import { useRealtime } from '../api/socket';
-import { Banner, Button, Modal, Spinner } from '../components/legacy';
+import { toast } from 'sonner';
+import { EmptyState } from '@/components/app';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Composer } from './Composer';
 import { ConversationHeader } from './ConversationHeader';
 import { MessageList } from './MessageList';
@@ -33,6 +46,10 @@ export interface ConversationProps {
   jid: string;
   directory: Directory;
   onBack(): void;
+}
+
+function toastError(e: unknown) {
+  toast.error(e instanceof Error ? e.message : 'Update failed');
 }
 
 /** Chats where the user already agreed to reply despite another assignee (this session). */
@@ -121,6 +138,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               : old,
           );
           sendText.mutate({ text: m.body, quotedId: m.quotedId ?? undefined, clientId: newClientId() });
+        } else {
+          toast.error(e instanceof Error ? e.message : 'Retry failed');
         }
       },
       onSettled: () => setRetryingId(null),
@@ -134,8 +153,19 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
 
   if (chatQ.isPending) {
     return (
-      <div className="flex flex-1 items-center justify-center text-emerald-600">
-        <Spinner className="size-6" label="Loading chat" />
+      <div className="flex flex-1 flex-col" role="status" aria-label="Loading chat">
+        <div className="flex items-center gap-3 border-b bg-surface px-3 py-2">
+          <Skeleton className="size-10 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40 max-w-full" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <Skeleton className="h-12 w-2/3 rounded-2xl" />
+          <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
+          <Skeleton className="h-8 w-3/5 rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -143,19 +173,23 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   if (chatQ.isError || !chat) {
     const notFound = chatQ.error instanceof ApiError && chatQ.error.status === 404;
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
-        <p>{notFound ? 'This chat doesn’t exist.' : 'Couldn’t load this chat.'}</p>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onBack}>
-            Back to chats
-          </Button>
-          {!notFound && (
-            <Button size="sm" onClick={() => void chatQ.refetch()}>
-              Try again
+      <EmptyState
+        className="flex-1"
+        illustration="/illustrations/no-results.png"
+        title={notFound ? 'This chat doesn’t exist.' : 'Couldn’t load this chat.'}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" size="touch" onClick={onBack}>
+              Back to chats
             </Button>
-          )}
-        </div>
-      </div>
+            {!notFound && (
+              <Button size="touch" onClick={() => void chatQ.refetch()}>
+                Try again
+              </Button>
+            )}
+          </div>
+        }
+      />
     );
   }
 
@@ -171,21 +205,17 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           directory={directory}
           onBack={onBack}
           busy={patch.isPending}
-          onAssign={(id) => patch.mutate({ assignedTo: id })}
+          onAssign={(id) => patch.mutate({ assignedTo: id }, { onError: toastError })}
           onToggleStatus={() =>
-            patch.mutate({ status: chat.status === 'resolved' ? 'open' : 'resolved' })
+            patch.mutate(
+              { status: chat.status === 'resolved' ? 'open' : 'resolved' },
+              { onError: toastError },
+            )
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
           onToggleNotes={() => setNotesOpen((o) => !o)}
         />
-        {patch.isError && (
-          <div className="px-3 pt-2">
-            <Banner tone="error">
-              {patch.error instanceof Error ? patch.error.message : 'Update failed'}
-            </Banner>
-          </div>
-        )}
         <MessageList
           items={items}
           messagesById={messagesById}
@@ -198,14 +228,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onRetry={onRetry}
           retryingId={retryingId}
         />
-        <div className="safe-bottom border-t border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="safe-bottom border-t bg-surface">
           <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
           {(blocked || queued) && (
             <p
               className={
                 blocked
-                  ? 'px-3 pt-2 text-xs font-medium text-red-700 dark:text-red-400'
-                  : 'px-3 pt-2 text-xs font-medium text-amber-700 dark:text-amber-400'
+                  ? 'px-3 pt-2 text-xs font-medium text-danger'
+                  : 'px-3 pt-2 text-xs font-medium text-warning'
               }
               role="status"
             >
@@ -230,33 +260,33 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           </div>
         </div>
       </section>
-      {notesOpen && (
-        <NotesPanel
-          jid={jid}
-          notes={notes ?? []}
-          loading={notesQ.isPending}
-          directory={directory}
-          onClose={() => setNotesOpen(false)}
-        />
-      )}
-      <Modal
-        open={!!confirm}
-        onClose={() => closeConfirm(false)}
-        title={`Assigned to ${confirm?.name ?? ''}`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => closeConfirm(false)}>
+      <NotesPanel
+        jid={jid}
+        open={notesOpen}
+        notes={notes ?? []}
+        loading={notesQ.isPending}
+        directory={directory}
+        onClose={() => setNotesOpen(false)}
+      />
+      <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{`Assigned to ${confirm?.name ?? ''}`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              This chat is assigned to <strong className="text-foreground">{confirm?.name}</strong> —
+              reply anyway? You won’t be asked again for this chat during this session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-11 sm:min-h-9" onClick={() => closeConfirm(false)}>
               Cancel
-            </Button>
-            <Button onClick={() => closeConfirm(true)}>Reply anyway</Button>
-          </>
-        }
-      >
-        <p className="text-sm text-neutral-700 dark:text-neutral-300">
-          This chat is assigned to <strong>{confirm?.name}</strong> — reply anyway? You won’t be
-          asked again for this chat during this session.
-        </p>
-      </Modal>
+            </AlertDialogCancel>
+            <AlertDialogAction className="min-h-11 sm:min-h-9" onClick={() => closeConfirm(true)}>
+              Reply anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

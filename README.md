@@ -1,36 +1,108 @@
-# WA Team Inbox
+<p align="center">
+  <img src="apps/web/public/icon-512.png" width="96" alt="WA Team Inbox icon">
+</p>
 
-A desktop app (macOS and Windows) that links **one** WhatsApp number and turns it into a
-**shared team inbox**. Your team works from a mobile-friendly web app (PWA) served by the
-desktop app: on the same computer, over your LAN, or from anywhere through a Cloudflare
-tunnel. Run it **standalone** (while the app is open) or as a **boot-time OS service**.
+<h1 align="center">WA Team Inbox</h1>
 
-> **Status:** early development (v0.x). Not ready for production use.
+<p align="center">
+  One WhatsApp number, one shared inbox for your whole team.<br>
+  A desktop app for macOS and Windows that serves a mobile-friendly team inbox from your own computer.
+</p>
 
-## Disclaimer
+<p align="center">
+  <a href="LICENSE">MIT License</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
 
-- **WA Team Inbox is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta.**
-  "WhatsApp" is a trademark of its respective owner.
-- It connects through [Baileys](https://github.com/WhiskeySockets/Baileys), an **unofficial**
-  WhatsApp Web client library. Using unofficial clients is against WhatsApp's Terms of Service
-  and **may get your number temporarily or permanently banned**. Use at your own risk.
-- It is meant for answering real customer conversations as a team. **Do not use it for bulk
-  messaging, spam, or automated marketing.**
+---
 
-## Features (planned for v1)
+> [!WARNING]
+> **WA Team Inbox is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta.**
+> "WhatsApp" is a trademark of its respective owner.
+>
+> It connects through [Baileys](https://github.com/WhiskeySockets/Baileys), an **unofficial**
+> WhatsApp Web client library. Unofficial clients are against WhatsApp's Terms of Service and
+> **your number can be temporarily or permanently banned**. Use it at your own risk, ideally with a
+> number you can afford to lose.
+>
+> It is built for people answering real conversations. **Do not use it for bulk messaging, spam,
+> or automated marketing.**
 
-- Link one WhatsApp number by scanning a QR code
-- Shared inbox: everyone sees all chats; assignment, internal notes, open / resolved
-- Text, media in/out, groups, quick replies (`/` picker), typing indicators
-- Web push notifications; installable PWA, fully mobile responsive
-- Access locally, over LAN, or via a Cloudflare quick tunnel / named tunnel
-- Admin: members and roles, WhatsApp status, tunnel, settings, audit log, log download
-- Standalone mode or boot-time OS service (Windows service / macOS launchd daemon)
-- Nightly local backups
+## Why
+
+Small teams often share one business WhatsApp number on one phone. Someone has to hold the phone,
+replies get missed, and nobody knows who is handling which customer. WA Team Inbox links that
+number once and lets everyone on the team answer from their own phone or laptop, with assignment
+and internal notes, and with no cloud service in the middle: your messages stay on your computer.
+
+## Features
+
+- **Link one number** by scanning a QR code; recent history is imported (configurable number of days).
+- **Shared inbox**: everyone sees every chat, with assignment, open / resolved status, unread counts and search.
+- **Internal notes** and system events in the timeline, clearly separate from customer-visible messages.
+- **Messaging**: text, replies (quotes), images, video, audio and documents in both directions, group chats,
+  typing indicators, delivery and read ticks, a send queue that survives short disconnects, and retry for failed sends.
+- **Quick replies** with a `/` picker.
+- **Installable PWA**, fully responsive down to 360px, with **web push notifications** for new messages
+  (sent to the assignee, or to everyone when a chat is unassigned).
+- **Access anywhere**: on the same computer, over your LAN, or from anywhere through a Cloudflare
+  quick tunnel (no account needed) or your own named tunnel. `cloudflared` is bundled.
+- **Admin**: members and roles, WhatsApp connection status and relink, tunnel control, settings,
+  audit log and log download.
+- **Two run modes**: standalone while the app is open, or a boot-time OS service that runs with
+  nobody signed in (Windows service / macOS launchd daemon).
+- **Nightly local backups** of the database and WhatsApp session (last 7 kept).
+- **Security-minded defaults**: argon2 passwords, hashed sessions, login lockout, Host/Origin checks,
+  first-admin setup only from the computer itself.
 
 ## Install
 
-Unsigned installers will be published on the GitHub Releases page once v1 is ready.
+Download the latest installer from the
+[**GitHub Releases**](https://github.com/ossmalaysia/wa-team-inbox/releases) page:
+
+| Platform              | File                                    |
+| --------------------- | --------------------------------------- |
+| Windows 10/11 (x64)   | `WA-Team-Inbox-<version>-win-x64.exe`   |
+| macOS (Apple Silicon) | `WA-Team-Inbox-<version>-mac-arm64.dmg` |
+| macOS (Intel)         | `WA-Team-Inbox-<version>-mac-x64.dmg`   |
+
+The builds are **not code-signed** yet, so your OS will warn you the first time:
+
+- **Windows SmartScreen** ("Windows protected your PC"): click **More info**, then **Run anyway**.
+- **macOS Gatekeeper** ("cannot be opened because the developer cannot be verified"): open the dmg,
+  drag the app to Applications, then **right-click (or Control-click) the app → Open → Open**.
+  On recent macOS versions you may instead need **System Settings → Privacy & Security → Open Anyway**.
+
+Only download installers from this repository's Releases page.
+
+## Quick start
+
+1. **Open WA Team Inbox.** It starts a local server and opens the inbox window. On first run, create
+   the admin account (this is only allowed from the computer running the app).
+2. **Link your number.** Go to **Admin → WhatsApp**, then on your phone open WhatsApp →
+   **Settings → Linked devices → Link a device** and scan the QR code.
+3. **Invite your team.** In **Admin → Members**, add each person with a username and a temporary
+   password (they change it at first sign-in). Give admins the admin role.
+4. **Make it reachable.** In **Admin → Tunnel**, start a **quick tunnel** to get a public
+   `https://….trycloudflare.com` URL (it changes on every start), or paste a Cloudflare
+   **named tunnel** token for a stable hostname. Alternatively enable **LAN mode** in Settings for
+   access on your local network only.
+5. **On each phone:** open the URL, sign in, then **Add to Home Screen** (Safari share menu on
+   iOS, browser menu on Android) and allow notifications. On iOS, push notifications only work from
+   the installed Home Screen app, not from a Safari tab.
+
+## Run modes
+
+|               | Standalone (default)                                                            | Background service                                                            |
+| ------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Runs when     | the desktop app is open (closing the window keeps it in the tray)               | the computer is on, even with nobody signed in                                |
+| Data folder   | your user profile                                                               | `C:\ProgramData\wa-team-inbox` / `/Library/Application Support/wa-team-inbox` |
+| How to switch | tray → **Status & Service…** → enable / disable service (asks for admin rights) | same                                                                          |
+
+When the service is installed, the desktop app is just a window onto it. The tray menu also offers
+**Reset admin password…**, the only way to recover the admin account.
 
 ## Development
 
@@ -38,29 +110,37 @@ Requirements: Node.js 22+ and npm 10+.
 
 ```bash
 npm install
-npm run dev        # server with a fake WhatsApp adapter + web UI (Vite)
-npm test           # all unit/integration tests (Vitest)
+npm run dev        # server with a fake WhatsApp adapter + Vite web UI (no real number needed)
+npm test           # Vitest, all workspaces
 npm run lint
 npm run typecheck
+npm run e2e        # Playwright (desktop, Pixel 7 and iPhone 14 viewports)
+npm start -w @wa-team-inbox/desktop   # run the Electron app
+npm run dist -w @wa-team-inbox/desktop  # build an installer for the current OS
 ```
 
 | Path              | Package                  | What                                                 |
 | ----------------- | ------------------------ | ---------------------------------------------------- |
-| `packages/shared` | `@wa-team-inbox/shared`  | zod schemas + types for REST and socket payloads     |
+| `packages/shared` | `@wa-team-inbox/shared`  | zod schemas and types for REST and socket payloads   |
 | `packages/wa`     | `@wa-team-inbox/wa`      | `WaAdapter` interface, Baileys adapter, fake adapter |
 | `packages/server` | `@wa-team-inbox/server`  | Fastify + Socket.IO + SQLite server (owns all state) |
-| `apps/web`        | `@wa-team-inbox/web`     | React PWA (Vite + Tailwind)                          |
+| `apps/web`        | `@wa-team-inbox/web`     | React PWA (Vite, Tailwind, shadcn/ui)                |
 | `apps/desktop`    | `@wa-team-inbox/desktop` | Electron shell, tray, service manager, packaging     |
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+Read [docs/architecture.md](docs/architecture.md) for how the pieces fit together and
+[docs/design-system.md](docs/design-system.md) before touching the UI. Release testing with a real
+number follows [docs/manual-test-checklist.md](docs/manual-test-checklist.md).
 
-## Architecture overview
+## Contributing
 
-The server is a standalone Node program that owns the database and the WhatsApp connection.
-The desktop app either runs it as a child process (standalone mode) or installs it as an OS
-service. The web app talks to it over REST and Socket.IO. Design details live in
-`docs/superpowers/specs/`.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions
+(Conventional Commits, tests required for behaviour changes) and the PR process, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in public issues.
 
 ## License
 
-[MIT](LICENSE) (c) 2026 OSS Malaysia and contributors
+[MIT](LICENSE) © 2026 OSS Malaysia and contributors

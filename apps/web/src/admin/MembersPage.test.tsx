@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -59,6 +59,15 @@ function setup() {
   return fetchMock;
 }
 
+// Radix Select relies on pointer-capture / scrollIntoView, which jsdom lacks.
+beforeAll(() => {
+  const proto = Element.prototype as unknown as Record<string, unknown>;
+  proto.hasPointerCapture ??= () => false;
+  proto.setPointerCapture ??= () => {};
+  proto.releasePointerCapture ??= () => {};
+  proto.scrollIntoView ??= () => {};
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -83,7 +92,8 @@ describe('MembersPage', () => {
 
     await user.type(d.getByLabelText(/^username/i), 'carol');
     await user.type(d.getByLabelText(/display name/i), 'Carol Chan');
-    await user.selectOptions(d.getByLabelText(/role/i), 'admin');
+    await user.click(d.getByRole('combobox', { name: /role/i }));
+    await user.click(await screen.findByRole('option', { name: 'Admin' }));
     const pw = d.getByLabelText(/temporary password/i) as HTMLInputElement;
     await user.clear(pw);
     await user.type(pw, 'temp-pass-123');

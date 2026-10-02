@@ -1,10 +1,12 @@
-import clsx from 'clsx';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Check, CircleCheck, Globe, Inbox, UserPlus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ApiError, errorMessage } from '../api/client';
 import { useSetupAdmin, useSetupStatus } from '../api/queries';
-import { AuthShell } from '../auth/AuthShell';
-import { Banner, Button, FullPageSpinner, Input } from '../components/legacy';
+import { AuthShell, ButtonSpinner, Field, FullPageLoader } from '../auth/AuthShell';
+import { Banner } from '@/components/app';
+import { Button } from '@/components/ui/button';
 import { WaLinkStep } from './WaLinkStep';
 
 type Step = 'admin' | 'whatsapp' | 'done';
@@ -22,25 +24,30 @@ function StepIndicator({ current }: { current: Step }) {
       {STEPS.map((s, i) => (
         <li key={s.id} className="flex min-w-0 flex-1 items-center gap-2">
           <span
-            className={clsx(
-              'inline-flex size-6 shrink-0 items-center justify-center rounded-full font-semibold',
-              i < idx && 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-neutral-950',
-              i === idx &&
-                'border-2 border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300',
-              i > idx && 'border border-neutral-300 text-neutral-500 dark:border-neutral-700',
+            className={cn(
+              'inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+              i < idx && 'bg-primary text-primary-foreground',
+              i === idx && 'border-2 border-primary text-primary',
+              i > idx && 'border border-border text-muted-foreground',
             )}
             aria-current={i === idx ? 'step' : undefined}
           >
-            {i < idx ? '✓' : i + 1}
+            {i < idx ? <Check className="size-4" aria-label="Done" /> : i + 1}
           </span>
           <span
-            className={clsx(
+            className={cn(
               'hidden truncate sm:inline',
-              i === idx ? 'font-medium text-neutral-900 dark:text-neutral-100' : 'text-neutral-500',
+              i === idx ? 'font-medium text-foreground' : 'text-muted-foreground',
             )}
           >
             {s.label}
           </span>
+          {i < STEPS.length - 1 && (
+            <span
+              aria-hidden="true"
+              className={cn('h-px min-w-3 flex-1', i < idx ? 'bg-primary' : 'bg-border')}
+            />
+          )}
         </li>
       ))}
     </ol>
@@ -79,17 +86,17 @@ function AdminStep({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+      <p className="text-sm text-muted-foreground">
         Create the first admin account. You can add team members later.
       </p>
       {create.error && (
-        <Banner tone="error" title={forbidden ? 'Setup must be done on this computer' : undefined}>
+        <Banner tone="danger" title={forbidden ? 'Setup must be done on this computer' : undefined}>
           {forbidden
             ? 'For security, the first admin can only be created from the computer running WA Team Inbox. Open http://localhost:7420 there.'
             : errorMessage(create.error)}
         </Banner>
       )}
-      <Input
+      <Field
         label="Username"
         autoComplete="username"
         autoCapitalize="none"
@@ -99,14 +106,14 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         onChange={(e) => setUsername(e.target.value)}
         error={usernameError}
       />
-      <Input
+      <Field
         label="Display name"
         autoComplete="name"
         value={displayName}
         onChange={(e) => setDisplayName(e.target.value)}
         hint="Shown to teammates next to your replies."
       />
-      <Input
+      <Field
         label="Password"
         type="password"
         autoComplete="new-password"
@@ -115,7 +122,7 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         error={passwordError}
         hint="At least 8 characters."
       />
-      <Input
+      <Field
         label="Confirm password"
         type="password"
         autoComplete="new-password"
@@ -123,7 +130,14 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         onChange={(e) => setConfirm(e.target.value)}
         error={confirmError}
       />
-      <Button type="submit" size="lg" fullWidth loading={create.isPending} disabled={!valid}>
+      <Button
+        type="submit"
+        size="touch"
+        className="w-full"
+        aria-busy={create.isPending || undefined}
+        disabled={create.isPending || !valid}
+      >
+        {create.isPending ? <ButtonSpinner /> : <UserPlus aria-hidden="true" />}
         Create admin
       </Button>
     </form>
@@ -134,24 +148,29 @@ function DoneStep() {
   const navigate = useNavigate();
   return (
     <div className="flex flex-col gap-4">
-      <Banner tone="success" title="You're all set">
-        Your team inbox is ready.
-      </Banner>
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+      <div role="status" className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm">
+        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="font-medium">You're all set</p>
+          <p className="text-muted-foreground">Your team inbox is ready.</p>
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground">
         Want teammates to use the inbox from their phones outside this network? Turn on a Cloudflare
-        tunnel under <strong>Admin → Tunnel</strong>. You can also add team members under{' '}
-        <strong>Admin → Members</strong>.
+        tunnel under <strong className="text-foreground">Admin → Tunnel</strong>. You can also add
+        team members under <strong className="text-foreground">Admin → Members</strong>.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button size="lg" fullWidth onClick={() => navigate('/', { replace: true })}>
+        <Button size="touch" className="w-full sm:flex-1" onClick={() => navigate('/', { replace: true })}>
+          <Inbox aria-hidden="true" />
           Go to inbox
         </Button>
-        <Link
-          to="/admin/tunnel"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-neutral-300 px-5 text-base font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-800"
-        >
-          Set up remote access
-        </Link>
+        <Button asChild variant="outline" size="touch" className="w-full sm:flex-1">
+          <Link to="/admin/tunnel">
+            <Globe aria-hidden="true" />
+            Set up remote access
+          </Link>
+        </Button>
       </div>
     </div>
   );
@@ -167,7 +186,7 @@ export function SetupWizard() {
   const [wizardStarted, setWizardStarted] = useState(false);
   if (status.data?.needsSetup && !wizardStarted) setWizardStarted(true);
 
-  if (status.isPending) return <FullPageSpinner />;
+  if (status.isPending) return <FullPageLoader />;
   // Setup already finished (and we're not mid-wizard) → leave.
   if (!wizardStarted && step === 'admin' && status.data && !status.data.needsSetup)
     return <Navigate to="/" replace />;
@@ -176,11 +195,14 @@ export function SetupWizard() {
     <AuthShell
       title="Welcome to WA Team Inbox"
       subtitle="Let's get your shared inbox running."
+      illustration={step === 'admin' ? '/illustrations/welcome.png' : undefined}
       wide
     >
       <StepIndicator current={step} />
       {status.error && step === 'admin' && (
-        <Banner tone="error">{errorMessage(status.error)}</Banner>
+        <Banner tone="danger" className="mb-4">
+          {errorMessage(status.error)}
+        </Banner>
       )}
       {step === 'admin' && <AdminStep onDone={() => setStep('whatsapp')} />}
       {step === 'whatsapp' && (

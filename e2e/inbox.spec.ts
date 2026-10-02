@@ -57,10 +57,10 @@ test.describe('inbox', () => {
     await expect(messages(page).getByText('Hi, need help')).toBeVisible();
 
     // Assign to me.
-    const assign = page.getByLabel('Assigned to');
-    await assign.selectOption({ label: 'Admin (you)' });
-    await expect(assign).not.toHaveValue('');
-    await expect(assign.locator('option:checked')).toHaveText('Admin (you)');
+    const assign = page.getByRole('combobox', { name: 'Assigned to' });
+    await assign.click();
+    await page.getByRole('option', { name: 'Admin (you)' }).click();
+    await expect(assign).toHaveText('Admin (you)');
 
     // Reply.
     const composer = page.getByLabel('Message', { exact: true });

@@ -48,6 +48,26 @@ export default tseslint.config(
     },
   },
   {
+    // Design-system guard (docs/design-system.md): feature code composes components from
+    // src/components/ui (shadcn) and src/components/app, and uses token colour classes only.
+    files: ['apps/web/src/**/*.tsx'],
+    ignores: ['apps/web/src/components/ui/**', 'apps/web/src/components/app/**', '**/*.test.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXOpeningElement[name.name=/^(button|dialog|select)$/]",
+          message: 'Use Button / Dialog / Select from @/components/ui instead of raw elements.',
+        },
+        {
+          selector:
+            "Literal[value=/(^|\\s|:)(bg|text|border|ring|fill|stroke|from|to)-(emerald|neutral|slate|gray|zinc|stone|amber|red|green|sky|teal|blue|yellow|orange)-\\d/]",
+          message: 'Use design tokens (bg-primary, text-muted-foreground, ...) instead of Tailwind palette colours.',
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', '**/test/**', 'e2e/**'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

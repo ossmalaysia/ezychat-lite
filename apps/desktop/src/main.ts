@@ -16,6 +16,7 @@ import {
   serverHost,
   servicePortFile,
   standalonePortFile,
+  trayIconFile,
   userDataDir,
   webDistDir,
   winswExe,
@@ -97,14 +98,20 @@ async function main(): Promise<void> {
   };
 
   const appIcon: NativeImage = nativeImage.createFromBuffer(iconPng(256));
-  const trayIcon: NativeImage =
-    process.platform === 'darwin'
-      ? (() => {
-          const img = nativeImage.createFromBuffer(iconPng(32, { monochrome: true }), { scaleFactor: 2 });
-          img.setTemplateImage(true);
-          return img;
-        })()
-      : nativeImage.createFromBuffer(iconPng(32));
+  // Tray icon from build/tray (resources/tray when packaged); generated icon if missing/unreadable.
+  const trayIcon: NativeImage = (() => {
+    const mac = process.platform === 'darwin';
+    const file = trayIconFile(isPackaged, resourcesPath, appPath);
+    let img = existsSync(file) ? nativeImage.createFromPath(file) : nativeImage.createEmpty();
+    if (img.isEmpty()) {
+      log(`tray icon not found at ${file}; using generated icon`);
+      img = mac
+        ? nativeImage.createFromBuffer(iconPng(32, { monochrome: true }), { scaleFactor: 2 })
+        : nativeImage.createFromBuffer(iconPng(32));
+    }
+    if (mac) img.setTemplateImage(true);
+    return img;
+  })();
 
   const host = serverHost(appPath);
   // macOS: <X>.app/Contents/MacOS/<X> → <X>.app (only meaningful when packaged)

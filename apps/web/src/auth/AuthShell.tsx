@@ -1,45 +1,118 @@
-import type React from 'react';
+import * as React from 'react';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-/** Brand mark: simple chat bubble in emerald (deliberately not any third-party logo). */
+/** Brand mark: the app icon (teal tile with an inbox glyph — not a third-party logo). */
 export function AppMark({ className = 'size-10' }: { className?: string }) {
-  return <img src="/icon.svg" alt="" aria-hidden="true" className={className} />;
+  return <img src="/icon.svg" alt="" aria-hidden="true" className={cn('select-none', className)} />;
 }
 
-/** Centered, safe-area aware layout for login / setup / password screens. */
+/** Centered, safe-area aware Card layout for login / setup / password screens. */
 export function AuthShell({
   title,
   subtitle,
   children,
   wide = false,
+  illustration,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   children: React.ReactNode;
   wide?: boolean;
+  /** Optional decorative illustration shown above the title. */
+  illustration?: string;
 }) {
   return (
-    <div className="safe-x safe-top safe-bottom min-h-dvh bg-neutral-50 dark:bg-neutral-950">
-      <div className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
-        <div className={wide ? 'w-full max-w-xl' : 'w-full max-w-sm'}>
-          <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <AppMark className="size-12" />
-            <div>
-              <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-                {title}
-              </h1>
-              {subtitle && (
-                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{subtitle}</p>
+    <div className="safe-x safe-top safe-bottom min-h-dvh bg-background text-foreground">
+      <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
+        <div className={cn('w-full min-w-0', wide ? 'max-w-xl' : 'max-w-sm')}>
+          <div className="mb-4 flex items-center justify-center gap-2">
+            <AppMark className="size-8 rounded-lg" />
+            <span className="text-sm font-semibold tracking-tight">WA Team Inbox</span>
+          </div>
+          <Card className="gap-5 py-5 sm:py-6">
+            <CardHeader className="items-center px-4 text-center sm:px-6">
+              {illustration && (
+                <img
+                  src={illustration}
+                  alt=""
+                  aria-hidden="true"
+                  className="mx-auto mb-1 h-28 w-auto max-w-full select-none object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
               )}
-            </div>
-          </div>
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6 dark:border-neutral-800 dark:bg-neutral-900">
-            {children}
-          </div>
-          <p className="mt-6 text-center text-xs text-neutral-500 dark:text-neutral-500">
-            WA Team Inbox
-          </p>
+              <CardTitle>
+                <h1 className="text-xl font-semibold leading-tight">{title}</h1>
+              </CardTitle>
+              {subtitle && <CardDescription>{subtitle}</CardDescription>}
+            </CardHeader>
+            <CardContent className="px-4 sm:px-6">{children}</CardContent>
+          </Card>
         </div>
-      </div>
+      </main>
+    </div>
+  );
+}
+
+/** Label + Input + hint/error, wired with ids for accessibility. 16px text, 44px tall. */
+export function Field({
+  label,
+  hint,
+  error,
+  className,
+  id: idProp,
+  ...props
+}: React.ComponentProps<'input'> & {
+  label: string;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+}) {
+  const autoId = React.useId();
+  const id = idProp ?? autoId;
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+  return (
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className="h-11 text-base md:text-base"
+        {...props}
+      />
+      {error ? (
+        <p id={`${id}-error`} className="text-xs text-danger">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Spinner icon used inside busy Buttons. */
+export function ButtonSpinner() {
+  return <Loader2 className="animate-spin" aria-hidden="true" />;
+}
+
+/** Full-viewport loading state while auth/setup status resolves. */
+export function FullPageLoader({ label = 'Loading…' }: { label?: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+      className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"
+    >
+      <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
     </div>
   );
 }

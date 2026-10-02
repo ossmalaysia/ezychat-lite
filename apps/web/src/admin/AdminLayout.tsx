@@ -1,8 +1,30 @@
-import clsx from 'clsx';
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { useState } from 'react';
+import {
+  ChevronLeft,
+  Loader2,
+  Menu,
+  MessageSquareText,
+  ScrollText,
+  Settings,
+  Smartphone,
+  Globe,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { FullPageSpinner } from '../components/legacy';
 import { PushToggle } from '../pwa/PushToggle';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
 import { QuickRepliesPage } from './QuickRepliesPage';
@@ -10,99 +32,115 @@ import { SettingsPage } from './SettingsPage';
 import { TunnelPage } from './TunnelPage';
 import { WhatsAppPage } from './WhatsAppPage';
 
-export const ADMIN_NAV = [
-  { to: 'members', label: 'Members' },
-  { to: 'quick-replies', label: 'Quick replies' },
-  { to: 'whatsapp', label: 'WhatsApp' },
-  { to: 'tunnel', label: 'Tunnel' },
-  { to: 'settings', label: 'Settings' },
-  { to: 'audit', label: 'Audit' },
-] as const;
+export const ADMIN_NAV: readonly { to: string; label: string; icon: LucideIcon }[] = [
+  { to: 'members', label: 'Members', icon: Users },
+  { to: 'quick-replies', label: 'Quick replies', icon: MessageSquareText },
+  { to: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
+  { to: 'tunnel', label: 'Tunnel', icon: Globe },
+  { to: 'settings', label: 'Settings', icon: Settings },
+  { to: 'audit', label: 'Audit', icon: ScrollText },
+];
+
+function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
+  return (
+    <nav aria-label="Admin sections" className={className}>
+      <ul className="flex flex-col gap-1">
+        {ADMIN_NAV.map((n) => (
+          <li key={n.to}>
+            <NavLink
+              to={n.to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
+                  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )
+              }
+            >
+              <n.icon className="size-4 shrink-0" aria-hidden />
+              {n.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
 
 /**
- * Admin shell. Side nav on >= md, horizontally scrolling tab bar on phones.
+ * Admin shell. Side nav on >= md; on phones a top bar with a Sheet menu.
  * Mounted by App.tsx at `/admin/*`; non-admins are redirected to `/`.
  */
 export function AdminLayout() {
   const { user, isLoading } = useAuth();
-  if (isLoading) return <FullPageSpinner />;
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  if (isLoading)
+    return (
+      <div role="status" className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
+        <Loader2 className="size-6 animate-spin" aria-hidden />
+        <span className="sr-only">Loading</span>
+      </div>
+    );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
+  const current = ADMIN_NAV.find((n) => location.pathname.includes(`/admin/${n.to}`));
+
   return (
-    <div className="safe-x flex min-h-dvh flex-col bg-neutral-50 md:flex-row dark:bg-neutral-950">
-      {/* Phone: header + tab bar */}
-      <header className="safe-top sticky top-0 z-20 border-b border-neutral-200 bg-white md:hidden dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="flex items-center gap-2 px-2">
-          <Link
-            to="/"
-            className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-emerald-700 dark:text-emerald-400"
-          >
-            <BackIcon /> Inbox
-          </Link>
-          <h1 className="flex-1 truncate text-center text-base font-semibold">Admin</h1>
-          <span className="w-16" aria-hidden="true" />
+    <div className="safe-x flex min-h-dvh flex-col bg-background text-foreground md:flex-row">
+      {/* Phone: top bar with section menu */}
+      <header className="safe-top sticky top-0 z-20 border-b bg-card md:hidden">
+        <div className="flex items-center gap-1 px-1">
+          <Button asChild variant="ghost" size="touch" className="px-2 text-primary">
+            <Link to="/">
+              <ChevronLeft aria-hidden />
+              Inbox
+            </Link>
+          </Button>
+          <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
+            {current ? `Admin · ${current.label}` : 'Admin'}
+          </p>
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon-touch" aria-label="Admin menu">
+                <Menu aria-hidden />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 max-w-[85vw] gap-0 p-0">
+              <SheetHeader className="border-b">
+                <SheetTitle>Admin</SheetTitle>
+                <SheetDescription>WA Team Inbox</SheetDescription>
+              </SheetHeader>
+              <AdminNav className="flex-1 overflow-y-auto p-2" onNavigate={() => setMenuOpen(false)} />
+              <Separator />
+              <div className="safe-bottom flex flex-col gap-2 p-3">
+                <PushToggle compact />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-        <nav aria-label="Admin sections" className="overflow-x-auto">
-          <ul className="flex min-w-max gap-1 px-2 pb-2">
-            {ADMIN_NAV.map((n) => (
-              <li key={n.to}>
-                <NavLink
-                  to={n.to}
-                  className={({ isActive }) =>
-                    clsx(
-                      'inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium',
-                      isActive
-                        ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-neutral-950'
-                        : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800',
-                    )
-                  }
-                >
-                  {n.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </header>
 
       {/* Desktop: side nav */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white md:flex dark:border-neutral-800 dark:bg-neutral-900">
+      <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
         <div className="sticky top-0 flex h-dvh flex-col">
-          <div className="border-b border-neutral-200 px-4 py-4 dark:border-neutral-800">
-            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-              WA Team Inbox
-            </p>
+          <div className="border-b px-4 py-4">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">WA Team Inbox</p>
             <p className="text-lg font-semibold">Admin</p>
           </div>
-          <nav aria-label="Admin sections" className="flex-1 overflow-y-auto p-2">
-            <ul className="space-y-1">
-              {ADMIN_NAV.map((n) => (
-                <li key={n.to}>
-                  <NavLink
-                    to={n.to}
-                    className={({ isActive }) =>
-                      clsx(
-                        'flex min-h-10 items-center rounded-lg px-3 text-sm font-medium',
-                        isActive
-                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200'
-                          : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800',
-                      )
-                    }
-                  >
-                    {n.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="space-y-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+          <AdminNav className="flex-1 overflow-y-auto p-2" />
+          <div className="flex flex-col gap-2 border-t p-3">
             <PushToggle compact />
-            <Link
-              to="/"
-              className="flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium text-emerald-700 hover:bg-neutral-100 dark:text-emerald-400 dark:hover:bg-neutral-800"
-            >
-              <BackIcon /> Back to inbox
-            </Link>
+            <Button asChild variant="ghost" className="justify-start px-3 text-primary">
+              <Link to="/">
+                <ChevronLeft aria-hidden />
+                Back to inbox
+              </Link>
+            </Button>
           </div>
         </div>
       </aside>
@@ -122,14 +160,6 @@ export function AdminLayout() {
         </div>
       </main>
     </div>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 

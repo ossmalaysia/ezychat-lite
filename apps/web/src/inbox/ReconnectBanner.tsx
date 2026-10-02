@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useRealtime } from '../api/socket';
-import { Banner } from '../components/legacy';
+import { Banner } from '@/components/app';
 
 /**
  * Shown while the realtime (Socket.IO) link to the server is down after having been up once,
@@ -11,7 +11,7 @@ export function ReconnectBannerView({ connected }: { connected: boolean }) {
   if (connected) everConnected.current = true;
   if (connected || !everConnected.current) return null;
   return (
-    <div className="border-b border-neutral-200 bg-white px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+    <div className="border-b bg-surface px-3 py-2">
       <Banner tone="warning" title="Reconnecting to server…">
         New messages and updates may be delayed until the connection is back.
       </Banner>

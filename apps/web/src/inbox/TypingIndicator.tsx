@@ -12,14 +12,11 @@ export function TypingIndicator({ entries, meId }: { entries: TypingEntry[]; meI
         ? `${names[0]} and ${names[1]} are typing…`
         : `${names.length} teammates are typing…`;
   return (
-    <div
-      className="flex items-center gap-2 px-4 py-1 text-xs text-neutral-500 dark:text-neutral-400"
-      aria-live="polite"
-    >
+    <div className="flex items-center gap-2 px-4 py-1 text-xs text-muted-foreground" aria-live="polite">
       <span className="flex gap-0.5" aria-hidden="true">
-        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-current" />
+        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s] motion-reduce:animate-none" />
+        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s] motion-reduce:animate-none" />
+        <span className="size-1.5 animate-bounce rounded-full bg-current motion-reduce:animate-none" />
       </span>
       <span className="truncate">{text}</span>
     </div>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { ArrowLeft, KeyRound, LogOut } from 'lucide-react';
 import { errorMessage } from '../api/client';
 import { useChangePassword } from '../api/queries';
-import { Banner, Button, FullPageSpinner, Input } from '../components/legacy';
+import { Banner } from '@/components/app';
+import { Button } from '@/components/ui/button';
 import { useAuth } from './AuthProvider';
-import { AuthShell } from './AuthShell';
+import { AuthShell, ButtonSpinner, Field, FullPageLoader } from './AuthShell';
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ export function ChangePasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [touched, setTouched] = useState(false);
 
-  if (isLoading) return <FullPageSpinner />;
+  if (isLoading) return <FullPageLoader />;
   if (!user) return <Navigate to="/login" replace />;
 
   const forced = user.mustChangePassword;
@@ -44,8 +46,8 @@ export function ChangePasswordPage() {
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        {change.error && <Banner tone="error">{errorMessage(change.error)}</Banner>}
-        <Input
+        {change.error && <Banner tone="danger">{errorMessage(change.error)}</Banner>}
+        <Field
           label="Current password"
           type="password"
           autoComplete="current-password"
@@ -53,7 +55,7 @@ export function ChangePasswordPage() {
           onChange={(e) => setCurrent(e.target.value)}
           error={touched && !current ? 'Required' : undefined}
         />
-        <Input
+        <Field
           label="New password"
           type="password"
           autoComplete="new-password"
@@ -68,7 +70,7 @@ export function ChangePasswordPage() {
                 : undefined
           }
         />
-        <Input
+        <Field
           label="Confirm new password"
           type="password"
           autoComplete="new-password"
@@ -76,16 +78,31 @@ export function ChangePasswordPage() {
           onChange={(e) => setConfirm(e.target.value)}
           error={mismatch ? 'Passwords do not match.' : undefined}
         />
-        <Button type="submit" size="lg" fullWidth loading={change.isPending} disabled={!valid}>
+        <Button
+          type="submit"
+          size="touch"
+          className="w-full"
+          aria-busy={change.isPending || undefined}
+          disabled={change.isPending || !valid}
+        >
+          {change.isPending ? <ButtonSpinner /> : <KeyRound aria-hidden="true" />}
           Save password
         </Button>
         <div className="flex justify-between gap-2">
           {!forced && (
-            <Button variant="ghost" onClick={() => navigate(-1)}>
+            <Button type="button" variant="ghost" size="touch" onClick={() => navigate(-1)}>
+              <ArrowLeft aria-hidden="true" />
               Cancel
             </Button>
           )}
-          <Button variant="ghost" className="ml-auto" onClick={() => void logout()}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="touch"
+            className="ml-auto"
+            onClick={() => void logout()}
+          >
+            <LogOut aria-hidden="true" />
             Sign out
           </Button>
         </div>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { LogIn } from 'lucide-react';
 import { errorMessage } from '../api/client';
 import { useLogin, useMe, useSetupStatus } from '../api/queries';
-import { Banner, Button, Input } from '../components/legacy';
-import { AuthShell } from './AuthShell';
+import { Banner } from '@/components/app';
+import { Button } from '@/components/ui/button';
+import { AuthShell, ButtonSpinner, Field } from './AuthShell';
 
 function safeFrom(state: unknown): string {
   const from = (state as { from?: unknown } | null)?.from;
@@ -46,8 +48,8 @@ export function LoginPage() {
   return (
     <AuthShell title="Sign in" subtitle="Shared team inbox">
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        {login.error && <Banner tone="error">{errorMessage(login.error)}</Banner>}
-        <Input
+        {login.error && <Banner tone="danger">{errorMessage(login.error)}</Banner>}
+        <Field
           label="Username"
           name="username"
           autoComplete="username"
@@ -58,7 +60,7 @@ export function LoginPage() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
-        <Input
+        <Field
           label="Password"
           name="password"
           type="password"
@@ -69,14 +71,15 @@ export function LoginPage() {
         />
         <Button
           type="submit"
-          size="lg"
-          fullWidth
-          loading={login.isPending}
-          disabled={!username.trim() || !password}
+          size="touch"
+          className="w-full"
+          aria-busy={login.isPending || undefined}
+          disabled={login.isPending || !username.trim() || !password}
         >
+          {login.isPending ? <ButtonSpinner /> : <LogIn aria-hidden="true" />}
           Sign in
         </Button>
-        <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-center text-xs text-muted-foreground">
           Forgot your password? Ask an admin to reset it.
         </p>
       </form>

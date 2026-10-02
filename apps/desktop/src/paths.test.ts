@@ -6,6 +6,7 @@ import {
   machineDataDir,
   parseDesktopConfig,
   serverEntry,
+  trayIconFile,
   userDataDir,
   webDistDir,
   winswExe,
@@ -86,5 +87,17 @@ describe('service host + port files', () => {
   it('macOS service port file is in the root-owned runtime dir (not the 700 data dir)', async () => {
     const { servicePortFile } = await import('./paths.js');
     expect(servicePortFile('darwin', {})).toBe('/Library/Application Support/wa-team-inbox-runtime/port.json');
+  });
+});
+
+describe('trayIconFile', () => {
+  it('uses the template image on macOS from resources when packaged', () => {
+    expect(trayIconFile(true, '/res', '/res/app.asar', 'darwin')).toBe(join('/res', 'tray', 'trayTemplate.png'));
+  });
+  it('uses tray.png on Windows from resources when packaged', () => {
+    expect(trayIconFile(true, 'C:/res', 'C:/res/app.asar', 'win32')).toBe(join('C:/res', 'tray', 'tray.png'));
+  });
+  it('uses build/tray next to the app in dev', () => {
+    expect(trayIconFile(false, '/x', '/repo/apps/desktop', 'win32')).toBe(join('/repo/apps/desktop', 'build', 'tray', 'tray.png'));
   });
 });

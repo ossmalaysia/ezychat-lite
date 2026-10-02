@@ -1,6 +1,7 @@
-import clsx from 'clsx';
 import { useEffect, useRef } from 'react';
+import { MessageSquareText } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
+import { Command, CommandItem, CommandList } from '@/components/ui/command';
 import { truncate } from '../lib/format';
 
 /** Quick replies whose shortcut starts with `query` (case-insensitive), sorted by shortcut. */
@@ -19,23 +20,17 @@ export interface QuickReplyPickerProps {
   activeIndex: number;
   onPick(reply: QuickReply): void;
   onHover?(index: number): void;
-  id?: string;
 }
 
 /**
- * Presentational `/shortcut` picker. Keyboard handling (↑/↓/Enter/Tab/Escape) lives in the
- * Composer, which keeps focus in the textarea and drives `activeIndex`.
+ * `/shortcut` picker built on cmdk. Filtering and keyboard handling (↑/↓/Enter/Tab/Escape) live
+ * in the Composer, which keeps focus in the textarea and drives `activeIndex`; cmdk renders the
+ * listbox/option semantics and the highlighted row.
  */
-export function QuickReplyPicker({
-  replies,
-  query,
-  activeIndex,
-  onPick,
-  onHover,
-  id,
-}: QuickReplyPickerProps) {
+export function QuickReplyPicker({ replies, query, activeIndex, onPick, onHover }: QuickReplyPickerProps) {
   const matches = filterQuickReplies(replies, query);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const active = matches[Math.min(activeIndex, matches.length - 1)];
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`);
@@ -43,49 +38,41 @@ export function QuickReplyPicker({
   }, [activeIndex]);
 
   return (
-    <div className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="border-b border-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+    <Command
+      shouldFilter={false}
+      value={active ? String(active.id) : ''}
+      onValueChange={(v) => {
+        const i = matches.findIndex((r) => String(r.id) === v);
+        if (i >= 0) onHover?.(i);
+      }}
+      className="bg-popover"
+    >
+      <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        <MessageSquareText className="size-3.5" aria-hidden="true" />
         Quick replies
       </div>
       {matches.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-neutral-500 dark:text-neutral-400">
-          No quick reply starts with “/{query}”.
-        </p>
+        <p className="px-3 py-3 text-sm text-muted-foreground">No quick reply starts with “/{query}”.</p>
       ) : (
-        <ul
-          ref={listRef}
-          id={id}
-          role="listbox"
-          aria-label="Quick replies"
-          className="max-h-60 overflow-y-auto overscroll-contain py-1"
-        >
+        <CommandList ref={listRef} label="Quick replies" className="max-h-60 overscroll-contain p-1">
           {matches.map((r, i) => (
-            <li
+            <CommandItem
               key={r.id}
-              role="option"
+              value={String(r.id)}
               data-index={i}
-              aria-selected={i === activeIndex}
+              onSelect={() => onPick(r)}
               // mousedown keeps focus in the textarea
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onPick(r)}
-              onMouseEnter={() => onHover?.(i)}
-              className={clsx(
-                'flex min-h-11 cursor-pointer flex-col justify-center px-3 py-1.5',
-                i === activeIndex
-                  ? 'bg-emerald-50 dark:bg-emerald-900/40'
-                  : 'hover:bg-neutral-50 dark:hover:bg-neutral-800',
-              )}
+              className="min-h-11 cursor-pointer flex-col items-start justify-center gap-0 px-3 py-1.5"
             >
-              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                /{r.shortcut}
-              </span>
-              <span className="truncate text-sm text-neutral-600 dark:text-neutral-300">
+              <span className="text-sm font-semibold text-primary">/{r.shortcut}</span>
+              <span className="w-full truncate text-sm text-muted-foreground">
                 {truncate(r.body.replace(/\s+/g, ' '), 120)}
               </span>
-            </li>
+            </CommandItem>
           ))}
-        </ul>
+        </CommandList>
       )}
-    </div>
+    </Command>
   );
 }

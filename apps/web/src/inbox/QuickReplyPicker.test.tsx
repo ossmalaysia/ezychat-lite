@@ -1,9 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Composer } from './Composer';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
+
+// cmdk (Command) measures its list with ResizeObserver and scrolls the active row into view;
+// jsdom implements neither.
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+  }
+  Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+});
 
 afterEach(() => cleanup());
 

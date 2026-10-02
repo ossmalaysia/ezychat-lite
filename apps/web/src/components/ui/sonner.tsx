@@ -1,5 +1,4 @@
-"use client"
-
+import * as React from "react"
 import {
   CircleCheckIcon,
   InfoIcon,
@@ -7,15 +6,31 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
+const DARK_QUERY = "(prefers-color-scheme: dark)"
+
+function usePrefersDark(): boolean {
+  const [dark, setDark] = React.useState(
+    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(DARK_QUERY).matches
+  )
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+    const mql = window.matchMedia(DARK_QUERY)
+    const onChange = (e: MediaQueryListEvent) => setDark(e.matches)
+    setDark(mql.matches)
+    mql.addEventListener?.("change", onChange)
+    return () => mql.removeEventListener?.("change", onChange)
+  }, [])
+  return dark
+}
+
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const dark = usePrefersDark()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={dark ? "dark" : "light"}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

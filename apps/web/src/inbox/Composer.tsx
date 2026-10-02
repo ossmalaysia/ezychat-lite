@@ -1,7 +1,10 @@
-import clsx from 'clsx';
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Paperclip, SendHorizontal } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 
 export interface ComposerProps {
@@ -53,6 +56,7 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
   const lastTyping = useRef(0);
   const pickerId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
@@ -166,77 +170,83 @@ export function Composer({
   const canSend = text.trim().length > 0 && !disabled && !busy;
 
   return (
-    <div className="relative">
-      {pickerOpen && (
+    <Popover
+      open={pickerOpen}
+      onOpenChange={(o) => {
+        if (!o) setPickerDismissed(true);
+      }}
+    >
+      <PopoverAnchor asChild>
+        <div ref={rowRef} className="flex items-end gap-1.5">
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(e) => void onFile(e)}
+          />
+          <Button
+            variant="ghost"
+            size="icon-touch"
+            aria-label="Attach file"
+            title="Attach file"
+            disabled={disabled}
+            onClick={() => fileRef.current?.click()}
+            className="rounded-full text-muted-foreground"
+          >
+            <Paperclip className="size-5" aria-hidden="true" />
+          </Button>
+          <Textarea
+            ref={areaRef}
+            aria-label="Message"
+            aria-autocomplete="list"
+            aria-expanded={pickerOpen}
+            aria-controls={pickerOpen ? pickerId : undefined}
+            rows={1}
+            value={text}
+            disabled={disabled}
+            placeholder={placeholder}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            // Enter inserts a newline on touch keyboards, so label the key accordingly.
+            enterKeyHint={coarsePointer ? 'enter' : 'send'}
+            className="field-sizing-fixed min-h-11 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+          />
+          <Button
+            size="icon-touch"
+            aria-label="Send"
+            title="Send"
+            disabled={!canSend}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void submit()}
+            className="rounded-full"
+          >
+            <SendHorizontal className="size-5" aria-hidden="true" />
+          </Button>
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        id={pickerId}
+        side="top"
+        align="start"
+        sideOffset={8}
+        // Focus stays in the textarea; the Composer drives the highlighted row.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (rowRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+        className="w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+      >
         <QuickReplyPicker
-          id={pickerId}
           replies={quickReplies}
           query={query ?? ''}
           activeIndex={activeIndex}
           onPick={insertReply}
           onHover={setActiveIndex}
         />
-      )}
-      <div className="flex items-end gap-1.5">
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(e) => void onFile(e)}
-        />
-        <button
-          type="button"
-          aria-label="Attach file"
-          title="Attach file"
-          disabled={disabled}
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 disabled:opacity-40 dark:text-neutral-400 dark:hover:bg-neutral-800"
-        >
-          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path
-              d="M21 12.5l-8.5 8.5a5.5 5.5 0 01-7.8-7.8l9-9a3.7 3.7 0 015.2 5.2l-9 9a1.8 1.8 0 01-2.6-2.6l8.3-8.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <textarea
-          ref={areaRef}
-          aria-label="Message"
-          aria-autocomplete="list"
-          aria-expanded={pickerOpen}
-          aria-controls={pickerOpen ? pickerId : undefined}
-          rows={1}
-          value={text}
-          disabled={disabled}
-          placeholder={placeholder}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          // Enter inserts a newline on touch keyboards, so label the key accordingly.
-          enterKeyHint={coarsePointer ? 'enter' : 'send'}
-          className={clsx(
-            'min-h-11 flex-1 resize-none rounded-2xl border border-neutral-300 bg-white px-3.5 py-2.5 text-base leading-6 text-neutral-900',
-            'placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40',
-            'disabled:cursor-not-allowed disabled:opacity-60',
-            'dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500',
-          )}
-        />
-        <button
-          type="button"
-          aria-label="Send"
-          title="Send"
-          disabled={!canSend}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => void submit()}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400"
-        >
-          <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true">
-            <path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a.99.99 0 00-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
-          </svg>
-        </button>
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

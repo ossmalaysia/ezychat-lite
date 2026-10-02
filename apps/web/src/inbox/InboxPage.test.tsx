@@ -117,7 +117,7 @@ describe('InboxPage', () => {
 
     const user = userEvent.setup();
     await user.type(screen.getByRole('textbox', { name: /message/i }), 'hi{Enter}');
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText(/Assigned to Agent #2/)).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: /reply anyway/i }));
     await vi.waitFor(() => {

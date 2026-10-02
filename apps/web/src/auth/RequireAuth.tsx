@@ -1,9 +1,12 @@
 import type React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import { errorMessage } from '../api/client';
 import { useSetupStatus } from '../api/queries';
-import { Banner, Button, FullPageSpinner } from '../components/legacy';
+import { Banner } from '@/components/app';
+import { Button } from '@/components/ui/button';
 import { useAuth } from './AuthProvider';
+import { FullPageLoader } from './AuthShell';
 
 export interface RequireAuthProps {
   /** Only admins may pass; agents are sent to `/`. */
@@ -21,7 +24,7 @@ export function RequireAuth({ admin = false, children }: RequireAuthProps) {
   const setup = useSetupStatus();
   const { user, isLoading, error } = useAuth();
 
-  if (setup.isPending || isLoading) return <FullPageSpinner />;
+  if (setup.isPending || isLoading) return <FullPageLoader />;
 
   if (setup.data?.needsSetup) return <Navigate to="/setup" replace />;
 
@@ -42,12 +45,13 @@ export function RequireAuth({ admin = false, children }: RequireAuthProps) {
 
 function ServerUnreachable({ message }: { message: string }) {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-neutral-50 px-4 dark:bg-neutral-950">
+    <div className="safe-x flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-3">
-        <Banner tone="error" title="Can't load WA Team Inbox">
+        <Banner tone="danger" title="Can't load WA Team Inbox">
           {message}
         </Banner>
-        <Button fullWidth onClick={() => window.location.reload()}>
+        <Button size="touch" className="w-full" onClick={() => window.location.reload()}>
+          <RefreshCw aria-hidden="true" />
           Retry
         </Button>
       </div>

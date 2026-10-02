@@ -6,6 +6,8 @@ import { ApiError } from './api/client';
 import { RealtimeProvider } from './api/socket';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthProvider';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -29,7 +31,10 @@ createRoot(root).render(
       <BrowserRouter>
         <AuthProvider>
           <RealtimeProvider>
-            <App />
+            <TooltipProvider delayDuration={300}>
+              <App />
+              <Toaster position="top-center" closeButton richColors={false} />
+            </TooltipProvider>
           </RealtimeProvider>
         </AuthProvider>
       </BrowserRouter>

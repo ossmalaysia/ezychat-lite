@@ -1,8 +1,10 @@
+import { Download } from 'lucide-react';
 import type { AuditEntry, User } from '@wa-team-inbox/shared';
 import { useAudit, useUsers } from '../api/queries';
-import { Button, Spinner } from '../components/legacy';
 import { formatDateTime } from '../lib/format';
-import { ErrorState, PageHeader } from './adminUi';
+import { EmptyState, PageHeader, ResponsiveTable, type Column } from '@/components/app';
+import { Button } from '@/components/ui/button';
+import { ErrorState, ListSkeleton, Pending } from './adminUi';
 
 function metaSummary(meta: Record<string, unknown>): string {
   const parts = Object.entries(meta).map(([k, v]) => {
@@ -21,90 +23,70 @@ export function AuditPage() {
 
   const entries = audit.data?.pages.flatMap((p) => p.entries) ?? [];
 
+  const columns: Column<AuditEntry>[] = [
+    {
+      key: 'time',
+      header: 'Time',
+      className: 'md:w-44 whitespace-nowrap text-muted-foreground',
+      cell: (e) => formatDateTime(e.at),
+    },
+    { key: 'who', header: 'Who', className: 'md:w-36', cell: (e) => who(e) },
+    {
+      key: 'action',
+      header: 'Action',
+      className: 'md:w-44',
+      cell: (e) => <span className="font-mono text-xs break-all">{e.action}</span>,
+    },
+    {
+      key: 'details',
+      header: 'Details',
+      cell: (e) => <span className="break-words text-muted-foreground">{metaSummary(e.meta)}</span>,
+    },
+    {
+      key: 'ip',
+      header: 'IP',
+      className: 'md:w-32',
+      cell: (e) => <span className="font-mono text-xs text-muted-foreground">{e.ip ?? ''}</span>,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
         title="Audit log"
         description="Sign-ins, member changes, WhatsApp and tunnel actions."
         actions={
-          <a
-            href="/api/logs/download"
-            className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium hover:bg-neutral-50 sm:min-h-9 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800"
-          >
-            Download logs
-          </a>
+          <Button asChild variant="outline" size="touch" className="md:min-h-9">
+            <a href="/api/logs/download">
+              <Download aria-hidden />
+              Download logs
+            </a>
+          </Button>
         }
       />
 
       {audit.isPending ? (
-        <div className="flex justify-center py-10 text-emerald-600">
-          <Spinner className="size-6" />
-        </div>
+        <ListSkeleton rows={6} />
       ) : audit.isError ? (
         <ErrorState error={audit.error} onRetry={() => void audit.refetch()} />
-      ) : entries.length === 0 ? (
-        <p className="py-10 text-center text-sm text-neutral-500">No audit entries yet.</p>
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-xl border border-neutral-200 bg-white md:block dark:border-neutral-800 dark:bg-neutral-900">
-            <table className="w-full table-fixed text-left text-sm">
-              <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-950/40 dark:text-neutral-400">
-                <tr>
-                  <th className="w-44 px-4 py-3 font-medium">Time</th>
-                  <th className="w-36 px-4 py-3 font-medium">Who</th>
-                  <th className="w-44 px-4 py-3 font-medium">Action</th>
-                  <th className="px-4 py-3 font-medium">Details</th>
-                  <th className="w-32 px-4 py-3 font-medium">IP</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                {entries.map((e) => (
-                  <tr key={e.id}>
-                    <td className="px-4 py-2.5 text-neutral-500">{formatDateTime(e.at)}</td>
-                    <td className="truncate px-4 py-2.5">{who(e)}</td>
-                    <td className="truncate px-4 py-2.5 font-mono text-xs">{e.action}</td>
-                    <td className="break-words px-4 py-2.5 text-neutral-600 dark:text-neutral-400">
-                      {metaSummary(e.meta)}
-                    </td>
-                    <td className="truncate px-4 py-2.5 font-mono text-xs text-neutral-500">
-                      {e.ip ?? ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="space-y-2 md:hidden">
-            {entries.map((e) => (
-              <li
-                key={e.id}
-                className="rounded-xl border border-neutral-200 bg-white p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-mono text-xs font-semibold">{e.action}</span>
-                  <span className="text-xs text-neutral-500">{formatDateTime(e.at)}</span>
-                </div>
-                <p className="mt-1">
-                  {who(e)}
-                  {e.ip && <span className="ml-2 font-mono text-xs text-neutral-500">{e.ip}</span>}
-                </p>
-                {Object.keys(e.meta).length > 0 && (
-                  <p className="mt-1 break-words text-neutral-600 dark:text-neutral-400">
-                    {metaSummary(e.meta)}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-
+          <ResponsiveTable
+            rows={entries}
+            columns={columns}
+            rowKey={(e) => e.id}
+            empty={<EmptyState title="No audit entries yet" />}
+          />
           {audit.hasNextPage && (
             <div className="mt-4 flex justify-center">
               <Button
-                variant="secondary"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
                 onClick={() => void audit.fetchNextPage()}
-                loading={audit.isFetchingNextPage}
+                disabled={audit.isFetchingNextPage}
               >
+                <Pending show={audit.isFetchingNextPage} />
                 Load older
               </Button>
             </div>

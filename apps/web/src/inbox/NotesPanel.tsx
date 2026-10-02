@@ -1,24 +1,35 @@
 import type React from 'react';
 import { useState } from 'react';
+import { Loader2, Lock, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Note } from '@wa-team-inbox/shared';
 import { useAddNote } from '../api/queries';
-import { Button } from '../components/legacy';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { formatDateTime } from '../lib/format';
 import type { Directory } from './useDirectory';
 
 export interface NotesPanelProps {
   jid: string;
+  open: boolean;
   notes: Note[];
   loading: boolean;
   directory: Directory;
   onClose(): void;
 }
 
-/**
- * Internal notes (never sent to the customer). Full-screen sheet on phones,
- * right-hand side panel on >= md.
- */
-export function NotesPanel({ jid, notes, loading, directory, onClose }: NotesPanelProps) {
+function NotesBody({
+  jid,
+  notes,
+  loading,
+  directory,
+  onClose,
+  title,
+  description,
+}: Omit<NotesPanelProps, 'open'> & { title: React.ReactNode; description: React.ReactNode }) {
   const [body, setBody] = useState('');
   const add = useAddNote(jid);
 
@@ -26,73 +37,118 @@ export function NotesPanel({ jid, notes, loading, directory, onClose }: NotesPan
     e.preventDefault();
     const v = body.trim();
     if (!v) return;
-    add.mutate(v, { onSuccess: () => setBody('') });
+    add.mutate(v, {
+      onSuccess: () => setBody(''),
+      onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not save note'),
+    });
   }
 
   const sorted = [...notes].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
-    <aside
-      aria-label="Internal notes"
-      className="safe-top safe-x fixed inset-0 z-40 flex flex-col bg-white lg:static lg:z-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-neutral-200 lg:pt-0 dark:bg-neutral-900 lg:dark:border-neutral-800"
-    >
-      <div className="flex items-center gap-2 border-b border-neutral-200 py-1 pl-4 pr-1.5 dark:border-neutral-800">
-        <h3 className="flex-1 py-2 text-sm font-semibold">Internal notes</h3>
-        <button
-          type="button"
+    <>
+      <div className="flex items-center gap-2 border-b py-1 pl-4 pr-1.5">
+        <div className="flex flex-1 items-center gap-1.5 py-2 text-sm font-semibold">
+          <Lock className="size-4 text-note-foreground" aria-hidden="true" />
+          {title}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-touch"
           aria-label="Close notes"
           onClick={onClose}
-          className="inline-flex size-11 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          className="text-muted-foreground"
         >
-          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-          </svg>
-        </button>
+          <X className="size-5" aria-hidden="true" />
+        </Button>
       </div>
-      <p className="px-4 pt-2 text-xs text-neutral-500 dark:text-neutral-400">
-        Only your team can see notes. They are never sent on WhatsApp.
-      </p>
+      <div className="px-4 pt-2 text-xs text-muted-foreground">{description}</div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3">
         {loading ? (
-          <p className="text-sm text-neutral-500">Loading…</p>
+          <div className="space-y-2" role="status" aria-label="Loading notes">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
         ) : sorted.length === 0 ? (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">No notes yet.</p>
+          <p className="text-sm text-muted-foreground">No notes yet.</p>
         ) : (
           sorted.map((n) => (
             <div
               key={n.id}
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/70 dark:bg-amber-950/50 dark:text-amber-100"
+              className="rounded-lg border border-dashed border-note-border bg-note px-3 py-2 text-sm text-note-foreground"
             >
-              <p className="mb-0.5 flex gap-2 text-xs text-amber-800 dark:text-amber-300">
-                <span className="truncate font-semibold">{directory.nameOf(n.userId, { youLabel: true })}</span>
-                <span className="ml-auto shrink-0">{formatDateTime(n.createdAt)}</span>
+              <p className="mb-0.5 flex gap-2 text-xs">
+                <span className="truncate font-semibold">
+                  {directory.nameOf(n.userId, { youLabel: true })}
+                </span>
+                <span className="ml-auto shrink-0 opacity-80">{formatDateTime(n.createdAt)}</span>
               </p>
               <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{n.body}</p>
             </div>
           ))
         )}
       </div>
-      <form onSubmit={submit} className="safe-bottom border-t border-neutral-200 dark:border-neutral-800">
+      <form onSubmit={submit} className="safe-bottom border-t">
         <div className="flex flex-col gap-2 p-3">
-          <textarea
+          <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             maxLength={8192}
             aria-label="New note"
             placeholder="Add a note for your team"
-            className="w-full resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 placeholder:text-neutral-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+            className="field-sizing-fixed min-h-20 resize-none bg-surface text-base md:text-sm"
           />
-          {add.isError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {add.error instanceof Error ? add.error.message : 'Could not save note'}
-            </p>
-          )}
-          <Button type="submit" loading={add.isPending} disabled={!body.trim()}>
+          <Button type="submit" size="touch" disabled={!body.trim() || add.isPending}>
+            {add.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Add note
           </Button>
         </div>
       </form>
-    </aside>
+    </>
+  );
+}
+
+const DESCRIPTION = 'Only your team can see notes. They are never sent on WhatsApp.';
+
+/**
+ * Internal notes (never sent to the customer). Side panel on >= lg, full-height Sheet below.
+ */
+export function NotesPanel({ open, onClose, ...rest }: NotesPanelProps) {
+  const desktop = useMediaQuery('(min-width: 1024px)');
+
+  if (desktop) {
+    if (!open) return null;
+    return (
+      <aside
+        aria-label="Internal notes"
+        className="flex w-80 shrink-0 flex-col border-l bg-surface"
+      >
+        <NotesBody
+          {...rest}
+          onClose={onClose}
+          title={<h3>Internal notes</h3>}
+          description={<p>{DESCRIPTION}</p>}
+        />
+      </aside>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        aria-label="Internal notes"
+        className="safe-top safe-x w-full gap-0 bg-surface sm:max-w-sm"
+      >
+        <NotesBody
+          {...rest}
+          onClose={onClose}
+          title={<SheetTitle className="text-sm">Internal notes</SheetTitle>}
+          description={<SheetDescription className="text-xs">{DESCRIPTION}</SheetDescription>}
+        />
+      </SheetContent>
+    </Sheet>
   );
 }

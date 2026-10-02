@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type React from 'react';
+import { KeyRound, LogOut, MoreHorizontal, Pencil, RefreshCw, UserCheck, UserPlus, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import {
@@ -10,200 +12,274 @@ import {
   useUsers,
 } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { Avatar, Banner, Button, Input, Modal, Spinner } from '../components/legacy';
 import { formatDateTime } from '../lib/format';
+import { Banner, EmptyState, PageHeader, ResponsiveDialog, ResponsiveTable, type Column } from '@/components/app';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  Badge,
-  ConfirmModal,
-  CopyButton,
-  ErrorState,
-  PageHeader,
-  Select,
-  Toggle,
-  generatePassword,
-} from './adminUi';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ConfirmDialog, CopyButton, ErrorState, Field, ListSkeleton, Pending, generatePassword } from './adminUi';
 
 type Dialog =
   | { kind: 'create' }
   | { kind: 'edit'; user: User }
   | { kind: 'reset'; user: User }
   | { kind: 'revoke'; user: User }
+  | { kind: 'disable'; user: User }
   | null;
 
 export function MembersPage() {
   const users = useUsers();
   const { user: me } = useAuth();
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const close = () => setDialog(null);
 
   const list = users.data ?? [];
+
+  const columns: Column<User>[] = [
+    {
+      key: 'member',
+      header: 'Member',
+      cell: (u) => <MemberIdentity user={u} isMe={u.id === me?.id} />,
+    },
+    { key: 'role', header: 'Role', cell: (u) => <RoleBadge role={u.role} /> },
+    { key: 'status', header: 'Status', cell: (u) => <StatusBadges user={u} /> },
+    {
+      key: 'created',
+      header: 'Created',
+      cell: (u) => <span className="text-muted-foreground">{formatDateTime(u.createdAt)}</span>,
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only md:not-sr-only">Actions</span>,
+      className: 'md:text-right',
+      cell: (u) => <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} />,
+    },
+  ];
 
   return (
     <div>
       <PageHeader
         title="Members"
         description="People who can sign in to the team inbox."
-        actions={<Button onClick={() => setDialog({ kind: 'create' })}>Add member</Button>}
+        actions={
+          <Button size="touch" className="md:min-h-9" onClick={() => setDialog({ kind: 'create' })}>
+            <UserPlus aria-hidden />
+            Add member
+          </Button>
+        }
       />
 
-      {notice && (
-        <Banner
-          tone="success"
-          className="mb-4"
-          action={
-            <Button size="sm" variant="ghost" onClick={() => setNotice(null)}>
-              Dismiss
-            </Button>
-          }
-        >
-          {notice}
-        </Banner>
-      )}
-
       {users.isPending ? (
-        <div className="flex justify-center py-10 text-emerald-600">
-          <Spinner className="size-6" />
-        </div>
+        <ListSkeleton />
       ) : users.isError ? (
         <ErrorState error={users.error} onRetry={() => void users.refetch()} />
-      ) : list.length === 0 ? (
-        <p className="py-10 text-center text-sm text-neutral-500">No members yet.</p>
       ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-xl border border-neutral-200 bg-white md:block dark:border-neutral-800 dark:bg-neutral-900">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-950/40 dark:text-neutral-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Member</th>
-                  <th className="px-4 py-3 font-medium">Role</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                {list.map((u) => (
-                  <tr key={u.id}>
-                    <td className="px-4 py-3">
-                      <MemberIdentity user={u} isMe={u.id === me?.id} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <RoleBadge role={u.role} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadges user={u} />
-                    </td>
-                    <td className="px-4 py-3 text-neutral-500">{formatDateTime(u.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <RowActions user={u} onAction={setDialog} className="justify-end" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile stacked cards */}
-          <ul className="space-y-3 md:hidden">
-            {list.map((u) => (
-              <li
-                key={u.id}
-                className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-              >
-                <MemberIdentity user={u} isMe={u.id === me?.id} />
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <RoleBadge role={u.role} />
-                  <StatusBadges user={u} />
-                </div>
-                <RowActions user={u} onAction={setDialog} className="mt-3" />
-              </li>
-            ))}
-          </ul>
-        </>
+        <ResponsiveTable
+          rows={list}
+          columns={columns}
+          rowKey={(u) => u.id}
+          empty={<EmptyState title="No members yet" description="Add a member so they can sign in." />}
+        />
       )}
 
       {dialog?.kind === 'create' && (
-        <CreateMemberModal
+        <CreateMemberDialog
           onClose={close}
           onCreated={(name) => {
             close();
-            setNotice(`${name} was added. Share the temporary password with them.`);
+            toast.success(`${name} was added. Share the temporary password with them.`);
           }}
         />
       )}
       {dialog?.kind === 'edit' && (
-        <EditMemberModal user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
+        <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
       )}
-      {dialog?.kind === 'reset' && <ResetPasswordModal user={dialog.user} onClose={close} />}
+      {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
       {dialog?.kind === 'revoke' && (
-        <RevokeSessionsModal
+        <RevokeSessionsDialog
           user={dialog.user}
           onClose={close}
           onDone={() => {
             close();
-            setNotice(`Signed ${dialog.user.displayName} out of all devices.`);
+            toast.success(`Signed ${dialog.user.displayName} out of all devices.`);
           }}
         />
       )}
+      {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
     </div>
   );
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '')).toUpperCase() || '?';
 }
 
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <Avatar name={user.displayName} size="sm" seed={user.username} />
+      <Avatar className="size-8">
+        <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
+          {initials(user.displayName)}
+        </AvatarFallback>
+      </Avatar>
       <div className="min-w-0">
-        <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+        <p className="truncate font-medium">
           {user.displayName}
-          {isMe && <span className="ml-1 text-xs font-normal text-neutral-500">(you)</span>}
+          {isMe && <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span>}
         </p>
-        <p className="truncate text-sm text-neutral-500">@{user.username}</p>
+        <p className="truncate text-sm text-muted-foreground">@{user.username}</p>
       </div>
     </div>
   );
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  return <Badge tone={role === 'admin' ? 'info' : 'neutral'}>{role === 'admin' ? 'Admin' : 'Agent'}</Badge>;
+  return role === 'admin' ? (
+    <Badge className="bg-info/15 text-info">Admin</Badge>
+  ) : (
+    <Badge variant="secondary">Agent</Badge>
+  );
 }
 
 function StatusBadges({ user }: { user: User }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
-      {user.disabled ? <Badge tone="error">Disabled</Badge> : <Badge tone="success">Active</Badge>}
-      {user.mustChangePassword && <Badge tone="warning">Must change password</Badge>}
+      {user.disabled ? (
+        <Badge className="bg-danger/15 text-danger">Disabled</Badge>
+      ) : (
+        <Badge className="bg-success/15 text-success">Active</Badge>
+      )}
+      {user.mustChangePassword && <Badge className="bg-warning/15 text-foreground">Must change password</Badge>}
     </span>
   );
 }
 
 function RowActions({
   user,
+  isMe,
   onAction,
-  className,
 }: {
   user: User;
+  isMe: boolean;
   onAction: (d: Dialog) => void;
-  className?: string;
 }) {
   return (
-    <div className={`flex flex-wrap gap-2 ${className ?? ''}`}>
-      <Button size="sm" variant="secondary" onClick={() => onAction({ kind: 'edit', user })}>
+    <div className="flex items-center gap-2 md:justify-end">
+      <Button
+        size="touch"
+        variant="outline"
+        className="md:min-h-8"
+        onClick={() => onAction({ kind: 'edit', user })}
+      >
+        <Pencil aria-hidden />
         Edit
       </Button>
-      <Button size="sm" variant="secondary" onClick={() => onAction({ kind: 'reset', user })}>
-        Reset password
-      </Button>
-      <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'revoke', user })}>
-        Sign out everywhere
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon-touch"
+            variant="ghost"
+            className="md:size-8"
+            aria-label={`More actions for ${user.displayName}`}
+          >
+            <MoreHorizontal aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem className="min-h-11 md:min-h-8" onSelect={() => onAction({ kind: 'reset', user })}>
+            <KeyRound aria-hidden />
+            Reset password
+          </DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11 md:min-h-8" onSelect={() => onAction({ kind: 'revoke', user })}>
+            <LogOut aria-hidden />
+            Sign out everywhere
+          </DropdownMenuItem>
+          {!isMe && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="min-h-11 md:min-h-8"
+                variant={user.disabled ? 'default' : 'destructive'}
+                onSelect={() => onAction({ kind: 'disable', user })}
+              >
+                {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
+                {user.disabled ? 'Enable' : 'Disable'}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
 
-function CreateMemberModal({
+function RoleSelect({
+  value,
+  onChange,
+  disabled,
+  hint,
+}: {
+  value: Role;
+  onChange: (r: Role) => void;
+  disabled?: boolean;
+  hint?: React.ReactNode;
+}) {
+  return (
+    <Field label="Role" hint={hint}>
+      {(p) => (
+        <Select value={value} onValueChange={(v) => onChange(v as Role)} disabled={disabled}>
+          <SelectTrigger {...p} className="min-h-11 w-full md:min-h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="agent" className="min-h-11 md:min-h-8">
+              Agent
+            </SelectItem>
+            <SelectItem value="admin" className="min-h-11 md:min-h-8">
+              Admin
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+    </Field>
+  );
+}
+
+function DialogFooterButtons({
+  onCancel,
+  pending,
+  formId,
+  submitLabel,
+}: {
+  onCancel: () => void;
+  pending: boolean;
+  formId: string;
+  submitLabel: string;
+}) {
+  return (
+    <>
+      <Button variant="outline" size="touch" className="sm:min-h-9" onClick={onCancel} disabled={pending}>
+        Cancel
+      </Button>
+      <Button type="submit" form={formId} size="touch" className="sm:min-h-9" disabled={pending}>
+        <Pending show={pending} />
+        {submitLabel}
+      </Button>
+    </>
+  );
+}
+
+function CreateMemberDialog({
   onClose,
   onCreated,
 }: {
@@ -235,67 +311,79 @@ function CreateMemberModal({
   };
 
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      onClose={onClose}
+      onOpenChange={(o) => !o && !create.isPending && onClose()}
       title="Add member"
-      dismissable={!create.isPending}
       footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
-            Cancel
-          </Button>
-          <Button type="submit" form="create-member-form" loading={create.isPending}>
-            Create member
-          </Button>
-        </>
+        <DialogFooterButtons
+          onCancel={onClose}
+          pending={create.isPending}
+          formId="create-member-form"
+          submitLabel="Create member"
+        />
       }
     >
-      <form id="create-member-form" onSubmit={submit} className="space-y-4" noValidate>
-        <Input
-          label="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoCapitalize="none"
-          autoCorrect="off"
-          autoComplete="off"
-          required
-        />
-        <Input
-          label="Display name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          required
-        />
-        <Select label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-          <option value="agent">Agent</option>
-          <option value="admin">Admin</option>
-        </Select>
-        <div className="space-y-2">
-          <Input
-            label="Temporary password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            hint="They will be asked to change it at first sign-in."
-            className="font-mono"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setPassword(generatePassword())}>
-              Generate
-            </Button>
-            <CopyButton text={password} />
-          </div>
+      <form id="create-member-form" onSubmit={submit} className="flex flex-col gap-4 pb-1" noValidate>
+        <Field label="Username">
+          {(p) => (
+            <Input
+              {...p}
+              className="h-11 md:h-9"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              required
+            />
+          )}
+        </Field>
+        <Field label="Display name">
+          {(p) => (
+            <Input
+              {...p}
+              className="h-11 md:h-9"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+            />
+          )}
+        </Field>
+        <RoleSelect value={role} onChange={setRole} />
+        <Field label="Temporary password" hint="They will be asked to change it at first sign-in.">
+          {(p) => (
+            <Input
+              {...p}
+              className="h-11 font-mono md:h-9"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          )}
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="touch"
+            variant="outline"
+            className="md:min-h-9"
+            onClick={() => setPassword(generatePassword())}
+          >
+            <RefreshCw aria-hidden />
+            Generate
+          </Button>
+          <CopyButton text={password} />
         </div>
         {(localError || create.error) && (
-          <Banner tone="error">{localError ?? errorMessage(create.error)}</Banner>
+          <Banner tone="danger">{localError ?? errorMessage(create.error)}</Banner>
         )}
       </form>
-    </Modal>
+    </ResponsiveDialog>
   );
 }
 
-function EditMemberModal({
+function EditMemberDialog({
   user,
   isMe,
   onClose,
@@ -307,99 +395,127 @@ function EditMemberModal({
   const patch = usePatchUser();
   const [displayName, setDisplayName] = useState(user.displayName);
   const [role, setRole] = useState<Role>(user.role);
-  const [disabled, setDisabled] = useState(user.disabled);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const body: { displayName?: string; role?: Role; disabled?: boolean } = {};
+    const body: { displayName?: string; role?: Role } = {};
     if (displayName.trim() && displayName.trim() !== user.displayName)
       body.displayName = displayName.trim();
     if (role !== user.role) body.role = role;
-    if (disabled !== user.disabled) body.disabled = disabled;
     if (Object.keys(body).length === 0) return onClose();
-    patch.mutate({ id: user.id, patch: body }, { onSuccess: onClose });
+    patch.mutate(
+      { id: user.id, patch: body },
+      {
+        onSuccess: () => {
+          toast.success('Member updated.');
+          onClose();
+        },
+      },
+    );
   };
 
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      onClose={onClose}
+      onOpenChange={(o) => !o && !patch.isPending && onClose()}
       title={`Edit ${user.displayName}`}
-      dismissable={!patch.isPending}
       footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={patch.isPending}>
-            Cancel
-          </Button>
-          <Button type="submit" form="edit-member-form" loading={patch.isPending}>
-            Save
-          </Button>
-        </>
+        <DialogFooterButtons
+          onCancel={onClose}
+          pending={patch.isPending}
+          formId="edit-member-form"
+          submitLabel="Save"
+        />
       }
     >
-      <form id="edit-member-form" onSubmit={submit} className="space-y-4">
-        <Input
-          label="Display name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-        />
-        <Select
-          label="Role"
+      <form id="edit-member-form" onSubmit={submit} className="flex flex-col gap-4 pb-1">
+        <Field label="Display name">
+          {(p) => (
+            <Input
+              {...p}
+              className="h-11 md:h-9"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+          )}
+        </Field>
+        <RoleSelect
           value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
+          onChange={setRole}
           disabled={isMe}
           hint={isMe ? "You can't change your own role." : undefined}
-        >
-          <option value="agent">Agent</option>
-          <option value="admin">Admin</option>
-        </Select>
-        <Toggle
-          label="Disabled"
-          description={
-            isMe
-              ? "You can't disable your own account."
-              : 'Disabled members are signed out immediately and cannot sign in.'
-          }
-          checked={disabled}
-          onChange={setDisabled}
-          disabled={isMe}
         />
-        {patch.error && <Banner tone="error">{errorMessage(patch.error)}</Banner>}
+        {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
       </form>
-    </Modal>
+    </ResponsiveDialog>
   );
 }
 
-function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
+function DisableMemberDialog({ user, onClose }: { user: User; onClose: () => void }) {
+  const patch = usePatchUser();
+  const enabling = user.disabled;
+  return (
+    <ConfirmDialog
+      open
+      title={enabling ? `Enable ${user.displayName}?` : `Disable ${user.displayName}?`}
+      confirmLabel={enabling ? 'Enable' : 'Disable'}
+      danger={!enabling}
+      loading={patch.isPending}
+      error={patch.error ?? undefined}
+      onConfirm={() =>
+        patch.mutate(
+          { id: user.id, patch: { disabled: !enabling } },
+          {
+            onSuccess: () => {
+              toast.success(enabling ? `${user.displayName} can sign in again.` : `${user.displayName} was disabled.`);
+              onClose();
+            },
+          },
+        )
+      }
+      onClose={onClose}
+    >
+      <p>
+        {enabling
+          ? 'They will be able to sign in again.'
+          : 'Disabled members are signed out immediately and cannot sign in.'}
+      </p>
+    </ConfirmDialog>
+  );
+}
+
+function ResetPasswordDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const reset = useResetPassword();
   const newPassword = reset.data?.password;
 
   if (newPassword) {
     return (
-      <Modal
+      <ResponsiveDialog
         open
-        onClose={onClose}
+        onOpenChange={(o) => !o && onClose()}
         title="New temporary password"
-        footer={<Button onClick={onClose}>Done</Button>}
+        description={`Share this password with ${user.displayName}. It is shown only once; they must change it at next sign-in. Their other sessions were signed out.`}
+        footer={
+          <Button size="touch" className="sm:min-h-9" onClick={onClose}>
+            Done
+          </Button>
+        }
       >
-        <div className="space-y-3 text-sm">
-          <p className="text-neutral-700 dark:text-neutral-300">
-            Share this password with {user.displayName}. It is shown only once; they must change
-            it at next sign-in. Their other sessions were signed out.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-lg bg-neutral-100 px-3 py-2 font-mono text-base dark:bg-neutral-800">
-              {newPassword}
-            </code>
-            <CopyButton text={newPassword} />
-          </div>
+        <div className="flex flex-wrap items-center gap-2 pb-1">
+          <code
+            data-testid="new-password"
+            className="min-w-0 flex-1 rounded-md bg-muted px-3 py-2 font-mono text-base break-all"
+          >
+            {newPassword}
+          </code>
+          <CopyButton text={newPassword} />
         </div>
-      </Modal>
+      </ResponsiveDialog>
     );
   }
 
   return (
-    <ConfirmModal
+    <ConfirmDialog
       open
       title={`Reset password for ${user.displayName}?`}
       confirmLabel="Reset password"
@@ -410,11 +526,11 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
       onClose={onClose}
     >
       <p>A new temporary password will be generated and all of their sessions signed out.</p>
-    </ConfirmModal>
+    </ConfirmDialog>
   );
 }
 
-function RevokeSessionsModal({
+function RevokeSessionsDialog({
   user,
   onClose,
   onDone,
@@ -425,7 +541,7 @@ function RevokeSessionsModal({
 }) {
   const revoke = useRevokeSessions();
   return (
-    <ConfirmModal
+    <ConfirmDialog
       open
       title={`Sign ${user.displayName} out everywhere?`}
       confirmLabel="Sign out"
@@ -436,6 +552,6 @@ function RevokeSessionsModal({
       onClose={onClose}
     >
       <p>All of their devices will be signed out immediately.</p>
-    </ConfirmModal>
+    </ConfirmDialog>
   );
 }

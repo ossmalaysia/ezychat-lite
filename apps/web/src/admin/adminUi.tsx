@@ -1,174 +1,70 @@
-import clsx from 'clsx';
-import type React from 'react';
-import { useEffect, useId, useState } from 'react';
+import * as React from 'react';
+import { Copy, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
-import { Banner, Button, Modal, type ButtonVariant } from '../components/legacy';
+import { Banner } from '@/components/app';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
-/** Page title + optional actions; wraps on narrow screens. */
-export function PageHeader({
-  title,
-  description,
-  actions,
+/** Props a Field hands to its control so label, hint and error are wired up for a11y. */
+export interface FieldControlProps {
+  id: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: true;
+}
+
+/** Label + control + hint/error text. The control is rendered by `children(props)`. */
+export function Field({
+  label,
+  hint,
+  error,
+  className,
+  children,
 }: {
-  title: React.ReactNode;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h1>
-        {description && (
-          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{description}</p>
-        )}
-      </div>
-      {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
-    </div>
-  );
-}
-
-export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label: React.ReactNode;
-  hint?: React.ReactNode;
-}
-
-/** Labeled native select (16px font, 44px touch target). */
-export function Select({ label, hint, id, className, children, ...rest }: SelectProps) {
-  const autoId = useId();
-  const selectId = id ?? autoId;
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={selectId}
-        className="text-sm font-medium text-neutral-800 dark:text-neutral-200"
-      >
-        {label}
-      </label>
-      <select
-        id={selectId}
-        className={clsx(
-          'min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900',
-          'focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60',
-          'dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100',
-          className,
-        )}
-        {...rest}
-      >
-        {children}
-      </select>
-      {hint && <p className="text-sm text-neutral-500 dark:text-neutral-400">{hint}</p>}
-    </div>
-  );
-}
-
-export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: React.ReactNode;
   hint?: React.ReactNode;
   error?: React.ReactNode;
-}
-
-export function Textarea({ label, hint, error, id, className, ...rest }: TextareaProps) {
-  const autoId = useId();
-  const tid = id ?? autoId;
+  className?: string;
+  children: (props: FieldControlProps) => React.ReactNode;
+}) {
+  const id = React.useId();
+  const descId = `${id}-desc`;
+  const hasDesc = Boolean(error || hint);
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={tid} className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-        {label}
-      </label>
-      <textarea
-        id={tid}
-        aria-invalid={error ? true : undefined}
-        className={clsx(
-          'min-h-24 w-full rounded-lg border bg-white px-3 py-2 text-base text-neutral-900',
-          'focus:outline-none focus:ring-2 focus:ring-emerald-500/60',
-          'dark:bg-neutral-900 dark:text-neutral-100',
-          error ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-700',
-          className,
-        )}
-        {...rest}
-      />
+    <div className={cn('flex flex-col gap-2', className)}>
+      <Label htmlFor={id}>{label}</Label>
+      {children({
+        id,
+        'aria-describedby': hasDesc ? descId : undefined,
+        'aria-invalid': error ? true : undefined,
+      })}
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p id={descId} className="text-sm text-danger">
+          {error}
+        </p>
       ) : hint ? (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{hint}</p>
+        <p id={descId} className="text-sm text-muted-foreground">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
 }
 
-/** Accessible on/off switch with a 44px touch target. */
-export function Toggle({
-  checked,
-  onChange,
-  label,
-  description,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: React.ReactNode;
-  description?: React.ReactNode;
-  disabled?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <label htmlFor={id} className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-          {label}
-        </label>
-        {description && (
-          <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
-        )}
-      </div>
-      <button
-        id={id}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className="inline-flex min-h-11 shrink-0 items-center disabled:opacity-50"
-      >
-        <span
-          className={clsx(
-            'relative inline-block h-6 w-11 rounded-full transition-colors',
-            checked ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700',
-          )}
-        >
-          <span
-            className={clsx(
-              'absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform',
-              checked ? 'translate-x-5' : 'translate-x-0.5',
-            )}
-          />
-        </span>
-      </button>
-    </div>
-  );
-}
-
-export type BadgeTone = 'neutral' | 'success' | 'warning' | 'error' | 'info';
-
-const badgeTones: Record<BadgeTone, string> = {
-  neutral: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
-  success: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200',
-  warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
-  error: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200',
-  info: 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200',
-};
-
-export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: React.ReactNode }) {
-  return (
-    <span
-      className={clsx(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        badgeTones[tone],
-      )}
-    >
-      {children}
-    </span>
-  );
+/** Spinner shown inside a pending button. */
+export function Pending({ show }: { show: boolean }) {
+  return show ? <Loader2 className="animate-spin" aria-hidden /> : null;
 }
 
 export async function copyText(text: string): Promise<boolean> {
@@ -196,34 +92,37 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/** Copies `text` and confirms with a toast. */
 export function CopyButton({
   text,
   label = 'Copy',
-  variant = 'secondary',
+  variant = 'outline',
+  className,
 }: {
   text: string;
   label?: string;
-  variant?: ButtonVariant;
+  variant?: 'outline' | 'secondary' | 'default' | 'ghost';
+  className?: string;
 }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  useEffect(() => {
-    if (state === 'idle') return;
-    const t = setTimeout(() => setState('idle'), 2000);
-    return () => clearTimeout(t);
-  }, [state]);
   return (
     <Button
+      type="button"
       variant={variant}
-      size="sm"
-      onClick={async () => setState((await copyText(text)) ? 'copied' : 'failed')}
+      size="touch"
+      className={cn('md:min-h-9', className)}
+      onClick={async () => {
+        if (await copyText(text)) toast.success('Copied to clipboard');
+        else toast.error('Copy failed — select the text and copy it manually.');
+      }}
     >
-      {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : label}
+      <Copy aria-hidden />
+      {label}
     </Button>
   );
 }
 
-/** Confirmation dialog for destructive / disruptive actions. */
-export function ConfirmModal({
+/** AlertDialog confirmation for destructive / disruptive actions. Stays open while pending. */
+export function ConfirmDialog({
   open,
   title,
   children,
@@ -245,27 +144,35 @@ export function ConfirmModal({
   onClose: () => void;
 }) {
   return (
-    <Modal
+    <AlertDialog
       open={open}
-      onClose={onClose}
-      title={title}
-      dismissable={!loading}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+      onOpenChange={(o) => {
+        if (!o && !loading) onClose();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          {children && <AlertDialogDescription asChild><div>{children}</div></AlertDialogDescription>}
+        </AlertDialogHeader>
+        {error != null && <Banner tone="danger">{errorMessage(error)}</Banner>}
+        <AlertDialogFooter>
+          <AlertDialogCancel className="min-h-11 sm:min-h-9" disabled={loading}>
             Cancel
-          </Button>
-          <Button variant={danger ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>
+          </AlertDialogCancel>
+          {/* Plain Button (not AlertDialogAction) so the dialog stays open until the mutation settles. */}
+          <Button
+            variant={danger ? 'destructive' : 'default'}
+            className="min-h-11 sm:min-h-9"
+            disabled={loading}
+            onClick={onConfirm}
+          >
+            <Pending show={loading} />
             {confirmLabel}
           </Button>
-        </>
-      }
-    >
-      <div className="space-y-3 text-sm text-neutral-700 dark:text-neutral-300">
-        {children}
-        {error != null && <Banner tone="error">{errorMessage(error)}</Banner>}
-      </div>
-    </Modal>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -283,11 +190,11 @@ export function generatePassword(length = 14): string {
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   return (
     <Banner
-      tone="error"
+      tone="danger"
       title="Couldn't load"
       action={
         onRetry && (
-          <Button size="sm" variant="secondary" onClick={onRetry}>
+          <Button size="touch" variant="outline" className="md:min-h-8" onClick={onRetry}>
             Retry
           </Button>
         )
@@ -295,5 +202,16 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     >
       {errorMessage(error)}
     </Banner>
+  );
+}
+
+/** Skeleton placeholder rows for lists/tables while loading. */
+export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }, (_, i) => (
+        <Skeleton key={i} className="h-14 w-full" />
+      ))}
+    </div>
   );
 }

@@ -16,13 +16,22 @@ files:
   - dist/**/*
   - '!dist/**/*.map'
   - src/renderer/**/*
+  # better-sqlite3 ships prebuilt binaries; its C sources are only needed to compile from source
+  - '!**/node_modules/better-sqlite3/{deps,src}/**'
+  - '!**/node_modules/better-sqlite3/binding.gyp'
 
 asar: true
 asarUnpack:
   - '**/*.node'
+  # whole native packages (JS loaders + binaries) so the server also runs from
+  # app.asar.unpacked/dist/server/server.cjs with plain module resolution
+  - '**/node_modules/better-sqlite3/**'
+  - '**/node_modules/@node-rs/**'
   - '**/server/**'
   # server launcher (forked / run by the OS service, like server.cjs)
   - 'dist/server-host.cjs'
+  # read by the server for its version (<server dir>/../package.json)
+  - 'dist/package.json'
 
 # Native modules: better-sqlite3 (v12+) and @node-rs/argon2 are Node-API addons with prebuilt
 # binaries, so the same build loads in Node (tests) and in Electron (utilityProcess /
@@ -33,6 +42,10 @@ npmRebuild: false
 extraResources:
   - from: ../web/dist
     to: web
+  # tray icons (tray.png on Windows/Linux, trayTemplate.png on macOS); read via process.resourcesPath
+  - from: build/tray
+    to: tray
+    filter: ['*.png']
 
 win:
   icon: build/icon.png

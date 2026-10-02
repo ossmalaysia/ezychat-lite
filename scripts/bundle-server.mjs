@@ -6,8 +6,23 @@
 // inside app.asar by utilityProcess.fork and by ELECTRON_RUN_AS_NODE=1 (OS service).
 import { build } from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// The 'import' condition below makes require('ws') resolve to ws/wrapper.mjs, whose namespace
+// has no `Server` export, so engine.io's `require('ws').Server` (wsEngine) was undefined at
+// runtime ("this.opts.wsEngine is not a constructor"). Resolve require() calls of ws the way
+// Node does (CJS index.js), relative to the requiring package (engine.io has a nested ws).
+const wsRequireAsCjs = {
+  name: 'ws-require-cjs',
+  setup(b) {
+    b.onResolve({ filter: /^ws$/ }, (args) => {
+      if (args.kind !== 'require-call') return undefined;
+      return { path: createRequire(join(args.resolveDir, 'noop.js')).resolve('ws') };
+    });
+  },
+};
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'apps', 'desktop', 'dist', 'server');
@@ -40,6 +55,7 @@ const result = await build({
   target: 'node22',
   format: 'cjs',
   external,
+  plugins: [wsRequireAsCjs],
   sourcemap: 'linked',
   legalComments: 'linked',
   logLevel: 'warning',
@@ -58,6 +74,12 @@ cpSync(join(root, 'packages', 'server', 'src', 'db', 'migrations'), join(outDir,
 
 const version = JSON.parse(readFileSync(join(root, 'apps', 'desktop', 'package.json'), 'utf8')).version;
 writeFileSync(join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs', private: true, version }, null, 2) + '\n');
+// The server's appVersion() reads <dir of running file>/../package.json, i.e. dist/package.json.
+// Keep "type": "module" there so the tsc-compiled dist/main.js etc. stay ESM.
+writeFileSync(
+  join(outDir, '..', 'package.json'),
+  JSON.stringify({ type: 'module', private: true, version }, null, 2) + '\n',
+);
 
 const bytes = Object.values(result.metafile.outputs).reduce((n, o) => n + o.bytes, 0);
 console.log(

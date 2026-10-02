@@ -1,14 +1,29 @@
 import type React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { ArrowRight, CircleCheck, Loader2, QrCode } from 'lucide-react';
 import { errorMessage } from '../api/client';
 import { useWaAction, useWaStatus } from '../api/queries';
-import { Banner, Button, Spinner } from '../components/legacy';
+import { Banner, StatusDot, stateTone } from '@/components/app';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ButtonSpinner } from '../auth/AuthShell';
 import { formatJid } from '../lib/jid';
 
 export interface WaLinkStepProps {
   onContinue?: () => void;
   onSkip?: () => void;
 }
+
+const STATE_LABEL: Record<string, string> = {
+  open: 'Connected',
+  qr: 'Waiting for scan',
+  connecting: 'Connecting…',
+  starting: 'Starting…',
+  logged_out: 'Logged out',
+  replaced: 'Opened elsewhere',
+  blocked: 'Blocked',
+  disconnected: 'Disconnected',
+};
 
 /** Shows the pairing QR (from wa status) until the number is linked. */
 export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
@@ -20,28 +35,39 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
   if (wa.isPending) {
     body = <Waiting text="Checking WhatsApp connection…" />;
   } else if (wa.error) {
-    body = <Banner tone="error">{errorMessage(wa.error)}</Banner>;
+    body = <Banner tone="danger">{errorMessage(wa.error)}</Banner>;
   } else if (s?.state === 'open') {
     body = (
-      <Banner tone="success" title="WhatsApp linked">
-        {s.me
-          ? `Connected as ${s.me.name ? `${s.me.name} (${formatJid(s.me.jid)})` : formatJid(s.me.jid)}.`
-          : 'Connected.'}
-      </Banner>
+      <div
+        role="status"
+        className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm"
+      >
+        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="font-medium">WhatsApp linked</p>
+          <p className="break-words text-muted-foreground">
+            {s.me
+              ? `Connected as ${s.me.name ? `${s.me.name} (${formatJid(s.me.jid)})` : formatJid(s.me.jid)}.`
+              : 'Connected.'}
+          </p>
+        </div>
+      </div>
     );
   } else if (s?.state === 'qr' && s.qr) {
     body = (
-      <div className="flex flex-col items-center gap-4">
-        <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-neutral-200">
-          <QRCodeSVG
-            value={s.qr}
-            size={240}
-            marginSize={1}
-            className="h-auto w-[min(240px,70vw)]"
-            title="Pairing QR code"
-          />
-        </div>
-        <p className="text-center text-xs text-neutral-500">The code refreshes automatically.</p>
+      <div className="flex flex-col items-center gap-3">
+        <Card className="gap-0 p-3">
+          <CardContent className="p-0">
+            <QRCodeSVG
+              value={s.qr}
+              size={240}
+              marginSize={1}
+              className="h-auto w-[min(240px,70vw)] rounded-md"
+              title="Pairing QR code"
+            />
+          </CardContent>
+        </Card>
+        <p className="text-center text-xs text-muted-foreground">The code refreshes automatically.</p>
       </div>
     );
   } else if (
@@ -55,12 +81,15 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
         <Banner tone="warning" title={stateTitle(s.state)}>
           {s.lastError ?? 'Generate a new QR code to link this number.'}
         </Banner>
-        {action.error && <Banner tone="error">{errorMessage(action.error)}</Banner>}
+        {action.error && <Banner tone="danger">{errorMessage(action.error)}</Banner>}
         <Button
           variant="secondary"
-          loading={action.isPending}
+          size="touch"
+          aria-busy={action.isPending || undefined}
+          disabled={action.isPending}
           onClick={() => action.mutate('relink')}
         >
+          {action.isPending ? <ButtonSpinner /> : <QrCode aria-hidden="true" />}
           Show a new QR code
         </Button>
       </div>
@@ -74,31 +103,39 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-          Link your WhatsApp number
-        </h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">Link your WhatsApp number</h2>
+          {s?.state && (
+            <StatusDot
+              tone={stateTone(s.state)}
+              pulse={s.state === 'qr' || s.state === 'connecting'}
+              label={<span className="text-muted-foreground">{STATE_LABEL[s.state] ?? s.state}</span>}
+            />
+          )}
+        </div>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>Open WhatsApp on the phone with the business number.</li>
           <li>
-            Go to <strong>Settings → Linked devices → Link a device</strong>.
+            Go to <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
           </li>
           <li>Point the phone at this QR code.</li>
         </ol>
       </div>
       {body}
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+      <p className="text-xs text-muted-foreground">
         WA Team Inbox is not affiliated with WhatsApp or Meta. Unofficial clients can get numbers
         banned — avoid bulk messaging.
       </p>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {onSkip && !linked && (
-          <Button variant="ghost" onClick={onSkip}>
+          <Button variant="ghost" size="touch" onClick={onSkip}>
             Skip for now
           </Button>
         )}
         {onContinue && (
-          <Button onClick={onContinue} disabled={!linked}>
+          <Button size="touch" onClick={onContinue} disabled={!linked}>
             Continue
+            <ArrowRight aria-hidden="true" />
           </Button>
         )}
       </div>
@@ -121,9 +158,9 @@ function stateTitle(state: string): string {
 
 function Waiting({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center gap-3 py-8 text-emerald-600 dark:text-emerald-400">
-      <Spinner className="size-8" />
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">{text}</p>
+    <div role="status" className="flex flex-col items-center gap-3 py-8">
+      <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   );
 }

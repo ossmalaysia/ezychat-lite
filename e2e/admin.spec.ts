@@ -22,7 +22,8 @@ test.describe('admin: members', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Username').fill(agent.username);
     await dialog.getByLabel('Display name').fill(agent.displayName);
-    await dialog.getByLabel('Role').selectOption('agent');
+    await dialog.getByRole('combobox', { name: 'Role' }).click();
+    await page.getByRole('option', { name: 'Agent' }).click();
     await dialog.getByLabel('Temporary password').fill(agent.temp);
     await dialog.getByRole('button', { name: 'Create member' }).click();
     await expect(dialog).toBeHidden();

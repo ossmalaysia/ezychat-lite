@@ -1,5 +1,6 @@
-// Supervises the standalone server: utilityProcess.fork when packaged (Electron ABI native
-// modules), or the system `node` in development (repo node_modules are built for Node's ABI).
+// Supervises the standalone server: utilityProcess.fork by default (native modules are Node-API
+// prebuilds, so the same binaries load under Electron), or the system `node` when main.ts selects
+// the dev-only WATI_DESKTOP_RUNTIME=node fallback.
 import { EventEmitter } from 'node:events';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';

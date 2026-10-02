@@ -98,3 +98,17 @@ export function serviceRunDir(platform: NodeJS.Platform = process.platform, env:
   if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}-runtime`;
   return `/var/lib/${APP_DIR_NAME}-run`;
 }
+
+/**
+ * Tray icon file: build/tray/trayTemplate.png on macOS (template image, black + alpha) and
+ * build/tray/tray.png elsewhere. Copied to <resources>/tray by electron-builder (extraResources).
+ */
+export function trayIconFile(
+  isPackaged: boolean,
+  resourcesPath: string,
+  appPath: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const name = platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
+  return isPackaged ? join(resourcesPath, 'tray', name) : join(appPath, 'build', 'tray', name);
+}

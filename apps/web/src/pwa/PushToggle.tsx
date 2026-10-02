@@ -1,6 +1,10 @@
-import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { Bell, BellOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { errorMessage } from '../api/client';
+import { Banner } from '@/components/app';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { InstallHint } from './InstallHint';
 import {
   getCurrentSubscription,
@@ -24,6 +28,7 @@ function initialStatus(): Status {
  * `compact` renders a single row suitable for menus / side bars.
  */
 export function PushToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
+  const id = useId();
   const [status, setStatus] = useState<Status>(initialStatus);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +48,7 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
 
   if (status === 'unsupported') {
     return compact ? null : (
-      <p className={clsx('text-sm text-neutral-500', className)}>
+      <p className={cn('text-sm text-muted-foreground', className)}>
         Notifications aren't supported in this browser.
       </p>
     );
@@ -70,45 +75,42 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
 
   const on = status === 'on';
   const disabled = busy || status === 'checking' || status === 'denied';
+  const Icon = on ? Bell : BellOff;
 
   return (
-    <div className={clsx('flex flex-col gap-1', className)}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        disabled={disabled}
-        onClick={() => void toggle()}
-        className={clsx(
-          'flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-sm font-medium',
-          'hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-neutral-800',
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <div
+        className={cn(
+          'flex min-h-11 w-full items-center justify-between gap-3 rounded-md',
+          !compact && 'px-1',
         )}
       >
-        <span>Notifications on this device</span>
-        <span
-          aria-hidden="true"
-          className={clsx(
-            'relative inline-block h-6 w-11 shrink-0 rounded-full transition-colors',
-            on ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700',
-          )}
-        >
-          <span
-            className={clsx(
-              'absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform',
-              on ? 'translate-x-5' : 'translate-x-0.5',
-            )}
-          />
-        </span>
-      </button>
+        <Label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium">
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span>Notifications on this device</span>
+        </Label>
+        <Switch
+          id={id}
+          checked={on}
+          disabled={disabled}
+          aria-busy={busy || undefined}
+          onCheckedChange={() => void toggle()}
+          onClick={(e) => e.stopPropagation()}
+          // Inside a DropdownMenu, keep Space/Enter from being treated as menu typeahead/select.
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') e.stopPropagation();
+          }}
+        />
+      </div>
       {status === 'denied' && (
-        <p className="px-3 text-xs text-amber-700 dark:text-amber-400">
+        <Banner tone="warning" className="text-xs">
           Notifications are blocked. Allow them in the browser's site settings.
-        </p>
+        </Banner>
       )}
       {error && status !== 'denied' && (
-        <p role="alert" className="px-3 text-xs text-red-600 dark:text-red-400">
+        <Banner tone="danger" className="text-xs">
           {error}
-        </p>
+        </Banner>
       )}
     </div>
   );

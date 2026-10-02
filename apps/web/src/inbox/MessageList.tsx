@@ -1,7 +1,9 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Message } from '@wa-team-inbox/shared';
-import { Spinner } from '../components/legacy';
+import { ArrowDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatDay } from '../lib/format';
 import { EventItem, NoteItem } from './EventItem';
 import { MessageBubble } from './MessageBubble';
@@ -27,7 +29,7 @@ const NEAR_BOTTOM_PX = 150;
 function DaySeparator({ date }: { date: number }) {
   return (
     <div className="sticky top-1 z-10 flex justify-center py-2" role="separator">
-      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-neutral-600 shadow-sm backdrop-blur dark:bg-neutral-800/90 dark:text-neutral-300">
+      <span className="rounded-full border bg-surface/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
         {formatDay(date)}
       </span>
     </div>
@@ -122,27 +124,32 @@ export function MessageList({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-neutral-100 py-2 dark:bg-neutral-950"
+        className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-background py-2"
         aria-label="Messages"
         role="log"
       >
         <div ref={topRef} className="h-px" />
         {loadingOlder && (
-          <div className="flex justify-center py-2 text-emerald-600">
-            <Spinner className="size-5" label="Loading older messages" />
+          <div className="flex flex-col gap-2 px-4 py-2" role="status" aria-label="Loading older messages">
+            <Skeleton className="h-10 w-2/3 rounded-2xl" />
+            <Skeleton className="ml-auto h-8 w-1/2 rounded-2xl" />
           </div>
         )}
         {!hasOlder && !loading && items.length > 0 && (
-          <p className="py-2 text-center text-xs text-neutral-400 dark:text-neutral-500">
+          <p className="py-2 text-center text-xs text-muted-foreground">
             Start of conversation
           </p>
         )}
         {loading && items.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-emerald-600">
-            <Spinner className="size-6" label="Loading messages" />
+          <div className="flex flex-col gap-3 px-4 py-2" role="status" aria-label="Loading messages">
+            <Skeleton className="h-12 w-2/3 rounded-2xl" />
+            <Skeleton className="h-8 w-1/2 rounded-2xl" />
+            <Skeleton className="ml-auto h-10 w-3/5 rounded-2xl" />
+            <Skeleton className="h-14 w-2/3 rounded-2xl" />
+            <Skeleton className="ml-auto h-8 w-2/5 rounded-2xl" />
           </div>
         ) : items.length === 0 ? (
-          <p className="p-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="p-6 text-center text-sm text-muted-foreground">
             No messages yet.
           </p>
         ) : (
@@ -180,16 +187,15 @@ export function MessageList({
         {footer}
       </div>
       {showJump && (
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="icon-touch"
           aria-label="Jump to latest"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-3 right-3 inline-flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+          className="absolute bottom-3 right-3 rounded-full bg-surface shadow-lg"
         >
-          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+          <ArrowDown className="size-5" aria-hidden="true" />
+        </Button>
       )}
     </div>
   );

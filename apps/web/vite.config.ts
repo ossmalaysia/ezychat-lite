@@ -17,7 +17,14 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: false, // src/pwa/registerSW.ts registers it
-      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      includeAssets: [
+        'icon.svg',
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'icon-192.png',
+        'icon-512.png',
+        'icon-maskable-512.png',
+      ],
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
       },
@@ -25,7 +32,7 @@ export default defineConfig({
         id: '/',
         name: 'WA Team Inbox',
         short_name: 'Team Inbox',
-        description: 'Shared team inbox',
+        description: 'Shared team inbox for WhatsApp',
         start_url: '/',
         scope: '/',
         display: 'standalone',

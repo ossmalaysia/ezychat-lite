@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { useChats, type ChatFilters } from '../api/queries';
-import { Button, Spinner } from '../components/legacy';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Banner, EmptyState } from '@/components/app';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
 
@@ -11,11 +14,26 @@ export interface ChatListProps {
   directory: Directory;
 }
 
-const emptyCopy: Record<ChatFilters['assigned'], string> = {
-  me: 'No chats are assigned to you.',
-  none: 'Every chat has an owner. Nice work.',
-  any: 'No chats yet. New WhatsApp conversations will appear here.',
+const emptyCopy: Record<ChatFilters['assigned'], { title: string; description: string }> = {
+  me: { title: 'Nothing assigned to you', description: 'No chats are assigned to you.' },
+  none: { title: 'All caught up', description: 'Every chat has an owner. Nice work.' },
+  any: { title: 'No chats yet', description: 'New WhatsApp conversations will appear here.' },
 };
+
+function ChatRowSkeleton() {
+  return (
+    <div className="flex min-h-16 items-center gap-3 px-3 py-2.5">
+      <Skeleton className="size-12 shrink-0 rounded-full" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-3 w-10" />
+        </div>
+        <Skeleton className="h-3.5 w-3/4" />
+      </div>
+    </div>
+  );
+}
 
 export function ChatList({ filters, activeJid, directory }: ChatListProps) {
   const q = useChats(filters);
@@ -51,38 +69,51 @@ export function ChatList({ filters, activeJid, directory }: ChatListProps) {
 
   if (q.isPending) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-emerald-600">
-        <Spinner className="size-6" label="Loading chats" />
+      <div className="min-h-0 flex-1 overflow-hidden" role="status" aria-label="Loading chats">
+        {Array.from({ length: 8 }, (_, i) => (
+          <ChatRowSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
   if (q.isError) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
-        <p>Couldn’t load chats. {q.error instanceof Error ? q.error.message : ''}</p>
-        <Button variant="secondary" size="sm" onClick={() => void q.refetch()}>
-          Try again
-        </Button>
+      <div className="p-3">
+        <Banner
+          tone="danger"
+          title="Couldn’t load chats"
+          action={
+            <Button variant="outline" size="sm" onClick={() => void q.refetch()}>
+              Try again
+            </Button>
+          }
+        >
+          {q.error instanceof Error ? q.error.message : null}
+        </Banner>
       </div>
     );
   }
 
   if (chats.length === 0) {
+    const copy = filters.q
+      ? { title: 'No results', description: `No chats match “${filters.q}”.` }
+      : filters.status === 'resolved'
+        ? { title: 'No resolved chats', description: 'No resolved chats here.' }
+        : emptyCopy[filters.assigned];
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
-        {filters.q
-          ? `No chats match “${filters.q}”.`
-          : filters.status === 'resolved'
-            ? 'No resolved chats here.'
-            : emptyCopy[filters.assigned]}
-      </div>
+      <EmptyState
+        className="flex-1"
+        illustration={filters.q ? '/illustrations/no-results.png' : '/illustrations/empty-inbox.png'}
+        title={copy.title}
+        description={copy.description}
+      />
     );
   }
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <ul className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
+      <ul className="divide-y divide-border/60">
         {chats.map((c) => (
           <li key={c.jid}>
             <ChatListItem
@@ -95,13 +126,13 @@ export function ChatList({ filters, activeJid, directory }: ChatListProps) {
       </ul>
       <div ref={sentinelRef} className="h-px" />
       {isFetchingNextPage && (
-        <div className="flex justify-center p-3 text-emerald-600">
-          <Spinner className="size-5" label="Loading more chats" />
+        <div className="flex justify-center p-3 text-muted-foreground" role="status">
+          <Loader2 className="size-5 animate-spin" aria-label="Loading more chats" />
         </div>
       )}
       {hasNextPage && !isFetchingNextPage && (
         <div className="flex justify-center p-2">
-          <Button variant="ghost" size="sm" onClick={() => void fetchNextPage()}>
+          <Button variant="ghost" size="touch" onClick={() => void fetchNextPage()}>
             Load more
           </Button>
         </div>

@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import type React from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { useDeleteQuickReply, useQuickReplies, useSaveQuickReply } from '../api/queries';
-import { Banner, Button, Input, Modal, Spinner } from '../components/legacy';
-import { ConfirmModal, ErrorState, PageHeader, Textarea } from './adminUi';
+import { Banner, EmptyState, PageHeader, ResponsiveDialog } from '@/components/app';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending } from './adminUi';
 
 const SHORTCUT_RE = /^[a-z0-9_-]{1,32}$/;
 
@@ -22,43 +27,57 @@ export function QuickRepliesPage() {
         title="Quick replies"
         description={
           <>
-            Agents type <kbd className="rounded bg-neutral-200 px-1 font-mono dark:bg-neutral-800">/</kbd>{' '}
-            followed by a shortcut in the composer to insert a reply.
+            Agents type <kbd className="rounded bg-muted px-1 font-mono">/</kbd> followed by a shortcut in
+            the composer to insert a reply.
           </>
         }
-        actions={<Button onClick={() => setEditing('new')}>New quick reply</Button>}
+        actions={
+          <Button size="touch" className="md:min-h-9" onClick={() => setEditing('new')}>
+            <Plus aria-hidden />
+            New quick reply
+          </Button>
+        }
       />
 
       {replies.isPending ? (
-        <div className="flex justify-center py-10 text-emerald-600">
-          <Spinner className="size-6" />
-        </div>
+        <ListSkeleton />
       ) : replies.isError ? (
         <ErrorState error={replies.error} onRetry={() => void replies.refetch()} />
       ) : list.length === 0 ? (
-        <p className="py-10 text-center text-sm text-neutral-500">
-          No quick replies yet. Create one to speed up common answers.
-        </p>
+        <EmptyState
+          title="No quick replies yet"
+          description="Create one to speed up common answers."
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="flex flex-col gap-2">
           {list.map((r) => (
             <li
               key={r.id}
-              className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:flex-row sm:items-start dark:border-neutral-800 dark:bg-neutral-900"
+              className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm sm:flex-row sm:items-start"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                  /{r.shortcut}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
-                  {r.body}
-                </p>
+                <p className="font-mono text-sm font-semibold text-primary">/{r.shortcut}</p>
+                <p className="mt-1 text-sm break-words whitespace-pre-wrap text-muted-foreground">{r.body}</p>
               </div>
               <div className="flex shrink-0 gap-2">
-                <Button size="sm" variant="secondary" onClick={() => setEditing(r)}>
+                <Button
+                  size="touch"
+                  variant="outline"
+                  className="md:min-h-8"
+                  onClick={() => setEditing(r)}
+                  aria-label={`Edit /${r.shortcut}`}
+                >
+                  <Pencil aria-hidden />
                   Edit
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleting(r)}>
+                <Button
+                  size="touch"
+                  variant="ghost"
+                  className="text-danger hover:text-danger md:min-h-8"
+                  onClick={() => setDeleting(r)}
+                  aria-label={`Delete /${r.shortcut}`}
+                >
+                  <Trash2 aria-hidden />
                   Delete
                 </Button>
               </div>
@@ -68,13 +87,13 @@ export function QuickRepliesPage() {
       )}
 
       {editing && (
-        <QuickReplyModal
+        <QuickReplyDialog
           reply={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
         />
       )}
       {deleting && (
-        <ConfirmModal
+        <ConfirmDialog
           open
           title={`Delete /${deleting.shortcut}?`}
           confirmLabel="Delete"
@@ -84,6 +103,7 @@ export function QuickRepliesPage() {
           onConfirm={() =>
             del.mutate(deleting.id, {
               onSuccess: () => {
+                toast.success(`Deleted /${deleting.shortcut}.`);
                 setDeleting(null);
                 del.reset();
               },
@@ -95,13 +115,13 @@ export function QuickRepliesPage() {
           }}
         >
           <p>This quick reply will no longer be available to agents.</p>
-        </ConfirmModal>
+        </ConfirmDialog>
       )}
     </div>
   );
 }
 
-function QuickReplyModal({ reply, onClose }: { reply: QuickReply | null; onClose: () => void }) {
+function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClose: () => void }) {
   const save = useSaveQuickReply();
   const [shortcut, setShortcut] = useState(reply?.shortcut ?? '');
   const [body, setBody] = useState(reply?.body ?? '');
@@ -117,47 +137,62 @@ function QuickReplyModal({ reply, onClose }: { reply: QuickReply | null; onClose
     e.preventDefault();
     setTouched(true);
     if (!SHORTCUT_RE.test(shortcut) || !body.trim()) return;
-    save.mutate({ id: reply?.id, shortcut, body }, { onSuccess: onClose });
+    save.mutate(
+      { id: reply?.id, shortcut, body },
+      {
+        onSuccess: () => {
+          toast.success(`Saved /${shortcut}.`);
+          onClose();
+        },
+      },
+    );
   };
 
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      onClose={onClose}
+      onOpenChange={(o) => !o && !save.isPending && onClose()}
       title={reply ? `Edit /${reply.shortcut}` : 'New quick reply'}
-      dismissable={!save.isPending}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
+          <Button variant="outline" size="touch" className="sm:min-h-9" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="quick-reply-form" loading={save.isPending}>
+          <Button type="submit" form="quick-reply-form" size="touch" className="sm:min-h-9" disabled={save.isPending}>
+            <Pending show={save.isPending} />
             Save
           </Button>
         </>
       }
     >
-      <form id="quick-reply-form" onSubmit={submit} className="space-y-4" noValidate>
-        <Input
-          label="Shortcut"
-          value={shortcut}
-          onChange={(e) => setShortcut(e.target.value.toLowerCase().replace(/^\//, ''))}
-          placeholder="price"
-          autoCapitalize="none"
-          autoCorrect="off"
-          error={shortcutError}
-          hint="Typed after / in the composer, e.g. /price"
-        />
-        <Textarea
-          label="Reply text"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={6}
-          maxLength={4096}
-          error={bodyError}
-        />
-        {save.error && <Banner tone="error">{errorMessage(save.error)}</Banner>}
+      <form id="quick-reply-form" onSubmit={submit} className="flex flex-col gap-4 pb-1" noValidate>
+        <Field label="Shortcut" error={shortcutError} hint="Typed after / in the composer, e.g. /price">
+          {(p) => (
+            <Input
+              {...p}
+              className="h-11 font-mono md:h-9"
+              value={shortcut}
+              onChange={(e) => setShortcut(e.target.value.toLowerCase().replace(/^\//, ''))}
+              placeholder="price"
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          )}
+        </Field>
+        <Field label="Reply text" error={bodyError}>
+          {(p) => (
+            <Textarea
+              {...p}
+              className="min-h-32"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={6}
+              maxLength={4096}
+            />
+          )}
+        </Field>
+        {save.error && <Banner tone="danger">{errorMessage(save.error)}</Banner>}
       </form>
-    </Modal>
+    </ResponsiveDialog>
   );
 }
