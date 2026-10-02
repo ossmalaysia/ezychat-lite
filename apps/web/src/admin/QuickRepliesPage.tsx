@@ -3,7 +3,7 @@ import type React from 'react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { useDeleteQuickReply, useQuickReplies, useSaveQuickReply } from '../api/queries';
-import { Banner, Button, Input, Modal, Spinner } from '../components/ui';
+import { Banner, Button, Input, Modal, Spinner } from '../components/legacy';
 import { ConfirmModal, ErrorState, PageHeader, Textarea } from './adminUi';
 
 const SHORTCUT_RE = /^[a-z0-9_-]{1,32}$/;

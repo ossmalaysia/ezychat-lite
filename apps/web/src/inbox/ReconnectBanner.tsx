@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useRealtime } from '../api/socket';
-import { Banner } from '../components/ui';
+import { Banner } from '../components/legacy';
 
 /**
  * Shown while the realtime (Socket.IO) link to the server is down after having been up once,

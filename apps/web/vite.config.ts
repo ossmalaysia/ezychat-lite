@@ -2,10 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
 
 const SERVER = process.env.WATI_DEV_SERVER ?? 'http://127.0.0.1:7420';
 
 export default defineConfig({
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
     react(),
     tailwindcss(),
@@ -28,7 +30,7 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'any',
-        theme_color: '#059669',
+        theme_color: '#0F766E',
         background_color: '#ffffff',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },

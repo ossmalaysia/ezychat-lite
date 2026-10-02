@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import type { TunnelMode, TunnelState, TunnelStartBody } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { useSettings, useStartTunnel, useStopTunnel, useTunnel } from '../api/queries';
-import { Banner, Button, Card, Input, Spinner } from '../components/ui';
+import { Banner, Button, Card, Input, Spinner } from '../components/legacy';
 import { Badge, CopyButton, ErrorState, PageHeader, type BadgeTone } from './adminUi';
 
 const STATE_META: Record<TunnelState, { label: string; tone: BadgeTone }> = {

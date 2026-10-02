@@ -3,7 +3,7 @@ import type React from 'react';
 import type { SettingsPatchBody } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { usePatchSettings, useSettings } from '../api/queries';
-import { Banner, Button, Card, Input, Spinner } from '../components/ui';
+import { Banner, Button, Card, Input, Spinner } from '../components/legacy';
 import { PushToggle } from '../pwa/PushToggle';
 import { ErrorState, PageHeader, Toggle } from './adminUi';
 

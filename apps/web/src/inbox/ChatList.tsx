@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { useChats, type ChatFilters } from '../api/queries';
-import { Button, Spinner } from '../components/ui';
+import { Button, Spinner } from '../components/legacy';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
 

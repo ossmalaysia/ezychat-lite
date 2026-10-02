@@ -1,6 +1,6 @@
 import type { AuditEntry, User } from '@wa-team-inbox/shared';
 import { useAudit, useUsers } from '../api/queries';
-import { Button, Spinner } from '../components/ui';
+import { Button, Spinner } from '../components/legacy';
 import { formatDateTime } from '../lib/format';
 import { ErrorState, PageHeader } from './adminUi';
 

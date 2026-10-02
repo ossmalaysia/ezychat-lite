@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { Link, useLocation } from 'react-router-dom';
 import type { Chat } from '@wa-team-inbox/shared';
-import { Avatar } from '../components/ui';
+import { Avatar } from '../components/legacy';
 import { formatListTime } from '../lib/format';
 import { encodeJid, formatJid } from '../lib/jid';
 

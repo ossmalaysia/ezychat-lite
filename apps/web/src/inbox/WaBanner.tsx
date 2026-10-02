@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import type { WaStatus } from '@wa-team-inbox/shared';
 import { useWaStatus } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { Banner, type BannerTone } from '../components/ui';
+import { Banner, type BannerTone } from '../components/legacy';
 
 type WaStateName = WaStatus['state'];
 

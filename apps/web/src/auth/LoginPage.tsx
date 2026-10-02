@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { useLogin, useMe, useSetupStatus } from '../api/queries';
-import { Banner, Button, Input } from '../components/ui';
+import { Banner, Button, Input } from '../components/legacy';
 import { AuthShell } from './AuthShell';
 
 function safeFrom(state: unknown): string {

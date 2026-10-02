@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { FullPageSpinner } from '../components/ui';
+import { FullPageSpinner } from '../components/legacy';
 import { PushToggle } from '../pwa/PushToggle';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';

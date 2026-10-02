@@ -2,7 +2,7 @@ import type React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { useSetupStatus } from '../api/queries';
-import { Banner, Button, FullPageSpinner } from '../components/ui';
+import { Banner, Button, FullPageSpinner } from '../components/legacy';
 import { useAuth } from './AuthProvider';
 
 export interface RequireAuthProps {

@@ -2,7 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import type { Note } from '@wa-team-inbox/shared';
 import { useAddNote } from '../api/queries';
-import { Button } from '../components/ui';
+import { Button } from '../components/legacy';
 import { formatDateTime } from '../lib/format';
 import type { Directory } from './useDirectory';
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { WaState } from '@wa-team-inbox/shared';
 import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
-import { Banner, Button, Card, Spinner } from '../components/ui';
+import { Banner, Button, Card, Spinner } from '../components/legacy';
 import { Badge, ConfirmModal, ErrorState, PageHeader, type BadgeTone } from './adminUi';
 
 export const WA_STATE_LABEL: Record<WaState, { label: string; tone: BadgeTone }> = {

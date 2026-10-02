@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import type React from 'react';
 import { useEffect, useId, useState } from 'react';
 import { errorMessage } from '../api/client';
-import { Banner, Button, Modal, type ButtonVariant } from '../components/ui';
+import { Banner, Button, Modal, type ButtonVariant } from '../components/legacy';
 
 /** Page title + optional actions; wraps on narrow screens. */
 export function PageHeader({

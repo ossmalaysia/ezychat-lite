@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import type { Chat } from '@wa-team-inbox/shared';
-import { Avatar, Button } from '../components/ui';
+import { Avatar, Button } from '../components/legacy';
 import { formatJid } from '../lib/jid';
 import { GroupIcon } from './ChatListItem';
 import type { Directory } from './useDirectory';

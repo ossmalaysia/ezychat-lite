@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { ChatFilters as Filters } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { Avatar } from '../components/ui';
+import { Avatar } from '../components/legacy';
 import { PushToggle } from '../pwa/PushToggle';
 import { decodeJid } from '../lib/jid';
 import { ChatFilters } from './ChatFilters';

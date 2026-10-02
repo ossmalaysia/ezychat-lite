@@ -19,7 +19,7 @@ import {
   type MessagesData,
 } from '../api/queries';
 import { useRealtime } from '../api/socket';
-import { Banner, Button, Modal, Spinner } from '../components/ui';
+import { Banner, Button, Modal, Spinner } from '../components/legacy';
 import { Composer } from './Composer';
 import { ConversationHeader } from './ConversationHeader';
 import { MessageList } from './MessageList';

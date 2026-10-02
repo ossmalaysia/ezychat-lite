@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { ApiError, errorMessage } from '../api/client';
 import { useSetupAdmin, useSetupStatus } from '../api/queries';
 import { AuthShell } from '../auth/AuthShell';
-import { Banner, Button, FullPageSpinner, Input } from '../components/ui';
+import { Banner, Button, FullPageSpinner, Input } from '../components/legacy';
 import { WaLinkStep } from './WaLinkStep';
 
 type Step = 'admin' | 'whatsapp' | 'done';

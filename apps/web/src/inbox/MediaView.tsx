@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Message } from '@wa-team-inbox/shared';
 import { api } from '../api/client';
 import { upsertMessageInCache } from '../api/queries';
-import { Spinner } from '../components/ui';
+import { Spinner } from '../components/legacy';
 
 export interface MediaViewProps {
   message: Message;

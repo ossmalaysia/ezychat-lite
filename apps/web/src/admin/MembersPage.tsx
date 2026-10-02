@@ -10,7 +10,7 @@ import {
   useUsers,
 } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { Avatar, Banner, Button, Input, Modal, Spinner } from '../components/ui';
+import { Avatar, Banner, Button, Input, Modal, Spinner } from '../components/legacy';
 import { formatDateTime } from '../lib/format';
 import {
   Badge,

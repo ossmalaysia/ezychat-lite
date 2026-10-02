@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { useChangePassword } from '../api/queries';
-import { Banner, Button, FullPageSpinner, Input } from '../components/ui';
+import { Banner, Button, FullPageSpinner, Input } from '../components/legacy';
 import { useAuth } from './AuthProvider';
 import { AuthShell } from './AuthShell';
 

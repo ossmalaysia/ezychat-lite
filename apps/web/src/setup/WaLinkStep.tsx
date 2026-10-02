@@ -2,7 +2,7 @@ import type React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { errorMessage } from '../api/client';
 import { useWaAction, useWaStatus } from '../api/queries';
-import { Banner, Button, Spinner } from '../components/ui';
+import { Banner, Button, Spinner } from '../components/legacy';
 import { formatJid } from '../lib/jid';
 
 export interface WaLinkStepProps {

@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Message } from '@wa-team-inbox/shared';
-import { Spinner } from '../components/ui';
+import { Spinner } from '../components/legacy';
 import { formatDay } from '../lib/format';
 import { EventItem, NoteItem } from './EventItem';
 import { MessageBubble } from './MessageBubble';
