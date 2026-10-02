@@ -1,0 +1,9 @@
+import type { AppContext } from './context.js';
+
+/**
+ * Service initializers, run in order by startServer()/makeTestApp() before routes are built.
+ * APPEND-ONLY SHARED FILE: later tasks add one import + one push line each, e.g.
+ *   import { initAuth } from './auth/index.js';
+ *   initializers.push(initAuth);
+ */
+export const initializers: Array<(ctx: AppContext) => void | Promise<void>> = [];

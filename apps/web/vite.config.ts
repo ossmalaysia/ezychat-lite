@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const SERVER = process.env.WATI_DEV_SERVER ?? 'http://127.0.0.1:7420';
 
@@ -8,7 +9,36 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // Task 13 appends VitePWA({ strategies: 'injectManifest', srcDir: 'src', filename: 'sw.ts', ... }) here.
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      registerType: 'autoUpdate',
+      injectRegister: false, // src/pwa/registerSW.ts registers it
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+      },
+      manifest: {
+        id: '/',
+        name: 'WA Team Inbox',
+        short_name: 'Team Inbox',
+        description: 'Shared team inbox',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'any',
+        theme_color: '#059669',
+        background_color: '#ffffff',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+        ],
+      },
+      devOptions: { enabled: false, type: 'module' },
+    }),
   ],
   server: {
     port: 5173,

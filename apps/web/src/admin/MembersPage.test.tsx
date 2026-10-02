@@ -1,0 +1,115 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import type { User } from '@wa-team-inbox/shared';
+import { MembersPage } from './MembersPage';
+
+const users: User[] = [
+  {
+    id: 1,
+    username: 'admin',
+    displayName: 'Alice Admin',
+    role: 'admin',
+    mustChangePassword: false,
+    disabled: false,
+    createdAt: 1_700_000_000_000,
+  },
+  {
+    id: 2,
+    username: 'bob',
+    displayName: 'Bob Agent',
+    role: 'agent',
+    mustChangePassword: false,
+    disabled: true,
+    createdAt: 1_700_000_100_000,
+  },
+];
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+function setup() {
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET';
+    if (url === '/api/users' && method === 'GET') return json({ users });
+    if (url === '/api/users' && method === 'POST') {
+      const body = JSON.parse(String(init?.body)) as Partial<User>;
+      return json({ ...users[1], ...body, id: 3, disabled: false, mustChangePassword: true }, 201);
+    }
+    if (url === '/api/me') return json(users[0]);
+    return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={['/admin/members']}>
+        <MembersPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  return fetchMock;
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe('MembersPage', () => {
+  it('renders users from the users query', async () => {
+    setup();
+    expect((await screen.findAllByText('Alice Admin')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bob Agent').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/disabled/i).length).toBeGreaterThan(0);
+  });
+
+  it('opens the create modal and submits typed values to the create mutation', async () => {
+    const fetchMock = setup();
+    const user = userEvent.setup();
+    await screen.findAllByText('Alice Admin');
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog');
+    const d = within(dialog);
+
+    await user.type(d.getByLabelText(/^username/i), 'carol');
+    await user.type(d.getByLabelText(/display name/i), 'Carol Chan');
+    await user.selectOptions(d.getByLabelText(/role/i), 'admin');
+    const pw = d.getByLabelText(/temporary password/i) as HTMLInputElement;
+    await user.clear(pw);
+    await user.type(pw, 'temp-pass-123');
+    await user.click(d.getByRole('button', { name: /create member/i }));
+
+    await waitFor(() => {
+      const post = fetchMock.mock.calls.find(
+        (c) => c[0] === '/api/users' && (c[1] as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(post).toBeTruthy();
+      expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
+        username: 'carol',
+        displayName: 'Carol Chan',
+        role: 'admin',
+        password: 'temp-pass-123',
+      });
+    });
+  });
+
+  it('generates a temporary password by default', async () => {
+    setup();
+    const user = userEvent.setup();
+    await screen.findAllByText('Alice Admin');
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog');
+    const pw = within(dialog).getByLabelText(/temporary password/i) as HTMLInputElement;
+    expect(pw.value.length).toBeGreaterThanOrEqual(12);
+  });
+});
