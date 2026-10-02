@@ -63,6 +63,28 @@ describe('setup', () => {
     expect(t.ctx.services.auth!.hasAnyUser()).toBe(false);
   });
 
+  it('rejects setup via a DNS-rebound Host even from loopback with matching Origin', async () => {
+    const r = await t.app.inject({
+      method: 'POST',
+      url: '/api/setup/admin',
+      payload: admin,
+      headers: { host: 'evil.com:7420', origin: 'http://evil.com:7420' },
+    });
+    expect(r.statusCode).toBe(403);
+    expect(t.ctx.services.auth!.hasAnyUser()).toBe(false);
+  });
+
+  it('rejects setup with a LAN IP Host (must be a loopback name)', async () => {
+    const r = await t.app.inject({
+      method: 'POST',
+      url: '/api/setup/admin',
+      payload: admin,
+      headers: { host: '192.168.1.5:7420' },
+    });
+    expect(r.statusCode).toBe(403);
+    expect(t.ctx.services.auth!.hasAnyUser()).toBe(false);
+  });
+
   it('second setup returns 404', async () => {
     await t.app.inject({ method: 'POST', url: '/api/setup/admin', payload: admin });
     const r = await t.app.inject({

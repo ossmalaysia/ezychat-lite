@@ -1,6 +1,6 @@
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { ChatFilters as Filters } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { Avatar } from '../components/ui';
@@ -10,6 +10,7 @@ import { ChatFilters } from './ChatFilters';
 import { ChatList } from './ChatList';
 import { Conversation } from './Conversation';
 import { useDirectory } from './useDirectory';
+import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
 
 const FILTERS_KEY = 'wati.inbox.filters';
@@ -113,7 +114,16 @@ export function InboxPage() {
   const params = useParams<{ jid?: string }>();
   const jid = params.jid ? decodeJid(params.jid) : null;
   const navigate = useNavigate();
+  const location = useLocation();
   const directory = useDirectory();
+
+  // Mobile back: when the conversation was opened from the list, pop history so the hardware /
+  // swipe back gesture doesn't bounce into the chat again; deep links replace instead.
+  const fromList = (location.state as { fromList?: boolean } | null)?.fromList === true;
+  const onBack = useCallback(() => {
+    if (fromList) navigate(-1);
+    else navigate('/', { replace: true });
+  }, [fromList, navigate]);
   const [filters, setFilters] = useState<Filters>(loadFilters);
 
   useEffect(() => {
@@ -128,6 +138,7 @@ export function InboxPage() {
     <div className="safe-x flex h-dvh flex-col overflow-hidden bg-white dark:bg-neutral-950">
       <div className="safe-top bg-white dark:bg-neutral-900" />
       <WaBanner />
+      <ReconnectBanner />
       <div className="flex min-h-0 flex-1">
         <aside
           className={clsx(
@@ -153,7 +164,7 @@ export function InboxPage() {
           )}
         >
           {jid ? (
-            <Conversation key={jid} jid={jid} directory={directory} onBack={() => navigate('/')} />
+            <Conversation key={jid} jid={jid} directory={directory} onBack={onBack} />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
               <div className="rounded-full bg-emerald-100 p-4 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">

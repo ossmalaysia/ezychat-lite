@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import { macRuntimeBundle, serviceCommand, type ServiceDeps } from './index.js';
+
+const B = String.fromCharCode(92);
+const w = (...p: string[]) => p.join(B);
+
+const winDeps: ServiceDeps = {
+  execPath: w('C:', 'Program Files', 'WA Team Inbox', 'WA Team Inbox.exe'),
+  serverHost: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'app.asar', 'dist', 'server-host.cjs'),
+  serverEntry: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'app.asar', 'dist', 'server', 'server.cjs'),
+  webDist: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'web'),
+  cloudflaredBinary: null,
+  cloudflaredDir: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'cloudflared'),
+  winswExe: 'x',
+  userDataDir: 'u',
+  machineDataDir: w('C:', 'ProgramData', 'wa-team-inbox'),
+  port: 7420,
+  version: '0.1.0',
+};
+
+describe('serviceCommand', () => {
+  it('runs the server through server-host and tells it where to report the effective port', () => {
+    const c = serviceCommand(winDeps, 'win32', () => false);
+    expect(c.exe).toBe(winDeps.execPath);
+    expect(c.args.slice(0, 2)).toEqual([winDeps.serverHost, winDeps.serverEntry]);
+    expect(c.args).toContain('--port');
+    expect(c.env.WATI_PORT_FILE?.endsWith(w('wa-team-inbox', 'run', 'port.json'))).toBe(true);
+    expect(c.env.ELECTRON_RUN_AS_NODE).toBe('1');
+  });
+  it('on macOS points every bundle path at the root-owned runtime copy', () => {
+    const app = '/Applications/WA Team Inbox.app';
+    const c = serviceCommand(
+      {
+        ...winDeps,
+        execPath: `${app}/Contents/MacOS/WA Team Inbox`,
+        serverHost: `${app}/Contents/Resources/app.asar/dist/server-host.cjs`,
+        serverEntry: `${app}/Contents/Resources/app.asar/dist/server/server.cjs`,
+        webDist: `${app}/Contents/Resources/web`,
+        cloudflaredDir: `${app}/Contents/Resources/cloudflared`,
+        machineDataDir: '/Library/Application Support/wa-team-inbox',
+        appBundle: app,
+      },
+      'darwin',
+      () => false,
+    );
+    const dest = macRuntimeBundle(app);
+    expect(dest).toBe('/Library/Application Support/wa-team-inbox-runtime/WA Team Inbox.app');
+    expect(c.exe.startsWith(dest)).toBe(true);
+    for (const a of [c.args[0], c.args[1], c.env.WATI_CLOUDFLARED_DIR]) expect(a?.startsWith(dest)).toBe(true);
+    expect(c.args.join(' ')).not.toContain('/Applications/');
+  });
+});

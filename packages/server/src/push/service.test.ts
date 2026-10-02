@@ -148,3 +148,29 @@ describe('PushService', () => {
     push.shutdown();
   });
 });
+
+describe('isAllowedPushEndpoint', () => {
+  it('allows known push services and rejects everything else', async () => {
+    const { isAllowedPushEndpoint } = await import('./service.js');
+    for (const ok of [
+      'https://fcm.googleapis.com/fcm/send/abc',
+      'https://updates.push.services.mozilla.com/wpush/v2/abc',
+      'https://wns2-par02p.notify.windows.com/w/?token=abc',
+      'https://web.push.apple.com/abc',
+    ]) {
+      expect(isAllowedPushEndpoint(ok), ok).toBe(true);
+    }
+    for (const bad of [
+      'https://127.0.0.1/x',
+      'https://[::1]/x',
+      'https://10.0.0.5/x',
+      'http://fcm.googleapis.com/x',
+      'https://fcm.googleapis.com.evil.com/x',
+      'https://evilnotify.windows.com/x',
+      'https://user:pw@fcm.googleapis.com/x',
+      'not a url',
+    ]) {
+      expect(isAllowedPushEndpoint(bad), bad).toBe(false);
+    }
+  });
+});

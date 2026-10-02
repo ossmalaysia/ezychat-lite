@@ -34,7 +34,7 @@ export function NotesPanel({ jid, notes, loading, directory, onClose }: NotesPan
   return (
     <aside
       aria-label="Internal notes"
-      className="safe-top safe-x fixed inset-0 z-40 flex flex-col bg-white md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-neutral-200 md:pt-0 dark:bg-neutral-900 md:dark:border-neutral-800"
+      className="safe-top safe-x fixed inset-0 z-40 flex flex-col bg-white lg:static lg:z-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-neutral-200 lg:pt-0 dark:bg-neutral-900 lg:dark:border-neutral-800"
     >
       <div className="flex items-center gap-2 border-b border-neutral-200 py-1 pl-4 pr-1.5 dark:border-neutral-800">
         <h3 className="flex-1 py-2 text-sm font-semibold">Internal notes</h3>

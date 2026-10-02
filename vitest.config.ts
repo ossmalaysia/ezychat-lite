@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     projects: ['packages/*', 'apps/*'],
     passWithNoTests: true,
+    // Transforms dominated test time (~86%); persist them across runs.
+    experimental: { fsModuleCache: true },
   },
 });

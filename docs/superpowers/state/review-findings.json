@@ -1,0 +1,218 @@
+[
+ {
+  "n": 1,
+  "file": "packages/server/src/http/origin.ts",
+  "line": 26,
+  "severity": "high",
+  "summary": "Nothing checks the Host header against an allowlist, which leaves the server open to DNS rebinding. Both the CSRF check (Origin host must equal Host) and the setup guard (socket peer is loopback with no CF-Connecting-IP) trust whatever Host the browser sends. The same comparison is in realtime/socket.ts originAllowed. Attack: while setup is still pending, a web page the operator visits rebinds its own domain (for example evil.com) to 127.0.0.1. It then sends POST /api/setup/admin with Origin http://evil.com:7420 and Host evil.com:7420. Origin equals Host and the peer is loopback, so the attacker creates the first admin and gets a session cookie for evil.com. With that session the attacker can call POST /api/tunnel/start (quick tunnel) for permanent remote admin access and read the WhatsApp QR.",
+  "fix": "Add an onRequest hook, and the same check in Socket.IO allowRequest, that rejects any request whose Host is not one of: 127.0.0.1:<port>, localhost:<port>, [::1]:<port>, the LAN IPs when lan_enabled is on, the current quick-tunnel host, or the configured namedTunnelHostname. At minimum, have POST /setup/admin require Host to be exactly 127.0.0.1/localhost/[::1] on the bound port."
+ },
+ {
+  "n": 2,
+  "file": "apps/desktop/src/service/windows.ts",
+  "line": 114,
+  "severity": "high",
+  "summary": "The Windows service install can be used for local privilege escalation to SYSTEM. The WinSW wrapper is copied to %ProgramData%\\wa-team-inbox\\service\\wa-team-inbox.exe and run as LocalSystem. The script creates the directories with `New-Item -Force`, which succeeds silently when they already exist. The icacls step only replaces the ACEs (/inheritance:r /grant:r) and never changes the owner. By default C:\\ProgramData lets standard users create subfolders, so a standard user can create C:\\ProgramData\\wa-team-inbox before the admin installs the service and stay its owner. The owner keeps implicit WRITE_DAC, so after install that user can grant themselves rights back and replace wa-team-inbox.exe or plant a DLL next to it. That code then runs as SYSTEM. The same user can also read secret.key, app.db and the WhatsApp auth files.",
+  "fix": "Before copying, either remove the directory if it already exists and recreate it, or run `icacls <dataDir> /setowner *S-1-5-32-544 /T /C` (or takeown /A) together with the ACL reset. Better still, put the WinSW exe and xml under the per-machine install dir (Program Files), not under the data dir, and check that the resulting owner and ACL are as expected before `install`."
+ },
+ {
+  "n": 3,
+  "file": "packages/server/src/auth/service.ts",
+  "line": 246,
+  "severity": "medium",
+  "summary": "Demoting an admin to agent does not touch their open sockets. Role is captured once in socket.data at handshake, and the socket joins the 'admins' room then (realtime/socket.ts). updateUser only emits an event when a user is disabled, not when their role changes. A demoted user who stays connected keeps getting wa:qr (the live link QR, enough to link the business number to a device they control) and tunnel:status (the public URL). HTTP routes do re-check the role, so only the socket path leaks.",
+  "fix": "In updateUser, when the role changes, emit a bus event such as 'user:role-changed' (or call revokeAll). In realtime, on that event, either disconnect that user's sockets or make them leave 'admins' and update socket.data.role."
+ },
+ {
+  "n": 4,
+  "file": "packages/server/src/auth/service.ts",
+  "line": 193,
+  "severity": "medium",
+  "summary": "Ending a session does not disconnect its live socket. revokeOthers (used by change-password) and destroySession (used by logout) delete the session rows but emit no bus event, and Socket.IO auth is checked only at handshake. If a user changes their password because the account was compromised, the attacker's socket stays connected and keeps streaming message:new, note:new and chat:updated for every chat until it disconnects on its own. The same applies to a socket left open after logout on a shared PC.",
+  "fix": "Have revokeOthers and destroySession emit an event (for example 'user:sessions-revoked' with the userId, or a token-hash-specific event). The existing onRevoked handler already re-checks each socket's token and disconnects those whose session no longer resolves, so it will handle the rest."
+ },
+ {
+  "n": 5,
+  "file": "packages/server/src/tunnel/manager.ts",
+  "line": 135,
+  "severity": "medium",
+  "summary": "The named-tunnel token is stored encrypted, but it is passed to cloudflared in plain text as `--token <token>` on the command line. Any local user can read process command lines (Task Manager, `wmic process get commandline`, `ps`), and the service runs as SYSTEM or root on shared machines. That exposes the Cloudflare tunnel credential, which lets someone run a connector for the tunnel and hijack its traffic.",
+  "fix": "Pass the token through the child's environment (cloudflared supports TUNNEL_TOKEN): spawn with env: { ...process.env, TUNNEL_TOKEN: token } and args ['tunnel','--no-autoupdate','run']."
+ },
+ {
+  "n": 6,
+  "file": "packages/server/src/push/service.ts",
+  "line": 113,
+  "severity": "medium",
+  "summary": "Any agent can make the server send outbound requests to an arbitrary URL (server-side request forgery). POST /api/push/subscribe stores whatever URL is passed as `endpoint` (validated only with z.string().url()). Every inbound WhatsApp message then makes web-push send an HTTPS POST from the server to that URL. This reaches internal or LAN hosts and cloud metadata endpoints, and acts as a blind port scanner.",
+  "fix": "Validate the endpoint: require the https: scheme, reject IP-literal and private, loopback and link-local hosts, and ideally allowlist known push services (fcm.googleapis.com, *.push.services.mozilla.com, *.notify.windows.com, *.push.apple.com, web.push.apple.com)."
+ },
+ {
+  "n": 7,
+  "file": "apps/desktop/src/service/macos.ts",
+  "line": 41,
+  "severity": "medium",
+  "summary": "On macOS, a non-root user can get their code run as root. The LaunchDaemon runs as root and its ProgramArguments point at the app's own executable and app.asar inside the .app bundle. Drag-installed apps in /Applications are owned by, and writable by, the user who installed them. That user, or malware running as them, can change app.asar or the binary and have it executed as root on the next KeepAlive restart or reboot. The plist also sets no UserName, so the service runs with full root rights.",
+  "fix": "Set UserName/GroupName in the plist to a dedicated low-privilege account (for example _wa-team-inbox) that owns the data dir. Or copy the server runtime into a root-owned location such as /Library/Application Support/wa-team-inbox/bin (root:wheel 755) and point the daemon there, never at the user-writable bundle."
+ },
+ {
+  "n": 8,
+  "file": "packages/server/src/config.ts",
+  "line": 95,
+  "severity": "medium",
+  "summary": "Setting the environment variable WATI_FAKE_WA=1 also turns on fake-WA mode and the dev endpoint POST /api/dev/fake-incoming. The spec says it must be enabled only by the explicit --fake-wa flag. An environment variable left over on a developer or production machine silently swaps the real WhatsApp adapter for the fake one, which can inject arbitrary inbound messages. It is not visible in the service arguments.",
+  "fix": "Drop the WATI_FAKE_WA env fallback (keep only the --fake-wa flag). Optionally also refuse fakeWa when mode === 'service'."
+ },
+ {
+  "n": 9,
+  "file": "packages/wa/src/baileys/adapter.ts",
+  "line": 266,
+  "severity": "high",
+  "summary": "The adapter treats every messages.upsert whose type is not 'notify' as history. Baileys 7.0.0-rc14 (messages-recv.js:1432) sends messages that were queued while we were offline as type 'append' (`node.attrs.offline ? 'append' : 'notify'`). Any customer message that arrives while the server was down or reconnecting is therefore ingested as 'history', so unread_count is not increased, a resolved chat is not reopened, and inbound:notify / push never fires. When history_days=0, historyCutoff() returns +Infinity (line 360) and those messages are dropped completely (line 369).",
+  "fix": "Do not map 'append' to history. Only messaging-history.set should be source 'history'. Treat upsert 'append' as live for !fromMe messages (or check the timestamp against connect time), and apply the historyDays cutoff only in onHistory."
+ },
+ {
+  "n": 10,
+  "file": "apps/desktop/src/main.ts",
+  "line": 207,
+  "severity": "high",
+  "summary": "connectOrStart() only probes the port. If the OS service is installed but not answering yet (still booting, crashed, or stopped from the Status window) and the app is opened, it starts a standalone server on userDataDir. That folder is empty because the data was moved to the machine folder, so the user gets a fresh instance with the setup wizard. The standalone server then holds port 7420, so the service's restart-on-failure can no longer bind.",
+  "fix": "Before falling back to standalone, call service.status(). If the service is installed (not 'not-installed'), stay in client/error mode: offer to start the service, or wait for it with waitForServer. Never start standalone while the service is installed."
+ },
+ {
+  "n": 11,
+  "file": "packages/server/src/messages/send-queue.ts",
+  "line": 316,
+  "severity": "medium",
+  "summary": "A send only stays pending when the error has code 'wa_unavailable'. If the connection drops during sock.sendMessage, Baileys throws Boom 'Connection Closed' (statusCode 428), not WaUnavailableError, and our status may still read 'open' at that moment. The job is then marked failed instead of being kept and flushed on reconnect, which the spec requires.",
+  "fix": "Have BaileysAdapter.send wrap socket-closed and connection Boom errors (statusCode 428/408/440/503, or a closed socket) as WaUnavailableError. Alternatively, in the queue, treat any error raised while !isConnected() shortly after as transient and keep the job pending."
+ },
+ {
+  "n": 12,
+  "file": "apps/desktop/src/server-process.ts",
+  "line": 159,
+  "severity": "medium",
+  "summary": "Changing the port in Admin > Settings never takes effect. Both the standalone spawn (here) and the service command (apps/desktop/src/service/index.ts:87) always pass --port from desktop.json, so cfg.portExplicit is true and startServer ignores the persisted 'port' setting (main.ts:90). The UI still says the change applies after a restart.",
+  "fix": "Stop passing --port from the desktop and let the server read the setting, then have the desktop learn the port (e.g. sync desktop.json). Or write the new port to desktop.json and the service config when the setting changes. Otherwise reject or hide the port setting under the desktop shell."
+ },
+ {
+  "n": 13,
+  "file": "apps/desktop/src/server-process.ts",
+  "line": 252,
+  "severity": "medium",
+  "summary": "On Windows, utilityProcess.kill() and child.kill('SIGTERM') terminate the process outright, so the server's SIGTERM handler and close() never run. Each quit, service enable and reset-admin therefore skips WA disconnect, tunnelManager.shutdown() (the cloudflared child can be left running) and lock.release(). The stale server.lock holds only a pid. If Windows reuses that pid, acquireLock throws LockedError (exit 3), and the desktop restarts the server endlessly with backoff because only code 2 is excluded.",
+  "fix": "Ask for a graceful shutdown before killing: an IPC/stdin 'shutdown' message, or POST to a loopback-only shutdown endpoint, and wait for exit. Make the lock robust to pid reuse (store pid plus process start time, or use an OS file lock). Treat exit code 3 as non-restartable in StandaloneServer.onExit."
+ },
+ {
+  "n": 14,
+  "file": "packages/server/src/main.ts",
+  "line": 93,
+  "severity": "medium",
+  "summary": "runInitializers() restores the tunnel (initTunnel starts cloudflared) before app.listen(). If listen, or anything after the initializers, throws (e.g. EADDRINUSE), startServer exits through cli.ts process.exit(1) without shutdownServices() or lock.release(). That can leave cloudflared running, and each supervisor restart spawns another one.",
+  "fix": "Wrap runInitializers/buildApp/listen in try/catch. On failure, await shutdownServices(ctx), close the db, release the lock and close the logger before rethrowing. Alternatively, restore the tunnel only after listen succeeds."
+ },
+ {
+  "n": 15,
+  "file": "packages/server/src/messages/service.ts",
+  "line": 134,
+  "severity": "medium",
+  "summary": "onSent drops an early 'failed' status (an ERROR ack that arrived before the local→WA id rename and was stored in earlyStatus). The message is set to 'sent' and stays there, because later applyStatus calls never see the failure.",
+  "fix": "In onSent, if earlyStatus for waId is 'failed', set status 'failed' with error 'Delivery failed' and emit it, instead of collapsing it to 'sent'."
+ },
+ {
+  "n": 16,
+  "file": "packages/wa/src/baileys/adapter.ts",
+  "line": 275,
+  "severity": "medium",
+  "summary": "Delivered/read updates are only taken from 'messages.update'. For group chats, Baileys sends per-participant receipts on 'message-receipt.update' instead (messages-recv.js:1186-1197), so outgoing group messages never move past 'sent'.",
+  "fix": "Subscribe to 'message-receipt.update' for fromMe keys and emit messageStatus 'delivered' (receiptTimestamp) or 'read' (readTimestamp). Status monotonicity is already enforced in applyStatus."
+ },
+ {
+  "n": 17,
+  "file": "packages/server/src/main.ts",
+  "line": 35,
+  "severity": "medium",
+  "summary": "historyDays is read once at startup and stored in the BaileysAdapter. If an admin changes history_days and then relinks (POST /wa/relink), the old value is still used. settings-service.patch returns restartRequired=false for this change, so the UI does not mention that a restart is needed.",
+  "fix": "Give the adapter a getter (historyDays: () => settings.get('history_days')) or add setHistoryDays() and call it from settings patch. Alternatively, include historyDays in restartRequired."
+ },
+ {
+  "n": 18,
+  "file": "packages/server/src/tunnel/manager.ts",
+  "line": 189,
+  "severity": "medium",
+  "summary": "Tunnel supervision does not match the spec's '1s→60s backoff, error after 5 consecutive failures'. Only exits within 30s count as failures; a slower exit resets failures to 1. A cloudflared that keeps dying after 30s+ restarts forever at a 1s delay and never reaches 'error'. The delay also never goes beyond 8s (1, 2, 4, 8, then error).",
+  "fix": "Count consecutive failures regardless of runtime, and reset only after a run reached 'running' and stayed up for a stable period. Compute backoff from a separate attempt counter capped at 60s."
+ },
+ {
+  "n": 19,
+  "file": "packages/server/src/messages/service.ts",
+  "line": 357,
+  "severity": "medium",
+  "summary": "retry() only accepts rows whose id starts with 'local-'. A message that WhatsApp later marks failed through an ERROR ack (applyStatus, row already renamed to the WA id) shows a Retry button (MessageBubble.tsx:175 shows it for any outgoing failed message), but the server returns 409 and Conversation.onRetry only handles 404. The retry silently does nothing.",
+  "fix": "Either allow retrying WA-id failed rows (re-insert as a new local-<uuid> pending row with the same content), or hide the Retry button for messages whose id is not 'local-' and show the error instead."
+ },
+ {
+  "n": 20,
+  "file": "apps/web/src/inbox/useDirectory.ts",
+  "line": 21,
+  "severity": "high",
+  "summary": "Agents never get the team list: GET /api/users is admin-only (packages/server/src/routes/users.ts:14) and useDirectory only calls it for admins. Agents therefore see 'Agent #N' everywhere a teammate's name should appear: the assignee pill in the chat list, the 'sent by <agent>' label on bubbles, note authors, timeline events and the 'Assigned to Agent #N, reply anyway?' confirm. They also cannot assign a chat to a teammate, because the only options are themselves and Unassigned. That breaks the shared-inbox UX in spec §1/§11 for the main user role.",
+  "fix": "Add a GET /api/users/directory route open to any logged-in user that returns only {id, displayName, role, disabled}, and use it in useDirectory for every role. Another option is for the server to add assignedToName/sentByName to the Chat and Message payloads."
+ },
+ {
+  "n": 21,
+  "file": "apps/web/src/api/queries.ts",
+  "line": 276,
+  "severity": "high",
+  "summary": "Logging out (or having sessions revoked) never removes the device's push subscription. The browser subscription stays, and the server row in push_subscriptions stays tied to the old user. A shared or handed-over phone keeps getting customer message previews after sign-out. When a different user then logs in on that device, PushToggle shows 'on' but the pushes still go to the previous user.",
+  "fix": "In useLogout and the session:revoked handler, call unsubscribePush() (DELETE /push/subscribe, then sub.unsubscribe()) before clearing the cache. On the server, also delete a user's push_subscriptions when their sessions are revoked or the account is disabled."
+ },
+ {
+  "n": 22,
+  "file": "apps/web/src/api/socket.ts",
+  "line": 85,
+  "severity": "high",
+  "summary": "Outgoing media becomes unreachable once it is sent. The server renames the row from local-<clientId> to the WhatsApp id (messages/service.ts onSent). The message:status handler patches only id/status, so the cached message keeps mediaUrl=/api/media/local-<clientId>. That URL now returns 404 (media route looks up by id), so the sender's document download, video/audio playback (Range requests) and lightbox stop working until a full refetch.",
+  "fix": "When p.newId is present, also rewrite mediaUrl to `/api/media/${encodeURIComponent(p.newId)}` (or include the full Message in the message:status payload and upsert it)."
+ },
+ {
+  "n": 23,
+  "file": "apps/web/src/inbox/NotesPanel.tsx",
+  "line": 37,
+  "severity": "medium",
+  "summary": "At md widths the notes panel becomes a static w-80 column next to the md:w-[360px] chat list. At 768–1000px (tablets, landscape phones) opening notes leaves the conversation about 88–300px wide: header controls overflow, bubbles are crushed and the composer is unusable.",
+  "fix": "Keep the notes panel as an overlay sheet below lg (use lg:static lg:w-80 instead of md:), or hide the chat list while notes are open at md."
+ },
+ {
+  "n": 24,
+  "file": "apps/web/src/inbox/InboxPage.tsx",
+  "line": 156,
+  "severity": "medium",
+  "summary": "Mobile back navigation pushes history instead of popping it. onBack calls navigate('/'), so the history becomes / → /chats/x → /. Pressing the Android hardware back button (or iOS swipe-back) on the list then reopens the conversation you just left, and each chat visit adds more entries.",
+  "fix": "Use navigate(-1) when the previous entry is the inbox list (e.g. track location.key / a state flag set by ChatListItem), otherwise navigate('/', { replace: true })."
+ },
+ {
+  "n": 25,
+  "file": "index.html",
+  "line": 5,
+  "severity": "medium",
+  "summary": "Nothing keeps the composer above the on-screen keyboard, which the spec requires. The viewport meta has no interactive-widget=resizes-content and there is no visualViewport handling anywhere in apps/web/src. Android Chrome (resizes-visual by default since v108) and iOS Safari do not shrink 100dvh for the keyboard. The browser instead pans the whole h-dvh page, so the conversation header and assign/resolve controls scroll off-screen, and the quick-reply picker (bottom-full, max-h-60) can open above the visible area. The message list is also not re-anchored to the bottom when its height changes.",
+  "fix": "Add interactive-widget=resizes-content to the viewport meta (apps/web/index.html), and as a fallback size the inbox root to window.visualViewport.height through a CSS variable. Add a ResizeObserver in MessageList that keeps the scroll pinned to the bottom when the user was already near it."
+ },
+ {
+  "n": 26,
+  "file": "apps/web/src/inbox/Composer.tsx",
+  "line": 216,
+  "severity": "medium",
+  "summary": "On touch devices the textarea sets enterKeyHint=\"send\", so the keyboard shows a Send key, but onKeyDown (line 159) skips submit when isCoarsePointer() is true. Tapping the keyboard's Send key inserts a newline instead of sending, which contradicts its label.",
+  "fix": "Use enterKeyHint=\"enter\" on coarse pointers (to match the newline behavior), or let Enter send on mobile as well."
+ },
+ {
+  "n": 27,
+  "file": "apps/web/src/api/socket.ts",
+  "line": 57,
+  "severity": "medium",
+  "summary": "The realtime 'connected' state is computed but never used: useRealtime is only read for typing data in Conversation.tsx. When the Socket.IO connection to the server drops (common on phones over the tunnel), nothing tells the agent. The inbox silently shows stale chats and missing messages, even though the spec's Conversation UI calls for a disconnected banner.",
+  "fix": "Show a 'Reconnecting to server…' banner in InboxPage (next to WaBanner) when useRealtime().connected is false after the first connect."
+ }
+]

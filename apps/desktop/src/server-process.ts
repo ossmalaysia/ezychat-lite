@@ -2,13 +2,19 @@
 // modules), or the system `node` in development (repo node_modules are built for Node's ABI).
 import { EventEmitter } from 'node:events';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { utilityProcess, type UtilityProcess } from 'electron';
 import { probeServer } from './detect.js';
+import { SHUTDOWN_MESSAGE } from './server-host.cjs';
+import { isRestartableExit, parsePortFile } from './startup.js';
 
 export type ServerState = 'starting' | 'running' | 'crashed' | 'stopped';
 
 export interface StandaloneServerOptions {
+  /** dist/server-host.cjs: applies the persisted port setting, writes portFile, handles graceful shutdown */
+  host: string;
+  /** where server-host writes the effective port ({ port, pid }) */
+  portFile: string;
   entry: string;
   dataDir: string;
   port: number;
@@ -27,9 +33,14 @@ type Child = { kind: 'utility'; p: UtilityProcess } | { kind: 'node'; p: ChildPr
 const MIN_BACKOFF = 1000;
 const MAX_BACKOFF = 30_000;
 const LOG_LINES = 200;
+/** how long a graceful shutdown (WA disconnect, tunnel stop, lock release) may take */
+const STOP_TIMEOUT = 15_000;
 
-export function serverEnv(o: Pick<StandaloneServerOptions, 'cloudflaredDir' | 'cloudflaredBinary' | 'version'>): NodeJS.ProcessEnv {
+export function serverEnv(
+  o: Pick<StandaloneServerOptions, 'cloudflaredDir' | 'cloudflaredBinary' | 'version'> & { portFile?: string },
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, WATI_CLOUDFLARED_DIR: o.cloudflaredDir };
+  if (o.portFile) env.WATI_PORT_FILE = o.portFile;
   delete env.ELECTRON_RUN_AS_NODE;
   if (o.cloudflaredBinary && existsSync(o.cloudflaredBinary)) env.WATI_CLOUDFLARED = o.cloudflaredBinary;
   if (o.version) env.WATI_VERSION = o.version;
@@ -44,10 +55,45 @@ export class StandaloneServer extends EventEmitter {
   private healthTimer: NodeJS.Timeout | null = null;
   private startedAt = 0;
   private _state: ServerState = 'stopped';
+  private _port: number;
+  /** true after a non-restartable exit */
+  private gaveUp = false;
   readonly logs: string[] = [];
 
   constructor(private readonly opts: StandaloneServerOptions) {
     super();
+    this._port = opts.port;
+  }
+
+  /** Effective port (the persisted port setting may override opts.port). */
+  get port(): number {
+    return this._port;
+  }
+
+  /** Resolves true once the server answers, false on timeout or when it stops/crashes for good. */
+  waitRunning(timeoutMs: number): Promise<boolean> {
+    if (this._state === 'running') return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const onState = (s: ServerState) => {
+        if (s === 'running') finish(true);
+        else if (s === 'stopped' || (s === 'crashed' && this.gaveUp)) finish(false);
+      };
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      const finish = (v: boolean) => {
+        clearTimeout(timer);
+        this.off('state', onState);
+        resolve(v);
+      };
+      this.on('state', onState);
+    });
+  }
+
+  private readPortFile(): number | null {
+    try {
+      return parsePortFile(existsSync(this.opts.portFile) ? readFileSync(this.opts.portFile, 'utf8') : null);
+    } catch {
+      return null;
+    }
   }
 
   get state(): ServerState {
@@ -85,11 +131,20 @@ export class StandaloneServer extends EventEmitter {
     const o = this.opts;
     const args = ['--data', o.dataDir, '--port', String(o.port), '--mode', 'standalone', '--web-dist', o.webDist];
     const env = serverEnv(o);
+    try {
+      rmSync(o.portFile, { force: true });
+    } catch {
+      // ignore
+    }
     this.setState('starting');
     this.startedAt = Date.now();
     this.pushLog(`[desktop] starting server (${o.runtime ?? 'utility'}): ${o.entry}`);
     if (o.runtime === 'node') {
-      const p = spawn('node', [o.entry, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      const p = spawn('node', [o.host, o.entry, ...args], {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+        windowsHide: true,
+      });
       p.stdout?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
       p.stderr?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
       p.on('error', (err) => {
@@ -98,7 +153,7 @@ export class StandaloneServer extends EventEmitter {
       p.on('exit', (code) => this.onExit(code ?? 1));
       this.child = { kind: 'node', p };
     } else {
-      const p = utilityProcess.fork(o.entry, args, {
+      const p = utilityProcess.fork(o.host, [o.entry, ...args], {
         env: env as Record<string, string>,
         stdio: 'pipe',
         serviceName: 'WA Team Inbox Server',
@@ -115,7 +170,13 @@ export class StandaloneServer extends EventEmitter {
     if (this.healthTimer) clearTimeout(this.healthTimer);
     const tick = async () => {
       if (!this.child || this.stopping) return;
-      const r = await probeServer(this.opts.port);
+      const filePort = this.readPortFile();
+      if (filePort !== null && filePort !== this._port) {
+        this._port = filePort;
+        this.pushLog(`[desktop] server uses port ${filePort} (from settings)`);
+        this.emit('port', filePort);
+      }
+      const r = await probeServer(this._port);
       if (!this.child || this.stopping) return;
       if (r) {
         this.setState('running');
@@ -135,12 +196,20 @@ export class StandaloneServer extends EventEmitter {
       this.emit('exit', code);
       return;
     }
-    this.setState('crashed');
-    this.emit('exit', code);
-    if (code === 2) {
-      this.pushLog('[desktop] invalid server arguments; not restarting');
+    if (!isRestartableExit(code)) {
+      this.pushLog(
+        code === 3
+          ? '[desktop] the data folder is in use by another server process; not restarting'
+          : '[desktop] invalid server arguments; not restarting',
+      );
+      this.gaveUp = true;
+      this.setState('crashed');
+      this.emit('exit', code);
       return;
     }
+    this.gaveUp = false;
+    this.setState('crashed');
+    this.emit('exit', code);
     // a run that lasted > 60s resets the backoff
     if (Date.now() - this.startedAt > 60_000) this.backoff = MIN_BACKOFF;
     const delay = this.backoff;
@@ -170,14 +239,24 @@ export class StandaloneServer extends EventEmitter {
         resolve();
       };
       this.once('exit', done);
-      const force = setTimeout(() => {
-        // hard kill if graceful shutdown hangs
+      const hardKill = () => {
         if (c.kind === 'node') c.p.kill('SIGKILL');
         else c.p.kill();
+      };
+      const force = setTimeout(() => {
+        // hard kill if graceful shutdown hangs
+        this.pushLog('[desktop] server did not shut down in time; killing it');
+        hardKill();
         setTimeout(resolve, 500);
-      }, 8000);
-      if (c.kind === 'node') c.p.kill('SIGTERM');
-      else c.p.kill();
+      }, STOP_TIMEOUT);
+      // Graceful: server-host turns this message into the server's SIGTERM handler (WA disconnect,
+      // tunnel shutdown, lock release). kill() on Windows terminates without running handlers.
+      try {
+        if (c.kind === 'node') c.p.send(SHUTDOWN_MESSAGE);
+        else c.p.postMessage(SHUTDOWN_MESSAGE);
+      } catch {
+        hardKill();
+      }
     });
     this.child = null;
     this.setState('stopped');

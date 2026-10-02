@@ -40,12 +40,12 @@ let settings: SettingsStore;
 let bus: Bus;
 let now: number;
 let children: FakeChild[];
-let calls: Array<{ cmd: string; args: string[] }>;
+let calls: Array<{ cmd: string; args: string[]; env?: NodeJS.ProcessEnv }>;
 let statuses: TunnelStatus[];
 
 function makeManager(bin: string | null = '/bin/cloudflared') {
-  const spawn = ((cmd: string, args: string[]) => {
-    calls.push({ cmd, args });
+  const spawn = ((cmd: string, args: string[], opts?: { env?: NodeJS.ProcessEnv }) => {
+    calls.push({ cmd, args, env: opts?.env });
     const c = new FakeChild();
     children.push(c);
     return c;
@@ -86,10 +86,11 @@ describe('TunnelManager', () => {
     const m = makeManager();
     const s0 = await m.start({ mode: 'quick' }, 1);
     expect(s0.state).toBe('starting');
-    expect(calls[0]).toEqual({
+    expect(calls[0]).toMatchObject({
       cmd: '/bin/cloudflared',
       args: ['tunnel', '--no-autoupdate', '--url', 'http://127.0.0.1:7420'],
     });
+    expect(calls[0]!.env?.TUNNEL_TOKEN).toBeUndefined();
     children[0]!.line('INF Requesting new quick Tunnel on trycloudflare.com...');
     children[0]!.line('INF |  https://abc-def.trycloudflare.com  |');
     await flush();
@@ -105,7 +106,10 @@ describe('TunnelManager', () => {
     const m = makeManager();
     const token = 'eyJhIjoic2VjcmV0LXRva2VuLXZhbHVlIn0';
     await m.start({ mode: 'named', token, hostname: 'inbox.example.com' }, 1);
-    expect(calls[0]!.args).toEqual(['tunnel', '--no-autoupdate', 'run', '--token', token]);
+    // token passed via env, never on the command line
+    expect(calls[0]!.args).toEqual(['tunnel', '--no-autoupdate', 'run']);
+    expect(calls[0]!.args.join(' ')).not.toContain(token);
+    expect(calls[0]!.env?.TUNNEL_TOKEN).toBe(token);
     children[0]!.line('INF Registered tunnel connection connIndex=0 location=sin01', 'stdout');
     await flush();
     expect(m.status()).toMatchObject({ mode: 'named', state: 'running', hostname: 'inbox.example.com' });
@@ -154,6 +158,43 @@ describe('TunnelManager', () => {
     expect(s.logTail.length).toBeGreaterThan(0);
     await vi.advanceTimersByTimeAsync(120_000);
     expect(calls.length).toBe(5);
+  });
+
+  it('slow crashes (never running) still reach error after 5 consecutive failures', async () => {
+    vi.useFakeTimers();
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    for (let i = 0; i < 5; i++) {
+      now += 45_000; // each run lasts > 30s but never registers
+      children.at(-1)!.exit(1);
+      await vi.advanceTimersByTimeAsync(60_000);
+    }
+    expect(m.status().state).toBe('error');
+    expect(calls.length).toBe(5);
+  });
+
+  it('backoff keeps growing to a 60s cap for a tunnel that runs briefly then dies', async () => {
+    vi.useFakeTimers();
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    const delays: number[] = [];
+    for (let i = 0; i < 9; i++) {
+      children.at(-1)!.line('INF |  https://abc-def.trycloudflare.com  |');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(m.status().state).toBe('running');
+      now += 40_000; // stable enough to reset the failure count, not the backoff
+      children.at(-1)!.exit(1);
+      const before = calls.length;
+      let waited = 0;
+      while (calls.length === before && waited < 120_000) {
+        await vi.advanceTimersByTimeAsync(1000);
+        waited += 1000;
+      }
+      delays.push(waited);
+    }
+    expect(delays).toEqual([1000, 2000, 4000, 8000, 16000, 32000, 60000, 60000, 60000]);
+    expect(m.status().state).not.toBe('error');
+    await m.shutdown();
   });
 
   it('stop kills the child and sets mode off / state stopped', async () => {

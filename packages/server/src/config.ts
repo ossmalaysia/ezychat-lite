@@ -41,7 +41,8 @@ function defaultWebDist(): string | null {
 /**
  * Flags: --data <dir> (required unless WATI_DATA env), --port <n>, --host <h>, --mode <m>,
  * --fake-wa, --web-dist <dir>, --reset-admin. Also accepts --flag=value.
- * Env fallbacks: WATI_DATA, WATI_PORT, WATI_HOST, WATI_MODE, WATI_FAKE_WA=1, WATI_WEB_DIST.
+ * Env fallbacks: WATI_DATA, WATI_PORT, WATI_HOST, WATI_MODE, WATI_WEB_DIST.
+ * Fake WhatsApp is enabled ONLY by the explicit --fake-wa flag (never by env), and never in service mode.
  */
 export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig & { resetAdmin: boolean } {
   const flags = new Map<string, string | true>();
@@ -84,6 +85,8 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig 
   const modeRaw = str('mode') ?? env.WATI_MODE ?? 'standalone';
   if (!(MODES as readonly string[]).includes(modeRaw)) throw new Error(`invalid mode: ${modeRaw}`);
 
+  if (flags.get('fake-wa') === true && modeRaw === 'service') throw new Error('--fake-wa is not allowed in service mode');
+
   const hostRaw = str('host') ?? env.WATI_HOST;
   const webDist = str('web-dist') ?? env.WATI_WEB_DIST;
 
@@ -92,7 +95,7 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig 
     port,
     host: hostRaw ?? '127.0.0.1',
     mode: modeRaw as ServerConfig['mode'],
-    fakeWa: flags.get('fake-wa') === true || env.WATI_FAKE_WA === '1',
+    fakeWa: flags.get('fake-wa') === true,
     webDistDir: webDist ? resolve(webDist) : defaultWebDist(),
     version: readVersion(),
     portExplicit: portRaw !== undefined,

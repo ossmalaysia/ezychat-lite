@@ -36,6 +36,9 @@ const defaultSleep = (ms: number) =>
     t.unref?.();
   });
 
+/** wait after a wa_unavailable send error while the connection still reports open */
+export const UNAVAILABLE_RETRY_MS = 2_000;
+
 function isUnavailable(err: unknown): boolean {
   return !!err && typeof err === 'object' && (err as { code?: unknown }).code === 'wa_unavailable';
 }
@@ -172,7 +175,12 @@ export class SendQueue {
         this.lastSentAt.set(chatJid, this.now());
         this.safe(() => this.deps.onSent(job, r));
       } catch (err) {
-        if (isUnavailable(err) && !this.deps.isConnected()) continue; // connection dropped: stay pending
+        if (isUnavailable(err)) {
+          // Connection dropped mid-send: stay pending. Our status may still read 'open' for a moment
+          // (the close event lags the failed send), so back off briefly before re-checking.
+          if (this.deps.isConnected()) await this.sleep(UNAVAILABLE_RETRY_MS);
+          continue;
+        }
         q.shift();
         this.lastSentAt.set(chatJid, this.now());
         this.safe(() => this.deps.onFailed(job, err instanceof Error ? err : new Error(String(err))));

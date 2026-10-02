@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type {
   Chat,
+  Role,
   ChatEvent,
   Message,
   Note,
@@ -19,6 +20,8 @@ export interface BusEvents {
   'tunnel:status': [TunnelStatus];
   'user:disabled': [number];
   'user:sessions-revoked': [number];
+  /** userId, new role (live sockets must join/leave the 'admins' room) */
+  'user:role-changed': [number, Role];
   /** for push routing */
   'inbound:notify': [{ chat: Chat; message: Message }];
 }

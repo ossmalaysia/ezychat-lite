@@ -34,6 +34,7 @@ import {
   type WaStatus,
 } from '@wa-team-inbox/shared';
 import { ApiError, api } from './client';
+import { unsubscribePush } from '../pwa/push';
 
 // ---------------------------------------------------------------------------
 // Query keys
@@ -55,6 +56,7 @@ export const qk = {
   notes: (jid: string) => ['notes', jid] as const,
   quickReplies: ['quick-replies'] as const,
   users: ['users'] as const,
+  directory: ['users', 'directory'] as const,
   wa: ['wa'] as const,
   tunnel: ['tunnel'] as const,
   settings: ['settings'] as const,
@@ -104,9 +106,32 @@ const STATUS_RANK: Record<Message['status'], number> = {
  */
 function mergeMessage(existing: Message, incoming: Message): Message {
   if (incoming.status !== 'failed' && STATUS_RANK[existing.status] > STATUS_RANK[incoming.status]) {
-    return { ...incoming, id: existing.id, status: existing.status, error: existing.error };
+    return {
+      ...incoming,
+      id: existing.id,
+      status: existing.status,
+      error: existing.error,
+      mediaUrl: existing.mediaUrl ?? incoming.mediaUrl,
+    };
   }
   return incoming;
+}
+
+/** Same URL the server builds for a message's media (`mediaUrlFor` in messages/repo.ts). */
+export function mediaUrlFor(id: string): string {
+  return `/api/media/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Apply a patch to a cached message. When the patch renames the message (local-<clientId> →
+ * WhatsApp id) the server-side media URL moves with it, so rewrite `mediaUrl` too.
+ */
+function applyPatch(x: Message, patch: Partial<Message>): Message {
+  const next = { ...x, ...patch };
+  if (patch.id && patch.id !== x.id && x.mediaUrl && patch.mediaUrl === undefined) {
+    next.mediaUrl = mediaUrlFor(patch.id);
+  }
+  return next;
 }
 
 /** Insert or replace a message in the messages cache of its chat. */
@@ -150,7 +175,7 @@ export function patchMessageInCache(
       ...old,
       pages: old.pages.map((p) =>
         p.messages.some(hit)
-          ? { ...p, messages: p.messages.map((x) => (hit(x) ? { ...x, ...patch } : x)) }
+          ? { ...p, messages: p.messages.map((x) => (hit(x) ? applyPatch(x, patch) : x)) }
           : p,
       ),
     };
@@ -273,10 +298,25 @@ export function useLogin() {
   });
 }
 
+/**
+ * Best-effort removal of this browser's push subscription (server row + browser subscription).
+ * Never throws: logout / session revocation must proceed regardless.
+ */
+export async function dropPushSubscription(): Promise<void> {
+  try {
+    await unsubscribePush();
+  } catch {
+    // ignore — e.g. 401 after a revoked session; the browser subscription is still removed.
+  }
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
+      // Drop this device's push subscription while the session is still valid, so a
+      // shared / handed-over phone stops receiving customer previews after sign-out.
+      await dropPushSubscription();
       try {
         await api('/auth/logout', { method: 'POST' });
       } catch (e) {
@@ -564,6 +604,30 @@ export function useUsers(opts: { enabled?: boolean } = {}) {
     queryFn: async () => unwrapList<User>(await api('/users'), 'users'),
     enabled: opts.enabled ?? true,
     staleTime: 30_000,
+  });
+}
+
+/** Public team-member fields every logged-in user may see (`GET /api/users/directory`). */
+export type DirectoryUser = Pick<User, 'id' | 'displayName' | 'role' | 'disabled'>;
+
+/**
+ * Team directory for every role (agents included). Needs the server route
+ * `GET /api/users/directory`; when it is missing (404) or forbidden, resolves to an empty list
+ * so the UI falls back to "Agent #<id>" instead of erroring.
+ */
+export function useUserDirectory(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.directory,
+    queryFn: async (): Promise<DirectoryUser[]> => {
+      try {
+        return unwrapList<DirectoryUser>(await api('/users/directory'), 'users');
+      } catch (e) {
+        if (e instanceof ApiError && (e.status === 404 || e.status === 403)) return [];
+        throw e;
+      }
+    },
+    enabled: opts.enabled ?? true,
+    staleTime: 60_000,
   });
 }
 

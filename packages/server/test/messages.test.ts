@@ -179,6 +179,58 @@ describe('messages routes', () => {
     await waitFor(() => row().id.startsWith('FAKE-OUT-'));
   });
 
+  it('an ERROR ack that arrives before the id rename leaves the message failed', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed();
+    // the fake adapter's next outgoing id is FAKE-OUT-1; its failure ack races ahead of the send result
+    getMessages(t.ctx).applyStatus({ id: 'FAKE-OUT-1', chatJid: JID, status: 'failed' });
+    await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(cookie),
+      payload: { text: 'doomed', clientId: 'c-early' },
+    });
+    const row = () =>
+      t.ctx.db.prepare('SELECT id, status, error FROM messages WHERE client_id = ?').get('c-early') as {
+        id: string;
+        status: string;
+        error: string | null;
+      };
+    await waitFor(() => row().id === 'FAKE-OUT-1');
+    await settle();
+    expect(row().status).toBe('failed');
+    expect(row().error).toBe('Delivery failed');
+  });
+
+  it('a message failed by WhatsApp after the rename (WA id) can be retried', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed();
+    await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(cookie),
+      payload: { text: 'retry me', clientId: 'c-wa' },
+    });
+    const row = () =>
+      t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-wa') as { id: string; status: string };
+    await waitFor(() => row().id.startsWith('FAKE-OUT-'));
+    const waId = row().id;
+    await settle();
+    // simulate WhatsApp rejecting it after the rename (ERROR ack on the WA-id row)
+    t.ctx.db.prepare("UPDATE messages SET status = 'failed', error = 'Delivery failed' WHERE id = ?").run(waId);
+    expect(row().status).toBe('failed');
+    const statuses: Array<{ id: string; newId?: string; status: string }> = [];
+    t.ctx.bus.on('message:status', (s) => statuses.push(s));
+    const r = await t.app.inject({ method: 'POST', url: `/api/messages/${enc(waId)}/retry`, headers: authHeaders(cookie) });
+    expect(r.statusCode).toBe(200);
+    const m = MessageSchema.parse(r.json());
+    expect(m.status).toBe('pending');
+    expect(m.id).toBe('local-c-wa');
+    expect(statuses[0]).toMatchObject({ id: waId, newId: 'local-c-wa', status: 'pending' });
+    await waitFor(() => row().id.startsWith('FAKE-OUT-') && row().id !== waId);
+    expect(t.wa.sent.filter((x) => x.text === 'retry me').length).toBe(2);
+  });
+
   it('media upload of a PNG stores and serves it with correct content-type and Range 206', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();

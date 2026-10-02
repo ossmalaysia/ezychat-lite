@@ -89,7 +89,7 @@ describe('windowsInstallScript', () => {
   });
   it('moves data, restricts ACL to SYSTEM + Administrators, installs and starts', () => {
     const iMove = script.indexOf('Move-Item');
-    const iAcl = script.indexOf('icacls');
+    const iAcl = script.lastIndexOf('icacls');
     const iInstall = script.indexOf(' install');
     const iStart = script.indexOf(' start');
     expect(iMove).toBeGreaterThan(-1);
@@ -129,5 +129,48 @@ describe('parseScQuery', () => {
   });
   it('detects not installed (1060)', () => {
     expect(parseScQuery(1060, '[SC] EnumQueryServicesStatus:OpenService FAILED 1060')).toBe('not-installed');
+  });
+});
+
+describe('windowsInstallScript hardening (pre-created ProgramData folder → SYSTEM escalation)', () => {
+  const s = windowsInstallScript({
+    ...base,
+    winswSource: 'C:\\Program Files\\WA Team Inbox\\resources\\winsw\\WinSW-x64.exe',
+    serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+    dataDir: 'C:\\ProgramData\\wa-team-inbox',
+    runDir: 'C:\\ProgramData\\wa-team-inbox\\run',
+    moveFrom: 'C:\\Users\\me\\AppData\\Roaming\\WA Team Inbox\\data',
+    exists: (p: string) => p.endsWith('WA Team Inbox\\data'),
+  });
+  const iCopy = s.indexOf('Copy-Item');
+  const iInstall = s.indexOf("wa-team-inbox.exe' install");
+  it('moves a pre-existing data dir aside when it is a link or not owned by SYSTEM/Administrators', () => {
+    const iCheck = s.indexOf('GetOwner(');
+    expect(iCheck).toBeGreaterThan(-1);
+    expect(s).toContain('ReparsePoint');
+    expect(s).toContain('.untrusted-');
+    expect(iCheck).toBeLessThan(iCopy);
+  });
+  it('takes ownership for Administrators and resets child ACLs before copying the wrapper', () => {
+    const iOwner = s.indexOf("/setowner '*S-1-5-32-544'");
+    expect(iOwner).toBeGreaterThan(-1);
+    expect(iOwner).toBeLessThan(iCopy);
+    expect(s).toContain('/reset /T /C /Q');
+  });
+  it('recreates the service dir from scratch (drops planted DLLs) without following links', () => {
+    const iRm = s.indexOf('rmdir /s /q');
+    expect(iRm).toBeGreaterThan(-1);
+    expect(iRm).toBeLessThan(iCopy);
+  });
+  it('re-applies owner + ACL after the data move and verifies them before install', () => {
+    const iMove = s.indexOf('Move-Item -Destination');
+    expect(s.lastIndexOf("/setowner '*S-1-5-32-544'")).toBeGreaterThan(iMove);
+    const iVerify = s.indexOf('Assert-Locked');
+    expect(iVerify).toBeGreaterThan(-1);
+    expect(s.lastIndexOf('Assert-Locked')).toBeGreaterThan(iMove);
+    expect(s.lastIndexOf('Assert-Locked')).toBeLessThan(iInstall);
+  });
+  it('lets local users read (not write) the run dir with the port file', () => {
+    expect(s).toContain("'*S-1-5-32-545:(OI)(CI)RX'");
   });
 });

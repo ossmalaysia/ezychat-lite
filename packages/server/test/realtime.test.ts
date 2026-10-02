@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { request as httpRequest } from 'node:http';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, WaStatus } from '@wa-team-inbox/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -123,6 +124,81 @@ describe('realtime', () => {
     expect(s.connected).toBe(false);
     await delay(50);
     expect(t.ctx.services.realtime!.isOnline(agent.user.id)).toBe(false);
+  });
+
+  it('rejects a handshake with a non-allowlisted Host (DNS rebinding)', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    const status = (host: string) =>
+      new Promise<number>((resolve, reject) => {
+        const u = new URL(t.url!);
+        const req = httpRequest(
+          { host: u.hostname, port: u.port, path: '/socket.io/?EIO=4&transport=polling', headers: { host, cookie } },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+    expect(await status(`evil.com:${new URL(t.url!).port}`)).toBe(403);
+    expect(await status(new URL(t.url!).host)).toBe(200);
+  });
+
+  it('demoting an admin removes them from the admins room (no QR)', async () => {
+    const boss = await createUserAndLogin(t, { role: 'admin' });
+    const other = await createUserAndLogin(t, { role: 'admin' });
+    const s = connect(other.cookie);
+    await waitConnect(s);
+    const res = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/users/${other.user.id}`,
+      headers: authHeaders(boss.cookie),
+      payload: { role: 'agent' },
+    });
+    expect(res.statusCode).toBe(200);
+    await delay(50);
+    const p = waitEvent(s, 'wa:status');
+    t.wa.simulateStatus({ state: 'qr', qr: 'SECRET-QR' });
+    const [st] = (await p) as [WaStatus];
+    expect(st.qr).toBeNull();
+    expect(s.connected).toBe(true);
+  });
+
+  it('changing password disconnects sockets of other sessions but keeps the current one', async () => {
+    const u = await createUserAndLogin(t, { password: 'password123' });
+    const login2 = await t.app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: u.user.username, password: 'password123' },
+      remoteAddress: '10.250.0.1',
+    });
+    const cookie2 = `sid=${login2.cookies.find((c) => c.name === 'sid')!.value}`;
+    const mine = connect(u.cookie);
+    const attacker = connect(cookie2);
+    await Promise.all([waitConnect(mine), waitConnect(attacker)]);
+    const revoked = waitEvent(attacker, 'session:revoked');
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: authHeaders(u.cookie),
+      payload: { currentPassword: 'password123', newPassword: 'newpassword456' },
+    });
+    expect(res.statusCode).toBe(200);
+    await revoked;
+    await delay(50);
+    expect(attacker.connected).toBe(false);
+    expect(mine.connected).toBe(true);
+  });
+
+  it('logout disconnects the socket of that session', async () => {
+    const u = await createUserAndLogin(t);
+    const s = connect(u.cookie);
+    await waitConnect(s);
+    const revoked = waitEvent(s, 'session:revoked');
+    const res = await t.app.inject({ method: 'POST', url: '/api/auth/logout', headers: authHeaders(u.cookie) });
+    expect(res.statusCode).toBe(200);
+    await revoked;
   });
 
   it('relays typing to other users but not the sender', async () => {

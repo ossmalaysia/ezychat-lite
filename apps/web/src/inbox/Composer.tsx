@@ -55,6 +55,7 @@ export function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   const lastTyping = useRef(0);
   const pickerId = useId();
+  const [coarsePointer] = useState(isCoarsePointer);
 
   const query = slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -156,7 +157,7 @@ export function Composer({
       setPickerDismissed(true);
       return;
     }
-    if (e.key === 'Enter' && !e.shiftKey && !isCoarsePointer()) {
+    if (e.key === 'Enter' && !e.shiftKey && !coarsePointer) {
       e.preventDefault();
       void submit();
     }
@@ -213,7 +214,8 @@ export function Composer({
           placeholder={placeholder}
           onChange={onChange}
           onKeyDown={onKeyDown}
-          enterKeyHint="send"
+          // Enter inserts a newline on touch keyboards, so label the key accordingly.
+          enterKeyHint={coarsePointer ? 'enter' : 'send'}
           className={clsx(
             'min-h-11 flex-1 resize-none rounded-2xl border border-neutral-300 bg-white px-3.5 py-2.5 text-base leading-6 text-neutral-900',
             'placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40',

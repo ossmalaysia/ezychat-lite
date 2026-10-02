@@ -28,7 +28,24 @@ describe('push routes', () => {
       payload: { endpoint: 'nope' },
     });
     expect(bad.statusCode).toBe(400);
-    const body = { endpoint: 'https://push.example/1', keys: { p256dh: 'p', auth: 'a' } };
+    for (const endpoint of [
+      'https://169.254.169.254/latest/meta-data',
+      'https://192.168.1.1/admin',
+      'http://fcm.googleapis.com/fcm/send/x',
+      'https://fcm.googleapis.com:8443/fcm/send/x',
+      'https://internal.example.com/hook',
+      'https://localhost/x',
+    ]) {
+      const r = await t.app.inject({
+        method: 'POST',
+        url: '/api/push/subscribe',
+        headers: authHeaders(cookie),
+        payload: { endpoint, keys: { p256dh: 'p', auth: 'a' } },
+      });
+      expect(r.statusCode, endpoint).toBe(400);
+    }
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get()).toEqual({ n: 0 });
+    const body = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p256dh: 'p', auth: 'a' } };
     const ok = await t.app.inject({ method: 'POST', url: '/api/push/subscribe', headers: authHeaders(cookie), payload: body });
     expect(ok.statusCode).toBe(200);
     expect(t.ctx.db.prepare('SELECT user_id FROM push_subscriptions').all()).toEqual([{ user_id: user.id }]);

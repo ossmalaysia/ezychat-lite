@@ -3,8 +3,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { exec as sudoExec } from 'sudo-prompt';
+import { servicePortFile, serviceRunDir } from '../paths.js';
 import {
   macControlScript,
   macInstallScript,
@@ -12,6 +13,7 @@ import {
   macUninstallScript,
   parseLaunchctlPrint,
   plistPath,
+  remapRuntimePaths,
   shQuote,
 } from './macos.js';
 import {
@@ -45,7 +47,11 @@ export interface ServiceManager {
 export interface ServiceDeps {
   /** process.execPath — the Electron binary, run with ELECTRON_RUN_AS_NODE=1 */
   execPath: string;
+  /** dist/server-host.cjs (port setting, port file, graceful shutdown) */
+  serverHost: string;
   serverEntry: string;
+  /** macOS: the .app bundle the app runs from (packaged only); copied root-owned for the daemon */
+  appBundle?: string | null;
   webDist: string;
   /** full path to cloudflared(.exe) if bundled */
   cloudflaredBinary: string | null;
@@ -74,19 +80,45 @@ function run(file: string, args: string[]): Promise<ExecResult> {
   });
 }
 
-/** Server args/env used by the OS service. */
-export function serviceCommand(d: ServiceDeps): { exe: string; args: string[]; env: Record<string, string> } {
+/** Root-owned copy of the app bundle the macOS daemon runs from. */
+export function macRuntimeBundle(appBundle: string): string {
+  return posix.join(serviceRunDir('darwin'), posix.basename(appBundle));
+}
+
+/**
+ * Server args/env used by the OS service. --port is the desktop's port at install time; the
+ * server host replaces it with the persisted port setting (Admin > Settings) on every start and
+ * reports the effective port in the port file.
+ */
+export function serviceCommand(
+  d: ServiceDeps,
+  platform: NodeJS.Platform = process.platform,
+  exists: (p: string) => boolean = existsSync,
+): { exe: string; args: string[]; env: Record<string, string> } {
   const env: Record<string, string> = {
     ELECTRON_RUN_AS_NODE: '1',
     WATI_VERSION: d.version,
     WATI_CLOUDFLARED_DIR: d.cloudflaredDir,
+    WATI_PORT_FILE: servicePortFile(platform),
   };
-  if (d.cloudflaredBinary && existsSync(d.cloudflaredBinary)) env.WATI_CLOUDFLARED = d.cloudflaredBinary;
-  return {
+  if (d.cloudflaredBinary && exists(d.cloudflaredBinary)) env.WATI_CLOUDFLARED = d.cloudflaredBinary;
+  const cmd = {
     exe: d.execPath,
-    args: [d.serverEntry, '--data', d.machineDataDir, '--port', String(d.port), '--mode', 'service', '--web-dist', d.webDist],
+    args: [
+      d.serverHost,
+      d.serverEntry,
+      '--data',
+      d.machineDataDir,
+      '--port',
+      String(d.port),
+      '--mode',
+      'service',
+      '--web-dist',
+      d.webDist,
+    ],
     env,
   };
+  return platform === 'darwin' && d.appBundle ? remapRuntimePaths(cmd, d.appBundle, macRuntimeBundle(d.appBundle)) : cmd;
 }
 
 /** Runs a PowerShell script elevated (UAC prompt); returns its combined output. */
@@ -160,7 +192,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         return parseScQuery(r.code, r.stdout + r.stderr);
       },
       async install() {
-        const cmd = serviceCommand(deps);
+        const cmd = serviceCommand(deps, 'win32');
         const script = windowsInstallScript({
           id: SERVICE_ID,
           name: SERVICE_NAME,
@@ -171,6 +203,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
           winswSource: deps.winswExe,
           serviceDir,
           dataDir: deps.machineDataDir,
+          runDir: serviceRunDir('win32'),
           moveFrom: deps.userDataDir,
           exists: existsSync,
         });
@@ -179,7 +212,13 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
       async uninstall() {
         log(
           await runElevatedWindows(
-            windowsUninstallScript({ id: SERVICE_ID, serviceDir, dataDir: deps.machineDataDir, moveTo: deps.userDataDir }),
+            windowsUninstallScript({
+              id: SERVICE_ID,
+              serviceDir,
+              dataDir: deps.machineDataDir,
+              runDir: serviceRunDir('win32'),
+              moveTo: deps.userDataDir,
+            }),
           ),
         );
       },
@@ -204,7 +243,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         return parseLaunchctlPrint(r.code, r.stdout + r.stderr, existsSync(plistPath(LAUNCHD_LABEL)));
       },
       async install() {
-        const cmd = serviceCommand(deps);
+        const cmd = serviceCommand(deps, 'darwin');
         const script = macInstallScript({
           label: LAUNCHD_LABEL,
           program: cmd.exe,
@@ -214,6 +253,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
           dataDir: deps.machineDataDir,
           moveFrom: deps.userDataDir,
           exists: existsSync,
+          runtime: deps.appBundle ? { from: deps.appBundle, to: macRuntimeBundle(deps.appBundle) } : undefined,
         });
         log(await runElevatedMac(script));
       },
@@ -225,6 +265,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
               dataDir: deps.machineDataDir,
               moveTo: deps.userDataDir,
               owner: userInfo().username,
+              runtimeDir: serviceRunDir('darwin'),
             }),
           ),
         );
@@ -236,7 +277,10 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         log(await runElevatedMac(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
       },
       async resetAdmin() {
-        return runElevatedMac(macResetAdminScript({ exe: deps.execPath, entry: deps.serverEntry, dataDir: deps.machineDataDir }));
+        // run the root-owned runtime copy (not the user-writable bundle) when there is one
+        const cmd = serviceCommand(deps, 'darwin');
+        const entry = cmd.args[1] ?? deps.serverEntry;
+        return runElevatedMac(macResetAdminScript({ exe: cmd.exe, entry, dataDir: deps.machineDataDir }));
       },
     };
   }

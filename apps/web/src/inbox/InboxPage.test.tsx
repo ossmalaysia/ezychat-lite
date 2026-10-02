@@ -56,7 +56,7 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function setup(path: string) {
+function setup(path: string, opts: { directory?: unknown[] } = {}) {
   const posted: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
     'fetch',
@@ -76,6 +76,7 @@ function setup(path: string) {
       if (url === `/api/chats/${encodeURIComponent(jid)}/notes`) return json([]);
       if (url === `/api/chats/${encodeURIComponent(jid)}`) return json({ chat, events: [] });
       if (url === '/api/quick-replies') return json([]);
+      if (url === '/api/users/directory' && opts.directory) return json({ users: opts.directory });
       return json({ error: { code: 'not_found', message: 'nope' } }, 404);
     }),
   );
@@ -123,5 +124,19 @@ describe('InboxPage', () => {
       const send = posted.find((p) => p.url.endsWith('/messages'));
       expect(send?.body).toMatchObject({ text: 'hi' });
     });
+  });
+
+  it('agents see teammate names from the team directory', async () => {
+    setup(`/chats/${encodeURIComponent(jid)}`, {
+      directory: [
+        { id: 1, displayName: 'Alice', role: 'agent', disabled: false },
+        { id: 2, displayName: 'Carol', role: 'agent', disabled: false },
+      ],
+    });
+    const log = await screen.findByRole('log', { name: 'Messages' });
+    expect(await within(log).findByText('Hello')).toBeTruthy();
+    // Assignee pill in the chat list + assignee option in the header use the real name.
+    expect((await screen.findAllByText('Carol')).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Agent #2/)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Avatar } from '../components/ui';
 import { formatListTime } from '../lib/format';
@@ -25,9 +25,12 @@ export function GroupIcon({ className }: { className?: string }) {
 export function ChatListItem({ chat, active, assigneeName }: ChatListItemProps) {
   const name = chat.name || formatJid(chat.jid);
   const unread = chat.unreadCount > 0;
+  const { pathname } = useLocation();
   return (
     <Link
       to={`/chats/${encodeJid(chat.jid)}`}
+      // Lets the mobile back button pop history instead of pushing "/" again.
+      state={pathname === '/' ? { fromList: true } : undefined}
       aria-current={active ? 'page' : undefined}
       className={clsx(
         'flex min-h-16 items-center gap-3 px-3 py-2.5 transition-colors',

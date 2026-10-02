@@ -21,6 +21,8 @@ asar: true
 asarUnpack:
   - '**/*.node'
   - '**/server/**'
+  # server launcher (forked / run by the OS service, like server.cjs)
+  - 'dist/server-host.cjs'
 
 # Native modules: better-sqlite3 (v12+) and @node-rs/argon2 are Node-API addons with prebuilt
 # binaries, so the same build loads in Node (tests) and in Electron (utilityProcess /

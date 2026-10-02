@@ -32,7 +32,8 @@ export async function createContext(
   const secret = SecretBox.loadOrCreate(join(cfg.dataDir, 'secret.key'));
   const settings = new SettingsStore(db, secret);
   const bus = new Bus((err, ev) => log.error({ err, event: ev }, 'bus listener failed'));
-  const historyDays = settings.get<number>('history_days', 30);
+  // a getter: a changed history_days applies on the next (re)link without a restart
+  const historyDays = () => settings.get<number>('history_days', 30);
   const wa =
     deps.wa ??
     (cfg.fakeWa
@@ -67,20 +68,24 @@ export async function startServer(
   const logger = await createLogger({ dataDir: cfg.dataDir });
   const log = logger.log;
 
-  process.on('uncaughtException', (err) => {
+  const onUncaught = (err: unknown) => {
     log.fatal({ err }, 'uncaught exception');
     logger.close();
     lock.release();
     process.exit(1);
-  });
-  process.on('unhandledRejection', (reason) => {
+  };
+  const onUnhandled = (reason: unknown) => {
     log.error({ err: reason }, 'unhandled rejection');
-  });
+  };
+  process.on('uncaughtException', onUncaught);
+  process.on('unhandledRejection', onUnhandled);
 
   let ctx: AppContext;
   try {
     ctx = await createContext(cfg, { wa: deps?.wa, log });
   } catch (err) {
+    process.off('uncaughtException', onUncaught);
+    process.off('unhandledRejection', onUnhandled);
     lock.release();
     logger.close();
     throw err;
@@ -90,9 +95,30 @@ export async function startServer(
   if (cfg.portExplicit === false) cfg.port = ctx.settings.get<number>('port', cfg.port);
   if (cfg.hostExplicit === false) cfg.host = ctx.settings.get<boolean>('lan_enabled', false) ? '0.0.0.0' : '127.0.0.1';
 
-  await runInitializers(ctx);
-  const app = await buildApp(ctx);
-  await app.listen({ port: cfg.port, host: cfg.host });
+  // Initializers start side effects (e.g. cloudflared via tunnel restore). If anything up to a
+  // successful listen fails (EADDRINUSE...), tear everything down before rethrowing so no child
+  // process is orphaned and the data-dir lock is released.
+  let app: FastifyInstance | null = null;
+  try {
+    await runInitializers(ctx);
+    app = await buildApp(ctx);
+    await app.listen({ port: cfg.port, host: cfg.host });
+  } catch (err) {
+    log.error({ err }, 'server startup failed');
+    if (app) await app.close().catch(() => undefined);
+    await shutdownServices(ctx);
+    ctx.bus.removeAllListeners();
+    try {
+      ctx.db.close();
+    } catch {
+      // ignore
+    }
+    process.off('uncaughtException', onUncaught);
+    process.off('unhandledRejection', onUnhandled);
+    lock.release();
+    logger.close();
+    throw err;
+  }
   log.info({ port: cfg.port, host: cfg.host, mode: cfg.mode, version: cfg.version, fakeWa: cfg.fakeWa }, 'server listening');
   const realtime = attachRealtime(app.server, ctx);
 

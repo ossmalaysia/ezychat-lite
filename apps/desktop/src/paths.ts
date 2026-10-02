@@ -71,3 +71,30 @@ export function parseDesktopConfig(raw: string | null): DesktopConfig {
     return def;
   }
 }
+
+/** Server launcher (compiled from src/server-host.cts) that wraps the bundled server entry. */
+export function serverHost(appPath: string): string {
+  return join(appPath, 'dist', 'server-host.cjs');
+}
+
+/** Port file the standalone server's host writes (user data). */
+export function standalonePortFile(userDataPath: string): string {
+  return join(userDataPath, 'server-port.json');
+}
+
+/**
+ * Port file the OS service's host writes, in a folder the signed-in user can read (but not
+ * write), so the desktop can find a service whose port was changed in Admin > Settings.
+ */
+export function servicePortFile(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+  if (platform === 'win32') return `${serviceRunDir(platform, env)}\\port.json`;
+  return `${serviceRunDir(platform, env)}/port.json`;
+}
+
+/** Machine-wide folder readable by local users (port file). Admin/root-owned, not user-writable. */
+export function serviceRunDir(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+  // inside the locked-down data dir; the install script grants Users read on this sub-folder only
+  if (platform === 'win32') return `${machineDataDir(platform, env)}\\run`;
+  if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}-runtime`;
+  return `/var/lib/${APP_DIR_NAME}-run`;
+}

@@ -17,7 +17,7 @@ import type {
   Note,
   ServerToClientEvents,
 } from '@wa-team-inbox/shared';
-import { patchMessageInCache, qk, upsertChatInCache, upsertMessageInCache, useMe } from './queries';
+import { dropPushSubscription, patchMessageInCache, qk, upsertChatInCache, upsertMessageInCache, useMe } from './queries';
 
 export interface TypingEntry {
   userId: number;
@@ -119,6 +119,8 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     socket.on('session:revoked', () => {
       socket.disconnect();
+      // Stop push previews reaching this device for a user who is no longer signed in.
+      void dropPushSubscription();
       qc.clear();
       qc.setQueryData(qk.me, null); // RequireAuth redirects to /login
     });

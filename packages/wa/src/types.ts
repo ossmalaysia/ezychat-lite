@@ -77,7 +77,8 @@ export interface WaAdapter {
 
 export interface WaAdapterOptions {
   authDir: string;
-  historyDays: number;
+  /** days of history to import; a getter is re-read on every (re)connect / history batch */
+  historyDays: number | (() => number);
   logger?: Logger;
 }
 

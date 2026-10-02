@@ -14,6 +14,7 @@ import type {
 } from '@wa-team-inbox/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
+import { contextHostPolicy, hostAllowed } from '../http/host.js';
 
 export interface SocketData {
   userId: number;
@@ -76,10 +77,11 @@ export function originAllowed(req: IncomingMessage): boolean {
  * Registers itself as ctx.services.realtime (used by push to skip online users).
  */
 export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeService {
+  const hostPolicy = contextHostPolicy(ctx);
   const io: IoServer = new Server(server, {
     path: '/socket.io',
     serveClient: false,
-    allowRequest: (req, cb) => cb(null, originAllowed(req)),
+    allowRequest: (req, cb) => cb(null, hostAllowed(req.headers.host, hostPolicy) && originAllowed(req)),
   });
   const online = new Map<number, number>();
   const lastTyping = new Map<string, number>();
@@ -151,6 +153,16 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     }
   };
 
+  // Role changed: move live sockets in/out of 'admins' (QR + tunnel status are admin-only).
+  const onRoleChanged = (userId: number, role: User['role']) => {
+    for (const s of io.of('/').sockets.values()) {
+      if (s.data.userId !== userId) continue;
+      s.data.role = role;
+      if (role === 'admin') void s.join('admins');
+      else void s.leave('admins');
+    }
+  };
+
   const { bus } = ctx;
   bus.on('message:new', onMessageNew);
   bus.on('message:status', onMessageStatus);
@@ -161,6 +173,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   bus.on('tunnel:status', onTunnel);
   bus.on('user:disabled', onDisabled);
   bus.on('user:sessions-revoked', onRevoked);
+  bus.on('user:role-changed', onRoleChanged);
 
   let closed = false;
   const service: RealtimeService = {
@@ -178,6 +191,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       bus.off('tunnel:status', onTunnel);
       bus.off('user:disabled', onDisabled);
       bus.off('user:sessions-revoked', onRevoked);
+      bus.off('user:role-changed', onRoleChanged);
       io.disconnectSockets(true);
       // Close engine.io clients without closing the HTTP server (Fastify owns that).
       io.engine?.close();

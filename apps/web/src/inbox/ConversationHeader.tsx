@@ -32,19 +32,16 @@ export function ConversationHeader({
   const phone = formatJid(chat.jid);
   const resolved = chat.status === 'resolved';
 
-  // Options: active team members (admins see everyone; agents see themselves) + current assignee.
+  // Options: active team members (from the team directory) + current assignee.
   const options = [...directory.assignable];
   if (chat.assignedTo != null && !options.some((u) => u.id === chat.assignedTo)) {
     const known = directory.byId.get(chat.assignedTo);
     options.push(
       known ?? {
         id: chat.assignedTo,
-        username: '',
         displayName: directory.nameOf(chat.assignedTo) ?? `Agent #${chat.assignedTo}`,
         role: 'agent',
-        mustChangePassword: false,
         disabled: false,
-        createdAt: 0,
       },
     );
   }

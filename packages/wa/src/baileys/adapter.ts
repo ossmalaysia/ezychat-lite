@@ -12,6 +12,9 @@ import {
   type Chat,
   type Contact,
   type GroupMetadata,
+  type MessageUpsertType,
+  type MessageUserReceiptUpdate,
+  type WAMessageUpdate,
   type WAMessage,
   type WAMessageKey,
   type WASocket,
@@ -41,6 +44,25 @@ const DAY_MS = 86_400_000;
 
 type BoomLike = { output?: { statusCode?: number }; message?: string };
 
+/** Boom status codes Baileys uses when the socket is closed / lost / replaced / unavailable. */
+const CONNECTION_STATUS_CODES = new Set([408, 428, 440, 503]);
+
+/** True when a send error means "the connection went away" (retry later) rather than a real rejection. */
+export function isConnectionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as BoomLike & { isBoom?: boolean };
+  const code = e.output?.statusCode;
+  if (code !== undefined && CONNECTION_STATUS_CODES.has(code)) return true;
+  return /connection (closed|lost|terminated)|socket (closed|hang up)|not open/i.test(String(e.message ?? ''));
+}
+
+/** Per-participant group receipt → our status (read wins over delivered). */
+export function receiptStatus(r: MessageUserReceiptUpdate['receipt']): WaMessageStatusUpdate['status'] | null {
+  if (r.readTimestamp || r.playedTimestamp) return 'read';
+  if (r.receiptTimestamp) return 'delivered';
+  return null;
+}
+
 /** proto.WebMessageInfo.Status → our status. */
 function mapAck(status: number | null | undefined): WaMessageStatusUpdate['status'] | null {
   switch (status) {
@@ -67,7 +89,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private sock: WASocket | null = null;
   private readonly auth: AuthStore;
   private readonly logger: Logger;
-  private readonly historyDays: number;
+  private readonly historyDaysOpt: WaAdapterOptions['historyDays'];
   private readonly raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -78,8 +100,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   constructor(opts: WaAdapterOptions) {
     super();
     this.auth = createAuthStore(opts.authDir);
-    this.historyDays = opts.historyDays;
+    this.historyDaysOpt = opts.historyDays;
     this.logger = opts.logger ?? pino({ level: 'silent' });
+  }
+
+  /** current history_days (re-read each time so a settings change applies on the next relink) */
+  private get historyDays(): number {
+    const v = typeof this.historyDaysOpt === 'function' ? this.historyDaysOpt() : this.historyDaysOpt;
+    return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
   }
 
   get status(): WaStatus {
@@ -222,8 +250,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       if (!alive()) return;
-      const source = type === 'notify' ? 'live' : 'history';
-      for (const m of messages) this.ingest(m, source);
+      this.handleUpsert(messages, type);
     });
 
     sock.ev.on('messaging-history.set', (h) => {
@@ -233,11 +260,13 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
     sock.ev.on('messages.update', (updates) => {
       if (!alive()) return;
-      for (const { key, update } of updates) {
-        if (!key.id || !key.remoteJid || !key.fromMe) continue;
-        const status = mapAck(update.status);
-        if (status) this.emitTyped('messageStatus', { id: key.id, chatJid: key.remoteJid, status });
-      }
+      this.handleMessageUpdates(updates);
+    });
+
+    // Group chats: delivered/read arrive as per-participant receipts, not messages.update.
+    sock.ev.on('message-receipt.update', (updates) => {
+      if (!alive()) return;
+      this.handleReceipts(updates);
     });
 
     sock.ev.on('contacts.upsert', (cs) => alive() && this.emitContacts(cs));
@@ -319,6 +348,34 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return this.historyDays > 0 ? Date.now() - this.historyDays * DAY_MS : Number.POSITIVE_INFINITY;
   }
 
+  /**
+   * messages.upsert. 'notify' = live; 'append' = messages queued while we were offline (or our own
+   * sends / notifications) — also live: they are new to us, must bump unread / reopen / notify, and
+   * must never be dropped by the history cutoff. Only messaging-history.set is history.
+   * @internal exposed for tests
+   */
+  handleUpsert(messages: WAMessage[], _type: MessageUpsertType): void {
+    for (const m of messages) this.ingest(m, 'live');
+  }
+
+  /** @internal exposed for tests */
+  handleMessageUpdates(updates: WAMessageUpdate[]): void {
+    for (const { key, update } of updates) {
+      if (!key.id || !key.remoteJid || !key.fromMe) continue;
+      const status = mapAck(update.status);
+      if (status) this.emitTyped('messageStatus', { id: key.id, chatJid: key.remoteJid, status });
+    }
+  }
+
+  /** @internal exposed for tests */
+  handleReceipts(updates: MessageUserReceiptUpdate[]): void {
+    for (const { key, receipt } of updates) {
+      if (!key.id || !key.remoteJid || !key.fromMe) continue;
+      const status = receiptStatus(receipt);
+      if (status) this.emitTyped('messageStatus', { id: key.id, chatJid: key.remoteJid, status });
+    }
+  }
+
   private ingest(m: WAMessage, source: 'live' | 'history'): void {
     const id = m.key?.id;
     if (!id) return;
@@ -329,7 +386,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.emitTyped('message', mapped, { source });
   }
 
-  private onHistory(h: BaileysEventMap['messaging-history.set']): void {
+  /** @internal exposed for tests */
+  onHistory(h: BaileysEventMap['messaging-history.set']): void {
     if (h.contacts?.length) this.emitContacts(h.contacts);
     if (h.chats?.length) this.emitChats(h.chats);
     const cutoff = this.historyCutoff();
@@ -391,7 +449,16 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private async send(chatJid: string, content: AnyMessageContent, quotedId?: string): Promise<SendResult> {
     const sock = this.requireOpen();
     const quoted = quotedId ? this.raw.get(quotedId) : undefined;
-    const res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
+    let res: WAMessage | undefined;
+    try {
+      res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
+    } catch (err) {
+      // connection dropped mid-send: report as unavailable so the queue keeps the job pending
+      if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open') {
+        throw new WaUnavailableError(`WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`);
+      }
+      throw err;
+    }
     const id = res?.key?.id;
     if (!res || !id) throw new Error('send returned no message id');
     this.raw.set(id, res);

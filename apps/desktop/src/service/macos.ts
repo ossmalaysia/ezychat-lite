@@ -65,6 +65,44 @@ export interface MacInstallOptions extends LaunchdOptions {
   dataDir: string;
   moveFrom: string;
   exists?: ((p: string) => boolean) | null;
+  /**
+   * Copy the app bundle `from` (e.g. /Applications/X.app, owned and writable by the user who
+   * dragged it there) to the root-owned `to` and run the daemon from there, so the user (or
+   * malware running as them) cannot swap app.asar / the binary and get it executed as root.
+   * `program`/`args`/`env` must already point into `to` (see remapRuntimePaths).
+   */
+  runtime?: { from: string; to: string };
+}
+
+/** Rewrites paths under the app bundle `from` to the same paths under `to`. */
+export function remapRuntimePaths(
+  cmd: { exe: string; args: string[]; env: Record<string, string> },
+  from: string,
+  to: string,
+): { exe: string; args: string[]; env: Record<string, string> } {
+  const base = from.replace(/\/+$/, '');
+  const map = (v: string) => (v === base || v.startsWith(`${base}/`) ? to + v.slice(base.length) : v);
+  return {
+    exe: map(cmd.exe),
+    args: cmd.args.map(map),
+    env: Object.fromEntries(Object.entries(cmd.env).map(([k, v]) => [k, map(v)])),
+  };
+}
+
+function runtimeCopyLines(r: { from: string; to: string }): string[] {
+  const parent = posix.dirname(r.to);
+  const to = shQuote(r.to);
+  return [
+    // /Library/Application Support is root-owned, so nobody else can pre-create this folder
+    `mkdir -p ${shQuote(parent)}`,
+    `chown root:wheel ${shQuote(parent)}`,
+    `chmod 755 ${shQuote(parent)}`,
+    `rm -rf ${to}`,
+    `ditto ${shQuote(r.from)} ${to}`,
+    `chown -R root:wheel ${to}`,
+    `chmod -R go-w ${to}`,
+    `if [ "$(stat -f %Su ${to})" != root ]; then echo "runtime copy is not root-owned" >&2; exit 4; fi`,
+  ];
 }
 
 /** sh script (run as root): move data, lock down data dir, write plist, bootstrap the daemon. */
@@ -77,6 +115,7 @@ export function macInstallScript(o: MacInstallOptions): string {
     `mkdir -p ${shQuote(o.dataDir)} ${shQuote(o.logDir)}`,
     `chown -R root:wheel ${shQuote(o.dataDir)}`,
     `chmod 700 ${shQuote(o.dataDir)}`,
+    ...(o.runtime ? runtimeCopyLines(o.runtime) : []),
     `cat > ${shQuote(plist)} <<'WATI_PLIST_EOF'`,
     launchdPlist(o).trimEnd(),
     'WATI_PLIST_EOF',
@@ -95,6 +134,8 @@ export interface MacUninstallOptions {
   moveTo: string;
   /** local user who owns the moved-back data */
   owner: string;
+  /** root-owned runtime copy (and port file) folder to remove */
+  runtimeDir?: string;
 }
 
 export function macUninstallScript(o: MacUninstallOptions): string {
@@ -104,6 +145,7 @@ export function macUninstallScript(o: MacUninstallOptions): string {
     'set -euo pipefail',
     `launchctl bootout system/${o.label} 2>/dev/null || true`,
     `rm -f ${shQuote(plist)}`,
+    ...(o.runtimeDir ? [`rm -rf ${shQuote(o.runtimeDir)}`] : []),
     ...dataMoveCommands('darwin', o.dataDir, o.moveTo, null),
     `if [ -d ${shQuote(o.moveTo)} ]; then chown -R ${shQuote(o.owner)} ${shQuote(o.moveTo)}; fi`,
     `echo 'Service removed.'`,

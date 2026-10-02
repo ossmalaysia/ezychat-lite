@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { ErrorCode } from '@wa-team-inbox/shared';
 import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
+import { contextHostPolicy, createHostHook } from './http/host.js';
 import { originHook } from './http/origin.js';
 import { registerSecurityHeaders } from './http/security-headers.js';
 import { registerRoutes } from './routes/index.js';
@@ -23,6 +24,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await app.register(fastifyCookie);
   await app.register(fastifyMultipart, { limits: { fileSize: UPLOAD_LIMIT_BYTES, files: 1 } });
   registerSecurityHeaders(app);
+  app.addHook('onRequest', createHostHook(contextHostPolicy(ctx)));
   app.addHook('onRequest', originHook);
   app.setErrorHandler(errorHandler);
 

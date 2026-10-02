@@ -34,16 +34,17 @@ export interface AuthService {
   createSession(userId: number, meta: { ip: string; userAgent: string }): string;
   /** updates last_seen_at (at most once/min); expires after 30 days idle; disabled user → null */
   resolveSession(rawToken: string): User | null;
+  /** emits bus 'user:sessions-revoked' (so a live socket on that session is disconnected) */
   destroySession(rawToken: string): void;
   /** emits bus 'user:sessions-revoked' */
   revokeAll(userId: number): void;
-  /** Deletes all of a user's sessions except `keepRawToken` (no bus event). */
+  /** Deletes all of a user's sessions except `keepRawToken`; emits 'user:sessions-revoked'. */
   revokeOthers(userId: number, keepRawToken: string): void;
   changePassword(userId: number, current: string, next: string): Promise<void>;
   /** random 12-char, must_change_password=1, revokeAll */
   resetPassword(userId: number): Promise<string>;
   listUsers(): User[];
-  /** cannot demote/disable last active admin → conflict; disabling emits 'user:disabled' + revokeAll */
+  /** cannot demote/disable last active admin → conflict; disabling emits 'user:disabled' + revokeAll; a role change emits 'user:role-changed' */
   updateUser(id: number, patch: PatchUserBody, actorId: number): User;
   getUser(id: number): User | null;
 }
@@ -96,6 +97,7 @@ export function createAuthService(
       'INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, user_agent, ip) VALUES (?, ?, ?, ?, ?, ?)',
     ),
     sessionGet: db.prepare('SELECT user_id, last_seen_at FROM sessions WHERE token_hash = ?'),
+    sessionUser: db.prepare('SELECT user_id FROM sessions WHERE token_hash = ?'),
     sessionTouch: db.prepare('UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?'),
     sessionDelete: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
     sessionDeleteUser: db.prepare('DELETE FROM sessions WHERE user_id = ?'),
@@ -185,13 +187,19 @@ export function createAuthService(
     },
 
     destroySession(rawToken) {
-      if (rawToken) q.sessionDelete.run(sha256(rawToken));
+      if (!rawToken) return;
+      const h = sha256(rawToken);
+      const s = q.sessionUser.get(h) as { user_id: number } | undefined;
+      q.sessionDelete.run(h);
+      if (s) bus.emit('user:sessions-revoked', s.user_id);
     },
 
     revokeAll,
 
     revokeOthers(userId, keepRawToken) {
       q.sessionDeleteOthers.run(userId, sha256(keepRawToken));
+      // realtime re-checks each socket's token and kicks those whose session is gone
+      bus.emit('user:sessions-revoked', userId);
     },
 
     async changePassword(userId, current, next) {
@@ -243,11 +251,14 @@ export function createAuthService(
         vals.push(patch.disabled ? (row.disabled_at ?? now()) : null);
       }
       if (sets.length) db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
+      const updated = rowToUser(getRow(id)!);
       if (disabling) {
         bus.emit('user:disabled', id);
         revokeAll(id);
+      } else if (patch.role !== undefined && patch.role !== row.role) {
+        bus.emit('user:role-changed', id, updated.role);
       }
-      return rowToUser(getRow(id)!);
+      return updated;
     },
 
     getUser(id) {

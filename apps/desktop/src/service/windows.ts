@@ -92,15 +92,94 @@ export interface WindowsInstallOptions extends WinswOptions {
   dataDir: string;
   /** user data dir to move into dataDir (skipped when missing) */
   moveFrom: string;
+  /** sub-folder of dataDir that local users may read (port file); optional */
+  runDir?: string;
   exists?: ((p: string) => boolean) | null;
 }
 
-/** PowerShell script (run elevated): copy WinSW + xml, move data, lock down ACL, install + start. */
+const SID_SYSTEM = 'S-1-5-18';
+const SID_ADMINS = 'S-1-5-32-544';
+const SID_USERS = 'S-1-5-32-545';
+
+/**
+ * Locks `dir` down to SYSTEM + Administrators: Administrators become owner of the whole tree
+ * (a standard user who pre-created the folder would otherwise keep implicit WRITE_DAC), the top
+ * folder gets explicit SYSTEM/Administrators full control without inheritance, and every child
+ * is reset to inherit only that (drops explicit ACEs carried in with moved user files).
+ */
+function lockDownLines(dir: string): string[] {
+  const d = psQuote(dir);
+  return [
+    `icacls ${d} /setowner '*${SID_ADMINS}' /T /C /Q | Out-Null`,
+    checkExit('icacls /setowner'),
+    `icacls ${d} /inheritance:r /grant:r '*${SID_SYSTEM}:(OI)(CI)F' '*${SID_ADMINS}:(OI)(CI)F' /C /Q | Out-Null`,
+    checkExit('icacls /grant'),
+    `Get-ChildItem -LiteralPath ${d} -Force | ForEach-Object {`,
+    `  icacls $_.FullName /reset /T /C /Q | Out-Null`,
+    `  ${checkExit('icacls /reset')}`,
+    `}`,
+  ];
+}
+
+/** PowerShell helpers: owner/ACL verification. */
+const PS_HELPERS = [
+  `$allowedSids = @('${SID_SYSTEM}', '${SID_ADMINS}')`,
+  `$sidType = [System.Security.Principal.SecurityIdentifier]`,
+  `$writeRights = [System.Security.AccessControl.FileSystemRights]'Write, Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership'`,
+  `function Get-OwnerSid([string]$p) { (Get-Acl -LiteralPath $p).GetOwner($sidType).Value }`,
+  `function Test-UntrustedDir([string]$p) {`,
+  `  $item = Get-Item -LiteralPath $p -Force`,
+  `  if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return $true }`,
+  `  return ($allowedSids -notcontains (Get-OwnerSid $p))`,
+  `}`,
+  `# Throws unless $p (and, with -Recurse, everything below it) is owned by SYSTEM/Administrators and`,
+  `# grants write-type rights to nobody else. $readers may hold non-write rights (e.g. Users RX).`,
+  `function Assert-Locked([string]$p, [string[]]$readers = @(), [switch]$Recurse) {`,
+  `  $items = @(Get-Item -LiteralPath $p -Force)`,
+  `  if ($Recurse) { $items += @(Get-ChildItem -LiteralPath $p -Force -Recurse) }`,
+  `  foreach ($it in $items) {`,
+  `    if ($it.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw "Unexpected link: $($it.FullName)" }`,
+  `    $acl = Get-Acl -LiteralPath $it.FullName`,
+  `    $owner = $acl.GetOwner($sidType).Value`,
+  `    if ($allowedSids -notcontains $owner) { throw "Unexpected owner $owner on $($it.FullName)" }`,
+  `    foreach ($ace in $acl.GetAccessRules($true, $true, $sidType)) {`,
+  `      if ($ace.AccessControlType -ne 'Allow') { continue }`,
+  `      $sid = $ace.IdentityReference.Value`,
+  `      if ($allowedSids -contains $sid) { continue }`,
+  `      if (($readers -contains $sid) -and -not ($ace.FileSystemRights -band $writeRights)) { continue }`,
+  `      throw "Unexpected access for $sid on $($it.FullName)"`,
+  `    }`,
+  `  }`,
+  `}`,
+];
+
+/**
+ * PowerShell script (run elevated): secure the machine data dir, copy WinSW + xml into a fresh
+ * service dir, move data, lock down + verify owner/ACL, install + start.
+ */
 export function windowsInstallScript(o: WindowsInstallOptions): string {
   const exe = `${o.serviceDir}\\${o.id}.exe`;
   const xml = `${o.serviceDir}\\${o.id}.xml`;
+  const d = psQuote(o.dataDir);
   const lines = [
     ...PS_HEADER,
+    ...PS_HELPERS,
+    // 1. C:\ProgramData lets standard users create sub-folders: a folder that already exists
+    //    must be ours (SYSTEM/Administrators-owned, not a link) — otherwise move it aside.
+    `if (Test-Path -LiteralPath ${d}) {`,
+    `  if (Test-UntrustedDir ${d}) {`,
+    `    $aside = ${d} + '.untrusted-' + (Get-Date -Format 'yyyyMMddHHmmss')`,
+    `    Move-Item -LiteralPath ${d} -Destination $aside`,
+    `    Write-Output "Moved untrusted pre-existing folder to $aside"`,
+    `  }`,
+    `}`,
+    `New-Item -ItemType Directory -Force -Path ${d} | Out-Null`,
+    ...lockDownLines(o.dataDir),
+    // 2. fresh service dir: nothing planted next to the wrapper survives (rmdir does not follow links)
+    `if (Test-Path -LiteralPath ${psQuote(o.serviceDir)}) {`,
+    `  & cmd.exe /d /c rmdir /s /q ${psQuote(o.serviceDir)}`,
+    `  if (Test-Path -LiteralPath ${psQuote(o.serviceDir)}) { throw 'Could not remove the old service folder (is the service still running?)' }`,
+    `}`,
     `New-Item -ItemType Directory -Force -Path ${psQuote(o.serviceDir)} | Out-Null`,
     `New-Item -ItemType Directory -Force -Path ${psQuote(o.logDir)} | Out-Null`,
     `Copy-Item -LiteralPath ${psQuote(o.winswSource)} -Destination ${psQuote(exe)} -Force`,
@@ -109,10 +188,21 @@ export function windowsInstallScript(o: WindowsInstallOptions): string {
     `'@`,
     `[System.IO.File]::WriteAllText(${psQuote(xml)}, $xml, (New-Object System.Text.UTF8Encoding $false))`,
     ...dataMoveCommands('win32', o.moveFrom, o.dataDir, o.exists === undefined ? null : o.exists),
-    `New-Item -ItemType Directory -Force -Path ${psQuote(o.dataDir)} | Out-Null`,
-    // SYSTEM (S-1-5-18) + Administrators (S-1-5-32-544) only
-    `icacls ${psQuote(o.dataDir)} /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T /C /Q | Out-Null`,
-    checkExit('icacls'),
+    `New-Item -ItemType Directory -Force -Path ${d} | Out-Null`,
+    // 3. SYSTEM (S-1-5-18) + Administrators (S-1-5-32-544) only, including moved-in files
+    ...lockDownLines(o.dataDir),
+    ...(o.runDir
+      ? [
+          `New-Item -ItemType Directory -Force -Path ${psQuote(o.runDir)} | Out-Null`,
+          // local users may read the port file the service writes here (not write)
+          `icacls ${psQuote(o.runDir)} /grant '*${SID_USERS}:(OI)(CI)RX' /C /Q | Out-Null`,
+          checkExit('icacls run dir'),
+        ]
+      : []),
+    // 4. verify before handing the folder to a LocalSystem service
+    `Assert-Locked ${d}`,
+    `Assert-Locked ${psQuote(o.serviceDir)} -Recurse`,
+    ...(o.runDir ? [`Assert-Locked ${psQuote(o.runDir)} -readers @('${SID_USERS}')`] : []),
     `& ${psQuote(exe)} install`,
     checkExit('service install'),
     `& ${psQuote(exe)} start`,
@@ -128,6 +218,8 @@ export interface WindowsUninstallOptions {
   dataDir: string;
   /** user data dir to move the data back into */
   moveTo: string;
+  /** run dir (port file) to drop before moving the data back */
+  runDir?: string;
 }
 
 /** PowerShell script (run elevated): stop + uninstall service, remove wrapper, move data back, reset ACL. */
@@ -142,6 +234,9 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
     `  ${checkExit('service uninstall')}`,
     `}`,
     `if (Test-Path -LiteralPath ${psQuote(o.serviceDir)}) { Remove-Item -LiteralPath ${psQuote(o.serviceDir)} -Recurse -Force }`,
+    ...(o.runDir
+      ? [`if (Test-Path -LiteralPath ${psQuote(o.runDir)}) { Remove-Item -LiteralPath ${psQuote(o.runDir)} -Recurse -Force }`]
+      : []),
     ...dataMoveCommands('win32', o.dataDir, o.moveTo, null),
     `if (Test-Path -LiteralPath ${psQuote(o.moveTo)}) {`,
     `  icacls ${psQuote(o.moveTo)} /reset /T /C /Q | Out-Null`,

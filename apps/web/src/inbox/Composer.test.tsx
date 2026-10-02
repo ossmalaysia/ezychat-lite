@@ -61,4 +61,28 @@ describe('Composer', () => {
     await user.type(screen.getByRole('textbox', { name: /message/i }), 'abc');
     expect(onTyping).toHaveBeenCalled();
   });
+
+  it('desktop keyboards label Enter as send', () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    expect(screen.getByRole('textbox', { name: /message/i }).getAttribute('enterkeyhint')).toBe('send');
+  });
+
+  it('on touch devices Enter inserts a newline and the keyboard key is not labelled Send', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} })),
+    );
+    try {
+      const onSend = vi.fn();
+      render(<Composer quickReplies={[]} onSend={onSend} onAttach={vi.fn()} />);
+      const box = screen.getByRole('textbox', { name: /message/i }) as HTMLTextAreaElement;
+      expect(box.getAttribute('enterkeyhint')).toBe('enter');
+      const user = userEvent.setup();
+      await user.type(box, 'a{Enter}b');
+      expect(onSend).not.toHaveBeenCalled();
+      expect(box.value).toBe('a\nb');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

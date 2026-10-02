@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileTypeFromBuffer } from 'file-type';
@@ -131,8 +132,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       }
       const early = earlyStatus.get(waId);
       earlyStatus.delete(waId);
-      const status: MessageStatus = early && early !== 'failed' && STATUS_RANK[early] > STATUS_RANK.sent ? early : 'sent';
-      repo.update(waId, { status, error: null });
+      if (early === 'failed') {
+        // an ERROR ack arrived before the local -> WA id rename: keep the failure
+        repo.update(waId, { status: 'failed', error: 'Delivery failed' });
+      } else {
+        const status: MessageStatus = early && STATUS_RANK[early] > STATUS_RANK.sent ? early : 'sent';
+        repo.update(waId, { status, error: null });
+      }
     })();
     const updated = repo.get(waId)!;
     emitStatus({ ...updated, status: 'sent' }, waId);
@@ -354,8 +360,25 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     retry(id, _userId) {
       const r = repo.get(id);
       if (!r) throw errors.notFound('Message');
-      if (r.status !== 'failed' || !r.from_me || !r.id.startsWith('local-')) throw errors.conflict('Only failed outgoing messages can be retried');
+      if (r.status !== 'failed' || !r.from_me) throw errors.conflict('Only failed outgoing messages can be retried');
       const t = now();
+      if (!r.id.startsWith('local-')) {
+        // Failed after reaching WhatsApp (ERROR ack, row already renamed to the WA id): turn it back into
+        // a pending local row so the queue re-sends it (and it survives a restart via pendingLocal()).
+        if (r.type !== 'text' && !r.media_path) throw errors.conflict('This message can no longer be re-sent');
+        if (r.type === 'text' && !r.body) throw errors.conflict('This message can no longer be re-sent');
+        const clientId = r.client_id ?? randomUUID();
+        const localId = `local-${clientId}`;
+        if (repo.exists(localId)) throw errors.conflict('Message is already being re-sent');
+        ctx.db.transaction(() => {
+          repo.rename(r.id, localId);
+          repo.update(localId, { status: 'pending', error: null, created_at: t, client_id: clientId });
+        })();
+        const moved = repo.get(localId)!;
+        emitStatus({ ...moved, id: r.id }, localId);
+        queue.enqueue(jobFromRow(moved));
+        return rowToMessage(moved);
+      }
       repo.update(id, { status: 'pending', error: null, created_at: t });
       const updated = repo.get(id)!;
       emitStatus(updated);
@@ -369,7 +392,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         // may belong to a send whose ack has not been processed yet
         if (earlyStatus.size > 500) earlyStatus.clear();
         const prev = earlyStatus.get(u.id);
-        if (!prev || STATUS_RANK[u.status] > STATUS_RANK[prev]) earlyStatus.set(u.id, u.status);
+        // a failure is sticky: a later (or reordered) ack must not mask it
+        if (prev === 'failed') return;
+        if (!prev || u.status === 'failed' || STATUS_RANK[u.status] > STATUS_RANK[prev]) earlyStatus.set(u.id, u.status);
         return;
       }
       if (u.status === 'failed') {

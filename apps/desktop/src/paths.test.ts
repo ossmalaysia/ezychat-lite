@@ -72,3 +72,19 @@ describe('parseDesktopConfig', () => {
     expect(parseDesktopConfig('{"port":70000}')).toEqual({ port: 7420 });
   });
 });
+
+describe('service host + port files', () => {
+  it('server host sits next to main.js in dist', async () => {
+    const { serverHost } = await import('./paths.js');
+    expect(serverHost(join('A', 'app'))).toBe(join('A', 'app', 'dist', 'server-host.cjs'));
+  });
+  it('windows service port file is in a run sub-folder of the machine data dir', async () => {
+    const { servicePortFile, serviceRunDir } = await import('./paths.js');
+    expect(serviceRunDir('win32', { ProgramData: 'D:\\PD' })).toBe('D:\\PD\\wa-team-inbox\\run');
+    expect(servicePortFile('win32', { ProgramData: 'D:\\PD' })).toBe('D:\\PD\\wa-team-inbox\\run\\port.json');
+  });
+  it('macOS service port file is in the root-owned runtime dir (not the 700 data dir)', async () => {
+    const { servicePortFile } = await import('./paths.js');
+    expect(servicePortFile('darwin', {})).toBe('/Library/Application Support/wa-team-inbox-runtime/port.json');
+  });
+});

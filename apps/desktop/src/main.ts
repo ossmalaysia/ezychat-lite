@@ -4,7 +4,7 @@ import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow, type Na
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { probeServer, waitForServer } from './detect.js';
+import { probeServer } from './detect.js';
 import { iconPng } from './icon.js';
 import { broadcastStatusChanged, registerIpc, type DesktopController, type DesktopMode, type DesktopStatus } from './ipc.js';
 import {
@@ -13,11 +13,15 @@ import {
   machineDataDir,
   parseDesktopConfig,
   serverEntry,
+  serverHost,
+  servicePortFile,
+  standalonePortFile,
   userDataDir,
   webDistDir,
   winswExe,
 } from './paths.js';
 import { runServerCommand, StandaloneServer } from './server-process.js';
+import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
 import { createMainWindow, createStatusWindow, messagePage } from './window.js';
@@ -31,8 +35,12 @@ if (!app.requestSingleInstanceLock()) {
   void main();
 }
 
+function desktopConfigFile(): string {
+  return join(app.getPath('userData'), 'desktop.json');
+}
+
 function readDesktopConfig(): { port: number } {
-  const file = join(app.getPath('userData'), 'desktop.json');
+  const file = desktopConfigFile();
   const cfg = parseDesktopConfig(existsSync(file) ? readFileSync(file, 'utf8') : null);
   if (!existsSync(file)) {
     try {
@@ -45,14 +53,33 @@ function readDesktopConfig(): { port: number } {
   return cfg;
 }
 
+/** Remembers the port the server actually uses (e.g. after a port change in Admin > Settings). */
+function writeDesktopPort(port: number): void {
+  const file = desktopConfigFile();
+  try {
+    const cur = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>) : {};
+    writeFileSync(file, JSON.stringify({ ...cur, port }, null, 2));
+  } catch {
+    // best effort
+  }
+}
+
+function readPortFile(file: string): number | null {
+  try {
+    return parsePortFile(existsSync(file) ? readFileSync(file, 'utf8') : null);
+  } catch {
+    return null;
+  }
+}
+
 async function main(): Promise<void> {
   await app.whenReady();
 
   const isPackaged = app.isPackaged;
   const resourcesPath = process.resourcesPath;
   const appPath = app.getAppPath();
-  const { port } = readDesktopConfig();
-  const url = `http://127.0.0.1:${port}`;
+  let { port } = readDesktopConfig();
+  let url = `http://127.0.0.1:${port}`;
   const entry = serverEntry(isPackaged, resourcesPath, appPath);
   const webDist = webDistDir(isPackaged, resourcesPath, appPath);
   const cfDir = cloudflaredDir(isPackaged, resourcesPath, appPath);
@@ -79,8 +106,14 @@ async function main(): Promise<void> {
         })()
       : nativeImage.createFromBuffer(iconPng(32));
 
+  const host = serverHost(appPath);
+  // macOS: <X>.app/Contents/MacOS/<X> → <X>.app (only meaningful when packaged)
+  const appBundle =
+    process.platform === 'darwin' && isPackaged ? dirname(dirname(dirname(process.execPath))) : null;
   const service: ServiceManager = createServiceManager(process.platform, {
     execPath: process.execPath,
+    serverHost: host,
+    appBundle,
     serverEntry: entry,
     webDist,
     cloudflaredBinary: cfBin,
@@ -102,6 +135,8 @@ async function main(): Promise<void> {
   let lastServiceState: ServiceState = 'not-installed';
 
   const server = new StandaloneServer({
+    host,
+    portFile: standalonePortFile(app.getPath('userData')),
     entry,
     dataDir,
     port,
@@ -116,6 +151,42 @@ async function main(): Promise<void> {
     trayHandle.refresh();
     broadcastStatusChanged();
   });
+
+  /** Switches to the port the server actually listens on (persisted port setting). */
+  const adoptPort = (p: number) => {
+    if (p === port) return;
+    log(`[desktop] server port is now ${p} (was ${port})`);
+    port = p;
+    url = `http://127.0.0.1:${port}`;
+    writeDesktopPort(port);
+    broadcastStatusChanged();
+  };
+  server.on('port', (p: number) => adoptPort(p));
+  const adoptServicePort = () => {
+    const p = readPortFile(servicePortFile());
+    if (p !== null) adoptPort(p);
+  };
+
+  /** Polls for the OS service (re-reading its port file) until it answers or the deadline passes. */
+  const waitForService = async (timeoutMs: number): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      adoptServicePort();
+      if (await probeServer(port)) return true;
+      await new Promise((r) => setTimeout(r, 750));
+    }
+    return false;
+  };
+
+  const serviceDown = (state: ServiceState) => {
+    setMode('error');
+    loadMain(
+      messagePage(
+        state === 'running' ? 'The background service is not answering' : 'The background service is not running',
+        'WA Team Inbox runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
+      ),
+    );
+  };
 
   const describe = (): string => {
     if (busy) return busy;
@@ -188,7 +259,8 @@ async function main(): Promise<void> {
     setMode('starting');
     loadMain(messagePage('Starting WA Team Inbox…', 'Starting the local server.'));
     server.start();
-    const ok = await waitForServer(port, { timeoutMs: 45_000 });
+    const ok = await server.waitRunning(45_000);
+    adoptPort(server.port);
     if (ok) {
       setMode('standalone');
       loadMain(url);
@@ -204,12 +276,41 @@ async function main(): Promise<void> {
     return false;
   };
 
+  const currentServiceState = async (): Promise<ServiceState> => {
+    if (!serviceSupported) return 'not-installed';
+    try {
+      lastServiceState = await service.status();
+    } catch {
+      // keep last
+    }
+    return lastServiceState;
+  };
+
   const connectOrStart = async () => {
+    const svc = await currentServiceState();
+    if (svc !== 'not-installed') adoptServicePort();
     const probe = await probeServer(port);
-    if (probe) {
-      log(`[desktop] found running server (mode ${probe.mode}, v${probe.version}) on port ${port}`);
+    const action = decideStartup(probe !== null, svc);
+    if (action === 'client') {
+      log(`[desktop] found running server (mode ${probe?.mode}, v${probe?.version}) on port ${port}`);
       setMode('client');
       loadMain(url);
+      return;
+    }
+    if (action === 'wait-for-service') {
+      // Never start a standalone server while the service is installed: its data moved to the
+      // machine folder (the user folder is empty) and it would take the service's port.
+      log(`[desktop] background service is ${svc} but not answering; not starting a standalone server`);
+      if (svc === 'running') {
+        setMode('starting');
+        loadMain(messagePage('Connecting to the background service…', 'Waiting for the WA Team Inbox service to start.'));
+        if (await waitForService(60_000)) {
+          setMode('client');
+          loadMain(url);
+          return;
+        }
+      }
+      serviceDown(svc);
       return;
     }
     await startStandalone();
@@ -298,13 +399,19 @@ async function main(): Promise<void> {
         await server.stop();
         await service.install();
         setBusy('Waiting for the service to start…');
-        const ok = await waitForServer(port, { timeoutMs: 60_000 });
+        const ok = await waitForService(60_000);
         if (!ok) throw new Error('The service was installed but did not answer on port ' + port + '.');
         setMode('client');
         loadMain(url);
       } catch (err) {
         errorBox('Could not enable the background service', err);
-        if (!(await probeServer(port))) void startStandalone();
+        if (!(await probeServer(port))) {
+          const svc = await currentServiceState();
+          // installed but not answering: its data is in the machine folder now — don't start an
+          // empty standalone server on the user folder
+          if (svc === 'not-installed') void startStandalone();
+          else serviceDown(svc);
+        }
       } finally {
         setBusy(null);
       }
@@ -335,7 +442,7 @@ async function main(): Promise<void> {
       setBusy('Starting service…');
       try {
         await service.start();
-        if (await waitForServer(port, { timeoutMs: 30_000 })) {
+        if (await waitForService(30_000)) {
           setMode('client');
           loadMain(url);
         }

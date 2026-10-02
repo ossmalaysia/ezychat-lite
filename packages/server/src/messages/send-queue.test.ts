@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { SendResult } from '@wa-team-inbox/wa';
-import { SendQueue, type SendJob } from './send-queue.js';
+import { SendQueue, UNAVAILABLE_RETRY_MS, type SendJob } from './send-queue.js';
 
 const flush = async (n = 20) => {
   for (let i = 0; i < n; i++) await new Promise((r) => setImmediate(r));
@@ -134,6 +134,38 @@ describe('SendQueue', () => {
     await flush();
     expect(failed).toEqual([{ id: 'f1', msg: 'boom' }]);
     expect(sent.map((s) => s.id)).toEqual(['f2']);
+    q.stop();
+  });
+
+  it('a wa_unavailable error while status still reads open keeps the job pending and re-sends it', async () => {
+    let clock = 1;
+    let attempts = 0;
+    const sent: string[] = [];
+    const failed: string[] = [];
+    const sleeps: number[] = [];
+    const q = new SendQueue({
+      send: async (j): Promise<SendResult> => {
+        attempts += 1;
+        if (attempts === 1) throw Object.assign(new Error('Connection Closed'), { code: 'wa_unavailable' });
+        sent.push(j.localId);
+        return { id: 'WA-1', timestamp: clock };
+      },
+      onSent: () => undefined,
+      onFailed: (j) => failed.push(j.localId),
+      isConnected: () => true, // close event has not arrived yet
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+      spacingMs: 1000,
+      maxAgeMs: 600_000,
+    });
+    q.enqueue(job('u1', 'A', clock));
+    await flush();
+    expect(failed).toEqual([]);
+    expect(sent).toEqual(['u1']);
+    expect(sleeps).toContain(UNAVAILABLE_RETRY_MS);
     q.stop();
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { launchdPlist, macInstallScript, macUninstallScript, parseLaunchctlPrint, shQuote } from './macos.js';
+import { launchdPlist, macInstallScript, macUninstallScript, parseLaunchctlPrint, remapRuntimePaths, shQuote } from './macos.js';
 
 const opts = {
   label: 'org.ossmalaysia.wateaminbox.server',
@@ -99,5 +99,57 @@ describe('parseLaunchctlPrint', () => {
   });
   it('not loaded and no plist → not-installed', () => {
     expect(parseLaunchctlPrint(113, 'Could not find service', false)).toBe('not-installed');
+  });
+});
+
+describe('macOS root daemon never runs user-writable code', () => {
+  const bundle = '/Applications/WA Team Inbox.app';
+  const dest = '/Library/Application Support/wa-team-inbox-runtime/WA Team Inbox.app';
+  it('remapRuntimePaths points program, args and env into the root-owned copy', () => {
+    const r = remapRuntimePaths(
+      {
+        exe: `${bundle}/Contents/MacOS/WA Team Inbox`,
+        args: [`${bundle}/Contents/Resources/app.asar/dist/server-host.cjs`, '--data', '/Library/Application Support/wa-team-inbox'],
+        env: { WATI_CLOUDFLARED: `${bundle}/Contents/Resources/cloudflared/cloudflared`, X: '1' },
+      },
+      bundle,
+      dest,
+    );
+    expect(r.exe).toBe(`${dest}/Contents/MacOS/WA Team Inbox`);
+    expect(r.args[0]).toBe(`${dest}/Contents/Resources/app.asar/dist/server-host.cjs`);
+    expect(r.args[2]).toBe('/Library/Application Support/wa-team-inbox');
+    expect(r.env.WATI_CLOUDFLARED).toBe(`${dest}/Contents/Resources/cloudflared/cloudflared`);
+    expect(r.env.X).toBe('1');
+  });
+  it('does not remap look-alike prefixes', () => {
+    const r = remapRuntimePaths({ exe: `${bundle}x/y`, args: [], env: {} }, bundle, dest);
+    expect(r.exe).toBe(`${bundle}x/y`);
+  });
+  it('install script copies the bundle root-owned and not group/world writable before bootstrapping', () => {
+    const s = macInstallScript({
+      ...opts,
+      program: `${dest}/Contents/MacOS/WA Team Inbox`,
+      dataDir: '/Library/Application Support/wa-team-inbox',
+      moveFrom: '/Users/me/data',
+      exists: null,
+      runtime: { from: bundle, to: dest },
+    });
+    const iDitto = s.indexOf(`ditto '${bundle}' '${dest}'`);
+    expect(iDitto).toBeGreaterThan(-1);
+    expect(s).toContain(`chown -R root:wheel '${dest}'`);
+    expect(s).toContain(`chmod -R go-w '${dest}'`);
+    expect(s.indexOf('launchctl bootstrap')).toBeGreaterThan(s.indexOf(`chmod -R go-w '${dest}'`));
+    // previous copy is removed first
+    expect(s.indexOf(`rm -rf '${dest}'`)).toBeLessThan(iDitto);
+  });
+  it('uninstall removes the runtime copy', () => {
+    const s = macUninstallScript({
+      label: opts.label,
+      dataDir: '/Library/Application Support/wa-team-inbox',
+      moveTo: '/Users/me/data',
+      owner: 'me',
+      runtimeDir: '/Library/Application Support/wa-team-inbox-runtime',
+    });
+    expect(s).toContain("rm -rf '/Library/Application Support/wa-team-inbox-runtime'");
   });
 });

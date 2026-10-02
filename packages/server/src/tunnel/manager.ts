@@ -32,8 +32,12 @@ export const TUNNEL_TOKEN_KEY = 'tunnel_token';
 export const TUNNEL_HOSTNAME_KEY = 'named_tunnel_hostname';
 
 const LOG_TAIL = 50;
-const FAST_EXIT_MS = 30_000;
-const MAX_FAST_FAILURES = 5;
+/** a run that stayed 'running' this long resets the consecutive-failure count */
+const STABLE_RUN_MS = 30_000;
+/** a run that stayed 'running' this long also resets the backoff */
+const BACKOFF_RESET_MS = 5 * 60_000;
+const MAX_CONSECUTIVE_FAILURES = 5;
+const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 60_000;
 const KILL_WAIT_MS = 5_000;
 
@@ -48,7 +52,12 @@ export class TunnelManager implements TunnelService {
   private logTail: string[] = [];
   private child: ChildProcess | null = null;
   private startedAt = 0;
+  /** time the current child reached 'running' (0 = not yet) */
+  private runningAt = 0;
+  /** consecutive runs that died before running stably; 'error' at MAX_CONSECUTIVE_FAILURES */
   private failures = 0;
+  /** consecutive restarts; drives the 1s..60s backoff */
+  private attempts = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private token: string | null = null;
   private readonly now: () => number;
@@ -82,6 +91,7 @@ export class TunnelManager implements TunnelService {
     this.mode = body.mode;
     this.token = token;
     this.failures = 0;
+    this.attempts = 0;
     this.lastError = null;
     this.logTail = [];
     this.launch();
@@ -96,6 +106,7 @@ export class TunnelManager implements TunnelService {
     this.url = null;
     this.lastError = null;
     this.failures = 0;
+    this.attempts = 0;
     this.setState('stopped');
     return this.status();
   }
@@ -123,20 +134,26 @@ export class TunnelManager implements TunnelService {
   private launch(): void {
     const mode = this.mode as ActiveMode;
     this.url = null;
+    this.runningAt = 0;
     const bin = this.deps.binPath();
     if (!bin) {
       this.lastError = 'cloudflared not found';
       this.setState('error');
       return;
     }
+    // The named-tunnel token goes through the environment (TUNNEL_TOKEN), never the command line,
+    // so other local users cannot read it from the process list.
     const args =
       mode === 'quick'
         ? ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${this.deps.port()}`]
-        : ['tunnel', '--no-autoupdate', 'run', '--token', this.token ?? ''];
+        : ['tunnel', '--no-autoupdate', 'run'];
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.TUNNEL_TOKEN;
+    if (mode === 'named') env.TUNNEL_TOKEN = this.token ?? '';
 
     let child: ChildProcess;
     try {
-      child = this.deps.spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      child = this.deps.spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env });
     } catch (err) {
       this.child = null;
       this.startedAt = this.now();
@@ -173,26 +190,37 @@ export class TunnelManager implements TunnelService {
       const url = parseQuickTunnelUrl(line);
       if (url) {
         this.url = url;
+        this.runningAt = this.now();
         this.setState('running');
       }
     } else if (this.mode === 'named' && isNamedTunnelRegistered(line)) {
       const host = this.deps.settings.get<string | null>(TUNNEL_HOSTNAME_KEY, null);
       this.url = host ? `https://${host}` : null;
+      this.runningAt = this.now();
       this.setState('running');
     }
   }
 
+  /**
+   * Unexpected exit. Every exit counts as a consecutive failure unless the run had been 'running'
+   * for STABLE_RUN_MS; 5 consecutive failures -> 'error'. Backoff grows 1s,2s,4s.. capped at 60s and
+   * only resets after a run stayed up for BACKOFF_RESET_MS.
+   */
   private onChildGone(reason: string): void {
     this.url = null;
     this.lastError = reason;
-    const fast = this.now() - this.startedAt < FAST_EXIT_MS;
-    this.failures = fast ? this.failures + 1 : 1;
-    this.deps.log.warn({ reason, failures: this.failures }, 'cloudflared exited unexpectedly');
-    if (this.failures >= MAX_FAST_FAILURES) {
+    const upFor = this.runningAt > 0 ? this.now() - this.runningAt : 0;
+    if (upFor >= STABLE_RUN_MS) this.failures = 0;
+    if (upFor >= BACKOFF_RESET_MS) this.attempts = 0;
+    this.runningAt = 0;
+    this.failures += 1;
+    this.attempts += 1;
+    this.deps.log.warn({ reason, failures: this.failures, attempts: this.attempts }, 'cloudflared exited unexpectedly');
+    if (this.failures >= MAX_CONSECUTIVE_FAILURES) {
       this.setState('error');
       return;
     }
-    const delay = Math.min(1000 * 2 ** (this.failures - 1), MAX_BACKOFF_MS);
+    const delay = Math.min(BASE_BACKOFF_MS * 2 ** Math.min(this.attempts - 1, 16), MAX_BACKOFF_MS);
     this.setState('starting');
     const timerFn = this.deps.setTimeout ?? globalThis.setTimeout;
     const timer = timerFn(() => {

@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { PushSubscribeBody } from '@wa-team-inbox/shared';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
-import { parse } from '../http/errors.js';
+import { errors, parse } from '../http/errors.js';
 import { getPush } from '../push/index.js';
+import { isAllowedPushEndpoint } from '../push/service.js';
 
 const UnsubscribeBody = z.object({ endpoint: z.string().min(1) });
 
@@ -15,6 +16,7 @@ export default async function pushRoutes(app: FastifyInstance, ctx: AppContext) 
 
   app.post('/push/subscribe', auth, async (req) => {
     const body = parse(PushSubscribeBody, req.body);
+    if (!isAllowedPushEndpoint(body.endpoint)) throw errors.validation('Unsupported push endpoint');
     getPush(ctx).subscribe(req.user!.id, body);
     return { ok: true };
   });

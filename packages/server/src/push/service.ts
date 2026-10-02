@@ -32,11 +32,33 @@ interface SubRow {
 
 const ALERT_STATES = new Set<WaStatus['state']>(['logged_out', 'replaced', 'blocked']);
 
-const defaultSender: PushSender = (sub, payload, vapid) =>
-  webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
+/** Hostnames of the browser push services (FCM/Chrome+Edge, Mozilla, Windows WNS, Apple). */
+const PUSH_HOST_SUFFIXES = ['.push.services.mozilla.com', '.notify.windows.com', '.push.apple.com'];
+const PUSH_HOSTS = new Set(['fcm.googleapis.com', 'android.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com']);
+
+/**
+ * SSRF guard: a push endpoint must be https on the default port and belong to a known push service.
+ * Rejects IP literals, internal/LAN hosts and arbitrary URLs.
+ */
+export function isAllowedPushEndpoint(endpoint: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.port !== '' || u.username || u.password) return false;
+  const host = u.hostname.toLowerCase();
+  return PUSH_HOSTS.has(host) || PUSH_HOST_SUFFIXES.some((s) => host.endsWith(s));
+}
+
+const defaultSender: PushSender = async (sub, payload, vapid) => {
+  if (!isAllowedPushEndpoint(sub.endpoint)) throw new Error('push endpoint not allowed');
+  return webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
     vapidDetails: { subject: vapid.subject, publicKey: vapid.publicKey, privateKey: vapid.privateKey },
     TTL: 60 * 60 * 24,
   });
+};
 
 function statusCodeOf(err: unknown): number | null {
   if (err && typeof err === 'object' && 'statusCode' in err) {
