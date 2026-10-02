@@ -1,2 +1,2 @@
-// Placeholder — implemented by a later plan task.
-export {};
+export * from './types.js';
+export { FakeWaAdapter, type FakeSentRecord } from './fake/fake-adapter.js';

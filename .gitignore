@@ -32,3 +32,6 @@ resources/winsw/*.exe
 Thumbs.db
 graphify-out/
 *.log
+
+# local tool output
+.playwright-mcp/

@@ -1,0 +1,165 @@
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import type React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { io, type Socket } from 'socket.io-client';
+import type {
+  ChatDetailResponse,
+  ClientToServerEvents,
+  Note,
+  ServerToClientEvents,
+} from '@wa-team-inbox/shared';
+import { patchMessageInCache, qk, upsertChatInCache, upsertMessageInCache, useMe } from './queries';
+
+export interface TypingEntry {
+  userId: number;
+  displayName: string;
+  at: number;
+}
+
+export interface RealtimeValue {
+  connected: boolean;
+  typing: Record<string, TypingEntry[]>;
+  emitTyping(jid: string): void;
+}
+
+const TYPING_TTL_MS = 5_000;
+const TYPING_EMIT_THROTTLE_MS = 2_000;
+
+const RealtimeContext = createContext<RealtimeValue>({
+  connected: false,
+  typing: {},
+  emitTyping: () => {},
+});
+
+export function useRealtime(): RealtimeValue {
+  return useContext(RealtimeContext);
+}
+
+type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+/**
+ * Opens one Socket.IO connection while a (fully set-up) user is logged in and mirrors
+ * server events into the TanStack Query cache.
+ */
+export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const qc = useQueryClient();
+  const me = useMe();
+  const userId = me.data && !me.data.mustChangePassword && !me.data.disabled ? me.data.id : null;
+  const [connected, setConnected] = useState(false);
+  const [typing, setTyping] = useState<Record<string, TypingEntry[]>>({});
+  const socketRef = useRef<AppSocket | null>(null);
+  const lastTypingEmit = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (userId == null) return;
+    const socket: AppSocket = io({
+      path: '/socket.io',
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    });
+    socketRef.current = socket;
+    let hadConnected = false;
+
+    socket.on('connect', () => {
+      setConnected(true);
+      // Anything could have changed while offline — resync.
+      if (hadConnected) void qc.invalidateQueries();
+      hadConnected = true;
+    });
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('connect_error', () => setConnected(false));
+
+    socket.on('message:new', (m) => {
+      upsertMessageInCache(qc, m);
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    });
+    socket.on('message:status', (p) => {
+      const patch: { status: typeof p.status; error: string | null; id?: string } = {
+        status: p.status,
+        error: p.error,
+      };
+      if (p.newId) patch.id = p.newId;
+      patchMessageInCache(qc, p.chatJid, { id: p.id, clientId: p.clientId }, patch);
+    });
+    socket.on('chat:updated', (c) => {
+      upsertChatInCache(qc, c);
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    });
+    socket.on('chat:event', (e) => {
+      qc.setQueryData<ChatDetailResponse>(qk.chat(e.chatJid), (old) =>
+        old && !old.events.some((x) => x.id === e.id)
+          ? { ...old, events: [...old.events, e] }
+          : old,
+      );
+    });
+    socket.on('note:new', (n) => {
+      qc.setQueryData<Note[]>(qk.notes(n.chatJid), (old) =>
+        old ? (old.some((x) => x.id === n.id) ? old : [...old, n]) : old,
+      );
+    });
+    socket.on('wa:status', (s) => qc.setQueryData(qk.wa, s));
+    socket.on('tunnel:status', (s) => qc.setQueryData(qk.tunnel, s));
+    socket.on('typing', (p) => {
+      setTyping((prev) => {
+        const list = (prev[p.chatJid] ?? []).filter((t) => t.userId !== p.userId);
+        return {
+          ...prev,
+          [p.chatJid]: [...list, { userId: p.userId, displayName: p.displayName, at: Date.now() }],
+        };
+      });
+    });
+    socket.on('session:revoked', () => {
+      socket.disconnect();
+      qc.clear();
+      qc.setQueryData(qk.me, null); // RequireAuth redirects to /login
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+      setConnected(false);
+    };
+  }, [userId, qc]);
+
+  // Expire stale typing entries.
+  useEffect(() => {
+    const t = setInterval(() => {
+      setTyping((prev) => {
+        const now = Date.now();
+        let changed = false;
+        const next: Record<string, TypingEntry[]> = {};
+        for (const [jid, list] of Object.entries(prev)) {
+          const kept = list.filter((e) => now - e.at < TYPING_TTL_MS);
+          if (kept.length !== list.length) changed = true;
+          if (kept.length) next[jid] = kept;
+        }
+        return changed ? next : prev;
+      });
+    }, 1_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const emitTyping = useCallback((jid: string) => {
+    const now = Date.now();
+    const last = lastTypingEmit.current.get(jid) ?? 0;
+    if (now - last < TYPING_EMIT_THROTTLE_MS) return;
+    lastTypingEmit.current.set(jid, now);
+    socketRef.current?.emit('typing', { chatJid: jid });
+  }, []);
+
+  const value = useMemo<RealtimeValue>(
+    () => ({ connected, typing, emitTyping }),
+    [connected, typing, emitTyping],
+  );
+  return createElement(RealtimeContext.Provider, { value }, children);
+};

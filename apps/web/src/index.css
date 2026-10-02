@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+/* Dark mode follows prefers-color-scheme (Tailwind 4 default `dark:` variant). */
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --color-accent: var(--color-emerald-600);
+}
+
+/* Safe-area helpers (iOS notch / home indicator). Use on headers, composers, full-screen sheets.
+   NOTE: these SET padding on that side, so they override p-, px- and py- utilities on the same element —
+   put regular padding on an inner wrapper. */
+@utility safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+@utility safe-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100dvh;
+  }
+  body {
+    @apply bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Inputs >= 16px so iOS Safari doesn't zoom on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(1rem, 16px);
+  }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+}

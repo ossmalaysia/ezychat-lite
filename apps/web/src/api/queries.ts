@@ -1,0 +1,675 @@
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query';
+import {
+  MeResponse,
+  SetupStatusResponse,
+  type AuditEntry,
+  type ChangePasswordBody,
+  type Chat,
+  type ChatDetailResponse,
+  type ChatListResponse,
+  type ChatPatchBody,
+  type ChatStatus,
+  type CreateUserBody,
+  type LoginBody,
+  type Message,
+  type MessageListResponse,
+  type Note,
+  type PatchUserBody,
+  type QuickReply,
+  type QuickReplyBody,
+  type ResetPasswordResponse,
+  type SetupAdminBody,
+  type Settings,
+  type SettingsPatchBody,
+  type TunnelStartBody,
+  type TunnelStatus,
+  type User,
+  type WaStatus,
+} from '@wa-team-inbox/shared';
+import { ApiError, api } from './client';
+
+// ---------------------------------------------------------------------------
+// Query keys
+// ---------------------------------------------------------------------------
+
+export interface ChatFilters {
+  status?: ChatStatus;
+  assigned: 'me' | 'none' | 'any';
+  q?: string;
+}
+
+export const qk = {
+  me: ['me'] as const,
+  setupStatus: ['setup-status'] as const,
+  chats: (f: ChatFilters) => ['chats', f] as const,
+  chatsAll: ['chats'] as const,
+  chat: (jid: string) => ['chat', jid] as const,
+  messages: (jid: string) => ['messages', jid] as const,
+  notes: (jid: string) => ['notes', jid] as const,
+  quickReplies: ['quick-replies'] as const,
+  users: ['users'] as const,
+  wa: ['wa'] as const,
+  tunnel: ['tunnel'] as const,
+  settings: ['settings'] as const,
+  audit: ['audit'] as const,
+};
+
+export type ChatsData = InfiniteData<ChatListResponse, string | null>;
+/** pages[0] holds the NEWEST messages; each page's `messages` are in ascending time order. */
+export type MessagesData = InfiniteData<MessageListResponse, string | null>;
+
+const enc = encodeURIComponent;
+
+/** Accepts either a bare array or an object wrapping it (`{ users: [...] }`). */
+function unwrapList<T>(data: unknown, key: string): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object') {
+    const v = (data as Record<string, unknown>)[key];
+    if (Array.isArray(v)) return v as T[];
+    const first = Object.values(data).find(Array.isArray);
+    if (first) return first as T[];
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// Cache helpers (shared with the realtime socket)
+// ---------------------------------------------------------------------------
+
+function sameMessage(a: Message, m: { id: string; clientId: string | null }): boolean {
+  if (a.id === m.id) return true;
+  if (m.clientId && a.clientId === m.clientId) return true;
+  return false;
+}
+
+/** Insert or replace a message in the messages cache of its chat. */
+export function upsertMessageInCache(qc: QueryClient, m: Message): void {
+  qc.setQueryData<MessagesData>(qk.messages(m.chatJid), (old) => {
+    if (!old || old.pages.length === 0) return old;
+    let found = false;
+    const pages = old.pages.map((p) => {
+      if (!p.messages.some((x) => sameMessage(x, m))) return p;
+      found = true;
+      return { ...p, messages: p.messages.map((x) => (sameMessage(x, m) ? m : x)) };
+    });
+    if (found) return { ...old, pages };
+    const [first, ...rest] = pages;
+    if (!first) return old;
+    const msgs = [...first.messages, m].sort(
+      (a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id),
+    );
+    return { ...old, pages: [{ ...first, messages: msgs }, ...rest] };
+  });
+}
+
+/** Patch a message (located by id, or by clientId / `local-<clientId>`) in a chat's messages cache. */
+export function patchMessageInCache(
+  qc: QueryClient,
+  chatJid: string,
+  match: { id: string; clientId: string | null },
+  patch: Partial<Message>,
+): void {
+  qc.setQueryData<MessagesData>(qk.messages(chatJid), (old) => {
+    if (!old) return old;
+    const localId = match.clientId ? `local-${match.clientId}` : null;
+    const hit = (x: Message) =>
+      x.id === match.id ||
+      (match.clientId != null && x.clientId === match.clientId) ||
+      (localId != null && x.id === localId);
+    return {
+      ...old,
+      pages: old.pages.map((p) =>
+        p.messages.some(hit)
+          ? { ...p, messages: p.messages.map((x) => (hit(x) ? { ...x, ...patch } : x)) }
+          : p,
+      ),
+    };
+  });
+}
+
+/** Replace a chat in every cached chat list and in its detail entry. */
+export function upsertChatInCache(qc: QueryClient, chat: Chat): void {
+  qc.setQueryData<ChatDetailResponse>(qk.chat(chat.jid), (old) => (old ? { ...old, chat } : old));
+  qc.setQueriesData<ChatsData>({ queryKey: qk.chatsAll }, (old) => {
+    if (!old?.pages) return old;
+    return {
+      ...old,
+      pages: old.pages.map((p) => ({
+        ...p,
+        chats: p.chats.map((c) => (c.jid === chat.jid ? chat : c)),
+      })),
+    };
+  });
+}
+
+function currentUser(qc: QueryClient): User | null {
+  return qc.getQueryData<User | null>(qk.me) ?? null;
+}
+
+export function newClientId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function optimisticMessage(
+  qc: QueryClient,
+  jid: string,
+  clientId: string,
+  fields: Partial<Message>,
+): Message {
+  return {
+    id: `local-${clientId}`,
+    chatJid: jid,
+    senderJid: null,
+    senderName: currentUser(qc)?.displayName ?? null,
+    fromMe: true,
+    sentByUserId: currentUser(qc)?.id ?? null,
+    type: 'text',
+    body: null,
+    mediaUrl: null,
+    mediaMime: null,
+    mediaName: null,
+    mediaStatus: 'none',
+    quotedId: null,
+    status: 'pending',
+    error: null,
+    timestamp: Date.now(),
+    clientId,
+    ...fields,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Auth & setup
+// ---------------------------------------------------------------------------
+
+/** Current user, or `null` when not logged in (401 is not an error here). */
+export function useMe() {
+  return useQuery({
+    queryKey: qk.me,
+    queryFn: async (): Promise<User | null> => {
+      try {
+        return await api('/me', { schema: MeResponse });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) return null;
+        throw e;
+      }
+    },
+    staleTime: 60_000,
+    retry: (count, e) => !(e instanceof ApiError && e.status < 500) && count < 2,
+  });
+}
+
+export function useSetupStatus() {
+  return useQuery({
+    queryKey: qk.setupStatus,
+    queryFn: () => api('/setup/status', { schema: SetupStatusResponse }),
+    staleTime: 30_000,
+    retry: (count, e) => !(e instanceof ApiError && e.status < 500) && count < 2,
+  });
+}
+
+/** Create the first admin (server logs them in). */
+export function useSetupAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SetupAdminBody) => api<unknown>('/setup/admin', { method: 'POST', body }),
+    onSuccess: async (data) => {
+      const parsed = MeResponse.safeParse(data);
+      const parsedNested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
+      if (parsed.success) qc.setQueryData(qk.me, parsed.data);
+      else if (parsedNested.success) qc.setQueryData(qk.me, parsedNested.data);
+      qc.setQueryData(qk.setupStatus, { needsSetup: false });
+      await qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: LoginBody): Promise<User | null> => {
+      const data = await api<unknown>('/auth/login', { method: 'POST', body });
+      const parsed = MeResponse.safeParse(data);
+      if (parsed.success) return parsed.data;
+      const nested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
+      if (nested.success) return nested.data;
+      // Server didn't echo the user — ask for it.
+      return api('/me', { schema: MeResponse });
+    },
+    onSuccess: (user) => {
+      qc.setQueryData(qk.me, user);
+    },
+  });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        await api('/auth/logout', { method: 'POST' });
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 401)) throw e;
+      }
+    },
+    onSettled: () => {
+      qc.clear();
+      qc.setQueryData(qk.me, null);
+    },
+  });
+}
+
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ChangePasswordBody) =>
+      api<unknown>('/auth/change-password', { method: 'POST', body }),
+    onSuccess: async () => {
+      const me = currentUser(qc);
+      if (me) qc.setQueryData(qk.me, { ...me, mustChangePassword: false });
+      await qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Chats & messages
+// ---------------------------------------------------------------------------
+
+export function useChats(filters: ChatFilters) {
+  return useInfiniteQuery({
+    queryKey: qk.chats(filters),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      const p = new URLSearchParams();
+      if (filters.status) p.set('status', filters.status);
+      p.set('assigned', filters.assigned);
+      if (filters.q?.trim()) p.set('q', filters.q.trim());
+      if (pageParam) p.set('cursor', pageParam);
+      return api<ChatListResponse>(`/chats?${p.toString()}`, { signal });
+    },
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+export function useChat(jid: string | null | undefined) {
+  return useQuery({
+    queryKey: qk.chat(jid ?? ''),
+    queryFn: ({ signal }) => api<ChatDetailResponse>(`/chats/${enc(jid ?? '')}`, { signal }),
+    enabled: !!jid,
+  });
+}
+
+/** Infinite message history; `fetchNextPage()` loads OLDER messages (pages[1..] are older). */
+export function useMessages(jid: string | null | undefined) {
+  return useInfiniteQuery({
+    queryKey: qk.messages(jid ?? ''),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      const p = new URLSearchParams({ limit: '50' });
+      if (pageParam) p.set('before', pageParam);
+      return api<MessageListResponse>(`/chats/${enc(jid ?? '')}/messages?${p.toString()}`, {
+        signal,
+      });
+    },
+    getNextPageParam: (last) => last.nextBefore,
+    enabled: !!jid,
+  });
+}
+
+/** Flatten MessagesData into ascending order. */
+export function flattenMessages(data: MessagesData | undefined): Message[] {
+  if (!data) return [];
+  const out: Message[] = [];
+  for (let i = data.pages.length - 1; i >= 0; i--) out.push(...(data.pages[i]?.messages ?? []));
+  return out;
+}
+
+export interface SendTextInput {
+  text: string;
+  quotedId?: string;
+  /** Generate with `newClientId()` (crypto.randomUUID). */
+  clientId: string;
+}
+
+/** Optimistic text send: inserts a pending bubble immediately, reconciled by clientId. */
+export function useSendText(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendTextInput) =>
+      api<Message>(`/chats/${enc(jid)}/messages`, {
+        method: 'POST',
+        body: { text: input.text, quotedId: input.quotedId, clientId: input.clientId },
+      }),
+    onMutate: (input) => {
+      const msg = optimisticMessage(qc, jid, input.clientId, {
+        body: input.text,
+        quotedId: input.quotedId ?? null,
+      });
+      upsertMessageInCache(qc, msg);
+      return { clientId: input.clientId };
+    },
+    onSuccess: (m) => {
+      if (m && typeof m === 'object' && 'id' in m) upsertMessageInCache(qc, m);
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    },
+    onError: (e, input) => {
+      patchMessageInCache(
+        qc,
+        jid,
+        { id: `local-${input.clientId}`, clientId: input.clientId },
+        {
+          status: 'failed',
+          error: e instanceof Error ? e.message : 'Send failed',
+        },
+      );
+    },
+  });
+}
+
+export interface SendMediaInput {
+  file: File;
+  caption?: string;
+  clientId: string;
+}
+
+export function useSendMedia(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendMediaInput) => {
+      const form = new FormData();
+      form.append('clientId', input.clientId);
+      if (input.caption) form.append('caption', input.caption);
+      form.append('file', input.file, input.file.name);
+      return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
+    },
+    onMutate: (input) => {
+      const mime = input.file.type;
+      const type: Message['type'] = mime.startsWith('image/')
+        ? 'image'
+        : mime.startsWith('video/')
+          ? 'video'
+          : mime.startsWith('audio/')
+            ? 'audio'
+            : 'document';
+      upsertMessageInCache(
+        qc,
+        optimisticMessage(qc, jid, input.clientId, {
+          type,
+          body: input.caption ?? null,
+          mediaMime: mime || null,
+          mediaName: input.file.name,
+          mediaStatus: 'pending',
+        }),
+      );
+    },
+    onSuccess: (m) => {
+      if (m && typeof m === 'object' && 'id' in m) upsertMessageInCache(qc, m);
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    },
+    onError: (e, input) => {
+      patchMessageInCache(
+        qc,
+        jid,
+        { id: `local-${input.clientId}`, clientId: input.clientId },
+        {
+          status: 'failed',
+          error: e instanceof Error ? e.message : 'Upload failed',
+        },
+      );
+    },
+  });
+}
+
+export function useRetryMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<Message>(`/messages/${enc(id)}/retry`, { method: 'POST' }),
+    onSuccess: (m) => {
+      if (m && typeof m === 'object' && 'id' in m) upsertMessageInCache(qc, m);
+    },
+  });
+}
+
+export function usePatchChat(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ChatPatchBody) => api<Chat>(`/chats/${enc(jid)}`, { method: 'PATCH', body }),
+    onSuccess: async (chat) => {
+      if (chat && typeof chat === 'object' && 'jid' in chat) upsertChatInCache(qc, chat);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.chatsAll }),
+        qc.invalidateQueries({ queryKey: qk.chat(jid) }),
+      ]);
+    },
+  });
+}
+
+export function useMarkRead(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<unknown>(`/chats/${enc(jid)}/read`, { method: 'POST' }),
+    onMutate: () => {
+      const detail = qc.getQueryData<ChatDetailResponse>(qk.chat(jid));
+      if (detail) upsertChatInCache(qc, { ...detail.chat, unreadCount: 0 });
+      else
+        qc.setQueriesData<ChatsData>({ queryKey: qk.chatsAll }, (old) =>
+          old?.pages
+            ? {
+                ...old,
+                pages: old.pages.map((p) => ({
+                  ...p,
+                  chats: p.chats.map((c) => (c.jid === jid ? { ...c, unreadCount: 0 } : c)),
+                })),
+              }
+            : old,
+        );
+    },
+  });
+}
+
+export function useNotes(jid: string | null | undefined) {
+  return useQuery({
+    queryKey: qk.notes(jid ?? ''),
+    queryFn: async ({ signal }) =>
+      unwrapList<Note>(await api(`/chats/${enc(jid ?? '')}/notes`, { signal }), 'notes'),
+    enabled: !!jid,
+  });
+}
+
+export function useAddNote(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) =>
+      api<Note>(`/chats/${enc(jid)}/notes`, { method: 'POST', body: { body } }),
+    onSuccess: (note) => {
+      if (!note || typeof note !== 'object') return;
+      qc.setQueryData<Note[]>(qk.notes(jid), (old) =>
+        old ? (old.some((n) => n.id === note.id) ? old : [...old, note]) : old,
+      );
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Quick replies
+// ---------------------------------------------------------------------------
+
+export function useQuickReplies() {
+  return useQuery({
+    queryKey: qk.quickReplies,
+    queryFn: async () => unwrapList<QuickReply>(await api('/quick-replies'), 'quickReplies'),
+    staleTime: 60_000,
+  });
+}
+
+/** Create (no id) or update (with id). */
+export function useSaveQuickReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: QuickReplyBody & { id?: number }) =>
+      id == null
+        ? api<QuickReply>('/quick-replies', { method: 'POST', body })
+        : api<QuickReply>(`/quick-replies/${id}`, { method: 'PATCH', body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.quickReplies }),
+  });
+}
+
+export function useDeleteQuickReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api<unknown>(`/quick-replies/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.quickReplies }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Users (admin)
+// ---------------------------------------------------------------------------
+
+export function useUsers(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.users,
+    queryFn: async () => unwrapList<User>(await api('/users'), 'users'),
+    enabled: opts.enabled ?? true,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateUserBody) => api<User>('/users', { method: 'POST', body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.users }),
+  });
+}
+
+export function usePatchUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: PatchUserBody }) =>
+      api<User>(`/users/${id}`, { method: 'PATCH', body: patch }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.users }),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (id: number) =>
+      api<ResetPasswordResponse>(`/users/${id}/reset-password`, { method: 'POST' }),
+  });
+}
+
+export function useRevokeSessions() {
+  return useMutation({
+    mutationFn: (id: number) => api<unknown>(`/users/${id}/sessions`, { method: 'DELETE' }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp, tunnel, settings, audit
+// ---------------------------------------------------------------------------
+
+export function useWaStatus(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.wa,
+    queryFn: () => api<WaStatus>('/wa/status'),
+    enabled: opts.enabled ?? true,
+    // Socket pushes updates; poll as a fallback while linking.
+    refetchInterval: (q) => {
+      const s = q.state.data?.state;
+      return s === 'qr' || s === 'connecting' ? 5_000 : 30_000;
+    },
+  });
+}
+
+export type WaAction = 'logout' | 'relink' | 'takeover';
+
+export function useWaAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (action: WaAction) => api<unknown>(`/wa/${action}`, { method: 'POST' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.wa }),
+  });
+}
+
+export function useTunnel(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.tunnel,
+    queryFn: () => api<TunnelStatus>('/tunnel'),
+    enabled: opts.enabled ?? true,
+    refetchInterval: (q) => (q.state.data?.state === 'starting' ? 3_000 : false),
+  });
+}
+
+export function useStartTunnel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: TunnelStartBody) =>
+      api<TunnelStatus>('/tunnel/start', { method: 'POST', body }),
+    onSuccess: (s) => {
+      if (s && typeof s === 'object' && 'state' in s) qc.setQueryData(qk.tunnel, s);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.tunnel }),
+  });
+}
+
+export function useStopTunnel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<TunnelStatus>('/tunnel/stop', { method: 'POST' }),
+    onSuccess: (s) => {
+      if (s && typeof s === 'object' && 'state' in s) qc.setQueryData(qk.tunnel, s);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.tunnel }),
+  });
+}
+
+export function useSettings() {
+  return useQuery({ queryKey: qk.settings, queryFn: () => api<Settings>('/settings') });
+}
+
+export interface PatchSettingsResult {
+  settings: Settings;
+  restartRequired: boolean;
+}
+
+export function usePatchSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: SettingsPatchBody): Promise<PatchSettingsResult> => {
+      const data = await api<unknown>('/settings', { method: 'PATCH', body });
+      if (data && typeof data === 'object' && 'settings' in data) {
+        const d = data as { settings: Settings; restartRequired?: boolean };
+        return { settings: d.settings, restartRequired: !!d.restartRequired };
+      }
+      return { settings: data as Settings, restartRequired: false };
+    },
+    onSuccess: (r) => qc.setQueryData(qk.settings, r.settings),
+  });
+}
+
+/** Audit log, newest first; `fetchNextPage()` loads older entries (cursor = last entry id). */
+export function useAudit(limit = 50) {
+  return useInfiniteQuery({
+    queryKey: qk.audit,
+    initialPageParam: null as number | null,
+    queryFn: async ({ pageParam, signal }) => {
+      const p = new URLSearchParams({ limit: String(limit) });
+      if (pageParam != null) p.set('before', String(pageParam));
+      return {
+        entries: unwrapList<AuditEntry>(await api(`/audit?${p.toString()}`, { signal }), 'entries'),
+      };
+    },
+    getNextPageParam: (last) =>
+      last.entries.length < limit ? null : (last.entries[last.entries.length - 1]?.id ?? null),
+  });
+}
