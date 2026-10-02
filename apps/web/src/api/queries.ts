@@ -89,6 +89,26 @@ function sameMessage(a: Message, m: { id: string; clientId: string | null }): bo
   return false;
 }
 
+const STATUS_RANK: Record<Message['status'], number> = {
+  pending: 0,
+  failed: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+};
+
+/**
+ * The socket's `message:status` (sent → WA id, delivered…) can arrive before the POST response
+ * that still carries the pending server row. Never let such a stale copy regress the cached
+ * message's status or WA id; an explicit `failed` (or failed → pending retry) always applies.
+ */
+function mergeMessage(existing: Message, incoming: Message): Message {
+  if (incoming.status !== 'failed' && STATUS_RANK[existing.status] > STATUS_RANK[incoming.status]) {
+    return { ...incoming, id: existing.id, status: existing.status, error: existing.error };
+  }
+  return incoming;
+}
+
 /** Insert or replace a message in the messages cache of its chat. */
 export function upsertMessageInCache(qc: QueryClient, m: Message): void {
   qc.setQueryData<MessagesData>(qk.messages(m.chatJid), (old) => {
@@ -97,7 +117,10 @@ export function upsertMessageInCache(qc: QueryClient, m: Message): void {
     const pages = old.pages.map((p) => {
       if (!p.messages.some((x) => sameMessage(x, m))) return p;
       found = true;
-      return { ...p, messages: p.messages.map((x) => (sameMessage(x, m) ? m : x)) };
+      return {
+        ...p,
+        messages: p.messages.map((x) => (sameMessage(x, m) ? mergeMessage(x, m) : x)),
+      };
     });
     if (found) return { ...old, pages };
     const [first, ...rest] = pages;

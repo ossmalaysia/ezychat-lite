@@ -162,10 +162,14 @@ export function SetupWizard() {
   const status = useSetupStatus();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('admin');
+  // Once needsSetup=true has been seen this visit we're mid-wizard: creating the admin flips
+  // needsSetup to false *before* the step advances, which must not bounce us to the inbox.
+  const [wizardStarted, setWizardStarted] = useState(false);
+  if (status.data?.needsSetup && !wizardStarted) setWizardStarted(true);
 
   if (status.isPending) return <FullPageSpinner />;
   // Setup already finished (and we're not mid-wizard) → leave.
-  if (step === 'admin' && status.data && !status.data.needsSetup)
+  if (!wizardStarted && step === 'admin' && status.data && !status.data.needsSetup)
     return <Navigate to="/" replace />;
 
   return (
