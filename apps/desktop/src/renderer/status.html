@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>WA Team Inbox — Status &amp; Service</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --fg: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #059669;
+        --danger: #dc2626;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1120;
+          --card: #111827;
+          --fg: #e2e8f0;
+          --muted: #94a3b8;
+          --border: #1f2937;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      }
+      main { max-width: 560px; margin: 0 auto; display: grid; gap: 16px; }
+      h1 { font-size: 1.25rem; margin: 0; }
+      h2 { font-size: 1rem; margin: 0 0 8px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 0; }
+      dt { color: var(--muted); }
+      dd { margin: 0; overflow-wrap: anywhere; }
+      .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--border); }
+      .ok { color: var(--accent); border-color: var(--accent); }
+      .bad { color: var(--danger); border-color: var(--danger); }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      button {
+        min-height: 44px; padding: 0 16px; border-radius: 10px; font: inherit; cursor: pointer;
+        border: 1px solid var(--border); background: transparent; color: var(--fg);
+      }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.danger { color: var(--danger); border-color: var(--danger); }
+      button:disabled { opacity: 0.5; cursor: default; }
+      p.note { color: var(--muted); margin: 8px 0 0; font-size: 0.9rem; }
+      pre {
+        margin: 0; max-height: 220px; overflow: auto; font-size: 12px; white-space: pre-wrap;
+        overflow-wrap: anywhere; background: var(--bg); border-radius: 8px; padding: 8px;
+      }
+      #busy { color: var(--accent); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>WA Team Inbox</h1>
+      <div id="busy" hidden></div>
+
+      <section class="card">
+        <h2>Server</h2>
+        <dl>
+          <dt>Mode</dt><dd id="mode">…</dd>
+          <dt>State</dt><dd id="state">…</dd>
+          <dt>Address</dt><dd id="url">…</dd>
+          <dt>Data folder</dt><dd id="data">…</dd>
+          <dt>Version</dt><dd id="version">…</dd>
+        </dl>
+        <div class="row">
+          <button id="open" class="primary">Open inbox</button>
+          <button id="logs">Open logs folder</button>
+          <button id="reset">Reset admin password…</button>
+        </div>
+      </section>
+
+      <section class="card" id="svc-card">
+        <h2>Background service</h2>
+        <p>Status: <span id="svc-state" class="badge">…</span></p>
+        <p class="note">
+          As a service the server starts with the computer, even when nobody is signed in, and keeps the
+          WhatsApp connection and tunnel running. Requires administrator permission.
+        </p>
+        <div class="row">
+          <button id="svc-enable" class="primary">Enable service</button>
+          <button id="svc-start">Start</button>
+          <button id="svc-stop">Stop</button>
+          <button id="svc-disable" class="danger">Remove service</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Recent log</h2>
+        <pre id="log"></pre>
+      </section>
+    </main>
+    <script src="status.js"></script>
+  </body>
+</html>

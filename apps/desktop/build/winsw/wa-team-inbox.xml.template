@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Reference template only. The real file is generated at install time by
+  apps/desktop/src/service/windows.ts (winswXml) and written next to the WinSW wrapper as
+  %ProgramData%\wa-team-inbox\service\wa-team-inbox.xml. Runs as LocalSystem (WinSW default).
+-->
+<service>
+  <id>wa-team-inbox</id>
+  <name>WA Team Inbox Server</name>
+  <description>WA Team Inbox Server - shared team inbox server (WA Team Inbox)</description>
+  <executable>{{INSTALL_DIR}}\WA Team Inbox.exe</executable>
+  <arguments>"{{INSTALL_DIR}}\resources\app.asar\dist\server\server.cjs" --data C:\ProgramData\wa-team-inbox --port 7420 --mode service --web-dist "{{INSTALL_DIR}}\resources\web"</arguments>
+  <env name="ELECTRON_RUN_AS_NODE" value="1"/>
+  <env name="WATI_CLOUDFLARED" value="{{INSTALL_DIR}}\resources\cloudflared\cloudflared.exe"/>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>C:\ProgramData\wa-team-inbox\service\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

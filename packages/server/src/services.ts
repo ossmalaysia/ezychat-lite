@@ -7,3 +7,9 @@ import type { AppContext } from './context.js';
  *   initializers.push(initAuth);
  */
 export const initializers: Array<(ctx: AppContext) => void | Promise<void>> = [];
+
+import { initTunnel } from './tunnel/index.js';
+initializers.push(initTunnel);
+
+import { initAuth } from './auth/index.js';
+initializers.unshift(initAuth); // auth first: other services/guards depend on it

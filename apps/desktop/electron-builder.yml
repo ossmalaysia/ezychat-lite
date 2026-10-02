@@ -1,0 +1,83 @@
+# electron-builder config for WA Team Inbox (run from apps/desktop: `npm run dist`).
+# Prerequisites (done by the dist script): web build (apps/web/dist), server bundle
+# (dist/server/server.cjs via scripts/bundle-server.mjs), tsc (dist/main.js),
+# cloudflared (scripts/fetch-cloudflared.mjs) and WinSW (scripts/fetch-winsw.mjs).
+appId: org.ossmalaysia.wateaminbox
+productName: WA Team Inbox
+copyright: Copyright © OSS Malaysia and contributors
+artifactName: WA-Team-Inbox-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - package.json
+  - dist/**/*
+  - '!dist/**/*.map'
+  - src/renderer/**/*
+
+asar: true
+asarUnpack:
+  - '**/*.node'
+  - '**/server/**'
+
+# Native modules: better-sqlite3 (v12+) and @node-rs/argon2 are Node-API addons with prebuilt
+# binaries, so the same build loads in Node (tests) and in Electron (utilityProcess /
+# ELECTRON_RUN_AS_NODE=1). No Electron rebuild needed; rebuilding would also touch the shared
+# workspace node_modules used by the server tests.
+npmRebuild: false
+
+extraResources:
+  - from: ../web/dist
+    to: web
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  extraResources:
+    - from: ../../resources/cloudflared/win32-x64
+      to: cloudflared
+      filter: ['cloudflared.exe']
+    - from: ../../resources/winsw
+      to: winsw
+      filter: ['WinSW-x64.exe']
+
+nsis:
+  oneClick: false
+  # per-machine install so the LocalSystem service can read the app files
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WA Team Inbox
+  deleteAppDataOnUninstall: false
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.business
+  # unsigned v1
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: null
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  extraResources:
+    - from: ../../resources/cloudflared/darwin-${arch}
+      to: cloudflared
+      filter: ['cloudflared']
+
+dmg:
+  title: WA Team Inbox ${version}
+
+linux:
+  icon: build/icon.png
+  category: Network
+  target: [AppImage]
+  extraResources:
+    - from: ../../resources/cloudflared/linux-${arch}
+      to: cloudflared
+      filter: ['cloudflared']

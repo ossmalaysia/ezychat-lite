@@ -1,5 +1,28 @@
 import type { FastifyInstance } from 'fastify';
+import { SetupAdminBody } from '@wa-team-inbox/shared';
+import { getAuth, setSessionCookie } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
+import { audit } from '../db/audit.js';
+import { clientIp, isDirectLoopback, isHttps } from '../http/client-ip.js';
+import { errors, parse } from '../http/errors.js';
 
-// Stub (Task 5). Replaced wholesale by a later task.
-export default async function (_app: FastifyInstance, _ctx: AppContext) {}
+export default async function setupRoutes(app: FastifyInstance, ctx: AppContext) {
+  const auth = getAuth(ctx);
+
+  app.get('/setup/status', async () => ({ needsSetup: !auth.hasAnyUser() }));
+
+  // Public but guarded: only before any user exists, and only from the local machine (never via tunnel).
+  app.post('/setup/admin', async (req, reply) => {
+    if (auth.hasAnyUser()) throw errors.notFound();
+    if (!isDirectLoopback(req)) {
+      throw errors.forbidden('First-time setup is only allowed from this computer');
+    }
+    const body = parse(SetupAdminBody, req.body);
+    const user = await auth.createFirstAdmin(body);
+    const ip = clientIp(req);
+    const token = auth.createSession(user.id, { ip, userAgent: String(req.headers['user-agent'] ?? '') });
+    setSessionCookie(reply, token, isHttps(req));
+    audit(ctx.db, { userId: user.id, action: 'setup.admin', ip, meta: { username: user.username } });
+    return user;
+  });
+}
