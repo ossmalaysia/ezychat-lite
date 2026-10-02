@@ -1,0 +1,141 @@
+import type { MediaStatus, Message, MessageStatus, MessageType } from '@wa-team-inbox/shared';
+import type { DB } from '../db/index.js';
+
+export interface MessageRow {
+  id: string;
+  chat_jid: string;
+  sender_jid: string | null;
+  sender_name: string | null;
+  from_me: number;
+  sent_by_user_id: number | null;
+  type: MessageType;
+  body: string | null;
+  media_path: string | null;
+  media_mime: string | null;
+  media_name: string | null;
+  media_status: MediaStatus;
+  quoted_id: string | null;
+  status: MessageStatus;
+  error: string | null;
+  timestamp: number;
+  created_at: number;
+  client_id: string | null;
+}
+
+export function mediaUrlFor(id: string): string {
+  return `/api/media/${encodeURIComponent(id)}`;
+}
+
+export function rowToMessage(r: MessageRow): Message {
+  return {
+    id: r.id,
+    chatJid: r.chat_jid,
+    senderJid: r.sender_jid,
+    senderName: r.sender_name,
+    fromMe: r.from_me === 1,
+    sentByUserId: r.sent_by_user_id,
+    type: r.type,
+    body: r.body,
+    mediaUrl: r.media_path ? mediaUrlFor(r.id) : null,
+    mediaMime: r.media_mime,
+    mediaName: r.media_name,
+    mediaStatus: r.media_status,
+    quotedId: r.quoted_id,
+    status: r.status,
+    error: r.error,
+    timestamp: r.timestamp,
+    clientId: r.client_id,
+  };
+}
+
+/** Chat list preview: body truncated to 120 chars or a media label. */
+export function previewOf(m: { type: MessageType; body: string | null; media_name?: string | null; mediaName?: string | null }): string {
+  const name = m.media_name ?? m.mediaName ?? null;
+  const label = (l: string) => (m.body ? `${l} ${truncate(m.body, 100)}` : l);
+  switch (m.type) {
+    case 'image':
+      return label('[Image]');
+    case 'video':
+      return label('[Video]');
+    case 'audio':
+      return '[Audio]';
+    case 'document':
+      return name ? `[Document] ${truncate(name, 100)}` : '[Document]';
+    case 'sticker':
+      return '[Sticker]';
+    default:
+      return truncate(m.body ?? '', 120);
+  }
+}
+
+function truncate(s: string, n: number): string {
+  const flat = s.replace(/\s+/g, ' ').trim();
+  return flat.length > n ? `${flat.slice(0, n - 1)}…` : flat;
+}
+
+export const STATUS_RANK: Record<MessageStatus, number> = { pending: 0, failed: 0, sent: 1, delivered: 2, read: 3 };
+
+export class MessageRepo {
+  constructor(private readonly db: DB) {}
+
+  get(id: string): MessageRow | null {
+    return (this.db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as MessageRow | undefined) ?? null;
+  }
+
+  byClientId(clientId: string): MessageRow | null {
+    return (this.db.prepare('SELECT * FROM messages WHERE client_id = ?').get(clientId) as MessageRow | undefined) ?? null;
+  }
+
+  exists(id: string): boolean {
+    return !!this.db.prepare('SELECT 1 FROM messages WHERE id = ?').get(id);
+  }
+
+  /** INSERT OR IGNORE; returns true if a new row was inserted. */
+  insert(r: MessageRow): boolean {
+    const info = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
+           media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id)
+         VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
+           @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id)`,
+      )
+      .run(r);
+    return info.changes > 0;
+  }
+
+  update(id: string, fields: Partial<Omit<MessageRow, 'id'>>): void {
+    const keys = Object.keys(fields);
+    if (!keys.length) return;
+    const sets = keys.map((k) => `${k} = @${k}`).join(', ');
+    this.db.prepare(`UPDATE messages SET ${sets} WHERE id = @__id`).run({ ...fields, __id: id });
+  }
+
+  rename(oldId: string, newId: string): void {
+    this.db.prepare('UPDATE messages SET id = ? WHERE id = ?').run(newId, oldId);
+  }
+
+  delete(id: string): void {
+    this.db.prepare('DELETE FROM messages WHERE id = ?').run(id);
+  }
+
+  /** Newest first, strictly before (ts,id) if given. */
+  pageDesc(chatJid: string, before: { ts: number; id: string } | null, limit: number): MessageRow[] {
+    if (before) {
+      return this.db
+        .prepare(
+          `SELECT * FROM messages WHERE chat_jid = ? AND (timestamp < ? OR (timestamp = ? AND id < ?))
+           ORDER BY timestamp DESC, id DESC LIMIT ?`,
+        )
+        .all(chatJid, before.ts, before.ts, before.id, limit) as MessageRow[];
+    }
+    return this.db
+      .prepare('SELECT * FROM messages WHERE chat_jid = ? ORDER BY timestamp DESC, id DESC LIMIT ?')
+      .all(chatJid, limit) as MessageRow[];
+  }
+
+  pendingLocal(): MessageRow[] {
+    return this.db
+      .prepare("SELECT * FROM messages WHERE status = 'pending' AND id LIKE 'local-%' ORDER BY created_at ASC")
+      .all() as MessageRow[];
+  }
+}

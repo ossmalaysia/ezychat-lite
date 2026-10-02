@@ -13,3 +13,9 @@ initializers.push(initTunnel);
 
 import { initAuth } from './auth/index.js';
 initializers.unshift(initAuth); // auth first: other services/guards depend on it
+
+import { initAdmin } from './admin/index.js';
+initializers.push(initAdmin);
+
+import { initMessaging } from './wa-bridge/index.js';
+initializers.push(initMessaging);
