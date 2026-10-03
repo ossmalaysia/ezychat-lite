@@ -30,6 +30,16 @@ file is updated. Promote anything that changes *how* to work into CLAUDE.md.
 
 ## Desktop / web UI
 
+- 2026-10-03 — Spent several rounds guessing why Quick replies / Tunnel render blank in the live app (cache?
+  Electron? push API?) — every guess was disproved by tests on a fake server → the browser had no error
+  reporting, so the evidence never reached any log. Added `POST /api/client-errors` + global handlers + a
+  per-route React `ErrorBoundary` (structured `mod:"web"` pino entries with stack + componentStack).
+  **Rule (from the user): don't guess — check the logs; if the failure isn't logged, add structured logging
+  first, reproduce, then read the log.**
+- 2026-10-03 — "Claude in Chrome" showed an error page for `127.0.0.1:7420` → the only connected extension was
+  a macOS browser, not the Windows machine running the app (Windows Chrome was signed into another account).
+  **Run `list_connected_browsers` before browser testing; localhost only works on the same machine.**
+
 - 2026-10-03 — Tunnel page blank in the live app but fine in a fresh browser, and the server log showed no
   `/api/tunnel` request → the Electron window kept serving an older build's JS from the PWA service worker
   cache → the desktop app now clears service workers + Cache Storage when the web build changes

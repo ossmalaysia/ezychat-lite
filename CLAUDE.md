@@ -105,6 +105,9 @@ removed, so do not add to it or import from it in new code. Feature code must no
   into this file.
 - Changes under `packages/wa/src/baileys/**` must be smoke-tested against real WhatsApp before claiming they work.
 - Agents never use the real app data folder; always `--data <temp dir>`.
+- **Debug from evidence, not guesses:** read the server log (`<data>/logs/*.log`, structured pino JSON; web
+  errors are `mod:"web"`, "client error") before proposing a cause. If the failure isn't in any log, add
+  structured logging (pino child logger with `mod`, fields not string concatenation) first, reproduce, then read it.
 
 ## Multi-agent rules (required)
 
