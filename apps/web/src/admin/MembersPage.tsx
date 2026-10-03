@@ -25,7 +25,6 @@ import { formatDateTime } from '../lib/format';
 import {
   Banner,
   EmptyState,
-  PageHeader,
   ResponsiveDialog,
   ResponsiveTable,
   type Column,
@@ -103,16 +102,18 @@ export function MembersPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Members"
-        description="People who can sign in to the team inbox."
-        actions={
+      <div className="mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold tracking-tight">Members</h1>
           <Button size="touch" className="md:min-h-9" onClick={() => setDialog({ kind: 'create' })}>
             <UserPlus aria-hidden />
             Add member
           </Button>
-        }
-      />
+        </div>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          People who can sign in to the team inbox.
+        </p>
+      </div>
 
       <div className="mb-4 space-y-2">
         <SearchField
@@ -136,6 +137,24 @@ export function MembersPage() {
           rows={list}
           columns={columns}
           rowKey={(u) => u.id}
+          renderMobileRow={(u) => (
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <MemberIdentity user={u} isMe={u.id === me?.id} />
+                <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pl-11">
+                <RoleBadge role={u.role} />
+                <StatusBadges user={u} />
+              </div>
+              <p className="pl-11 text-xs text-muted-foreground">
+                Added{' '}
+                <time dateTime={new Date(u.createdAt).toISOString()}>
+                  {formatDateTime(u.createdAt)}
+                </time>
+              </p>
+            </div>
+          )}
           empty={
             query ? (
               <EmptyState
@@ -194,7 +213,7 @@ function initials(name: string) {
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <Avatar className="size-8">
+      <Avatar className="size-8 shrink-0">
         <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
           {initials(user.displayName)}
         </AvatarFallback>
@@ -237,28 +256,31 @@ function RowActions({
   user,
   isMe,
   onAction,
+  compact = false,
 }: {
   user: User;
   isMe: boolean;
   onAction: (d: Dialog) => void;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 md:justify-end">
+    <div className="flex shrink-0 items-center gap-1 md:justify-end">
       <Button
-        size="touch"
-        variant="outline"
-        className="md:min-h-8"
+        size={compact ? 'icon-touch' : 'touch'}
+        variant={compact ? 'ghost' : 'outline'}
+        className={compact ? undefined : 'md:min-h-8'}
+        aria-label={compact ? `Edit ${user.displayName}` : undefined}
         onClick={() => onAction({ kind: 'edit', user })}
       >
         <Pencil aria-hidden />
-        Edit
+        {!compact && 'Edit'}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             size="icon-touch"
             variant="ghost"
-            className="md:size-8"
+            className={compact ? undefined : 'md:size-8'}
             aria-label={`More actions for ${user.displayName}`}
           >
             <MoreHorizontal aria-hidden />

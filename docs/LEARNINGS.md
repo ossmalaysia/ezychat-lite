@@ -70,6 +70,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Desktop / web UI
 
+- 2026-10-03 — Member cards repeated every desktop column label and put actions on a separate row → a generic table-to-card conversion wasted vertical space → allow feature-specific mobile rows, group related metadata, and retain 44px action targets while checking long names at 360px.
 - 2026-10-03 — Mobile pages had no horizontal overflow but landscape forms lost their actions and tablet tables hid columns → dialogs had no viewport height limit and table overflow was hidden → check dialog bounds and inner clipping as well as page overflow; cap dialog height with dynamic viewport units, permit scrolling, and retain cards until tables have room.
 - 2026-10-03 — A 44px wrapper around the LAN switch still left only the small switch clickable → decorative padding is not a hit target → use an associated padded label and test padding clicks and keyboard operation without saving automatically.
 - 2026-10-03 — Long member names were clipped inside mobile drawer titles although page overflow remained zero → unbroken strings escaped the title box → allow arbitrary word wrapping in shared dialog titles and verify title scroll width.

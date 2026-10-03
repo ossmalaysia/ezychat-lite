@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
+- Compact member cards on phones and tablets: group role and status badges, place accessible
+  Edit and More actions beside the name, and show the added date as secondary information.
+  Keep Add member beside the page title to reduce scrolling.
+
 ### Fixed
 
 - Match WhatsApp phone-number and internal contact IDs so saved names reach the correct chats.
