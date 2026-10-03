@@ -15,7 +15,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
-import { iconPng } from './icon.js';
 import {
   broadcastStatusChanged,
   registerIpc,
@@ -28,9 +27,11 @@ import {
   cloudflaredDir,
   machineDataDir,
   parseDesktopConfig,
+  preserveInstalledProfile,
   serverEntry,
   serverHost,
   servicePortFile,
+  serviceRunDir,
   standalonePortFile,
   trayIconFile,
   userDataDir,
@@ -42,6 +43,16 @@ import { createServiceOperation } from './service-operation.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
+import { GitHubUpdateChecker } from './update-checker.js';
+import { isUpdateHost, registerUpdateIpc } from './update-ipc.js';
+import { ManagedUpdates } from './updater/controller.js';
+import { downloadRelease, verifyDownloadedRelease } from './updater/download.js';
+import {
+  prepareUpdateInstall,
+  readUpdateInstallResult,
+  updateInstallEligibility,
+  type InstallContext,
+} from './updater/install.js';
 import {
   clearWebCacheOnVersionChange,
   createMainWindow,
@@ -51,6 +62,8 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// Electron's default profile follows productName; pin the installed profile before its lock.
+preserveInstalledProfile(app, (path) => mkdirSync(path, { recursive: true }));
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -130,17 +143,21 @@ async function main(): Promise<void> {
     if (!isPackaged) process.stdout.write(`${s}\n`);
   };
 
-  const appIcon: NativeImage = nativeImage.createFromBuffer(iconPng(256));
-  // Tray icon from build/tray (resources/tray when packaged); generated icon if missing/unreadable.
+  const appIconFile = isPackaged
+    ? join(resourcesPath, 'app-icon.png')
+    : join(appPath, 'build', 'icon.png');
+  const exportedIcon = nativeImage.createFromPath(appIconFile);
+  const appIcon: NativeImage = exportedIcon.isEmpty()
+    ? nativeImage.createFromPath(trayIconFile(isPackaged, resourcesPath, appPath, 'win32'))
+    : exportedIcon;
+  // Use checked-in brand exports for both window and tray; fall back to the window mark.
   const trayIcon: NativeImage = (() => {
     const mac = process.platform === 'darwin';
     const file = trayIconFile(isPackaged, resourcesPath, appPath);
     let img = existsSync(file) ? nativeImage.createFromPath(file) : nativeImage.createEmpty();
     if (img.isEmpty()) {
-      log(`tray icon not found at ${file}; using generated icon`);
-      img = mac
-        ? nativeImage.createFromBuffer(iconPng(32, { monochrome: true }), { scaleFactor: 2 })
-        : nativeImage.createFromBuffer(iconPng(32));
+      log(`tray icon not found at ${file}; using app icon`);
+      img = appIcon.resize({ width: 32, height: 32 });
     }
     if (mac) img.setTemplateImage(true);
     return img;
@@ -175,6 +192,114 @@ async function main(): Promise<void> {
   let mainWindow: BrowserWindow | null = null;
   let statusWindow: BrowserWindow | null = null;
   let lastServiceState: ServiceState = 'not-installed';
+  const statusFile = join(appPath, 'src', 'renderer', 'status.html');
+  const ownsHost = () => !quitting && isUpdateHost(mode, lastServiceState);
+  let updateChanged = () => {};
+  const checker = new GitHubUpdateChecker({
+    currentVersion: version,
+    platform: process.platform,
+    arch: process.arch,
+    isHost: ownsHost,
+    onChanged: () => updateChanged(),
+    log: (fields) => log(JSON.stringify({ mod: 'desktop-updates', ...fields })),
+  });
+  const installContext = (): InstallContext => ({
+    platform: process.platform === 'darwin' ? 'darwin' : 'win32',
+    execPath: process.execPath,
+    appBundle,
+    userDataDir: app.getPath('userData'),
+    machineDataDir: machineDataDir(),
+    serviceRunDir: serviceRunDir(),
+    serviceInstalled: lastServiceState !== 'not-installed',
+    oldPid: process.pid,
+  });
+  const eligibility =
+    isPackaged && serviceSupported
+      ? updateInstallEligibility(installContext())
+      : {
+          eligible: false,
+          reason: 'Automatic installation is available in installed Windows and Mac apps.',
+        };
+  const lastInstall = await readUpdateInstallResult(app.getPath('userData')).catch(
+    (error: unknown) => {
+      log(
+        JSON.stringify({
+          mod: 'desktop-updates',
+          event: 'result_read_failed',
+          error: String(error),
+        }),
+      );
+      return null;
+    },
+  );
+  const updates = new ManagedUpdates({
+    checker,
+    canInstall: () => ownsHost() && eligibility.eligible,
+    unavailableReason: eligibility.reason ?? 'Only the hosting computer can install this update.',
+    lastInstall,
+    download: (release, signal, onProgress) =>
+      downloadRelease(release, {
+        directory: join(app.getPath('userData'), 'updates', 'downloads'),
+        signal,
+        onProgress,
+      }),
+    verify: verifyDownloadedRelease,
+    install: async (artifact) => {
+      if (busy || quitting)
+        throw new Error('Wait for the current app operation to finish before updating.');
+      let failure: unknown;
+      await runOperation(
+        'Preparing update…',
+        'Could not install the update',
+        async () => {
+          try {
+            // Refresh the actual service state while holding the same gate as install/remove/reset.
+            await currentServiceState();
+            if (!ownsHost()) throw new Error('The hosting app is no longer available to update.');
+            const prepared = await prepareUpdateInstall({
+              artifact,
+              context: installContext(),
+              onProgress: setBusy,
+            });
+            try {
+              if (quitting) throw new Error('The app closed before installation was confirmed.');
+              setBusy('Restarting to install the update…');
+              await server.stop();
+              // The external helper acknowledges handoff before this process releases its app files.
+              await prepared.commit();
+              quitting = true;
+              app.quit();
+            } catch (error) {
+              await prepared.cancel().catch((cancelError: unknown) => {
+                log(
+                  JSON.stringify({
+                    mod: 'desktop-updates',
+                    event: 'cancel_failed',
+                    error: String(cancelError),
+                  }),
+                );
+              });
+              throw error;
+            }
+          } catch (error) {
+            failure = error;
+            throw error;
+          }
+        },
+        async () => {
+          if (!quitting) await connectOrStart();
+        },
+      );
+      if (failure) throw failure;
+    },
+    onChanged: () => updateChanged(),
+    log: (fields) => log(JSON.stringify(fields)),
+  });
+  const syncUpdates = () => {
+    if (quitting || !ownsHost()) updates.stop();
+    else updates.start();
+    updateChanged();
+  };
 
   const server = new StandaloneServer({
     host,
@@ -191,7 +316,7 @@ async function main(): Promise<void> {
   });
   server.on('state', () => {
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   });
 
   /** Switches to the port the server actually listens on (persisted port setting). */
@@ -201,7 +326,7 @@ async function main(): Promise<void> {
     port = p;
     url = `http://127.0.0.1:${port}`;
     writeDesktopPort(port);
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
   server.on('port', (p: number) => adoptPort(p));
   const adoptServicePort = () => {
@@ -227,7 +352,7 @@ async function main(): Promise<void> {
         state === 'running'
           ? 'The background service is not answering'
           : 'The background service is not running',
-        'WA Team Inbox runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
+        'EzyChat Lite runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
       ),
     );
   };
@@ -242,13 +367,14 @@ async function main(): Promise<void> {
 
   const setMode = (m: DesktopMode) => {
     mode = m;
+    syncUpdates();
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
   const setBusy = (b: string | null) => {
     busy = b;
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
 
   const showMain = (path = '/') => {
@@ -273,7 +399,7 @@ async function main(): Promise<void> {
       if (mode === 'standalone' || mode === 'client') void mainWindow.loadURL(url + path);
       else
         void mainWindow.loadURL(
-          messagePage('Starting WA Team Inbox…', 'Starting the local server.'),
+          messagePage('Starting EzyChat Lite…', 'Starting the local server.'),
         );
     } else if (path !== '/') {
       void mainWindow.loadURL(url + path);
@@ -296,7 +422,7 @@ async function main(): Promise<void> {
     statusWindow = createStatusWindow({
       icon: appIcon,
       preload: join(here, 'preload.cjs'),
-      html: join(appPath, 'src', 'renderer', 'status.html'),
+      html: statusFile,
       title: appTitle(version),
     });
     statusWindow.on('closed', () => (statusWindow = null));
@@ -307,7 +433,7 @@ async function main(): Promise<void> {
     log(`[desktop] ${title}: ${msg}`);
     void dialog.showMessageBox({
       type: 'error',
-      title: 'WA Team Inbox',
+      title: 'EzyChat Lite',
       message: title,
       detail: msg,
     });
@@ -316,7 +442,7 @@ async function main(): Promise<void> {
 
   const startStandalone = async (): Promise<boolean> => {
     setMode('starting');
-    loadMain(messagePage('Starting WA Team Inbox…', 'Starting the local server.'));
+    loadMain(messagePage('Starting EzyChat Lite…', 'Starting the local server.'));
     server.start();
     const ok = await server.waitRunning(45_000);
     adoptPort(server.port);
@@ -342,6 +468,7 @@ async function main(): Promise<void> {
     } catch {
       // keep last
     }
+    syncUpdates();
     return lastServiceState;
   };
 
@@ -369,7 +496,7 @@ async function main(): Promise<void> {
         loadMain(
           messagePage(
             'Connecting to the background service…',
-            'Waiting for the WA Team Inbox service to start.',
+            'Waiting for the EzyChat Lite service to start.',
           ),
         );
         if (await waitForService(60_000)) {
@@ -429,11 +556,7 @@ async function main(): Promise<void> {
 
   const controller: DesktopController = {
     async getStatus(): Promise<DesktopStatus> {
-      try {
-        lastServiceState = serviceSupported ? await service.status() : 'not-installed';
-      } catch {
-        // keep last
-      }
+      await currentServiceState();
       // server version / mode as reported by GET /api/health (the service may run another build)
       const health = mode === 'standalone' || mode === 'client' ? await probeServer(port) : null;
       return {
@@ -461,7 +584,7 @@ async function main(): Promise<void> {
           const { response } = await dialog.showMessageBox({
             type: 'question',
             title: 'Run as background service',
-            message: 'Run WA Team Inbox as a background service?',
+            message: 'Run EzyChat Lite as a background service?',
             detail:
               'The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n' +
               machineDataDir() +
@@ -474,6 +597,7 @@ async function main(): Promise<void> {
           setBusy('Installing service…');
           await server.stop();
           await service.install();
+          await currentServiceState();
           setBusy('Waiting for the service to start…');
           const ok = await waitForService(60_000);
           if (!ok)
@@ -509,6 +633,7 @@ async function main(): Promise<void> {
           if (response !== 0) return;
           setBusy('Removing service…');
           await service.uninstall();
+          await currentServiceState();
           setBusy('Starting the local server…');
           await startStandalone();
         },
@@ -537,7 +662,13 @@ async function main(): Promise<void> {
     },
   };
 
-  registerIpc(controller);
+  const statusIpc = registerIpc(controller, () => statusWindow, statusFile);
+  const updateIpc = registerUpdateIpc(updates, {
+    main: () => mainWindow,
+    status: () => statusWindow,
+    baseUrl: () => url,
+    statusFile,
+  });
 
   const trayHandle = createTray(
     trayIcon,
@@ -546,6 +677,20 @@ async function main(): Promise<void> {
       openStatus,
       openTunnelAdmin: () => showMain('/admin/tunnel'),
       resetAdmin: () => void resetAdmin(),
+      checkUpdates: () => {
+        openStatus();
+        void updates.check();
+      },
+      updateLabel: () => {
+        if (!ownsHost()) return null;
+        const state = updates.getState();
+        if (state.transfer?.status === 'ready')
+          return `Restart and update to v${state.transfer.version}…`;
+        if (state.transfer?.status === 'downloading') return 'Downloading update…';
+        return state.release
+          ? `Update available: v${state.release.version}…`
+          : 'Check for updates…';
+      },
       quit: () => {
         quitting = true;
         app.quit();
@@ -554,6 +699,10 @@ async function main(): Promise<void> {
     },
     version,
   );
+  updateChanged = () => {
+    trayHandle.refresh();
+    updateIpc.broadcast(updates.getState());
+  };
 
   app.on('second-instance', () => showMain());
   app.on('activate', () => showMain());
@@ -563,6 +712,9 @@ async function main(): Promise<void> {
   let finalStopDone = false;
   app.on('before-quit', (e) => {
     quitting = true;
+    updates.stop();
+    updateIpc.dispose();
+    statusIpc.dispose();
     if (finalStopDone || server.state === 'stopped') return;
     e.preventDefault();
     void server.stop().finally(() => {

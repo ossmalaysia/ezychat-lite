@@ -1,6 +1,7 @@
 import { pino, multistream, type Level, type Logger, type StreamEntry } from 'pino';
 import pinoRoll from 'pino-roll';
 import { join } from 'node:path';
+import { LOG_REDACT_PATHS } from './log-redaction.js';
 
 export type { Logger };
 
@@ -37,7 +38,14 @@ export async function createLogger(opts: {
   const log =
     streams.length === 0
       ? pino({ level: 'silent' })
-      : pino({ level, base: { app: 'wa-team-inbox' } }, multistream(streams));
+      : pino(
+          {
+            level,
+            base: { app: 'wa-team-inbox' },
+            redact: { paths: LOG_REDACT_PATHS, censor: '[REDACTED]' },
+          },
+          multistream(streams),
+        );
   return {
     log,
     close() {

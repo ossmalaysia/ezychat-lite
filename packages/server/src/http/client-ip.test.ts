@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import type { FastifyRequest } from 'fastify';
-import { clientIp, isLoopback, isHttps } from './client-ip.js';
+import {
+  clientIp,
+  isDirectLoopback,
+  isLoopback,
+  isHttps,
+  isTrustedTunnelPeer,
+} from './client-ip.js';
 
-function req(remote: string, headers: Record<string, string> = {}, protocol = 'http'): FastifyRequest {
+function req(
+  remote: string,
+  headers: Record<string, string> = {},
+  protocol = 'http',
+): FastifyRequest {
   return {
     socket: { remoteAddress: remote },
     raw: { socket: { remoteAddress: remote } },
@@ -27,6 +37,27 @@ describe('client-ip', () => {
   });
   it('falls back to socket address', () => {
     expect(clientIp(req('127.0.0.1'))).toBe('127.0.0.1');
+  });
+  it('requires one valid IP and a loopback peer for unknown tunnel hosts', () => {
+    expect(isTrustedTunnelPeer('127.0.0.1', '203.0.113.9')).toBe(true);
+    expect(isTrustedTunnelPeer('::1', '2001:db8::1')).toBe(true);
+    for (const value of [
+      undefined,
+      '',
+      'not-an-ip',
+      '203.0.113.9, 203.0.113.10',
+      ['203.0.113.9'],
+    ]) {
+      expect(isTrustedTunnelPeer('127.0.0.1', value)).toBe(false);
+    }
+    expect(isTrustedTunnelPeer('10.0.0.5', '203.0.113.9')).toBe(false);
+    expect(clientIp(req('127.0.0.1', { 'cf-connecting-ip': 'not-an-ip' }))).toBe('127.0.0.1');
+  });
+  it('never treats a proxy-marked request as direct setup, including empty or malformed headers', () => {
+    expect(isDirectLoopback(req('127.0.0.1'))).toBe(true);
+    for (const value of ['', 'not-an-ip', '203.0.113.9']) {
+      expect(isDirectLoopback(req('127.0.0.1', { 'cf-connecting-ip': value }))).toBe(false);
+    }
   });
   it('isHttps', () => {
     expect(isHttps(req('127.0.0.1', { 'x-forwarded-proto': 'https' }))).toBe(true);

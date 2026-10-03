@@ -69,7 +69,9 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
             />
           </CardContent>
         </Card>
-        <p className="text-center text-xs text-muted-foreground">The code refreshes automatically.</p>
+        <p className="text-center text-xs text-muted-foreground">
+          The code refreshes automatically.
+        </p>
       </div>
     );
   } else if (
@@ -132,21 +134,24 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'qr' || s.state === 'connecting'}
-              label={<span className="text-muted-foreground">{STATE_LABEL[s.state] ?? s.state}</span>}
+              label={
+                <span className="text-muted-foreground">{STATE_LABEL[s.state] ?? s.state}</span>
+              }
             />
           )}
         </div>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>Open WhatsApp on the phone with the business number.</li>
           <li>
-            Go to <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
+            Go to{' '}
+            <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
           </li>
           <li>Scan this QR code — or use the Phone number tab to link with a code instead.</li>
         </ol>
       </div>
       {body}
       <p className="text-xs text-muted-foreground">
-        WA Team Inbox is not affiliated with WhatsApp or Meta. Unofficial clients can get numbers
+        EzyChat Lite is not affiliated with WhatsApp or Meta. Unofficial clients can get numbers
         banned — avoid bulk messaging.
       </p>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

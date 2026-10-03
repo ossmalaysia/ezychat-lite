@@ -7,6 +7,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Cloudflare and sharing
 
+- 2026-10-04 — Token-configured named tunnels with unknown hostnames enabled a global Host wildcard → direct requests could bypass DNS-rebinding defenses → scope unknown hosts to validated loopback proxy traffic and use the same policy for HTTP and Socket.IO.
+
 - 2026-10-03 — Startup restoration replaced an instance's shutdown method and ran outside the admin
   operation gate → origin reconciliation could race a new setup request → own restoration in the
   service, use the same tracked operation gate and wait for it before shutdown completes.
@@ -46,6 +48,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## WhatsApp / Baileys
 
+- 2026-10-03 — Business contacts had saved names while the inbox showed numeric IDs → contact names arrived under phone JIDs, conversations used LIDs, and contacts could arrive before chats → preserve explicit identity aliases, recover only existing local signal mappings on reconnect, apply stored names during chat creation, and backfill existing names without relinking or probing the contact list over the network.
 - 2026-10-03 — No QR ever appeared: WhatsApp closed the socket (428 "Connection Terminated") ~200 ms after
   "attempting registration", 42× in a row → the socket identified as `Browsers.appropriate('Desktop')`;
   WhatsApp rejects "Desktop" identities → use `Browsers.ubuntu('Chrome')` (`WA_BROWSER` in
@@ -69,6 +72,9 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Desktop / web UI
 
+- 2026-10-03 — A desktop window may connect to an independently managed inbox server → desktop presence does not imply update ownership → gate release checks, prompts and download actions on standalone ownership or the app's installed local service, with exact main-frame IPC trust and no renderer-supplied URLs.
+- 2026-10-03 — GitHub's latest-release endpoint excludes previews and publication order can differ from version order → early 0.x releases would be missed or misordered → list published releases, compare strict semantic versions, label previews and select exact platform/architecture assets.
+- 2026-10-03 — Member cards repeated every desktop column label and put actions on a separate row → a generic table-to-card conversion wasted vertical space → allow feature-specific mobile rows, group related metadata, and retain 44px action targets while checking long names at 360px.
 - 2026-10-03 — Mobile pages had no horizontal overflow but landscape forms lost their actions and tablet tables hid columns → dialogs had no viewport height limit and table overflow was hidden → check dialog bounds and inner clipping as well as page overflow; cap dialog height with dynamic viewport units, permit scrolling, and retain cards until tables have room.
 - 2026-10-03 — A 44px wrapper around the LAN switch still left only the small switch clickable → decorative padding is not a hit target → use an associated padded label and test padding clicks and keyboard operation without saving automatically.
 - 2026-10-03 — Long member names were clipped inside mobile drawer titles although page overflow remained zero → unbroken strings escaped the title box → allow arbitrary word wrapping in shared dialog titles and verify title scroll width.
@@ -109,6 +115,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Build / tooling (Windows)
 
+- 2026-10-03 — A GUI smoke harness supplied as an argument to a packaged executable launched its normal entry, and a top-level wait for Electron readiness stalled a separate harness → packaged apps ignore replacement entry arguments and readiness depends on main-module evaluation → use plain Electron with an explicit temporary profile, schedule setup with whenReady().then, and import the packaged modules/preloads being verified.
+- 2026-10-03 — A valid iPhone browser sign-in failed only in the combined suite → parallel browser projects shared the loopback login quota and hit a genuine HTTP 429 → let the test sign-in helper honor the server's Retry-After and extend only its cooldown budget; never weaken production authentication limits to make browser tests pass.
 - 2026-10-03 — A deployed routing fix still displayed v0.1.0 → the build was replaced without a version
   bump → bump the root version for deployed fixes, sync workspace and lockfile versions, and verify both
   `/api/health` and the visible app version before handing over a patched build.
@@ -166,3 +174,21 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 - 2026-10-03 — Inbox account sign-out was available only from the inbox account menu, leaving admin screens without a visible logout action → shell navigation omitted session controls → expose account logout in the shared desktop/mobile admin footer using the existing session-revocation and cache-cleanup flow, and verify it does not disconnect shared WhatsApp.
 - 2026-10-03 — A message reached the server while a newly opened inbox kept an older list → the initial HTTP query could finish before the first socket joined its rooms, and only reconnects refreshed queries → resynchronize active queries on every socket connection and test changes arriving before the first connection as well as during later outages.
 - 2026-10-03 — A Mac runner packaged both architectures despite `--arm64` → electron-builder merges architecture flags with configured target architectures, while npm installs native dependencies for the runner architecture → select an explicit target such as `--mac dmg:arm64`, upload only that architecture, and smoke SQLite, password hashing, login and logout on a matching native runner before publishing.
+- 2026-10-04 — Renaming Electron productName changes default profiles and executable paths → existing accounts can appear missing and installed services can lose their binary → pin installed userData/sessionData before the instance lock and retain Windows executable, service and app IDs while renaming visible branding and installers.
+- 2026-10-04 — Official brand artwork encoded its white mark as transparent cutouts → direct exports lose the mark on dark or opaque green surfaces → inspect exported icons on light and dark backgrounds, preserve the original and render intended cutouts consistently for app formats.
+- 2026-10-04 — Renaming a GitHub repository redirects old URLs and keeps historical installer names → strict update checks can fail or miss older assets → switch the API to the canonical repo and validate both historical and current asset names against an explicit repo allowlist.
+- 2026-10-04 — Packaging rebuilt web assets while the fake-WA browser run was still serving them → removed asset hashes produced 404 pages and misleading UI timeouts → finish browser verification before packaging, and never rebuild a served web distribution, including isolated test servers.
+
+- 2026-10-04 — Argon2 verification and hashing yield while credentials and permissions can change → in-flight requests could bypass recovery or finish after revocation → recheck current credentials, authorizing sessions and roles immediately before a synchronous security-sensitive commit.
+- 2026-10-04 — Desktop controls accepted any file URL → unrelated local documents or child frames could obtain host privileges → bind IPC to the current registered window, exact main frame and bundled file URL.
+- 2026-10-04 — A protected Windows service wrapper could launch an app from an ordinary user's writable directory → replacing runtime files could execute code as SYSTEM → validate Program Files runtime ownership, write permissions, links and ancestors before elevated install, start or recovery.
+- 2026-10-04 — WhatsApp history download keys appeared in structured logs → upstream diagnostics included credential fields and raw support ZIPs retained old copies → redact known credential fields in live logging and recursively sanitize historical exports without rewriting the user's logs.
+- 2026-10-04 — Temporary-password generation fell back to Math.random when browser crypto was unavailable → convenience produced guessable credentials → require Web Crypto for generation and keep manual strong-password entry available.
+- 2026-10-04 — macOS copied a service runtime with ditto then restricted owner and POSIX mode → explicit source ACLs could still grant ordinary-user writes → omit copied ACLs, clear runtime ACLs and reject privileged operations without a packaged root-owned runtime.
+- 2026-10-04 — Service update instructions treated Windows and Mac the same and persisted WATI_VERSION at installation → Mac kept its old protected runtime while Windows could report stale build metadata → document Mac service recreation and derive the reported version from the runtime being launched.
+- 2026-10-04 — Browser release links do not establish installer integrity and cached files can change after download → an update could execute substituted bytes → require trusted GitHub SHA-256 and size metadata, stream into private staging, restrict every redirect, and rehash immediately before handoff.
+- 2026-10-04 — Electron and an installed service can hold the old runtime open, while Mac services use a separate protected copy → replacing only the desktop can leave an old service running → prepare outside Electron, require explicit handoff, stop the host, replace every runtime, and verify the restarted service reports the selected version.
+- 2026-10-04 — Elevation may use a different administrator account and writable profiles are unsafe privileged output paths → an update helper could reopen under the wrong user or write through user-controlled links → let an unelevated broker record results and reopen the desktop; keep elevated staging outside both app and inbox data directories.
+- 2026-10-04 — Browser stress tests captured the persistent update toast outside the viewport and later detached → an imperative transient notice could hide the only review action → render durable update suggestions declaratively, respect dismissal per version, and verify review/restart controls at desktop and phone widths.
+- 2026-10-04 — Native PowerShell security checks exceeded Vitest's default five-second limit under consolidated load → OS process startup was mistaken for a security failure → bound the child process separately and give native integration tests enough startup time without extending pure unit-test timeouts.
+- 2026-10-04 — Required external approval blocked the repository's only maintainer from merging → GitHub authors cannot approve their own pull requests → require PRs, passing CI and resolved conversations with zero mandatory approvals for a solo maintainer; restore required approval when another reviewer is available.

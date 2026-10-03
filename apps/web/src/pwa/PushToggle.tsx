@@ -121,7 +121,7 @@ export function PushToggle({
       {isDesktopNotifications() && !compact && (
         <p className="text-xs text-muted-foreground">
           Alerts appear when this app is in the background. Keep it running in the tray and allow WA
-          Team Inbox in your system notification settings.
+          EzyChat Lite in your system notification settings.
         </p>
       )}
       {status === 'denied' && (

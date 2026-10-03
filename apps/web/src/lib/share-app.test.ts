@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('public app sharing', () => {
   it('shares only the public repository URL, regardless of the inbox address', () => {
-    expect(SHARE_APP_URL).toBe('https://github.com/ossmalaysia/wa-team-inbox');
+    expect(SHARE_APP_URL).toBe('https://github.com/ossmalaysia/ezychat-lite');
     expect(new URL(SOCIAL_SHARE_LINKS.linkedin).searchParams.get('url')).toBe(SHARE_APP_URL);
     expect(new URL(SOCIAL_SHARE_LINKS.facebook).searchParams.get('u')).toBe(SHARE_APP_URL);
     expect(shareAppMessage(SHARE_APP_CAPTION)).not.toContain(window.location.origin);
@@ -29,7 +29,7 @@ describe('public app sharing', () => {
     vi.stubGlobal('navigator', { share, clipboard: { writeText } });
     expect(await shareApp('  Our team loves this.  ')).toBe('shared');
     expect(share).toHaveBeenCalledWith({
-      title: 'WA Team Inbox',
+      title: 'EzyChat Lite',
       text: 'Our team loves this.',
       url: SHARE_APP_URL,
     });
@@ -97,7 +97,7 @@ describe('public app sharing', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      expect(this.download).toBe('wa-team-inbox.png');
+      expect(this.download).toBe('ezychat-lite.png');
       expect(this.href).toBe('blob:share-card');
     });
     await downloadShareCard();

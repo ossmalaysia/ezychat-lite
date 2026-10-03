@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   parseScQuery,
   psQuote,
   quoteWinArg,
   windowsInstallScript,
   windowsUninstallScript,
+  windowsControlScript,
+  windowsResetAdminScript,
   winswXml,
 } from './windows.js';
 
@@ -12,7 +18,15 @@ const base = {
   id: 'wa-team-inbox',
   name: 'WA Team Inbox Server',
   exe: 'C:\\Program Files\\WA Team Inbox\\WA Team Inbox.exe',
-  args: ['C:\\Program Files\\WA Team Inbox\\resources\\app.asar\\dist\\server\\server.cjs', '--data', 'C:\\ProgramData\\wa-team-inbox', '--mode', 'service', '--note', 'a "quoted" & <tag>'],
+  args: [
+    'C:\\Program Files\\WA Team Inbox\\resources\\app.asar\\dist\\server\\server.cjs',
+    '--data',
+    'C:\\ProgramData\\wa-team-inbox',
+    '--mode',
+    'service',
+    '--note',
+    'a "quoted" & <tag>',
+  ],
   env: { ELECTRON_RUN_AS_NODE: '1', WATI_VERSION: '0.1.0' },
   logDir: 'C:\\ProgramData\\wa-team-inbox\\service\\logs',
 };
@@ -35,12 +49,107 @@ describe('quoteWinArg', () => {
   });
 });
 
+describe('Windows LocalSystem runtime protection', () => {
+  const install = windowsInstallScript({
+    ...base,
+    winswSource: 'C:\\Program Files\\WA Team Inbox\\resources\\winsw\\WinSW-x64.exe',
+    serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+    dataDir: 'C:\\ProgramData\\wa-team-inbox',
+    moveFrom: 'C:\\Users\\me\\data',
+    exists: () => false,
+  });
+
+  it('checks the executable, all runtime files and ancestors before moving data or installing', () => {
+    const validation = install.indexOf(
+      "Assert-ProtectedRuntime 'C:\\Program Files\\WA Team Inbox\\WA Team Inbox.exe'",
+    );
+    expect(validation).toBeGreaterThan(-1);
+    expect(validation).toBeLessThan(install.indexOf('Move-Item -LiteralPath'));
+    expect(validation).toBeLessThan(install.indexOf('Copy-Item -LiteralPath'));
+    expect(install).toContain("GetFolderPath('ProgramFilesX86')");
+    expect(install).toContain('OrdinalIgnoreCase');
+    expect(install).toContain('Get-ChildItem -LiteralPath $runtimeDir -Force -Recurse');
+    expect(install).toContain('Get-Item -LiteralPath $ancestor -Force');
+    expect(install).toContain('ReparsePoint');
+    expect(install).toContain('$acl.GetOwner($runtimeSidType).Value');
+    expect(install).toContain('$ace.FileSystemRights -band $runtimeWriteRights');
+    expect(install).toContain('unpacked and user-folder builds can run in standalone mode');
+  });
+
+  it('revalidates before starting or privileged password reset, while stop remains available', () => {
+    const start = windowsControlScript({
+      id: base.id,
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      action: 'start',
+    });
+    expect(start.indexOf('Assert-ProtectedRuntime')).toBeLessThan(
+      start.indexOf("wa-team-inbox.exe' start"),
+    );
+    expect(start).toContain('Assert-ProtectedRuntime ([string]$serviceConfig.service.executable)');
+    expect(
+      start.indexOf("Assert-Locked 'C:\\ProgramData\\wa-team-inbox\\service' -Recurse"),
+    ).toBeLessThan(start.indexOf('$serviceConfig.Load('));
+    const reset = windowsResetAdminScript({
+      exe: base.exe,
+      entry: base.args[0]!,
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+    });
+    expect(reset.indexOf('Assert-ProtectedRuntime')).toBeLessThan(reset.indexOf('--reset-admin'));
+    const stop = windowsControlScript({
+      id: base.id,
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      action: 'stop',
+    });
+    expect(stop).not.toContain('Assert-ProtectedRuntime');
+  });
+
+  it.skipIf(process.platform !== 'win32')(
+    'rejects an unpacked runtime in native PowerShell before writing machine data',
+    () => {
+      const temp = mkdtempSync(join(tmpdir(), 'ezychat-runtime-review-'));
+      const dataDir = join(temp, 'machine-data');
+      const file = join(temp, 'verify.ps1');
+      try {
+        writeFileSync(
+          file,
+          windowsInstallScript({
+            ...base,
+            exe: join(temp, 'WA Team Inbox.exe'),
+            winswSource: join(temp, 'WinSW.exe'),
+            serviceDir: join(dataDir, 'service'),
+            dataDir,
+            moveFrom: join(temp, 'user-data'),
+            exists: () => false,
+          }),
+        );
+        let output = '';
+        try {
+          execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', file], {
+            windowsHide: true,
+            stdio: 'pipe',
+            timeout: 15_000,
+          });
+        } catch (error) {
+          output = String((error as { stderr?: unknown }).stderr ?? '');
+        }
+        expect(output).toContain('Background service requires an installed app in Program Files');
+        expect(existsSync(dataDir)).toBe(false);
+      } finally {
+        rmSync(temp, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
+});
+
 describe('winswXml', () => {
   const xml = winswXml(base);
   it('contains id, name, executable', () => {
     expect(xml).toContain('<id>wa-team-inbox</id>');
     expect(xml).toContain('<name>WA Team Inbox Server</name>');
-    expect(xml).toContain('<executable>C:\\Program Files\\WA Team Inbox\\WA Team Inbox.exe</executable>');
+    expect(xml).toContain(
+      '<executable>C:\\Program Files\\WA Team Inbox\\WA Team Inbox.exe</executable>',
+    );
   });
   it('contains XML-escaped, command-line quoted arguments', () => {
     expect(xml).toContain(
@@ -82,7 +191,9 @@ describe('windowsInstallScript', () => {
     exists: (p: string) => p.endsWith('WA Team Inbox\\data'),
   });
   it('copies winsw as <id>.exe and writes the xml', () => {
-    expect(script).toContain("Copy-Item -LiteralPath 'C:\\Program Files\\WA Team Inbox\\resources\\winsw\\WinSW-x64.exe'");
+    expect(script).toContain(
+      "Copy-Item -LiteralPath 'C:\\Program Files\\WA Team Inbox\\resources\\winsw\\WinSW-x64.exe'",
+    );
     expect(script).toContain("'C:\\ProgramData\\wa-team-inbox\\service\\wa-team-inbox.exe'");
     expect(script).toContain("'C:\\ProgramData\\wa-team-inbox\\service\\wa-team-inbox.xml'");
     expect(script).toContain('<startmode>Automatic</startmode>');
@@ -90,8 +201,8 @@ describe('windowsInstallScript', () => {
   it('moves data, restricts ACL to SYSTEM + Administrators, installs and starts', () => {
     const iMove = script.indexOf('Move-Item');
     const iAcl = script.lastIndexOf('icacls');
-    const iInstall = script.indexOf(' install');
-    const iStart = script.indexOf(' start');
+    const iInstall = script.indexOf("wa-team-inbox.exe' install");
+    const iStart = script.indexOf("wa-team-inbox.exe' start");
     expect(iMove).toBeGreaterThan(-1);
     expect(iAcl).toBeGreaterThan(iMove);
     expect(script).toContain('/inheritance:r');
@@ -122,13 +233,17 @@ describe('windowsUninstallScript', () => {
 
 describe('parseScQuery', () => {
   it('detects running', () => {
-    expect(parseScQuery(0, 'SERVICE_NAME: x\n        STATE              : 4  RUNNING')).toBe('running');
+    expect(parseScQuery(0, 'SERVICE_NAME: x\n        STATE              : 4  RUNNING')).toBe(
+      'running',
+    );
   });
   it('detects stopped', () => {
     expect(parseScQuery(0, 'STATE              : 1  STOPPED')).toBe('stopped');
   });
   it('detects not installed (1060)', () => {
-    expect(parseScQuery(1060, '[SC] EnumQueryServicesStatus:OpenService FAILED 1060')).toBe('not-installed');
+    expect(parseScQuery(1060, '[SC] EnumQueryServicesStatus:OpenService FAILED 1060')).toBe(
+      'not-installed',
+    );
   });
 });
 

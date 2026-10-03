@@ -1,8 +1,9 @@
 // IPC between the status window (preload bridge) and the main process.
-import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';
+import { pathToFileURL } from 'node:url';
 
 export type DesktopMode = 'starting' | 'standalone' | 'client' | 'error';
 
@@ -48,16 +49,27 @@ export const CHANNELS = {
   changed: 'wati:status-changed',
 } as const;
 
-/** Only our local status page (file://) may call privileged handlers. */
-function trusted(e: IpcMainInvokeEvent): boolean {
-  const url = e.senderFrame?.url ?? '';
-  return url.startsWith('file://');
+/** A file URL alone is not authority: bind every operation to our current status main frame. */
+function trusted(e: IpcMainInvokeEvent, win: BrowserWindow | null, statusUrl: string): boolean {
+  return (
+    !!win &&
+    !win.isDestroyed() &&
+    e.sender === win.webContents &&
+    e.senderFrame === win.webContents.mainFrame &&
+    e.senderFrame?.url === statusUrl
+  );
 }
 
-export function registerIpc(ctrl: DesktopController): void {
+export function registerIpc(
+  ctrl: DesktopController,
+  statusWindow: () => BrowserWindow | null,
+  statusFile: string,
+): { dispose(): void } {
+  const statusUrl = pathToFileURL(statusFile).href;
   const handle = (channel: string, fn: () => Promise<unknown> | unknown) => {
-    ipcMain.handle(channel, async (e) => {
-      if (!trusted(e)) throw new Error('forbidden');
+    ipcMain.handle(channel, async (e, ...args: unknown[]) => {
+      if (!trusted(e, statusWindow(), statusUrl)) throw new Error('Forbidden status request');
+      if (args.length !== 0) throw new Error('Invalid status request');
       return fn();
     });
   };
@@ -69,11 +81,17 @@ export function registerIpc(ctrl: DesktopController): void {
   handle(CHANNELS.resetAdmin, () => ctrl.resetAdmin());
   handle(CHANNELS.openMain, () => ctrl.openMain());
   handle(CHANNELS.openLogs, () => ctrl.openLogsFolder());
+  return {
+    dispose() {
+      for (const channel of Object.values(CHANNELS)) {
+        if (channel !== CHANNELS.changed) ipcMain.removeHandler(channel);
+      }
+    },
+  };
 }
 
-/** Tells every open status window to refresh. */
-export function broadcastStatusChanged(): void {
-  for (const w of BrowserWindow.getAllWindows()) {
-    if (!w.isDestroyed() && w.webContents.getURL().startsWith('file://')) w.webContents.send(CHANNELS.changed);
-  }
+/** Never expose host status/logs to unrelated local pages. */
+export function broadcastStatusChanged(win: BrowserWindow | null, statusFile: string): void {
+  if (win && !win.isDestroyed() && win.webContents.mainFrame.url === pathToFileURL(statusFile).href)
+    win.webContents.send(CHANNELS.changed);
 }

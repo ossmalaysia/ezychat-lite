@@ -263,11 +263,14 @@ export function ResponsiveTable<T>({
   columns,
   rowKey,
   empty,
+  renderMobileRow,
 }: {
   rows: T[];
   columns: Column<T>[];
   rowKey: (row: T) => string | number;
   empty?: React.ReactNode;
+  /** A compact feature-specific card; desktop columns stay unchanged. */
+  renderMobileRow?: (row: T) => React.ReactNode;
 }) {
   if (rows.length === 0) return <>{empty}</>;
   return (
@@ -302,16 +305,20 @@ export function ResponsiveTable<T>({
       <ul className="flex flex-col gap-2 lg:hidden">
         {rows.map((r) => (
           <li key={rowKey(r)} className="rounded-lg border bg-card p-3 text-sm">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-              {columns
-                .filter((c) => !c.hideOnMobile)
-                .map((c) => (
-                  <React.Fragment key={c.key}>
-                    <dt className="text-muted-foreground">{c.header}</dt>
-                    <dd className="min-w-0 break-words">{c.cell(r)}</dd>
-                  </React.Fragment>
-                ))}
-            </dl>
+            {renderMobileRow ? (
+              renderMobileRow(r)
+            ) : (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+                {columns
+                  .filter((c) => !c.hideOnMobile)
+                  .map((c) => (
+                    <React.Fragment key={c.key}>
+                      <dt className="text-muted-foreground">{c.header}</dt>
+                      <dd className="min-w-0 break-words">{c.cell(r)}</dd>
+                    </React.Fragment>
+                  ))}
+              </dl>
+            )}
           </li>
         ))}
       </ul>

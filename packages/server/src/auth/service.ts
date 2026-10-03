@@ -28,8 +28,12 @@ export interface AuthService {
   createUser(i: CreateUserInput): User;
   /** Creates the first admin atomically; throws notFound if any user already exists. */
   createFirstAdmin(i: Omit<CreateUserInput, 'role' | 'mustChangePassword'>): Promise<User>;
-  /** rate-limit + lockout; throws unauthorized / rateLimited; disabled → unauthorized */
-  verifyLogin(username: string, password: string, ip: string): Promise<User>;
+  /** Verifies current credentials and creates the session atomically after asynchronous hashing. */
+  login(
+    username: string,
+    password: string,
+    meta: { ip: string; userAgent: string },
+  ): Promise<{ user: User; token: string }>;
   /** returns raw token */
   createSession(userId: number, meta: { ip: string; userAgent: string }): string;
   /** updates last_seen_at (at most once/min); expires after 30 days idle; disabled user → null */
@@ -40,9 +44,9 @@ export interface AuthService {
   revokeAll(userId: number): void;
   /** Deletes all of a user's sessions except `keepRawToken`; emits 'user:sessions-revoked'. */
   revokeOthers(userId: number, keepRawToken: string): void;
-  changePassword(userId: number, current: string, next: string): Promise<void>;
-  /** random 12-char, must_change_password=1, revokeAll */
-  resetPassword(userId: number): Promise<string>;
+  changePassword(userId: number, current: string, next: string, rawToken: string): Promise<void>;
+  /** random 12-char, must_change_password=1, revokeAll; rechecks the authorizing admin session */
+  resetPassword(userId: number, actorToken: string): Promise<string>;
   listUsers(): User[];
   /** cannot demote/disable last active admin → conflict; disabling emits 'user:disabled' + revokeAll; a role change emits 'user:role-changed' */
   updateUser(id: number, patch: PatchUserBody, actorId: number): User;
@@ -89,7 +93,12 @@ export function createAuthService(
       `INSERT INTO users (username, display_name, password_hash, role, must_change_password, disabled_at, created_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
     ),
-    setPassword: db.prepare('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?'),
+    setPassword: db.prepare(
+      'UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?',
+    ),
+    changePassword: db.prepare(
+      'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ? AND password_hash = ? AND disabled_at IS NULL',
+    ),
     activeAdminsExcept: db.prepare(
       "SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled_at IS NULL AND id != ?",
     ),
@@ -110,7 +119,14 @@ export function createAuthService(
   function insertUser(i: Omit<CreateUserInput, 'password'>, passwordHash: string): User {
     if (q.byName.get(i.username)) throw errors.conflict('Username already exists');
     try {
-      const r = q.insert.run(i.username, i.displayName, passwordHash, i.role, i.mustChangePassword ? 1 : 0, now());
+      const r = q.insert.run(
+        i.username,
+        i.displayName,
+        passwordHash,
+        i.role,
+        i.mustChangePassword ? 1 : 0,
+        now(),
+      );
       return rowToUser(getRow(Number(r.lastInsertRowid))!);
     } catch (err) {
       if ((err as { code?: string }).code?.startsWith('SQLITE_CONSTRAINT')) {
@@ -147,7 +163,8 @@ export function createAuthService(
       })();
     },
 
-    async verifyLogin(username, password, ip) {
+    async login(username, password, meta) {
+      const { ip } = meta;
       const c = limiter.check(username, ip);
       if (!c.ok) throw errors.rateLimited(c.retryAfterSec);
       const row = q.byName.get(username) as UserRow | undefined;
@@ -158,9 +175,14 @@ export function createAuthService(
         limiter.recordFailure(username, ip);
         throw errors.unauthorized('Invalid username or password');
       }
-      if (row.disabled_at !== null) throw errors.unauthorized('Invalid username or password');
+      // Argon2 yields: a reset, disable or role change may have happened during verification.
+      const current = getRow(row.id);
+      if (!current || current.disabled_at !== null || current.password_hash !== row.password_hash) {
+        throw errors.unauthorized('Invalid username or password');
+      }
       limiter.recordSuccess(username);
-      return rowToUser(row);
+      // Do not yield between this security-state check and inserting the authenticated session.
+      return { user: rowToUser(current), token: this.createSession(current.id, meta) };
     },
 
     createSession(userId, meta) {
@@ -202,20 +224,29 @@ export function createAuthService(
       bus.emit('user:sessions-revoked', userId);
     },
 
-    async changePassword(userId, current, next) {
+    async changePassword(userId, current, next, rawToken) {
       const row = getRow(userId);
       if (!row) throw errors.notFound('User');
       if (!(await verifyPassword(row.password_hash, current))) {
         throw errors.validation('Current password is incorrect');
       }
-      if (current === next) throw errors.validation('New password must differ from the current password');
-      q.setPassword.run(await hashPassword(next), 0, userId);
+      if (current === next)
+        throw errors.validation('New password must differ from the current password');
+      const passwordHash = await hashPassword(next);
+      // Recovery must win over an already-running request authorized by a now-revoked session.
+      if (this.resolveSession(rawToken)?.id !== userId) throw errors.unauthorized();
+      const changed = q.changePassword.run(passwordHash, userId, row.password_hash);
+      if (changed.changes !== 1) throw errors.unauthorized();
     },
 
-    async resetPassword(userId) {
+    async resetPassword(userId, actorToken) {
       if (!getRow(userId)) throw errors.notFound('User');
       const password = generatePassword(12);
-      q.setPassword.run(await hashPassword(password), 1, userId);
+      const passwordHash = await hashPassword(password);
+      const actor = this.resolveSession(actorToken);
+      if (!actor) throw errors.unauthorized();
+      if (actor.role !== 'admin' || actor.mustChangePassword) throw errors.forbidden('Admin only');
+      q.setPassword.run(passwordHash, 1, userId);
       revokeAll(userId);
       return password;
     },
@@ -250,7 +281,8 @@ export function createAuthService(
         sets.push('disabled_at = ?');
         vals.push(patch.disabled ? (row.disabled_at ?? now()) : null);
       }
-      if (sets.length) db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
+      if (sets.length)
+        db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
       const updated = rowToUser(getRow(id)!);
       if (disabling) {
         bus.emit('user:disabled', id);

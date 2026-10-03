@@ -1,13 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { macRuntimeBundle, serviceCommand, type ServiceDeps } from './index.js';
+import {
+  createServiceManager,
+  macRuntimeBundle,
+  serviceCommand,
+  type ServiceDeps,
+} from './index.js';
 
 const B = String.fromCharCode(92);
 const w = (...p: string[]) => p.join(B);
 
 const winDeps: ServiceDeps = {
   execPath: w('C:', 'Program Files', 'WA Team Inbox', 'WA Team Inbox.exe'),
-  serverHost: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'app.asar', 'dist', 'server-host.cjs'),
-  serverEntry: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'app.asar', 'dist', 'server', 'server.cjs'),
+  serverHost: w(
+    'C:',
+    'Program Files',
+    'WA Team Inbox',
+    'resources',
+    'app.asar',
+    'dist',
+    'server-host.cjs',
+  ),
+  serverEntry: w(
+    'C:',
+    'Program Files',
+    'WA Team Inbox',
+    'resources',
+    'app.asar',
+    'dist',
+    'server',
+    'server.cjs',
+  ),
   webDist: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'web'),
   cloudflaredBinary: null,
   cloudflaredDir: w('C:', 'Program Files', 'WA Team Inbox', 'resources', 'cloudflared'),
@@ -27,26 +49,61 @@ describe('serviceCommand', () => {
     expect(c.env.WATI_PORT_FILE?.endsWith(w('wa-team-inbox', 'run', 'port.json'))).toBe(true);
     expect(c.env.ELECTRON_RUN_AS_NODE).toBe('1');
   });
-  it('on macOS points every bundle path at the root-owned runtime copy', () => {
-    const app = '/Applications/WA Team Inbox.app';
-    const c = serviceCommand(
+  it.each(['WA Team Inbox', 'EzyChat Lite'])(
+    'on macOS remaps the %s bundle into the existing runtime folder',
+    (product) => {
+      const app = `/Applications/${product}.app`;
+      const c = serviceCommand(
+        {
+          ...winDeps,
+          execPath: `${app}/Contents/MacOS/${product}`,
+          serverHost: `${app}/Contents/Resources/app.asar/dist/server-host.cjs`,
+          serverEntry: `${app}/Contents/Resources/app.asar/dist/server/server.cjs`,
+          webDist: `${app}/Contents/Resources/web`,
+          cloudflaredDir: `${app}/Contents/Resources/cloudflared`,
+          machineDataDir: '/Library/Application Support/wa-team-inbox',
+          appBundle: app,
+        },
+        'darwin',
+        () => false,
+      );
+      const dest = macRuntimeBundle(app);
+      expect(dest).toBe(`/Library/Application Support/wa-team-inbox-runtime/${product}.app`);
+      expect(c.exe.startsWith(dest)).toBe(true);
+      for (const a of [c.args[0], c.args[1], c.env.WATI_CLOUDFLARED_DIR])
+        expect(a?.startsWith(dest)).toBe(true);
+      expect(c.args.join(' ')).not.toContain('/Applications/');
+    },
+  );
+});
+
+describe('macOS privileged operations require a packaged runtime', () => {
+  it.each([undefined, null])(
+    'rejects service installation and admin reset without appBundle (%s)',
+    async (appBundle) => {
+      const manager = createServiceManager('darwin', { ...winDeps, appBundle });
+      await expect(manager.install()).rejects.toThrow('requires the installed EzyChat Lite app');
+      await expect(manager.resetAdmin()).rejects.toThrow('requires the installed EzyChat Lite app');
+    },
+  );
+
+  it('maps the reset entry and executable into the protected copy', () => {
+    const appBundle = '/Applications/EzyChat Lite.app';
+    const cmd = serviceCommand(
       {
         ...winDeps,
-        execPath: `${app}/Contents/MacOS/WA Team Inbox`,
-        serverHost: `${app}/Contents/Resources/app.asar/dist/server-host.cjs`,
-        serverEntry: `${app}/Contents/Resources/app.asar/dist/server/server.cjs`,
-        webDist: `${app}/Contents/Resources/web`,
-        cloudflaredDir: `${app}/Contents/Resources/cloudflared`,
-        machineDataDir: '/Library/Application Support/wa-team-inbox',
-        appBundle: app,
+        appBundle,
+        execPath: `${appBundle}/Contents/MacOS/EzyChat Lite`,
+        serverHost: `${appBundle}/Contents/Resources/app.asar/dist/server-host.cjs`,
+        serverEntry: `${appBundle}/Contents/Resources/app.asar/dist/server/server.cjs`,
       },
       'darwin',
       () => false,
     );
-    const dest = macRuntimeBundle(app);
-    expect(dest).toBe('/Library/Application Support/wa-team-inbox-runtime/WA Team Inbox.app');
-    expect(c.exe.startsWith(dest)).toBe(true);
-    for (const a of [c.args[0], c.args[1], c.env.WATI_CLOUDFLARED_DIR]) expect(a?.startsWith(dest)).toBe(true);
-    expect(c.args.join(' ')).not.toContain('/Applications/');
+    const protectedBundle = macRuntimeBundle(appBundle);
+    expect(cmd.exe).toBe(`${protectedBundle}/Contents/MacOS/EzyChat Lite`);
+    expect(cmd.args[1]).toBe(
+      `${protectedBundle}/Contents/Resources/app.asar/dist/server/server.cjs`,
+    );
   });
 });

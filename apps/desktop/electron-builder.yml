@@ -1,11 +1,11 @@
-# electron-builder config for WA Team Inbox (run from apps/desktop: `npm run dist`).
+# electron-builder config for EzyChat Lite (run from apps/desktop: `npm run dist`).
 # Prerequisites (done by the dist script): web build (apps/web/dist), server bundle
 # (dist/server/server.cjs via scripts/bundle-server.mjs), tsc (dist/main.js),
 # cloudflared (scripts/fetch-cloudflared.mjs) and WinSW (scripts/fetch-winsw.mjs).
 appId: org.ossmalaysia.wateaminbox
-productName: WA Team Inbox
+productName: EzyChat Lite
 copyright: Copyright © OSS Malaysia and contributors
-artifactName: WA-Team-Inbox-${version}-${os}-${arch}.${ext}
+artifactName: EzyChat-Lite-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release
@@ -40,6 +40,8 @@ asarUnpack:
 npmRebuild: false
 
 extraResources:
+  - from: build/icon.png
+    to: app-icon.png
   - from: ../web/dist
     to: web
   # tray icons (tray.png on Windows/Linux, trayTemplate.png on macOS); read via process.resourcesPath
@@ -48,7 +50,9 @@ extraResources:
     filter: ['*.png']
 
 win:
-  icon: build/icon.png
+  icon: build/icon.ico
+  # Keep the binary path referenced by existing Windows service configurations.
+  executableName: WA Team Inbox
   target:
     - target: nsis
       arch: [x64]
@@ -67,7 +71,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: WA Team Inbox
+  shortcutName: EzyChat Lite
   deleteAppDataOnUninstall: false
 
 mac:
@@ -86,7 +90,7 @@ mac:
       filter: ['cloudflared']
 
 dmg:
-  title: WA Team Inbox ${version}
+  title: EzyChat Lite ${version}
 
 linux:
   icon: build/icon.png

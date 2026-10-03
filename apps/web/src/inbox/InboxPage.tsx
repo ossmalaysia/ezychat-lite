@@ -92,7 +92,7 @@ export function InboxPage() {
           />
           {version && (
             <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-              WA Team Inbox · v{version}
+              EzyChat Lite · v{version}
             </p>
           )}
           <div className="safe-bottom" />

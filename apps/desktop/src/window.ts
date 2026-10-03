@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
 import { registerInboxNotifications } from './notifications.js';
+import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -11,15 +12,8 @@ const SAFE_PREFS = {
   nodeIntegration: false,
   webSecurity: true,
   spellcheck: true,
+  webviewTag: false,
 } as const;
-
-function isSameOrigin(target: string, base: string): boolean {
-  try {
-    return new URL(target).origin === new URL(base).origin;
-  } catch {
-    return false;
-  }
-}
 
 function openExternalSafe(url: string): void {
   if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) void shell.openExternal(url);
@@ -34,7 +28,7 @@ export function messagePage(title: string, body: string): string {
     );
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-<title>WA Team Inbox</title><style>
+<title>EzyChat Lite</title><style>
 :root{color-scheme:light dark}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#0f172a}
 @media (prefers-color-scheme:dark){body{background:#0b1120;color:#e2e8f0}}
 .c{max-width:28rem;padding:24px;text-align:center}.s{width:36px;height:36px;margin:0 auto 16px;border:4px solid #05966933;border-top-color:#059669;border-radius:50%;animation:r 1s linear infinite}
@@ -125,20 +119,44 @@ export function createMainWindow(o: {
   });
   win.webContents.on('will-navigate', (e, url) => {
     const base = o.baseUrl();
-    if (url.startsWith('data:')) return;
-    if (base && isSameOrigin(url, base)) return;
+    if (isInboxUrl(url, base)) return;
     e.preventDefault();
     openExternalSafe(url);
   });
-  // Notifications / clipboard are allowed for the local inbox only
-  win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => {
-    const base = o.baseUrl();
-    const ok =
-      !!base &&
-      isSameOrigin(wc.getURL(), base) &&
-      ['notifications', 'clipboard-sanitized-write', 'media', 'fullscreen'].includes(permission);
-    cb(ok);
+  win.webContents.on('will-redirect', (event, url) => {
+    if (!isInboxUrl(url, o.baseUrl())) event.preventDefault();
   });
+  win.webContents.on('will-frame-navigate', (event) => {
+    if (!isInboxUrl(event.url, o.baseUrl())) event.preventDefault();
+  });
+  // No inbox feature needs a webview, camera, microphone, location or screen capture.
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  const session = win.webContents.session;
+  session.setPermissionRequestHandler((wc, permission, cb, details) => {
+    cb(
+      !win.isDestroyed() &&
+        wc === win.webContents &&
+        inboxPermissionAllowed(
+          permission,
+          wc.getURL(),
+          details.requestingUrl,
+          details.isMainFrame,
+          o.baseUrl(),
+        ),
+    );
+  });
+  session.setPermissionCheckHandler(
+    (wc, permission, requestingOrigin, details) =>
+      !win.isDestroyed() &&
+      wc === win.webContents &&
+      inboxPermissionAllowed(
+        permission,
+        wc.getURL(),
+        requestingOrigin,
+        details.isMainFrame,
+        o.baseUrl(),
+      ),
+  );
   return win;
 }
 
