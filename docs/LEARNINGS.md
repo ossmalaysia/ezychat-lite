@@ -79,6 +79,11 @@ file is updated. Promote anything that changes *how* to work into CLAUDE.md.
 
 ## Multi-agent process
 
+- 2026-10-03 — Rules lived only in CLAUDE.md, so Codex (which reads AGENTS.md) couldn't follow them →
+  AGENTS.md is now the single source of truth and CLAUDE.md imports it (`@AGENTS.md`). **Edit rules in AGENTS.md.**
+- 2026-10-03 — Duplicate-chat investigation agent was still exploring after ~1 h with no change; user stopped it.
+  Its partial diff is not in the repo. Next attempt: do it directly, evidence first (DB rows + log), small steps.
+
 - 2026-10-03 — Subagents took 1.8–4.9 h each for tasks estimated at 30–60 min, while the orchestrator fixed the
   QR bug end-to-end in ~40 min → each subagent re-read spec/plan/code, re-ran full suites/e2e, and 3+ agents
   fought for CPU on one Windows box. **Rules (from the user): small changes are done directly, not in subagents;
