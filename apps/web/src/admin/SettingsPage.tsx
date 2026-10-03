@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type React from 'react';
 import { toast } from 'sonner';
 import type { SettingsPatchBody } from '@wa-team-inbox/shared';
@@ -21,17 +21,10 @@ export function SettingsPage() {
   const patch = usePatchSettings();
   const { theme, setTheme } = useTheme();
 
-  const [port, setPort] = useState('');
-  const [lanEnabled, setLanEnabled] = useState(false);
-  const [historyDays, setHistoryDays] = useState('');
+  const [portDraft, setPort] = useState<string>();
+  const [lanDraft, setLanEnabled] = useState<boolean>();
+  const [historyDraft, setHistoryDays] = useState<string>();
   const [restartRequired, setRestartRequired] = useState(false);
-
-  useEffect(() => {
-    if (!settings.data) return;
-    setPort(String(settings.data.port));
-    setLanEnabled(settings.data.lanEnabled);
-    setHistoryDays(String(settings.data.historyDays));
-  }, [settings.data]);
 
   if (settings.isPending)
     return (
@@ -45,6 +38,9 @@ export function SettingsPage() {
     return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />;
 
   const cur = settings.data;
+  const port = portDraft ?? String(cur.port);
+  const lanEnabled = lanDraft ?? cur.lanEnabled;
+  const historyDays = historyDraft ?? String(cur.historyDays);
   const portNum = Number(port);
   const daysNum = Number(historyDays);
   const portError =

@@ -9,6 +9,8 @@ import {
 import {
   MeResponse,
   SetupStatusResponse,
+  CloudflareSetupStatus,
+  TunnelStatusSchema,
   type AuditEntry,
   type ChangePasswordBody,
   type Chat,
@@ -17,6 +19,7 @@ import {
   type ChatPatchBody,
   type ChatStatus,
   type CreateUserBody,
+  type CloudflareCreateBody,
   type LoginBody,
   type Message,
   type MessageListResponse,
@@ -59,6 +62,7 @@ export const qk = {
   directory: ['users', 'directory'] as const,
   wa: ['wa'] as const,
   tunnel: ['tunnel'] as const,
+  cloudflareSetup: ['cloudflare-setup'] as const,
   settings: ['settings'] as const,
   audit: ['audit'] as const,
 };
@@ -702,6 +706,48 @@ export function useTunnel(opts: { enabled?: boolean } = {}) {
     queryFn: () => api<TunnelStatus>('/tunnel'),
     enabled: opts.enabled ?? true,
     refetchInterval: (q) => (q.state.data?.state === 'starting' ? 3_000 : false),
+  });
+}
+
+/** Poll only while Cloudflare is signing in or provisioning an inbox address. */
+export function useCloudflareSetupStatus() {
+  return useQuery({
+    queryKey: qk.cloudflareSetup,
+    queryFn: ({ signal }) => api('/tunnel/cloudflare', { schema: CloudflareSetupStatus, signal }),
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      return status?.busy || status?.state === 'signing_in' || status?.state === 'awaiting_approval'
+        ? 2000
+        : false;
+    },
+  });
+}
+
+export type CloudflareAccountAction = 'login' | 'login/cancel' | 'refresh';
+
+/** Account actions all return the same public setup state; credentials stay on the server. */
+export function useCloudflareAccountAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (action: CloudflareAccountAction) =>
+      api(`/tunnel/cloudflare/${action}`, { body: {}, schema: CloudflareSetupStatus }),
+    onSuccess: (status) => qc.setQueryData(qk.cloudflareSetup, status),
+  });
+}
+
+export function useCreateCloudflareTunnel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CloudflareCreateBody) =>
+      api('/tunnel/cloudflare/create', { body, schema: TunnelStatusSchema }),
+    onSuccess: async (status) => {
+      qc.setQueryData(qk.tunnel, status);
+      await Promise.all(
+        [qk.tunnel, qk.settings, qk.cloudflareSetup].map((queryKey) =>
+          qc.invalidateQueries({ queryKey }),
+        ),
+      );
+    },
   });
 }
 

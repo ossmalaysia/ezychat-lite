@@ -20,7 +20,8 @@ import { isTransientNetworkError } from './transient-error.js';
 async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
   const mod = (await import('@wa-team-inbox/wa')) as Record<string, unknown>;
   const create = mod.createBaileysAdapter as ((o: WaAdapterOptions) => WaAdapter) | undefined;
-  if (typeof create !== 'function') throw new Error('createBaileysAdapter is not available in @wa-team-inbox/wa');
+  if (typeof create !== 'function')
+    throw new Error('createBaileysAdapter is not available in @wa-team-inbox/wa');
   return create(opts);
 }
 
@@ -40,7 +41,11 @@ export async function createContext(
     deps.wa ??
     (cfg.fakeWa
       ? new FakeWaAdapter()
-      : await createRealWaAdapter({ authDir: join(cfg.dataDir, 'wa-auth'), historyDays, logger: log.child({ mod: 'wa' }) }));
+      : await createRealWaAdapter({
+          authDir: join(cfg.dataDir, 'wa-auth'),
+          historyDays,
+          logger: log.child({ mod: 'wa' }),
+        }));
   return { config: cfg, db, bus, log, secret, settings, wa, services: {} };
 }
 
@@ -87,13 +92,16 @@ export async function startServer(
   };
   process.on('uncaughtException', onUncaught);
   process.on('unhandledRejection', onUnhandled);
+  const removeErrorHandlers = () => {
+    process.off('uncaughtException', onUncaught);
+    process.off('unhandledRejection', onUnhandled);
+  };
 
   let ctx: AppContext;
   try {
     ctx = await createContext(cfg, { wa: deps?.wa, log });
   } catch (err) {
-    process.off('uncaughtException', onUncaught);
-    process.off('unhandledRejection', onUnhandled);
+    removeErrorHandlers();
     lock.release();
     logger.close();
     throw err;
@@ -101,7 +109,8 @@ export async function startServer(
 
   // Port / bind host fall back to persisted settings unless given explicitly.
   if (cfg.portExplicit === false) cfg.port = ctx.settings.get<number>('port', cfg.port);
-  if (cfg.hostExplicit === false) cfg.host = ctx.settings.get<boolean>('lan_enabled', false) ? '0.0.0.0' : '127.0.0.1';
+  if (cfg.hostExplicit === false)
+    cfg.host = ctx.settings.get<boolean>('lan_enabled', false) ? '0.0.0.0' : '127.0.0.1';
 
   // Initializers start side effects (e.g. cloudflared via tunnel restore). If anything up to a
   // successful listen fails (EADDRINUSE...), tear everything down before rethrowing so no child
@@ -121,13 +130,15 @@ export async function startServer(
     } catch {
       // ignore
     }
-    process.off('uncaughtException', onUncaught);
-    process.off('unhandledRejection', onUnhandled);
+    removeErrorHandlers();
     lock.release();
     logger.close();
     throw err;
   }
-  log.info({ port: cfg.port, host: cfg.host, mode: cfg.mode, version: cfg.version, fakeWa: cfg.fakeWa }, 'server listening');
+  log.info(
+    { port: cfg.port, host: cfg.host, mode: cfg.mode, version: cfg.version, fakeWa: cfg.fakeWa },
+    'server listening',
+  );
   const realtime = attachRealtime(app.server, ctx);
 
   ctx.wa.connect().catch((err: unknown) => log.error({ err }, 'wa connect failed'));
@@ -155,6 +166,9 @@ export async function startServer(
         // ignore
       }
       lock.release();
+      removeErrorHandlers();
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
       logger.close();
     })();
     return closing;

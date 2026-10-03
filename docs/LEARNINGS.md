@@ -7,6 +7,9 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Cloudflare and sharing
 
+- 2026-10-03 — Startup restoration replaced an instance's shutdown method and ran outside the admin
+  operation gate → origin reconciliation could race a new setup request → own restoration in the
+  service, use the same tracked operation gate and wait for it before shutdown completes.
 - 2026-10-03 — Interactive cloudflared login ignores `--origincert` and writes to the process home →
   an ordinary child would reuse or overwrite the user's Cloudflare certificate → isolate child HOME,
   USERPROFILE, PATH and working directory, keep credentials encrypted and clean only verified app-owned paths.
@@ -20,6 +23,26 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
   the active origin contains team access details → share only the public project URL and user-selected marketing text.
 - 2026-10-03 — Native sharing cancellation can return a DOMException from another realm → checking
   `instanceof Error` misses AbortError → check its name and cancel quietly without copying or claiming a post.
+
+## Maintainability and performance
+
+- 2026-10-03 — One live update rendered every loaded chat row and repeated pagination restarted
+  requests → stable chat references had no memo boundary and fetchNextPage cancelled overlapping
+  fetches by default → measure row/request counts, keep context updates working and coalesce next-page fetches.
+- 2026-10-03 — Normal server close retained process error and signal listeners → cleanup covered
+  failed startup only → remove each instance's handlers on normal close and test repeated close.
+- 2026-10-03 — Desktop buttons disabled only after renderer status updates → tray actions and
+  simultaneous requests could overlap service/data changes → acquire one main-process gate before
+  confirmation and retain it through recovery.
+- 2026-10-03 — Missing system Node emitted a spawn error without an exit event → the supervisor
+  retained its child and kept polling → handle PID-less spawn failure through the same guarded
+  termination path and reject stale exit/health results from earlier children.
+- 2026-10-03 — Settings hydrated local form fields on every query-data change → background refresh
+  overwrote unsaved edits → derive untouched defaults from the query and retain explicit field drafts.
+- 2026-10-03 — Immutable caching existed but public text assets were served uncompressed → requests
+  still transferred the entire bundle → generate gzip/Brotli at build time, negotiate with the
+  existing static plugin, and verify Vary, validators and uncompressed fallback without compressing
+  private APIs or caching HTML/service workers indefinitely.
 
 ## WhatsApp / Baileys
 

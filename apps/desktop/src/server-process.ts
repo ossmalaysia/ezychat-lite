@@ -38,12 +38,15 @@ const LOG_LINES = 200;
 const STOP_TIMEOUT = 15_000;
 
 export function serverEnv(
-  o: Pick<StandaloneServerOptions, 'cloudflaredDir' | 'cloudflaredBinary' | 'version'> & { portFile?: string },
+  o: Pick<StandaloneServerOptions, 'cloudflaredDir' | 'cloudflaredBinary' | 'version'> & {
+    portFile?: string;
+  },
 ): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, WATI_CLOUDFLARED_DIR: o.cloudflaredDir };
   if (o.portFile) env.WATI_PORT_FILE = o.portFile;
   delete env.ELECTRON_RUN_AS_NODE;
-  if (o.cloudflaredBinary && existsSync(o.cloudflaredBinary)) env.WATI_CLOUDFLARED = o.cloudflaredBinary;
+  if (o.cloudflaredBinary && existsSync(o.cloudflaredBinary))
+    env.WATI_CLOUDFLARED = o.cloudflaredBinary;
   if (o.version) env.WATI_VERSION = o.version;
   return env;
 }
@@ -91,7 +94,9 @@ export class StandaloneServer extends EventEmitter {
 
   private readPortFile(): number | null {
     try {
-      return parsePortFile(existsSync(this.opts.portFile) ? readFileSync(this.opts.portFile, 'utf8') : null);
+      return parsePortFile(
+        existsSync(this.opts.portFile) ? readFileSync(this.opts.portFile, 'utf8') : null,
+      );
     } catch {
       return null;
     }
@@ -124,13 +129,25 @@ export class StandaloneServer extends EventEmitter {
 
   start(): void {
     if (this.child) return;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
+    this.gaveUp = false;
     this.stopping = false;
     this.spawnChild();
   }
 
   private spawnChild(): void {
     const o = this.opts;
-    const args = ['--data', o.dataDir, '--port', String(o.port), '--mode', 'standalone', '--web-dist', o.webDist];
+    const args = [
+      '--data',
+      o.dataDir,
+      '--port',
+      String(o.port),
+      '--mode',
+      'standalone',
+      '--web-dist',
+      o.webDist,
+    ];
     const env = serverEnv(o);
     try {
       rmSync(o.portFile, { force: true });
@@ -146,12 +163,6 @@ export class StandaloneServer extends EventEmitter {
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         windowsHide: true,
       });
-      p.stdout?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
-      p.stderr?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
-      p.on('error', (err) => {
-        this.pushLog(`[desktop] failed to spawn node: ${err.message}`);
-      });
-      p.on('exit', (code) => this.onExit(code ?? 1));
       this.child = { kind: 'node', p };
     } else {
       const p = utilityProcess.fork(o.host, [o.entry, ...args], {
@@ -159,11 +170,25 @@ export class StandaloneServer extends EventEmitter {
         stdio: 'pipe',
         serviceName: 'WA Team Inbox Server',
       });
-      p.stdout?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
-      p.stderr?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
-      p.on('exit', (code) => this.onExit(code));
       this.child = { kind: 'utility', p };
     }
+    const child = this.child;
+    const finish = (code: number | null) => {
+      // A spawn error may be followed by exit, or an old child may exit after a forced stop.
+      if (this.child !== child) return;
+      this.onExit(code ?? 1);
+    };
+    child.p.stdout?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
+    child.p.stderr?.on('data', (d: Buffer) => this.pushLog(d.toString('utf8')));
+    if (child.kind === 'node') {
+      child.p.on('exit', finish);
+      child.p.on('error', (err) => {
+        this.pushLog(`[desktop] node server process error: ${err.message}`);
+        // A spawn failure has no PID and is not guaranteed to emit exit. Later IPC/kill errors
+        // on a successfully spawned child must not orphan it by clearing the child reference.
+        if (child.p.pid === undefined) finish(1);
+      });
+    } else child.p.on('exit', finish);
     this.pollHealth();
   }
 
@@ -171,6 +196,7 @@ export class StandaloneServer extends EventEmitter {
     if (this.healthTimer) clearTimeout(this.healthTimer);
     const tick = async () => {
       if (!this.child || this.stopping) return;
+      const child = this.child;
       const filePort = this.readPortFile();
       if (filePort !== null && filePort !== this._port) {
         this._port = filePort;
@@ -178,7 +204,7 @@ export class StandaloneServer extends EventEmitter {
         this.emit('port', filePort);
       }
       const r = await probeServer(this._port);
-      if (!this.child || this.stopping) return;
+      if (this.child !== child || this.stopping) return;
       if (r) {
         this.setState('running');
         return;
@@ -275,7 +301,11 @@ export function runServerCommand(o: {
     const exe = o.runtime === 'node' ? 'node' : process.execPath;
     const env: NodeJS.ProcessEnv = { ...process.env, ...o.env };
     if (o.runtime === 'utility') env.ELECTRON_RUN_AS_NODE = '1';
-    const p = spawn(exe, [o.entry, ...o.args], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const p = spawn(exe, [o.entry, ...o.args], {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
     let output = '';
     p.stdout?.on('data', (d: Buffer) => (output += d.toString('utf8')));
     p.stderr?.on('data', (d: Buffer) => (output += d.toString('utf8')));

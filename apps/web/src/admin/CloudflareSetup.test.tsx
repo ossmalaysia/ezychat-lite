@@ -234,3 +234,27 @@ it('shows a retry action for a failed status request', async () => {
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
   await screen.findByRole('button', { name: 'Sign in to Cloudflare' });
 });
+
+it('keeps pending approval available after cancellation fails and allows retry', async () => {
+  const user = userEvent.setup();
+  current = {
+    ...current,
+    state: 'awaiting_approval',
+    loginUrl: 'https://dash.cloudflare.com/argotunnel?aud=test',
+  };
+  const original = mockApi.getMockImplementation()!;
+  let cancellations = 0;
+  mockApi.mockImplementation(async (...args) => {
+    if (args[0].endsWith('/login/cancel') && cancellations++ === 0)
+      throw new Error('Cannot cancel sign-in right now. Try again.');
+    return original(...args);
+  });
+  mount();
+  await user.click(await screen.findByRole('button', { name: 'Cancel sign-in' }));
+  await screen.findByText('Cannot cancel sign-in right now. Try again.');
+  expect(screen.getByRole('link', { name: /Open Cloudflare sign-in/ })).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Cancel sign-in' }));
+  await screen.findByRole('button', { name: 'Sign in to Cloudflare' });
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(cancellations).toBe(2);
+});

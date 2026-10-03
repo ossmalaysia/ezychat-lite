@@ -38,6 +38,7 @@ import {
   winswExe,
 } from './paths.js';
 import { runServerCommand, StandaloneServer } from './server-process.js';
+import { createServiceOperation } from './service-operation.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
@@ -311,6 +312,7 @@ async function main(): Promise<void> {
       detail: msg,
     });
   };
+  const runOperation = createServiceOperation(setBusy, errorBox);
 
   const startStandalone = async (): Promise<boolean> => {
     setMode('starting');
@@ -382,28 +384,27 @@ async function main(): Promise<void> {
     await startStandalone();
   };
 
-  const resetAdmin = async () => {
-    const { response } = await dialog.showMessageBox({
-      type: 'warning',
-      title: 'Reset admin password',
-      message: 'Reset the first admin account password?',
-      detail:
-        'A new temporary password is generated and all of that admin’s sessions are signed out.',
-      buttons: ['Reset password', 'Cancel'],
-      defaultId: 1,
-      cancelId: 1,
-    });
-    if (response !== 0) return;
-    try {
+  const resetAdmin = () =>
+    runOperation('Confirming password reset…', 'Could not reset the admin password', async () => {
+      const { response } = await dialog.showMessageBox({
+        type: 'warning',
+        title: 'Reset admin password',
+        message: 'Reset the first admin account password?',
+        detail:
+          'A new temporary password is generated and all of that admin’s sessions are signed out.',
+        buttons: ['Reset password', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      if (response !== 0) return;
+      setBusy('Resetting admin password…');
       let output: string;
       if (mode === 'client') {
         const st = await service.status();
         if (st === 'not-installed')
           throw new Error('The running server is not managed by this app; reset it where it runs.');
-        setBusy('Resetting admin password…');
         output = await service.resetAdmin();
       } else {
-        setBusy('Resetting admin password…');
         await server.stop();
         const r = await runServerCommand({
           entry,
@@ -411,10 +412,9 @@ async function main(): Promise<void> {
           runtime,
         });
         output = r.output;
-        void startStandalone();
+        await startStandalone();
         if (r.code !== 0) throw new Error(output || `reset failed (exit ${r.code})`);
       }
-      setBusy(null);
       const m = /password for (.+?): (\S+)/.exec(output);
       const { response: r2 } = await dialog.showMessageBox({
         type: 'info',
@@ -425,11 +425,7 @@ async function main(): Promise<void> {
         defaultId: 0,
       });
       if (m && r2 === 0) clipboard.writeText(m[2] ?? '');
-    } catch (err) {
-      setBusy(null);
-      errorBox('Could not reset the admin password', err);
-    }
-  };
+    });
 
   const controller: DesktopController = {
     async getStatus(): Promise<DesktopStatus> {
@@ -457,94 +453,82 @@ async function main(): Promise<void> {
         logs: [...desktopLog.slice(-60)],
       };
     },
-    async enableService() {
-      const { response } = await dialog.showMessageBox({
-        type: 'question',
-        title: 'Run as background service',
-        message: 'Run WA Team Inbox as a background service?',
-        detail:
-          'The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n' +
-          machineDataDir() +
-          '\n\nYou will be asked for administrator permission.',
-        buttons: ['Enable service', 'Cancel'],
-        defaultId: 0,
-        cancelId: 1,
-      });
-      if (response !== 0) return;
-      setBusy('Installing service…');
-      try {
-        await server.stop();
-        await service.install();
-        setBusy('Waiting for the service to start…');
-        const ok = await waitForService(60_000);
-        if (!ok)
-          throw new Error('The service was installed but did not answer on port ' + port + '.');
-        setMode('client');
-        loadMain(url);
-      } catch (err) {
-        errorBox('Could not enable the background service', err);
-        if (!(await probeServer(port))) {
-          const svc = await currentServiceState();
-          // installed but not answering: its data is in the machine folder now — don't start an
-          // empty standalone server on the user folder
-          if (svc === 'not-installed') void startStandalone();
-          else serviceDown(svc);
-        }
-      } finally {
-        setBusy(null);
-      }
-    },
-    async disableService() {
-      const { response } = await dialog.showMessageBox({
-        type: 'question',
-        title: 'Stop background service',
-        message: 'Remove the background service and run inside this app again?',
-        detail:
-          'Your data moves back to your user profile. You will be asked for administrator permission.',
-        buttons: ['Remove service', 'Cancel'],
-        defaultId: 0,
-        cancelId: 1,
-      });
-      if (response !== 0) return;
-      setBusy('Removing service…');
-      try {
-        await service.uninstall();
-        setBusy(null);
-        await startStandalone();
-      } catch (err) {
-        errorBox('Could not remove the background service', err);
-      } finally {
-        setBusy(null);
-      }
-    },
-    async startService() {
-      setBusy('Starting service…');
-      try {
+    enableService: () =>
+      runOperation(
+        'Confirming service installation…',
+        'Could not enable the background service',
+        async () => {
+          const { response } = await dialog.showMessageBox({
+            type: 'question',
+            title: 'Run as background service',
+            message: 'Run WA Team Inbox as a background service?',
+            detail:
+              'The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n' +
+              machineDataDir() +
+              '\n\nYou will be asked for administrator permission.',
+            buttons: ['Enable service', 'Cancel'],
+            defaultId: 0,
+            cancelId: 1,
+          });
+          if (response !== 0) return;
+          setBusy('Installing service…');
+          await server.stop();
+          await service.install();
+          setBusy('Waiting for the service to start…');
+          const ok = await waitForService(60_000);
+          if (!ok)
+            throw new Error('The service was installed but did not answer on port ' + port + '.');
+          setMode('client');
+          loadMain(url);
+        },
+        async () => {
+          if (!(await probeServer(port))) {
+            const svc = await currentServiceState();
+            // installed but not answering: its data is in the machine folder now — don't start an
+            // empty standalone server on the user folder
+            if (svc === 'not-installed') await startStandalone();
+            else serviceDown(svc);
+          }
+        },
+      ),
+    disableService: () =>
+      runOperation(
+        'Confirming service removal…',
+        'Could not remove the background service',
+        async () => {
+          const { response } = await dialog.showMessageBox({
+            type: 'question',
+            title: 'Stop background service',
+            message: 'Remove the background service and run inside this app again?',
+            detail:
+              'Your data moves back to your user profile. You will be asked for administrator permission.',
+            buttons: ['Remove service', 'Cancel'],
+            defaultId: 0,
+            cancelId: 1,
+          });
+          if (response !== 0) return;
+          setBusy('Removing service…');
+          await service.uninstall();
+          setBusy('Starting the local server…');
+          await startStandalone();
+        },
+      ),
+    startService: () =>
+      runOperation('Starting service…', 'Could not start the service', async () => {
         await service.start();
         if (await waitForService(30_000)) {
           setMode('client');
           loadMain(url);
         }
-      } catch (err) {
-        errorBox('Could not start the service', err);
-      } finally {
-        setBusy(null);
-      }
-    },
-    async stopService() {
-      setBusy('Stopping service…');
-      try {
+      }),
+    stopService: () =>
+      runOperation('Stopping service…', 'Could not stop the service', async () => {
         await service.stop();
         loadMain(
           messagePage('Service stopped', 'Start the service again from "Status & Service…".'),
         );
         setMode('error');
-      } catch (err) {
-        errorBox('Could not stop the service', err);
-      } finally {
-        setBusy(null);
-      }
-    },
+      }),
     resetAdmin,
     openMain: () => showMain(),
     openLogsFolder: () => {

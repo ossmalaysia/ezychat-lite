@@ -2,7 +2,6 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, rm } from 'node:fs/promises';
 import { join, resolve, sep, isAbsolute } from 'node:path';
-import type { Readable } from 'node:stream';
 import { z } from 'zod';
 import {
   CloudflareCreateBody,
@@ -25,6 +24,7 @@ import {
   TUNNEL_TOKEN_KEY,
   type TunnelService,
 } from './manager.js';
+import { readLines, stopChild } from './process.js';
 
 export const CLOUDFLARE_AUTH_KEY = 'cloudflare_auth';
 export const CLOUDFLARE_DOMAINS_KEY = 'cloudflare_domains';
@@ -143,14 +143,10 @@ export class CloudflareSetup implements CloudflareSetupService {
     if (this.starting) return this.starting;
     const pending = this.beginLogin();
     this.starting = pending;
-    void pending.then(
-      () => {
-        if (this.starting === pending) this.starting = null;
-      },
-      () => {
-        if (this.starting === pending) this.starting = null;
-      },
-    );
+    const clear = () => {
+      if (this.starting === pending) this.starting = null;
+    };
+    void pending.then(clear, clear);
     return pending;
   }
   private async beginLogin(): Promise<CloudflareSetupStatus> {
@@ -236,8 +232,8 @@ export class CloudflareSetup implements CloudflareSetupService {
         }
       }
     };
-    this.readLines(child.stdout, onLine);
-    this.readLines(child.stderr, onLine);
+    readLines(child.stdout, onLine);
+    readLines(child.stderr, onLine);
     let finished = false;
     const finish = (code: number | null) => {
       if (finished) return;
@@ -294,23 +290,7 @@ export class CloudflareSetup implements CloudflareSetupService {
     this.attempt = null;
     if (attempt) {
       clearTimeout(attempt.timer);
-      if (attempt.child.exitCode === null && attempt.child.signalCode == null) {
-        await new Promise<void>((resolveWait) => {
-          const timer = setTimeout(resolveWait, 5000);
-          timer.unref();
-          const finish = () => {
-            clearTimeout(timer);
-            resolveWait();
-          };
-          attempt.child.once('close', finish);
-          attempt.child.once('error', finish);
-          try {
-            if (!attempt.child.kill()) finish();
-          } catch {
-            finish();
-          }
-        });
-      }
+      await stopChild(attempt.child);
       await this.clean(attempt.dir);
     }
     if (this.finishing) await this.finishing;
@@ -358,16 +338,9 @@ export class CloudflareSetup implements CloudflareSetupService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
   refresh(): Promise<CloudflareSetupStatus> {
-    if (this.status().busy)
-      return Promise.reject(errors.conflict('Finish the current Cloudflare setup first.'));
-    const pending = this.refreshNow();
-    this.work = pending;
-    return pending;
+    return this.runExclusive(() => this.refreshNow());
   }
   private async refreshNow(): Promise<CloudflareSetupStatus> {
-    if (this.status().busy) throw errors.conflict('Finish the current Cloudflare setup first.');
-    if (this.closed) throw errors.conflict('Cloudflare setup is shutting down.');
-    this.changing = true;
     try {
       const credentials = this.credentials();
       if (!credentials) throw errors.validation('Sign in to Cloudflare first.');
@@ -380,8 +353,6 @@ export class CloudflareSetup implements CloudflareSetupService {
       this.state = 'error';
       this.error = err instanceof HttpError ? err.message : 'Could not refresh Cloudflare domains.';
       throw err;
-    } finally {
-      this.changing = false;
     }
   }
   private config(hostname: string) {
@@ -395,20 +366,76 @@ export class CloudflareSetup implements CloudflareSetupService {
     };
   }
   create(input: z.infer<typeof CloudflareCreateBody>, actorId: number): Promise<TunnelStatus> {
+    return this.runExclusive(() => this.createNow(input, actorId));
+  }
+  private runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closed) return Promise.reject(errors.conflict('Cloudflare setup is shutting down.'));
     if (this.status().busy)
-      return Promise.reject(errors.conflict('Another Cloudflare setup is already in progress.'));
-    const pending = this.createNow(input, actorId);
+      return Promise.reject(errors.conflict('Finish the current Cloudflare setup first.'));
+    this.changing = true;
+    const pending = (async () => operation())().finally(() => {
+      this.changing = false;
+    });
     this.work = pending;
     return pending;
+  }
+  /** Startup restoration shares the same gate and shutdown tracking as administrator changes. */
+  restore(): Promise<void> {
+    return this.runExclusive(async () => {
+      try {
+        await this.reconcileOrigin();
+      } catch {
+        this.log.warn(
+          { phase: 'origin_update_failed' },
+          'Could not update the Cloudflare origin port',
+        );
+      }
+      if (!this.closed) await this.deps.tunnel.restore();
+    });
+  }
+  private async dnsRecords(api: CloudflareApi, zoneID: string, hostname: string) {
+    return (
+      await api.request(
+        `/zones/${zoneID}/dns_records?name=${encodeURIComponent(hostname)}&per_page=100`,
+        z.array(Record).max(100),
+        'check this address',
+      )
+    ).result;
+  }
+  private async verifyTunnel(api: CloudflareApi, target: z.infer<typeof Owned>) {
+    const existing = (
+      await api.request(
+        `/accounts/${target.accountID}/cfd_tunnel/${target.id}`,
+        Tunnel,
+        'verify your tunnel',
+      )
+    ).result;
+    if (
+      existing.id !== target.id ||
+      existing.name !== target.name ||
+      existing.deleted_at ||
+      existing.config_src !== 'cloudflare'
+    )
+      throw errors.conflict('The saved Cloudflare tunnel has changed. Choose another tunnel name.');
+  }
+  private async configureTunnel(
+    api: CloudflareApi,
+    target: z.infer<typeof Owned>,
+    hostname: string,
+  ) {
+    await api.request(
+      `/accounts/${target.accountID}/cfd_tunnel/${target.id}/configurations`,
+      z.object({ config: z.unknown() }).passthrough(),
+      'connect the address',
+      'PUT',
+      this.config(hostname),
+    );
   }
   private async createNow(
     input: z.infer<typeof CloudflareCreateBody>,
     actorId: number,
   ): Promise<TunnelStatus> {
     const body = CloudflareCreateBody.parse(input);
-    if (this.status().busy)
-      throw errors.conflict('Another Cloudflare setup is already in progress.');
-    if (this.closed) throw errors.conflict('Cloudflare setup is shutting down.');
     if (!this.deps.binPath())
       throw new HttpError(
         503,
@@ -419,7 +446,6 @@ export class CloudflareSetup implements CloudflareSetupService {
     if (!credentials) throw errors.validation('Sign in to Cloudflare first.');
     if (!this.status().domains.some((zone) => zone.id === body.domainId))
       throw errors.validation('Choose a domain from your Cloudflare account.');
-    this.changing = true;
     this.error = null;
     try {
       const api = this.api(credentials);
@@ -435,13 +461,7 @@ export class CloudflareSetup implements CloudflareSetupService {
       let target = owned.find(
         (t) => t.accountID === credentials.accountID && t.name === body.tunnelName,
       );
-      const records = (
-        await api.request(
-          `/zones/${zone.id}/dns_records?name=${encodeURIComponent(hostname)}&per_page=100`,
-          z.array(Record).max(100),
-          'check this address',
-        )
-      ).result;
+      const records = await this.dnsRecords(api, zone.id, hostname);
       const isExpected = (record: z.infer<typeof Record>, id: string) =>
         record.name.toLowerCase().replace(/\.$/, '') === hostname &&
         record.type === 'CNAME' &&
@@ -461,17 +481,7 @@ export class CloudflareSetup implements CloudflareSetupService {
       if (sameName.some((t) => t.name === body.tunnelName && (!target || t.id !== target.id)))
         throw errors.conflict('That tunnel name is already in use. Choose another name.');
       if (target) {
-        const existing = (await api.request(`${base}/${target.id}`, Tunnel, 'verify your tunnel'))
-          .result;
-        if (
-          existing.id !== target.id ||
-          existing.name !== target.name ||
-          existing.deleted_at ||
-          existing.config_src !== 'cloudflare'
-        )
-          throw errors.conflict(
-            'The saved tunnel has changed in Cloudflare. Choose another tunnel name.',
-          );
+        await this.verifyTunnel(api, target);
       } else {
         if (owned.length >= 50)
           throw errors.conflict(
@@ -494,13 +504,7 @@ export class CloudflareSetup implements CloudflareSetupService {
         this.deps.ctx.settings.set(CLOUDFLARE_OWNED_KEY, [...owned, target]);
       }
       // Recheck DNS after tunnel creation; never overwrite any existing DNS record.
-      const latestRecords = (
-        await api.request(
-          `/zones/${zone.id}/dns_records?name=${encodeURIComponent(hostname)}&per_page=100`,
-          z.array(Record).max(100),
-          'check this address',
-        )
-      ).result;
+      const latestRecords = await this.dnsRecords(api, zone.id, hostname);
       if (latestRecords.some((record) => !isExpected(record, target!.id)))
         throw errors.conflict('This address is already in use. Choose another address.');
       const runtimeToken = (
@@ -524,13 +528,7 @@ export class CloudflareSetup implements CloudflareSetupService {
           throw new CloudflareApiError(502, 'create the address');
       }
       // Keep a working tunnel's old ingress until the new DNS record is safely created.
-      await api.request(
-        `${base}/${target.id}/configurations`,
-        z.object({ config: z.unknown() }).passthrough(),
-        'connect the address',
-        'PUT',
-        this.config(hostname),
-      );
+      await this.configureTunnel(api, target, hostname);
       const managed = {
         ...target,
         hostname,
@@ -559,8 +557,6 @@ export class CloudflareSetup implements CloudflareSetupService {
         'cloudflare_setup',
         'Cloudflare setup could not finish. Please try again.',
       );
-    } finally {
-      this.changing = false;
     }
   }
   async reconcileOrigin(): Promise<void> {
@@ -579,22 +575,8 @@ export class CloudflareSetup implements CloudflareSetupService {
     )
       return;
     const api = this.api(credentials);
-    const base = `/accounts/${managed.accountID}/cfd_tunnel/${managed.id}`;
-    const existing = (await api.request(base, Tunnel, 'verify your tunnel')).result;
-    if (
-      existing.id !== managed.id ||
-      existing.name !== managed.name ||
-      existing.deleted_at ||
-      existing.config_src !== 'cloudflare'
-    )
-      throw errors.conflict('The saved Cloudflare tunnel has changed.');
-    await api.request(
-      `${base}/configurations`,
-      z.object({ config: z.unknown() }).passthrough(),
-      'update the inbox address',
-      'PUT',
-      this.config(managed.hostname),
-    );
+    await this.verifyTunnel(api, managed);
+    await this.configureTunnel(api, managed, managed.hostname);
     this.deps.ctx.settings.set(CLOUDFLARE_MANAGED_KEY, {
       ...managed,
       port: this.deps.ctx.config.port,
@@ -624,23 +606,5 @@ export class CloudflareSetup implements CloudflareSetupService {
         'Could not remove temporary Cloudflare login files',
       );
     }
-  }
-  private readLines(stream: Readable | null, onLine: (line: string) => void): void {
-    if (!stream) return;
-    let buffer = '';
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk: string) => {
-      buffer += chunk;
-      if (buffer.length > 65536) buffer = buffer.slice(-65536);
-      let end: number;
-      while ((end = buffer.indexOf('\n')) !== -1) {
-        onLine(buffer.slice(0, end));
-        buffer = buffer.slice(end + 1);
-      }
-    });
-    stream.on('end', () => {
-      if (buffer) onLine(buffer);
-    });
-    stream.on('error', () => undefined);
   }
 }

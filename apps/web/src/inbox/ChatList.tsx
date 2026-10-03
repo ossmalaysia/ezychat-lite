@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { useChats, type ChatFilters } from '../api/queries';
@@ -7,6 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Banner, EmptyState } from '@/components/app';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
+
+// Realtime cache updates retain unchanged Chat references. Keep those rows from
+// recalculating labels, dates and avatars when another conversation changes.
+const MemoChatListItem = memo(ChatListItem);
 
 export interface ChatListProps {
   filters: ChatFilters;
@@ -60,7 +64,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting) && hasNextPage && !isFetchingNextPage)
-          void fetchNextPage();
+          void fetchNextPage({ cancelRefetch: false });
       },
       { rootMargin: '200px' },
     );
@@ -127,7 +131,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
       <ul className="divide-y divide-border/60">
         {chats.map((c) => (
           <li key={c.jid}>
-            <ChatListItem
+            <MemoChatListItem
               chat={c}
               active={c.jid === activeJid}
               assigneeName={directory.nameOf(c.assignedTo, { youLabel: true })}
@@ -143,7 +147,11 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
       )}
       {hasNextPage && !isFetchingNextPage && (
         <div className="flex justify-center p-2">
-          <Button variant="ghost" size="touch" onClick={() => void fetchNextPage()}>
+          <Button
+            variant="ghost"
+            size="touch"
+            onClick={() => void fetchNextPage({ cancelRefetch: false })}
+          >
             Load more
           </Button>
         </div>

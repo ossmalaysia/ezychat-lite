@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Deliver public web assets with build-time gzip and Brotli, keeping fresh-build checks for HTML
+  and the service worker and long-lived caching only for fingerprinted assets.
+- Render only changed chat rows during inbox updates and coalesce overlapping next-page requests.
+- Consolidate Cloudflare query state, provisioning guards and child-process utilities to reduce
+  duplication and keep startup restoration coordinated with admin actions and shutdown.
 - Rename Tunnel to Cloudflare and guide setup through browser sign-in, authorised domain selection,
   an address preview and a friendly tunnel name. Configure DNS automatically without replacing existing websites.
 - Share the free app from the Account menu with LinkedIn, Facebook, Instagram and device sharing,
@@ -23,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve unsaved settings when background requests refresh their defaults.
+- Serialize desktop service changes and password resets, including actions from the tray.
+- Recover from a missing system Node process without getting stuck; ignore stale child exits and
+  health checks after a replacement server starts.
+- Remove server process and signal handlers on shutdown so repeated starts do not retain old servers.
 - Keep dialogs scrollable in short landscape viewports, wrap long member names in dialog titles,
   show readable cards on small tablets, and prevent wide tables from hiding columns.
 - Make the LAN switch padding and dialog/menu close controls usable as 44px touch targets.

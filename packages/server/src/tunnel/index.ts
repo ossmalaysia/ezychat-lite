@@ -41,23 +41,5 @@ export function initTunnel(ctx: AppContext): void {
   });
   ctx.services.cloudflareSetup = setup;
   // No-op when the persisted mode is 'off' (e.g. fresh test data dirs). Never block startup on cloudflared.
-  let shuttingDown = false;
-  const shutdown = setup.shutdown.bind(setup);
-  setup.shutdown = async () => {
-    shuttingDown = true;
-    await shutdown();
-    await restoring;
-  };
-  const restoring = (async () => {
-    try {
-      await setup.reconcileOrigin();
-    } catch {
-      ctx.log.warn(
-        { mod: 'cloudflare', phase: 'origin_update_failed' },
-        'Could not update the Cloudflare origin port',
-      );
-    }
-    if (!shuttingDown) await manager.restore();
-  })();
-  restoring.catch(() => ctx.log.warn({ mod: 'tunnel' }, 'Tunnel restore failed'));
+  setup.restore().catch(() => ctx.log.warn({ mod: 'tunnel' }, 'Tunnel restore failed'));
 }

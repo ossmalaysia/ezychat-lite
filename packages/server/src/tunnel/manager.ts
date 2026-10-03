@@ -1,11 +1,11 @@
 import type { ChildProcess, spawn as spawnFn } from 'node:child_process';
-import type { Readable } from 'node:stream';
 import type { TunnelMode, TunnelStartBody, TunnelStatus } from '@wa-team-inbox/shared';
 import type { Logger } from 'pino';
 import type { Bus } from '../bus.js';
 import type { SettingsStore } from '../db/settings.js';
 import { errors } from '../http/errors.js';
 import { isNamedTunnelRegistered, parseQuickTunnelUrl } from './parse.js';
+import { readLines, stopChild } from './process.js';
 
 export interface TunnelService {
   status(): TunnelStatus;
@@ -39,7 +39,6 @@ const BACKOFF_RESET_MS = 5 * 60_000;
 const MAX_CONSECUTIVE_FAILURES = 5;
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 60_000;
-const KILL_WAIT_MS = 5_000;
 
 type ActiveMode = Exclude<TunnelMode, 'off'>;
 
@@ -194,8 +193,8 @@ export class TunnelManager implements TunnelService {
       this.child = null;
       this.onChildGone(reason);
     };
-    this.readLines(child.stdout, (l) => this.onLine(child, l));
-    this.readLines(child.stderr, (l) => this.onLine(child, l));
+    readLines(child.stdout, (l) => this.onLine(child, l));
+    readLines(child.stderr, (l) => this.onLine(child, l));
     child.on('error', (err: Error) => handleGone(err.message));
     child.on('exit', (code: number | null, signal: string | null) =>
       handleGone(`cloudflared exited (${signal ? `signal ${signal}` : `code ${code}`})`),
@@ -287,44 +286,11 @@ export class TunnelManager implements TunnelService {
     const child = this.child;
     this.child = null;
     if (!child) return;
-    if (child.exitCode !== null || child.signalCode != null) return;
-    await new Promise<void>((resolve) => {
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        resolve();
-      };
-      child.once('exit', finish);
-      child.once('error', finish);
-      const t = globalThis.setTimeout(finish, KILL_WAIT_MS);
-      (t as { unref?: () => void }).unref?.();
-      try {
-        if (!child.kill()) finish();
-      } catch {
-        finish();
-      }
-    });
+    await stopChild(child);
   }
 
   private setState(state: TunnelStatus['state']): void {
     this.state = state;
     this.deps.bus.emit('tunnel:status', this.status());
-  }
-
-  private readLines(stream: Readable | null, onLine: (line: string) => void): void {
-    if (!stream) return;
-    let buf = '';
-    stream.setEncoding?.('utf8');
-    stream.on('data', (chunk: string | Buffer) => {
-      buf += chunk.toString();
-      let idx: number;
-      while ((idx = buf.search(/\r?\n/)) !== -1) {
-        const line = buf.slice(0, idx).trimEnd();
-        buf = buf.slice(buf[idx] === '\r' ? idx + 2 : idx + 1);
-        if (line) onLine(line);
-      }
-    });
-    stream.on('error', () => undefined);
   }
 }

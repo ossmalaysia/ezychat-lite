@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
+import { CloudflareCreateBody } from '@wa-team-inbox/shared';
+import { errorMessage } from '../api/client';
 import {
-  CloudflareCreateBody,
-  CloudflareSetupStatus,
-  TunnelStatusSchema,
-} from '@wa-team-inbox/shared';
-import { api, errorMessage } from '../api/client';
+  useCloudflareAccountAction,
+  useCloudflareSetupStatus,
+  useCreateCloudflareTunnel,
+  type CloudflareAccountAction,
+} from '../api/queries';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,8 +20,6 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState, Field, Pending } from './adminUi';
-
-const SETUP_KEY = ['cloudflare-setup'];
 
 function approvalUrl(url: string | null): string | null {
   if (!url) return null;
@@ -39,51 +38,14 @@ function approvalUrl(url: string | null): string | null {
 
 /** Guided account authorization and explicit publication. Credentials remain on the server. */
 export function CloudflareSetup() {
-  const qc = useQueryClient();
-  const setup = useQuery({
-    queryKey: SETUP_KEY,
-    queryFn: ({ signal }) => api('/tunnel/cloudflare', { schema: CloudflareSetupStatus, signal }),
-    refetchInterval: (query) => {
-      const status = query.state.data;
-      return status?.busy || status?.state === 'signing_in' || status?.state === 'awaiting_approval'
-        ? 2000
-        : false;
-    },
-  });
+  const setup = useCloudflareSetupStatus();
+  const account = useCloudflareAccountAction();
+  const create = useCreateCloudflareTunnel();
   const [domainId, setDomainId] = useState('');
   const [subdomain, setSubdomain] = useState('inbox');
   const [tunnelName, setTunnelName] = useState('wa-team-inbox');
   const [formError, setFormError] = useState<string | null>(null);
   const prefilled = useRef(false);
-  const [createdAddress, setCreatedAddress] = useState<string | null>(null);
-
-  const updateStatus = (data: CloudflareSetupStatus) => qc.setQueryData(SETUP_KEY, data);
-  const login = useMutation({
-    mutationFn: () => api('/tunnel/cloudflare/login', { body: {}, schema: CloudflareSetupStatus }),
-    onSuccess: updateStatus,
-  });
-  const cancel = useMutation({
-    mutationFn: () =>
-      api('/tunnel/cloudflare/login/cancel', { body: {}, schema: CloudflareSetupStatus }),
-    onSuccess: updateStatus,
-  });
-  const refresh = useMutation({
-    mutationFn: () =>
-      api('/tunnel/cloudflare/refresh', { body: {}, schema: CloudflareSetupStatus }),
-    onSuccess: updateStatus,
-  });
-  const create = useMutation({
-    mutationFn: (body: CloudflareCreateBody) =>
-      api('/tunnel/cloudflare/create', { body, schema: TunnelStatusSchema }),
-    onSuccess: async (status) => {
-      setCreatedAddress(status.url ?? (status.hostname ? `https://${status.hostname}` : null));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['tunnel'] }),
-        qc.invalidateQueries({ queryKey: ['settings'] }),
-        qc.invalidateQueries({ queryKey: SETUP_KEY }),
-      ]);
-    },
-  });
 
   const domains = setup.data?.domains;
   const managed = setup.data?.managed;
@@ -101,13 +63,14 @@ export function CloudflareSetup() {
     }
   }, [domains, managed]);
 
-  const clearErrors = () => {
+  const clearFeedback = () => {
     setFormError(null);
-    setCreatedAddress(null);
-    login.reset();
-    cancel.reset();
-    refresh.reset();
+    account.reset();
     create.reset();
+  };
+  const request = (action: CloudflareAccountAction) => {
+    clearFeedback();
+    account.mutate(action);
   };
 
   if (setup.isPending)
@@ -116,8 +79,8 @@ export function CloudflareSetup() {
 
   const status = setup.data;
   const waiting = status.state === 'signing_in' || status.state === 'awaiting_approval';
-  const busy =
-    status.busy || login.isPending || cancel.isPending || refresh.isPending || create.isPending;
+  const pendingAction = account.isPending ? account.variables : null;
+  const busy = status.busy || account.isPending || create.isPending;
   const selectedDomain =
     status.domains.find((domain) => domain.id === domainId) ??
     status.domains.find((domain) => status.managed?.hostname.endsWith(`.${domain.name}`)) ??
@@ -130,7 +93,9 @@ export function CloudflareSetup() {
     status.loginUrl && !loginUrl
       ? 'The Cloudflare sign-in address could not be verified. Cancel sign-in and try again.'
       : null;
-  const actionError = login.error ?? cancel.error ?? refresh.error ?? create.error;
+  const actionError = account.error ?? create.error;
+  const createdAddress =
+    create.data?.url ?? (create.data?.hostname ? `https://${create.data.hostname}` : null);
   const connected = status.state === 'connected';
 
   return (
@@ -151,23 +116,12 @@ export function CloudflareSetup() {
                 size="touch"
                 variant="outline"
                 disabled={busy}
-                onClick={() => {
-                  clearErrors();
-                  refresh.mutate();
-                }}
+                onClick={() => request('refresh')}
               >
-                <Pending show={refresh.isPending} />
+                <Pending show={pendingAction === 'refresh'} />
                 Refresh domains
               </Button>
-              <Button
-                size="touch"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  clearErrors();
-                  login.mutate();
-                }}
-              >
+              <Button size="touch" variant="ghost" disabled={busy} onClick={() => request('login')}>
                 Choose another domain
               </Button>
             </div>
@@ -195,13 +149,10 @@ export function CloudflareSetup() {
               <Button
                 size="touch"
                 variant="outline"
-                disabled={cancel.isPending || create.isPending}
-                onClick={() => {
-                  clearErrors();
-                  cancel.mutate();
-                }}
+                disabled={pendingAction === 'login/cancel' || create.isPending}
+                onClick={() => request('login/cancel')}
               >
-                <Pending show={cancel.isPending} />
+                <Pending show={pendingAction === 'login/cancel'} />
                 Cancel sign-in
               </Button>
             </div>
@@ -214,12 +165,9 @@ export function CloudflareSetup() {
             size="touch"
             className="self-start"
             disabled={busy}
-            onClick={() => {
-              clearErrors();
-              login.mutate();
-            }}
+            onClick={() => request('login')}
           >
-            <Pending show={login.isPending} />
+            <Pending show={pendingAction === 'login'} />
             {status.state === 'error' ? 'Try Cloudflare sign-in again' : 'Sign in to Cloudflare'}
           </Button>
         )}
@@ -245,7 +193,7 @@ export function CloudflareSetup() {
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            clearErrors();
+            clearFeedback();
             const parsed = CloudflareCreateBody.safeParse({
               domainId: selectedDomain?.id,
               subdomain,

@@ -76,6 +76,12 @@ export function TunnelPage() {
   const s = tunnel.data;
   const active = s.state === 'running' || s.state === 'starting';
   const hasToken = settings.data?.hasTunnelToken ?? false;
+  const pending = start.isPending || stop.isPending;
+  const actionLabel = {
+    off: active ? 'Turn off' : 'Remote access is off',
+    named: active ? 'Reconnect saved address' : 'Connect saved address',
+    quick: active ? 'Restart temporary link' : 'Create temporary link',
+  }[mode];
 
   const onStart = (manual = false) => {
     setFormError(null);
@@ -265,7 +271,7 @@ export function TunnelPage() {
                       size="touch"
                       variant="outline"
                       onClick={() => onStart(true)}
-                      disabled={start.isPending || stop.isPending}
+                      disabled={pending}
                     >
                       <Pending show={start.isPending} />
                       Connect with token
@@ -286,20 +292,10 @@ export function TunnelPage() {
                 size="touch"
                 className="md:min-h-9"
                 onClick={() => onStart()}
-                disabled={start.isPending || stop.isPending || (mode === 'off' && !active)}
+                disabled={pending || (mode === 'off' && !active)}
               >
                 <Pending show={start.isPending} />
-                {mode === 'off'
-                  ? active
-                    ? 'Turn off'
-                    : 'Remote access is off'
-                  : mode === 'named'
-                    ? active
-                      ? 'Reconnect saved address'
-                      : 'Connect saved address'
-                    : active
-                      ? 'Restart temporary link'
-                      : 'Create temporary link'}
+                {actionLabel}
               </Button>
             )}
             {active && mode !== 'off' && (
@@ -308,7 +304,7 @@ export function TunnelPage() {
                 variant="outline"
                 className="md:min-h-9"
                 onClick={() => stop.mutate()}
-                disabled={stop.isPending || start.isPending}
+                disabled={pending}
               >
                 <Pending show={stop.isPending} />
                 Turn off remote access

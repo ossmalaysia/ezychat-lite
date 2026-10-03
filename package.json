@@ -1,6 +1,6 @@
 {
   "name": "wa-team-inbox",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "WA Team Inbox - a shared team inbox for one WhatsApp number, served locally, over LAN or through a Cloudflare tunnel.",
   "license": "MIT",

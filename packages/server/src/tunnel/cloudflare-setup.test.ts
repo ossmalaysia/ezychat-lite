@@ -466,4 +466,38 @@ describe('Cloudflare provisioning', () => {
     );
     expect(manager.start).not.toHaveBeenCalled();
   });
+
+  it('blocks administrator changes during restoration and waits without launching after shutdown', async () => {
+    const service = makeService();
+    let release!: () => void;
+    vi.spyOn(service, 'reconcileOrigin').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const restoring = service.restore();
+    expect(service.status().busy).toBe(true);
+    await expect(service.login()).rejects.toMatchObject({ status: 409 });
+    await expect(service.refresh()).rejects.toMatchObject({ status: 409 });
+    await expect(service.create(body, 1)).rejects.toMatchObject({ status: 409 });
+    let closed = false;
+    const shutdown = service.shutdown().then(() => {
+      closed = true;
+    });
+    await new Promise((resolveTick) => setImmediate(resolveTick));
+    expect(closed).toBe(false);
+    release();
+    await Promise.all([restoring, shutdown]);
+    expect(manager.restore).not.toHaveBeenCalled();
+    expect(service.status().busy).toBe(false);
+  });
+
+  it('still restores the saved tunnel when an origin update fails', async () => {
+    const service = makeService();
+    vi.spyOn(service, 'reconcileOrigin').mockRejectedValue(new Error('provider unavailable'));
+    await service.restore();
+    expect(manager.restore).toHaveBeenCalledOnce();
+    expect(service.status().busy).toBe(false);
+  });
 });

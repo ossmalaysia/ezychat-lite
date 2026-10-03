@@ -3,13 +3,14 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { ErrorCode } from '@wa-team-inbox/shared';
 import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
 import { contextHostPolicy, createHostHook } from './http/host.js';
 import { originHook } from './http/origin.js';
 import { registerSecurityHeaders } from './http/security-headers.js';
+import { registerApiCacheHeaders, staticCacheControl } from './http/cache.js';
 import { registerRoutes } from './routes/index.js';
 
 export const UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
@@ -24,6 +25,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await app.register(fastifyCookie);
   await app.register(fastifyMultipart, { limits: { fileSize: UPLOAD_LIMIT_BYTES, files: 1 } });
   registerSecurityHeaders(app);
+  registerApiCacheHeaders(app);
   app.addHook('onRequest', createHostHook(contextHostPolicy(ctx)));
   app.addHook('onRequest', originHook);
   app.setErrorHandler(errorHandler);
@@ -37,9 +39,11 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
       root: webDist,
       wildcard: false,
       index: false,
+      // Built once with the web bundle, so each request avoids runtime compression work.
+      preCompressed: true,
+      globIgnore: ['**/*.br', '**/*.gz', '**/*.deflate'],
       setHeaders(res, path) {
-        if (/[\\/]assets[\\/]/.test(path)) res.header('cache-control', 'public, max-age=31536000, immutable');
-        else res.header('cache-control', 'no-cache');
+        res.header('cache-control', staticCacheControl(relative(webDist, path)));
       },
     });
   }

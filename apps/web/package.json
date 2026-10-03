@@ -1,12 +1,12 @@
 {
   "name": "@wa-team-inbox/web",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node ../../scripts/precompress-web.mjs",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
