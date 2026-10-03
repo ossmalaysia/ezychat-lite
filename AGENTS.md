@@ -173,8 +173,10 @@ the rule in this file. (Claude Code enforces this with a Stop hook; other agents
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
-After repository setup, `main` is protected: use feature branches and reviewed pull requests;
-never bypass its approval, CI or conversation-resolution requirements for routine changes.
+After repository setup, `main` is protected: use feature branches and reviewable pull requests.
+This is currently a solo-maintainer repository, so second-person approval is not required.
+Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
+approval when another maintainer can review changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.

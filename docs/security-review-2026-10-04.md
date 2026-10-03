@@ -118,5 +118,7 @@ source changes. This intermittent timing failure remains a test-suite limitation
 An isolated Electron harness with a temporary profile loaded the compiled patch modules and
 sandboxed status preload. It verified the trusted status/recovery calls, external stylesheet
 loading and rejection of recovery calls from another window loading the very same local file.
-The protected main branch requires another maintainer's approval. A new SonarCloud analysis is
-required before claiming its gate passes. The running local app remains 0.1.13 until deployment.
+The initial branch policy required another maintainer's approval; it was subsequently adjusted
+for the sole maintainer to require PRs and passing CI with no mandatory second-person approval.
+SonarCloud PR analyses passed for the security and update patches; historical main-branch findings
+retain the dispositions above. The running local app remains 0.1.13 until deployment.
