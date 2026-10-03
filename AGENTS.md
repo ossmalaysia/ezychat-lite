@@ -3,7 +3,7 @@
 Instructions for every AI coding agent working in this repository (Codex, Claude Code, Cursor, …).
 This file is the single source of truth; `CLAUDE.md` imports it. Edit rules **here**.
 
-WA Team Inbox: an Electron desktop app (macOS/Windows) that links one WhatsApp number through
+EzyChat Lite: an Electron desktop app (macOS/Windows) that links one WhatsApp number through
 Baileys and serves a shared team-inbox PWA locally, over LAN, or through a Cloudflare tunnel.
 npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, all named
 `@wa-team-inbox/*`. Node 22+, TypeScript strict, ESM. Main dev machine is Windows 11.
@@ -82,6 +82,8 @@ chat, `composing` presence before each send. Jobs wait while disconnected and fa
 `media/`, `secret.key` (AES key for settings secrets such as the tunnel token), `logs/` (pino-roll,
 daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`, nightly, 7 kept),
 plus a lock file. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
+The legacy data-folder, Windows executable, service and app IDs are intentional upgrade contracts;
+do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
 `web`, …). Browser errors (window errors, unhandled rejections, React error boundaries) are POSTed to
@@ -96,15 +98,27 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 
 - First-admin setup (`routes/setup.ts`) only while no user exists, only from a direct loopback peer
   with a loopback `Host`, and never through the tunnel.
-- `CF-Connecting-IP` is trusted only when the socket peer is loopback (`http/client-ip.ts`); it keys
-  rate limits and decides `Secure` cookies.
+- `CF-Connecting-IP` is trusted only when the socket peer is loopback and its single value is a valid
+  IP (`http/client-ip.ts`); it keys rate limits and decides `Secure` cookies. Unknown named-tunnel
+  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO.
 - Every request passes the Host allowlist (`http/host.ts`, DNS-rebinding defence: loopback, IP
   literals, single-label/`.local`, current tunnel hostnames). Mutating `/api` requests need
   `Origin` host == `Host` (`http/origin.ts`); Socket.IO checks Origin too.
 - Media (`routes/media.ts`) renders inline only for an allowlist of raster/audio/video types;
   everything else is an attachment, served with a `sandbox` CSP and `nosniff`.
 - Session tokens are stored as SHA-256 hashes; passwords use argon2; login lockout after 5 failures.
+- After asynchronous credential hashing/verification, recheck the current password, disabled state,
+  authorizing session and role as appropriate; do not yield between the final check and commit.
 - Admin password reset only via the CLI `--reset-admin` or the tray menu, never over HTTP.
+- Privileged desktop IPC requires the current registered window, its exact main frame and bundled
+  status URL. A `file://` URL by itself is never sufficient authority.
+- OS services must execute protected runtimes: check Program Files ownership/ACLs and links on
+  Windows; use a root-owned copy without ordinary-user write permissions or ACLs on macOS.
+- Managed updates accept no renderer paths or URLs. Require trusted release digest/size, reverify
+  protected staging, prepare rollback before stopping the host, and relaunch through an unelevated
+  broker. Do not use service removal/data migration as an update operation.
+- Password generation requires cryptographic randomness. Redact credential fields from live logs
+  and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
@@ -133,6 +147,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   they work; otherwise say "untested against real WhatsApp".
 - Never use the real app data folder for tests or experiments; always `--data <temp dir>`. Never send
   WhatsApp messages from a real linked number while testing.
+- GUI smoke tests use a plain Electron harness with an explicit temporary profile; a packaged
+  executable always launches its normal entry even when passed a script. Verify packaged modules
+  and preloads from the harness; use `ELECTRON_RUN_AS_NODE=1` for packaged server checks.
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
@@ -156,6 +173,10 @@ the rule in this file. (Claude Code enforces this with a Stop hook; other agents
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
+After repository setup, `main` is protected: use feature branches and reviewable pull requests.
+This is currently a solo-maintainer repository, so second-person approval is not required.
+Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
+approval when another maintainer can review changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.

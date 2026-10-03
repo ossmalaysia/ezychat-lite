@@ -151,7 +151,7 @@ export function ShareAppAction({
           </p>
           <img
             src="/share-app.svg"
-            alt="WA Team Inbox: Free WhatsApp team inbox. Runs on your computer. You own your data."
+            alt="EzyChat Lite: Free WhatsApp team inbox. Runs on your computer. You own your data."
             className="mx-auto aspect-square w-40 max-w-full rounded-lg border"
           />
           <Button

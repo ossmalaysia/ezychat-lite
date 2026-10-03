@@ -1,4 +1,4 @@
-# Contributing to WA Team Inbox
+# Contributing to EzyChat Lite
 
 Thanks for your interest in contributing!
 
@@ -46,6 +46,10 @@ Read [docs/architecture.md](docs/architecture.md) before larger changes, and
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`,
   `chore:`, `test:`, `refactor:` ...).
 - Branch from `main`, keep PRs focused, and fill in the PR template.
+- `main` is protected: pull requests require one approval, resolved review conversations and
+  passing CI on Linux, Windows and macOS. New commits dismiss stale approvals. Protections
+  also apply to administrators; force pushes and branch deletion are blocked.
+- Use squash merge; merged pull-request branches are deleted automatically.
 - **Tests are required** for behavior changes. CI (lint, typecheck, tests, web build) must pass.
 - Add a line to `CHANGELOG.md` under `[Unreleased]` for user-visible changes.
 

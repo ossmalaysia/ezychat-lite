@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Recheck credentials, live sessions and admin permissions after password hashing so in-flight
+  requests cannot bypass password recovery, account disabling or session revocation.
+- Keep unknown named-tunnel hostnames restricted to validated loopback proxy requests, including
+  Socket.IO; reject malformed proxy IP headers and forwarded first-admin setup requests.
+- Restrict privileged desktop controls to the current bundled status window and its main frame;
+  block unrelated frames, redirects and unused camera/microphone permissions.
+- Require protected Program Files installations for Windows background services and privileged
+  password recovery. Reject user-writable runtimes and filesystem links before modifying data.
+- Remove ordinary-user ACLs from the macOS service's root-owned runtime copy and reject privileged
+  installation or recovery from development builds without a packaged app bundle.
+- Use secure browser randomness for generated member passwords, allowing manual entry when it
+  is unavailable. Remove inline styles from the desktop status page's security policy.
+- Redact WhatsApp download keys and credentials from new logs and existing support-log exports;
+  omit unstructured export records while preserving the original local logs.
+
+### Improved
+
+- Download and verify updates inside installed Windows and Mac hosts, show progress and prompt
+  with Restart and update. Coordinate app/service shutdown, replace both Mac runtime copies,
+  restart an installed service, verify its build, and reopen the desktop as the original user.
+  Keep rollback copies for failed installations and display the result after relaunch.
+- Keep the host's update suggestion visible and dismissible until reviewed; avoid transient toast
+  animations hiding the Review update action during startup.
+- Explain the manual background-service update steps for Windows and Mac, and report the actual
+  running server build even when service configuration retains an older installation version.
+- Rename the app and repository to EzyChat Lite, reuse the official EzyChat icon across desktop
+  and mobile, and update sharing and release links. Preserve existing accounts, chat data and
+  background-service identity during upgrades.
+- Explain the open-source rewrite's origins and publish a roadmap covering the team inbox,
+  optional BYOK sales agents, a light CRM and future business workflows.
+- Detect newer published GitHub releases on the hosting desktop at startup and every 12 hours.
+  Suggest an update with release notes, preview labels and matching Windows/Mac downloads;
+  add manual checks in About and the tray's Status & Service page. Phones, browsers and
+  client-only desktops have no update workflow or alerts. Installation remains user initiated.
+- Compact member cards on phones and tablets: group role and status badges, place accessible
+  Edit and More actions beside the name, and show the added date as secondary information.
+  Keep Add member beside the page title to reduce scrolling.
+
+### Fixed
+
+- Match WhatsApp phone-number and internal contact IDs so saved names reach the correct chats.
+  Recover existing local mappings on reconnect, backfill imported names, and keep saved names
+  through partial contact updates without changing messages, assignments or conversation status.
+
 ## [0.1.9] - 2026-10-03
 
 ### Improved

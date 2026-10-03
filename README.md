@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="apps/web/public/icon-512.png" width="96" alt="WA Team Inbox icon">
+  <img src="apps/web/public/icon-512.png" width="96" alt="EzyChat Lite icon">
 </p>
 
-<h1 align="center">WA Team Inbox</h1>
+<h1 align="center">EzyChat Lite</h1>
 
 <p align="center">
   One WhatsApp number, one shared inbox for your whole team.<br>
@@ -11,16 +11,17 @@
 
 <p align="center">
   <a href="LICENSE">MIT License</a> ·
+  <a href="ROADMAP.md">Roadmap</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a> ·
-  <a href="https://github.com/ossmalaysia/wa-team-inbox/issues/new/choose">Issues</a>
+  <a href="https://github.com/ossmalaysia/ezychat-lite/issues/new/choose">Issues</a>
 </p>
 
 ---
 
 > [!WARNING]
-> **WA Team Inbox is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta.**
+> **EzyChat Lite is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta.**
 > "WhatsApp" is a trademark of its respective owner.
 >
 > It connects through [Baileys](https://github.com/WhiskeySockets/Baileys), an **unofficial**
@@ -33,10 +34,19 @@
 
 ## Why
 
+We built EzyChat as an internal tool to help businesses manage sales conversations. To make
+that work useful to more businesses, we are open-sourcing **EzyChat Lite**: a rewritten,
+self-hosted version inspired by [EzyChat](https://ezychat.ai/), with a focus on security,
+easy setup, and a simple daily workflow for small teams.
+
 Small teams often share one business WhatsApp number on one phone. Someone has to hold the phone,
-replies get missed, and nobody knows who is handling which customer. WA Team Inbox links that
+replies get missed, and nobody knows who is handling which customer. EzyChat Lite links that
 number once and lets everyone on the team answer from their own phone or laptop, with assignment
 and internal notes, and with no cloud service in the middle: your messages stay on your computer.
+
+The goal is practical: give businesses a free foundation for managing customer conversations,
+then build towards an optional **bring-your-own-key (BYOK) sales agent** and a **light CRM**.
+Those are planned features, not part of today's inbox. See the [roadmap](ROADMAP.md) for priorities.
 
 ## Features
 
@@ -61,13 +71,13 @@ and internal notes, and with no cloud service in the middle: your messages stay 
 ## Install
 
 Download the latest installer from the
-[**GitHub Releases**](https://github.com/ossmalaysia/wa-team-inbox/releases) page:
+[**GitHub Releases**](https://github.com/ossmalaysia/ezychat-lite/releases) page:
 
-| Platform              | File                                    |
-| --------------------- | --------------------------------------- |
-| Windows 10/11 (x64)   | `WA-Team-Inbox-<version>-win-x64.exe`   |
-| macOS (Apple Silicon) | `WA-Team-Inbox-<version>-mac-arm64.dmg` |
-| macOS (Intel)         | `WA-Team-Inbox-<version>-mac-x64.dmg`   |
+| Platform              | File                                   |
+| --------------------- | -------------------------------------- |
+| Windows 10/11 (x64)   | `EzyChat-Lite-<version>-win-x64.exe`   |
+| macOS (Apple Silicon) | `EzyChat-Lite-<version>-mac-arm64.dmg` |
+| macOS (Intel)         | `EzyChat-Lite-<version>-mac-x64.dmg`   |
 
 The builds are **not code-signed** yet, so your OS will warn you the first time:
 
@@ -78,9 +88,15 @@ The builds are **not code-signed** yet, so your OS will warn you the first time:
 
 Only download installers from this repository's Releases page.
 
+Earlier releases used the **WA Team Inbox** name and `WA-Team-Inbox-…` filenames.
+The rebrand keeps the existing data folders and service identity so upgrading preserves your
+linked number, team accounts and conversation history. Internal npm workspace names remain
+`@wa-team-inbox/*` for compatibility, and the Windows executable retains its legacy filename
+so installed background services can still start it.
+
 ## Quick start
 
-1. **Open WA Team Inbox.** It starts a local server and opens the inbox window. On first run, create
+1. **Open EzyChat Lite.** It starts a local server and opens the inbox window. On first run, create
    the admin account (this is only allowed from the computer running the app).
 2. **Link your number.** Go to **Admin → WhatsApp**, then on your phone open WhatsApp →
    **Settings → Linked devices → Link a device** and scan the QR code.
@@ -107,6 +123,16 @@ Only download installers from this repository's Releases page.
 
 When the service is installed, the desktop app is just a window onto it. The tray menu also offers
 **Reset admin password…**, the only way to recover the admin account.
+
+## Updates
+
+The hosting desktop checks GitHub for new published releases and suggests an update.
+Use **About EzyChat Lite → Check for updates** or the tray menu to check manually.
+Phone and browser clients update with the host and have no update alerts.
+Installed Windows and Mac hosts download with progress, verify the installer, then offer
+**Restart and update**. After you approve the system prompt, the app closes, updates and reopens;
+an installed background service is stopped, updated and restarted automatically.
+See [the update guide](docs/updating.md) for installation and background-service steps.
 
 ## Development
 
@@ -148,7 +174,7 @@ Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.m
 ## Support
 
 - **Issues:** found a bug or have a feature request?
-  [Open an issue](https://github.com/ossmalaysia/wa-team-inbox/issues/new/choose) on GitHub.
+  [Open an issue](https://github.com/ossmalaysia/ezychat-lite/issues/new/choose) on GitHub.
 - **Custom features:** need something built for your team?
   [Contact Anchor Sprint](https://www.anchorsprint.com).
 

@@ -146,7 +146,7 @@ test.describe('360px: no horizontal scroll', () => {
     expect(created.ok()).toBeTruthy();
     await page.goto('/admin/members');
     const member = page.locator('li').filter({ hasText: username });
-    await member.getByRole('button', { name: 'Edit', exact: true }).click();
+    await member.getByRole('button', { name: `Edit ${displayName}`, exact: true }).click();
     const title = page.getByRole('heading', { name: `Edit ${displayName}`, exact: true });
     await expect(title).toBeVisible();
     const m = await title.evaluate((e) => ({ width: e.clientWidth, scroll: e.scrollWidth }));

@@ -32,7 +32,7 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data?.text() };
   }
-  const title = data.title || 'WA Team Inbox';
+  const title = data.title || 'EzyChat Lite';
   const options: NotificationOptions = {
     body: data.body ?? '',
     tag: data.tag,

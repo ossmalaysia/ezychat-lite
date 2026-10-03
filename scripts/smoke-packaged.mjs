@@ -11,13 +11,15 @@ import { setTimeout as delay } from 'node:timers/promises';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const release = resolve(root, process.argv[2] ?? 'apps/desktop/release');
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const { productName } = JSON.parse(await readFile(join(root, 'apps/desktop/package.json'), 'utf8'));
 const windows = process.platform === 'win32';
 if (!windows && process.platform !== 'darwin') throw new Error('Smoke supports Windows and macOS');
 const app = windows
   ? join(release, 'win-unpacked')
-  : join(release, process.arch === 'arm64' ? 'mac-arm64' : 'mac', 'WA Team Inbox.app', 'Contents');
+  : join(release, process.arch === 'arm64' ? 'mac-arm64' : 'mac', `${productName}.app`, 'Contents');
 const resources = join(app, windows ? 'resources' : 'Resources');
-const exe = windows ? join(app, 'WA Team Inbox.exe') : join(app, 'MacOS', 'WA Team Inbox');
+// Windows keeps its pre-rename executable path for installed service compatibility.
+const exe = windows ? join(app, 'WA Team Inbox.exe') : join(app, 'MacOS', productName);
 const entry = join(resources, 'app.asar.unpacked', 'dist', 'server', 'server.cjs');
 const data = await mkdtemp(join(tmpdir(), 'wati-package-smoke-'));
 const listener = createServer();

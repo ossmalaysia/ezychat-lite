@@ -4,13 +4,32 @@ import { join } from 'node:path';
 export const DEFAULT_PORT = 7420;
 export const APP_DIR_NAME = 'wa-team-inbox';
 
+/** Keep installed profiles (accounts, sessions and chats) across the product rename. */
+export function preserveInstalledProfile(
+  app: {
+    isPackaged: boolean;
+    getPath(name: 'appData'): string;
+    setPath(name: 'userData' | 'sessionData', path: string): void;
+  },
+  ensureDirectory: (path: string) => void,
+): void {
+  if (!app.isPackaged) return;
+  const profile = join(app.getPath('appData'), 'WA Team Inbox');
+  ensureDirectory(profile);
+  app.setPath('userData', profile);
+  app.setPath('sessionData', profile);
+}
+
 /** Per-user data dir used in standalone mode: <userData>/data. */
 export function userDataDir(app: { getPath(name: 'userData'): string }): string {
   return join(app.getPath('userData'), 'data');
 }
 
 /** Machine-wide data dir used in service mode. */
-export function machineDataDir(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+export function machineDataDir(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   if (platform === 'win32') return `${env.ProgramData ?? 'C:\\ProgramData'}\\${APP_DIR_NAME}`;
   if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}`;
   return `/var/lib/${APP_DIR_NAME}`;
@@ -43,7 +62,10 @@ export function cloudflaredDir(
     : join(appPath, '..', '..', 'resources', 'cloudflared', `${platform}-${arch}`);
 }
 
-export function cloudflaredBinary(dir: string, platform: NodeJS.Platform = process.platform): string {
+export function cloudflaredBinary(
+  dir: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
   return join(dir, platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
 }
 
@@ -65,7 +87,8 @@ export function parseDesktopConfig(raw: string | null): DesktopConfig {
   try {
     const v = JSON.parse(raw) as { port?: unknown };
     const port = v?.port;
-    if (typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536) return { port };
+    if (typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536)
+      return { port };
     return def;
   } catch {
     return def;
@@ -86,13 +109,19 @@ export function standalonePortFile(userDataPath: string): string {
  * Port file the OS service's host writes, in a folder the signed-in user can read (but not
  * write), so the desktop can find a service whose port was changed in Admin > Settings.
  */
-export function servicePortFile(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+export function servicePortFile(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   if (platform === 'win32') return `${serviceRunDir(platform, env)}\\port.json`;
   return `${serviceRunDir(platform, env)}/port.json`;
 }
 
 /** Machine-wide folder readable by local users (port file). Admin/root-owned, not user-writable. */
-export function serviceRunDir(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+export function serviceRunDir(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   // inside the locked-down data dir; the install script grants Users read on this sub-folder only
   if (platform === 'win32') return `${machineDataDir(platform, env)}\\run`;
   if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}-runtime`;

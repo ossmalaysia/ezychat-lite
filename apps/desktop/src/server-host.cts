@@ -7,7 +7,7 @@
 //     the server's SIGTERM handler, because on Windows kill() terminates without running it.
 // CommonJS (.cts → .cjs) so it can be loaded by utilityProcess.fork / ELECTRON_RUN_AS_NODE.
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 export const SHUTDOWN_MESSAGE = 'wati:shutdown';
@@ -60,7 +60,8 @@ export function readPortSettingFromDb(dataDir: string): number | null {
   const Database = require('better-sqlite3') as any;
   const db = new Database(file, { readonly: true, fileMustExist: true });
   try {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'port'").get() as { value?: string } | undefined;
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'port'").get() as
+      { value?: string } | undefined;
     if (!row || typeof row.value !== 'string') return null;
     const v: unknown = JSON.parse(row.value);
     return isValidPort(v) ? v : null;
@@ -73,6 +74,17 @@ export function isShutdownMessage(m: unknown): boolean {
   if (m === SHUTDOWN_MESSAGE) return true;
   // Electron parentPort delivers a MessageEvent-like { data }
   return typeof m === 'object' && m !== null && (m as { data?: unknown }).data === SHUTDOWN_MESSAGE;
+}
+
+/** Service configuration may retain the version from installation; report the actual runtime. */
+export function applyRuntimeVersion(entry: string, env: NodeJS.ProcessEnv): void {
+  try {
+    const file = join(dirname(resolve(entry)), '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(file, 'utf8')) as { version?: unknown };
+    if (typeof pkg.version === 'string' && pkg.version) env.WATI_VERSION = pkg.version;
+  } catch {
+    // Unbundled launchers without runtime metadata retain the explicit environment version.
+  }
 }
 
 function main(): void {
@@ -92,10 +104,12 @@ function main(): void {
     }
   }
   const onMessage = (m: unknown) => {
-    if (isShutdownMessage(m)) (process.emit as (ev: string, ...a: unknown[]) => boolean)('SIGTERM', 'SIGTERM');
+    if (isShutdownMessage(m))
+      (process.emit as (ev: string, ...a: unknown[]) => boolean)('SIGTERM', 'SIGTERM');
   };
-  const parentPort = (process as unknown as { parentPort?: { on(ev: 'message', fn: (m: unknown) => void): void } })
-    .parentPort;
+  const parentPort = (
+    process as unknown as { parentPort?: { on(ev: 'message', fn: (m: unknown) => void): void } }
+  ).parentPort;
   parentPort?.on('message', onMessage);
   if (typeof process.send === 'function') {
     process.on('message', onMessage);
@@ -103,6 +117,7 @@ function main(): void {
     process.channel?.unref();
   }
   const entryPath = resolve(entry);
+  applyRuntimeVersion(entryPath, process.env);
   process.argv = [process.argv[0] ?? process.execPath, entryPath, ...args];
   require(entryPath);
 }

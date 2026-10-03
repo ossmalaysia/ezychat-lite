@@ -7,6 +7,8 @@ export interface TrayActions {
   openStatus(): void;
   openTunnelAdmin(): void;
   resetAdmin(): void;
+  checkUpdates(): void;
+  updateLabel(): string | null;
   quit(): void;
   /** label describing the current mode, e.g. "Standalone — running" */
   describe(): string;
@@ -21,6 +23,7 @@ export function createTray(
   const tray = new Tray(icon);
   tray.setToolTip(title);
   const refresh = () => {
+    const updateLabel = actions.updateLabel();
     tray.setContextMenu(
       Menu.buildFromTemplate([
         { label: title, enabled: false },
@@ -28,6 +31,7 @@ export function createTray(
         { type: 'separator' },
         { label: 'Open', click: () => actions.open() },
         { label: 'Status & Service…', click: () => actions.openStatus() },
+        ...(updateLabel ? [{ label: updateLabel, click: () => actions.checkUpdates() }] : []),
         { label: 'Open admin → Cloudflare', click: () => actions.openTunnelAdmin() },
         { type: 'separator' },
         { label: 'Reset admin password…', click: () => actions.resetAdmin() },

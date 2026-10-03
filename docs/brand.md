@@ -1,41 +1,32 @@
-# WA Team Inbox — brand assets
+# EzyChat Lite — brand assets
 
-The app mark is two smiling chat teammates, lilac and coral, on a deep teal square.
-The original generated artwork, PNG exports and Windows ICO live in `design/app-icon/`.
-See its README for prompts, provenance and encoding details. The previous tray/inbox
-source in `docs/brand/` is historical; it is no longer used for the app icon.
+EzyChat Lite uses the official EzyChat headset parrot on a green gradient tile, with the
+**EzyChat Lite** name in the interface. The original artwork, exports, Windows ICO and
+source provenance live in [design/app-icon](../design/app-icon/README.md).
 
-| File                                               | Size(s)                      | Purpose                                             |
-| -------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
-| `design/app-icon/app-icon-master.png`              | 1254                         | Original generated artwork                          |
-| `apps/desktop/build/icon.png`                      | 512                          | Electron desktop icon                               |
-| `apps/desktop/build/icon.ico`                      | 16, 24, 32, 48, 64, 128, 256 | Windows app / installer icon                        |
-| `apps/desktop/build/tray/trayTemplate.png` / `@2x` | 22 / 44                      | Existing monochrome macOS menu-bar template         |
-| `apps/desktop/build/tray/tray.png` / `@2x`         | 16 / 32                      | Windows/Linux tray                                  |
-| `apps/web/public/icon-192.png`, `icon-512.png`     | 192, 512                     | PWA manifest icons (`purpose: any`) and in-app mark |
-| `apps/web/public/icon-maskable-512.png`            | 512                          | Opaque maskable export with centered 360px artwork  |
-| `apps/web/public/apple-touch-icon.png`             | 180                          | iOS home screen                                     |
-| `apps/web/public/favicon.ico`                      | 16, 24, 32, 48, 64, 128, 256 | Browser favicon                                     |
+The same mark appears in the desktop window, installer, browser, installed PWA, home-screen
+icon and sharing card. The marketing sales-agent mockups were reviewed but are not used in
+Lite because they depict a different product workflow. Existing onboarding illustrations
+remain useful for inbox setup.
 
-## Publishing and re-exporting
+| Asset                                      | Purpose                                    |
+| ------------------------------------------ | ------------------------------------------ |
+| `design/app-icon/app-icon-master.png`      | Untouched official source                  |
+| `design/app-icon/app-icon.ico`             | Windows ICO with 16–256 px frames          |
+| `apps/desktop/build/icon.png` / `icon.ico` | Desktop and installer                      |
+| `apps/desktop/build/tray/tray*.png`        | Tray, including macOS monochrome templates |
+| `apps/web/public/icon-{192,512}.png`       | PWA and in-app mark                        |
+| `apps/web/public/icon-maskable-512.png`    | Maskable PWA icon                          |
+| `apps/web/public/apple-touch-icon.png`     | iOS home screen                            |
+| `apps/web/public/favicon.ico`              | Browser tabs                               |
+| `apps/web/public/brand/ezychat-logo.png`   | Official logo in its original proportions  |
+| `apps/web/public/share-app.svg`            | Self-contained social sharing card         |
 
-Publish the checked-in design exports without installing image dependencies:
+## Re-export
 
-```powershell
-node scripts/generate-icons.mjs
-```
-
-If the generated master changes, re-export with Python and Pillow first:
-
-```powershell
-python design/app-icon/export-assets.py
-node scripts/generate-icons.mjs
-```
-
-Resizing and encoding preserve the illustration. The maskable export adds teal padding.
-The publishing script checks all inputs before copying them; it keeps the existing
-macOS monochrome tray templates so menu-bar appearance follows system conventions.
-The obsolete SVG icon is removed so browsers and installed PWAs use the same artwork.
+`python design/app-icon/export-assets.py` creates aspect-preserving exports;
+`node scripts/generate-icons.mjs` publishes them to desktop and web. See the design README
+for transparency, maskable safe-area and provenance details.
 
 ## Illustrations
 

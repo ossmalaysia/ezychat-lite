@@ -6,6 +6,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import { InboxPage } from './inbox/InboxPage';
 import { SetupWizard } from './setup/SetupWizard';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
+import { DesktopUpdateNotice } from '@/components/app/DesktopUpdates';
 
 export function App() {
   const { pathname } = useLocation();
@@ -13,6 +14,7 @@ export function App() {
   // navigating to another route clears it.
   return (
     <ErrorBoundary resetKey={pathname}>
+      <DesktopUpdateNotice />
       <Routes>
         <Route path="/setup" element={<SetupWizard />} />
         <Route path="/login" element={<LoginPage />} />

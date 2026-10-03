@@ -1,6 +1,6 @@
 # Architecture
 
-WA Team Inbox is a single-tenant system: one computer, one WhatsApp number, one SQLite database.
+EzyChat Lite is a single-tenant system: one computer, one WhatsApp number, one SQLite database.
 A Node server owns all state; the Electron app supervises it; browsers (desktop window, phones,
 laptops) are thin clients over REST + Socket.IO. The full design rationale is in
 [`docs/superpowers/specs/2026-10-02-whatsapp-team-inbox-design.md`](superpowers/specs/2026-10-02-whatsapp-team-inbox-design.md).

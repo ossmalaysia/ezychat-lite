@@ -1,7 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { isShutdownMessage, prepareServerArgs, SHUTDOWN_MESSAGE } from './server-host.cjs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  applyRuntimeVersion,
+  isShutdownMessage,
+  prepareServerArgs,
+  SHUTDOWN_MESSAGE,
+} from './server-host.cjs';
 
 const base = ['--data', 'D:\\data', '--port', '7420', '--mode', 'standalone'];
+
+it('reports the updated runtime rather than the old version saved in service configuration', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wati-runtime-version-'));
+  try {
+    mkdirSync(join(dir, 'server'));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ version: '0.1.14' }));
+    const env = { WATI_VERSION: '0.1.13', WATI_PORT_FILE: 'unchanged' };
+    applyRuntimeVersion(join(dir, 'server', 'server.cjs'), env);
+    expect(env).toEqual({ WATI_VERSION: '0.1.14', WATI_PORT_FILE: 'unchanged' });
+    rmSync(join(dir, 'package.json'));
+    env.WATI_VERSION = 'development';
+    applyRuntimeVersion(join(dir, 'server', 'server.cjs'), env);
+    expect(env.WATI_VERSION).toBe('development');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 describe('prepareServerArgs (persisted port setting wins over --port)', () => {
   it('replaces --port with the persisted setting', () => {
