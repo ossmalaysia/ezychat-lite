@@ -24,7 +24,29 @@ file is updated. Promote anything that changes *how* to work into CLAUDE.md.
 - Reconnect backoff must reset when the server responds (QR received), otherwise retries drift to ~60 s and the
   UI looks frozen.
 
+- 2026-10-03 — History audio sent from the user's phone showed "Uploading…" forever → on-demand media logic
+  excluded `fromMe` messages, which fell through to the app-upload spinner → **decide by id (`local-` = app
+  upload in progress), never by sender; test media states for both inbound and phone-sent (`fromMe`) messages.**
+
+## Desktop / web UI
+
+- 2026-10-03 — Tunnel page blank in the live app but fine in a fresh browser, and the server log showed no
+  `/api/tunnel` request → the Electron window kept serving an older build's JS from the PWA service worker
+  cache → the desktop app now clears service workers + Cache Storage when the web build changes
+  (`clearWebCacheOnVersionChange`). **When a screen breaks only in the app window, suspect the SW cache first;
+  F12 opens DevTools, Ctrl+Shift+R hard-reloads.**
+- 2026-10-03 — Screen regressions are caught fastest by `node e2e/screens.smoke.mjs <url> <outDir>` (every
+  screen, desktop + mobile, page errors / console errors / blank / overflow + screenshots) against a `--fake-wa`
+  server on a temp data dir. Use it instead of the full e2e for "does every screen render?".
+
 ## Build / tooling (Windows)
+
+- 2026-10-03 — `node -e "..."` scripts break under PowerShell quoting (`*` treated as a command) → write the
+  script to a file in the scratchpad and run it.
+- 2026-10-03 — Playwright's bundled Chromium can be missing and `npx playwright install` may fail → smoke
+  scripts fall back to `chromium.launch({ channel: 'chrome' })`.
+- 2026-10-03 — Grepping only the log tail missed the evidence (history sync writes huge lines) → search the
+  whole log file(s) before concluding "no request was made".
 
 - 2026-10-03 — Vitest spent ~86% of run time re-transforming TS → `experimental.fsModuleCache` in
   `vitest.config.ts`. Run only the affected package's tests while iterating.
