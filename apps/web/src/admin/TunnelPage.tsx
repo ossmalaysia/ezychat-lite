@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CopyButton, ErrorState, Field, Pending } from './adminUi';
+import { CloudflareSetup } from './CloudflareSetup';
 
 const STATE_LABEL: Record<TunnelState, string> = {
   stopped: 'Stopped',
@@ -24,8 +25,16 @@ const STATE_LABEL: Record<TunnelState, string> = {
 
 const MODES: { value: TunnelMode; label: string; hint: string }[] = [
   { value: 'off', label: 'Off', hint: 'Only this computer (and the LAN, if enabled).' },
-  { value: 'quick', label: 'Quick', hint: 'Free random trycloudflare.com URL. No account needed.' },
-  { value: 'named', label: 'Named', hint: 'Your own hostname via a Cloudflare tunnel token.' },
+  {
+    value: 'quick',
+    label: 'Temporary link',
+    hint: 'A free link that changes on restart. No account needed.',
+  },
+  {
+    value: 'named',
+    label: 'Your domain',
+    hint: 'Sign in to Cloudflare and choose a permanent inbox address.',
+  },
 ];
 
 export function TunnelPage() {
@@ -38,6 +47,7 @@ export function TunnelPage() {
   const [token, setToken] = useState('');
   const [hostname, setHostname] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const initialised = useRef(false);
 
   useEffect(() => {
@@ -67,7 +77,7 @@ export function TunnelPage() {
   const active = s.state === 'running' || s.state === 'starting';
   const hasToken = settings.data?.hasTunnelToken ?? false;
 
-  const onStart = () => {
+  const onStart = (manual = false) => {
     setFormError(null);
     if (mode === 'off') {
       stop.mutate();
@@ -75,12 +85,13 @@ export function TunnelPage() {
     }
     const body: TunnelStartBody = { mode };
     if (mode === 'named') {
-      const t = token.trim();
+      const t = manual ? token.trim() : '';
       if (t && t.length < 10) return setFormError('That token looks too short.');
       if (!t && !hasToken)
         return setFormError('Paste the tunnel token from the Cloudflare dashboard.');
       if (t) body.token = t;
-      if (hostname.trim()) body.hostname = hostname.trim();
+      const h = manual ? hostname.trim() : savedHostname;
+      if (h) body.hostname = h;
     }
     start.mutate(body, { onSuccess: () => setToken('') });
   };
@@ -90,13 +101,13 @@ export function TunnelPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Tunnel"
-        description="Reach the inbox from phones anywhere through a Cloudflare tunnel."
+        title="Cloudflare access"
+        description="Give your team a link to open the inbox from phones anywhere."
       />
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>Status</CardTitle>
+          <CardTitle>Connection status</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -105,7 +116,11 @@ export function TunnelPage() {
               pulse={s.state === 'starting'}
               label={<span className="font-medium">{STATE_LABEL[s.state] ?? s.state}</span>}
             />
-            {s.mode !== 'off' && <span className="text-sm text-muted-foreground">({s.mode})</span>}
+            {s.mode !== 'off' && (
+              <span className="text-sm text-muted-foreground">
+                ({MODES.find((m) => m.value === s.mode)?.label})
+              </span>
+            )}
           </div>
 
           {s.url && (
@@ -142,8 +157,8 @@ export function TunnelPage() {
 
           {s.mode === 'quick' && (
             <Banner tone="info">
-              Quick tunnel URLs change every time the tunnel or the app restarts. Use a named tunnel
-              for a permanent address.
+              Temporary links change every time the connection or the app restarts. Choose Your
+              domain for a permanent inbox address.
             </Banner>
           )}
           {s.lastError && (
@@ -156,16 +171,19 @@ export function TunnelPage() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>Configure</CardTitle>
+          <CardTitle>How your team connects</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <fieldset className="min-w-0">
-            <legend className="mb-2 text-sm font-medium">Mode</legend>
+            <legend className="mb-2 text-sm font-medium">Remote access</legend>
             <RadioGroup
               value={mode}
-              onValueChange={(v) => setMode(v as TunnelMode)}
+              onValueChange={(v) => {
+                setMode(v as TunnelMode);
+                setFormError(null);
+              }}
               className="grid gap-2 sm:grid-cols-3"
-              aria-label="Tunnel mode"
+              aria-label="Remote access mode"
             >
               {MODES.map((m) => {
                 const id = `tunnel-mode-${m.value}`;
@@ -191,38 +209,70 @@ export function TunnelPage() {
 
           {mode === 'named' && (
             <div className="flex flex-col gap-4">
-              <Field
-                label="Tunnel token"
-                hint="Cloudflare Zero Trust → Networks → Tunnels → your tunnel → install token."
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    className="h-11 font-mono md:h-9"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    autoComplete="off"
-                    placeholder={hasToken ? '•••••••• (saved — leave blank to keep)' : 'eyJh…'}
-                  />
-                )}
-              </Field>
-              <Field
-                label="Public hostname"
-                hint="The hostname routed to http://127.0.0.1:<port> in the tunnel config."
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    className="h-11 md:h-9"
-                    value={hostname}
-                    onChange={(e) => setHostname(e.target.value)}
-                    placeholder="inbox.example.com"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
-                )}
-              </Field>
+              <CloudflareSetup />
+              <div className="border-t pt-4">
+                <Button
+                  variant="ghost"
+                  size="touch"
+                  aria-expanded={advancedOpen}
+                  aria-controls="cloudflare-advanced"
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                  className="w-full justify-start whitespace-normal text-left"
+                >
+                  Advanced: use a tunnel token
+                </Button>
+                <div id="cloudflare-advanced" hidden={!advancedOpen}>
+                  <div className="flex flex-col gap-4 pt-3">
+                    <p className="text-sm text-muted-foreground">
+                      For an existing tunnel configured in the Cloudflare dashboard. Guided sign-in
+                      above handles this setup for you.
+                    </p>
+                    <Field
+                      label="Tunnel token"
+                      hint="Cloudflare Zero Trust → Networks → Tunnels → your tunnel → install token."
+                    >
+                      {(p) => (
+                        <Input
+                          {...p}
+                          type="password"
+                          className="h-11 font-mono md:h-9"
+                          value={token}
+                          onChange={(e) => setToken(e.target.value)}
+                          autoComplete="off"
+                          placeholder={
+                            hasToken ? '•••••••• (saved — leave blank to keep)' : 'eyJh…'
+                          }
+                        />
+                      )}
+                    </Field>
+                    <Field
+                      label="Public hostname"
+                      hint="The hostname routed to http://127.0.0.1:<port> in the tunnel config."
+                    >
+                      {(p) => (
+                        <Input
+                          {...p}
+                          className="h-11 md:h-9"
+                          value={hostname}
+                          onChange={(e) => setHostname(e.target.value)}
+                          placeholder="inbox.example.com"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                        />
+                      )}
+                    </Field>
+                    <Button
+                      size="touch"
+                      variant="outline"
+                      onClick={() => onStart(true)}
+                      disabled={start.isPending || stop.isPending}
+                    >
+                      <Pending show={start.isPending} />
+                      Connect with token
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -231,31 +281,37 @@ export function TunnelPage() {
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              size="touch"
-              className="md:min-h-9"
-              onClick={onStart}
-              disabled={start.isPending || (mode === 'off' && !active)}
-            >
-              <Pending show={start.isPending} />
-              {mode === 'off'
-                ? active
-                  ? 'Turn off'
-                  : 'Remote access is off'
-                : active
-                  ? 'Restart tunnel'
-                  : 'Start tunnel'}
-            </Button>
+            {(mode !== 'named' || hasToken) && (
+              <Button
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => onStart()}
+                disabled={start.isPending || stop.isPending || (mode === 'off' && !active)}
+              >
+                <Pending show={start.isPending} />
+                {mode === 'off'
+                  ? active
+                    ? 'Turn off'
+                    : 'Remote access is off'
+                  : mode === 'named'
+                    ? active
+                      ? 'Reconnect saved address'
+                      : 'Connect saved address'
+                    : active
+                      ? 'Restart temporary link'
+                      : 'Create temporary link'}
+              </Button>
+            )}
             {active && mode !== 'off' && (
               <Button
                 size="touch"
                 variant="outline"
                 className="md:min-h-9"
                 onClick={() => stop.mutate()}
-                disabled={stop.isPending}
+                disabled={stop.isPending || start.isPending}
               >
                 <Pending show={stop.isPending} />
-                Stop
+                Turn off remote access
               </Button>
             )}
           </div>
@@ -263,11 +319,11 @@ export function TunnelPage() {
       </Card>
 
       {s.logTail.length > 0 && (
-        <Card className="gap-4">
-          <CardHeader>
-            <CardTitle>Log</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <details className="min-w-0 rounded-lg border bg-card p-4">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
+            Advanced: connection diagnostics
+          </summary>
+          <div className="pt-3">
             <ScrollArea
               className={cn('rounded-md border bg-muted', s.logTail.length > 14 && 'h-72')}
             >
@@ -275,8 +331,8 @@ export function TunnelPage() {
                 {s.logTail.join('\n')}
               </pre>
             </ScrollArea>
-          </CardContent>
-        </Card>
+          </div>
+        </details>
       )}
     </div>
   );

@@ -39,7 +39,7 @@ export const ADMIN_NAV: readonly { to: string; label: string; icon: LucideIcon }
   { to: 'members', label: 'Members', icon: Users },
   { to: 'quick-replies', label: 'Quick replies', icon: MessageSquareText },
   { to: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-  { to: 'tunnel', label: 'Tunnel', icon: Globe },
+  { to: 'tunnel', label: 'Cloudflare', icon: Globe },
   { to: 'settings', label: 'Settings', icon: Settings },
   { to: 'audit', label: 'Audit', icon: ScrollText },
 ];

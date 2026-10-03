@@ -116,6 +116,9 @@ See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
 Every route is wrapped in an `ErrorBoundary` — never let a render error become a blank page.
 App-managed cloudflared launches must ignore unrelated default user configuration (`--config=`).
+Cloudflare sign-in must run with a private child home; `login` ignores `--origincert`. Store account
+credentials only as encrypted settings, redact authorization URLs and API tokens from logs, and never
+overwrite DNS or configure a tunnel that the app did not create.
 A Quick Tunnel is Running only after URL assignment and edge registration.
 
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must

@@ -86,9 +86,12 @@ Only download installers from this repository's Releases page.
    **Settings → Linked devices → Link a device** and scan the QR code.
 3. **Invite your team.** In **Admin → Members**, add each person with a username and a temporary
    password (they change it at first sign-in). Give admins the admin role.
-4. **Make it reachable.** In **Admin → Tunnel**, start a **quick tunnel** to get a public
-   `https://….trycloudflare.com` URL (it changes on every start), or paste a Cloudflare
-   **named tunnel** token for a stable hostname. Alternatively enable **LAN mode** in Settings for
+4. **Make it reachable.** In **Admin → Cloudflare**, use **Temporary link** to get a public
+   `https://….trycloudflare.com` URL (it changes on every start), or choose
+   **Your domain** for a stable hostname: sign in to Cloudflare, approve your domain, choose an
+   address and tunnel name, then select **Create and connect inbox**. The app creates the tunnel and
+   DNS record without replacing existing websites. Existing tunnel tokens remain under **Advanced**.
+   Alternatively enable **LAN mode** in Settings for
    access on your local network only.
 5. **On each phone:** open the URL, sign in, then **Add to Home Screen** (Safari share menu on
    iOS, browser menu on Android) and allow notifications. On iOS, push notifications only work from

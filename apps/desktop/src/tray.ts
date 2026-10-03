@@ -28,7 +28,7 @@ export function createTray(
         { type: 'separator' },
         { label: 'Open', click: () => actions.open() },
         { label: 'Status & Service…', click: () => actions.openStatus() },
-        { label: 'Open admin → Tunnel', click: () => actions.openTunnelAdmin() },
+        { label: 'Open admin → Cloudflare', click: () => actions.openTunnelAdmin() },
         { type: 'separator' },
         { label: 'Reset admin password…', click: () => actions.resetAdmin() },
         { type: 'separator' },

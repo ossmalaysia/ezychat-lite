@@ -5,6 +5,22 @@ Append new entries at the top of the matching section: `- YYYY-MM-DD — what ha
 A Stop hook (`.claude/hooks/learnings-gate.mjs`) blocks a code-changing session from finishing until this
 file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
+## Cloudflare and sharing
+
+- 2026-10-03 — Interactive cloudflared login ignores `--origincert` and writes to the process home →
+  an ordinary child would reuse or overwrite the user's Cloudflare certificate → isolate child HOME,
+  USERPROFILE, PATH and working directory, keep credentials encrypted and clean only verified app-owned paths.
+- 2026-10-03 — Cloudflare login can grant DNS access only to the chosen zone without zone-list permission →
+  fetching every domain is not guaranteed → fall back to the approved zone and offer fresh domain approval.
+- 2026-10-03 — A failed DNS step can leave a newly created tunnel in Cloudflare → blindly retrying creates
+  duplicates → persist app-owned IDs first, retry only those IDs and never replace foreign DNS or tunnel configuration.
+- 2026-10-03 — A controlled domain Select initially mounted empty could submit no domain → its form
+  initialization changed the value → derive a valid authorised selection and test default and alternate submissions.
+- 2026-10-03 — Sharing an inbox URL would advertise a private installation rather than the free app →
+  the active origin contains team access details → share only the public project URL and user-selected marketing text.
+- 2026-10-03 — Native sharing cancellation can return a DOMException from another realm → checking
+  `instanceof Error` misses AbortError → check its name and cancel quietly without copying or claiming a post.
+
 ## WhatsApp / Baileys
 
 - 2026-10-03 — No QR ever appeared: WhatsApp closed the socket (428 "Connection Terminated") ~200 ms after

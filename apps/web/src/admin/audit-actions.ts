@@ -18,6 +18,8 @@ const LABELS: Record<string, string> = {
   'wa.pairing_code': 'WhatsApp pairing code requested',
   'tunnel.start': 'Tunnel started',
   'tunnel.stop': 'Tunnel stopped',
+  'cloudflare.login': 'Cloudflare sign-in started',
+  'cloudflare.create': 'Cloudflare inbox address configured',
   'settings.update': 'Settings updated',
   'logs.download': 'Logs downloaded',
 };

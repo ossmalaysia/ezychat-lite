@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Rename Tunnel to Cloudflare and guide setup through browser sign-in, authorised domain selection,
+  an address preview and a friendly tunnel name. Configure DNS automatically without replacing existing websites.
+- Share the free app from the Account menu with LinkedIn, Facebook, Instagram and device sharing,
+  a ready-made message and an image card; sharing uses the public project link.
 - Open the project's feature-request form from the Account menu or sign-in screen.
 - Add a searchable emoji picker and a growing message box with a subtle scrollbar.
 - Clear Admin access, separate Open/Resolved chat filters, filter-reset actions, and a visible inbox build version.

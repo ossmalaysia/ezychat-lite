@@ -3,6 +3,7 @@ import {
   ApiErrorSchema,
   ChatEventSchema,
   ChatListQuery,
+  CloudflareCreateBody,
   ErrorCode,
   HealthResponse,
   MessageSchema,
@@ -14,13 +15,35 @@ import {
 } from './index.js';
 
 describe('shared schemas', () => {
+  it('normalises a Cloudflare address while rejecting unsafe DNS labels and names', () => {
+    const body = { domainId: 'a'.repeat(32), subdomain: ' INBOX ', tunnelName: ' Team inbox ' };
+    expect(CloudflareCreateBody.parse(body)).toEqual({
+      ...body,
+      subdomain: 'inbox',
+      tunnelName: 'Team inbox',
+    });
+    for (const subdomain of ['-inbox', 'inbox-', 'a.b', 'http://evil', 'a'.repeat(64), '*']) {
+      expect(CloudflareCreateBody.safeParse({ ...body, subdomain }).success).toBe(false);
+    }
+    expect(CloudflareCreateBody.safeParse({ ...body, tunnelName: '--token secret' }).success).toBe(
+      false,
+    );
+  });
   it('SetupAdminBody rejects a 7-char password', () => {
-    const r = SetupAdminBody.safeParse({ username: 'admin', displayName: 'Admin', password: '1234567' });
+    const r = SetupAdminBody.safeParse({
+      username: 'admin',
+      displayName: 'Admin',
+      password: '1234567',
+    });
     expect(r.success).toBe(false);
   });
 
   it('SetupAdminBody accepts a valid body', () => {
-    const r = SetupAdminBody.safeParse({ username: 'admin', displayName: 'Admin', password: '12345678' });
+    const r = SetupAdminBody.safeParse({
+      username: 'admin',
+      displayName: 'Admin',
+      password: '12345678',
+    });
     expect(r.success).toBe(true);
   });
 
@@ -62,7 +85,14 @@ describe('shared schemas', () => {
   });
 
   it('ChatEventSchema accepts record payloads', () => {
-    const e = ChatEventSchema.parse({ id: 1, chatJid: 'x@g.us', type: 'assigned', actorId: 2, payload: { to: 3 }, at: 1 });
+    const e = ChatEventSchema.parse({
+      id: 1,
+      chatJid: 'x@g.us',
+      type: 'assigned',
+      actorId: 2,
+      payload: { to: 3 },
+      at: 1,
+    });
     expect(e.payload).toEqual({ to: 3 });
   });
 
@@ -73,7 +103,11 @@ describe('shared schemas', () => {
   });
 
   it('HealthResponse and ApiErrorSchema', () => {
-    expect(HealthResponse.safeParse({ app: 'wa-team-inbox', version: '0.1.0', mode: 'dev' }).success).toBe(true);
-    expect(ApiErrorSchema.safeParse({ error: { code: ErrorCode.NOT_FOUND, message: 'x' } }).success).toBe(true);
+    expect(
+      HealthResponse.safeParse({ app: 'wa-team-inbox', version: '0.1.0', mode: 'dev' }).success,
+    ).toBe(true);
+    expect(
+      ApiErrorSchema.safeParse({ error: { code: ErrorCode.NOT_FOUND, message: 'x' } }).success,
+    ).toBe(true);
   });
 });

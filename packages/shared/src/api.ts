@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { ChatStatus, MessageType, Role } from './enums.js';
-import { ChatEventSchema, ChatSchema, MessageSchema, QuickReplySchema, SettingsSchema, UserSchema } from './models.js';
+import {
+  ChatEventSchema,
+  ChatSchema,
+  MessageSchema,
+  QuickReplySchema,
+  SettingsSchema,
+  UserSchema,
+} from './models.js';
 
 export const SetupStatusResponse = z.object({ needsSetup: z.boolean() });
 export type SetupStatusResponse = z.infer<typeof SetupStatusResponse>;
@@ -19,7 +26,10 @@ export type SetupAdminBody = z.infer<typeof SetupAdminBody>;
 export const LoginBody = z.object({ username: z.string(), password: z.string() });
 export type LoginBody = z.infer<typeof LoginBody>;
 
-export const ChangePasswordBody = z.object({ currentPassword: z.string(), newPassword: z.string().min(8).max(256) });
+export const ChangePasswordBody = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(8).max(256),
+});
 export type ChangePasswordBody = z.infer<typeof ChangePasswordBody>;
 
 export const MeResponse = UserSchema;
@@ -37,10 +47,16 @@ export type ChatListQuery = z.infer<typeof ChatListQuery>;
 /** Input shape (before defaults/coercion), for clients building query strings. */
 export type ChatListQueryInput = z.input<typeof ChatListQuery>;
 
-export const ChatListResponse = z.object({ chats: z.array(ChatSchema), nextCursor: z.string().nullable() });
+export const ChatListResponse = z.object({
+  chats: z.array(ChatSchema),
+  nextCursor: z.string().nullable(),
+});
 export type ChatListResponse = z.infer<typeof ChatListResponse>;
 
-export const ChatPatchBody = z.object({ assignedTo: z.number().nullable().optional(), status: ChatStatus.optional() });
+export const ChatPatchBody = z.object({
+  assignedTo: z.number().nullable().optional(),
+  status: ChatStatus.optional(),
+});
 export type ChatPatchBody = z.infer<typeof ChatPatchBody>;
 
 export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
@@ -53,7 +69,10 @@ export const MessageListQuery = z.object({
 export type MessageListQuery = z.infer<typeof MessageListQuery>;
 export type MessageListQueryInput = z.input<typeof MessageListQuery>;
 
-export const MessageListResponse = z.object({ messages: z.array(MessageSchema), nextBefore: z.string().nullable() });
+export const MessageListResponse = z.object({
+  messages: z.array(MessageSchema),
+  nextBefore: z.string().nullable(),
+});
 export type MessageListResponse = z.infer<typeof MessageListResponse>;
 
 export const SendTextBody = z.object({
@@ -113,6 +132,46 @@ export const TunnelStartBody = z.object({
   hostname: z.string().optional(),
 });
 export type TunnelStartBody = z.infer<typeof TunnelStartBody>;
+
+/** Public setup state only. Cloudflare credentials never leave the server. */
+export const CloudflareDomain = z.object({
+  id: z.string().regex(/^[a-f0-9]{32}$/i),
+  name: z.string(),
+  accountName: z.string().nullable(),
+});
+export type CloudflareDomain = z.infer<typeof CloudflareDomain>;
+export const CloudflareSetupStatus = z.object({
+  state: z.enum(['signed_out', 'signing_in', 'awaiting_approval', 'connected', 'error']),
+  loginUrl: z.string().nullable(),
+  error: z.string().nullable(),
+  domains: z.array(CloudflareDomain),
+  busy: z.boolean(),
+  managed: z.object({ id: z.string().uuid(), name: z.string(), hostname: z.string() }).nullable(),
+});
+export type CloudflareSetupStatus = z.infer<typeof CloudflareSetupStatus>;
+export const CloudflareCreateBody = z.object({
+  domainId: CloudflareDomain.shape.id,
+  subdomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1)
+    .max(63)
+    .regex(
+      /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/,
+      'Use letters, numbers and hyphens, without a hyphen at either end.',
+    ),
+  tunnelName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(
+      /^[a-zA-Z0-9][a-zA-Z0-9 _.-]*$/,
+      'Use letters, numbers, spaces, dots, underscores and hyphens.',
+    ),
+});
+export type CloudflareCreateBody = z.infer<typeof CloudflareCreateBody>;
 
 export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true }).partial();
 export type SettingsPatchBody = z.infer<typeof SettingsPatchBody>;

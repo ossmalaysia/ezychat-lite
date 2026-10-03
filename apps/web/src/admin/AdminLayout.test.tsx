@@ -15,7 +15,7 @@ vi.mock('@/components/app', () => ({ AppCredits: () => null }));
 vi.mock('./MembersPage', () => ({ MembersPage: () => <h1>Members</h1> }));
 vi.mock('./QuickRepliesPage', () => ({ QuickRepliesPage: () => <h1>Quick replies</h1> }));
 vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
-vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Tunnel</h1> }));
+vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Cloudflare</h1> }));
 vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
 

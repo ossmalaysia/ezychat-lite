@@ -148,7 +148,10 @@ function DoneStep() {
   const navigate = useNavigate();
   return (
     <div className="flex flex-col gap-4">
-      <div role="status" className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm">
+      <div
+        role="status"
+        className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm"
+      >
         <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
         <div className="min-w-0">
           <p className="font-medium">You're all set</p>
@@ -157,11 +160,15 @@ function DoneStep() {
       </div>
       <p className="text-sm text-muted-foreground">
         Want teammates to use the inbox from their phones outside this network? Turn on a Cloudflare
-        tunnel under <strong className="text-foreground">Admin → Tunnel</strong>. You can also add
-        team members under <strong className="text-foreground">Admin → Members</strong>.
+        connection under <strong className="text-foreground">Admin → Cloudflare</strong>. You can
+        also add team members under <strong className="text-foreground">Admin → Members</strong>.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button size="touch" className="w-full sm:flex-1" onClick={() => navigate('/', { replace: true })}>
+        <Button
+          size="touch"
+          className="w-full sm:flex-1"
+          onClick={() => navigate('/', { replace: true })}
+        >
           <Inbox aria-hidden="true" />
           Go to inbox
         </Button>

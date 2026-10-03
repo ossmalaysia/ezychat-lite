@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import type { AppContext } from '../context.js';
 import { resolveCloudflaredPath } from './binary.js';
 import { TunnelManager, type TunnelService } from './manager.js';
+import { CloudflareSetup, type CloudflareSetupService } from './cloudflare-setup.js';
 
 export { parseQuickTunnelUrl, isNamedTunnelRegistered } from './parse.js';
 export { resolveCloudflaredPath, cloudflaredBinaryName } from './binary.js';
@@ -10,6 +11,7 @@ export { TunnelManager, type TunnelService, type TunnelManagerDeps } from './man
 declare module '../context.js' {
   interface Services {
     tunnel?: TunnelService;
+    cloudflareSetup?: CloudflareSetupService;
   }
 }
 
@@ -32,6 +34,30 @@ export function initTunnel(ctx: AppContext): void {
     log: ctx.log.child({ mod: 'tunnel' }),
   });
   ctx.services.tunnel = manager;
+  const setup = new CloudflareSetup({
+    ctx,
+    tunnel: manager,
+    binPath: () => resolveCloudflaredPath(process.env, resourcesDir()),
+  });
+  ctx.services.cloudflareSetup = setup;
   // No-op when the persisted mode is 'off' (e.g. fresh test data dirs). Never block startup on cloudflared.
-  manager.restore().catch((err: unknown) => ctx.log.warn({ err }, 'tunnel restore failed'));
+  let shuttingDown = false;
+  const shutdown = setup.shutdown.bind(setup);
+  setup.shutdown = async () => {
+    shuttingDown = true;
+    await shutdown();
+    await restoring;
+  };
+  const restoring = (async () => {
+    try {
+      await setup.reconcileOrigin();
+    } catch {
+      ctx.log.warn(
+        { mod: 'cloudflare', phase: 'origin_update_failed' },
+        'Could not update the Cloudflare origin port',
+      );
+    }
+    if (!shuttingDown) await manager.restore();
+  })();
+  restoring.catch(() => ctx.log.warn({ mod: 'tunnel' }, 'Tunnel restore failed'));
 }

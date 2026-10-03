@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bug, Info, KeyRound, LogOut, Monitor, Moon, Settings, Sun } from 'lucide-react';
+import { Bug, Info, KeyRound, LogOut, Monitor, Moon, Settings, Share2, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AboutDialog } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
+import { ShareAppAction } from '@/components/app/ShareAppAction';
 import { GITHUB_ISSUES_URL } from '@/lib/links';
 import { useAppVersion } from '@/lib/version';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
@@ -46,6 +47,7 @@ export function UserMenu({
   const version = useAppVersion();
   const { theme, setTheme } = useTheme();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   if (!user) return null;
 
   return (
@@ -108,6 +110,10 @@ export function UserMenu({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem className="min-h-11" onSelect={() => setShareOpen(true)}>
+            <Share2 aria-hidden="true" />
+            Share this app
+          </DropdownMenuItem>
           <FeatureRequestAction placement="menu" />
           <DropdownMenuItem asChild className="min-h-11">
             <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener noreferrer">
@@ -133,6 +139,7 @@ export function UserMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} version={version ?? undefined} />
+      <ShareAppAction open={shareOpen} onOpenChange={setShareOpen} />
     </>
   );
 }

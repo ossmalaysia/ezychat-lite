@@ -40,7 +40,7 @@ test.describe('360px: no horizontal scroll', () => {
       { path: 'members', heading: 'Members' },
       { path: 'quick-replies', heading: 'Quick replies' },
       { path: 'whatsapp', heading: 'WhatsApp' },
-      { path: 'tunnel', heading: 'Tunnel' },
+      { path: 'tunnel', heading: 'Cloudflare access' },
       { path: 'settings', heading: 'Settings' },
       { path: 'audit', heading: 'Audit' },
     ];
@@ -83,7 +83,7 @@ test.describe('360px: no horizontal scroll', () => {
       ['Members', 'members'],
       ['Quick replies', 'quick-replies'],
       ['WhatsApp', 'whatsapp'],
-      ['Tunnel', 'tunnel'],
+      ['Cloudflare', 'tunnel'],
       ['Settings', 'settings'],
       ['Audit', 'audit'],
     ]) {
