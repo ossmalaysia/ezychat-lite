@@ -42,6 +42,8 @@ import { createServiceOperation } from './service-operation.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
+import { GitHubUpdateChecker } from './update-checker.js';
+import { isUpdateHost, registerUpdateIpc } from './update-ipc.js';
 import {
   clearWebCacheOnVersionChange,
   createMainWindow,
@@ -175,6 +177,22 @@ async function main(): Promise<void> {
   let mainWindow: BrowserWindow | null = null;
   let statusWindow: BrowserWindow | null = null;
   let lastServiceState: ServiceState = 'not-installed';
+  const statusFile = join(appPath, 'src', 'renderer', 'status.html');
+  const ownsHost = () => !quitting && isUpdateHost(mode, lastServiceState);
+  let updateChanged = () => {};
+  const updates = new GitHubUpdateChecker({
+    currentVersion: version,
+    platform: process.platform,
+    arch: process.arch,
+    isHost: ownsHost,
+    onChanged: () => updateChanged(),
+    log: (fields) => log(JSON.stringify({ mod: 'desktop-updates', ...fields })),
+  });
+  const syncUpdates = () => {
+    if (quitting || !ownsHost()) updates.stop();
+    else updates.start();
+    updateChanged();
+  };
 
   const server = new StandaloneServer({
     host,
@@ -242,6 +260,7 @@ async function main(): Promise<void> {
 
   const setMode = (m: DesktopMode) => {
     mode = m;
+    syncUpdates();
     trayHandle.refresh();
     broadcastStatusChanged();
   };
@@ -296,7 +315,7 @@ async function main(): Promise<void> {
     statusWindow = createStatusWindow({
       icon: appIcon,
       preload: join(here, 'preload.cjs'),
-      html: join(appPath, 'src', 'renderer', 'status.html'),
+      html: statusFile,
       title: appTitle(version),
     });
     statusWindow.on('closed', () => (statusWindow = null));
@@ -342,6 +361,7 @@ async function main(): Promise<void> {
     } catch {
       // keep last
     }
+    syncUpdates();
     return lastServiceState;
   };
 
@@ -429,11 +449,7 @@ async function main(): Promise<void> {
 
   const controller: DesktopController = {
     async getStatus(): Promise<DesktopStatus> {
-      try {
-        lastServiceState = serviceSupported ? await service.status() : 'not-installed';
-      } catch {
-        // keep last
-      }
+      await currentServiceState();
       // server version / mode as reported by GET /api/health (the service may run another build)
       const health = mode === 'standalone' || mode === 'client' ? await probeServer(port) : null;
       return {
@@ -474,6 +490,7 @@ async function main(): Promise<void> {
           setBusy('Installing service…');
           await server.stop();
           await service.install();
+          await currentServiceState();
           setBusy('Waiting for the service to start…');
           const ok = await waitForService(60_000);
           if (!ok)
@@ -509,6 +526,7 @@ async function main(): Promise<void> {
           if (response !== 0) return;
           setBusy('Removing service…');
           await service.uninstall();
+          await currentServiceState();
           setBusy('Starting the local server…');
           await startStandalone();
         },
@@ -538,6 +556,12 @@ async function main(): Promise<void> {
   };
 
   registerIpc(controller);
+  const updateIpc = registerUpdateIpc(updates, {
+    main: () => mainWindow,
+    status: () => statusWindow,
+    baseUrl: () => url,
+    statusFile,
+  });
 
   const trayHandle = createTray(
     trayIcon,
@@ -546,6 +570,17 @@ async function main(): Promise<void> {
       openStatus,
       openTunnelAdmin: () => showMain('/admin/tunnel'),
       resetAdmin: () => void resetAdmin(),
+      checkUpdates: () => {
+        openStatus();
+        void updates.check();
+      },
+      updateLabel: () => {
+        if (!ownsHost()) return null;
+        const state = updates.getState();
+        return state.release
+          ? `Update available: v${state.release.version}…`
+          : 'Check for updates…';
+      },
       quit: () => {
         quitting = true;
         app.quit();
@@ -554,6 +589,10 @@ async function main(): Promise<void> {
     },
     version,
   );
+  updateChanged = () => {
+    trayHandle.refresh();
+    updateIpc.broadcast(updates.getState());
+  };
 
   app.on('second-instance', () => showMain());
   app.on('activate', () => showMain());
@@ -563,6 +602,8 @@ async function main(): Promise<void> {
   let finalStopDone = false;
   app.on('before-quit', (e) => {
     quitting = true;
+    updates.stop();
+    updateIpc.dispose();
     if (finalStopDone || server.state === 'stopped') return;
     e.preventDefault();
     void server.stop().finally(() => {

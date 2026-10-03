@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { GITHUB_REPO_URL } from '@/lib/links';
 import { ResponsiveDialog } from './index';
 import { AppCredits } from './AppCredits';
+import { DesktopUpdatePanel } from './DesktopUpdates';
 
 /** "About WA Team Inbox": icon, name, description, version, repo link and credits. */
 export function AboutDialog({
@@ -34,6 +35,7 @@ export function AboutDialog({
             {version ? `Version ${version}` : 'Version unknown'}
           </p>
         </div>
+        <DesktopUpdatePanel />
         <Button asChild variant="outline" size="touch">
           <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
             View on GitHub

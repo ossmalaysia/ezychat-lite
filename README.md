@@ -108,6 +108,13 @@ Only download installers from this repository's Releases page.
 When the service is installed, the desktop app is just a window onto it. The tray menu also offers
 **Reset admin password…**, the only way to recover the admin account.
 
+## Updates
+
+The hosting desktop checks GitHub for new published releases and suggests an update.
+Use **About WA Team Inbox → Check for updates** or the tray menu to check manually.
+Phone and browser clients update with the host and have no update alerts.
+See [the update guide](docs/updating.md) for installation and background-service steps.
+
 ## Development
 
 Requirements: Node.js 22+ and npm 10+.

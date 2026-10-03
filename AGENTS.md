@@ -133,6 +133,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   they work; otherwise say "untested against real WhatsApp".
 - Never use the real app data folder for tests or experiments; always `--data <temp dir>`. Never send
   WhatsApp messages from a real linked number while testing.
+- GUI smoke tests use a plain Electron harness with an explicit temporary profile; a packaged
+  executable always launches its normal entry even when passed a script. Verify packaged modules
+  and preloads from the harness; use `ELECTRON_RUN_AS_NODE=1` for packaged server checks.
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.

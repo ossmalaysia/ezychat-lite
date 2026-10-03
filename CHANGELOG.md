@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Detect newer published GitHub releases on the hosting desktop at startup and every 12 hours.
+  Suggest an update with release notes, preview labels and matching Windows/Mac downloads;
+  add manual checks in About and the tray's Status & Service page. Phones, browsers and
+  client-only desktops have no update workflow or alerts. Installation remains user initiated.
 - Compact member cards on phones and tablets: group role and status badges, place accessible
   Edit and More actions beside the name, and show the added date as secondary information.
   Keep Add member beside the page title to reduce scrolling.

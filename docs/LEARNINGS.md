@@ -70,6 +70,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Desktop / web UI
 
+- 2026-10-03 — A desktop window may connect to an independently managed inbox server → desktop presence does not imply update ownership → gate release checks, prompts and download actions on standalone ownership or the app's installed local service, with exact main-frame IPC trust and no renderer-supplied URLs.
+- 2026-10-03 — GitHub's latest-release endpoint excludes previews and publication order can differ from version order → early 0.x releases would be missed or misordered → list published releases, compare strict semantic versions, label previews and select exact platform/architecture assets.
 - 2026-10-03 — Member cards repeated every desktop column label and put actions on a separate row → a generic table-to-card conversion wasted vertical space → allow feature-specific mobile rows, group related metadata, and retain 44px action targets while checking long names at 360px.
 - 2026-10-03 — Mobile pages had no horizontal overflow but landscape forms lost their actions and tablet tables hid columns → dialogs had no viewport height limit and table overflow was hidden → check dialog bounds and inner clipping as well as page overflow; cap dialog height with dynamic viewport units, permit scrolling, and retain cards until tables have room.
 - 2026-10-03 — A 44px wrapper around the LAN switch still left only the small switch clickable → decorative padding is not a hit target → use an associated padded label and test padding clicks and keyboard operation without saving automatically.
@@ -111,6 +113,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Build / tooling (Windows)
 
+- 2026-10-03 — A GUI smoke harness supplied as an argument to a packaged executable launched its normal entry, and a top-level wait for Electron readiness stalled a separate harness → packaged apps ignore replacement entry arguments and readiness depends on main-module evaluation → use plain Electron with an explicit temporary profile, schedule setup with whenReady().then, and import the packaged modules/preloads being verified.
 - 2026-10-03 — A valid iPhone browser sign-in failed only in the combined suite → parallel browser projects shared the loopback login quota and hit a genuine HTTP 429 → let the test sign-in helper honor the server's Retry-After and extend only its cooldown budget; never weaken production authentication limits to make browser tests pass.
 - 2026-10-03 — A deployed routing fix still displayed v0.1.0 → the build was replaced without a version
   bump → bump the root version for deployed fixes, sync workspace and lockfile versions, and verify both
