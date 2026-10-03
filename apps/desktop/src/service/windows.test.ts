@@ -127,6 +127,7 @@ describe('Windows LocalSystem runtime protection', () => {
           execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', file], {
             windowsHide: true,
             stdio: 'pipe',
+            timeout: 15_000,
           });
         } catch (error) {
           output = String((error as { stderr?: unknown }).stderr ?? '');
@@ -137,6 +138,7 @@ describe('Windows LocalSystem runtime protection', () => {
         rmSync(temp, { recursive: true, force: true });
       }
     },
+    30_000,
   );
 });
 

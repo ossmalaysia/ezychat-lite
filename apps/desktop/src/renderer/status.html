@@ -19,10 +19,20 @@
         <h2 id="updates-title">App updates</h2>
         <p id="updates-state" role="status" aria-live="polite">Checking for updates…</p>
         <p class="note" id="updates-checked"></p>
+        <progress
+          id="updates-progress"
+          max="100"
+          value="0"
+          aria-label="Update download"
+          hidden
+        ></progress>
+        <p class="note" id="updates-result" hidden></p>
         <pre id="update-notes" hidden></pre>
         <div class="row">
           <button id="updates-check">Check for updates</button>
           <button id="updates-download" class="primary" hidden>Download update</button>
+          <button id="updates-install" class="primary" hidden>Restart and update</button>
+          <button id="updates-cancel" hidden>Cancel download</button>
           <button id="updates-release" hidden>Release details</button>
         </div>
         <p class="note" id="updates-help">

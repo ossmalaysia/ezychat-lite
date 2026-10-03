@@ -54,6 +54,9 @@ function fixture() {
   const controller = {
     getState: vi.fn(() => state),
     check: vi.fn(async () => state),
+    download: vi.fn(async () => undefined),
+    install: vi.fn(async () => undefined),
+    cancelDownload: vi.fn(),
   };
   const ipc = registerUpdateIpc(controller, {
     main: () => currentMain as unknown as BrowserWindow,
@@ -91,7 +94,10 @@ describe('desktop update IPC', () => {
     expect(await invoke(UPDATE_CHANNELS.check, status.event)).toBe(state);
     expect(controller.check).toHaveBeenCalledOnce();
     await invoke(UPDATE_CHANNELS.download);
-    expect(mock.openExternal).toHaveBeenCalledWith(state.release!.downloadUrl);
+    expect(controller.download).toHaveBeenCalledOnce();
+    expect(mock.openExternal).not.toHaveBeenCalled();
+    await invoke(UPDATE_CHANNELS.install);
+    expect(controller.install).toHaveBeenCalledOnce();
     await invoke(UPDATE_CHANNELS.release, status.event);
     expect(mock.openExternal).toHaveBeenCalledWith(state.release!.releaseUrl);
   });
@@ -139,10 +145,13 @@ describe('desktop update IPC', () => {
       UPDATE_CHANNELS.check,
       UPDATE_CHANNELS.download,
       UPDATE_CHANNELS.release,
+      UPDATE_CHANNELS.install,
+      UPDATE_CHANNELS.cancel,
     ]) {
       expect(() => invoke(channel, main.event, 'https://attacker.example/')).toThrow('Invalid');
     }
     expect(controller.check).not.toHaveBeenCalled();
+    expect(controller.install).not.toHaveBeenCalled();
     expect(mock.openExternal).not.toHaveBeenCalled();
   });
 
@@ -180,6 +189,19 @@ describe('desktop update IPC', () => {
     expect(status.win.webContents.send).not.toHaveBeenCalled();
     ipc.dispose();
     expect(mock.handlers.size).toBe(0);
+  });
+
+  it('offers a manual installer for unsupported app locations and cancels only from the host', async () => {
+    const { invoke, state, controller } = fixture();
+    state.canInstall = false;
+    await invoke(UPDATE_CHANNELS.download);
+    expect(mock.openExternal).toHaveBeenCalledWith(state.release!.downloadUrl);
+    expect(controller.download).not.toHaveBeenCalled();
+    invoke(UPDATE_CHANNELS.cancel);
+    expect(controller.cancelDownload).toHaveBeenCalledOnce();
+    state.isHost = false;
+    expect(() => invoke(UPDATE_CHANNELS.install)).toThrow('No update');
+    expect(() => invoke(UPDATE_CHANNELS.cancel)).toThrow('No update');
   });
 });
 

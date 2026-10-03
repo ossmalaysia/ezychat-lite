@@ -8,6 +8,8 @@ const updates: DesktopUpdatesBridge = {
   check: () => ipcRenderer.invoke('wati:updates-check'),
   openDownload: () => ipcRenderer.invoke('wati:updates-download'),
   openRelease: () => ipcRenderer.invoke('wati:updates-release'),
+  installUpdate: () => ipcRenderer.invoke('wati:updates-install'),
+  cancelDownload: () => ipcRenderer.invoke('wati:updates-cancel'),
   onChanged: (callback) => {
     const listener = (_event: unknown, state: DesktopUpdateState) => callback(state);
     ipcRenderer.on('wati:updates-changed', listener);

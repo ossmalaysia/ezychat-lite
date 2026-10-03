@@ -114,6 +114,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   status URL. A `file://` URL by itself is never sufficient authority.
 - OS services must execute protected runtimes: check Program Files ownership/ACLs and links on
   Windows; use a root-owned copy without ordinary-user write permissions or ACLs on macOS.
+- Managed updates accept no renderer paths or URLs. Require trusted release digest/size, reverify
+  protected staging, prepare rollback before stopping the host, and relaunch through an unelevated
+  broker. Do not use service removal/data migration as an update operation.
 - Password generation requires cryptographic randomness. Redact credential fields from live logs
   and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).

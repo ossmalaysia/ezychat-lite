@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Download and verify updates inside installed Windows and Mac hosts, show progress and prompt
+  with Restart and update. Coordinate app/service shutdown, replace both Mac runtime copies,
+  restart an installed service, verify its build, and reopen the desktop as the original user.
+  Keep rollback copies for failed installations and display the result after relaunch.
+- Keep the host's update suggestion visible and dismissible until reviewed; avoid transient toast
+  animations hiding the Review update action during startup.
 - Explain the manual background-service update steps for Windows and Mac, and report the actual
   running server build even when service configuration retains an older installation version.
 - Rename the app and repository to EzyChat Lite, reuse the official EzyChat icon across desktop

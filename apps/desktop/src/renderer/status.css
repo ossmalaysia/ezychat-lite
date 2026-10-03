@@ -133,3 +133,7 @@ pre {
 #update-notes {
   margin-top: 12px;
 }
+#updates-progress {
+  width: 100%;
+  accent-color: var(--accent);
+}

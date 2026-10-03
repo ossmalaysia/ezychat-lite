@@ -8,6 +8,8 @@ export const UPDATE_CHANNELS = {
   state: 'wati:updates-state',
   check: 'wati:updates-check',
   download: 'wati:updates-download',
+  install: 'wati:updates-install',
+  cancel: 'wati:updates-cancel',
   release: 'wati:updates-release',
   changed: 'wati:updates-changed',
 } as const;
@@ -20,6 +22,9 @@ export function isUpdateHost(mode: DesktopMode, serviceState: ServiceState): boo
 interface UpdateController {
   getState(): DesktopUpdateState;
   check(): Promise<DesktopUpdateState>;
+  download(): Promise<void>;
+  install(): Promise<void>;
+  cancelDownload(): void;
 }
 
 interface UpdateWindows {
@@ -89,7 +94,21 @@ export function registerUpdateIpc(
   };
   handle(UPDATE_CHANNELS.state, () => controller.getState());
   handle(UPDATE_CHANNELS.check, () => controller.check());
-  handle(UPDATE_CHANNELS.download, () => open('downloadUrl'));
+  handle(UPDATE_CHANNELS.download, () => {
+    const state = controller.getState();
+    if (!state.isHost || !state.release) throw new Error('No update is available on this computer');
+    if (!state.release.downloadUrl) throw new Error('No installer is available for this computer');
+    // Development/unsupported locations retain an explicit manual installer link.
+    return state.canInstall === false ? open('downloadUrl') : controller.download();
+  });
+  handle(UPDATE_CHANNELS.install, () => {
+    if (!controller.getState().isHost) throw new Error('No update is available on this computer');
+    return controller.install();
+  });
+  handle(UPDATE_CHANNELS.cancel, () => {
+    if (!controller.getState().isHost) throw new Error('No update is available on this computer');
+    controller.cancelDownload();
+  });
   handle(UPDATE_CHANNELS.release, () => open('releaseUrl'));
   return {
     broadcast(state) {

@@ -183,6 +183,10 @@ const PS_RUNTIME_HELPERS = [
   `}`,
 ];
 
+/** Shared with the updater: service wrappers and replacement runtimes need identical guards. */
+export const windowsServiceSecurityHelpers: readonly string[] = PS_HELPERS;
+export const windowsRuntimeSecurityHelpers: readonly string[] = PS_RUNTIME_HELPERS;
+
 /**
  * PowerShell script (run elevated): secure the machine data dir, copy WinSW + xml into a fresh
  * service dir, move data, lock down + verify owner/ACL, install + start.

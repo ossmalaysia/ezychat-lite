@@ -2,6 +2,7 @@ import type {
   DesktopRelease,
   DesktopUpdateState,
 } from '../../../packages/shared/src/desktop-updates.js';
+import { MAX_UPDATE_BYTES } from './updater/download.js';
 
 const REPOSITORY = 'ossmalaysia/ezychat-lite';
 // Historical releases can retain their original URLs after GitHub renames the repository.
@@ -92,22 +93,25 @@ function parseRelease(
     )
   )
     return null;
-  const expectedAsset = installerNames(versionString, platform, arch).find(
-    (name) =>
-      Array.isArray(item.assets) &&
-      item.assets.some((asset: unknown) => {
-        const details = record(asset);
-        return (
-          details?.name === name &&
-          details.state === 'uploaded' &&
-          RELEASE_REPOSITORIES.some(
-            (repo) =>
-              details.browser_download_url ===
-              `https://github.com/${repo}/releases/download/${item.tag_name}/${name}`,
-          )
-        );
-      }),
-  );
+  let installer: Record<string, unknown> | null = null;
+  for (const name of installerNames(versionString, platform, arch)) {
+    installer = Array.isArray(item.assets)
+      ? (item.assets
+          .map(record)
+          .find(
+            (details) =>
+              details?.name === name &&
+              details.state === 'uploaded' &&
+              RELEASE_REPOSITORIES.some(
+                (repo) =>
+                  details.browser_download_url ===
+                  `https://github.com/${repo}/releases/download/${item.tag_name}/${name}`,
+              ),
+          ) ?? null)
+      : null;
+    if (installer) break;
+  }
+  const expectedAsset = installer?.name as string | undefined;
   const downloadUrl = expectedAsset
     ? `https://github.com/${REPOSITORY}/releases/download/${item.tag_name}/${expectedAsset}`
     : null;
@@ -122,6 +126,17 @@ function parseRelease(
       releaseUrl,
       downloadUrl,
       assetName: expectedAsset ?? null,
+      assetSize:
+        typeof installer?.size === 'number' &&
+        Number.isSafeInteger(installer.size) &&
+        installer.size > 0 &&
+        installer.size <= MAX_UPDATE_BYTES
+          ? installer.size
+          : null,
+      assetSha256:
+        typeof installer?.digest === 'string' && /^sha256:[a-fA-F0-9]{64}$/.test(installer.digest)
+          ? installer.digest.slice('sha256:'.length).toLowerCase()
+          : null,
     },
   };
 }

@@ -31,6 +31,7 @@ import {
   serverEntry,
   serverHost,
   servicePortFile,
+  serviceRunDir,
   standalonePortFile,
   trayIconFile,
   userDataDir,
@@ -44,6 +45,14 @@ import { createServiceManager, type ServiceManager, type ServiceState } from './
 import { createTray } from './tray.js';
 import { GitHubUpdateChecker } from './update-checker.js';
 import { isUpdateHost, registerUpdateIpc } from './update-ipc.js';
+import { ManagedUpdates } from './updater/controller.js';
+import { downloadRelease, verifyDownloadedRelease } from './updater/download.js';
+import {
+  prepareUpdateInstall,
+  readUpdateInstallResult,
+  updateInstallEligibility,
+  type InstallContext,
+} from './updater/install.js';
 import {
   clearWebCacheOnVersionChange,
   createMainWindow,
@@ -186,13 +195,105 @@ async function main(): Promise<void> {
   const statusFile = join(appPath, 'src', 'renderer', 'status.html');
   const ownsHost = () => !quitting && isUpdateHost(mode, lastServiceState);
   let updateChanged = () => {};
-  const updates = new GitHubUpdateChecker({
+  const checker = new GitHubUpdateChecker({
     currentVersion: version,
     platform: process.platform,
     arch: process.arch,
     isHost: ownsHost,
     onChanged: () => updateChanged(),
     log: (fields) => log(JSON.stringify({ mod: 'desktop-updates', ...fields })),
+  });
+  const installContext = (): InstallContext => ({
+    platform: process.platform === 'darwin' ? 'darwin' : 'win32',
+    execPath: process.execPath,
+    appBundle,
+    userDataDir: app.getPath('userData'),
+    machineDataDir: machineDataDir(),
+    serviceRunDir: serviceRunDir(),
+    serviceInstalled: lastServiceState !== 'not-installed',
+    oldPid: process.pid,
+  });
+  const eligibility =
+    isPackaged && serviceSupported
+      ? updateInstallEligibility(installContext())
+      : {
+          eligible: false,
+          reason: 'Automatic installation is available in installed Windows and Mac apps.',
+        };
+  const lastInstall = await readUpdateInstallResult(app.getPath('userData')).catch(
+    (error: unknown) => {
+      log(
+        JSON.stringify({
+          mod: 'desktop-updates',
+          event: 'result_read_failed',
+          error: String(error),
+        }),
+      );
+      return null;
+    },
+  );
+  const updates = new ManagedUpdates({
+    checker,
+    canInstall: () => ownsHost() && eligibility.eligible,
+    unavailableReason: eligibility.reason ?? 'Only the hosting computer can install this update.',
+    lastInstall,
+    download: (release, signal, onProgress) =>
+      downloadRelease(release, {
+        directory: join(app.getPath('userData'), 'updates', 'downloads'),
+        signal,
+        onProgress,
+      }),
+    verify: verifyDownloadedRelease,
+    install: async (artifact) => {
+      if (busy || quitting)
+        throw new Error('Wait for the current app operation to finish before updating.');
+      let failure: unknown;
+      await runOperation(
+        'Preparing update…',
+        'Could not install the update',
+        async () => {
+          try {
+            // Refresh the actual service state while holding the same gate as install/remove/reset.
+            await currentServiceState();
+            if (!ownsHost()) throw new Error('The hosting app is no longer available to update.');
+            const prepared = await prepareUpdateInstall({
+              artifact,
+              context: installContext(),
+              onProgress: setBusy,
+            });
+            try {
+              if (quitting) throw new Error('The app closed before installation was confirmed.');
+              setBusy('Restarting to install the update…');
+              await server.stop();
+              // The external helper acknowledges handoff before this process releases its app files.
+              await prepared.commit();
+              quitting = true;
+              app.quit();
+            } catch (error) {
+              await prepared.cancel().catch((cancelError: unknown) => {
+                log(
+                  JSON.stringify({
+                    mod: 'desktop-updates',
+                    event: 'cancel_failed',
+                    error: String(cancelError),
+                  }),
+                );
+              });
+              throw error;
+            }
+          } catch (error) {
+            failure = error;
+            throw error;
+          }
+        },
+        async () => {
+          if (!quitting) await connectOrStart();
+        },
+      );
+      if (failure) throw failure;
+    },
+    onChanged: () => updateChanged(),
+    log: (fields) => log(JSON.stringify(fields)),
   });
   const syncUpdates = () => {
     if (quitting || !ownsHost()) updates.stop();
@@ -583,6 +684,9 @@ async function main(): Promise<void> {
       updateLabel: () => {
         if (!ownsHost()) return null;
         const state = updates.getState();
+        if (state.transfer?.status === 'ready')
+          return `Restart and update to v${state.transfer.version}…`;
+        if (state.transfer?.status === 'downloading') return 'Downloading update…';
         return state.release
           ? `Update available: v${state.release.version}…`
           : 'Check for updates…';

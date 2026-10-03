@@ -8,17 +8,44 @@ managed server have no update checks, workflow or alerts.
 When a newer release exists, the host shows a suggestion with the version, release notes and
 a download for its operating system and architecture. Review the update, then download when
 ready. A suggestion never installs software, quits the inbox or interrupts a conversation.
-The current unsigned releases use a guided installer download rather than automatic installation.
+
+Installed Windows and Mac hosts download and verify the matching installer inside the app.
+The inbox keeps running during the download. After verification, the app presents
+**Restart and update**; nothing is installed until you choose it.
 
 ## Install a suggested update
 
-1. Download the installer from the update panel. It opens the project's GitHub download.
-2. Choose a quiet time: updating the host briefly disconnects the team's browsers and phones.
-3. If using the background service, stop it from **Status & Service** first.
-4. Quit the desktop app from its tray menu. Closing a standalone window only hides it.
-5. On Windows, run the new installer using the existing installation location. On Mac, open
-   the DMG and replace the application in Applications.
-6. Open EzyChat Lite again. Restart the background service if you stopped it.
+1. Choose **Download** in About or **Status & Service**. The progress bar shows the download;
+   you can cancel it while continuing to use your inbox.
+2. When it says **downloaded and verified**, choose a quiet time and click **Restart and update**.
+3. Approve the Windows administrator or Mac system prompt. Cancelling keeps the current app running.
+4. The updater prepares a rollback copy, closes the app and stops any installed background service.
+   It replaces the app, refreshes the Mac service's protected runtime, restarts an installed service
+   and checks that it reports the new version. Finally it reopens the desktop as the original user.
+5. About and **Status & Service** show the installed version and the previous update's result.
+
+Updating briefly disconnects the team's browsers and phones. An installed service is restarted
+after the update, including one that was stopped beforehand. A standalone installation stays standalone.
+The updater never removes the service, moves the data directory or resets accounts.
+
+If replacement or service startup fails, the helper attempts to restore the previous app/runtime
+and restart its service. A failure is shown after relaunch. If recovery also fails, keep the rollback
+copy in the machine's `wa-team-inbox-updates` folder and use **Status & Service** to inspect the error.
+Recovery is best effort: sudden power loss or disk failure can still require manual repair.
+Rollback copies contain app/runtime binaries, not a database snapshot. The updater preserves
+the inbox data in place. A future release with incompatible database migrations may require
+restoring the server's existing data backup; this update adds no database migration.
+
+## When a manual installer is needed
+
+Automatic installation requires Windows installed under Program Files, or the Mac app directly
+in `/Applications`. Development/unpacked builds and other locations offer the GitHub installer.
+Releases without GitHub SHA-256 and size metadata also require a manual download.
+
+For a manual Windows service update, stop the service, quit the app from the tray, install in the
+same directory, reopen the app and start the service. For a manual Mac service update, remove the
+service first, quit the app, replace it in Applications, then enable the service again so its protected
+runtime receives the new version. These operations preserve the inbox data.
 
 Accounts, conversations, settings and WhatsApp credentials remain in the app's data directory;
 updating does not reset it. Phone and browser clients receive the new interface from the host.
@@ -37,6 +64,12 @@ Check the app and server version in **Status & Service** after updating a backgr
   explain that a compatible installer is unavailable.
 - Release notes are plain text. Download and release URLs must exactly match this repository
   and the selected release; renderer code cannot provide arbitrary URLs.
+- Managed installation requires the GitHub asset's `sha256` digest and exact byte size. Downloads
+  stream into private staging, restrict every redirect, remove failed partial files and are rehashed
+  before installation. The privileged helper verifies its protected copy again.
+- The native helper runs outside Electron so the old executable can exit before replacement.
+  Update staging sits outside app and inbox data directories. Existing service identity and
+  security guards remain in force; elevated code never relaunches the desktop as an administrator.
 - Checks have a 15-second timeout, bounded responses/pagination and a 60-second minimum retry
   interval. Respect GitHub rate limits, retain useful previous release details on failure and
   never report an unavailable check as up to date.
@@ -49,9 +82,10 @@ identity during the EzyChat Lite rename. No database reset or WhatsApp relink is
 the rebrand. Versions that predate the repository rename may fail their old GitHub update check;
 download the first EzyChat Lite upgrade directly from the new Releases page in that case.
 
-The first implementation covers release detection, suggestions and guided downloads. A later
-automatic installer should use signed update artifacts and coordinated service shutdown; it must
-preserve the explicit decision about when to interrupt team access.
+Current preview installers are unsigned. Checksum verification establishes the selected GitHub
+asset's integrity; it is not a developer code signature. Developer signing/notarization remains
+future release work. Windows elevation and macOS installation checks are exercised with isolated
+fixtures; real elevated Windows and Mac upgrade smoke tests are required before publishing this flow.
 
 References: [GitHub Releases API](https://docs.github.com/en/rest/releases/releases) and
 [Electron updater requirements](https://www.electronjs.org/docs/latest/api/auto-updater).
