@@ -3,7 +3,9 @@ import type {
   DesktopUpdateState,
 } from '../../../packages/shared/src/desktop-updates.js';
 
-const REPOSITORY = 'ossmalaysia/wa-team-inbox';
+const REPOSITORY = 'ossmalaysia/ezychat-lite';
+// Historical releases can retain their original URLs after GitHub renames the repository.
+const RELEASE_REPOSITORIES = [REPOSITORY, 'ossmalaysia/wa-team-inbox'];
 const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases`;
 const INTERVAL_MS = 12 * 60 * 60 * 1000;
 const COOLDOWN_MS = 60_000;
@@ -57,12 +59,13 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function installerName(version: string, platform: NodeJS.Platform, arch: string): string | null {
-  if (platform === 'win32' && arch === 'x64') return `WA-Team-Inbox-${version}-win-x64.exe`;
-  if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
-    return `WA-Team-Inbox-${version}-mac-${arch}.dmg`;
-  }
-  return null;
+function installerNames(version: string, platform: NodeJS.Platform, arch: string): string[] {
+  let suffix: string;
+  if (platform === 'win32' && arch === 'x64') suffix = 'win-x64.exe';
+  else if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64'))
+    suffix = `mac-${arch}.dmg`;
+  else return [];
+  return ['EzyChat-Lite', 'WA-Team-Inbox'].map((name) => `${name}-${version}-${suffix}`);
 }
 
 function parseRelease(
@@ -83,22 +86,31 @@ function parseRelease(
     return null;
   }
   const releaseUrl = `https://github.com/${REPOSITORY}/releases/tag/${item.tag_name}`;
-  if (item.html_url !== releaseUrl) return null;
-  const expectedAsset = installerName(versionString, platform, arch);
+  if (
+    !RELEASE_REPOSITORIES.some(
+      (repo) => item.html_url === `https://github.com/${repo}/releases/tag/${item.tag_name}`,
+    )
+  )
+    return null;
+  const expectedAsset = installerNames(versionString, platform, arch).find(
+    (name) =>
+      Array.isArray(item.assets) &&
+      item.assets.some((asset: unknown) => {
+        const details = record(asset);
+        return (
+          details?.name === name &&
+          details.state === 'uploaded' &&
+          RELEASE_REPOSITORIES.some(
+            (repo) =>
+              details.browser_download_url ===
+              `https://github.com/${repo}/releases/download/${item.tag_name}/${name}`,
+          )
+        );
+      }),
+  );
   const downloadUrl = expectedAsset
     ? `https://github.com/${REPOSITORY}/releases/download/${item.tag_name}/${expectedAsset}`
     : null;
-  const matchingAsset = Array.isArray(item.assets)
-    ? item.assets.find((asset: unknown) => {
-        const details = record(asset);
-        return (
-          expectedAsset !== null &&
-          details?.name === expectedAsset &&
-          details.state === 'uploaded' &&
-          details.browser_download_url === downloadUrl
-        );
-      })
-    : undefined;
   return {
     version,
     release: {
@@ -108,8 +120,8 @@ function parseRelease(
       publishedAt: new Date(item.published_at).toISOString(),
       prerelease: item.prerelease,
       releaseUrl,
-      downloadUrl: matchingAsset ? downloadUrl : null,
-      assetName: matchingAsset ? expectedAsset : null,
+      downloadUrl,
+      assetName: expectedAsset ?? null,
     },
   };
 }
@@ -278,7 +290,7 @@ export class GitHubUpdateChecker {
           headers: {
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'WA-Team-Inbox-Update-Checker',
+            'User-Agent': 'EzyChat-Lite-Update-Checker',
           },
           signal: controller.signal,
           redirect: 'error',

@@ -36,8 +36,8 @@ export default defineConfig({
       },
       manifest: {
         id: '/',
-        name: 'WA Team Inbox',
-        short_name: 'Team Inbox',
+        name: 'EzyChat Lite',
+        short_name: 'EzyChat Lite',
         description: 'Shared team inbox for WhatsApp',
         start_url: '/',
         scope: '/',

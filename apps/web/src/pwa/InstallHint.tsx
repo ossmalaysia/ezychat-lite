@@ -11,9 +11,13 @@ export function InstallHint({ className, force = false }: { className?: string; 
   return (
     <Banner tone="info" title="Add to Home Screen to receive notifications" className={className}>
       Tap the Share button{' '}
-      <Share className="inline size-4 align-text-bottom text-foreground" aria-label="Share" role="img" />{' '}
+      <Share
+        className="inline size-4 align-text-bottom text-foreground"
+        aria-label="Share"
+        role="img"
+      />{' '}
       in Safari, choose <strong className="text-foreground">Add to Home Screen</strong>, then open
-      Team Inbox from your home screen and turn on notifications.
+      EzyChat Lite from your home screen and turn on notifications.
     </Banner>
   );
 }

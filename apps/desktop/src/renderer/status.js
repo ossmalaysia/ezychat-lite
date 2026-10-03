@@ -85,7 +85,7 @@
     $('state').textContent = s.serverState === 'external' ? 'running (service)' : s.serverState;
     $('url').textContent = s.url;
     $('data').textContent = s.dataDir;
-    $('title').textContent = s.version ? 'WA Team Inbox v' + s.version : 'WA Team Inbox';
+    $('title').textContent = s.version ? 'EzyChat Lite v' + s.version : 'EzyChat Lite';
     $('version').textContent = s.version;
     $('server-version').textContent = s.serverVersion || 'not answering';
     $('server-mode').textContent = s.serverMode

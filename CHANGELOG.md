@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Rename the app and repository to EzyChat Lite, reuse the official EzyChat icon across desktop
+  and mobile, and update sharing and release links. Preserve existing accounts, chat data and
+  background-service identity during upgrades.
+- Explain the open-source rewrite's origins and publish a roadmap covering the team inbox,
+  optional BYOK sales agents, a light CRM and future business workflows.
 - Detect newer published GitHub releases on the hosting desktop at startup and every 12 hours.
   Suggest an update with release notes, preview labels and matching Windows/Mac downloads;
   add manual checks in About and the tray's Status & Service page. Phones, browsers and

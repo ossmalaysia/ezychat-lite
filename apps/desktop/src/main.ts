@@ -15,7 +15,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
-import { iconPng } from './icon.js';
 import {
   broadcastStatusChanged,
   registerIpc,
@@ -28,6 +27,7 @@ import {
   cloudflaredDir,
   machineDataDir,
   parseDesktopConfig,
+  preserveInstalledProfile,
   serverEntry,
   serverHost,
   servicePortFile,
@@ -53,6 +53,8 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// Electron's default profile follows productName; pin the installed profile before its lock.
+preserveInstalledProfile(app, (path) => mkdirSync(path, { recursive: true }));
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -132,17 +134,21 @@ async function main(): Promise<void> {
     if (!isPackaged) process.stdout.write(`${s}\n`);
   };
 
-  const appIcon: NativeImage = nativeImage.createFromBuffer(iconPng(256));
-  // Tray icon from build/tray (resources/tray when packaged); generated icon if missing/unreadable.
+  const appIconFile = isPackaged
+    ? join(resourcesPath, 'app-icon.png')
+    : join(appPath, 'build', 'icon.png');
+  const exportedIcon = nativeImage.createFromPath(appIconFile);
+  const appIcon: NativeImage = exportedIcon.isEmpty()
+    ? nativeImage.createFromPath(trayIconFile(isPackaged, resourcesPath, appPath, 'win32'))
+    : exportedIcon;
+  // Use checked-in brand exports for both window and tray; fall back to the window mark.
   const trayIcon: NativeImage = (() => {
     const mac = process.platform === 'darwin';
     const file = trayIconFile(isPackaged, resourcesPath, appPath);
     let img = existsSync(file) ? nativeImage.createFromPath(file) : nativeImage.createEmpty();
     if (img.isEmpty()) {
-      log(`tray icon not found at ${file}; using generated icon`);
-      img = mac
-        ? nativeImage.createFromBuffer(iconPng(32, { monochrome: true }), { scaleFactor: 2 })
-        : nativeImage.createFromBuffer(iconPng(32));
+      log(`tray icon not found at ${file}; using app icon`);
+      img = appIcon.resize({ width: 32, height: 32 });
     }
     if (mac) img.setTemplateImage(true);
     return img;
@@ -245,7 +251,7 @@ async function main(): Promise<void> {
         state === 'running'
           ? 'The background service is not answering'
           : 'The background service is not running',
-        'WA Team Inbox runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
+        'EzyChat Lite runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
       ),
     );
   };
@@ -292,7 +298,7 @@ async function main(): Promise<void> {
       if (mode === 'standalone' || mode === 'client') void mainWindow.loadURL(url + path);
       else
         void mainWindow.loadURL(
-          messagePage('Starting WA Team Inbox…', 'Starting the local server.'),
+          messagePage('Starting EzyChat Lite…', 'Starting the local server.'),
         );
     } else if (path !== '/') {
       void mainWindow.loadURL(url + path);
@@ -326,7 +332,7 @@ async function main(): Promise<void> {
     log(`[desktop] ${title}: ${msg}`);
     void dialog.showMessageBox({
       type: 'error',
-      title: 'WA Team Inbox',
+      title: 'EzyChat Lite',
       message: title,
       detail: msg,
     });
@@ -335,7 +341,7 @@ async function main(): Promise<void> {
 
   const startStandalone = async (): Promise<boolean> => {
     setMode('starting');
-    loadMain(messagePage('Starting WA Team Inbox…', 'Starting the local server.'));
+    loadMain(messagePage('Starting EzyChat Lite…', 'Starting the local server.'));
     server.start();
     const ok = await server.waitRunning(45_000);
     adoptPort(server.port);
@@ -389,7 +395,7 @@ async function main(): Promise<void> {
         loadMain(
           messagePage(
             'Connecting to the background service…',
-            'Waiting for the WA Team Inbox service to start.',
+            'Waiting for the EzyChat Lite service to start.',
           ),
         );
         if (await waitForService(60_000)) {
@@ -477,7 +483,7 @@ async function main(): Promise<void> {
           const { response } = await dialog.showMessageBox({
             type: 'question',
             title: 'Run as background service',
-            message: 'Run WA Team Inbox as a background service?',
+            message: 'Run EzyChat Lite as a background service?',
             detail:
               'The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n' +
               machineDataDir() +

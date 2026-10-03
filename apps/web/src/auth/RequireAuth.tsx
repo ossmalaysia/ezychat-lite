@@ -47,7 +47,7 @@ function ServerUnreachable({ message }: { message: string }) {
   return (
     <div className="safe-x flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-3">
-        <Banner tone="danger" title="Can't load WA Team Inbox">
+        <Banner tone="danger" title="Can't load EzyChat Lite">
           {message}
         </Banner>
         <Button size="touch" className="w-full" onClick={() => window.location.reload()}>

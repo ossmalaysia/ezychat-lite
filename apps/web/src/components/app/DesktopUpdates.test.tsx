@@ -22,10 +22,10 @@ const available: DesktopUpdateState = {
     notes: '<script>untrusted release text</script>',
     publishedAt: '2026-10-03T11:00:00Z',
     prerelease: true,
-    releaseUrl: 'https://github.com/ossmalaysia/wa-team-inbox/releases/tag/v0.1.13',
+    releaseUrl: 'https://github.com/ossmalaysia/ezychat-lite/releases/tag/v0.1.13',
     downloadUrl:
-      'https://github.com/ossmalaysia/wa-team-inbox/releases/download/v0.1.13/WA-Team-Inbox-0.1.13-win-x64.exe',
-    assetName: 'WA-Team-Inbox-0.1.13-win-x64.exe',
+      'https://github.com/ossmalaysia/ezychat-lite/releases/download/v0.1.13/EzyChat-Lite-0.1.13-win-x64.exe',
+    assetName: 'EzyChat-Lite-0.1.13-win-x64.exe',
   },
 };
 let listeners: Set<(state: DesktopUpdateState) => void>;

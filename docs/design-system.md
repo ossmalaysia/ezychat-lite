@@ -1,6 +1,6 @@
 # Design System — "Calm Desk"
 
-WA Team Inbox is a tool people keep open all day to answer customers. The design language is
+EzyChat Lite is a tool people keep open all day to answer customers. The design language is
 **quiet, dense, and work-focused**: neutral surfaces, colour only where it carries meaning
 (unread, assignment, status, connection state), and clear separation between what the customer
 sees and what only the team sees.

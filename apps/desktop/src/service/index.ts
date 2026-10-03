@@ -32,7 +32,7 @@ export { DataMoveError, dataMoveCommands } from './data-move.js';
 const BOM = '\uFEFF';
 
 export const SERVICE_ID = 'wa-team-inbox';
-export const SERVICE_NAME = 'WA Team Inbox Server';
+export const SERVICE_NAME = 'EzyChat Lite Server';
 export const LAUNCHD_LABEL = 'org.ossmalaysia.wateaminbox.server';
 
 export interface ServiceManager {
@@ -72,11 +72,16 @@ interface ExecResult {
 
 function run(file: string, args: string[]): Promise<ExecResult> {
   return new Promise((resolve) => {
-    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
-      const errCode = (err as { code?: unknown } | null)?.code;
-      const code = err ? (typeof errCode === 'number' ? errCode : 1) : 0;
-      resolve({ code, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') });
-    });
+    execFile(
+      file,
+      args,
+      { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const errCode = (err as { code?: unknown } | null)?.code;
+        const code = err ? (typeof errCode === 'number' ? errCode : 1) : 0;
+        resolve({ code, stdout: String(stdout ?? ''), stderr: String(stderr ?? '') });
+      },
+    );
   });
 }
 
@@ -101,7 +106,8 @@ export function serviceCommand(
     WATI_CLOUDFLARED_DIR: d.cloudflaredDir,
     WATI_PORT_FILE: servicePortFile(platform),
   };
-  if (d.cloudflaredBinary && exists(d.cloudflaredBinary)) env.WATI_CLOUDFLARED = d.cloudflaredBinary;
+  if (d.cloudflaredBinary && exists(d.cloudflaredBinary))
+    env.WATI_CLOUDFLARED = d.cloudflaredBinary;
   const cmd = {
     exe: d.execPath,
     args: [
@@ -118,7 +124,9 @@ export function serviceCommand(
     ],
     env,
   };
-  return platform === 'darwin' && d.appBundle ? remapRuntimePaths(cmd, d.appBundle, macRuntimeBundle(d.appBundle)) : cmd;
+  return platform === 'darwin' && d.appBundle
+    ? remapRuntimePaths(cmd, d.appBundle, macRuntimeBundle(d.appBundle))
+    : cmd;
 }
 
 /** Runs a PowerShell script elevated (UAC prompt); returns its combined output. */
@@ -154,7 +162,11 @@ async function runElevatedWindows(script: string): Promise<string> {
       '-Command',
       `$p = Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList ${argList}; exit $p.ExitCode`,
     ]);
-    const out = existsSync(log) ? readFileSync(log, 'utf8').replace(/^\uFEFF/, '').trim() : '';
+    const out = existsSync(log)
+      ? readFileSync(log, 'utf8')
+          .replace(/^\uFEFF/, '')
+          .trim()
+      : '';
     if (r.code !== 0) {
       const msg = out || r.stderr.trim() || 'Elevated command failed or was cancelled.';
       throw new Error(msg);
@@ -172,7 +184,7 @@ async function runElevatedMac(script: string): Promise<string> {
   writeFileSync(file, script, { encoding: 'utf8', mode: 0o700 });
   try {
     return await new Promise<string>((resolve, reject) => {
-      sudoExec(`/bin/bash ${shQuote(file)}`, { name: 'WA Team Inbox' }, (err, stdout, stderr) => {
+      sudoExec(`/bin/bash ${shQuote(file)}`, { name: 'EzyChat Lite' }, (err, stdout, stderr) => {
         if (err) reject(new Error(String(stderr ?? '').trim() || err.message));
         else resolve(String(stdout ?? '').trim());
       });
@@ -223,14 +235,26 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         );
       },
       async start() {
-        log(await runElevatedWindows(windowsControlScript({ id: SERVICE_ID, serviceDir, action: 'start' })));
+        log(
+          await runElevatedWindows(
+            windowsControlScript({ id: SERVICE_ID, serviceDir, action: 'start' }),
+          ),
+        );
       },
       async stop() {
-        log(await runElevatedWindows(windowsControlScript({ id: SERVICE_ID, serviceDir, action: 'stop' })));
+        log(
+          await runElevatedWindows(
+            windowsControlScript({ id: SERVICE_ID, serviceDir, action: 'stop' }),
+          ),
+        );
       },
       async resetAdmin() {
         return runElevatedWindows(
-          windowsResetAdminScript({ exe: deps.execPath, entry: deps.serverEntry, dataDir: deps.machineDataDir }),
+          windowsResetAdminScript({
+            exe: deps.execPath,
+            entry: deps.serverEntry,
+            dataDir: deps.machineDataDir,
+          }),
         );
       },
     };
@@ -240,7 +264,11 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
     return {
       async status() {
         const r = await run('launchctl', ['print', `system/${LAUNCHD_LABEL}`]);
-        return parseLaunchctlPrint(r.code, r.stdout + r.stderr, existsSync(plistPath(LAUNCHD_LABEL)));
+        return parseLaunchctlPrint(
+          r.code,
+          r.stdout + r.stderr,
+          existsSync(plistPath(LAUNCHD_LABEL)),
+        );
       },
       async install() {
         const cmd = serviceCommand(deps, 'darwin');
@@ -253,7 +281,9 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
           dataDir: deps.machineDataDir,
           moveFrom: deps.userDataDir,
           exists: existsSync,
-          runtime: deps.appBundle ? { from: deps.appBundle, to: macRuntimeBundle(deps.appBundle) } : undefined,
+          runtime: deps.appBundle
+            ? { from: deps.appBundle, to: macRuntimeBundle(deps.appBundle) }
+            : undefined,
         });
         log(await runElevatedMac(script));
       },
@@ -280,7 +310,9 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         // run the root-owned runtime copy (not the user-writable bundle) when there is one
         const cmd = serviceCommand(deps, 'darwin');
         const entry = cmd.args[1] ?? deps.serverEntry;
-        return runElevatedMac(macResetAdminScript({ exe: cmd.exe, entry, dataDir: deps.machineDataDir }));
+        return runElevatedMac(
+          macResetAdminScript({ exe: cmd.exe, entry, dataDir: deps.machineDataDir }),
+        );
       },
     };
   }

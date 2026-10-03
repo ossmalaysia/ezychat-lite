@@ -5,7 +5,7 @@ import { ResponsiveDialog } from './index';
 import { AppCredits } from './AppCredits';
 import { DesktopUpdatePanel } from './DesktopUpdates';
 
-/** "About WA Team Inbox": icon, name, description, version, repo link and credits. */
+/** "About EzyChat Lite": icon, name, description, version, repo link and credits. */
 export function AboutDialog({
   open,
   onOpenChange,
@@ -19,7 +19,7 @@ export function AboutDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="About WA Team Inbox"
+      title="About EzyChat Lite"
       description="One WhatsApp number, one shared inbox for your whole team — served from your own computer."
     >
       <div className="flex flex-col items-center gap-4 pb-4 text-center">
@@ -30,7 +30,7 @@ export function AboutDialog({
           className="size-16 select-none rounded-2xl"
         />
         <div>
-          <p className="text-base font-semibold">WA Team Inbox</p>
+          <p className="text-base font-semibold">EzyChat Lite</p>
           <p className="text-sm text-muted-foreground">
             {version ? `Version ${version}` : 'Version unknown'}
           </p>

@@ -56,7 +56,7 @@ export function winswXml(o: WinswOptions): string {
     '<service>',
     `  <id>${xmlEscape(o.id)}</id>`,
     `  <name>${xmlEscape(o.name)}</name>`,
-    `  <description>${xmlEscape(o.name)} - shared team inbox server (WA Team Inbox)</description>`,
+    `  <description>${xmlEscape(o.name)} - shared team inbox server (EzyChat Lite)</description>`,
     `  <executable>${xmlEscape(o.exe)}</executable>`,
     `  <arguments>${xmlEscape(o.args.map(quoteWinArg).join(' '))}</arguments>`,
     env,
@@ -235,7 +235,9 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
     `}`,
     `if (Test-Path -LiteralPath ${psQuote(o.serviceDir)}) { Remove-Item -LiteralPath ${psQuote(o.serviceDir)} -Recurse -Force }`,
     ...(o.runDir
-      ? [`if (Test-Path -LiteralPath ${psQuote(o.runDir)}) { Remove-Item -LiteralPath ${psQuote(o.runDir)} -Recurse -Force }`]
+      ? [
+          `if (Test-Path -LiteralPath ${psQuote(o.runDir)}) { Remove-Item -LiteralPath ${psQuote(o.runDir)} -Recurse -Force }`,
+        ]
       : []),
     ...dataMoveCommands('win32', o.dataDir, o.moveTo, null),
     `if (Test-Path -LiteralPath ${psQuote(o.moveTo)}) {`,
@@ -246,13 +248,24 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
   return lines.join('\r\n') + '\r\n';
 }
 
-export function windowsControlScript(o: { id: string; serviceDir: string; action: 'start' | 'stop' }): string {
+export function windowsControlScript(o: {
+  id: string;
+  serviceDir: string;
+  action: 'start' | 'stop';
+}): string {
   const exe = `${o.serviceDir}\\${o.id}.exe`;
-  return [...PS_HEADER, `& ${psQuote(exe)} ${o.action}`, checkExit(`service ${o.action}`)].join('\r\n') + '\r\n';
+  return (
+    [...PS_HEADER, `& ${psQuote(exe)} ${o.action}`, checkExit(`service ${o.action}`)].join('\r\n') +
+    '\r\n'
+  );
 }
 
 /** Elevated reset-admin: runs the server entry with --reset-admin against the machine data dir. */
-export function windowsResetAdminScript(o: { exe: string; entry: string; dataDir: string }): string {
+export function windowsResetAdminScript(o: {
+  exe: string;
+  entry: string;
+  dataDir: string;
+}): string {
   return (
     [
       ...PS_HEADER,

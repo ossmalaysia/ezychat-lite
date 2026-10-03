@@ -67,7 +67,7 @@ test.describe('guided setup and app sharing at phone width', () => {
     const dialog = page.getByRole('dialog', { name: 'Share this app', exact: true });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel('Public app link', { exact: true })).toHaveValue(
-      'https://github.com/ossmalaysia/wa-team-inbox',
+      'https://github.com/ossmalaysia/ezychat-lite',
     );
     await expect(dialog.getByLabel('Your message', { exact: true })).toHaveValue(/I own my data/);
     for (const [platform, param] of [
@@ -78,14 +78,14 @@ test.describe('guided setup and app sharing at phone width', () => {
         .getByRole('link', { name: new RegExp(`^${platform}`) })
         .getAttribute('href');
       expect(new URL(link!).searchParams.get(param)).toBe(
-        'https://github.com/ossmalaysia/wa-team-inbox',
+        'https://github.com/ossmalaysia/ezychat-lite',
       );
     }
     await expectNoHorizontalScroll(page, 'Share this app');
     const downloading = page.waitForEvent('download');
     await dialog.getByRole('button', { name: 'Download Instagram image', exact: true }).click();
     const download = await downloading;
-    expect(download.suggestedFilename()).toBe('wa-team-inbox.png');
+    expect(download.suggestedFilename()).toBe('ezychat-lite.png');
     const bytes = await readFile((await download.path())!);
     expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
     expect(bytes.readUInt32BE(16)).toBe(1080);

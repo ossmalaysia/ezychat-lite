@@ -1,16 +1,49 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { join } from 'node:path';
 import {
   cloudflaredBinary,
   cloudflaredDir,
   machineDataDir,
   parseDesktopConfig,
+  preserveInstalledProfile,
   serverEntry,
   trayIconFile,
   userDataDir,
   webDistDir,
   winswExe,
 } from './paths.js';
+
+describe('installed profile compatibility', () => {
+  it.each(['C:/Users/me/AppData/Roaming', '/Users/me/Library/Application Support'])(
+    'pins storage and sessions to the existing profile under %s',
+    (appData) => {
+      const calls: unknown[] = [];
+      preserveInstalledProfile(
+        {
+          isPackaged: true,
+          getPath: () => appData,
+          setPath: (name, path) => calls.push([name, path]),
+        },
+        (path) => calls.push(['mkdir', path]),
+      );
+      const legacyProfile = join(appData, 'WA Team Inbox');
+      expect(calls).toEqual([
+        ['mkdir', legacyProfile],
+        ['userData', legacyProfile],
+        ['sessionData', legacyProfile],
+      ]);
+    },
+  );
+  it('leaves development and isolated test profiles alone', () => {
+    const getPath = vi.fn();
+    const setPath = vi.fn();
+    const ensureDirectory = vi.fn();
+    preserveInstalledProfile({ isPackaged: false, getPath, setPath }, ensureDirectory);
+    expect(getPath).not.toHaveBeenCalled();
+    expect(setPath).not.toHaveBeenCalled();
+    expect(ensureDirectory).not.toHaveBeenCalled();
+  });
+});
 
 describe('machineDataDir', () => {
   it('uses ProgramData on Windows', () => {
@@ -33,17 +66,23 @@ describe('app paths', () => {
     expect(userDataDir(app)).toBe(join('/u', 'data'));
   });
   it('serverEntry lives under the app path (asar when packaged)', () => {
-    expect(serverEntry(true, '/res', '/res/app.asar')).toBe(join('/res/app.asar', 'dist', 'server', 'server.cjs'));
+    expect(serverEntry(true, '/res', '/res/app.asar')).toBe(
+      join('/res/app.asar', 'dist', 'server', 'server.cjs'),
+    );
     expect(serverEntry(false, '/res', '/repo/apps/desktop')).toBe(
       join('/repo/apps/desktop', 'dist', 'server', 'server.cjs'),
     );
   });
   it('webDistDir is resources/web when packaged, apps/web/dist in dev', () => {
     expect(webDistDir(true, '/res', '/res/app.asar')).toBe(join('/res', 'web'));
-    expect(webDistDir(false, '/res', '/repo/apps/desktop')).toBe(join('/repo/apps/desktop', '..', 'web', 'dist'));
+    expect(webDistDir(false, '/res', '/repo/apps/desktop')).toBe(
+      join('/repo/apps/desktop', '..', 'web', 'dist'),
+    );
   });
   it('cloudflaredDir is resources/cloudflared when packaged, repo resources/<platform>-<arch> in dev', () => {
-    expect(cloudflaredDir(true, '/res', '/res/app.asar', 'win32', 'x64')).toBe(join('/res', 'cloudflared'));
+    expect(cloudflaredDir(true, '/res', '/res/app.asar', 'win32', 'x64')).toBe(
+      join('/res', 'cloudflared'),
+    );
     expect(cloudflaredDir(false, '/res', '/repo/apps/desktop', 'darwin', 'arm64')).toBe(
       join('/repo/apps/desktop', '..', '..', 'resources', 'cloudflared', 'darwin-arm64'),
     );
@@ -82,22 +121,32 @@ describe('service host + port files', () => {
   it('windows service port file is in a run sub-folder of the machine data dir', async () => {
     const { servicePortFile, serviceRunDir } = await import('./paths.js');
     expect(serviceRunDir('win32', { ProgramData: 'D:\\PD' })).toBe('D:\\PD\\wa-team-inbox\\run');
-    expect(servicePortFile('win32', { ProgramData: 'D:\\PD' })).toBe('D:\\PD\\wa-team-inbox\\run\\port.json');
+    expect(servicePortFile('win32', { ProgramData: 'D:\\PD' })).toBe(
+      'D:\\PD\\wa-team-inbox\\run\\port.json',
+    );
   });
   it('macOS service port file is in the root-owned runtime dir (not the 700 data dir)', async () => {
     const { servicePortFile } = await import('./paths.js');
-    expect(servicePortFile('darwin', {})).toBe('/Library/Application Support/wa-team-inbox-runtime/port.json');
+    expect(servicePortFile('darwin', {})).toBe(
+      '/Library/Application Support/wa-team-inbox-runtime/port.json',
+    );
   });
 });
 
 describe('trayIconFile', () => {
   it('uses the template image on macOS from resources when packaged', () => {
-    expect(trayIconFile(true, '/res', '/res/app.asar', 'darwin')).toBe(join('/res', 'tray', 'trayTemplate.png'));
+    expect(trayIconFile(true, '/res', '/res/app.asar', 'darwin')).toBe(
+      join('/res', 'tray', 'trayTemplate.png'),
+    );
   });
   it('uses tray.png on Windows from resources when packaged', () => {
-    expect(trayIconFile(true, 'C:/res', 'C:/res/app.asar', 'win32')).toBe(join('C:/res', 'tray', 'tray.png'));
+    expect(trayIconFile(true, 'C:/res', 'C:/res/app.asar', 'win32')).toBe(
+      join('C:/res', 'tray', 'tray.png'),
+    );
   });
   it('uses build/tray next to the app in dev', () => {
-    expect(trayIconFile(false, '/x', '/repo/apps/desktop', 'win32')).toBe(join('/repo/apps/desktop', 'build', 'tray', 'tray.png'));
+    expect(trayIconFile(false, '/x', '/repo/apps/desktop', 'win32')).toBe(
+      join('/repo/apps/desktop', 'build', 'tray', 'tray.png'),
+    );
   });
 });

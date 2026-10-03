@@ -91,7 +91,7 @@ export function DesktopUpdateNotice() {
     const version = state.release.version;
     if (shown.current === version) return;
     shown.current = version;
-    toast(`WA Team Inbox ${version} is available`, {
+    toast(`EzyChat Lite ${version} is available`, {
       id: 'desktop-update-available',
       description: state.release.prerelease
         ? 'A new preview release is ready on GitHub.'
@@ -107,7 +107,7 @@ export function DesktopUpdateNotice() {
   }, []);
   if (!user || !state?.isHost) return null;
   return (
-    <ResponsiveDialog open={open} onOpenChange={setOpen} title="Update WA Team Inbox">
+    <ResponsiveDialog open={open} onOpenChange={setOpen} title="Update EzyChat Lite">
       <DesktopUpdatePanel />
     </ResponsiveDialog>
   );

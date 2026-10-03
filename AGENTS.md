@@ -3,7 +3,7 @@
 Instructions for every AI coding agent working in this repository (Codex, Claude Code, Cursor, …).
 This file is the single source of truth; `CLAUDE.md` imports it. Edit rules **here**.
 
-WA Team Inbox: an Electron desktop app (macOS/Windows) that links one WhatsApp number through
+EzyChat Lite: an Electron desktop app (macOS/Windows) that links one WhatsApp number through
 Baileys and serves a shared team-inbox PWA locally, over LAN, or through a Cloudflare tunnel.
 npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, all named
 `@wa-team-inbox/*`. Node 22+, TypeScript strict, ESM. Main dev machine is Windows 11.
@@ -82,6 +82,8 @@ chat, `composing` presence before each send. Jobs wait while disconnected and fa
 `media/`, `secret.key` (AES key for settings secrets such as the tunnel token), `logs/` (pino-roll,
 daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`, nightly, 7 kept),
 plus a lock file. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
+The legacy data-folder, Windows executable, service and app IDs are intentional upgrade contracts;
+do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
 `web`, …). Browser errors (window errors, unhandled rejections, React error boundaries) are POSTed to
@@ -159,6 +161,8 @@ the rule in this file. (Claude Code enforces this with a Stop hook; other agents
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
+After repository setup, `main` is protected: use feature branches and reviewed pull requests;
+never bypass its approval, CI or conversation-resolution requirements for routine changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.

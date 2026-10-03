@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitHubUpdateChecker, type GitHubUpdateCheckerOptions } from './update-checker.js';
 
-const REPO = 'https://github.com/ossmalaysia/wa-team-inbox';
+const REPO = 'https://github.com/ossmalaysia/ezychat-lite';
 
 function release(version: string, overrides: Record<string, unknown> = {}) {
   const tag = `v${version}`;
@@ -61,7 +61,7 @@ describe('GitHubUpdateChecker', () => {
       },
     });
     expect(fetcher).toHaveBeenCalledWith(
-      'https://api.github.com/repos/ossmalaysia/wa-team-inbox/releases?per_page=100&page=1',
+      'https://api.github.com/repos/ossmalaysia/ezychat-lite/releases?per_page=100&page=1',
       expect.objectContaining({
         redirect: 'error',
         signal: expect.any(AbortSignal),
@@ -76,6 +76,39 @@ describe('GitHubUpdateChecker', () => {
       arch,
     }).check();
     expect(state.release?.assetName).toBe(`WA-Team-Inbox-0.1.9-mac-${arch}.dmg`);
+  });
+
+  it.each([
+    { platform: 'win32' as const, arch: 'x64', suffix: 'win-x64.exe' },
+    { platform: 'darwin' as const, arch: 'x64', suffix: 'mac-x64.dmg' },
+    { platform: 'darwin' as const, arch: 'arm64', suffix: 'mac-arm64.dmg' },
+  ])('prefers the new EzyChat Lite installer for $platform/$arch', async (options) => {
+    const item = release('0.1.13');
+    const name = `EzyChat-Lite-0.1.13-${options.suffix}`;
+    item.assets.push({
+      name,
+      state: 'uploaded',
+      browser_download_url: `${REPO}/releases/download/v0.1.13/${name}`,
+    });
+    const state = await checker(vi.fn().mockResolvedValue(response([item])), options).check();
+    expect(state.release).toMatchObject({
+      assetName: name,
+      downloadUrl: `${REPO}/releases/download/v0.1.13/${name}`,
+    });
+  });
+
+  it('normalizes historical release URLs to the renamed repository', async () => {
+    const oldRepo = 'https://github.com/ossmalaysia/wa-team-inbox';
+    const item = release('0.1.9', { html_url: `${oldRepo}/releases/tag/v0.1.9` });
+    item.assets = item.assets.map((asset) => ({
+      ...asset,
+      browser_download_url: asset.browser_download_url.replace(REPO, oldRepo),
+    }));
+    const state = await checker(vi.fn().mockResolvedValue(response([item]))).check();
+    expect(state.release).toMatchObject({
+      releaseUrl: `${REPO}/releases/tag/v0.1.9`,
+      downloadUrl: `${REPO}/releases/download/v0.1.9/WA-Team-Inbox-0.1.9-win-x64.exe`,
+    });
   });
 
   it('sorts numerically, ignoring publication order and draft/invalid/unpublished versions', async () => {

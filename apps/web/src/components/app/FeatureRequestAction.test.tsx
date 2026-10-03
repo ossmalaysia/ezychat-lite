@@ -24,7 +24,7 @@ it('offers a feature-request draft before signing in', () => {
   render(<AuthShell title="Sign in">Login form</AuthShell>);
   const action = screen.getByRole('link', { name: /Request a feature/ });
   expect(action.getAttribute('href')).toBe(
-    'https://github.com/ossmalaysia/wa-team-inbox/issues/new?template=feature_request.yml',
+    'https://github.com/ossmalaysia/ezychat-lite/issues/new?template=feature_request.yml',
   );
   expect(action.getAttribute('target')).toBe('_blank');
   expect(action.getAttribute('rel')).toBe('noopener noreferrer');
@@ -42,7 +42,7 @@ it.each([false, true])('offers the request action to an account with admin=%s', 
   const action = screen.getByRole('menuitem', { name: /Request a feature/ });
   expect(action.tagName).toBe('A');
   expect(action.getAttribute('href')).toBe(
-    'https://github.com/ossmalaysia/wa-team-inbox/issues/new?template=feature_request.yml',
+    'https://github.com/ossmalaysia/ezychat-lite/issues/new?template=feature_request.yml',
   );
   expect(action.getAttribute('target')).toBe('_blank');
 });
