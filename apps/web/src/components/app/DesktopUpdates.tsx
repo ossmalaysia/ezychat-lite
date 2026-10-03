@@ -48,8 +48,9 @@ export function DesktopUpdatePanel() {
           </p>
           <p className="text-xs text-muted-foreground">
             Updating the host briefly interrupts team access. Choose a quiet time. If you run the
-            background service, stop it in Status &amp; Service before installing and start it again
-            afterward.
+            background service on Windows, stop it in Status &amp; Service before installing and
+            start it again afterward. On Mac, remove the service before installing, then enable it
+            again afterward to update its protected app copy. Service removal keeps your data.
           </p>
           <div className="flex flex-wrap gap-2">
             {release.downloadUrl && (

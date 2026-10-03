@@ -91,6 +91,11 @@ Other remaining limits:
   service, stop it and reinstall the app in protected Program Files before enabling it again.
   For macOS, reinstall the service to recreate its runtime without source ACLs. Standard unpacked
   development builds can continue in standalone mode.
+- Update detection and installer downloads work on the service-owning desktop, but installation
+  and service handling remain manual. Windows services need stop/install/start; Mac services need
+  removal before installing and re-enabling afterward to refresh their protected copy. Updated
+  instructions explain this distinction. The launcher now reports its runtime package version
+  instead of an old `WATI_VERSION` saved during service installation.
 - Installers are still unsigned, and macOS signing/notarization requires maintainer certificates.
   This review cannot eliminate OS reputation warnings without a release-signing process.
 - LAN HTTP does not provide transport encryption. Use the HTTPS tunnel for access beyond a

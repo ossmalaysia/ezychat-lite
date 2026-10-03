@@ -48,7 +48,7 @@
     $('updates-help').textContent =
       release && !release.downloadUrl
         ? 'This release has no installer for this computer. Open release details for available downloads.'
-        : 'Install the new release when your team can briefly pause work. Your accounts, chats and settings are preserved. If you use the background service, stop it here before installing and start it again afterward.';
+        : 'Install the new release when your team can briefly pause work. Your accounts, chats and settings are preserved. For a Windows background service, stop it here before installing and start it afterward. On Mac, remove the service before installing, then enable it again afterward to update its protected app copy. Service removal keeps your data.';
   }
 
   function refreshUpdates() {

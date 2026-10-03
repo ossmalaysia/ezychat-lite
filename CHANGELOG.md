@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Explain the manual background-service update steps for Windows and Mac, and report the actual
+  running server build even when service configuration retains an older installation version.
 - Rename the app and repository to EzyChat Lite, reuse the official EzyChat icon across desktop
   and mobile, and update sharing and release links. Preserve existing accounts, chat data and
   background-service identity during upgrades.
