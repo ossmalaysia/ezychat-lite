@@ -76,7 +76,7 @@ Turn off Wi-Fi on the phone for this section.
 - [ ] **iPhone (iOS 16.4+), Safari:** open the tunnel URL → Share → **Add to Home Screen**. Open the Home Screen app,
       sign in, enable notifications when prompted (or in the profile menu) and allow.
 - [ ] **Android, Chrome:** open the tunnel URL → menu → **Install app** / Add to Home Screen. Open it, sign in, enable notifications.
-- [ ] Both apps launch full-screen with the WA Team Inbox icon and name; layout fits at the phone width without horizontal scroll.
+- [ ] Both apps launch full-screen with the EzyChat Lite icon and name; layout fits at the phone width without horizontal scroll.
 - [ ] Close the PWA on both phones (and lock the screens). Customer sends a message to an **unassigned** chat:
       both phones get a notification; tapping it opens that chat.
 - [ ] Assign the chat to the Android user only; next customer message notifies only Android.
@@ -96,7 +96,7 @@ Repeat this section on both operating systems.
 - [ ] Tray → **Status & Service…** → enable the service; approve the admin (UAC / password) prompt.
 - [ ] The window reconnects as a client; chats, users and the WhatsApp link are unchanged (data moved to
       `C:\ProgramData\wa-team-inbox` or `/Library/Application Support/wa-team-inbox`).
-- [ ] Windows: `services.msc` shows the WA Team Inbox service as Running / Automatic.
+- [ ] Windows: `services.msc` shows the EzyChat Lite service as Running / Automatic.
       macOS: `sudo launchctl print system/org.ossmalaysia.wateaminbox.server` shows it running.
 - [ ] Start a tunnel. **Reboot and do not sign in.** From a phone on mobile data, after ~2 min the tunnel URL
       (named tunnel; a quick tunnel gets a new URL) works and a customer message arrives and triggers push.

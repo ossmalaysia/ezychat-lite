@@ -8,7 +8,7 @@ import { AppCredits } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { useAppVersion } from '@/lib/version';
 
-/** Brand mark: two playful chat teammates on a teal tile. */
+/** Official EzyChat brand mark, shared by desktop and installed PWA. */
 export function AppMark({ className = 'size-10' }: { className?: string }) {
   return (
     <img
@@ -42,7 +42,7 @@ export function AuthShell({
         <div className={cn('w-full min-w-0', wide ? 'max-w-xl' : 'max-w-sm')}>
           <div className="mb-4 flex items-center justify-center gap-2">
             <AppMark className="size-8 rounded-lg" />
-            <span className="text-sm font-semibold tracking-tight">WA Team Inbox</span>
+            <span className="text-sm font-semibold tracking-tight">EzyChat Lite</span>
           </div>
           <Card className="gap-5 py-5 sm:py-6">
             <CardHeader className="items-center px-4 text-center sm:px-6">

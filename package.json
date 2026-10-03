@@ -1,8 +1,8 @@
 {
-  "name": "wa-team-inbox",
-  "version": "0.1.9",
+  "name": "ezychat-lite",
+  "version": "0.1.15",
   "private": true,
-  "description": "WA Team Inbox - a shared team inbox for one WhatsApp number, served locally, over LAN or through a Cloudflare tunnel.",
+  "description": "EzyChat Lite - a free, self-hosted WhatsApp team inbox that runs on your computer. You own your data.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -41,5 +41,10 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ossmalaysia/ezychat-lite.git"
+  },
+  "homepage": "https://ezychat.ai/"
 }

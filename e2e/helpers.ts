@@ -102,7 +102,23 @@ export async function signIn(page: Page, username: string, password: string): Pr
   await page.goto('/login');
   await page.getByLabel('Username').fill(username);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  const submit = async () => {
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) => new URL(r.url()).pathname === '/api/auth/login' && r.request().method() === 'POST',
+      ),
+      page.getByRole('button', { name: 'Sign in' }).click(),
+    ]);
+    return response;
+  };
+  const response = await submit();
+  if (response.status() !== 429) return;
+  // Browser projects share loopback's login quota. Honor the server's actual cooldown.
+  const seconds = Number(response.headers()['retry-after']);
+  expect(Number.isInteger(seconds) && seconds > 0 && seconds <= 60).toBe(true);
+  test.setTimeout(test.info().timeout + seconds * 1000);
+  await page.waitForTimeout(seconds * 1000);
+  expect((await submit()).status()).toBe(200);
 }
 
 export function inboxHeading(page: Page) {

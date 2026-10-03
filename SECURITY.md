@@ -17,6 +17,6 @@ We aim to acknowledge reports within 7 days and will keep you informed while a f
 
 ## Scope notes
 
-WA Team Inbox stores WhatsApp session credentials and customer messages locally. Issues that
+EzyChat Lite stores WhatsApp session credentials and customer messages locally. Issues that
 expose these (authentication bypass, setup takeover, path traversal in media serving, tunnel
 exposure, service install scripts) are especially relevant.

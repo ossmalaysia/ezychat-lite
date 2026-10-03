@@ -168,7 +168,7 @@ export class StandaloneServer extends EventEmitter {
       const p = utilityProcess.fork(o.host, [o.entry, ...args], {
         env: env as Record<string, string>,
         stdio: 'pipe',
-        serviceName: 'WA Team Inbox Server',
+        serviceName: 'EzyChat Lite Server',
       });
       this.child = { kind: 'utility', p };
     }

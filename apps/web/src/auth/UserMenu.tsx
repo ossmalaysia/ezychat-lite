@@ -123,7 +123,7 @@ export function UserMenu({
           </DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => setAboutOpen(true)}>
             <Info aria-hidden="true" />
-            About WA Team Inbox
+            About EzyChat Lite
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

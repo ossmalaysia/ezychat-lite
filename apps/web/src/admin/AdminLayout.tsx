@@ -185,7 +185,7 @@ export function AdminLayout() {
             <SheetContent side="left" className="w-72 max-w-[85vw] gap-0 p-0">
               <SheetHeader className="border-b">
                 <SheetTitle>Admin</SheetTitle>
-                <SheetDescription>WA Team Inbox</SheetDescription>
+                <SheetDescription>EzyChat Lite</SheetDescription>
               </SheetHeader>
               <AdminMenu version={version ?? undefined} onNavigate={() => setMenuOpen(false)} />
             </SheetContent>
@@ -198,7 +198,7 @@ export function AdminLayout() {
         <div className="sticky top-0 flex h-dvh flex-col">
           <div className="border-b px-4 py-4">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              WA Team Inbox
+              EzyChat Lite
             </p>
             <p className="text-lg font-semibold">Admin</p>
           </div>

@@ -1,61 +1,50 @@
-# Playful team inbox icon
+# EzyChat Lite brand icon
 
-Two smiling speech-bubble teammates overlap to express a friendly shared inbox.
-Lilac and coral faces sit on a deep teal background with dark, bold facial features.
-There is no text or phone handset, keeping the design distinct from WhatsApp's logo.
+EzyChat Lite uses EzyChat's official headset parrot on a green gradient tile.
+The mark stays unchanged; the application wordmark supplies the **Lite** name.
 
-## Assets
+## Source and provenance
 
-- `app-icon-master.png`: original generated 1254 × 1254 RGB master.
-- `app-icon.ico`: Windows icon containing 16, 24, 32, 48, 64, 128 and 256 px frames.
-- `app-icon-{16,32,64,192,256,512}.png`: resized exports for preview and future integration.
-- `apple-touch-icon.png`: opaque 180 × 180 export for Apple home-screen installation.
-- `app-icon-maskable-512.png`: opaque 512 × 512 PWA maskable export. The unchanged
-  master is resized to 360 × 360 and centered with a 76 px border in the master
-  image's exact top-left teal color, retaining both speech-bubble characters inside
-  the central safe area when platforms crop the image into different icon shapes.
+Retrieved on 2026-10-03 from the user-provided `anchorsprint/ezychat-remake` repository:
 
-The final artwork is deliberately opaque. A generated transparent version contained
-unwanted holes inside its background; the final image removes those defects and uses
-a full teal square. Platforms that apply their own rounded icon mask can use this
-square artwork directly. The master remains unchanged during export.
+- Original source: [`apps/app/src/app/icon.png`](https://github.com/anchorsprint/ezychat-remake/blob/main/apps/app/src/app/icon.png).
+- Source tree SHA: `c9d3ffb943206e8c8b18c18e3f8f28929ae389c7`.
+- PNG blob SHA: `a8949238b1c8fa83c1d8e02a9af1ae9053d6fd60`.
+- `apps/app/public/brand/ezychat-logo.png` and `apps/app/public/marketing/logo.png`
+  contain the identical PNG. The canonical `Logo` component describes it as the headset parrot.
+- `app-icon-master.png` is that unchanged original 763 × 743 RGBA PNG, including
+  its genuine transparent rounded corners and enclosed parrot cutouts.
 
-These are the source assets for the application. Run `node scripts/generate-icons.mjs`
-to publish them to desktop, browser and PWA paths; see `docs/brand.md`.
+The marketing phone mockup and audience photos were reviewed but are not app icons.
+The sales mockup depicts the hosted sales agent, rather than Lite's local team inbox.
 
-## Generation
+## Exports
 
-Created on 2026-10-03 with the built-in image generation tool and visually inspected.
-The original request was a fun, youthful app icon. Initial prompt:
+- `app-icon-{16,32,64,192,256,512}.png`: aspect-preserving square PNG exports.
+- `app-icon.ico`: Windows icon with 16, 24, 32, 48, 64, 128 and 256 px frames.
+- `apple-touch-icon.png`: opaque 180 × 180 home-screen image.
+- `app-icon-maskable-512.png`: opaque 512 × 512 PWA image. The mark is centered
+  at 360 × 360 to retain the parrot inside the central maskable safe area.
+- `tray-template-{16,32}.png`: black alpha silhouettes of the official white
+  parrot/headset for macOS menu-bar template rendering.
+- `ezychat-logo.png`: original proportions with the parrot cutout rendered white,
+  published to `apps/web/public/brand/ezychat-logo.png`.
 
-> A friendly shared team-inbox app icon: two playful rounded speech-bubble teammates
-> leaning together, one soft lilac and one warm coral, each with bold dark dot eyes and
-> a simple joyful smile. Premium clean graphic illustration on a deep teal app tile,
-> centered, balanced and clear at small sizes. No text, phone handset, official
-> WhatsApp mark, recognizable brand imitation, watermark or tiny decorations.
+Square exports center the artwork with transparent padding; they do not stretch it.
+The original PNG encodes its white parrot as enclosed transparency, relying on
+a white page behind it. Exports fill only those enclosed holes white so the same
+mark remains visible in dark mode; the outer rounded corners remain transparent.
+Apple and maskable exports flatten their background with a green sampled from the
+source tile. Desktop PNG/ICO exports preserve the intentional rounded transparency.
+The exporter checks every embedded ICO frame and the opaque home-screen formats.
 
-Final correction prompt:
-
-> Finish this app icon as a fully OPAQUE square image suitable for Windows ICO.
-> Keep both beautiful playful smiling lilac and coral speech-bubble teammates,
-> their eyes and smiles exactly. Replace ALL background behind them including
-> the rounded-square tile and outside corners with ONE uniform solid deep teal
-> color. No rounded tile border anymore: teal fills the entire square from edge
-> to edge. Remove the visible dark blemish at upper right and the blemish near
-> bottom center completely. Zero holes, zero shadows, zero dark smudges, zero
-> grain or textures anywhere in the teal background. The entire square artwork
-> must have no transparent pixels. Keep subject placement, proportions and
-> vibrant colors unchanged, no text or extra elements.
-
-## Re-export
-
-With Python and Pillow available, run from the repository root:
+## Reproduce
 
 ```powershell
 python design/app-icon/export-assets.py
+node scripts/generate-icons.mjs
 ```
 
-This performs deterministic Lanczos resizing, PNG/ICO encoding and background
-padding for the maskable export. It does not redraw, recolor or mask the generated
-artwork. The script checks every embedded ICO size and verifies that all frames are
-opaque.
+The Python exporter requires Pillow. The publishing script checks every input before
+copying the exports into desktop, browser and PWA asset paths. Electron Builder creates
+the platform icon resources from the published PNG/ICO during packaging.

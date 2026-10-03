@@ -6,7 +6,7 @@ const ADMIN_STATE = 'e2e/.auth/admin.json';
 setup('first-run setup wizard creates the admin', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/setup$/);
-  await expect(page.getByRole('heading', { name: 'Welcome to WA Team Inbox' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to EzyChat Lite' })).toBeVisible();
 
   await page.getByLabel('Username').fill(ADMIN.username);
   await page.getByLabel('Display name').fill(ADMIN.displayName);

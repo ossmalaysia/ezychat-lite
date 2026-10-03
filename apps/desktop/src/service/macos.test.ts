@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { launchdPlist, macInstallScript, macUninstallScript, parseLaunchctlPrint, remapRuntimePaths, shQuote } from './macos.js';
+import {
+  launchdPlist,
+  macInstallScript,
+  macUninstallScript,
+  parseLaunchctlPrint,
+  remapRuntimePaths,
+  shQuote,
+} from './macos.js';
 
 const opts = {
   label: 'org.ossmalaysia.wateaminbox.server',
   program: '/Applications/WA Team Inbox.app/Contents/MacOS/WA Team Inbox',
-  args: ['/Applications/WA Team Inbox.app/Contents/Resources/app.asar/dist/server/server.cjs', '--data', '/Library/Application Support/wa-team-inbox', '--x', 'a&b<c>'],
+  args: [
+    '/Applications/WA Team Inbox.app/Contents/Resources/app.asar/dist/server/server.cjs',
+    '--data',
+    '/Library/Application Support/wa-team-inbox',
+    '--x',
+    'a&b<c>',
+  ],
   env: { ELECTRON_RUN_AS_NODE: '1' },
   logDir: '/Library/Application Support/wa-team-inbox/logs',
 };
@@ -17,7 +30,9 @@ describe('launchdPlist', () => {
     expect(xml.trim().endsWith('</plist>')).toBe(true);
   });
   it('has label, RunAtLoad and KeepAlive true', () => {
-    expect(xml).toMatch(/<key>Label<\/key>\s*<string>org\.ossmalaysia\.wateaminbox\.server<\/string>/);
+    expect(xml).toMatch(
+      /<key>Label<\/key>\s*<string>org\.ossmalaysia\.wateaminbox\.server<\/string>/,
+    );
     expect(xml).toMatch(/<key>RunAtLoad<\/key>\s*<true\/>/);
     expect(xml).toMatch(/<key>KeepAlive<\/key>\s*<true\/>/);
   });
@@ -35,9 +50,13 @@ describe('launchdPlist', () => {
     ]);
   });
   it('has env dict and log paths', () => {
-    expect(xml).toMatch(/<key>EnvironmentVariables<\/key>\s*<dict>\s*<key>ELECTRON_RUN_AS_NODE<\/key>\s*<string>1<\/string>/);
+    expect(xml).toMatch(
+      /<key>EnvironmentVariables<\/key>\s*<dict>\s*<key>ELECTRON_RUN_AS_NODE<\/key>\s*<string>1<\/string>/,
+    );
     expect(xml).toContain('<key>StandardOutPath</key>');
-    expect(xml).toContain('<string>/Library/Application Support/wa-team-inbox/logs/service.out.log</string>');
+    expect(xml).toContain(
+      '<string>/Library/Application Support/wa-team-inbox/logs/service.out.log</string>',
+    );
     expect(xml).toContain('<key>StandardErrorPath</key>');
   });
   it('balances dict/array tags', () => {
@@ -109,7 +128,11 @@ describe('macOS root daemon never runs user-writable code', () => {
     const r = remapRuntimePaths(
       {
         exe: `${bundle}/Contents/MacOS/WA Team Inbox`,
-        args: [`${bundle}/Contents/Resources/app.asar/dist/server-host.cjs`, '--data', '/Library/Application Support/wa-team-inbox'],
+        args: [
+          `${bundle}/Contents/Resources/app.asar/dist/server-host.cjs`,
+          '--data',
+          '/Library/Application Support/wa-team-inbox',
+        ],
         env: { WATI_CLOUDFLARED: `${bundle}/Contents/Resources/cloudflared/cloudflared`, X: '1' },
       },
       bundle,
@@ -134,9 +157,13 @@ describe('macOS root daemon never runs user-writable code', () => {
       exists: null,
       runtime: { from: bundle, to: dest },
     });
-    const iDitto = s.indexOf(`ditto '${bundle}' '${dest}'`);
+    const iDitto = s.indexOf(`ditto --noacl '${bundle}' '${dest}'`);
     expect(iDitto).toBeGreaterThan(-1);
     expect(s).toContain(`chown -R root:wheel '${dest}'`);
+    expect(s).toContain(`chmod -N '/Library/Application Support/wa-team-inbox-runtime'`);
+    expect(s).toContain(`chmod -RN '${dest}'`);
+    expect(s.indexOf(`chmod -RN '${dest}'`)).toBeGreaterThan(iDitto);
+    expect(s.indexOf(`chmod -RN '${dest}'`)).toBeLessThan(s.indexOf(`chmod -R go-w '${dest}'`));
     expect(s).toContain(`chmod -R go-w '${dest}'`);
     expect(s.indexOf('launchctl bootstrap')).toBeGreaterThan(s.indexOf(`chmod -R go-w '${dest}'`));
     // previous copy is removed first

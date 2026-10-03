@@ -6,8 +6,8 @@
 -->
 <service>
   <id>wa-team-inbox</id>
-  <name>WA Team Inbox Server</name>
-  <description>WA Team Inbox Server - shared team inbox server (WA Team Inbox)</description>
+  <name>EzyChat Lite Server</name>
+  <description>EzyChat Lite Server - shared team inbox server (EzyChat Lite)</description>
   <executable>{{INSTALL_DIR}}\WA Team Inbox.exe</executable>
   <arguments>"{{INSTALL_DIR}}\resources\app.asar\dist\server\server.cjs" --data C:\ProgramData\wa-team-inbox --port 7420 --mode service --web-dist "{{INSTALL_DIR}}\resources\web"</arguments>
   <env name="ELECTRON_RUN_AS_NODE" value="1"/>

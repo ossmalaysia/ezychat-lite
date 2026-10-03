@@ -92,7 +92,7 @@ function AdminStep({ onDone }: { onDone: () => void }) {
       {create.error && (
         <Banner tone="danger" title={forbidden ? 'Setup must be done on this computer' : undefined}>
           {forbidden
-            ? 'For security, the first admin can only be created from the computer running WA Team Inbox. Open http://localhost:7420 there.'
+            ? 'For security, the first admin can only be created from the computer running EzyChat Lite. Open http://localhost:7420 there.'
             : errorMessage(create.error)}
         </Banner>
       )}
@@ -200,7 +200,7 @@ export function SetupWizard() {
 
   return (
     <AuthShell
-      title="Welcome to WA Team Inbox"
+      title="Welcome to EzyChat Lite"
       subtitle="Let's get your shared inbox running."
       illustration={step === 'admin' ? '/illustrations/welcome.png' : undefined}
       wide

@@ -3,7 +3,7 @@ import { GITHUB_REPO_URL } from './links';
 /** Only this public project URL is shared, never the private inbox address. */
 export const SHARE_APP_URL = GITHUB_REPO_URL;
 export const SHARE_APP_CAPTION =
-  "I'm using WA Team Inbox — a free WhatsApp team inbox that runs on my own computer. One number, a shared inbox for my team, and I own my data.";
+  "I'm using EzyChat Lite — a free WhatsApp team inbox that runs on my own computer. One number, a shared inbox for my team, and I own my data.";
 
 export const SOCIAL_SHARE_LINKS = {
   linkedin: `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: SHARE_APP_URL })}`,
@@ -23,7 +23,7 @@ export async function copyShareText(text: string): Promise<void> {
 export async function shareApp(caption: string): Promise<'shared' | 'cancelled' | 'copied'> {
   if (typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title: 'WA Team Inbox', text: caption.trim(), url: SHARE_APP_URL });
+      await navigator.share({ title: 'EzyChat Lite', text: caption.trim(), url: SHARE_APP_URL });
       return 'shared';
     } catch (error) {
       if (
@@ -63,7 +63,7 @@ export async function downloadShareCard(): Promise<void> {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'wa-team-inbox.png';
+  link.download = 'ezychat-lite.png';
   document.body.append(link);
   try {
     link.click();
