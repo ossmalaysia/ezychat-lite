@@ -1,13 +1,12 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 import type { DesktopUpdatesBridge, DesktopUpdateState } from '@wa-team-inbox/shared';
 import { DesktopUpdateNotice, DesktopUpdatePanel } from './DesktopUpdates';
 
 const auth = vi.hoisted(() => ({ user: { id: 1 } as { id: number } | null }));
-const notify = vi.hoisted(() => Object.assign(vi.fn(), { dismiss: vi.fn() }));
 vi.mock('@/auth/AuthProvider', () => ({ useAuth: () => auth }));
-vi.mock('sonner', () => ({ toast: notify }));
 vi.mock('@/lib/use-media-query', () => ({ useMediaQuery: () => true }));
 
 const available: DesktopUpdateState = {
@@ -32,8 +31,6 @@ let listeners: Set<(state: DesktopUpdateState) => void>;
 let bridge: DesktopUpdatesBridge;
 beforeEach(() => {
   auth.user = { id: 1 };
-  notify.mockClear();
-  notify.dismiss.mockClear();
   listeners = new Set();
   bridge = {
     getState: vi.fn().mockResolvedValue(available),
@@ -67,7 +64,7 @@ it('phone and browser clients have no update workflow or alert', async () => {
     </>,
   );
   expect(screen.queryByRole('region', { name: 'App updates' })).toBeNull();
-  expect(notify).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull();
   expect(bridge.getState).not.toHaveBeenCalled();
 });
 
@@ -81,16 +78,15 @@ it('a client-only desktop never offers updates even if a release was cached', as
   );
   await waitFor(() => expect(bridge.getState).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('region', { name: 'App updates' })).toBeNull();
-  expect(notify).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull();
 });
 
 it('suggests each newer version once and lets the host review before downloading', async () => {
   render(<DesktopUpdateNotice />);
-  await waitFor(() => expect(notify).toHaveBeenCalledOnce());
+  await screen.findByRole('button', { name: 'Review update' });
   emit({ ...available });
-  expect(notify).toHaveBeenCalledOnce();
-  const options = notify.mock.calls[0]![1] as { action: { onClick: () => void } };
-  act(() => options.action.onClick());
+  expect(screen.getAllByRole('button', { name: 'Review update' })).toHaveLength(1);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Review update' }));
   await screen.findByRole('button', { name: 'Download 0.1.13' });
   expect(screen.getByText('Preview release')).toBeTruthy();
   expect(screen.getByText('<script>untrusted release text</script>')).toBeTruthy();
@@ -104,10 +100,24 @@ it('does not alert a signed-out host; displays the suggestion after sign-in', as
   auth.user = null;
   const view = render(<DesktopUpdateNotice />);
   await waitFor(() => expect(bridge.getState).toHaveBeenCalled());
-  expect(notify).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull();
   auth.user = { id: 1 };
   view.rerender(<DesktopUpdateNotice />);
-  await waitFor(() => expect(notify).toHaveBeenCalledOnce());
+  await screen.findByRole('button', { name: 'Review update' });
+});
+
+it('keeps the update prompt stable in StrictMode and respects dismissal until a new version', async () => {
+  render(
+    <StrictMode>
+      <DesktopUpdateNotice />
+    </StrictMode>,
+  );
+  await screen.findByRole('button', { name: 'Review update' });
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Dismiss update suggestion' }));
+  emit({ ...available });
+  expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull();
+  emit({ ...available, release: { ...available.release!, version: '0.1.14' } });
+  await screen.findByRole('button', { name: 'Review update' });
 });
 
 it('shows a missing installer honestly and opens only the main-process-selected release', async () => {
@@ -155,4 +165,82 @@ it('disables duplicate checks while checking and reports a bridge failure', asyn
   vi.mocked(bridge.check).mockRejectedValue(new Error('IPC unavailable'));
   await userEvent.setup().click(screen.getByRole('button', { name: 'Check for updates' }));
   await screen.findByText(/Could not check for updates/);
+});
+
+it('shows download progress, allows cancellation, and never installs automatically', async () => {
+  bridge.installUpdate = vi.fn().mockResolvedValue(undefined);
+  bridge.cancelDownload = vi.fn().mockResolvedValue(undefined);
+  vi.mocked(bridge.getState).mockResolvedValue({
+    ...available,
+    canInstall: true,
+    release: { ...available.release!, assetSize: 100, assetSha256: 'a'.repeat(64) },
+    transfer: {
+      status: 'downloading',
+      version: '0.1.13',
+      downloadedBytes: 45,
+      totalBytes: 100,
+      error: null,
+    },
+  });
+  render(<DesktopUpdatePanel />);
+  expect(
+    (await screen.findByRole('progressbar', { name: 'Update download' })).getAttribute(
+      'aria-valuenow',
+    ),
+  ).toBe('45');
+  expect(
+    (screen.getByRole('button', { name: 'Check for updates' }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Cancel download' }));
+  expect(bridge.cancelDownload).toHaveBeenCalledOnce();
+  expect(bridge.installUpdate).not.toHaveBeenCalled();
+});
+
+it('prompts when verified bytes are ready and installs only after Restart and update', async () => {
+  bridge.installUpdate = vi.fn().mockResolvedValue(undefined);
+  render(<DesktopUpdateNotice />);
+  await screen.findByRole('button', { name: 'Review update' });
+  const ready: DesktopUpdateState = {
+    ...available,
+    canInstall: true,
+    release: { ...available.release!, assetSize: 100, assetSha256: 'a'.repeat(64) },
+    transfer: {
+      status: 'ready',
+      version: '0.1.13',
+      downloadedBytes: 100,
+      totalBytes: 100,
+      error: null,
+    },
+  };
+  vi.mocked(bridge.getState).mockResolvedValue(ready);
+  emit(ready);
+  const button = await screen.findByRole('button', { name: 'Restart and update' });
+  expect(bridge.installUpdate).not.toHaveBeenCalled();
+  await userEvent.setup().click(button);
+  expect(bridge.installUpdate).toHaveBeenCalledOnce();
+  emit({ ...ready, transfer: { ...ready.transfer!, status: 'installing' } });
+  expect(screen.queryByRole('button', { name: 'Restart and update' })).toBeNull();
+  expect(
+    (screen.getByRole('button', { name: 'Download 0.1.13' }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+});
+
+it('requires trusted installer metadata and reports failed update recovery', async () => {
+  bridge.installUpdate = vi.fn().mockResolvedValue(undefined);
+  vi.mocked(bridge.getState).mockResolvedValue({
+    ...available,
+    canInstall: true,
+    lastInstall: {
+      status: 'error',
+      version: '0.1.13',
+      message: 'Update failed. The previous app was restored.',
+    },
+  });
+  render(<DesktopUpdatePanel />);
+  expect(
+    ((await screen.findByRole('button', { name: 'Download 0.1.13' })) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect(screen.getByText(/cannot be verified/)).toBeTruthy();
+  expect(screen.getByText('Update failed. The previous app was restored.')).toBeTruthy();
 });

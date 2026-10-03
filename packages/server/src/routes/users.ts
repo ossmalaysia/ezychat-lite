@@ -31,15 +31,25 @@ export default async function usersRoutes(app: FastifyInstance, ctx: AppContext)
     const { id } = parse(IdParams, req.params);
     const patch = parse(PatchUserBody, req.body);
     const user = auth.updateUser(id, patch, req.user!.id);
-    audit(ctx.db, { userId: req.user!.id, action: 'user.update', ip: clientIp(req), meta: { targetId: id, ...patch } });
+    audit(ctx.db, {
+      userId: req.user!.id,
+      action: 'user.update',
+      ip: clientIp(req),
+      meta: { targetId: id, ...patch },
+    });
     return user;
   });
 
   app.post('/users/:id/reset-password', async (req) => {
     const { id } = parse(IdParams, req.params);
     if (!auth.getUser(id)) throw errors.notFound('User');
-    const password = await auth.resetPassword(id);
-    audit(ctx.db, { userId: req.user!.id, action: 'user.reset_password', ip: clientIp(req), meta: { targetId: id } });
+    const password = await auth.resetPassword(id, req.sessionToken!);
+    audit(ctx.db, {
+      userId: req.user!.id,
+      action: 'user.reset_password',
+      ip: clientIp(req),
+      meta: { targetId: id },
+    });
     return { password };
   });
 
@@ -47,7 +57,12 @@ export default async function usersRoutes(app: FastifyInstance, ctx: AppContext)
     const { id } = parse(IdParams, req.params);
     if (!auth.getUser(id)) throw errors.notFound('User');
     auth.revokeAll(id);
-    audit(ctx.db, { userId: req.user!.id, action: 'user.revoke_sessions', ip: clientIp(req), meta: { targetId: id } });
+    audit(ctx.db, {
+      userId: req.user!.id,
+      action: 'user.revoke_sessions',
+      ip: clientIp(req),
+      meta: { targetId: id },
+    });
     return { ok: true };
   });
 }

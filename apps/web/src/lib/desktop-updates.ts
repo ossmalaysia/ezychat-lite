@@ -55,8 +55,29 @@ export function useDesktopUpdates() {
     try {
       await (action === 'download' ? bridge.openDownload() : bridge.openRelease());
     } catch {
-      setError('Could not open GitHub. Check your internet connection and try again.');
+      setError(
+        action === 'download'
+          ? 'Could not download the update. Check your connection and try again.'
+          : 'Could not open GitHub. Try again.',
+      );
     }
   };
-  return { state, error, check, open };
+  const install = async () => {
+    if (!bridge?.installUpdate) return;
+    setError(null);
+    try {
+      await bridge.installUpdate();
+    } catch {
+      setError('Could not start the update. Your current app is still available. Try again.');
+    }
+  };
+  const cancelDownload = async () => {
+    if (!bridge?.cancelDownload) return;
+    try {
+      await bridge.cancelDownload();
+    } catch {
+      setError('Could not cancel the download. Try again.');
+    }
+  };
+  return { state, error, check, open, install, cancelDownload };
 }

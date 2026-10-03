@@ -6,5 +6,6 @@ export * from './socket.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,
+  DesktopUpdateTransfer,
   DesktopUpdatesBridge,
 } from './desktop-updates.js';

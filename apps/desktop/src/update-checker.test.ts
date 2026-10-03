@@ -44,6 +44,35 @@ function checker(
 afterEach(() => vi.useRealTimers());
 
 describe('GitHubUpdateChecker', () => {
+  it('preserves only valid GitHub-provided SHA-256 and bounded installer-size metadata', async () => {
+    const item = release('0.1.15');
+    const digest = 'A'.repeat(64);
+    item.assets = item.assets.map((asset) => ({
+      ...asset,
+      size: 12345,
+      digest: `sha256:${digest}`,
+    }));
+    const state = await checker(vi.fn().mockResolvedValue(response([item]))).check();
+    expect(state.release).toMatchObject({ assetSize: 12345, assetSha256: digest.toLowerCase() });
+  });
+
+  it.each([
+    { size: 0, digest: 'sha256:bad' },
+    { size: 1.5, digest: `md5:${'a'.repeat(64)}` },
+    { size: 1024 * 1024 * 1024 + 1, digest: null },
+  ])(
+    'keeps release availability without trusting unsafe installer metadata: %j',
+    async (metadata) => {
+      const item = release('0.1.15');
+      item.assets = item.assets.map((asset) => ({ ...asset, ...metadata }));
+      const state = await checker(vi.fn().mockResolvedValue(response([item]))).check();
+      expect(state).toMatchObject({
+        status: 'available',
+        release: { assetSize: null, assetSha256: null },
+      });
+    },
+  );
+
   it('checks the fixed public API without a token and selects the Windows preview installer', async () => {
     const fetcher = vi.fn().mockResolvedValue(response([release('0.1.9')]));
     const check = checker(fetcher);

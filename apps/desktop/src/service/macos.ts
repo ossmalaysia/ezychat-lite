@@ -12,7 +12,11 @@ export interface LaunchdOptions {
 }
 
 function xmlEscape(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /** POSIX shell single-quoted literal. */
@@ -81,7 +85,8 @@ export function remapRuntimePaths(
   to: string,
 ): { exe: string; args: string[]; env: Record<string, string> } {
   const base = from.replace(/\/+$/, '');
-  const map = (v: string) => (v === base || v.startsWith(`${base}/`) ? to + v.slice(base.length) : v);
+  const map = (v: string) =>
+    v === base || v.startsWith(`${base}/`) ? to + v.slice(base.length) : v;
   return {
     exe: map(cmd.exe),
     args: cmd.args.map(map),
@@ -96,10 +101,14 @@ function runtimeCopyLines(r: { from: string; to: string }): string[] {
     // /Library/Application Support is root-owned, so nobody else can pre-create this folder
     `mkdir -p ${shQuote(parent)}`,
     `chown root:wheel ${shQuote(parent)}`,
+    `chmod -N ${shQuote(parent)}`,
     `chmod 755 ${shQuote(parent)}`,
     `rm -rf ${to}`,
-    `ditto ${shQuote(r.from)} ${to}`,
+    // Source ACLs can grant ordinary users write access even after chown/chmod.
+    // Keep extended attributes and quarantine metadata, but never copy those ACLs.
+    `ditto --noacl ${shQuote(r.from)} ${to}`,
     `chown -R root:wheel ${to}`,
+    `chmod -RN ${to}`,
     `chmod -R go-w ${to}`,
     `if [ "$(stat -f %Su ${to})" != root ]; then echo "runtime copy is not root-owned" >&2; exit 4; fi`,
   ];
@@ -178,7 +187,11 @@ export function macResetAdminScript(o: { exe: string; entry: string; dataDir: st
 }
 
 /** Interprets `launchctl print system/<label>` (exit code + output) plus whether the plist exists. */
-export function parseLaunchctlPrint(exitCode: number, output: string, plistExists: boolean): ServiceState {
+export function parseLaunchctlPrint(
+  exitCode: number,
+  output: string,
+  plistExists: boolean,
+): ServiceState {
   if (exitCode === 0) return /state\s*=\s*running/.test(output) ? 'running' : 'stopped';
   return plistExists ? 'stopped' : 'not-installed';
 }

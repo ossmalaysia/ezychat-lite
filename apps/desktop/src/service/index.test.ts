@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { macRuntimeBundle, serviceCommand, type ServiceDeps } from './index.js';
+import {
+  createServiceManager,
+  macRuntimeBundle,
+  serviceCommand,
+  type ServiceDeps,
+} from './index.js';
 
 const B = String.fromCharCode(92);
 const w = (...p: string[]) => p.join(B);
@@ -70,4 +75,35 @@ describe('serviceCommand', () => {
       expect(c.args.join(' ')).not.toContain('/Applications/');
     },
   );
+});
+
+describe('macOS privileged operations require a packaged runtime', () => {
+  it.each([undefined, null])(
+    'rejects service installation and admin reset without appBundle (%s)',
+    async (appBundle) => {
+      const manager = createServiceManager('darwin', { ...winDeps, appBundle });
+      await expect(manager.install()).rejects.toThrow('requires the installed EzyChat Lite app');
+      await expect(manager.resetAdmin()).rejects.toThrow('requires the installed EzyChat Lite app');
+    },
+  );
+
+  it('maps the reset entry and executable into the protected copy', () => {
+    const appBundle = '/Applications/EzyChat Lite.app';
+    const cmd = serviceCommand(
+      {
+        ...winDeps,
+        appBundle,
+        execPath: `${appBundle}/Contents/MacOS/EzyChat Lite`,
+        serverHost: `${appBundle}/Contents/Resources/app.asar/dist/server-host.cjs`,
+        serverEntry: `${appBundle}/Contents/Resources/app.asar/dist/server/server.cjs`,
+      },
+      'darwin',
+      () => false,
+    );
+    const protectedBundle = macRuntimeBundle(appBundle);
+    expect(cmd.exe).toBe(`${protectedBundle}/Contents/MacOS/EzyChat Lite`);
+    expect(cmd.args[1]).toBe(
+      `${protectedBundle}/Contents/Resources/app.asar/dist/server/server.cjs`,
+    );
+  });
 });

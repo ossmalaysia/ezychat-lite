@@ -55,6 +55,7 @@ import {
   Field,
   ListSkeleton,
   Pending,
+  canGeneratePassword,
   generatePassword,
 } from './adminUi';
 
@@ -393,6 +394,7 @@ function CreateMemberDialog({
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<Role>('agent');
+  const secureGeneration = canGeneratePassword();
   const [password, setPassword] = useState(() => generatePassword());
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -459,7 +461,14 @@ function CreateMemberDialog({
           )}
         </Field>
         <RoleSelect value={role} onChange={setRole} />
-        <Field label="Temporary password" hint="They will be asked to change it at first sign-in.">
+        <Field
+          label="Temporary password"
+          hint={
+            secureGeneration
+              ? 'They will be asked to change it at first sign-in.'
+              : 'Automatic generation is unavailable in this browser. Enter a strong password; they will change it at first sign-in.'
+          }
+        >
           {(p) => (
             <Input
               {...p}
@@ -476,6 +485,7 @@ function CreateMemberDialog({
             size="touch"
             variant="outline"
             className="md:min-h-9"
+            disabled={!secureGeneration}
             onClick={() => setPassword(generatePassword())}
           >
             <RefreshCw aria-hidden />

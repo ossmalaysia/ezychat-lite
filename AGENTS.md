@@ -98,15 +98,27 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 
 - First-admin setup (`routes/setup.ts`) only while no user exists, only from a direct loopback peer
   with a loopback `Host`, and never through the tunnel.
-- `CF-Connecting-IP` is trusted only when the socket peer is loopback (`http/client-ip.ts`); it keys
-  rate limits and decides `Secure` cookies.
+- `CF-Connecting-IP` is trusted only when the socket peer is loopback and its single value is a valid
+  IP (`http/client-ip.ts`); it keys rate limits and decides `Secure` cookies. Unknown named-tunnel
+  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO.
 - Every request passes the Host allowlist (`http/host.ts`, DNS-rebinding defence: loopback, IP
   literals, single-label/`.local`, current tunnel hostnames). Mutating `/api` requests need
   `Origin` host == `Host` (`http/origin.ts`); Socket.IO checks Origin too.
 - Media (`routes/media.ts`) renders inline only for an allowlist of raster/audio/video types;
   everything else is an attachment, served with a `sandbox` CSP and `nosniff`.
 - Session tokens are stored as SHA-256 hashes; passwords use argon2; login lockout after 5 failures.
+- After asynchronous credential hashing/verification, recheck the current password, disabled state,
+  authorizing session and role as appropriate; do not yield between the final check and commit.
 - Admin password reset only via the CLI `--reset-admin` or the tray menu, never over HTTP.
+- Privileged desktop IPC requires the current registered window, its exact main frame and bundled
+  status URL. A `file://` URL by itself is never sufficient authority.
+- OS services must execute protected runtimes: check Program Files ownership/ACLs and links on
+  Windows; use a root-owned copy without ordinary-user write permissions or ACLs on macOS.
+- Managed updates accept no renderer paths or URLs. Require trusted release digest/size, reverify
+  protected staging, prepare rollback before stopping the host, and relaunch through an unelevated
+  broker. Do not use service removal/data migration as an update operation.
+- Password generation requires cryptographic randomness. Redact credential fields from live logs
+  and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
@@ -161,8 +173,10 @@ the rule in this file. (Claude Code enforces this with a Stop hook; other agents
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
-After repository setup, `main` is protected: use feature branches and reviewed pull requests;
-never bypass its approval, CI or conversation-resolution requirements for routine changes.
+After repository setup, `main` is protected: use feature branches and reviewable pull requests.
+This is currently a solo-maintainer repository, so second-person approval is not required.
+Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
+approval when another maintainer can review changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.

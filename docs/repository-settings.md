@@ -5,7 +5,9 @@ It was renamed from `ossmalaysia/wa-team-inbox`; existing releases and history w
 
 ## Main branch
 
-- Pull requests require one approving review, with stale approvals dismissed after new commits.
+- Pull requests are required, with zero mandatory approvals while this is a solo-maintainer repo.
+  The owner reviews changes before merging; GitHub does not allow authors to approve their own PRs.
+  Require one approval again when a second maintainer is available.
 - Require all three GitHub Actions CI jobs: `Test (ubuntu-latest)`, `Test (windows-latest)` and
   `Test (macos-latest)`. Checks must come from GitHub Actions and the branch must be up to date.
 - Resolve review conversations before merging.

@@ -129,6 +129,9 @@ When the service is installed, the desktop app is just a window onto it. The tra
 The hosting desktop checks GitHub for new published releases and suggests an update.
 Use **About EzyChat Lite → Check for updates** or the tray menu to check manually.
 Phone and browser clients update with the host and have no update alerts.
+Installed Windows and Mac hosts download with progress, verify the installer, then offer
+**Restart and update**. After you approve the system prompt, the app closes, updates and reopens;
+an installed background service is stopped, updated and restarted automatically.
 See [the update guide](docs/updating.md) for installation and background-service steps.
 
 ## Development
