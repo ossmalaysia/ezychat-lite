@@ -90,6 +90,17 @@ export type PatchUserBody = z.infer<typeof PatchUserBody>;
 export const ResetPasswordResponse = z.object({ password: z.string() });
 export type ResetPasswordResponse = z.infer<typeof ResetPasswordResponse>;
 
+/** Browser-side error report (written to the server log as a structured `mod: "web"` entry). */
+export const ClientErrorBody = z.object({
+  kind: z.enum(['error', 'unhandledrejection', 'react']),
+  message: z.string().max(2000),
+  stack: z.string().max(8000).optional(),
+  componentStack: z.string().max(8000).optional(),
+  route: z.string().max(500),
+  appVersion: z.string().max(50).optional(),
+});
+export type ClientErrorBody = z.infer<typeof ClientErrorBody>;
+
 /** Link WhatsApp by phone number (pairing code) instead of QR. Phone includes country code. */
 export const PairingCodeBody = z.object({ phone: z.string().min(8).max(32) });
 export type PairingCodeBody = z.infer<typeof PairingCodeBody>;

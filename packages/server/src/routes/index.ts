@@ -15,6 +15,7 @@ import settings from './settings.js';
 import audit from './audit.js';
 import wa from './wa.js';
 import dev from './dev.js';
+import clientErrors from './client-errors.js';
 
 export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<void>;
 
@@ -34,6 +35,7 @@ export const routeModules: RouteModule[] = [
   audit,
   wa,
   dev,
+  clientErrors,
 ];
 
 /** Registers every route module under /api, each in its own encapsulated scope (hooks stay local). */

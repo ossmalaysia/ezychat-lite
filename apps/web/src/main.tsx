@@ -8,7 +8,11 @@ import { App } from './App';
 import { AuthProvider } from './auth/AuthProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { installGlobalErrorReporting } from '@/lib/error-reporter';
 import './index.css';
+
+// Uncaught errors / unhandled rejections → server log (structured `mod: "web"` entries).
+installGlobalErrorReporting();
 
 const queryClient = new QueryClient({
   defaultOptions: {
