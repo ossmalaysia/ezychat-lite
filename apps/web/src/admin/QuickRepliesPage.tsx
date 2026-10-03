@@ -9,6 +9,7 @@ import { Banner, EmptyState, PageHeader, ResponsiveDialog } from '@/components/a
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { SearchField } from '@/components/app/SearchField';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending } from './adminUi';
 
 const SHORTCUT_RE = /^[a-z0-9_-]{1,32}$/;
@@ -18,8 +19,11 @@ export function QuickRepliesPage() {
   const [editing, setEditing] = useState<QuickReply | 'new' | null>(null);
   const [deleting, setDeleting] = useState<QuickReply | null>(null);
   const del = useDeleteQuickReply();
+  const [search, setSearch] = useState('');
 
-  const list = [...(replies.data ?? [])].sort((a, b) => a.shortcut.localeCompare(b.shortcut));
+  const all = [...(replies.data ?? [])].sort((a, b) => a.shortcut.localeCompare(b.shortcut));
+  const query = search.trim().toLocaleLowerCase();
+  const list = all.filter((r) => `${r.shortcut} ${r.body}`.toLocaleLowerCase().includes(query));
 
   return (
     <div>
@@ -27,8 +31,8 @@ export function QuickRepliesPage() {
         title="Quick replies"
         description={
           <>
-            Agents type <kbd className="rounded bg-muted px-1 font-mono">/</kbd> followed by a shortcut in
-            the composer to insert a reply.
+            Agents type <kbd className="rounded bg-muted px-1 font-mono">/</kbd> followed by a
+            shortcut in the composer to insert a reply.
           </>
         }
         actions={
@@ -39,14 +43,36 @@ export function QuickRepliesPage() {
         }
       />
 
+      <div className="mb-4 space-y-2">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          label="Search quick replies"
+          placeholder="Search shortcut or reply text"
+        />
+        {!replies.isPending && !replies.isError && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {list.length} of {all.length} quick replies
+          </p>
+        )}
+      </div>
       {replies.isPending ? (
         <ListSkeleton />
       ) : replies.isError ? (
         <ErrorState error={replies.error} onRetry={() => void replies.refetch()} />
       ) : list.length === 0 ? (
         <EmptyState
-          title="No quick replies yet"
-          description="Create one to speed up common answers."
+          title={query ? 'No matching quick replies' : 'No quick replies yet'}
+          description={
+            query ? 'Try a different shortcut or phrase.' : 'Create one to speed up common answers.'
+          }
+          action={
+            query ? (
+              <Button variant="outline" size="touch" onClick={() => setSearch('')}>
+                Clear search
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <ul className="flex flex-col gap-2">
@@ -57,7 +83,9 @@ export function QuickRepliesPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-sm font-semibold text-primary">/{r.shortcut}</p>
-                <p className="mt-1 text-sm break-words whitespace-pre-wrap text-muted-foreground">{r.body}</p>
+                <p className="mt-1 text-base leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap text-foreground md:text-sm">
+                  {r.body}
+                </p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button
@@ -155,10 +183,22 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
       title={reply ? `Edit /${reply.shortcut}` : 'New quick reply'}
       footer={
         <>
-          <Button variant="outline" size="touch" className="sm:min-h-9" onClick={onClose} disabled={save.isPending}>
+          <Button
+            variant="outline"
+            size="touch"
+            className="sm:min-h-9"
+            onClick={onClose}
+            disabled={save.isPending}
+          >
             Cancel
           </Button>
-          <Button type="submit" form="quick-reply-form" size="touch" className="sm:min-h-9" disabled={save.isPending}>
+          <Button
+            type="submit"
+            form="quick-reply-form"
+            size="touch"
+            className="sm:min-h-9"
+            disabled={save.isPending}
+          >
             <Pending show={save.isPending} />
             Save
           </Button>
@@ -166,7 +206,11 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
       }
     >
       <form id="quick-reply-form" onSubmit={submit} className="flex flex-col gap-4 pb-1" noValidate>
-        <Field label="Shortcut" error={shortcutError} hint="Typed after / in the composer, e.g. /price">
+        <Field
+          label="Shortcut"
+          error={shortcutError}
+          hint="Typed after / in the composer, e.g. /price"
+        >
           {(p) => (
             <Input
               {...p}

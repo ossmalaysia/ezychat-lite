@@ -59,6 +59,24 @@ function setup() {
   return fetchMock;
 }
 
+it('searches members by username and role and recovers from no results', async () => {
+  setup();
+  await screen.findAllByText('Alice Admin');
+  const user = userEvent.setup();
+  const search = screen.getByRole('searchbox', { name: 'Search members' });
+  await user.type(search, 'bob');
+  expect(screen.queryByText('Alice Admin')).toBeNull();
+  expect(screen.getAllByText('Bob Agent').length).toBeGreaterThan(0);
+  await user.clear(search);
+  await user.type(search, 'admin');
+  expect(screen.queryByText('Bob Agent')).toBeNull();
+  await user.clear(search);
+  await user.type(search, 'not-a-member');
+  expect(screen.getByText('No matching members')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: /^Clear search$/ }));
+  expect(screen.getAllByText('Bob Agent').length).toBeGreaterThan(0);
+});
+
 // Radix Select relies on pointer-capture / scrollIntoView, which jsdom lacks.
 beforeAll(() => {
   const proto = Element.prototype as unknown as Record<string, unknown>;

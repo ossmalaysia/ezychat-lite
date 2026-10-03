@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
+- Open the project's feature-request form from the Account menu or sign-in screen.
+- Add a searchable emoji picker and a growing message box with a subtle scrollbar.
+- Clear Admin access, separate Open/Resolved chat filters, filter-reset actions, and a visible inbox build version.
+- Search members and quick replies; improve mobile type, light-theme contrast, and audit-log action labels.
+- Label Notes and provide a Quick replies button that preserves drafts.
+- Add per-device Light, Dark and System appearance settings in Settings and the Account menu.
+- Load available WhatsApp profile images on demand with initials for private or unavailable photos.
+
+### Fixed
+
+- Keep dialogs scrollable in short landscape viewports, wrap long member names in dialog titles,
+  show readable cards on small tablets, and prevent wide tables from hiding columns.
+- Make the LAN switch padding and dialog/menu close controls usable as 44px touch targets.
+- Wait for WhatsApp before requesting contact photos, and retry them after reconnecting instead of
+  keeping the initials fallback for the rest of the session.
+- Desktop notification registration now uses native system notifications instead of the unavailable
+  Chromium push service. Background alerts preserve chat assignment and open the conversation on click.
+- Log browser push registration failures with the failing stage for diagnosis.
+- Isolate cloudflared from unrelated user configuration that caused Quick Tunnel URLs to return 404.
+  Show Running only after the tunnel connects to Cloudflare.
+
 ### Added
 
 - Monorepo scaffold (npm workspaces), tooling, CI, and open-source project files.
@@ -32,3 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packaging with electron-builder (Windows NSIS installer, macOS dmg for x64 and arm64; unsigned).
 - Playwright end-to-end tests on desktop, Pixel 7 and iPhone 14 viewports.
 - Documentation: architecture overview, manual release test checklist, contributor guide.
+
+## [0.1.1] - 2026-10-03
+
+### Fixed
+
+- Admin menu links now open the selected section directly instead of appending it to the current URL.
+  Invalid admin URLs recover to Members without an endless redirect loop.

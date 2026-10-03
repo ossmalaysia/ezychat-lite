@@ -3,7 +3,7 @@
 Lessons from building and running WA Team Inbox, so agents (and humans) don't repeat mistakes.
 Append new entries at the top of the matching section: `- YYYY-MM-DD — what happened → root cause → rule`.
 A Stop hook (`.claude/hooks/learnings-gate.mjs`) blocks a code-changing session from finishing until this
-file is updated. Promote anything that changes *how* to work into CLAUDE.md.
+file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## WhatsApp / Baileys
 
@@ -30,6 +30,25 @@ file is updated. Promote anything that changes *how* to work into CLAUDE.md.
 
 ## Desktop / web UI
 
+- 2026-10-03 — Mobile pages had no horizontal overflow but landscape forms lost their actions and tablet tables hid columns → dialogs had no viewport height limit and table overflow was hidden → check dialog bounds and inner clipping as well as page overflow; cap dialog height with dynamic viewport units, permit scrolling, and retain cards until tables have room.
+- 2026-10-03 — A 44px wrapper around the LAN switch still left only the small switch clickable → decorative padding is not a hit target → use an associated padded label and test padding clicks and keyboard operation without saving automatically.
+- 2026-10-03 — Long member names were clipped inside mobile drawer titles although page overflow remained zero → unbroken strings escaped the title box → allow arbitrary word wrapping in shared dialog titles and verify title scroll width.
+- 2026-10-03 — Contact photos disappeared after restarting the desktop app → the inbox requested avatars before WhatsApp connected, then permanently retained image errors → gate photo requests on WhatsApp readiness and reset failed attempts with a shared connection generation; test initial startup and later reconnects.
+- 2026-10-03 — Feature suggestions had no dedicated in-app action → general issue/custom-service links hid the contribution path → expose the repository feature-request template to every role with explicit external navigation and no user data in URLs.
+- 2026-10-03 — Desktop notification registration failed with `AbortError: Registration failed - push service not available` in an isolated Electron reproduction → exposed PushManager APIs did not imply an available push service → use native notifications through a narrow origin-checked preload bridge and authenticated recipient-targeted live events; retain browser push for PWA clients.
+- 2026-10-03 — An empty composer showed native scrollbar arrows → autosizing omitted border height from a border-box textarea → include borders, hide overflow until the maximum height, and verify empty, multiline and long drafts.
+- 2026-10-03 — Rebuilding web assets while the isolated test server was serving that directory produced a blank page → `wildcard:false` static routes enumerate files at startup, so new bundle filenames received the SPA HTML fallback → activate complete builds with a server restart; do not rebuild an actively served distribution directory.
+
+- 2026-10-03 — UI stress testing exposed hidden admin access, an ambiguous status toggle and unsearchable lists → controls assumed familiarity and small datasets → make common destinations and both states visible, search growing lists, and test empty-result recovery at 360px with long names and text.
+- 2026-10-03 — OS-only dark CSS ignored manual appearance choices → token and Tailwind dark selectors used different theme sources → resolve one device preference into `data-theme` and apply it to both tokens and dark variants; test persistence and OS changes.
+- 2026-10-03 — Avatar rendering existed but no image source was supplied → profile lookup was never connected to the chat contract → expose an authenticated on-demand image route with bounded deduplicated caching and initials fallback. Native lazy images avoid Radix's eager preloader fetching every chat at once.
+- 2026-10-03 — The Quick Tunnel showed Running but its public URL returned 404 → cloudflared auto-loaded an unrelated user ingress config whose catch-all returned 404 → pass explicit `--config=` for app-managed tunnels, wait for edge registration, and log the local origin and readiness milestones without secrets.
+
+- 2026-10-03 — Admin menu clicks rendered blank pages and appended `/members` repeatedly → relative menu
+  links and fallback redirects under `/admin/*` resolved against the current splat path → anchor shell
+  navigation and fallbacks to `/admin/...`; test every section-to-section transition and malformed URL recovery.
+  Unmatched admin routes now report structured browser errors to the server log.
+
 - 2026-10-03 — Spent several rounds guessing why Quick replies / Tunnel render blank in the live app (cache?
   Electron? push API?) — every guess was disproved by tests on a fake server → the browser had no error
   reporting, so the evidence never reached any log. Added `POST /api/client-errors` + global handlers + a
@@ -50,6 +69,10 @@ file is updated. Promote anything that changes *how* to work into CLAUDE.md.
   server on a temp data dir. Use it instead of the full e2e for "does every screen render?".
 
 ## Build / tooling (Windows)
+
+- 2026-10-03 — A deployed routing fix still displayed v0.1.0 → the build was replaced without a version
+  bump → bump the root version for deployed fixes, sync workspace and lockfile versions, and verify both
+  `/api/health` and the visible app version before handing over a patched build.
 
 - 2026-10-03 — `node -e "..."` scripts break under PowerShell quoting (`*` treated as a command) → write the
   script to a file in the scratchpad and run it.

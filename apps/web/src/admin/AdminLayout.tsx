@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   Loader2,
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useAppVersion } from '@/lib/version';
+import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
@@ -43,6 +44,14 @@ export const ADMIN_NAV: readonly { to: string; label: string; icon: LucideIcon }
   { to: 'audit', label: 'Audit', icon: ScrollText },
 ];
 
+function UnknownAdminRoute() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    reportClientError({ kind: 'error', message: 'Unmatched admin route', route: pathname });
+  }, [pathname]);
+  return <Navigate to="/admin/members" replace />;
+}
+
 function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   return (
     <nav aria-label="Admin sections" className={className}>
@@ -50,7 +59,7 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
         {ADMIN_NAV.map((n) => (
           <li key={n.to}>
             <NavLink
-              to={n.to}
+              to={`/admin/${n.to}`}
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
@@ -84,7 +93,10 @@ export function AdminLayout() {
 
   if (isLoading)
     return (
-      <div role="status" className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
+      <div
+        role="status"
+        className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"
+      >
         <Loader2 className="size-6 animate-spin" aria-hidden />
         <span className="sr-only">Loading</span>
       </div>
@@ -118,7 +130,10 @@ export function AdminLayout() {
                 <SheetTitle>Admin</SheetTitle>
                 <SheetDescription>WA Team Inbox</SheetDescription>
               </SheetHeader>
-              <AdminNav className="flex-1 overflow-y-auto p-2" onNavigate={() => setMenuOpen(false)} />
+              <AdminNav
+                className="flex-1 overflow-y-auto p-2"
+                onNavigate={() => setMenuOpen(false)}
+              />
               <Separator />
               <div className="safe-bottom flex flex-col gap-3 p-3">
                 <PushToggle compact />
@@ -133,7 +148,9 @@ export function AdminLayout() {
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
         <div className="sticky top-0 flex h-dvh flex-col">
           <div className="border-b px-4 py-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">WA Team Inbox</p>
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              WA Team Inbox
+            </p>
             <p className="text-lg font-semibold">Admin</p>
           </div>
           <AdminNav className="flex-1 overflow-y-auto p-2" />
@@ -153,14 +170,14 @@ export function AdminLayout() {
       <main className="safe-bottom min-w-0 flex-1">
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
-            <Route index element={<Navigate to="members" replace />} />
+            <Route index element={<Navigate to="/admin/members" replace />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
             <Route path="whatsapp" element={<WhatsAppPage />} />
             <Route path="tunnel" element={<TunnelPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />
-            <Route path="*" element={<Navigate to="members" replace />} />
+            <Route path="*" element={<UnknownAdminRoute />} />
           </Routes>
         </div>
       </main>

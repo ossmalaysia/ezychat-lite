@@ -29,6 +29,7 @@ export const ChatSchema = z.object({
   jid: z.string(),
   type: ChatType,
   name: z.string(),
+  /** Authenticated image endpoint; missing/private WhatsApp photos fall back to initials. */
   avatarUrl: z.string().nullable(),
   unreadCount: z.number(),
   lastMessageAt: z.number().nullable(),

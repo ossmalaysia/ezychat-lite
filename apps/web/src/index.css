@@ -2,13 +2,17 @@
 @import 'tw-animate-css';
 @import '@fontsource-variable/inter';
 
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /*
  * "Calm Desk" design tokens — see docs/design-system.md.
  * Feature code uses token classes only (bg-primary, text-muted-foreground, bg-outbound, ...).
- * Dark mode follows prefers-color-scheme (Tailwind's default `dark:` variant).
+ * The device preference resolves to data-theme="light" or "dark"; System follows the OS.
+ * The media-query fallback applies before JavaScript loads.
  */
 
 :root {
+  color-scheme: light;
   --radius: 0.625rem; /* 10px */
 
   --background: #f8fafc;
@@ -23,12 +27,12 @@
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
   --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted-foreground: #475569;
   --accent: #f0fdfa; /* subtle teal hover/selection surface (shadcn semantics) */
   --accent-foreground: #134e4a;
   --destructive: #dc2626;
   --border: #e2e8f0;
-  --input: #e2e8f0;
+  --input: #8696ab;
   --ring: #0f766e;
 
   --outbound: #f0fdfa;
@@ -36,15 +40,16 @@
   --note: #fffbeb;
   --note-border: #fcd34d;
   --note-foreground: #78350f;
-  --success: #16a34a;
-  --warning: #f59e0b;
+  --success: #15803d;
+  --warning: #92400e;
   --danger: #dc2626;
-  --info: #0284c7;
-  --unread: #0d9488;
+  --info: #0369a1;
+  --unread: #0f766e;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --background: #0b1220;
     --foreground: #f1f5f9;
     --surface: #111827;
@@ -62,7 +67,7 @@
     --accent-foreground: #ccfbf1;
     --destructive: #ef4444;
     --border: #243042;
-    --input: #243042;
+    --input: #64748b;
     --ring: #14b8a6;
 
     --outbound: #0f2e2b;
@@ -78,10 +83,44 @@
   }
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #f1f5f9;
+  --surface: #111827;
+  --card: #111827;
+  --card-foreground: #f1f5f9;
+  --popover: #111827;
+  --popover-foreground: #f1f5f9;
+  --primary: #14b8a6;
+  --primary-foreground: #04201d;
+  --secondary: #1f2937;
+  --secondary-foreground: #f1f5f9;
+  --muted: #1f2937;
+  --muted-foreground: #94a3b8;
+  --accent: #12302d;
+  --accent-foreground: #ccfbf1;
+  --destructive: #ef4444;
+  --border: #243042;
+  --input: #64748b;
+  --ring: #14b8a6;
+
+  --outbound: #0f2e2b;
+  --outbound-foreground: #f1f5f9;
+  --note: #2b2111;
+  --note-border: #b45309;
+  --note-foreground: #fde68a;
+  --success: #22c55e;
+  --warning: #fbbf24;
+  --danger: #ef4444;
+  --info: #38bdf8;
+  --unread: #2dd4bf;
+}
+
 @theme inline {
   --font-sans:
-    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -138,7 +177,6 @@
     @apply border-border outline-ring/50;
   }
   :root {
-    color-scheme: light dark;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
@@ -149,10 +187,15 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-size: 14px;
+    font-size: 16px;
     overflow-x: hidden;
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  @media (min-width: 768px) {
+    body {
+      font-size: 14px;
+    }
   }
   /* Inputs >= 16px so iOS Safari doesn't zoom on focus. */
   input,

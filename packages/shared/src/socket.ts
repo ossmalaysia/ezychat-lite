@@ -1,4 +1,5 @@
 import type { MessageStatus } from './enums.js';
+import { z } from 'zod';
 import type { Chat, ChatEvent, Message, Note, TunnelStatus, WaStatus } from './models.js';
 
 export interface MessageStatusPayload {
@@ -16,7 +17,17 @@ export interface TypingPayload {
   displayName: string;
 }
 
+/** Authenticated, recipient-targeted notification for connected desktop clients. */
+export const NotificationPayload = z.object({
+  title: z.string().max(200),
+  body: z.string().max(1000),
+  url: z.string().max(1024),
+  tag: z.string().max(256),
+});
+export type NotificationPayload = z.infer<typeof NotificationPayload>;
+
 export interface ServerToClientEvents {
+  'notification:new': (notification: NotificationPayload) => void;
   'message:new': (m: Message) => void;
   'message:status': (p: MessageStatusPayload) => void;
   'chat:updated': (c: Chat) => void;

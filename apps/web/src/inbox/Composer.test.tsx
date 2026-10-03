@@ -1,11 +1,152 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Composer } from './Composer';
 
 afterEach(() => cleanup());
+beforeAll(() => {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  Element.prototype.scrollIntoView ??= function () {};
+});
 
 describe('Composer', () => {
+  it('inserts an emoji at the saved selection and returns focus to the draft without sending', async () => {
+    const onSend = vi.fn();
+    render(<Composer quickReplies={[]} onSend={onSend} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    await user.type(box, 'Hi Alex!');
+    box.setSelectionRange(3, 7);
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.click(screen.getByRole('button', { name: 'Smiling face' }));
+    expect(box.value).toBe('Hi 😊!');
+    expect(box.selectionStart).toBe(5);
+    await waitFor(() => expect(document.activeElement).toBe(box));
+    expect(onSend).not.toHaveBeenCalled();
+    await user.keyboard(' See you');
+    expect(box.value).toBe('Hi 😊 See you!');
+  });
+
+  it('searches emoji by meaning and recovers from an empty result', async () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.click(screen.getByRole('button', { name: 'Hearts' }));
+    expect(screen.getByRole('button', { name: 'Red heart' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Delivery truck' })).toBeNull();
+    const search = screen.getByRole('searchbox', { name: 'Search emoji' });
+    await user.type(search, 'delivery');
+    expect(screen.getByRole('button', { name: 'Package' })).toBeTruthy();
+    await user.clear(search);
+    await user.type(search, 'zzzz');
+    expect(screen.getByRole('status').textContent).toContain('No emoji found');
+    await user.click(screen.getByRole('button', { name: 'Clear search emoji' }));
+    expect(screen.getByRole('button', { name: 'Red heart' })).toBeTruthy();
+  });
+
+  it('allows selecting the same emoji again and leaves the caret after it', async () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.click(screen.getByRole('button', { name: 'Smiling face' }));
+    box.setSelectionRange(0, 2);
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.click(screen.getByRole('button', { name: 'Smiling face' }));
+    expect(box.value).toBe('😊');
+    expect(box.selectionStart).toBe(2);
+    await waitFor(() => expect(document.activeElement).toBe(box));
+  });
+
+  it('supports keyboard navigation and sends an emoji-only message', async () => {
+    const onSend = vi.fn();
+    render(<Composer quickReplies={[]} onSend={onSend} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.click(screen.getByRole('button', { name: 'Grinning face' }));
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    screen.getByRole('button', { name: 'Grinning face' }).focus();
+    await user.keyboard('{ArrowRight}{Enter}');
+    expect((screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement).value).toBe(
+      '😀😊',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(onSend).toHaveBeenCalledWith('😀😊');
+  });
+
+  it('dismisses emoji with Escape without changing the draft', async () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    await user.type(box, 'Draft');
+    await user.click(screen.getByRole('button', { name: 'Insert emoji' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('group', { name: 'Emoji choices' })).toBeNull();
+    expect(box.value).toBe('Draft');
+  });
+
+  it('keeps short drafts free of scrollbars, caps long drafts and shrinks again', () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    box.style.borderTopWidth = '1px';
+    box.style.borderBottomWidth = '1px';
+    // A real browser measures content + padding, excluding the border.
+    Object.defineProperty(box, 'scrollHeight', {
+      configurable: true,
+      get: () => (box.value.length > 100 ? 250 : 44),
+    });
+    fireEvent.change(box, { target: { value: 'Short draft' } });
+    expect(box.style.height).toBe('46px');
+    expect(box.style.overflowY).toBe('hidden');
+    fireEvent.change(box, { target: { value: 'Long draft '.repeat(40) } });
+    expect(box.style.height).toBe('160px');
+    expect(box.style.overflowY).toBe('auto');
+    fireEvent.change(box, { target: { value: '' } });
+    expect(box.style.height).toBe('46px');
+    expect(box.style.overflowY).toBe('hidden');
+  });
+
+  it('disables emoji along with the composer', () => {
+    render(<Composer disabled quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    expect(
+      (screen.getByRole('button', { name: 'Insert emoji' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('opens quick replies without losing a draft, appends the chosen reply and does not send', async () => {
+    const onSend = vi.fn();
+    const reply = { id: 1, shortcut: 'delivery', body: 'Delivery takes two days.', updatedAt: 0 };
+    render(<Composer quickReplies={[reply]} onSend={onSend} onAttach={vi.fn()} />);
+    const user = userEvent.setup();
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    await user.type(box, 'Hello Alex');
+    await user.click(screen.getByRole('button', { name: 'Quick replies' }));
+    expect(box.value).toBe('Hello Alex');
+    await user.click(screen.getByRole('option', { name: /delivery/ }));
+    expect(box.value).toBe('Hello Alex\nDelivery takes two days.');
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it('dismisses the quick reply browser with Escape and preserves the draft', async () => {
+    render(
+      <Composer
+        quickReplies={[{ id: 1, shortcut: 'help', body: 'How can I help?', updatedAt: 0 }]}
+        onSend={vi.fn()}
+        onAttach={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup();
+    const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    await user.type(box, 'Draft');
+    await user.click(screen.getByRole('button', { name: 'Quick replies' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('option')).toBeNull();
+    expect(box.value).toBe('Draft');
+  });
   it('sends on Enter and clears the textarea', async () => {
     const onSend = vi.fn();
     render(<Composer quickReplies={[]} onSend={onSend} onAttach={vi.fn()} />);
@@ -64,13 +205,20 @@ describe('Composer', () => {
 
   it('desktop keyboards label Enter as send', () => {
     render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
-    expect(screen.getByRole('textbox', { name: /message/i }).getAttribute('enterkeyhint')).toBe('send');
+    expect(screen.getByRole('textbox', { name: /message/i }).getAttribute('enterkeyhint')).toBe(
+      'send',
+    );
   });
 
   it('on touch devices Enter inserts a newline and the keyboard key is not labelled Send', async () => {
     vi.stubGlobal(
       'matchMedia',
-      vi.fn((q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} })),
+      vi.fn((q: string) => ({
+        matches: q === '(pointer: coarse)',
+        media: q,
+        addEventListener() {},
+        removeEventListener() {},
+      })),
     );
     try {
       const onSend = vi.fn();

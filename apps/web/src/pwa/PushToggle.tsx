@@ -6,6 +6,7 @@ import { Banner } from '@/components/app';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { InstallHint } from './InstallHint';
+import { desktopNotificationsEnabled, isDesktopNotifications } from './desktop-notifications';
 import {
   getCurrentSubscription,
   isPushSupported,
@@ -17,6 +18,7 @@ import {
 type Status = 'checking' | 'unsupported' | 'install' | 'denied' | 'off' | 'on';
 
 function initialStatus(): Status {
+  if (isDesktopNotifications()) return desktopNotificationsEnabled() ? 'on' : 'off';
   if (needsInstallForPush()) return 'install';
   if (!isPushSupported()) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
@@ -27,7 +29,13 @@ function initialStatus(): Status {
  * Push-notification opt-in for the current device (place it in the user menu).
  * `compact` renders a single row suitable for menus / side bars.
  */
-export function PushToggle({ compact = false, className }: { compact?: boolean; className?: string }) {
+export function PushToggle({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
   const id = useId();
   const [status, setStatus] = useState<Status>(initialStatus);
   const [busy, setBusy] = useState(false);
@@ -37,7 +45,9 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
     if (status !== 'checking') return;
     let alive = true;
     getCurrentSubscription()
-      .then((sub) => alive && setStatus(sub && Notification.permission === 'granted' ? 'on' : 'off'))
+      .then(
+        (sub) => alive && setStatus(sub && Notification.permission === 'granted' ? 'on' : 'off'),
+      )
       .catch(() => alive && setStatus('off'));
     return () => {
       alive = false;
@@ -66,7 +76,8 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
         setStatus('on');
       }
     } catch (e) {
-      if (isPushSupported() && Notification.permission === 'denied') setStatus('denied');
+      if (!isDesktopNotifications() && isPushSupported() && Notification.permission === 'denied')
+        setStatus('denied');
       setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -85,7 +96,10 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
           !compact && 'px-1',
         )}
       >
-        <Label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium">
+        <Label
+          htmlFor={id}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium"
+        >
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span>Notifications on this device</span>
         </Label>
@@ -102,6 +116,12 @@ export function PushToggle({ compact = false, className }: { compact?: boolean; 
           }}
         />
       </div>
+      {isDesktopNotifications() && !compact && (
+        <p className="text-xs text-muted-foreground">
+          Alerts appear when this app is in the background. Keep it running in the tray and allow WA
+          Team Inbox in your system notification settings.
+        </p>
+      )}
       {status === 'denied' && (
         <Banner tone="warning" className="text-xs">
           Notifications are blocked. Allow them in the browser's site settings.

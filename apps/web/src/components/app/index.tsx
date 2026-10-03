@@ -35,9 +35,16 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-center', className)}>
+    <div
+      className={cn('flex flex-col items-center justify-center gap-3 p-8 text-center', className)}
+    >
       {illustration && (
-        <img src={illustration} alt="" aria-hidden className="mb-1 h-32 w-auto max-w-full select-none object-contain" />
+        <img
+          src={illustration}
+          alt=""
+          aria-hidden
+          className="mb-1 h-32 w-auto max-w-full select-none object-contain"
+        />
       )}
       <h2 className="text-base font-semibold">{title}</h2>
       {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
@@ -72,7 +79,14 @@ export function StatusDot({
   return (
     <span className={cn('inline-flex items-center gap-2 text-sm', className)}>
       <span className="relative flex size-2.5">
-        {pulse && <span className={cn('absolute inline-flex size-full animate-ping rounded-full opacity-60', TONE_DOT[tone])} />}
+        {pulse && (
+          <span
+            className={cn(
+              'absolute inline-flex size-full animate-ping rounded-full opacity-60',
+              TONE_DOT[tone],
+            )}
+          />
+        )}
         <span className={cn('relative inline-flex size-2.5 rounded-full', TONE_DOT[tone])} />
       </span>
       {label}
@@ -104,8 +118,16 @@ export function stateTone(state: string): StatusTone {
 
 const BANNER_TONE = {
   info: { cls: 'border-info/30 bg-info/10 text-foreground', Icon: Info, icon: 'text-info' },
-  warning: { cls: 'border-warning/40 bg-warning/10 text-foreground', Icon: AlertTriangle, icon: 'text-warning' },
-  danger: { cls: 'border-danger/30 bg-danger/10 text-foreground', Icon: OctagonAlert, icon: 'text-danger' },
+  warning: {
+    cls: 'border-warning/40 bg-warning/10 text-foreground',
+    Icon: AlertTriangle,
+    icon: 'text-warning',
+  },
+  danger: {
+    cls: 'border-danger/30 bg-danger/10 text-foreground',
+    Icon: OctagonAlert,
+    icon: 'text-danger',
+  },
 } as const;
 
 export function Banner({
@@ -123,7 +145,14 @@ export function Banner({
 }) {
   const t = BANNER_TONE[tone];
   return (
-    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm', t.cls, className)}>
+    <div
+      role={tone === 'danger' ? 'alert' : 'status'}
+      className={cn(
+        'flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm',
+        t.cls,
+        className,
+      )}
+    >
       <t.Icon className={cn('mt-0.5 size-4 shrink-0', t.icon)} aria-hidden />
       <div className="min-w-0 flex-1">
         {title && <p className="font-medium">{title}</p>}
@@ -199,17 +228,26 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between', className)}>
+    <div
+      className={cn(
+        'flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between',
+        className,
+      )}
+    >
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        {description && (
+          <p className="mt-1 text-base leading-relaxed text-muted-foreground md:text-sm">
+            {description}
+          </p>
+        )}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
   );
 }
 
-/* ---------- ResponsiveList: table on md+, stacked cards below ---------- */
+/* ---------- ResponsiveList: table on lg+, stacked cards below ---------- */
 
 export interface Column<T> {
   key: string;
@@ -234,7 +272,7 @@ export function ResponsiveTable<T>({
   if (rows.length === 0) return <>{empty}</>;
   return (
     <>
-      <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
+      <div className="hidden overflow-x-auto rounded-lg border bg-card lg:block">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-muted-foreground">
             <tr>
@@ -249,7 +287,10 @@ export function ResponsiveTable<T>({
             {rows.map((r) => (
               <tr key={rowKey(r)} className="border-t">
                 {columns.map((c) => (
-                  <td key={c.key} className={cn('px-3 py-2 align-middle', c.className)}>
+                  <td
+                    key={c.key}
+                    className={cn('[overflow-wrap:anywhere] px-3 py-2 align-middle', c.className)}
+                  >
                     {c.cell(r)}
                   </td>
                 ))}
@@ -258,7 +299,7 @@ export function ResponsiveTable<T>({
           </tbody>
         </table>
       </div>
-      <ul className="flex flex-col gap-2 md:hidden">
+      <ul className="flex flex-col gap-2 lg:hidden">
         {rows.map((r) => (
           <li key={rowKey(r)} className="rounded-lg border bg-card p-3 text-sm">
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">

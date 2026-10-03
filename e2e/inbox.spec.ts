@@ -19,15 +19,10 @@ async function backToList(page: Page): Promise<void> {
   await expect(inboxHeading(page)).toBeVisible();
 }
 
-/** The Open/Resolved toggle in the chat filters. */
-function statusToggle(page: Page) {
-  return page.getByRole('button', { name: /^(Open|Resolved)$/ });
-}
-
 async function showStatus(page: Page, status: 'Open' | 'Resolved'): Promise<void> {
-  const toggle = statusToggle(page);
-  if ((await toggle.textContent())?.trim() !== status) await toggle.click();
-  await expect(toggle).toHaveText(status);
+  const tab = page.getByRole('tab', { name: status, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
 }
 
 test.describe('inbox', () => {

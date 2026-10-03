@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAppVersion } from '../lib/version';
 import type { ChatFilters as Filters } from '../api/queries';
 import { UserMenu } from '../auth/UserMenu';
 import { EmptyState } from '@/components/app';
@@ -34,6 +37,7 @@ export function InboxPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const directory = useDirectory();
+  const version = useAppVersion();
 
   // Mobile back: when the conversation was opened from the list, pop history so the hardware /
   // swipe back gesture doesn't bounce into the chat again; deep links replace instead.
@@ -69,10 +73,28 @@ export function InboxPage() {
             <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
               Inbox
             </h1>
+            {directory.isAdmin && (
+              <Button asChild variant="ghost" size="touch">
+                <Link to="/admin">
+                  <Settings aria-hidden="true" />
+                  Admin
+                </Link>
+              </Button>
+            )}
             <UserMenu />
           </header>
           <ChatFilters value={filters} onChange={setFilters} />
-          <ChatList filters={filters} activeJid={jid} directory={directory} />
+          <ChatList
+            filters={filters}
+            activeJid={jid}
+            directory={directory}
+            onResetFilters={() => setFilters(DEFAULT_FILTERS)}
+          />
+          {version && (
+            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+              WA Team Inbox · v{version}
+            </p>
+          )}
           <div className="safe-bottom" />
         </aside>
         <main

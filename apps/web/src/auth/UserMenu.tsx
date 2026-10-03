@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bug, Info, KeyRound, LogOut, Settings } from 'lucide-react';
+import { Bug, Info, KeyRound, LogOut, Monitor, Moon, Settings, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AboutDialog } from '@/components/app';
+import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { GITHUB_ISSUES_URL } from '@/lib/links';
 import { useAppVersion } from '@/lib/version';
+import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from './AuthProvider';
 
@@ -40,6 +44,7 @@ export function UserMenu({
 }) {
   const { user, isAdmin, logout } = useAuth();
   const version = useAppVersion();
+  const { theme, setTheme } = useTheme();
   const [aboutOpen, setAboutOpen] = useState(false);
   if (!user) return null;
 
@@ -68,6 +73,24 @@ export function UserMenu({
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel id="account-appearance-label">Appearance</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            aria-labelledby="account-appearance-label"
+            value={theme}
+            onValueChange={setTheme}
+          >
+            {THEME_OPTIONS.map((option) => {
+              const Icon =
+                option.value === 'light' ? Sun : option.value === 'dark' ? Moon : Monitor;
+              return (
+                <DropdownMenuRadioItem key={option.value} value={option.value} className="min-h-11">
+                  <Icon aria-hidden="true" />
+                  {option.label}
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
           <PushToggle compact className="px-2" />
           <DropdownMenuSeparator />
           {isAdmin && (
@@ -85,6 +108,7 @@ export function UserMenu({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <FeatureRequestAction placement="menu" />
           <DropdownMenuItem asChild className="min-h-11">
             <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener noreferrer">
               <Bug aria-hidden="true" />

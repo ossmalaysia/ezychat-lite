@@ -43,7 +43,7 @@ let children: FakeChild[];
 let calls: Array<{ cmd: string; args: string[]; env?: NodeJS.ProcessEnv }>;
 let statuses: TunnelStatus[];
 
-function makeManager(bin: string | null = '/bin/cloudflared') {
+function makeManager(bin: string | null = '/bin/cloudflared', log = silentLogger()) {
   const spawn = ((cmd: string, args: string[], opts?: { env?: NodeJS.ProcessEnv }) => {
     calls.push({ cmd, args, env: opts?.env });
     const c = new FakeChild();
@@ -56,7 +56,7 @@ function makeManager(bin: string | null = '/bin/cloudflared') {
     port: () => 7420,
     settings,
     bus,
-    log: silentLogger(),
+    log,
     now: () => now,
   });
 }
@@ -88,17 +88,90 @@ describe('TunnelManager', () => {
     expect(s0.state).toBe('starting');
     expect(calls[0]).toMatchObject({
       cmd: '/bin/cloudflared',
-      args: ['tunnel', '--no-autoupdate', '--url', 'http://127.0.0.1:7420'],
+      args: ['tunnel', '--config=', '--no-autoupdate', '--url', 'http://127.0.0.1:7420'],
     });
     expect(calls[0]!.env?.TUNNEL_TOKEN).toBeUndefined();
     children[0]!.line('INF Requesting new quick Tunnel on trycloudflare.com...');
     children[0]!.line('INF |  https://abc-def.trycloudflare.com  |');
     await flush();
+    expect(m.status()).toMatchObject({
+      state: 'starting',
+      url: 'https://abc-def.trycloudflare.com',
+    });
+    children[0]!.line('INF Registered tunnel connection connIndex=0 location=sin01');
+    await flush();
     const s = m.status();
-    expect(s).toMatchObject({ mode: 'quick', state: 'running', url: 'https://abc-def.trycloudflare.com' });
-    expect(s.logTail.length).toBe(2);
+    expect(s).toMatchObject({
+      mode: 'quick',
+      state: 'running',
+      url: 'https://abc-def.trycloudflare.com',
+    });
+    expect(s.logTail.length).toBe(3);
     expect(statuses.at(-1)?.state).toBe('running');
     expect(settings.get('tunnel_mode', 'off')).toBe('quick');
+    await m.shutdown();
+  });
+
+  it('waits for both the quick URL and edge registration when streams arrive in reverse order', async () => {
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    children[0]!.line('INF Registered tunnel connection connIndex=0 location=sin01', 'stdout');
+    await flush();
+    expect(m.status()).toMatchObject({ state: 'starting', url: null });
+    children[0]!.line('INF | https://abc-def.trycloudflare.com |');
+    await flush();
+    expect(m.status()).toMatchObject({
+      state: 'running',
+      url: 'https://abc-def.trycloudflare.com',
+    });
+    await m.shutdown();
+  });
+
+  it('isolates quick and token-managed named tunnels from unrelated default configuration', async () => {
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    expect(calls[0]!.args).toContain('--config=');
+    await m.start({ mode: 'named', token: 'test-named-token' }, 1);
+    expect(calls[1]!.args).toContain('--config=');
+    expect(calls[1]!.args).not.toContain('--url');
+    expect(calls[1]!.env?.TUNNEL_TOKEN).toBe('test-named-token');
+    await m.shutdown();
+  });
+
+  it('logs the intended origin and connectivity milestones without copying raw tunnel output', async () => {
+    const log = silentLogger();
+    const info = vi.spyOn(log, 'info');
+    const warn = vi.spyOn(log, 'warn');
+    const m = makeManager('/bin/cloudflared', log);
+    await m.start({ mode: 'quick' }, 1);
+    expect(info).toHaveBeenCalledWith(
+      {
+        mode: 'quick',
+        bin: '/bin/cloudflared',
+        localOrigin: 'http://127.0.0.1:7420',
+        configIsolated: true,
+      },
+      'cloudflared started',
+    );
+    children[0]!.line('INF | https://abc-def.trycloudflare.com |');
+    children[0]!.line('INF Registered tunnel connection connIndex=0 location=sin01');
+    children[0]!.line('ERR Unable to reach the origin service token=private-test-value');
+    await flush();
+    expect(info).toHaveBeenCalledWith(
+      {
+        mode: 'quick',
+        url: 'https://abc-def.trycloudflare.com',
+        localOrigin: 'http://127.0.0.1:7420',
+      },
+      'Tunnel connected to Cloudflare',
+    );
+    expect(warn).toHaveBeenCalledWith(
+      { mode: 'quick', localOrigin: 'http://127.0.0.1:7420' },
+      'Tunnel cannot reach its local origin',
+    );
+    expect(JSON.stringify([...info.mock.calls, ...warn.mock.calls])).not.toContain(
+      'private-test-value',
+    );
     await m.shutdown();
   });
 
@@ -107,13 +180,19 @@ describe('TunnelManager', () => {
     const token = 'eyJhIjoic2VjcmV0LXRva2VuLXZhbHVlIn0';
     await m.start({ mode: 'named', token, hostname: 'inbox.example.com' }, 1);
     // token passed via env, never on the command line
-    expect(calls[0]!.args).toEqual(['tunnel', '--no-autoupdate', 'run']);
+    expect(calls[0]!.args).toEqual(['tunnel', '--config=', '--no-autoupdate', 'run']);
     expect(calls[0]!.args.join(' ')).not.toContain(token);
     expect(calls[0]!.env?.TUNNEL_TOKEN).toBe(token);
     children[0]!.line('INF Registered tunnel connection connIndex=0 location=sin01', 'stdout');
     await flush();
-    expect(m.status()).toMatchObject({ mode: 'named', state: 'running', hostname: 'inbox.example.com' });
-    const raw = db.prepare("SELECT value FROM settings WHERE key = 'tunnel_token'").get() as { value: string };
+    expect(m.status()).toMatchObject({
+      mode: 'named',
+      state: 'running',
+      hostname: 'inbox.example.com',
+    });
+    const raw = db.prepare("SELECT value FROM settings WHERE key = 'tunnel_token'").get() as {
+      value: string;
+    };
     expect(raw.value).not.toContain(token);
     expect(settings.getSecret('tunnel_token')).toBe(token);
     await m.shutdown();
@@ -180,6 +259,7 @@ describe('TunnelManager', () => {
     const delays: number[] = [];
     for (let i = 0; i < 9; i++) {
       children.at(-1)!.line('INF |  https://abc-def.trycloudflare.com  |');
+      children.at(-1)!.line('INF Registered tunnel connection connIndex=0 location=sin01');
       await vi.advanceTimersByTimeAsync(0);
       expect(m.status().state).toBe('running');
       now += 40_000; // stable enough to reset the failure count, not the backoff

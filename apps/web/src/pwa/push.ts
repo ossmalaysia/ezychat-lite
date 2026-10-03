@@ -2,14 +2,17 @@
 // POST /api/push/subscribe (PushSubscribeBody), DELETE /api/push/subscribe ({ endpoint }).
 import type { PushSubscribeBody } from '@wa-team-inbox/shared';
 import { api } from '../api/client';
+import { reportClientError } from '@/lib/error-reporter';
+import { isDesktopNotifications, setDesktopNotifications } from './desktop-notifications';
 
 export function isPushSupported(): boolean {
   return (
-    typeof window !== 'undefined' &&
-    'Notification' in window &&
-    'PushManager' in window &&
-    typeof navigator !== 'undefined' &&
-    'serviceWorker' in navigator
+    isDesktopNotifications() ||
+    (typeof window !== 'undefined' &&
+      'Notification' in window &&
+      'PushManager' in window &&
+      typeof navigator !== 'undefined' &&
+      'serviceWorker' in navigator)
   );
 }
 
@@ -19,7 +22,9 @@ export function isIOS(): boolean {
   // iPadOS 13+ reports itself as Mac; detect via touch support.
   return (
     /iPad|iPhone|iPod/.test(ua) ||
-    (/Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1)
+    (/Macintosh/.test(ua) &&
+      typeof navigator.maxTouchPoints === 'number' &&
+      navigator.maxTouchPoints > 1)
   );
 }
 
@@ -28,7 +33,8 @@ export function isStandalone(): boolean {
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     nav.standalone === true ||
-    (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches)
+    (typeof window.matchMedia === 'function' &&
+      window.matchMedia('(display-mode: standalone)').matches)
   );
 }
 
@@ -58,7 +64,9 @@ export async function fetchVapidKey(): Promise<string> {
 }
 
 /** Current service worker registration (waits for it to become ready, max `timeoutMs`). */
-export async function getSWRegistration(timeoutMs = 10_000): Promise<ServiceWorkerRegistration | null> {
+export async function getSWRegistration(
+  timeoutMs = 10_000,
+): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
   const existing = await navigator.serviceWorker.getRegistration();
   if (existing?.active) return existing;
@@ -69,6 +77,7 @@ export async function getSWRegistration(timeoutMs = 10_000): Promise<ServiceWork
 }
 
 export async function getCurrentSubscription(): Promise<PushSubscription | null> {
+  if (isDesktopNotifications()) return null;
   if (!isPushSupported()) return null;
   const reg = await navigator.serviceWorker.getRegistration();
   return (await reg?.pushManager.getSubscription()) ?? null;
@@ -83,25 +92,47 @@ function toBody(sub: PushSubscription): PushSubscribeBody {
 }
 
 /** Ask permission, subscribe with the server's VAPID key and register the subscription. */
-export async function subscribePush(): Promise<PushSubscription> {
-  if (!isPushSupported()) throw new Error('This browser does not support push notifications.');
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error('Notification permission was not granted.');
-  const reg = await getSWRegistration();
-  if (!reg) throw new Error('Service worker is not active yet. Reload the page and try again.');
-  const vapid = await fetchVapidKey();
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapid),
-    });
+export async function subscribePush(): Promise<PushSubscription | null> {
+  if (isDesktopNotifications()) {
+    await setDesktopNotifications(true);
+    return null;
   }
-  await api('/push/subscribe', { method: 'POST', body: toBody(sub) });
-  return sub;
+  let stage = 'permission';
+  try {
+    if (!isPushSupported()) throw new Error('This browser does not support push notifications.');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+    stage = 'service-worker';
+    const reg = await getSWRegistration();
+    if (!reg) throw new Error('Service worker is not active yet. Reload the page and try again.');
+    stage = 'vapid-key';
+    const vapid = await fetchVapidKey();
+    stage = 'subscription';
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid),
+      });
+    }
+    stage = 'server-registration';
+    await api('/push/subscribe', { method: 'POST', body: toBody(sub) });
+    return sub;
+  } catch (error) {
+    reportClientError({
+      kind: 'error',
+      message: `Notification registration failed at ${stage}: ${error instanceof Error ? error.message : String(error)}`,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 }
 
 export async function unsubscribePush(): Promise<void> {
+  if (isDesktopNotifications()) {
+    await setDesktopNotifications(false);
+    return;
+  }
   const sub = await getCurrentSubscription();
   if (!sub) return;
   try {

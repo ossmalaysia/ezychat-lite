@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import type React from 'react';
-import { KeyRound, LogOut, MoreHorizontal, Pencil, RefreshCw, UserCheck, UserPlus, UserX } from 'lucide-react';
+import {
+  KeyRound,
+  LogOut,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  UserCheck,
+  UserPlus,
+  UserX,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
@@ -13,7 +22,14 @@ import {
 } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { formatDateTime } from '../lib/format';
-import { Banner, EmptyState, PageHeader, ResponsiveDialog, ResponsiveTable, type Column } from '@/components/app';
+import {
+  Banner,
+  EmptyState,
+  PageHeader,
+  ResponsiveDialog,
+  ResponsiveTable,
+  type Column,
+} from '@/components/app';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,8 +41,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ConfirmDialog, CopyButton, ErrorState, Field, ListSkeleton, Pending, generatePassword } from './adminUi';
+import { SearchField } from '@/components/app/SearchField';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ConfirmDialog,
+  CopyButton,
+  ErrorState,
+  Field,
+  ListSkeleton,
+  Pending,
+  generatePassword,
+} from './adminUi';
 
 type Dialog =
   | { kind: 'create' }
@@ -40,9 +71,14 @@ export function MembersPage() {
   const users = useUsers();
   const { user: me } = useAuth();
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [search, setSearch] = useState('');
   const close = () => setDialog(null);
 
-  const list = users.data ?? [];
+  const all = users.data ?? [];
+  const query = search.trim().toLocaleLowerCase();
+  const list = all.filter((u) =>
+    `${u.displayName} ${u.username} ${u.role}`.toLocaleLowerCase().includes(query),
+  );
 
   const columns: Column<User>[] = [
     {
@@ -78,6 +114,19 @@ export function MembersPage() {
         }
       />
 
+      <div className="mb-4 space-y-2">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          label="Search members"
+          placeholder="Search name, username or role"
+        />
+        {!users.isPending && !users.isError && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {list.length} of {all.length} members
+          </p>
+        )}
+      </div>
       {users.isPending ? (
         <ListSkeleton />
       ) : users.isError ? (
@@ -87,7 +136,21 @@ export function MembersPage() {
           rows={list}
           columns={columns}
           rowKey={(u) => u.id}
-          empty={<EmptyState title="No members yet" description="Add a member so they can sign in." />}
+          empty={
+            query ? (
+              <EmptyState
+                title="No matching members"
+                description="Try a different name, username or role."
+                action={
+                  <Button variant="outline" size="touch" onClick={() => setSearch('')}>
+                    Clear search
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState title="No members yet" description="Add a member so they can sign in." />
+            )
+          }
         />
       )}
 
@@ -121,7 +184,11 @@ export function MembersPage() {
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '')).toUpperCase() || '?';
+  return (
+    (
+      (parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '')
+    ).toUpperCase() || '?'
+  );
 }
 
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
@@ -133,7 +200,7 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <p className="truncate font-medium">
+        <p className="font-medium [overflow-wrap:anywhere] md:truncate">
           {user.displayName}
           {isMe && <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span>}
         </p>
@@ -159,7 +226,9 @@ function StatusBadges({ user }: { user: User }) {
       ) : (
         <Badge className="bg-success/15 text-success">Active</Badge>
       )}
-      {user.mustChangePassword && <Badge className="bg-warning/15 text-foreground">Must change password</Badge>}
+      {user.mustChangePassword && (
+        <Badge className="bg-warning/15 text-foreground">Must change password</Badge>
+      )}
     </span>
   );
 }
@@ -196,11 +265,17 @@ function RowActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem className="min-h-11 md:min-h-8" onSelect={() => onAction({ kind: 'reset', user })}>
+          <DropdownMenuItem
+            className="min-h-11 md:min-h-8"
+            onSelect={() => onAction({ kind: 'reset', user })}
+          >
             <KeyRound aria-hidden />
             Reset password
           </DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11 md:min-h-8" onSelect={() => onAction({ kind: 'revoke', user })}>
+          <DropdownMenuItem
+            className="min-h-11 md:min-h-8"
+            onSelect={() => onAction({ kind: 'revoke', user })}
+          >
             <LogOut aria-hidden />
             Sign out everywhere
           </DropdownMenuItem>
@@ -268,7 +343,13 @@ function DialogFooterButtons({
 }) {
   return (
     <>
-      <Button variant="outline" size="touch" className="sm:min-h-9" onClick={onCancel} disabled={pending}>
+      <Button
+        variant="outline"
+        size="touch"
+        className="sm:min-h-9"
+        onClick={onCancel}
+        disabled={pending}
+      >
         Cancel
       </Button>
       <Button type="submit" form={formId} size="touch" className="sm:min-h-9" disabled={pending}>
@@ -324,7 +405,12 @@ function CreateMemberDialog({
         />
       }
     >
-      <form id="create-member-form" onSubmit={submit} className="flex flex-col gap-4 pb-1" noValidate>
+      <form
+        id="create-member-form"
+        onSubmit={submit}
+        className="flex flex-col gap-4 pb-1"
+        noValidate
+      >
         <Field label="Username">
           {(p) => (
             <Input
@@ -467,7 +553,11 @@ function DisableMemberDialog({ user, onClose }: { user: User; onClose: () => voi
           { id: user.id, patch: { disabled: !enabling } },
           {
             onSuccess: () => {
-              toast.success(enabling ? `${user.displayName} can sign in again.` : `${user.displayName} was disabled.`);
+              toast.success(
+                enabling
+                  ? `${user.displayName} can sign in again.`
+                  : `${user.displayName} was disabled.`,
+              );
               onClose();
             },
           },

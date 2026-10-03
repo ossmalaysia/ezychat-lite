@@ -34,10 +34,13 @@ function waitConnect(s: ClientSocket): Promise<void> {
 function waitEvent(s: ClientSocket, ev: keyof ServerToClientEvents, ms = 2000): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`timeout waiting for ${ev}`)), ms);
-    (s as unknown as { once(e: string, fn: (...a: unknown[]) => void): void }).once(ev, (...args: unknown[]) => {
-      clearTimeout(timer);
-      resolve(args);
-    });
+    (s as unknown as { once(e: string, fn: (...a: unknown[]) => void): void }).once(
+      ev,
+      (...args: unknown[]) => {
+        clearTimeout(timer);
+        resolve(args);
+      },
+    );
   });
 }
 
@@ -90,6 +93,59 @@ describe('realtime', () => {
     expect(m.body).toBe('hello realtime');
   });
 
+  it('sends connected notification previews only to the assigned active user', async () => {
+    const owner = await createUserAndLogin(t);
+    const other = await createUserAndLogin(t);
+    const a = connect(owner.cookie);
+    const b = connect(other.cookie);
+    await Promise.all([waitConnect(a), waitConnect(b)]);
+    // Create the chat first; then assign before the inbound event under test.
+    const created = waitEvent(a, 'chat:updated');
+    t.wa.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'Initial message' });
+    await created;
+    t.ctx.db
+      .prepare('UPDATE chats SET assigned_to = ? WHERE jid = ?')
+      .run(owner.user.id, '601111@s.whatsapp.net');
+    await delay(50);
+    let leaked = false;
+    b.on('notification:new', () => {
+      leaked = true;
+    });
+    const notification = waitEvent(a, 'notification:new');
+    t.wa.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'Owner only' });
+    const [payload] = await notification;
+    expect(payload).toMatchObject({
+      body: 'Owner only',
+      tag: '601111@s.whatsapp.net',
+      url: '/chats/601111%40s.whatsapp.net',
+    });
+    await delay(50);
+    expect(leaked).toBe(false);
+  });
+
+  it('alerts connected team members for an unassigned chat and sends status alerts only to admins', async () => {
+    const admin = await createUserAndLogin(t, { role: 'admin' });
+    const agent = await createUserAndLogin(t, { role: 'agent' });
+    const a = connect(admin.cookie);
+    const b = connect(agent.cookie);
+    await Promise.all([waitConnect(a), waitConnect(b)]);
+    const inbound = [waitEvent(a, 'notification:new'), waitEvent(b, 'notification:new')];
+    t.wa.simulateIncoming({ chatJid: '601112@s.whatsapp.net', body: 'Team alert' });
+    expect((await Promise.all(inbound)).map(([p]) => p)).toEqual([
+      expect.objectContaining({ body: 'Team alert' }),
+      expect.objectContaining({ body: 'Team alert' }),
+    ]);
+    let leaked = false;
+    b.on('notification:new', () => {
+      leaked = true;
+    });
+    const alert = waitEvent(a, 'notification:new');
+    t.wa.simulateStatus({ state: 'logged_out' });
+    expect((await alert)[0]).toMatchObject({ url: '/admin/whatsapp', tag: 'wa-status' });
+    await delay(50);
+    expect(leaked).toBe(false);
+  });
+
   it('strips the QR code for agents but not admins', async () => {
     const admin = await createUserAndLogin(t, { role: 'admin' });
     const agent = await createUserAndLogin(t, { role: 'agent' });
@@ -132,7 +188,12 @@ describe('realtime', () => {
       new Promise<number>((resolve, reject) => {
         const u = new URL(t.url!);
         const req = httpRequest(
-          { host: u.hostname, port: u.port, path: '/socket.io/?EIO=4&transport=polling', headers: { host, cookie } },
+          {
+            host: u.hostname,
+            port: u.port,
+            path: '/socket.io/?EIO=4&transport=polling',
+            headers: { host, cookie },
+          },
           (res) => {
             res.resume();
             resolve(res.statusCode ?? 0);
@@ -196,7 +257,11 @@ describe('realtime', () => {
     const s = connect(u.cookie);
     await waitConnect(s);
     const revoked = waitEvent(s, 'session:revoked');
-    const res = await t.app.inject({ method: 'POST', url: '/api/auth/logout', headers: authHeaders(u.cookie) });
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/auth/logout',
+      headers: authHeaders(u.cookie),
+    });
     expect(res.statusCode).toBe(200);
     await revoked;
   });
@@ -214,7 +279,11 @@ describe('realtime', () => {
     const p = waitEvent(sb, 'typing');
     sa.emit('typing', { chatJid: '60111@s.whatsapp.net' });
     const [payload] = await p;
-    expect(payload).toEqual({ chatJid: '60111@s.whatsapp.net', userId: a.user.id, displayName: a.user.displayName });
+    expect(payload).toEqual({
+      chatJid: '60111@s.whatsapp.net',
+      userId: a.user.id,
+      displayName: a.user.displayName,
+    });
     await delay(100);
     expect(senderGot).toBe(false);
   });

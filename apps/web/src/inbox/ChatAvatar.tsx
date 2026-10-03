@@ -1,6 +1,8 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useContext, useState } from 'react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { initials } from '../lib/format';
+import { ProfileImageContext } from './ProfileImageContext';
 
 /** Token-only fallback tints, picked by a stable seed so a contact keeps its colour. */
 const TINTS = [
@@ -37,12 +39,45 @@ export function ChatAvatar({
   size?: keyof typeof SIZES;
   className?: string;
 }) {
+  const { ready, revision } = useContext(ProfileImageContext);
+  const imageSrc =
+    src && revision && src.startsWith('/api/chats/')
+      ? `${src}${src.includes('?') ? '&' : '?'}connection=${revision}`
+      : src;
   return (
     <Avatar className={cn(SIZES[size], className)} aria-hidden="true" title={name}>
-      {src && <AvatarImage src={src} alt="" className="object-cover" />}
-      <AvatarFallback className={cn('font-semibold', TINTS[hash(seed ?? name) % TINTS.length])}>
-        {initials(name)}
-      </AvatarFallback>
+      <ProfileImage
+        key={`${src}:${revision}:${ready}`}
+        name={name}
+        src={ready ? imageSrc : null}
+        seed={seed}
+      />
     </Avatar>
+  );
+}
+
+function ProfileImage({ name, src, seed }: { name: string; src?: string | null; seed?: string }) {
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  return (
+    <>
+      {/* Native lazy loading avoids Radix's eager image preloader querying every chat at once. */}
+      {src && failed !== src && (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(src)}
+          onError={() => setFailed(src)}
+          className={cn('absolute inset-0 size-full object-cover', loaded !== src && 'invisible')}
+        />
+      )}
+      {(loaded !== src || failed === src || !src) && (
+        <AvatarFallback className={cn('font-semibold', TINTS[hash(seed ?? name) % TINTS.length])}>
+          {initials(name)}
+        </AvatarFallback>
+      )}
+    </>
   );
 }

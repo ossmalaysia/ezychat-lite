@@ -60,7 +60,8 @@ export function TunnelPage() {
         <Skeleton className="h-40 w-full" />
       </div>
     );
-  if (tunnel.isError) return <ErrorState error={tunnel.error} onRetry={() => void tunnel.refetch()} />;
+  if (tunnel.isError)
+    return <ErrorState error={tunnel.error} onRetry={() => void tunnel.refetch()} />;
 
   const s = tunnel.data;
   const active = s.state === 'running' || s.state === 'starting';
@@ -76,7 +77,8 @@ export function TunnelPage() {
     if (mode === 'named') {
       const t = token.trim();
       if (t && t.length < 10) return setFormError('That token looks too short.');
-      if (!t && !hasToken) return setFormError('Paste the tunnel token from the Cloudflare dashboard.');
+      if (!t && !hasToken)
+        return setFormError('Paste the tunnel token from the Cloudflare dashboard.');
       if (t) body.token = t;
       if (hostname.trim()) body.hostname = hostname.trim();
     }
@@ -236,7 +238,13 @@ export function TunnelPage() {
               disabled={start.isPending || (mode === 'off' && !active)}
             >
               <Pending show={start.isPending} />
-              {mode === 'off' ? 'Turn off' : active ? 'Restart tunnel' : 'Start tunnel'}
+              {mode === 'off'
+                ? active
+                  ? 'Turn off'
+                  : 'Remote access is off'
+                : active
+                  ? 'Restart tunnel'
+                  : 'Start tunnel'}
             </Button>
             {active && mode !== 'off' && (
               <Button
@@ -260,7 +268,9 @@ export function TunnelPage() {
             <CardTitle>Log</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className={cn('rounded-md border bg-muted', s.logTail.length > 14 && 'h-72')}>
+            <ScrollArea
+              className={cn('rounded-md border bg-muted', s.logTail.length > 14 && 'h-72')}
+            >
               <pre className="p-3 font-mono text-xs break-all whitespace-pre-wrap text-foreground">
                 {s.logTail.join('\n')}
               </pre>

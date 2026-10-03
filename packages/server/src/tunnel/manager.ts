@@ -54,6 +54,7 @@ export class TunnelManager implements TunnelService {
   private startedAt = 0;
   /** time the current child reached 'running' (0 = not yet) */
   private runningAt = 0;
+  private registered = false;
   /** consecutive runs that died before running stably; 'error' at MAX_CONSECUTIVE_FAILURES */
   private failures = 0;
   /** consecutive restarts; drives the 1s..60s backoff */
@@ -71,7 +72,10 @@ export class TunnelManager implements TunnelService {
       mode: this.mode,
       state: this.state,
       url: this.url,
-      hostname: this.mode === 'named' ? this.deps.settings.get<string | null>(TUNNEL_HOSTNAME_KEY, null) : null,
+      hostname:
+        this.mode === 'named'
+          ? this.deps.settings.get<string | null>(TUNNEL_HOSTNAME_KEY, null)
+          : null,
       lastError: this.lastError,
       logTail: [...this.logTail],
     };
@@ -82,7 +86,8 @@ export class TunnelManager implements TunnelService {
     let token: string | null = null;
     if (body.mode === 'named') {
       if (body.token) settings.setSecret(TUNNEL_TOKEN_KEY, body.token);
-      if (body.hostname !== undefined) settings.set(TUNNEL_HOSTNAME_KEY, body.hostname.trim() || null);
+      if (body.hostname !== undefined)
+        settings.set(TUNNEL_HOSTNAME_KEY, body.hostname.trim() || null);
       token = settings.getSecret(TUNNEL_TOKEN_KEY);
       if (!token) throw errors.validation('A tunnel token is required for a named tunnel');
     }
@@ -135,6 +140,7 @@ export class TunnelManager implements TunnelService {
     const mode = this.mode as ActiveMode;
     this.url = null;
     this.runningAt = 0;
+    this.registered = false;
     const bin = this.deps.binPath();
     if (!bin) {
       this.lastError = 'cloudflared not found';
@@ -143,17 +149,29 @@ export class TunnelManager implements TunnelService {
     }
     // The named-tunnel token goes through the environment (TUNNEL_TOKEN), never the command line,
     // so other local users cannot read it from the process list.
+    // An explicit empty config disables cloudflared's automatic ~/.cloudflared/config.yml load.
+    // Otherwise an unrelated ingress config takes precedence over our quick-tunnel --url.
     const args =
       mode === 'quick'
-        ? ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${this.deps.port()}`]
-        : ['tunnel', '--no-autoupdate', 'run'];
+        ? [
+            'tunnel',
+            '--config=',
+            '--no-autoupdate',
+            '--url',
+            `http://127.0.0.1:${this.deps.port()}`,
+          ]
+        : ['tunnel', '--config=', '--no-autoupdate', 'run'];
     const env: NodeJS.ProcessEnv = { ...process.env };
     delete env.TUNNEL_TOKEN;
     if (mode === 'named') env.TUNNEL_TOKEN = this.token ?? '';
 
     let child: ChildProcess;
     try {
-      child = this.deps.spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env });
+      child = this.deps.spawn(bin, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+        env,
+      });
     } catch (err) {
       this.child = null;
       this.startedAt = this.now();
@@ -163,7 +181,10 @@ export class TunnelManager implements TunnelService {
     this.child = child;
     this.startedAt = this.now();
     this.setState('starting');
-    this.deps.log.info({ mode, bin }, 'cloudflared started');
+    this.deps.log.info(
+      { mode, bin, localOrigin: this.localOrigin(), configIsolated: true },
+      'cloudflared started',
+    );
 
     let gone = false;
     const handleGone = (reason: string) => {
@@ -185,20 +206,43 @@ export class TunnelManager implements TunnelService {
     if (this.child !== child) return;
     this.logTail.push(line);
     if (this.logTail.length > LOG_TAIL) this.logTail.splice(0, this.logTail.length - LOG_TAIL);
+    if (line.includes('Unable to reach the origin service')) {
+      this.deps.log.warn(
+        { mode: this.mode, localOrigin: this.localOrigin() },
+        'Tunnel cannot reach its local origin',
+      );
+    }
     if (this.state === 'running') return;
+    if (isNamedTunnelRegistered(line)) this.registered = true;
     if (this.mode === 'quick') {
       const url = parseQuickTunnelUrl(line);
       if (url) {
         this.url = url;
-        this.runningAt = this.now();
-        this.setState('running');
+        this.deps.log.info(
+          { mode: this.mode, url, localOrigin: this.localOrigin() },
+          'Quick tunnel URL assigned',
+        );
+        this.setState('starting');
       }
-    } else if (this.mode === 'named' && isNamedTunnelRegistered(line)) {
+      // The URL banner precedes edge registration; it does not prove the tunnel is connected.
+      if (!this.url || !this.registered) return;
+    } else if (this.mode === 'named' && this.registered) {
       const host = this.deps.settings.get<string | null>(TUNNEL_HOSTNAME_KEY, null);
       this.url = host ? `https://${host}` : null;
-      this.runningAt = this.now();
-      this.setState('running');
+    } else {
+      return;
     }
+    this.runningAt = this.now();
+    this.deps.log.info(
+      { mode: this.mode, url: this.url, localOrigin: this.localOrigin() },
+      'Tunnel connected to Cloudflare',
+    );
+    this.setState('running');
+  }
+
+  private localOrigin(): string | null {
+    // Named tunnel routing is managed in Cloudflare, rather than by the local --url flag.
+    return this.mode === 'quick' ? `http://127.0.0.1:${this.deps.port()}` : null;
   }
 
   /**
@@ -215,7 +259,10 @@ export class TunnelManager implements TunnelService {
     this.runningAt = 0;
     this.failures += 1;
     this.attempts += 1;
-    this.deps.log.warn({ reason, failures: this.failures, attempts: this.attempts }, 'cloudflared exited unexpectedly');
+    this.deps.log.warn(
+      { reason, failures: this.failures, attempts: this.attempts },
+      'cloudflared exited unexpectedly',
+    );
     if (this.failures >= MAX_CONSECUTIVE_FAILURES) {
       this.setState('error');
       return;

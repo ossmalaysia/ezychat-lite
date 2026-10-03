@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CircleDot, Search } from 'lucide-react';
+import { CheckCircle2, CircleDot } from 'lucide-react';
 import type { ChatFilters as Filters } from '../api/queries';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { SearchField } from '@/components/app/SearchField';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 
 export interface ChatFiltersProps {
   value: Filters;
@@ -23,6 +21,7 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
   const [search, setSearch] = useState(value.q ?? '');
   const latest = useRef({ value, onChange });
   latest.current = { value, onChange };
+  useEffect(() => setSearch(value.q ?? ''), [value.q]);
 
   // Debounce search → filters.
   useEffect(() => {
@@ -35,24 +34,15 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
   }, [search]);
 
   const status = value.status ?? 'open';
-  const open = status === 'open';
 
   return (
     <div className="space-y-2 border-b px-3 pb-2.5 pt-1">
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name or number"
-          aria-label="Search chats"
-          className="h-11 bg-muted pl-9 text-base focus-visible:bg-surface md:text-sm"
-        />
-      </div>
+      <SearchField
+        value={search}
+        onChange={setSearch}
+        label="Search chats"
+        placeholder="Search name or number"
+      />
       <div className="flex items-center gap-2">
         <Tabs
           value={value.assigned}
@@ -67,22 +57,22 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
             ))}
           </TabsList>
         </Tabs>
-        <Button
-          variant="outline"
-          size="touch"
-          onClick={() => onChange({ ...value, status: open ? 'resolved' : 'open' })}
-          aria-pressed={!open}
-          title={open ? 'Showing open chats' : 'Showing resolved chats'}
-          className={cn('shrink-0', open && 'border-primary/30 bg-accent text-accent-foreground')}
-        >
-          {open ? (
-            <CircleDot className="text-primary" aria-hidden="true" />
-          ) : (
-            <CheckCircle2 className="text-muted-foreground" aria-hidden="true" />
-          )}
-          {open ? 'Open' : 'Resolved'}
-        </Button>
       </div>
+      <Tabs
+        value={status}
+        onValueChange={(v) => onChange({ ...value, status: v as Filters['status'] })}
+      >
+        <TabsList aria-label="Chat status" className="h-11! w-full">
+          <TabsTrigger value="open">
+            <CircleDot aria-hidden="true" className="size-4" />
+            Open
+          </TabsTrigger>
+          <TabsTrigger value="resolved">
+            <CheckCircle2 aria-hidden="true" className="size-4" />
+            Resolved
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
     </div>
   );
 }

@@ -1,5 +1,11 @@
 import webpush from 'web-push';
-import type { Chat, Message, PushSubscribeBody, WaStatus } from '@wa-team-inbox/shared';
+import type {
+  Chat,
+  Message,
+  NotificationPayload,
+  PushSubscribeBody,
+  WaStatus,
+} from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';
 
@@ -14,7 +20,11 @@ export interface PushService {
 }
 
 /** Delivers one encrypted notification. Throws an error with `statusCode` on HTTP failure (web-push WebPushError). */
-export type PushSender = (sub: PushSubscribeBody, payload: string, vapid: VapidDetails) => Promise<unknown>;
+export type PushSender = (
+  sub: PushSubscribeBody,
+  payload: string,
+  vapid: VapidDetails,
+) => Promise<unknown>;
 
 export interface PushDeps {
   sender?: PushSender;
@@ -34,7 +44,12 @@ const ALERT_STATES = new Set<WaStatus['state']>(['logged_out', 'replaced', 'bloc
 
 /** Hostnames of the browser push services (FCM/Chrome+Edge, Mozilla, Windows WNS, Apple). */
 const PUSH_HOST_SUFFIXES = ['.push.services.mozilla.com', '.notify.windows.com', '.push.apple.com'];
-const PUSH_HOSTS = new Set(['fcm.googleapis.com', 'android.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com']);
+const PUSH_HOSTS = new Set([
+  'fcm.googleapis.com',
+  'android.googleapis.com',
+  'updates.push.services.mozilla.com',
+  'web.push.apple.com',
+]);
 
 /**
  * SSRF guard: a push endpoint must be https on the default port and belong to a known push service.
@@ -55,7 +70,11 @@ export function isAllowedPushEndpoint(endpoint: string): boolean {
 const defaultSender: PushSender = async (sub, payload, vapid) => {
   if (!isAllowedPushEndpoint(sub.endpoint)) throw new Error('push endpoint not allowed');
   return webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
-    vapidDetails: { subject: vapid.subject, publicKey: vapid.publicKey, privateKey: vapid.privateKey },
+    vapidDetails: {
+      subject: vapid.subject,
+      publicKey: vapid.publicKey,
+      privateKey: vapid.privateKey,
+    },
     TTL: 60 * 60 * 24,
   });
 };
@@ -71,16 +90,23 @@ function statusCodeOf(err: unknown): number | null {
 function waAlertText(s: WaStatus): { title: string; body: string } {
   switch (s.state) {
     case 'logged_out':
-      return { title: 'WhatsApp disconnected', body: 'The linked number was logged out. Relink it from Admin > WhatsApp.' };
+      return {
+        title: 'WhatsApp disconnected',
+        body: 'The linked number was logged out. Relink it from Admin > WhatsApp.',
+      };
     case 'replaced':
-      return { title: 'WhatsApp session replaced', body: 'Another device took over the session. Open Admin > WhatsApp to take it back.' };
+      return {
+        title: 'WhatsApp session replaced',
+        body: 'Another device took over the session. Open Admin > WhatsApp to take it back.',
+      };
     default:
       return { title: 'WhatsApp unavailable', body: s.lastError ?? `Connection state: ${s.state}` };
   }
 }
 
 export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushService {
-  const { db, log } = ctx;
+  const { db } = ctx;
+  const log = ctx.log.child({ mod: 'push' });
   const vapid = loadOrCreateVapid(ctx.settings);
   const sender = deps.sender ?? defaultSender;
   const isOnline = (id: number): boolean => {
@@ -102,12 +128,15 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     subsFor: db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?'),
   };
 
-  async function sendTo(userIds: number[], payload: Record<string, unknown>): Promise<void> {
+  async function sendTo(userIds: number[], payload: NotificationPayload): Promise<void> {
     const json = JSON.stringify(payload);
     const jobs: Array<Promise<void>> = [];
     for (const uid of userIds) {
       for (const row of q.subsFor.all(uid) as SubRow[]) {
-        const sub: PushSubscribeBody = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } };
+        const sub: PushSubscribeBody = {
+          endpoint: row.endpoint,
+          keys: { p256dh: row.p256dh, auth: row.auth },
+        };
         jobs.push(
           sender(sub, json, vapid).then(
             () => undefined,
@@ -129,6 +158,14 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
 
   const ids = (rows: unknown[]) => (rows as Array<{ id: number }>).map((r) => r.id);
 
+  function notifyConnected(userIds: number[], payload: NotificationPayload): void {
+    // Hidden desktop windows remain connected; browser push skips online users.
+    // Send only to the same eligible recipients, never the public "all" room.
+    const rt = ctx.services.realtime;
+    if (rt && userIds.length)
+      rt.io.to(userIds.map((id) => `user:${id}`)).emit('notification:new', payload);
+  }
+
   const service: PushService = {
     publicKey: () => vapid.publicKey,
 
@@ -142,23 +179,35 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
 
     async notifyInbound(chat, message) {
       let targets: number[];
-      if (chat.assignedTo != null) targets = q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
+      if (chat.assignedTo != null)
+        targets = q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
       else targets = ids(q.activeUsers.all());
-      targets = targets.filter((id) => !isOnline(id));
       if (!targets.length) return;
       const preview = chat.lastMessagePreview ?? message.body ?? 'New message';
-      await sendTo(targets, {
-        title: chat.name,
-        body: preview,
+      const payload: NotificationPayload = {
+        title: chat.name.slice(0, 200),
+        body: preview.slice(0, 1000),
         url: `/chats/${encodeURIComponent(chat.jid)}`,
         tag: chat.jid,
-      });
+      };
+      notifyConnected(targets, payload);
+      await sendTo(
+        targets.filter((id) => !isOnline(id)),
+        payload,
+      );
     },
 
     async notifyAdmins(title, body) {
       const targets = ids(q.activeAdmins.all());
       if (!targets.length) return;
-      await sendTo(targets, { title, body, url: '/admin/whatsapp', tag: 'wa-status' });
+      const payload = {
+        title: title.slice(0, 200),
+        body: body.slice(0, 1000),
+        url: '/admin/whatsapp',
+        tag: 'wa-status',
+      };
+      notifyConnected(targets, payload);
+      await sendTo(targets, payload);
     },
 
     shutdown() {
@@ -168,7 +217,9 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   };
 
   const onInbound = ({ chat, message }: { chat: Chat; message: Message }) => {
-    service.notifyInbound(chat, message).catch((err: unknown) => log.warn({ err }, 'notifyInbound failed'));
+    service
+      .notifyInbound(chat, message)
+      .catch((err: unknown) => log.warn({ err }, 'notifyInbound failed'));
   };
   let lastAlertState: WaStatus['state'] | null = null;
   const onWaStatus = (s: WaStatus) => {
@@ -179,7 +230,9 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     if (lastAlertState === s.state) return; // don't spam admins on repeated status events
     lastAlertState = s.state;
     const { title, body } = waAlertText(s);
-    service.notifyAdmins(title, body).catch((err: unknown) => log.warn({ err }, 'notifyAdmins failed'));
+    service
+      .notifyAdmins(title, body)
+      .catch((err: unknown) => log.warn({ err }, 'notifyAdmins failed'));
   };
   ctx.bus.on('inbound:notify', onInbound);
   ctx.bus.on('wa:status', onWaStatus);

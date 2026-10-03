@@ -115,6 +115,11 @@ See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours (ESLint enforces); use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
 Every route is wrapped in an `ErrorBoundary` — never let a render error become a blank page.
+App-managed cloudflared launches must ignore unrelated default user configuration (`--config=`).
+A Quick Tunnel is Running only after URL assignment and edge registration.
+
+Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
+cover navigation from every admin section and recovery from malformed URLs.
 
 ## Working rules (required)
 
@@ -148,4 +153,7 @@ the rule in this file. (Claude Code enforces this with a Stop hook; other agents
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
+Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
+lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
+build with a server restart; never rebuild the distribution directory while the server is serving it.
 GitHub Actions in this org must be pinned to full commit SHAs.

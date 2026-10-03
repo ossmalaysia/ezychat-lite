@@ -21,34 +21,48 @@ sees and what only the team sees.
 
 ### Stack
 
-| Concern | Choice |
-|---|---|
-| Primitives | [shadcn/ui](https://ui.shadcn.com) (Radix UI) — source lives in `apps/web/src/components/ui/` |
-| Variants | `class-variance-authority` + `tailwind-merge` via `cn()` in `src/lib/utils.ts` |
-| Icons | `lucide-react` (stroke 1.75, 16/20px) |
-| Toasts | `sonner` |
-| Mobile sheets | `vaul` (Drawer) |
-| Command / pickers | `cmdk` (quick-reply picker, chat switcher) |
+| Concern           | Choice                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| Primitives        | [shadcn/ui](https://ui.shadcn.com) (Radix UI) — source lives in `apps/web/src/components/ui/` |
+| Variants          | `class-variance-authority` + `tailwind-merge` via `cn()` in `src/lib/utils.ts`                |
+| Icons             | `lucide-react` (stroke 1.75, 16/20px)                                                         |
+| Toasts            | `sonner`                                                                                      |
+| Mobile sheets     | `vaul` (Drawer)                                                                               |
+| Command / pickers | `cmdk` (quick-reply picker, chat switcher)                                                    |
 
 ### Colour tokens (CSS variables in `src/index.css`, mapped into Tailwind 4 `@theme`)
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `--background` | slate-50 `#F8FAFC` | `#0B1220` | app background |
-| `--surface` | white | `#111827` | cards, panes, inbound bubble |
-| `--muted` | slate-100 | `#1F2937` | hover, secondary surfaces |
-| `--muted-foreground` | slate-500 | slate-400 | secondary text |
-| `--foreground` | slate-900 | slate-100 | primary text |
-| `--border` | slate-200 | `#243042` | dividers, inputs |
-| `--accent` / `--primary` | teal-700 `#0F766E` | teal-500 `#14B8A6` | primary actions, selection, focus ring |
-| `--primary-foreground` | white | `#04201D` | text on primary |
-| `--outbound` | teal-50 `#F0FDFA` | `#0F2E2B` | outbound bubble |
-| `--note` | amber-50 `#FFFBEB` / border amber-300 | `#2B2111` / amber-700 | internal notes |
-| `--success` | green-600 | green-500 | delivered/read, connected |
-| `--warning` | amber-500 | amber-400 | connecting, pending |
-| `--danger` | red-600 | red-500 | failed, logged out, destructive |
-| `--info` | sky-600 | sky-400 | informational banners |
-| `--unread` | teal-600 | teal-400 | unread badge |
+| Token                    | Light                                 | Dark                  | Use                                    |
+| ------------------------ | ------------------------------------- | --------------------- | -------------------------------------- |
+| `--background`           | slate-50 `#F8FAFC`                    | `#0B1220`             | app background                         |
+| `--surface`              | white                                 | `#111827`             | cards, panes, inbound bubble           |
+| `--muted`                | slate-100                             | `#1F2937`             | hover, secondary surfaces              |
+| `--muted-foreground`     | slate-600 `#475569`                   | slate-400             | secondary text                         |
+| `--foreground`           | slate-900                             | slate-100             | primary text                           |
+| `--border`               | slate-200                             | `#243042`             | dividers                               |
+| `--input`                | `#8696AB`                             | slate-500 `#64748B`   | control outlines                       |
+| `--accent` / `--primary` | teal-700 `#0F766E`                    | teal-500 `#14B8A6`    | primary actions, selection, focus ring |
+| `--primary-foreground`   | white                                 | `#04201D`             | text on primary                        |
+| `--outbound`             | teal-50 `#F0FDFA`                     | `#0F2E2B`             | outbound bubble                        |
+| `--note`                 | amber-50 `#FFFBEB` / border amber-300 | `#2B2111` / amber-700 | internal notes                         |
+| `--success`              | green-700 `#15803D`                   | green-500             | delivered/read, connected              |
+| `--warning`              | amber-800 `#92400E`                   | amber-400             | connecting, pending                    |
+| `--danger`               | red-600                               | red-500               | failed, logged out, destructive        |
+| `--info`                 | sky-700 `#0369A1`                     | sky-400               | informational banners                  |
+| `--unread`               | teal-700 `#0F766E`                    | teal-400              | unread badge                           |
+
+### Appearance preference
+
+Light, Dark, and System are available in the Account menu for every member and under
+Settings → This device. System is the default and follows operating-system changes.
+The choice applies immediately and is stored per browser/device (`wati.theme` in local storage),
+with updates synchronized between tabs. It does not change another member's appearance or require
+Save settings. If storage is unavailable, the choice still applies for the current session.
+
+`src/lib/theme.tsx` resolves the preference to `data-theme="light"` or `"dark"` on the document root.
+Both CSS tokens and Tailwind's `dark:` variant use that resolved value, so manual Light overrides
+a dark OS and manual Dark overrides a light OS. Before JavaScript loads, CSS falls back to the OS.
+Keep the explicit dark tokens and the media-query fallback identical when adjusting the palette.
 
 ### Type
 
@@ -82,8 +96,10 @@ App-level composites live in `src/components/app/` (e.g. `ChatAvatar`, `Assignee
   (WhatsApp disconnected, tunnel error, LAN over HTTP).
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
-- **Small screens:** Dialog → Drawer (bottom sheet) below `sm`; tables → stacked cards below `md`;
+- **Small screens:** Dialog → Drawer (bottom sheet) below `sm`; tables → stacked cards below `lg`;
   admin side nav → top Tabs/Sheet below `md`.
+- Dialogs and confirmations fit within `100dvh` with room at the edges and scroll when necessary.
+  Long names wrap in titles. Wide tables allow scrolling instead of clipping columns.
 
 ## Brand assets (`apps/web/public`, `apps/desktop/build`)
 

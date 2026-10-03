@@ -10,13 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { ErrorState, Field, Pending } from './adminUi';
 
 export function SettingsPage() {
   const settings = useSettings();
   const patch = usePatchSettings();
+  const { theme, setTheme } = useTheme();
 
   const [port, setPort] = useState('');
   const [lanEnabled, setLanEnabled] = useState(false);
@@ -110,15 +113,18 @@ export function SettingsPage() {
                   Other devices on the same Wi-Fi can open the inbox.
                 </p>
               </div>
-              {/* 44px hit area around the compact switch. */}
-              <span className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+              {/* Associate the padded target with the switch so its entire area is tappable. */}
+              <Label
+                htmlFor="settings-lan"
+                className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"
+              >
                 <Switch
                   id="settings-lan"
                   aria-describedby="settings-lan-desc"
                   checked={lanEnabled}
                   onCheckedChange={setLanEnabled}
                 />
-              </span>
+              </Label>
             </div>
             {lanEnabled && (
               <Banner tone="warning" title="LAN traffic is plain HTTP">
@@ -169,10 +175,44 @@ export function SettingsPage() {
       <Card className="gap-4">
         <CardHeader>
           <CardTitle>This device</CardTitle>
-          <CardDescription>Get a notification for new messages when the inbox isn't open.</CardDescription>
+          <CardDescription>
+            Preferences are saved on this device and apply immediately.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <PushToggle />
+        <CardContent className="flex flex-col gap-6">
+          <div>
+            <h3 id="settings-theme-label" className="font-medium">
+              Appearance
+            </h3>
+            <p id="settings-theme-desc" className="mt-1 text-sm text-muted-foreground">
+              System follows your device's light or dark setting.
+            </p>
+            <RadioGroup
+              aria-labelledby="settings-theme-label"
+              aria-describedby="settings-theme-desc"
+              value={theme}
+              onValueChange={setTheme}
+              className="mt-3 grid grid-cols-3 gap-2"
+            >
+              {THEME_OPTIONS.map((option) => (
+                <Label
+                  key={option.value}
+                  htmlFor={`settings-theme-${option.value}`}
+                  className="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-input px-2 py-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent sm:min-h-11 sm:flex-row"
+                >
+                  <RadioGroupItem id={`settings-theme-${option.value}`} value={option.value} />
+                  {option.label}
+                </Label>
+              ))}
+            </RadioGroup>
+          </div>
+          <div>
+            <h3 className="mb-2 font-medium">Notifications</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Get a notification for new messages when the inbox isn't open.
+            </p>
+            <PushToggle />
+          </div>
         </CardContent>
       </Card>
     </div>

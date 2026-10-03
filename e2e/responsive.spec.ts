@@ -6,6 +6,7 @@ import {
   expectNoHorizontalScroll,
   fakeIncoming,
   inboxHeading,
+  projectTag,
 } from './helpers';
 
 /** Every screen must fit a 360px-wide phone with no horizontal page scroll. */
@@ -50,6 +51,96 @@ test.describe('360px: no horizontal scroll', () => {
       ).toBeVisible();
       await page.waitForLoadState('networkidle').catch(() => undefined);
       await expectNoHorizontalScroll(page, `admin/${p.path}`);
+    }
+
+    await page.goto('/change-password');
+    await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
+    await expectNoHorizontalScroll(page, 'change-password');
+    for (const size of [
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+    ]) {
+      await page.setViewportSize(size);
+      for (const path of [
+        '/',
+        chatHref(jid),
+        ...adminPages.map((p) => `/admin/${p.path}`),
+        '/change-password',
+      ]) {
+        await page.goto(path);
+        if (path === '/') await expect(inboxHeading(page)).toBeVisible();
+        else if (path === chatHref(jid))
+          await expect(page.getByLabel('Message', { exact: true })).toBeVisible();
+        else await expect(page.locator('main').first()).toBeVisible();
+        await expectNoHorizontalScroll(page, `${size.width}px ${path}`);
+      }
+    }
+  });
+
+  test('all admin menu links navigate on a phone', async ({ page }) => {
+    await page.goto('/admin/members');
+    for (const [label, path] of [
+      ['Members', 'members'],
+      ['Quick replies', 'quick-replies'],
+      ['WhatsApp', 'whatsapp'],
+      ['Tunnel', 'tunnel'],
+      ['Settings', 'settings'],
+      ['Audit', 'audit'],
+    ]) {
+      await page.getByRole('button', { name: 'Admin menu' }).click();
+      const menu = page.getByRole('dialog', { name: 'Admin', exact: true });
+      await menu.getByRole('link', { name: label, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/admin/${path}$`));
+      await expect(menu).toBeHidden();
+    }
+  });
+
+  test('long member names wrap inside phone dialogs', async ({ page, baseURL }, info) => {
+    const displayName = 'LongUnbrokenName'.repeat(4);
+    const username = `wrap-${projectTag(info)}-${Date.now()}`;
+    const created = await page.request.post('/api/users', {
+      headers: { Origin: baseURL! },
+      data: {
+        username,
+        displayName,
+        role: 'agent',
+        password: 'test-only-pass-123',
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+    await page.goto('/admin/members');
+    const member = page.locator('li').filter({ hasText: username });
+    await member.getByRole('button', { name: 'Edit', exact: true }).click();
+    const title = page.getByRole('heading', { name: `Edit ${displayName}`, exact: true });
+    await expect(title).toBeVisible();
+    const m = await title.evaluate((e) => ({ width: e.clientWidth, scroll: e.scrollWidth }));
+    expect(m.scroll).toBeLessThanOrEqual(m.width + 1);
+    await expectNoHorizontalScroll(page, 'long-name dialog');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  });
+});
+
+test.describe('short landscape: dialogs remain reachable', () => {
+  test.use({ viewport: { width: 740, height: 360 } });
+  test('member and quick reply forms fit and scroll to their actions', async ({ page }) => {
+    for (const [path, action, title, submit] of [
+      ['members', 'Add member', 'Add member', 'Create member'],
+      ['quick-replies', 'New quick reply', 'New quick reply', 'Save'],
+    ]) {
+      await page.goto(`/admin/${path}`);
+      await page.getByRole('button', { name: action, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: title, exact: true });
+      await expect(dialog).toBeVisible();
+      const bounds = await dialog.evaluate((e) => ({
+        top: e.getBoundingClientRect().top,
+        bottom: e.getBoundingClientRect().bottom,
+        viewport: window.innerHeight,
+      }));
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewport);
+      await dialog.getByRole('button', { name: submit, exact: true }).scrollIntoViewIfNeeded();
+      await expect(dialog.getByRole('button', { name: submit, exact: true })).toBeInViewport();
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     }
   });
 });

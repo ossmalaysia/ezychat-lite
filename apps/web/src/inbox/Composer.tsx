@@ -1,11 +1,13 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { Paperclip, SendHorizontal } from 'lucide-react';
+import { MessageSquareText, Paperclip, SendHorizontal } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
+import { EmojiPicker } from './EmojiPicker';
+import './composer.css';
 
 export interface ComposerProps {
   quickReplies: QuickReply[];
@@ -53,15 +55,19 @@ export function Composer({
   const [text, setText] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [pickerDismissed, setPickerDismissed] = useState(false);
+  const [browseReplies, setBrowseReplies] = useState(false);
   const [busy, setBusy] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
+  const repliesButtonRef = useRef<HTMLButtonElement>(null);
   const lastTyping = useRef(0);
+  const emojiSelection = useRef({ start: 0, end: 0 });
+  const pendingCaret = useRef<number | null>(null);
   const pickerId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
 
-  const query = slashQuery(text);
+  const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
   const pickerOpen = query != null && !pickerDismissed && quickReplies.length > 0;
 
@@ -69,22 +75,66 @@ export function Composer({
     setActiveIndex(0);
   }, [query]);
 
-  // Autosize the textarea.
+  // scrollHeight includes padding, but not borders. Include the borders so a
+  // single line does not overflow by two pixels and show a native scrollbar.
   useLayoutEffect(() => {
     const el = areaRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`;
+    function resize() {
+      if (!el) return;
+      el.style.height = 'auto';
+      const style = getComputedStyle(el);
+      const borders = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      const height = el.scrollHeight + (Number.isFinite(borders) ? borders : 0);
+      el.style.height = `${Math.min(height, MAX_HEIGHT_PX)}px`;
+      el.style.overflowY = height > MAX_HEIGHT_PX ? 'auto' : 'hidden';
+    }
+    resize();
+    if (pendingCaret.current != null) {
+      el.focus();
+      el.setSelectionRange(pendingCaret.current, pendingCaret.current);
+      pendingCaret.current = null;
+    }
+    // Reflow a draft when the pane is resized or the device rotates.
+    if (typeof ResizeObserver === 'undefined') return;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth !== width) {
+        width = el.clientWidth;
+        resize();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [text]);
 
+  function insertEmoji(emoji: string) {
+    const { start, end } = emojiSelection.current;
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    const caret = start + emoji.length;
+    if (next === text) {
+      areaRef.current?.focus();
+      areaRef.current?.setSelectionRange(caret, caret);
+    } else {
+      pendingCaret.current = caret;
+    }
+    setText(next);
+    setBrowseReplies(false);
+    setPickerDismissed(false);
+    emitTyping(next);
+  }
+
   function insertReply(r: QuickReply) {
-    setText(r.body);
+    const next =
+      browseReplies && slashQuery(text) == null && text.trim() ? `${text}\n${r.body}` : r.body;
+    setText(next);
+    setBrowseReplies(false);
     setPickerDismissed(true);
     requestAnimationFrame(() => {
       const el = areaRef.current;
       if (el) {
         el.focus();
-        el.setSelectionRange(r.body.length, r.body.length);
+        el.setSelectionRange(next.length, next.length);
       }
     });
   }
@@ -106,6 +156,7 @@ export function Composer({
       if (!(await confirmed())) return;
       onSend(value);
       setText('');
+      setBrowseReplies(false);
       setPickerDismissed(false);
     } finally {
       setBusy(false);
@@ -126,8 +177,13 @@ export function Composer({
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const v = e.target.value;
     setText(v);
+    setBrowseReplies(false);
     if (slashQuery(v) == null) setPickerDismissed(false);
-    if (onTyping && v.length > 0) {
+    emitTyping(v);
+  }
+
+  function emitTyping(value: string) {
+    if (onTyping && value.length > 0) {
       const now = Date.now();
       if (now - lastTyping.current >= TYPING_THROTTLE_MS) {
         lastTyping.current = now;
@@ -159,6 +215,7 @@ export function Composer({
     if (pickerOpen && e.key === 'Escape') {
       e.preventDefault();
       setPickerDismissed(true);
+      setBrowseReplies(false);
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey && !coarsePointer) {
@@ -173,7 +230,10 @@ export function Composer({
     <Popover
       open={pickerOpen}
       onOpenChange={(o) => {
-        if (!o) setPickerDismissed(true);
+        if (!o) {
+          setPickerDismissed(true);
+          setBrowseReplies(false);
+        }
       }}
     >
       <PopoverAnchor asChild>
@@ -197,6 +257,19 @@ export function Composer({
           >
             <Paperclip className="size-5" aria-hidden="true" />
           </Button>
+          <EmojiPicker
+            disabled={disabled}
+            onOpen={() => {
+              const el = areaRef.current;
+              emojiSelection.current = {
+                start: el?.selectionStart ?? text.length,
+                end: el?.selectionEnd ?? text.length,
+              };
+              setBrowseReplies(false);
+              setPickerDismissed(true);
+            }}
+            onPick={insertEmoji}
+          />
           <Textarea
             ref={areaRef}
             aria-label="Message"
@@ -211,7 +284,7 @@ export function Composer({
             onKeyDown={onKeyDown}
             // Enter inserts a newline on touch keyboards, so label the key accordingly.
             enterKeyHint={coarsePointer ? 'enter' : 'send'}
-            className="field-sizing-fixed min-h-11 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+            className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
           />
           <Button
             size="icon-touch"
@@ -226,6 +299,25 @@ export function Composer({
           </Button>
         </div>
       </PopoverAnchor>
+      {quickReplies.length > 0 && (
+        <Button
+          ref={repliesButtonRef}
+          variant="ghost"
+          size="touch"
+          disabled={disabled}
+          aria-expanded={pickerOpen}
+          aria-controls={pickerOpen ? pickerId : undefined}
+          onClick={() => {
+            setBrowseReplies(!pickerOpen);
+            setPickerDismissed(pickerOpen);
+            areaRef.current?.focus();
+          }}
+          className="mt-1 text-muted-foreground"
+        >
+          <MessageSquareText aria-hidden="true" />
+          Quick replies
+        </Button>
+      )}
       <PopoverContent
         id={pickerId}
         side="top"
@@ -235,7 +327,11 @@ export function Composer({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {
-          if (rowRef.current?.contains(e.target as Node)) e.preventDefault();
+          if (
+            rowRef.current?.contains(e.target as Node) ||
+            repliesButtonRef.current?.contains(e.target as Node)
+          )
+            e.preventDefault();
         }}
         className="w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
       >

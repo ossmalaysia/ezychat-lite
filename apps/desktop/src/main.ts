@@ -1,13 +1,28 @@
 // Electron main process: single instance, detect service / start standalone server, window, tray,
 // status & service control.
-import { app, clipboard, dialog, nativeImage, session, shell, type BrowserWindow, type NativeImage } from 'electron';
+import {
+  app,
+  clipboard,
+  dialog,
+  nativeImage,
+  session,
+  shell,
+  type BrowserWindow,
+  type NativeImage,
+} from 'electron';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
 import { iconPng } from './icon.js';
-import { broadcastStatusChanged, registerIpc, type DesktopController, type DesktopMode, type DesktopStatus } from './ipc.js';
+import {
+  broadcastStatusChanged,
+  registerIpc,
+  type DesktopController,
+  type DesktopMode,
+  type DesktopStatus,
+} from './ipc.js';
 import {
   cloudflaredBinary,
   cloudflaredDir,
@@ -26,7 +41,12 @@ import { runServerCommand, StandaloneServer } from './server-process.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
-import { clearWebCacheOnVersionChange, createMainWindow, createStatusWindow, messagePage } from './window.js';
+import {
+  clearWebCacheOnVersionChange,
+  createMainWindow,
+  createStatusWindow,
+  messagePage,
+} from './window.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -59,7 +79,9 @@ function readDesktopConfig(): { port: number } {
 function writeDesktopPort(port: number): void {
   const file = desktopConfigFile();
   try {
-    const cur = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>) : {};
+    const cur = existsSync(file)
+      ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>)
+      : {};
     writeFileSync(file, JSON.stringify({ ...cur, port }, null, 2));
   } catch {
     // best effort
@@ -89,7 +111,8 @@ async function main(): Promise<void> {
   const dataDir = userDataDir(app);
   // utilityProcess everywhere; WATI_DESKTOP_RUNTIME=node (dev only) runs the server with the
   // system node instead, e.g. if a native module in node_modules was built for Node's ABI only.
-  const runtime: 'utility' | 'node' = !isPackaged && process.env.WATI_DESKTOP_RUNTIME === 'node' ? 'node' : 'utility';
+  const runtime: 'utility' | 'node' =
+    !isPackaged && process.env.WATI_DESKTOP_RUNTIME === 'node' ? 'node' : 'utility';
   const version = app.getVersion();
   // Builds share a version during development, so key the web cache on the web build's index.html too.
   let webBuildKey = version;
@@ -125,7 +148,9 @@ async function main(): Promise<void> {
   const host = serverHost(appPath);
   // macOS: <X>.app/Contents/MacOS/<X> → <X>.app (only meaningful when packaged)
   const appBundle =
-    process.platform === 'darwin' && isPackaged ? dirname(dirname(dirname(process.execPath))) : null;
+    process.platform === 'darwin' && isPackaged
+      ? dirname(dirname(dirname(process.execPath)))
+      : null;
   const service: ServiceManager = createServiceManager(process.platform, {
     execPath: process.execPath,
     serverHost: host,
@@ -198,7 +223,9 @@ async function main(): Promise<void> {
     setMode('error');
     loadMain(
       messagePage(
-        state === 'running' ? 'The background service is not answering' : 'The background service is not running',
+        state === 'running'
+          ? 'The background service is not answering'
+          : 'The background service is not running',
         'WA Team Inbox runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
       ),
     );
@@ -225,7 +252,12 @@ async function main(): Promise<void> {
 
   const showMain = (path = '/') => {
     if (!mainWindow || mainWindow.isDestroyed()) {
-      mainWindow = createMainWindow({ icon: appIcon, baseUrl: () => url, title: appTitle(version) });
+      mainWindow = createMainWindow({
+        icon: appIcon,
+        baseUrl: () => url,
+        title: appTitle(version),
+        preload: join(here, 'inbox-preload.cjs'),
+      });
       mainWindow.on('close', (e) => {
         if (quitting) return;
         if (mode === 'client') {
@@ -238,7 +270,10 @@ async function main(): Promise<void> {
         mainWindow?.hide();
       });
       if (mode === 'standalone' || mode === 'client') void mainWindow.loadURL(url + path);
-      else void mainWindow.loadURL(messagePage('Starting WA Team Inbox…', 'Starting the local server.'));
+      else
+        void mainWindow.loadURL(
+          messagePage('Starting WA Team Inbox…', 'Starting the local server.'),
+        );
     } else if (path !== '/') {
       void mainWindow.loadURL(url + path);
     }
@@ -269,7 +304,12 @@ async function main(): Promise<void> {
   const errorBox = (title: string, err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
     log(`[desktop] ${title}: ${msg}`);
-    void dialog.showMessageBox({ type: 'error', title: 'WA Team Inbox', message: title, detail: msg });
+    void dialog.showMessageBox({
+      type: 'error',
+      title: 'WA Team Inbox',
+      message: title,
+      detail: msg,
+    });
   };
 
   const startStandalone = async (): Promise<boolean> => {
@@ -309,7 +349,9 @@ async function main(): Promise<void> {
     const probe = await probeServer(port);
     const action = decideStartup(probe !== null, svc);
     if (action === 'client') {
-      log(`[desktop] found running server (mode ${probe?.mode}, v${probe?.version}) on port ${port}`);
+      log(
+        `[desktop] found running server (mode ${probe?.mode}, v${probe?.version}) on port ${port}`,
+      );
       setMode('client');
       loadMain(url);
       return;
@@ -317,10 +359,17 @@ async function main(): Promise<void> {
     if (action === 'wait-for-service') {
       // Never start a standalone server while the service is installed: its data moved to the
       // machine folder (the user folder is empty) and it would take the service's port.
-      log(`[desktop] background service is ${svc} but not answering; not starting a standalone server`);
+      log(
+        `[desktop] background service is ${svc} but not answering; not starting a standalone server`,
+      );
       if (svc === 'running') {
         setMode('starting');
-        loadMain(messagePage('Connecting to the background service…', 'Waiting for the WA Team Inbox service to start.'));
+        loadMain(
+          messagePage(
+            'Connecting to the background service…',
+            'Waiting for the WA Team Inbox service to start.',
+          ),
+        );
         if (await waitForService(60_000)) {
           setMode('client');
           loadMain(url);
@@ -338,7 +387,8 @@ async function main(): Promise<void> {
       type: 'warning',
       title: 'Reset admin password',
       message: 'Reset the first admin account password?',
-      detail: 'A new temporary password is generated and all of that admin’s sessions are signed out.',
+      detail:
+        'A new temporary password is generated and all of that admin’s sessions are signed out.',
       buttons: ['Reset password', 'Cancel'],
       defaultId: 1,
       cancelId: 1,
@@ -348,13 +398,18 @@ async function main(): Promise<void> {
       let output: string;
       if (mode === 'client') {
         const st = await service.status();
-        if (st === 'not-installed') throw new Error('The running server is not managed by this app; reset it where it runs.');
+        if (st === 'not-installed')
+          throw new Error('The running server is not managed by this app; reset it where it runs.');
         setBusy('Resetting admin password…');
         output = await service.resetAdmin();
       } else {
         setBusy('Resetting admin password…');
         await server.stop();
-        const r = await runServerCommand({ entry, args: ['--data', dataDir, '--reset-admin'], runtime });
+        const r = await runServerCommand({
+          entry,
+          args: ['--data', dataDir, '--reset-admin'],
+          runtime,
+        });
         output = r.output;
         void startStandalone();
         if (r.code !== 0) throw new Error(output || `reset failed (exit ${r.code})`);
@@ -392,7 +447,8 @@ async function main(): Promise<void> {
         serviceSupported,
         port,
         url,
-        dataDir: mode === 'client' && lastServiceState !== 'not-installed' ? machineDataDir() : dataDir,
+        dataDir:
+          mode === 'client' && lastServiceState !== 'not-installed' ? machineDataDir() : dataDir,
         version,
         serverVersion: health?.version ?? null,
         serverMode: health?.mode ?? null,
@@ -421,7 +477,8 @@ async function main(): Promise<void> {
         await service.install();
         setBusy('Waiting for the service to start…');
         const ok = await waitForService(60_000);
-        if (!ok) throw new Error('The service was installed but did not answer on port ' + port + '.');
+        if (!ok)
+          throw new Error('The service was installed but did not answer on port ' + port + '.');
         setMode('client');
         loadMain(url);
       } catch (err) {
@@ -442,7 +499,8 @@ async function main(): Promise<void> {
         type: 'question',
         title: 'Stop background service',
         message: 'Remove the background service and run inside this app again?',
-        detail: 'Your data moves back to your user profile. You will be asked for administrator permission.',
+        detail:
+          'Your data moves back to your user profile. You will be asked for administrator permission.',
         buttons: ['Remove service', 'Cancel'],
         defaultId: 0,
         cancelId: 1,
@@ -477,7 +535,9 @@ async function main(): Promise<void> {
       setBusy('Stopping service…');
       try {
         await service.stop();
-        loadMain(messagePage('Service stopped', 'Start the service again from "Status & Service…".'));
+        loadMain(
+          messagePage('Service stopped', 'Start the service again from "Status & Service…".'),
+        );
         setMode('error');
       } catch (err) {
         errorBox('Could not stop the service', err);
@@ -495,17 +555,21 @@ async function main(): Promise<void> {
 
   registerIpc(controller);
 
-  const trayHandle = createTray(trayIcon, {
-    open: () => showMain(),
-    openStatus,
-    openTunnelAdmin: () => showMain('/admin/tunnel'),
-    resetAdmin: () => void resetAdmin(),
-    quit: () => {
-      quitting = true;
-      app.quit();
+  const trayHandle = createTray(
+    trayIcon,
+    {
+      open: () => showMain(),
+      openStatus,
+      openTunnelAdmin: () => showMain('/admin/tunnel'),
+      resetAdmin: () => void resetAdmin(),
+      quit: () => {
+        quitting = true;
+        app.quit();
+      },
+      describe,
     },
-    describe,
-  }, version);
+    version,
+  );
 
   app.on('second-instance', () => showMain());
   app.on('activate', () => showMain());

@@ -17,7 +17,17 @@ import type {
   Note,
   ServerToClientEvents,
 } from '@wa-team-inbox/shared';
-import { dropPushSubscription, patchMessageInCache, qk, upsertChatInCache, upsertMessageInCache, useMe } from './queries';
+import {
+  dropPushSubscription,
+  patchMessageInCache,
+  qk,
+  upsertChatInCache,
+  upsertMessageInCache,
+  useMe,
+  useWaStatus,
+} from './queries';
+import { ProfileImageContext } from '../inbox/ProfileImageContext';
+import { clearDesktopNotifications, showDesktopNotification } from '../pwa/desktop-notifications';
 
 export interface TypingEntry {
   userId: number;
@@ -54,7 +64,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const qc = useQueryClient();
   const me = useMe();
   const userId = me.data && !me.data.mustChangePassword && !me.data.disabled ? me.data.id : null;
+  const wa = useWaStatus({ enabled: userId != null });
   const [connected, setConnected] = useState(false);
+  const [avatarRevision, setAvatarRevision] = useState(0);
   const [typing, setTyping] = useState<Record<string, TypingEntry[]>>({});
   const socketRef = useRef<AppSocket | null>(null);
   const lastTypingEmit = useRef<Map<string, number>>(new Map());
@@ -71,12 +83,14 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     socket.on('connect', () => {
       setConnected(true);
+      setAvatarRevision(Date.now());
       // Anything could have changed while offline — resync.
       if (hadConnected) void qc.invalidateQueries();
       hadConnected = true;
     });
     socket.on('disconnect', () => setConnected(false));
     socket.on('connect_error', () => setConnected(false));
+    socket.on('notification:new', (notification) => void showDesktopNotification(notification));
 
     socket.on('message:new', (m) => {
       upsertMessageInCache(qc, m);
@@ -106,7 +120,10 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         old ? (old.some((x) => x.id === n.id) ? old : [...old, n]) : old,
       );
     });
-    socket.on('wa:status', (s) => qc.setQueryData(qk.wa, s));
+    socket.on('wa:status', (s) => {
+      qc.setQueryData(qk.wa, s);
+      if (s.state === 'open') setAvatarRevision(Date.now());
+    });
     socket.on('tunnel:status', (s) => qc.setQueryData(qk.tunnel, s));
     socket.on('typing', (p) => {
       setTyping((prev) => {
@@ -119,6 +136,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     socket.on('session:revoked', () => {
       socket.disconnect();
+      clearDesktopNotifications();
       // Stop push previews reaching this device for a user who is no longer signed in.
       void dropPushSubscription();
       qc.clear();
@@ -128,6 +146,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
+      clearDesktopNotifications();
       socketRef.current = null;
       setConnected(false);
     };
@@ -163,5 +182,13 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     () => ({ connected, typing, emitTyping }),
     [connected, typing, emitTyping],
   );
-  return createElement(RealtimeContext.Provider, { value }, children);
+  const imageState = useMemo(
+    () => ({ ready: userId != null && wa.data?.state === 'open', revision: avatarRevision }),
+    [userId, wa.data?.state, avatarRevision],
+  );
+  return createElement(
+    ProfileImageContext.Provider,
+    { value: imageState },
+    createElement(RealtimeContext.Provider, { value }, children),
+  );
 };

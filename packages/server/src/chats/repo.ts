@@ -1,4 +1,11 @@
-import type { Chat, ChatEvent, ChatEventType, ChatStatus, ChatType, Note } from '@wa-team-inbox/shared';
+import type {
+  Chat,
+  ChatEvent,
+  ChatEventType,
+  ChatStatus,
+  ChatType,
+  Note,
+} from '@wa-team-inbox/shared';
 import type { DB } from '../db/index.js';
 
 export interface ChatRow {
@@ -36,7 +43,7 @@ export function rowToChat(r: ChatRow): Chat {
     jid: r.jid,
     type: r.type,
     name: r.name || jidUser(r.jid),
-    avatarUrl: r.avatar_path && /^https?:\/\//.test(r.avatar_path) ? r.avatar_path : null,
+    avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
     unreadCount: r.unread_count,
     lastMessageAt: r.last_message_at,
     lastMessagePreview: r.last_message_preview,
@@ -58,7 +65,13 @@ export function rowToEvent(r: ChatEventRow): ChatEvent {
 }
 
 export function rowToNote(r: NoteRow): Note {
-  return { id: r.id, chatJid: r.chat_jid, userId: r.user_id, body: r.body, createdAt: r.created_at };
+  return {
+    id: r.id,
+    chatJid: r.chat_jid,
+    userId: r.user_id,
+    body: r.body,
+    createdAt: r.created_at,
+  };
 }
 
 /** User part of a jid ("60123@s.whatsapp.net" → "60123"); used as a fallback display name. */
@@ -77,7 +90,9 @@ export class ChatRepo {
   constructor(private readonly db: DB) {}
 
   get(jid: string): ChatRow | null {
-    return (this.db.prepare('SELECT * FROM chats WHERE jid = ?').get(jid) as ChatRow | undefined) ?? null;
+    return (
+      (this.db.prepare('SELECT * FROM chats WHERE jid = ?').get(jid) as ChatRow | undefined) ?? null
+    );
   }
 
   /** Inserts a chat if missing; returns the row. */
@@ -136,7 +151,9 @@ export class ChatRepo {
       );
     }
     if (f.cursor) {
-      where.push('(COALESCE(c.last_message_at, 0) < @cts OR (COALESCE(c.last_message_at, 0) = @cts AND c.jid > @cjid))');
+      where.push(
+        '(COALESCE(c.last_message_at, 0) < @cts OR (COALESCE(c.last_message_at, 0) = @cts AND c.jid > @cjid))',
+      );
       params.cts = f.cursor.ts;
       params.cjid = f.cursor.jid;
     }
@@ -146,25 +163,46 @@ export class ChatRepo {
     return this.db.prepare(sql).all(params) as ChatRow[];
   }
 
-  insertEvent(e: { chatJid: string; type: ChatEventType; actorId: number | null; payload: Record<string, unknown>; at: number }): ChatEvent {
+  insertEvent(e: {
+    chatJid: string;
+    type: ChatEventType;
+    actorId: number | null;
+    payload: Record<string, unknown>;
+    at: number;
+  }): ChatEvent {
     const info = this.db
-      .prepare('INSERT INTO chat_events (chat_jid, type, actor_id, payload, at) VALUES (?, ?, ?, ?, ?)')
+      .prepare(
+        'INSERT INTO chat_events (chat_jid, type, actor_id, payload, at) VALUES (?, ?, ?, ?, ?)',
+      )
       .run(e.chatJid, e.type, e.actorId, JSON.stringify(e.payload), e.at);
-    return { id: Number(info.lastInsertRowid), chatJid: e.chatJid, type: e.type, actorId: e.actorId, payload: e.payload, at: e.at };
+    return {
+      id: Number(info.lastInsertRowid),
+      chatJid: e.chatJid,
+      type: e.type,
+      actorId: e.actorId,
+      payload: e.payload,
+      at: e.at,
+    };
   }
 
   events(jid: string): ChatEvent[] {
-    const rows = this.db.prepare('SELECT * FROM chat_events WHERE chat_jid = ? ORDER BY at ASC, id ASC').all(jid) as ChatEventRow[];
+    const rows = this.db
+      .prepare('SELECT * FROM chat_events WHERE chat_jid = ? ORDER BY at ASC, id ASC')
+      .all(jid) as ChatEventRow[];
     return rows.map(rowToEvent);
   }
 
   insertNote(chatJid: string, userId: number, body: string, at: number): Note {
-    const info = this.db.prepare('INSERT INTO notes (chat_jid, user_id, body, created_at) VALUES (?, ?, ?, ?)').run(chatJid, userId, body, at);
+    const info = this.db
+      .prepare('INSERT INTO notes (chat_jid, user_id, body, created_at) VALUES (?, ?, ?, ?)')
+      .run(chatJid, userId, body, at);
     return { id: Number(info.lastInsertRowid), chatJid, userId, body, createdAt: at };
   }
 
   notes(jid: string): Note[] {
-    const rows = this.db.prepare('SELECT * FROM notes WHERE chat_jid = ? ORDER BY created_at ASC, id ASC').all(jid) as NoteRow[];
+    const rows = this.db
+      .prepare('SELECT * FROM notes WHERE chat_jid = ? ORDER BY created_at ASC, id ASC')
+      .all(jid) as NoteRow[];
     return rows.map(rowToNote);
   }
 

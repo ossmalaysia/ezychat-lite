@@ -5,6 +5,7 @@ import { formatDateTime } from '../lib/format';
 import { EmptyState, PageHeader, ResponsiveTable, type Column } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { ErrorState, ListSkeleton, Pending } from './adminUi';
+import { auditActionLabel } from './audit-actions';
 
 function metaSummary(meta: Record<string, unknown>): string {
   const parts = Object.entries(meta).map(([k, v]) => {
@@ -35,7 +36,11 @@ export function AuditPage() {
       key: 'action',
       header: 'Action',
       className: 'md:w-44',
-      cell: (e) => <span className="font-mono text-xs break-all">{e.action}</span>,
+      cell: (e) => (
+        <span title={e.action} className="font-medium">
+          {auditActionLabel(e.action)}
+        </span>
+      ),
     },
     {
       key: 'details',

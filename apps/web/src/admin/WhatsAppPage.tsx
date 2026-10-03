@@ -87,7 +87,11 @@ export function WhatsAppPage() {
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'connecting'}
-              label={<span className="font-medium" data-testid="wa-state">{label}</span>}
+              label={
+                <span className="font-medium" data-testid="wa-state">
+                  {label}
+                </span>
+              }
             />
           </div>
           {s.me && (
@@ -118,7 +122,9 @@ export function WhatsAppPage() {
         <Card className="gap-4">
           <CardHeader>
             <CardTitle>Scan to link</CardTitle>
-            <CardDescription>On the phone: WhatsApp → Settings → Linked devices → Link a device.</CardDescription>
+            <CardDescription>
+              On the phone: WhatsApp → Settings → Linked devices → Link a device.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {s.qr ? (
@@ -183,6 +189,10 @@ export function WhatsAppPage() {
       <Card className="gap-4">
         <CardHeader>
           <CardTitle>Actions</CardTitle>
+          <CardDescription>
+            Log out disconnects this inbox. Re-link starts a fresh pairing. Take over reconnects a
+            session opened elsewhere.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

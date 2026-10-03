@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
+import { registerInboxNotifications } from './notifications.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -26,7 +27,11 @@ function openExternalSafe(url: string): void {
 
 /** Simple self-contained HTML page (data URL) used while the server starts or on errors. */
 export function messagePage(title: string, body: string): string {
-  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c);
+  const esc = (s: string) =>
+    s.replace(
+      /[&<>"]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c,
+    );
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <title>WA Team Inbox</title><style>
@@ -51,7 +56,10 @@ function pinTitle(win: BrowserWindow, title: string): void {
  * which then breaks against the new server. Clear the service worker + Cache Storage whenever the app
  * version changes (marker file in userData). Returns true when it cleared.
  */
-export async function clearWebCacheOnVersionChange(ses: Session, version: string): Promise<boolean> {
+export async function clearWebCacheOnVersionChange(
+  ses: Session,
+  version: string,
+): Promise<boolean> {
   const marker = join(app.getPath('userData'), 'web-cache-version');
   let last = '';
   try {
@@ -89,7 +97,12 @@ function addDevShortcuts(win: BrowserWindow): void {
   });
 }
 
-export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string | null; title: string }): BrowserWindow {
+export function createMainWindow(o: {
+  icon: NativeImage;
+  baseUrl: () => string | null;
+  title: string;
+  preload: string;
+}): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -100,8 +113,9 @@ export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string |
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0b1120',
-    webPreferences: { ...SAFE_PREFS },
+    webPreferences: { ...SAFE_PREFS, preload: o.preload, backgroundThrottling: false },
   });
+  registerInboxNotifications(win, o.baseUrl, o.icon);
   pinTitle(win, o.title);
   addDevShortcuts(win);
   win.once('ready-to-show', () => win.show());
@@ -119,13 +133,21 @@ export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string |
   // Notifications / clipboard are allowed for the local inbox only
   win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => {
     const base = o.baseUrl();
-    const ok = !!base && isSameOrigin(wc.getURL(), base) && ['notifications', 'clipboard-sanitized-write', 'media', 'fullscreen'].includes(permission);
+    const ok =
+      !!base &&
+      isSameOrigin(wc.getURL(), base) &&
+      ['notifications', 'clipboard-sanitized-write', 'media', 'fullscreen'].includes(permission);
     cb(ok);
   });
   return win;
 }
 
-export function createStatusWindow(o: { icon: NativeImage; preload: string; html: string; title: string }): BrowserWindow {
+export function createStatusWindow(o: {
+  icon: NativeImage;
+  preload: string;
+  html: string;
+  title: string;
+}): BrowserWindow {
   const win = new BrowserWindow({
     width: 560,
     height: 680,

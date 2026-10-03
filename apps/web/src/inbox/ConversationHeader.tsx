@@ -68,36 +68,22 @@ export function ConversationHeader({
       >
         <ArrowLeft className="size-5" aria-hidden="true" />
       </Button>
-      <ChatAvatar name={name} src={chat.avatarUrl} seed={chat.jid} size="md" className="hidden sm:flex" />
+      <ChatAvatar name={name} src={chat.avatarUrl} seed={chat.jid} size="md" />
       <div className="min-w-0 flex-1">
-        <h2 className="flex items-center gap-1 truncate text-base font-semibold text-foreground">
+        <h2 className="flex items-center gap-1 text-base font-semibold text-foreground">
           {chat.type === 'group' && <GroupIcon className="size-4 shrink-0 text-muted-foreground" />}
-          <span className="truncate">{name}</span>
+          <span
+            title={name}
+            className="line-clamp-2 [overflow-wrap:anywhere] md:line-clamp-none md:truncate"
+          >
+            {name}
+          </span>
         </h2>
         <p className="truncate text-xs text-muted-foreground">
           {phone}
           {resolved && ' · Resolved'}
         </p>
       </div>
-      <Button
-        variant="ghost"
-        size="icon-touch"
-        onClick={onToggleNotes}
-        aria-pressed={notesOpen}
-        aria-label={`Notes (${notesCount})`}
-        title="Internal notes"
-        className={cn(
-          'relative',
-          notesOpen ? 'bg-note text-note-foreground hover:bg-note' : 'text-muted-foreground',
-        )}
-      >
-        <NotebookPen className="size-5" aria-hidden="true" />
-        {notesCount > 0 && (
-          <span className="absolute right-1 top-1 inline-flex min-w-4 items-center justify-center rounded-full border border-note-border bg-note px-1 text-[10px] font-bold text-note-foreground">
-            {notesCount}
-          </span>
-        )}
-      </Button>
       <div className="flex w-full items-center gap-2 px-1 md:w-auto md:px-0">
         <Select
           value={chat.assignedTo == null ? UNASSIGNED : String(chat.assignedTo)}
@@ -107,6 +93,7 @@ export function ConversationHeader({
           <SelectTrigger
             id={`assign-${chat.jid}`}
             aria-label="Assigned to"
+            title={directory.nameOf(chat.assignedTo) ?? 'Unassigned'}
             className="h-11! min-w-0 flex-1 bg-surface text-base md:w-44 md:flex-none md:text-sm"
           >
             <SelectValue placeholder="Unassigned" />
@@ -123,17 +110,33 @@ export function ConversationHeader({
           </SelectContent>
         </Select>
         <Button
+          variant="ghost"
+          size="touch"
+          onClick={onToggleNotes}
+          aria-pressed={notesOpen}
+          aria-label={`Notes (${notesCount})`}
+          title="Internal notes"
+          className={cn(
+            'relative',
+            notesOpen ? 'bg-note text-note-foreground hover:bg-note' : 'text-muted-foreground',
+          )}
+        >
+          <NotebookPen className="size-5" aria-hidden="true" />
+          <span>Notes</span>
+          {notesCount > 0 && (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
+              {notesCount}
+            </span>
+          )}
+        </Button>
+        <Button
           variant={resolved ? 'outline' : 'default'}
           size="touch"
           onClick={onToggleStatus}
           disabled={busy}
           className="shrink-0"
         >
-          {resolved ? (
-            <RotateCcw aria-hidden="true" />
-          ) : (
-            <CheckCircle2 aria-hidden="true" />
-          )}
+          {resolved ? <RotateCcw aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
           {resolved ? 'Reopen' : 'Resolve'}
         </Button>
       </div>

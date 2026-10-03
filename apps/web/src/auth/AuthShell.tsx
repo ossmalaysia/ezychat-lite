@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AppCredits } from '@/components/app';
+import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { useAppVersion } from '@/lib/version';
 
 /** Brand mark: the app icon (teal tile with an inbox glyph — not a third-party logo). */
@@ -56,7 +57,10 @@ export function AuthShell({
             </CardHeader>
             <CardContent className="px-4 sm:px-6">{children}</CardContent>
           </Card>
-          <AppCredits version={version ?? undefined} className="mt-4 px-2" />
+          <div className="mt-4 flex justify-center">
+            <FeatureRequestAction />
+          </div>
+          <AppCredits version={version ?? undefined} className="mt-1 px-2" />
         </div>
       </main>
     </div>

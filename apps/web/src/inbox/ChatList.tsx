@@ -12,6 +12,7 @@ export interface ChatListProps {
   filters: ChatFilters;
   activeJid: string | null;
   directory: Directory;
+  onResetFilters?(): void;
 }
 
 const emptyCopy: Record<ChatFilters['assigned'], { title: string; description: string }> = {
@@ -35,7 +36,7 @@ function ChatRowSkeleton() {
   );
 }
 
-export function ChatList({ filters, activeJid, directory }: ChatListProps) {
+export function ChatList({ filters, activeJid, directory, onResetFilters }: ChatListProps) {
   const q = useChats(filters);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
@@ -104,9 +105,19 @@ export function ChatList({ filters, activeJid, directory }: ChatListProps) {
     return (
       <EmptyState
         className="flex-1"
-        illustration={filters.q ? '/illustrations/no-results.png' : '/illustrations/empty-inbox.png'}
+        illustration={
+          filters.q ? '/illustrations/no-results.png' : '/illustrations/empty-inbox.png'
+        }
         title={copy.title}
         description={copy.description}
+        action={
+          onResetFilters &&
+          (filters.q || filters.assigned !== 'any' || filters.status === 'resolved') ? (
+            <Button variant="outline" size="touch" onClick={onResetFilters}>
+              Show all open chats
+            </Button>
+          ) : undefined
+        }
       />
     );
   }
