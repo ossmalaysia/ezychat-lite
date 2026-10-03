@@ -38,6 +38,13 @@ export interface NoteRow {
   created_at: number;
 }
 
+export interface ContactRow {
+  jid: string;
+  push_name: string | null;
+  saved_name: string | null;
+  phone: string | null;
+}
+
 export function rowToChat(r: ChatRow): Chat {
   return {
     jid: r.jid,
@@ -97,12 +104,17 @@ export class ChatRepo {
 
   /** Inserts a chat if missing; returns the row. */
   ensure(jid: string, init: { type?: ChatType; name?: string | null }, now: number): ChatRow {
+    const type = init.type ?? chatTypeOf(jid);
+    const contact = type === 'dm' ? this.getContact(jid) : null;
+    const supplied = init.name?.trim() || '';
+    const meaningful = supplied && supplied !== jid && supplied !== jidUser(jid);
+    const name = contact?.saved_name || (meaningful ? supplied : contact?.push_name || supplied);
     this.db
       .prepare(
         `INSERT INTO chats (jid, type, name, unread_count, status, updated_at)
          VALUES (?, ?, ?, 0, 'open', ?) ON CONFLICT(jid) DO NOTHING`,
       )
-      .run(jid, init.type ?? chatTypeOf(jid), init.name ?? '', now);
+      .run(jid, type, name, now);
     return this.get(jid)!;
   }
 
@@ -217,9 +229,28 @@ export class ChatRepo {
       )
       .run({
         jid: c.jid,
-        pushName: c.pushName,
-        savedName: c.savedName,
+        pushName: c.pushName?.trim() || null,
+        savedName: c.savedName?.trim() || null,
         phone: c.jid.endsWith('@s.whatsapp.net') ? jidUser(c.jid) : null,
       });
+  }
+
+  getContact(jid: string): ContactRow | null {
+    return (
+      (this.db.prepare('SELECT * FROM contacts WHERE jid = ?').get(jid) as
+        ContactRow | undefined) ?? null
+    );
+  }
+
+  contactJids(): string[] {
+    return (
+      this.db
+        .prepare("SELECT jid FROM contacts UNION SELECT jid FROM chats WHERE type = 'dm'")
+        .all() as Array<{ jid: string }>
+    ).map((r) => r.jid);
+  }
+
+  directChats(): ChatRow[] {
+    return this.db.prepare("SELECT * FROM chats WHERE type = 'dm'").all() as ChatRow[];
   }
 }

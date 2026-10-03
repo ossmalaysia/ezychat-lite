@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Match WhatsApp phone-number and internal contact IDs so saved names reach the correct chats.
+  Recover existing local mappings on reconnect, backfill imported names, and keep saved names
+  through partial contact updates without changing messages, assignments or conversation status.
+
 ## [0.1.9] - 2026-10-03
 
 ### Improved

@@ -5,6 +5,7 @@ import {
   type SendResult,
   type WaAdapter,
   type WaAdapterEvents,
+  type WaContactAlias,
   type WaIncomingMessage,
   type WaSendFile,
 } from '../types.js';
@@ -42,11 +43,17 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return this._status;
   }
 
-  override on<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this {
+  override on<K extends keyof WaAdapterEvents>(
+    ev: K,
+    fn: (...a: WaAdapterEvents[K]) => void,
+  ): this {
     return super.on(ev, fn as (...a: unknown[]) => void);
   }
 
-  override off<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this {
+  override off<K extends keyof WaAdapterEvents>(
+    ev: K,
+    fn: (...a: WaAdapterEvents[K]) => void,
+  ): this {
     return super.off(ev, fn as (...a: unknown[]) => void);
   }
 
@@ -104,14 +111,22 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return { id, timestamp };
   }
 
-  async sendText(chatJid: string, text: string, _opts?: { quotedId?: string }): Promise<SendResult> {
+  async sendText(
+    chatJid: string,
+    text: string,
+    _opts?: { quotedId?: string },
+  ): Promise<SendResult> {
     this.beforeSend();
     const id = `FAKE-OUT-${++this.outCounter}`;
     this.sent.push({ chatJid, text, id });
     return this.afterSend(chatJid, id);
   }
 
-  async sendMedia(chatJid: string, file: WaSendFile, _opts?: { quotedId?: string }): Promise<SendResult> {
+  async sendMedia(
+    chatJid: string,
+    file: WaSendFile,
+    _opts?: { quotedId?: string },
+  ): Promise<SendResult> {
     this.beforeSend();
     const id = `FAKE-OUT-${++this.outCounter}`;
     this.sent.push({ chatJid, file, id });
@@ -135,6 +150,10 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return null;
   }
 
+  async getContactAliases(_jids: string[]): Promise<WaContactAlias[]> {
+    return [];
+  }
+
   // ---- test helpers ----
 
   /** makes downloadMedia(messageId) return `buffer` */
@@ -143,7 +162,9 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   }
 
   /** Emit an incoming live message. Generates id `FAKE-<n>` unless given. */
-  simulateIncoming(p: Partial<WaIncomingMessage> & { chatJid: string; body: string }): WaIncomingMessage {
+  simulateIncoming(
+    p: Partial<WaIncomingMessage> & { chatJid: string; body: string },
+  ): WaIncomingMessage {
     const id = p.id ?? `FAKE-${++this.inCounter}`;
     const isGroup = p.chatJid.endsWith('@g.us');
     const msg: WaIncomingMessage = {

@@ -14,6 +14,7 @@ import {
   type GroupMetadata,
   type MessageUpsertType,
   type MessageUserReceiptUpdate,
+  type SignalKeyStore,
   type WAMessageUpdate,
   type WAMessage,
   type WAMessageKey,
@@ -29,6 +30,7 @@ import {
   type WaAdapterOptions,
   type WaChatInfo,
   type WaContactInfo,
+  type WaContactAlias,
   type WaMessageStatusUpdate,
   type WaSendFile,
 } from '../types.js';
@@ -36,6 +38,7 @@ import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
+import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
 
@@ -53,11 +56,15 @@ export function isConnectionError(err: unknown): boolean {
   const e = err as BoomLike & { isBoom?: boolean };
   const code = e.output?.statusCode;
   if (code !== undefined && CONNECTION_STATUS_CODES.has(code)) return true;
-  return /connection (closed|lost|terminated)|socket (closed|hang up)|not open/i.test(String(e.message ?? ''));
+  return /connection (closed|lost|terminated)|socket (closed|hang up)|not open/i.test(
+    String(e.message ?? ''),
+  );
 }
 
 /** Per-participant group receipt → our status (read wins over delivered). */
-export function receiptStatus(r: MessageUserReceiptUpdate['receipt']): WaMessageStatusUpdate['status'] | null {
+export function receiptStatus(
+  r: MessageUserReceiptUpdate['receipt'],
+): WaMessageStatusUpdate['status'] | null {
   if (r.readTimestamp || r.playedTimestamp) return 'read';
   if (r.receiptTimestamp) return 'delivered';
   return null;
@@ -108,12 +115,16 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private readonly auth: AuthStore;
   private readonly logger: Logger;
   private readonly historyDaysOpt: WaAdapterOptions['historyDays'];
-  private readonly raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
+  private raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   /** true when the socket was closed on purpose (disconnect/logout/replaced/blocked). */
   private stopped = true;
   private connecting: Promise<void> | null = null;
+  private signalKeys: SignalKeyStore | null = null;
+  private readonly contactAliases = new Map<string, string>();
+  /** Invalidates local-key reads when a socket closes or the linked account changes. */
+  private aliasGeneration = 0;
 
   constructor(opts: WaAdapterOptions) {
     super();
@@ -124,7 +135,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   /** current history_days (re-read each time so a settings change applies on the next relink) */
   private get historyDays(): number {
-    const v = typeof this.historyDaysOpt === 'function' ? this.historyDaysOpt() : this.historyDaysOpt;
+    const v =
+      typeof this.historyDaysOpt === 'function' ? this.historyDaysOpt() : this.historyDaysOpt;
     return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
   }
 
@@ -132,11 +144,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return this._status;
   }
 
-  override on<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this {
+  override on<K extends keyof WaAdapterEvents>(
+    ev: K,
+    fn: (...a: WaAdapterEvents[K]) => void,
+  ): this {
     return super.on(ev, fn as (...a: unknown[]) => void);
   }
 
-  override off<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this {
+  override off<K extends keyof WaAdapterEvents>(
+    ev: K,
+    fn: (...a: WaAdapterEvents[K]) => void,
+  ): this {
     return super.off(ev, fn as (...a: unknown[]) => void);
   }
 
@@ -174,6 +192,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   async logout(): Promise<void> {
     this.stopped = true;
+    this.clearContactAliases();
     this.clearReconnect();
     const sock = this.sock;
     if (sock) {
@@ -233,6 +252,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   private async closeSocket(): Promise<void> {
+    this.signalKeys = null;
+    this.aliasGeneration++;
     const sock = this.sock;
     this.sock = null;
     if (!sock) return;
@@ -253,7 +274,10 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       this.reconnectTimer = null;
       this.connect().catch((err) => {
         this.logger.error({ err }, 'wa reconnect failed');
-        this.setStatus({ state: 'disconnected', lastError: String((err as Error)?.message ?? err) });
+        this.setStatus({
+          state: 'disconnected',
+          lastError: String((err as Error)?.message ?? err),
+        });
         this.scheduleReconnect();
       });
     }, delay);
@@ -275,22 +299,27 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     if (this.stopped) return; // disconnect() was called while loading
 
     const blog = this.logger.child({ module: 'baileys' }) as unknown as ILogger;
+    const keys = makeCacheableSignalKeyStore(state.keys, blog);
     const sock = makeWASocket({
       ...(version ? { version } : {}),
-      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, blog) },
+      auth: { creds: state.creds, keys },
       logger: blog,
       browser: WA_BROWSER,
       syncFullHistory: this.historyDays > 0,
       markOnlineOnConnect: false,
       // Per-message filtering by historyDays happens in onHistory/ingest.
       shouldSyncHistoryMessage: () => this.historyDays > 0,
-      getMessage: async (key) => (key.id ? this.raw.get(key.id)?.message ?? undefined : undefined),
+      getMessage: async (key) =>
+        key.id ? (this.raw.get(key.id)?.message ?? undefined) : undefined,
     });
     this.sock = sock;
+    this.signalKeys = keys;
+    this.aliasGeneration++;
 
-    const alive = () => this.sock === sock;
+    const alive = () => !this.stopped && this.sock === sock;
 
     sock.ev.on('creds.update', () => {
+      if (!alive()) return;
       saveCreds().catch((err) => this.logger.error({ err }, 'saveCreds failed'));
     });
 
@@ -322,6 +351,9 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
     sock.ev.on('contacts.upsert', (cs) => alive() && this.emitContacts(cs));
     sock.ev.on('contacts.update', (cs) => alive() && this.emitContacts(cs));
+    sock.ev.on('lid-mapping.update', ({ lid, pn }) => {
+      if (alive()) this.emitAliasPairs([[lid, pn]]);
+    });
     sock.ev.on('chats.upsert', (cs) => alive() && this.emitChats(cs));
     sock.ev.on('groups.upsert', (gs) => alive() && this.emitGroups(gs));
     sock.ev.on('groups.update', (gs) => alive() && this.emitGroups(gs));
@@ -343,7 +375,9 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         state: 'open',
         qr: null,
         lastError: null,
-        me: user ? { jid: jidNormalizedUser(user.id), name: user.name ?? user.notify ?? null } : null,
+        me: user
+          ? { jid: jidNormalizedUser(user.id), name: user.name ?? user.notify ?? null }
+          : null,
       });
     }
     if (u.connection === 'close') {
@@ -351,6 +385,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       const code = err?.output?.statusCode;
       const message = err?.message ?? (code ? `closed (${code})` : 'connection closed');
       this.sock = null;
+      this.signalKeys = null;
+      this.aliasGeneration++;
       void this.handleClose(code, message);
     }
   }
@@ -370,6 +406,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         return;
       case 'logged_out':
         this.stopped = true;
+        this.clearContactAliases();
         await this.auth.wipe().catch((e) => this.logger.error({ err: e }, 'auth wipe failed'));
         this.setStatus({ state: 'logged_out', me: null, qr: null, lastError: message });
         return;
@@ -378,6 +415,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         this.setStatus({ state: 'replaced', qr: null, lastError: message });
         return;
       case 'bad_session':
+        this.clearContactAliases();
         try {
           const bak = await this.auth.backup();
           this.logger.warn({ bak }, 'bad session: auth backed up, wiping to request relink');
@@ -430,6 +468,10 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   private ingest(m: WAMessage, source: 'live' | 'history'): void {
+    this.emitAliasPairs([
+      [m.key?.remoteJid, m.key?.remoteJidAlt],
+      [m.key?.participant, m.key?.participantAlt],
+    ]);
     const id = m.key?.id;
     if (!id) return;
     if (m.message) this.raw.set(id, m);
@@ -441,6 +483,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   /** @internal exposed for tests */
   onHistory(h: BaileysEventMap['messaging-history.set']): void {
+    this.emitAliasPairs((h.lidPnMappings ?? []).map(({ lid, pn }) => [lid, pn]));
     if (h.contacts?.length) this.emitContacts(h.contacts);
     if (h.chats?.length) this.emitChats(h.chats);
     const cutoff = this.historyCutoff();
@@ -451,12 +494,103 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   private emitContacts(cs: Array<Partial<Contact>>): void {
+    this.emitAliasPairs(
+      cs.flatMap((c) => [
+        [c.id, c.lid],
+        [c.id, c.phoneNumber],
+        [c.lid, c.phoneNumber],
+      ]),
+    );
     const out: WaContactInfo[] = [];
     for (const c of cs) {
-      if (!c.id || jidType(c.id) !== 'dm') continue;
-      out.push({ jid: c.id, pushName: c.notify ?? c.verifiedName ?? null, savedName: c.name ?? null });
+      const jid = normalizeContactJid(c.id);
+      if (!jid) continue;
+      const alias = this.contactAliases.get(jid);
+      out.push({
+        jid,
+        pushName: c.notify?.trim() || c.verifiedName?.trim() || null,
+        savedName: c.name?.trim() || null,
+        ...(alias ? { aliases: [alias] } : {}),
+      });
     }
     if (out.length) this.emitTyped('contacts', out);
+    // The synchronous name event is stored first; late local mappings then connect it to the chat.
+    const generation = this.aliasGeneration;
+    void this.getContactAliases(out.map((c) => c.jid))
+      .then((aliases) => {
+        if (generation === this.aliasGeneration && aliases.length)
+          this.emitTyped('contactAliases', aliases);
+      })
+      .catch(() => {
+        this.logger.warn({ contactCount: out.length }, 'local contact alias lookup failed');
+      });
+  }
+
+  private clearContactAliases(): void {
+    this.contactAliases.clear();
+    this.raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
+    this.signalKeys = null;
+    this.aliasGeneration++;
+  }
+
+  /** Cache and emit only explicit PN/LID associations; reject contradictory associations. */
+  private emitAliasPairs(pairs: Array<[unknown, unknown]>): void {
+    const out: WaContactAlias[] = [];
+    for (const [first, second] of pairs) {
+      const pair = contactAliasPair(first, second);
+      if (pair && this.rememberAlias(pair)) out.push(pair);
+    }
+    if (out.length) {
+      this.logger.debug({ mappingCount: out.length }, 'contact aliases received');
+      this.emitTyped('contactAliases', out);
+    }
+  }
+
+  private rememberAlias({ jid, alias }: WaContactAlias): boolean {
+    const oldAlias = this.contactAliases.get(jid);
+    const oldJid = this.contactAliases.get(alias);
+    if ((oldAlias && oldAlias !== alias) || (oldJid && oldJid !== jid)) return false;
+    if (oldAlias === alias && oldJid === jid) return false;
+    this.contactAliases.set(jid, alias);
+    this.contactAliases.set(alias, jid);
+    return true;
+  }
+
+  async getContactAliases(jids: string[]): Promise<WaContactAlias[]> {
+    const normalized = [
+      ...new Set(jids.map(normalizeContactJid).filter((jid): jid is string => !!jid)),
+    ];
+    const keys = this.signalKeys;
+    const generation = this.aliasGeneration;
+    const pending = normalized.filter((jid) => !this.contactAliases.has(jid));
+    // keys.get reads files concurrently: bound each batch for large imported address books.
+    if (keys) {
+      for (let start = 0; start < pending.length; start += 256) {
+        const batch = pending.slice(start, start + 256);
+        const ids = batch.map((jid) =>
+          jid.endsWith('@lid') ? `${jid.split('@')[0]}_reverse` : jid.split('@')[0]!,
+        );
+        const stored = await keys.get('lid-mapping', ids);
+        if (generation !== this.aliasGeneration || keys !== this.signalKeys) return [];
+        for (let i = 0; i < batch.length; i++) {
+          const jid = batch[i]!;
+          const user = stored[ids[i]!];
+          if (typeof user !== 'string' || !/^\d+$/.test(user)) continue;
+          const pair = contactAliasPair(
+            jid,
+            `${user}@${jid.endsWith('@lid') ? 's.whatsapp.net' : 'lid'}`,
+          );
+          if (pair) this.rememberAlias(pair);
+        }
+      }
+    }
+    const out = new Map<string, WaContactAlias>();
+    for (const jid of normalized) {
+      const alias = this.contactAliases.get(jid);
+      const pair = contactAliasPair(jid, alias);
+      if (pair) out.set(pair.jid, pair);
+    }
+    return [...out.values()];
   }
 
   private emitChats(cs: Array<Partial<Chat>>): void {
@@ -499,7 +633,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return this.sock;
   }
 
-  private async send(chatJid: string, content: AnyMessageContent, quotedId?: string): Promise<SendResult> {
+  private async send(
+    chatJid: string,
+    content: AnyMessageContent,
+    quotedId?: string,
+  ): Promise<SendResult> {
     const sock = this.requireOpen();
     const quoted = quotedId ? this.raw.get(quotedId) : undefined;
     let res: WAMessage | undefined;
@@ -508,7 +646,9 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     } catch (err) {
       // connection dropped mid-send: report as unavailable so the queue keeps the job pending
       if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open') {
-        throw new WaUnavailableError(`WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`);
+        throw new WaUnavailableError(
+          `WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`,
+        );
       }
       throw err;
     }

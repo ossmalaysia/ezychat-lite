@@ -46,6 +46,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## WhatsApp / Baileys
 
+- 2026-10-03 — Business contacts had saved names while the inbox showed numeric IDs → contact names arrived under phone JIDs, conversations used LIDs, and contacts could arrive before chats → preserve explicit identity aliases, recover only existing local signal mappings on reconnect, apply stored names during chat creation, and backfill existing names without relinking or probing the contact list over the network.
 - 2026-10-03 — No QR ever appeared: WhatsApp closed the socket (428 "Connection Terminated") ~200 ms after
   "attempting registration", 42× in a row → the socket identified as `Browsers.appropriate('Desktop')`;
   WhatsApp rejects "Desktop" identities → use `Browsers.ubuntu('Chrome')` (`WA_BROWSER` in
@@ -109,6 +110,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Build / tooling (Windows)
 
+- 2026-10-03 — A valid iPhone browser sign-in failed only in the combined suite → parallel browser projects shared the loopback login quota and hit a genuine HTTP 429 → let the test sign-in helper honor the server's Retry-After and extend only its cooldown budget; never weaken production authentication limits to make browser tests pass.
 - 2026-10-03 — A deployed routing fix still displayed v0.1.0 → the build was replaced without a version
   bump → bump the root version for deployed fixes, sync workspace and lockfile versions, and verify both
   `/api/health` and the visible app version before handing over a patched build.

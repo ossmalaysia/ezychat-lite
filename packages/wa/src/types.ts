@@ -25,6 +25,13 @@ export interface WaContactInfo {
   jid: string;
   pushName: string | null;
   savedName: string | null;
+  /** Explicitly associated phone/LID identities, never inferred from names. */
+  aliases?: string[];
+}
+
+export interface WaContactAlias {
+  jid: string;
+  alias: string;
 }
 
 export interface WaMessageStatusUpdate {
@@ -39,6 +46,7 @@ export interface WaAdapterEvents {
   messageStatus: [WaMessageStatusUpdate];
   chats: [WaChatInfo[]];
   contacts: [WaContactInfo[]];
+  contactAliases: [WaContactAlias[]];
 }
 
 export interface SendResult {
@@ -75,6 +83,8 @@ export interface WaAdapter {
   downloadMedia(messageId: string): Promise<Buffer | null>;
   /** URL */
   getProfilePicture(jid: string): Promise<string | null>;
+  /** Resolve existing local phone/LID mappings only; must not query WhatsApp. */
+  getContactAliases(jids: string[]): Promise<WaContactAlias[]>;
 }
 
 export interface WaAdapterOptions {
