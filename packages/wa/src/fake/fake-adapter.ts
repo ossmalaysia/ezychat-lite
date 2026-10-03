@@ -137,6 +137,11 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   // ---- test helpers ----
 
+  /** makes downloadMedia(messageId) return `buffer` */
+  setMedia(messageId: string, buffer: Buffer): void {
+    this.media.set(messageId, buffer);
+  }
+
   /** Emit an incoming live message. Generates id `FAKE-<n>` unless given. */
   simulateIncoming(p: Partial<WaIncomingMessage> & { chatJid: string; body: string }): WaIncomingMessage {
     const id = p.id ?? `FAKE-${++this.inCounter}`;

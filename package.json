@@ -24,7 +24,8 @@
     "dev": "concurrently -k -n server,web -c green,cyan \"npm run dev -w @wa-team-inbox/server\" \"npm run dev -w @wa-team-inbox/web\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "version:sync": "node scripts/sync-version.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

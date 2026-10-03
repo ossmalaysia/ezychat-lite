@@ -36,19 +36,28 @@ export function messagePage(title: string, body: string): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
-export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string | null }): BrowserWindow {
+/** Keeps `title` as the window title: the loaded page (web app / message page) sets its own. */
+function pinTitle(win: BrowserWindow, title: string): void {
+  win.on('page-title-updated', (e) => e.preventDefault());
+  win.webContents.on('did-finish-load', () => {
+    if (!win.isDestroyed()) win.setTitle(title);
+  });
+}
+
+export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string | null; title: string }): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 360,
     minHeight: 480,
-    title: 'WA Team Inbox',
+    title: o.title,
     icon: o.icon,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0b1120',
     webPreferences: { ...SAFE_PREFS },
   });
+  pinTitle(win, o.title);
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);
@@ -70,18 +79,19 @@ export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string |
   return win;
 }
 
-export function createStatusWindow(o: { icon: NativeImage; preload: string; html: string }): BrowserWindow {
+export function createStatusWindow(o: { icon: NativeImage; preload: string; html: string; title: string }): BrowserWindow {
   const win = new BrowserWindow({
     width: 560,
     height: 680,
     minWidth: 360,
     minHeight: 420,
-    title: 'WA Team Inbox — Status & Service',
+    title: `${o.title} — Status & Service`,
     icon: o.icon,
     show: false,
     autoHideMenuBar: true,
     webPreferences: { ...SAFE_PREFS, preload: o.preload },
   });
+  pinTitle(win, `${o.title} — Status & Service`);
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);

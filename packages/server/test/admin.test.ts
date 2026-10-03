@@ -24,7 +24,7 @@ describe('settings', () => {
     expect(r2.json()).toEqual({
       port: 7420,
       lanEnabled: false,
-      historyDays: 30,
+      historyDays: 3,
       namedTunnelHostname: null,
       hasTunnelToken: false,
     });

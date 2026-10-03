@@ -1,5 +1,6 @@
 // System tray icon + menu.
 import { Menu, Tray, type NativeImage } from 'electron';
+import { appTitle } from './app-title.js';
 
 export interface TrayActions {
   open(): void;
@@ -11,13 +12,18 @@ export interface TrayActions {
   describe(): string;
 }
 
-export function createTray(icon: NativeImage, actions: TrayActions): { tray: Tray; refresh(): void } {
+export function createTray(
+  icon: NativeImage,
+  actions: TrayActions,
+  version: string,
+): { tray: Tray; refresh(): void } {
+  const title = appTitle(version);
   const tray = new Tray(icon);
-  tray.setToolTip('WA Team Inbox');
+  tray.setToolTip(title);
   const refresh = () => {
     tray.setContextMenu(
       Menu.buildFromTemplate([
-        { label: 'WA Team Inbox', enabled: false },
+        { label: title, enabled: false },
         { label: actions.describe(), enabled: false },
         { type: 'separator' },
         { label: 'Open', click: () => actions.open() },

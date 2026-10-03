@@ -180,6 +180,11 @@ export function ResponsiveDialog({
   );
 }
 
+/* ---------- Credits / About (separate modules) ---------- */
+
+export { AppCredits } from './AppCredits';
+export { AboutDialog } from './AboutDialog';
+
 /* ---------- PageHeader ---------- */
 
 export function PageHeader({

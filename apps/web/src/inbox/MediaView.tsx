@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Message } from '@wa-team-inbox/shared';
@@ -75,8 +75,30 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
   const [open, setOpen] = useState(false);
   const redownload = useRedownload();
   const label = m.mediaName ?? m.type;
+  // History media is imported without downloading it (status 'pending' on a received message).
+  const onDemand = m.mediaStatus === 'pending' && !m.fromMe && !m.id.startsWith('local-');
+  const autoLoad = onDemand && (m.type === 'image' || m.type === 'sticker');
+  const { mutate: fetchMedia, isIdle } = redownload;
 
-  if (m.mediaStatus === 'pending' || (!m.mediaUrl && m.status === 'pending')) {
+  // Small media loads as soon as it is shown; large media waits for a tap.
+  useEffect(() => {
+    if (autoLoad && isIdle) fetchMedia(m.id);
+  }, [autoLoad, isIdle, fetchMedia, m.id]);
+
+  if (onDemand && !autoLoad && !redownload.isPending) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+        <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <Button variant="ghost" size="touch" className="text-primary" onClick={() => fetchMedia(m.id)}>
+          <Download aria-hidden="true" />
+          {redownload.isError ? 'Retry' : 'Tap to load'}
+        </Button>
+      </div>
+    );
+  }
+
+  if ((m.mediaStatus === 'pending' && !redownload.isError) || (!m.mediaUrl && m.status === 'pending')) {
     return (
       <div className="flex min-h-14 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 shrink-0 animate-spin" role="img" aria-label="Media loading" />
@@ -89,7 +111,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
         <span className="min-w-0 flex-1 truncate">
-          {m.mediaStatus === 'failed' ? `Couldn’t load ${label}` : `${label} unavailable`}
+          {m.mediaStatus === 'failed' || redownload.isError ? `Couldn’t load ${label}` : `${label} unavailable`}
         </span>
         {!m.id.startsWith('local-') && (
           <Button

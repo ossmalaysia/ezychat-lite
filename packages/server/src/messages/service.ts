@@ -12,6 +12,17 @@ import { isFallbackName } from '../chats/service.js';
 import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
+import { DownloadLimiter } from './download-limiter.js';
+
+export interface MediaFile {
+  path: string;
+  mime: string;
+  name: string | null;
+}
+
+/** live media downloads (and on-demand redownloads) running at once */
+export const MEDIA_DOWNLOAD_CONCURRENCY = 2;
+export const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
@@ -20,8 +31,14 @@ export interface MessageService {
   sendMedia(jid: string, file: { buffer: Buffer; fileName: string; caption?: string; quotedId?: string }, userId: number, clientId: string): Promise<Message>;
   retry(id: string, userId: number): Message;
   applyStatus(u: WaMessageStatusUpdate): void;
-  mediaPath(id: string): { path: string; mime: string; name: string | null } | null;
+  mediaPath(id: string): MediaFile | null;
   redownload(id: string): Promise<Message>;
+  /**
+   * Media file for serving. A 'pending' (not yet fetched, e.g. history) message is downloaded on
+   * demand first. Returns null when the message has no servable media, 'unavailable' when it was
+   * pending but the download failed.
+   */
+  ensureMedia(id: string): Promise<MediaFile | null | 'unavailable'>;
   /** the outbound queue (bridge calls queue.onConnected()) */
   readonly queue: SendQueue;
   /** stops the queue */
@@ -57,6 +74,8 @@ export interface MessageServiceDeps {
   now?: () => number;
   /** overrides for the queue (tests) */
   queue?: { spacingMs?: number; maxAgeMs?: number; sleep?: (ms: number) => Promise<void> };
+  /** overrides for the media download limiter (tests) */
+  downloads?: { concurrency?: number; timeoutMs?: number };
 }
 
 export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps): MessageService {
@@ -201,6 +220,32 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     return msg;
   };
 
+  const downloads = new DownloadLimiter({
+    concurrency: deps?.downloads?.concurrency ?? MEDIA_DOWNLOAD_CONCURRENCY,
+    timeoutMs: deps?.downloads?.timeoutMs ?? MEDIA_DOWNLOAD_TIMEOUT_MS,
+  });
+  const redownloads = new Map<string, Promise<Message>>();
+
+  const doRedownload = async (id: string): Promise<Message> => {
+    const r = repo.get(id);
+    if (!r) throw errors.notFound('Message');
+    if (r.type === 'text' || r.type === 'system') throw errors.validation('Message has no media');
+    let buf: Buffer | null = null;
+    try {
+      buf = await downloads.run(() => ctx.wa.downloadMedia(id));
+    } catch (err) {
+      log.warn({ err, id }, 'media redownload failed');
+    }
+    if (!buf) {
+      repo.update(id, { media_status: 'failed' });
+      throw errors.conflict('Media is no longer available');
+    }
+    const mimeType = r.media_mime ?? (await fileTypeFromBuffer(buf).catch(() => undefined))?.mime ?? 'application/octet-stream';
+    const rel = media.save(r.chat_jid, id, buf, extFor(mimeType, r.media_name));
+    repo.update(id, { media_path: rel, media_mime: mimeType, media_status: 'ok' });
+    return rowToMessage(repo.get(id)!);
+  };
+
   const svc: MessageService = {
     queue,
 
@@ -277,9 +322,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         ctx.bus.emit('chat:event', ev);
       }
 
-      if (m.media) {
+      // History media stays 'pending' (mime/name kept) and is fetched on demand (ensureMedia /
+      // redownload): eagerly pulling every history file from the CDN floods the network and used
+      // to crash the server on a single ECONNRESET. Live media downloads through the limiter.
+      if (m.media && source === 'live') {
+        const dl = m.media.download;
         try {
-          const buf = await m.media.download();
+          const buf = await downloads.run(() => dl());
           const rel = media.save(m.chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
           repo.update(m.id, { media_path: rel, media_status: 'ok' });
         } catch (err) {
@@ -421,24 +470,26 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return { path: p, mime: r.media_mime ?? 'application/octet-stream', name: r.media_name };
     },
 
-    async redownload(id) {
+    redownload(id) {
+      // de-duplicate concurrent requests for the same message (e.g. a thumbnail and a viewer)
+      const existing = redownloads.get(id);
+      if (existing) return existing;
+      const p = doRedownload(id).finally(() => redownloads.delete(id));
+      redownloads.set(id, p);
+      return p;
+    },
+
+    async ensureMedia(id) {
+      const ready = svc.mediaPath(id);
+      if (ready) return ready;
       const r = repo.get(id);
-      if (!r) throw errors.notFound('Message');
-      if (r.type === 'text' || r.type === 'system') throw errors.validation('Message has no media');
-      let buf: Buffer | null = null;
+      if (!r || r.media_status !== 'pending') return null;
       try {
-        buf = await ctx.wa.downloadMedia(id);
-      } catch (err) {
-        log.warn({ err, id }, 'media redownload failed');
+        await svc.redownload(id);
+      } catch {
+        return 'unavailable';
       }
-      if (!buf) {
-        repo.update(id, { media_status: 'failed' });
-        throw errors.conflict('Media is no longer available');
-      }
-      const mimeType = r.media_mime ?? (await fileTypeFromBuffer(buf).catch(() => undefined))?.mime ?? 'application/octet-stream';
-      const rel = media.save(r.chat_jid, id, buf, extFor(mimeType, r.media_name));
-      repo.update(id, { media_path: rel, media_mime: mimeType, media_status: 'ok' });
-      return rowToMessage(repo.get(id)!);
+      return svc.mediaPath(id) ?? 'unavailable';
     },
 
     shutdown() {

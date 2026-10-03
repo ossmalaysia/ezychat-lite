@@ -287,6 +287,44 @@ describe('messages routes', () => {
     expect(String(res.headers['content-disposition'])).toMatch(/^attachment; filename="notes.txt"/);
   });
 
+  const ingestHistoryImage = (id: string) =>
+    getMessages(t.ctx).ingest(
+      {
+        id,
+        chatJid: JID,
+        senderJid: JID,
+        senderName: 'Gus',
+        fromMe: false,
+        type: 'image',
+        body: null,
+        quotedId: null,
+        timestamp: 1_700_000_000_000,
+        media: { mime: 'image/png', fileName: null, download: async () => PNG },
+      },
+      'history',
+    );
+
+  it('GET /api/media/:id on pending history media downloads on demand, then serves it', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    const m = await ingestHistoryImage('HIST-IMG-1');
+    expect(m!.mediaStatus).toBe('pending');
+    t.wa.setMedia('HIST-IMG-1', PNG);
+    const res = await t.app.inject({ method: 'GET', url: `/api/media/HIST-IMG-1`, headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.rawPayload.equals(PNG)).toBe(true);
+    const row = t.ctx.db.prepare('SELECT media_status FROM messages WHERE id = ?').get('HIST-IMG-1') as { media_status: string };
+    expect(row.media_status).toBe('ok');
+  });
+
+  it('GET /api/media/:id on pending media that cannot be downloaded → 404 media_pending', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await ingestHistoryImage('HIST-IMG-2');
+    const res = await t.app.inject({ method: 'GET', url: `/api/media/HIST-IMG-2`, headers: { cookie } });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('media_pending');
+  });
+
   it('media requires auth and unknown id → 404', async () => {
     const { cookie } = await createUserAndLogin(t);
     let res = await t.app.inject({ method: 'GET', url: `/api/media/nope` });

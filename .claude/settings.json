@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/learnings-gate.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Checking LEARNINGS.md is up to date"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -53,3 +53,18 @@ Read [docs/architecture.md](docs/architecture.md) before larger changes, and
 
 Use the GitHub issue templates for bugs and feature requests. For security issues, follow
 [SECURITY.md](SECURITY.md) and do not open a public issue.
+
+## Releases and versioning
+
+The root `package.json` `version` is the single source of truth for the app version.
+
+1. Bump `version` in the root `package.json` (semver).
+2. Run `npm run version:sync` to copy it into every workspace `package.json`
+   (`apps/desktop`, `apps/web`, `packages/*`). `node scripts/sync-version.mjs --check` only
+   reports mismatches (exit 1).
+3. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version.
+
+The version shows up in the desktop tray, window title and Status window (`app.getVersion()`),
+in `GET /api/health` (`scripts/bundle-server.mjs` writes the root version next to the bundled
+server), and in the web UI (`useAppVersion()` in `apps/web/src/lib/version.ts`, which falls back
+to the build-time `__APP_VERSION__`).

@@ -1,5 +1,6 @@
 // IPC between the status window (preload bridge) and the main process.
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';
 
@@ -13,7 +14,12 @@ export interface DesktopStatus {
   port: number;
   url: string;
   dataDir: string;
+  /** desktop app version (app.getVersion()) */
   version: string;
+  /** version reported by the server's GET /api/health; null when it is not answering */
+  serverVersion: string | null;
+  /** server mode from GET /api/health ('standalone' | 'service' | 'dev'); null when not answering */
+  serverMode: ServerMode | null;
   platform: NodeJS.Platform;
   busy: string | null;
   logs: string[];

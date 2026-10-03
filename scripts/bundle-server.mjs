@@ -72,7 +72,9 @@ const result = await build({
 // migrations: db/migrate.ts looks for ./migrations next to the running file
 cpSync(join(root, 'packages', 'server', 'src', 'db', 'migrations'), join(outDir, 'migrations'), { recursive: true });
 
-const version = JSON.parse(readFileSync(join(root, 'apps', 'desktop', 'package.json'), 'utf8')).version;
+// The root package.json version is the single source of truth (npm run version:sync copies it
+// into apps/desktop, apps/web and packages/*), so /api/health reports the same version as the app.
+const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 writeFileSync(join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs', private: true, version }, null, 2) + '\n');
 // The server's appVersion() reads <dir of running file>/../package.json, i.e. dist/package.json.
 // Keep "type": "module" there so the tsc-compiled dist/main.js etc. stay ESM.

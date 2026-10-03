@@ -47,7 +47,9 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
 
   app.get('/media/:msgId', async (req, reply) => {
     const { msgId } = parse(IdParams, req.params);
-    const media = messages.mediaPath(msgId);
+    // pending (history) media is downloaded on demand here; the first GET may take a while
+    const media = await messages.ensureMedia(msgId);
+    if (media === 'unavailable') return sendError(reply, 404, 'media_pending', 'Media could not be downloaded from WhatsApp');
     if (!media) throw errors.notFound('Media');
     const size = statSync(media.path).size;
     reply

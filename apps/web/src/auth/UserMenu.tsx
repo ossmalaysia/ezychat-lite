@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { KeyRound, LogOut, Settings } from 'lucide-react';
+import { Bug, Info, KeyRound, LogOut, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AboutDialog } from '@/components/app';
+import { GITHUB_ISSUES_URL } from '@/lib/links';
+import { useAppVersion } from '@/lib/version';
 import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from './AuthProvider';
 
@@ -35,60 +39,77 @@ export function UserMenu({
   align?: 'start' | 'center' | 'end';
 }) {
   const { user, isAdmin, logout } = useAuth();
+  const version = useAppVersion();
+  const [aboutOpen, setAboutOpen] = useState(false);
   if (!user) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-touch"
-          aria-label="Account menu"
-          className={cn('rounded-full', className)}
-        >
-          <Avatar className="size-8">
-            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-              {initials(user.displayName)}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="w-64 max-w-[calc(100vw-2rem)]">
-        <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-semibold">{user.displayName}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            @{user.username} · {user.role}
-          </p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <PushToggle compact className="px-2" />
-        <DropdownMenuSeparator />
-        {isAdmin && (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-touch"
+            aria-label="Account menu"
+            className={cn('rounded-full', className)}
+          >
+            <Avatar className="size-8">
+              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                {initials(user.displayName)}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align={align} className="w-64 max-w-[calc(100vw-2rem)]">
+          <DropdownMenuLabel className="font-normal">
+            <p className="truncate text-sm font-semibold">{user.displayName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              @{user.username} · {user.role}
+            </p>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <PushToggle compact className="px-2" />
+          <DropdownMenuSeparator />
+          {isAdmin && (
+            <DropdownMenuItem asChild className="min-h-11">
+              <Link to="/admin">
+                <Settings aria-hidden="true" />
+                Admin settings
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild className="min-h-11">
-            <Link to="/admin">
-              <Settings aria-hidden="true" />
-              Admin settings
+            <Link to="/change-password">
+              <KeyRound aria-hidden="true" />
+              Change password
             </Link>
           </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild className="min-h-11">
-          <Link to="/change-password">
-            <KeyRound aria-hidden="true" />
-            Change password
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          className="min-h-11"
-          onSelect={() => {
-            void logout();
-          }}
-        >
-          <LogOut aria-hidden="true" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild className="min-h-11">
+            <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener noreferrer">
+              <Bug aria-hidden="true" />
+              Report an issue
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" onSelect={() => setAboutOpen(true)}>
+            <Info aria-hidden="true" />
+            About WA Team Inbox
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            className="min-h-11"
+            onSelect={() => {
+              void logout();
+            }}
+          >
+            <LogOut aria-hidden="true" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} version={version ?? undefined} />
+    </>
   );
 }
 

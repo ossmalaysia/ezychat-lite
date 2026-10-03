@@ -4,6 +4,7 @@ import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow, type Na
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
 import { iconPng } from './icon.js';
 import { broadcastStatusChanged, registerIpc, type DesktopController, type DesktopMode, type DesktopStatus } from './ipc.js';
@@ -216,7 +217,7 @@ async function main(): Promise<void> {
 
   const showMain = (path = '/') => {
     if (!mainWindow || mainWindow.isDestroyed()) {
-      mainWindow = createMainWindow({ icon: appIcon, baseUrl: () => url });
+      mainWindow = createMainWindow({ icon: appIcon, baseUrl: () => url, title: appTitle(version) });
       mainWindow.on('close', (e) => {
         if (quitting) return;
         if (mode === 'client') {
@@ -252,6 +253,7 @@ async function main(): Promise<void> {
       icon: appIcon,
       preload: join(here, 'preload.cjs'),
       html: join(appPath, 'src', 'renderer', 'status.html'),
+      title: appTitle(version),
     });
     statusWindow.on('closed', () => (statusWindow = null));
   };
@@ -373,6 +375,8 @@ async function main(): Promise<void> {
       } catch {
         // keep last
       }
+      // server version / mode as reported by GET /api/health (the service may run another build)
+      const health = mode === 'standalone' || mode === 'client' ? await probeServer(port) : null;
       return {
         mode,
         serverState: mode === 'client' ? 'external' : server.state,
@@ -382,6 +386,8 @@ async function main(): Promise<void> {
         url,
         dataDir: mode === 'client' && lastServiceState !== 'not-installed' ? machineDataDir() : dataDir,
         version,
+        serverVersion: health?.version ?? null,
+        serverMode: health?.mode ?? null,
         platform: process.platform,
         busy,
         logs: [...desktopLog.slice(-60)],
@@ -491,7 +497,7 @@ async function main(): Promise<void> {
       app.quit();
     },
     describe,
-  });
+  }, version);
 
   app.on('second-instance', () => showMain());
   app.on('activate', () => showMain());

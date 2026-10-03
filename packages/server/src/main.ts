@@ -13,6 +13,8 @@ import { acquireLock } from './lock.js';
 import { createLogger } from './logger.js';
 import { initializers } from './services.js';
 import { attachRealtime } from './realtime/index.js';
+import { DEFAULT_HISTORY_DAYS, SETTINGS_KEYS } from './admin/settings-service.js';
+import { isTransientNetworkError } from './transient-error.js';
 
 /** Loads the Baileys adapter lazily (keeps baileys out of tests / --fake-wa runs). */
 async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
@@ -33,7 +35,7 @@ export async function createContext(
   const settings = new SettingsStore(db, secret);
   const bus = new Bus((err, ev) => log.error({ err, event: ev }, 'bus listener failed'));
   // a getter: a changed history_days applies on the next (re)link without a restart
-  const historyDays = () => settings.get<number>('history_days', 30);
+  const historyDays = () => settings.get<number>(SETTINGS_KEYS.historyDays, DEFAULT_HISTORY_DAYS);
   const wa =
     deps.wa ??
     (cfg.fakeWa
@@ -69,6 +71,12 @@ export async function startServer(
   const log = logger.log;
 
   const onUncaught = (err: unknown) => {
+    // e.g. undici "TypeError: terminated" (read ECONNRESET) escaping a Baileys media stream:
+    // a network blip must not kill the server
+    if (isTransientNetworkError(err)) {
+      log.warn({ err }, 'uncaught transient network error (ignored)');
+      return;
+    }
     log.fatal({ err }, 'uncaught exception');
     logger.close();
     lock.release();

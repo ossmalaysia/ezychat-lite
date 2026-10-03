@@ -25,6 +25,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { useAppVersion } from '@/lib/version';
+import { AppCredits } from '@/components/app';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
 import { QuickRepliesPage } from './QuickRepliesPage';
@@ -78,6 +80,7 @@ export function AdminLayout() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const version = useAppVersion();
 
   if (isLoading)
     return (
@@ -117,8 +120,9 @@ export function AdminLayout() {
               </SheetHeader>
               <AdminNav className="flex-1 overflow-y-auto p-2" onNavigate={() => setMenuOpen(false)} />
               <Separator />
-              <div className="safe-bottom flex flex-col gap-2 p-3">
+              <div className="safe-bottom flex flex-col gap-3 p-3">
                 <PushToggle compact />
+                <AppCredits version={version ?? undefined} className="justify-start text-left" />
               </div>
             </SheetContent>
           </Sheet>
@@ -141,6 +145,7 @@ export function AdminLayout() {
                 Back to inbox
               </Link>
             </Button>
+            <AppCredits version={version ?? undefined} className="justify-start px-1 text-left" />
           </div>
         </div>
       </aside>

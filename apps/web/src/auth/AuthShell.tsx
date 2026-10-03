@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AppCredits } from '@/components/app';
+import { useAppVersion } from '@/lib/version';
 
 /** Brand mark: the app icon (teal tile with an inbox glyph — not a third-party logo). */
 export function AppMark({ className = 'size-10' }: { className?: string }) {
@@ -25,6 +27,7 @@ export function AuthShell({
   /** Optional decorative illustration shown above the title. */
   illustration?: string;
 }) {
+  const version = useAppVersion();
   return (
     <div className="safe-x safe-top safe-bottom min-h-dvh bg-background text-foreground">
       <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
@@ -53,6 +56,7 @@ export function AuthShell({
             </CardHeader>
             <CardContent className="px-4 sm:px-6">{children}</CardContent>
           </Card>
+          <AppCredits version={version ?? undefined} className="mt-4 px-2" />
         </div>
       </main>
     </div>

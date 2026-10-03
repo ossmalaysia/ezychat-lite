@@ -96,6 +96,27 @@ removed, so do not add to it or import from it in new code. Feature code must no
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours; use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
 
+## Learnings loop (required)
+
+- Read `docs/LEARNINGS.md` before starting work; it records past mistakes (e.g. Baileys browser identity, Windows
+  tooling, CI SHA pinning, multi-agent pacing).
+- Before finishing any run that changed code, append dated lessons there (problem → root cause → rule). A Stop
+  hook (`.claude/hooks/learnings-gate.mjs`) blocks the turn until you do. Promote rules that change how to work
+  into this file.
+- Changes under `packages/wa/src/baileys/**` must be smoke-tested against real WhatsApp before claiming they work.
+- Agents never use the real app data folder; always `--data <temp dir>`.
+
+## Multi-agent rules (required)
+
+- **Small changes are done directly, not in a subagent.** A subagent costs 20–40 min of startup (re-reading
+  spec/plan/code) and its tests compete for CPU on this machine. Use subagents only for large, independent work
+  (≈ a day of work for a person), at most 2 in parallel on Windows.
+- **Subagents run only the unit tests for the files they changed** (`npx vitest run <paths>`) plus the typecheck of
+  the package they touched. **No e2e and no full-repo test suite inside subagents.**
+- **One consolidated verification step at the end** (one integration/e2e agent, or the orchestrator) runs
+  `npm run typecheck`, `npm test`, `npm run lint`, web build and `npm run e2e` once — and nothing else runs e2e.
+- Parallel subagents need disjoint file-ownership lists; only the orchestrator commits.
+
 ## Conventions
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to

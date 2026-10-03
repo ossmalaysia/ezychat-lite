@@ -12,6 +12,7 @@
     client: 'Connected to background service',
     error: 'Not running',
   };
+  var SERVER_MODE_LABEL = { standalone: 'standalone', service: 'background service', dev: 'development' };
   var SVC_LABEL = { 'not-installed': 'Not installed', stopped: 'Stopped', running: 'Running' };
   var working = false;
 
@@ -20,7 +21,10 @@
     $('state').textContent = s.serverState === 'external' ? 'running (service)' : s.serverState;
     $('url').textContent = s.url;
     $('data').textContent = s.dataDir;
+    $('title').textContent = s.version ? 'WA Team Inbox v' + s.version : 'WA Team Inbox';
     $('version').textContent = s.version;
+    $('server-version').textContent = s.serverVersion || 'not answering';
+    $('server-mode').textContent = s.serverMode ? SERVER_MODE_LABEL[s.serverMode] || s.serverMode : '—';
     $('log').textContent = (s.logs || []).join('\n');
     var busy = $('busy');
     busy.hidden = !s.busy;

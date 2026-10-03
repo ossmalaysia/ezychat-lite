@@ -13,7 +13,8 @@
   <a href="LICENSE">MIT License</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="SECURITY.md">Security</a>
+  <a href="SECURITY.md">Security</a> ·
+  <a href="https://github.com/ossmalaysia/wa-team-inbox/issues/new/choose">Issues</a>
 </p>
 
 ---
@@ -141,6 +142,18 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, con
 
 Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in public issues.
 
+## Support
+
+- **Issues:** found a bug or have a feature request?
+  [Open an issue](https://github.com/ossmalaysia/wa-team-inbox/issues/new/choose) on GitHub.
+- **Custom features:** need something built for your team?
+  [Contact Anchor Sprint](https://www.anchorsprint.com).
+
 ## License
 
 [MIT](LICENSE) © 2026 OSS Malaysia and contributors
+
+---
+
+Built and maintained by [Anchor Sprint](https://www.anchorsprint.com). Need a custom feature?
+[Contact us](https://www.anchorsprint.com).

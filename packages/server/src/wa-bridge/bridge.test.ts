@@ -140,6 +140,30 @@ describe('wa bridge / ingest', () => {
     expect(getChats(t.ctx).get(JID)!.lastMessagePreview).toBe('[Document] x.pdf');
   });
 
+  it('history media is not downloaded during import: saved as pending with mime/name kept', async () => {
+    let calls = 0;
+    const msg = await getMessages(t.ctx).ingest(
+      incoming({
+        id: 'HM-1',
+        type: 'document',
+        body: null,
+        media: {
+          mime: 'application/pdf',
+          fileName: 'old.pdf',
+          download: async () => {
+            calls++;
+            return Buffer.from('pdf');
+          },
+        },
+      }),
+      'history',
+    );
+    expect(calls).toBe(0);
+    expect(msg!.mediaStatus).toBe('pending');
+    expect(msg!.mediaMime).toBe('application/pdf');
+    expect(msg!.mediaName).toBe('old.pdf');
+  });
+
   it('status updates are monotonic and wa status is relayed to the bus', async () => {
     const statuses: string[] = [];
     t.ctx.bus.on('wa:status', (s) => statuses.push(s.state));

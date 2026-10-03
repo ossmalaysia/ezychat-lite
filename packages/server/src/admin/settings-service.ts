@@ -12,7 +12,8 @@ export const SETTINGS_KEYS = {
   tunnelToken: TUNNEL_TOKEN_KEY,
 } as const;
 
-export const DEFAULT_HISTORY_DAYS = 30;
+/** small by default: a fresh link imports only the last few days (media is fetched on demand) */
+export const DEFAULT_HISTORY_DAYS = 3;
 
 export interface PatchSettingsResult {
   settings: Settings;
