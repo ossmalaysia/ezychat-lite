@@ -79,14 +79,12 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;
-    let hadConnected = false;
 
     socket.on('connect', () => {
       setConnected(true);
       setAvatarRevision(Date.now());
-      // Anything could have changed while offline — resync.
-      if (hadConnected) void qc.invalidateQueries();
-      hadConnected = true;
+      // Events can arrive between the initial API load and joining socket rooms, too.
+      void qc.invalidateQueries();
     });
     socket.on('disconnect', () => setConnected(false));
     socket.on('connect_error', () => setConnected(false));

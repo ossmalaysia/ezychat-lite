@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   Loader2,
+  LogOut,
   Menu,
   MessageSquareText,
   ScrollText,
@@ -12,6 +13,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
+import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { PushToggle } from '../pwa/PushToggle';
 import { Button } from '@/components/ui/button';
@@ -82,6 +85,21 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
 }
 
 function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+      onNavigate?.();
+    } catch (error) {
+      toast.error(`Could not log out: ${errorMessage(error)}`);
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   return (
     <footer
       aria-label="Admin tools and support"
@@ -93,6 +111,17 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
           <ChevronLeft aria-hidden />
           Back to inbox
         </Link>
+      </Button>
+      <Button
+        variant="ghost"
+        size="touch"
+        className="justify-start px-2 text-muted-foreground"
+        disabled={loggingOut}
+        aria-busy={loggingOut}
+        onClick={() => void handleLogout()}
+      >
+        {loggingOut ? <Loader2 className="animate-spin" aria-hidden /> : <LogOut aria-hidden />}
+        {loggingOut ? 'Logging out…' : 'Log out'}
       </Button>
       <Separator className="my-1" />
       <AppCredits version={version} variant="sidebar" />

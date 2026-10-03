@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-03
+
 ### Improved
 
+- Add a clear inbox-account Log out action to the admin sidebar and mobile drawer. Signing out
+  keeps the shared WhatsApp connection and team data intact.
 - Tidy the admin footer with aligned notification and navigation controls, a compact build row,
   separate support links and a shared desktop/mobile layout that scrolls on short screens.
 - Introduce a playful app icon with two smiling chat teammates across desktop, browser and PWA;
@@ -32,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refresh inbox data when the live connection first opens, including updates that arrived
+  between the initial page load and the socket connection.
 - Show a saved Cloudflare address summary after setup, distinguish connecting from connected,
   require an explicit address edit, and prevent unnecessary reconnects. Clarify that disconnecting
   Cloudflare stops the public link while keeping local access, messages and the saved domain.
@@ -53,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- First public preview installers for Windows x64 and macOS Intel/Apple Silicon, with native
+  packaged-server checks for first-time setup, password verification and session logout.
 - Monorepo scaffold (npm workspaces), tooling, CI, and open-source project files.
 - Shared zod schemas for every REST and Socket.IO payload (`@wa-team-inbox/shared`).
 - `WaAdapter` interface with a Baileys implementation (QR linking, history sync, reconnect,

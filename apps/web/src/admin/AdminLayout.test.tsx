@@ -1,14 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AdminLayout, ADMIN_NAV } from './AdminLayout';
 import { reportClientError } from '@/lib/error-reporter';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
+import { toast } from 'sonner';
+
+const logout = vi.hoisted(() => vi.fn());
 
 vi.mock('../auth/AuthProvider', () => ({
-  useAuth: () => ({ user: { role: 'admin' }, isLoading: false }),
+  useAuth: () => ({ user: { role: 'admin' }, isLoading: false, logout }),
 }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
@@ -36,6 +40,10 @@ function setup(path: string) {
   return userEvent.setup();
 }
 
+beforeEach(() => {
+  logout.mockReset().mockResolvedValue(undefined);
+  vi.mocked(toast.error).mockClear();
+});
 afterEach(cleanup);
 
 describe('AdminLayout routing', () => {
@@ -124,5 +132,58 @@ describe('AdminLayout routing', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByRole('heading', { name: 'Inbox' })).toBeTruthy();
     expect(screen.getByTestId('location').textContent).toBe('/');
+  });
+
+  it('logs out of the inbox account from the desktop footer', async () => {
+    const user = setup('/admin/whatsapp');
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(logout).toHaveBeenCalledOnce();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('logs out from the mobile footer and closes the drawer after success', async () => {
+    const user = setup('/admin/members');
+    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Log out' }),
+    );
+    expect(logout).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('prevents repeat logout requests while signing out', async () => {
+    let finish!: () => void;
+    logout.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const user = setup('/admin/members');
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    const pending = screen.getByRole('button', { name: 'Logging out…' }) as HTMLButtonElement;
+    expect(pending.disabled).toBe(true);
+    expect(pending.getAttribute('aria-busy')).toBe('true');
+    await user.click(pending);
+    expect(logout).toHaveBeenCalledOnce();
+    await act(async () => finish());
+    expect((screen.getByRole('button', { name: 'Log out' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  it('reports a failed logout and allows a retry without closing the mobile drawer', async () => {
+    logout.mockRejectedValueOnce(new Error('Server unreachable'));
+    const user = setup('/admin/members');
+    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
+    const menu = await screen.findByRole('dialog');
+    await user.click(within(menu).getByRole('button', { name: 'Log out' }));
+    expect(toast.error).toHaveBeenCalledWith('Could not log out: Server unreachable');
+    expect(screen.getByRole('dialog')).toBe(menu);
+    const retry = within(menu).getByRole('button', { name: 'Log out' }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(false);
+    await user.click(retry);
+    expect(logout).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

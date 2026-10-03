@@ -9,12 +9,18 @@ permissions:
 
 jobs:
   package:
-    name: Package (${{ matrix.os }})
+    name: Package (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: macos-15-intel
+            arch: x64
+          - os: macos-15
+            arch: arm64
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -25,16 +31,20 @@ jobs:
       - run: node scripts/fetch-cloudflared.mjs
       - run: node scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
-      - run: npm run dist -w @wa-team-inbox/desktop
+      - run: npm run build -w @wa-team-inbox/web
+      - run: node scripts/bundle-server.mjs
+      - run: npm run build -w @wa-team-inbox/desktop
+      - name: Package native architecture
+        working-directory: apps/desktop
+        run: npx electron-builder --config electron-builder.yml --${{ matrix.arch }} --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Smoke packaged server with isolated test data
+        run: node scripts/smoke-packaged.mjs
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
+          prerelease: true
           files: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.dmg
-            apps/desktop/release/*.zip
-            apps/desktop/release/*.yml
-            apps/desktop/release/*.blockmap

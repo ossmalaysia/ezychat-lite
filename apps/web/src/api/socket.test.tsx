@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ChatAvatar } from '../inbox/ChatAvatar';
@@ -47,7 +47,7 @@ it('restores profile requests when WhatsApp opens after the inbox, and after a l
     </QueryClientProvider>,
   );
   await waitFor(() => expect(socket.listeners.has('connect')).toBe(true));
-  act(() => socket.listeners.get('connect')!());
+  await act(async () => socket.listeners.get('connect')!());
   expect(view.container.querySelector('img')).toBeNull();
   act(() => socket.listeners.get('wa:status')!({ state: 'open' }));
   await waitFor(() => expect(view.container.querySelector('img')).toBeTruthy());
@@ -61,5 +61,34 @@ it('restores profile requests when WhatsApp opens after the inbox, and after a l
   expect(view.container.querySelector('img')).not.toBe(first);
   fireEvent.load(view.container.querySelector('img')!);
   expect(view.container.textContent).not.toContain('TC');
+  qc.clear();
+});
+
+it('fetches changes missed before the first socket connection and during a reconnect', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let serverChat = 'Before the connection';
+  function Chats() {
+    const { data } = useQuery({
+      queryKey: ['chats'],
+      queryFn: async () => serverChat,
+      staleTime: Infinity,
+    });
+    return <span>{data}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Chats />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('Before the connection');
+  serverChat = 'Arrived before joining the socket';
+  await act(async () => socket.listeners.get('connect')!());
+  await screen.findByText(serverChat);
+  act(() => socket.listeners.get('disconnect')!());
+  serverChat = 'Arrived while offline';
+  await act(async () => socket.listeners.get('connect')!());
+  await screen.findByText(serverChat);
   qc.clear();
 });

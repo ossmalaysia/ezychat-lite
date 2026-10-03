@@ -4,6 +4,37 @@ test.describe('admin: members', () => {
   // Fresh session: this flow signs out, which must not revoke the shared admin storage state.
   test.use({ storageState: { cookies: [], origins: [] } });
 
+  test('admin logs out from desktop and phone menus without disconnecting WhatsApp', async ({
+    page,
+  }) => {
+    for (const viewport of [
+      { width: 1280, height: 800 },
+      { width: 360, height: 780 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await signIn(page, ADMIN.username, ADMIN.password);
+      await expect(inboxHeading(page)).toBeVisible();
+      const before = await (await page.request.get('/api/wa/status')).json();
+      await page.goto('/admin/settings');
+      if (viewport.width < 768)
+        await page.getByRole('button', { name: 'Admin menu', exact: true }).click();
+      const footer = page
+        .getByLabel('Admin tools and support', { exact: true })
+        .filter({ visible: true });
+      await footer.getByRole('button', { name: 'Log out', exact: true }).click();
+      await expect(page).toHaveURL(/\/login$/);
+      expect((await page.request.get('/api/users')).status()).toBe(401);
+      await signIn(page, ADMIN.username, ADMIN.password);
+      await expect(page).not.toHaveURL(/\/login$/);
+      await page.goto('/');
+      await expect(inboxHeading(page)).toBeVisible();
+      const after = await (await page.request.get('/api/wa/status')).json();
+      expect(after.state).toBe(before.state);
+      expect(after.me).toEqual(before.me);
+      await signOutFromInbox(page);
+    }
+  });
+
   test('admin creates an agent; agent must change password and cannot open admin', async ({
     page,
   }, info) => {
