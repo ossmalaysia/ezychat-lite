@@ -1,43 +1,53 @@
 # WA Team Inbox — brand assets
 
-Mark: teal `#0F766E` rounded square, white inbox tray with a chat bubble (three dots).
-Source of truth: `docs/brand/icon-source-1024.png` (1024x1024, opaque, white outside the rounded corners).
+The app mark is two smiling chat teammates, lilac and coral, on a deep teal square.
+The original generated artwork, PNG exports and Windows ICO live in `design/app-icon/`.
+See its README for prompts, provenance and encoding details. The previous tray/inbox
+source in `docs/brand/` is historical; it is no longer used for the app icon.
 
-| File | Size(s) | Purpose |
-|---|---|---|
-| `apps/desktop/build/icon.png` | 1024 | Transparent master (rounded-rect alpha mask); electron-builder mac/linux icon |
-| `apps/desktop/build/icon.ico` | 16, 24, 32, 48, 64, 128, 256 | Windows app / installer icon |
-| `apps/desktop/build/tray/trayTemplate.png` / `@2x` | 22 / 44 | macOS menu-bar template image (black glyph on transparent) |
-| `apps/desktop/build/tray/tray.png` / `@2x` | 16 / 32 | Windows/Linux tray (full-colour transparent icon) |
-| `apps/web/public/icon-192.png`, `icon-512.png` | 192, 512 | PWA manifest icons (`purpose: any`) |
-| `apps/web/public/icon-maskable-512.png` | 512 | PWA maskable icon: full-bleed teal, glyph inside the 80% safe zone |
-| `apps/web/public/apple-touch-icon.png` | 180 | iOS home screen (opaque; iOS rounds corners) |
-| `apps/web/public/favicon.ico` | 16, 32, 48 | Browser favicon |
-| `apps/web/public/icon.svg` | vector | Hand-drawn SVG approximation of the mark (favicon/in-app logo) |
+| File                                               | Size(s)                      | Purpose                                             |
+| -------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| `design/app-icon/app-icon-master.png`              | 1254                         | Original generated artwork                          |
+| `apps/desktop/build/icon.png`                      | 512                          | Electron desktop icon                               |
+| `apps/desktop/build/icon.ico`                      | 16, 24, 32, 48, 64, 128, 256 | Windows app / installer icon                        |
+| `apps/desktop/build/tray/trayTemplate.png` / `@2x` | 22 / 44                      | Existing monochrome macOS menu-bar template         |
+| `apps/desktop/build/tray/tray.png` / `@2x`         | 16 / 32                      | Windows/Linux tray                                  |
+| `apps/web/public/icon-192.png`, `icon-512.png`     | 192, 512                     | PWA manifest icons (`purpose: any`) and in-app mark |
+| `apps/web/public/icon-maskable-512.png`            | 512                          | Opaque maskable export with centered 360px artwork  |
+| `apps/web/public/apple-touch-icon.png`             | 180                          | iOS home screen                                     |
+| `apps/web/public/favicon.ico`                      | 16, 24, 32, 48, 64, 128, 256 | Browser favicon                                     |
 
-## Regenerating
+## Publishing and re-exporting
 
-sharp and png-to-ico are not repo dependencies; install them in a temp dir:
+Publish the checked-in design exports without installing image dependencies:
 
-```sh
-mkdir -p /tmp/icongen && cd /tmp/icongen && npm init -y && npm i sharp png-to-ico
-cd <repo>
-ICONGEN_MODULES=/tmp/icongen/node_modules node scripts/generate-icons.mjs [path/to/source-1024.png]
+```powershell
+node scripts/generate-icons.mjs
 ```
 
-All raster files above are overwritten. `icon.svg` is maintained by hand — update it if the mark changes.
+If the generated master changes, re-export with Python and Pillow first:
+
+```powershell
+python design/app-icon/export-assets.py
+node scripts/generate-icons.mjs
+```
+
+Resizing and encoding preserve the illustration. The maskable export adds teal padding.
+The publishing script checks all inputs before copying them; it keeps the existing
+macOS monochrome tray templates so menu-bar appearance follows system conventions.
+The obsolete SVG icon is removed so browsers and installed PWAs use the same artwork.
 
 ## Illustrations
 
 Empty-state / onboarding spot illustrations live in `apps/web/public/illustrations/` and are referenced as `/illustrations/<name>.png`. Transparent background (edge-connected white removed, enclosed white fills kept so they read in dark mode), trimmed, max width 640px, palette-quantised PNG (~20-40 KB each).
 
-| File | Size | Subject |
-| --- | --- | --- |
-| `empty-inbox.png` | 485x292 | Empty inbox tray with a small resting chat bubble |
-| `no-results.png` | 595x397 | Magnifying glass over empty chat bubbles |
+| File                | Size    | Subject                                                                     |
+| ------------------- | ------- | --------------------------------------------------------------------------- |
+| `empty-inbox.png`   | 485x292 | Empty inbox tray with a small resting chat bubble                           |
+| `no-results.png`    | 595x397 | Magnifying glass over empty chat bubbles                                    |
 | `link-whatsapp.png` | 640x311 | Smartphone with abstract QR-like pattern next to a laptop, dotted-line link |
-| `tunnel.png` | 640x432 | Cloud with a secure padlock linking a laptop and a phone |
-| `welcome.png` | 490x559 | Inbox tray with three chat bubbles rising out, sparkles |
+| `tunnel.png`        | 640x432 | Cloud with a secure padlock linking a laptop and a phone                    |
+| `welcome.png`       | 490x559 | Inbox tray with three chat bubbles rising out, sparkles                     |
 
 Generated with Codex CLI image generation, one job per image:
 

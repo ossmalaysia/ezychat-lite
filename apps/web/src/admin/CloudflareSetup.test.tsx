@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { CloudflareSetupStatus } from '@wa-team-inbox/shared';
+import type { CloudflareSetupStatus, TunnelStatus } from '@wa-team-inbox/shared';
 import type * as ApiClient from '../api/client';
 import { api } from '../api/client';
 import { CloudflareSetup } from './CloudflareSetup';
@@ -17,7 +17,7 @@ const otherDomain = { id: 'b'.repeat(32), name: 'example.org', accountName: null
 let current: CloudflareSetupStatus;
 let client: QueryClient;
 const mockApi = vi.mocked(api);
-const running = {
+const running: TunnelStatus = {
   mode: 'named',
   state: 'starting',
   url: null,
@@ -46,7 +46,7 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   });
   mockApi.mockReset();
-  mockApi.mockImplementation(async (path) => {
+  mockApi.mockImplementation(async (path, init) => {
     if (path === '/tunnel/cloudflare') return current;
     if (path === '/tunnel/cloudflare/login') {
       current = {
@@ -61,7 +61,16 @@ beforeEach(() => {
       return current;
     }
     if (path === '/tunnel/cloudflare/refresh') return current;
-    if (path === '/tunnel/cloudflare/create') return running;
+    if (path === '/tunnel/cloudflare/create') {
+      const body = init?.body as { domainId: string; subdomain: string; tunnelName: string };
+      const domain = current.domains.find((d) => d.id === body.domainId)!;
+      const hostname = `${body.subdomain}.${domain.name}`;
+      current = {
+        ...current,
+        managed: { id: '00000000-0000-4000-8000-000000000000', name: body.tunnelName, hostname },
+      };
+      return { ...running, hostname };
+    }
     throw new Error(`Unexpected request: ${path}`);
   });
 });
@@ -72,10 +81,19 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function mount() {
+function mount(
+  tunnel: TunnelStatus = {
+    mode: 'off',
+    state: 'stopped',
+    url: null,
+    hostname: null,
+    lastError: null,
+    logTail: [],
+  },
+) {
   return render(
     <QueryClientProvider client={client}>
-      <CloudflareSetup />
+      <CloudflareSetup tunnel={tunnel} />
     </QueryClientProvider>,
   );
 }
@@ -83,6 +101,71 @@ function mount() {
 function connect(domains: CloudflareSetupStatus['domains'] = [exampleDomain]) {
   current = { ...current, state: 'connected', domains };
 }
+
+function saved() {
+  connect();
+  current.managed = {
+    id: '00000000-0000-4000-8000-000000000000',
+    name: 'Support inbox',
+    hostname: 'inbox.example.com',
+  };
+}
+
+it.each([
+  ['running', 'Your domain is connected'],
+  ['starting', 'Connecting your inbox…'],
+  ['stopped', 'Cloudflare connection saved'],
+] as const)(
+  'shows the saved address and actual %s state without another creation form',
+  async (state, title) => {
+    saved();
+    mount({ ...running, state });
+    await screen.findByText(title);
+    expect(screen.getByText('https://inbox.example.com')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Create and connect inbox' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Address prefix' })).toBeNull();
+    expect(mockApi.mock.calls.every(([path]) => path === '/tunnel/cloudflare')).toBe(true);
+  },
+);
+
+it('does not call an unrelated active tunnel the saved connection', async () => {
+  saved();
+  mount({ ...running, state: 'running', hostname: 'other.example.com' });
+  await screen.findByText('Cloudflare connection saved');
+  expect(screen.queryByText('Your domain is connected')).toBeNull();
+});
+
+it('requires an actual edit to save and restores the saved draft after cancellation', async () => {
+  saved();
+  const user = userEvent.setup();
+  mount({ ...running, state: 'running' });
+  await user.click(await screen.findByRole('button', { name: 'Change address' }));
+  const prefix = screen.getByRole('textbox', { name: 'Address prefix' });
+  expect(
+    (screen.getByRole('button', { name: 'Save and connect changes' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  await user.type(prefix, '{Enter}');
+  expect(mockApi.mock.calls.some(([path]) => path.endsWith('/create'))).toBe(false);
+  await user.clear(prefix);
+  await user.type(prefix, 'support');
+  expect(
+    (screen.getByRole('button', { name: 'Save and connect changes' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  await user.click(screen.getByRole('button', { name: 'Cancel changes' }));
+  await user.click(screen.getByRole('button', { name: 'Change address' }));
+  expect((screen.getByRole('textbox', { name: 'Address prefix' }) as HTMLInputElement).value).toBe(
+    'inbox',
+  );
+  expect(mockApi.mock.calls.some(([path]) => path.endsWith('/create'))).toBe(false);
+  await user.clear(screen.getByRole('textbox', { name: 'Address prefix' }));
+  await user.type(screen.getByRole('textbox', { name: 'Address prefix' }), 'support');
+  await user.click(screen.getByRole('button', { name: 'Save and connect changes' }));
+  await screen.findByText('https://support.example.com');
+  expect(screen.queryByRole('textbox', { name: 'Address prefix' })).toBeNull();
+  expect(mockApi.mock.calls.filter(([path]) => path.endsWith('/create'))).toHaveLength(1);
+});
 
 it('starts sign-in only on request, exposes the approval page, and can cancel', async () => {
   const user = userEvent.setup();
@@ -207,6 +290,7 @@ it('prefills an app-managed address and starts fresh approval for another domain
     hostname: 'sales.example.com',
   };
   mount();
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Change address' }));
   await screen.findByRole('textbox', { name: 'Address prefix' });
   expect((screen.getByRole('textbox', { name: 'Address prefix' }) as HTMLInputElement).value).toBe(
     'sales',

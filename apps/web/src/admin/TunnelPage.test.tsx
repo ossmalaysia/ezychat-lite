@@ -39,6 +39,44 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('hides reconnect while the saved domain runs and explains disconnection', async () => {
+  hooks.settings = {
+    ...hooks.settings,
+    hasTunnelToken: true,
+    namedTunnelHostname: 'inbox.example.com',
+    lanEnabled: true,
+  };
+  hooks.tunnel = {
+    ...hooks.tunnel,
+    state: 'running',
+    hostname: 'inbox.example.com',
+    url: 'https://inbox.example.com',
+  };
+  render(<TunnelPage />);
+  expect(screen.queryByRole('button', { name: 'Connect saved address' })).toBeNull();
+  expect(screen.getByText(/Disconnect Cloudflare stops the public link/).textContent).toContain(
+    'and over your enabled local network',
+  );
+  expect(hooks.stop).not.toHaveBeenCalled();
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Disconnect Cloudflare' }));
+  expect(hooks.stop).toHaveBeenCalledOnce();
+});
+
+it('prevents duplicate reconnects while the saved domain starts', () => {
+  hooks.settings = {
+    ...hooks.settings,
+    hasTunnelToken: true,
+    namedTunnelHostname: 'inbox.example.com',
+  };
+  hooks.tunnel = { ...hooks.tunnel, state: 'starting', hostname: 'inbox.example.com' };
+  render(<TunnelPage />);
+  expect(
+    (screen.getByRole('button', { name: 'Connecting saved address…' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect(hooks.start).not.toHaveBeenCalled();
+});
+
 it('defaults to guided domain setup and keeps manual token fields optional', async () => {
   const user = userEvent.setup();
   render(<TunnelPage />);
@@ -87,6 +125,6 @@ it('retains account-free temporary links and the option to turn off access', asy
   expect(screen.queryByText('Guided Cloudflare setup')).toBeNull();
   hooks.tunnel = { ...hooks.tunnel, state: 'running', mode: 'quick' };
   view.rerender(<TunnelPage />);
-  await user.click(screen.getByRole('button', { name: 'Turn off remote access' }));
+  await user.click(screen.getByRole('button', { name: 'Disconnect Cloudflare' }));
   expect(hooks.stop).toHaveBeenCalledOnce();
 });

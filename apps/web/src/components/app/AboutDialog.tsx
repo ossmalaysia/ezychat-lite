@@ -22,10 +22,17 @@ export function AboutDialog({
       description="One WhatsApp number, one shared inbox for your whole team — served from your own computer."
     >
       <div className="flex flex-col items-center gap-4 pb-4 text-center">
-        <img src="/icon.svg" alt="" aria-hidden="true" className="size-16 select-none rounded-2xl" />
+        <img
+          src="/icon-192.png"
+          alt=""
+          aria-hidden="true"
+          className="size-16 select-none rounded-2xl"
+        />
         <div>
           <p className="text-base font-semibold">WA Team Inbox</p>
-          <p className="text-sm text-muted-foreground">{version ? `Version ${version}` : 'Version unknown'}</p>
+          <p className="text-sm text-muted-foreground">
+            {version ? `Version ${version}` : 'Version unknown'}
+          </p>
         </div>
         <Button asChild variant="outline" size="touch">
           <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">

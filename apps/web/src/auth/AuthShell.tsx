@@ -8,9 +8,16 @@ import { AppCredits } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { useAppVersion } from '@/lib/version';
 
-/** Brand mark: the app icon (teal tile with an inbox glyph — not a third-party logo). */
+/** Brand mark: two playful chat teammates on a teal tile. */
 export function AppMark({ className = 'size-10' }: { className?: string }) {
-  return <img src="/icon.svg" alt="" aria-hidden="true" className={cn('select-none', className)} />;
+  return (
+    <img
+      src="/icon-192.png"
+      alt=""
+      aria-hidden="true"
+      className={cn('select-none rounded-lg', className)}
+    />
+  );
 }
 
 /** Centered, safe-area aware Card layout for login / setup / password screens. */

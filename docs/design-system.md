@@ -103,8 +103,9 @@ App-level composites live in `src/components/app/` (e.g. `ChatAvatar`, `Assignee
 
 ## Brand assets (`apps/web/public`, `apps/desktop/build`)
 
-App icon: teal rounded square, white inbox-tray glyph with a rising chat bubble; no text.
-Generated variants: `icon.svg`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
+App icon: two smiling lilac and coral chat teammates on a teal square; no text or third-party logo.
+Source and reproducible exports live in `design/app-icon/` (see `docs/brand.md`).
+Generated variants: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
 `apple-touch-icon.png`, `favicon.ico`, desktop `icon.ico` / `icon.icns` / tray template images.
 Illustrations (empty inbox, no results, link WhatsApp, tunnel, welcome) share one flat style:
 teal + slate palette, thin line work, no people's faces, no brand logos.

@@ -9,6 +9,42 @@ import {
   projectTag,
 } from './helpers';
 
+test('admin footer stays readable and reachable on phones and short screens', async ({
+  page,
+}, info) => {
+  for (const size of [
+    { width: 360, height: 780 },
+    { width: 740, height: 360 },
+    { width: 1280, height: 360 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto('/admin/settings');
+    if (size.width < 768)
+      await page.getByRole('button', { name: 'Admin menu', exact: true }).click();
+    const footer = page
+      .getByLabel('Admin tools and support', { exact: true })
+      .filter({ visible: true });
+    await expect(footer).toBeVisible();
+    for (const name of ['Back to inbox', 'Report an issue', 'Custom features']) {
+      const link = footer.getByRole('link', { name, exact: true });
+      await link.scrollIntoViewIfNeeded();
+      await expect(link).toBeInViewport();
+      expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    const footerSize = await footer.evaluate((element) => ({
+      width: element.clientWidth,
+      scroll: element.scrollWidth,
+    }));
+    expect(footerSize.scroll).toBeLessThanOrEqual(footerSize.width + 1);
+    await expectNoHorizontalScroll(page, `${size.width}px admin footer`);
+    await page.screenshot({ path: info.outputPath(`admin-footer-${size.width}.png`) });
+    const sections = page.getByRole('navigation', { name: 'Admin sections' });
+    await sections.getByRole('link', { name: 'Quick replies', exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/quick-replies$/);
+    await expect(page.getByRole('heading', { name: 'Quick replies', exact: true })).toBeVisible();
+  }
+});
+
 /** Every screen must fit a 360px-wide phone with no horizontal page scroll. */
 test.describe('360px: no horizontal scroll', () => {
   test.use({ viewport: { width: 360, height: 780 } });

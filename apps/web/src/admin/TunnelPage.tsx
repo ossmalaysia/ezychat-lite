@@ -77,9 +77,12 @@ export function TunnelPage() {
   const active = s.state === 'running' || s.state === 'starting';
   const hasToken = settings.data?.hasTunnelToken ?? false;
   const pending = start.isPending || stop.isPending;
+  const namedRunning = s.mode === 'named' && s.state === 'running' && s.hostname === savedHostname;
+  const namedStarting =
+    s.mode === 'named' && s.state === 'starting' && s.hostname === savedHostname;
   const actionLabel = {
-    off: active ? 'Turn off' : 'Remote access is off',
-    named: active ? 'Reconnect saved address' : 'Connect saved address',
+    off: active ? 'Disconnect Cloudflare' : 'Remote access is off',
+    named: namedStarting ? 'Connecting saved address…' : 'Connect saved address',
     quick: active ? 'Restart temporary link' : 'Create temporary link',
   }[mode];
 
@@ -215,7 +218,7 @@ export function TunnelPage() {
 
           {mode === 'named' && (
             <div className="flex flex-col gap-4">
-              <CloudflareSetup />
+              <CloudflareSetup tunnel={s} />
               <div className="border-t pt-4">
                 <Button
                   variant="ghost"
@@ -287,12 +290,14 @@ export function TunnelPage() {
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            {(mode !== 'named' || hasToken) && (
+            {(mode !== 'named' || (hasToken && !namedRunning)) && (
               <Button
                 size="touch"
                 className="md:min-h-9"
                 onClick={() => onStart()}
-                disabled={pending || (mode === 'off' && !active)}
+                disabled={
+                  pending || (mode === 'off' && !active) || (mode === 'named' && namedStarting)
+                }
               >
                 <Pending show={start.isPending} />
                 {actionLabel}
@@ -307,10 +312,15 @@ export function TunnelPage() {
                 disabled={pending}
               >
                 <Pending show={stop.isPending} />
-                Turn off remote access
+                Disconnect Cloudflare
               </Button>
             )}
           </div>
+          <p className="text-sm text-muted-foreground">
+            Disconnect Cloudflare stops the public link. The inbox still works on this computer
+            {settings.data?.lanEnabled ? ' and over your enabled local network' : ''}. Messages and
+            the saved domain are kept, so you can connect again later.
+          </p>
         </CardContent>
       </Card>
 

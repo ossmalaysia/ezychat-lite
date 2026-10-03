@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { CloudflareCreateBody } from '@wa-team-inbox/shared';
+import { CloudflareCreateBody, type TunnelStatus } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import {
   useCloudflareAccountAction,
@@ -37,7 +37,7 @@ function approvalUrl(url: string | null): string | null {
 }
 
 /** Guided account authorization and explicit publication. Credentials remain on the server. */
-export function CloudflareSetup() {
+export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
   const setup = useCloudflareSetupStatus();
   const account = useCloudflareAccountAction();
   const create = useCreateCloudflareTunnel();
@@ -45,23 +45,7 @@ export function CloudflareSetup() {
   const [subdomain, setSubdomain] = useState('inbox');
   const [tunnelName, setTunnelName] = useState('wa-team-inbox');
   const [formError, setFormError] = useState<string | null>(null);
-  const prefilled = useRef(false);
-
-  const domains = setup.data?.domains;
-  const managed = setup.data?.managed;
-  useEffect(() => {
-    if (!domains?.length) return;
-    if (!prefilled.current) {
-      prefilled.current = true;
-      const previousDomain = managed
-        ? domains.find((domain) => managed.hostname.endsWith(`.${domain.name}`))
-        : undefined;
-      if (managed && previousDomain) {
-        setSubdomain(managed.hostname.slice(0, -(previousDomain.name.length + 1)));
-        setTunnelName(managed.name);
-      }
-    }
-  }, [domains, managed]);
+  const [editing, setEditing] = useState(false);
 
   const clearFeedback = () => {
     setFormError(null);
@@ -94,9 +78,57 @@ export function CloudflareSetup() {
       ? 'The Cloudflare sign-in address could not be verified. Cancel sign-in and try again.'
       : null;
   const actionError = account.error ?? create.error;
-  const createdAddress =
-    create.data?.url ?? (create.data?.hostname ? `https://${create.data.hostname}` : null);
   const connected = status.state === 'connected';
+  const savedHostname = status.managed?.hostname ?? create.data?.hostname;
+  const savedName = status.managed?.name ?? create.variables?.tunnelName;
+  const unchanged = address === `https://${savedHostname}` && tunnelName.trim() === savedName;
+
+  if (savedHostname && !editing && !waiting) {
+    const matches = tunnel.mode === 'named' && tunnel.hostname === savedHostname;
+    const running = matches && tunnel.state === 'running';
+    const starting = matches && tunnel.state === 'starting';
+    return (
+      <section className="flex min-w-0 flex-col gap-3" aria-label="Your saved Cloudflare address">
+        <Banner
+          title={
+            running
+              ? 'Your domain is connected'
+              : starting
+                ? 'Connecting your inbox…'
+                : 'Cloudflare connection saved'
+          }
+        >
+          <span className="break-all">https://{savedHostname}</span>
+          <p>
+            {running
+              ? 'Your team can use this address and sign in with their inbox accounts.'
+              : starting
+                ? 'Waiting for Cloudflare to connect. Keep this computer and the app running.'
+                : 'Connect the saved address below to make the inbox available to your team.'}
+          </p>
+        </Banner>
+        <Button
+          size="touch"
+          variant="outline"
+          className="self-start"
+          disabled={busy}
+          onClick={() => {
+            const domain = status.domains.find((d) => savedHostname.endsWith(`.${d.name}`));
+            if (domain) {
+              setDomainId(domain.id);
+              setSubdomain(savedHostname.slice(0, -(domain.name.length + 1)));
+            }
+            setTunnelName(savedName ?? 'wa-team-inbox');
+            setFormError(null);
+            account.reset();
+            setEditing(true);
+          }}
+        >
+          Change address
+        </Button>
+      </section>
+    );
+  }
 
   return (
     <section className="flex min-w-0 flex-col gap-5" aria-label="Set up your Cloudflare domain">
@@ -193,6 +225,7 @@ export function CloudflareSetup() {
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
+            if (unchanged) return;
             clearFeedback();
             const parsed = CloudflareCreateBody.safeParse({
               domainId: selectedDomain?.id,
@@ -206,7 +239,7 @@ export function CloudflareSetup() {
               return;
             }
             if (!selectedDomain || busy) return;
-            create.mutate(parsed.data);
+            create.mutate(parsed.data, { onSuccess: () => setEditing(false) });
           }}
         >
           <h3 className="text-base font-semibold">2. Choose your inbox address</h3>
@@ -279,7 +312,9 @@ export function CloudflareSetup() {
             )}
           </Field>
           <div className="flex flex-col gap-2 border-t pt-4">
-            <h3 className="text-base font-semibold">3. Connect your inbox</h3>
+            <h3 className="text-base font-semibold">
+              3. {savedHostname ? 'Save your changes' : 'Connect your inbox'}
+            </h3>
             <p className="text-sm text-muted-foreground">
               This publishes the inbox using the address above and sets up its Cloudflare
               connection. Team members still need their normal inbox sign-in. Keep this computer and
@@ -288,21 +323,39 @@ export function CloudflareSetup() {
             <Button
               type="submit"
               size="touch"
-              disabled={busy || !selectedDomain || !subdomain.trim() || !tunnelName.trim()}
+              disabled={
+                busy || unchanged || !selectedDomain || !subdomain.trim() || !tunnelName.trim()
+              }
             >
               <Pending show={create.isPending || status.busy} />
               {create.isPending || status.busy
                 ? 'Connecting your inbox…'
-                : 'Create and connect inbox'}
+                : savedHostname
+                  ? 'Save and connect changes'
+                  : 'Create and connect inbox'}
             </Button>
+            {unchanged && (
+              <p className="text-sm text-muted-foreground">
+                This address and tunnel name are already saved.
+              </p>
+            )}
+            {savedHostname && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="touch"
+                disabled={busy}
+                onClick={() => {
+                  setFormError(null);
+                  account.reset();
+                  setEditing(false);
+                }}
+              >
+                Cancel changes
+              </Button>
+            )}
           </div>
         </form>
-      )}
-      {createdAddress && (
-        <Banner tone="info" title="Cloudflare connection saved">
-          <span className="break-all">{createdAddress}</span>
-          <p>Check the connection status above before sharing the address.</p>
-        </Banner>
       )}
     </section>
   );

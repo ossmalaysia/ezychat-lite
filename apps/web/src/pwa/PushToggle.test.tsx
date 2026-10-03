@@ -36,3 +36,14 @@ it('shows a useful native availability error and keeps the switch off', async ()
   await screen.findByText(/Desktop notifications are unavailable/);
   expect(toggle.getAttribute('aria-checked')).toBe('false');
 });
+
+it('keeps the compact label readable and its full device-specific accessible name', async () => {
+  render(<PushToggle compact />);
+  const toggle = screen.getByRole('switch', { name: 'Notifications on this device' });
+  const label = toggle.parentElement!.querySelector('label')!;
+  expect(label.textContent).toBe('Notifications');
+  fireEvent.click(label);
+  await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
+  fireEvent.click(label);
+  await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
+});

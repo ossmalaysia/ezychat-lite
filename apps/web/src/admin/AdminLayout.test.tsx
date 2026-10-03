@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AdminLayout, ADMIN_NAV } from './AdminLayout';
 import { reportClientError } from '@/lib/error-reporter';
+import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ user: { role: 'admin' }, isLoading: false }),
@@ -11,7 +12,6 @@ vi.mock('../auth/AuthProvider', () => ({
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
-vi.mock('@/components/app', () => ({ AppCredits: () => null }));
 vi.mock('./MembersPage', () => ({ MembersPage: () => <h1>Members</h1> }));
 vi.mock('./QuickRepliesPage', () => ({ QuickRepliesPage: () => <h1>Quick replies</h1> }));
 vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
@@ -27,6 +27,7 @@ function setup(path: string) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
+        <Route path="/" element={<h1>Inbox</h1>} />
         <Route path="/admin/*" element={<AdminLayout />} />
       </Routes>
       <Location />
@@ -88,5 +89,40 @@ describe('AdminLayout routing', () => {
       expect(screen.getByRole('heading', { name: destination.label })).toBeTruthy();
       expect(screen.getByTestId('location').textContent).toBe(`/admin/${destination.to}`);
     }
+  });
+
+  it('keeps version and support destinations available in both footer layouts', async () => {
+    const user = setup('/admin/members');
+    const checkFooter = (footer: HTMLElement) => {
+      const tools = within(footer);
+      expect(tools.getByText('v0.1.0')).toBeTruthy();
+      expect(tools.getByRole('link', { name: 'Back to inbox' }).getAttribute('href')).toBe('/');
+      for (const [name, href] of [
+        ['Anchor Sprint', ANCHOR_SPRINT_URL],
+        ['Report an issue', GITHUB_ISSUES_URL],
+        ['Custom features', CUSTOM_FEATURE_URL],
+      ]) {
+        const link = tools.getByRole('link', { name });
+        expect(link.getAttribute('href')).toBe(href);
+        expect(link.getAttribute('target')).toBe('_blank');
+        expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+      }
+    };
+    checkFooter(screen.getByLabelText('Admin tools and support'));
+    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
+    checkFooter(
+      within(await screen.findByRole('dialog')).getByLabelText('Admin tools and support'),
+    );
+  });
+
+  it('returns to the inbox and closes the mobile menu from its footer', async () => {
+    const user = setup('/admin/tunnel');
+    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('link', { name: 'Back to inbox' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('heading', { name: 'Inbox' })).toBeTruthy();
+    expect(screen.getByTestId('location').textContent).toBe('/');
   });
 });

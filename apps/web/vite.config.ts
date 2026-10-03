@@ -25,7 +25,6 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false, // src/pwa/registerSW.ts registers it
       includeAssets: [
-        'icon.svg',
         'favicon.ico',
         'apple-touch-icon.png',
         'icon-192.png',
@@ -49,8 +48,12 @@ export default defineConfig({
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          {
+            src: '/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       devOptions: { enabled: false, type: 'module' },

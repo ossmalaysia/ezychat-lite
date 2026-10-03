@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Tidy the admin footer with aligned notification and navigation controls, a compact build row,
+  separate support links and a shared desktop/mobile layout that scrolls on short screens.
+- Introduce a playful app icon with two smiling chat teammates across desktop, browser and PWA;
+  keep the original artwork, PNG exports and Windows ICO in `design/app-icon/`.
 - Deliver public web assets with build-time gzip and Brotli, keeping fresh-build checks for HTML
   and the service worker and long-lived caching only for fingerprinted assets.
 - Render only changed chat rows during inbox updates and coalesce overlapping next-page requests.
@@ -28,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Show a saved Cloudflare address summary after setup, distinguish connecting from connected,
+  require an explicit address edit, and prevent unnecessary reconnects. Clarify that disconnecting
+  Cloudflare stops the public link while keeping local access, messages and the saved domain.
 - Preserve unsaved settings when background requests refresh their defaults.
 - Serialize desktop service changes and password resets, including actions from the tray.
 - Recover from a missing system Node process without getting stuck; ignore stale child exits and

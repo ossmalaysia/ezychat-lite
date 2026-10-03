@@ -1,7 +1,7 @@
 {
   "name": "@wa-team-inbox/desktop",
   "productName": "WA Team Inbox",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "license": "MIT",

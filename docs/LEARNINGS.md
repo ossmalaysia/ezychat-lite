@@ -160,3 +160,6 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
   commits; tell agents not to `npm install` unless they own the package.json being changed.
 - 2026-10-03 — Stale data from an agent's test run (admin account, `server.lock`) blocked the user's first-run
   setup → agents must use temp data dirs (`--data <scratchpad>`), never the real app data folder.
+- 2026-10-03 — Successful Cloudflare provisioning still showed the creation wizard and duplicate reconnect actions → saved configuration and live tunnel state were presented independently → collapse saved setup into an address summary, compare the running hostname, and require explicit edits or reconnects only when needed.
+- 2026-10-03 — Admin footer labels wrapped awkwardly and credits mixed navigation with support → the shared inline credits layout did not fit a narrow sidebar → use a stacked sidebar variant, preserve accessible device-specific notification names, and scroll the whole menu on short screens.
+- 2026-10-03 — A generated icon contained unwanted transparent holes and the legacy exporter assumed a white glyph → image alpha and artwork-specific transforms could corrupt the new mark → inspect opaque PNG/ICO frames at small sizes, preserve generated artwork during exports, and publish the same checked-in assets to desktop and PWA.

@@ -81,6 +81,34 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
   );
 }
 
+function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
+  return (
+    <footer
+      aria-label="Admin tools and support"
+      className="safe-bottom flex shrink-0 flex-col gap-1 border-t p-3"
+    >
+      <PushToggle compact className="px-2" />
+      <Button asChild variant="ghost" size="touch" className="justify-start px-2 text-primary">
+        <Link to="/" onClick={onNavigate}>
+          <ChevronLeft aria-hidden />
+          Back to inbox
+        </Link>
+      </Button>
+      <Separator className="my-1" />
+      <AppCredits version={version} variant="sidebar" />
+    </footer>
+  );
+}
+
+function AdminMenu({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <AdminNav className="flex-1 p-2" onNavigate={onNavigate} />
+      <AdminFooter version={version} onNavigate={onNavigate} />
+    </div>
+  );
+}
+
 /**
  * Admin shell. Side nav on >= md; on phones a top bar with a Sheet menu.
  * Mounted by App.tsx at `/admin/*`; non-admins are redirected to `/`.
@@ -130,15 +158,7 @@ export function AdminLayout() {
                 <SheetTitle>Admin</SheetTitle>
                 <SheetDescription>WA Team Inbox</SheetDescription>
               </SheetHeader>
-              <AdminNav
-                className="flex-1 overflow-y-auto p-2"
-                onNavigate={() => setMenuOpen(false)}
-              />
-              <Separator />
-              <div className="safe-bottom flex flex-col gap-3 p-3">
-                <PushToggle compact />
-                <AppCredits version={version ?? undefined} className="justify-start text-left" />
-              </div>
+              <AdminMenu version={version ?? undefined} onNavigate={() => setMenuOpen(false)} />
             </SheetContent>
           </Sheet>
         </div>
@@ -153,17 +173,7 @@ export function AdminLayout() {
             </p>
             <p className="text-lg font-semibold">Admin</p>
           </div>
-          <AdminNav className="flex-1 overflow-y-auto p-2" />
-          <div className="flex flex-col gap-2 border-t p-3">
-            <PushToggle compact />
-            <Button asChild variant="ghost" className="justify-start px-3 text-primary">
-              <Link to="/">
-                <ChevronLeft aria-hidden />
-                Back to inbox
-              </Link>
-            </Button>
-            <AppCredits version={version ?? undefined} className="justify-start px-1 text-left" />
-          </div>
+          <AdminMenu version={version ?? undefined} />
         </div>
       </aside>
 

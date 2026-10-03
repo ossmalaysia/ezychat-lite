@@ -98,13 +98,15 @@ export function PushToggle({
       >
         <Label
           htmlFor={id}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium"
+          className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium"
         >
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span>Notifications on this device</span>
+          <span>{compact ? 'Notifications' : 'Notifications on this device'}</span>
         </Label>
         <Switch
           id={id}
+          className="shrink-0"
+          aria-label={compact ? 'Notifications on this device' : undefined}
           checked={on}
           disabled={disabled}
           aria-busy={busy || undefined}

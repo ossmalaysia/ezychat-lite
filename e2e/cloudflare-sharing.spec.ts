@@ -53,6 +53,11 @@ test.describe('guided setup and app sharing at phone width', () => {
       .poll(() => createBody)
       .toEqual({ domainId: 'b'.repeat(32), subdomain: 'support', tunnelName: 'My team inbox' });
     await expect(page.getByText('Cloudflare connection saved', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Create and connect inbox', exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Change address', exact: true })).toBeVisible();
+    await expectNoHorizontalScroll(page, 'Saved Cloudflare address');
   });
 
   test('shares the public project and downloads a real Instagram PNG', async ({ page }) => {
