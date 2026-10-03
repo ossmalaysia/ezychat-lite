@@ -1,6 +1,8 @@
 // BrowserWindow factories: the main inbox window (remote http://127.0.0.1:<port>) and the
 // local status/control window (file:// + preload IPC).
-import { BrowserWindow, shell, type NativeImage } from 'electron';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -44,6 +46,49 @@ function pinTitle(win: BrowserWindow, title: string): void {
   });
 }
 
+/**
+ * The web UI is a PWA: its service worker can keep serving JS from an older build after the app updates,
+ * which then breaks against the new server. Clear the service worker + Cache Storage whenever the app
+ * version changes (marker file in userData). Returns true when it cleared.
+ */
+export async function clearWebCacheOnVersionChange(ses: Session, version: string): Promise<boolean> {
+  const marker = join(app.getPath('userData'), 'web-cache-version');
+  let last = '';
+  try {
+    last = readFileSync(marker, 'utf8').trim();
+  } catch {
+    /* first run */
+  }
+  if (last === version) return false;
+  await ses.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
+  await ses.clearCache();
+  try {
+    writeFileSync(marker, version);
+  } catch {
+    /* non-fatal: we'll just clear again next start */
+  }
+  return true;
+}
+
+/** F12 / Ctrl+Shift+I: DevTools · Ctrl+R / F5: reload · Ctrl+Shift+R: reload bypassing the cache. */
+function addDevShortcuts(win: BrowserWindow): void {
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown') return;
+    const mod = input.control || input.meta;
+    const key = input.key.toLowerCase();
+    if (input.key === 'F12' || (mod && input.shift && key === 'i')) {
+      win.webContents.toggleDevTools();
+      e.preventDefault();
+    } else if ((mod && input.shift && key === 'r') || (input.shift && input.key === 'F5')) {
+      win.webContents.reloadIgnoringCache();
+      e.preventDefault();
+    } else if ((mod && key === 'r') || input.key === 'F5') {
+      win.webContents.reload();
+      e.preventDefault();
+    }
+  });
+}
+
 export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string | null; title: string }): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
@@ -58,6 +103,7 @@ export function createMainWindow(o: { icon: NativeImage; baseUrl: () => string |
     webPreferences: { ...SAFE_PREFS },
   });
   pinTitle(win, o.title);
+  addDevShortcuts(win);
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);

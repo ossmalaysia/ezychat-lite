@@ -1,7 +1,7 @@
 // Electron main process: single instance, detect service / start standalone server, window, tray,
 // status & service control.
-import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow, type NativeImage } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { app, clipboard, dialog, nativeImage, session, shell, type BrowserWindow, type NativeImage } from 'electron';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
@@ -26,7 +26,7 @@ import { runServerCommand, StandaloneServer } from './server-process.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
-import { createMainWindow, createStatusWindow, messagePage } from './window.js';
+import { clearWebCacheOnVersionChange, createMainWindow, createStatusWindow, messagePage } from './window.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -91,6 +91,14 @@ async function main(): Promise<void> {
   // system node instead, e.g. if a native module in node_modules was built for Node's ABI only.
   const runtime: 'utility' | 'node' = !isPackaged && process.env.WATI_DESKTOP_RUNTIME === 'node' ? 'node' : 'utility';
   const version = app.getVersion();
+  // Builds share a version during development, so key the web cache on the web build's index.html too.
+  let webBuildKey = version;
+  try {
+    webBuildKey = `${version}:${statSync(join(webDist, 'index.html')).mtimeMs}`;
+  } catch {
+    // dev without a web build: version only
+  }
+  await clearWebCacheOnVersionChange(session.defaultSession, webBuildKey).catch(() => false);
   const desktopLog: string[] = [];
   const log = (s: string) => {
     desktopLog.push(s);

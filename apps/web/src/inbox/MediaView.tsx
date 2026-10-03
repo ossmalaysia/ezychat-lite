@@ -75,8 +75,9 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
   const [open, setOpen] = useState(false);
   const redownload = useRedownload();
   const label = m.mediaName ?? m.type;
-  // History media is imported without downloading it (status 'pending' on a received message).
-  const onDemand = m.mediaStatus === 'pending' && !m.fromMe && !m.id.startsWith('local-');
+  // History media (received, or sent from the phone) is imported without downloading it: status 'pending'
+  // on a real WhatsApp id. Only app-sent messages still uploading carry a temporary 'local-' id.
+  const onDemand = m.mediaStatus === 'pending' && !m.id.startsWith('local-');
   const autoLoad = onDemand && (m.type === 'image' || m.type === 'sticker');
   const { mutate: fetchMedia, isIdle } = redownload;
 
