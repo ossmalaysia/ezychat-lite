@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Existing release tag to rebuild
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -17,12 +23,20 @@ jobs:
         include:
           - os: windows-latest
             arch: x64
+            platform: win
+            target: nsis
           - os: macos-15-intel
             arch: x64
+            platform: mac
+            target: dmg
           - os: macos-15
             arch: arm64
+            platform: mac
+            target: dmg
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -36,15 +50,16 @@ jobs:
       - run: npm run build -w @wa-team-inbox/desktop
       - name: Package native architecture
         working-directory: apps/desktop
-        run: npx electron-builder --config electron-builder.yml --${{ matrix.arch }} --publish never
+        run: npx electron-builder --config electron-builder.yml --${{ matrix.platform }} ${{ matrix.target }}:${{ matrix.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Smoke packaged server with isolated test data
         run: node scripts/smoke-packaged.mjs
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
+          tag_name: ${{ inputs.ref || github.ref_name }}
           draft: true
           prerelease: true
           files: |
-            apps/desktop/release/*.exe
-            apps/desktop/release/*.dmg
+            apps/desktop/release/*-${{ matrix.arch }}.exe
+            apps/desktop/release/*-${{ matrix.arch }}.dmg
