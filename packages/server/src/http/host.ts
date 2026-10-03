@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ErrorCode } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
+import { isTrustedTunnelPeer } from './client-ip.js';
 
 /**
  * Host-header allowlist (DNS-rebinding defence). A rebinding attacker controls a public domain name,
@@ -42,13 +43,17 @@ export function isLoopbackHost(host: string | undefined): boolean {
   return name === 'localhost' || name === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(name);
 }
 
-export function hostAllowed(host: string | undefined, policy: HostPolicy): boolean {
+export function hostAllowed(
+  host: string | undefined,
+  policy: HostPolicy,
+  trustedTunnel = false,
+): boolean {
   const name = splitHost(host);
   if (!name) return false;
   if (name === 'localhost' || isIpLiteral(name)) return true;
   if (!name.includes('.') || name.endsWith('.local')) return true;
   if (policy.tunnelHosts().some((t) => t.toLowerCase() === name)) return true;
-  return policy.allowAnyTunnelHost();
+  return trustedTunnel && policy.allowAnyTunnelHost();
 }
 
 /** Builds the policy from live tunnel state. */
@@ -79,7 +84,11 @@ export function contextHostPolicy(ctx: AppContext): HostPolicy {
 
 export function createHostHook(policy: HostPolicy) {
   return async function hostHook(req: FastifyRequest, reply: FastifyReply): Promise<void> {
-    if (hostAllowed(req.headers.host, policy)) return;
+    const trustedTunnel = isTrustedTunnelPeer(
+      req.socket.remoteAddress,
+      req.headers['cf-connecting-ip'],
+    );
+    if (hostAllowed(req.headers.host, policy, trustedTunnel)) return;
     await reply
       .status(403)
       .type('application/json')

@@ -1,10 +1,19 @@
 import type { FastifyRequest } from 'fastify';
+import { isIP } from 'node:net';
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 export function isLoopback(addr: string | undefined): boolean {
   if (!addr) return false;
   return LOOPBACK.has(addr) || /^(::ffff:)?127\.\d+\.\d+\.\d+$/.test(addr);
+}
+
+/** Unknown public hosts are permitted only on the existing loopback cloudflared trust boundary. */
+export function isTrustedTunnelPeer(
+  addr: string | undefined,
+  cfIp: string | string[] | undefined,
+): boolean {
+  return isLoopback(addr) && typeof cfIp === 'string' && isIP(cfIp.trim()) !== 0;
 }
 
 function peer(req: FastifyRequest): string | undefined {
@@ -20,9 +29,8 @@ function header(req: FastifyRequest, name: string): string | undefined {
 /** Real client IP. CF-Connecting-IP is trusted only when the socket peer is loopback (cloudflared). */
 export function clientIp(req: FastifyRequest): string {
   const addr = peer(req);
-  if (isLoopback(addr)) {
-    const cf = header(req, 'cf-connecting-ip');
-    if (cf) return cf.trim();
+  if (isTrustedTunnelPeer(addr, req.headers['cf-connecting-ip'])) {
+    return header(req, 'cf-connecting-ip')!.trim();
   }
   return addr ?? 'unknown';
 }
@@ -31,10 +39,13 @@ export function clientIp(req: FastifyRequest): string {
 export function isHttps(req: FastifyRequest): boolean {
   if (req.protocol === 'https') return true;
   if (!isLoopback(peer(req))) return false;
-  return header(req, 'x-forwarded-proto') === 'https' || header(req, 'cf-connecting-ip') !== undefined;
+  return (
+    header(req, 'x-forwarded-proto') === 'https' ||
+    isTrustedTunnelPeer(peer(req), req.headers['cf-connecting-ip'])
+  );
 }
 
 /** True when the socket peer is loopback AND the request did not arrive through the tunnel. */
 export function isDirectLoopback(req: FastifyRequest): boolean {
-  return isLoopback(peer(req)) && header(req, 'cf-connecting-ip') === undefined;
+  return isLoopback(peer(req)) && req.headers['cf-connecting-ip'] === undefined;
 }

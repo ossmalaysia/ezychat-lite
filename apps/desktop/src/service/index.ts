@@ -261,6 +261,12 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
   }
   if (platform === 'darwin') {
     const logDir = `${deps.machineDataDir}/logs`;
+    const requirePackagedRuntime = () => {
+      if (!deps.appBundle)
+        throw new Error(
+          'Background service requires the installed EzyChat Lite app. Development builds can run in standalone mode.',
+        );
+    };
     return {
       async status() {
         const r = await run('launchctl', ['print', `system/${LAUNCHD_LABEL}`]);
@@ -271,6 +277,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         );
       },
       async install() {
+        requirePackagedRuntime();
         const cmd = serviceCommand(deps, 'darwin');
         const script = macInstallScript({
           label: LAUNCHD_LABEL,
@@ -307,6 +314,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         log(await runElevatedMac(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
       },
       async resetAdmin() {
+        requirePackagedRuntime();
         // run the root-owned runtime copy (not the user-writable bundle) when there is one
         const cmd = serviceCommand(deps, 'darwin');
         const entry = cmd.args[1] ?? deps.serverEntry;

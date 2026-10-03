@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
 import { registerInboxNotifications } from './notifications.js';
+import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -11,15 +12,8 @@ const SAFE_PREFS = {
   nodeIntegration: false,
   webSecurity: true,
   spellcheck: true,
+  webviewTag: false,
 } as const;
-
-function isSameOrigin(target: string, base: string): boolean {
-  try {
-    return new URL(target).origin === new URL(base).origin;
-  } catch {
-    return false;
-  }
-}
 
 function openExternalSafe(url: string): void {
   if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) void shell.openExternal(url);
@@ -125,20 +119,44 @@ export function createMainWindow(o: {
   });
   win.webContents.on('will-navigate', (e, url) => {
     const base = o.baseUrl();
-    if (url.startsWith('data:')) return;
-    if (base && isSameOrigin(url, base)) return;
+    if (isInboxUrl(url, base)) return;
     e.preventDefault();
     openExternalSafe(url);
   });
-  // Notifications / clipboard are allowed for the local inbox only
-  win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => {
-    const base = o.baseUrl();
-    const ok =
-      !!base &&
-      isSameOrigin(wc.getURL(), base) &&
-      ['notifications', 'clipboard-sanitized-write', 'media', 'fullscreen'].includes(permission);
-    cb(ok);
+  win.webContents.on('will-redirect', (event, url) => {
+    if (!isInboxUrl(url, o.baseUrl())) event.preventDefault();
   });
+  win.webContents.on('will-frame-navigate', (event) => {
+    if (!isInboxUrl(event.url, o.baseUrl())) event.preventDefault();
+  });
+  // No inbox feature needs a webview, camera, microphone, location or screen capture.
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  const session = win.webContents.session;
+  session.setPermissionRequestHandler((wc, permission, cb, details) => {
+    cb(
+      !win.isDestroyed() &&
+        wc === win.webContents &&
+        inboxPermissionAllowed(
+          permission,
+          wc.getURL(),
+          details.requestingUrl,
+          details.isMainFrame,
+          o.baseUrl(),
+        ),
+    );
+  });
+  session.setPermissionCheckHandler(
+    (wc, permission, requestingOrigin, details) =>
+      !win.isDestroyed() &&
+      wc === win.webContents &&
+      inboxPermissionAllowed(
+        permission,
+        wc.getURL(),
+        requestingOrigin,
+        details.isMainFrame,
+        o.baseUrl(),
+      ),
+  );
   return win;
 }
 

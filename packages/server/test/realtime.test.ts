@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { request as httpRequest } from 'node:http';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, WaStatus } from '@wa-team-inbox/shared';
@@ -51,6 +51,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   for (const s of sockets.splice(0)) s.disconnect();
   await t.close();
 });
@@ -204,6 +205,38 @@ describe('realtime', () => {
       });
     expect(await status(`evil.com:${new URL(t.url!).port}`)).toBe(403);
     expect(await status(new URL(t.url!).host)).toBe(200);
+  });
+
+  it('keeps unknown named-tunnel hosts restricted to genuine loopback proxy handshakes', async () => {
+    vi.spyOn(t.ctx.services.tunnel!, 'status').mockReturnValue({
+      mode: 'named',
+      state: 'running',
+      url: null,
+      hostname: null,
+      lastError: null,
+      logTail: [],
+    });
+    const handshake = (cfIp?: string) =>
+      new Promise<number>((resolve, reject) => {
+        const url = new URL(t.url!);
+        const request = httpRequest(
+          {
+            hostname: url.hostname,
+            port: url.port,
+            path: '/socket.io/?EIO=4&transport=polling',
+            headers: { host: 'inbox.example.com', ...(cfIp ? { 'cf-connecting-ip': cfIp } : {}) },
+          },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode ?? 0);
+          },
+        );
+        request.on('error', reject);
+        request.end();
+      });
+    expect(await handshake()).toBe(403);
+    expect(await handshake('not-an-ip')).toBe(403);
+    expect(await handshake('203.0.113.9')).toBe(200);
   });
 
   it('demoting an admin removes them from the admins room (no QR)', async () => {

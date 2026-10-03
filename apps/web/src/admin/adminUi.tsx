@@ -153,7 +153,11 @@ export function ConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {children && <AlertDialogDescription asChild><div>{children}</div></AlertDialogDescription>}
+          {children && (
+            <AlertDialogDescription asChild>
+              <div>{children}</div>
+            </AlertDialogDescription>
+          )}
         </AlertDialogHeader>
         {error != null && <Banner tone="danger">{errorMessage(error)}</Banner>}
         <AlertDialogFooter>
@@ -177,12 +181,17 @@ export function ConfirmDialog({
 }
 
 /** Generates a readable random password (no ambiguous characters). */
+export function canGeneratePassword(): boolean {
+  return typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function';
+}
+
 export function generatePassword(length = 14): string {
+  // A browser without secure randomness must use a manually entered password.
+  if (!canGeneratePassword()) return '';
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const out: string[] = [];
   const buf = new Uint32Array(length);
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(buf);
-  else for (let i = 0; i < length; i++) buf[i] = Math.floor(Math.random() * 2 ** 32);
+  crypto.getRandomValues(buf);
   for (let i = 0; i < length; i++) out.push(chars[(buf[i] ?? 0) % chars.length] ?? 'x');
   return out.join('');
 }

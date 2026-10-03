@@ -215,7 +215,7 @@ async function main(): Promise<void> {
   });
   server.on('state', () => {
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   });
 
   /** Switches to the port the server actually listens on (persisted port setting). */
@@ -225,7 +225,7 @@ async function main(): Promise<void> {
     port = p;
     url = `http://127.0.0.1:${port}`;
     writeDesktopPort(port);
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
   server.on('port', (p: number) => adoptPort(p));
   const adoptServicePort = () => {
@@ -268,12 +268,12 @@ async function main(): Promise<void> {
     mode = m;
     syncUpdates();
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
   const setBusy = (b: string | null) => {
     busy = b;
     trayHandle.refresh();
-    broadcastStatusChanged();
+    broadcastStatusChanged(statusWindow, statusFile);
   };
 
   const showMain = (path = '/') => {
@@ -561,7 +561,7 @@ async function main(): Promise<void> {
     },
   };
 
-  registerIpc(controller);
+  const statusIpc = registerIpc(controller, () => statusWindow, statusFile);
   const updateIpc = registerUpdateIpc(updates, {
     main: () => mainWindow,
     status: () => statusWindow,
@@ -610,6 +610,7 @@ async function main(): Promise<void> {
     quitting = true;
     updates.stop();
     updateIpc.dispose();
+    statusIpc.dispose();
     if (finalStopDone || server.state === 'stopped') return;
     e.preventDefault();
     void server.stop().finally(() => {

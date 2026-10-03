@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import type { Role, User } from '@wa-team-inbox/shared';
 import type { AppContext } from '../src/context.js';
 import '../src/auth/index.js';
@@ -6,7 +7,9 @@ import '../src/auth/index.js';
 let seq = 0;
 
 /** Extracts `sid=<token>` from an inject response's set-cookie, or null. */
-export function sessionCookieFrom(res: { cookies: Array<{ name: string; value: string }> }): string | null {
+export function sessionCookieFrom(res: {
+  cookies: Array<{ name: string; value: string }>;
+}): string | null {
   const c = res.cookies.find((x) => x.name === 'sid');
   return c && c.value ? `sid=${c.value}` : null;
 }
@@ -25,7 +28,7 @@ export async function createUserAndLogin(
   opts?: { username?: string; role?: Role; password?: string },
 ): Promise<{ user: User; cookie: string; password: string }> {
   seq += 1;
-  const username = opts?.username ?? `user${seq}_${Math.random().toString(36).slice(2, 7)}`;
+  const username = opts?.username ?? `user${seq}_${randomUUID().slice(0, 8)}`;
   const password = opts?.password ?? 'password123';
   const user = t.ctx.services.auth!.createUser({
     username,

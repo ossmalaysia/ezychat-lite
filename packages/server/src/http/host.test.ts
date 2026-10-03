@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createHostHook, hostAllowed, isLoopbackHost, splitHost, type HostPolicy } from './host.js';
 
-const policy = (p: Partial<HostPolicy> = {}): HostPolicy => ({ tunnelHosts: () => [], allowAnyTunnelHost: () => false, ...p });
+const policy = (p: Partial<HostPolicy> = {}): HostPolicy => ({
+  tunnelHosts: () => [],
+  allowAnyTunnelHost: () => false,
+  ...p,
+});
 
 describe('splitHost', () => {
   it('parses host, port and ipv6 brackets', () => {
@@ -16,7 +20,14 @@ describe('splitHost', () => {
 
 describe('hostAllowed', () => {
   it('allows loopback names and IP literals on any port', () => {
-    for (const h of ['127.0.0.1:7420', 'localhost:7420', '[::1]:7420', 'localhost', '192.168.1.20:7420', '[fe80::1]:7420']) {
+    for (const h of [
+      '127.0.0.1:7420',
+      'localhost:7420',
+      '[::1]:7420',
+      'localhost',
+      '192.168.1.20:7420',
+      '[fe80::1]:7420',
+    ]) {
       expect(hostAllowed(h, policy())).toBe(true);
     }
   });
@@ -36,8 +47,10 @@ describe('hostAllowed', () => {
     expect(hostAllowed('Inbox.Example.com', p)).toBe(true);
     expect(hostAllowed('other.trycloudflare.com', p)).toBe(false);
   });
-  it('named tunnel without a configured hostname is permissive', () => {
-    expect(hostAllowed('whatever.example.org', policy({ allowAnyTunnelHost: () => true }))).toBe(true);
+  it('does not allow arbitrary direct hosts when a named tunnel has no configured hostname', () => {
+    expect(hostAllowed('whatever.example.org', policy({ allowAnyTunnelHost: () => true }))).toBe(
+      false,
+    );
   });
 });
 
@@ -71,7 +84,36 @@ describe('host hook', () => {
     expect(r.json().error.code).toBe('bad_origin');
   });
   it('allows localhost', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/setup/admin', headers: { host: '127.0.0.1:7420' } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/setup/admin',
+      headers: { host: '127.0.0.1:7420' },
+    });
     expect(r.statusCode).toBe(200);
+  });
+  it('allows unknown named hosts only through a loopback Cloudflare proxy with a valid client IP', async () => {
+    const named = Fastify();
+    named.addHook('onRequest', createHostHook(policy({ allowAnyTunnelHost: () => true })));
+    named.get('/api/test', async () => ({ ok: true }));
+    try {
+      for (const [remoteAddress, cfIp, expected] of [
+        ['127.0.0.1', undefined, 403],
+        ['10.0.0.5', '203.0.113.9', 403],
+        ['127.0.0.1', 'not-an-ip', 403],
+        ['127.0.0.1', '203.0.113.9, 203.0.113.10', 403],
+        ['127.0.0.1', '203.0.113.9', 200],
+        ['::1', '2001:db8::1', 200],
+      ] as const) {
+        const response = await named.inject({
+          method: 'GET',
+          url: '/api/test',
+          remoteAddress,
+          headers: { host: 'inbox.example.com', ...(cfIp ? { 'cf-connecting-ip': cfIp } : {}) },
+        });
+        expect(response.statusCode, `${remoteAddress} / ${cfIp}`).toBe(expected);
+      }
+    } finally {
+      await named.close();
+    }
   });
 });

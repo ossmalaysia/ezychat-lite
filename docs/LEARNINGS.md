@@ -7,6 +7,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Cloudflare and sharing
 
+- 2026-10-04 — Token-configured named tunnels with unknown hostnames enabled a global Host wildcard → direct requests could bypass DNS-rebinding defenses → scope unknown hosts to validated loopback proxy traffic and use the same policy for HTTP and Socket.IO.
+
 - 2026-10-03 — Startup restoration replaced an instance's shutdown method and ran outside the admin
   operation gate → origin reconciliation could race a new setup request → own restoration in the
   service, use the same tracked operation gate and wait for it before shutdown completes.
@@ -176,3 +178,10 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 - 2026-10-04 — Official brand artwork encoded its white mark as transparent cutouts → direct exports lose the mark on dark or opaque green surfaces → inspect exported icons on light and dark backgrounds, preserve the original and render intended cutouts consistently for app formats.
 - 2026-10-04 — Renaming a GitHub repository redirects old URLs and keeps historical installer names → strict update checks can fail or miss older assets → switch the API to the canonical repo and validate both historical and current asset names against an explicit repo allowlist.
 - 2026-10-04 — Packaging rebuilt web assets while the fake-WA browser run was still serving them → removed asset hashes produced 404 pages and misleading UI timeouts → finish browser verification before packaging, and never rebuild a served web distribution, including isolated test servers.
+
+- 2026-10-04 — Argon2 verification and hashing yield while credentials and permissions can change → in-flight requests could bypass recovery or finish after revocation → recheck current credentials, authorizing sessions and roles immediately before a synchronous security-sensitive commit.
+- 2026-10-04 — Desktop controls accepted any file URL → unrelated local documents or child frames could obtain host privileges → bind IPC to the current registered window, exact main frame and bundled file URL.
+- 2026-10-04 — A protected Windows service wrapper could launch an app from an ordinary user's writable directory → replacing runtime files could execute code as SYSTEM → validate Program Files runtime ownership, write permissions, links and ancestors before elevated install, start or recovery.
+- 2026-10-04 — WhatsApp history download keys appeared in structured logs → upstream diagnostics included credential fields and raw support ZIPs retained old copies → redact known credential fields in live logging and recursively sanitize historical exports without rewriting the user's logs.
+- 2026-10-04 — Temporary-password generation fell back to Math.random when browser crypto was unavailable → convenience produced guessable credentials → require Web Crypto for generation and keep manual strong-password entry available.
+- 2026-10-04 — macOS copied a service runtime with ditto then restricted owner and POSIX mode → explicit source ACLs could still grant ordinary-user writes → omit copied ACLs, clear runtime ACLs and reject privileged operations without a packaged root-owned runtime.

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Recheck credentials, live sessions and admin permissions after password hashing so in-flight
+  requests cannot bypass password recovery, account disabling or session revocation.
+- Keep unknown named-tunnel hostnames restricted to validated loopback proxy requests, including
+  Socket.IO; reject malformed proxy IP headers and forwarded first-admin setup requests.
+- Restrict privileged desktop controls to the current bundled status window and its main frame;
+  block unrelated frames, redirects and unused camera/microphone permissions.
+- Require protected Program Files installations for Windows background services and privileged
+  password recovery. Reject user-writable runtimes and filesystem links before modifying data.
+- Remove ordinary-user ACLs from the macOS service's root-owned runtime copy and reject privileged
+  installation or recovery from development builds without a packaged app bundle.
+- Use secure browser randomness for generated member passwords, allowing manual entry when it
+  is unavailable. Remove inline styles from the desktop status page's security policy.
+- Redact WhatsApp download keys and credentials from new logs and existing support-log exports;
+  omit unstructured export records while preserving the original local logs.
+
 ### Improved
 
 - Rename the app and repository to EzyChat Lite, reuse the official EzyChat icon across desktop

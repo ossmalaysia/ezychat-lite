@@ -15,6 +15,7 @@ import type {
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { contextHostPolicy, hostAllowed } from '../http/host.js';
+import { isTrustedTunnelPeer } from '../http/client-ip.js';
 
 export interface SocketData {
   userId: number;
@@ -23,8 +24,18 @@ export interface SocketData {
   token: string;
 }
 
-export type IoServer = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
-type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
+export type IoServer = Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  Record<string, never>,
+  SocketData
+>;
+type IoSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  Record<string, never>,
+  SocketData
+>;
 
 declare module '../context.js' {
   interface Services {
@@ -48,7 +59,10 @@ export function readCookie(header: string | undefined, name: string): string | n
     const i = part.indexOf('=');
     if (i < 0) continue;
     if (part.slice(0, i).trim() !== name) continue;
-    const raw = part.slice(i + 1).trim().replace(/^"(.*)"$/, '$1');
+    const raw = part
+      .slice(i + 1)
+      .trim()
+      .replace(/^"(.*)"$/, '$1');
     try {
       return decodeURIComponent(raw);
     } catch {
@@ -81,7 +95,13 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const io: IoServer = new Server(server, {
     path: '/socket.io',
     serveClient: false,
-    allowRequest: (req, cb) => cb(null, hostAllowed(req.headers.host, hostPolicy) && originAllowed(req)),
+    allowRequest: (req, cb) => {
+      const trustedTunnel = isTrustedTunnelPeer(
+        req.socket.remoteAddress,
+        req.headers['cf-connecting-ip'],
+      );
+      cb(null, hostAllowed(req.headers.host, hostPolicy, trustedTunnel) && originAllowed(req));
+    },
   });
   const online = new Map<number, number>();
   const lastTyping = new Map<string, number>();
@@ -100,7 +120,11 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
 
   io.on('connection', (socket: IoSocket) => {
     const { userId } = socket.data;
-    void socket.join([`user:${userId}`, 'all', ...(socket.data.role === 'admin' ? ['admins'] : [])]);
+    void socket.join([
+      `user:${userId}`,
+      'all',
+      ...(socket.data.role === 'admin' ? ['admins'] : []),
+    ]);
     online.set(userId, (online.get(userId) ?? 0) + 1);
 
     socket.on('typing', (p) => {
@@ -114,7 +138,10 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       if (lastTyping.size > 5000) {
         for (const [k, at] of lastTyping) if (now - at >= TYPING_THROTTLE_MS) lastTyping.delete(k);
       }
-      socket.to('all').except(`user:${userId}`).emit('typing', { chatJid, userId, displayName: socket.data.displayName });
+      socket
+        .to('all')
+        .except(`user:${userId}`)
+        .emit('typing', { chatJid, userId, displayName: socket.data.displayName });
     });
 
     socket.on('disconnect', () => {
@@ -137,7 +164,9 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const onNote = (n: Note) => io.to('all').emit('note:new', n);
   const onWaStatus = (s: WaStatus) => {
     io.to('admins').emit('wa:status', s);
-    io.to('all').except('admins').emit('wa:status', { ...s, qr: null });
+    io.to('all')
+      .except('admins')
+      .emit('wa:status', { ...s, qr: null });
   };
   const onTunnel = (s: TunnelStatus) => io.to('admins').emit('tunnel:status', s);
   const onDisabled = (userId: number) => {
