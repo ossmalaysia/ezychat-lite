@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import type { WaState } from '@wa-team-inbox/shared';
 import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
+import { PhoneLink } from '../wa/PhoneLink';
 import { Banner, EmptyState, PageHeader, StatusDot, stateTone } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,6 +142,18 @@ export function WhatsAppPage() {
                 description="A code appears here in a few seconds."
               />
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {(s.state === 'qr' || s.state === 'connecting') && (
+        <Card className="gap-4">
+          <CardHeader>
+            <CardTitle>Or link with a phone number</CardTitle>
+            <CardDescription>Get an 8-character code instead of scanning the QR.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PhoneLink />
           </CardContent>
         </Card>
       )}

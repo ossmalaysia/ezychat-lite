@@ -90,6 +90,12 @@ export type PatchUserBody = z.infer<typeof PatchUserBody>;
 export const ResetPasswordResponse = z.object({ password: z.string() });
 export type ResetPasswordResponse = z.infer<typeof ResetPasswordResponse>;
 
+/** Link WhatsApp by phone number (pairing code) instead of QR. Phone includes country code. */
+export const PairingCodeBody = z.object({ phone: z.string().min(8).max(32) });
+export type PairingCodeBody = z.infer<typeof PairingCodeBody>;
+export const PairingCodeResponse = z.object({ code: z.string() });
+export type PairingCodeResponse = z.infer<typeof PairingCodeResponse>;
+
 export const TunnelStartBody = z.object({
   mode: z.enum(['quick', 'named']),
   token: z.string().min(10).optional(),

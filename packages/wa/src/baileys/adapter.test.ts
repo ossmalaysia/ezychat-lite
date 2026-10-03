@@ -2,7 +2,52 @@ import { describe, expect, it } from 'vitest';
 import { createBaileysAdapter } from '../index.js';
 import { WaUnavailableError } from '../types.js';
 import type { WaIncomingMessage, WaMessageStatusUpdate } from '../types.js';
-import { BaileysAdapter, isConnectionError, receiptStatus } from './adapter.js';
+import { BaileysAdapter, WA_BROWSER, isConnectionError, normalizePairingPhone, receiptStatus } from './adapter.js';
+
+describe('pairing identity', () => {
+  // WhatsApp terminates registration (428 before any QR) for 'Desktop' browser identities;
+  // a Chrome web identity gets a QR and is accepted for phone-number pairing codes.
+  it('identifies as a Chrome web client', () => {
+    expect(WA_BROWSER[0]).toBe('Ubuntu');
+    expect(WA_BROWSER[1]).toBe('Chrome');
+  });
+
+  it('resets reconnect backoff when a QR arrives', () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    Object.assign(a as unknown as Record<string, unknown>, { attempt: 41 });
+    (a as unknown as { onConnectionUpdate: (s: unknown, u: unknown) => void }).onConnectionUpdate({}, { qr: 'QR' });
+    expect((a as unknown as { attempt: number }).attempt).toBe(0);
+    expect(a.status).toMatchObject({ state: 'qr', qr: 'QR' });
+  });
+});
+
+describe('requestPairingCode', () => {
+  it('normalizes phone numbers to digits with country code', () => {
+    expect(normalizePairingPhone('+60 12-345 6789')).toBe('60123456789');
+    expect(() => normalizePairingPhone('12345')).toThrow(/phone/i);
+    expect(() => normalizePairingPhone('+1234567890123456')).toThrow(/phone/i);
+  });
+
+  it('asks the socket for a code once it is ready to pair', async () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    const calls: string[] = [];
+    Object.assign(a as unknown as Record<string, unknown>, {
+      stopped: false,
+      sock: { requestPairingCode: async (p: string) => (calls.push(p), 'ABCD1234') },
+      _status: { state: 'qr', me: null, qr: 'QR', lastError: null },
+    });
+    await expect(a.requestPairingCode('+60 12-345 6789')).resolves.toBe('ABCD1234');
+    expect(calls).toEqual(['60123456789']);
+  });
+
+  it('refuses when a number is already linked', async () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    Object.assign(a as unknown as Record<string, unknown>, {
+      _status: { state: 'open', me: { jid: '1@s.whatsapp.net', name: null }, qr: null, lastError: null },
+    });
+    await expect(a.requestPairingCode('60123456789')).rejects.toThrow(/already linked/i);
+  });
+});
 
 describe('createBaileysAdapter (offline smoke)', () => {
   it('starts disconnected and refuses to send without connecting', async () => {

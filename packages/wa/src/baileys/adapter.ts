@@ -84,6 +84,24 @@ function mapAck(status: number | null | undefined): WaMessageStatusUpdate['statu
  * Real WhatsApp connection via Baileys (WhatsApp Web multi-device protocol).
  * This is the only module in the repo allowed to import `baileys`.
  */
+/**
+ * Browser identity sent at registration. WhatsApp terminates the registration (428 before any QR)
+ * for 'Desktop' identities such as Browsers.appropriate('Desktop'); a Chrome web client is accepted
+ * and is also required for phone-number pairing codes.
+ */
+export const WA_BROWSER = Browsers.ubuntu('Chrome');
+
+/** Digits only, with country code (8–15 digits, E.164 without '+'). */
+export function normalizePairingPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 8 || digits.length > 15) {
+    throw new Error('Enter the phone number with country code, e.g. +60 12-345 6789');
+  }
+  return digits;
+}
+
+const PAIRING_READY_TIMEOUT_MS = 20_000;
+
 export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private sock: WASocket | null = null;
@@ -176,6 +194,39 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     await this.connect();
   }
 
+  /**
+   * Link by phone number instead of QR: returns the 8-character code the user types in
+   * WhatsApp → Linked devices → Link with phone number instead.
+   */
+  async requestPairingCode(phone: string): Promise<string> {
+    const digits = normalizePairingPhone(phone);
+    if (this._status.state === 'open') throw new Error('A WhatsApp number is already linked');
+    await this.connect();
+    await this.waitForPairingReady();
+    const sock = this.sock;
+    if (!sock) throw new WaUnavailableError();
+    return sock.requestPairingCode(digits);
+  }
+
+  /** The socket can request a code once the server has offered a QR (i.e. registration started). */
+  private waitForPairingReady(): Promise<void> {
+    if (this.sock && this._status.state === 'qr') return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('status', onStatus);
+        reject(new WaUnavailableError());
+      }, PAIRING_READY_TIMEOUT_MS);
+      const onStatus = (s: WaStatus) => {
+        if (s.state === 'qr' && this.sock) {
+          clearTimeout(timer);
+          this.off('status', onStatus);
+          resolve();
+        }
+      };
+      this.on('status', onStatus);
+    });
+  }
+
   private clearReconnect(): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
@@ -228,7 +279,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       ...(version ? { version } : {}),
       auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, blog) },
       logger: blog,
-      browser: Browsers.appropriate('Desktop'),
+      browser: WA_BROWSER,
       syncFullHistory: this.historyDays > 0,
       markOnlineOnConnect: false,
       // Per-message filtering by historyDays happens in onHistory/ingest.
@@ -278,6 +329,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   private onConnectionUpdate(sock: WASocket, u: BaileysEventMap['connection.update']): void {
     if (u.qr) {
+      // The server is talking to us again; don't let earlier failures stretch the next retry.
+      this.attempt = 0;
       this.setStatus({ state: 'qr', qr: u.qr });
     }
     if (u.connection === 'connecting' && this._status.state !== 'qr') {

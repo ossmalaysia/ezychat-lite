@@ -79,6 +79,15 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.setStatus({ state: 'open', me: { ...FAKE_ME }, qr: null });
   }
 
+  /** test helper: last phone number a pairing code was requested for */
+  pairingRequests: string[] = [];
+
+  async requestPairingCode(phone: string): Promise<string> {
+    if (this._status.state === 'open') throw new Error('A WhatsApp number is already linked');
+    this.pairingRequests.push(phone.replace(/\D/g, ''));
+    return 'FAKE1234';
+  }
+
   private beforeSend(): void {
     if (this._status.state !== 'open') throw new WaUnavailableError();
     if (this.nextSendError) {

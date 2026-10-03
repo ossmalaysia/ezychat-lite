@@ -138,6 +138,29 @@ describe('wa control', () => {
     );
     expect(actions).toEqual(expect.arrayContaining(['wa.logout', 'wa.relink', 'wa.takeover']));
   });
+
+  it('pairing code: admin-only, returns the code, rejects when already linked', async () => {
+    t = await makeTestApp();
+    const agent = await createUserAndLogin(t, { role: 'agent' });
+    const admin = await createUserAndLogin(t, { role: 'admin' });
+    const body = { phone: '+60 12-345 6789' };
+    const denied = await t.app.inject({ method: 'POST', url: '/api/wa/pairing-code', headers: authHeaders(agent.cookie), payload: body });
+    expect(denied.statusCode).toBe(403);
+
+    const h = authHeaders(admin.cookie);
+    t.wa.simulateStatus({ state: 'qr', qr: 'abc' });
+    const ok = await t.app.inject({ method: 'POST', url: '/api/wa/pairing-code', headers: h, payload: body });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ code: 'FAKE1234' });
+    expect(t.wa.pairingRequests).toEqual(['60123456789']);
+
+    t.wa.simulateStatus({ state: 'open' });
+    const linked = await t.app.inject({ method: 'POST', url: '/api/wa/pairing-code', headers: h, payload: body });
+    expect(linked.statusCode).toBe(400);
+
+    const bad = await t.app.inject({ method: 'POST', url: '/api/wa/pairing-code', headers: h, payload: { phone: '1' } });
+    expect(bad.statusCode).toBe(400);
+  });
 });
 
 describe('dev fake-incoming', () => {

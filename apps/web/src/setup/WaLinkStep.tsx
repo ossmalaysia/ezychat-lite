@@ -1,6 +1,8 @@
 import type React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowRight, CircleCheck, Loader2, QrCode } from 'lucide-react';
+import { ArrowRight, CircleCheck, Loader2, QrCode, Smartphone } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PhoneLink } from '../wa/PhoneLink';
 import { errorMessage } from '../api/client';
 import { useWaAction, useWaStatus } from '../api/queries';
 import { Banner, StatusDot, stateTone } from '@/components/app';
@@ -99,6 +101,27 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
   }
 
   const linked = s?.state === 'open';
+  const linking = !wa.isPending && !wa.error && (s?.state === 'qr' || s?.state === 'connecting');
+  if (linking) {
+    body = (
+      <Tabs defaultValue="qr" className="gap-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="qr" className="min-h-9">
+            <QrCode aria-hidden="true" />
+            QR code
+          </TabsTrigger>
+          <TabsTrigger value="phone" className="min-h-9">
+            <Smartphone aria-hidden="true" />
+            Phone number
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="qr">{body}</TabsContent>
+        <TabsContent value="phone">
+          <PhoneLink />
+        </TabsContent>
+      </Tabs>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,7 +141,7 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
           <li>
             Go to <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
           </li>
-          <li>Point the phone at this QR code.</li>
+          <li>Scan this QR code — or use the Phone number tab to link with a code instead.</li>
         </ol>
       </div>
       {body}

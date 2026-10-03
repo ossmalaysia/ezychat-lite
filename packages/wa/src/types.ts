@@ -65,6 +65,8 @@ export interface WaAdapter {
   logout(): Promise<void>;
   /** reconnect after 'replaced' */
   takeover(): Promise<void>;
+  /** link by phone number: returns the 8-character pairing code to enter on the phone */
+  requestPairingCode(phone: string): Promise<string>;
   sendText(chatJid: string, text: string, opts?: { quotedId?: string }): Promise<SendResult>;
   sendMedia(chatJid: string, file: WaSendFile, opts?: { quotedId?: string }): Promise<SendResult>;
   markRead(chatJid: string, messageIds: string[]): Promise<void>;

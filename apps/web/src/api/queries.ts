@@ -688,6 +688,14 @@ export function useWaAction() {
   });
 }
 
+/** Link by phone number: returns the 8-character code to enter in WhatsApp → Linked devices. */
+export function useRequestPairingCode() {
+  return useMutation({
+    mutationFn: (phone: string) =>
+      api<{ code: string }>('/wa/pairing-code', { method: 'POST', body: { phone } }),
+  });
+}
+
 export function useTunnel(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: qk.tunnel,

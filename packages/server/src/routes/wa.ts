@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import { PairingCodeBody, type PairingCodeResponse, type WaStatus } from '@wa-team-inbox/shared';
+import { WaUnavailableError } from '@wa-team-inbox/wa';
+import { errors, parse } from '../http/errors.js';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
@@ -41,6 +43,19 @@ export default async function waRoutes(app: FastifyInstance, ctx: AppContext) {
     await ctx.wa.connect();
     record(req, 'wa.relink');
     return waStatusFor(ctx.wa.status, true);
+  });
+
+  app.post('/wa/pairing-code', { preHandler: adminOnly }, async (req) => {
+    const { phone } = parse(PairingCodeBody, req.body);
+    let code: string;
+    try {
+      code = await ctx.wa.requestPairingCode(phone);
+    } catch (err) {
+      if (err instanceof WaUnavailableError) throw errors.waUnavailable();
+      throw errors.validation((err as Error).message);
+    }
+    record(req, 'wa.pairing_code');
+    return { code } satisfies PairingCodeResponse;
   });
 
   app.post('/wa/takeover', { preHandler: adminOnly }, async (req) => {
