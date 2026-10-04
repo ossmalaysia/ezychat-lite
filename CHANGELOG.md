@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Bound the memory used to rate-limit the public browser-error endpoint, so a client rotating
+  through many addresses (for example over IPv6 via the tunnel) cannot grow it without limit.
 - Recheck credentials, live sessions and admin permissions after password hashing so in-flight
   requests cannot bypass password recovery, account disabling or session revocation.
 - Keep unknown named-tunnel hostnames restricted to validated loopback proxy requests, including
