@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-query';
 import {
   MeResponse,
+  OpenChatCountResponse,
+  ResolveAllChatsResponse,
   SetupStatusResponse,
   CloudflareSetupStatus,
   TunnelStatusSchema,
@@ -54,6 +56,7 @@ export const qk = {
   setupStatus: ['setup-status'] as const,
   chats: (f: ChatFilters) => ['chats', f] as const,
   chatsAll: ['chats'] as const,
+  openChatCount: ['open-chat-count'] as const,
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
@@ -372,6 +375,33 @@ export function useChat(jid: string | null | undefined) {
     queryKey: qk.chat(jid ?? ''),
     queryFn: ({ signal }) => api<ChatDetailResponse>(`/chats/${enc(jid ?? '')}`, { signal }),
     enabled: !!jid,
+  });
+}
+
+export function useOpenChatCount() {
+  return useQuery({
+    queryKey: qk.openChatCount,
+    queryFn: ({ signal }) => api('/chats/open-count', { schema: OpenChatCountResponse, signal }),
+  });
+}
+
+export function useResolveAllChats() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api('/chats/resolve-all', {
+        method: 'POST',
+        body: { confirmed: true },
+        schema: ResolveAllChatsResponse,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.chatsAll }),
+        qc.invalidateQueries({ queryKey: ['chat'] }),
+        qc.invalidateQueries({ queryKey: qk.openChatCount }),
+        qc.invalidateQueries({ queryKey: qk.audit }),
+      ]);
+    },
   });
 }
 

@@ -92,3 +92,64 @@ it('fetches changes missed before the first socket connection and during a recon
   await screen.findByText(serverChat);
   qc.clear();
 });
+
+it('coalesces a bulk chat update into one list/count refresh and replaces stale in-flight responses', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const listKey = ['chats', { assigned: 'any' }];
+  qc.setQueryData(listKey, { pages: [{ chats: [], nextCursor: null }], pageParams: [null] });
+  qc.setQueryData(['open-chat-count'], { openCount: 205 });
+  let serverCount = 205;
+  const aborted = vi.fn();
+  const queryCount = vi.fn(({ signal }: { signal: AbortSignal }) => {
+    const snapshot = serverCount;
+    return new Promise<{ openCount: number }>((resolve, reject) => {
+      const timer = setTimeout(() => resolve({ openCount: snapshot }), 200);
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          aborted();
+          reject(new Error('aborted'));
+        },
+        { once: true },
+      );
+    });
+  });
+  const queryList = vi.fn(async () => ({
+    pages: [{ chats: [], nextCursor: null }],
+    pageParams: [null],
+  }));
+  function Counts() {
+    const { data } = useQuery({ queryKey: ['open-chat-count'], queryFn: queryCount });
+    useQuery({ queryKey: listKey, queryFn: queryList });
+    return <span>{data?.openCount} open chats</span>;
+  }
+  const view = render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Counts />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('205 open chats');
+  // This response represents a count read just before the reset committed.
+  void qc.refetchQueries({ queryKey: ['open-chat-count'] });
+  await waitFor(() => expect(queryCount).toHaveBeenCalledTimes(1));
+  serverCount = 0;
+  act(() => {
+    for (let i = 0; i < 205; i++)
+      socket.listeners.get('chat:updated')!({ jid: `${i}@s.whatsapp.net`, status: 'resolved' });
+  });
+  await screen.findByText('0 open chats');
+  expect(queryCount).toHaveBeenCalledTimes(2); // The old request, then one fresh request.
+  expect(aborted).toHaveBeenCalledTimes(1);
+  expect(queryList).toHaveBeenCalledTimes(1);
+  // An update queued just before unmount must not start another request afterward.
+  act(() => socket.listeners.get('chat:updated')!({ jid: 'later@s.whatsapp.net', status: 'open' }));
+  view.unmount();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(queryCount).toHaveBeenCalledTimes(2);
+  qc.clear();
+});

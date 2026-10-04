@@ -13,6 +13,7 @@ vi.mock('../api/queries', () => ({
   usePatchSettings: () => patch,
 }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <span>Notification controls</span> }));
+vi.mock('../admin/ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => null }));
 
 const stores: ReturnType<typeof createThemeStore>[] = [];
 function device(dark = false) {

@@ -10,6 +10,7 @@ vi.mock('../api/queries', () => ({
   usePatchSettings: () => patch,
 }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
+vi.mock('./ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => null }));
 vi.mock('@/lib/theme', () => ({
   THEME_OPTIONS: [],
   useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
