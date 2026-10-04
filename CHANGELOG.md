@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin Settings → Inbox offers a confirmed action to resolve every open chat for the whole
   team, release assignees, and record the reset in the audit log while keeping messages.
 
+## [0.1.18] - 2026-10-05
+
+### Changed
+
+- Maintenance release that verifies the in-app update path from 0.1.17 (download, checksum,
+  service restart). No functional changes.
+
 ## [0.1.17] - 2026-10-04
 
 ### Improved
