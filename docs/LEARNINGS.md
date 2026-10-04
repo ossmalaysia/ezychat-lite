@@ -7,6 +7,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Internationalization
 
+- 2026-10-04 — A `<Trans>` link lost its text → `<link>` is a void HTML element and the parser drops
+  its children → name `<Trans>` component tags after non-void elements (`<a>`, `<b>`).
 - 2026-10-04 — Desktop i18n could not import `@wa-team-inbox/shared` at runtime → desktop main is
   tsc output run by Electron, while shared ships TS source plus zod → desktop imports only types from
   shared and mirrors tiny runtime helpers, guarded by parity tests (or bundle main first).

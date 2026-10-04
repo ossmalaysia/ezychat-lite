@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AppCredits } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
+import { LanguageSelect } from '@/i18n/LanguageSelect';
 import { useAppVersion } from '@/lib/version';
 
 /** Official EzyChat brand mark, shared by desktop and installed PWA. */
@@ -35,14 +37,18 @@ export function AuthShell({
   /** Optional decorative illustration shown above the title. */
   illustration?: string;
 }) {
+  const { t } = useTranslation();
   const version = useAppVersion();
   return (
     <div className="safe-x safe-top safe-bottom min-h-dvh bg-background text-foreground">
       <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
         <div className={cn('w-full min-w-0', wide ? 'max-w-xl' : 'max-w-sm')}>
+          <div className="mb-2 flex justify-end">
+            <LanguageSelect />
+          </div>
           <div className="mb-4 flex items-center justify-center gap-2">
             <AppMark className="size-8 rounded-lg" />
-            <span className="text-sm font-semibold tracking-tight">EzyChat Lite</span>
+            <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
           </div>
           <Card className="gap-5 py-5 sm:py-6">
             <CardHeader className="items-center px-4 text-center sm:px-6">
@@ -119,12 +125,13 @@ export function ButtonSpinner() {
 }
 
 /** Full-viewport loading state while auth/setup status resolves. */
-export function FullPageLoader({ label = 'Loading…' }: { label?: string }) {
+export function FullPageLoader({ label }: { label?: string }) {
+  const { t } = useTranslation();
   return (
     <div
       role="status"
       aria-live="polite"
-      aria-label={label}
+      aria-label={label ?? t('status.loading')}
       className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"
     >
       <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />

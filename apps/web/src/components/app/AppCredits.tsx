@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { ExternalLink } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
@@ -10,7 +11,8 @@ function CreditLink({
   className,
 }: {
   href: string;
-  children: React.ReactNode;
+  /** Optional so `<Trans>` can supply the translated link text. */
+  children?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -39,22 +41,26 @@ export function AppCredits({
   className?: string;
   variant?: 'inline' | 'sidebar';
 }) {
+  const { t } = useTranslation('app');
   if (variant === 'sidebar') {
     return (
       <div className={cn('min-w-0 text-xs text-muted-foreground', className)}>
         <div className="flex flex-wrap items-center justify-between gap-x-2 px-2">
           <span className="inline-flex items-center gap-1 whitespace-nowrap">
-            Built by
-            <CreditLink href={ANCHOR_SPRINT_URL} className="min-h-11">
-              Anchor Sprint
-            </CreditLink>
+            <Trans
+              t={t}
+              i18nKey="credits.builtBy"
+              components={{ a: <CreditLink href={ANCHOR_SPRINT_URL} className="min-h-11" /> }}
+            />
           </span>
-          {version && <span className="whitespace-nowrap">v{version}</span>}
+          {version && (
+            <span className="whitespace-nowrap">{t('credits.versionShort', { version })}</span>
+          )}
         </div>
-        <nav aria-label="Support links" className="flex flex-col">
+        <nav aria-label={t('credits.supportLinks')} className="flex flex-col">
           {[
-            { href: GITHUB_ISSUES_URL, label: 'Report an issue' },
-            { href: CUSTOM_FEATURE_URL, label: 'Custom features' },
+            { href: GITHUB_ISSUES_URL, label: t('credits.reportIssue') },
+            { href: CUSTOM_FEATURE_URL, label: t('credits.customFeatures') },
           ].map(({ href, label }) => (
             <Button
               key={label}
@@ -81,14 +87,21 @@ export function AppCredits({
         className,
       )}
     >
-      {version && <span>v{version}</span>}
+      {version && <span>{t('credits.versionShort', { version })}</span>}
       <span className="inline-flex items-center gap-1">
-        Built by <CreditLink href={ANCHOR_SPRINT_URL}>Anchor Sprint</CreditLink>
+        <Trans
+          t={t}
+          i18nKey="credits.builtBy"
+          components={{ a: <CreditLink href={ANCHOR_SPRINT_URL} /> }}
+        />
       </span>
-      <CreditLink href={GITHUB_ISSUES_URL}>Report an issue</CreditLink>
+      <CreditLink href={GITHUB_ISSUES_URL}>{t('credits.reportIssue')}</CreditLink>
       <span className="inline-flex flex-wrap items-center justify-center gap-1">
-        Need a custom feature?{' '}
-        <CreditLink href={CUSTOM_FEATURE_URL}>Contact Anchor Sprint</CreditLink>
+        <Trans
+          t={t}
+          i18nKey="credits.customFeature"
+          components={{ a: <CreditLink href={CUSTOM_FEATURE_URL} /> }}
+        />
       </span>
     </p>
   );
