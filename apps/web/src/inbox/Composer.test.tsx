@@ -92,6 +92,8 @@ describe('Composer', () => {
   it('keeps short drafts free of scrollbars, caps long drafts and shrinks again', () => {
     render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
     const box = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+    // Tailwind's preflight makes every border solid; a border-style of none computes to width 0.
+    box.style.borderStyle = 'solid';
     box.style.borderTopWidth = '1px';
     box.style.borderBottomWidth = '1px';
     // A real browser measures content + padding, excluding the border.
