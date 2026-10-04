@@ -130,6 +130,8 @@ See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours (ESLint enforces); use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
 Every route is wrapped in an `ErrorBoundary` — never let a render error become a blank page.
+No literal user-facing strings: use `t()` and add every key to `en`, `ms` and `zh-CN` in the same
+change (`docs/i18n.md`; ESLint and the catalog tests enforce this). Server API messages stay English.
 App-managed cloudflared launches must ignore unrelated default user configuration (`--config=`).
 Cloudflare sign-in must run with a private child home; `login` ignores `--origincert`. Store account
 credentials only as encrypted settings, redact authorization URLs and API tokens from logs, and never

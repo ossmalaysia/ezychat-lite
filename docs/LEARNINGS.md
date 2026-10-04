@@ -5,6 +5,17 @@ Append new entries at the top of the matching section: `- YYYY-MM-DD — what ha
 A Stop hook (`.claude/hooks/learnings-gate.mjs`) blocks a code-changing session from finishing until this
 file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
+## Internationalization
+
+- 2026-10-04 — Running Prettier on whole folders reformatted untouched files → the repo is not
+  Prettier-clean (102 files differ) → run `prettier --write` only on files you changed.
+- 2026-10-04 — Typed i18next keys rejected `t('common:x')` from `useTranslation()` → a prefixed key
+  only type-checks for namespaces passed to the hook → use `useTranslation(['inbox', 'common'])`
+  for cross-namespace keys; plain `t('x')` for the default `common` namespace.
+- 2026-10-04 — New web tests leaked open menus between cases and `toHaveTextContent` was undefined →
+  Vitest runs without globals (no RTL auto-cleanup) and jest-dom is not installed → call `cleanup()`
+  in `afterEach` and assert on `textContent`.
+
 ## Cloudflare and sharing
 
 - 2026-10-04 — Token-configured named tunnels with unknown hostnames enabled a global Host wildcard → direct requests could bypass DNS-rebinding defenses → scope unknown hosts to validated loopback proxy traffic and use the same policy for HTTP and Socket.IO.

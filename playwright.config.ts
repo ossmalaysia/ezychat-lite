@@ -44,6 +44,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     serviceWorkers: 'block',
+    // Specs match English text; the app otherwise follows the browser language.
+    locale: 'en-US',
   },
   projects: [
     {
