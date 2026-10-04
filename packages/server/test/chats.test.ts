@@ -311,6 +311,58 @@ describe('chats routes', () => {
     expect(detail.chat.status).toBe('resolved');
   });
 
+  it('resolving releases the owner and a returning customer reopens the chat unassigned', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    const jid = '60124444444@s.whatsapp.net';
+    await seedChat(jid, 'Dina', Date.now());
+    getChats(t.ctx).patch(jid, { assignedTo: user.id }, user.id);
+
+    const r = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/chats/${enc(jid)}`,
+      headers: authHeaders(cookie),
+      payload: { status: 'resolved' },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(ChatSchema.parse(r.json())).toMatchObject({ status: 'resolved', assignedTo: null });
+    const events = getChats(t.ctx).events(jid);
+    expect(events.map((e) => e.type)).toEqual(['assigned', 'resolved', 'unassigned']);
+    expect(events[2]).toMatchObject({
+      actorId: user.id,
+      payload: { previous: user.id, reason: 'resolved' },
+    });
+
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'dina-back',
+        chatJid: jid,
+        senderJid: jid,
+        senderName: 'Dina',
+        fromMe: false,
+        type: 'text',
+        body: 'one more question',
+        quotedId: null,
+        timestamp: Date.now(),
+        media: null,
+      },
+      'live',
+    );
+    expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: null });
+  });
+
+  it('resolving keeps an owner set explicitly in the same request', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    const jid = '60125555555@s.whatsapp.net';
+    await seedChat(jid, 'Eli', Date.now());
+    const chat = getChats(t.ctx).patch(jid, { assignedTo: user.id, status: 'resolved' }, user.id);
+    expect(chat).toMatchObject({ status: 'resolved', assignedTo: user.id });
+    expect(
+      getChats(t.ctx)
+        .events(jid)
+        .map((e) => e.type),
+    ).toEqual(['assigned', 'resolved']);
+  });
+
   it('PATCH with unknown assignee → 400; unknown chat → 404', async () => {
     const { cookie } = await createUserAndLogin(t, { role: 'agent' });
     const jid = '60133333333@s.whatsapp.net';

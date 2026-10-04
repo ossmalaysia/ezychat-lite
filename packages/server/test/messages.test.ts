@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MessageListResponse, MessageSchema } from '@wa-team-inbox/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
-import { getMessages } from '../src/wa-bridge/index.js';
+import { getChats, getMessages } from '../src/wa-bridge/index.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -331,5 +331,72 @@ describe('messages routes', () => {
     expect(res.statusCode).toBe(401);
     res = await t.app.inject({ method: 'GET', url: `/api/media/nope`, headers: { cookie } });
     expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('ownership on reply', () => {
+  it('the first EzyChat reply to an unassigned chat assigns it to the sender', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await seed();
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(cookie),
+      payload: { text: 'Hello Gus', clientId: 'own-1' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(getChats(t.ctx).get(JID)?.assignedTo).toBe(user.id);
+    const events = getChats(t.ctx).events(JID);
+    expect(events.map((e) => e.type)).toEqual(['assigned']);
+    expect(events[0]).toMatchObject({
+      actorId: user.id,
+      payload: { assignedTo: user.id, previous: null, reason: 'reply' },
+    });
+  });
+
+  it('a media reply assigns too, and a repeated clientId does not add a second event', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await seed();
+    await getMessages(t.ctx).sendMedia(JID, { buffer: PNG, fileName: 'a.png' }, user.id, 'own-media');
+    await getMessages(t.ctx).sendMedia(JID, { buffer: PNG, fileName: 'a.png' }, user.id, 'own-media');
+    expect(getChats(t.ctx).get(JID)?.assignedTo).toBe(user.id);
+    expect(getChats(t.ctx).events(JID).map((e) => e.type)).toEqual(['assigned']);
+  });
+
+  it('replying never takes over a chat another teammate owns', async () => {
+    const owner = await createUserAndLogin(t, { role: 'agent' });
+    const other = await createUserAndLogin(t, { role: 'agent' });
+    await seed();
+    getChats(t.ctx).patch(JID, { assignedTo: owner.user.id }, owner.user.id);
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(other.cookie),
+      payload: { text: 'Covering for you', clientId: 'own-2' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(getChats(t.ctx).get(JID)?.assignedTo).toBe(owner.user.id);
+    expect(getChats(t.ctx).events(JID).map((e) => e.type)).toEqual(['assigned']);
+  });
+
+  it('a reply sent from the WhatsApp phone app assigns nobody', async () => {
+    await seed();
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'FROM-PHONE',
+        chatJid: JID,
+        senderJid: null,
+        senderName: null,
+        fromMe: true,
+        type: 'text',
+        body: 'typed on the phone',
+        quotedId: null,
+        timestamp: 1_700_000_100_000,
+        media: null,
+      },
+      'live',
+    );
+    expect(getChats(t.ctx).get(JID)?.assignedTo).toBeNull();
+    expect(getChats(t.ctx).events(JID)).toEqual([]);
   });
 });

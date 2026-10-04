@@ -16,11 +16,12 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
   switch (e.type) {
     case 'assigned': {
       const to = payloadUserId(e.payload);
-      if (to != null && to === e.actorId) return `${actor} took this chat`;
+      if (to != null && to === e.actorId)
+        return e.payload.reason === 'reply' ? `${actor} took this chat by replying` : `${actor} took this chat`;
       return `${actor} assigned this chat to ${to == null ? 'someone' : dir.nameOf(to, { youLabel: true })}`;
     }
     case 'unassigned':
-      return `${actor} unassigned this chat`;
+      return e.payload.reason === 'resolved' ? 'Chat returned to the team' : `${actor} unassigned this chat`;
     case 'resolved':
       return `${actor} resolved this chat`;
     case 'reopened':

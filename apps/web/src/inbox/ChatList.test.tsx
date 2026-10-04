@@ -134,6 +134,29 @@ it('updates an assignment label when the team directory changes', () => {
   expect(screen.queryByText('Alice')).toBeNull();
 });
 
+it('highlights chats you own and keeps teammates and unassigned rows calm', () => {
+  chats([{ ...chat(0), assignedTo: 1 }, { ...chat(1), assignedTo: 2 }, chat(2)]);
+  const me = { id: 1 } as ChatListProps['directory']['me'];
+  render(
+    list({
+      directory: {
+        ...defaultProps.directory,
+        me,
+        nameOf: (id, opts) =>
+          id === 1 ? (opts?.youLabel ? 'You' : 'Jazz') : id === 2 ? 'Jee Fong' : null,
+      },
+    }),
+  );
+  const mine = screen.getByTitle('Assigned to You');
+  const theirs = screen.getByTitle('Assigned to Jee Fong');
+  expect(mine.className).toContain('text-primary');
+  expect(theirs.className).toContain('text-muted-foreground');
+  expect(theirs.className).not.toContain('text-primary');
+  expect(
+    screen.getByText('Customer 2').closest('a')?.querySelector('[title^="Assigned to"]'),
+  ).toBeNull();
+});
+
 it('still retries profile images when WhatsApp reconnects', () => {
   chats([{ ...chat(0), avatarUrl: '/api/chats/0/avatar' }]);
   const tree = (ready: boolean, revision: number) => (

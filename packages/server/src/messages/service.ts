@@ -209,6 +209,20 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     return c;
   };
 
+  /** The first teammate to reply in an unassigned chat becomes its owner; an existing owner is kept. */
+  const claimIfUnassigned = (jid: string, userId: number, t: number) => {
+    if (requireChat(jid).assigned_to !== null) return;
+    chats.update(jid, { assigned_to: userId, updated_at: t });
+    const ev = chats.insertEvent({
+      chatJid: jid,
+      type: 'assigned',
+      actorId: userId,
+      payload: { assignedTo: userId, previous: null, reason: 'reply' },
+      at: t,
+    });
+    ctx.bus.emit('chat:event', ev);
+  };
+
   const insertOutgoing = (row: MessageRow): Message => {
     const t = row.created_at;
     repo.insert(row);
@@ -351,6 +365,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (existing) return rowToMessage(existing);
       requireChat(jid);
       const t = now();
+      claimIfUnassigned(jid, userId, t);
       return insertOutgoing({
         id: `local-${body.clientId}`,
         chat_jid: jid,
@@ -384,6 +399,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const id = `local-${clientId}`;
       const rel = media.save(jid, id, file.buffer, ext);
       const t = now();
+      claimIfUnassigned(jid, userId, t);
       return insertOutgoing({
         id,
         chat_jid: jid,
