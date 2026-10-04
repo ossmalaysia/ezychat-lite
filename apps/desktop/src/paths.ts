@@ -101,6 +101,21 @@ export function parseDesktopConfig(raw: string | null): DesktopConfig {
   }
 }
 
+/**
+ * New desktop.json contents with `patch` applied. Unknown fields of a valid file are kept; a missing,
+ * malformed or non-object file is replaced by normalized defaults, so a change is never silently lost.
+ */
+export function mergeDesktopConfig(raw: string | null, patch: Partial<DesktopConfig>): string {
+  let current: Record<string, unknown> | null = null;
+  try {
+    const v: unknown = raw ? JSON.parse(raw) : null;
+    if (v && typeof v === 'object' && !Array.isArray(v)) current = v as Record<string, unknown>;
+  } catch {
+    current = null;
+  }
+  return JSON.stringify({ ...(current ?? parseDesktopConfig(null)), ...patch }, null, 2);
+}
+
 /** Server launcher (compiled from src/server-host.cts) that wraps the bundled server entry. */
 export function serverHost(appPath: string): string {
   return join(appPath, 'dist', 'server-host.cjs');

@@ -4,6 +4,7 @@ import {
   cloudflaredBinary,
   cloudflaredDir,
   machineDataDir,
+  mergeDesktopConfig,
   parseDesktopConfig,
   preserveInstalledProfile,
   serverEntry,
@@ -96,6 +97,22 @@ describe('app paths', () => {
     expect(winswExe(false, '/res', '/repo/apps/desktop')).toBe(
       join('/repo/apps/desktop', '..', '..', 'resources', 'winsw', 'WinSW-x64.exe'),
     );
+  });
+});
+
+describe('mergeDesktopConfig', () => {
+  it('keeps unknown fields and applies the change', () => {
+    expect(
+      JSON.parse(mergeDesktopConfig('{"port":7500,"future":1}', { keepInTray: false })),
+    ).toEqual({ port: 7500, future: 1, keepInTray: false });
+  });
+  it('replaces a missing, malformed or non-object file with normalized defaults plus the change', () => {
+    for (const raw of [null, '{"port":75', '[1,2]', 'null', '"text"']) {
+      expect(JSON.parse(mergeDesktopConfig(raw, { keepInTray: false }))).toEqual({
+        port: 7420,
+        keepInTray: false,
+      });
+    }
   });
 });
 

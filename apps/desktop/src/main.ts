@@ -26,6 +26,7 @@ import {
   cloudflaredBinary,
   cloudflaredDir,
   machineDataDir,
+  mergeDesktopConfig,
   parseDesktopConfig,
   type DesktopConfig,
   preserveInstalledProfile,
@@ -91,22 +92,21 @@ function readDesktopConfig(): DesktopConfig {
   return cfg;
 }
 
-/** Merges a change into desktop.json, keeping fields this version does not know about. */
+/** Merges a change into desktop.json (a malformed file is replaced); throws when it cannot be saved. */
 function writeDesktopConfig(patch: Partial<DesktopConfig>): void {
   const file = desktopConfigFile();
-  try {
-    const cur = existsSync(file)
-      ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>)
-      : {};
-    writeFileSync(file, JSON.stringify({ ...cur, ...patch }, null, 2));
-  } catch {
-    // best effort
-  }
+  const raw = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, mergeDesktopConfig(raw, patch));
 }
 
 /** Remembers the port the server actually uses (e.g. after a port change in Admin > Settings). */
 function writeDesktopPort(port: number): void {
-  writeDesktopConfig({ port });
+  try {
+    writeDesktopConfig({ port });
+  } catch {
+    // best effort: the next start falls back to the configured or default port
+  }
 }
 
 function readPortFile(file: string): number | null {
@@ -671,8 +671,14 @@ async function main(): Promise<void> {
       void shell.openPath(existsSync(dir) ? dir : dirname(dir));
     },
     setKeepInTray: (keep) => {
+      // Persist first: a failed save throws to the status page, which then shows the unchanged value.
+      try {
+        writeDesktopConfig({ keepInTray: keep });
+      } catch (err) {
+        log(`could not save the tray preference: ${(err as Error).message}`);
+        throw new Error('Could not save the tray preference.', { cause: err });
+      }
       keepInTray = keep;
-      writeDesktopConfig({ keepInTray });
       log(`keep in tray: ${keep}`);
     },
   };
