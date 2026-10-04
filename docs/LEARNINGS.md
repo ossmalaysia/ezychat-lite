@@ -7,6 +7,9 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Internationalization
 
+- 2026-10-04 — Desktop i18n could not import `@wa-team-inbox/shared` at runtime → desktop main is
+  tsc output run by Electron, while shared ships TS source plus zod → desktop imports only types from
+  shared and mirrors tiny runtime helpers, guarded by parity tests (or bundle main first).
 - 2026-10-04 — Running Prettier on whole folders reformatted untouched files → the repo is not
   Prettier-clean (102 files differ) → run `prettier --write` only on files you changed.
 - 2026-10-04 — Typed i18next keys rejected `t('common:x')` from `useTranslation()` → a prefixed key

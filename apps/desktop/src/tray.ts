@@ -1,6 +1,8 @@
 // System tray icon + menu.
 import { Menu, Tray, type NativeImage } from 'electron';
+import type { Locale } from '@wa-team-inbox/shared';
 import { appTitle } from './app-title.js';
+import { t } from './i18n.js';
 
 export interface TrayActions {
   open(): void;
@@ -18,6 +20,7 @@ export function createTray(
   icon: NativeImage,
   actions: TrayActions,
   version: string,
+  locale: Locale,
 ): { tray: Tray; refresh(): void } {
   const title = appTitle(version);
   const tray = new Tray(icon);
@@ -29,14 +32,14 @@ export function createTray(
         { label: title, enabled: false },
         { label: actions.describe(), enabled: false },
         { type: 'separator' },
-        { label: 'Open', click: () => actions.open() },
-        { label: 'Status & Service…', click: () => actions.openStatus() },
+        { label: t(locale, 'tray.open'), click: () => actions.open() },
+        { label: t(locale, 'tray.status'), click: () => actions.openStatus() },
         ...(updateLabel ? [{ label: updateLabel, click: () => actions.checkUpdates() }] : []),
-        { label: 'Open admin → Cloudflare', click: () => actions.openTunnelAdmin() },
+        { label: t(locale, 'tray.openCloudflare'), click: () => actions.openTunnelAdmin() },
         { type: 'separator' },
-        { label: 'Reset admin password…', click: () => actions.resetAdmin() },
+        { label: t(locale, 'tray.resetAdmin'), click: () => actions.resetAdmin() },
         { type: 'separator' },
-        { label: 'Quit', click: () => actions.quit() },
+        { label: t(locale, 'tray.quit'), click: () => actions.quit() },
       ]),
     );
   };

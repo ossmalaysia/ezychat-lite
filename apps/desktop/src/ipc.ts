@@ -1,5 +1,6 @@
 // IPC between the status window (preload bridge) and the main process.
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import type { Locale } from '@wa-team-inbox/shared';
 import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';
@@ -26,6 +27,10 @@ export interface DesktopStatus {
   logs: string[];
   /** closing the window keeps the app in the system tray */
   keepInTray: boolean;
+  /** desktop (OS) language for the status page, its Intl tag and its flattened strings */
+  locale: Locale;
+  intlTag: string;
+  strings: Record<string, string>;
 }
 
 export interface DesktopController {
