@@ -1,5 +1,7 @@
 import type { z } from 'zod';
 import { ApiErrorSchema } from '@wa-team-inbox/shared';
+import { i18n } from '@/i18n';
+import type enErrors from '@/i18n/locales/en/errors.json';
 
 export const UNAUTHORIZED_EVENT = 'wati:unauthorized';
 
@@ -79,13 +81,63 @@ export async function api<T = unknown>(path: string, init: ApiInit<T> = {}): Pro
   return data as T;
 }
 
-/** Friendly message for any thrown error. */
+type KnownErrorKey = `known.${keyof (typeof enErrors)['known']}`;
+
+/**
+ * Server messages that have a translation. API errors stay English on the wire (logs stay
+ * greppable); add an entry here and to `errors.json` to translate another one.
+ */
+const KNOWN_SERVER_MESSAGES: Record<string, KnownErrorKey> = {
+  'Invalid username or password': 'known.invalidCredentials',
+  'Current password is incorrect': 'known.currentPasswordIncorrect',
+  'New password must differ from the current password': 'known.newPasswordSame',
+  'Admin only': 'known.adminOnly',
+  'Password change required': 'known.passwordChangeRequired',
+  'First-time setup is only allowed from this computer': 'known.setupLocalOnly',
+  'You cannot disable your own account': 'known.cannotDisableSelf',
+  'Cannot demote or disable the last active admin': 'known.lastAdmin',
+  'Username already exists': 'known.usernameExists',
+  'Assignee must be an active user': 'known.assigneeInactive',
+  'Media is no longer available': 'known.mediaUnavailable',
+  'Only failed outgoing messages can be retried': 'known.onlyFailedRetry',
+  'This message can no longer be re-sent': 'known.cannotResend',
+  'Message is already being re-sent': 'known.alreadyResending',
+  'Empty file': 'known.emptyFile',
+  'Sign in to Cloudflare first.': 'known.cloudflareSignInFirst',
+  'Choose a domain from your Cloudflare account.': 'known.cloudflareChooseDomain',
+  'Finish the current Cloudflare setup first.': 'known.cloudflareFinishSetup',
+  'Finish or cancel Cloudflare setup before changing remote access.':
+    'known.cloudflareFinishBeforeChange',
+  'That tunnel name is already in use. Choose another name.': 'known.tunnelNameInUse',
+  'This address is already in use. Choose another address.': 'known.addressInUse',
+  'A tunnel token is required for a named tunnel': 'known.tunnelTokenRequired',
+};
+
+/** Error codes whose meaning doesn't depend on the server's free-form message. */
+const GENERIC_CODES = [
+  'network',
+  'rate_limited',
+  'unauthorized',
+  'forbidden',
+  'not_found',
+  'bad_origin',
+  'wa_unavailable',
+] as const;
+const isGenericCode = (code: string): code is (typeof GENERIC_CODES)[number] =>
+  (GENERIC_CODES as readonly string[]).includes(code);
+
+/** Friendly, translated message for any thrown error. */
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) {
-    if (e.code === 'rate_limited')
-      return e.message || 'Too many attempts. Please wait and try again.';
-    return e.message;
+    const known = KNOWN_SERVER_MESSAGES[e.message];
+    if (known) return i18n.t(`errors:${known}`);
+    const retry = e.code === 'rate_limited' ? /retry in (\d+)s/.exec(e.message)?.[1] : undefined;
+    if (retry) return i18n.t('errors:rate_limited_retry', { seconds: Number(retry) });
+    if (isGenericCode(e.code)) return i18n.t(`errors:${e.code}`);
+    if (e.status >= 500 && !e.message) return i18n.t('errors:server');
+    // validation / conflict / feature-specific codes carry a specific English explanation.
+    return e.message || i18n.t('errors:generic');
   }
   if (e instanceof Error) return e.message;
-  return 'Something went wrong';
+  return i18n.t('errors:generic');
 }

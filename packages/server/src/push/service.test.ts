@@ -12,7 +12,13 @@ afterEach(async () => {
 });
 
 function mkUser(name: string, role: 'admin' | 'agent' = 'agent') {
-  return t.ctx.services.auth!.createUser({ username: name, displayName: name, role, password: 'password123', mustChangePassword: false });
+  return t.ctx.services.auth!.createUser({
+    username: name,
+    displayName: name,
+    role,
+    password: 'password123',
+    mustChangePassword: false,
+  });
 }
 
 const JID = '60123@s.whatsapp.net';
@@ -41,7 +47,10 @@ function setup(online: Set<number>, fail?: (endpoint: string) => number | null) 
   return { push, sent };
 }
 
-const sub = (n: string) => ({ endpoint: `https://push.example/${n}`, keys: { p256dh: 'p', auth: 'a' } });
+const sub = (n: string) => ({
+  endpoint: `https://push.example/${n}`,
+  keys: { p256dh: 'p', auth: 'a' },
+});
 
 describe('PushService', () => {
   it('generates and persists a VAPID key pair', () => {
@@ -92,7 +101,10 @@ describe('PushService', () => {
       push.subscribe(u.id, sub(n));
     t.ctx.db.prepare('UPDATE users SET disabled_at = ? WHERE id = ?').run(Date.now(), d.id);
     await push.notifyInbound(chat(null), message);
-    expect(sent.map((s) => s.endpoint).sort()).toEqual(['https://push.example/a', 'https://push.example/c']);
+    expect(sent.map((s) => s.endpoint).sort()).toEqual([
+      'https://push.example/a',
+      'https://push.example/c',
+    ]);
   });
 
   it('410/404 responses remove the subscription; other errors keep it', async () => {
@@ -107,7 +119,9 @@ describe('PushService', () => {
     await push.notifyInbound(chat(null), message);
     expect(sent.map((s) => s.endpoint)).toEqual(['https://push.example/ok']);
     const left = (
-      t.ctx.db.prepare('SELECT endpoint FROM push_subscriptions ORDER BY endpoint').all() as Array<{ endpoint: string }>
+      t.ctx.db.prepare('SELECT endpoint FROM push_subscriptions ORDER BY endpoint').all() as Array<{
+        endpoint: string;
+      }>
     ).map((r) => r.endpoint);
     expect(left).toEqual(['https://push.example/err', 'https://push.example/ok']);
   });
@@ -118,11 +132,17 @@ describe('PushService', () => {
     const { push } = setup(new Set());
     push.subscribe(a.id, sub('x'));
     push.subscribe(b.id, sub('x'));
-    expect(t.ctx.db.prepare('SELECT user_id FROM push_subscriptions').all()).toEqual([{ user_id: b.id }]);
+    expect(t.ctx.db.prepare('SELECT user_id FROM push_subscriptions').all()).toEqual([
+      { user_id: b.id },
+    ]);
     push.unsubscribe(a.id, 'https://push.example/x');
-    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get()).toEqual({ n: 1 });
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get()).toEqual({
+      n: 1,
+    });
     push.unsubscribe(b.id, 'https://push.example/x');
-    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get()).toEqual({ n: 0 });
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get()).toEqual({
+      n: 0,
+    });
   });
 
   it('notifyAdmins pushes to active admins only', async () => {
@@ -131,9 +151,39 @@ describe('PushService', () => {
     const { push, sent } = setup(new Set());
     push.subscribe(admin.id, sub('adm'));
     push.subscribe(agent.id, sub('agt'));
-    await push.notifyAdmins('WhatsApp logged out', 'Relink required');
+    await push.notifyAdmins(() => ({ title: 'WhatsApp logged out', body: 'Relink required' }));
     expect(sent.map((s) => s.endpoint)).toEqual(['https://push.example/adm']);
     expect(sent[0]!.payload.title).toBe('WhatsApp logged out');
+  });
+
+  it('renders WhatsApp alerts in each admin preferred language', async () => {
+    const en = mkUser('adm-en', 'admin');
+    const ms = mkUser('adm-ms', 'admin');
+    const zh = mkUser('adm-zh', 'admin');
+    t.ctx.services.auth!.setLocale(ms.id, 'ms');
+    t.ctx.services.auth!.setLocale(zh.id, 'zh-CN');
+    const { push, sent } = setup(new Set());
+    for (const u of [en, ms, zh]) push.subscribe(u.id, sub(String(u.id)));
+    t.ctx.bus.emit('wa:status', { state: 'logged_out', me: null, qr: null, lastError: null });
+    await new Promise((r) => setTimeout(r, 50));
+    const titleFor = (id: number) =>
+      sent.find((s) => s.endpoint === `https://push.example/${id}`)?.payload.title;
+    expect(titleFor(en.id)).toBe('WhatsApp disconnected');
+    expect(titleFor(ms.id)).toBe('WhatsApp terputus');
+    expect(titleFor(zh.id)).toBe('WhatsApp 已断开');
+    push.shutdown();
+  });
+
+  it('localizes the inbound fallback text when a message has no preview', async () => {
+    const a = mkUser('loc-a');
+    t.ctx.services.auth!.setLocale(a.id, 'ms');
+    const { push, sent } = setup(new Set());
+    push.subscribe(a.id, sub('loc-a'));
+    await push.notifyInbound(
+      { ...chat(a.id), lastMessagePreview: null },
+      { ...message, body: null },
+    );
+    expect(sent[0]!.payload.body).toBe('Mesej baharu');
   });
 
   it('routes bus inbound:notify and wa:status logged_out', async () => {

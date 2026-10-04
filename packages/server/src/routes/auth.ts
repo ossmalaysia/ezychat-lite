@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ChangePasswordBody, ErrorCode, LoginBody } from '@wa-team-inbox/shared';
+import { ChangePasswordBody, ErrorCode, LoginBody, PatchMeBody } from '@wa-team-inbox/shared';
 import {
   clearSessionCookie,
   getAuth,
@@ -10,7 +10,7 @@ import {
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { clientIp, isHttps } from '../http/client-ip.js';
-import { HttpError, parse } from '../http/errors.js';
+import { errors, HttpError, parse } from '../http/errors.js';
 
 export default async function authRoutes(app: FastifyInstance, ctx: AppContext) {
   const auth = getAuth(ctx);
@@ -65,4 +65,12 @@ export default async function authRoutes(app: FastifyInstance, ctx: AppContext) 
   });
 
   app.get('/me', { preHandler: requireUser(ctx) }, async (req) => req.user!);
+
+  // Self-service preferences only; role, name and password changes have their own guarded routes.
+  app.patch('/me', { preHandler: requireUser(ctx) }, async (req) => {
+    const body = parse(PatchMeBody, req.body);
+    const user = auth.setLocale(req.user!.id, body.locale);
+    if (!user) throw errors.notFound('User');
+    return user;
+  });
 }

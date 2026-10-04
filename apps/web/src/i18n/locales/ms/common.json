@@ -1,0 +1,65 @@
+{
+  "appName": "EzyChat Lite",
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "confirm": "Sahkan",
+    "delete": "Padam",
+    "edit": "Sunting",
+    "add": "Tambah",
+    "retry": "Cuba semula",
+    "tryAgain": "Cuba lagi",
+    "copy": "Salin",
+    "copied": "Disalin",
+    "back": "Kembali",
+    "next": "Seterusnya",
+    "continue": "Teruskan",
+    "done": "Selesai",
+    "search": "Cari",
+    "clear": "Kosongkan",
+    "reload": "Muat semula",
+    "open": "Buka",
+    "learnMore": "Ketahui lebih lanjut"
+  },
+  "status": {
+    "loading": "Memuatkan…",
+    "somethingWentWrong": "Berlaku ralat",
+    "noResults": "Tiada hasil",
+    "optional": "Pilihan"
+  },
+  "time": {
+    "today": "Hari ini",
+    "yesterday": "Semalam"
+  },
+  "roles": {
+    "admin": "Pentadbir",
+    "agent": "Ejen"
+  },
+  "theme": {
+    "label": "Penampilan",
+    "system": "Sistem",
+    "light": "Cerah",
+    "dark": "Gelap"
+  },
+  "language": {
+    "label": "Bahasa",
+    "saveFailed": "Tidak dapat menyimpan pilihan bahasa anda"
+  },
+  "account": {
+    "menu": "Menu akaun",
+    "adminSettings": "Tetapan pentadbir",
+    "changePassword": "Tukar kata laluan",
+    "share": "Kongsi aplikasi ini",
+    "reportIssue": "Laporkan masalah",
+    "about": "Perihal {{appName}}",
+    "signOut": "Log keluar"
+  },
+  "errorBoundary": {
+    "title": "Berlaku ralat",
+    "body": "Bahagian aplikasi ini mengalami ralat yang tidak dijangka. Ralat telah dilaporkan.",
+    "reload": "Muat semula halaman",
+    "goHome": "Pergi ke peti masuk"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "appName": "EzyChat Lite",
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "retry": "Retry",
+    "tryAgain": "Try again",
+    "copy": "Copy",
+    "copied": "Copied",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "done": "Done",
+    "search": "Search",
+    "clear": "Clear",
+    "reload": "Reload",
+    "open": "Open",
+    "learnMore": "Learn more"
+  },
+  "status": {
+    "loading": "Loading…",
+    "somethingWentWrong": "Something went wrong",
+    "noResults": "No results",
+    "optional": "Optional"
+  },
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "roles": {
+    "admin": "Admin",
+    "agent": "Agent"
+  },
+  "theme": {
+    "label": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "saveFailed": "Could not save your language preference"
+  },
+  "account": {
+    "menu": "Account menu",
+    "adminSettings": "Admin settings",
+    "changePassword": "Change password",
+    "share": "Share this app",
+    "reportIssue": "Report an issue",
+    "about": "About {{appName}}",
+    "signOut": "Sign out"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "This part of the app hit an unexpected error. The error has been reported.",
+    "reload": "Reload page",
+    "goHome": "Go to inbox"
+  }
+}

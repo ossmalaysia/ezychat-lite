@@ -315,3 +315,62 @@ describe('change password', () => {
     expect((await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie: otherCookie } })).statusCode).toBe(401);
   });
 });
+
+describe('PATCH /api/me (language preference)', () => {
+  it('requires a session', async () => {
+    const r = await t.app.inject({
+      method: 'PATCH',
+      url: '/api/me',
+      payload: { locale: 'ms' },
+      headers: { origin: 'http://localhost', host: 'localhost' },
+    });
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('stores and clears the signed-in user locale', async () => {
+    const { user, cookie } = await createUserAndLogin(t);
+    expect(user.locale).toBeNull();
+    let r = await t.app.inject({
+      method: 'PATCH',
+      url: '/api/me',
+      payload: { locale: 'zh-CN' },
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    expect(UserSchema.parse(r.json()).locale).toBe('zh-CN');
+    r = await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } });
+    expect(r.json().locale).toBe('zh-CN');
+    r = await t.app.inject({
+      method: 'PATCH',
+      url: '/api/me',
+      payload: { locale: null },
+      headers: authHeaders(cookie),
+    });
+    expect(r.json().locale).toBeNull();
+  });
+
+  it('rejects unsupported locales and any other field', async () => {
+    const { user, cookie } = await createUserAndLogin(t);
+    for (const payload of [{ locale: 'fr' }, { locale: 'ms', role: 'admin' }, { role: 'admin' }]) {
+      const r = await t.app.inject({
+        method: 'PATCH',
+        url: '/api/me',
+        payload,
+        headers: authHeaders(cookie),
+      });
+      expect(r.statusCode).toBe(400);
+    }
+    expect(t.ctx.services.auth!.getUser(user.id)).toMatchObject({ role: 'agent', locale: null });
+  });
+
+  it('rejects a cross-origin request', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    const r = await t.app.inject({
+      method: 'PATCH',
+      url: '/api/me',
+      payload: { locale: 'ms' },
+      headers: { cookie, origin: 'http://evil.example', host: 'localhost' },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+});

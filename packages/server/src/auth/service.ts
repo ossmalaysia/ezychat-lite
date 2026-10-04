@@ -1,4 +1,10 @@
-import type { PatchUserBody, Role, User } from '@wa-team-inbox/shared';
+import {
+  isLocale,
+  type Locale,
+  type PatchUserBody,
+  type Role,
+  type User,
+} from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { randomToken, sha256 } from '../crypto/secret.js';
 import { errors } from '../http/errors.js';
@@ -51,6 +57,8 @@ export interface AuthService {
   /** cannot demote/disable last active admin → conflict; disabling emits 'user:disabled' + revokeAll; a role change emits 'user:role-changed' */
   updateUser(id: number, patch: PatchUserBody, actorId: number): User;
   getUser(id: number): User | null;
+  /** self-service preference; returns the updated user, or null if it no longer exists */
+  setLocale(id: number, locale: Locale | null): User | null;
 }
 
 interface UserRow {
@@ -62,6 +70,7 @@ interface UserRow {
   must_change_password: number;
   disabled_at: number | null;
   created_at: number;
+  locale: string | null;
 }
 
 export function rowToUser(r: UserRow): User {
@@ -73,6 +82,7 @@ export function rowToUser(r: UserRow): User {
     mustChangePassword: r.must_change_password === 1,
     disabled: r.disabled_at !== null,
     createdAt: r.created_at,
+    locale: isLocale(r.locale) ? r.locale : null,
   };
 }
 
@@ -102,6 +112,7 @@ export function createAuthService(
     activeAdminsExcept: db.prepare(
       "SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled_at IS NULL AND id != ?",
     ),
+    setLocale: db.prepare('UPDATE users SET locale = ? WHERE id = ?'),
     sessionInsert: db.prepare(
       'INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, user_agent, ip) VALUES (?, ?, ?, ?, ?, ?)',
     ),
@@ -294,6 +305,12 @@ export function createAuthService(
     },
 
     getUser(id) {
+      const row = getRow(id);
+      return row ? rowToUser(row) : null;
+    },
+
+    setLocale(id, locale) {
+      q.setLocale.run(locale, id);
       const row = getRow(id);
       return row ? rowToUser(row) : null;
     },

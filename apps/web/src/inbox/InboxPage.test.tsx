@@ -14,6 +14,7 @@ const me: User = {
   mustChangePassword: false,
   disabled: false,
   createdAt: 0,
+  locale: null,
 };
 const jid = '60123456789@s.whatsapp.net';
 const now = Date.now();

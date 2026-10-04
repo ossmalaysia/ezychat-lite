@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
+import { useTranslation } from 'react-i18next';
 import { ErrorState, Field, Pending } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 
@@ -21,6 +22,7 @@ export function SettingsPage() {
   const settings = useSettings();
   const patch = usePatchSettings();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
 
   const [portDraft, setPort] = useState<string>();
   const [lanDraft, setLanEnabled] = useState<boolean>();
@@ -200,7 +202,7 @@ export function SettingsPage() {
                   className="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-input px-2 py-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent sm:min-h-11 sm:flex-row"
                 >
                   <RadioGroupItem id={`settings-theme-${option.value}`} value={option.value} />
-                  {option.label}
+                  {t(option.labelKey)}
                 </Label>
               ))}
             </RadioGroup>
