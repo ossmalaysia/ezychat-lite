@@ -7,6 +7,9 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Internationalization
 
+- 2026-10-04 — Translated screens can overflow at phone width while English e2e stays green →
+  specs pin `en-US` → also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is the longest)
+  after UI text changes and look at the screenshots.
 - 2026-10-04 — A `<Trans>` link lost its text → `<link>` is a void HTML element and the parser drops
   its children → name `<Trans>` component tags after non-void elements (`<a>`, `<b>`).
 - 2026-10-04 — Desktop i18n could not import `@wa-team-inbox/shared` at runtime → desktop main is
