@@ -11,6 +11,9 @@ vi.mock('../api/queries', () => ({
 }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('./ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => null }));
+vi.mock('./AiMemberPanel', () => ({
+  AiMemberPanel: ({ section }: { section: string }) => <p>Configure inbox AI: {section}</p>,
+}));
 vi.mock('@/lib/theme', () => ({
   THEME_OPTIONS: [],
   useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
@@ -27,6 +30,14 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+});
+
+it('opens shared AI connection configuration from Settings', async () => {
+  render(<SettingsPage />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Configure AI connection' }));
+  expect(screen.getByText('Configure inbox AI: connection')).toBeTruthy();
+  expect(patch.mutate).not.toHaveBeenCalled();
 });
 
 it('preserves edited fields through a background refresh while updating untouched defaults', async () => {

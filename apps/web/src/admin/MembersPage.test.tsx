@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -34,10 +34,26 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function setup() {
+function setup(memberList = users) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
-    if (url === '/api/users' && method === 'GET') return json({ users });
+    if (url === '/api/users' && method === 'GET') return json({ users: memberList });
+    if (url === '/api/ai')
+      return json({
+        member: memberList.find((member) => member.kind === 'ai') ?? null,
+        settings: {
+          displayName: 'Business AI',
+          enabled: false,
+          mode: 'api',
+          model: '',
+          instructions: '',
+          notes: '',
+          faqs: [],
+        },
+        hasApiKey: false,
+        connection: { state: 'signed_out', loginUrl: null, error: null },
+        documents: [],
+      });
     if (url === '/api/users' && method === 'POST') {
       const body = JSON.parse(String(init?.body)) as Partial<User>;
       return json({ ...users[1], ...body, id: 3, disabled: false, mustChangePassword: true }, 201);
@@ -85,6 +101,16 @@ beforeAll(() => {
   proto.releasePointerCapture ??= () => {};
   proto.scrollIntoView ??= () => {};
 });
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+});
 
 afterEach(() => {
   cleanup();
@@ -92,6 +118,30 @@ afterEach(() => {
 });
 
 describe('MembersPage', () => {
+  it('shows the existing AI sales member without human account actions or another add button', async () => {
+    setup([
+      ...users,
+      {
+        ...users[1]!,
+        id: 3,
+        username: 'ai-assistant',
+        displayName: 'Business AI',
+        disabled: false,
+        kind: 'ai',
+      },
+    ]);
+    await screen.findAllByText('Business AI');
+    expect(screen.getAllByText('AI · Sales Agent').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Add AI member' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'More actions for Business AI' })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Edit Business AI' }));
+    await screen.findByRole('heading', { name: 'Edit AI member' });
+    expect(screen.queryByLabelText('Temporary password')).toBeNull();
+    expect(screen.queryByLabelText('OpenAI API key')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Configure in Settings → AI' })).toBeTruthy();
+  });
+
   it('renders users from the users query', async () => {
     setup();
     expect((await screen.findAllByText('Alice Admin')).length).toBeGreaterThan(0);

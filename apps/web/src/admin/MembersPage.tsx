@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import {
+  Bot,
   KeyRound,
   LogOut,
   MoreHorizontal,
@@ -13,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
+import { AiMemberPanel } from './AiMemberPanel';
 import {
   useCreateUser,
   usePatchUser,
@@ -61,6 +63,7 @@ import {
 
 type Dialog =
   | { kind: 'create' }
+  | { kind: 'ai' }
   | { kind: 'edit'; user: User }
   | { kind: 'reset'; user: User }
   | { kind: 'revoke'; user: User }
@@ -77,7 +80,9 @@ export function MembersPage() {
   const all = users.data ?? [];
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${u.role}`.toLocaleLowerCase().includes(query),
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? 'AI Sales Agent' : ''}`
+      .toLocaleLowerCase()
+      .includes(query),
   );
 
   const columns: Column<User>[] = [
@@ -86,7 +91,16 @@ export function MembersPage() {
       header: 'Member',
       cell: (u) => <MemberIdentity user={u} isMe={u.id === me?.id} />,
     },
-    { key: 'role', header: 'Role', cell: (u) => <RoleBadge role={u.role} /> },
+    {
+      key: 'role',
+      header: 'Role',
+      cell: (u) =>
+        u.kind === 'ai' ? (
+          <Badge variant="secondary">AI · Sales Agent</Badge>
+        ) : (
+          <RoleBadge role={u.role} />
+        ),
+    },
     { key: 'status', header: 'Status', cell: (u) => <StatusBadges user={u} /> },
     {
       key: 'created',
@@ -104,15 +118,32 @@ export function MembersPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold tracking-tight">Members</h1>
-          <Button size="touch" className="md:min-h-9" onClick={() => setDialog({ kind: 'create' })}>
-            <UserPlus aria-hidden />
-            Add member
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
+              <Button
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => setDialog({ kind: 'ai' })}
+              >
+                <Bot aria-hidden />
+                Add AI member
+              </Button>
+            )}
+            <Button
+              size="touch"
+              className="md:min-h-9"
+              onClick={() => setDialog({ kind: 'create' })}
+            >
+              <UserPlus aria-hidden />
+              Add member
+            </Button>
+          </div>
         </div>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          People who can sign in to the team inbox.
+          Your team and AI assistant for customer chats.
         </p>
       </div>
 
@@ -145,7 +176,11 @@ export function MembersPage() {
                 <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
               </div>
               <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                <RoleBadge role={u.role} />
+                {u.kind === 'ai' ? (
+                  <Badge variant="secondary">AI · Sales Agent</Badge>
+                ) : (
+                  <RoleBadge role={u.role} />
+                )}
                 <StatusBadges user={u} />
               </div>
               <p className="pl-11 text-xs text-muted-foreground">
@@ -174,6 +209,7 @@ export function MembersPage() {
         />
       )}
 
+      {dialog?.kind === 'ai' && <AiMemberPanel onClose={close} />}
       {dialog?.kind === 'create' && (
         <CreateMemberDialog
           onClose={close}
@@ -224,7 +260,9 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
           {user.displayName}
           {isMe && <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span>}
         </p>
-        <p className="truncate text-sm text-muted-foreground">@{user.username}</p>
+        <p className="truncate text-sm text-muted-foreground">
+          {user.kind === 'ai' ? 'AI assistant' : `@${user.username}`}
+        </p>
       </div>
     </div>
   );
@@ -271,52 +309,54 @@ function RowActions({
         variant={compact ? 'ghost' : 'outline'}
         className={compact ? undefined : 'md:min-h-8'}
         aria-label={compact ? `Edit ${user.displayName}` : undefined}
-        onClick={() => onAction({ kind: 'edit', user })}
+        onClick={() => onAction(user.kind === 'ai' ? { kind: 'ai' } : { kind: 'edit', user })}
       >
         <Pencil aria-hidden />
         {!compact && 'Edit'}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon-touch"
-            variant="ghost"
-            className={compact ? undefined : 'md:size-8'}
-            aria-label={`More actions for ${user.displayName}`}
-          >
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            className="min-h-11 md:min-h-8"
-            onSelect={() => onAction({ kind: 'reset', user })}
-          >
-            <KeyRound aria-hidden />
-            Reset password
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="min-h-11 md:min-h-8"
-            onSelect={() => onAction({ kind: 'revoke', user })}
-          >
-            <LogOut aria-hidden />
-            Sign out everywhere
-          </DropdownMenuItem>
-          {!isMe && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="min-h-11 md:min-h-8"
-                variant={user.disabled ? 'default' : 'destructive'}
-                onSelect={() => onAction({ kind: 'disable', user })}
-              >
-                {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
-                {user.disabled ? 'Enable' : 'Disable'}
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {user.kind !== 'ai' && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon-touch"
+              variant="ghost"
+              className={compact ? undefined : 'md:size-8'}
+              aria-label={`More actions for ${user.displayName}`}
+            >
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="min-h-11 md:min-h-8"
+              onSelect={() => onAction({ kind: 'reset', user })}
+            >
+              <KeyRound aria-hidden />
+              Reset password
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11 md:min-h-8"
+              onSelect={() => onAction({ kind: 'revoke', user })}
+            >
+              <LogOut aria-hidden />
+              Sign out everywhere
+            </DropdownMenuItem>
+            {!isMe && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="min-h-11 md:min-h-8"
+                  variant={user.disabled ? 'default' : 'destructive'}
+                  onSelect={() => onAction({ kind: 'disable', user })}
+                >
+                  {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
+                  {user.disabled ? 'Enable' : 'Disable'}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

@@ -642,7 +642,10 @@ export function useUsers(opts: { enabled?: boolean } = {}) {
 }
 
 /** Public team-member fields every logged-in user may see (`GET /api/users/directory`). */
-export type DirectoryUser = Pick<User, 'id' | 'displayName' | 'role' | 'disabled'>;
+export type DirectoryUser = Pick<
+  User,
+  'id' | 'displayName' | 'role' | 'disabled' | 'kind' | 'aiRole'
+>;
 
 /**
  * Team directory for every role (agents included). Needs the server route

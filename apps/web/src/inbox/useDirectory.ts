@@ -33,7 +33,8 @@ export function buildDirectory(
     nameOf(id, opts) {
       if (id == null) return null;
       if (opts?.youLabel && me && id === me.id) return 'You';
-      return byId.get(id)?.displayName ?? `Agent #${id}`;
+      const user = byId.get(id);
+      return user ? `${user.displayName}${user.kind === 'ai' ? ' (AI)' : ''}` : `Agent #${id}`;
     },
   };
 }

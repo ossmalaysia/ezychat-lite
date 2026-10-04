@@ -22,3 +22,6 @@ initializers.push(initMessaging);
 
 import { initPush } from './push/index.js';
 initializers.push(initPush);
+
+import { initAi } from './ai/service.js';
+initializers.push(initAi);

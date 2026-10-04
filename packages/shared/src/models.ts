@@ -19,6 +19,10 @@ export const UserSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   role: Role,
+  /** Omitted by older clients/fixtures; persisted users always have an explicit kind. */
+  kind: z.enum(['human', 'ai']).optional(),
+  /** Business role, independent of sign-in permissions. The first AI member handles sales. */
+  aiRole: z.literal('sales').optional(),
   mustChangePassword: z.boolean(),
   disabled: z.boolean(),
   createdAt: z.number(),

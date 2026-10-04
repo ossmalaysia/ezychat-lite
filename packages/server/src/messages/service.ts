@@ -3,7 +3,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
-import type { Message, MessageListQuery, MessageStatus, MessageType, SendTextBody } from '@wa-team-inbox/shared';
+import type {
+  Message,
+  MessageListQuery,
+  MessageStatus,
+  MessageType,
+  SendTextBody,
+} from '@wa-team-inbox/shared';
 import type { SendResult, WaIncomingMessage, WaMessageStatusUpdate } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
@@ -28,7 +34,12 @@ export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
   ingest(m: WaIncomingMessage, source: 'live' | 'history'): Promise<Message | null>;
   sendText(jid: string, body: SendTextBody, userId: number): Message;
-  sendMedia(jid: string, file: { buffer: Buffer; fileName: string; caption?: string; quotedId?: string }, userId: number, clientId: string): Promise<Message>;
+  sendMedia(
+    jid: string,
+    file: { buffer: Buffer; fileName: string; caption?: string; quotedId?: string },
+    userId: number,
+    clientId: string,
+  ): Promise<Message>;
   retry(id: string, userId: number): Message;
   applyStatus(u: WaMessageStatusUpdate): void;
   mediaPath(id: string): MediaFile | null;
@@ -89,6 +100,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const earlyStatus = new Map<string, WaMessageStatusUpdate['status']>();
   /** chat jid → in-flight send promise (used to de-duplicate echoes of our own sends). */
   const inflight = new Map<string, Promise<unknown>>();
+  const reconciliations = new Map<string, () => void>();
 
   const emitChat = (jid: string) => {
     const r = chats.get(jid);
@@ -112,65 +124,104 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const chat = chats.get(r.chat_jid);
     if (!chat) return;
     if (chat.last_message_at === null || r.timestamp >= chat.last_message_at) {
-      chats.update(r.chat_jid, { last_message_at: r.timestamp, last_message_preview: previewOf(r), updated_at: t });
+      chats.update(r.chat_jid, {
+        last_message_at: r.timestamp,
+        last_message_preview: previewOf(r),
+        updated_at: t,
+      });
     } else {
       chats.update(r.chat_jid, { updated_at: t });
     }
   };
 
   const sendJob = async (job: SendJob): Promise<SendResult> => {
+    const row = repo.get(job.localId);
+    if (!row || row.status !== 'pending') throw new Error('Message is no longer pending');
+    if (
+      row.sent_by_user_id &&
+      ctx.services.auth?.getUser(row.sent_by_user_id)?.kind === 'ai' &&
+      !ctx.services.ai?.canSend(job.chatJid, row.sent_by_user_id, job.quotedId)
+    ) {
+      throw new Error('AI reply cancelled because chat ownership changed');
+    }
+    // Echoes must wait until the queue commits sender provenance, not merely until WA returns.
+    const guard = new Promise<void>((resolve) => {
+      reconciliations.set(job.localId, () => {
+        if (inflight.get(job.chatJid) === guard) inflight.delete(job.chatJid);
+        reconciliations.delete(job.localId);
+        resolve();
+      });
+    });
+    inflight.set(job.chatJid, guard);
     const p = (async () => {
       if (job.kind === 'text') {
-        return ctx.wa.sendText(job.chatJid, job.text ?? '', job.quotedId ? { quotedId: job.quotedId } : undefined);
+        return ctx.wa.sendText(
+          job.chatJid,
+          job.text ?? '',
+          job.quotedId ? { quotedId: job.quotedId } : undefined,
+        );
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       return ctx.wa.sendMedia(
         job.chatJid,
-        { buffer, mime: job.mime ?? 'application/octet-stream', fileName: job.fileName ?? 'file', ...(job.caption ? { caption: job.caption } : {}) },
+        {
+          buffer,
+          mime: job.mime ?? 'application/octet-stream',
+          fileName: job.fileName ?? 'file',
+          ...(job.caption ? { caption: job.caption } : {}),
+        },
         job.quotedId ? { quotedId: job.quotedId } : undefined,
       );
     })();
-    const guard = p.catch(() => undefined);
-    inflight.set(job.chatJid, guard);
     try {
       return await p;
-    } finally {
-      if (inflight.get(job.chatJid) === guard) inflight.delete(job.chatJid);
+    } catch (error) {
+      reconciliations.get(job.localId)?.();
+      throw error;
     }
   };
 
   const onSent = (job: SendJob, r: SendResult) => {
-    const row = repo.get(job.localId);
-    if (!row) return;
-    const waId = r.id;
-    ctx.db.transaction(() => {
-      if (waId !== job.localId) {
-        // an echo of our own send may already have been ingested under the WA id
-        if (repo.exists(waId)) repo.delete(waId);
-        repo.rename(job.localId, waId);
-      }
-      const early = earlyStatus.get(waId);
-      earlyStatus.delete(waId);
-      if (early === 'failed') {
-        // an ERROR ack arrived before the local -> WA id rename: keep the failure
-        repo.update(waId, { status: 'failed', error: 'Delivery failed' });
-      } else {
-        const status: MessageStatus = early && STATUS_RANK[early] > STATUS_RANK.sent ? early : 'sent';
-        repo.update(waId, { status, error: null });
-      }
-    })();
-    const updated = repo.get(waId)!;
-    emitStatus({ ...updated, status: 'sent' }, waId);
-    if (updated.status !== 'sent') emitStatus(updated);
+    try {
+      const row = repo.get(job.localId);
+      if (!row) return;
+      const waId = r.id;
+      ctx.db.transaction(() => {
+        if (waId !== job.localId) {
+          // an echo of our own send may already have been ingested under the WA id
+          if (repo.exists(waId)) repo.delete(waId);
+          repo.rename(job.localId, waId);
+        }
+        const early = earlyStatus.get(waId);
+        earlyStatus.delete(waId);
+        if (early === 'failed') {
+          // an ERROR ack arrived before the local -> WA id rename: keep the failure
+          repo.update(waId, { status: 'failed', error: 'Delivery failed' });
+        } else {
+          const status: MessageStatus =
+            early && STATUS_RANK[early] > STATUS_RANK.sent ? early : 'sent';
+          repo.update(waId, { status, error: null });
+        }
+      })();
+      const updated = repo.get(waId)!;
+      emitStatus({ ...updated, status: 'sent' }, waId);
+      if (updated.status !== 'sent') emitStatus(updated);
+    } finally {
+      reconciliations.get(job.localId)?.();
+    }
   };
 
   const onFailed = (job: SendJob, err: Error) => {
-    const row = repo.get(job.localId);
-    if (!row || row.status !== 'pending') return;
-    const msg = err.message || 'Send failed';
-    repo.update(job.localId, { status: 'failed', error: msg });
-    log.warn({ id: job.localId, chatJid: job.chatJid, err: msg }, 'send failed');
-    emitStatus(repo.get(job.localId)!);
+    try {
+      const row = repo.get(job.localId);
+      if (!row || row.status !== 'pending') return;
+      const msg = err.message || 'Send failed';
+      repo.update(job.localId, { status: 'failed', error: msg });
+      log.warn({ id: job.localId, chatJid: job.chatJid, err: msg }, 'send failed');
+      emitStatus(repo.get(job.localId)!);
+    } finally {
+      reconciliations.get(job.localId)?.();
+    }
   };
 
   const queue = new SendQueue({
@@ -254,7 +305,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       repo.update(id, { media_status: 'failed' });
       throw errors.conflict('Media is no longer available');
     }
-    const mimeType = r.media_mime ?? (await fileTypeFromBuffer(buf).catch(() => undefined))?.mime ?? 'application/octet-stream';
+    const mimeType =
+      r.media_mime ??
+      (await fileTypeFromBuffer(buf).catch(() => undefined))?.mime ??
+      'application/octet-stream';
     const rel = media.save(r.chat_jid, id, buf, extFor(mimeType, r.media_name));
     repo.update(id, { media_path: rel, media_mime: mimeType, media_status: 'ok' });
     return rowToMessage(repo.get(id)!);
@@ -282,13 +336,17 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     async ingest(m, source) {
       if (repo.exists(m.id)) return null;
       if (m.fromMe && inflight.has(m.chatJid)) {
-        // our own send may be echoing back before its promise resolved; let it settle first
+        // Our own send may echo before the queue has committed its WhatsApp id and sender.
         await inflight.get(m.chatJid);
         if (repo.exists(m.id)) return null;
       }
       const t = now();
       const isGroup = m.chatJid.endsWith('@g.us');
-      const chatBefore = chats.ensure(m.chatJid, { name: !isGroup && !m.fromMe ? m.senderName : null }, t);
+      const chatBefore = chats.ensure(
+        m.chatJid,
+        { name: !isGroup && !m.fromMe ? m.senderName : null },
+        t,
+      );
 
       const row: MessageRow = {
         id: m.id,
@@ -317,7 +375,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       ctx.db.transaction(() => {
         touchChat(row, t);
         if (isNewLiveInbound) {
-          ctx.db.prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?').run(m.chatJid);
+          ctx.db
+            .prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?')
+            .run(m.chatJid);
           const cur = chats.get(m.chatJid)!;
           if (cur.status === 'resolved') {
             chats.update(m.chatJid, { status: 'open', updated_at: t });
@@ -332,8 +392,21 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         }
       })();
       if (reopened) {
-        const ev = chats.insertEvent({ chatJid: m.chatJid, type: 'reopened', actorId: null, payload: { reason: 'inbound' }, at: t });
+        const ev = chats.insertEvent({
+          chatJid: m.chatJid,
+          type: 'reopened',
+          actorId: null,
+          payload: { reason: 'inbound' },
+          at: t,
+        });
         ctx.bus.emit('chat:event', ev);
+      }
+
+      if (source === 'live') {
+        ctx.bus.emit('message:received', {
+          chat: rowToChat(chats.get(m.chatJid)!),
+          message: rowToMessage(row),
+        });
       }
 
       // History media stays 'pending' (mime/name kept) and is fetched on demand (ensureMedia /
@@ -425,19 +498,27 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     retry(id, _userId) {
       const r = repo.get(id);
       if (!r) throw errors.notFound('Message');
-      if (r.status !== 'failed' || !r.from_me) throw errors.conflict('Only failed outgoing messages can be retried');
+      if (r.status !== 'failed' || !r.from_me)
+        throw errors.conflict('Only failed outgoing messages can be retried');
       const t = now();
       if (!r.id.startsWith('local-')) {
         // Failed after reaching WhatsApp (ERROR ack, row already renamed to the WA id): turn it back into
         // a pending local row so the queue re-sends it (and it survives a restart via pendingLocal()).
-        if (r.type !== 'text' && !r.media_path) throw errors.conflict('This message can no longer be re-sent');
-        if (r.type === 'text' && !r.body) throw errors.conflict('This message can no longer be re-sent');
+        if (r.type !== 'text' && !r.media_path)
+          throw errors.conflict('This message can no longer be re-sent');
+        if (r.type === 'text' && !r.body)
+          throw errors.conflict('This message can no longer be re-sent');
         const clientId = r.client_id ?? randomUUID();
         const localId = `local-${clientId}`;
         if (repo.exists(localId)) throw errors.conflict('Message is already being re-sent');
         ctx.db.transaction(() => {
           repo.rename(r.id, localId);
-          repo.update(localId, { status: 'pending', error: null, created_at: t, client_id: clientId });
+          repo.update(localId, {
+            status: 'pending',
+            error: null,
+            created_at: t,
+            client_id: clientId,
+          });
         })();
         const moved = repo.get(localId)!;
         emitStatus({ ...moved, id: r.id }, localId);
@@ -459,7 +540,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         const prev = earlyStatus.get(u.id);
         // a failure is sticky: a later (or reordered) ack must not mask it
         if (prev === 'failed') return;
-        if (!prev || u.status === 'failed' || STATUS_RANK[u.status] > STATUS_RANK[prev]) earlyStatus.set(u.id, u.status);
+        if (!prev || u.status === 'failed' || STATUS_RANK[u.status] > STATUS_RANK[prev])
+          earlyStatus.set(u.id, u.status);
         return;
       }
       if (u.status === 'failed') {
@@ -474,7 +556,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
     mediaPath(id) {
       // a client may still hold the optimistic local id after the row was renamed to the WA id
-      const r = repo.get(id) ?? (id.startsWith('local-') ? repo.byClientId(id.slice('local-'.length)) : null);
+      const r =
+        repo.get(id) ??
+        (id.startsWith('local-') ? repo.byClientId(id.slice('local-'.length)) : null);
       if (!r || !r.media_path) return null;
       let p: string;
       try {
@@ -519,4 +603,3 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
   return svc;
 }
-

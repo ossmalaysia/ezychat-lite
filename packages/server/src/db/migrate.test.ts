@@ -18,17 +18,19 @@ const TABLES = [
   'push_subscriptions',
   'settings',
   'audit_log',
+  'ai_documents',
+  'ai_chat_state',
 ];
 
 describe('migrate', () => {
-  it('creates all tables and sets user_version=1', () => {
+  it('creates all tables and sets user_version=2', () => {
     const db = new Database(':memory:');
     migrate(db);
     const names = (
       db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]
     ).map((r) => r.name);
     for (const t of TABLES) expect(names).toContain(t);
-    expect(db.pragma('user_version', { simple: true })).toBe(1);
+    expect(db.pragma('user_version', { simple: true })).toBe(2);
     const cols = (db.prepare('PRAGMA table_info(messages)').all() as { name: string }[]).map(
       (c) => c.name,
     );
@@ -41,7 +43,7 @@ describe('migrate', () => {
     migrate(db);
     db.prepare("INSERT INTO settings(key, value) VALUES ('a', '1')").run();
     expect(() => migrate(db)).not.toThrow();
-    expect(db.pragma('user_version', { simple: true })).toBe(1);
+    expect(db.pragma('user_version', { simple: true })).toBe(2);
     expect(db.prepare('SELECT count(*) AS n FROM settings').get()).toEqual({ n: 1 });
     db.close();
   });
@@ -53,7 +55,7 @@ describe('migrate', () => {
       expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
       expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
       expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
-      expect(db.pragma('user_version', { simple: true })).toBe(1);
+      expect(db.pragma('user_version', { simple: true })).toBe(2);
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

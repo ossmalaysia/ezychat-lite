@@ -28,6 +28,24 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Maintainability and performance
 
+- 2026-10-05 — AI member edits and OAuth polling can overwrite inbox-wide connection settings
+  or unsaved drafts → provider and member fields share a combined status but require separate
+  write schemas; keep drafts local while polling connection status.
+- 2026-10-05 — A human takeover can happen after AI generation or while a reply waits for
+  presence/queue spacing → cancellation alone is insufficient → abort work, invalidate queued
+  replies and recheck ownership and the latest customer message immediately before sending.
+- 2026-10-05 — Codex shell/apply-patch flags alone leave metadata-selected tools and a local
+  image handler → customer prompts could reach app files → pin and verify the helper protocol,
+  enforce an authoritative text-only tool-free catalog, deny tool/approval requests, isolate
+  its home and use the operating system credential store.
+- 2026-10-05 — Document parsers can consume CPU or expand archives far beyond upload size →
+  upload limits alone do not protect the inbox → cap expansion/text and parse in a worker with
+  a deadline and memory limits.
+- 2026-10-05 — Review reproduced stale AI answers during media downloads and AI pausing on its
+  own early WhatsApp echo → asynchronous completion differs from message arrival and committed
+  sender provenance → notify automation on live receipt before downloading and correlate echoes
+  through completed send reconciliation; keep regression tests for both orderings.
+
 - 2026-10-05 — A daily inbox reset affects all teammates and more chats than a paginated list
   contains → bulk resolution must be admin-only, transactional, confirmed, and publish events
   only after commit; preserve messages and the existing reopen-on-incoming behavior.

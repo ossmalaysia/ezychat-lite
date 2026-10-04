@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- One AI Sales Agent can answer unassigned direct customer chats after 10 seconds using
+  business notes, FAQs and uploaded PDF, DOCX, Markdown or text documents. Humans can take
+  over or resolve chats; AI resolves only after customer confirmation and hands unanswered
+  questions to an idle online agent, or returns them to the unassigned inbox.
+- Admin Settings → AI configures one shared OpenAI API or ChatGPT sign-in connection and
+  model. Admin Members → Add AI member manages the Sales Agent and its business knowledge.
+
 ## [0.1.19] - 2026-10-05
 
 ### Added

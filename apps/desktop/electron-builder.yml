@@ -57,6 +57,9 @@ win:
     - target: nsis
       arch: [x64]
   extraResources:
+    - from: ../../resources/codex/win32-x64
+      to: codex
+      filter: ['codex.exe', 'LICENSE', 'NOTICE']
     - from: ../../resources/cloudflared/win32-x64
       to: cloudflared
       filter: ['cloudflared.exe']
@@ -85,6 +88,9 @@ mac:
     - target: dmg
       arch: [x64, arm64]
   extraResources:
+    - from: ../../resources/codex/darwin-${arch}
+      to: codex
+      filter: ['codex', 'LICENSE', 'NOTICE']
     - from: ../../resources/cloudflared/darwin-${arch}
       to: cloudflared
       filter: ['cloudflared']
@@ -97,6 +103,9 @@ linux:
   category: Network
   target: [AppImage]
   extraResources:
+    - from: ../../resources/codex/linux-${arch}
+      to: codex
+      filter: ['codex', 'LICENSE', 'NOTICE']
     - from: ../../resources/cloudflared/linux-${arch}
       to: cloudflared
       filter: ['cloudflared']

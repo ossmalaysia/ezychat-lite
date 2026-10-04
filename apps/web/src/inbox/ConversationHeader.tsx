@@ -104,7 +104,9 @@ export function ConversationHeader({
             </SelectItem>
             {options.map((u) => (
               <SelectItem key={u.id} value={String(u.id)} className="min-h-11 md:min-h-8">
-                {u.id === directory.me?.id ? `${u.displayName} (you)` : u.displayName}
+                {u.id === directory.me?.id
+                  ? `${u.displayName} (you)`
+                  : `${u.displayName}${u.kind === 'ai' ? ' (AI Sales Agent)' : ''}`}
               </SelectItem>
             ))}
           </SelectContent>
