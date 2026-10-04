@@ -12,13 +12,15 @@ export interface ChatListItemProps {
   active: boolean;
   /** Assignee display name ("You" for the current user), or null when unassigned. */
   assigneeName: string | null;
+  /** The current user owns this chat: the chip gets the accent outline. */
+  assignedToMe?: boolean;
 }
 
 export function GroupIcon({ className }: { className?: string }) {
   return <Users className={className} role="img" aria-label="Group" />;
 }
 
-export function ChatListItem({ chat, active, assigneeName }: ChatListItemProps) {
+export function ChatListItem({ chat, active, assigneeName, assignedToMe = false }: ChatListItemProps) {
   const name = chat.name || formatJid(chat.jid);
   const unread = chat.unreadCount > 0;
   const { pathname } = useLocation();
@@ -71,7 +73,11 @@ export function ChatListItem({ chat, active, assigneeName }: ChatListItemProps) 
           {assigneeName && (
             <Badge
               variant="outline"
-              className="max-w-24 truncate px-1.5 text-[11px] text-muted-foreground"
+              className={cn(
+                'max-w-24 truncate px-1.5 text-[11px]',
+                // Outline only: the solid accent is reserved for the unread count.
+                assignedToMe ? 'border-primary/40 font-medium text-primary' : 'text-muted-foreground',
+              )}
               title={`Assigned to ${assigneeName}`}
             >
               <span className="truncate">{assigneeName}</span>

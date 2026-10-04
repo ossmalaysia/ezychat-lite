@@ -135,6 +135,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
               chat={c}
               active={c.jid === activeJid}
               assigneeName={directory.nameOf(c.assignedTo, { youLabel: true })}
+              assignedToMe={c.assignedTo != null && c.assignedTo === directory.me?.id}
             />
           </li>
         ))}

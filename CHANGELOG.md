@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- The first teammate to reply to an unassigned chat becomes its owner, so the chat list shows who
+  is handling each customer. Replies never take over a chat someone else owns.
+- Resolving a chat releases its owner: when the customer writes again, the chat reopens
+  unassigned and alerts the whole team. Chats you own get an accent outline on their owner chip.
 - Download and verify updates inside installed Windows and Mac hosts, show progress and prompt
   with Restart and update. Coordinate app/service shutdown, replace both Mac runtime copies,
   restart an installed service, verify its build, and reopen the desktop as the original user.

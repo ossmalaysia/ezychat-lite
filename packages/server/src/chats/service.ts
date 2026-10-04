@@ -223,6 +223,23 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
             at: t,
           }),
         );
+        // Resolving hands the customer back to the team, unless this request also names an owner.
+        if (
+          body.status === 'resolved' &&
+          body.assignedTo === undefined &&
+          cur.assigned_to !== null
+        ) {
+          fields.assigned_to = null;
+          events.push(
+            repo.insertEvent({
+              chatJid: jid,
+              type: 'unassigned',
+              actorId,
+              payload: { previous: cur.assigned_to, reason: 'resolved' },
+              at: t,
+            }),
+          );
+        }
       }
       if (!events.length) return rowToChat(cur);
       fields.updated_at = t;
