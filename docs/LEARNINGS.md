@@ -28,6 +28,15 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Maintainability and performance
 
+- 2026-10-05 — A daily inbox reset affects all teammates and more chats than a paginated list
+  contains → bulk resolution must be admin-only, transactional, confirmed, and publish events
+  only after commit; preserve messages and the existing reopen-on-incoming behavior.
+- 2026-10-05 — Independent review reproduced a committed reset with a failed audit and hundreds
+  of canceled count requests → audit writes belong in the reset transaction; coalesce realtime
+  refreshes after bulk updates while replacing any stale in-flight response.
+- 2026-10-05 — PR review found message and chat events scheduling separate list refreshes for
+  the same incoming message → route both through the same refresh scheduler and test the pair.
+
 - 2026-10-03 — One live update rendered every loaded chat row and repeated pagination restarted
   requests → stable chat references had no memo boundary and fetchNextPage cancelled overlapping
   fetches by default → measure row/request counts, keep context updates working and coalesce next-page fetches.

@@ -79,6 +79,16 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;
+    let chatRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refreshChats = () => {
+      // Bulk operations publish many committed updates. Refresh once after the burst,
+      // including when an older request was already in flight when the changes arrived.
+      clearTimeout(chatRefreshTimer);
+      chatRefreshTimer = setTimeout(() => {
+        void qc.invalidateQueries({ queryKey: qk.chatsAll });
+        void qc.invalidateQueries({ queryKey: qk.openChatCount });
+      }, 50);
+    };
 
     socket.on('connect', () => {
       setConnected(true);
@@ -92,7 +102,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     socket.on('message:new', (m) => {
       upsertMessageInCache(qc, m);
-      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+      refreshChats();
     });
     socket.on('message:status', (p) => {
       const patch: { status: typeof p.status; error: string | null; id?: string } = {
@@ -104,7 +114,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     socket.on('chat:updated', (c) => {
       upsertChatInCache(qc, c);
-      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+      refreshChats();
     });
     socket.on('chat:event', (e) => {
       qc.setQueryData<ChatDetailResponse>(qk.chat(e.chatJid), (old) =>
@@ -142,6 +152,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
 
     return () => {
+      clearTimeout(chatRefreshTimer);
       socket.removeAllListeners();
       socket.disconnect();
       clearDesktopNotifications();

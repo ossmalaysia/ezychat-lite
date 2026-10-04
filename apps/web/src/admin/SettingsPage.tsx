@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { ErrorState, Field, Pending } from './adminUi';
+import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 
 export function SettingsPage() {
   const settings = useSettings();
@@ -167,6 +168,8 @@ export function SettingsPage() {
           </Button>
         </div>
       </form>
+
+      <ResolveAllChatsCard />
 
       <Card className="gap-4">
         <CardHeader>

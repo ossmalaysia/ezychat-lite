@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   'cloudflare.login': 'Cloudflare sign-in started',
   'cloudflare.create': 'Cloudflare inbox address configured',
   'settings.update': 'Settings updated',
+  'chats.resolve_all': 'All open chats resolved',
   'logs.download': 'Logs downloaded',
 };
 

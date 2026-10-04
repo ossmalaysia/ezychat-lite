@@ -102,6 +102,20 @@ export class ChatRepo {
     );
   }
 
+  openCount(): number {
+    return (
+      this.db.prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open'").get() as {
+        count: number;
+      }
+    ).count;
+  }
+
+  openChats(): ChatRow[] {
+    return this.db
+      .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")
+      .all() as ChatRow[];
+  }
+
   /** Inserts a chat if missing; returns the row. */
   ensure(jid: string, init: { type?: ChatType; name?: string | null }, now: number): ChatRow {
     const type = init.type ?? chatTypeOf(jid);

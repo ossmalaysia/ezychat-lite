@@ -1,12 +1,15 @@
 import type { Chat, ChatEvent, ChatListQuery, ChatPatchBody, Note } from '@wa-team-inbox/shared';
 import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
+import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
 import { ChatRepo, chatTypeOf, jidUser, rowToChat } from './repo.js';
 
 export interface ChatService {
   list(q: ChatListQuery, userId: number): { chats: Chat[]; nextCursor: string | null };
   get(jid: string): Chat | null;
+  openCount(): number;
+  resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
   upsertFromWa(info: WaChatInfo): Chat;
   /** actorId null = system */
@@ -145,6 +148,46 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     get(jid) {
       const r = repo.get(jid);
       return r ? rowToChat(r) : null;
+    },
+
+    openCount() {
+      return repo.openCount();
+    },
+
+    resolveAll(actorId, ip = null) {
+      // Commit the complete reset before publishing any changes to connected teammates.
+      const result = ctx.db.transaction(() => {
+        const chats = repo.openChats();
+        const events: ChatEvent[] = [];
+        const t = now();
+        for (const chat of chats) {
+          repo.update(chat.jid, { status: 'resolved', assigned_to: null, updated_at: t });
+          events.push(
+            repo.insertEvent({ chatJid: chat.jid, type: 'resolved', actorId, payload: {}, at: t }),
+          );
+          if (chat.assigned_to !== null) {
+            events.push(
+              repo.insertEvent({
+                chatJid: chat.jid,
+                type: 'unassigned',
+                actorId,
+                payload: { previous: chat.assigned_to, reason: 'resolved' },
+                at: t,
+              }),
+            );
+          }
+        }
+        audit(ctx.db, {
+          userId: actorId,
+          action: 'chats.resolve_all',
+          ip,
+          meta: { resolvedCount: chats.length },
+        });
+        return { chats, events };
+      })();
+      for (const event of result.events) ctx.bus.emit('chat:event', event);
+      for (const chat of result.chats) emitChat(chat.jid);
+      return result.chats.length;
     },
 
     events(jid) {

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ChatListQuery, ChatPatchBody } from '@wa-team-inbox/shared';
-import { requireUser } from '../auth/guards.js';
+import { ChatListQuery, ChatPatchBody, ResolveAllChatsBody } from '@wa-team-inbox/shared';
+import { requireAdmin, requireUser } from '../auth/guards.js';
+import { clientIp } from '../http/client-ip.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats } from '../wa-bridge/index.js';
@@ -12,13 +13,22 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
   const chats = getChats(ctx);
   app.addHook('preHandler', requireUser(ctx));
   const log = ctx.log.child({ mod: 'avatars' });
+  app.get('/chats/open-count', { preHandler: requireAdmin(ctx) }, async () => ({
+    openCount: chats.openCount(),
+  }));
+  app.post('/chats/resolve-all', { preHandler: requireAdmin(ctx) }, async (req) => {
+    parse(ResolveAllChatsBody, req.body);
+    const resolvedCount = chats.resolveAll(req.user!.id, clientIp(req));
+    return { resolvedCount };
+  });
   // Only visible image requests query WhatsApp. Bound the cache and coalesce concurrent requests.
   const cache = new Map<string, { until: number; url: Promise<string | null> }>();
   app.get('/chats/:jid/avatar', async (req, reply) => {
     const { jid } = parse(JidParams, req.params);
     if (!chats.get(jid)) throw errors.notFound('Chat');
     reply.header('cache-control', 'private, max-age=300');
-    if (ctx.wa.status.state !== 'open') return reply.header('cache-control', 'no-store').code(204).send();
+    if (ctx.wa.status.state !== 'open')
+      return reply.header('cache-control', 'no-store').code(204).send();
     let entry = cache.get(jid);
     if (!entry || entry.until <= Date.now()) {
       if (cache.size >= 500) cache.delete(cache.keys().next().value!);

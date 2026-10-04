@@ -59,6 +59,13 @@ export const ChatPatchBody = z.object({
 });
 export type ChatPatchBody = z.infer<typeof ChatPatchBody>;
 
+export const OpenChatCountResponse = z.object({ openCount: z.number().int().nonnegative() });
+export type OpenChatCountResponse = z.infer<typeof OpenChatCountResponse>;
+export const ResolveAllChatsBody = z.object({ confirmed: z.literal(true) });
+export type ResolveAllChatsBody = z.infer<typeof ResolveAllChatsBody>;
+export const ResolveAllChatsResponse = z.object({ resolvedCount: z.number().int().nonnegative() });
+export type ResolveAllChatsResponse = z.infer<typeof ResolveAllChatsResponse>;
+
 export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
 export type ChatDetailResponse = z.infer<typeof ChatDetailResponse>;
 
