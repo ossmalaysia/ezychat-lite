@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # typescript-eslint 8.x peers on typescript <6.1; revisit when it supports TypeScript 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # Types must match the Node 22 runtime the app and CI use.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       dev-dependencies:
         dependency-type: development
