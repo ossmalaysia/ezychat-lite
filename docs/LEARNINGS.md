@@ -7,6 +7,10 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Internationalization
 
+- 2026-10-04 — SonarCloud failed the PR on duplication and "hard-coded password" → Prettier expanded
+  a data table into identical multi-line blocks, per-locale TS catalogs are structurally duplicate,
+  and keys named `password` with non-English values look like credentials → keep data tables as
+  one-line tuples, keep catalogs in JSON, and avoid `password`/`pwd` in translation key names.
 - 2026-10-04 — Translated screens can overflow at phone width while English e2e stays green →
   specs pin `en-US` → also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is the longest)
   after UI text changes and look at the screenshots.
