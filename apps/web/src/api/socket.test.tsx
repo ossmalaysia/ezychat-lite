@@ -153,3 +153,40 @@ it('coalesces a bulk chat update into one list/count refresh and replaces stale 
   expect(queryCount).toHaveBeenCalledTimes(2);
   qc.clear();
 });
+
+it('shares one list/count refresh between a new message and its chat update', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const listKey = ['chats', { assigned: 'any' }];
+  const list = { pages: [{ chats: [], nextCursor: null }], pageParams: [null] };
+  qc.setQueryData(listKey, list);
+  qc.setQueryData(['open-chat-count'], { openCount: 0 });
+  const queryList = vi.fn(async () => list);
+  const queryCount = vi.fn(async () => ({ openCount: 1 }));
+  function Counts() {
+    const { data } = useQuery({ queryKey: ['open-chat-count'], queryFn: queryCount });
+    useQuery({ queryKey: listKey, queryFn: queryList });
+    return <span>{data?.openCount} open chats</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Counts />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('0 open chats');
+  act(() => {
+    socket.listeners.get('message:new')!({
+      id: 'incoming',
+      chatJid: '1@s.whatsapp.net',
+      clientId: null,
+    });
+    socket.listeners.get('chat:updated')!({ jid: '1@s.whatsapp.net', status: 'open' });
+  });
+  await screen.findByText('1 open chats');
+  expect(queryCount).toHaveBeenCalledTimes(1);
+  expect(queryList).toHaveBeenCalledTimes(1);
+  qc.clear();
+});

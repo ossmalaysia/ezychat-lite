@@ -34,6 +34,8 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 - 2026-10-05 — Independent review reproduced a committed reset with a failed audit and hundreds
   of canceled count requests → audit writes belong in the reset transaction; coalesce realtime
   refreshes after bulk updates while replacing any stale in-flight response.
+- 2026-10-05 — PR review found message and chat events scheduling separate list refreshes for
+  the same incoming message → route both through the same refresh scheduler and test the pair.
 
 - 2026-10-03 — One live update rendered every loaded chat row and repeated pagination restarted
   requests → stable chat references had no memo boundary and fetchNextPage cancelled overlapping

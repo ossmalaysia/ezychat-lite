@@ -102,7 +102,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     socket.on('message:new', (m) => {
       upsertMessageInCache(qc, m);
-      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+      refreshChats();
     });
     socket.on('message:status', (p) => {
       const patch: { status: typeof p.status; error: string | null; id?: string } = {
