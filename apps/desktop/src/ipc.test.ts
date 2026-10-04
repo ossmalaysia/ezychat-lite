@@ -31,6 +31,7 @@ function fixture() {
       'resetAdmin',
       'openMain',
       'openLogsFolder',
+      'setKeepInTray',
     ].map((name) => [name, vi.fn(async () => undefined)]),
   ) as unknown as DesktopController;
   let current: typeof win | null = win;
@@ -106,6 +107,21 @@ describe('privileged status IPC', () => {
     }
     ipc.dispose();
     expect(mock.handlers.size).toBe(0);
+  });
+
+  it('accepts exactly one boolean for the tray preference', async () => {
+    const { invoke, event, controller } = fixture();
+    await invoke(CHANNELS.setKeepInTray, event, false);
+    await invoke(CHANNELS.setKeepInTray, event, true);
+    expect(controller.setKeepInTray).toHaveBeenNthCalledWith(1, false);
+    expect(controller.setKeepInTray).toHaveBeenNthCalledWith(2, true);
+    for (const args of [[], ['false'], [0], [null], [true, true], [{ value: true }]]) {
+      await expect(invoke(CHANNELS.setKeepInTray, event, ...args)).rejects.toThrow('Invalid');
+    }
+    await expect(
+      invoke(CHANNELS.setKeepInTray, { ...event, sender: {} } as IpcMainInvokeEvent, true),
+    ).rejects.toThrow('Forbidden');
+    expect(controller.setKeepInTray).toHaveBeenCalledTimes(2);
   });
 
   it('broadcasts only to the exact current status page', () => {

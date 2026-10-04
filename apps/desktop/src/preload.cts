@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('wati', {
   resetAdmin: () => ipcRenderer.invoke('wati:reset-admin'),
   openMain: () => ipcRenderer.invoke('wati:open-main'),
   openLogs: () => ipcRenderer.invoke('wati:open-logs'),
+  setKeepInTray: (keep: boolean) => ipcRenderer.invoke('wati:set-keep-in-tray', keep),
   onStatusChanged: (cb: () => void) => {
     const listener = () => cb();
     ipcRenderer.on('wati:status-changed', listener);

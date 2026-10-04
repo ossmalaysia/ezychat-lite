@@ -35,7 +35,7 @@ npm run version:sync                          # copy root package.json version i
 ```
 
 Installers land in `apps/desktop/release/` (`win-unpacked/` for `--dir` builds). Smoke a packaged build with
-`ELECTRON_RUN_AS_NODE=1 "<release>/win-unpacked/WA Team Inbox.exe" <resources>/app.asar.unpacked/dist/server/server.cjs --data <tmp> --port 7432 --fake-wa`.
+`ELECTRON_RUN_AS_NODE=1 "<release>/win-unpacked/EzyChat Lite.exe" <resources>/app.asar.unpacked/dist/server/server.cjs --data <tmp> --port 7432 --fake-wa`.
 
 ## Architecture
 
@@ -82,8 +82,9 @@ chat, `composing` presence before each send. Jobs wait while disconnected and fa
 `media/`, `secret.key` (AES key for settings secrets such as the tunnel token), `logs/` (pino-roll,
 daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`, nightly, 7 kept),
 plus a lock file. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
-The legacy data-folder, Windows executable, service and app IDs are intentional upgrade contracts;
-do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
+The Windows program is `EzyChat Lite.exe` in `Program Files\EzyChat Lite` since 0.1.17 (the updater
+still accepts the legacy `WA Team Inbox.exe`). The data folders, desktop profile, service ID and app ID
+are intentional upgrade contracts; do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
 `web`, …). Browser errors (window errors, unhandled rejections, React error boundaries) are POSTed to
@@ -180,4 +181,6 @@ approval when another maintainer can review changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.
+Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`
+(`sc qc wa-team-inbox`, `/api/health`); otherwise build with `-- --config.directories.output=<new folder>`.
 GitHub Actions in this org must be pinned to full commit SHAs.

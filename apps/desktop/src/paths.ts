@@ -78,18 +78,24 @@ export function winswExe(isPackaged: boolean, resourcesPath: string, appPath: st
 
 export interface DesktopConfig {
   port: number;
+  /** Closing the window keeps the app in the system tray (default) instead of quitting a service client. */
+  keepInTray: boolean;
 }
 
-/** Parses userData/desktop.json contents (null when missing). Invalid input → defaults. */
+/** Parses userData/desktop.json contents (null when missing). Each invalid field falls back to its default. */
 export function parseDesktopConfig(raw: string | null): DesktopConfig {
-  const def: DesktopConfig = { port: DEFAULT_PORT };
+  const def: DesktopConfig = { port: DEFAULT_PORT, keepInTray: true };
   if (!raw) return def;
   try {
-    const v = JSON.parse(raw) as { port?: unknown };
+    const v = JSON.parse(raw) as { port?: unknown; keepInTray?: unknown };
     const port = v?.port;
-    if (typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536)
-      return { port };
-    return def;
+    return {
+      port:
+        typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536
+          ? port
+          : def.port,
+      keepInTray: typeof v?.keepInTray === 'boolean' ? v.keepInTray : def.keepInTray,
+    };
   } catch {
     return def;
   }

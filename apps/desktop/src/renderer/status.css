@@ -137,3 +137,20 @@ pre {
   width: 100%;
   accent-color: var(--accent);
 }
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.check:has(input:disabled) {
+  cursor: default;
+  color: var(--muted);
+}

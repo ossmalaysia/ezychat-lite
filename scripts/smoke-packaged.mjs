@@ -18,8 +18,7 @@ const app = windows
   ? join(release, 'win-unpacked')
   : join(release, process.arch === 'arm64' ? 'mac-arm64' : 'mac', `${productName}.app`, 'Contents');
 const resources = join(app, windows ? 'resources' : 'Resources');
-// Windows keeps its pre-rename executable path for installed service compatibility.
-const exe = windows ? join(app, 'WA Team Inbox.exe') : join(app, 'MacOS', productName);
+const exe = windows ? join(app, `${productName}.exe`) : join(app, 'MacOS', productName);
 const entry = join(resources, 'app.asar.unpacked', 'dist', 'server', 'server.cjs');
 const data = await mkdtemp(join(tmpdir(), 'wati-package-smoke-'));
 const listener = createServer();

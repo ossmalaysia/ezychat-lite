@@ -79,7 +79,13 @@ describe('installation eligibility and trusted input', () => {
   it('accepts installed Windows paths case-insensitively and refuses unpacked/lookalike folders', () => {
     expect(updateInstallEligibility(windowsContext(), {}).eligible).toBe(true);
     for (const execPath of [
+      'C:\\Program Files\\EzyChat Lite\\EzyChat Lite.exe',
+      'c:\\program files\\ezychat lite\\ezychat lite.exe',
+    ])
+      expect(updateInstallEligibility({ ...windowsContext(), execPath }, {}).eligible).toBe(true);
+    for (const execPath of [
       'D:\\dev\\release\\WA Team Inbox.exe',
+      'D:\\dev\\release\\EzyChat Lite.exe',
       'C:\\Program FilesElse\\EzyChat Lite\\WA Team Inbox.exe',
       'C:\\Program Files\\EzyChat Lite\\Unknown.exe',
     ])
@@ -122,6 +128,12 @@ describe('installation eligibility and trusted input', () => {
         context: { ...plan.context, execPath: 'C:\\Program Files\\Bad.exe' },
       }),
     ).toThrow('executable');
+    expect(() =>
+      buildWindowsInstallScript({
+        ...plan,
+        context: { ...plan.context, execPath: 'C:\\Program Files\\EzyChat Lite\\EzyChat Lite.exe' },
+      }),
+    ).not.toThrow();
   });
 });
 
