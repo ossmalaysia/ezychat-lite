@@ -63,7 +63,7 @@ export function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
         />
         <Field
-          label={t('login.password')}
+          label={t('login.passLabel')}
           name="password"
           type="password"
           autoComplete="current-password"

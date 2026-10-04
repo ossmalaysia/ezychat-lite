@@ -67,12 +67,12 @@
       "role": "Role",
       "username": "Username",
       "displayName": "Display name",
-      "tempPassword": "Temporary password",
+      "tempPass": "Temporary password",
       "tempPasswordHint": "They will be asked to change it at first sign-in.",
       "tempPasswordManualHint": "Automatic generation is unavailable in this browser. Enter a strong password; they will change it at first sign-in.",
       "generate": "Generate",
       "usernameTooShort": "Username must be at least 3 characters.",
-      "passwordTooShort": "Password must be at least 8 characters.",
+      "passTooShort": "Password must be at least 8 characters.",
       "ownRoleHint": "You can't change your own role."
     },
     "create": {

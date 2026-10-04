@@ -12,7 +12,7 @@
   "known": {
     "invalidCredentials": "Invalid username or password",
     "currentPasswordIncorrect": "Current password is incorrect",
-    "newPasswordSame": "New password must differ from the current password",
+    "newPassSame": "New password must differ from the current password",
     "adminOnly": "Only admins can do this.",
     "passwordChangeRequired": "Change your password to continue.",
     "setupLocalOnly": "First-time setup is only allowed from this computer",

@@ -66,12 +66,12 @@
       "role": "角色",
       "username": "用户名",
       "displayName": "显示名称",
-      "tempPassword": "临时密码",
+      "tempPass": "临时密码",
       "tempPasswordHint": "对方首次登录时需要修改此密码。",
       "tempPasswordManualHint": "此浏览器无法自动生成密码。请输入一个强密码，对方首次登录时需要修改。",
       "generate": "生成",
       "usernameTooShort": "用户名至少需要 3 个字符。",
-      "passwordTooShort": "密码至少需要 8 个字符。",
+      "passTooShort": "密码至少需要 8 个字符。",
       "ownRoleHint": "您不能更改自己的角色。"
     },
     "create": {

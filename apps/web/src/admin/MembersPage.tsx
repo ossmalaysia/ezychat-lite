@@ -428,7 +428,7 @@ function CreateMemberDialog({
       return;
     }
     if (password.length < 8) {
-      setLocalError(t('members.form.passwordTooShort'));
+      setLocalError(t('members.form.passTooShort'));
       return;
     }
     create.mutate(
@@ -484,7 +484,7 @@ function CreateMemberDialog({
         </Field>
         <RoleSelect value={role} onChange={setRole} />
         <Field
-          label={t('members.form.tempPassword')}
+          label={t('members.form.tempPass')}
           hint={
             secureGeneration
               ? t('members.form.tempPasswordHint')

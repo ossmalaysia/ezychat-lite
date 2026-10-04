@@ -12,7 +12,7 @@
   "known": {
     "invalidCredentials": "Nama pengguna atau kata laluan tidak sah",
     "currentPasswordIncorrect": "Kata laluan semasa tidak betul",
-    "newPasswordSame": "Kata laluan baharu mesti berbeza daripada kata laluan semasa",
+    "newPassSame": "Kata laluan baharu mesti berbeza daripada kata laluan semasa",
     "adminOnly": "Hanya pentadbir boleh melakukan ini.",
     "passwordChangeRequired": "Tukar kata laluan anda untuk meneruskan.",
     "setupLocalOnly": "Persediaan kali pertama hanya dibenarkan dari komputer ini",

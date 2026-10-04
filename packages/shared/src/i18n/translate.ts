@@ -71,8 +71,8 @@ export function catalogProblems(source: Catalog, target: Catalog): string[] {
   const base = (k: string) => k.replace(PLURAL_SUFFIX, '');
   const vars = (s: string) =>
     [...s.matchAll(PLACEHOLDER)]
-      .map((m) => m[1])
-      .sort()
+      .map((m) => m[1] ?? '')
+      .sort((a, b) => a.localeCompare(b))
       .join(',');
   const srcBases = new Set(Object.keys(src).map(base));
   const tgtBases = new Set(Object.keys(tgt).map(base));

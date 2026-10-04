@@ -4,6 +4,7 @@ import { Smile } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchField } from '@/components/app/SearchField';
+import enInbox from '@/i18n/locales/en/inbox.json';
 
 const CATEGORIES = ['All', 'Faces', 'Gestures', 'Hearts', 'Work'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -14,366 +15,63 @@ const CATEGORY_KEYS = {
   Hearts: 'emoji.category.hearts',
   Work: 'emoji.category.work',
 } as const satisfies Record<Category, string>;
-/** `name` and `keywords` stay English so English search terms work in every language. */
-const EMOJI = [
-  {
-    symbol: '😀',
-    name: 'Grinning face',
-    nameKey: 'emoji.names.grinningFace',
-    category: 'Faces',
-    keywords: 'happy smile',
-  },
-  {
-    symbol: '😊',
-    name: 'Smiling face',
-    nameKey: 'emoji.names.smilingFace',
-    category: 'Faces',
-    keywords: 'happy thank you',
-  },
-  {
-    symbol: '😂',
-    name: 'Tears of joy',
-    nameKey: 'emoji.names.tearsOfJoy',
-    category: 'Faces',
-    keywords: 'laugh funny',
-  },
-  {
-    symbol: '🤣',
-    name: 'Rolling on the floor laughing',
-    nameKey: 'emoji.names.rollingOnTheFloorLaughing',
-    category: 'Faces',
-    keywords: 'funny lol',
-  },
-  { symbol: '😉', name: 'Winking face', nameKey: 'emoji.names.winkingFace', category: 'Faces' },
-  {
-    symbol: '😍',
-    name: 'Heart eyes',
-    nameKey: 'emoji.names.heartEyes',
-    category: 'Faces',
-    keywords: 'love',
-  },
-  {
-    symbol: '🥰',
-    name: 'Smiling face with hearts',
-    nameKey: 'emoji.names.smilingFaceWithHearts',
-    category: 'Faces',
-    keywords: 'love',
-  },
-  {
-    symbol: '😎',
-    name: 'Sunglasses face',
-    nameKey: 'emoji.names.sunglassesFace',
-    category: 'Faces',
-    keywords: 'cool',
-  },
-  {
-    symbol: '🤔',
-    name: 'Thinking face',
-    nameKey: 'emoji.names.thinkingFace',
-    category: 'Faces',
-    keywords: 'question',
-  },
-  {
-    symbol: '😅',
-    name: 'Smiling face with sweat',
-    nameKey: 'emoji.names.smilingFaceWithSweat',
-    category: 'Faces',
-    keywords: 'relief',
-  },
-  {
-    symbol: '😔',
-    name: 'Pensive face',
-    nameKey: 'emoji.names.pensiveFace',
-    category: 'Faces',
-    keywords: 'sad sorry',
-  },
-  {
-    symbol: '😢',
-    name: 'Crying face',
-    nameKey: 'emoji.names.cryingFace',
-    category: 'Faces',
-    keywords: 'sad sorry',
-  },
-  {
-    symbol: '😭',
-    name: 'Loudly crying face',
-    nameKey: 'emoji.names.loudlyCryingFace',
-    category: 'Faces',
-    keywords: 'sad',
-  },
-  {
-    symbol: '😮',
-    name: 'Surprised face',
-    nameKey: 'emoji.names.surprisedFace',
-    category: 'Faces',
-    keywords: 'wow',
-  },
-  {
-    symbol: '🙃',
-    name: 'Upside down face',
-    nameKey: 'emoji.names.upsideDownFace',
-    category: 'Faces',
-  },
-  {
-    symbol: '🤗',
-    name: 'Hugging face',
-    nameKey: 'emoji.names.huggingFace',
-    category: 'Faces',
-    keywords: 'hug',
-  },
-  {
-    symbol: '👍',
-    name: 'Thumbs up',
-    nameKey: 'emoji.names.thumbsUp',
-    category: 'Gestures',
-    keywords: 'yes good approve okay',
-  },
-  {
-    symbol: '👎',
-    name: 'Thumbs down',
-    nameKey: 'emoji.names.thumbsDown',
-    category: 'Gestures',
-    keywords: 'no',
-  },
-  {
-    symbol: '👋',
-    name: 'Waving hand',
-    nameKey: 'emoji.names.wavingHand',
-    category: 'Gestures',
-    keywords: 'hello bye',
-  },
-  {
-    symbol: '🙏',
-    name: 'Folded hands',
-    nameKey: 'emoji.names.foldedHands',
-    category: 'Gestures',
-    keywords: 'thanks thank you please pray',
-  },
-  {
-    symbol: '👌',
-    name: 'OK hand',
-    nameKey: 'emoji.names.okHand',
-    category: 'Gestures',
-    keywords: 'okay',
-  },
-  {
-    symbol: '👏',
-    name: 'Clapping hands',
-    nameKey: 'emoji.names.clappingHands',
-    category: 'Gestures',
-    keywords: 'well done congratulations',
-  },
-  {
-    symbol: '🙌',
-    name: 'Raised hands',
-    nameKey: 'emoji.names.raisedHands',
-    category: 'Gestures',
-    keywords: 'celebrate',
-  },
-  {
-    symbol: '🤝',
-    name: 'Handshake',
-    nameKey: 'emoji.names.handshake',
-    category: 'Gestures',
-    keywords: 'agreement deal',
-  },
-  {
-    symbol: '💪',
-    name: 'Flexed biceps',
-    nameKey: 'emoji.names.flexedBiceps',
-    category: 'Gestures',
-    keywords: 'strong',
-  },
-  {
-    symbol: '✌️',
-    name: 'Victory hand',
-    nameKey: 'emoji.names.victoryHand',
-    category: 'Gestures',
-    keywords: 'peace',
-  },
-  {
-    symbol: '❤️',
-    name: 'Red heart',
-    nameKey: 'emoji.names.redHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '🧡',
-    name: 'Orange heart',
-    nameKey: 'emoji.names.orangeHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '💛',
-    name: 'Yellow heart',
-    nameKey: 'emoji.names.yellowHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '💚',
-    name: 'Green heart',
-    nameKey: 'emoji.names.greenHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '💙',
-    name: 'Blue heart',
-    nameKey: 'emoji.names.blueHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '💜',
-    name: 'Purple heart',
-    nameKey: 'emoji.names.purpleHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '🤍',
-    name: 'White heart',
-    nameKey: 'emoji.names.whiteHeart',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '💕',
-    name: 'Two hearts',
-    nameKey: 'emoji.names.twoHearts',
-    category: 'Hearts',
-    keywords: 'love',
-  },
-  {
-    symbol: '✅',
-    name: 'Check mark',
-    nameKey: 'emoji.names.checkMark',
-    category: 'Work',
-    keywords: 'done yes confirmed complete',
-  },
-  {
-    symbol: '❌',
-    name: 'Cross mark',
-    nameKey: 'emoji.names.crossMark',
-    category: 'Work',
-    keywords: 'no cancel',
-  },
-  {
-    symbol: '❓',
-    name: 'Question mark',
-    nameKey: 'emoji.names.questionMark',
-    category: 'Work',
-    keywords: 'help',
-  },
-  {
-    symbol: '⚠️',
-    name: 'Warning',
-    nameKey: 'emoji.names.warning',
-    category: 'Work',
-    keywords: 'attention',
-  },
-  {
-    symbol: '📌',
-    name: 'Pushpin',
-    nameKey: 'emoji.names.pushpin',
-    category: 'Work',
-    keywords: 'important',
-  },
-  {
-    symbol: '📦',
-    name: 'Package',
-    nameKey: 'emoji.names.package',
-    category: 'Work',
-    keywords: 'delivery order shipping',
-  },
-  {
-    symbol: '🚚',
-    name: 'Delivery truck',
-    nameKey: 'emoji.names.deliveryTruck',
-    category: 'Work',
-    keywords: 'shipping',
-  },
-  {
-    symbol: '📍',
-    name: 'Location pin',
-    nameKey: 'emoji.names.locationPin',
-    category: 'Work',
-    keywords: 'address place',
-  },
-  {
-    symbol: '📅',
-    name: 'Calendar',
-    nameKey: 'emoji.names.calendar',
-    category: 'Work',
-    keywords: 'date appointment',
-  },
-  {
-    symbol: '⏰',
-    name: 'Alarm clock',
-    nameKey: 'emoji.names.alarmClock',
-    category: 'Work',
-    keywords: 'time reminder',
-  },
-  {
-    symbol: '📞',
-    name: 'Telephone',
-    nameKey: 'emoji.names.telephone',
-    category: 'Work',
-    keywords: 'call phone',
-  },
-  {
-    symbol: '💬',
-    name: 'Speech balloon',
-    nameKey: 'emoji.names.speechBalloon',
-    category: 'Work',
-    keywords: 'chat message',
-  },
-  {
-    symbol: '💰',
-    name: 'Money bag',
-    nameKey: 'emoji.names.moneyBag',
-    category: 'Work',
-    keywords: 'payment price',
-  },
-  {
-    symbol: '🎉',
-    name: 'Party popper',
-    nameKey: 'emoji.names.partyPopper',
-    category: 'Work',
-    keywords: 'congratulations celebrate',
-  },
-  {
-    symbol: '🎂',
-    name: 'Birthday cake',
-    nameKey: 'emoji.names.birthdayCake',
-    category: 'Work',
-    keywords: 'birthday',
-  },
-  {
-    symbol: '🎁',
-    name: 'Gift',
-    nameKey: 'emoji.names.gift',
-    category: 'Work',
-    keywords: 'present',
-  },
-  {
-    symbol: '🌟',
-    name: 'Glowing star',
-    nameKey: 'emoji.names.glowingStar',
-    category: 'Work',
-    keywords: 'great excellent',
-  },
-  { symbol: '🔥', name: 'Fire', nameKey: 'emoji.names.fire', category: 'Work', keywords: 'hot' },
-] as const satisfies readonly {
-  symbol: string;
-  name: string;
-  nameKey: `emoji.names.${string}`;
-  category: Category;
-  keywords?: string;
-}[];
+type EmojiKey = keyof (typeof enInbox)['emoji']['names'];
+/** [symbol, name key, category, English search keywords]. Names are translated; search also matches English. */
+const EMOJI: readonly (readonly [string, EmojiKey, Category, string?])[] = [
+  ['😀', 'grinningFace', 'Faces', 'happy smile'],
+  ['😊', 'smilingFace', 'Faces', 'happy thank you'],
+  ['😂', 'tearsOfJoy', 'Faces', 'laugh funny'],
+  ['🤣', 'rollingOnTheFloorLaughing', 'Faces', 'funny lol'],
+  ['😉', 'winkingFace', 'Faces'],
+  ['😍', 'heartEyes', 'Faces', 'love'],
+  ['🥰', 'smilingFaceWithHearts', 'Faces', 'love'],
+  ['😎', 'sunglassesFace', 'Faces', 'cool'],
+  ['🤔', 'thinkingFace', 'Faces', 'question'],
+  ['😅', 'smilingFaceWithSweat', 'Faces', 'relief'],
+  ['😔', 'pensiveFace', 'Faces', 'sad sorry'],
+  ['😢', 'cryingFace', 'Faces', 'sad sorry'],
+  ['😭', 'loudlyCryingFace', 'Faces', 'sad'],
+  ['😮', 'surprisedFace', 'Faces', 'wow'],
+  ['🙃', 'upsideDownFace', 'Faces'],
+  ['🤗', 'huggingFace', 'Faces', 'hug'],
+  ['👍', 'thumbsUp', 'Gestures', 'yes good approve okay'],
+  ['👎', 'thumbsDown', 'Gestures', 'no'],
+  ['👋', 'wavingHand', 'Gestures', 'hello bye'],
+  ['🙏', 'foldedHands', 'Gestures', 'thanks thank you please pray'],
+  ['👌', 'okHand', 'Gestures', 'okay'],
+  ['👏', 'clappingHands', 'Gestures', 'well done congratulations'],
+  ['🙌', 'raisedHands', 'Gestures', 'celebrate'],
+  ['🤝', 'handshake', 'Gestures', 'agreement deal'],
+  ['💪', 'flexedBiceps', 'Gestures', 'strong'],
+  ['✌️', 'victoryHand', 'Gestures', 'peace'],
+  ['❤️', 'redHeart', 'Hearts', 'love'],
+  ['🧡', 'orangeHeart', 'Hearts', 'love'],
+  ['💛', 'yellowHeart', 'Hearts', 'love'],
+  ['💚', 'greenHeart', 'Hearts', 'love'],
+  ['💙', 'blueHeart', 'Hearts', 'love'],
+  ['💜', 'purpleHeart', 'Hearts', 'love'],
+  ['🤍', 'whiteHeart', 'Hearts', 'love'],
+  ['💕', 'twoHearts', 'Hearts', 'love'],
+  ['✅', 'checkMark', 'Work', 'done yes confirmed complete'],
+  ['❌', 'crossMark', 'Work', 'no cancel'],
+  ['❓', 'questionMark', 'Work', 'help'],
+  ['⚠️', 'warning', 'Work', 'attention'],
+  ['📌', 'pushpin', 'Work', 'important'],
+  ['📦', 'package', 'Work', 'delivery order shipping'],
+  ['🚚', 'deliveryTruck', 'Work', 'shipping'],
+  ['📍', 'locationPin', 'Work', 'address place'],
+  ['📅', 'calendar', 'Work', 'date appointment'],
+  ['⏰', 'alarmClock', 'Work', 'time reminder'],
+  ['📞', 'telephone', 'Work', 'call phone'],
+  ['💬', 'speechBalloon', 'Work', 'chat message'],
+  ['💰', 'moneyBag', 'Work', 'payment price'],
+  ['🎉', 'partyPopper', 'Work', 'congratulations celebrate'],
+  ['🎂', 'birthdayCake', 'Work', 'birthday'],
+  ['🎁', 'gift', 'Work', 'present'],
+  ['🌟', 'glowingStar', 'Work', 'great excellent'],
+  ['🔥', 'fire', 'Work', 'hot'],
+];
+const englishName = (key: EmojiKey) => enInbox.emoji.names[key];
 
 /** Small, local-only emoji picker. Search never leaves the device. */
 export function EmojiPicker({
@@ -392,13 +90,11 @@ export function EmojiPicker({
   const picked = useRef(false);
   const titleId = useId();
   const normalized = query.trim().toLowerCase();
-  const matches = EMOJI.filter((emoji) =>
-    normalized
-      ? `${emoji.symbol} ${emoji.name} ${t(emoji.nameKey)} ${'keywords' in emoji ? emoji.keywords : ''}`
-          .toLowerCase()
-          .includes(normalized)
-      : category === 'All' || category === emoji.category,
-  );
+  const matches = EMOJI.filter(([symbol, key, emojiCategory, keywords = '']) => {
+    if (!normalized) return category === 'All' || category === emojiCategory;
+    const haystack = `${symbol} ${englishName(key)} ${t(`emoji.names.${key}`)} ${keywords}`;
+    return haystack.toLowerCase().includes(normalized);
+  });
 
   return (
     <Popover
@@ -481,21 +177,21 @@ export function EmojiPicker({
             buttons[Math.max(0, Math.min(buttons.length - 1, index + offset))]?.focus();
           }}
         >
-          {matches.map((emoji) => (
+          {matches.map(([symbol, key]) => (
             <Button
-              key={emoji.symbol}
+              key={symbol}
               variant="ghost"
               size="icon-touch"
               className="w-full text-2xl"
-              aria-label={t(emoji.nameKey)}
-              title={t(emoji.nameKey)}
+              aria-label={t(`emoji.names.${key}`)}
+              title={t(`emoji.names.${key}`)}
               onClick={() => {
                 picked.current = true;
-                onPick(emoji.symbol);
+                onPick(symbol);
                 setOpen(false);
               }}
             >
-              <span aria-hidden="true">{emoji.symbol}</span>
+              <span aria-hidden="true">{symbol}</span>
             </Button>
           ))}
         </div>

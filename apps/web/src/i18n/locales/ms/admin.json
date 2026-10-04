@@ -66,12 +66,12 @@
       "role": "Peranan",
       "username": "Nama pengguna",
       "displayName": "Nama paparan",
-      "tempPassword": "Kata laluan sementara",
+      "tempPass": "Kata laluan sementara",
       "tempPasswordHint": "Mereka akan diminta menukarnya semasa log masuk kali pertama.",
       "tempPasswordManualHint": "Penjanaan automatik tidak tersedia dalam pelayar ini. Masukkan kata laluan yang kukuh; mereka akan menukarnya semasa log masuk kali pertama.",
       "generate": "Jana",
       "usernameTooShort": "Nama pengguna mesti sekurang-kurangnya 3 aksara.",
-      "passwordTooShort": "Kata laluan mesti sekurang-kurangnya 8 aksara.",
+      "passTooShort": "Kata laluan mesti sekurang-kurangnya 8 aksara.",
       "ownRoleHint": "Anda tidak boleh menukar peranan anda sendiri."
     },
     "create": {

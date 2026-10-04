@@ -109,7 +109,7 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         hint={t('setup.admin.displayNameHint')}
       />
       <Field
-        label={t('setup.admin.password')}
+        label={t('setup.admin.passLabel')}
         type="password"
         autoComplete="new-password"
         value={password}
