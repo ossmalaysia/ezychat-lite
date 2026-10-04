@@ -1,1 +1,314 @@
-{}
+{
+  "retrying": "Mencuba semula…",
+  "directory": {
+    "you": "Anda",
+    "agent": "Ejen #{{id}}"
+  },
+  "page": {
+    "chats": "Sembang",
+    "title": "Peti masuk",
+    "admin": "Admin",
+    "version": "{{appName}} · v{{version}}",
+    "selectTitle": "Pilih sembang",
+    "selectDescription": "Pilih perbualan daripada senarai untuk membaca dan membalas sebagai satu pasukan."
+  },
+  "filters": {
+    "searchLabel": "Cari sembang",
+    "searchPlaceholder": "Cari nama atau nombor",
+    "assignment": "Tugasan",
+    "status": "Status sembang",
+    "mine": "Saya",
+    "unassigned": "Belum ditugaskan",
+    "all": "Semua",
+    "open": "Terbuka",
+    "resolved": "Selesai"
+  },
+  "chatList": {
+    "loading": "Memuatkan sembang",
+    "loadFailed": "Tidak dapat memuatkan sembang",
+    "loadingMore": "Memuatkan lagi sembang",
+    "loadMore": "Muat lagi",
+    "showAllOpen": "Tunjuk semua sembang terbuka",
+    "empty": {
+      "me": {
+        "title": "Tiada tugasan untuk anda",
+        "description": "Tiada sembang ditugaskan kepada anda."
+      },
+      "none": {
+        "title": "Semua sudah beres",
+        "description": "Setiap sembang ada pemiliknya. Syabas."
+      },
+      "any": {
+        "title": "Belum ada sembang",
+        "description": "Perbualan WhatsApp baharu akan dipaparkan di sini."
+      },
+      "search": "Tiada sembang sepadan dengan “{{query}}”.",
+      "resolvedTitle": "Tiada sembang selesai",
+      "resolvedDescription": "Tiada sembang selesai di sini."
+    }
+  },
+  "chatListItem": {
+    "group": "Kumpulan",
+    "resolved": "Selesai",
+    "assignedTo": "Ditugaskan kepada {{name}}",
+    "unread_other": "{{count}} belum dibaca"
+  },
+  "header": {
+    "back": "Kembali ke sembang",
+    "resolved": "Selesai",
+    "assignedTo": "Ditugaskan kepada",
+    "unassigned": "Belum ditugaskan",
+    "you": "{{name}} (anda)",
+    "notesLabel_other": "Nota ({{count}})",
+    "notesTitle": "Nota dalaman",
+    "notes": "Nota",
+    "reopen": "Buka semula",
+    "resolve": "Selesai"
+  },
+  "conversation": {
+    "loading": "Memuatkan sembang",
+    "notFound": "Sembang ini tidak wujud.",
+    "loadFailed": "Tidak dapat memuatkan sembang ini.",
+    "back": "Kembali ke sembang",
+    "label": "Perbualan dengan {{name}}",
+    "sendingBlocked": "Mesej tidak boleh dihantar sehingga WhatsApp dipautkan semula.",
+    "reconnecting": "WhatsApp sedang disambung semula — mesej akan dihantar apabila bersambung.",
+    "placeholderBlocked": "WhatsApp tidak bersambung",
+    "placeholder": "Taip mesej — “/” untuk balasan pantas",
+    "updateFailed": "Kemas kini gagal",
+    "retryFailed": "Cubaan semula gagal",
+    "someoneElse": "orang lain",
+    "confirmTitle": "Ditugaskan kepada {{name}}",
+    "confirmBody": "Sembang ini ditugaskan kepada <strong>{{name}}</strong> — balas juga? Anda tidak akan ditanya lagi untuk sembang ini dalam sesi ini.",
+    "replyAnyway": "Balas juga"
+  },
+  "composer": {
+    "placeholder": "Taip mesej",
+    "attach": "Lampirkan fail",
+    "message": "Mesej",
+    "send": "Hantar",
+    "quickReplies": "Balasan pantas"
+  },
+  "quickReplies": {
+    "title": "Balasan pantas",
+    "noMatch": "Tiada balasan pantas bermula dengan “/{{query}}”."
+  },
+  "emoji": {
+    "insert": "Masukkan emoji",
+    "title": "Emoji",
+    "search": "Cari emoji",
+    "searchPlaceholder": "Cari emoji…",
+    "categories": "Kategori emoji",
+    "choices": "Pilihan emoji",
+    "empty": "Tiada emoji ditemui. Cuba “senyum”, “hati” atau “trak”.",
+    "category": {
+      "all": "Semua",
+      "faces": "Muka",
+      "gestures": "Isyarat",
+      "hearts": "Hati",
+      "work": "Kerja"
+    },
+    "names": {
+      "grinningFace": "Muka tersengih",
+      "smilingFace": "Muka senyum",
+      "tearsOfJoy": "Ketawa sampai menangis",
+      "rollingOnTheFloorLaughing": "Ketawa berguling",
+      "winkingFace": "Muka kenyit mata",
+      "heartEyes": "Mata hati",
+      "smilingFaceWithHearts": "Muka senyum dengan hati",
+      "sunglassesFace": "Muka berkaca mata hitam",
+      "thinkingFace": "Muka berfikir",
+      "smilingFaceWithSweat": "Muka senyum berpeluh",
+      "pensiveFace": "Muka murung",
+      "cryingFace": "Muka menangis",
+      "loudlyCryingFace": "Menangis teresak-esak",
+      "surprisedFace": "Muka terkejut",
+      "upsideDownFace": "Muka terbalik",
+      "huggingFace": "Muka memeluk",
+      "thumbsUp": "Ibu jari ke atas",
+      "thumbsDown": "Ibu jari ke bawah",
+      "wavingHand": "Lambai tangan",
+      "foldedHands": "Tangan bertangkup",
+      "okHand": "Tangan OK",
+      "clappingHands": "Tepuk tangan",
+      "raisedHands": "Angkat tangan",
+      "handshake": "Berjabat tangan",
+      "flexedBiceps": "Otot lengan",
+      "victoryHand": "Tanda kemenangan",
+      "redHeart": "Hati merah",
+      "orangeHeart": "Hati oren",
+      "yellowHeart": "Hati kuning",
+      "greenHeart": "Hati hijau",
+      "blueHeart": "Hati biru",
+      "purpleHeart": "Hati ungu",
+      "whiteHeart": "Hati putih",
+      "twoHearts": "Dua hati",
+      "checkMark": "Tanda betul",
+      "crossMark": "Tanda pangkah",
+      "questionMark": "Tanda soal",
+      "warning": "Amaran",
+      "pushpin": "Pin tekan",
+      "package": "Bungkusan",
+      "deliveryTruck": "Trak penghantaran",
+      "locationPin": "Pin lokasi",
+      "calendar": "Kalendar",
+      "alarmClock": "Jam loceng",
+      "telephone": "Telefon",
+      "speechBalloon": "Belon pertuturan",
+      "moneyBag": "Beg duit",
+      "partyPopper": "Peletup parti",
+      "birthdayCake": "Kek hari jadi",
+      "gift": "Hadiah",
+      "glowingStar": "Bintang bersinar",
+      "fire": "Api"
+    }
+  },
+  "events": {
+    "system": "Sistem",
+    "someone": "Seseorang",
+    "someoneLower": "seseorang",
+    "tookByReply": "{{actor}} mengambil sembang ini dengan membalas",
+    "took": "{{actor}} mengambil sembang ini",
+    "assigned": "{{actor}} menugaskan sembang ini kepada {{assignee}}",
+    "returned": "Sembang dikembalikan kepada pasukan",
+    "unassigned": "{{actor}} membatalkan tugasan sembang ini",
+    "resolved": "{{actor}} menyelesaikan sembang ini",
+    "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",
+    "reopened": "{{actor}} membuka semula sembang ini",
+    "internalNote": "Nota dalaman"
+  },
+  "messageList": {
+    "label": "Mesej",
+    "loadingOlder": "Memuatkan mesej lama",
+    "start": "Permulaan perbualan",
+    "loading": "Memuatkan mesej",
+    "empty": "Belum ada mesej.",
+    "viaPhone": "melalui telefon",
+    "jumpToLatest": "Lompat ke terkini"
+  },
+  "message": {
+    "status": {
+      "pending": "Belum dihantar",
+      "sent": "Dihantar",
+      "delivered": "Diterima",
+      "read": "Dibaca",
+      "failed": "Gagal"
+    },
+    "you": "Anda",
+    "contact": "Kenalan",
+    "quotedMessage": "Mesej dipetik",
+    "notSent": "Tidak dihantar",
+    "quote": {
+      "image": "[Imej]",
+      "video": "[Video]",
+      "audio": "[Audio]",
+      "sticker": "[Pelekat]",
+      "document": "[Dokumen] {{name}}",
+      "message": "Mesej"
+    }
+  },
+  "media": {
+    "types": {
+      "text": "teks",
+      "image": "imej",
+      "video": "video",
+      "audio": "audio",
+      "document": "dokumen",
+      "sticker": "pelekat",
+      "system": "sistem"
+    },
+    "preview": "Pratonton imej",
+    "download": "Muat turun",
+    "tapToLoad": "Ketik untuk muat",
+    "loading": "Media sedang dimuatkan",
+    "uploading": "Memuat naik {{label}}…",
+    "downloading": "Memuat turun {{label}}…",
+    "loadFailed": "Tidak dapat memuatkan {{label}}",
+    "unavailable": "{{label}} tidak tersedia",
+    "retryDownload": "Cuba muat turun semula",
+    "openImage": "Buka imej",
+    "openSticker": "Buka pelekat",
+    "imageAlt": "Imej",
+    "document": "Dokumen",
+    "file": "Fail",
+    "fileDownload": "{{type}} · Muat turun"
+  },
+  "notes": {
+    "title": "Nota dalaman",
+    "description": "Hanya pasukan anda boleh melihat nota. Nota tidak akan dihantar melalui WhatsApp.",
+    "close": "Tutup nota",
+    "loading": "Memuatkan nota",
+    "empty": "Belum ada nota.",
+    "newNote": "Nota baharu",
+    "placeholder": "Tambah nota untuk pasukan anda",
+    "add": "Tambah nota",
+    "saveFailed": "Tidak dapat menyimpan nota"
+  },
+  "reconnect": {
+    "title": "Menyambung semula ke pelayan…",
+    "body": "Mesej dan kemas kini baharu mungkin lewat sehingga sambungan pulih."
+  },
+  "typing": {
+    "one": "{{name}} sedang menaip…",
+    "two": "{{first}} dan {{second}} sedang menaip…",
+    "many_other": "{{count}} rakan sepasukan sedang menaip…"
+  },
+  "waBanner": {
+    "settingsShort": "Tetapan",
+    "openSettings": "Buka tetapan WhatsApp",
+    "connecting": {
+      "title": "Menyambung ke WhatsApp…",
+      "body": "Mesej yang anda hantar akan dihantar apabila sambungan pulih."
+    },
+    "disconnected": {
+      "title": "WhatsApp terputus",
+      "body": "Menyambung semula secara automatik. Mesej akan dihantar apabila bersambung."
+    },
+    "qr": {
+      "title": "WhatsApp belum dipautkan",
+      "body": "Admin perlu mengimbas kod QR untuk memautkan nombor pasukan."
+    },
+    "loggedOut": {
+      "title": "WhatsApp telah dilog keluar",
+      "body": "Admin perlu memautkan semula nombor sebelum mesej boleh dihantar."
+    },
+    "replaced": {
+      "title": "WhatsApp dibuka dalam sesi lain",
+      "body": "Aplikasi ini terputus kerana nombor digunakan di tempat lain. Admin boleh mengambil alih."
+    },
+    "blocked": {
+      "title": "Sambungan WhatsApp disekat",
+      "body": "Sambungan ditolak. Admin perlu menyemak halaman WhatsApp."
+    }
+  },
+  "phoneLink": {
+    "label": "Nombor WhatsApp (dengan kod negara)",
+    "requesting": "Memohon…",
+    "getCode": "Dapatkan kod pautan",
+    "enterCode": "Masukkan kod ini pada telefon anda",
+    "copied": "Kod disalin",
+    "copy": "Salin kod",
+    "step1": "Buka WhatsApp pada telefon dengan nombor ini.",
+    "step2": "Pergi ke <strong>Tetapan → Peranti dipautkan → Pautkan peranti</strong>.",
+    "step3": "Ketik <strong>Pautkan dengan nombor telefon</strong> dan masukkan kod."
+  },
+  "push": {
+    "unsupported": "Pemberitahuan tidak disokong dalam pelayar ini.",
+    "label": "Pemberitahuan",
+    "labelDevice": "Pemberitahuan pada peranti ini",
+    "desktopHint": "Makluman dipaparkan apabila aplikasi ini di latar belakang. Biarkan ia berjalan dalam dulang sistem dan benarkan EzyChat Lite dalam tetapan pemberitahuan sistem anda.",
+    "blocked": "Pemberitahuan disekat. Benarkan dalam tetapan laman pelayar.",
+    "errors": {
+      "browserUnsupported": "Pelayar ini tidak menyokong pemberitahuan tolak.",
+      "permissionDenied": "Kebenaran pemberitahuan tidak diberikan.",
+      "serviceWorker": "Service worker belum aktif. Muat semula halaman dan cuba lagi.",
+      "noKey": "Pelayan tidak memulangkan kunci tolak",
+      "desktopUnavailable": "Pemberitahuan desktop tidak tersedia. Semak tetapan pemberitahuan sistem pengendalian anda."
+    }
+  },
+  "installHint": {
+    "title": "Tambah ke Skrin Utama untuk menerima pemberitahuan",
+    "body": "Ketik butang Kongsi <share/> dalam Safari, pilih <strong>Tambah ke Skrin Utama</strong>, kemudian buka EzyChat Lite dari skrin utama dan hidupkan pemberitahuan.",
+    "share": "Kongsi"
+  }
+}

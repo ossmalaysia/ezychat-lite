@@ -22,7 +22,7 @@ export function SettingsPage() {
   const settings = useSettings();
   const patch = usePatchSettings();
   const { theme, setTheme } = useTheme();
-  const { t } = useTranslation();
+  const { t } = useTranslation(['admin', 'common']);
 
   const [portDraft, setPort] = useState<string>();
   const [lanDraft, setLanEnabled] = useState<boolean>();
@@ -31,7 +31,7 @@ export function SettingsPage() {
 
   if (settings.isPending)
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('ui.loading')}>
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -48,11 +48,11 @@ export function SettingsPage() {
   const daysNum = Number(historyDays);
   const portError =
     !Number.isInteger(portNum) || portNum < 1024 || portNum > 65535
-      ? 'Port must be between 1024 and 65535.'
+      ? t('settings.portInvalid')
       : undefined;
   const daysError =
     !Number.isInteger(daysNum) || daysNum < 0 || daysNum > 365
-      ? 'History must be between 0 and 365 days.'
+      ? t('settings.historyInvalid')
       : undefined;
 
   const body: SettingsPatchBody = {};
@@ -67,7 +67,7 @@ export function SettingsPage() {
     const needsRestart = body.port !== undefined || body.lanEnabled !== undefined;
     patch.mutate(body, {
       onSuccess: (r) => {
-        toast.success('Settings saved.');
+        toast.success(t('settings.saved'));
         if (r.restartRequired || needsRestart) setRestartRequired(true);
       },
     });
@@ -75,21 +75,25 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Settings" />
+      <PageHeader title={t('settings.title')} />
 
       {restartRequired && (
-        <Banner tone="warning" title="Restart required">
-          Network changes take effect after the app (or service) restarts.
+        <Banner tone="warning" title={t('settings.restartTitle')}>
+          {t('settings.restartBody')}
         </Banner>
       )}
 
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <Card className="gap-4">
           <CardHeader>
-            <CardTitle>Network</CardTitle>
+            <CardTitle>{t('settings.network.title')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
-            <Field label="Port" error={portError} hint="Default 7420.">
+            <Field
+              label={t('settings.network.port')}
+              error={portError}
+              hint={t('settings.network.portHint')}
+            >
               {(p) => (
                 <Input
                   {...p}
@@ -106,10 +110,10 @@ export function SettingsPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <Label htmlFor="settings-lan" className="leading-normal">
-                  Allow access from the local network (LAN)
+                  {t('settings.network.lan')}
                 </Label>
                 <p id="settings-lan-desc" className="mt-0.5 text-sm text-muted-foreground">
-                  Other devices on the same Wi-Fi can open the inbox.
+                  {t('settings.network.lanHint')}
                 </p>
               </div>
               {/* Associate the padded target with the switch so its entire area is tappable. */}
@@ -126,9 +130,8 @@ export function SettingsPage() {
               </Label>
             </div>
             {lanEnabled && (
-              <Banner tone="warning" title="LAN traffic is plain HTTP">
-                Passwords and messages travel unencrypted on your local network. Only enable this on
-                a network you trust; use the tunnel for encrypted remote access.
+              <Banner tone="warning" title={t('settings.network.lanWarningTitle')}>
+                {t('settings.network.lanWarningBody')}
               </Banner>
             )}
           </CardContent>
@@ -136,10 +139,10 @@ export function SettingsPage() {
 
         <Card className="gap-4">
           <CardHeader>
-            <CardTitle>History</CardTitle>
+            <CardTitle>{t('settings.history.title')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Field label="Days of history to import when linking" error={daysError}>
+            <Field label={t('settings.history.days')} error={daysError}>
               {(p) => (
                 <Input
                   {...p}
@@ -166,7 +169,7 @@ export function SettingsPage() {
             disabled={patch.isPending || !dirty || !!portError || !!daysError}
           >
             <Pending show={patch.isPending} />
-            Save settings
+            {t('settings.save')}
           </Button>
         </div>
       </form>
@@ -175,18 +178,16 @@ export function SettingsPage() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>This device</CardTitle>
-          <CardDescription>
-            Preferences are saved on this device and apply immediately.
-          </CardDescription>
+          <CardTitle>{t('settings.device.title')}</CardTitle>
+          <CardDescription>{t('settings.device.description')}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <div>
             <h3 id="settings-theme-label" className="font-medium">
-              Appearance
+              {t('common:theme.label')}
             </h3>
             <p id="settings-theme-desc" className="mt-1 text-sm text-muted-foreground">
-              System follows your device's light or dark setting.
+              {t('settings.device.themeHint')}
             </p>
             <RadioGroup
               aria-labelledby="settings-theme-label"
@@ -202,15 +203,15 @@ export function SettingsPage() {
                   className="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-input px-2 py-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent sm:min-h-11 sm:flex-row"
                 >
                   <RadioGroupItem id={`settings-theme-${option.value}`} value={option.value} />
-                  {t(option.labelKey)}
+                  {t(`common:${option.labelKey}`)}
                 </Label>
               ))}
             </RadioGroup>
           </div>
           <div>
-            <h3 className="mb-2 font-medium">Notifications</h3>
+            <h3 className="mb-2 font-medium">{t('settings.device.notifications')}</h3>
             <p className="mb-3 text-sm text-muted-foreground">
-              Get a notification for new messages when the inbox isn't open.
+              {t('settings.device.notificationsHint')}
             </p>
             <PushToggle />
           </div>

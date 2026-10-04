@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Lock, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Note } from '@wa-team-inbox/shared';
@@ -30,6 +31,7 @@ function NotesBody({
   title,
   description,
 }: Omit<NotesPanelProps, 'open'> & { title: React.ReactNode; description: React.ReactNode }) {
+  const { t } = useTranslation('inbox');
   const [body, setBody] = useState('');
   const add = useAddNote(jid);
 
@@ -39,7 +41,7 @@ function NotesBody({
     if (!v) return;
     add.mutate(v, {
       onSuccess: () => setBody(''),
-      onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not save note'),
+      onError: (err) => toast.error(err instanceof Error ? err.message : t('notes.saveFailed')),
     });
   }
 
@@ -55,7 +57,7 @@ function NotesBody({
         <Button
           variant="ghost"
           size="icon-touch"
-          aria-label="Close notes"
+          aria-label={t('notes.close')}
           onClick={onClose}
           className="text-muted-foreground"
         >
@@ -65,12 +67,12 @@ function NotesBody({
       <div className="px-4 pt-2 text-xs text-muted-foreground">{description}</div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3">
         {loading ? (
-          <div className="space-y-2" role="status" aria-label="Loading notes">
+          <div className="space-y-2" role="status" aria-label={t('notes.loading')}>
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
         ) : sorted.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No notes yet.</p>
+          <p className="text-sm text-muted-foreground">{t('notes.empty')}</p>
         ) : (
           sorted.map((n) => (
             <div
@@ -95,13 +97,13 @@ function NotesBody({
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             maxLength={8192}
-            aria-label="New note"
-            placeholder="Add a note for your team"
+            aria-label={t('notes.newNote')}
+            placeholder={t('notes.placeholder')}
             className="field-sizing-fixed min-h-20 resize-none bg-surface text-base md:text-sm"
           />
           <Button type="submit" size="touch" disabled={!body.trim() || add.isPending}>
             {add.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-            Add note
+            {t('notes.add')}
           </Button>
         </div>
       </form>
@@ -109,26 +111,25 @@ function NotesBody({
   );
 }
 
-const DESCRIPTION = 'Only your team can see notes. They are never sent on WhatsApp.';
-
 /**
  * Internal notes (never sent to the customer). Side panel on >= lg, full-height Sheet below.
  */
 export function NotesPanel({ open, onClose, ...rest }: NotesPanelProps) {
+  const { t } = useTranslation('inbox');
   const desktop = useMediaQuery('(min-width: 1024px)');
 
   if (desktop) {
     if (!open) return null;
     return (
       <aside
-        aria-label="Internal notes"
+        aria-label={t('notes.title')}
         className="flex w-80 shrink-0 flex-col border-l bg-surface"
       >
         <NotesBody
           {...rest}
           onClose={onClose}
-          title={<h3>Internal notes</h3>}
-          description={<p>{DESCRIPTION}</p>}
+          title={<h3>{t('notes.title')}</h3>}
+          description={<p>{t('notes.description')}</p>}
         />
       </aside>
     );
@@ -139,14 +140,16 @@ export function NotesPanel({ open, onClose, ...rest }: NotesPanelProps) {
       <SheetContent
         side="right"
         showCloseButton={false}
-        aria-label="Internal notes"
+        aria-label={t('notes.title')}
         className="safe-top safe-x w-full gap-0 bg-surface sm:max-w-sm"
       >
         <NotesBody
           {...rest}
           onClose={onClose}
-          title={<SheetTitle className="text-sm">Internal notes</SheetTitle>}
-          description={<SheetDescription className="text-xs">{DESCRIPTION}</SheetDescription>}
+          title={<SheetTitle className="text-sm">{t('notes.title')}</SheetTitle>}
+          description={
+            <SheetDescription className="text-xs">{t('notes.description')}</SheetDescription>
+          }
         />
       </SheetContent>
     </Sheet>

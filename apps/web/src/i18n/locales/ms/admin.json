@@ -1,1 +1,377 @@
-{}
+{
+  "title": "Pentadbir",
+  "titleWithSection": "Pentadbir · {{section}}",
+  "nav": {
+    "label": "Bahagian pentadbir",
+    "members": "Ahli",
+    "quickReplies": "Balasan pantas",
+    "whatsapp": "WhatsApp",
+    "tunnel": "Cloudflare",
+    "settings": "Tetapan",
+    "audit": "Audit"
+  },
+  "layout": {
+    "inbox": "Peti masuk",
+    "menu": "Menu pentadbir",
+    "footer": "Alatan pentadbir dan sokongan",
+    "backToInbox": "Kembali ke peti masuk",
+    "logOut": "Log keluar",
+    "loggingOut": "Sedang log keluar…",
+    "logOutFailed": "Tidak dapat log keluar: {{error}}",
+    "loading": "Memuatkan"
+  },
+  "ui": {
+    "copied": "Disalin ke papan keratan",
+    "copyFailed": "Gagal menyalin — pilih teks dan salin secara manual.",
+    "loadFailed": "Tidak dapat dimuatkan",
+    "loading": "Memuatkan"
+  },
+  "members": {
+    "title": "Ahli",
+    "description": "Orang yang boleh log masuk ke peti masuk pasukan.",
+    "add": "Tambah ahli",
+    "searchLabel": "Cari ahli",
+    "searchPlaceholder": "Cari nama, nama pengguna atau peranan",
+    "count_other": "{{shown}} daripada {{count}} ahli",
+    "added": "Ditambah <time>{{date}}</time>",
+    "you": "(anda)",
+    "columns": {
+      "member": "Ahli",
+      "role": "Peranan",
+      "status": "Status",
+      "created": "Dicipta",
+      "actions": "Tindakan"
+    },
+    "empty": {
+      "noMatchTitle": "Tiada ahli yang sepadan",
+      "noMatchBody": "Cuba nama, nama pengguna atau peranan lain.",
+      "clearSearch": "Kosongkan carian",
+      "noneTitle": "Belum ada ahli",
+      "noneBody": "Tambah ahli supaya mereka boleh log masuk."
+    },
+    "status": {
+      "disabled": "Dinyahdayakan",
+      "active": "Aktif",
+      "mustChangePassword": "Perlu tukar kata laluan"
+    },
+    "actions": {
+      "editMember": "Edit {{name}}",
+      "moreFor": "Tindakan lain untuk {{name}}",
+      "resetPassword": "Set semula kata laluan",
+      "signOutEverywhere": "Log keluar di semua peranti",
+      "enable": "Dayakan",
+      "disable": "Nyahdayakan"
+    },
+    "form": {
+      "role": "Peranan",
+      "username": "Nama pengguna",
+      "displayName": "Nama paparan",
+      "tempPassword": "Kata laluan sementara",
+      "tempPasswordHint": "Mereka akan diminta menukarnya semasa log masuk kali pertama.",
+      "tempPasswordManualHint": "Penjanaan automatik tidak tersedia dalam pelayar ini. Masukkan kata laluan yang kukuh; mereka akan menukarnya semasa log masuk kali pertama.",
+      "generate": "Jana",
+      "usernameTooShort": "Nama pengguna mesti sekurang-kurangnya 3 aksara.",
+      "passwordTooShort": "Kata laluan mesti sekurang-kurangnya 8 aksara.",
+      "ownRoleHint": "Anda tidak boleh menukar peranan anda sendiri."
+    },
+    "create": {
+      "title": "Tambah ahli",
+      "submit": "Cipta ahli",
+      "done": "{{name}} telah ditambah. Kongsi kata laluan sementara dengan mereka."
+    },
+    "edit": {
+      "title": "Edit {{name}}",
+      "done": "Ahli dikemas kini."
+    },
+    "disable": {
+      "enableTitle": "Dayakan {{name}}?",
+      "disableTitle": "Nyahdayakan {{name}}?",
+      "enableBody": "Mereka akan dapat log masuk semula.",
+      "disableBody": "Ahli yang dinyahdayakan dilog keluar serta-merta dan tidak boleh log masuk.",
+      "enabled": "{{name}} boleh log masuk semula.",
+      "disabled": "{{name}} telah dinyahdayakan."
+    },
+    "reset": {
+      "title": "Set semula kata laluan untuk {{name}}?",
+      "body": "Kata laluan sementara baharu akan dijana dan semua sesi mereka akan dilog keluar.",
+      "newTitle": "Kata laluan sementara baharu",
+      "newBody": "Kongsi kata laluan ini dengan {{name}}. Ia hanya dipaparkan sekali; mereka mesti menukarnya semasa log masuk seterusnya. Sesi mereka yang lain telah dilog keluar."
+    },
+    "revoke": {
+      "title": "Log keluar {{name}} di semua peranti?",
+      "confirm": "Log keluar",
+      "body": "Semua peranti mereka akan dilog keluar serta-merta.",
+      "done": "{{name}} telah dilog keluar dari semua peranti."
+    }
+  },
+  "quickReplies": {
+    "title": "Balasan pantas",
+    "description": "Ejen menaip <kbd>/</kbd> diikuti pintasan dalam ruang tulis untuk memasukkan balasan.",
+    "new": "Balasan pantas baharu",
+    "searchLabel": "Cari balasan pantas",
+    "searchPlaceholder": "Cari pintasan atau teks balasan",
+    "count_other": "{{shown}} daripada {{count}} balasan pantas",
+    "empty": {
+      "noMatchTitle": "Tiada balasan pantas yang sepadan",
+      "noMatchBody": "Cuba pintasan atau frasa lain.",
+      "noneTitle": "Belum ada balasan pantas",
+      "noneBody": "Cipta satu untuk mempercepat jawapan biasa.",
+      "clearSearch": "Kosongkan carian"
+    },
+    "editLabel": "Edit /{{shortcut}}",
+    "deleteLabel": "Padam /{{shortcut}}",
+    "delete": {
+      "title": "Padam /{{shortcut}}?",
+      "body": "Balasan pantas ini tidak lagi tersedia kepada ejen.",
+      "done": "/{{shortcut}} dipadam."
+    },
+    "form": {
+      "editTitle": "Edit /{{shortcut}}",
+      "shortcut": "Pintasan",
+      "shortcutHint": "Ditaip selepas / dalam ruang tulis, cth. /{{example}}",
+      "shortcutExample": "harga",
+      "shortcutInvalid": "Gunakan 1-32 huruf kecil, digit, \"-\" atau \"_\".",
+      "body": "Teks balasan",
+      "bodyRequired": "Teks balasan diperlukan.",
+      "saved": "/{{shortcut}} disimpan."
+    }
+  },
+  "audit": {
+    "title": "Log audit",
+    "description": "Log masuk, perubahan ahli, tindakan WhatsApp dan terowong.",
+    "download": "Muat turun log",
+    "empty": "Belum ada entri audit",
+    "loadOlder": "Muatkan yang lama",
+    "system": "Sistem",
+    "userNumber": "Pengguna #{{id}}",
+    "columns": {
+      "time": "Masa",
+      "who": "Siapa",
+      "action": "Tindakan",
+      "details": "Butiran",
+      "ip": "IP"
+    },
+    "actions": {
+      "authLogin": "Log masuk",
+      "authLoginFailed": "Log masuk gagal",
+      "authLogout": "Log keluar",
+      "authChangePassword": "Kata laluan ditukar",
+      "authResetAdminCli": "Kata laluan pentadbir diset semula",
+      "setupAdmin": "Akaun pentadbir dicipta",
+      "userCreate": "Ahli ditambah",
+      "userUpdate": "Ahli dikemas kini",
+      "userResetPassword": "Kata laluan ahli diset semula",
+      "userRevokeSessions": "Ahli dilog keluar dari semua peranti",
+      "quickReplyCreate": "Balasan pantas dicipta",
+      "quickReplyUpdate": "Balasan pantas dikemas kini",
+      "quickReplyDelete": "Balasan pantas dipadam",
+      "waLogout": "WhatsApp dinyahpaut",
+      "waRelink": "Pemautan WhatsApp dimulakan semula",
+      "waTakeover": "Sesi WhatsApp diambil alih",
+      "waPairingCode": "Kod gandingan WhatsApp diminta",
+      "tunnelStart": "Terowong dimulakan",
+      "tunnelStop": "Terowong dihentikan",
+      "cloudflareLogin": "Log masuk Cloudflare dimulakan",
+      "cloudflareCreate": "Alamat peti masuk Cloudflare dikonfigurasi",
+      "settingsUpdate": "Tetapan dikemas kini",
+      "chatsResolveAll": "Semua sembang terbuka diselesaikan",
+      "logsDownload": "Log dimuat turun"
+    }
+  },
+  "settings": {
+    "title": "Tetapan",
+    "saved": "Tetapan disimpan.",
+    "save": "Simpan tetapan",
+    "portInvalid": "Port mesti antara 1024 dan 65535.",
+    "historyInvalid": "Sejarah mesti antara 0 dan 365 hari.",
+    "restartTitle": "Perlu dimulakan semula",
+    "restartBody": "Perubahan rangkaian berkuat kuasa selepas aplikasi (atau perkhidmatan) dimulakan semula.",
+    "network": {
+      "title": "Rangkaian",
+      "port": "Port",
+      "portHint": "Lalai 7420.",
+      "lan": "Benarkan akses dari rangkaian setempat (LAN)",
+      "lanHint": "Peranti lain pada Wi-Fi yang sama boleh membuka peti masuk.",
+      "lanWarningTitle": "Trafik LAN ialah HTTP biasa",
+      "lanWarningBody": "Kata laluan dan mesej dihantar tanpa penyulitan dalam rangkaian setempat anda. Dayakan ini hanya pada rangkaian yang anda percayai; gunakan terowong untuk akses jauh yang disulitkan."
+    },
+    "history": {
+      "title": "Sejarah",
+      "days": "Bilangan hari sejarah untuk diimport semasa memaut"
+    },
+    "device": {
+      "title": "Peranti ini",
+      "description": "Keutamaan disimpan pada peranti ini dan berkuat kuasa serta-merta.",
+      "themeHint": "Sistem mengikut tetapan cerah atau gelap peranti anda.",
+      "notifications": "Pemberitahuan",
+      "notificationsHint": "Terima pemberitahuan untuk mesej baharu apabila peti masuk tidak dibuka."
+    }
+  },
+  "resolveAll": {
+    "title": "Peti masuk",
+    "description": "Tamatkan hari dengan menyelesaikan setiap sembang terbuka bagi seluruh pasukan. Mesej disimpan dan mesej masuk baharu akan membuka semula sembang secara automatik.",
+    "loading": "Memuatkan sembang terbuka…",
+    "none": "Tiada sembang terbuka untuk diselesaikan.",
+    "openCount_other": "{{count}} sembang terbuka",
+    "button": "Selesaikan semua sembang terbuka",
+    "confirmTitle": "Selesaikan semua sembang terbuka?",
+    "confirm": "Selesaikan semua",
+    "done_other": "{{count}} sembang diselesaikan.",
+    "confirmBody": "Ini akan menyelesaikan semua sembang yang sedang terbuka bagi seluruh pasukan. Penerima tugasan akan dikosongkan. Mesej dan kiraan belum dibaca dikekalkan. Anda boleh membuka semula sembang secara individu kemudian.",
+    "confirmBodyWithCount": "Ini akan menyelesaikan semua sembang yang sedang terbuka bagi seluruh pasukan ({{openCount}} sekarang). Penerima tugasan akan dikosongkan. Mesej dan kiraan belum dibaca dikekalkan. Anda boleh membuka semula sembang secara individu kemudian."
+  },
+  "whatsapp": {
+    "description": "Nombor WhatsApp yang dipautkan kepada peti masuk pasukan ini.",
+    "state": {
+      "open": "Bersambung",
+      "connecting": "Menyambung",
+      "qr": "Menunggu imbasan QR",
+      "disconnected": "Terputus",
+      "loggedOut": "Telah log keluar",
+      "replaced": "Dibuka di tempat lain",
+      "blocked": "Disekat"
+    },
+    "connection": "Sambungan",
+    "status": "Status",
+    "linkedNumber": "Nombor dipautkan",
+    "name": "Nama",
+    "replacedTitle": "Sesi dibuka di tempat lain",
+    "replacedBody": "Nombor ini telah disambungkan dari tempat lain. Gunakan “Ambil alih” untuk menyambung semula di sini.",
+    "unlinkedBody": "Pautkan nombor sekali lagi dengan “Paut semula”.",
+    "scanTitle": "Imbas untuk memaut",
+    "scanHint": "Pada telefon: WhatsApp → Tetapan → Peranti dipaut → Paut peranti.",
+    "qrLabel": "Kod QR pautan WhatsApp",
+    "waitingQrTitle": "Menunggu kod QR",
+    "waitingQrBody": "Kod akan muncul di sini dalam beberapa saat.",
+    "phoneTitle": "Atau paut dengan nombor telefon",
+    "phoneHint": "Dapatkan kod 8 aksara dan bukannya mengimbas QR.",
+    "linkTitle": "Paut WhatsApp",
+    "linkBody": "Paut semula untuk memaparkan kod QR baharu, kemudian imbas dari telefon.",
+    "actionsTitle": "Tindakan",
+    "actionsHint": "Log keluar memutuskan peti masuk ini. Paut semula memulakan gandingan baharu. Ambil alih menyambung semula sesi yang dibuka di tempat lain.",
+    "actions": {
+      "logout": {
+        "label": "Log keluar",
+        "title": "Log keluar daripada WhatsApp?",
+        "body": "Peranti dipaut dialih keluar daripada telefon. Peti masuk pasukan berhenti menerima dan menghantar mesej sehingga anda memaut semula. Sejarah mesej dikekalkan.",
+        "done": "Telah log keluar daripada WhatsApp."
+      },
+      "relink": {
+        "label": "Paut semula",
+        "title": "Paut semula WhatsApp?",
+        "body": "Sesi semasa dibuang dan kod QR baharu dipaparkan. Imbas dari WhatsApp > Peranti dipaut pada telefon.",
+        "done": "Sesi diset semula — imbas kod QR baharu."
+      },
+      "takeover": {
+        "label": "Ambil alih",
+        "title": "Ambil alih sesi?",
+        "body": "Contoh lain (cth. WhatsApp Web pada komputer lain) telah menggantikan sambungan ini. Mengambil alih akan menyambung semula di sini dan memutuskan yang satu lagi.",
+        "done": "Menyambung semula di sini."
+      }
+    }
+  },
+  "tunnel": {
+    "title": "Akses Cloudflare",
+    "description": "Beri pasukan anda pautan untuk membuka peti masuk dari telefon di mana-mana sahaja.",
+    "state": {
+      "stopped": "Dihentikan",
+      "starting": "Bermula",
+      "running": "Berjalan",
+      "error": "Ralat"
+    },
+    "modes": {
+      "off": "Mati",
+      "offHint": "Hanya komputer ini (dan LAN, jika didayakan).",
+      "quick": "Pautan sementara",
+      "quickHint": "Pautan percuma yang berubah apabila dimulakan semula. Tiada akaun diperlukan.",
+      "named": "Domain anda",
+      "namedHint": "Log masuk ke Cloudflare dan pilih alamat peti masuk kekal."
+    },
+    "action": {
+      "disconnect": "Putuskan Cloudflare",
+      "off": "Akses jauh dimatikan",
+      "namedConnecting": "Menyambung alamat tersimpan…",
+      "namedConnect": "Sambung alamat tersimpan",
+      "quickRestart": "Mulakan semula pautan sementara",
+      "quickCreate": "Cipta pautan sementara"
+    },
+    "tokenTooShort": "Token itu kelihatan terlalu pendek.",
+    "tokenRequired": "Tampal token terowong dari papan pemuka Cloudflare.",
+    "statusTitle": "Status sambungan",
+    "copyUrl": "Salin URL",
+    "qrLabel": "Kod QR URL terowong",
+    "scanHint": "Imbas dengan kamera telefon untuk membuka peti masuk.",
+    "quickNote": "Pautan sementara berubah setiap kali sambungan atau aplikasi dimulakan semula. Pilih Domain anda untuk alamat peti masuk kekal.",
+    "lastError": "Ralat terakhir",
+    "connectTitle": "Cara pasukan anda menyambung",
+    "remoteAccess": "Akses jauh",
+    "remoteAccessMode": "Mod akses jauh",
+    "advancedToken": "Lanjutan: guna token terowong",
+    "advancedTokenBody": "Untuk terowong sedia ada yang dikonfigurasi dalam papan pemuka Cloudflare. Log masuk berpandu di atas mengendalikan persediaan ini untuk anda.",
+    "token": "Token terowong",
+    "tokenHint": "Cloudflare Zero Trust → Networks → Tunnels → terowong anda → install token.",
+    "tokenSavedPlaceholder": "•••••••• (disimpan — biarkan kosong untuk kekal)",
+    "hostname": "Nama hos awam",
+    "hostnameHint": "Nama hos yang dihalakan ke http://127.0.0.1:<port> dalam konfigurasi terowong.",
+    "connectWithToken": "Sambung dengan token",
+    "disconnectNote": "Putuskan Cloudflare menghentikan pautan awam. Peti masuk masih berfungsi pada komputer ini. Mesej dan domain tersimpan dikekalkan, jadi anda boleh menyambung semula kemudian.",
+    "disconnectNoteLan": "Putuskan Cloudflare menghentikan pautan awam. Peti masuk masih berfungsi pada komputer ini dan melalui rangkaian setempat yang didayakan. Mesej dan domain tersimpan dikekalkan, jadi anda boleh menyambung semula kemudian.",
+    "diagnostics": "Lanjutan: diagnostik sambungan"
+  },
+  "cloudflare": {
+    "loading": "Memuatkan persediaan Cloudflare",
+    "invalidApproval": "Alamat log masuk Cloudflare tidak dapat disahkan. Batalkan log masuk dan cuba lagi.",
+    "saved": {
+      "label": "Alamat Cloudflare tersimpan anda",
+      "running": "Domain anda telah bersambung",
+      "starting": "Menyambungkan peti masuk anda…",
+      "idle": "Sambungan Cloudflare disimpan",
+      "runningBody": "Pasukan anda boleh menggunakan alamat ini dan log masuk dengan akaun peti masuk mereka.",
+      "startingBody": "Menunggu Cloudflare menyambung. Pastikan komputer ini dan aplikasi terus berjalan.",
+      "idleBody": "Sambungkan alamat tersimpan di bawah supaya peti masuk tersedia kepada pasukan anda.",
+      "change": "Tukar alamat"
+    },
+    "setupLabel": "Sediakan domain Cloudflare anda",
+    "step1": {
+      "title": "1. Sambungkan akaun Cloudflare anda",
+      "body": "Log masuk di Cloudflare dan luluskan domain yang ingin anda gunakan. Kembali ke sini selepas kelulusan. Anda memerlukan domain yang sudah ditambah ke akaun Cloudflare anda.",
+      "connected": "Akaun Cloudflare telah bersambung.",
+      "refresh": "Muat semula domain",
+      "another": "Pilih domain lain",
+      "anotherHint": "Hanya domain yang diluluskan dipaparkan di bawah. Pilih domain lain memulakan kelulusan Cloudflare baharu.",
+      "waitingApproval": "Menunggu kelulusan anda di Cloudflare…",
+      "preparing": "Menyediakan log masuk Cloudflare…",
+      "open": "Buka log masuk Cloudflare",
+      "cancel": "Batalkan log masuk",
+      "autoUpdate": "Halaman ini dikemas kini secara automatik selepas kelulusan. Pastikan aplikasi terus berjalan.",
+      "retry": "Cuba log masuk Cloudflare lagi",
+      "signIn": "Log masuk ke Cloudflare"
+    },
+    "attention": "Persediaan Cloudflare perlu perhatian",
+    "noDomainTitle": "Tiada domain diluluskan ditemui",
+    "noDomainBody": "Tambah domain ke Cloudflare, kemudian pilih domain lain untuk meluluskannya. Jika anda baru meluluskan domain, cuba Muat semula domain.",
+    "formInvalid": "Semak domain, alamat dan nama terowong.",
+    "step2": {
+      "title": "2. Pilih alamat peti masuk anda",
+      "domain": "Domain",
+      "domainPlaceholder": "Pilih domain yang diluluskan",
+      "account": "Akaun: {{name}}",
+      "prefix": "Awalan alamat",
+      "prefixHint": "Perkataan pendek sebelum domain anda, seperti inbox atau support.",
+      "preview": "Pasukan anda akan membuka",
+      "previewLabel": "Pratonton alamat peti masuk",
+      "tunnelName": "Nama terowong",
+      "tunnelNameHint": "Nama mesra dalam Cloudflare supaya anda dapat mengenali aplikasi ini. Ia tidak mengubah alamat."
+    },
+    "step3": {
+      "saveTitle": "3. Simpan perubahan anda",
+      "connectTitle": "3. Sambungkan peti masuk anda",
+      "body": "Ini menerbitkan peti masuk menggunakan alamat di atas dan menyediakan sambungan Cloudflare. Ahli pasukan masih perlu log masuk peti masuk seperti biasa. Pastikan komputer ini dan aplikasi terus berjalan.",
+      "connecting": "Menyambungkan peti masuk anda…",
+      "saveSubmit": "Simpan dan sambung perubahan",
+      "createSubmit": "Cipta dan sambung peti masuk",
+      "unchanged": "Alamat dan nama terowong ini sudah disimpan.",
+      "cancel": "Batalkan perubahan"
+    }
+  }
+}

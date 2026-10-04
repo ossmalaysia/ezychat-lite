@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type React from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Trans, useTranslation } from 'react-i18next';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { useDeleteQuickReply, useQuickReplies, useSaveQuickReply } from '../api/queries';
@@ -20,6 +21,7 @@ export function QuickRepliesPage() {
   const [deleting, setDeleting] = useState<QuickReply | null>(null);
   const del = useDeleteQuickReply();
   const [search, setSearch] = useState('');
+  const { t } = useTranslation(['admin', 'common']);
 
   const all = [...(replies.data ?? [])].sort((a, b) => a.shortcut.localeCompare(b.shortcut));
   const query = search.trim().toLocaleLowerCase();
@@ -28,17 +30,18 @@ export function QuickRepliesPage() {
   return (
     <div>
       <PageHeader
-        title="Quick replies"
+        title={t('quickReplies.title')}
         description={
-          <>
-            Agents type <kbd className="rounded bg-muted px-1 font-mono">/</kbd> followed by a
-            shortcut in the composer to insert a reply.
-          </>
+          <Trans
+            t={t}
+            i18nKey="quickReplies.description"
+            components={{ kbd: <kbd className="rounded bg-muted px-1 font-mono" /> }}
+          />
         }
         actions={
           <Button size="touch" className="md:min-h-9" onClick={() => setEditing('new')}>
             <Plus aria-hidden />
-            New quick reply
+            {t('quickReplies.new')}
           </Button>
         }
       />
@@ -47,12 +50,12 @@ export function QuickRepliesPage() {
         <SearchField
           value={search}
           onChange={setSearch}
-          label="Search quick replies"
-          placeholder="Search shortcut or reply text"
+          label={t('quickReplies.searchLabel')}
+          placeholder={t('quickReplies.searchPlaceholder')}
         />
         {!replies.isPending && !replies.isError && (
           <p role="status" className="text-sm text-muted-foreground">
-            {list.length} of {all.length} quick replies
+            {t('quickReplies.count', { shown: list.length, count: all.length })}
           </p>
         )}
       </div>
@@ -62,14 +65,14 @@ export function QuickRepliesPage() {
         <ErrorState error={replies.error} onRetry={() => void replies.refetch()} />
       ) : list.length === 0 ? (
         <EmptyState
-          title={query ? 'No matching quick replies' : 'No quick replies yet'}
+          title={query ? t('quickReplies.empty.noMatchTitle') : t('quickReplies.empty.noneTitle')}
           description={
-            query ? 'Try a different shortcut or phrase.' : 'Create one to speed up common answers.'
+            query ? t('quickReplies.empty.noMatchBody') : t('quickReplies.empty.noneBody')
           }
           action={
             query ? (
               <Button variant="outline" size="touch" onClick={() => setSearch('')}>
-                Clear search
+                {t('quickReplies.empty.clearSearch')}
               </Button>
             ) : undefined
           }
@@ -93,20 +96,20 @@ export function QuickRepliesPage() {
                   variant="outline"
                   className="md:min-h-8"
                   onClick={() => setEditing(r)}
-                  aria-label={`Edit /${r.shortcut}`}
+                  aria-label={t('quickReplies.editLabel', { shortcut: r.shortcut })}
                 >
                   <Pencil aria-hidden />
-                  Edit
+                  {t('common:actions.edit')}
                 </Button>
                 <Button
                   size="touch"
                   variant="ghost"
                   className="text-danger hover:text-danger md:min-h-8"
                   onClick={() => setDeleting(r)}
-                  aria-label={`Delete /${r.shortcut}`}
+                  aria-label={t('quickReplies.deleteLabel', { shortcut: r.shortcut })}
                 >
                   <Trash2 aria-hidden />
-                  Delete
+                  {t('common:actions.delete')}
                 </Button>
               </div>
             </li>
@@ -123,15 +126,15 @@ export function QuickRepliesPage() {
       {deleting && (
         <ConfirmDialog
           open
-          title={`Delete /${deleting.shortcut}?`}
-          confirmLabel="Delete"
+          title={t('quickReplies.delete.title', { shortcut: deleting.shortcut })}
+          confirmLabel={t('common:actions.delete')}
           danger
           loading={del.isPending}
           error={del.error ?? undefined}
           onConfirm={() =>
             del.mutate(deleting.id, {
               onSuccess: () => {
-                toast.success(`Deleted /${deleting.shortcut}.`);
+                toast.success(t('quickReplies.delete.done', { shortcut: deleting.shortcut }));
                 setDeleting(null);
                 del.reset();
               },
@@ -142,7 +145,7 @@ export function QuickRepliesPage() {
             del.reset();
           }}
         >
-          <p>This quick reply will no longer be available to agents.</p>
+          <p>{t('quickReplies.delete.body')}</p>
         </ConfirmDialog>
       )}
     </div>
@@ -151,15 +154,15 @@ export function QuickRepliesPage() {
 
 function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClose: () => void }) {
   const save = useSaveQuickReply();
+  const { t } = useTranslation(['admin', 'common']);
   const [shortcut, setShortcut] = useState(reply?.shortcut ?? '');
   const [body, setBody] = useState(reply?.body ?? '');
   const [touched, setTouched] = useState(false);
 
   const shortcutError =
-    touched && !SHORTCUT_RE.test(shortcut)
-      ? 'Use 1-32 lowercase letters, digits, "-" or "_".'
-      : undefined;
-  const bodyError = touched && !body.trim() ? 'Reply text is required.' : undefined;
+    touched && !SHORTCUT_RE.test(shortcut) ? t('quickReplies.form.shortcutInvalid') : undefined;
+  const bodyError = touched && !body.trim() ? t('quickReplies.form.bodyRequired') : undefined;
+  const example = t('quickReplies.form.shortcutExample');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +172,7 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
       { id: reply?.id, shortcut, body },
       {
         onSuccess: () => {
-          toast.success(`Saved /${shortcut}.`);
+          toast.success(t('quickReplies.form.saved', { shortcut }));
           onClose();
         },
       },
@@ -180,7 +183,11 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
     <ResponsiveDialog
       open
       onOpenChange={(o) => !o && !save.isPending && onClose()}
-      title={reply ? `Edit /${reply.shortcut}` : 'New quick reply'}
+      title={
+        reply
+          ? t('quickReplies.form.editTitle', { shortcut: reply.shortcut })
+          : t('quickReplies.new')
+      }
       footer={
         <>
           <Button
@@ -190,7 +197,7 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
             onClick={onClose}
             disabled={save.isPending}
           >
-            Cancel
+            {t('common:actions.cancel')}
           </Button>
           <Button
             type="submit"
@@ -200,16 +207,16 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
             disabled={save.isPending}
           >
             <Pending show={save.isPending} />
-            Save
+            {t('common:actions.save')}
           </Button>
         </>
       }
     >
       <form id="quick-reply-form" onSubmit={submit} className="flex flex-col gap-4 pb-1" noValidate>
         <Field
-          label="Shortcut"
+          label={t('quickReplies.form.shortcut')}
           error={shortcutError}
-          hint="Typed after / in the composer, e.g. /price"
+          hint={t('quickReplies.form.shortcutHint', { example })}
         >
           {(p) => (
             <Input
@@ -217,13 +224,13 @@ function QuickReplyDialog({ reply, onClose }: { reply: QuickReply | null; onClos
               className="h-11 font-mono md:h-9"
               value={shortcut}
               onChange={(e) => setShortcut(e.target.value.toLowerCase().replace(/^\//, ''))}
-              placeholder="price"
+              placeholder={example}
               autoCapitalize="none"
               autoCorrect="off"
             />
           )}
         </Field>
-        <Field label="Reply text" error={bodyError}>
+        <Field label={t('quickReplies.form.body')} error={bodyError}>
           {(p) => (
             <Textarea
               {...p}

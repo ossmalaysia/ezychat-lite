@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { CloudflareCreateBody, type TunnelStatus } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import {
@@ -21,6 +22,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState, Field, Pending } from './adminUi';
 
+// Technical defaults and examples, identical in every language.
+const DEFAULT_SUBDOMAIN = 'inbox';
+const DEFAULT_TUNNEL_NAME = 'wa-team-inbox';
+
 function approvalUrl(url: string | null): string | null {
   if (!url) return null;
   try {
@@ -41,9 +46,10 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
   const setup = useCloudflareSetupStatus();
   const account = useCloudflareAccountAction();
   const create = useCreateCloudflareTunnel();
+  const { t } = useTranslation('admin');
   const [domainId, setDomainId] = useState('');
-  const [subdomain, setSubdomain] = useState('inbox');
-  const [tunnelName, setTunnelName] = useState('wa-team-inbox');
+  const [subdomain, setSubdomain] = useState(DEFAULT_SUBDOMAIN);
+  const [tunnelName, setTunnelName] = useState(DEFAULT_TUNNEL_NAME);
   const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -58,7 +64,7 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
   };
 
   if (setup.isPending)
-    return <Skeleton className="h-32 w-full" aria-label="Loading Cloudflare setup" />;
+    return <Skeleton className="h-32 w-full" aria-label={t('cloudflare.loading')} />;
   if (setup.isError) return <ErrorState error={setup.error} onRetry={() => void setup.refetch()} />;
 
   const status = setup.data;
@@ -73,10 +79,7 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
     ? `https://${subdomain.trim().toLowerCase()}.${selectedDomain.name}`
     : null;
   const loginUrl = approvalUrl(status.loginUrl);
-  const invalidApproval =
-    status.loginUrl && !loginUrl
-      ? 'The Cloudflare sign-in address could not be verified. Cancel sign-in and try again.'
-      : null;
+  const invalidApproval = status.loginUrl && !loginUrl ? t('cloudflare.invalidApproval') : null;
   const actionError = account.error ?? create.error;
   const connected = status.state === 'connected';
   const savedHostname = status.managed?.hostname ?? create.data?.hostname;
@@ -88,23 +91,23 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
     const running = matches && tunnel.state === 'running';
     const starting = matches && tunnel.state === 'starting';
     return (
-      <section className="flex min-w-0 flex-col gap-3" aria-label="Your saved Cloudflare address">
+      <section className="flex min-w-0 flex-col gap-3" aria-label={t('cloudflare.saved.label')}>
         <Banner
           title={
             running
-              ? 'Your domain is connected'
+              ? t('cloudflare.saved.running')
               : starting
-                ? 'Connecting your inbox…'
-                : 'Cloudflare connection saved'
+                ? t('cloudflare.saved.starting')
+                : t('cloudflare.saved.idle')
           }
         >
-          <span className="break-all">https://{savedHostname}</span>
+          <span className="break-all">{`https://${savedHostname}`}</span>
           <p>
             {running
-              ? 'Your team can use this address and sign in with their inbox accounts.'
+              ? t('cloudflare.saved.runningBody')
               : starting
-                ? 'Waiting for Cloudflare to connect. Keep this computer and the app running.'
-                : 'Connect the saved address below to make the inbox available to your team.'}
+                ? t('cloudflare.saved.startingBody')
+                : t('cloudflare.saved.idleBody')}
           </p>
         </Banner>
         <Button
@@ -118,30 +121,27 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
               setDomainId(domain.id);
               setSubdomain(savedHostname.slice(0, -(domain.name.length + 1)));
             }
-            setTunnelName(savedName ?? 'wa-team-inbox');
+            setTunnelName(savedName ?? DEFAULT_TUNNEL_NAME);
             setFormError(null);
             account.reset();
             setEditing(true);
           }}
         >
-          Change address
+          {t('cloudflare.saved.change')}
         </Button>
       </section>
     );
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-5" aria-label="Set up your Cloudflare domain">
+    <section className="flex min-w-0 flex-col gap-5" aria-label={t('cloudflare.setupLabel')}>
       <div className="flex flex-col gap-2">
-        <h3 className="text-base font-semibold">1. Connect your Cloudflare account</h3>
-        <p className="text-sm text-muted-foreground">
-          Sign in on Cloudflare and approve the domain you want to use. Return here after approval.
-          You need a domain already added to your Cloudflare account.
-        </p>
+        <h3 className="text-base font-semibold">{t('cloudflare.step1.title')}</h3>
+        <p className="text-sm text-muted-foreground">{t('cloudflare.step1.body')}</p>
         {connected ? (
           <div className="flex flex-col gap-2">
             <p role="status" className="text-sm text-success">
-              Cloudflare account connected.
+              {t('cloudflare.step1.connected')}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Button
@@ -151,29 +151,24 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
                 onClick={() => request('refresh')}
               >
                 <Pending show={pendingAction === 'refresh'} />
-                Refresh domains
+                {t('cloudflare.step1.refresh')}
               </Button>
               <Button size="touch" variant="ghost" disabled={busy} onClick={() => request('login')}>
-                Choose another domain
+                {t('cloudflare.step1.another')}
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Only approved domains appear below. Choose another domain starts a new Cloudflare
-              approval.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('cloudflare.step1.anotherHint')}</p>
           </div>
         ) : waiting ? (
           <div className="flex flex-col gap-3">
             <p role="status" className="text-sm text-muted-foreground">
-              {loginUrl
-                ? 'Waiting for your approval on Cloudflare…'
-                : 'Preparing Cloudflare sign-in…'}
+              {loginUrl ? t('cloudflare.step1.waitingApproval') : t('cloudflare.step1.preparing')}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {loginUrl && (
                 <Button asChild size="touch">
                   <a href={loginUrl} target="_blank" rel="noreferrer">
-                    Open Cloudflare sign-in
+                    {t('cloudflare.step1.open')}
                     <ExternalLink aria-hidden />
                   </a>
                 </Button>
@@ -185,12 +180,10 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
                 onClick={() => request('login/cancel')}
               >
                 <Pending show={pendingAction === 'login/cancel'} />
-                Cancel sign-in
+                {t('cloudflare.step1.cancel')}
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              This page updates automatically after approval. Keep the app running.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('cloudflare.step1.autoUpdate')}</p>
           </div>
         ) : (
           <Button
@@ -200,22 +193,21 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
             onClick={() => request('login')}
           >
             <Pending show={pendingAction === 'login'} />
-            {status.state === 'error' ? 'Try Cloudflare sign-in again' : 'Sign in to Cloudflare'}
+            {status.state === 'error' ? t('cloudflare.step1.retry') : t('cloudflare.step1.signIn')}
           </Button>
         )}
       </div>
 
       {(formError || actionError || status.error || invalidApproval) && (
-        <Banner tone="danger" title="Cloudflare setup needs attention">
+        <Banner tone="danger" title={t('cloudflare.attention')}>
           {formError ??
             (actionError ? errorMessage(actionError) : (status.error ?? invalidApproval))}
         </Banner>
       )}
 
       {connected && status.domains.length === 0 && (
-        <Banner tone="info" title="No approved domain found">
-          Add a domain to Cloudflare, then choose another domain to approve it. If you just approved
-          a domain, try Refresh domains.
+        <Banner tone="info" title={t('cloudflare.noDomainTitle')}>
+          {t('cloudflare.noDomainBody')}
         </Banner>
       )}
 
@@ -233,21 +225,19 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
               tunnelName,
             });
             if (!parsed.success) {
-              setFormError(
-                parsed.error.issues[0]?.message ?? 'Check the domain, address and tunnel name.',
-              );
+              setFormError(parsed.error.issues[0]?.message ?? t('cloudflare.formInvalid'));
               return;
             }
             if (!selectedDomain || busy) return;
             create.mutate(parsed.data, { onSuccess: () => setEditing(false) });
           }}
         >
-          <h3 className="text-base font-semibold">2. Choose your inbox address</h3>
-          <Field label="Domain">
+          <h3 className="text-base font-semibold">{t('cloudflare.step2.title')}</h3>
+          <Field label={t('cloudflare.step2.domain')}>
             {(props) => (
               <Select value={selectedDomain?.id ?? ''} onValueChange={setDomainId} disabled={busy}>
                 <SelectTrigger {...props} className="min-h-11 w-full min-w-0 text-base md:text-sm">
-                  <SelectValue placeholder="Choose an approved domain" />
+                  <SelectValue placeholder={t('cloudflare.step2.domainPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent position="popper" className="max-w-[calc(100vw-2rem)]">
                   {status.domains.map((domain) => (
@@ -265,13 +255,10 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
           </Field>
           {selectedDomain?.accountName && (
             <p className="text-sm break-all text-muted-foreground">
-              Account: {selectedDomain.accountName}
+              {t('cloudflare.step2.account', { name: selectedDomain.accountName })}
             </p>
           )}
-          <Field
-            label="Address prefix"
-            hint="A short word before your domain, such as inbox or support."
-          >
+          <Field label={t('cloudflare.step2.prefix')} hint={t('cloudflare.step2.prefixHint')}>
             {(props) => (
               <Input
                 {...props}
@@ -283,21 +270,24 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="inbox"
+                placeholder={DEFAULT_SUBDOMAIN}
               />
             )}
           </Field>
           {address && (
             <div className="rounded-lg border bg-muted p-3">
-              <p className="mb-1 text-sm text-muted-foreground">Your team will open</p>
-              <p className="text-base font-medium break-all" aria-label="Inbox address preview">
+              <p className="mb-1 text-sm text-muted-foreground">{t('cloudflare.step2.preview')}</p>
+              <p
+                className="text-base font-medium break-all"
+                aria-label={t('cloudflare.step2.previewLabel')}
+              >
                 {address}
               </p>
             </div>
           )}
           <Field
-            label="Tunnel name"
-            hint="A friendly name in Cloudflare so you can recognise this app. It does not change the address."
+            label={t('cloudflare.step2.tunnelName')}
+            hint={t('cloudflare.step2.tunnelNameHint')}
           >
             {(props) => (
               <Input
@@ -307,19 +297,15 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
                 maxLength={64}
                 onChange={(event) => setTunnelName(event.target.value)}
                 disabled={busy}
-                placeholder="wa-team-inbox"
+                placeholder={DEFAULT_TUNNEL_NAME}
               />
             )}
           </Field>
           <div className="flex flex-col gap-2 border-t pt-4">
             <h3 className="text-base font-semibold">
-              3. {savedHostname ? 'Save your changes' : 'Connect your inbox'}
+              {savedHostname ? t('cloudflare.step3.saveTitle') : t('cloudflare.step3.connectTitle')}
             </h3>
-            <p className="text-sm text-muted-foreground">
-              This publishes the inbox using the address above and sets up its Cloudflare
-              connection. Team members still need their normal inbox sign-in. Keep this computer and
-              the app running.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('cloudflare.step3.body')}</p>
             <Button
               type="submit"
               size="touch"
@@ -329,15 +315,13 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
             >
               <Pending show={create.isPending || status.busy} />
               {create.isPending || status.busy
-                ? 'Connecting your inbox…'
+                ? t('cloudflare.step3.connecting')
                 : savedHostname
-                  ? 'Save and connect changes'
-                  : 'Create and connect inbox'}
+                  ? t('cloudflare.step3.saveSubmit')
+                  : t('cloudflare.step3.createSubmit')}
             </Button>
             {unchanged && (
-              <p className="text-sm text-muted-foreground">
-                This address and tunnel name are already saved.
-              </p>
+              <p className="text-sm text-muted-foreground">{t('cloudflare.step3.unchanged')}</p>
             )}
             {savedHostname && (
               <Button
@@ -351,7 +335,7 @@ export function CloudflareSetup({ tunnel }: { tunnel: TunnelStatus }) {
                   setEditing(false);
                 }}
               >
-                Cancel changes
+                {t('cloudflare.step3.cancel')}
               </Button>
             )}
           </div>

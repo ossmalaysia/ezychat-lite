@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { Bell, BellOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
@@ -36,6 +37,7 @@ export function PushToggle({
   compact?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation('inbox');
   const id = useId();
   const [status, setStatus] = useState<Status>(initialStatus);
   const [busy, setBusy] = useState(false);
@@ -58,9 +60,7 @@ export function PushToggle({
 
   if (status === 'unsupported') {
     return compact ? null : (
-      <p className={cn('text-sm text-muted-foreground', className)}>
-        Notifications aren't supported in this browser.
-      </p>
+      <p className={cn('text-sm text-muted-foreground', className)}>{t('push.unsupported')}</p>
     );
   }
 
@@ -101,12 +101,12 @@ export function PushToggle({
           className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 py-2 text-sm font-medium"
         >
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span>{compact ? 'Notifications' : 'Notifications on this device'}</span>
+          <span className="truncate">{compact ? t('push.label') : t('push.labelDevice')}</span>
         </Label>
         <Switch
           id={id}
           className="shrink-0"
-          aria-label={compact ? 'Notifications on this device' : undefined}
+          aria-label={compact ? t('push.labelDevice') : undefined}
           checked={on}
           disabled={disabled}
           aria-busy={busy || undefined}
@@ -119,14 +119,11 @@ export function PushToggle({
         />
       </div>
       {isDesktopNotifications() && !compact && (
-        <p className="text-xs text-muted-foreground">
-          Alerts appear when this app is in the background. Keep it running in the tray and allow WA
-          EzyChat Lite in your system notification settings.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('push.desktopHint')}</p>
       )}
       {status === 'denied' && (
         <Banner tone="warning" className="text-xs">
-          Notifications are blocked. Allow them in the browser's site settings.
+          {t('push.blocked')}
         </Banner>
       )}
       {error && status !== 'denied' && (

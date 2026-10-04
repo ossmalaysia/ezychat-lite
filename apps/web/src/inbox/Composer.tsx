@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquareText, Paperclip, SendHorizontal } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
@@ -50,8 +51,9 @@ export function Composer({
   onTyping,
   confirmSend,
   disabled = false,
-  placeholder = 'Type a message',
+  placeholder,
 }: ComposerProps) {
+  const { t } = useTranslation('inbox');
   const [text, setText] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [pickerDismissed, setPickerDismissed] = useState(false);
@@ -249,8 +251,8 @@ export function Composer({
           <Button
             variant="ghost"
             size="icon-touch"
-            aria-label="Attach file"
-            title="Attach file"
+            aria-label={t('composer.attach')}
+            title={t('composer.attach')}
             disabled={disabled}
             onClick={() => fileRef.current?.click()}
             className="rounded-full text-muted-foreground"
@@ -272,14 +274,14 @@ export function Composer({
           />
           <Textarea
             ref={areaRef}
-            aria-label="Message"
+            aria-label={t('composer.message')}
             aria-autocomplete="list"
             aria-expanded={pickerOpen}
             aria-controls={pickerOpen ? pickerId : undefined}
             rows={1}
             value={text}
             disabled={disabled}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t('composer.placeholder')}
             onChange={onChange}
             onKeyDown={onKeyDown}
             // Enter inserts a newline on touch keyboards, so label the key accordingly.
@@ -288,8 +290,8 @@ export function Composer({
           />
           <Button
             size="icon-touch"
-            aria-label="Send"
-            title="Send"
+            aria-label={t('composer.send')}
+            title={t('composer.send')}
             disabled={!canSend}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => void submit()}
@@ -315,7 +317,7 @@ export function Composer({
           className="mt-1 text-muted-foreground"
         >
           <MessageSquareText aria-hidden="true" />
-          Quick replies
+          {t('composer.quickReplies')}
         </Button>
       )}
       <PopoverContent
