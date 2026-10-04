@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-10-04
+
 ### Security
 
 - Bound the memory used to rate-limit the public browser-error endpoint, so a client rotating
