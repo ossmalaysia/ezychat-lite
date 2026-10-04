@@ -77,6 +77,9 @@ const MAC_LABEL = 'org.ossmalaysia.wateaminbox.server';
 const resultMessage = 'Update installed. Your conversations, accounts and settings are preserved.';
 
 /** Advisory UI eligibility. Elevated helper independently enforces ownership/ACLs and service identity. */
+/** Current and legacy program names (lower case); the Mac checks accept both bundle names too. */
+const WINDOWS_EXECUTABLES = ['ezychat lite.exe', 'wa team inbox.exe'];
+
 export function updateInstallEligibility(
   context: InstallContext,
   env: NodeJS.ProcessEnv = process.env,
@@ -88,7 +91,7 @@ export function updateInstallEligibility(
       env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)',
     ];
     if (
-      win32.basename(context.execPath).toLowerCase() !== 'wa team inbox.exe' ||
+      !WINDOWS_EXECUTABLES.includes(win32.basename(context.execPath).toLowerCase()) ||
       !roots.some((root) => directory.startsWith(win32.resolve(root).toLowerCase() + '\\'))
     )
       return {
@@ -141,7 +144,7 @@ function validatePlan(plan: InstallPlan): void {
   if (path.basename(plan.stageDir) !== plan.nonce) throw new Error('Invalid updater staging path');
   if (
     context.platform === 'win32' &&
-    win32.basename(context.execPath).toLowerCase() !== 'wa team inbox.exe'
+    !WINDOWS_EXECUTABLES.includes(win32.basename(context.execPath).toLowerCase())
   )
     throw new Error('Unrecognized application executable');
   if (context.platform === 'darwin') {

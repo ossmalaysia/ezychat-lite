@@ -19,6 +19,7 @@
   };
   var SVC_LABEL = { 'not-installed': 'Not installed', stopped: 'Stopped', running: 'Running' };
   var working = false;
+  var trayBusy = false;
   var updates = window.watiUpdates;
 
   function renderUpdates(s) {
@@ -124,6 +125,16 @@
       ? SERVER_MODE_LABEL[s.serverMode] || s.serverMode
       : '—';
     $('log').textContent = (s.logs || []).join('\n');
+    // Only a service client can quit on close; a hosting app always stays in the tray.
+    var tray = $('keep-in-tray');
+    var trayChoice = s.mode === 'client';
+    if (!trayBusy) tray.checked = trayChoice ? s.keepInTray : true;
+    tray.disabled = !trayChoice || trayBusy;
+    $('tray-note').textContent = trayChoice
+      ? s.keepInTray
+        ? 'Closing the window keeps EzyChat Lite in the tray for quick access and desktop notifications. Quit from the tray menu.'
+        : 'Closing the window quits the app. The background service keeps the inbox running.'
+      : 'This app is hosting the server, so it always stays in the tray while the inbox runs.';
     var busy = $('busy');
     busy.hidden = !s.busy;
     busy.textContent = s.busy || '';
@@ -165,6 +176,18 @@
         });
     };
   }
+
+  $('keep-in-tray').addEventListener('change', function (e) {
+    trayBusy = true;
+    Promise.resolve(api.setKeepInTray(e.target.checked))
+      .catch(function () {
+        /* refresh restores the saved value */
+      })
+      .then(function () {
+        trayBusy = false;
+        refresh();
+      });
+  });
 
   $('open').addEventListener('click', function () {
     api.openMain();

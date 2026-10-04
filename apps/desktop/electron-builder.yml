@@ -52,7 +52,7 @@ extraResources:
 win:
   icon: build/icon.ico
   # Keep the binary path referenced by existing Windows service configurations.
-  executableName: WA Team Inbox
+  executableName: EzyChat Lite
   target:
     - target: nsis
       arch: [x64]

@@ -4,6 +4,7 @@ import {
   cloudflaredBinary,
   cloudflaredDir,
   machineDataDir,
+  mergeDesktopConfig,
   parseDesktopConfig,
   preserveInstalledProfile,
   serverEntry,
@@ -99,17 +100,44 @@ describe('app paths', () => {
   });
 });
 
+describe('mergeDesktopConfig', () => {
+  it('keeps unknown fields and applies the change', () => {
+    expect(
+      JSON.parse(mergeDesktopConfig('{"port":7500,"future":1}', { keepInTray: false })),
+    ).toEqual({ port: 7500, future: 1, keepInTray: false });
+  });
+  it('replaces a missing, malformed or non-object file with normalized defaults plus the change', () => {
+    for (const raw of [null, '{"port":75', '[1,2]', 'null', '"text"']) {
+      expect(JSON.parse(mergeDesktopConfig(raw, { keepInTray: false }))).toEqual({
+        port: 7420,
+        keepInTray: false,
+      });
+    }
+  });
+});
+
 describe('parseDesktopConfig', () => {
-  it('defaults port to 7420', () => {
-    expect(parseDesktopConfig(null)).toEqual({ port: 7420 });
-    expect(parseDesktopConfig('not json')).toEqual({ port: 7420 });
-    expect(parseDesktopConfig('{"port":"abc"}')).toEqual({ port: 7420 });
+  it('defaults port to 7420 and keeps the app in the tray', () => {
+    expect(parseDesktopConfig(null)).toEqual({ port: 7420, keepInTray: true });
+    expect(parseDesktopConfig('not json')).toEqual({ port: 7420, keepInTray: true });
+    expect(parseDesktopConfig('{"port":"abc"}')).toEqual({ port: 7420, keepInTray: true });
   });
   it('reads a valid port', () => {
-    expect(parseDesktopConfig('{"port":7500}')).toEqual({ port: 7500 });
+    expect(parseDesktopConfig('{"port":7500}')).toEqual({ port: 7500, keepInTray: true });
   });
   it('rejects out of range ports', () => {
-    expect(parseDesktopConfig('{"port":70000}')).toEqual({ port: 7420 });
+    expect(parseDesktopConfig('{"port":70000}')).toEqual({ port: 7420, keepInTray: true });
+  });
+  it('reads the tray preference independently of the port', () => {
+    expect(parseDesktopConfig('{"port":7500,"keepInTray":false}')).toEqual({
+      port: 7500,
+      keepInTray: false,
+    });
+    expect(parseDesktopConfig('{"port":70000,"keepInTray":false}')).toEqual({
+      port: 7420,
+      keepInTray: false,
+    });
+    expect(parseDesktopConfig('{"keepInTray":"no"}')).toEqual({ port: 7420, keepInTray: true });
   });
 });
 

@@ -78,21 +78,42 @@ export function winswExe(isPackaged: boolean, resourcesPath: string, appPath: st
 
 export interface DesktopConfig {
   port: number;
+  /** Closing the window keeps the app in the system tray (default) instead of quitting a service client. */
+  keepInTray: boolean;
 }
 
-/** Parses userData/desktop.json contents (null when missing). Invalid input → defaults. */
+/** Parses userData/desktop.json contents (null when missing). Each invalid field falls back to its default. */
 export function parseDesktopConfig(raw: string | null): DesktopConfig {
-  const def: DesktopConfig = { port: DEFAULT_PORT };
+  const def: DesktopConfig = { port: DEFAULT_PORT, keepInTray: true };
   if (!raw) return def;
   try {
-    const v = JSON.parse(raw) as { port?: unknown };
+    const v = JSON.parse(raw) as { port?: unknown; keepInTray?: unknown };
     const port = v?.port;
-    if (typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536)
-      return { port };
-    return def;
+    return {
+      port:
+        typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536
+          ? port
+          : def.port,
+      keepInTray: typeof v?.keepInTray === 'boolean' ? v.keepInTray : def.keepInTray,
+    };
   } catch {
     return def;
   }
+}
+
+/**
+ * New desktop.json contents with `patch` applied. Unknown fields of a valid file are kept; a missing,
+ * malformed or non-object file is replaced by normalized defaults, so a change is never silently lost.
+ */
+export function mergeDesktopConfig(raw: string | null, patch: Partial<DesktopConfig>): string {
+  let current: Record<string, unknown> | null = null;
+  try {
+    const v: unknown = raw ? JSON.parse(raw) : null;
+    if (v && typeof v === 'object' && !Array.isArray(v)) current = v as Record<string, unknown>;
+  } catch {
+    current = null;
+  }
+  return JSON.stringify({ ...(current ?? parseDesktopConfig(null)), ...patch }, null, 2);
 }
 
 /** Server launcher (compiled from src/server-host.cts) that wraps the bundled server entry. */

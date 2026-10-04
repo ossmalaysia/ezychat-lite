@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-10-04
+
+### Improved
+
+- New **Keep EzyChat Lite in the system tray** option in the desktop's Status & Service window
+  (on by default). Closing the window keeps the app in the tray for quick access and desktop
+  notifications; untick it to quit on close while the background service keeps the inbox running.
+
+### Changed
+
+- The Windows program is now `EzyChat Lite.exe`, installed in `Program Files\EzyChat Lite`. Data,
+  accounts and the WhatsApp link are unchanged. Updating from 0.1.16 or earlier is a one-time
+  manual install (see `docs/updating.md`); in-app updates work again from this version.
+
 ## [0.1.16] - 2026-10-04
 
 ### Security

@@ -26,7 +26,9 @@ import {
   cloudflaredBinary,
   cloudflaredDir,
   machineDataDir,
+  mergeDesktopConfig,
   parseDesktopConfig,
+  type DesktopConfig,
   preserveInstalledProfile,
   serverEntry,
   serverHost,
@@ -43,6 +45,7 @@ import { createServiceOperation } from './service-operation.js';
 import { decideStartup, parsePortFile } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
+import { closeAction } from './window-close.js';
 import { GitHubUpdateChecker } from './update-checker.js';
 import { isUpdateHost, registerUpdateIpc } from './update-ipc.js';
 import { ManagedUpdates } from './updater/controller.js';
@@ -75,7 +78,7 @@ function desktopConfigFile(): string {
   return join(app.getPath('userData'), 'desktop.json');
 }
 
-function readDesktopConfig(): { port: number } {
+function readDesktopConfig(): DesktopConfig {
   const file = desktopConfigFile();
   const cfg = parseDesktopConfig(existsSync(file) ? readFileSync(file, 'utf8') : null);
   if (!existsSync(file)) {
@@ -89,16 +92,20 @@ function readDesktopConfig(): { port: number } {
   return cfg;
 }
 
+/** Merges a change into desktop.json (a malformed file is replaced); throws when it cannot be saved. */
+function writeDesktopConfig(patch: Partial<DesktopConfig>): void {
+  const file = desktopConfigFile();
+  const raw = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, mergeDesktopConfig(raw, patch));
+}
+
 /** Remembers the port the server actually uses (e.g. after a port change in Admin > Settings). */
 function writeDesktopPort(port: number): void {
-  const file = desktopConfigFile();
   try {
-    const cur = existsSync(file)
-      ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>)
-      : {};
-    writeFileSync(file, JSON.stringify({ ...cur, port }, null, 2));
+    writeDesktopConfig({ port });
   } catch {
-    // best effort
+    // best effort: the next start falls back to the configured or default port
   }
 }
 
@@ -116,7 +123,9 @@ async function main(): Promise<void> {
   const isPackaged = app.isPackaged;
   const resourcesPath = process.resourcesPath;
   const appPath = app.getAppPath();
-  let { port } = readDesktopConfig();
+  const desktopConfig = readDesktopConfig();
+  let port = desktopConfig.port;
+  let keepInTray = desktopConfig.keepInTray;
   let url = `http://127.0.0.1:${port}`;
   const entry = serverEntry(isPackaged, resourcesPath, appPath);
   const webDist = webDistDir(isPackaged, resourcesPath, appPath);
@@ -387,7 +396,7 @@ async function main(): Promise<void> {
       });
       mainWindow.on('close', (e) => {
         if (quitting) return;
-        if (mode === 'client') {
+        if (closeAction(mode, keepInTray) === 'quit') {
           // the background service keeps running; the window is just a client
           quitting = true;
           app.quit();
@@ -574,6 +583,7 @@ async function main(): Promise<void> {
         platform: process.platform,
         busy,
         logs: [...desktopLog.slice(-60)],
+        keepInTray,
       };
     },
     enableService: () =>
@@ -659,6 +669,17 @@ async function main(): Promise<void> {
     openLogsFolder: () => {
       const dir = join(mode === 'client' ? machineDataDir() : dataDir, 'logs');
       void shell.openPath(existsSync(dir) ? dir : dirname(dir));
+    },
+    setKeepInTray: (keep) => {
+      // Persist first: a failed save throws to the status page, which then shows the unchanged value.
+      try {
+        writeDesktopConfig({ keepInTray: keep });
+      } catch (err) {
+        log(`could not save the tray preference: ${(err as Error).message}`);
+        throw new Error('Could not save the tray preference.', { cause: err });
+      }
+      keepInTray = keep;
+      log(`keep in tray: ${keep}`);
     },
   };
 

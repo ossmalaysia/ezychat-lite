@@ -47,6 +47,12 @@ same directory, reopen the app and start the service. For a manual Mac service u
 service first, quit the app, replace it in Applications, then enable the service again so its protected
 runtime receives the new version. These operations preserve the inbox data.
 
+**Windows 0.1.16 or earlier → 0.1.17 is always manual.** 0.1.17 renames the program to
+`Program Files\EzyChat Lite\EzyChat Lite.exe`; older updaters only recognise `WA Team Inbox.exe` and
+roll back. Stop the service, install 0.1.17 into `Program Files\EzyChat Lite`, then recreate the
+service command from the new app (its generator quotes paths containing spaces) and start the service.
+The data folder and WhatsApp link stay in place. From 0.1.17 onwards in-app updates work again.
+
 Accounts, conversations, settings and WhatsApp credentials remain in the app's data directory;
 updating does not reset it. Phone and browser clients receive the new interface from the host.
 Check the app and server version in **Status & Service** after updating a background service.

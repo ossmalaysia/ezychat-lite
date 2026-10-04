@@ -24,6 +24,8 @@ export interface DesktopStatus {
   platform: NodeJS.Platform;
   busy: string | null;
   logs: string[];
+  /** closing the window keeps the app in the system tray */
+  keepInTray: boolean;
 }
 
 export interface DesktopController {
@@ -35,6 +37,7 @@ export interface DesktopController {
   resetAdmin(): Promise<void>;
   openMain(): void;
   openLogsFolder(): void;
+  setKeepInTray(keep: boolean): Promise<void> | void;
 }
 
 export const CHANNELS = {
@@ -46,6 +49,7 @@ export const CHANNELS = {
   resetAdmin: 'wati:reset-admin',
   openMain: 'wati:open-main',
   openLogs: 'wati:open-logs',
+  setKeepInTray: 'wati:set-keep-in-tray',
   changed: 'wati:status-changed',
 } as const;
 
@@ -81,6 +85,13 @@ export function registerIpc(
   handle(CHANNELS.resetAdmin, () => ctrl.resetAdmin());
   handle(CHANNELS.openMain, () => ctrl.openMain());
   handle(CHANNELS.openLogs, () => ctrl.openLogsFolder());
+  // The only handler that takes input: exactly one boolean, same trust check as every other control.
+  ipcMain.handle(CHANNELS.setKeepInTray, async (e, ...args: unknown[]) => {
+    if (!trusted(e, statusWindow(), statusUrl)) throw new Error('Forbidden status request');
+    if (args.length !== 1 || typeof args[0] !== 'boolean')
+      throw new Error('Invalid status request');
+    return ctrl.setKeepInTray(args[0]);
+  });
   return {
     dispose() {
       for (const channel of Object.values(CHANNELS)) {
