@@ -47,7 +47,17 @@ const BEARER =
 const JSON_TOKEN =
   /(\\?"(?:access_token|refresh_token|id_token|code_verifier|code_challenge)\\?"\s*:\s*\\?")[^"\\]*/gi;
 // code= and state= are common words, so they only count as URL query parameters.
-const QUERY_PARAM = /(?<=[?&])(code|state)=[^&\s"']+/gi;
+const QUERY_PARAM = /(?<=^|[?&#])(code|state)=[^&\s"']+/gi;
+const QUERY_SECRET_KEYS = new Set([
+  'code',
+  'state',
+  'code_verifier',
+  'code_challenge',
+  'refresh_token',
+  'access_token',
+  'id_token',
+  'token',
+]);
 const OAUTH_PARAM =
   /\b(code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
 
@@ -83,8 +93,14 @@ export function scrubLogValue(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return redactSecretText(value);
   if (value === null || typeof value !== 'object') return value;
   if (depth > 6) return '[Truncated]';
-  if (value instanceof URL || value instanceof URLSearchParams)
-    return redactSecretText(value.toString());
+  if (value instanceof URL) return redactSecretText(value.toString());
+  if (value instanceof URLSearchParams)
+    return [...value]
+      .map(
+        ([key, item]) =>
+          `${key}=${QUERY_SECRET_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : redactSecretText(item)}`,
+      )
+      .join('&');
   if (value instanceof Error) {
     const code = (value as { code?: unknown }).code;
     const cause = (value as { cause?: unknown }).cause;

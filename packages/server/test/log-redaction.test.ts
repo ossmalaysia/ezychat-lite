@@ -28,7 +28,7 @@ it('redacts a JWT whose signature ends in a dash', () => {
 });
 
 it('redacts code= and state= only as URL query parameters', () => {
-  expect(redactSecretText('state=connected code=ready')).toBe('state=connected code=ready');
+  expect(redactSecretText('the state=connected flag')).toBe('the state=connected flag');
   expect(redactSecretText('GET /cb?code=abc&state=xyz&x=1')).toBe(
     'GET /cb?code=[REDACTED]&state=[REDACTED]&x=1',
   );
@@ -52,5 +52,13 @@ it('scrubLogValue truncates deep values, keeps the error type and cause, scrubs 
 
   expect(scrubLogValue(new URL('http://localhost:1455/auth/callback?code=url-secret'))).toBe(
     'http://localhost:1455/auth/callback?[REDACTED]',
+  );
+});
+
+it('redacts a leading code= in bare bodies and URLSearchParams', () => {
+  expect(redactSecretText('code=abc&state=xyz')).toBe('code=[REDACTED]&state=[REDACTED]');
+  expect(redactSecretText('http://x/cb#code=abc')).toBe('http://x/cb#code=[REDACTED]');
+  expect(scrubLogValue(new URLSearchParams('code=abc&state=xyz&keep=1&refresh_token=rt'))).toBe(
+    'code=[REDACTED]&state=[REDACTED]&keep=1&refresh_token=[REDACTED]',
   );
 });
