@@ -2,6 +2,8 @@ import type {
   DesktopRelease,
   DesktopUpdateState,
 } from '../../../packages/shared/src/desktop-updates.js';
+import type { Locale } from '@wa-team-inbox/shared';
+import { t, type DesktopCatalog } from './i18n.js';
 import { MAX_UPDATE_BYTES } from './updater/download.js';
 
 const REPOSITORY = 'ossmalaysia/ezychat-lite';
@@ -151,13 +153,15 @@ class CheckError extends Error {
   }
 }
 
-async function readJson(response: Response): Promise<unknown> {
+type CheckMessage = (key: keyof DesktopCatalog['check']) => string;
+
+async function readJson(response: Response, msg: CheckMessage): Promise<unknown> {
   const length = Number(response.headers.get('content-length'));
   if (length > MAX_RESPONSE_BYTES) {
     await response.body?.cancel();
-    throw new CheckError('GitHub returned too much update information. Try again later.', 'size');
+    throw new CheckError(msg('tooMuch'), 'size');
   }
-  if (!response.body) throw new CheckError('GitHub returned no update information.', 'response');
+  if (!response.body) throw new CheckError(msg('noInfo'), 'response');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let bytes = 0;
@@ -169,10 +173,7 @@ async function readJson(response: Response): Promise<unknown> {
       bytes += chunk.value.byteLength;
       if (bytes > MAX_RESPONSE_BYTES) {
         await reader.cancel();
-        throw new CheckError(
-          'GitHub returned too much update information. Try again later.',
-          'size',
-        );
+        throw new CheckError(msg('tooMuch'), 'size');
       }
       json += decoder.decode(chunk.value, { stream: true });
     }
@@ -181,10 +182,7 @@ async function readJson(response: Response): Promise<unknown> {
   } catch (error) {
     if (error instanceof CheckError) throw error;
     if (error instanceof SyntaxError) {
-      throw new CheckError(
-        'GitHub returned invalid update information. Try again later.',
-        'response',
-      );
+      throw new CheckError(msg('invalid'), 'response');
     }
     throw error;
   } finally {
@@ -201,6 +199,8 @@ export interface GitHubUpdateCheckerOptions {
   fetch?: typeof globalThis.fetch;
   now?: () => number;
   log?: (fields: Record<string, unknown>) => void;
+  /** language of the user-facing error messages (default English) */
+  locale?: Locale;
 }
 
 /** Checks public release metadata only; downloading/installing is an explicit host action. */
@@ -286,17 +286,14 @@ export class GitHubUpdateChecker {
     generation: number,
     controller: AbortController,
   ): Promise<DesktopUpdateState> {
+    const msg: CheckMessage = (key) => t(this.options.locale, `check.${key}`);
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
     timeout.unref();
     const startedAt = this.now();
     let pages = 0;
     try {
       const current = parseVersion(this.options.currentVersion);
-      if (!current)
-        throw new CheckError(
-          'This build has an invalid version. Check the project releases.',
-          'version',
-        );
+      if (!current) throw new CheckError(msg('invalidVersion'), 'version');
       const allowPreview = current.core[0] === 0n || current.prerelease.length > 0;
       let newest: { version: Version; release: DesktopRelease } | null = null;
       let complete = false;
@@ -313,7 +310,7 @@ export class GitHubUpdateChecker {
         pages++;
         if (generation !== this.generation || !this.options.isHost()) return this.getState();
         if (controller.signal.aborted) {
-          throw new CheckError('The update check timed out. Please try again later.', 'timeout');
+          throw new CheckError(msg('timeout'), 'timeout');
         }
         if (response.status === 403 || response.status === 429) {
           const retrySeconds = Number(response.headers.get('retry-after'));
@@ -324,27 +321,16 @@ export class GitHubUpdateChecker {
             this.now() + COOLDOWN_MS,
           );
           const retryAt = Math.min(requestedRetry, this.now() + 24 * 60 * 60 * 1000);
-          throw new CheckError(
-            'GitHub is limiting update checks. Please try again later.',
-            'rate_limit',
-            retryAt,
-          );
+          throw new CheckError(msg('rateLimited'), 'rate_limit', retryAt);
         }
-        if (!response.ok)
-          throw new CheckError(
-            'GitHub could not check for updates. Please try again later.',
-            'http',
-          );
-        const json = await readJson(response);
+        if (!response.ok) throw new CheckError(msg('http'), 'http');
+        const json = await readJson(response, msg);
         if (generation !== this.generation || !this.options.isHost()) return this.getState();
         if (controller.signal.aborted) {
-          throw new CheckError('The update check timed out. Please try again later.', 'timeout');
+          throw new CheckError(msg('timeout'), 'timeout');
         }
         if (!Array.isArray(json) || json.length > 100) {
-          throw new CheckError(
-            'GitHub returned invalid update information. Try again later.',
-            'response',
-          );
+          throw new CheckError(msg('invalid'), 'response');
         }
         for (const item of json) {
           const candidate = parseRelease(
@@ -365,10 +351,7 @@ export class GitHubUpdateChecker {
       const release =
         newest && compareVersions(newest.version, current) > 0 ? newest.release : null;
       if (!complete && !release) {
-        throw new CheckError(
-          'The release history is too large to confirm the latest version. Check the project releases.',
-          'pagination',
-        );
+        throw new CheckError(msg('pagination'), 'pagination');
       }
       if (generation !== this.generation || !this.options.isHost()) {
         return this.getState();
@@ -394,9 +377,7 @@ export class GitHubUpdateChecker {
         error instanceof CheckError
           ? error
           : new CheckError(
-              controller.signal.aborted
-                ? 'The update check timed out. Please try again later.'
-                : 'Could not reach GitHub. Check your internet connection and try again.',
+              controller.signal.aborted ? msg('timeout') : msg('network'),
               controller.signal.aborted ? 'timeout' : 'network',
             );
       if (failure.retryAt) this.nextCheckAt = Math.max(this.nextCheckAt, failure.retryAt);

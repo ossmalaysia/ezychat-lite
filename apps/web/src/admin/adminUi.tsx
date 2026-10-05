@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ export async function copyText(text: string): Promise<boolean> {
 /** Copies `text` and confirms with a toast. */
 export function CopyButton({
   text,
-  label = 'Copy',
+  label,
   variant = 'outline',
   className,
 }: {
@@ -104,6 +105,7 @@ export function CopyButton({
   variant?: 'outline' | 'secondary' | 'default' | 'ghost';
   className?: string;
 }) {
+  const { t } = useTranslation(['admin', 'common']);
   return (
     <Button
       type="button"
@@ -111,12 +113,12 @@ export function CopyButton({
       size="touch"
       className={cn('md:min-h-9', className)}
       onClick={async () => {
-        if (await copyText(text)) toast.success('Copied to clipboard');
-        else toast.error('Copy failed — select the text and copy it manually.');
+        if (await copyText(text)) toast.success(t('ui.copied'));
+        else toast.error(t('ui.copyFailed'));
       }}
     >
       <Copy aria-hidden />
-      {label}
+      {label ?? t('common:actions.copy')}
     </Button>
   );
 }
@@ -126,7 +128,7 @@ export function ConfirmDialog({
   open,
   title,
   children,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   danger = false,
   loading = false,
   error,
@@ -143,6 +145,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <AlertDialog
       open={open}
@@ -162,7 +165,7 @@ export function ConfirmDialog({
         {error != null && <Banner tone="danger">{errorMessage(error)}</Banner>}
         <AlertDialogFooter>
           <AlertDialogCancel className="min-h-11 sm:min-h-9" disabled={loading}>
-            Cancel
+            {t('actions.cancel')}
           </AlertDialogCancel>
           {/* Plain Button (not AlertDialogAction) so the dialog stays open until the mutation settles. */}
           <Button
@@ -172,7 +175,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
           >
             <Pending show={loading} />
-            {confirmLabel}
+            {confirmLabel ?? t('actions.confirm')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -197,14 +200,15 @@ export function generatePassword(length = 14): string {
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const { t } = useTranslation(['admin', 'common']);
   return (
     <Banner
       tone="danger"
-      title="Couldn't load"
+      title={t('ui.loadFailed')}
       action={
         onRetry && (
           <Button size="touch" variant="outline" className="md:min-h-8" onClick={onRetry}>
-            Retry
+            {t('common:actions.retry')}
           </Button>
         )
       }
@@ -216,8 +220,9 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 
 /** Skeleton placeholder rows for lists/tables while loading. */
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+  const { t } = useTranslation('admin');
   return (
-    <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading">
+    <div className="flex flex-col gap-2" aria-busy="true" aria-label={t('ui.loading')}>
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton key={i} className="h-14 w-full" />
       ))}

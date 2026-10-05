@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Copy, Download, ExternalLink, Share2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,13 +8,27 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   copyShareText,
   downloadShareCard,
-  SHARE_APP_CAPTION,
   SHARE_APP_URL,
   shareApp,
   shareAppMessage,
   SOCIAL_SHARE_LINKS,
 } from '@/lib/share-app';
 import { ResponsiveDialog } from './index';
+
+// Platform names are brands and stay untranslated.
+const SOCIAL_PLATFORMS = [
+  { id: 'linkedin', name: 'LinkedIn' },
+  { id: 'facebook', name: 'Facebook' },
+] as const;
+const INSTAGRAM = 'Instagram';
+
+type Feedback =
+  | 'messageCopied'
+  | 'linkCopied'
+  | 'copyUnavailable'
+  | 'shareUnavailable'
+  | 'imageStarted'
+  | 'imageFailed';
 
 /** Personal recommendation tools, with user-controlled posting on each platform. */
 export function ShareAppAction({
@@ -23,48 +38,44 @@ export function ShareAppAction({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation(['app', 'common']);
   const id = useId();
-  const [caption, setCaption] = useState(SHARE_APP_CAPTION);
-  const [feedback, setFeedback] = useState('');
+  // The suggested caption follows the UI language until the user edits it.
+  const [edited, setEdited] = useState<string | null>(null);
+  const caption = edited ?? t('share.caption');
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function copy(text: string, success: string) {
+  async function copy(text: string, success: Feedback) {
     try {
       await copyShareText(text);
       setFeedback(success);
     } catch {
-      setFeedback(
-        'Copy is unavailable here. Select the message or link above and copy it manually.',
-      );
+      setFeedback('copyUnavailable');
     }
   }
 
   async function nativeShare() {
-    setFeedback('');
+    setFeedback(null);
     setBusy(true);
     try {
       const result = await shareApp(caption);
-      if (result === 'copied')
-        setFeedback('Message and public link copied. Paste them into your post.');
+      if (result === 'copied') setFeedback('messageCopied');
     } catch {
-      setFeedback(
-        'Sharing is unavailable here. Select the message or link above and copy it manually.',
-      );
+      setFeedback('shareUnavailable');
     } finally {
       setBusy(false);
     }
   }
 
   async function download() {
-    setFeedback('');
+    setFeedback(null);
     setBusy(true);
     try {
       await downloadShareCard();
-      setFeedback('Image download started. Upload it to Instagram and paste your caption.');
+      setFeedback('imageStarted');
     } catch {
-      setFeedback(
-        'Could not prepare the image. Try downloading again, or share the message and public link.',
-      );
+      setFeedback('imageFailed');
     } finally {
       setBusy(false);
     }
@@ -74,21 +85,21 @@ export function ShareAppAction({
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Share this app"
-      description="Tell others about your free team inbox. You choose what to post."
+      title={t('share.title')}
+      description={t('share.description')}
       footer={
         <Button variant="outline" size="touch" onClick={() => onOpenChange(false)}>
-          Done
+          {t('common:actions.done')}
         </Button>
       }
     >
       <div className="min-w-0 space-y-4 pb-4">
         <div className="space-y-2">
-          <Label htmlFor={`${id}-caption`}>Your message</Label>
+          <Label htmlFor={`${id}-caption`}>{t('share.message')}</Label>
           <Textarea
             id={`${id}-caption`}
             value={caption}
-            onChange={(event) => setCaption(event.target.value)}
+            onChange={(event) => setEdited(event.target.value)}
             className="max-h-48 min-h-32 resize-y [overflow-wrap:anywhere]"
             maxLength={2000}
           />
@@ -96,62 +107,48 @@ export function ShareAppAction({
             variant="outline"
             size="touch"
             className="w-full"
-            onClick={() =>
-              void copy(
-                shareAppMessage(caption),
-                'Message and public link copied. Paste them into your post.',
-              )
-            }
+            onClick={() => void copy(shareAppMessage(caption), 'messageCopied')}
           >
-            <Copy aria-hidden="true" /> Copy message and link
+            <Copy aria-hidden="true" /> {t('share.copyMessage')}
           </Button>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${id}-url`}>Public app link</Label>
+          <Label htmlFor={`${id}-url`}>{t('share.publicLink')}</Label>
           <Input
             id={`${id}-url`}
             readOnly
             value={SHARE_APP_URL}
             onFocus={(event) => event.currentTarget.select()}
           />
-          <p className="text-sm text-muted-foreground">
-            This shares the public project page. Your private inbox address and conversations stay
-            private.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('share.privacy')}</p>
           <Button
             variant="ghost"
             size="touch"
-            onClick={() => void copy(SHARE_APP_URL, 'Public app link copied.')}
+            onClick={() => void copy(SHARE_APP_URL, 'linkCopied')}
           >
-            <Copy aria-hidden="true" /> Copy link only
+            <Copy aria-hidden="true" /> {t('share.copyLink')}
           </Button>
         </div>
         <div className="space-y-2">
-          <p className="text-sm font-medium">LinkedIn &amp; Facebook</p>
-          <p className="text-sm text-muted-foreground">
-            Copy your message first, then paste it into the post that opens.
-          </p>
+          <p className="text-sm font-medium">{t('share.socialTitle')}</p>
+          <p className="text-sm text-muted-foreground">{t('share.socialHint')}</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(['linkedin', 'facebook'] as const).map((platform) => (
-              <Button key={platform} asChild variant="outline" size="touch">
-                <a href={SOCIAL_SHARE_LINKS[platform]} target="_blank" rel="noopener noreferrer">
-                  {platform === 'linkedin' ? 'LinkedIn' : 'Facebook'}{' '}
-                  <ExternalLink aria-hidden="true" />
-                  <span className="sr-only"> (opens a new window)</span>
+            {SOCIAL_PLATFORMS.map((platform) => (
+              <Button key={platform.id} asChild variant="outline" size="touch">
+                <a href={SOCIAL_SHARE_LINKS[platform.id]} target="_blank" rel="noopener noreferrer">
+                  {platform.name} <ExternalLink aria-hidden="true" />
+                  <span className="sr-only"> {t('share.opensNewWindow')}</span>
                 </a>
               </Button>
             ))}
           </div>
         </div>
         <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
-          <p className="text-sm font-medium">Instagram</p>
-          <p className="text-sm text-muted-foreground">
-            Download the image, create a post in Instagram, then paste your copied message as the
-            caption. Add the public link to your bio or a story link sticker.
-          </p>
+          <p className="text-sm font-medium">{INSTAGRAM}</p>
+          <p className="text-sm text-muted-foreground">{t('share.instagramHint')}</p>
           <img
             src="/share-app.svg"
-            alt="EzyChat Lite: Free WhatsApp team inbox. Runs on your computer. You own your data."
+            alt={t('share.imageAlt')}
             className="mx-auto aspect-square w-40 max-w-full rounded-lg border"
           />
           <Button
@@ -161,7 +158,7 @@ export function ShareAppAction({
             disabled={busy}
             onClick={() => void download()}
           >
-            <Download aria-hidden="true" /> Download Instagram image
+            <Download aria-hidden="true" /> {t('share.downloadImage')}
           </Button>
         </div>
         {typeof navigator.share === 'function' && (
@@ -171,11 +168,11 @@ export function ShareAppAction({
             disabled={busy}
             onClick={() => void nativeShare()}
           >
-            <Share2 aria-hidden="true" /> More sharing options
+            <Share2 aria-hidden="true" /> {t('share.more')}
           </Button>
         )}
         <p role="status" aria-live="polite" className="min-h-5 text-sm text-muted-foreground">
-          {feedback}
+          {feedback && t(`share.feedback.${feedback}`)}
         </p>
       </div>
     </ResponsiveDialog>

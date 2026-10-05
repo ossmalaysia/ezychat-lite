@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquareText } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Command, CommandItem, CommandList } from '@/components/ui/command';
@@ -27,7 +28,14 @@ export interface QuickReplyPickerProps {
  * in the Composer, which keeps focus in the textarea and drives `activeIndex`; cmdk renders the
  * listbox/option semantics and the highlighted row.
  */
-export function QuickReplyPicker({ replies, query, activeIndex, onPick, onHover }: QuickReplyPickerProps) {
+export function QuickReplyPicker({
+  replies,
+  query,
+  activeIndex,
+  onPick,
+  onHover,
+}: QuickReplyPickerProps) {
+  const { t } = useTranslation('inbox');
   const matches = filterQuickReplies(replies, query);
   const listRef = useRef<HTMLDivElement>(null);
   const active = matches[Math.min(activeIndex, matches.length - 1)];
@@ -49,12 +57,18 @@ export function QuickReplyPicker({ replies, query, activeIndex, onPick, onHover 
     >
       <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
         <MessageSquareText className="size-3.5" aria-hidden="true" />
-        Quick replies
+        {t('quickReplies.title')}
       </div>
       {matches.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-muted-foreground">No quick reply starts with “/{query}”.</p>
+        <p className="px-3 py-3 text-sm text-muted-foreground">
+          {t('quickReplies.noMatch', { query })}
+        </p>
       ) : (
-        <CommandList ref={listRef} label="Quick replies" className="max-h-60 overscroll-contain p-1">
+        <CommandList
+          ref={listRef}
+          label={t('quickReplies.title')}
+          className="max-h-60 overscroll-contain p-1"
+        >
           {matches.map((r, i) => (
             <CommandItem
               key={r.id}

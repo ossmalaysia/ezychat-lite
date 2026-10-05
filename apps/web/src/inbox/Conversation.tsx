@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Trans, useTranslation } from 'react-i18next';
 import type { Message } from '@wa-team-inbox/shared';
 import { ApiError } from '../api/client';
 import {
@@ -19,6 +20,7 @@ import {
   type MessagesData,
 } from '../api/queries';
 import { useRealtime } from '../api/socket';
+import { i18n } from '@/i18n';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/app';
 import {
@@ -49,13 +51,14 @@ export interface ConversationProps {
 }
 
 function toastError(e: unknown) {
-  toast.error(e instanceof Error ? e.message : 'Update failed');
+  toast.error(e instanceof Error ? e.message : i18n.t('inbox:conversation.updateFailed'));
 }
 
 /** Chats where the user already agreed to reply despite another assignee (this session). */
 const confirmedChats = new Set<string>();
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
+  const { t } = useTranslation(['inbox', 'common']);
   const qc = useQueryClient();
   const chatQ = useChat(jid);
   const messagesQ = useMessages(jid);
@@ -76,7 +79,10 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const events = chatQ.data?.events;
   const me = directory.me;
 
-  const messages = useMemo(() => flattenMessages(messagesQ.data as MessagesData | undefined), [messagesQ.data]);
+  const messages = useMemo(
+    () => flattenMessages(messagesQ.data as MessagesData | undefined),
+    [messagesQ.data],
+  );
   const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const notes = notesQ.data;
   const items = useMemo(
@@ -106,7 +112,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   // Re-mark when the tab becomes visible again.
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === 'visible' && (qc.getQueryData<{ chat: { unreadCount: number } }>(qk.chat(jid))?.chat.unreadCount ?? 0) > 0)
+      if (
+        document.visibilityState === 'visible' &&
+        (qc.getQueryData<{ chat: { unreadCount: number } }>(qk.chat(jid))?.chat.unreadCount ?? 0) >
+          0
+      )
         doMarkRead();
     };
     document.addEventListener('visibilitychange', onVis);
@@ -116,9 +126,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const confirmSend = useCallback((): Promise<boolean> | boolean => {
     if (!chat || chat.assignedTo == null || chat.assignedTo === me?.id) return true;
     if (confirmedChats.has(jid)) return true;
-    const name = directory.nameOf(chat.assignedTo) ?? 'someone else';
+    const name = directory.nameOf(chat.assignedTo) ?? t('conversation.someoneElse');
     return new Promise<boolean>((resolve) => setConfirm({ name, resolve }));
-  }, [chat, me?.id, jid, directory]);
+  }, [chat, me?.id, jid, directory, t]);
 
   function closeConfirm(ok: boolean) {
     if (ok) confirmedChats.add(jid);
@@ -131,15 +141,31 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     retry.mutate(m.id, {
       onError: (e) => {
         // The optimistic row never reached the server: resend it as a new message.
-        if (e instanceof ApiError && e.status === 404 && m.id.startsWith('local-') && m.type === 'text' && m.body) {
+        if (
+          e instanceof ApiError &&
+          e.status === 404 &&
+          m.id.startsWith('local-') &&
+          m.type === 'text' &&
+          m.body
+        ) {
           qc.setQueryData<MessagesData>(qk.messages(jid), (old) =>
             old
-              ? { ...old, pages: old.pages.map((p) => ({ ...p, messages: p.messages.filter((x) => x.id !== m.id) })) }
+              ? {
+                  ...old,
+                  pages: old.pages.map((p) => ({
+                    ...p,
+                    messages: p.messages.filter((x) => x.id !== m.id),
+                  })),
+                }
               : old,
           );
-          sendText.mutate({ text: m.body, quotedId: m.quotedId ?? undefined, clientId: newClientId() });
+          sendText.mutate({
+            text: m.body,
+            quotedId: m.quotedId ?? undefined,
+            clientId: newClientId(),
+          });
         } else {
-          toast.error(e instanceof Error ? e.message : 'Retry failed');
+          toast.error(e instanceof Error ? e.message : t('conversation.retryFailed'));
         }
       },
       onSettled: () => setRetryingId(null),
@@ -153,7 +179,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
 
   if (chatQ.isPending) {
     return (
-      <div className="flex flex-1 flex-col" role="status" aria-label="Loading chat">
+      <div className="flex flex-1 flex-col" role="status" aria-label={t('conversation.loading')}>
         <div className="flex items-center gap-3 border-b bg-surface px-3 py-2">
           <Skeleton className="size-10 rounded-full" />
           <div className="flex-1 space-y-2">
@@ -176,15 +202,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       <EmptyState
         className="flex-1"
         illustration="/illustrations/no-results.png"
-        title={notFound ? 'This chat doesn’t exist.' : 'Couldn’t load this chat.'}
+        title={notFound ? t('conversation.notFound') : t('conversation.loadFailed')}
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="touch" onClick={onBack}>
-              Back to chats
+              {t('conversation.back')}
             </Button>
             {!notFound && (
               <Button size="touch" onClick={() => void chatQ.refetch()}>
-                Try again
+                {t('common:actions.tryAgain')}
               </Button>
             )}
           </div>
@@ -199,7 +225,10 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`Conversation with ${chat.name}`}>
+      <section
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
+        aria-label={t('conversation.label', { name: chat.name })}
+      >
         <ConversationHeader
           chat={chat}
           directory={directory}
@@ -239,9 +268,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               }
               role="status"
             >
-              {blocked
-                ? 'Sending is unavailable until WhatsApp is linked again.'
-                : 'WhatsApp is reconnecting — messages will send when reconnected.'}
+              {blocked ? t('conversation.sendingBlocked') : t('conversation.reconnecting')}
             </p>
           )}
           <div className="px-2 py-2 sm:px-3">
@@ -249,7 +276,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               key={jid}
               quickReplies={quickReplies.data ?? []}
               disabled={blocked}
-              placeholder={blocked ? 'WhatsApp is not connected' : 'Type a message — “/” for quick replies'}
+              placeholder={
+                blocked ? t('conversation.placeholderBlocked') : t('conversation.placeholder')
+              }
               confirmSend={confirmSend}
               onTyping={() => emitTyping(jid)}
               onSend={(text) => sendText.mutate({ text, clientId: newClientId() })}
@@ -271,18 +300,24 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{`Assigned to ${confirm?.name ?? ''}`}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('conversation.confirmTitle', { name: confirm?.name ?? '' })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This chat is assigned to <strong className="text-foreground">{confirm?.name}</strong> —
-              reply anyway? You won’t be asked again for this chat during this session.
+              <Trans
+                t={t}
+                i18nKey="conversation.confirmBody"
+                values={{ name: confirm?.name ?? '' }}
+                components={{ strong: <strong className="text-foreground" /> }}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11 sm:min-h-9" onClick={() => closeConfirm(false)}>
-              Cancel
+              {t('common:actions.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction className="min-h-11 sm:min-h-9" onClick={() => closeConfirm(true)}>
-              Reply anyway
+              {t('conversation.replyAnyway')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,10 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { AiMemberStatus } from '@wa-team-inbox/shared';
 import { AiMemberPanel } from './AiMemberPanel';
+import { activateLocale } from '../i18n';
 
 function status(): AiMemberStatus {
   return {
@@ -17,6 +18,7 @@ function status(): AiMemberStatus {
       mustChangePassword: false,
       disabled: true,
       createdAt: 1,
+      locale: null,
     },
     settings: {
       displayName: 'Sales Assistant',
@@ -96,12 +98,35 @@ beforeEach(() => {
     },
   );
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  await activateLocale('en');
   vi.unstubAllGlobals();
 });
 
 describe('AI member settings', () => {
+  it.each([
+    { locale: 'ms' as const, label: 'Model (pilihan)', save: 'Simpan sambungan AI' },
+    { locale: 'zh-CN' as const, label: '模型（可选）', save: '保存 AI 连接' },
+  ])(
+    'keeps a connection draft while changing the language to $locale',
+    async ({ locale, label, save }) => {
+      const initial = status();
+      initial.settings.mode = 'chatgpt';
+      const { fetchMock } = setup(initial, undefined, 'connection');
+      const user = userEvent.setup();
+      await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-5.4');
+      await act(() => activateLocale(locale));
+      expect(((await screen.findByLabelText(label)) as HTMLInputElement).value).toBe('gpt-5.4');
+      await user.click(screen.getByRole('button', { name: save }));
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
+      );
+      const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
+      expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: 'chatgpt', model: 'gpt-5.4' });
+    },
+  );
+
   it.each([
     { mode: 'api' as const, model: 'gpt-4.1-mini', option: 'ChatGPT sign-in', next: 'chatgpt' },
     { mode: 'chatgpt' as const, model: 'gpt-5.3-codex', option: 'OpenAI API key', next: 'api' },

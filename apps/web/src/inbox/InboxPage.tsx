@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAppVersion } from '../lib/version';
 import type { ChatFilters as Filters } from '../api/queries';
@@ -32,6 +33,7 @@ function loadFilters(): Filters {
 }
 
 export function InboxPage() {
+  const { t } = useTranslation(['inbox', 'common']);
   const params = useParams<{ jid?: string }>();
   const jid = params.jid ? decodeJid(params.jid) : null;
   const navigate = useNavigate();
@@ -67,17 +69,17 @@ export function InboxPage() {
             'min-h-0 w-full flex-col bg-surface md:w-[360px] md:shrink-0 md:border-r',
             jid ? 'hidden md:flex' : 'flex',
           )}
-          aria-label="Chats"
+          aria-label={t('page.chats')}
         >
           <header className="flex items-center gap-2 px-3 py-1">
             <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
-              Inbox
+              {t('page.title')}
             </h1>
             {directory.isAdmin && (
               <Button asChild variant="ghost" size="touch">
                 <Link to="/admin">
                   <Settings aria-hidden="true" />
-                  Admin
+                  {t('page.admin')}
                 </Link>
               </Button>
             )}
@@ -92,7 +94,7 @@ export function InboxPage() {
           />
           {version && (
             <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-              EzyChat Lite · v{version}
+              {t('page.version', { appName: t('common:appName'), version })}
             </p>
           )}
           <div className="safe-bottom" />
@@ -109,8 +111,8 @@ export function InboxPage() {
             <EmptyState
               className="flex-1"
               illustration="/illustrations/empty-inbox.png"
-              title="Select a chat"
-              description="Pick a conversation from the list to read and reply as a team."
+              title={t('page.selectTitle')}
+              description={t('page.selectDescription')}
             />
           )}
         </main>

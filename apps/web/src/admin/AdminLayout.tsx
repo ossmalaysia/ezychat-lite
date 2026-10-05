@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { PushToggle } from '../pwa/PushToggle';
@@ -38,14 +39,15 @@ import { SettingsPage } from './SettingsPage';
 import { TunnelPage } from './TunnelPage';
 import { WhatsAppPage } from './WhatsAppPage';
 
-export const ADMIN_NAV: readonly { to: string; label: string; icon: LucideIcon }[] = [
-  { to: 'members', label: 'Members', icon: Users },
-  { to: 'quick-replies', label: 'Quick replies', icon: MessageSquareText },
-  { to: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-  { to: 'tunnel', label: 'Cloudflare', icon: Globe },
-  { to: 'settings', label: 'Settings', icon: Settings },
-  { to: 'audit', label: 'Audit', icon: ScrollText },
-];
+/** `labelKey` is a translation key in the `admin` namespace. */
+export const ADMIN_NAV = [
+  { to: 'members', labelKey: 'nav.members', icon: Users },
+  { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
+  { to: 'whatsapp', labelKey: 'nav.whatsapp', icon: Smartphone },
+  { to: 'tunnel', labelKey: 'nav.tunnel', icon: Globe },
+  { to: 'settings', labelKey: 'nav.settings', icon: Settings },
+  { to: 'audit', labelKey: 'nav.audit', icon: ScrollText },
+] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
 
 function UnknownAdminRoute() {
   const { pathname } = useLocation();
@@ -56,8 +58,9 @@ function UnknownAdminRoute() {
 }
 
 function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
+  const { t } = useTranslation('admin');
   return (
-    <nav aria-label="Admin sections" className={className}>
+    <nav aria-label={t('nav.label')} className={className}>
       <ul className="flex flex-col gap-1">
         {ADMIN_NAV.map((n) => (
           <li key={n.to}>
@@ -75,7 +78,7 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
               }
             >
               <n.icon className="size-4 shrink-0" aria-hidden />
-              {n.label}
+              {t(n.labelKey)}
             </NavLink>
           </li>
         ))}
@@ -86,6 +89,7 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
 
 function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
   const { logout } = useAuth();
+  const { t } = useTranslation('admin');
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -94,7 +98,7 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
       await logout();
       onNavigate?.();
     } catch (error) {
-      toast.error(`Could not log out: ${errorMessage(error)}`);
+      toast.error(t('layout.logOutFailed', { error: errorMessage(error) }));
     } finally {
       setLoggingOut(false);
     }
@@ -102,14 +106,14 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
 
   return (
     <footer
-      aria-label="Admin tools and support"
+      aria-label={t('layout.footer')}
       className="safe-bottom flex shrink-0 flex-col gap-1 border-t p-3"
     >
       <PushToggle compact className="px-2" />
       <Button asChild variant="ghost" size="touch" className="justify-start px-2 text-primary">
         <Link to="/" onClick={onNavigate}>
           <ChevronLeft aria-hidden />
-          Back to inbox
+          {t('layout.backToInbox')}
         </Link>
       </Button>
       <Button
@@ -121,7 +125,7 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
         onClick={() => void handleLogout()}
       >
         {loggingOut ? <Loader2 className="animate-spin" aria-hidden /> : <LogOut aria-hidden />}
-        {loggingOut ? 'Logging out…' : 'Log out'}
+        {loggingOut ? t('layout.loggingOut') : t('layout.logOut')}
       </Button>
       <Separator className="my-1" />
       <AppCredits version={version} variant="sidebar" />
@@ -147,6 +151,7 @@ export function AdminLayout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const version = useAppVersion();
+  const { t } = useTranslation(['admin', 'common']);
 
   if (isLoading)
     return (
@@ -155,7 +160,7 @@ export function AdminLayout() {
         className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"
       >
         <Loader2 className="size-6 animate-spin" aria-hidden />
-        <span className="sr-only">Loading</span>
+        <span className="sr-only">{t('layout.loading')}</span>
       </div>
     );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
@@ -170,22 +175,22 @@ export function AdminLayout() {
           <Button asChild variant="ghost" size="touch" className="px-2 text-primary">
             <Link to="/">
               <ChevronLeft aria-hidden />
-              Inbox
+              {t('layout.inbox')}
             </Link>
           </Button>
           <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
-            {current ? `Admin · ${current.label}` : 'Admin'}
+            {current ? t('titleWithSection', { section: t(current.labelKey) }) : t('title')}
           </p>
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon-touch" aria-label="Admin menu">
+              <Button variant="ghost" size="icon-touch" aria-label={t('layout.menu')}>
                 <Menu aria-hidden />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 max-w-[85vw] gap-0 p-0">
               <SheetHeader className="border-b">
-                <SheetTitle>Admin</SheetTitle>
-                <SheetDescription>EzyChat Lite</SheetDescription>
+                <SheetTitle>{t('title')}</SheetTitle>
+                <SheetDescription>{t('common:appName')}</SheetDescription>
               </SheetHeader>
               <AdminMenu version={version ?? undefined} onNavigate={() => setMenuOpen(false)} />
             </SheetContent>
@@ -198,9 +203,9 @@ export function AdminLayout() {
         <div className="sticky top-0 flex h-dvh flex-col">
           <div className="border-b px-4 py-4">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              EzyChat Lite
+              {t('common:appName')}
             </p>
-            <p className="text-lg font-semibold">Admin</p>
+            <p className="text-lg font-semibold">{t('title')}</p>
           </div>
           <AdminMenu version={version ?? undefined} />
         </div>

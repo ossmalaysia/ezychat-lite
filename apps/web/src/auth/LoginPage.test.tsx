@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { activateLocale } from '@/i18n';
+import { localeStore } from '@/i18n/locale-store';
 import { LoginPage } from './LoginPage';
 
 function renderLogin() {
@@ -18,9 +20,12 @@ function renderLogin() {
   );
 }
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   vi.unstubAllGlobals();
+  await localeStore.setLocale('en');
+  await activateLocale('en');
+  localStorage.clear();
 });
 
 describe('LoginPage', () => {
@@ -56,5 +61,32 @@ describe('LoginPage', () => {
     ];
     expect(call).toBeTruthy();
     expect(JSON.parse(String(call[1].body))).toEqual({ username: 'alice', password: 'secret123' });
+  });
+
+  it('offers a language picker before sign-in that translates the page', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { code: 'unauthorized', message: 'no' } }), {
+            status: 401,
+          }),
+      ),
+    );
+    // Radix Select relies on pointer-capture and scrolling APIs that jsdom lacks.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+    Element.prototype.scrollIntoView ??= () => {};
+
+    renderLogin();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Sign in');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Language' }));
+    await user.click(await screen.findByRole('option', { name: 'Bahasa Melayu' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Log masuk'),
+    );
+    expect(screen.getByRole('combobox', { name: 'Bahasa' })).toBeTruthy();
   });
 });

@@ -11,6 +11,7 @@ import {
   TunnelState,
   WaState,
 } from './enums.js';
+import { LocaleSchema } from './i18n/locales.js';
 
 // All timestamps are epoch milliseconds.
 
@@ -26,6 +27,8 @@ export const UserSchema = z.object({
   mustChangePassword: z.boolean(),
   disabled: z.boolean(),
   createdAt: z.number(),
+  /** Preferred UI language; null = follow the browser. */
+  locale: LocaleSchema.nullable(),
 });
 export type User = z.infer<typeof UserSchema>;
 

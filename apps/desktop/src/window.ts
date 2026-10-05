@@ -3,6 +3,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
+import type { Locale } from '@wa-team-inbox/shared';
+import { t } from './i18n.js';
 import { registerInboxNotifications } from './notifications.js';
 import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 
@@ -19,14 +21,17 @@ function openExternalSafe(url: string): void {
   if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) void shell.openExternal(url);
 }
 
-/** Simple self-contained HTML page (data URL) used while the server starts or on errors. */
-export function messagePage(title: string, body: string): string {
+/**
+ * Simple self-contained HTML page (data URL) used while the server starts or on errors.
+ * `title`/`body` are already translated; `lang` is the desktop locale.
+ */
+export function messagePage(title: string, body: string, lang: Locale = 'en'): string {
   const esc = (s: string) =>
     s.replace(
       /[&<>"]/g,
       (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c,
     );
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  const html = `<!doctype html><html lang="${esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <title>EzyChat Lite</title><style>
 :root{color-scheme:light dark}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#0f172a}
@@ -165,19 +170,21 @@ export function createStatusWindow(o: {
   preload: string;
   html: string;
   title: string;
+  locale: Locale;
 }): BrowserWindow {
+  const title = t(o.locale, 'window.statusTitle', { title: o.title });
   const win = new BrowserWindow({
     width: 560,
     height: 680,
     minWidth: 360,
     minHeight: 420,
-    title: `${o.title} — Status & Service`,
+    title,
     icon: o.icon,
     show: false,
     autoHideMenuBar: true,
     webPreferences: { ...SAFE_PREFS, preload: o.preload },
   });
-  pinTitle(win, `${o.title} — Status & Service`);
+  pinTitle(win, title);
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);

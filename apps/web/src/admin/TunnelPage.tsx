@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import type { TunnelMode, TunnelState, TunnelStartBody } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
@@ -16,32 +17,30 @@ import { cn } from '@/lib/utils';
 import { CopyButton, ErrorState, Field, Pending } from './adminUi';
 import { CloudflareSetup } from './CloudflareSetup';
 
-const STATE_LABEL: Record<TunnelState, string> = {
-  stopped: 'Stopped',
-  starting: 'Starting',
-  running: 'Running',
-  error: 'Error',
-};
+/** Tunnel state → translation key in the `admin` namespace. */
+const STATE_LABEL_KEY = {
+  stopped: 'tunnel.state.stopped',
+  starting: 'tunnel.state.starting',
+  running: 'tunnel.state.running',
+  error: 'tunnel.state.error',
+} as const satisfies Record<TunnelState, string>;
 
-const MODES: { value: TunnelMode; label: string; hint: string }[] = [
-  { value: 'off', label: 'Off', hint: 'Only this computer (and the LAN, if enabled).' },
-  {
-    value: 'quick',
-    label: 'Temporary link',
-    hint: 'A free link that changes on restart. No account needed.',
-  },
-  {
-    value: 'named',
-    label: 'Your domain',
-    hint: 'Sign in to Cloudflare and choose a permanent inbox address.',
-  },
-];
+const MODES = [
+  { value: 'off', labelKey: 'tunnel.modes.off', hintKey: 'tunnel.modes.offHint' },
+  { value: 'quick', labelKey: 'tunnel.modes.quick', hintKey: 'tunnel.modes.quickHint' },
+  { value: 'named', labelKey: 'tunnel.modes.named', hintKey: 'tunnel.modes.namedHint' },
+] as const satisfies readonly { value: TunnelMode; labelKey: string; hintKey: string }[];
+
+// Technical examples, identical in every language.
+const TOKEN_PLACEHOLDER = 'eyJh…';
+const HOSTNAME_PLACEHOLDER = 'inbox.example.com';
 
 export function TunnelPage() {
   const tunnel = useTunnel();
   const settings = useSettings();
   const start = useStartTunnel();
   const stop = useStopTunnel();
+  const { t } = useTranslation('admin');
 
   const [mode, setMode] = useState<TunnelMode>('off');
   const [token, setToken] = useState('');
@@ -64,7 +63,7 @@ export function TunnelPage() {
 
   if (tunnel.isPending)
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('ui.loading')}>
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
@@ -81,9 +80,9 @@ export function TunnelPage() {
   const namedStarting =
     s.mode === 'named' && s.state === 'starting' && s.hostname === savedHostname;
   const actionLabel = {
-    off: active ? 'Disconnect Cloudflare' : 'Remote access is off',
-    named: namedStarting ? 'Connecting saved address…' : 'Connect saved address',
-    quick: active ? 'Restart temporary link' : 'Create temporary link',
+    off: active ? t('tunnel.action.disconnect') : t('tunnel.action.off'),
+    named: namedStarting ? t('tunnel.action.namedConnecting') : t('tunnel.action.namedConnect'),
+    quick: active ? t('tunnel.action.quickRestart') : t('tunnel.action.quickCreate'),
   }[mode];
 
   const onStart = (manual = false) => {
@@ -94,11 +93,10 @@ export function TunnelPage() {
     }
     const body: TunnelStartBody = { mode };
     if (mode === 'named') {
-      const t = manual ? token.trim() : '';
-      if (t && t.length < 10) return setFormError('That token looks too short.');
-      if (!t && !hasToken)
-        return setFormError('Paste the tunnel token from the Cloudflare dashboard.');
-      if (t) body.token = t;
+      const entered = manual ? token.trim() : '';
+      if (entered && entered.length < 10) return setFormError(t('tunnel.tokenTooShort'));
+      if (!entered && !hasToken) return setFormError(t('tunnel.tokenRequired'));
+      if (entered) body.token = entered;
       const h = manual ? hostname.trim() : savedHostname;
       if (h) body.hostname = h;
     }
@@ -106,29 +104,29 @@ export function TunnelPage() {
   };
 
   const mutationError = start.error ?? stop.error;
+  // Guard against a state/mode added on the server before the web catalog knows it.
+  const stateKey: (typeof STATE_LABEL_KEY)[TunnelState] | undefined = STATE_LABEL_KEY[s.state];
+  const stateLabel = stateKey ? t(stateKey) : s.state;
+  const currentMode = MODES.find((m) => m.value === s.mode);
+  const currentModeLabel = currentMode ? t(currentMode.labelKey) : s.mode;
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title="Cloudflare access"
-        description="Give your team a link to open the inbox from phones anywhere."
-      />
+      <PageHeader title={t('tunnel.title')} description={t('tunnel.description')} />
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>Connection status</CardTitle>
+          <CardTitle>{t('tunnel.statusTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'starting'}
-              label={<span className="font-medium">{STATE_LABEL[s.state] ?? s.state}</span>}
+              label={<span className="font-medium">{stateLabel}</span>}
             />
             {s.mode !== 'off' && (
-              <span className="text-sm text-muted-foreground">
-                ({MODES.find((m) => m.value === s.mode)?.label})
-              </span>
+              <span className="text-sm text-muted-foreground">({currentModeLabel})</span>
             )}
           </div>
 
@@ -144,7 +142,7 @@ export function TunnelPage() {
                   <span className="min-w-0 break-all">{s.url}</span>
                   <ExternalLink className="size-4 shrink-0" aria-hidden />
                 </a>
-                <CopyButton text={s.url} label="Copy URL" />
+                <CopyButton text={s.url} label={t('tunnel.copyUrl')} />
               </div>
               <div className="flex flex-col items-center gap-2">
                 <div className="rounded-lg border bg-card p-3 dark:bg-foreground">
@@ -154,24 +152,17 @@ export function TunnelPage() {
                     bgColor="transparent"
                     fgColor="currentColor"
                     className="h-auto w-full max-w-52 text-foreground dark:text-background"
-                    aria-label="Tunnel URL QR code"
+                    aria-label={t('tunnel.qrLabel')}
                   />
                 </div>
-                <p className="text-center text-xs text-muted-foreground">
-                  Scan with a phone camera to open the inbox.
-                </p>
+                <p className="text-center text-xs text-muted-foreground">{t('tunnel.scanHint')}</p>
               </div>
             </div>
           )}
 
-          {s.mode === 'quick' && (
-            <Banner tone="info">
-              Temporary links change every time the connection or the app restarts. Choose Your
-              domain for a permanent inbox address.
-            </Banner>
-          )}
+          {s.mode === 'quick' && <Banner tone="info">{t('tunnel.quickNote')}</Banner>}
           {s.lastError && (
-            <Banner tone="danger" title="Last error">
+            <Banner tone="danger" title={t('tunnel.lastError')}>
               {s.lastError}
             </Banner>
           )}
@@ -180,11 +171,11 @@ export function TunnelPage() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>How your team connects</CardTitle>
+          <CardTitle>{t('tunnel.connectTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <fieldset className="min-w-0">
-            <legend className="mb-2 text-sm font-medium">Remote access</legend>
+            <legend className="mb-2 text-sm font-medium">{t('tunnel.remoteAccess')}</legend>
             <RadioGroup
               value={mode}
               onValueChange={(v) => {
@@ -192,7 +183,7 @@ export function TunnelPage() {
                 setFormError(null);
               }}
               className="grid gap-2 sm:grid-cols-3"
-              aria-label="Remote access mode"
+              aria-label={t('tunnel.remoteAccessMode')}
             >
               {MODES.map((m) => {
                 const id = `tunnel-mode-${m.value}`;
@@ -207,9 +198,9 @@ export function TunnelPage() {
                   >
                     <span className="flex items-center gap-2 font-medium">
                       <RadioGroupItem id={id} value={m.value} />
-                      {m.label}
+                      {t(m.labelKey)}
                     </span>
-                    <span className="font-normal text-muted-foreground">{m.hint}</span>
+                    <span className="font-normal text-muted-foreground">{t(m.hintKey)}</span>
                   </Label>
                 );
               })}
@@ -228,18 +219,12 @@ export function TunnelPage() {
                   onClick={() => setAdvancedOpen((open) => !open)}
                   className="w-full justify-start whitespace-normal text-left"
                 >
-                  Advanced: use a tunnel token
+                  {t('tunnel.advancedToken')}
                 </Button>
                 <div id="cloudflare-advanced" hidden={!advancedOpen}>
                   <div className="flex flex-col gap-4 pt-3">
-                    <p className="text-sm text-muted-foreground">
-                      For an existing tunnel configured in the Cloudflare dashboard. Guided sign-in
-                      above handles this setup for you.
-                    </p>
-                    <Field
-                      label="Tunnel token"
-                      hint="Cloudflare Zero Trust → Networks → Tunnels → your tunnel → install token."
-                    >
+                    <p className="text-sm text-muted-foreground">{t('tunnel.advancedTokenBody')}</p>
+                    <Field label={t('tunnel.token')} hint={t('tunnel.tokenHint')}>
                       {(p) => (
                         <Input
                           {...p}
@@ -249,22 +234,19 @@ export function TunnelPage() {
                           onChange={(e) => setToken(e.target.value)}
                           autoComplete="off"
                           placeholder={
-                            hasToken ? '•••••••• (saved — leave blank to keep)' : 'eyJh…'
+                            hasToken ? t('tunnel.tokenSavedPlaceholder') : TOKEN_PLACEHOLDER
                           }
                         />
                       )}
                     </Field>
-                    <Field
-                      label="Public hostname"
-                      hint="The hostname routed to http://127.0.0.1:<port> in the tunnel config."
-                    >
+                    <Field label={t('tunnel.hostname')} hint={t('tunnel.hostnameHint')}>
                       {(p) => (
                         <Input
                           {...p}
                           className="h-11 md:h-9"
                           value={hostname}
                           onChange={(e) => setHostname(e.target.value)}
-                          placeholder="inbox.example.com"
+                          placeholder={HOSTNAME_PLACEHOLDER}
                           autoCapitalize="none"
                           autoCorrect="off"
                         />
@@ -277,7 +259,7 @@ export function TunnelPage() {
                       disabled={pending}
                     >
                       <Pending show={start.isPending} />
-                      Connect with token
+                      {t('tunnel.connectWithToken')}
                     </Button>
                   </div>
                 </div>
@@ -312,14 +294,12 @@ export function TunnelPage() {
                 disabled={pending}
               >
                 <Pending show={stop.isPending} />
-                Disconnect Cloudflare
+                {t('tunnel.action.disconnect')}
               </Button>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Disconnect Cloudflare stops the public link. The inbox still works on this computer
-            {settings.data?.lanEnabled ? ' and over your enabled local network' : ''}. Messages and
-            the saved domain are kept, so you can connect again later.
+            {settings.data?.lanEnabled ? t('tunnel.disconnectNoteLan') : t('tunnel.disconnectNote')}
           </p>
         </CardContent>
       </Card>
@@ -327,7 +307,7 @@ export function TunnelPage() {
       {s.logTail.length > 0 && (
         <details className="min-w-0 rounded-lg border bg-card p-4">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
-            Advanced: connection diagnostics
+            {t('tunnel.diagnostics')}
           </summary>
           <div className="pt-3">
             <ScrollArea

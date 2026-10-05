@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, KeyRound, LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { useChangePassword } from '../api/queries';
 import { Banner } from '@/components/app';
@@ -9,6 +10,7 @@ import { useAuth } from './AuthProvider';
 import { AuthShell, ButtonSpinner, Field, FullPageLoader } from './AuthShell';
 
 export function ChangePasswordPage() {
+  const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
   const { user, isLoading, logout } = useAuth();
   const change = useChangePassword();
@@ -38,45 +40,41 @@ export function ChangePasswordPage() {
 
   return (
     <AuthShell
-      title={forced ? 'Choose a new password' : 'Change password'}
-      subtitle={
-        forced
-          ? `Welcome, ${user.displayName}. Please replace your temporary password.`
-          : user.displayName
-      }
+      title={forced ? t('changePassword.titleForced') : t('changePassword.title')}
+      subtitle={forced ? t('changePassword.welcome', { name: user.displayName }) : user.displayName}
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         {change.error && <Banner tone="danger">{errorMessage(change.error)}</Banner>}
         <Field
-          label="Current password"
+          label={t('changePassword.current')}
           type="password"
           autoComplete="current-password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
-          error={touched && !current ? 'Required' : undefined}
+          error={touched && !current ? t('changePassword.required') : undefined}
         />
         <Field
-          label="New password"
+          label={t('changePassword.new')}
           type="password"
           autoComplete="new-password"
           value={next}
           onChange={(e) => setNext(e.target.value)}
-          hint="At least 8 characters."
+          hint={t('changePassword.minLength')}
           error={
             tooShort
-              ? 'At least 8 characters.'
+              ? t('changePassword.minLength')
               : sameAsOld
-                ? 'Must differ from the current password.'
+                ? t('changePassword.sameAsOld')
                 : undefined
           }
         />
         <Field
-          label="Confirm new password"
+          label={t('changePassword.confirm')}
           type="password"
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          error={mismatch ? 'Passwords do not match.' : undefined}
+          error={mismatch ? t('changePassword.mismatch') : undefined}
         />
         <Button
           type="submit"
@@ -86,13 +84,13 @@ export function ChangePasswordPage() {
           disabled={change.isPending || !valid}
         >
           {change.isPending ? <ButtonSpinner /> : <KeyRound aria-hidden="true" />}
-          Save password
+          {t('changePassword.submit')}
         </Button>
         <div className="flex justify-between gap-2">
           {!forced && (
             <Button type="button" variant="ghost" size="touch" onClick={() => navigate(-1)}>
               <ArrowLeft aria-hidden="true" />
-              Cancel
+              {t('common:actions.cancel')}
             </Button>
           )}
           <Button
@@ -103,7 +101,7 @@ export function ChangePasswordPage() {
             onClick={() => void logout()}
           >
             <LogOut aria-hidden="true" />
-            Sign out
+            {t('common:account.signOut')}
           </Button>
         </div>
       </form>

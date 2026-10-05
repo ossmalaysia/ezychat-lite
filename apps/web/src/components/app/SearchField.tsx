@@ -1,4 +1,5 @@
 import { Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -14,6 +15,7 @@ export function SearchField({
   label: string;
   placeholder: string;
 }) {
+  const { t, i18n } = useTranslation('app');
   return (
     <div className="relative">
       <Search
@@ -32,7 +34,7 @@ export function SearchField({
         <Button
           variant="ghost"
           size="icon-touch"
-          aria-label={`Clear ${label.toLowerCase()}`}
+          aria-label={t('search.clear', { label: label.toLocaleLowerCase(i18n.language) })}
           className="absolute right-0 top-0"
           onClick={() => onChange('')}
         >

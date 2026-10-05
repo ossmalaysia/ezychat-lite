@@ -10,3 +10,4 @@ export type {
   DesktopUpdateTransfer,
   DesktopUpdatesBridge,
 } from './desktop-updates.js';
+export * from './i18n/index.js';

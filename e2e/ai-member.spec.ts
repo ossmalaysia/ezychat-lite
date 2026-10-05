@@ -29,7 +29,7 @@ test('admin configures one shared AI connection and manages the Sales Agent know
       .first()
       .click();
     await page.goto('/admin/members');
-    await page.getByText(/\d+ of \d+ members/).waitFor();
+    await page.getByText(/\d+ of \d+ members?/).waitFor();
     const add = page.getByRole('button', { name: 'Add AI member', exact: true });
     if (await add.isVisible()) await add.click();
     else if (viewport.width < 768)

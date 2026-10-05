@@ -1,12 +1,15 @@
 import webpush from 'web-push';
-import type {
-  Chat,
-  Message,
-  NotificationPayload,
-  PushSubscribeBody,
-  WaStatus,
+import {
+  isLocale,
+  type Chat,
+  type Locale,
+  type Message,
+  type NotificationPayload,
+  type PushSubscribeBody,
+  type WaStatus,
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
+import { t } from '../i18n/messages.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';
 
 export interface PushService {
@@ -14,7 +17,8 @@ export interface PushService {
   subscribe(userId: number, sub: PushSubscribeBody): void;
   unsubscribe(userId: number, endpoint: string): void;
   notifyInbound(chat: Chat, message: Message): Promise<void>;
-  notifyAdmins(title: string, body: string): Promise<void>;
+  /** `text` is rendered in each admin's preferred language. */
+  notifyAdmins(text: LocalizedText): Promise<void>;
   /** detaches bus listeners */
   shutdown(): void;
 }
@@ -31,6 +35,8 @@ export interface PushDeps {
   /** defaults to ctx.services.realtime?.isOnline (missing → nobody online) */
   isOnline?: (userId: number) => boolean;
 }
+
+export type LocalizedText = (locale: Locale | null) => { title: string; body: string };
 
 interface SubRow {
   id: number;
@@ -87,21 +93,27 @@ function statusCodeOf(err: unknown): number | null {
   return null;
 }
 
-function waAlertText(s: WaStatus): { title: string; body: string } {
-  switch (s.state) {
-    case 'logged_out':
-      return {
-        title: 'WhatsApp disconnected',
-        body: 'The linked number was logged out. Relink it from Admin > WhatsApp.',
-      };
-    case 'replaced':
-      return {
-        title: 'WhatsApp session replaced',
-        body: 'Another device took over the session. Open Admin > WhatsApp to take it back.',
-      };
-    default:
-      return { title: 'WhatsApp unavailable', body: s.lastError ?? `Connection state: ${s.state}` };
-  }
+function waAlertText(s: WaStatus): LocalizedText {
+  return (locale) => {
+    switch (s.state) {
+      case 'logged_out':
+        return {
+          title: t(locale, 'push.waLoggedOut.title'),
+          body: t(locale, 'push.waLoggedOut.body'),
+        };
+      case 'replaced':
+        return {
+          title: t(locale, 'push.waReplaced.title'),
+          body: t(locale, 'push.waReplaced.body'),
+        };
+      default:
+        return {
+          title: t(locale, 'push.waUnavailable.title'),
+          // lastError is a technical detail from the socket and stays as reported.
+          body: s.lastError ?? t(locale, 'push.waUnavailable.body', { state: s.state }),
+        };
+    }
+  };
 }
 
 export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushService {
@@ -126,7 +138,23 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     activeAdmins: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND role = 'admin'"),
     activeUser: db.prepare('SELECT id FROM users WHERE id = ? AND disabled_at IS NULL'),
     subsFor: db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?'),
+    localeOf: db.prepare('SELECT locale FROM users WHERE id = ?'),
   };
+
+  const localeOf = (id: number): Locale | null => {
+    const v = (q.localeOf.get(id) as { locale: string | null } | undefined)?.locale;
+    return isLocale(v) ? v : null;
+  };
+
+  /** Groups recipients by preferred language so each group gets one rendered payload. */
+  function byLocale(userIds: number[]): Map<Locale | null, number[]> {
+    const groups = new Map<Locale | null, number[]>();
+    for (const id of userIds) {
+      const l = localeOf(id);
+      groups.set(l, [...(groups.get(l) ?? []), id]);
+    }
+    return groups;
+  }
 
   async function sendTo(userIds: number[], payload: NotificationPayload): Promise<void> {
     const json = JSON.stringify(payload);
@@ -183,31 +211,42 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
         targets = q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
       else targets = ids(q.activeUsers.all());
       if (!targets.length) return;
-      const preview = chat.lastMessagePreview ?? message.body ?? 'New message';
-      const payload: NotificationPayload = {
-        title: chat.name.slice(0, 200),
-        body: preview.slice(0, 1000),
-        url: `/chats/${encodeURIComponent(chat.jid)}`,
-        tag: chat.jid,
-      };
-      notifyConnected(targets, payload);
-      await sendTo(
-        targets.filter((id) => !isOnline(id)),
-        payload,
-      );
+      const jobs: Array<Promise<void>> = [];
+      for (const [locale, group] of byLocale(targets)) {
+        const preview = chat.lastMessagePreview ?? message.body ?? t(locale, 'push.newMessage');
+        const payload: NotificationPayload = {
+          title: chat.name.slice(0, 200),
+          body: preview.slice(0, 1000),
+          url: `/chats/${encodeURIComponent(chat.jid)}`,
+          tag: chat.jid,
+        };
+        notifyConnected(group, payload);
+        jobs.push(
+          sendTo(
+            group.filter((id) => !isOnline(id)),
+            payload,
+          ),
+        );
+      }
+      await Promise.all(jobs);
     },
 
-    async notifyAdmins(title, body) {
+    async notifyAdmins(text) {
       const targets = ids(q.activeAdmins.all());
       if (!targets.length) return;
-      const payload = {
-        title: title.slice(0, 200),
-        body: body.slice(0, 1000),
-        url: '/admin/whatsapp',
-        tag: 'wa-status',
-      };
-      notifyConnected(targets, payload);
-      await sendTo(targets, payload);
+      const jobs: Array<Promise<void>> = [];
+      for (const [locale, group] of byLocale(targets)) {
+        const { title, body } = text(locale);
+        const payload = {
+          title: title.slice(0, 200),
+          body: body.slice(0, 1000),
+          url: '/admin/whatsapp',
+          tag: 'wa-status',
+        };
+        notifyConnected(group, payload);
+        jobs.push(sendTo(group, payload));
+      }
+      await Promise.all(jobs);
     },
 
     shutdown() {
@@ -229,9 +268,8 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     }
     if (lastAlertState === s.state) return; // don't spam admins on repeated status events
     lastAlertState = s.state;
-    const { title, body } = waAlertText(s);
     service
-      .notifyAdmins(title, body)
+      .notifyAdmins(waAlertText(s))
       .catch((err: unknown) => log.warn({ err }, 'notifyAdmins failed'));
   };
   ctx.bus.on('inbound:notify', onInbound);

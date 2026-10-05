@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function ConversationHeader({
   onToggleNotes,
   busy,
 }: ConversationHeaderProps) {
+  const { t } = useTranslation('inbox');
   const name = chat.name || formatJid(chat.jid);
   const phone = formatJid(chat.jid);
   const resolved = chat.status === 'resolved';
@@ -50,7 +52,8 @@ export function ConversationHeader({
     options.push(
       known ?? {
         id: chat.assignedTo,
-        displayName: directory.nameOf(chat.assignedTo) ?? `Agent #${chat.assignedTo}`,
+        displayName:
+          directory.nameOf(chat.assignedTo) ?? t('directory.agent', { id: chat.assignedTo }),
         role: 'agent',
         disabled: false,
       },
@@ -63,7 +66,7 @@ export function ConversationHeader({
         variant="ghost"
         size="icon-touch"
         onClick={onBack}
-        aria-label="Back to chats"
+        aria-label={t('header.back')}
         className="text-muted-foreground md:hidden"
       >
         <ArrowLeft className="size-5" aria-hidden="true" />
@@ -81,7 +84,7 @@ export function ConversationHeader({
         </h2>
         <p className="truncate text-xs text-muted-foreground">
           {phone}
-          {resolved && ' · Resolved'}
+          {resolved && ` · ${t('header.resolved')}`}
         </p>
       </div>
       <div className="flex w-full items-center gap-2 px-1 md:w-auto md:px-0">
@@ -92,21 +95,23 @@ export function ConversationHeader({
         >
           <SelectTrigger
             id={`assign-${chat.jid}`}
-            aria-label="Assigned to"
-            title={directory.nameOf(chat.assignedTo) ?? 'Unassigned'}
+            aria-label={t('header.assignedTo')}
+            title={directory.nameOf(chat.assignedTo) ?? t('header.unassigned')}
             className="h-11! min-w-0 flex-1 bg-surface text-base md:w-44 md:flex-none md:text-sm"
           >
-            <SelectValue placeholder="Unassigned" />
+            <SelectValue placeholder={t('header.unassigned')} />
           </SelectTrigger>
           <SelectContent position="popper" align="end">
             <SelectItem value={UNASSIGNED} className="min-h-11 md:min-h-8">
-              Unassigned
+              {t('header.unassigned')}
             </SelectItem>
             {options.map((u) => (
               <SelectItem key={u.id} value={String(u.id)} className="min-h-11 md:min-h-8">
                 {u.id === directory.me?.id
-                  ? `${u.displayName} (you)`
-                  : `${u.displayName}${u.kind === 'ai' ? ' (AI Sales Agent)' : ''}`}
+                  ? t('header.you', { name: u.displayName })
+                  : u.kind === 'ai'
+                    ? t('header.ai', { name: u.displayName })
+                    : u.displayName}
               </SelectItem>
             ))}
           </SelectContent>
@@ -116,15 +121,15 @@ export function ConversationHeader({
           size="touch"
           onClick={onToggleNotes}
           aria-pressed={notesOpen}
-          aria-label={`Notes (${notesCount})`}
-          title="Internal notes"
+          aria-label={t('header.notesLabel', { count: notesCount })}
+          title={t('header.notesTitle')}
           className={cn(
             'relative',
             notesOpen ? 'bg-note text-note-foreground hover:bg-note' : 'text-muted-foreground',
           )}
         >
           <NotebookPen className="size-5" aria-hidden="true" />
-          <span>Notes</span>
+          <span>{t('header.notes')}</span>
           {notesCount > 0 && (
             <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
               {notesCount}
@@ -139,7 +144,7 @@ export function ConversationHeader({
           className="shrink-0"
         >
           {resolved ? <RotateCcw aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
-          {resolved ? 'Reopen' : 'Resolve'}
+          {resolved ? t('header.reopen') : t('header.resolve')}
         </Button>
       </div>
     </header>

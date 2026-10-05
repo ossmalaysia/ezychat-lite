@@ -12,6 +12,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Trans, useTranslation } from 'react-i18next';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { AiMemberPanel } from './AiMemberPanel';
@@ -73,6 +74,7 @@ type Dialog =
 export function MembersPage() {
   const users = useUsers();
   const { user: me } = useAuth();
+  const { t } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [search, setSearch] = useState('');
   const close = () => setDialog(null);
@@ -80,7 +82,7 @@ export function MembersPage() {
   const all = users.data ?? [];
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? 'AI Sales Agent' : ''}`
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? t('ai.roleBadge') : ''}`
       .toLocaleLowerCase()
       .includes(query),
   );
@@ -88,28 +90,28 @@ export function MembersPage() {
   const columns: Column<User>[] = [
     {
       key: 'member',
-      header: 'Member',
+      header: t('members.columns.member'),
       cell: (u) => <MemberIdentity user={u} isMe={u.id === me?.id} />,
     },
     {
       key: 'role',
-      header: 'Role',
+      header: t('members.columns.role'),
       cell: (u) =>
         u.kind === 'ai' ? (
-          <Badge variant="secondary">AI · Sales Agent</Badge>
+          <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
         ) : (
           <RoleBadge role={u.role} />
         ),
     },
-    { key: 'status', header: 'Status', cell: (u) => <StatusBadges user={u} /> },
+    { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
     {
       key: 'created',
-      header: 'Created',
+      header: t('members.columns.created'),
       cell: (u) => <span className="text-muted-foreground">{formatDateTime(u.createdAt)}</span>,
     },
     {
       key: 'actions',
-      header: <span className="sr-only md:not-sr-only">Actions</span>,
+      header: <span className="sr-only md:not-sr-only">{t('members.columns.actions')}</span>,
       className: 'md:text-right',
       cell: (u) => <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} />,
     },
@@ -119,7 +121,7 @@ export function MembersPage() {
     <div>
       <div className="mb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">Members</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('members.title')}</h1>
           <div className="flex flex-wrap gap-2">
             {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
               <Button
@@ -129,7 +131,7 @@ export function MembersPage() {
                 onClick={() => setDialog({ kind: 'ai' })}
               >
                 <Bot aria-hidden />
-                Add AI member
+                {t('ai.addMember')}
               </Button>
             )}
             <Button
@@ -138,12 +140,12 @@ export function MembersPage() {
               onClick={() => setDialog({ kind: 'create' })}
             >
               <UserPlus aria-hidden />
-              Add member
+              {t('members.add')}
             </Button>
           </div>
         </div>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Your team and AI assistant for customer chats.
+          {t('ai.membersDescription')}
         </p>
       </div>
 
@@ -151,12 +153,12 @@ export function MembersPage() {
         <SearchField
           value={search}
           onChange={setSearch}
-          label="Search members"
-          placeholder="Search name, username or role"
+          label={t('members.searchLabel')}
+          placeholder={t('members.searchPlaceholder')}
         />
         {!users.isPending && !users.isError && (
           <p role="status" className="text-sm text-muted-foreground">
-            {list.length} of {all.length} members
+            {t('members.count', { shown: list.length, count: all.length })}
           </p>
         )}
       </div>
@@ -177,33 +179,38 @@ export function MembersPage() {
               </div>
               <div className="flex flex-wrap items-center gap-1.5 pl-11">
                 {u.kind === 'ai' ? (
-                  <Badge variant="secondary">AI · Sales Agent</Badge>
+                  <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
                 ) : (
                   <RoleBadge role={u.role} />
                 )}
                 <StatusBadges user={u} />
               </div>
               <p className="pl-11 text-xs text-muted-foreground">
-                Added{' '}
-                <time dateTime={new Date(u.createdAt).toISOString()}>
-                  {formatDateTime(u.createdAt)}
-                </time>
+                <Trans
+                  t={t}
+                  i18nKey="members.added"
+                  values={{ date: formatDateTime(u.createdAt) }}
+                  components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
+                />
               </p>
             </div>
           )}
           empty={
             query ? (
               <EmptyState
-                title="No matching members"
-                description="Try a different name, username or role."
+                title={t('members.empty.noMatchTitle')}
+                description={t('members.empty.noMatchBody')}
                 action={
                   <Button variant="outline" size="touch" onClick={() => setSearch('')}>
-                    Clear search
+                    {t('members.empty.clearSearch')}
                   </Button>
                 }
               />
             ) : (
-              <EmptyState title="No members yet" description="Add a member so they can sign in." />
+              <EmptyState
+                title={t('members.empty.noneTitle')}
+                description={t('members.empty.noneBody')}
+              />
             )
           }
         />
@@ -215,7 +222,7 @@ export function MembersPage() {
           onClose={close}
           onCreated={(name) => {
             close();
-            toast.success(`${name} was added. Share the temporary password with them.`);
+            toast.success(t('members.create.done', { name }));
           }}
         />
       )}
@@ -229,7 +236,7 @@ export function MembersPage() {
           onClose={close}
           onDone={() => {
             close();
-            toast.success(`Signed ${dialog.user.displayName} out of all devices.`);
+            toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
           }}
         />
       )}
@@ -248,6 +255,7 @@ function initials(name: string) {
 }
 
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar className="size-8 shrink-0">
@@ -258,10 +266,14 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
       <div className="min-w-0">
         <p className="font-medium [overflow-wrap:anywhere] md:truncate">
           {user.displayName}
-          {isMe && <span className="ml-1 text-xs font-normal text-muted-foreground">(you)</span>}
+          {isMe && (
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              {t('members.you')}
+            </span>
+          )}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {user.kind === 'ai' ? 'AI assistant' : `@${user.username}`}
+          {user.kind === 'ai' ? t('ai.assistant') : `@${user.username}`}
         </p>
       </div>
     </div>
@@ -269,23 +281,27 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
 }
 
 function RoleBadge({ role }: { role: Role }) {
+  const { t } = useTranslation();
   return role === 'admin' ? (
-    <Badge className="bg-info/15 text-info">Admin</Badge>
+    <Badge className="bg-info/15 text-info">{t('roles.admin')}</Badge>
   ) : (
-    <Badge variant="secondary">Agent</Badge>
+    <Badge variant="secondary">{t('roles.agent')}</Badge>
   );
 }
 
 function StatusBadges({ user }: { user: User }) {
+  const { t } = useTranslation('admin');
   return (
     <span className="inline-flex flex-wrap gap-1">
       {user.disabled ? (
-        <Badge className="bg-danger/15 text-danger">Disabled</Badge>
+        <Badge className="bg-danger/15 text-danger">{t('members.status.disabled')}</Badge>
       ) : (
-        <Badge className="bg-success/15 text-success">Active</Badge>
+        <Badge className="bg-success/15 text-success">{t('members.status.active')}</Badge>
       )}
       {user.mustChangePassword && (
-        <Badge className="bg-warning/15 text-foreground">Must change password</Badge>
+        <Badge className="bg-warning/15 text-foreground">
+          {t('members.status.mustChangePassword')}
+        </Badge>
       )}
     </span>
   );
@@ -302,17 +318,20 @@ function RowActions({
   onAction: (d: Dialog) => void;
   compact?: boolean;
 }) {
+  const { t } = useTranslation(['admin', 'common']);
   return (
     <div className="flex shrink-0 items-center gap-1 md:justify-end">
       <Button
         size={compact ? 'icon-touch' : 'touch'}
         variant={compact ? 'ghost' : 'outline'}
         className={compact ? undefined : 'md:min-h-8'}
-        aria-label={compact ? `Edit ${user.displayName}` : undefined}
+        aria-label={
+          compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
+        }
         onClick={() => onAction(user.kind === 'ai' ? { kind: 'ai' } : { kind: 'edit', user })}
       >
         <Pencil aria-hidden />
-        {!compact && 'Edit'}
+        {!compact && t('common:actions.edit')}
       </Button>
       {user.kind !== 'ai' && (
         <DropdownMenu>
@@ -321,7 +340,7 @@ function RowActions({
               size="icon-touch"
               variant="ghost"
               className={compact ? undefined : 'md:size-8'}
-              aria-label={`More actions for ${user.displayName}`}
+              aria-label={t('members.actions.moreFor', { name: user.displayName })}
             >
               <MoreHorizontal aria-hidden />
             </Button>
@@ -332,14 +351,14 @@ function RowActions({
               onSelect={() => onAction({ kind: 'reset', user })}
             >
               <KeyRound aria-hidden />
-              Reset password
+              {t('members.actions.resetPassword')}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 md:min-h-8"
               onSelect={() => onAction({ kind: 'revoke', user })}
             >
               <LogOut aria-hidden />
-              Sign out everywhere
+              {t('members.actions.signOutEverywhere')}
             </DropdownMenuItem>
             {!isMe && (
               <>
@@ -350,7 +369,7 @@ function RowActions({
                   onSelect={() => onAction({ kind: 'disable', user })}
                 >
                   {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
-                  {user.disabled ? 'Enable' : 'Disable'}
+                  {user.disabled ? t('members.actions.enable') : t('members.actions.disable')}
                 </DropdownMenuItem>
               </>
             )}
@@ -372,8 +391,9 @@ function RoleSelect({
   disabled?: boolean;
   hint?: React.ReactNode;
 }) {
+  const { t } = useTranslation(['admin', 'common']);
   return (
-    <Field label="Role" hint={hint}>
+    <Field label={t('members.form.role')} hint={hint}>
       {(p) => (
         <Select value={value} onValueChange={(v) => onChange(v as Role)} disabled={disabled}>
           <SelectTrigger {...p} className="min-h-11 w-full md:min-h-9">
@@ -381,10 +401,10 @@ function RoleSelect({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="agent" className="min-h-11 md:min-h-8">
-              Agent
+              {t('common:roles.agent')}
             </SelectItem>
             <SelectItem value="admin" className="min-h-11 md:min-h-8">
-              Admin
+              {t('common:roles.admin')}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -404,6 +424,7 @@ function DialogFooterButtons({
   formId: string;
   submitLabel: string;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Button
@@ -413,7 +434,7 @@ function DialogFooterButtons({
         onClick={onCancel}
         disabled={pending}
       >
-        Cancel
+        {t('actions.cancel')}
       </Button>
       <Button type="submit" form={formId} size="touch" className="sm:min-h-9" disabled={pending}>
         <Pending show={pending} />
@@ -431,6 +452,7 @@ function CreateMemberDialog({
   onCreated: (name: string) => void;
 }) {
   const create = useCreateUser();
+  const { t } = useTranslation(['admin', 'common']);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<Role>('agent');
@@ -442,11 +464,11 @@ function CreateMemberDialog({
     e.preventDefault();
     setLocalError(null);
     if (username.trim().length < 3) {
-      setLocalError('Username must be at least 3 characters.');
+      setLocalError(t('members.form.usernameTooShort'));
       return;
     }
     if (password.length < 8) {
-      setLocalError('Password must be at least 8 characters.');
+      setLocalError(t('members.form.passTooShort'));
       return;
     }
     create.mutate(
@@ -459,13 +481,13 @@ function CreateMemberDialog({
     <ResponsiveDialog
       open
       onOpenChange={(o) => !o && !create.isPending && onClose()}
-      title="Add member"
+      title={t('members.create.title')}
       footer={
         <DialogFooterButtons
           onCancel={onClose}
           pending={create.isPending}
           formId="create-member-form"
-          submitLabel="Create member"
+          submitLabel={t('members.create.submit')}
         />
       }
     >
@@ -475,7 +497,7 @@ function CreateMemberDialog({
         className="flex flex-col gap-4 pb-1"
         noValidate
       >
-        <Field label="Username">
+        <Field label={t('members.form.username')}>
           {(p) => (
             <Input
               {...p}
@@ -489,7 +511,7 @@ function CreateMemberDialog({
             />
           )}
         </Field>
-        <Field label="Display name">
+        <Field label={t('members.form.displayName')}>
           {(p) => (
             <Input
               {...p}
@@ -502,11 +524,11 @@ function CreateMemberDialog({
         </Field>
         <RoleSelect value={role} onChange={setRole} />
         <Field
-          label="Temporary password"
+          label={t('members.form.tempPass')}
           hint={
             secureGeneration
-              ? 'They will be asked to change it at first sign-in.'
-              : 'Automatic generation is unavailable in this browser. Enter a strong password; they will change it at first sign-in.'
+              ? t('members.form.tempPasswordHint')
+              : t('members.form.tempPasswordManualHint')
           }
         >
           {(p) => (
@@ -529,7 +551,7 @@ function CreateMemberDialog({
             onClick={() => setPassword(generatePassword())}
           >
             <RefreshCw aria-hidden />
-            Generate
+            {t('members.form.generate')}
           </Button>
           <CopyButton text={password} />
         </div>
@@ -551,6 +573,7 @@ function EditMemberDialog({
   onClose: () => void;
 }) {
   const patch = usePatchUser();
+  const { t } = useTranslation(['admin', 'common']);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [role, setRole] = useState<Role>(user.role);
 
@@ -565,7 +588,7 @@ function EditMemberDialog({
       { id: user.id, patch: body },
       {
         onSuccess: () => {
-          toast.success('Member updated.');
+          toast.success(t('members.edit.done'));
           onClose();
         },
       },
@@ -576,18 +599,18 @@ function EditMemberDialog({
     <ResponsiveDialog
       open
       onOpenChange={(o) => !o && !patch.isPending && onClose()}
-      title={`Edit ${user.displayName}`}
+      title={t('members.edit.title', { name: user.displayName })}
       footer={
         <DialogFooterButtons
           onCancel={onClose}
           pending={patch.isPending}
           formId="edit-member-form"
-          submitLabel="Save"
+          submitLabel={t('common:actions.save')}
         />
       }
     >
       <form id="edit-member-form" onSubmit={submit} className="flex flex-col gap-4 pb-1">
-        <Field label="Display name">
+        <Field label={t('members.form.displayName')}>
           {(p) => (
             <Input
               {...p}
@@ -601,7 +624,7 @@ function EditMemberDialog({
           value={role}
           onChange={setRole}
           disabled={isMe}
-          hint={isMe ? "You can't change your own role." : undefined}
+          hint={isMe ? t('members.form.ownRoleHint') : undefined}
         />
         {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
       </form>
@@ -611,12 +634,17 @@ function EditMemberDialog({
 
 function DisableMemberDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const patch = usePatchUser();
+  const { t } = useTranslation('admin');
   const enabling = user.disabled;
   return (
     <ConfirmDialog
       open
-      title={enabling ? `Enable ${user.displayName}?` : `Disable ${user.displayName}?`}
-      confirmLabel={enabling ? 'Enable' : 'Disable'}
+      title={
+        enabling
+          ? t('members.disable.enableTitle', { name: user.displayName })
+          : t('members.disable.disableTitle', { name: user.displayName })
+      }
+      confirmLabel={enabling ? t('members.actions.enable') : t('members.actions.disable')}
       danger={!enabling}
       loading={patch.isPending}
       error={patch.error ?? undefined}
@@ -627,8 +655,8 @@ function DisableMemberDialog({ user, onClose }: { user: User; onClose: () => voi
             onSuccess: () => {
               toast.success(
                 enabling
-                  ? `${user.displayName} can sign in again.`
-                  : `${user.displayName} was disabled.`,
+                  ? t('members.disable.enabled', { name: user.displayName })
+                  : t('members.disable.disabled', { name: user.displayName }),
               );
               onClose();
             },
@@ -637,17 +665,14 @@ function DisableMemberDialog({ user, onClose }: { user: User; onClose: () => voi
       }
       onClose={onClose}
     >
-      <p>
-        {enabling
-          ? 'They will be able to sign in again.'
-          : 'Disabled members are signed out immediately and cannot sign in.'}
-      </p>
+      <p>{enabling ? t('members.disable.enableBody') : t('members.disable.disableBody')}</p>
     </ConfirmDialog>
   );
 }
 
 function ResetPasswordDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const reset = useResetPassword();
+  const { t } = useTranslation(['admin', 'common']);
   const newPassword = reset.data?.password;
 
   if (newPassword) {
@@ -655,11 +680,11 @@ function ResetPasswordDialog({ user, onClose }: { user: User; onClose: () => voi
       <ResponsiveDialog
         open
         onOpenChange={(o) => !o && onClose()}
-        title="New temporary password"
-        description={`Share this password with ${user.displayName}. It is shown only once; they must change it at next sign-in. Their other sessions were signed out.`}
+        title={t('members.reset.newTitle')}
+        description={t('members.reset.newBody', { name: user.displayName })}
         footer={
           <Button size="touch" className="sm:min-h-9" onClick={onClose}>
-            Done
+            {t('common:actions.done')}
           </Button>
         }
       >
@@ -679,15 +704,15 @@ function ResetPasswordDialog({ user, onClose }: { user: User; onClose: () => voi
   return (
     <ConfirmDialog
       open
-      title={`Reset password for ${user.displayName}?`}
-      confirmLabel="Reset password"
+      title={t('members.reset.title', { name: user.displayName })}
+      confirmLabel={t('members.actions.resetPassword')}
       danger
       loading={reset.isPending}
       error={reset.error ?? undefined}
       onConfirm={() => reset.mutate(user.id)}
       onClose={onClose}
     >
-      <p>A new temporary password will be generated and all of their sessions signed out.</p>
+      <p>{t('members.reset.body')}</p>
     </ConfirmDialog>
   );
 }
@@ -702,18 +727,19 @@ function RevokeSessionsDialog({
   onDone: () => void;
 }) {
   const revoke = useRevokeSessions();
+  const { t } = useTranslation('admin');
   return (
     <ConfirmDialog
       open
-      title={`Sign ${user.displayName} out everywhere?`}
-      confirmLabel="Sign out"
+      title={t('members.revoke.title', { name: user.displayName })}
+      confirmLabel={t('members.revoke.confirm')}
       danger
       loading={revoke.isPending}
       error={revoke.error ?? undefined}
       onConfirm={() => revoke.mutate(user.id, { onSuccess: onDone })}
       onClose={onClose}
     >
-      <p>All of their devices will be signed out immediately.</p>
+      <p>{t('members.revoke.body')}</p>
     </ConfirmDialog>
   );
 }

@@ -1,0 +1,188 @@
+{
+  "tray": {
+    "open": "Open",
+    "status": "Status & Service…",
+    "openCloudflare": "Open admin → Cloudflare",
+    "resetAdmin": "Reset admin password…",
+    "quit": "Quit"
+  },
+  "mode": {
+    "client": "Background service — connected",
+    "standalone": "Standalone — {{state}}",
+    "error": "Server not running",
+    "starting": "Starting…"
+  },
+  "serverState": {
+    "starting": "starting",
+    "running": "running",
+    "crashed": "crashed",
+    "stopped": "stopped"
+  },
+  "window": {
+    "statusTitle": "{{title}} — Status & Service"
+  },
+  "page": {
+    "startingTitle": "Starting EzyChat Lite…",
+    "startingBody": "Starting the local server.",
+    "notStartedTitle": "The server did not start",
+    "notStartedBody": "Port {{port}} may be in use by another program. Open \"Status & Service…\" from the tray for logs.",
+    "serviceNotAnsweringTitle": "The background service is not answering",
+    "serviceNotRunningTitle": "The background service is not running",
+    "serviceDownBody": "EzyChat Lite runs as a background service on this computer. Open \"Status & Service…\" from the tray to start it or to see its logs.",
+    "connectingTitle": "Connecting to the background service…",
+    "connectingBody": "Waiting for the EzyChat Lite service to start.",
+    "serviceStoppedTitle": "Service stopped",
+    "serviceStoppedBody": "Start the service again from \"Status & Service…\"."
+  },
+  "updates": {
+    "trayRestart": "Restart and update to v{{version}}…",
+    "trayDownloading": "Downloading update…",
+    "trayAvailable": "Update available: v{{version}}…",
+    "trayCheck": "Check for updates…",
+    "installUnsupported": "Automatic installation is available in installed Windows and Mac apps.",
+    "hostOnly": "Only the hosting computer can install this update.",
+    "waitForOperation": "Wait for the current app operation to finish before updating.",
+    "preparing": "Preparing update…",
+    "installFailed": "Could not install the update",
+    "hostGone": "The hosting app is no longer available to update.",
+    "closedBeforeConfirm": "The app closed before installation was confirmed.",
+    "approvePrompt": "Preparing a safe update. Approve the operating system prompt to continue.",
+    "restarting": "Restarting to install the update…"
+  },
+  "check": {
+    "tooMuch": "GitHub returned too much update information. Try again later.",
+    "noInfo": "GitHub returned no update information.",
+    "invalid": "GitHub returned invalid update information. Try again later.",
+    "invalidVersion": "This build has an invalid version. Check the project releases.",
+    "timeout": "The update check timed out. Please try again later.",
+    "rateLimited": "GitHub is limiting update checks. Please try again later.",
+    "http": "GitHub could not check for updates. Please try again later.",
+    "pagination": "The release history is too large to confirm the latest version. Check the project releases.",
+    "network": "Could not reach GitHub. Check your internet connection and try again."
+  },
+  "reset": {
+    "busyConfirm": "Confirming password reset…",
+    "busy": "Resetting admin password…",
+    "failed": "Could not reset the admin password",
+    "confirmTitle": "Reset admin password",
+    "confirmMessage": "Reset the first admin account password?",
+    "confirmDetail": "A new temporary password is generated and all of that admin’s sessions are signed out.",
+    "confirmButton": "Reset password",
+    "notManaged": "The running server is not managed by this app; reset it where it runs.",
+    "exitCode": "Reset failed (exit code {{code}}).",
+    "doneTitle": "Admin password reset",
+    "doneMessage": "New password for {{user}}:",
+    "doneDetail": "{{password}}\n\nYou will be asked to change it after signing in.",
+    "copy": "Copy password"
+  },
+  "service": {
+    "enableBusyConfirm": "Confirming service installation…",
+    "enableFailed": "Could not enable the background service",
+    "enableTitle": "Run as background service",
+    "enableMessage": "Run EzyChat Lite as a background service?",
+    "enableDetail": "The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n{{folder}}\n\nYou will be asked for administrator permission.",
+    "enableButton": "Enable service",
+    "installing": "Installing service…",
+    "waiting": "Waiting for the service to start…",
+    "noAnswer": "The service was installed but did not answer on port {{port}}.",
+    "disableBusyConfirm": "Confirming service removal…",
+    "disableFailed": "Could not remove the background service",
+    "disableTitle": "Stop background service",
+    "disableMessage": "Remove the background service and run inside this app again?",
+    "disableDetail": "Your data moves back to your user profile. You will be asked for administrator permission.",
+    "disableButton": "Remove service",
+    "removing": "Removing service…",
+    "startingLocal": "Starting the local server…",
+    "starting": "Starting service…",
+    "startFailed": "Could not start the service",
+    "stopping": "Stopping service…",
+    "stopFailed": "Could not stop the service"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "trayPrefFailed": "Could not save the tray preference."
+  },
+  "status": {
+    "documentTitle": "EzyChat Lite — Status & Service",
+    "updatesTitle": "App updates",
+    "checkingInitial": "Checking for updates…",
+    "downloadAria": "Update download",
+    "checkButton": "Check for updates",
+    "checkingButton": "Checking…",
+    "downloadButton": "Download update",
+    "downloadVersion": "Download v{{version}}",
+    "installButton": "Restart and update",
+    "cancelButton": "Cancel download",
+    "releaseButton": "Release details",
+    "updatesHelp": "Updates are managed on this hosting computer. Install the new release when your team can briefly pause work. Your accounts, chats and settings are preserved.",
+    "server": "Server",
+    "mode": "Mode",
+    "state": "State",
+    "address": "Address",
+    "dataFolder": "Data folder",
+    "appVersion": "App version",
+    "serverVersion": "Server version",
+    "serverMode": "Server mode",
+    "openInbox": "Open inbox",
+    "openLogs": "Open logs folder",
+    "resetAdmin": "Reset admin password…",
+    "desktopApp": "Desktop app",
+    "keepInTray": "Keep EzyChat Lite in the system tray",
+    "backgroundService": "Background service",
+    "serviceStatus": "Status:",
+    "serviceNote": "As a service the server starts with the computer, even when nobody is signed in, and keeps the WhatsApp connection and tunnel running. Requires administrator permission.",
+    "enableService": "Enable service",
+    "start": "Start",
+    "stop": "Stop",
+    "removeService": "Remove service",
+    "recentLog": "Recent log",
+    "notAnswering": "not answering",
+    "modeLabel": {
+      "starting": "Starting…",
+      "standalone": "Standalone (inside this app)",
+      "client": "Connected to background service",
+      "error": "Not running"
+    },
+    "serverModeLabel": {
+      "standalone": "standalone",
+      "service": "background service",
+      "dev": "development"
+    },
+    "serverState": {
+      "starting": "starting",
+      "running": "running",
+      "crashed": "crashed",
+      "stopped": "stopped",
+      "external": "running (service)"
+    },
+    "svcLabel": {
+      "notInstalled": "Not installed",
+      "stopped": "Stopped",
+      "running": "Running"
+    },
+    "trayNote": {
+      "keep": "Closing the window keeps EzyChat Lite in the tray for quick access and desktop notifications. Quit from the tray menu.",
+      "quit": "Closing the window quits the app. The background service keeps the inbox running.",
+      "host": "This app is hosting the server, so it always stays in the tray while the inbox runs."
+    },
+    "updates": {
+      "installed": "Installed: v{{version}}.",
+      "checking": "Checking GitHub for updates…",
+      "available": "v{{version}} is available.",
+      "availablePreview": "v{{version}} is available (preview).",
+      "current": "You are up to date — v{{version}}.",
+      "checkFailed": "Could not check for updates. Try again later.",
+      "downloading": "Downloading update… {{percent}}%. Your inbox keeps working.",
+      "ready": "v{{version}} is downloaded and verified. Ready to update.",
+      "installing": "Preparing to restart and update… Approve the system prompt to continue.",
+      "lastChecked": "Last checked: {{time}}",
+      "autoCheck": "Checks GitHub automatically while this app is running.",
+      "noInstaller": "This release has no installer for this computer. Open release details for available downloads.",
+      "managedHelp": "Download first, then choose Restart and update when your team can briefly pause work. The app and any installed service restart automatically. Your accounts, chats and settings are preserved.",
+      "unverifiable": "This release cannot be verified for installation here. Open release details for a manual installer.",
+      "manualHelp": "Download the installer and quit this app before installing. Stop a Windows service before installing, then start it afterward. On Mac, remove the service before installing and enable it again afterward to refresh its protected app copy. Your accounts, chats and settings are preserved.",
+      "openFailed": "Could not open update."
+    }
+  }
+}

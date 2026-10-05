@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
+import { desktopIntlTag, desktopLocale, statusStrings, t } from './i18n.js';
 import {
   broadcastStatusChanged,
   registerIpc,
@@ -137,6 +138,9 @@ async function main(): Promise<void> {
   const runtime: 'utility' | 'node' =
     !isPackaged && process.env.WATI_DESKTOP_RUNTIME === 'node' ? 'node' : 'utility';
   const version = app.getVersion();
+  // The desktop shell follows the OS language of this machine (not a web user's setting).
+  const locale = desktopLocale(app);
+  const page = (title: string, body: string) => messagePage(title, body, locale);
   // Builds share a version during development, so key the web cache on the web build's index.html too.
   let webBuildKey = version;
   try {
@@ -211,6 +215,7 @@ async function main(): Promise<void> {
     isHost: ownsHost,
     onChanged: () => updateChanged(),
     log: (fields) => log(JSON.stringify({ mod: 'desktop-updates', ...fields })),
+    locale,
   });
   const installContext = (): InstallContext => ({
     platform: process.platform === 'darwin' ? 'darwin' : 'win32',
@@ -227,7 +232,7 @@ async function main(): Promise<void> {
       ? updateInstallEligibility(installContext())
       : {
           eligible: false,
-          reason: 'Automatic installation is available in installed Windows and Mac apps.',
+          reason: t(locale, 'updates.installUnsupported'),
         };
   const lastInstall = await readUpdateInstallResult(app.getPath('userData')).catch(
     (error: unknown) => {
@@ -244,7 +249,7 @@ async function main(): Promise<void> {
   const updates = new ManagedUpdates({
     checker,
     canInstall: () => ownsHost() && eligibility.eligible,
-    unavailableReason: eligibility.reason ?? 'Only the hosting computer can install this update.',
+    unavailableReason: eligibility.reason ?? t(locale, 'updates.hostOnly'),
     lastInstall,
     download: (release, signal, onProgress) =>
       downloadRelease(release, {
@@ -254,25 +259,25 @@ async function main(): Promise<void> {
       }),
     verify: verifyDownloadedRelease,
     install: async (artifact) => {
-      if (busy || quitting)
-        throw new Error('Wait for the current app operation to finish before updating.');
+      if (busy || quitting) throw new Error(t(locale, 'updates.waitForOperation'));
       let failure: unknown;
       await runOperation(
-        'Preparing update…',
-        'Could not install the update',
+        t(locale, 'updates.preparing'),
+        t(locale, 'updates.installFailed'),
         async () => {
           try {
             // Refresh the actual service state while holding the same gate as install/remove/reset.
             await currentServiceState();
-            if (!ownsHost()) throw new Error('The hosting app is no longer available to update.');
+            if (!ownsHost()) throw new Error(t(locale, 'updates.hostGone'));
             const prepared = await prepareUpdateInstall({
               artifact,
               context: installContext(),
-              onProgress: setBusy,
+              // install.ts reports a single English progress message: show it translated.
+              onProgress: () => setBusy(t(locale, 'updates.approvePrompt')),
             });
             try {
-              if (quitting) throw new Error('The app closed before installation was confirmed.');
-              setBusy('Restarting to install the update…');
+              if (quitting) throw new Error(t(locale, 'updates.closedBeforeConfirm'));
+              setBusy(t(locale, 'updates.restarting'));
               await server.stop();
               // The external helper acknowledges handoff before this process releases its app files.
               await prepared.commit();
@@ -357,21 +362,22 @@ async function main(): Promise<void> {
   const serviceDown = (state: ServiceState) => {
     setMode('error');
     loadMain(
-      messagePage(
+      page(
         state === 'running'
-          ? 'The background service is not answering'
-          : 'The background service is not running',
-        'EzyChat Lite runs as a background service on this computer. Open "Status & Service…" from the tray to start it or to see its logs.',
+          ? t(locale, 'page.serviceNotAnsweringTitle')
+          : t(locale, 'page.serviceNotRunningTitle'),
+        t(locale, 'page.serviceDownBody'),
       ),
     );
   };
 
   const describe = (): string => {
     if (busy) return busy;
-    if (mode === 'client') return 'Background service — connected';
-    if (mode === 'standalone') return `Standalone — ${server.state}`;
-    if (mode === 'error') return 'Server not running';
-    return 'Starting…';
+    if (mode === 'client') return t(locale, 'mode.client');
+    if (mode === 'standalone')
+      return t(locale, 'mode.standalone', { state: t(locale, `serverState.${server.state}`) });
+    if (mode === 'error') return t(locale, 'mode.error');
+    return t(locale, 'mode.starting');
   };
 
   const setMode = (m: DesktopMode) => {
@@ -408,7 +414,7 @@ async function main(): Promise<void> {
       if (mode === 'standalone' || mode === 'client') void mainWindow.loadURL(url + path);
       else
         void mainWindow.loadURL(
-          messagePage('Starting EzyChat Lite…', 'Starting the local server.'),
+          page(t(locale, 'page.startingTitle'), t(locale, 'page.startingBody')),
         );
     } else if (path !== '/') {
       void mainWindow.loadURL(url + path);
@@ -433,6 +439,7 @@ async function main(): Promise<void> {
       preload: join(here, 'preload.cjs'),
       html: statusFile,
       title: appTitle(version),
+      locale,
     });
     statusWindow.on('closed', () => (statusWindow = null));
   };
@@ -451,7 +458,7 @@ async function main(): Promise<void> {
 
   const startStandalone = async (): Promise<boolean> => {
     setMode('starting');
-    loadMain(messagePage('Starting EzyChat Lite…', 'Starting the local server.'));
+    loadMain(page(t(locale, 'page.startingTitle'), t(locale, 'page.startingBody')));
     server.start();
     const ok = await server.waitRunning(45_000);
     adoptPort(server.port);
@@ -461,12 +468,7 @@ async function main(): Promise<void> {
       return true;
     }
     setMode('error');
-    loadMain(
-      messagePage(
-        'The server did not start',
-        `Port ${port} may be in use by another program. Open "Status & Service…" from the tray for logs.`,
-      ),
-    );
+    loadMain(page(t(locale, 'page.notStartedTitle'), t(locale, 'page.notStartedBody', { port })));
     return false;
   };
 
@@ -502,12 +504,7 @@ async function main(): Promise<void> {
       );
       if (svc === 'running') {
         setMode('starting');
-        loadMain(
-          messagePage(
-            'Connecting to the background service…',
-            'Waiting for the EzyChat Lite service to start.',
-          ),
-        );
+        loadMain(page(t(locale, 'page.connectingTitle'), t(locale, 'page.connectingBody')));
         if (await waitForService(60_000)) {
           setMode('client');
           loadMain(url);
@@ -521,24 +518,22 @@ async function main(): Promise<void> {
   };
 
   const resetAdmin = () =>
-    runOperation('Confirming password reset…', 'Could not reset the admin password', async () => {
+    runOperation(t(locale, 'reset.busyConfirm'), t(locale, 'reset.failed'), async () => {
       const { response } = await dialog.showMessageBox({
         type: 'warning',
-        title: 'Reset admin password',
-        message: 'Reset the first admin account password?',
-        detail:
-          'A new temporary password is generated and all of that admin’s sessions are signed out.',
-        buttons: ['Reset password', 'Cancel'],
+        title: t(locale, 'reset.confirmTitle'),
+        message: t(locale, 'reset.confirmMessage'),
+        detail: t(locale, 'reset.confirmDetail'),
+        buttons: [t(locale, 'reset.confirmButton'), t(locale, 'common.cancel')],
         defaultId: 1,
         cancelId: 1,
       });
       if (response !== 0) return;
-      setBusy('Resetting admin password…');
+      setBusy(t(locale, 'reset.busy'));
       let output: string;
       if (mode === 'client') {
         const st = await service.status();
-        if (st === 'not-installed')
-          throw new Error('The running server is not managed by this app; reset it where it runs.');
+        if (st === 'not-installed') throw new Error(t(locale, 'reset.notManaged'));
         output = await service.resetAdmin();
       } else {
         await server.stop();
@@ -549,15 +544,20 @@ async function main(): Promise<void> {
         });
         output = r.output;
         await startStandalone();
-        if (r.code !== 0) throw new Error(output || `reset failed (exit ${r.code})`);
+        if (r.code !== 0)
+          throw new Error(output || t(locale, 'reset.exitCode', { code: String(r.code) }));
       }
       const m = /password for (.+?): (\S+)/.exec(output);
       const { response: r2 } = await dialog.showMessageBox({
         type: 'info',
-        title: 'Admin password reset',
-        message: m ? `New password for ${m[1]}:` : 'Admin password reset',
-        detail: m ? `${m[2]}\n\nYou will be asked to change it after signing in.` : output,
-        buttons: m ? ['Copy password', 'Close'] : ['Close'],
+        title: t(locale, 'reset.doneTitle'),
+        message: m
+          ? t(locale, 'reset.doneMessage', { user: m[1] ?? '' })
+          : t(locale, 'reset.doneTitle'),
+        detail: m ? t(locale, 'reset.doneDetail', { password: m[2] ?? '' }) : output,
+        buttons: m
+          ? [t(locale, 'reset.copy'), t(locale, 'common.close')]
+          : [t(locale, 'common.close')],
         defaultId: 0,
       });
       if (m && r2 === 0) clipboard.writeText(m[2] ?? '');
@@ -584,34 +584,33 @@ async function main(): Promise<void> {
         busy,
         logs: [...desktopLog.slice(-60)],
         keepInTray,
+        locale,
+        intlTag: desktopIntlTag(locale),
+        strings: statusStrings(locale),
       };
     },
     enableService: () =>
       runOperation(
-        'Confirming service installation…',
-        'Could not enable the background service',
+        t(locale, 'service.enableBusyConfirm'),
+        t(locale, 'service.enableFailed'),
         async () => {
           const { response } = await dialog.showMessageBox({
             type: 'question',
-            title: 'Run as background service',
-            message: 'Run EzyChat Lite as a background service?',
-            detail:
-              'The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n' +
-              machineDataDir() +
-              '\n\nYou will be asked for administrator permission.',
-            buttons: ['Enable service', 'Cancel'],
+            title: t(locale, 'service.enableTitle'),
+            message: t(locale, 'service.enableMessage'),
+            detail: t(locale, 'service.enableDetail', { folder: machineDataDir() }),
+            buttons: [t(locale, 'service.enableButton'), t(locale, 'common.cancel')],
             defaultId: 0,
             cancelId: 1,
           });
           if (response !== 0) return;
-          setBusy('Installing service…');
+          setBusy(t(locale, 'service.installing'));
           await server.stop();
           await service.install();
           await currentServiceState();
-          setBusy('Waiting for the service to start…');
+          setBusy(t(locale, 'service.waiting'));
           const ok = await waitForService(60_000);
-          if (!ok)
-            throw new Error('The service was installed but did not answer on port ' + port + '.');
+          if (!ok) throw new Error(t(locale, 'service.noAnswer', { port }));
           setMode('client');
           loadMain(url);
         },
@@ -627,29 +626,28 @@ async function main(): Promise<void> {
       ),
     disableService: () =>
       runOperation(
-        'Confirming service removal…',
-        'Could not remove the background service',
+        t(locale, 'service.disableBusyConfirm'),
+        t(locale, 'service.disableFailed'),
         async () => {
           const { response } = await dialog.showMessageBox({
             type: 'question',
-            title: 'Stop background service',
-            message: 'Remove the background service and run inside this app again?',
-            detail:
-              'Your data moves back to your user profile. You will be asked for administrator permission.',
-            buttons: ['Remove service', 'Cancel'],
+            title: t(locale, 'service.disableTitle'),
+            message: t(locale, 'service.disableMessage'),
+            detail: t(locale, 'service.disableDetail'),
+            buttons: [t(locale, 'service.disableButton'), t(locale, 'common.cancel')],
             defaultId: 0,
             cancelId: 1,
           });
           if (response !== 0) return;
-          setBusy('Removing service…');
+          setBusy(t(locale, 'service.removing'));
           await service.uninstall();
           await currentServiceState();
-          setBusy('Starting the local server…');
+          setBusy(t(locale, 'service.startingLocal'));
           await startStandalone();
         },
       ),
     startService: () =>
-      runOperation('Starting service…', 'Could not start the service', async () => {
+      runOperation(t(locale, 'service.starting'), t(locale, 'service.startFailed'), async () => {
         await service.start();
         if (await waitForService(30_000)) {
           setMode('client');
@@ -657,11 +655,9 @@ async function main(): Promise<void> {
         }
       }),
     stopService: () =>
-      runOperation('Stopping service…', 'Could not stop the service', async () => {
+      runOperation(t(locale, 'service.stopping'), t(locale, 'service.stopFailed'), async () => {
         await service.stop();
-        loadMain(
-          messagePage('Service stopped', 'Start the service again from "Status & Service…".'),
-        );
+        loadMain(page(t(locale, 'page.serviceStoppedTitle'), t(locale, 'page.serviceStoppedBody')));
         setMode('error');
       }),
     resetAdmin,
@@ -676,7 +672,7 @@ async function main(): Promise<void> {
         writeDesktopConfig({ keepInTray: keep });
       } catch (err) {
         log(`could not save the tray preference: ${(err as Error).message}`);
-        throw new Error('Could not save the tray preference.', { cause: err });
+        throw new Error(t(locale, 'common.trayPrefFailed'), { cause: err });
       }
       keepInTray = keep;
       log(`keep in tray: ${keep}`);
@@ -706,11 +702,11 @@ async function main(): Promise<void> {
         if (!ownsHost()) return null;
         const state = updates.getState();
         if (state.transfer?.status === 'ready')
-          return `Restart and update to v${state.transfer.version}…`;
-        if (state.transfer?.status === 'downloading') return 'Downloading update…';
+          return t(locale, 'updates.trayRestart', { version: state.transfer.version ?? '' });
+        if (state.transfer?.status === 'downloading') return t(locale, 'updates.trayDownloading');
         return state.release
-          ? `Update available: v${state.release.version}…`
-          : 'Check for updates…';
+          ? t(locale, 'updates.trayAvailable', { version: state.release.version })
+          : t(locale, 'updates.trayCheck');
       },
       quit: () => {
         quitting = true;
@@ -719,6 +715,7 @@ async function main(): Promise<void> {
       describe,
     },
     version,
+    locale,
   );
   updateChanged = () => {
     trayHandle.refresh();

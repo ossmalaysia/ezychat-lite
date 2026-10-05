@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type React from 'react';
 import { ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,6 +36,7 @@ export function AiMemberPanel({
   onClose: () => void;
   section?: 'member' | 'connection';
 }) {
+  const { t } = useTranslation('admin');
   const query = useAiMember();
   if (query.data)
     return (
@@ -49,7 +51,7 @@ export function AiMemberPanel({
     <ResponsiveDialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title={section === 'connection' ? 'Inbox AI connection' : 'AI member'}
+      title={section === 'connection' ? t('ai.connectionTitle') : t('ai.memberTitle')}
     >
       {query.isError ? (
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
@@ -87,6 +89,14 @@ function AiMemberForm({
   section: 'member' | 'connection';
   queryError: unknown;
 }) {
+  const { t, i18n } = useTranslation('admin');
+  const connectionStates = {
+    unavailable: t('ai.state.unavailable'),
+    signed_out: t('ai.state.signed_out'),
+    signing_in: t('ai.state.signing_in'),
+    connected: t('ai.state.connected'),
+    error: t('ai.state.error'),
+  };
   // Connection polling must not replace the admin's unsaved settings.
   const [settings, setSettings] = useState<AiSettings>(status.settings);
   const [apiKey, setApiKey] = useState('');
@@ -105,7 +115,11 @@ function AiMemberForm({
       ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
     });
     if (!parsed.success) {
-      setLocalError(parsed.error.issues[0]?.message ?? 'Check the AI settings.');
+      setLocalError(
+        settings.mode === 'chatgpt' && parsed.error.issues[0]?.path[0] === 'model'
+          ? t('ai.modelInvalid', { models: CHATGPT_MODELS.join(t('ai.modelSeparator')) })
+          : t('ai.checkSettings'),
+      );
       return;
     }
     action.mutate(
@@ -116,9 +130,7 @@ function AiMemberForm({
         onSuccess: (saved) => {
           setSettings(saved.settings);
           setApiKey('');
-          toast.success(
-            section === 'connection' ? 'Inbox AI connection saved.' : 'AI member settings saved.',
-          );
+          toast.success(section === 'connection' ? t('ai.connectionSaved') : t('ai.memberSaved'));
         },
       },
     );
@@ -130,11 +142,11 @@ function AiMemberForm({
     if (!file) return;
     setLocalError(null);
     if (!/\.(txt|md|pdf|docx)$/i.test(file.name)) {
-      setLocalError('Choose a TXT, Markdown, PDF or DOCX document.');
+      setLocalError(t('ai.fileTypeError'));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setLocalError('Documents must be 10 MB or smaller.');
+      setLocalError(t('ai.fileSizeError'));
       return;
     }
     action.mutate({ kind: 'upload', file });
@@ -146,24 +158,22 @@ function AiMemberForm({
       onOpenChange={(open) => !open && !action.isPending && onClose()}
       title={
         section === 'connection'
-          ? 'Inbox AI connection'
+          ? t('ai.connectionTitle')
           : status.member
-            ? 'Edit AI member'
-            : 'Add AI member'
+            ? t('ai.editMember')
+            : t('ai.addMember')
       }
       description={
-        section === 'connection'
-          ? 'One provider and model configuration is shared by the entire inbox.'
-          : 'One AI member can help your team answer basic business questions.'
+        section === 'connection' ? t('ai.connectionDescription') : t('ai.memberDescription')
       }
       footer={
         <>
           <Button variant="outline" size="touch" onClick={onClose} disabled={action.isPending}>
-            Close
+            {t('ai.close')}
           </Button>
           <Button type="submit" form="ai-member-form" size="touch" disabled={action.isPending}>
             <Pending show={action.isPending} />
-            {section === 'connection' ? 'Save AI connection' : 'Save AI member'}
+            {section === 'connection' ? t('ai.saveConnection') : t('ai.saveMember')}
           </Button>
         </>
       }
@@ -175,13 +185,8 @@ function AiMemberForm({
       >
         {section === 'member' && (
           <>
-            <p className="text-sm text-muted-foreground">
-              Replies after 10 seconds in unassigned customer chats and takes ownership. Assign the
-              chat to yourself to take over. The AI resolves a chat only after customer
-              confirmation. When it needs help, it assigns an online human with no open chats, or
-              returns the chat to unassigned.
-            </p>
-            <Field label="AI member name">
+            <p className="text-sm text-muted-foreground">{t('ai.behavior')}</p>
+            <Field label={t('ai.memberName')}>
               {(p) => (
                 <Input
                   {...p}
@@ -193,13 +198,8 @@ function AiMemberForm({
                 />
               )}
             </Field>
-            <p className="text-sm text-muted-foreground">
-              Role: Sales Agent — answers basic questions using your business knowledge.
-            </p>
-            <Field
-              label="Enable AI replies"
-              hint="Save to apply. Disabling stops automatic replies."
-            >
+            <p className="text-sm text-muted-foreground">{t('ai.roleDescription')}</p>
+            <Field label={t('ai.enable')} hint={t('ai.enableHint')}>
               {(p) => (
                 <Label
                   htmlFor={p.id}
@@ -214,23 +214,23 @@ function AiMemberForm({
                 </Label>
               )}
             </Field>
-            <Banner title="Shared inbox AI connection">
+            <Banner title={t('ai.sharedConnection')}>
               <p>
                 {status.settings.mode === 'api'
                   ? status.hasApiKey
-                    ? 'OpenAI API key is saved.'
-                    : 'OpenAI API key is not configured.'
-                  : `ChatGPT: ${status.connection.state.replaceAll('_', ' ')}`}
+                    ? t('ai.keySaved')
+                    : t('ai.keyMissing')
+                  : t('ai.chatgptState', { state: connectionStates[status.connection.state] })}
               </p>
               <Button asChild size="touch" variant="outline" className="mt-2" onClick={onClose}>
-                <Link to="/admin/settings">Configure in Settings → AI</Link>
+                <Link to="/admin/settings">{t('ai.configureInSettings')}</Link>
               </Button>
             </Banner>
           </>
         )}
         {section === 'connection' && (
-          <section className="space-y-4" aria-label="AI connection">
-            <Field label="Connection mode">
+          <section className="space-y-4" aria-label={t('ai.connectionLabel')}>
+            <Field label={t('ai.connectionMode')}>
               {(p) => (
                 <Select
                   value={settings.mode}
@@ -247,20 +247,16 @@ function AiMemberForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="api">OpenAI API key</SelectItem>
-                    <SelectItem value="chatgpt">ChatGPT sign-in</SelectItem>
+                    <SelectItem value="api">{t('ai.apiKey')}</SelectItem>
+                    <SelectItem value="chatgpt">{t('ai.chatgptMode')}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
             </Field>
             {settings.mode === 'api' ? (
               <Field
-                label="OpenAI API key"
-                hint={
-                  status.hasApiKey
-                    ? 'A key is saved. Leave blank to keep it, or enter a replacement.'
-                    : 'Stored securely on the inbox server. API usage is billed separately from ChatGPT.'
-                }
+                label={t('ai.apiKey')}
+                hint={status.hasApiKey ? t('ai.keepKeyHint') : t('ai.apiKeyHint')}
               >
                 {(p) => (
                   <Input
@@ -270,21 +266,17 @@ function AiMemberForm({
                     autoComplete="new-password"
                     disabled={action.isPending}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={status.hasApiKey ? 'Saved key — hidden' : 'Enter API key'}
+                    placeholder={status.hasApiKey ? t('ai.hiddenKey') : t('ai.enterKey')}
                   />
                 )}
               </Field>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Sign in through the supported Codex integration. Open the sign-in link in a
-                  browser on the computer running the inbox server so the local callback can
-                  complete.
-                </p>
+                <p className="text-sm text-muted-foreground">{t('ai.loginHint')}</p>
                 <p role="status" className="text-sm">
                   {connectionModeSaved
-                    ? `ChatGPT: ${status.connection.state.replaceAll('_', ' ')}`
-                    : 'Save the ChatGPT connection mode before signing in.'}
+                    ? t('ai.chatgptState', { state: connectionStates[status.connection.state] })
+                    : t('ai.saveModeFirst')}
                 </p>
                 {connectionModeSaved && status.connection.error && (
                   <Banner tone="danger">{status.connection.error}</Banner>
@@ -301,8 +293,8 @@ function AiMemberForm({
                       onClick={() => action.mutate({ kind: 'logout' })}
                     >
                       {status.connection.state === 'signing_in'
-                        ? 'Cancel sign-in'
-                        : 'Disconnect ChatGPT'}
+                        ? t('ai.cancelLogin')
+                        : t('ai.disconnect')}
                     </Button>
                   ) : (
                     <Button
@@ -316,31 +308,32 @@ function AiMemberForm({
                       }
                       onClick={() => action.mutate({ kind: 'login' })}
                     >
-                      Sign in to ChatGPT
+                      {t('ai.login')}
                     </Button>
                   )}
                   {connectionModeSaved && loginUrl && (
                     <Button asChild variant="outline" size="touch">
                       <a href={loginUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink aria-hidden />
-                        Open sign-in
+                        {t('ai.openLogin')}
                       </a>
                     </Button>
                   )}
                 </div>
                 {status.connection.loginUrl && !loginUrl && (
-                  <Banner tone="danger">
-                    The sign-in link is invalid. Cancel sign-in and try again.
-                  </Banner>
+                  <Banner tone="danger">{t('ai.invalidLink')}</Banner>
                 )}
               </div>
             )}
             <Field
-              label="Model (optional)"
+              label={t('ai.model')}
               hint={
                 settings.mode === 'api'
-                  ? 'Leave blank to use gpt-4.1-mini.'
-                  : `Leave blank for ${DEFAULT_CHATGPT_MODEL}. Supported: ${CHATGPT_MODELS.join(' or ')}.`
+                  ? t('ai.apiModelHint')
+                  : t('ai.chatgptModelHint', {
+                      model: DEFAULT_CHATGPT_MODEL,
+                      models: CHATGPT_MODELS.join(t('ai.modelSeparator')),
+                    })
               }
             >
               {(p) => (
@@ -356,12 +349,9 @@ function AiMemberForm({
           </section>
         )}
         {section === 'member' && (
-          <section className="space-y-4 border-t pt-4" aria-label="Business knowledge">
-            <h2 className="font-medium">Business knowledge</h2>
-            <Field
-              label="AI instructions"
-              hint="Describe tone, language and the questions the AI should handle."
-            >
+          <section className="space-y-4 border-t pt-4" aria-label={t('ai.knowledge')}>
+            <h2 className="font-medium">{t('ai.knowledge')}</h2>
+            <Field label={t('ai.instructions')} hint={t('ai.instructionsHint')}>
               {(p) => (
                 <Textarea
                   {...p}
@@ -372,10 +362,7 @@ function AiMemberForm({
                 />
               )}
             </Field>
-            <Field
-              label="Business notes"
-              hint="Add business hours, services, policies and other approved facts."
-            >
+            <Field label={t('ai.notes')} hint={t('ai.notesHint')}>
               {(p) => (
                 <Textarea
                   {...p}
@@ -388,10 +375,10 @@ function AiMemberForm({
               )}
             </Field>
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Frequently asked questions</h3>
+              <h3 className="text-sm font-medium">{t('ai.faqs')}</h3>
               {settings.faqs.map((faq, index) => (
                 <div key={index} className="space-y-3 rounded-lg border p-3">
-                  <Field label={`Question ${index + 1}`}>
+                  <Field label={t('ai.question', { number: index + 1 })}>
                     {(p) => (
                       <Input
                         {...p}
@@ -410,7 +397,7 @@ function AiMemberForm({
                       />
                     )}
                   </Field>
-                  <Field label={`Answer ${index + 1}`}>
+                  <Field label={t('ai.answer', { number: index + 1 })}>
                     {(p) => (
                       <Textarea
                         {...p}
@@ -434,7 +421,7 @@ function AiMemberForm({
                     size="touch"
                     variant="ghost"
                     disabled={action.isPending}
-                    aria-label={`Remove FAQ ${index + 1}`}
+                    aria-label={t('ai.removeFaqLabel', { number: index + 1 })}
                     onClick={() =>
                       update(
                         'faqs',
@@ -443,7 +430,7 @@ function AiMemberForm({
                     }
                   >
                     <Trash2 aria-hidden />
-                    Remove FAQ
+                    {t('ai.removeFaq')}
                   </Button>
                 </div>
               ))}
@@ -455,13 +442,10 @@ function AiMemberForm({
                 onClick={() => update('faqs', [...settings.faqs, { question: '', answer: '' }])}
               >
                 <Plus aria-hidden />
-                Add FAQ
+                {t('ai.addFaq')}
               </Button>
             </div>
-            <Field
-              label="Upload business document"
-              hint="TXT, Markdown, PDF or DOCX. Up to 20 files, 10 MB per file; scanned PDFs need selectable text. Save the member first. Documents are available to the AI immediately."
-            >
+            <Field label={t('ai.upload')} hint={t('ai.uploadHint')}>
               {(p) => (
                 <Input
                   {...p}
@@ -482,7 +466,9 @@ function AiMemberForm({
                     <div className="min-w-0 flex-1">
                       <p className="break-all text-sm">{doc.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {doc.characters.toLocaleString()} characters
+                        {t('ai.characters', {
+                          number: doc.characters.toLocaleString(i18n.resolvedLanguage),
+                        })}
                       </p>
                     </div>
                     <Button
@@ -490,7 +476,7 @@ function AiMemberForm({
                       size="icon-touch"
                       variant="ghost"
                       disabled={action.isPending}
-                      aria-label={`Remove ${doc.name}`}
+                      aria-label={t('ai.removeDocument', { name: doc.name })}
                       onClick={() => action.mutate({ kind: 'remove', id: doc.id })}
                     >
                       <Trash2 aria-hidden />
@@ -502,9 +488,7 @@ function AiMemberForm({
           </section>
         )}
         {Boolean(queryError) && (
-          <Banner tone="danger">
-            Cannot refresh AI connection status. {errorMessage(queryError)}
-          </Banner>
+          <Banner tone="danger">{t('ai.refreshError', { error: errorMessage(queryError) })}</Banner>
         )}
         {(localError || action.error) && (
           <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>

@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { useChats, type ChatFilters } from '../api/queries';
@@ -19,11 +20,14 @@ export interface ChatListProps {
   onResetFilters?(): void;
 }
 
-const emptyCopy: Record<ChatFilters['assigned'], { title: string; description: string }> = {
-  me: { title: 'Nothing assigned to you', description: 'No chats are assigned to you.' },
-  none: { title: 'All caught up', description: 'Every chat has an owner. Nice work.' },
-  any: { title: 'No chats yet', description: 'New WhatsApp conversations will appear here.' },
-};
+const emptyCopy = {
+  me: { titleKey: 'chatList.empty.me.title', descriptionKey: 'chatList.empty.me.description' },
+  none: {
+    titleKey: 'chatList.empty.none.title',
+    descriptionKey: 'chatList.empty.none.description',
+  },
+  any: { titleKey: 'chatList.empty.any.title', descriptionKey: 'chatList.empty.any.description' },
+} as const satisfies Record<ChatFilters['assigned'], { titleKey: string; descriptionKey: string }>;
 
 function ChatRowSkeleton() {
   return (
@@ -41,6 +45,7 @@ function ChatRowSkeleton() {
 }
 
 export function ChatList({ filters, activeJid, directory, onResetFilters }: ChatListProps) {
+  const { t } = useTranslation(['inbox', 'common']);
   const q = useChats(filters);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
@@ -74,7 +79,11 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
 
   if (q.isPending) {
     return (
-      <div className="min-h-0 flex-1 overflow-hidden" role="status" aria-label="Loading chats">
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        role="status"
+        aria-label={t('chatList.loading')}
+      >
         {Array.from({ length: 8 }, (_, i) => (
           <ChatRowSkeleton key={i} />
         ))}
@@ -87,10 +96,10 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
       <div className="p-3">
         <Banner
           tone="danger"
-          title="Couldn’t load chats"
+          title={t('chatList.loadFailed')}
           action={
             <Button variant="outline" size="sm" onClick={() => void q.refetch()}>
-              Try again
+              {t('common:actions.tryAgain')}
             </Button>
           }
         >
@@ -101,11 +110,18 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
   }
 
   if (chats.length === 0) {
+    const empty = emptyCopy[filters.assigned];
     const copy = filters.q
-      ? { title: 'No results', description: `No chats match “${filters.q}”.` }
+      ? {
+          title: t('common:status.noResults'),
+          description: t('chatList.empty.search', { query: filters.q }),
+        }
       : filters.status === 'resolved'
-        ? { title: 'No resolved chats', description: 'No resolved chats here.' }
-        : emptyCopy[filters.assigned];
+        ? {
+            title: t('chatList.empty.resolvedTitle'),
+            description: t('chatList.empty.resolvedDescription'),
+          }
+        : { title: t(empty.titleKey), description: t(empty.descriptionKey) };
     return (
       <EmptyState
         className="flex-1"
@@ -118,7 +134,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
           onResetFilters &&
           (filters.q || filters.assigned !== 'any' || filters.status === 'resolved') ? (
             <Button variant="outline" size="touch" onClick={onResetFilters}>
-              Show all open chats
+              {t('chatList.showAllOpen')}
             </Button>
           ) : undefined
         }
@@ -143,7 +159,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
       <div ref={sentinelRef} className="h-px" />
       {isFetchingNextPage && (
         <div className="flex justify-center p-3 text-muted-foreground" role="status">
-          <Loader2 className="size-5 animate-spin" aria-label="Loading more chats" />
+          <Loader2 className="size-5 animate-spin" aria-label={t('chatList.loadingMore')} />
         </div>
       )}
       {hasNextPage && !isFetchingNextPage && (
@@ -153,7 +169,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
             size="touch"
             onClick={() => void fetchNextPage({ cancelRefetch: false })}
           >
-            Load more
+            {t('chatList.loadMore')}
           </Button>
         </div>
       )}

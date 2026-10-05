@@ -1,0 +1,452 @@
+{
+  "title": "管理",
+  "titleWithSection": "管理 · {{section}}",
+  "nav": {
+    "label": "管理分区",
+    "members": "成员",
+    "quickReplies": "快捷回复",
+    "whatsapp": "WhatsApp",
+    "tunnel": "Cloudflare",
+    "settings": "设置",
+    "audit": "审计日志"
+  },
+  "layout": {
+    "inbox": "收件箱",
+    "menu": "管理菜单",
+    "footer": "管理工具与支持",
+    "backToInbox": "返回收件箱",
+    "logOut": "退出登录",
+    "loggingOut": "正在退出…",
+    "logOutFailed": "无法退出登录：{{error}}",
+    "loading": "正在加载"
+  },
+  "ui": {
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败，请选中文本后手动复制。",
+    "loadFailed": "无法加载",
+    "loading": "正在加载"
+  },
+  "members": {
+    "title": "成员",
+    "description": "可以登录团队收件箱的人员。",
+    "add": "添加成员",
+    "searchLabel": "搜索成员",
+    "searchPlaceholder": "搜索姓名、用户名或角色",
+    "count_other": "{{shown}} / {{count}} 位成员",
+    "added": "添加于 <time>{{date}}</time>",
+    "you": "（您）",
+    "columns": {
+      "member": "成员",
+      "role": "角色",
+      "status": "状态",
+      "created": "创建时间",
+      "actions": "操作"
+    },
+    "empty": {
+      "noMatchTitle": "没有匹配的成员",
+      "noMatchBody": "请尝试其他姓名、用户名或角色。",
+      "clearSearch": "清除搜索",
+      "noneTitle": "还没有成员",
+      "noneBody": "添加成员后，他们即可登录。"
+    },
+    "status": {
+      "disabled": "已停用",
+      "active": "正常",
+      "mustChangePassword": "须修改密码"
+    },
+    "actions": {
+      "editMember": "编辑 {{name}}",
+      "moreFor": "{{name}} 的更多操作",
+      "resetPassword": "重置密码",
+      "signOutEverywhere": "在所有设备上退出",
+      "enable": "启用",
+      "disable": "停用"
+    },
+    "form": {
+      "role": "角色",
+      "username": "用户名",
+      "displayName": "显示名称",
+      "tempPass": "临时密码",
+      "tempPasswordHint": "对方首次登录时需要修改此密码。",
+      "tempPasswordManualHint": "此浏览器无法自动生成密码。请输入一个强密码，对方首次登录时需要修改。",
+      "generate": "生成",
+      "usernameTooShort": "用户名至少需要 3 个字符。",
+      "passTooShort": "密码至少需要 8 个字符。",
+      "ownRoleHint": "您不能更改自己的角色。"
+    },
+    "create": {
+      "title": "添加成员",
+      "submit": "创建成员",
+      "done": "已添加 {{name}}。请将临时密码告知对方。"
+    },
+    "edit": {
+      "title": "编辑 {{name}}",
+      "done": "成员已更新。"
+    },
+    "disable": {
+      "enableTitle": "启用 {{name}}？",
+      "disableTitle": "停用 {{name}}？",
+      "enableBody": "对方将可以重新登录。",
+      "disableBody": "停用的成员会立即被退出登录，且无法再登录。",
+      "enabled": "{{name}} 可以重新登录了。",
+      "disabled": "已停用 {{name}}。"
+    },
+    "reset": {
+      "title": "重置 {{name}} 的密码？",
+      "body": "将生成新的临时密码，并退出对方的所有会话。",
+      "newTitle": "新的临时密码",
+      "newBody": "请将此密码告知 {{name}}。密码只显示一次，对方下次登录时必须修改。对方的其他会话已被退出。"
+    },
+    "revoke": {
+      "title": "让 {{name}} 在所有设备上退出？",
+      "confirm": "退出登录",
+      "body": "对方的所有设备将立即退出登录。",
+      "done": "已让 {{name}} 在所有设备上退出。"
+    }
+  },
+  "quickReplies": {
+    "title": "快捷回复",
+    "description": "客服在输入框中输入 <kbd>/</kbd> 加快捷码，即可插入回复。",
+    "new": "新建快捷回复",
+    "searchLabel": "搜索快捷回复",
+    "searchPlaceholder": "搜索快捷码或回复内容",
+    "count_other": "{{shown}} / {{count}} 条快捷回复",
+    "empty": {
+      "noMatchTitle": "没有匹配的快捷回复",
+      "noMatchBody": "请尝试其他快捷码或词语。",
+      "noneTitle": "还没有快捷回复",
+      "noneBody": "创建快捷回复，更快地回答常见问题。",
+      "clearSearch": "清除搜索"
+    },
+    "editLabel": "编辑 /{{shortcut}}",
+    "deleteLabel": "删除 /{{shortcut}}",
+    "delete": {
+      "title": "删除 /{{shortcut}}？",
+      "body": "客服将无法再使用此快捷回复。",
+      "done": "已删除 /{{shortcut}}。"
+    },
+    "form": {
+      "editTitle": "编辑 /{{shortcut}}",
+      "shortcut": "快捷码",
+      "shortcutHint": "在输入框中 / 之后输入，例如 /{{example}}",
+      "shortcutExample": "price",
+      "shortcutInvalid": "请使用 1-32 个小写字母、数字、“-”或“_”。",
+      "body": "回复内容",
+      "bodyRequired": "请输入回复内容。",
+      "saved": "已保存 /{{shortcut}}。"
+    }
+  },
+  "audit": {
+    "title": "审计日志",
+    "description": "登录、成员变更、WhatsApp 及隧道操作。",
+    "download": "下载日志",
+    "empty": "还没有审计记录",
+    "loadOlder": "加载更早记录",
+    "system": "系统",
+    "userNumber": "用户 #{{id}}",
+    "columns": {
+      "time": "时间",
+      "who": "操作人",
+      "action": "操作",
+      "details": "详情",
+      "ip": "IP"
+    },
+    "actions": {
+      "authLogin": "已登录",
+      "authLoginFailed": "登录失败",
+      "authLogout": "已退出登录",
+      "authChangePassword": "已修改密码",
+      "authResetAdminCli": "已重置管理员密码",
+      "setupAdmin": "已创建管理员账户",
+      "userCreate": "已添加成员",
+      "userUpdate": "已更新成员",
+      "userResetPassword": "已重置成员密码",
+      "userRevokeSessions": "已让成员在所有设备上退出",
+      "quickReplyCreate": "已创建快捷回复",
+      "quickReplyUpdate": "已更新快捷回复",
+      "quickReplyDelete": "已删除快捷回复",
+      "waLogout": "已解除 WhatsApp 关联",
+      "waRelink": "已重新开始关联 WhatsApp",
+      "waTakeover": "已接管 WhatsApp 会话",
+      "waPairingCode": "已请求 WhatsApp 配对码",
+      "tunnelStart": "隧道已启动",
+      "tunnelStop": "隧道已停止",
+      "cloudflareLogin": "已开始登录 Cloudflare",
+      "cloudflareCreate": "已配置 Cloudflare 收件箱地址",
+      "settingsUpdate": "已更新设置",
+      "chatsResolveAll": "已解决所有未结对话",
+      "logsDownload": "已下载日志"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "saved": "设置已保存。",
+    "save": "保存设置",
+    "portInvalid": "端口必须介于 1024 和 65535 之间。",
+    "historyInvalid": "历史记录必须介于 0 到 365 天之间。",
+    "restartTitle": "需要重启",
+    "restartBody": "网络更改将在应用（或服务）重启后生效。",
+    "network": {
+      "title": "网络",
+      "port": "端口",
+      "portHint": "默认 7420。",
+      "lan": "允许从局域网（LAN）访问",
+      "lanHint": "同一 Wi-Fi 下的其他设备可以打开收件箱。",
+      "lanWarningTitle": "局域网流量为明文 HTTP",
+      "lanWarningBody": "密码和消息在本地网络中以未加密方式传输。请仅在可信网络中启用；如需加密的远程访问，请使用隧道。"
+    },
+    "history": {
+      "title": "历史记录",
+      "days": "关联时导入的历史天数"
+    },
+    "device": {
+      "title": "本设备",
+      "description": "偏好设置保存在本设备上，并立即生效。",
+      "themeHint": "“跟随系统”会使用设备的浅色或深色设置。",
+      "notifications": "通知",
+      "notificationsHint": "未打开收件箱时，收到新消息会通知您。"
+    }
+  },
+  "resolveAll": {
+    "title": "收件箱",
+    "description": "下班前一键解决全团队的所有未结对话。消息会保留，新收到的消息会自动重新打开对话。",
+    "loading": "正在加载未结对话…",
+    "none": "没有需要解决的未结对话。",
+    "openCount_other": "{{count}} 个未结对话",
+    "button": "解决所有未结对话",
+    "confirmTitle": "解决所有未结对话？",
+    "confirm": "全部解决",
+    "done_other": "已解决 {{count}} 个对话。",
+    "confirmBody": "这将解决全团队当前所有未结对话，并清除负责人。消息和未读计数会保留。之后您可以单独重新打开对话。",
+    "confirmBodyWithCount": "这将解决全团队当前所有未结对话（目前 {{openCount}} 个），并清除负责人。消息和未读计数会保留。之后您可以单独重新打开对话。"
+  },
+  "whatsapp": {
+    "description": "关联到此团队收件箱的 WhatsApp 号码。",
+    "state": {
+      "open": "已连接",
+      "connecting": "正在连接",
+      "qr": "等待扫描二维码",
+      "disconnected": "已断开",
+      "loggedOut": "已退出登录",
+      "replaced": "已在别处打开",
+      "blocked": "已被封禁"
+    },
+    "connection": "连接",
+    "status": "状态",
+    "linkedNumber": "已关联号码",
+    "name": "名称",
+    "replacedTitle": "会话已在别处打开",
+    "replacedBody": "此号码已从其他地方连接。使用“接管”可在此处重新连接。",
+    "unlinkedBody": "请使用“重新关联”再次关联号码。",
+    "scanTitle": "扫码关联",
+    "scanHint": "在手机上：WhatsApp → 设置 → 已关联的设备 → 关联新设备。",
+    "qrLabel": "WhatsApp 关联二维码",
+    "waitingQrTitle": "等待二维码",
+    "waitingQrBody": "几秒钟后二维码会显示在这里。",
+    "phoneTitle": "或使用手机号码关联",
+    "phoneHint": "获取 8 位字符的代码，无需扫描二维码。",
+    "linkTitle": "关联 WhatsApp",
+    "linkBody": "重新关联以显示新的二维码，然后用手机扫描。",
+    "actionsTitle": "操作",
+    "actionsHint": "退出登录会断开此收件箱。重新关联会开始新的配对。接管会重新连接在别处打开的会话。",
+    "actions": {
+      "logout": {
+        "label": "退出登录",
+        "title": "退出 WhatsApp？",
+        "body": "已关联的设备将从手机中移除。在重新关联之前，团队收件箱将停止收发消息。消息记录会保留。",
+        "done": "已退出 WhatsApp。"
+      },
+      "relink": {
+        "label": "重新关联",
+        "title": "重新关联 WhatsApp？",
+        "body": "当前会话将被丢弃，并显示新的二维码。请在手机上通过 WhatsApp > 已关联的设备 扫描。",
+        "done": "会话已重置，请扫描新的二维码。"
+      },
+      "takeover": {
+        "label": "接管",
+        "title": "接管会话？",
+        "body": "另一个实例（例如其他电脑上的 WhatsApp Web）取代了此连接。接管后将在此处重新连接，并断开另一个连接。",
+        "done": "正在此处重新连接。"
+      }
+    }
+  },
+  "tunnel": {
+    "title": "Cloudflare 访问",
+    "description": "为团队提供一个链接，随时随地用手机打开收件箱。",
+    "state": {
+      "stopped": "已停止",
+      "starting": "正在启动",
+      "running": "运行中",
+      "error": "错误"
+    },
+    "modes": {
+      "off": "关闭",
+      "offHint": "仅限本电脑（以及已启用的局域网）。",
+      "quick": "临时链接",
+      "quickHint": "免费链接，重启后会改变。无需账户。",
+      "named": "您的域名",
+      "namedHint": "登录 Cloudflare 并选择一个固定的收件箱地址。"
+    },
+    "action": {
+      "disconnect": "断开 Cloudflare",
+      "off": "远程访问已关闭",
+      "namedConnecting": "正在连接已保存的地址…",
+      "namedConnect": "连接已保存的地址",
+      "quickRestart": "重启临时链接",
+      "quickCreate": "创建临时链接"
+    },
+    "tokenTooShort": "该令牌似乎太短。",
+    "tokenRequired": "请粘贴 Cloudflare 控制台中的隧道令牌。",
+    "statusTitle": "连接状态",
+    "copyUrl": "复制网址",
+    "qrLabel": "隧道网址二维码",
+    "scanHint": "用手机相机扫描即可打开收件箱。",
+    "quickNote": "每次连接或应用重启后，临时链接都会改变。选择“您的域名”可获得固定的收件箱地址。",
+    "lastError": "最近错误",
+    "connectTitle": "团队如何连接",
+    "remoteAccess": "远程访问",
+    "remoteAccessMode": "远程访问模式",
+    "advancedToken": "高级：使用隧道令牌",
+    "advancedTokenBody": "适用于已在 Cloudflare 控制台中配置的现有隧道。上方的引导式登录可自动完成此设置。",
+    "token": "隧道令牌",
+    "tokenHint": "Cloudflare Zero Trust → Networks → Tunnels → 您的隧道 → install token。",
+    "tokenSavedPlaceholder": "••••••••（已保存，留空则保持不变）",
+    "hostname": "公共主机名",
+    "hostnameHint": "隧道配置中路由到 http://127.0.0.1:<port> 的主机名。",
+    "connectWithToken": "使用令牌连接",
+    "disconnectNote": "断开 Cloudflare 会停止公共链接。收件箱仍可在本电脑上使用。消息和已保存的域名会保留，之后可以重新连接。",
+    "disconnectNoteLan": "断开 Cloudflare 会停止公共链接。收件箱仍可在本电脑及已启用的局域网中使用。消息和已保存的域名会保留，之后可以重新连接。",
+    "diagnostics": "高级：连接诊断"
+  },
+  "cloudflare": {
+    "loading": "正在加载 Cloudflare 设置",
+    "invalidApproval": "无法验证 Cloudflare 登录地址。请取消登录后重试。",
+    "saved": {
+      "label": "已保存的 Cloudflare 地址",
+      "running": "您的域名已连接",
+      "starting": "正在连接您的收件箱…",
+      "idle": "Cloudflare 连接已保存",
+      "runningBody": "团队可以使用此地址，并用各自的收件箱账户登录。",
+      "startingBody": "正在等待 Cloudflare 连接。请保持本电脑和应用运行。",
+      "idleBody": "连接下方已保存的地址，让团队可以使用收件箱。",
+      "change": "更改地址"
+    },
+    "setupLabel": "设置您的 Cloudflare 域名",
+    "step1": {
+      "title": "1. 连接您的 Cloudflare 账户",
+      "body": "在 Cloudflare 登录并授权要使用的域名，授权后返回此处。您需要一个已添加到 Cloudflare 账户的域名。",
+      "connected": "Cloudflare 账户已连接。",
+      "refresh": "刷新域名",
+      "another": "选择其他域名",
+      "anotherHint": "下方仅显示已授权的域名。“选择其他域名”会发起新的 Cloudflare 授权。",
+      "waitingApproval": "正在等待您在 Cloudflare 上授权…",
+      "preparing": "正在准备 Cloudflare 登录…",
+      "open": "打开 Cloudflare 登录",
+      "cancel": "取消登录",
+      "autoUpdate": "授权后此页面会自动更新。请保持应用运行。",
+      "retry": "重新登录 Cloudflare",
+      "signIn": "登录 Cloudflare"
+    },
+    "attention": "Cloudflare 设置需要处理",
+    "noDomainTitle": "未找到已授权的域名",
+    "noDomainBody": "请先将域名添加到 Cloudflare，然后选择其他域名进行授权。如果您刚授权了域名，请尝试“刷新域名”。",
+    "formInvalid": "请检查域名、地址和隧道名称。",
+    "step2": {
+      "title": "2. 选择收件箱地址",
+      "domain": "域名",
+      "domainPlaceholder": "选择已授权的域名",
+      "account": "账户：{{name}}",
+      "prefix": "地址前缀",
+      "prefixHint": "域名前的简短单词，例如 inbox 或 support。",
+      "preview": "团队将打开",
+      "previewLabel": "收件箱地址预览",
+      "tunnelName": "隧道名称",
+      "tunnelNameHint": "在 Cloudflare 中便于识别此应用的名称，不会改变地址。"
+    },
+    "step3": {
+      "saveTitle": "3. 保存更改",
+      "connectTitle": "3. 连接收件箱",
+      "body": "这将使用上方地址发布收件箱，并设置其 Cloudflare 连接。团队成员仍需使用平常的收件箱账户登录。请保持本电脑和应用运行。",
+      "connecting": "正在连接您的收件箱…",
+      "saveSubmit": "保存并连接更改",
+      "createSubmit": "创建并连接收件箱",
+      "unchanged": "此地址和隧道名称已保存。",
+      "cancel": "取消更改"
+    }
+  },
+  "ai": {
+    "settingsTitle": "AI",
+    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。此收件箱的所有 AI 成员共用一个提供商和模型。",
+    "configure": "配置 AI 连接",
+    "roleBadge": "AI · 销售客服",
+    "addMember": "添加 AI 成员",
+    "editMember": "编辑 AI 成员",
+    "memberTitle": "AI 成员",
+    "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
+    "assistant": "AI 助手",
+    "connectionTitle": "收件箱 AI 连接",
+    "connectionDescription": "整个收件箱共用一个提供商和模型配置。",
+    "memberDescription": "一个 AI 成员可帮助团队回答基本业务问题。",
+    "behavior": "在未分配的客户聊天中等待 10 秒后回复并接管。将聊天分配给自己即可接手。AI 仅在客户确认后解决聊天。需要帮助时，AI 会将聊天分配给没有进行中聊天的在线人工客服，或将其退回未分配状态。",
+    "memberName": "AI 成员名称",
+    "roleDescription": "角色：销售客服 — 使用业务知识回答基本问题。",
+    "enable": "启用 AI 回复",
+    "enableHint": "保存后生效。禁用后将停止自动回复。",
+    "sharedConnection": "收件箱共用 AI 连接",
+    "keySaved": "OpenAI API 密钥已保存。",
+    "keyMissing": "尚未配置 OpenAI API 密钥。",
+    "configureInSettings": "前往设置 → AI 配置",
+    "connectionLabel": "AI 连接",
+    "connectionMode": "连接模式",
+    "apiKey": "OpenAI API 密钥",
+    "chatgptMode": "ChatGPT 登录",
+    "keepKeyHint": "密钥已保存。留空以保留，或输入替换密钥。",
+    "apiKeyHint": "安全存储在收件箱服务器上。API 用量与 ChatGPT 分开计费。",
+    "hiddenKey": "已保存的密钥 — 已隐藏",
+    "enterKey": "输入 API 密钥",
+    "loginHint": "通过受支持的 Codex 集成登录。请在运行收件箱服务器的电脑上用浏览器打开登录链接，以完成本地回调。",
+    "saveModeFirst": "请先保存 ChatGPT 连接模式，再登录。",
+    "cancelLogin": "取消登录",
+    "disconnect": "断开 ChatGPT",
+    "login": "登录 ChatGPT",
+    "openLogin": "打开登录页面",
+    "invalidLink": "登录链接无效。请取消登录后重试。",
+    "model": "模型（可选）",
+    "apiModelHint": "留空使用 gpt-4.1-mini。",
+    "knowledge": "业务知识",
+    "instructions": "AI 指令",
+    "instructionsHint": "描述 AI 应采用的语气、语言和处理的问题。",
+    "notes": "业务笔记",
+    "notesHint": "添加营业时间、服务、政策和其他经批准的事实。",
+    "faqs": "常见问题",
+    "removeFaq": "删除常见问题",
+    "addFaq": "添加常见问题",
+    "upload": "上传业务文档",
+    "uploadHint": "支持 TXT、Markdown、PDF 或 DOCX。最多 20 个文件，每个文件 10 MB；扫描 PDF 需要可选择的文本。请先保存成员。文档会立即供 AI 使用。",
+    "close": "关闭",
+    "saveConnection": "保存 AI 连接",
+    "saveMember": "保存 AI 成员",
+    "connectionSaved": "收件箱 AI 连接已保存。",
+    "memberSaved": "AI 成员设置已保存。",
+    "checkSettings": "请检查 AI 设置。",
+    "fileTypeError": "请选择 TXT、Markdown、PDF 或 DOCX 文档。",
+    "fileSizeError": "文档大小不得超过 10 MB。",
+    "chatgptState": "ChatGPT：{{state}}",
+    "chatgptModelHint": "留空使用 {{model}}。支持：{{models}}。",
+    "modelInvalid": "ChatGPT 模式支持 {{models}}。留空使用默认模型。",
+    "modelSeparator": " 或 ",
+    "question": "问题 {{number}}",
+    "answer": "回答 {{number}}",
+    "removeFaqLabel": "删除常见问题 {{number}}",
+    "removeDocument": "删除 {{name}}",
+    "characters": "{{number}} 个字符",
+    "refreshError": "无法刷新 AI 连接状态。{{error}}",
+    "state": {
+      "unavailable": "不可用",
+      "signed_out": "已退出",
+      "signing_in": "正在登录",
+      "connected": "已连接",
+      "error": "错误"
+    }
+  }
+}

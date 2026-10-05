@@ -13,6 +13,9 @@ const auth = vi.hoisted(() => ({
 vi.mock('@/auth/AuthProvider', () => ({ useAuth: () => auth }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.3' }));
 vi.mock('@/pwa/PushToggle', () => ({ PushToggle: () => null }));
+vi.mock('@/i18n/use-change-locale', () => ({
+  useChangeLocale: () => ({ locale: 'en', changeLocale: vi.fn() }),
+}));
 vi.mock('@/lib/theme', () => ({
   THEME_OPTIONS: [],
   useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),

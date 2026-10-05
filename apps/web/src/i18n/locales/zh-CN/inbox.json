@@ -1,0 +1,316 @@
+{
+  "retrying": "正在重试…",
+  "directory": {
+    "you": "你",
+    "agent": "客服 #{{id}}",
+    "ai": "{{name}}（AI）"
+  },
+  "page": {
+    "chats": "聊天",
+    "title": "收件箱",
+    "admin": "管理",
+    "version": "{{appName}} · v{{version}}",
+    "selectTitle": "选择一个聊天",
+    "selectDescription": "从列表中选择一个对话，与团队一起阅读和回复。"
+  },
+  "filters": {
+    "searchLabel": "搜索聊天",
+    "searchPlaceholder": "搜索名称或号码",
+    "assignment": "指派",
+    "status": "聊天状态",
+    "mine": "我的",
+    "unassigned": "未指派",
+    "all": "全部",
+    "open": "进行中",
+    "resolved": "已解决"
+  },
+  "chatList": {
+    "loading": "正在加载聊天",
+    "loadFailed": "无法加载聊天",
+    "loadingMore": "正在加载更多聊天",
+    "loadMore": "加载更多",
+    "showAllOpen": "显示所有进行中的聊天",
+    "empty": {
+      "me": {
+        "title": "没有指派给你的聊天",
+        "description": "目前没有指派给你的聊天。"
+      },
+      "none": {
+        "title": "全部处理完毕",
+        "description": "每个聊天都有负责人。做得好！"
+      },
+      "any": {
+        "title": "暂无聊天",
+        "description": "新的 WhatsApp 对话会显示在这里。"
+      },
+      "search": "没有与“{{query}}”匹配的聊天。",
+      "resolvedTitle": "没有已解决的聊天",
+      "resolvedDescription": "这里没有已解决的聊天。"
+    }
+  },
+  "chatListItem": {
+    "group": "群组",
+    "resolved": "已解决",
+    "assignedTo": "已指派给 {{name}}",
+    "unread_other": "{{count}} 条未读"
+  },
+  "header": {
+    "back": "返回聊天列表",
+    "resolved": "已解决",
+    "assignedTo": "指派给",
+    "unassigned": "未指派",
+    "you": "{{name}}（你）",
+    "notesLabel_other": "备注（{{count}}）",
+    "notesTitle": "内部备注",
+    "notes": "备注",
+    "reopen": "重新打开",
+    "resolve": "解决",
+    "ai": "{{name}}（AI 销售客服）"
+  },
+  "conversation": {
+    "loading": "正在加载聊天",
+    "notFound": "此聊天不存在。",
+    "loadFailed": "无法加载此聊天。",
+    "back": "返回聊天列表",
+    "label": "与 {{name}} 的对话",
+    "sendingBlocked": "WhatsApp 重新关联之前无法发送消息。",
+    "reconnecting": "WhatsApp 正在重新连接，连接恢复后消息将自动发送。",
+    "placeholderBlocked": "WhatsApp 未连接",
+    "placeholder": "输入消息，输入“/”使用快捷回复",
+    "updateFailed": "更新失败",
+    "retryFailed": "重试失败",
+    "someoneElse": "其他人",
+    "confirmTitle": "已指派给 {{name}}",
+    "confirmBody": "此聊天已指派给 <strong>{{name}}</strong>，仍要回复吗？本次会话中不会再就此聊天询问你。",
+    "replyAnyway": "仍然回复"
+  },
+  "composer": {
+    "placeholder": "输入消息",
+    "attach": "附加文件",
+    "message": "消息",
+    "send": "发送",
+    "quickReplies": "快捷回复"
+  },
+  "quickReplies": {
+    "title": "快捷回复",
+    "noMatch": "没有以“/{{query}}”开头的快捷回复。"
+  },
+  "emoji": {
+    "insert": "插入表情",
+    "title": "表情",
+    "search": "搜索表情",
+    "searchPlaceholder": "搜索表情…",
+    "categories": "表情分类",
+    "choices": "表情选项",
+    "empty": "未找到表情。试试“笑”、“心”或“货车”。",
+    "category": {
+      "all": "全部",
+      "faces": "表情",
+      "gestures": "手势",
+      "hearts": "爱心",
+      "work": "工作"
+    },
+    "names": {
+      "grinningFace": "咧嘴笑",
+      "smilingFace": "微笑",
+      "tearsOfJoy": "笑哭",
+      "rollingOnTheFloorLaughing": "笑得打滚",
+      "winkingFace": "眨眼",
+      "heartEyes": "爱心眼",
+      "smilingFaceWithHearts": "爱心笑脸",
+      "sunglassesFace": "戴墨镜",
+      "thinkingFace": "思考",
+      "smilingFaceWithSweat": "苦笑",
+      "pensiveFace": "沉思",
+      "cryingFace": "哭泣",
+      "loudlyCryingFace": "大哭",
+      "surprisedFace": "惊讶",
+      "upsideDownFace": "倒脸",
+      "huggingFace": "拥抱",
+      "thumbsUp": "点赞",
+      "thumbsDown": "踩",
+      "wavingHand": "挥手",
+      "foldedHands": "双手合十",
+      "okHand": "OK 手势",
+      "clappingHands": "鼓掌",
+      "raisedHands": "举双手",
+      "handshake": "握手",
+      "flexedBiceps": "肌肉",
+      "victoryHand": "胜利手势",
+      "redHeart": "红心",
+      "orangeHeart": "橙心",
+      "yellowHeart": "黄心",
+      "greenHeart": "绿心",
+      "blueHeart": "蓝心",
+      "purpleHeart": "紫心",
+      "whiteHeart": "白心",
+      "twoHearts": "两颗心",
+      "checkMark": "勾号",
+      "crossMark": "叉号",
+      "questionMark": "问号",
+      "warning": "警告",
+      "pushpin": "图钉",
+      "package": "包裹",
+      "deliveryTruck": "送货车",
+      "locationPin": "定位",
+      "calendar": "日历",
+      "alarmClock": "闹钟",
+      "telephone": "电话",
+      "speechBalloon": "对话气泡",
+      "moneyBag": "钱袋",
+      "partyPopper": "礼花",
+      "birthdayCake": "生日蛋糕",
+      "gift": "礼物",
+      "glowingStar": "闪亮星星",
+      "fire": "火"
+    }
+  },
+  "events": {
+    "system": "系统",
+    "someone": "某人",
+    "someoneLower": "某人",
+    "tookByReply": "{{actor}} 通过回复接手了此聊天",
+    "took": "{{actor}} 接手了此聊天",
+    "assigned": "{{actor}} 将此聊天指派给 {{assignee}}",
+    "returned": "聊天已退回团队",
+    "unassigned": "{{actor}} 取消了此聊天的指派",
+    "resolved": "{{actor}} 解决了此聊天",
+    "reopenedByMessage": "新消息重新打开了此聊天",
+    "reopened": "{{actor}} 重新打开了此聊天",
+    "internalNote": "内部备注"
+  },
+  "messageList": {
+    "label": "消息",
+    "loadingOlder": "正在加载更早的消息",
+    "start": "对话开始",
+    "loading": "正在加载消息",
+    "empty": "暂无消息。",
+    "viaPhone": "通过手机",
+    "jumpToLatest": "跳到最新"
+  },
+  "message": {
+    "status": {
+      "pending": "待发送",
+      "sent": "已发送",
+      "delivered": "已送达",
+      "read": "已读",
+      "failed": "失败"
+    },
+    "you": "你",
+    "contact": "联系人",
+    "quotedMessage": "引用的消息",
+    "notSent": "未发送",
+    "quote": {
+      "image": "[图片]",
+      "video": "[视频]",
+      "audio": "[音频]",
+      "sticker": "[贴纸]",
+      "document": "[文件] {{name}}",
+      "message": "消息"
+    }
+  },
+  "media": {
+    "types": {
+      "text": "文本",
+      "image": "图片",
+      "video": "视频",
+      "audio": "音频",
+      "document": "文件",
+      "sticker": "贴纸",
+      "system": "系统"
+    },
+    "preview": "图片预览",
+    "download": "下载",
+    "tapToLoad": "点按加载",
+    "loading": "媒体加载中",
+    "uploading": "正在上传 {{label}}…",
+    "downloading": "正在下载 {{label}}…",
+    "loadFailed": "无法加载 {{label}}",
+    "unavailable": "{{label}} 不可用",
+    "retryDownload": "重新下载",
+    "openImage": "打开图片",
+    "openSticker": "打开贴纸",
+    "imageAlt": "图片",
+    "document": "文件",
+    "file": "文件",
+    "fileDownload": "{{type}} · 下载"
+  },
+  "notes": {
+    "title": "内部备注",
+    "description": "只有你的团队能看到备注，备注绝不会通过 WhatsApp 发送。",
+    "close": "关闭备注",
+    "loading": "正在加载备注",
+    "empty": "暂无备注。",
+    "newNote": "新备注",
+    "placeholder": "为团队添加备注",
+    "add": "添加备注",
+    "saveFailed": "无法保存备注"
+  },
+  "reconnect": {
+    "title": "正在重新连接服务器…",
+    "body": "连接恢复前，新消息和更新可能会延迟。"
+  },
+  "typing": {
+    "one": "{{name}} 正在输入…",
+    "two": "{{first}} 和 {{second}} 正在输入…",
+    "many_other": "{{count}} 位同事正在输入…"
+  },
+  "waBanner": {
+    "settingsShort": "设置",
+    "openSettings": "打开 WhatsApp 设置",
+    "connecting": {
+      "title": "正在连接 WhatsApp…",
+      "body": "连接恢复后，你发送的消息将自动发出。"
+    },
+    "disconnected": {
+      "title": "WhatsApp 已断开",
+      "body": "正在自动重新连接，连接恢复后消息将自动发送。"
+    },
+    "qr": {
+      "title": "WhatsApp 未关联",
+      "body": "需要管理员扫描二维码来关联团队号码。"
+    },
+    "loggedOut": {
+      "title": "WhatsApp 已退出登录",
+      "body": "管理员必须重新关联号码后才能发送消息。"
+    },
+    "replaced": {
+      "title": "WhatsApp 已在其他会话中打开",
+      "body": "由于该号码在其他地方使用，此应用已断开连接。管理员可以接管。"
+    },
+    "blocked": {
+      "title": "WhatsApp 连接被阻止",
+      "body": "连接被拒绝。管理员应检查 WhatsApp 页面。"
+    }
+  },
+  "phoneLink": {
+    "label": "WhatsApp 号码（含国家代码）",
+    "requesting": "正在请求…",
+    "getCode": "获取配对码",
+    "enterCode": "在手机上输入此代码",
+    "copied": "代码已复制",
+    "copy": "复制代码",
+    "step1": "在使用此号码的手机上打开 WhatsApp。",
+    "step2": "前往<strong>设置 → 已关联的设备 → 关联新设备</strong>。",
+    "step3": "点按<strong>改用电话号码关联</strong>，然后输入代码。"
+  },
+  "push": {
+    "unsupported": "此浏览器不支持通知。",
+    "label": "通知",
+    "labelDevice": "此设备上的通知",
+    "desktopHint": "应用在后台时会显示提醒。请让它在系统托盘中保持运行，并在系统通知设置中允许 EzyChat Lite。",
+    "blocked": "通知已被阻止。请在浏览器的网站设置中允许通知。",
+    "errors": {
+      "browserUnsupported": "此浏览器不支持推送通知。",
+      "permissionDenied": "未获得通知权限。",
+      "serviceWorker": "Service Worker 尚未激活。请重新加载页面后再试。",
+      "noKey": "服务器未返回推送密钥",
+      "desktopUnavailable": "桌面通知不可用。请检查操作系统的通知设置。"
+    }
+  },
+  "installHint": {
+    "title": "添加到主屏幕以接收通知",
+    "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 EzyChat Lite 并开启通知。",
+    "share": "分享"
+  }
+}

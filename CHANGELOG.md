@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   questions to an idle online agent, or returns them to the unassigned inbox.
 - Admin Settings → AI configures one shared OpenAI API or ChatGPT sign-in connection and
   model. Admin Members → Add AI member manages the Sales Agent and its business knowledge.
+- AI configuration and member controls follow the selected English, Malay or Simplified
+  Chinese interface language.
+- Language setting: English, Bahasa Melayu and 简体中文 (Simplified Chinese). Members choose a
+  language from the Account menu and it follows them to every device; the sign-in and setup
+  screens have a language picker and otherwise follow the browser language. Dates, numbers,
+  error messages and push notifications use the chosen language; the desktop tray, dialogs and
+  status window follow the operating-system language. Malay and Chinese translations are an
+  initial draft pending native-speaker review.
 
 ### Fixed
 

@@ -6,23 +6,53 @@
   var $ = function (id) {
     return document.getElementById(id);
   };
-  var MODE_LABEL = {
-    starting: 'Starting…',
-    standalone: 'Standalone (inside this app)',
-    client: 'Connected to background service',
-    error: 'Not running',
-  };
-  var SERVER_MODE_LABEL = {
-    standalone: 'standalone',
-    service: 'background service',
-    dev: 'development',
-  };
-  var SVC_LABEL = { 'not-installed': 'Not installed', stopped: 'Stopped', running: 'Running' };
+  var SVC_KEY = { 'not-installed': 'notInstalled', stopped: 'stopped', running: 'running' };
   var working = false;
   var trayBusy = false;
   var updates = window.watiUpdates;
+  // Translated strings + locale arrive with the status payload (no extra IPC). Until then the
+  // static English text from status.html stays and update rendering waits for the strings.
+  var strings = null;
+  var intlTag = 'en-GB';
+  var lastUpdateState = null;
+  var appliedLocale = null;
+
+  function tr(key, vars) {
+    var text = (strings && strings[key]) || key;
+    return text.replace(/\{\{\s*(\w+)\s*\}\}/g, function (m, name) {
+      return vars && Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : m;
+    });
+  }
+
+  /** Has a translation for `key`, so unknown enum values can fall back to the raw value. */
+  function has(key) {
+    return !!(strings && Object.prototype.hasOwnProperty.call(strings, key));
+  }
+
+  // Static text is written once per language: the status poll calls this every few seconds, and
+  // rewriting [data-i18n] elements would clobber text that renderUpdates() fills in at runtime.
+  function applyStrings(s) {
+    var locale = s.locale || 'en';
+    if (strings && appliedLocale === locale) return;
+    appliedLocale = locale;
+    strings = s.strings || {};
+    intlTag = s.intlTag || 'en-GB';
+    document.documentElement.lang = locale;
+    if (strings.documentTitle) document.title = strings.documentTitle;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n');
+      if (has(key)) el.textContent = strings[key];
+    });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n-aria-label');
+      if (has(key)) el.setAttribute('aria-label', strings[key]);
+    });
+    if (lastUpdateState) renderUpdates(lastUpdateState);
+  }
 
   function renderUpdates(s) {
+    lastUpdateState = s;
+    if (!strings) return;
     $('updates-card').hidden = !s.isHost;
     if (!s.isHost) return;
     var release = s.release;
@@ -38,24 +68,24 @@
           Math.max(0, Math.round((100 * transfer.downloadedBytes) / transfer.totalBytes)),
         )
       : 0;
-    var text = 'Installed: v' + s.currentVersion + '.';
-    if (s.status === 'checking') text = 'Checking GitHub for updates…';
+    var text = tr('updates.installed', { version: s.currentVersion });
+    if (s.status === 'checking') text = tr('updates.checking');
     else if (s.status === 'available' && release)
-      text = 'v' + release.version + ' is available' + (release.prerelease ? ' (preview).' : '.');
-    else if (s.status === 'current') text = 'You are up to date — v' + s.currentVersion + '.';
-    else if (s.status === 'error')
-      text = s.error || 'Could not check for updates. Try again later.';
-    if (downloading) text = 'Downloading update… ' + percentage + '%. Your inbox keeps working.';
-    else if (ready) text = 'v' + transfer.version + ' is downloaded and verified. Ready to update.';
-    else if (installing)
-      text = 'Preparing to restart and update… Approve the system prompt to continue.';
+      text = tr(release.prerelease ? 'updates.availablePreview' : 'updates.available', {
+        version: release.version,
+      });
+    else if (s.status === 'current') text = tr('updates.current', { version: s.currentVersion });
+    else if (s.status === 'error') text = s.error || tr('updates.checkFailed');
+    if (downloading) text = tr('updates.downloading', { percent: percentage });
+    else if (ready) text = tr('updates.ready', { version: transfer.version });
+    else if (installing) text = tr('updates.installing');
     else if (transfer.error) text = transfer.error;
     $('updates-state').textContent = text;
     $('updates-checked').textContent = s.checkedAt
-      ? 'Last checked: ' + new Date(s.checkedAt).toLocaleString()
-      : 'Checks GitHub automatically while this app is running.';
+      ? tr('updates.lastChecked', { time: new Date(s.checkedAt).toLocaleString(intlTag) })
+      : tr('updates.autoCheck');
     $('updates-check').disabled = s.status === 'checking' || downloading || ready || installing;
-    $('updates-check').textContent = s.status === 'checking' ? 'Checking…' : 'Check for updates';
+    $('updates-check').textContent = tr(s.status === 'checking' ? 'checkingButton' : 'checkButton');
     $('updates-download').hidden = !release || !release.downloadUrl || ready;
     $('updates-download').disabled = downloading || installing || (managed && !verifiedMetadata);
     $('updates-install').hidden = !ready || !managed;
@@ -67,19 +97,19 @@
     $('updates-release').hidden = !release;
     $('updates-release').disabled = installing;
     $('updates-download').textContent = release
-      ? 'Download v' + release.version
-      : 'Download update';
+      ? tr('downloadVersion', { version: release.version })
+      : tr('downloadButton');
     $('update-notes').hidden = !release || !release.notes;
     $('update-notes').textContent = release ? release.notes.slice(0, 16000) : '';
+    // The unavailable reason is its own sentence from the main process (already translated there).
     $('updates-help').textContent =
       release && !release.downloadUrl
-        ? 'This release has no installer for this computer. Open release details for available downloads.'
+        ? tr('updates.noInstaller')
         : managed
           ? verifiedMetadata
-            ? 'Download first, then choose Restart and update when your team can briefly pause work. The app and any installed service restart automatically. Your accounts, chats and settings are preserved.'
-            : 'This release cannot be verified for installation here. Open release details for a manual installer.'
-          : (s.installUnavailableReason || '') +
-            ' Download the installer and quit this app before installing. Stop a Windows service before installing, then start it afterward. On Mac, remove the service before installing and enable it again afterward to refresh its protected app copy. Your accounts, chats and settings are preserved.';
+            ? tr('updates.managedHelp')
+            : tr('updates.unverifiable')
+          : [s.installUnavailableReason, tr('updates.manualHelp')].filter(Boolean).join(' ');
   }
 
   function refreshUpdates() {
@@ -95,7 +125,7 @@
     return function () {
       Promise.resolve(action()).catch(function (error) {
         $('updates-state').textContent =
-          error && error.message ? error.message : 'Could not open update.';
+          error && error.message ? error.message : tr('updates.openFailed');
       });
     };
   }
@@ -114,15 +144,20 @@
   refreshUpdates();
 
   function render(s) {
-    $('mode').textContent = MODE_LABEL[s.mode] || s.mode;
-    $('state').textContent = s.serverState === 'external' ? 'running (service)' : s.serverState;
+    applyStrings(s);
+    $('mode').textContent = has('modeLabel.' + s.mode) ? tr('modeLabel.' + s.mode) : s.mode;
+    $('state').textContent = has('serverState.' + s.serverState)
+      ? tr('serverState.' + s.serverState)
+      : s.serverState;
     $('url').textContent = s.url;
     $('data').textContent = s.dataDir;
     $('title').textContent = s.version ? 'EzyChat Lite v' + s.version : 'EzyChat Lite';
     $('version').textContent = s.version;
-    $('server-version').textContent = s.serverVersion || 'not answering';
+    $('server-version').textContent = s.serverVersion || tr('notAnswering');
     $('server-mode').textContent = s.serverMode
-      ? SERVER_MODE_LABEL[s.serverMode] || s.serverMode
+      ? has('serverModeLabel.' + s.serverMode)
+        ? tr('serverModeLabel.' + s.serverMode)
+        : s.serverMode
       : '—';
     $('log').textContent = (s.logs || []).join('\n');
     // Only a service client can quit on close; a hosting app always stays in the tray.
@@ -130,11 +165,9 @@
     var trayChoice = s.mode === 'client';
     if (!trayBusy) tray.checked = trayChoice ? s.keepInTray : true;
     tray.disabled = !trayChoice || trayBusy;
-    $('tray-note').textContent = trayChoice
-      ? s.keepInTray
-        ? 'Closing the window keeps EzyChat Lite in the tray for quick access and desktop notifications. Quit from the tray menu.'
-        : 'Closing the window quits the app. The background service keeps the inbox running.'
-      : 'This app is hosting the server, so it always stays in the tray while the inbox runs.';
+    $('tray-note').textContent = tr(
+      trayChoice ? (s.keepInTray ? 'trayNote.keep' : 'trayNote.quit') : 'trayNote.host',
+    );
     var busy = $('busy');
     busy.hidden = !s.busy;
     busy.textContent = s.busy || '';
@@ -142,7 +175,8 @@
     var card = $('svc-card');
     card.hidden = !s.serviceSupported;
     var st = $('svc-state');
-    st.textContent = SVC_LABEL[s.serviceState] || s.serviceState;
+    var svcKey = 'svcLabel.' + SVC_KEY[s.serviceState];
+    st.textContent = has(svcKey) ? tr(svcKey) : s.serviceState;
     st.className =
       'badge ' + (s.serviceState === 'running' ? 'ok' : s.serviceState === 'stopped' ? 'bad' : '');
     var disabled = working || !!s.busy;

@@ -51,6 +51,14 @@ sees and what only the team sees.
 | `--info`                 | sky-700 `#0369A1`                     | sky-400               | informational banners                  |
 | `--unread`               | teal-700 `#0F766E`                    | teal-400              | unread badge                           |
 
+### Language
+
+All UI text goes through `t()` (react-i18next); see [`docs/i18n.md`](i18n.md). Members pick
+English, Bahasa Melayu or 简体中文 under Account menu → Language (saved to their account); the
+sign-in and setup screens show a compact language picker. Languages are listed by their native
+name. Design for the longest language: Malay labels run ~30% longer than English, so prefer short
+labels, allow wrapping or truncation in tight rows, and check every screen at 360px in Malay.
+
 ### Appearance preference
 
 Light, Dark, and System are available in the Account menu for every member and under

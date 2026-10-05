@@ -1,6 +1,7 @@
 // Screen smoke test: renders every screen (desktop + mobile) against a server with fake WhatsApp and reports
 // page crashes, console errors, failed API calls and blank screens, saving a screenshot of each.
 // Usage: node e2e/screens.smoke.mjs <baseUrl> <outDir>      (server must run with --fake-wa, fresh data dir)
+// SMOKE_LOCALE=ms|zh-CN renders every screen in that UI language (default en) to catch overflow from longer text.
 /* global document, window -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -23,6 +24,7 @@ const ROUTES = [
   ['admin-audit', '/admin/audit'],
   ['change-password', '/change-password'],
 ];
+const LOCALE = process.env.SMOKE_LOCALE ?? 'en';
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, height: 844 } };
 
 // Prefer the bundled browser; fall back to the locally installed Chrome when it isn't downloaded.
@@ -56,7 +58,8 @@ async function check(page, name) {
 }
 
 for (const [vp, size] of Object.entries(VIEWPORTS)) {
-  const ctx = await browser.newContext({ viewport: size, baseURL: BASE });
+  const ctx = await browser.newContext({ viewport: size, baseURL: BASE, locale: LOCALE });
+  await ctx.addInitScript((l) => window.localStorage.setItem('wati.locale', l), LOCALE);
   const page = await ctx.newPage();
 
   if (vp === 'desktop') {

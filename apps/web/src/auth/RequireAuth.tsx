@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { useSetupStatus } from '../api/queries';
 import { Banner } from '@/components/app';
@@ -44,15 +45,16 @@ export function RequireAuth({ admin = false, children }: RequireAuthProps) {
 }
 
 function ServerUnreachable({ message }: { message: string }) {
+  const { t } = useTranslation(['auth', 'common']);
   return (
     <div className="safe-x flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-3">
-        <Banner tone="danger" title="Can't load EzyChat Lite">
+        <Banner tone="danger" title={t('unreachable.title')}>
           {message}
         </Banner>
         <Button size="touch" className="w-full" onClick={() => window.location.reload()}>
           <RefreshCw aria-hidden="true" />
-          Retry
+          {t('common:actions.retry')}
         </Button>
       </div>
     </div>

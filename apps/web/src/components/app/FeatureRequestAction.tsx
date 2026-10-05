@@ -1,10 +1,12 @@
 import { ExternalLink, Lightbulb } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { GITHUB_REPO_URL } from '@/lib/links';
 
 /** Opens the repository's feature-request draft; nothing is submitted automatically. */
 export function FeatureRequestAction({ placement = 'button' }: { placement?: 'button' | 'menu' }) {
+  const { t } = useTranslation('app');
   const link = (
     <a
       href={`${GITHUB_REPO_URL}/issues/new?template=feature_request.yml`}
@@ -12,9 +14,9 @@ export function FeatureRequestAction({ placement = 'button' }: { placement?: 'bu
       rel="noopener noreferrer"
     >
       <Lightbulb aria-hidden="true" />
-      Request a feature
+      {t('featureRequest.label')}
       <ExternalLink aria-hidden="true" className="ml-auto size-3.5" />
-      <span className="sr-only"> (opens GitHub in a new window)</span>
+      <span className="sr-only"> {t('featureRequest.opensGitHub')}</span>
     </a>
   );
 

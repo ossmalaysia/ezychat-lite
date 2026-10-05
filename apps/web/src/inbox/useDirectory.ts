@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { User } from '@wa-team-inbox/shared';
 import { useUserDirectory, useUsers, type DirectoryUser } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
+import { i18n } from '@/i18n';
 
 export interface Directory {
   me: User | null;
@@ -32,9 +34,13 @@ export function buildDirectory(
     assignable,
     nameOf(id, opts) {
       if (id == null) return null;
-      if (opts?.youLabel && me && id === me.id) return 'You';
+      if (opts?.youLabel && me && id === me.id) return i18n.t('inbox:directory.you');
       const user = byId.get(id);
-      return user ? `${user.displayName}${user.kind === 'ai' ? ' (AI)' : ''}` : `Agent #${id}`;
+      return user
+        ? user.kind === 'ai'
+          ? i18n.t('inbox:directory.ai', { name: user.displayName })
+          : user.displayName
+        : i18n.t('inbox:directory.agent', { id });
     },
   };
 }
@@ -46,9 +52,13 @@ export function buildDirectory(
  */
 export function useDirectory(): Directory {
   const { user: me, isAdmin } = useAuth();
+  // Rebuild on language change so "You" / "Agent #n" follow the UI language.
+  const { i18n: active } = useTranslation();
+  const language = active.language;
   const users = useUsers({ enabled: isAdmin });
   const directory = useUserDirectory({ enabled: !isAdmin && me != null });
   const list: readonly DirectoryUser[] | undefined = isAdmin ? users.data : directory.data;
 
-  return useMemo(() => buildDirectory(me, isAdmin, list), [list, me, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `language` invalidates localized labels
+  return useMemo(() => buildDirectory(me, isAdmin, list), [list, me, isAdmin, language]);
 }
