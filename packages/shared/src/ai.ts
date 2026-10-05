@@ -61,7 +61,7 @@ export const AiDocument = z.object({
 });
 export type AiDocument = z.infer<typeof AiDocument>;
 export const AiConnection = z.object({
-  state: z.enum(['unavailable', 'signed_out', 'signing_in', 'connected', 'error']),
+  state: z.enum(['unavailable', 'signed_out', 'signing_in', 'connected', 'error', 'expired']),
   loginUrl: z.string().nullable(),
   error: z.string().nullable(),
   /** Signed-in ChatGPT account email (direct sign-in only). */
@@ -96,3 +96,23 @@ export const AiDecision = z.object({
   action: z.enum(['answer', 'ask_resolution', 'resolve', 'handoff']),
 });
 export type AiDecision = z.infer<typeof AiDecision>;
+
+/** Paste-the-callback fallback for admins who cannot reach the server's localhost callback. */
+export const AiCallbackBody = z.object({ url: z.string().trim().min(1).max(4096) });
+export type AiCallbackBody = z.infer<typeof AiCallbackBody>;
+
+export const AI_TRY_QUESTION_CHARACTERS = 500;
+/** Try it: a test question answered from the page's current (possibly unsaved) knowledge. */
+export const AiTryBody = z.object({
+  question: z.string().trim().min(1).max(AI_TRY_QUESTION_CHARACTERS),
+  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, notes: true, faqs: true }),
+});
+export type AiTryBody = z.infer<typeof AiTryBody>;
+export const AiTryResult = z.object({
+  ok: z.boolean(),
+  reply: z.string().nullable(),
+  action: AiDecision.shape.action.nullable(),
+  model: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type AiTryResult = z.infer<typeof AiTryResult>;
