@@ -1,28 +1,76 @@
 import { useState } from 'react';
 import type React from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { SettingsPatchBody } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { usePatchSettings, useSettings } from '../api/queries';
 import { PushToggle } from '../pwa/PushToggle';
-import { Banner, PageHeader } from '@/components/app';
+import { Banner, PageHeader, SegmentedControl } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
+import { useChangeLocale } from '@/i18n/use-change-locale';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
 import { ErrorState, Field, Pending } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiMemberPanel } from './AiMemberPanel';
 
+const TABS = ['general', 'ai', 'device', 'maintenance'] as const;
+type SettingsTab = (typeof TABS)[number];
+const TAB_LABEL_KEY = {
+  general: 'settings.tabs.general',
+  ai: 'settings.tabs.ai',
+  device: 'settings.tabs.device',
+  maintenance: 'settings.tabs.maintenance',
+} as const satisfies Record<SettingsTab, string>;
+
+function isTab(value: string | undefined): value is SettingsTab {
+  return TABS.some((tab) => tab === value);
+}
+
+/** One preference row: label (and hint) left, control right; stacked on narrow screens. */
+function PreferenceRow({
+  labelId,
+  label,
+  hintId,
+  hint,
+  children,
+}: {
+  labelId: string;
+  label: string;
+  hintId: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="min-w-0">
+        <h3 id={labelId} className="font-medium">
+          {label}
+        </h3>
+        <p id={hintId} className="mt-0.5 text-sm text-muted-foreground">
+          {hint}
+        </p>
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const settings = useSettings();
   const patch = usePatchSettings();
   const { theme, setTheme } = useTheme();
+  const { locale, changeLocale } = useChangeLocale();
+  const navigate = useNavigate();
+  const tab = useParams()['*'];
   const { t } = useTranslation(['admin', 'common']);
 
   const [portDraft, setPort] = useState<string>();
@@ -30,6 +78,8 @@ export function SettingsPage() {
   const [historyDraft, setHistoryDays] = useState<string>();
   const [restartRequired, setRestartRequired] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+
+  if (!isTab(tab)) return <Navigate to="/admin/settings/general" replace />;
 
   if (settings.isPending)
     return (
@@ -79,159 +129,201 @@ export function SettingsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader title={t('settings.title')} />
 
-      <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('ai.settingsTitle')}</CardTitle>
-          <CardDescription>{t('ai.settingsDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" size="touch" onClick={() => setAiOpen(true)}>
-            {t('ai.configure')}
-          </Button>
-        </CardContent>
-      </Card>
-      {aiOpen && <AiMemberPanel section="connection" onClose={() => setAiOpen(false)} />}
-
-      {restartRequired && (
-        <Banner tone="warning" title={t('settings.restartTitle')}>
-          {t('settings.restartBody')}
-        </Banner>
-      )}
-
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <Card className="gap-4">
-          <CardHeader>
-            <CardTitle>{t('settings.network.title')}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
-            <Field
-              label={t('settings.network.port')}
-              error={portError}
-              hint={t('settings.network.portHint')}
-            >
-              {(p) => (
-                <Input
-                  {...p}
-                  type="number"
-                  inputMode="numeric"
-                  min={1024}
-                  max={65535}
-                  className="h-11 md:h-9 md:max-w-48"
-                  value={port}
-                  onChange={(e) => setPort(e.target.value)}
-                />
-              )}
-            </Field>
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <Label htmlFor="settings-lan" className="leading-normal">
-                  {t('settings.network.lan')}
-                </Label>
-                <p id="settings-lan-desc" className="mt-0.5 text-sm text-muted-foreground">
-                  {t('settings.network.lanHint')}
-                </p>
-              </div>
-              {/* Associate the padded target with the switch so its entire area is tappable. */}
-              <Label
-                htmlFor="settings-lan"
-                className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"
-              >
-                <Switch
-                  id="settings-lan"
-                  aria-describedby="settings-lan-desc"
-                  checked={lanEnabled}
-                  onCheckedChange={setLanEnabled}
-                />
-              </Label>
-            </div>
-            {lanEnabled && (
-              <Banner tone="warning" title={t('settings.network.lanWarningTitle')}>
-                {t('settings.network.lanWarningBody')}
-              </Banner>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="gap-4">
-          <CardHeader>
-            <CardTitle>{t('settings.history.title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Field label={t('settings.history.days')} error={daysError}>
-              {(p) => (
-                <Input
-                  {...p}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={365}
-                  className="h-11 md:h-9 md:max-w-48"
-                  value={historyDays}
-                  onChange={(e) => setHistoryDays(e.target.value)}
-                />
-              )}
-            </Field>
-          </CardContent>
-        </Card>
-
-        {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
-
-        <div className="flex flex-col sm:flex-row">
-          <Button
-            type="submit"
-            size="touch"
-            className="md:min-h-9"
-            disabled={patch.isPending || !dirty || !!portError || !!daysError}
-          >
-            <Pending show={patch.isPending} />
-            {t('settings.save')}
-          </Button>
+      <Tabs value={tab} onValueChange={(next) => navigate(`/admin/settings/${next}`)}>
+        <div className="-mx-4 overflow-x-auto px-4 pb-1">
+          <TabsList variant="line" className="w-max justify-start">
+            {TABS.map((id) => (
+              <TabsTrigger key={id} value={id} className="flex-none px-3">
+                {t(TAB_LABEL_KEY[id])}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
-      </form>
 
-      <ResolveAllChatsCard />
+        <TabsContent value="general" className="flex flex-col gap-4">
+          {restartRequired && (
+            <Banner tone="warning" title={t('settings.restartTitle')}>
+              {t('settings.restartBody')}
+            </Banner>
+          )}
 
-      <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('settings.device.title')}</CardTitle>
-          <CardDescription>{t('settings.device.description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <div>
-            <h3 id="settings-theme-label" className="font-medium">
-              {t('common:theme.label')}
-            </h3>
-            <p id="settings-theme-desc" className="mt-1 text-sm text-muted-foreground">
-              {t('settings.device.themeHint')}
-            </p>
-            <RadioGroup
-              aria-labelledby="settings-theme-label"
-              aria-describedby="settings-theme-desc"
-              value={theme}
-              onValueChange={setTheme}
-              className="mt-3 grid grid-cols-3 gap-2"
-            >
-              {THEME_OPTIONS.map((option) => (
-                <Label
-                  key={option.value}
-                  htmlFor={`settings-theme-${option.value}`}
-                  className="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-input px-2 py-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent sm:min-h-11 sm:flex-row"
+          <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+            <Card className="gap-4">
+              <CardHeader>
+                <CardTitle>{t('settings.network.title')}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                <Field
+                  label={t('settings.network.port')}
+                  error={portError}
+                  hint={t('settings.network.portHint')}
                 >
-                  <RadioGroupItem id={`settings-theme-${option.value}`} value={option.value} />
-                  {t(`common:${option.labelKey}`)}
-                </Label>
-              ))}
-            </RadioGroup>
-          </div>
-          <div>
-            <h3 className="mb-2 font-medium">{t('settings.device.notifications')}</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              {t('settings.device.notificationsHint')}
-            </p>
-            <PushToggle />
-          </div>
-        </CardContent>
-      </Card>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="number"
+                      inputMode="numeric"
+                      min={1024}
+                      max={65535}
+                      className="h-11 md:h-9 md:max-w-48"
+                      value={port}
+                      onChange={(e) => setPort(e.target.value)}
+                    />
+                  )}
+                </Field>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <Label htmlFor="settings-lan" className="leading-normal">
+                      {t('settings.network.lan')}
+                    </Label>
+                    <p id="settings-lan-desc" className="mt-0.5 text-sm text-muted-foreground">
+                      {t('settings.network.lanHint')}
+                    </p>
+                  </div>
+                  {/* Associate the padded target with the switch so its entire area is tappable. */}
+                  <Label
+                    htmlFor="settings-lan"
+                    className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"
+                  >
+                    <Switch
+                      id="settings-lan"
+                      aria-describedby="settings-lan-desc"
+                      checked={lanEnabled}
+                      onCheckedChange={setLanEnabled}
+                    />
+                  </Label>
+                </div>
+                {lanEnabled && (
+                  <Banner tone="warning" title={t('settings.network.lanWarningTitle')}>
+                    {t('settings.network.lanWarningBody')}
+                  </Banner>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="gap-4">
+              <CardHeader>
+                <CardTitle>{t('settings.history.title')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Field label={t('settings.history.days')} error={daysError}>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={365}
+                      className="h-11 md:h-9 md:max-w-48"
+                      value={historyDays}
+                      onChange={(e) => setHistoryDays(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </CardContent>
+            </Card>
+
+            {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
+
+            <div className="flex flex-col sm:flex-row">
+              <Button
+                type="submit"
+                size="touch"
+                className="md:min-h-9"
+                disabled={patch.isPending || !dirty || !!portError || !!daysError}
+              >
+                <Pending show={patch.isPending} />
+                {t('settings.save')}
+              </Button>
+            </div>
+          </form>
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <Card className="gap-4">
+            <CardHeader>
+              <CardTitle>{t('ai.settingsTitle')}</CardTitle>
+              <CardDescription>{t('ai.settingsDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" size="touch" onClick={() => setAiOpen(true)}>
+                {t('ai.configure')}
+              </Button>
+            </CardContent>
+          </Card>
+          {aiOpen && <AiMemberPanel section="connection" onClose={() => setAiOpen(false)} />}
+        </TabsContent>
+
+        <TabsContent value="device">
+          <Card className="gap-4">
+            <CardHeader>
+              <CardTitle>{t('settings.device.title')}</CardTitle>
+              <CardDescription>{t('settings.device.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              <PreferenceRow
+                labelId="settings-theme-label"
+                label={t('common:theme.label')}
+                hintId="settings-theme-desc"
+                hint={t('settings.device.themeHint')}
+              >
+                <SegmentedControl
+                  aria-labelledby="settings-theme-label"
+                  aria-describedby="settings-theme-desc"
+                  value={theme}
+                  onValueChange={setTheme}
+                  options={THEME_OPTIONS.map((o) => ({
+                    value: o.value,
+                    label: t(`common:${o.labelKey}`),
+                  }))}
+                />
+              </PreferenceRow>
+              <PreferenceRow
+                labelId="settings-language-label"
+                label={t('common:language.label')}
+                hintId="settings-language-desc"
+                hint={t('settings.device.languageHint')}
+              >
+                <SegmentedControl
+                  aria-labelledby="settings-language-label"
+                  aria-describedby="settings-language-desc"
+                  value={locale}
+                  onValueChange={(v) => isLocale(v) && changeLocale(v)}
+                  options={SUPPORTED_LOCALES.map((l) => ({
+                    value: l.code,
+                    label: t(`settings.device.languageShort.${l.code}`),
+                  }))}
+                />
+              </PreferenceRow>
+              <PreferenceRow
+                labelId="settings-notifications-label"
+                label={t('settings.device.notifications')}
+                hintId="settings-notifications-desc"
+                hint={t('settings.device.notificationsHint')}
+              >
+                <PushToggle />
+              </PreferenceRow>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance">
+          <section
+            aria-labelledby="settings-danger-title"
+            className="flex flex-col gap-3 rounded-xl border border-destructive/40 p-4"
+          >
+            <div>
+              <h2 id="settings-danger-title" className="font-semibold text-destructive">
+                {t('settings.maintenance.title')}
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {t('settings.maintenance.description')}
+              </p>
+            </div>
+            <ResolveAllChatsCard />
+          </section>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

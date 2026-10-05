@@ -32,6 +32,69 @@ import { useAuth } from './AuthProvider';
  * (admins only), change password and sign out. The English accessible names ("Account menu",
  * "Admin settings", "Sign out") are relied on by e2e tests, which run in English.
  */
+/** Short button text for the language switch (endonyms/codes, not translated). */
+const SHORT_LOCALE: Record<string, string> = { en: 'EN', ms: 'BM', 'zh-CN': '中文' };
+function shortLocaleLabel(code: string, nativeName: string): string {
+  return SHORT_LOCALE[code] ?? nativeName;
+}
+
+interface MenuSegmentOption {
+  value: string;
+  /** accessible name (also the hover title) */
+  title: string;
+  lang?: string;
+  content: React.ReactNode;
+}
+
+/** A label plus a joined row of radio menu items; stays open on select, reachable by arrow keys. */
+function MenuSegments({
+  labelId,
+  label,
+  value,
+  onValueChange,
+  options,
+}: {
+  labelId: string;
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: readonly MenuSegmentOption[];
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span id={labelId} className="text-sm font-medium">
+        {label}
+      </span>
+      <DropdownMenuRadioGroup
+        aria-labelledby={labelId}
+        value={value}
+        onValueChange={onValueChange}
+        className="inline-flex w-fit overflow-hidden rounded-md border border-input"
+      >
+        {options.map((option) => (
+          <DropdownMenuRadioItem
+            key={option.value}
+            value={option.value}
+            title={option.title}
+            lang={option.lang}
+            onSelect={(e) => e.preventDefault()}
+            className={cn(
+              'h-8 justify-center rounded-none border-l border-input px-2.5 py-0 pl-2.5 first:border-l-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11',
+              'bg-muted text-muted-foreground focus:bg-accent focus:text-accent-foreground',
+              'data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
+              'data-[state=checked]:focus:bg-primary data-[state=checked]:focus:text-primary-foreground data-[state=checked]:focus:ring-[3px] data-[state=checked]:focus:ring-ring/50 data-[state=checked]:focus:ring-inset',
+              '[&>span:first-child]:hidden',
+            )}
+          >
+            {option.content}
+            <span className="sr-only">{option.title}</span>
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </div>
+  );
+}
+
 export function UserMenu({
   className,
   align = 'end',
@@ -73,36 +136,36 @@ export function UserMenu({
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel id="account-appearance-label">{t('theme.label')}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-labelledby="account-appearance-label"
-            value={theme}
-            onValueChange={setTheme}
-          >
-            {THEME_OPTIONS.map((option) => {
-              const Icon =
-                option.value === 'light' ? Sun : option.value === 'dark' ? Moon : Monitor;
-              return (
-                <DropdownMenuRadioItem key={option.value} value={option.value} className="min-h-11">
-                  <Icon aria-hidden="true" />
-                  {t(option.labelKey)}
-                </DropdownMenuRadioItem>
-              );
-            })}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel id="account-language-label">{t('language.label')}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-labelledby="account-language-label"
-            value={locale}
-            onValueChange={(v) => isLocale(v) && changeLocale(v)}
-          >
-            {SUPPORTED_LOCALES.map((l) => (
-              <DropdownMenuRadioItem key={l.code} value={l.code} lang={l.code} className="min-h-11">
-                {l.nativeName}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+          {/* One compact row each; the segments are real menu items, so arrow keys reach them. */}
+          <div className="flex flex-col gap-1 px-2 py-1.5">
+            <MenuSegments
+              labelId="account-appearance-label"
+              label={t('theme.label')}
+              value={theme}
+              onValueChange={(v) => setTheme(v as typeof theme)}
+              options={THEME_OPTIONS.map((option) => {
+                const Icon =
+                  option.value === 'light' ? Sun : option.value === 'dark' ? Moon : Monitor;
+                return {
+                  value: option.value,
+                  title: t(option.labelKey),
+                  content: <Icon aria-hidden="true" className="size-4" />,
+                };
+              })}
+            />
+            <MenuSegments
+              labelId="account-language-label"
+              label={t('language.label')}
+              value={locale}
+              onValueChange={(v) => isLocale(v) && changeLocale(v)}
+              options={SUPPORTED_LOCALES.map((l) => ({
+                value: l.code,
+                title: l.nativeName,
+                lang: l.code,
+                content: <span aria-hidden="true">{shortLocaleLabel(l.code, l.nativeName)}</span>,
+              }))}
+            />
+          </div>
           <DropdownMenuSeparator />
           <PushToggle compact className="px-2" />
           <DropdownMenuSeparator />

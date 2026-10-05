@@ -204,7 +204,23 @@
       "description": "偏好设置保存在本设备上，并立即生效。",
       "themeHint": "“跟随系统”会使用设备的浅色或深色设置。",
       "notifications": "通知",
-      "notificationsHint": "未打开收件箱时，收到新消息会通知您。"
+      "notificationsHint": "未打开收件箱时，收到新消息会通知您。",
+      "languageHint": "在您的每台设备上保持一致",
+      "languageShort": {
+        "en": "English",
+        "ms": "BM",
+        "zh-CN": "中文"
+      }
+    },
+    "tabs": {
+      "general": "常规",
+      "ai": "AI",
+      "device": "此设备",
+      "maintenance": "维护"
+    },
+    "maintenance": {
+      "title": "危险区域",
+      "description": "此处的操作会影响整个团队,且无法一键撤销。"
     }
   },
   "resolveAll": {

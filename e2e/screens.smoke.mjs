@@ -21,6 +21,9 @@ const ROUTES = [
   ['admin-whatsapp', '/admin/whatsapp'],
   ['admin-tunnel', '/admin/tunnel'],
   ['admin-settings', '/admin/settings'],
+  ['admin-settings-ai', '/admin/settings/ai'],
+  ['admin-settings-device', '/admin/settings/device'],
+  ['admin-settings-maintenance', '/admin/settings/maintenance'],
   ['admin-audit', '/admin/audit'],
   ['change-password', '/change-password'],
 ];

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Local and test builds are marked "Dev Build": the desktop window and tray title show it for unpackaged builds, and the inbox shows a badge and a "[Dev Build]" tab title when the server runs with `--mode dev`.
 
+### Changed
+
+- Admin Settings is split into General, AI, This device and Maintenance tabs; theme and language use compact one-row switches.
+
 ### Fixed
 
 - Windows in-app updates now record the result ("Update installed"), remove the downloaded installer and reopen the app; the background helper used to exit before it ran.
