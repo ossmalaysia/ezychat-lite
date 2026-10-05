@@ -231,12 +231,14 @@ describe('contact identity mapping', () => {
       messages: [],
       isLatest: true,
     } as never);
-    expect(aliases[0]).toEqual(ALIAS);
+    expect(aliases[0]).toEqual({ ...ALIAS, source: 'history' });
     expect(contacts).toEqual([
       { jid: PN, aliases: [LID], savedName: 'Saved business name', pushName: 'Push name' },
     ]);
     expect(order.slice(0, 3)).toEqual(['aliases', 'contacts', 'chats']);
-    await expect(a.getContactAliases([PN, LID])).resolves.toEqual([ALIAS]);
+    await expect(a.getContactAliases([PN, LID])).resolves.toEqual([
+      { ...ALIAS, source: 'keystore' },
+    ]);
   });
 
   it('extracts contacts in either orientation and enriches later name-only updates', () => {
@@ -252,7 +254,7 @@ describe('contact identity mapping', () => {
         chats: [],
         messages: [],
       } as never);
-      expect(aliases).toEqual([ALIAS]);
+      expect(aliases).toEqual([{ ...ALIAS, source: 'contacts' }]);
       expect(contacts.at(-1)).toMatchObject({
         jid: PN,
         aliases: [LID],
@@ -281,7 +283,10 @@ describe('contact identity mapping', () => {
       ] as never,
       'notify',
     );
-    expect(aliases).toEqual([ALIAS, { jid: '60111111111@s.whatsapp.net', alias: '999@lid' }]);
+    expect(aliases).toEqual([
+      { ...ALIAS, source: 'message' },
+      { jid: '60111111111@s.whatsapp.net', alias: '999@lid', source: 'message' },
+    ]);
   });
 
   it('reads both persisted signal-key orientations from an isolated auth directory', async () => {
@@ -296,7 +301,9 @@ describe('contact identity mapping', () => {
         const { a } = contactHarness();
         const reloaded = await auth.load();
         Object.assign(a, { signalKeys: reloaded.state.keys });
-        await expect(a.getContactAliases([jid])).resolves.toEqual([ALIAS]);
+        await expect(a.getContactAliases([jid])).resolves.toEqual([
+          { ...ALIAS, source: 'keystore' },
+        ]);
       }
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -364,7 +371,7 @@ describe('contact identity mapping', () => {
     ev.emit('lid-mapping.update', { pn: PN, lid: LID });
     ev.emit('contacts.update', [{ id: PN, name: 'New name' }]);
     a.handleUpsert([dm('OLD-ACCOUNT')], 'notify');
-    expect(aliases).toEqual([ALIAS]);
+    expect(aliases).toEqual([{ ...ALIAS, source: 'lid-mapping' }]);
     expect(contacts.at(-1)).toMatchObject({ savedName: 'New name', aliases: [LID] });
     await a.logout();
     ev.emit('lid-mapping.update', { pn: PN, lid: LID });

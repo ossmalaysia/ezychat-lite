@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WaStatus } from '@wa-team-inbox/shared';
 import { FakeWaAdapter, WaUnavailableError } from '../index.js';
-import type { WaIncomingMessage, WaMessageStatusUpdate } from '../index.js';
+import type { WaContactAlias, WaIncomingMessage, WaMessageStatusUpdate } from '../index.js';
 
 const tick = () => new Promise<void>((r) => setImmediate(r));
 
@@ -60,12 +60,18 @@ describe('FakeWaAdapter', () => {
     expect(updates.map((u) => u.status)).toEqual(['sent']);
     await tick();
     expect(updates.map((u) => u.status)).toEqual(['sent', 'delivered']);
-    expect(updates[1]).toEqual({ id: res.id, chatJid: '601111@s.whatsapp.net', status: 'delivered' });
+    expect(updates[1]).toEqual({
+      id: res.id,
+      chatJid: '601111@s.whatsapp.net',
+      status: 'delivered',
+    });
   });
 
   it('sendText while disconnected rejects WaUnavailableError', async () => {
     const wa = new FakeWaAdapter();
-    await expect(wa.sendText('601111@s.whatsapp.net', 'x')).rejects.toBeInstanceOf(WaUnavailableError);
+    await expect(wa.sendText('601111@s.whatsapp.net', 'x')).rejects.toBeInstanceOf(
+      WaUnavailableError,
+    );
     await wa.connect();
     wa.setConnected(false);
     const err = await wa.sendText('601111@s.whatsapp.net', 'x').catch((e: unknown) => e);
@@ -112,5 +118,19 @@ describe('FakeWaAdapter', () => {
     await wa.logout();
     expect(wa.status.state).toBe('logged_out');
     expect(wa.status.me).toBeNull();
+  });
+
+  it('simulateIncoming carries chatJidAlt; simulateContactAliases emits explicit pairs', () => {
+    const wa = new FakeWaAdapter();
+    const seen: WaIncomingMessage[] = [];
+    wa.on('message', (m) => seen.push(m));
+    wa.simulateIncoming({ chatJid: '1@lid', chatJidAlt: '601@s.whatsapp.net', body: 'x' });
+    wa.simulateIncoming({ chatJid: '602@s.whatsapp.net', body: 'y' });
+    expect(seen.map((m) => m.chatJidAlt)).toEqual(['601@s.whatsapp.net', null]);
+
+    const batches: WaContactAlias[][] = [];
+    wa.on('contactAliases', (b) => batches.push(b));
+    wa.simulateContactAliases([{ jid: '601@s.whatsapp.net', alias: '1@lid' }]);
+    expect(batches).toEqual([[{ jid: '601@s.whatsapp.net', alias: '1@lid' }]]);
   });
 });

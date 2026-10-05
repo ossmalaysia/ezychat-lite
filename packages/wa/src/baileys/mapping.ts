@@ -1,6 +1,7 @@
 import { downloadMediaMessage, normalizeMessageContent, type proto, type WAMessage } from 'baileys';
 import type { MessageType } from '@wa-team-inbox/shared';
 import type { WaIncomingMessage } from '../types.js';
+import { normalizeContactJid } from './contact-aliases.js';
 
 export type JidKind = 'dm' | 'group' | 'other';
 
@@ -84,13 +85,19 @@ export function mapWAMessage(
     const m = content.audioMessage;
     type = 'audio';
     ctx = m;
-    media = { mime: m.mimetype ?? (m.ptt ? 'audio/ogg; codecs=opus' : 'audio/mpeg'), fileName: null };
+    media = {
+      mime: m.mimetype ?? (m.ptt ? 'audio/ogg; codecs=opus' : 'audio/mpeg'),
+      fileName: null,
+    };
   } else if (content.documentMessage) {
     const m = content.documentMessage;
     type = 'document';
     body = m.caption ?? null;
     ctx = m;
-    media = { mime: m.mimetype ?? 'application/octet-stream', fileName: m.fileName ?? m.title ?? null };
+    media = {
+      mime: m.mimetype ?? 'application/octet-stream',
+      fileName: m.fileName ?? m.title ?? null,
+    };
   } else if (content.stickerMessage) {
     const m = content.stickerMessage;
     type = 'sticker';
@@ -104,9 +111,15 @@ export function mapWAMessage(
   const quotedId = ctx?.contextInfo?.stanzaId ?? null;
   const raw = msg as WAMessage;
 
+  // The same person's other address (PN for a LID chat or the reverse); only for direct chats.
+  // remoteJidAlt is on Baileys' WAMessageKey, not on proto.IMessageKey.
+  const alt = isGroup ? null : normalizeContactJid((key as WAMessage['key']).remoteJidAlt);
+  const chatJidAlt = alt && alt.endsWith('@lid') !== chatJid.endsWith('@lid') ? alt : null;
+
   return {
     id,
     chatJid,
+    chatJidAlt,
     senderJid,
     senderName,
     fromMe,

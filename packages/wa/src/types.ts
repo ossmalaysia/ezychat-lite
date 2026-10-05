@@ -4,6 +4,11 @@ import type { MessageType, WaStatus } from '@wa-team-inbox/shared';
 export interface WaIncomingMessage {
   id: string;
   chatJid: string;
+  /**
+   * DM only: the same person's other address as WhatsApp delivered it (`key.remoteJidAlt`), PN for a
+   * LID chat or the reverse, device suffix stripped. Null/absent for groups or when not provided.
+   */
+  chatJidAlt?: string | null;
   senderJid: string | null;
   senderName: string | null;
   fromMe: boolean;
@@ -29,9 +34,13 @@ export interface WaContactInfo {
   aliases?: string[];
 }
 
+/** Where an explicit PN/LID association was learned (stored in jid_aliases.source). */
+export type WaAliasSource = 'message' | 'history' | 'contacts' | 'lid-mapping' | 'keystore';
+
 export interface WaContactAlias {
   jid: string;
   alias: string;
+  source?: WaAliasSource;
 }
 
 export interface WaMessageStatusUpdate {

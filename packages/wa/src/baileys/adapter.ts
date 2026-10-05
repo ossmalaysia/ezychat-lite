@@ -30,6 +30,7 @@ import {
   type WaAdapterOptions,
   type WaChatInfo,
   type WaContactInfo,
+  type WaAliasSource,
   type WaContactAlias,
   type WaMessageStatusUpdate,
   type WaSendFile,
@@ -352,7 +353,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     sock.ev.on('contacts.upsert', (cs) => alive() && this.emitContacts(cs));
     sock.ev.on('contacts.update', (cs) => alive() && this.emitContacts(cs));
     sock.ev.on('lid-mapping.update', ({ lid, pn }) => {
-      if (alive()) this.emitAliasPairs([[lid, pn]]);
+      if (alive()) this.emitAliasPairs([[lid, pn]], 'lid-mapping');
     });
     sock.ev.on('chats.upsert', (cs) => alive() && this.emitChats(cs));
     sock.ev.on('groups.upsert', (gs) => alive() && this.emitGroups(gs));
@@ -468,10 +469,13 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   private ingest(m: WAMessage, source: 'live' | 'history'): void {
-    this.emitAliasPairs([
-      [m.key?.remoteJid, m.key?.remoteJidAlt],
-      [m.key?.participant, m.key?.participantAlt],
-    ]);
+    this.emitAliasPairs(
+      [
+        [m.key?.remoteJid, m.key?.remoteJidAlt],
+        [m.key?.participant, m.key?.participantAlt],
+      ],
+      source === 'history' ? 'history' : 'message',
+    );
     const id = m.key?.id;
     if (!id) return;
     if (m.message) this.raw.set(id, m);
@@ -483,7 +487,10 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   /** @internal exposed for tests */
   onHistory(h: BaileysEventMap['messaging-history.set']): void {
-    this.emitAliasPairs((h.lidPnMappings ?? []).map(({ lid, pn }) => [lid, pn]));
+    this.emitAliasPairs(
+      (h.lidPnMappings ?? []).map(({ lid, pn }) => [lid, pn]),
+      'history',
+    );
     if (h.contacts?.length) this.emitContacts(h.contacts);
     if (h.chats?.length) this.emitChats(h.chats);
     const cutoff = this.historyCutoff();
@@ -500,6 +507,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         [c.id, c.phoneNumber],
         [c.lid, c.phoneNumber],
       ]),
+      'contacts',
     );
     const out: WaContactInfo[] = [];
     for (const c of cs) {
@@ -534,14 +542,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   /** Cache and emit only explicit PN/LID associations; reject contradictory associations. */
-  private emitAliasPairs(pairs: Array<[unknown, unknown]>): void {
+  private emitAliasPairs(pairs: Array<[unknown, unknown]>, source: WaAliasSource): void {
     const out: WaContactAlias[] = [];
     for (const [first, second] of pairs) {
       const pair = contactAliasPair(first, second);
-      if (pair && this.rememberAlias(pair)) out.push(pair);
+      if (pair && this.rememberAlias(pair)) out.push({ ...pair, source });
     }
     if (out.length) {
-      this.logger.debug({ mappingCount: out.length }, 'contact aliases received');
+      this.logger.debug({ mappingCount: out.length, source }, 'contact aliases received');
       this.emitTyped('contactAliases', out);
     }
   }
@@ -588,7 +596,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     for (const jid of normalized) {
       const alias = this.contactAliases.get(jid);
       const pair = contactAliasPair(jid, alias);
-      if (pair) out.set(pair.jid, pair);
+      if (pair) out.set(pair.jid, { ...pair, source: 'keystore' });
     }
     return [...out.values()];
   }
