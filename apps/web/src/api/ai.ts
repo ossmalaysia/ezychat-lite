@@ -3,8 +3,10 @@ import {
   AiMemberStatus,
   AiModelList,
   AiTestResult,
+  AiTryResult,
   type AiMemberBody,
   type AiConnectionBody,
+  type AiTryBody,
 } from '@wa-team-inbox/shared';
 import { api } from './client';
 import { qk } from './queries';
@@ -35,6 +37,13 @@ export function useAiTest() {
   return useMutation({
     mutationFn: () => api('/ai/chatgpt/test', { method: 'POST', schema: AiTestResult }),
     onSettled: () => void qc.invalidateQueries({ queryKey: aiMemberKey }),
+  });
+}
+
+/** Try it: answers from the page's current knowledge; never touches chats or WhatsApp. */
+export function useAiTry() {
+  return useMutation({
+    mutationFn: (body: AiTryBody) => api('/ai/try', { method: 'POST', body, schema: AiTryResult }),
   });
 }
 

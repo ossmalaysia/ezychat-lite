@@ -11,11 +11,11 @@ import {
   UserPlus,
   UserX,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
-import { AiMemberPanel } from './AiMemberPanel';
 import {
   useCreateUser,
   usePatchUser,
@@ -64,7 +64,6 @@ import {
 
 type Dialog =
   | { kind: 'create' }
-  | { kind: 'ai' }
   | { kind: 'edit'; user: User }
   | { kind: 'reset'; user: User }
   | { kind: 'revoke'; user: User }
@@ -96,12 +95,7 @@ export function MembersPage() {
     {
       key: 'role',
       header: t('members.columns.role'),
-      cell: (u) =>
-        u.kind === 'ai' ? (
-          <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
-        ) : (
-          <RoleBadge role={u.role} />
-        ),
+      cell: (u) => (u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />),
     },
     { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
     {
@@ -124,14 +118,11 @@ export function MembersPage() {
           <h1 className="text-xl font-semibold tracking-tight">{t('members.title')}</h1>
           <div className="flex flex-wrap gap-2">
             {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
-              <Button
-                variant="outline"
-                size="touch"
-                className="md:min-h-9"
-                onClick={() => setDialog({ kind: 'ai' })}
-              >
-                <Bot aria-hidden />
-                {t('ai.addMember')}
+              <Button asChild variant="outline" size="touch" className="md:min-h-9">
+                <Link to="/admin/members/ai">
+                  <Bot aria-hidden />
+                  {t('ai.addMember')}
+                </Link>
               </Button>
             )}
             <Button
@@ -178,11 +169,7 @@ export function MembersPage() {
                 <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
               </div>
               <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                {u.kind === 'ai' ? (
-                  <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
-                ) : (
-                  <RoleBadge role={u.role} />
-                )}
+                {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
                 <StatusBadges user={u} />
               </div>
               <p className="pl-11 text-xs text-muted-foreground">
@@ -216,7 +203,6 @@ export function MembersPage() {
         />
       )}
 
-      {dialog?.kind === 'ai' && <AiMemberPanel onClose={close} />}
       {dialog?.kind === 'create' && (
         <CreateMemberDialog
           onClose={close}
@@ -254,6 +240,17 @@ function initials(name: string) {
   );
 }
 
+/** The AI row's robot badge. */
+function AiBadge() {
+  const { t } = useTranslation('admin');
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <Bot aria-hidden className="size-3" />
+      {t('ai.roleBadge')}
+    </Badge>
+  );
+}
+
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
   const { t } = useTranslation('admin');
   return (
@@ -265,7 +262,13 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
       </Avatar>
       <div className="min-w-0">
         <p className="font-medium [overflow-wrap:anywhere] md:truncate">
-          {user.displayName}
+          {user.kind === 'ai' ? (
+            <Link to="/admin/members/ai" className="underline-offset-4 hover:underline">
+              {user.displayName}
+            </Link>
+          ) : (
+            user.displayName
+          )}
           {isMe && (
             <span className="ml-1 text-xs font-normal text-muted-foreground">
               {t('members.you')}
@@ -321,18 +324,37 @@ function RowActions({
   const { t } = useTranslation(['admin', 'common']);
   return (
     <div className="flex shrink-0 items-center gap-1 md:justify-end">
-      <Button
-        size={compact ? 'icon-touch' : 'touch'}
-        variant={compact ? 'ghost' : 'outline'}
-        className={compact ? undefined : 'md:min-h-8'}
-        aria-label={
-          compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
-        }
-        onClick={() => onAction(user.kind === 'ai' ? { kind: 'ai' } : { kind: 'edit', user })}
-      >
-        <Pencil aria-hidden />
-        {!compact && t('common:actions.edit')}
-      </Button>
+      {user.kind === 'ai' ? (
+        <Button
+          asChild
+          size={compact ? 'icon-touch' : 'touch'}
+          variant={compact ? 'ghost' : 'outline'}
+          className={compact ? undefined : 'md:min-h-8'}
+        >
+          <Link
+            to="/admin/members/ai"
+            aria-label={
+              compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
+            }
+          >
+            <Pencil aria-hidden />
+            {!compact && t('common:actions.edit')}
+          </Link>
+        </Button>
+      ) : (
+        <Button
+          size={compact ? 'icon-touch' : 'touch'}
+          variant={compact ? 'ghost' : 'outline'}
+          className={compact ? undefined : 'md:min-h-8'}
+          aria-label={
+            compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
+          }
+          onClick={() => onAction({ kind: 'edit', user })}
+        >
+          <Pencil aria-hidden />
+          {!compact && t('common:actions.edit')}
+        </Button>
+      )}
       {user.kind !== 'ai' && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

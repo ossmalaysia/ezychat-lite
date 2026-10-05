@@ -2,9 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { User } from '@wa-team-inbox/shared';
 import { MembersPage } from './MembersPage';
+
+function Location() {
+  return <output data-testid="location">{useLocation().pathname}</output>;
+}
 
 const users: User[] = [
   {
@@ -28,6 +32,14 @@ const users: User[] = [
     locale: null,
   },
 ];
+const aiUser: User = {
+  ...users[1]!,
+  id: 3,
+  username: 'ai-assistant',
+  displayName: 'Business AI',
+  disabled: false,
+  kind: 'ai',
+};
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -70,7 +82,11 @@ function setup(memberList = users) {
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={['/admin/members']}>
-        <MembersPage />
+        <Routes>
+          <Route path="/admin/members" element={<MembersPage />} />
+          <Route path="/admin/members/ai" element={<h1>AI member page</h1>} />
+        </Routes>
+        <Location />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -120,28 +136,23 @@ afterEach(() => {
 });
 
 describe('MembersPage', () => {
-  it('shows the existing AI sales member without human account actions or another add button', async () => {
-    setup([
-      ...users,
-      {
-        ...users[1]!,
-        id: 3,
-        username: 'ai-assistant',
-        displayName: 'Business AI',
-        disabled: false,
-        kind: 'ai',
-      },
-    ]);
+  it('opens the AI member page from the AI row and shows its AI badge', async () => {
+    setup([...users, aiUser]);
     await screen.findAllByText('Business AI');
     expect(screen.getAllByText('AI · Sales Agent').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'Add AI member' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add AI member' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'More actions for Business AI' })).toBeNull();
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Edit Business AI' }));
-    await screen.findByRole('heading', { name: 'Edit AI member' });
-    expect(screen.queryByLabelText('Temporary password')).toBeNull();
-    expect(screen.queryByLabelText('OpenAI API key')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Configure in Settings → AI' })).toBeTruthy();
+    const edit = screen.getAllByRole('link', { name: 'Edit Business AI' })[0]!;
+    expect(edit.getAttribute('href')).toBe('/admin/members/ai');
+    await user.click(edit);
+    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai');
+  });
+
+  it('links Add AI member to the AI member page when there is no AI member', async () => {
+    setup();
+    const link = await screen.findByRole('link', { name: 'Add AI member' });
+    expect(link.getAttribute('href')).toBe('/admin/members/ai');
   });
 
   it('renders users from the users query', async () => {
