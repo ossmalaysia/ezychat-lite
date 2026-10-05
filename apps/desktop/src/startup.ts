@@ -18,6 +18,18 @@ export function decideStartup(serverAnswers: boolean, serviceState: ServiceState
 }
 
 /**
+ * How long to wait for an installed service that is not answering yet. A running service may
+ * still be booting. A stopped one shortly after boot may be an automatic service that the OS has
+ * not launched yet (it can start after the user logs on) — wait for it instead of showing an
+ * error at once.
+ */
+export function serviceWaitMs(serviceState: ServiceState, uptimeSeconds: number): number {
+  if (serviceState === 'running') return 60_000;
+  if (serviceState === 'stopped' && uptimeSeconds < 600) return 180_000;
+  return 0;
+}
+
+/**
  * Server exit codes the desktop must not restart: 2 = invalid arguments, 3 = the data dir is
  * locked by another server process (restarting would loop forever).
  */

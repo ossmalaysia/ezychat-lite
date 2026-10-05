@@ -11,6 +11,7 @@ import {
   type NativeImage,
 } from 'electron';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
@@ -43,7 +44,8 @@ import {
 } from './paths.js';
 import { runServerCommand, StandaloneServer } from './server-process.js';
 import { createServiceOperation } from './service-operation.js';
-import { decideStartup, parsePortFile } from './startup.js';
+import { watchForService } from './service-recovery.js';
+import { decideStartup, parsePortFile, serviceWaitMs } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
 import { closeAction } from './window-close.js';
@@ -348,10 +350,16 @@ async function main(): Promise<void> {
     if (p !== null) adoptPort(p);
   };
 
-  /** Polls for the OS service (re-reading its port file) until it answers or the deadline passes. */
-  const waitForService = async (timeoutMs: number): Promise<boolean> => {
+  /**
+   * Polls for the OS service (re-reading its port file) until it answers, the deadline passes, or
+   * `keepWaiting` turns false (something else took over the window).
+   */
+  const waitForService = async (
+    timeoutMs: number,
+    keepWaiting: () => boolean = () => true,
+  ): Promise<boolean> => {
     const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
+    while (Date.now() < deadline && keepWaiting()) {
       adoptServicePort();
       if (await probeServer(port)) return true;
       await new Promise((r) => setTimeout(r, 750));
@@ -359,6 +367,7 @@ async function main(): Promise<void> {
     return false;
   };
 
+  let stopRecovery = () => {};
   const serviceDown = (state: ServiceState) => {
     setMode('error');
     loadMain(
@@ -369,6 +378,22 @@ async function main(): Promise<void> {
         t(locale, 'page.serviceDownBody'),
       ),
     );
+    // The service may still come up (late auto-start, or started from Windows): keep checking
+    // and open the inbox as soon as it answers, instead of leaving the error page up for good.
+    stopRecovery();
+    stopRecovery = watchForService({
+      probe: async () => {
+        adoptServicePort();
+        return (await probeServer(port)) !== null;
+      },
+      isActive: () => mode === 'error',
+      canSwitch: () => mode === 'error' && !busy,
+      onAnswer: () => {
+        log(`[desktop] background service answered on port ${port}; connecting`);
+        setMode('client');
+        loadMain(url);
+      },
+    });
   };
 
   const describe = (): string => {
@@ -381,6 +406,7 @@ async function main(): Promise<void> {
   };
 
   const setMode = (m: DesktopMode) => {
+    if (m !== 'error') stopRecovery();
     mode = m;
     syncUpdates();
     trayHandle.refresh();
@@ -502,10 +528,16 @@ async function main(): Promise<void> {
       log(
         `[desktop] background service is ${svc} but not answering; not starting a standalone server`,
       );
-      if (svc === 'running') {
+      const waitMs = serviceWaitMs(svc, uptime());
+      if (waitMs > 0) {
         setMode('starting');
         loadMain(page(t(locale, 'page.connectingTitle'), t(locale, 'page.connectingBody')));
-        if (await waitForService(60_000)) {
+        // A user operation (e.g. removing the service) may take over during the wait: stop
+        // waiting then, and never switch a window that now hosts its own server to client mode.
+        const undisturbed = () => mode === 'starting' && !busy;
+        const answered = await waitForService(waitMs, undisturbed);
+        if (!undisturbed()) return; // the operation owns the window now
+        if (answered) {
           setMode('client');
           loadMain(url);
           return;
