@@ -204,7 +204,23 @@
       "description": "Keutamaan disimpan pada peranti ini dan berkuat kuasa serta-merta.",
       "themeHint": "Sistem mengikut tetapan cerah atau gelap peranti anda.",
       "notifications": "Pemberitahuan",
-      "notificationsHint": "Terima pemberitahuan untuk mesej baharu apabila peti masuk tidak dibuka."
+      "notificationsHint": "Terima pemberitahuan untuk mesej baharu apabila peti masuk tidak dibuka.",
+      "languageHint": "Mengikut anda di setiap peranti",
+      "languageShort": {
+        "en": "English",
+        "ms": "BM",
+        "zh-CN": "中文"
+      }
+    },
+    "tabs": {
+      "general": "Umum",
+      "ai": "AI",
+      "device": "Peranti ini",
+      "maintenance": "Penyelenggaraan"
+    },
+    "maintenance": {
+      "title": "Zon bahaya",
+      "description": "Tindakan di sini menjejaskan seluruh pasukan dan tidak boleh dibuat asal dengan satu klik."
     }
   },
   "resolveAll": {

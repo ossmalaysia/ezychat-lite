@@ -206,7 +206,23 @@
       "description": "Preferences are saved on this device and apply immediately.",
       "themeHint": "System follows your device's light or dark setting.",
       "notifications": "Notifications",
-      "notificationsHint": "Get a notification for new messages when the inbox isn't open."
+      "notificationsHint": "Get a notification for new messages when the inbox isn't open.",
+      "languageHint": "Follows you on every device",
+      "languageShort": {
+        "en": "English",
+        "ms": "BM",
+        "zh-CN": "中文"
+      }
+    },
+    "tabs": {
+      "general": "General",
+      "ai": "AI",
+      "device": "This device",
+      "maintenance": "Maintenance"
+    },
+    "maintenance": {
+      "title": "Danger zone",
+      "description": "Actions here affect the whole team and cannot be undone in one click."
     }
   },
   "resolveAll": {

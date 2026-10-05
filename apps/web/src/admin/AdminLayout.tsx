@@ -219,7 +219,7 @@ export function AdminLayout() {
             <Route path="quick-replies" element={<QuickRepliesPage />} />
             <Route path="whatsapp" element={<WhatsAppPage />} />
             <Route path="tunnel" element={<TunnelPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings/*" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />
             <Route path="*" element={<UnknownAdminRoute />} />
           </Routes>

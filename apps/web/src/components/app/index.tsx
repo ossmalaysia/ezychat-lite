@@ -213,6 +213,7 @@ export function ResponsiveDialog({
 
 export { AppCredits } from './AppCredits';
 export { AboutDialog } from './AboutDialog';
+export { SegmentedControl, type SegmentedOption } from './SegmentedControl';
 
 /* ---------- PageHeader ---------- */
 

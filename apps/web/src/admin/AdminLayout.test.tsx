@@ -76,6 +76,19 @@ describe('AdminLayout routing', () => {
     },
   );
 
+  it.each(['general', 'ai', 'device', 'maintenance'])(
+    'keeps Settings active and mounted on /admin/settings/%s',
+    (tab) => {
+      setup(`/admin/settings/${tab}`);
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe(
+        'page',
+      );
+      expect(screen.getByTestId('location').textContent).toBe(`/admin/settings/${tab}`);
+      expect(screen.getByText('Admin · Settings')).toBeTruthy();
+    },
+  );
+
   it('reports an unmatched route for server-side diagnostics', async () => {
     setup('/admin/members/quick-replies');
     await waitFor(() =>
