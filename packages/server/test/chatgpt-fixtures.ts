@@ -94,6 +94,5 @@ export const CHATGPT_SETTINGS: AiSettings = {
   mode: 'chatgpt',
   model: 'gpt-5.5',
   instructions: '',
-  notes: '',
-  faqs: [],
+  context: '',
 };

@@ -1,7 +1,8 @@
 import type { AiSettings } from '@wa-team-inbox/shared';
+import type { KnowledgeSource } from './knowledge.js';
 import type { AiPrompt } from './provider-types.js';
 
-export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'notes' | 'faqs'>;
+export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'context'>;
 export interface AiConversationTurn {
   speaker: 'AI' | 'human' | 'customer';
   text: string;
@@ -11,12 +12,9 @@ export const HANDOFF_REPLY = 'A human agent will help with your question.';
 export function knowledgeSources(
   knowledge: AiKnowledge,
   documents: Array<{ name: string; text: string }>,
-): Array<{ name: string; text: string }> {
-  return [
-    { name: 'Business notes', text: knowledge.notes },
-    ...knowledge.faqs.map((faq) => ({ name: 'FAQ', text: `${faq.question}\n${faq.answer}` })),
-    ...documents,
-  ];
+): KnowledgeSource[] {
+  // Instructions go to the system prompt; the context's first chunk (the overview) is always sent.
+  return [{ name: 'Business context', text: knowledge.context, pinFirst: true }, ...documents];
 }
 
 /** The one prompt for live replies and Try it, so a test answers as a customer would see. */

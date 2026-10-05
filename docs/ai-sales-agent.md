@@ -9,13 +9,27 @@
    computer hosting the inbox because its callback is localhost. Tokens use the operating
    system's secure credential store. If an OS service cannot access that store, use API mode.
    OpenAI API usage is billed separately from a ChatGPT subscription.
-3. Open **Admin → Members → Add AI member**. The first version supports one AI member with
-   the fixed business role **Sales Agent**. Set its name, instructions, approved business
-   notes and FAQs. Save it before uploading documents, then enable automatic replies.
-4. Upload Markdown, UTF-8 text, Word `.docx` or PDFs containing selectable text. Each file
+3. Open **Admin → Members → AI Sales Agent**. The first version supports one AI member with
+   the fixed business role **Sales Agent**. Besides its name it has exactly two settings:
+   - **AI instructions** (up to 8,000 characters): how the AI behaves — tone, language, what
+     to answer and what to leave to humans.
+   - **Business context**: one free-text box (up to 40,000 characters) for facts — hours,
+     prices, delivery, policies, FAQs — plus attached files (below).
+
+   Turn on requires instructions, Business context text or at least one file. The first file
+   upload saves the member as a disabled draft.
+
+4. Attach Markdown, UTF-8 text, Word `.docx` or PDFs containing selectable text. Each file
    can be at most 10 MB and 100,000 extracted characters; PDFs can have at most 100 pages.
-   The inbox accepts at most 20 documents and 500,000 extracted document characters.
+   The inbox accepts at most 20 files and 500,000 extracted document characters.
    Convert legacy `.doc` files and apply OCR to scanned PDFs before upload.
+
+**Upgrading from notes and FAQs.** Earlier versions stored separate business notes and an FAQ
+list. They are converted when the settings are read: Business context = the notes, then
+`Q: <question>` / `A: <answer>` for each FAQ, separated by blank lines. Nothing is lost on
+upgrade; the next save writes only the new shape. If the combined text exceeds 40,000
+characters, the start is kept and the server logs a warning (`mod: "ai"`,
+`event: "ai_context_truncated"`). Unsaved page drafts from the old shape are discarded.
 
 Connection/model settings belong to the whole inbox. They are stored separately from the
 Sales Agent's instructions and knowledge so a future Follow-up Agent can share the provider.
@@ -65,8 +79,21 @@ recheck sessions after asynchronous uploads/sign-in. API keys use encrypted sett
 inputs, OAuth URLs and credentials are omitted from logs and audits.
 
 Document parsing runs in a worker with a 15-second deadline and bounded V8 memory. Word archive
-expansion and extracted text are capped. Knowledge retrieval is local and bounds provider
-context. The server limits concurrent AI workflows and persists only live inbound work to
+expansion and extracted text are capped. Knowledge retrieval is local (no vector database) and
+bounds provider context. The AI instructions always go to the system prompt; the knowledge
+sources are the Business context, then each file, labelled `[Business context]` /
+`[<file name>]` and treated as data, never instructions. When the context and file texts total
+at most 40,000 characters, all of it is sent in order. Above that, the context and files are
+split into chunks (blank-line paragraphs packed up to 1,500 characters) and the 14 best matches
+for the latest customer messages are sent (at most 24,000 characters), always including the
+first context chunk (the business overview). Matching counts shared words (two or more letters,
+ignoring a few English/Malay stop words) and, for Chinese, Japanese and Korean, overlapping
+two-character pairs, because those languages have no spaces. Known limit: a question in one
+language about a fact written in another (for example Malay about an English fact) deep in a
+very large context may miss that fact; typical briefs fit the full-context budget.
+
+A saved ChatGPT model that is no longer in the live or documented model list (for example a
+Codex-era `gpt-5.4`) falls back to Auto, with one warning per model in the log. The server limits concurrent AI workflows and persists only live inbound work to
 avoid generating replies from imported history after restart.
 
 ChatGPT uses a pinned, checksum-verified Codex 0.114.0 helper and verifies its protocol version.

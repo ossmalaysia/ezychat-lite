@@ -19,8 +19,7 @@ const body: AiMemberBody = {
   displayName: 'Sales Agent',
   enabled: true,
   instructions: 'Be concise',
-  notes: 'Opening hours: 9am to 5pm. Delivery costs RM10.',
-  faqs: [],
+  context: 'Opening hours: 9am to 5pm. Delivery costs RM10.',
 };
 beforeEach(async () => {
   t = await makeTestApp();
@@ -622,8 +621,7 @@ it('answers Try it from draft knowledge without touching chats, messages, audit 
     knowledge: {
       displayName: 'Draft Agent',
       instructions: 'Be brief',
-      notes: 'Delivery costs RM10.',
-      faqs: [{ question: 'Open on Sunday?', answer: 'No' }],
+      context: 'Delivery costs RM10.\n\nQ: Open on Sunday?\nA: No',
     },
   });
   expect(result).toEqual({
@@ -641,7 +639,7 @@ it('answers Try it from draft knowledge without touching chats, messages, audit 
   expect(key).toBe('test-api-key-123');
   expect(['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count)).toEqual(before);
   expect(t.wa.sent).toHaveLength(0);
-  expect(t.ctx.services.ai!.status().settings.notes).toBe(body.notes);
+  expect(t.ctx.services.ai!.status().settings.context).toBe(body.context);
 });
 
 it('Try it reports a missing connection and a provider failure without throwing', async () => {
@@ -649,7 +647,7 @@ it('Try it reports a missing connection and a provider failure without throwing'
   t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
   provider.connection = () => ({ state: 'signed_out', loginUrl: null, error: null });
   t.ctx.services.ai = createAiService(t.ctx, { provider });
-  const draft = { displayName: 'A', instructions: '', notes: 'Delivery RM10', faqs: [] };
+  const draft = { displayName: 'A', instructions: '', context: 'Delivery RM10' };
   expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
     ok: false,
     reply: null,
@@ -671,12 +669,58 @@ it('Try it reports a missing connection and a provider failure without throwing'
 });
 
 it('refuses to turn on the AI member without any knowledge', () => {
-  const empty = { ...body, instructions: '', notes: '', faqs: [] };
+  const empty = { ...body, instructions: '', context: '' };
   expect(() => t.ctx.services.ai!.saveMember(empty, actor)).toThrow(
-    'Add instructions, notes, FAQs or a document',
+    'Add instructions, business context or a document',
   );
   expect(t.ctx.services.ai!.saveMember({ ...empty, enabled: false }, actor).settings.enabled).toBe(
     false,
+  );
+});
+
+it('turns on with Business context only', () => {
+  const status = t.ctx.services.ai!.saveMember(
+    { ...body, instructions: '', context: 'Delivery RM10' },
+    actor,
+  );
+  expect(status.settings).toMatchObject({ enabled: true, context: 'Delivery RM10' });
+});
+
+it('loads stored notes and FAQs as Business context and saves only the new shape', () => {
+  t.ctx.settings.set('ai_sales_member', {
+    displayName: 'Sales Agent',
+    instructions: 'Be kind',
+    notes: 'Open 9am to 5pm.',
+    faqs: [{ question: 'Open on Sunday?', answer: 'No' }],
+  });
+  const migrated = 'Open 9am to 5pm.\n\nQ: Open on Sunday?\nA: No';
+  const settings = t.ctx.services.ai!.status().settings;
+  expect(settings).toMatchObject({ instructions: 'Be kind', context: migrated });
+  expect(settings).not.toHaveProperty('notes');
+  expect(settings).not.toHaveProperty('faqs');
+  t.ctx.services.ai!.saveMember(
+    {
+      displayName: settings.displayName,
+      enabled: settings.enabled,
+      instructions: settings.instructions,
+      context: settings.context,
+    },
+    actor,
+  );
+  expect(t.ctx.settings.get('ai_sales_member', {})).toEqual({
+    displayName: 'Sales Agent',
+    instructions: 'Be kind',
+    context: migrated,
+  });
+});
+
+it('sends the Business context to live replies as a named knowledge source', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { input } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(JSON.parse(input).businessKnowledge).toBe(
+    '[Business context]\nOpening hours: 9am to 5pm. Delivery costs RM10.',
   );
 });
 
@@ -721,7 +765,7 @@ it('Try it applies the resolution gate and never resolves or assigns anything', 
   vi.mocked(provider.generate).mockResolvedValue({ reply: 'Bye!', action: 'resolve' });
   const result = await t.ctx.services.ai!.tryAnswer({
     question: 'Thanks!',
-    knowledge: { displayName: 'A', instructions: '', notes: 'Delivery RM10', faqs: [] },
+    knowledge: { displayName: 'A', instructions: '', context: 'Delivery RM10' },
   });
   expect(result).toMatchObject({ ok: true, action: 'ask_resolution' });
   expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });

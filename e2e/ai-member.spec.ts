@@ -46,10 +46,10 @@ test('admin configures one shared AI connection and manages the Sales Agent know
       .getByLabel('AI instructions', { exact: true })
       .fill('Answer politely in the customer’s language.');
     await member
-      .getByLabel('Business notes', { exact: true })
+      .getByLabel('Business context', { exact: true })
       .fill('We open Monday to Friday, 9am to 5pm. Delivery costs RM10.');
     await member.getByRole('button', { name: 'Save AI member', exact: true }).click();
-    await expect(member.getByText('Upload business document', { exact: true })).toBeVisible();
+    await expect(member.getByText('Attach files', { exact: true })).toBeVisible();
     await member.locator('input[type=file]').setInputFiles({
       name: `business-${viewport.width}.md`,
       mimeType: 'text/markdown',

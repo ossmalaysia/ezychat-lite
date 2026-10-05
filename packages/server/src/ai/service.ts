@@ -11,13 +11,19 @@ import type {
   ChatEvent,
   Message,
 } from '@wa-team-inbox/shared';
-import { AiConnectionBody, AiDecision, CHATGPT_FALLBACK_MODELS } from '@wa-team-inbox/shared';
+import {
+  AI_CONTEXT_CHARACTERS,
+  AiConnectionBody,
+  AiDecision,
+  CHATGPT_FALLBACK_MODELS,
+} from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { OAuthError } from './chatgpt-oauth.js';
+import { migrateAiKnowledge } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
 import { HANDOFF_REPLY, buildAiPrompt, knowledgeSources } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
@@ -34,8 +40,7 @@ const DEFAULT_SETTINGS: AiSettings = {
   mode: 'api',
   model: '',
   instructions: '',
-  notes: '',
-  faqs: [],
+  context: '',
 };
 type Actor = { userId: number; ip: string | null };
 interface State {
@@ -83,11 +88,23 @@ export function createAiService(
   const running = new Set<Promise<void>>();
   let closed = false;
   const member = () => ctx.services.auth!.listUsers().find((user) => user.kind === 'ai') ?? null;
+  let reportedTruncation = false;
   const settings = (): AiSettings => {
     const user = member();
+    // Installs from before Business context stored notes + FAQs: convert on read; the next save
+    // writes only the new shape.
+    const knowledge = migrateAiKnowledge(ctx.settings.get<unknown>(MEMBER_KEY, {}));
+    if (knowledge.truncated && !reportedTruncation) {
+      reportedTruncation = true;
+      log.warn(
+        { event: 'ai_context_truncated', limit: AI_CONTEXT_CHARACTERS },
+        'Stored AI notes and FAQs exceed the Business context limit; keeping the start',
+      );
+    }
     return {
       ...DEFAULT_SETTINGS,
-      ...ctx.settings.get<Partial<AiSettings>>(MEMBER_KEY, {}),
+      instructions: knowledge.instructions,
+      context: knowledge.context,
       ...ctx.settings.get<Pick<AiSettings, 'mode' | 'model'>>(PROVIDER_KEY, {
         mode: 'api',
         model: '',
@@ -519,15 +536,9 @@ export function createAiService(
       const documentCount = (
         ctx.db.prepare('SELECT count(*) AS n FROM ai_documents').get() as { n: number }
       ).n;
-      if (
-        body.enabled &&
-        !body.instructions.trim() &&
-        !body.notes.trim() &&
-        !body.faqs.length &&
-        !documentCount
-      )
+      if (body.enabled && !body.instructions.trim() && !body.context.trim() && !documentCount)
         throw errors.validation(
-          'Add instructions, notes, FAQs or a document before turning on the AI member',
+          'Add instructions, business context or a document before turning on the AI member',
         );
       cancelAll();
       ctx.db.transaction(() => {
@@ -550,8 +561,7 @@ export function createAiService(
         ctx.settings.set(MEMBER_KEY, {
           displayName: body.displayName,
           instructions: body.instructions,
-          notes: body.notes,
-          faqs: body.faqs,
+          context: body.context,
         });
         audit(ctx.db, {
           ...actor,

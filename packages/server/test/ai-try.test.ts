@@ -7,7 +7,7 @@ import { authHeaders } from './auth-helpers.js';
 let t: TestApp;
 let provider: AiProvider;
 let cookie: string;
-const knowledge = { displayName: 'Agent', instructions: '', notes: 'Delivery RM10', faqs: [] };
+const knowledge = { displayName: 'Agent', instructions: '', context: 'Delivery RM10' };
 
 beforeEach(async () => {
   provider = {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AiMemberBody,
+  AiTryBody,
   ApiErrorSchema,
   ChatEventSchema,
   ChatListQuery,
@@ -109,5 +111,29 @@ describe('shared schemas', () => {
     expect(
       ApiErrorSchema.safeParse({ error: { code: ErrorCode.NOT_FOUND, message: 'x' } }).success,
     ).toBe(true);
+  });
+});
+
+describe('AI member knowledge', () => {
+  const member = { displayName: 'Sales Agent', enabled: false, instructions: '', context: '' };
+  it('accepts one Business context text up to 40,000 characters', () => {
+    expect(AiMemberBody.safeParse({ ...member, context: 'Open 9am-5pm' }).success).toBe(true);
+    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(40_000) }).success).toBe(true);
+    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(40_001) }).success).toBe(false);
+  });
+  it('Try it sends name, instructions and context only', () => {
+    const parsed = AiTryBody.parse({
+      question: 'Delivery?',
+      knowledge: { displayName: 'A', instructions: 'Be brief', context: 'RM10', notes: 'old' },
+    });
+    expect(parsed.knowledge).toEqual({
+      displayName: 'A',
+      instructions: 'Be brief',
+      context: 'RM10',
+    });
+    expect(
+      AiTryBody.safeParse({ question: 'x', knowledge: { displayName: 'A', instructions: '' } })
+        .success,
+    ).toBe(false);
   });
 });

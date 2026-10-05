@@ -16,21 +16,17 @@ export const CHATGPT_FALLBACK_MODELS = [
 ] as const;
 export const CHATGPT_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
+/** Business context limit; also the size up to which all knowledge is sent without selection. */
+export const AI_CONTEXT_CHARACTERS = 40_000;
+
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
   enabled: z.boolean(),
   mode: z.enum(['api', 'chatgpt']),
   model: z.string().trim().max(128),
   instructions: z.string().max(8000),
-  notes: z.string().max(30000),
-  faqs: z
-    .array(
-      z.object({
-        question: z.string().trim().min(1).max(500),
-        answer: z.string().trim().min(1).max(4000),
-      }),
-    )
-    .max(100),
+  /** Business context: hours, prices, delivery, policies, FAQs (plus uploaded documents). */
+  context: z.string().max(AI_CONTEXT_CHARACTERS),
   apiKey: z.string().trim().min(10).max(512).optional(),
 });
 export type AiSettingsBody = z.infer<typeof AiSettingsBody>;
@@ -102,7 +98,7 @@ export const AI_TRY_QUESTION_CHARACTERS = 500;
 /** Try it: a test question answered from the page's current (possibly unsaved) knowledge. */
 export const AiTryBody = z.object({
   question: z.string().trim().min(1).max(AI_TRY_QUESTION_CHARACTERS),
-  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, notes: true, faqs: true }),
+  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, context: true }),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
 export const AiTryResult = z.object({

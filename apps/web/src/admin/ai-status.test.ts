@@ -11,15 +11,14 @@ function status(): AiMemberStatus {
       mode: 'api',
       model: '',
       instructions: '',
-      notes: '',
-      faqs: [],
+      context: '',
     },
     hasApiKey: true,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
   };
 }
-const empty = { displayName: 'A', instructions: '', notes: '', faqs: [] };
+const empty = { displayName: 'A', instructions: '', context: '' };
 
 describe('AI status helpers', () => {
   it('accepts only official sign-in links', () => {
@@ -43,22 +42,21 @@ describe('AI status helpers', () => {
     expect(connectionReady(s)).toBe(false);
   });
 
-  it('counts instructions, notes, complete FAQs or documents as knowledge', () => {
+  it('counts instructions, Business context or documents as knowledge', () => {
     expect(hasKnowledge(empty, 0)).toBe(false);
-    expect(hasKnowledge({ ...empty, faqs: [{ question: 'Q', answer: '' }] }, 0)).toBe(false);
+    expect(hasKnowledge({ ...empty, context: '  ' }, 0)).toBe(false);
     expect(hasKnowledge({ ...empty, instructions: 'Be kind' }, 0)).toBe(true);
-    expect(hasKnowledge({ ...empty, notes: 'RM10' }, 0)).toBe(true);
-    expect(hasKnowledge({ ...empty, faqs: [{ question: 'Q', answer: 'A' }] }, 0)).toBe(true);
+    expect(hasKnowledge({ ...empty, context: 'RM10' }, 0)).toBe(true);
     expect(hasKnowledge(empty, 1)).toBe(true);
   });
 
   it('shows connection problems first, then missing knowledge, then on/off', () => {
     const s = status();
     s.hasApiKey = false;
-    expect(memberPill(s, { ...empty, notes: 'x' })).toBe('needsConnection');
+    expect(memberPill(s, { ...empty, context: 'x' })).toBe('needsConnection');
     s.hasApiKey = true;
     expect(memberPill(s, empty)).toBe('needsKnowledge');
-    expect(memberPill(s, { ...empty, notes: 'x' })).toBe('off');
+    expect(memberPill(s, { ...empty, context: 'x' })).toBe('off');
     s.member = {
       id: 3,
       username: 'ai',
@@ -70,6 +68,6 @@ describe('AI status helpers', () => {
       createdAt: 1,
       locale: null,
     };
-    expect(memberPill(s, { ...empty, notes: 'x' })).toBe('on');
+    expect(memberPill(s, { ...empty, context: 'x' })).toBe('on');
   });
 });

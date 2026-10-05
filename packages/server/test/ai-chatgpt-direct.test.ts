@@ -370,8 +370,7 @@ describe('DirectChatGptProvider', () => {
         mode: 'chatgpt',
         model: '',
         instructions: '',
-        notes: '',
-        faqs: [],
+        context: '',
       },
       null,
       { instructions: 'rules', input: 'hi' },
@@ -390,6 +389,27 @@ describe('DirectChatGptProvider', () => {
     expect(provider.connection().state).toBe('signed_out');
     expect(t.ctx.settings.getSecret(CHATGPT_TOKENS_SECRET)).toBeNull();
     await provider.shutdown();
+  });
+
+  it('falls back to Auto for a saved model that is no longer listed, logging once', async () => {
+    const warn = vi.fn();
+    const log = { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+    const ctx = {
+      log: { child: () => log },
+      settings: { getSecret: () => null },
+    } as unknown as ConstructorParameters<typeof DirectChatGptProvider>[0];
+    const provider = new DirectChatGptProvider(ctx, { fetch: vi.fn() as unknown as typeof fetch });
+    expect(await provider.resolveModel('gpt-5.4')).toBe('gpt-6.1-sol');
+    expect(await provider.resolveModel('gpt-5.4')).toBe('gpt-6.1-sol');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toMatchObject({
+      event: 'chatgpt_model_unavailable',
+      model: 'gpt-5.4',
+      fallback: 'gpt-6.1-sol',
+    });
+    expect(await provider.resolveModel('gpt-5.5')).toBe('gpt-5.5');
+    expect(await provider.resolveModel('')).toBe('gpt-6.1-sol');
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('times out an abandoned sign-in and releases the callback port', async () => {

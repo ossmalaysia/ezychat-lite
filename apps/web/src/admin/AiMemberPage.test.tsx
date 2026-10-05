@@ -26,8 +26,7 @@ function status(): AiMemberStatus {
       mode: 'api',
       model: '',
       instructions: '',
-      notes: '',
-      faqs: [],
+      context: '',
     },
     hasApiKey: true,
     connection: { state: 'connected', loginUrl: null, error: null },
@@ -119,12 +118,46 @@ describe('AI member page', () => {
   it('keeps Turn on disabled with the reason until the connection works', async () => {
     const initial = status();
     initial.hasApiKey = false;
-    initial.settings.notes = 'Delivery RM10';
+    initial.settings.context = 'Delivery RM10';
     setup(initial);
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs connection')).toBeTruthy();
     expect(screen.getByText('Connect the AI in Settings → AI first.')).toBeTruthy();
+  });
+
+  it('shows exactly two knowledge cards: AI instructions and Business context with files', async () => {
+    setup();
+    expect(await screen.findByText('2. AI instructions')).toBeTruthy();
+    expect(screen.getByText('3. Business context')).toBeTruthy();
+    expect(screen.getByText('4. Try it')).toBeTruthy();
+    expect(screen.getByLabelText('AI instructions')).toBeTruthy();
+    const context = screen.getByLabelText('Business context');
+    expect(context.closest('[data-slot="card"]')).toBe(
+      screen.getByLabelText('Attach files').closest('[data-slot="card"]'),
+    );
+    expect(screen.queryByRole('button', { name: /FAQ/ })).toBeNull();
+    expect(screen.queryByText(/Frequently asked questions|Business notes/)).toBeNull();
+  });
+
+  it('drops a stored draft from before Business context without crashing', async () => {
+    sessionStorage.setItem(
+      'wati.ai-draft.3',
+      JSON.stringify({
+        displayName: 'Old draft',
+        instructions: 'Be kind',
+        notes: 'Delivery RM10',
+        faqs: [{ question: 'Q', answer: 'A' }],
+      }),
+    );
+    const initial = status();
+    initial.settings.context = 'Saved context';
+    setup(initial);
+    expect(((await screen.findByLabelText('Business context')) as HTMLTextAreaElement).value).toBe(
+      'Saved context',
+    );
+    expect(screen.queryByText('Unsaved')).toBeNull();
+    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
   });
 
   it('keeps Turn on disabled until there is knowledge', async () => {
@@ -133,7 +166,7 @@ describe('AI member page', () => {
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs knowledge')).toBeTruthy();
-    await user.type(screen.getByLabelText('Business notes'), 'Delivery RM10');
+    await user.type(screen.getByLabelText('Business context'), 'Delivery RM10');
     expect(screen.getByText('Off')).toBeTruthy();
     expect(turnOn.disabled).toBe(false);
   });
@@ -141,7 +174,7 @@ describe('AI member page', () => {
   it('Turn on saves unsaved edits in the same request', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business notes'), 'Delivery costs RM10.');
+    await user.type(await screen.findByLabelText('Business context'), 'Delivery costs RM10.');
     expect(screen.getByText('Unsaved')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Turn on' }));
     await screen.findByRole('button', { name: 'Turn off' });
@@ -150,7 +183,7 @@ describe('AI member page', () => {
     expect(puts.map((call) => `${call[1]!.method} ${call[0]}`)).toEqual(['PUT /api/ai']);
     expect(JSON.parse(String(puts[0]![1]!.body))).toMatchObject({
       displayName: 'Sales Assistant',
-      notes: 'Delivery costs RM10.',
+      context: 'Delivery costs RM10.',
       enabled: true,
     });
     expect(screen.queryByText('Unsaved')).toBeNull();
@@ -207,7 +240,7 @@ describe('AI member page', () => {
         : undefined,
     );
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business notes'), 'Delivery costs RM10.');
+    await user.type(await screen.findByLabelText('Business context'), 'Delivery costs RM10.');
     await user.type(screen.getByLabelText('Customer question'), 'How much is delivery?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
     await screen.findByText('Delivery is RM10.');
@@ -219,8 +252,7 @@ describe('AI member page', () => {
       knowledge: {
         displayName: 'Sales Assistant',
         instructions: '',
-        notes: 'Delivery costs RM10.',
-        faqs: [],
+        context: 'Delivery costs RM10.',
       },
     });
     expect(writes(fetchMock).some((c) => c[1]!.method === 'PUT')).toBe(false);
@@ -241,9 +273,9 @@ describe('AI member page', () => {
     const name = await screen.findByLabelText('AI member name');
     await user.clear(name);
     await user.type(name, 'Ezy Bot');
-    await user.type(screen.getByLabelText('Business notes'), 'Open 9 to 5');
+    await user.type(screen.getByLabelText('Business context'), 'Open 9 to 5');
     await user.upload(
-      screen.getByLabelText('Upload business document'),
+      screen.getByLabelText('Attach files'),
       new File(['Delivery RM10'], 'hours.md', { type: 'text/markdown' }),
     );
     await screen.findByText('hours.md');
@@ -253,10 +285,10 @@ describe('AI member page', () => {
     ]);
     expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body))).toMatchObject({
       displayName: 'Ezy Bot',
-      notes: 'Open 9 to 5',
+      context: 'Open 9 to 5',
       enabled: false,
     });
-    expect((screen.getByLabelText('Business notes') as HTMLTextAreaElement).value).toBe(
+    expect((screen.getByLabelText('Business context') as HTMLTextAreaElement).value).toBe(
       'Open 9 to 5',
     );
   });
@@ -292,8 +324,8 @@ describe('AI member page', () => {
     sessionStorage.clear();
     const first = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business notes'), 'Delivery RM10');
-    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).notes).toBe('Delivery RM10');
+    await user.type(await screen.findByLabelText('Business context'), 'Delivery RM10');
+    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).context).toBe('Delivery RM10');
     await user.click(screen.getAllByRole('link', { name: 'Settings → AI' })[0]!);
     expect(screen.getByTestId('location').textContent).toBe('/admin/settings/ai');
     cleanup();
@@ -308,7 +340,7 @@ describe('AI member page', () => {
     );
     first.fetchMock.mockClear();
     setup();
-    expect(((await screen.findByLabelText('Business notes')) as HTMLTextAreaElement).value).toBe(
+    expect(((await screen.findByLabelText('Business context')) as HTMLTextAreaElement).value).toBe(
       'Delivery RM10',
     );
     expect(screen.getByText('Unsaved')).toBeTruthy();
@@ -319,7 +351,7 @@ describe('AI member page', () => {
     sessionStorage.clear();
     setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business notes'), 'x');
+    await user.type(await screen.findByLabelText('Business context'), 'x');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
   });
@@ -336,7 +368,7 @@ describe('AI member page', () => {
       return undefined;
     });
     const user = userEvent.setup();
-    const input = await screen.findByLabelText('Upload business document');
+    const input = await screen.findByLabelText('Attach files');
     await user.upload(input, new File(['a'], 'a.md', { type: 'text/markdown' }));
     await user.upload(input, new File(['b'], 'b.md', { type: 'text/markdown' }));
     release();
@@ -367,7 +399,7 @@ describe('AI member page', () => {
     const initial = status();
     initial.member = { ...aiUser, disabled: false };
     initial.settings.enabled = true;
-    initial.settings.notes = 'Delivery RM10';
+    initial.settings.context = 'Delivery RM10';
     const { fetchMock } = setup(initial);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Turn off' }));

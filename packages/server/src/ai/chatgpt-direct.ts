@@ -80,6 +80,8 @@ export class DirectChatGptProvider implements AiProvider {
   private epoch = 0;
   private readonly problemListeners = new Set<() => void>();
   private readonly inflight = new Set<AbortController>();
+  /** Saved models already reported as unavailable (warn once each). */
+  private readonly unavailableModels = new Set<string>();
   private readonly log;
   private readonly fetchImpl: typeof fetch;
 
@@ -377,9 +379,27 @@ export class DirectChatGptProvider implements AiProvider {
     return (this.modelCache?.models ?? fallbackModels()).map((model) => model.id);
   }
 
+  /**
+   * '' means Auto (the first listed model). A saved model that is no longer listed (for example a
+   * Codex-era id) falls back to Auto instead of failing every answer; logged once per model.
+   */
   async resolveModel(model: string): Promise<string> {
-    if (model) return model;
-    return ((await this.liveModels()) ?? fallbackModels())[0]!.id;
+    const known = (models: BackendModel[] | null | undefined) =>
+      !!models?.some((item) => item.id === model);
+    // A listed model needs no network call; only an unknown id fetches the live list to confirm.
+    if (model && (known(this.modelCache?.models) || known(fallbackModels()))) return model;
+    const live = await this.liveModels();
+    const auto = (live ?? fallbackModels())[0]!.id;
+    if (!model) return auto;
+    if (known(live)) return model;
+    if (!this.unavailableModels.has(model)) {
+      this.unavailableModels.add(model);
+      this.log.warn(
+        { event: 'chatgpt_model_unavailable', model, fallback: auto },
+        'Saved ChatGPT model is not available; using Auto',
+      );
+    }
+    return auto;
   }
 
   private async complete(

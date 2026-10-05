@@ -29,11 +29,7 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
       knowledge: {
         displayName: draft.displayName.trim() || t('ai.page.defaultTitle'),
         instructions: draft.instructions,
-        notes: draft.notes,
-        // Half-typed FAQ rows are not knowledge yet.
-        faqs: draft.faqs
-          .filter((faq) => faq.question.trim() && faq.answer.trim())
-          .map((faq) => ({ question: faq.question.trim(), answer: faq.answer.trim() })),
+        context: draft.context,
       },
     });
   };

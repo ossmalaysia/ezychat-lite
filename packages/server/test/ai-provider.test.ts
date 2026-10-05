@@ -8,8 +8,7 @@ const settings: AiSettings = {
   mode: 'api',
   model: '',
   instructions: '',
-  notes: '',
-  faqs: [],
+  context: '',
 };
 const prompt = {
   instructions: 'Only answer from supplied business knowledge',

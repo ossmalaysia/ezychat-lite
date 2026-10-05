@@ -24,15 +24,10 @@ export function connectionReady(status: AiMemberStatus): boolean {
     : status.connection.state === 'connected';
 }
 
-export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions' | 'notes' | 'faqs'>;
+export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions' | 'context'>;
 
 export function hasKnowledge(draft: AiKnowledgeDraft, documents: number): boolean {
-  return Boolean(
-    draft.instructions.trim() ||
-    draft.notes.trim() ||
-    draft.faqs.some((faq) => faq.question.trim() && faq.answer.trim()) ||
-    documents > 0,
-  );
+  return Boolean(draft.instructions.trim() || draft.context.trim() || documents > 0);
 }
 
 export type AiPill = 'off' | 'on' | 'needsConnection' | 'needsKnowledge';

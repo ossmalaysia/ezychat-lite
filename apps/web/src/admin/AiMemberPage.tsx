@@ -26,11 +26,13 @@ const PILL_TONE = {
 const draftFrom = (s: AiSettings): AiKnowledgeDraft => ({
   displayName: s.displayName,
   instructions: s.instructions,
-  notes: s.notes,
-  faqs: s.faqs,
+  context: s.context,
 });
 const draftKey = (s: AiMemberStatus) => `wati.ai-draft.${s.member?.id ?? 'new'}`;
-/** Unsaved edits survive leaving the page (the app's router cannot block navigation). */
+/**
+ * Unsaved edits survive leaving the page (the app's router cannot block navigation). A draft
+ * stored in an older shape (notes + FAQs) fails to parse and is dropped.
+ */
 function readStoredDraft(key: string): AiKnowledgeDraft | null {
   try {
     const raw = sessionStorage.getItem(key);
@@ -38,8 +40,7 @@ function readStoredDraft(key: string): AiKnowledgeDraft | null {
     const parsed = AiMemberBody.pick({
       displayName: true,
       instructions: true,
-      notes: true,
-      faqs: true,
+      context: true,
     }).safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
   } catch {
@@ -250,22 +251,15 @@ function AiMemberEditor({
         </CardContent>
       </Card>
 
-      <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('ai.page.stepKnowledge')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AiKnowledgeSection
-            draft={draft}
-            onChange={setDraft}
-            documents={status.documents}
-            disabled={action.isPending}
-            uploadDisabled={false}
-            onUpload={(file) => void upload(file)}
-            onRemoveDocument={(id) => action.mutate({ kind: 'remove', id })}
-          />
-        </CardContent>
-      </Card>
+      <AiKnowledgeSection
+        draft={draft}
+        onChange={setDraft}
+        documents={status.documents}
+        disabled={action.isPending}
+        uploadDisabled={false}
+        onUpload={(file) => void upload(file)}
+        onRemoveDocument={(id) => action.mutate({ kind: 'remove', id })}
+      />
 
       <Card className="gap-4">
         <CardHeader>

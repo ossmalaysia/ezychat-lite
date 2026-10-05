@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { buildAiPrompt } from './prompt.js';
 
-const knowledge = { displayName: 'Ezy', instructions: 'Be brief', notes: '', faqs: [] };
+const knowledge = { displayName: 'Ezy', instructions: 'Be brief', context: '' };
 
 it('answers order and delivery-slot questions with known facts and keeps the chat', () => {
   const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], false);
