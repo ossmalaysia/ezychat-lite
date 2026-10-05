@@ -671,19 +671,53 @@ it('Try it reports a missing connection and a provider failure without throwing'
 it('refuses to turn on the AI member without any knowledge', () => {
   const empty = { ...body, instructions: '', context: '' };
   expect(() => t.ctx.services.ai!.saveMember(empty, actor)).toThrow(
-    'Add instructions, business context or a document',
+    'Add business context or a document',
   );
+  // The AI may answer only from business facts: instructions alone are not enough.
+  expect(() =>
+    t.ctx.services.ai!.saveMember({ ...empty, instructions: 'Be friendly' }, actor),
+  ).toThrow('Add business context or a document');
   expect(t.ctx.services.ai!.saveMember({ ...empty, enabled: false }, actor).settings.enabled).toBe(
     false,
   );
 });
 
-it('turns on with Business context only', () => {
+it('loads a 60,000-character migrated context intact and finds a deep fact by retrieval', async () => {
+  const filler = Array.from(
+    { length: 1300 },
+    (_, i) => `Paragraph ${i}: the office wall colour is white.`,
+  ).join('\n\n');
+  t.ctx.settings.set('ai_sales_member', {
+    displayName: 'Sales Agent',
+    instructions: 'Be concise',
+    notes: `Kedai Ezy sells cakes.\n\n${filler}`,
+    faqs: [{ question: 'Wifi password?', answer: 'The wifi password is kopi123.' }],
+  });
+  const context = t.ctx.services.ai!.status().settings.context;
+  expect(context.length).toBeGreaterThan(60_000);
+  expect(context.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.')).toBe(true);
+  clock();
+  await incoming('wifi', 'What is the wifi password?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const knowledge: string = JSON.parse(
+    vi.mocked(provider.generate).mock.calls[0]![2].input,
+  ).businessKnowledge;
+  expect(knowledge.startsWith('[Business context]\nKedai Ezy sells cakes.')).toBe(true);
+  expect(knowledge).toContain('The wifi password is kopi123.');
+  expect(knowledge.length).toBeLessThanOrEqual(24_000);
+});
+
+it('turns on with Business context only, or with a document only', () => {
   const status = t.ctx.services.ai!.saveMember(
     { ...body, instructions: '', context: 'Delivery RM10' },
     actor,
   );
   expect(status.settings).toMatchObject({ enabled: true, context: 'Delivery RM10' });
+  t.ctx.services.ai!.addDocument('hours.md', 10, 'Open 9am', actor);
+  expect(
+    t.ctx.services.ai!.saveMember({ ...body, instructions: '', context: '' }, actor).settings
+      .enabled,
+  ).toBe(true);
 });
 
 it('loads stored notes and FAQs as Business context and saves only the new shape', () => {

@@ -42,10 +42,10 @@ describe('AI status helpers', () => {
     expect(connectionReady(s)).toBe(false);
   });
 
-  it('counts instructions, Business context or documents as knowledge', () => {
+  it('counts only Business context or documents as knowledge (instructions alone are not)', () => {
     expect(hasKnowledge(empty, 0)).toBe(false);
     expect(hasKnowledge({ ...empty, context: '  ' }, 0)).toBe(false);
-    expect(hasKnowledge({ ...empty, instructions: 'Be kind' }, 0)).toBe(true);
+    expect(hasKnowledge({ ...empty, instructions: 'Be kind' }, 0)).toBe(false);
     expect(hasKnowledge({ ...empty, context: 'RM10' }, 0)).toBe(true);
     expect(hasKnowledge(empty, 1)).toBe(true);
   });

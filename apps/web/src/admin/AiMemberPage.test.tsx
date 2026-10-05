@@ -165,10 +165,25 @@ describe('AI member page', () => {
     const user = userEvent.setup();
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
-    expect(screen.getByText('Needs knowledge')).toBeTruthy();
+    expect(screen.getByText('Needs business context')).toBeTruthy();
+    expect(screen.getByText('Add business context or a file first.')).toBeTruthy();
+    await user.type(screen.getByLabelText('AI instructions'), 'Be friendly');
+    expect(turnOn.disabled).toBe(true);
+    expect(screen.getByText('Needs business context')).toBeTruthy();
     await user.type(screen.getByLabelText('Business context'), 'Delivery RM10');
     expect(screen.getByText('Off')).toBeTruthy();
     expect(turnOn.disabled).toBe(false);
+  });
+
+  it('shows a character counter only near the Business context limit', async () => {
+    const initial = status();
+    initial.settings.context = 'x'.repeat(95_000);
+    setup(initial);
+    expect(await screen.findByText('95,000 / 100,000 characters')).toBeTruthy();
+    cleanup();
+    setup();
+    await screen.findByLabelText('Business context');
+    expect(screen.queryByText(/\/ 100,000 characters/)).toBeNull();
   });
 
   it('Turn on saves unsaved edits in the same request', async () => {

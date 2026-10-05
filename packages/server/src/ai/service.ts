@@ -97,7 +97,7 @@ export function createAiService(
     if (knowledge.truncated && !reportedTruncation) {
       reportedTruncation = true;
       log.warn(
-        { event: 'ai_context_truncated', limit: AI_CONTEXT_CHARACTERS },
+        { event: 'ai_context_truncated', limit: AI_CONTEXT_CHARACTERS, unit: 'code_points' },
         'Stored AI notes and FAQs exceed the Business context limit; keeping the start',
       );
     }
@@ -536,9 +536,10 @@ export function createAiService(
       const documentCount = (
         ctx.db.prepare('SELECT count(*) AS n FROM ai_documents').get() as { n: number }
       ).n;
-      if (body.enabled && !body.instructions.trim() && !body.context.trim() && !documentCount)
+      // The AI answers only from business facts, so instructions alone cannot turn it on.
+      if (body.enabled && !body.context.trim() && !documentCount)
         throw errors.validation(
-          'Add instructions, business context or a document before turning on the AI member',
+          'Add business context or a document before turning on the AI member',
         );
       cancelAll();
       ctx.db.transaction(() => {

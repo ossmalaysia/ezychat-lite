@@ -421,6 +421,7 @@
     "instructionsHint": "Describe tone, language and the questions the AI should handle.",
     "context": "Business context",
     "contextHint": "Hours, prices, delivery, policies, FAQs: anything the AI may use.",
+    "contextCounter": "{{count}} / {{limit}} characters",
     "attachFiles": "Attach files",
     "attachFilesHint": "TXT, PDF, Markdown or Word. Up to 20 files, 10 MB per file; scanned PDFs need selectable text. Files are available to the AI immediately.",
     "saveConnection": "Save AI connection",
@@ -478,12 +479,12 @@
         "off": "Off",
         "on": "On",
         "needsConnection": "Needs connection",
-        "needsKnowledge": "Needs knowledge"
+        "needsKnowledge": "Needs business context"
       },
       "turnOn": "Turn on",
       "turnOff": "Turn off",
       "reasonConnection": "Connect the AI in Settings → AI first.",
-      "reasonKnowledge": "Add instructions, business context or a file first.",
+      "reasonKnowledge": "Add business context or a file first.",
       "turnedOn": "AI member turned on.",
       "turnedOff": "AI member turned off.",
       "draftSaved": "Saved the AI member as a draft so the document can be added.",

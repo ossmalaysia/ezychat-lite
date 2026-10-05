@@ -26,8 +26,9 @@ export function connectionReady(status: AiMemberStatus): boolean {
 
 export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions' | 'context'>;
 
+/** Business facts to answer from: context text or a file. Instructions alone are not enough. */
 export function hasKnowledge(draft: AiKnowledgeDraft, documents: number): boolean {
-  return Boolean(draft.instructions.trim() || draft.context.trim() || documents > 0);
+  return Boolean(draft.context.trim() || documents > 0);
 }
 
 export type AiPill = 'off' | 'on' | 'needsConnection' | 'needsKnowledge';

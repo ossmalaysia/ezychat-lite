@@ -41,6 +41,7 @@ import {
 export const CHATGPT_TOKENS_SECRET = 'ai_chatgpt_direct_tokens';
 const MODEL_CACHE_MS = 10 * 60_000;
 const REFRESH_MARGIN_MS = 2 * 60_000;
+const UNAVAILABLE_MODEL_LOG_MS = 60 * 60_000;
 export const SIGN_IN_AGAIN = 'ChatGPT sign-in expired. Sign in again.';
 export const CHATGPT_BLOCKED =
   'ChatGPT stopped accepting this connection. It may have changed or been blocked. Use an OpenAI API key, or try Test connection later.';
@@ -80,8 +81,8 @@ export class DirectChatGptProvider implements AiProvider {
   private epoch = 0;
   private readonly problemListeners = new Set<() => void>();
   private readonly inflight = new Set<AbortController>();
-  /** Saved models already reported as unavailable (warn once each). */
-  private readonly unavailableModels = new Set<string>();
+  /** Saved model → when its fallback to Auto was last logged. */
+  private readonly unavailableModels = new Map<string, number>();
   private readonly log;
   private readonly fetchImpl: typeof fetch;
 
@@ -381,7 +382,7 @@ export class DirectChatGptProvider implements AiProvider {
 
   /**
    * '' means Auto (the first listed model). A saved model that is no longer listed (for example a
-   * Codex-era id) falls back to Auto instead of failing every answer; logged once per model.
+   * Codex-era id) falls back to Auto instead of failing every answer; logged with the reason, hourly per model.
    */
   async resolveModel(model: string): Promise<string> {
     const known = (models: BackendModel[] | null | undefined) =>
@@ -392,10 +393,17 @@ export class DirectChatGptProvider implements AiProvider {
     const auto = (live ?? fallbackModels())[0]!.id;
     if (!model) return auto;
     if (known(live)) return model;
-    if (!this.unavailableModels.has(model)) {
-      this.unavailableModels.add(model);
+    // Report each saved model when the fallback happens, at most once an hour while it continues.
+    const last = this.unavailableModels.get(model);
+    if (last === undefined || Date.now() - last >= UNAVAILABLE_MODEL_LOG_MS) {
+      this.unavailableModels.set(model, Date.now());
       this.log.warn(
-        { event: 'chatgpt_model_unavailable', model, fallback: auto },
+        {
+          event: 'chatgpt_model_unavailable',
+          model,
+          fallback: auto,
+          reason: live ? 'not_in_live_list' : 'not_in_fallback_list',
+        },
         'Saved ChatGPT model is not available; using Auto',
       );
     }

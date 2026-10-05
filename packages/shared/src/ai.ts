@@ -16,8 +16,17 @@ export const CHATGPT_FALLBACK_MODELS = [
 ] as const;
 export const CHATGPT_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
-/** Business context limit; also the size up to which all knowledge is sent without selection. */
-export const AI_CONTEXT_CHARACTERS = 40_000;
+/**
+ * Business context limit in characters (Unicode code points, so an emoji counts once). Above the
+ * server's 40,000-character full-context budget, relevant parts are selected per question.
+ */
+export const AI_CONTEXT_CHARACTERS = 100_000;
+/** Length in Unicode code points (never splits surrogate pairs, unlike `string.length`). */
+export function codePointLength(text: string): number {
+  let length = 0;
+  for (const _ of text) length++;
+  return length;
+}
 
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
@@ -26,7 +35,13 @@ export const AiSettingsBody = z.object({
   model: z.string().trim().max(128),
   instructions: z.string().max(8000),
   /** Business context: hours, prices, delivery, policies, FAQs (plus uploaded documents). */
-  context: z.string().max(AI_CONTEXT_CHARACTERS),
+  context: z
+    .string()
+    // UTF-16 bound first (cheap), then the exact code point limit.
+    .max(AI_CONTEXT_CHARACTERS * 2)
+    .refine((text) => codePointLength(text) <= AI_CONTEXT_CHARACTERS, {
+      message: `Business context can contain up to ${AI_CONTEXT_CHARACTERS.toLocaleString('en')} characters`,
+    }),
   apiKey: z.string().trim().min(10).max(512).optional(),
 });
 export type AiSettingsBody = z.infer<typeof AiSettingsBody>;

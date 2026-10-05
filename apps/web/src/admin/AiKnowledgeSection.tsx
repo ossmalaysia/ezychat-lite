@@ -1,12 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
-import { AI_CONTEXT_CHARACTERS, type AiDocument } from '@wa-team-inbox/shared';
+import { AI_CONTEXT_CHARACTERS, codePointLength, type AiDocument } from '@wa-team-inbox/shared';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { AiKnowledgeDraft } from './ai-status';
 import { Field } from './adminUi';
+
+/** Show the Business context character counter from 90% of the limit. */
+const COUNTER_FROM = AI_CONTEXT_CHARACTERS * 0.9;
 
 /**
  * The two knowledge cards: AI instructions, and Business context (text plus attached files).
@@ -30,6 +34,7 @@ export function AiKnowledgeSection({
   onRemoveDocument: (id: number) => void;
 }) {
   const { t, i18n } = useTranslation('admin');
+  const contextLength = codePointLength(draft.context);
   return (
     <>
       <Card className="gap-4">
@@ -67,6 +72,7 @@ export function AiKnowledgeSection({
               <Textarea
                 {...p}
                 value={draft.context}
+                // Counts UTF-16 units (≥ code points), so typing can never pass the server limit.
                 maxLength={AI_CONTEXT_CHARACTERS}
                 rows={10}
                 placeholder={t('ai.page.contextPlaceholder')}
@@ -75,6 +81,20 @@ export function AiKnowledgeSection({
               />
             )}
           </Field>
+          {contextLength >= COUNTER_FROM && (
+            <p
+              className={cn(
+                'text-sm',
+                contextLength > AI_CONTEXT_CHARACTERS ? 'text-danger' : 'text-muted-foreground',
+              )}
+              aria-live="polite"
+            >
+              {t('ai.contextCounter', {
+                count: contextLength.toLocaleString(i18n.resolvedLanguage),
+                limit: AI_CONTEXT_CHARACTERS.toLocaleString(i18n.resolvedLanguage),
+              })}
+            </p>
+          )}
           <Field label={t('ai.attachFiles')} hint={t('ai.attachFilesHint')}>
             {(p) => (
               <Input

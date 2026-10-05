@@ -391,7 +391,9 @@ describe('DirectChatGptProvider', () => {
     await provider.shutdown();
   });
 
-  it('falls back to Auto for a saved model that is no longer listed, logging once', async () => {
+  it('falls back to Auto for a saved model that is no longer listed, logging the reason hourly', async () => {
+    let now = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
     const warn = vi.fn();
     const log = { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() };
     const ctx = {
@@ -406,10 +408,23 @@ describe('DirectChatGptProvider', () => {
       event: 'chatgpt_model_unavailable',
       model: 'gpt-5.4',
       fallback: 'gpt-6.1-sol',
+      // Not signed in here, so the live list is unavailable and only the fallback list is known.
+      reason: 'not_in_fallback_list',
     });
     expect(await provider.resolveModel('gpt-5.5')).toBe('gpt-5.5');
     expect(await provider.resolveModel('')).toBe('gpt-6.1-sol');
     expect(warn).toHaveBeenCalledTimes(1);
+    // A different saved model is reported on its own.
+    expect(await provider.resolveModel('gpt-4o')).toBe('gpt-6.1-sol');
+    expect(warn).toHaveBeenCalledTimes(2);
+    // The same model is reported again after an hour while it keeps happening.
+    now += 59 * 60_000;
+    await provider.resolveModel('gpt-5.4');
+    expect(warn).toHaveBeenCalledTimes(2);
+    now += 60_000;
+    await provider.resolveModel('gpt-5.4');
+    expect(warn).toHaveBeenCalledTimes(3);
+    vi.restoreAllMocks();
   });
 
   it('times out an abandoned sign-in and releases the callback port', async () => {

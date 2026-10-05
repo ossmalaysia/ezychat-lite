@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AI_CONTEXT_CHARACTERS,
   AiMemberBody,
+  codePointLength,
   AiTryBody,
   ApiErrorSchema,
   ChatEventSchema,
@@ -116,10 +118,15 @@ describe('shared schemas', () => {
 
 describe('AI member knowledge', () => {
   const member = { displayName: 'Sales Agent', enabled: false, instructions: '', context: '' };
-  it('accepts one Business context text up to 40,000 characters', () => {
+  it('accepts one Business context text up to 100,000 characters (code points)', () => {
     expect(AiMemberBody.safeParse({ ...member, context: 'Open 9am-5pm' }).success).toBe(true);
-    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(40_000) }).success).toBe(true);
-    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(40_001) }).success).toBe(false);
+    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(60_000) }).success).toBe(true);
+    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(100_000) }).success).toBe(true);
+    expect(AiMemberBody.safeParse({ ...member, context: 'x'.repeat(100_001) }).success).toBe(false);
+    // An emoji is one character for the limit, although it is two UTF-16 units.
+    expect(AiMemberBody.safeParse({ ...member, context: '😀'.repeat(100_000) }).success).toBe(true);
+    expect(AI_CONTEXT_CHARACTERS).toBe(100_000);
+    expect(codePointLength('a😀b')).toBe(3);
   });
   it('Try it sends name, instructions and context only', () => {
     const parsed = AiTryBody.parse({

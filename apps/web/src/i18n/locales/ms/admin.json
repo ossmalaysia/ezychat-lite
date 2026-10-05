@@ -417,6 +417,7 @@
     "instructionsHint": "Terangkan nada, bahasa dan soalan yang perlu dikendalikan oleh AI.",
     "context": "Konteks perniagaan",
     "contextHint": "Waktu operasi, harga, penghantaran, polisi, soalan lazim: apa sahaja yang boleh digunakan oleh AI.",
+    "contextCounter": "{{count}} / {{limit}} aksara",
     "attachFiles": "Lampirkan fail",
     "attachFilesHint": "TXT, PDF, Markdown atau Word. Sehingga 20 fail, 10 MB setiap fail; PDF imbasan memerlukan teks yang boleh dipilih. Fail tersedia kepada AI serta-merta.",
     "saveConnection": "Simpan sambungan AI",
@@ -474,12 +475,12 @@
         "off": "Mati",
         "on": "Hidup",
         "needsConnection": "Perlu sambungan",
-        "needsKnowledge": "Perlu pengetahuan"
+        "needsKnowledge": "Perlu konteks perniagaan"
       },
       "turnOn": "Hidupkan",
       "turnOff": "Matikan",
       "reasonConnection": "Sambungkan AI dalam Tetapan → AI dahulu.",
-      "reasonKnowledge": "Tambah arahan, konteks perniagaan atau fail dahulu.",
+      "reasonKnowledge": "Tambah konteks perniagaan atau fail dahulu.",
       "turnedOn": "Ahli AI dihidupkan.",
       "turnedOff": "Ahli AI dimatikan.",
       "draftSaved": "Ahli AI disimpan sebagai draf supaya dokumen boleh ditambah.",

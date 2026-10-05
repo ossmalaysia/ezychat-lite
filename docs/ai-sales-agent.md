@@ -13,11 +13,13 @@
    the fixed business role **Sales Agent**. Besides its name it has exactly two settings:
    - **AI instructions** (up to 8,000 characters): how the AI behaves — tone, language, what
      to answer and what to leave to humans.
-   - **Business context**: one free-text box (up to 40,000 characters) for facts — hours,
-     prices, delivery, policies, FAQs — plus attached files (below).
+   - **Business context**: one free-text box (up to 100,000 characters, counted as Unicode
+     code points so an emoji counts once) for facts — hours, prices, delivery, policies, FAQs —
+     plus attached files (below). A counter appears from 90,000 characters.
 
-   Turn on requires instructions, Business context text or at least one file. The first file
-   upload saves the member as a disabled draft.
+   Turn on requires Business context text or at least one file: the AI answers only from
+   business facts, so instructions alone are not enough (the status shows "Needs business
+   context"). The first file upload saves the member as a disabled draft.
 
 4. Attach Markdown, UTF-8 text, Word `.docx` or PDFs containing selectable text. Each file
    can be at most 10 MB and 100,000 extracted characters; PDFs can have at most 100 pages.
@@ -27,9 +29,12 @@
 **Upgrading from notes and FAQs.** Earlier versions stored separate business notes and an FAQ
 list. They are converted when the settings are read: Business context = the notes, then
 `Q: <question>` / `A: <answer>` for each FAQ, separated by blank lines. Nothing is lost on
-upgrade; the next save writes only the new shape. If the combined text exceeds 40,000
-characters, the start is kept and the server logs a warning (`mod: "ai"`,
-`event: "ai_context_truncated"`). Unsaved page drafts from the old shape are discarded.
+upgrade (the old limits were 30,000 characters of notes plus 100 FAQs); the next save writes
+only the new shape. Only if the combined text exceeds 100,000 code points is it cut: the first
+100,000 code points are kept (never splitting an emoji) and the server logs one warning per
+start (`mod: "ai"`, `event: "ai_context_truncated"`). Unsaved page drafts from the old shape
+are discarded. An install that was turned on with instructions only stays on, but hands every
+chat to a human until business context or a file is added.
 
 Connection/model settings belong to the whole inbox. They are stored separately from the
 Sales Agent's instructions and knowledge so a future Follow-up Agent can share the provider.
@@ -93,7 +98,9 @@ language about a fact written in another (for example Malay about an English fac
 very large context may miss that fact; typical briefs fit the full-context budget.
 
 A saved ChatGPT model that is no longer in the live or documented model list (for example a
-Codex-era `gpt-5.4`) falls back to Auto, with one warning per model in the log. The server limits concurrent AI workflows and persists only live inbound work to
+Codex-era `gpt-5.4`) falls back to Auto. Each fallback is logged with the model and the
+reason (`event: "chatgpt_model_unavailable"`, `reason: "not_in_live_list"` or
+`"not_in_fallback_list"`), at most once an hour per saved model. The server limits concurrent AI workflows and persists only live inbound work to
 avoid generating replies from imported history after restart.
 
 ChatGPT uses a pinned, checksum-verified Codex 0.114.0 helper and verifies its protocol version.

@@ -1,4 +1,4 @@
-import { AI_CONTEXT_CHARACTERS } from '@wa-team-inbox/shared';
+import { AI_CONTEXT_CHARACTERS, codePointLength } from '@wa-team-inbox/shared';
 
 export interface MigratedAiKnowledge {
   instructions: string;
@@ -26,6 +26,18 @@ export function migrateAiKnowledge(stored: unknown): MigratedAiKnowledge {
     context += `\n\nQ: ${question.trim()}\nA: ${answer.trim()}`;
   }
   context = context.trim();
-  const truncated = context.length > AI_CONTEXT_CHARACTERS;
-  return { instructions, context: context.slice(0, AI_CONTEXT_CHARACTERS), truncated };
+  const truncated = codePointLength(context) > AI_CONTEXT_CHARACTERS;
+  return {
+    instructions,
+    context: truncated ? sliceCodePoints(context, AI_CONTEXT_CHARACTERS) : context,
+    truncated,
+  };
+}
+
+/** The first `count` Unicode code points; never ends inside a surrogate pair (emoji). */
+export function sliceCodePoints(text: string, count: number): string {
+  let end = 0;
+  for (let taken = 0; taken < count && end < text.length; taken++)
+    end += text.codePointAt(end)! > 0xffff ? 2 : 1;
+  return text.slice(0, end);
 }
