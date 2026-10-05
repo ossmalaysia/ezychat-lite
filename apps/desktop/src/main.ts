@@ -350,10 +350,16 @@ async function main(): Promise<void> {
     if (p !== null) adoptPort(p);
   };
 
-  /** Polls for the OS service (re-reading its port file) until it answers or the deadline passes. */
-  const waitForService = async (timeoutMs: number): Promise<boolean> => {
+  /**
+   * Polls for the OS service (re-reading its port file) until it answers, the deadline passes, or
+   * `keepWaiting` turns false (something else took over the window).
+   */
+  const waitForService = async (
+    timeoutMs: number,
+    keepWaiting: () => boolean = () => true,
+  ): Promise<boolean> => {
     const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
+    while (Date.now() < deadline && keepWaiting()) {
       adoptServicePort();
       if (await probeServer(port)) return true;
       await new Promise((r) => setTimeout(r, 750));
@@ -526,8 +532,12 @@ async function main(): Promise<void> {
       if (waitMs > 0) {
         setMode('starting');
         loadMain(page(t(locale, 'page.connectingTitle'), t(locale, 'page.connectingBody')));
-        // A user operation (e.g. disabling the service) may have taken over during the wait.
-        if ((await waitForService(waitMs)) && mode === 'starting' && !busy) {
+        // A user operation (e.g. removing the service) may take over during the wait: stop
+        // waiting then, and never switch a window that now hosts its own server to client mode.
+        const undisturbed = () => mode === 'starting' && !busy;
+        const answered = await waitForService(waitMs, undisturbed);
+        if (!undisturbed()) return; // the operation owns the window now
+        if (answered) {
           setMode('client');
           loadMain(url);
           return;
