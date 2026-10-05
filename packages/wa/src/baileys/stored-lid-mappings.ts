@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { WaContactAlias } from '../types.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
@@ -8,8 +8,13 @@ import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 const FORWARD = /^lid-mapping-(\d+)\.json$/;
 const REVERSE = /^lid-mapping-(\d+)_reverse\.json$/;
 
+// A mapping file holds one short JSON string; anything bigger is not one.
+const MAX_FILE_BYTES = 1024;
+
 function readUser(file: string): string | null {
   try {
+    const stat = statSync(file);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return null;
     const value: unknown = JSON.parse(readFileSync(file, 'utf8'));
     return typeof value === 'string' && /^\d+$/.test(value) ? value : null;
   } catch {
@@ -17,20 +22,23 @@ function readUser(file: string): string | null {
   }
 }
 
-/** The linked account's own PN and LID (never aliased). */
+/**
+ * The linked account's own PN and LID (never aliased). Fails closed: without a readable creds.json
+ * carrying `me.id` the account's own identities cannot be excluded, so refuse to guess.
+ */
 function ownJids(authDir: string): Set<string> {
+  let me: { id?: unknown; lid?: unknown } | undefined;
   try {
-    const creds = JSON.parse(readFileSync(join(authDir, 'creds.json'), 'utf8')) as {
-      me?: { id?: unknown; lid?: unknown };
-    };
-    return new Set(
-      [normalizeContactJid(creds.me?.id), normalizeContactJid(creds.me?.lid)].filter(
-        (j): j is string => !!j,
-      ),
-    );
+    me = (JSON.parse(readFileSync(join(authDir, 'creds.json'), 'utf8')) as { me?: typeof me }).me;
   } catch {
-    return new Set();
+    me = undefined;
   }
+  const own = normalizeContactJid(me?.id);
+  if (!own) throw new Error('wa-auth creds.json missing or has no account id');
+  const set = new Set([own]);
+  const lid = normalizeContactJid(me?.lid);
+  if (lid) set.add(lid);
+  return set;
 }
 
 /**
@@ -65,9 +73,14 @@ export function readStoredLidMappings(authDir: string): WaContactAlias[] {
   for (const [pn, lids] of reverse) {
     if (!lidOf.has(pn) && lids.size === 1) lidOf.set(pn, [...lids][0]!);
   }
+  if (lidOf.size === 0) return [];
   const own = ownJids(authDir);
+  // A LID claimed by more than one number is ambiguous: emitting it would join two people's chats.
+  const claims = new Map<string, number>();
+  for (const lid of lidOf.values()) claims.set(lid, (claims.get(lid) ?? 0) + 1);
   const out: WaContactAlias[] = [];
   for (const [pn, lid] of [...lidOf].sort(([a], [b]) => a.localeCompare(b))) {
+    if (claims.get(lid) !== 1) continue;
     const pair = contactAliasPair(`${pn}@s.whatsapp.net`, `${lid}@lid`);
     if (pair && !own.has(pair.jid) && !own.has(pair.alias))
       out.push({ ...pair, source: 'keystore' });
