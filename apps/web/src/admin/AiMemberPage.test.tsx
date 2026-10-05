@@ -156,6 +156,44 @@ describe('AI member page', () => {
     expect(screen.queryByText('Unsaved')).toBeNull();
   });
 
+  it('labels each Try it answer with the AI decision', async () => {
+    setup(status(), (url, init) =>
+      url === '/api/ai/try' && init?.method === 'POST'
+        ? json({
+            ok: true,
+            reply: 'A human agent will help with your question.',
+            action: 'handoff',
+            model: 'gpt-6.1-sol',
+            error: null,
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Customer question'), 'I want a refund');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('Would hand off')).toBeTruthy();
+    expect(screen.queryByText(/no matching business knowledge/i)).toBeNull();
+  });
+
+  it('explains a hand-off that happened without calling the model', async () => {
+    setup(status(), (url, init) =>
+      url === '/api/ai/try' && init?.method === 'POST'
+        ? json({
+            ok: true,
+            reply: 'A human agent will help with your question.',
+            action: 'handoff',
+            model: null,
+            error: null,
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Customer question'), 'Do you sell tyres?');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('Would hand off')).toBeTruthy();
+    expect(screen.getByText(/No matching business knowledge was found/)).toBeTruthy();
+  });
+
   it('Try it sends the current unsaved knowledge and shows the answer and model', async () => {
     const { fetchMock } = setup(status(), (url, init) =>
       url === '/api/ai/try' && init?.method === 'POST'
@@ -174,6 +212,7 @@ describe('AI member page', () => {
     await user.click(screen.getByRole('button', { name: 'Ask' }));
     await screen.findByText('Delivery is RM10.');
     expect(screen.getByText('Model: gpt-6.1-sol')).toBeTruthy();
+    expect(screen.getByText('Answer')).toBeTruthy();
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/try')!;
     expect(JSON.parse(String(call[1]!.body))).toEqual({
       question: 'How much is delivery?',

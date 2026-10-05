@@ -508,7 +508,13 @@
       "placeholder": "Example: How much is delivery?",
       "ask": "Ask",
       "hint": "Answers with the knowledge on this page, including unsaved changes. Nothing is sent to customers.",
-      "handoff": "The AI would hand this chat to a human.",
+      "decision": {
+        "answer": "Answer",
+        "ask_resolution": "Asked if resolved",
+        "resolve": "Would resolve",
+        "handoff": "Would hand off"
+      },
+      "noKnowledge": "No matching business knowledge was found, so the AI would hand this chat to a human without calling the model.",
       "model": "Model: {{model}}",
       "failed": "Could not answer: {{error}}"
     }

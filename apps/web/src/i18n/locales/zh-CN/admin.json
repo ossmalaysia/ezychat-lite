@@ -504,7 +504,13 @@
       "placeholder": "例如：运费是多少？",
       "ask": "提问",
       "hint": "使用本页的知识（包括未保存的更改）回答。不会向客户发送任何内容。",
-      "handoff": "AI 会将此聊天转交给人工。",
+      "decision": {
+        "answer": "回答",
+        "ask_resolution": "已询问是否解决",
+        "resolve": "将标记为已解决",
+        "handoff": "将转交人工"
+      },
+      "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
       "failed": "无法回答：{{error}}"
     }

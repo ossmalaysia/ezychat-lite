@@ -4,6 +4,7 @@ import { AI_TRY_QUESTION_CHARACTERS } from '@wa-team-inbox/shared';
 import { useAiTry } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { AiKnowledgeDraft } from './ai-status';
@@ -14,6 +15,12 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
   const { t } = useTranslation('admin');
   const ask = useAiTry();
   const [question, setQuestion] = useState('');
+  const decisionLabels = {
+    answer: t('ai.try.decision.answer'),
+    ask_resolution: t('ai.try.decision.ask_resolution'),
+    resolve: t('ai.try.decision.resolve'),
+    handoff: t('ai.try.decision.handoff'),
+  };
   const submit = () => {
     const text = question.trim();
     if (!text) return;
@@ -59,14 +66,19 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
         {ask.data &&
           (ask.data.ok ? (
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {ask.data.action && (
+                  <Badge variant="outline">{decisionLabels[ask.data.action]}</Badge>
+                )}
+                {ask.data.model && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('ai.try.model', { model: ask.data.model })}
+                  </span>
+                )}
+              </div>
               <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
-              {ask.data.action === 'handoff' && (
-                <p className="mt-2 text-muted-foreground">{t('ai.try.handoff')}</p>
-              )}
-              {ask.data.model && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t('ai.try.model', { model: ask.data.model })}
-                </p>
+              {ask.data.action === 'handoff' && !ask.data.model && (
+                <p className="mt-2 text-xs text-muted-foreground">{t('ai.try.noKnowledge')}</p>
               )}
             </div>
           ) : (

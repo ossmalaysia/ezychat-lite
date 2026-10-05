@@ -504,7 +504,13 @@
       "placeholder": "Contoh: Berapakah kos penghantaran?",
       "ask": "Tanya",
       "hint": "Menjawab dengan pengetahuan di halaman ini, termasuk perubahan yang belum disimpan. Tiada apa-apa dihantar kepada pelanggan.",
-      "handoff": "AI akan menyerahkan perbualan ini kepada manusia.",
+      "decision": {
+        "answer": "Jawapan",
+        "ask_resolution": "Bertanya sama ada selesai",
+        "resolve": "Akan diselesaikan",
+        "handoff": "Akan diserahkan kepada manusia"
+      },
+      "noKnowledge": "Tiada pengetahuan perniagaan yang sepadan ditemui, jadi AI akan menyerahkan perbualan ini kepada manusia tanpa memanggil model.",
       "model": "Model: {{model}}",
       "failed": "Tidak dapat menjawab: {{error}}"
     }
