@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SettingsPage } from '../admin/SettingsPage';
 import { createThemeStore, THEME_STORAGE_KEY, useTheme } from './theme';
 
@@ -11,6 +12,9 @@ vi.mock('../api/queries', () => ({
     data: { port: 7420, lanEnabled: false, historyDays: 3 },
   }),
   usePatchSettings: () => patch,
+}));
+vi.mock('../i18n/use-change-locale', () => ({
+  useChangeLocale: () => ({ locale: 'en', changeLocale: vi.fn() }),
 }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <span>Notification controls</span> }));
 vi.mock('../admin/ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => null }));
@@ -126,7 +130,13 @@ describe('device appearance', () => {
   });
 
   it('exposes Light, Dark, and System in device settings without saving server settings', () => {
-    render(<SettingsPage />);
+    render(
+      <MemoryRouter initialEntries={['/admin/settings/device']}>
+        <Routes>
+          <Route path="/admin/settings/*" element={<SettingsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
     const group = screen.getByRole('radiogroup', { name: 'Appearance' });
     expect(group).toBeDefined();
     expect(screen.getByRole('radio', { name: 'System' }).getAttribute('aria-checked')).toBe('true');
