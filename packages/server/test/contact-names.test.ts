@@ -183,7 +183,7 @@ describe('contact names and explicit WhatsApp identities', () => {
     t.wa.setConnected(false);
     finish([{ jid: LID, alias: PN }]);
     await settle();
-    expect(chats.get(LID)?.name).toBe('123456789');
+    expect(chats.get(LID)?.name).toBe('');
     lookup.mockResolvedValue([{ jid: LID, alias: PN }]);
     t.wa.setConnected(true);
     await settle();

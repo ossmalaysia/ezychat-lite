@@ -33,6 +33,7 @@ const chat = (assignedTo: number | null): Chat => ({
   status: 'open',
   assignedTo,
   updatedAt: 1,
+  phone: '60123',
 });
 const message = { id: 'm1', chatJid: JID, body: 'hello there' } as Message;
 

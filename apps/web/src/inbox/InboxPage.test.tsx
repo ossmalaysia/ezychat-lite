@@ -29,6 +29,7 @@ const chat: Chat = {
   status: 'open',
   assignedTo: 2,
   updatedAt: now,
+  phone: '60123456789',
 };
 const base: Omit<Message, 'id' | 'body' | 'fromMe' | 'timestamp'> = {
   chatJid: jid,
@@ -66,11 +67,22 @@ function setup(path: string, opts: { directory?: unknown[] } = {}) {
       if (method !== 'GET') {
         posted.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
         if (url.endsWith('/messages'))
-          return json({ ...base, id: 'local-x', body: 'hi', fromMe: true, timestamp: Date.now(), status: 'pending' }, 201);
+          return json(
+            {
+              ...base,
+              id: 'local-x',
+              body: 'hi',
+              fromMe: true,
+              timestamp: Date.now(),
+              status: 'pending',
+            },
+            201,
+          );
         return json({ ok: true });
       }
       if (url === '/api/me') return json(me);
-      if (url === '/api/wa/status') return json({ state: 'open', me: null, qr: null, lastError: null });
+      if (url === '/api/wa/status')
+        return json({ state: 'open', me: null, qr: null, lastError: null });
       if (url.startsWith('/api/chats?')) return json({ chats: [chat], nextCursor: null });
       if (url.startsWith(`/api/chats/${encodeURIComponent(jid)}/messages`))
         return json({ messages, nextBefore: null });

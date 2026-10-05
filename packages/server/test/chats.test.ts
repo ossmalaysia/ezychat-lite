@@ -8,7 +8,7 @@ import {
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
-import { rowToChat, type ChatRow } from '../src/chats/repo.js';
+import { ChatRepo, rowToChat, type ChatRow } from '../src/chats/repo.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -202,8 +202,44 @@ describe('chat profile images', () => {
       status: 'open',
       assigned_to: null,
       updated_at: Date.now(),
+      phone: null,
     };
     expect(rowToChat(row).avatarUrl).toBe('/api/chats/60123%3A7%40s.whatsapp.net/avatar');
+  });
+
+  it('rowToChat never shows WhatsApp ID digits as a name and exposes the phone number', () => {
+    const base = {
+      type: 'dm',
+      avatar_path: null,
+      unread_count: 0,
+      last_message_at: null,
+      last_message_preview: null,
+      status: 'open',
+      assigned_to: null,
+      updated_at: 1,
+    } as const;
+    expect(rowToChat({ ...base, jid: '123456789@lid', name: '', phone: null })).toMatchObject({
+      name: '',
+      phone: null,
+    });
+    expect(
+      rowToChat({ ...base, jid: '123456789@lid', name: '123456789', phone: '60111' }),
+    ).toMatchObject({ name: '60111', phone: '60111' });
+    expect(
+      rowToChat({ ...base, jid: '60111@s.whatsapp.net', name: '', phone: '60111' }),
+    ).toMatchObject({ name: '60111', phone: '60111' });
+    expect(
+      rowToChat({ ...base, type: 'group', jid: '1-2@g.us', name: 'Team', phone: null }),
+    ).toMatchObject({ name: 'Team', phone: null });
+  });
+
+  it('search matches the chat phone number and new phone-number chats store it', () => {
+    const repo = new ChatRepo(t.ctx.db);
+    repo.ensure('555@lid', { name: 'Hidden Person' }, 1);
+    repo.update('555@lid', { phone: '60199999999' });
+    expect(repo.ensure('60188888888@s.whatsapp.net', {}, 1).phone).toBe('60188888888');
+    const res = getChats(t.ctx).list({ assigned: 'any', limit: 10, q: '60199999999' }, 1);
+    expect(res.chats.map((c) => c.jid)).toEqual(['555@lid']);
   });
 });
 

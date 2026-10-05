@@ -367,6 +367,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: m.timestamp,
         created_at: t,
         client_id: null,
+        wa_remote_jid: m.chatJid,
       };
       if (!repo.insert(row)) return null; // concurrent duplicate
 
@@ -458,6 +459,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: body.clientId,
+        wa_remote_jid: jid,
       });
     },
 
@@ -492,6 +494,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: clientId,
+        wa_remote_jid: jid,
       });
     },
 

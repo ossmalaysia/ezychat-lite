@@ -59,6 +59,7 @@ function chat(index: number): Chat {
     status: 'open',
     assignedTo: null,
     updatedAt: 0,
+    phone: null,
   };
 }
 
