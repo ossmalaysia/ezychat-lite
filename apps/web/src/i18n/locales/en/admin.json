@@ -551,7 +551,9 @@
       "confirmOne": "Delete {{name}}?",
       "confirmMany_one": "Delete {{count}} item?",
       "confirmMany_other": "Delete {{count}} items?",
-      "confirmText": "The AI stops using it right away. This cannot be undone."
+      "confirmText": "The AI stops using it right away. This cannot be undone.",
+      "deleteFailed": "Could not delete: {{names}}",
+      "namesMore": "{{names}} +{{count}} more"
     }
   }
 }

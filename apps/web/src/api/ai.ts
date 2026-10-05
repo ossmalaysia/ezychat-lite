@@ -11,7 +11,7 @@ import {
   type AiContextTextBody,
   type AiTryBody,
 } from '@wa-team-inbox/shared';
-import { api } from './client';
+import { api, ApiError } from './client';
 import { qk } from './queries';
 
 export const aiMemberKey = ['ai-member'] as const;
@@ -73,6 +73,17 @@ export type AiMemberAction =
   | { kind: 'logout' }
   | { kind: 'callback'; url: string };
 
+/** Some items of a batch delete failed (not 404); `failedIds` are the ones to retry. */
+export class BatchDeleteError extends Error {
+  constructor(
+    readonly failedIds: number[],
+    readonly firstError: unknown,
+  ) {
+    super(firstError instanceof Error ? firstError.message : 'Some items could not be deleted');
+    this.name = 'BatchDeleteError';
+  }
+}
+
 export function useAiMemberAction() {
   const qc = useQueryClient();
   return useMutation({
@@ -91,10 +102,24 @@ export function useAiMemberAction() {
         case 'remove':
           return api(`/ai/documents/${action.id}`, { method: 'DELETE', schema });
         case 'removeMany': {
-          // One request per item, in order; the last response is the current status.
+          // One request per item, in order. 404 = already gone (counts as deleted); other errors
+          // are collected so the caller can retry only those items.
           let status: AiMemberStatus | undefined;
-          for (const id of action.ids)
-            status = await api(`/ai/documents/${id}`, { method: 'DELETE', schema });
+          const failedIds: number[] = [];
+          let firstError: unknown;
+          for (const id of action.ids) {
+            try {
+              status = await api(`/ai/documents/${id}`, { method: 'DELETE', schema });
+            } catch (error) {
+              if (error instanceof ApiError && error.status === 404) {
+                status = undefined;
+                continue;
+              }
+              failedIds.push(id);
+              firstError ??= error;
+            }
+          }
+          if (failedIds.length > 0) throw new BatchDeleteError(failedIds, firstError);
           return status ?? api('/ai', { schema });
         }
         case 'addText':

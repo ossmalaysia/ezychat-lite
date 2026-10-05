@@ -544,7 +544,9 @@
       "deleted_other": "{{count}} item dipadam.",
       "confirmOne": "Padam {{name}}?",
       "confirmMany_other": "Padam {{count}} item?",
-      "confirmText": "AI berhenti menggunakannya serta-merta. Tindakan ini tidak boleh dibuat asal."
+      "confirmText": "AI berhenti menggunakannya serta-merta. Tindakan ini tidak boleh dibuat asal.",
+      "deleteFailed": "Tidak dapat memadam: {{names}}",
+      "namesMore": "{{names}} +{{count}} lagi"
     }
   }
 }

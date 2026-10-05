@@ -69,7 +69,11 @@ function Harness({ ensureMember }: { ensureMember: () => Promise<boolean> }) {
     <AiContextPanel documents={query.data.documents} ensureMember={ensureMember} />
   ) : null;
 }
-function setup(initial = status(), ensureMember = vi.fn(async () => true)) {
+function setup(
+  initial = status(),
+  ensureMember = vi.fn(async () => true),
+  deleteOverride?: (id: number, drop: () => void) => Response | undefined,
+) {
   let current = initial;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -126,6 +130,11 @@ function setup(initial = status(), ensureMember = vi.fn(async () => true)) {
       return json(current);
     }
     if (id && method === 'DELETE') {
+      const drop = () => {
+        current = { ...current, documents: current.documents.filter((d) => d.id !== id) };
+      };
+      const custom = deleteOverride?.(id, drop);
+      if (custom) return custom;
       current = { ...current, documents: current.documents.filter((d) => d.id !== id) };
       return json(current);
     }
@@ -238,6 +247,90 @@ describe('Business context panel', () => {
     );
     expect(await screen.findByText(/No context yet/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Delete \d/ })).toBeNull();
+  });
+
+  it('treats an already-deleted item (404) as deleted and finishes the batch', async () => {
+    const { fetchMock } = setup(status(), undefined, (id) =>
+      id === 1 ? json({ error: { code: 'not_found', message: 'Not found' } }, 404) : undefined,
+    );
+    const user = userEvent.setup();
+    const rows = await table();
+    await user.click(screen.getByRole('button', { name: 'Select' }));
+    await user.click(rows.getByRole('checkbox', { name: 'Select menu.pdf' }));
+    await user.click(rows.getByRole('checkbox', { name: 'Select Price list' }));
+    await user.click(screen.getByRole('button', { name: 'Delete 2' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(writes(fetchMock)).toEqual(['DELETE /api/ai/documents/1', 'DELETE /api/ai/documents/2']);
+  });
+
+  it('after a partial failure keeps only the failed items, names them and does not resend deleted ones', async () => {
+    let failing = true;
+    const { fetchMock } = setup(status(), undefined, (id, drop) => {
+      if (id === 2 && failing) {
+        return json({ error: { code: 'internal', message: 'Boom' } }, 500);
+      }
+      drop();
+      return undefined;
+    });
+    const user = userEvent.setup();
+    const rows = await table();
+    await user.click(screen.getByRole('button', { name: 'Select' }));
+    await user.click(rows.getByRole('checkbox', { name: 'Select menu.pdf' }));
+    await user.click(rows.getByRole('checkbox', { name: 'Select Price list' }));
+    await user.click(screen.getByRole('button', { name: 'Delete 2' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }),
+    );
+    const dialog = (await screen.findByText('Delete Price list?')).closest(
+      '[role="alertdialog"]',
+    ) as HTMLElement;
+    expect(within(dialog).getByText(/Could not delete: Price list/)).toBeTruthy();
+    failing = false;
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(writes(fetchMock)).toEqual([
+      'DELETE /api/ai/documents/1',
+      'DELETE /api/ai/documents/2',
+      'DELETE /api/ai/documents/2',
+    ]);
+  });
+
+  it('entering Select clears the search and the confirmation lists the selected names', async () => {
+    setup();
+    const user = userEvent.setup();
+    await table();
+    await user.click(screen.getByRole('button', { name: 'Search business context' }));
+    await user.type(screen.getByRole('searchbox'), 'menu');
+    expect(screen.queryByText('Price list')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Select' }));
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    const rows = await table();
+    expect(rows.getByText('Price list')).toBeTruthy();
+    await user.click(rows.getByRole('checkbox', { name: 'Select menu.pdf' }));
+    await user.click(rows.getByRole('checkbox', { name: 'Select Price list' }));
+    await user.click(screen.getByRole('button', { name: 'Delete 2' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('menu.pdf, Price list')).toBeTruthy();
+  });
+
+  it('lists at most five names in the confirmation, then "+N more"', async () => {
+    const many = Array.from({ length: 7 }, (_, i) => ({
+      ...documents()[1]!,
+      id: i + 1,
+      name: `Item ${i + 1}`,
+    }));
+    setup(status(many));
+    const user = userEvent.setup();
+    const rows = await table();
+    await user.click(screen.getByRole('button', { name: 'Select' }));
+    for (let i = 1; i <= 7; i++)
+      await user.click(rows.getByRole('checkbox', { name: `Select Item ${i}` }));
+    await user.click(screen.getByRole('button', { name: 'Delete 7' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Item 1, Item 2, Item 3, Item 4, Item 5 +2 more')).toBeTruthy();
   });
 
   it('Cancel leaves Select without deleting anything', async () => {

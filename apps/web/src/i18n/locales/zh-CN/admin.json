@@ -544,7 +544,9 @@
       "deleted_other": "已删除 {{count}} 项。",
       "confirmOne": "删除 {{name}}？",
       "confirmMany_other": "删除 {{count}} 项？",
-      "confirmText": "AI 将立即停止使用它。此操作无法撤销。"
+      "confirmText": "AI 将立即停止使用它。此操作无法撤销。",
+      "deleteFailed": "无法删除：{{names}}",
+      "namesMore": "{{names}} 等另外 {{count}} 项"
     }
   }
 }

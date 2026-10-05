@@ -54,6 +54,10 @@ server logs a warning (`mod: "ai"`, `event: "ai_context_truncated"`); the move i
 install that was turned on with instructions only stays on, but hands every chat to a human
 until a context item is added.
 
+Installs already at the 20-item limit can end up with a 21st item after this migration (the
+migrated **Business context** item is added on top of existing items). Nothing is lost; new
+adds are blocked until an item is removed.
+
 Connection/model settings belong to the whole inbox. They are stored separately from the
 Sales Agent's instructions and knowledge so a future Follow-up Agent can share the provider.
 Editing a member cannot overwrite the inbox connection or its credentials. Chat-internal

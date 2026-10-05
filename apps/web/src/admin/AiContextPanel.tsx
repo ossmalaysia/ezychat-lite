@@ -9,7 +9,7 @@ import {
   AiContextTextBody,
   type AiDocument,
 } from '@wa-team-inbox/shared';
-import { useAiDocument, useAiMemberAction } from '../api/ai';
+import { BatchDeleteError, useAiDocument, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog } from '@/components/app';
 import { SearchField } from '@/components/app/SearchField';
@@ -38,6 +38,7 @@ import { ConfirmDialog, Field, Pending } from './adminUi';
 
 const UPLOAD_ACCEPT = '.txt,.md,.pdf,.docx';
 const UPLOAD_BYTES = 10 * 1024 * 1024;
+const CONFIRM_NAMES = 5;
 
 type Open = { kind: 'item'; id: number } | { kind: 'addText' } | null;
 
@@ -67,6 +68,7 @@ export function AiContextPanel({
   const [open, setOpen] = useState<Open>(null);
   const [confirm, setConfirm] = useState<AiDocument[] | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [failedNames, setFailedNames] = useState<string | null>(null);
 
   // Forget selections of items that no longer exist.
   useEffect(() => {
@@ -108,15 +110,31 @@ export function AiContextPanel({
   };
 
   const remove = async (items: AiDocument[]) => {
+    setFailedNames(null);
     try {
       await action.mutateAsync({ kind: 'removeMany', ids: items.map((doc) => doc.id) });
       toast.success(t('ai.contextPanel.deleted', { count: items.length }));
       setConfirm(null);
       setSelecting(false);
       setSelected(new Set());
-    } catch {
-      /* shown in the confirmation */
+    } catch (error) {
+      // Keep only the items that still failed, so a retry never re-sends deletes that went through.
+      if (error instanceof BatchDeleteError) {
+        const failed = items.filter((doc) => error.failedIds.includes(doc.id));
+        setConfirm(failed);
+        setSelected(new Set(failed.map((doc) => doc.id)));
+        setFailedNames(namesOf(failed));
+      }
     }
+  };
+  const namesOf = (items: AiDocument[]) => {
+    const names = items
+      .slice(0, CONFIRM_NAMES)
+      .map((doc) => doc.name)
+      .join(', ');
+    return items.length > CONFIRM_NAMES
+      ? t('ai.contextPanel.namesMore', { names, count: items.length - CONFIRM_NAMES })
+      : names;
   };
 
   const toggle = (id: number) =>
@@ -253,7 +271,12 @@ export function AiContextPanel({
                     size="touch"
                     className="md:min-h-9"
                     disabled={busy}
-                    onClick={() => setSelecting(true)}
+                    onClick={() => {
+                      // Hidden (filtered-out) items must never be selectable for deletion.
+                      setSearching(false);
+                      setQuery('');
+                      setSelecting(true);
+                    }}
                   >
                     {t('ai.contextPanel.select')}
                   </Button>
@@ -413,13 +436,19 @@ export function AiContextPanel({
         }
         confirmLabel={t('ai.contextPanel.delete')}
         loading={action.isPending}
-        error={action.error ?? undefined}
+        error={
+          failedNames
+            ? new Error(t('ai.contextPanel.deleteFailed', { names: failedNames }))
+            : (action.error ?? undefined)
+        }
         onConfirm={() => confirm && void remove(confirm)}
         onClose={() => {
           setConfirm(null);
+          setFailedNames(null);
           action.reset();
         }}
       >
+        {confirm && confirm.length > 1 && <p className="mb-2 break-words">{namesOf(confirm)}</p>}
         {t('ai.contextPanel.confirmText')}
       </ConfirmDialog>
     </Card>
