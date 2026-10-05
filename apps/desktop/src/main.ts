@@ -11,6 +11,7 @@ import {
   type NativeImage,
 } from 'electron';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appTitle } from './app-title.js';
@@ -43,7 +44,7 @@ import {
 } from './paths.js';
 import { runServerCommand, StandaloneServer } from './server-process.js';
 import { createServiceOperation } from './service-operation.js';
-import { decideStartup, parsePortFile } from './startup.js';
+import { decideStartup, parsePortFile, serviceWaitMs } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
 import { closeAction } from './window-close.js';
@@ -359,6 +360,11 @@ async function main(): Promise<void> {
     return false;
   };
 
+  let recoveryTimer: NodeJS.Timeout | null = null;
+  const stopRecovery = () => {
+    if (recoveryTimer) clearInterval(recoveryTimer);
+    recoveryTimer = null;
+  };
   const serviceDown = (state: ServiceState) => {
     setMode('error');
     loadMain(
@@ -369,6 +375,27 @@ async function main(): Promise<void> {
         t(locale, 'page.serviceDownBody'),
       ),
     );
+    // The service may still come up (late auto-start, or started from Windows): keep checking
+    // and open the inbox as soon as it answers, instead of leaving the error page up for good.
+    stopRecovery();
+    let probing = false;
+    recoveryTimer = setInterval(() => {
+      if (mode !== 'error') return stopRecovery();
+      if (busy || probing) return;
+      probing = true;
+      adoptServicePort();
+      void probeServer(port)
+        .then((found) => {
+          if (!found || mode !== 'error' || busy) return;
+          stopRecovery();
+          log(`[desktop] background service answered on port ${port}; connecting`);
+          setMode('client');
+          loadMain(url);
+        })
+        .finally(() => {
+          probing = false;
+        });
+    }, 5_000);
   };
 
   const describe = (): string => {
@@ -502,10 +529,11 @@ async function main(): Promise<void> {
       log(
         `[desktop] background service is ${svc} but not answering; not starting a standalone server`,
       );
-      if (svc === 'running') {
+      const waitMs = serviceWaitMs(svc, uptime());
+      if (waitMs > 0) {
         setMode('starting');
         loadMain(page(t(locale, 'page.connectingTitle'), t(locale, 'page.connectingBody')));
-        if (await waitForService(60_000)) {
+        if (await waitForService(waitMs)) {
           setMode('client');
           loadMain(url);
           return;

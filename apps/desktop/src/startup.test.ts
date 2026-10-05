@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideStartup, isRestartableExit, parsePortFile } from './startup.js';
+import { decideStartup, isRestartableExit, parsePortFile, serviceWaitMs } from './startup.js';
 
 describe('decideStartup', () => {
   it('connects when a server answers', () => {
@@ -34,5 +34,22 @@ describe('parsePortFile', () => {
     expect(parsePortFile(null)).toBeNull();
     expect(parsePortFile('nope')).toBeNull();
     expect(parsePortFile('{"port":0}')).toBeNull();
+  });
+});
+
+describe('serviceWaitMs', () => {
+  it('waits a minute for a running service that is still booting', () => {
+    expect(serviceWaitMs('running', 3600)).toBe(60_000);
+  });
+  it('waits for a stopped service shortly after Windows starts (delayed auto-start)', () => {
+    expect(serviceWaitMs('stopped', 25)).toBe(180_000);
+    expect(serviceWaitMs('stopped', 599)).toBe(180_000);
+  });
+  it('does not wait for a stopped service long after boot', () => {
+    expect(serviceWaitMs('stopped', 600)).toBe(0);
+    expect(serviceWaitMs('stopped', 86_400)).toBe(0);
+  });
+  it('never waits when no service is installed', () => {
+    expect(serviceWaitMs('not-installed', 10)).toBe(0);
   });
 });
