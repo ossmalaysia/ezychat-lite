@@ -356,13 +356,14 @@ describe.skipIf(process.platform !== 'win32')('isolated native PowerShell and ha
     }
   }, 40_000);
 
-  it('writes a durable error manifest from the unprivileged broker without launching an app', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'ezychat-install-broker-'));
+  /** A plan whose staged install already ended in `error`, so its broker writes the manifest and exits. */
+  async function erroredBrokerPlan(prefix: string, controlName: string, profileName: string) {
+    const dir = await mkdtemp(join(tmpdir(), prefix));
     directories.push(dir);
     const plan = fixture();
     plan.stageDir = join(dir, nonce);
-    plan.controlDir = join(dir, 'control');
-    plan.context.userDataDir = join(dir, "Team's profile é");
+    plan.controlDir = join(dir, controlName);
+    plan.context.userDataDir = join(dir, profileName);
     await mkdir(plan.stageDir);
     await mkdir(plan.controlDir);
     await writeFile(
@@ -375,6 +376,15 @@ describe.skipIf(process.platform !== 'win32')('isolated native PowerShell and ha
         accepted: false,
         completedAt: new Date().toISOString(),
       }),
+    );
+    return { dir, plan };
+  }
+
+  it('writes a durable error manifest from the unprivileged broker without launching an app', async () => {
+    const { dir, plan } = await erroredBrokerPlan(
+      'ezychat-install-broker-',
+      'control',
+      "Team's profile é",
     );
     const broker = join(dir, 'broker.ps1');
     await writeFile(broker, '\uFEFF' + buildInstallBrokerScript(plan));
@@ -391,25 +401,7 @@ describe.skipIf(process.platform !== 'win32')('isolated native PowerShell and ha
   }, 20_000);
 
   it('launches a broker that actually runs (not a detached powershell that exits at once)', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'ezychat-install-launch-'));
-    directories.push(dir);
-    const plan = fixture();
-    plan.stageDir = join(dir, nonce);
-    plan.controlDir = join(dir, 'control dir');
-    plan.context.userDataDir = join(dir, 'profile');
-    await mkdir(plan.stageDir);
-    await mkdir(plan.controlDir);
-    await writeFile(
-      join(plan.stageDir, 'state.json'),
-      JSON.stringify({
-        phase: 'error',
-        nonce,
-        version: plan.artifact.version,
-        message: 'Previous version retained.',
-        accepted: false,
-        completedAt: new Date().toISOString(),
-      }),
-    );
+    const { plan } = await erroredBrokerPlan('ezychat-install-launch-', 'control dir', 'profile');
     await launchBroker(plan, buildInstallBrokerScript(plan));
     const deadline = Date.now() + 20_000;
     let result = await readUpdateInstallResult(plan.context.userDataDir);
