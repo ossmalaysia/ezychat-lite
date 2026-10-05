@@ -47,6 +47,7 @@ export interface AiService {
   addDocument(name: string, size: number, text: string, actor: Actor): AiMemberStatus;
   removeDocument(id: number, actor: Actor): AiMemberStatus;
   login(): Promise<void>;
+  completeSignIn(url: string): Promise<void>;
   logout(): Promise<void>;
   models(): Promise<AiModelList>;
   testConnection(): Promise<AiTestResult>;
@@ -587,6 +588,16 @@ export function createAiService(
     },
     async login() {
       await provider.login();
+    },
+    async completeSignIn(url) {
+      if (!provider.submitCallbackUrl)
+        throw errors.validation('Pasting a sign-in address is not supported');
+      try {
+        await provider.submitCallbackUrl(url);
+      } catch (error) {
+        // Provider messages are fixed, credential-free strings.
+        throw errors.validation(error instanceof Error ? error.message : 'ChatGPT sign-in failed');
+      }
     },
     async logout() {
       cancelAll();

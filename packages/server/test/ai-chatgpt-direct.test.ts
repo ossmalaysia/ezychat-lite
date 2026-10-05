@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:net';
-import { request } from 'node:http';
 import {
   CHATGPT_OAUTH,
   accountIdFromTokens,
@@ -29,65 +28,17 @@ import { redactLogLine, redactSecretText } from '../src/log-redaction.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 
-const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-function jwt(payload: Record<string, unknown>) {
-  return `${b64({ alg: 'none' })}.${b64(payload)}.c2lnbmF0dXJlLXNpZ25hdHVyZQ`;
-}
-const ACCESS = jwt({
-  exp: Math.floor(Date.now() / 1000) + 3600,
-  'https://api.openai.com/auth': { chatgpt_account_id: 'acct-123' },
-  'https://api.openai.com/profile': { email: 'owner@example.com' },
-});
-const ID_TOKEN = jwt({ email: 'id@example.com' });
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
-}
-function sse(frames: string[], split = 7) {
-  const text = frames.join('');
-  const bytes = new TextEncoder().encode(text);
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (let i = 0; i < bytes.length; i += split) controller.enqueue(bytes.slice(i, i + split));
-      controller.close();
-    },
-  });
-}
-const frame = (event: Record<string, unknown>) =>
-  `event: ${String(event.type)}\ndata: ${JSON.stringify(event)}\n\n`;
-const tokenResponse = (extra: Record<string, unknown> = {}) =>
-  json({
-    access_token: ACCESS,
-    refresh_token: 'refresh-1',
-    id_token: ID_TOKEN,
-    expires_in: 3600,
-    ...extra,
-  });
-
-function rawGet(port: number, path: string, host: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    request({ host: '127.0.0.1', port, path, headers: { host } }, (res) => {
-      res.resume();
-      resolve(res.statusCode ?? 0);
-    })
-      .on('error', reject)
-      .end();
-  });
-}
-
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, '127.0.0.1', () => {
-      const port = (server.address() as { port: number }).port;
-      server.close(() => resolve(port));
-    });
-  });
-}
-
+import {
+  ACCESS,
+  ID_TOKEN,
+  frame,
+  freePort,
+  json,
+  jwt,
+  rawGet,
+  sse,
+  tokenResponse,
+} from './chatgpt-fixtures.js';
 describe('ChatGPT OAuth (experimental direct sign-in)', () => {
   it('builds the Codex PKCE authorize URL with a verified S256 challenge and random state', () => {
     // RFC 7636 appendix B vector.

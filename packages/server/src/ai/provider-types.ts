@@ -19,6 +19,8 @@ export interface AiProvider {
   ): Promise<AiDecision>;
   connection(): AiConnection;
   login(): Promise<AiConnection>;
+  /** Finishes a pending sign-in with the redirect address pasted from another computer. */
+  submitCallbackUrl?(url: string): Promise<AiConnection>;
   logout(): Promise<void>;
   shutdown(): Promise<void>;
   /** EXPERIMENTAL direct ChatGPT sign-in: live model list (or the documented fallback). */

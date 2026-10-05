@@ -23,8 +23,10 @@ import {
   createPkce,
   createState,
   exchangeCode,
+  parseCallbackUrl,
   refreshTokens,
   startCallbackListener,
+  stateMatches,
   type CallbackListener,
   type ChatGptTokens,
 } from './chatgpt-oauth.js';
@@ -43,9 +45,12 @@ const SIGN_IN_AGAIN = 'ChatGPT sign-in expired. Sign in again.';
 
 interface PendingLogin {
   url: string;
+  state: string;
   verifier: string;
   listener: CallbackListener;
   timer: ReturnType<typeof setTimeout>;
+  /** Set once a code is being exchanged: the listener and a pasted address never both exchange. */
+  exchanging: boolean;
 }
 
 export interface DirectDeps {
@@ -59,6 +64,7 @@ const aborted = () => new DOMException('AI reply cancelled', 'AbortError');
 export class DirectChatGptProvider implements AiProvider {
   private pending: PendingLogin | null = null;
   private starting: Promise<AiConnection> | null = null;
+  private closing: Promise<void> = Promise.resolve();
   private lastError: string | null = null;
   private refreshing: Promise<ChatGptTokens> | null = null;
   private modelCache: { at: number; models: BackendModel[] } | null = null;
@@ -107,9 +113,13 @@ export class DirectChatGptProvider implements AiProvider {
     return { state: 'signed_out', loginUrl: null, error: null, email: null };
   }
 
+  /** Only one sign-in at a time: a new request cancels the previous one (its link stops working). */
   async login(): Promise<AiConnection> {
-    if (this.pending) return this.connection();
-    this.starting ??= this.beginLogin().finally(() => (this.starting = null));
+    this.starting ??= (async () => {
+      if (this.pending) this.endLogin(this.pending, null);
+      await this.closing;
+      return this.beginLogin();
+    })().finally(() => (this.starting = null));
     return this.starting;
   }
 
@@ -125,8 +135,10 @@ export class DirectChatGptProvider implements AiProvider {
     }
     const pending: PendingLogin = {
       url: buildAuthorizeUrl(challenge, state),
+      state,
       verifier,
       listener,
+      exchanging: false,
       timer: setTimeout(
         () => this.endLogin(pending, 'ChatGPT sign-in timed out. Try again.'),
         this.deps.loginTimeoutMs ?? LOGIN_TIMEOUT_MS,
@@ -142,24 +154,30 @@ export class DirectChatGptProvider implements AiProvider {
 
   private async completeLogin(pending: PendingLogin) {
     const result = await pending.listener.result;
-    if (this.pending !== pending) return;
+    if (this.pending !== pending || pending.exchanging) return;
     if (!('code' in result)) {
       this.endLogin(pending, 'ChatGPT sign-in was cancelled. Try again.');
       return;
     }
+    await this.exchange(pending, result.code, 'listener');
+  }
+
+  private async exchange(pending: PendingLogin, code: string, via: 'listener' | 'paste') {
+    pending.exchanging = true;
     try {
-      const tokens = await exchangeCode(result.code, pending.verifier, this.fetchImpl);
+      const tokens = await exchangeCode(code, pending.verifier, this.fetchImpl);
       if (this.pending !== pending) return;
       this.epoch++;
       this.modelCache = null;
       this.saveTokens(tokens);
       pending.listener.finish(true);
-      this.log.info({ event: 'chatgpt_login_completed' }, 'ChatGPT signed in');
+      this.log.info({ event: 'chatgpt_login_completed', via }, 'ChatGPT signed in');
       this.endLogin(pending, null);
     } catch (error) {
       this.log.warn(
         {
           event: 'chatgpt_login_exchange_failed',
+          via,
           status: error instanceof OAuthError ? error.status : null,
         },
         'ChatGPT sign-in failed',
@@ -172,11 +190,40 @@ export class DirectChatGptProvider implements AiProvider {
     }
   }
 
+  /**
+   * Remote-admin fallback: the admin pastes the final redirect address from their own browser.
+   * Checked and exchanged exactly as the loopback listener would.
+   */
+  async submitCallbackUrl(raw: string): Promise<AiConnection> {
+    const reject = (reason: string, message: string): never => {
+      this.log.info({ event: 'chatgpt_login_paste_rejected', reason }, 'Pasted sign-in rejected');
+      throw new OAuthError(message);
+    };
+    const pending = this.pending;
+    if (!pending) return reject('none', 'No ChatGPT sign-in is in progress. Start sign-in again.');
+    const parsed = parseCallbackUrl(raw);
+    if (!parsed)
+      return reject(
+        'format',
+        'Paste the full address that starts with http://localhost:1455/auth/callback.',
+      );
+    // A wrong or stale address must not cancel the real sign-in (same rule as the listener).
+    if (!stateMatches(pending.state, parsed.state))
+      return reject('state', 'This address is from another sign-in attempt. Start sign-in again.');
+    if (pending.exchanging) return reject('busy', 'ChatGPT sign-in is already finishing.');
+    if (parsed.error || !parsed.code) {
+      this.endLogin(pending, 'ChatGPT sign-in was cancelled. Try again.');
+      return this.connection();
+    }
+    await this.exchange(pending, parsed.code, 'paste');
+    return this.connection();
+  }
+
   private endLogin(pending: PendingLogin, error: string | null) {
     if (this.pending !== pending) return;
     this.pending = null;
     clearTimeout(pending.timer);
-    pending.listener.close();
+    this.closing = pending.listener.close();
     this.lastError = error;
     if (error)
       this.log.info({ event: 'chatgpt_login_ended', reason: error }, 'ChatGPT sign-in ended');

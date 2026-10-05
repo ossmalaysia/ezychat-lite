@@ -28,6 +28,8 @@ export async function makeTestApp(opts?: {
   wa?: FakeWaAdapter;
   config?: Partial<ServerConfig>;
   listen?: boolean;
+  /** Runs after service initializers and before routes are built (routes capture services). */
+  beforeBuild?: (ctx: AppContext) => void | Promise<void>;
 }): Promise<TestApp> {
   const dataDir = mkdtempSync(join(tmpdir(), 'wati-test-'));
   const config: ServerConfig = {
@@ -43,6 +45,7 @@ export async function makeTestApp(opts?: {
   const wa = opts?.wa ?? new FakeWaAdapter();
   const ctx = await createContext(config, { wa, log: silentLogger() });
   await runInitializers(ctx);
+  await opts?.beforeBuild?.(ctx);
   const app = await buildApp(ctx);
   await app.ready();
   let url: string | undefined;

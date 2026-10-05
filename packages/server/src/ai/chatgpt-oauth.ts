@@ -51,6 +51,34 @@ export function stateMatches(expected: string, received: string | null): boolean
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+export interface ParsedCallback {
+  state: string;
+  code: string | null;
+  error: string | null;
+}
+
+/** Accepts only the sign-in redirect address (pasted by an admin on another computer). */
+export function parseCallbackUrl(raw: string): ParsedCallback | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (
+    url.protocol !== 'http:' ||
+    !['localhost', '127.0.0.1'].includes(url.hostname) ||
+    url.port !== String(CHATGPT_OAUTH.callbackPort) ||
+    url.pathname !== CHATGPT_OAUTH.callbackPath ||
+    url.username ||
+    url.password
+  )
+    return null;
+  const state = url.searchParams.get('state');
+  if (!state) return null;
+  return { state, code: url.searchParams.get('code'), error: url.searchParams.get('error') };
+}
+
 export function buildAuthorizeUrl(challenge: string, state: string): string {
   const url = new URL(CHATGPT_OAUTH.authorizeUrl);
   url.searchParams.set('response_type', 'code');
@@ -217,7 +245,7 @@ export interface CallbackListener {
   result: Promise<CallbackResult>;
   /** Shows the final page to the browser that delivered the code. */
   finish(success: boolean): void;
-  close(): void;
+  close(): Promise<void>;
 }
 
 /**
@@ -302,10 +330,11 @@ export function startCallbackListener(
         close() {
           done = true;
           settle({ error: 'denied' });
-          server.close();
+          const closed = new Promise<void>((resolve) => server.close(() => resolve()));
           server.closeIdleConnections();
           // Let the final page flush, then drop any keep-alive sockets so the port is released.
           setTimeout(() => server.closeAllConnections(), 1000).unref();
+          return closed;
         },
       });
     });
