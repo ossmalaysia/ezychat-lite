@@ -454,6 +454,52 @@ it('restricts AI settings to admins, separates global/member changes, never retu
   expect(directory.body).not.toContain(key);
 });
 
+it('rejects an incompatible ChatGPT connection before changing saved settings, credentials or chat ownership', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const before = t.ctx.services.ai!.status();
+  const key = t.ctx.settings.getSecret('ai_api_key');
+  const invalid = { mode: 'chatgpt' as const, model: 'gpt-4.1-mini', apiKey: 'new-test-api-key' };
+  const response = await t.app.inject({
+    method: 'PATCH',
+    url: '/api/ai/connection',
+    headers: authHeaders(cookie),
+    payload: invalid,
+  });
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.message).toContain('ChatGPT mode supports');
+  expect(() => t.ctx.services.ai!.saveConnection(invalid, actor)).toThrow('ChatGPT mode supports');
+  expect(t.ctx.services.ai!.status().settings).toEqual(before.settings);
+  expect(t.ctx.settings.getSecret('ai_api_key')).toBe(key);
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(before.member!.id);
+});
+
+it.each(['', 'gpt-5.4', 'gpt-5.3-codex'])(
+  'accepts the supported ChatGPT model %s',
+  async (model) => {
+    const response = await t.app.inject({
+      method: 'PATCH',
+      url: '/api/ai/connection',
+      headers: authHeaders(cookie),
+      payload: { mode: 'chatgpt', model },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().settings).toMatchObject({ mode: 'chatgpt', model });
+  },
+);
+
+it('keeps custom model names available in API mode', async () => {
+  const response = await t.app.inject({
+    method: 'PATCH',
+    url: '/api/ai/connection',
+    headers: authHeaders(cookie),
+    payload: { mode: 'api', model: 'custom-api-model' },
+  });
+  expect(response.statusCode).toBe(200);
+  expect(response.json().settings.model).toBe('custom-api-model');
+});
+
 it('extracts authenticated document uploads, removes them, and audits metadata without content', async () => {
   const boundary = 'ai-business-document';
   const data = pdfFixture('Delivery costs RM10');

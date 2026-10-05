@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import {
   AiMemberBody,
   AiConnectionBody,
+  CHATGPT_MODELS,
+  DEFAULT_CHATGPT_MODEL,
   type AiMemberStatus,
   type AiSettings,
 } from '@wa-team-inbox/shared';
@@ -233,7 +235,13 @@ function AiMemberForm({
                 <Select
                   value={settings.mode}
                   disabled={action.isPending}
-                  onValueChange={(mode) => update('mode', mode as AiSettings['mode'])}
+                  onValueChange={(mode) =>
+                    setSettings((old) => ({
+                      ...old,
+                      mode: mode as AiSettings['mode'],
+                      model: old.mode === mode ? old.model : '',
+                    }))
+                  }
                 >
                   <SelectTrigger {...p} className="min-h-11 w-full">
                     <SelectValue />
@@ -332,7 +340,7 @@ function AiMemberForm({
               hint={
                 settings.mode === 'api'
                   ? 'Leave blank to use gpt-4.1-mini.'
-                  : 'Leave blank for gpt-5.4. Supported: gpt-5.4 or gpt-5.3-codex.'
+                  : `Leave blank for ${DEFAULT_CHATGPT_MODEL}. Supported: ${CHATGPT_MODELS.join(' or ')}.`
               }
             >
               {(p) => (

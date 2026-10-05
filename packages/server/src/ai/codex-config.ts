@@ -1,8 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { CHATGPT_MODELS, DEFAULT_CHATGPT_MODEL } from '@wa-team-inbox/shared';
 
-export const CHATGPT_MODELS = ['gpt-5.4', 'gpt-5.3-codex'] as const;
-export const DEFAULT_CHATGPT_MODEL = CHATGPT_MODELS[0];
+export { CHATGPT_MODELS, DEFAULT_CHATGPT_MODEL } from '@wa-team-inbox/shared';
 export const CODEX_PROTOCOL_VERSION = '0.114.0';
 
 /** Codex 0.114.0 uses model metadata for apply_patch and local image reads. Feature flags

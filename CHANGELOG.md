@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin Settings → AI configures one shared OpenAI API or ChatGPT sign-in connection and
   model. Admin Members → Add AI member manages the Sales Agent and its business knowledge.
 
+### Fixed
+
+- Switching AI connection modes resets the model to the new provider's default. Unsupported
+  ChatGPT models are rejected before saving or interrupting active AI chats.
+
 ## [0.1.19] - 2026-10-05
 
 ### Added

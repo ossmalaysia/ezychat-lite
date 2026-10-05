@@ -102,6 +102,44 @@ afterEach(() => {
 });
 
 describe('AI member settings', () => {
+  it.each([
+    { mode: 'api' as const, model: 'gpt-4.1-mini', option: 'ChatGPT sign-in', next: 'chatgpt' },
+    { mode: 'chatgpt' as const, model: 'gpt-5.3-codex', option: 'OpenAI API key', next: 'api' },
+  ])(
+    'resets an explicit $mode model when switching providers and saves the new default',
+    async ({ mode, model, option, next }) => {
+      const initial = status();
+      initial.settings.mode = mode;
+      initial.settings.model = model;
+      const { fetchMock } = setup(initial, undefined, 'connection');
+      const user = userEvent.setup();
+      const input = await screen.findByLabelText('Model (optional)');
+      expect((input as HTMLInputElement).value).toBe(model);
+      await user.click(screen.getByRole('combobox', { name: 'Connection mode' }));
+      await user.click(screen.getByRole('option', { name: option }));
+      expect((input as HTMLInputElement).value).toBe('');
+      await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
+      );
+      const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
+      expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: next, model: '' });
+    },
+  );
+
+  it('rejects an unsupported ChatGPT model before submitting the connection', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    const { fetchMock } = setup(initial, undefined, 'connection');
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText(
+      'ChatGPT mode supports gpt-5.4 or gpt-5.3-codex. Leave blank to use the default.',
+    );
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+  });
+
   it('requires saving a changed connection mode before exposing ChatGPT sign-in controls', async () => {
     const initial = status();
     initial.connection.state = 'connected';

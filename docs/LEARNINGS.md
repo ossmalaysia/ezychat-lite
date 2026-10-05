@@ -28,6 +28,11 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Maintainability and performance
 
+- 2026-10-05 — Switching from an explicit API model to ChatGPT saved an incompatible model
+  and caused every answer to hand off → provider-specific validation happened only during
+  generation → reset the model when switching providers and validate the shared connection
+  contract before saving or cancelling active work; share the supported model list with runtime.
+
 - 2026-10-05 — AI member edits and OAuth polling can overwrite inbox-wide connection settings
   or unsaved drafts → provider and member fields share a combined status but require separate
   write schemas; keep drafts local while polling connection status.

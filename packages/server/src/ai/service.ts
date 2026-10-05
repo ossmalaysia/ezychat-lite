@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type {
-  AiConnectionBody,
   AiMemberBody,
   AiMemberStatus,
   AiSettings,
@@ -8,10 +7,10 @@ import type {
   ChatEvent,
   Message,
 } from '@wa-team-inbox/shared';
-import { AiDecision } from '@wa-team-inbox/shared';
+import { AiConnectionBody, AiDecision } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
-import { errors } from '../http/errors.js';
+import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { createAiProvider } from './provider.js';
@@ -521,6 +520,7 @@ export function createAiService(
       return service.status();
     },
     saveConnection(body, actor) {
+      body = parse(AiConnectionBody, body);
       cancelAll();
       ctx.db.transaction(() => {
         ctx.settings.set(PROVIDER_KEY, { mode: body.mode, model: body.model });

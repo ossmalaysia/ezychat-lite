@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { UserSchema } from './models.js';
 
+export const CHATGPT_MODELS = ['gpt-5.4', 'gpt-5.3-codex'] as const;
+export const DEFAULT_CHATGPT_MODEL = CHATGPT_MODELS[0];
+
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
   enabled: z.boolean(),
@@ -22,7 +25,18 @@ export type AiSettingsBody = z.infer<typeof AiSettingsBody>;
 export const AiSettings = AiSettingsBody.omit({ apiKey: true });
 export type AiSettings = z.infer<typeof AiSettings>;
 /** One connection/model shared by every current and future AI member. */
-export const AiConnectionBody = AiSettingsBody.pick({ mode: true, model: true, apiKey: true });
+export const AiConnectionBody = AiSettingsBody.pick({
+  mode: true,
+  model: true,
+  apiKey: true,
+}).refine(
+  ({ mode, model }) =>
+    mode !== 'chatgpt' || !model || (CHATGPT_MODELS as readonly string[]).includes(model),
+  {
+    path: ['model'],
+    message: `ChatGPT mode supports ${CHATGPT_MODELS.join(' or ')}. Leave blank to use the default.`,
+  },
+);
 export type AiConnectionBody = z.infer<typeof AiConnectionBody>;
 export const AiMemberBody = AiSettings.omit({ mode: true, model: true });
 export type AiMemberBody = z.infer<typeof AiMemberBody>;
