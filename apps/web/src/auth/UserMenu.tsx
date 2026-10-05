@@ -89,6 +89,7 @@ export function UserMenu({
                 {t('theme.label')}
               </span>
               <SegmentedControl
+                size="sm"
                 aria-labelledby="account-appearance-label"
                 value={theme}
                 onValueChange={setTheme}
@@ -112,6 +113,7 @@ export function UserMenu({
                 {t('language.label')}
               </span>
               <SegmentedControl
+                size="sm"
                 aria-labelledby="account-language-label"
                 value={locale}
                 onValueChange={(v) => isLocale(v) && changeLocale(v)}

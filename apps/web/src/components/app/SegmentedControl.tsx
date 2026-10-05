@@ -17,6 +17,7 @@ export function SegmentedControl<V extends string>({
   onValueChange,
   options,
   className,
+  size = 'default',
   'aria-labelledby': labelledBy,
   'aria-describedby': describedBy,
 }: {
@@ -24,6 +25,8 @@ export function SegmentedControl<V extends string>({
   onValueChange: (value: V) => void;
   options: readonly SegmentedOption<V>[];
   className?: string;
+  /** `sm` for tight spaces such as menus */
+  size?: 'default' | 'sm';
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
 }) {
@@ -44,7 +47,8 @@ export function SegmentedControl<V extends string>({
           key={option.value}
           htmlFor={`${base}-${option.value}`}
           className={cn(
-            'inline-flex h-9 cursor-pointer items-center justify-center px-4 text-sm font-medium whitespace-nowrap transition-colors',
+            'inline-flex cursor-pointer items-center justify-center text-sm font-medium whitespace-nowrap transition-colors',
+            size === 'sm' ? 'h-8 px-2.5' : 'h-9 px-4',
             'border-l border-input first:border-l-0',
             'bg-muted text-muted-foreground hover:text-foreground',
             'has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:text-primary-foreground',
