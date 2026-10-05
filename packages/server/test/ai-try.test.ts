@@ -71,3 +71,16 @@ it('never creates chats or sends WhatsApp', async () => {
   expect(t.wa.sent).toHaveLength(0);
   expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });
 });
+
+it('builds Try it like a live reply: knowledge, the question, then the Current situation', async () => {
+  await ask('Open today?');
+  const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
+  const input = JSON.parse(prompt.input);
+  expect(Object.keys(input)).toEqual(['businessKnowledge', 'conversation', 'currentSituation']);
+  expect(input.conversation).toEqual([{ speaker: 'customer', text: 'Open today?' }]);
+  expect(input.currentSituation).toMatchObject({
+    timeZone: 'Asia/Kuala_Lumpur',
+    resolution: 'Resolution confirmation is currently NOT awaited.',
+  });
+  expect(prompt.cacheId).toBe(t.ctx.settings.get('ai_install_id', null));
+});

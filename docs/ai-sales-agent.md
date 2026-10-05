@@ -97,6 +97,32 @@ two-character pairs, because those languages have no spaces. Known limit: a ques
 language about a fact written in another (for example Malay about an English fact) deep in a
 very large context may miss that fact; typical briefs fit the full-context budget.
 
+### Prompt layout and caching
+
+Live replies and Try it share one builder (`ai/prompt.ts`), laid out most-stable-first so
+provider prefix caching can reuse it:
+
+1. `instructions`: the fixed system rules plus the administrator instructions. They hold no
+   per-call values, so they are identical for every chat until an admin edits the AI member.
+2. `input`: one JSON object whose keys are always in this order:
+   `businessKnowledge` (byte-identical across calls while the knowledge fits the 40,000-character
+   full-context budget: sources in a fixed order, no timestamps or ids), then `conversation`, then
+   `currentSituation` (always last): `date` (`YYYY-MM-DD`), English `weekday`, local `time`
+   (`HH:mm`), `timeZone`, and `resolution` ("Resolution confirmation is currently awaited / NOT
+   awaited."). A system rule tells the model to use this block for "today", "tomorrow" or "open now".
+
+The time zone comes from the optional setting `ai_timezone` (an IANA name such as
+`Europe/London`; no UI yet). If the setting is missing or the zone is unknown, the default is
+`Asia/Kuala_Lumpur`. The builder is pure: the service passes `now` and the zone.
+
+Cache key: on first use the server stores a random per-install id in the setting `ai_install_id`.
+Both providers send `prompt_cache_key = "ezychat-" + first 16 hex of sha256(install id + "\n" +
+model)`, so the key is stable for this inbox and model, differs by model, and never contains
+customer data. The ChatGPT backend also gets the same value as its `session_id` header. pi-ai
+sends one value for both, and SPIKE-NOTES lists `session_id` as optional, so the key is not
+per-request. The connection test, which has no install id, still uses a random id. The OpenAI
+Responses API accepts `prompt_cache_key`, and its prefix caching is automatic.
+
 A saved ChatGPT model that is no longer in the live or documented model list (for example a
 Codex-era `gpt-5.4`) falls back to Auto. Each fallback is logged with the model and the
 reason (`event: "chatgpt_model_unavailable"`, `reason: "not_in_live_list"` or

@@ -1,4 +1,5 @@
 import { AiDecision, type AiSettings } from '@wa-team-inbox/shared';
+import { promptCacheKey } from './prompt.js';
 import type { AiPrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
@@ -32,6 +33,7 @@ export async function generateOpenAi(
   if (!apiKey) throw new Error('Add an OpenAI API key in the AI member settings.');
   signal.throwIfAborted();
   const boundedSignal = AbortSignal.any([signal, AbortSignal.timeout(60_000)]);
+  const model = settings.model || OPENAI_DEFAULT_MODEL;
   let response: Response;
   try {
     response = await fetch('https://api.openai.com/v1/responses', {
@@ -40,9 +42,11 @@ export async function generateOpenAi(
       signal: boundedSignal,
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: settings.model || OPENAI_DEFAULT_MODEL,
+        model,
         instructions: prompt.instructions,
         input: prompt.input,
+        // Responses API prefix caching is automatic; a stable key routes this inbox's requests together.
+        ...(prompt.cacheId ? { prompt_cache_key: promptCacheKey(prompt.cacheId, model) } : {}),
         store: false,
         tools: [],
         text: {

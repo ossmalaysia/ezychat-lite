@@ -758,6 +758,34 @@ it('sends the Business context to live replies as a named knowledge source', asy
   );
 });
 
+it('appends the current time, zone and resolution state last and keeps a stable cache id', async () => {
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout', 'Date'],
+    now: new Date('2026-10-06T06:05:00Z'),
+  });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  t.ctx.settings.set('ai_timezone', 'Europe/London');
+  await incoming('next', 'Open tomorrow?');
+  await vi.advanceTimersByTimeAsync(1200);
+  const [first, second] = vi.mocked(provider.generate).mock.calls.map((call) => call[2]);
+  expect(Object.keys(JSON.parse(first!.input)).at(-1)).toBe('currentSituation');
+  expect(JSON.parse(first!.input).currentSituation).toMatchObject({
+    date: '2026-10-06',
+    weekday: 'Tuesday',
+    time: '14:05',
+    timeZone: 'Asia/Kuala_Lumpur',
+  });
+  expect(JSON.parse(second!.input).currentSituation).toMatchObject({
+    time: '07:05',
+    timeZone: 'Europe/London',
+  });
+  expect(second!.instructions).toBe(first!.instructions);
+  expect(first!.cacheId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(second!.cacheId).toBe(first!.cacheId);
+  expect(t.ctx.settings.get('ai_install_id', null)).toBe(first!.cacheId);
+});
+
 it('tells the AI to answer an order question with known facts and keeps the chat', async () => {
   clock();
   await incoming('order', 'Can I get delivery tomorrow at 3pm? How much in total?');

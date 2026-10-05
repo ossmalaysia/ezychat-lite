@@ -14,6 +14,7 @@ import {
   type AiTestResult,
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
+import { promptCacheKey } from './prompt.js';
 import type { AiPrompt, AiProvider } from './provider-types.js';
 import { AI_OUTPUT_SCHEMA, generateOpenAi } from './provider.js';
 import {
@@ -426,7 +427,13 @@ export class DirectChatGptProvider implements AiProvider {
       const text = await this.withAuth((tokens) =>
         streamResponse(
           tokens,
-          { model, instructions: prompt.instructions, input: prompt.input, schema },
+          {
+            model,
+            instructions: prompt.instructions,
+            input: prompt.input,
+            schema,
+            cacheKey: prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined,
+          },
           bounded,
           this.fetchImpl,
         ),

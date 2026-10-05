@@ -30,7 +30,10 @@ import { authHeaders } from './auth-helpers.js';
 
 import {
   ACCESS,
+  CHATGPT_SETTINGS,
   ID_TOKEN,
+  answer,
+  seedTokens,
   frame,
   freePort,
   json,
@@ -511,5 +514,45 @@ describe('experimental ChatGPT routes', () => {
       ok: false,
       error: 'Sign in to ChatGPT in the AI settings.',
     });
+  });
+});
+
+describe('ChatGPT prompt cache key', () => {
+  let t: TestApp;
+  afterEach(async () => {
+    await t.close();
+  });
+
+  it('is stable per inbox and model, differs by model and carries no customer data', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) => answer('Hello'));
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const customer = 'Customer Siti 60123456789 wants delivery';
+    const ask = (model: string, input: string) =>
+      provider.generate(
+        { ...CHATGPT_SETTINGS, model },
+        null,
+        { instructions: 'rules', input, cacheId: 'install-abc' },
+        new AbortController().signal,
+      );
+    await ask('gpt-6-astra', customer);
+    await ask('gpt-6-astra', 'another chat');
+    await ask('gpt-6-sol', customer);
+    const sent = fetchMock.mock.calls
+      .filter((call) => call[0] === CODEX_BACKEND.responsesUrl)
+      .map((call) => ({
+        key: JSON.parse(String(call[1]!.body)).prompt_cache_key as string,
+        header: (call[1]!.headers as Record<string, string>).session_id,
+      }));
+    expect(sent).toHaveLength(3);
+    expect(sent[0]!.key).toMatch(/^ezychat-[0-9a-f]{16}$/);
+    expect(sent[1]!.key).toBe(sent[0]!.key);
+    expect(sent[2]!.key).not.toBe(sent[0]!.key);
+    for (const { key, header } of sent) {
+      expect(header).toBe(key);
+      expect(key).not.toMatch(/Siti|60123456789|install-abc/);
+    }
+    await provider.shutdown();
   });
 });

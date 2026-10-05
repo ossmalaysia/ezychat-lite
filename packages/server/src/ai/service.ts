@@ -25,7 +25,15 @@ import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from '.
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
-import { HANDOFF_REPLY, buildAiPrompt, knowledgeSources } from './prompt.js';
+import {
+  AI_TIMEZONE_SETTING,
+  HANDOFF_REPLY,
+  buildAiPrompt,
+  knowledgeSources,
+  resolveAiTimeZone,
+  type AiConversationTurn,
+  type AiKnowledge,
+} from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiProvider } from './provider-types.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
@@ -34,6 +42,8 @@ export const AI_FALLBACK_MS = 10_000;
 const PROVIDER_KEY = 'ai_inbox_provider';
 const MEMBER_KEY = 'ai_sales_member';
 const SECRET_KEY = 'ai_api_key';
+/** Random per-install id, created once; only its hash (with the model) is sent as prompt_cache_key. */
+const INSTALL_ID_KEY = 'ai_install_id';
 const DEFAULT_SETTINGS: AiSettings = {
   displayName: 'Sales Agent',
   enabled: false,
@@ -113,6 +123,28 @@ export function createAiService(
       enabled: !!user && !user.disabled,
     };
   };
+  const installId = () => {
+    let id = ctx.settings.get<string | null>(INSTALL_ID_KEY, null);
+    if (typeof id !== 'string' || !id) {
+      id = randomUUID();
+      ctx.settings.set(INSTALL_ID_KEY, id);
+    }
+    return id;
+  };
+  /** The cacheable prompt plus this call's facts (time, zone, resolution state) in the last block. */
+  const prompt = (
+    knowledge: AiKnowledge,
+    business: string,
+    conversation: AiConversationTurn[],
+    awaitingConfirmation: boolean,
+  ) => ({
+    ...buildAiPrompt(knowledge, business, conversation, {
+      now: new Date(),
+      timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
+      awaitingConfirmation,
+    }),
+    cacheId: installId(),
+  });
   const state = (jid: string) =>
     ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(jid) as State | undefined;
   const documentsText = () =>
@@ -369,7 +401,7 @@ export function createAiService(
                 await provider.generate(
                   current,
                   ctx.settings.getSecret(SECRET_KEY),
-                  buildAiPrompt(
+                  prompt(
                     current,
                     knowledge,
                     history.map((message) => ({
@@ -694,12 +726,7 @@ export function createAiService(
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
-          buildAiPrompt(
-            body.knowledge,
-            knowledge,
-            [{ speaker: 'customer', text: body.question }],
-            false,
-          ),
+          prompt(body.knowledge, knowledge, [{ speaker: 'customer', text: body.question }], false),
           AbortSignal.timeout(60_000),
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.

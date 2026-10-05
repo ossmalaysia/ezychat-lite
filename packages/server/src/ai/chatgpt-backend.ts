@@ -50,6 +50,11 @@ export interface ResponsesRequest {
   model: string;
   instructions: string;
   input: string;
+  /**
+   * Stable prompt_cache_key (also the session_id header, as pi-ai sends one value for both).
+   * Omitted (e.g. the connection test): a random id per request, as before.
+   */
+  cacheKey?: string;
   /** JSON schema for a structured answer; omitted for plain text. */
   schema?: Record<string, unknown>;
 }
@@ -189,7 +194,7 @@ export async function streamResponse(
   signal: AbortSignal,
   fetchImpl: FetchFn = fetch,
 ): Promise<string> {
-  const sessionId = randomUUID();
+  const sessionId = request.cacheKey ?? randomUUID();
   let response: Response;
   try {
     response = await fetchImpl(CODEX_BACKEND.responsesUrl, {

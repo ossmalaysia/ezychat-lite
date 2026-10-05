@@ -9,6 +9,11 @@ import type {
 export interface AiPrompt {
   instructions: string;
   input: string;
+  /**
+   * Random per-install id (setting `ai_install_id`). Providers turn it plus the model into a stable
+   * `prompt_cache_key` (see promptCacheKey). Never customer data.
+   */
+  cacheId?: string;
 }
 export interface AiProvider {
   generate(
