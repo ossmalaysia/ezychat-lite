@@ -39,10 +39,17 @@ const SECRET_FIELDS = [
 
 const OAUTH_URL =
   /(https?:\/\/(?:auth\.openai\.com\/oauth\/(?:authorize|token)|(?:localhost|127\.0\.0\.1):1455\/auth\/callback))\?[^\s"'<>]*/gi;
-const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
-const BEARER = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi;
+const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+// A real token shape: 16+ token characters, or 8+ with a digit or token punctuation.
+const BEARER =
+  /\bBearer\s+(?:[A-Za-z0-9._~+/=-]{16,}|(?=[A-Za-z0-9]*[._~+/=0-9-])[A-Za-z0-9._~+/=-]{8,})/gi;
+// JSON-embedded token fields, also inside a stringified (escaped) JSON message.
+const JSON_TOKEN =
+  /(\\?"(?:access_token|refresh_token|id_token|code_verifier|code_challenge)\\?"\s*:\s*\\?")[^"\\]*/gi;
+// code= and state= are common words, so they only count as URL query parameters.
+const QUERY_PARAM = /(?<=[?&])(code|state)=[^&\s"']+/gi;
 const OAUTH_PARAM =
-  /\b(code|state|code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
+  /\b(code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
 
 /** Scrubs OAuth addresses, bearer tokens, JWTs and OAuth parameters from free text. */
 export function redactSecretText(text: string): string {
@@ -50,6 +57,8 @@ export function redactSecretText(text: string): string {
     .replace(OAUTH_URL, '$1?[REDACTED]')
     .replace(JWT, '[REDACTED_JWT]')
     .replace(BEARER, 'Bearer [REDACTED]')
+    .replace(JSON_TOKEN, '$1[REDACTED]')
+    .replace(QUERY_PARAM, '$1=[REDACTED]')
     .replace(OAUTH_PARAM, '$1=[REDACTED]');
 }
 
@@ -72,14 +81,20 @@ const isPlainObject = (value: object) => {
  */
 export function scrubLogValue(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return redactSecretText(value);
-  if (value === null || typeof value !== 'object' || depth > 6) return value;
+  if (value === null || typeof value !== 'object') return value;
+  if (depth > 6) return '[Truncated]';
+  if (value instanceof URL || value instanceof URLSearchParams)
+    return redactSecretText(value.toString());
   if (value instanceof Error) {
     const code = (value as { code?: unknown }).code;
+    const cause = (value as { cause?: unknown }).cause;
     return {
       type: value.name,
+      errType: value.constructor.name,
       message: redactSecretText(value.message),
       ...(value.stack ? { stack: redactSecretText(value.stack) } : {}),
       ...(typeof code === 'string' ? { code } : {}),
+      ...(cause === undefined ? {} : { cause: scrubLogValue(cause, depth + 1) }),
     };
   }
   if (Array.isArray(value)) return value.map((item) => scrubLogValue(item, depth + 1));

@@ -63,3 +63,30 @@ it.each(ROUTES.filter((route) => route.method !== 'GET'))(
     expect(res.json().error.code).toBe('bad_origin');
   },
 );
+
+/** Flattens Fastify's printRoutes() tree into `METHOD path` pairs (HEAD ignored). */
+function registeredRoutes(tree: string): string[] {
+  const found: string[] = [];
+  const stack: string[] = [];
+  for (const line of tree.split('\n')) {
+    const m = /^((?:[│ ] {3})*)[├└]── (\S+) \(([^)]*)\)/.exec(line);
+    if (!m) continue;
+    const depth = m[1]!.length / 4;
+    stack.length = depth;
+    stack[depth] = m[2]!;
+    const path = stack.join('');
+    for (const method of m[3]!.split(', ')) if (method !== 'HEAD') found.push(`${method} ${path}`);
+  }
+  return found;
+}
+
+it('lists every registered /api/ai route in the table above', () => {
+  const normalize = (path: string) => path.replace(/\/\d+(?=\/|$)/g, '/:id');
+  const registered = registeredRoutes(t.app.printRoutes({ commonPrefix: false })).filter((r) =>
+    /^\S+ \/api\/ai(\/|$)/.test(r),
+  );
+  expect(registered.length).toBeGreaterThanOrEqual(ROUTES.length);
+  const table = ROUTES.map((r) => `${r.method} ${normalize(r.url)}`);
+  expect(registered.filter((r) => !table.includes(r))).toEqual([]);
+  expect(table.filter((r) => !registered.includes(r))).toEqual([]);
+});
