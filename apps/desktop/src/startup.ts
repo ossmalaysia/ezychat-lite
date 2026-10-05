@@ -19,8 +19,9 @@ export function decideStartup(serverAnswers: boolean, serviceState: ServiceState
 
 /**
  * How long to wait for an installed service that is not answering yet. A running service may
- * still be booting. A stopped one may be a delayed auto-start that Windows has not launched yet,
- * minutes after login — so wait for it shortly after boot instead of showing an error at once.
+ * still be booting. A stopped one shortly after boot may be an automatic service that the OS has
+ * not launched yet (it can start after the user logs on) — wait for it instead of showing an
+ * error at once.
  */
 export function serviceWaitMs(serviceState: ServiceState, uptimeSeconds: number): number {
   if (serviceState === 'running') return 60_000;

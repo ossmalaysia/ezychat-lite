@@ -44,6 +44,7 @@ import {
 } from './paths.js';
 import { runServerCommand, StandaloneServer } from './server-process.js';
 import { createServiceOperation } from './service-operation.js';
+import { watchForService } from './service-recovery.js';
 import { decideStartup, parsePortFile, serviceWaitMs } from './startup.js';
 import { createServiceManager, type ServiceManager, type ServiceState } from './service/index.js';
 import { createTray } from './tray.js';
@@ -360,11 +361,7 @@ async function main(): Promise<void> {
     return false;
   };
 
-  let recoveryTimer: NodeJS.Timeout | null = null;
-  const stopRecovery = () => {
-    if (recoveryTimer) clearInterval(recoveryTimer);
-    recoveryTimer = null;
-  };
+  let stopRecovery = () => {};
   const serviceDown = (state: ServiceState) => {
     setMode('error');
     loadMain(
@@ -378,24 +375,19 @@ async function main(): Promise<void> {
     // The service may still come up (late auto-start, or started from Windows): keep checking
     // and open the inbox as soon as it answers, instead of leaving the error page up for good.
     stopRecovery();
-    let probing = false;
-    recoveryTimer = setInterval(() => {
-      if (mode !== 'error') return stopRecovery();
-      if (busy || probing) return;
-      probing = true;
-      adoptServicePort();
-      void probeServer(port)
-        .then((found) => {
-          if (!found || mode !== 'error' || busy) return;
-          stopRecovery();
-          log(`[desktop] background service answered on port ${port}; connecting`);
-          setMode('client');
-          loadMain(url);
-        })
-        .finally(() => {
-          probing = false;
-        });
-    }, 5_000);
+    stopRecovery = watchForService({
+      probe: async () => {
+        adoptServicePort();
+        return (await probeServer(port)) !== null;
+      },
+      isActive: () => mode === 'error',
+      canSwitch: () => mode === 'error' && !busy,
+      onAnswer: () => {
+        log(`[desktop] background service answered on port ${port}; connecting`);
+        setMode('client');
+        loadMain(url);
+      },
+    });
   };
 
   const describe = (): string => {
@@ -408,6 +400,7 @@ async function main(): Promise<void> {
   };
 
   const setMode = (m: DesktopMode) => {
+    if (m !== 'error') stopRecovery();
     mode = m;
     syncUpdates();
     trayHandle.refresh();
@@ -533,7 +526,8 @@ async function main(): Promise<void> {
       if (waitMs > 0) {
         setMode('starting');
         loadMain(page(t(locale, 'page.connectingTitle'), t(locale, 'page.connectingBody')));
-        if (await waitForService(waitMs)) {
+        // A user operation (e.g. disabling the service) may have taken over during the wait.
+        if ((await waitForService(waitMs)) && mode === 'starting' && !busy) {
           setMode('client');
           loadMain(url);
           return;
