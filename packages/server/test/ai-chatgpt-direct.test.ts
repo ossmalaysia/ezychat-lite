@@ -273,7 +273,7 @@ describe('log redaction for ChatGPT credentials', () => {
     const out = redactLogLine(line);
     for (const secret of ['abc123', 's3cr3t', ACCESS, '"a"', '"r"', '"i"', '"v"'])
       expect(out).not.toContain(secret);
-    expect(out).toContain('code=[REDACTED]');
+    expect(out).toContain('/auth/callback?[REDACTED]');
     expect(redactSecretText('errorcode=E1 status=401')).toBe('errorcode=E1 status=401');
   });
 });

@@ -31,15 +31,26 @@ const SECRET_FIELDS = [
   'callbackUrl',
   'chatgptAccountId',
   'chatgpt-account-id',
+  'pastedUrl',
+  'codeChallenge',
+  'code_challenge',
+  'verifier',
 ];
 
+const OAUTH_URL =
+  /(https?:\/\/(?:auth\.openai\.com\/oauth\/(?:authorize|token)|(?:localhost|127\.0\.0\.1):1455\/auth\/callback))\?[^\s"'<>]*/gi;
 const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
+const BEARER = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi;
 const OAUTH_PARAM =
   /\b(code|state|code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
 
-/** Scrubs bearer JWTs and OAuth query parameters from free text (messages, URLs, stacks). */
+/** Scrubs OAuth addresses, bearer tokens, JWTs and OAuth parameters from free text. */
 export function redactSecretText(text: string): string {
-  return text.replace(JWT, '[REDACTED_JWT]').replace(OAUTH_PARAM, '$1=[REDACTED]');
+  return text
+    .replace(OAUTH_URL, '$1?[REDACTED]')
+    .replace(JWT, '[REDACTED_JWT]')
+    .replace(BEARER, 'Bearer [REDACTED]')
+    .replace(OAUTH_PARAM, '$1=[REDACTED]');
 }
 
 export const LOG_REDACT_PATHS = SECRET_FIELDS.flatMap((field) => [
@@ -48,6 +59,36 @@ export const LOG_REDACT_PATHS = SECRET_FIELDS.flatMap((field) => [
   `*.*["${field}"]`,
 ]);
 const secrets = new Set(SECRET_FIELDS.map((field) => field.toLowerCase()));
+
+const isPlainObject = (value: object) => {
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+/**
+ * Copy of a live log argument with secret keys and secret-looking text scrubbed. Only plain
+ * objects, arrays and Errors are copied; other instances (Fastify requests) are left to pino's
+ * serializers.
+ */
+export function scrubLogValue(value: unknown, depth = 0): unknown {
+  if (typeof value === 'string') return redactSecretText(value);
+  if (value === null || typeof value !== 'object' || depth > 6) return value;
+  if (value instanceof Error) {
+    const code = (value as { code?: unknown }).code;
+    return {
+      type: value.name,
+      message: redactSecretText(value.message),
+      ...(value.stack ? { stack: redactSecretText(value.stack) } : {}),
+      ...(typeof code === 'string' ? { code } : {}),
+    };
+  }
+  if (Array.isArray(value)) return value.map((item) => scrubLogValue(item, depth + 1));
+  if (!isPlainObject(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value))
+    out[key] = secrets.has(key.toLowerCase()) ? '[REDACTED]' : scrubLogValue(child, depth + 1);
+  return out;
+}
 
 function redact(value: unknown): void {
   if (value === null || typeof value !== 'object') return;
