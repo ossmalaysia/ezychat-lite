@@ -175,6 +175,7 @@
       "cloudflareCreate": "已配置 Cloudflare 收件箱地址",
       "settingsUpdate": "已更新设置",
       "chatsResolveAll": "已解决所有未结对话",
+      "chatMerge": "已合并聊天",
       "logsDownload": "已下载日志"
     }
   },

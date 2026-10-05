@@ -29,6 +29,7 @@ const chat: Chat = {
   status: 'open',
   assignedTo: 2,
   updatedAt: now,
+  phone: '60123456789',
 };
 const base: Omit<Message, 'id' | 'body' | 'fromMe' | 'timestamp'> = {
   chatJid: jid,
@@ -66,11 +67,22 @@ function setup(path: string, opts: { directory?: unknown[] } = {}) {
       if (method !== 'GET') {
         posted.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
         if (url.endsWith('/messages'))
-          return json({ ...base, id: 'local-x', body: 'hi', fromMe: true, timestamp: Date.now(), status: 'pending' }, 201);
+          return json(
+            {
+              ...base,
+              id: 'local-x',
+              body: 'hi',
+              fromMe: true,
+              timestamp: Date.now(),
+              status: 'pending',
+            },
+            201,
+          );
         return json({ ok: true });
       }
       if (url === '/api/me') return json(me);
-      if (url === '/api/wa/status') return json({ state: 'open', me: null, qr: null, lastError: null });
+      if (url === '/api/wa/status')
+        return json({ state: 'open', me: null, qr: null, lastError: null });
       if (url.startsWith('/api/chats?')) return json({ chats: [chat], nextCursor: null });
       if (url.startsWith(`/api/chats/${encodeURIComponent(jid)}/messages`))
         return json({ messages, nextBefore: null });
@@ -139,5 +151,90 @@ describe('InboxPage', () => {
     // Assignee pill in the chat list + assignee option in the header use the real name.
     expect((await screen.findAllByText('Carol')).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Agent #2/)).toBeNull();
+  });
+  it('follows an old phone-number link to the WhatsApp ID chat', async () => {
+    const lid = '123456789012345@lid';
+    const merged: Chat = { ...chat, jid: lid };
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        urls.push(url);
+        if ((init?.method ?? 'GET') !== 'GET') return json({ ok: true });
+        if (url === '/api/me') return json(me);
+        if (url === '/api/wa/status')
+          return json({ state: 'open', me: null, qr: null, lastError: null });
+        if (url.startsWith('/api/chats?')) return json({ chats: [merged], nextCursor: null });
+        if (
+          url === `/api/chats/${encodeURIComponent(jid)}` ||
+          url === `/api/chats/${encodeURIComponent(lid)}`
+        )
+          return json({ chat: merged, events: [] });
+        if (url.startsWith(`/api/chats/${encodeURIComponent(lid)}/messages`))
+          return json({
+            messages: messages.map((m) => ({ ...m, chatJid: lid })),
+            nextBefore: null,
+          });
+        if (url.startsWith(`/api/chats/${encodeURIComponent(jid)}/messages`))
+          return json({ messages: [], nextBefore: null });
+        if (url.endsWith('/notes')) return json([]);
+        if (url === '/api/quick-replies') return json([]);
+        return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+      }),
+    );
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/chats/${encodeURIComponent(jid)}`]}>
+          <Routes>
+            <Route path="/chats/:jid" element={<InboxPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    // The PN conversation unmounts on redirect, so query the document, not its message log.
+    expect(await screen.findByText('Hello')).toBeTruthy();
+    expect(urls.some((u) => u.startsWith(`/api/chats/${encodeURIComponent(lid)}/messages`))).toBe(
+      true,
+    );
+  });
+  it('labels a nameless WhatsApp ID conversation without its digits', async () => {
+    const lid = '123456789012345@lid';
+    const nameless: Chat = { ...chat, jid: lid, name: '', phone: null };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if ((init?.method ?? 'GET') !== 'GET') return json({ ok: true });
+        if (url === '/api/me') return json(me);
+        if (url === '/api/wa/status')
+          return json({ state: 'open', me: null, qr: null, lastError: null });
+        if (url.startsWith('/api/chats?')) return json({ chats: [nameless], nextCursor: null });
+        if (url === `/api/chats/${encodeURIComponent(lid)}`)
+          return json({ chat: nameless, events: [] });
+        if (url.startsWith(`/api/chats/${encodeURIComponent(lid)}/messages`))
+          return json({ messages: [], nextBefore: null });
+        if (url.endsWith('/notes')) return json([]);
+        if (url === '/api/quick-replies') return json([]);
+        return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+      }),
+    );
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/chats/${encodeURIComponent(lid)}`]}>
+          <Routes>
+            <Route path="/chats/:jid" element={<InboxPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole('region', { name: 'Conversation with Unknown contact' }),
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toContain('123456789012345');
   });
 });

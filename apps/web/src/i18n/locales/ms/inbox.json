@@ -50,12 +50,14 @@
   },
   "chatListItem": {
     "group": "Kumpulan",
+    "unknownContact": "Kenalan tidak dikenali",
     "resolved": "Selesai",
     "assignedTo": "Ditugaskan kepada {{name}}",
     "unread_other": "{{count}} belum dibaca"
   },
   "header": {
     "back": "Kembali ke sembang",
+    "phoneHidden": "Nombor telefon disembunyikan",
     "resolved": "Selesai",
     "assignedTo": "Ditugaskan kepada",
     "unassigned": "Belum ditugaskan",

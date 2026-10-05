@@ -50,12 +50,14 @@
   },
   "chatListItem": {
     "group": "群组",
+    "unknownContact": "未知联系人",
     "resolved": "已解决",
     "assignedTo": "已指派给 {{name}}",
     "unread_other": "{{count}} 条未读"
   },
   "header": {
     "back": "返回聊天列表",
+    "phoneHidden": "电话号码已隐藏",
     "resolved": "已解决",
     "assignedTo": "指派给",
     "unassigned": "未指派",

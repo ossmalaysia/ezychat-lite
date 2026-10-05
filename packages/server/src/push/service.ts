@@ -215,7 +215,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       for (const [locale, group] of byLocale(targets)) {
         const preview = chat.lastMessagePreview ?? message.body ?? t(locale, 'push.newMessage');
         const payload: NotificationPayload = {
-          title: chat.name.slice(0, 200),
+          title: (chat.name || t(locale, 'push.unknownContact')).slice(0, 200),
           body: preview.slice(0, 1000),
           url: `/chats/${encodeURIComponent(chat.jid)}`,
           tag: chat.jid,

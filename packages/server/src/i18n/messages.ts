@@ -5,6 +5,7 @@ import { createTranslator, type Catalog, type Locale } from '@wa-team-inbox/shar
 const en = {
   push: {
     newMessage: 'New message',
+    unknownContact: 'Unknown contact',
     waLoggedOut: {
       title: 'WhatsApp disconnected',
       body: 'The linked number was logged out. Relink it from Admin > WhatsApp.',
@@ -23,6 +24,7 @@ const en = {
 const ms: typeof en = {
   push: {
     newMessage: 'Mesej baharu',
+    unknownContact: 'Kenalan tidak dikenali',
     waLoggedOut: {
       title: 'WhatsApp terputus',
       body: 'Nombor yang dipautkan telah dilog keluar. Pautkan semula di Admin > WhatsApp.',
@@ -41,6 +43,7 @@ const ms: typeof en = {
 const zhCN: typeof en = {
   push: {
     newMessage: '新消息',
+    unknownContact: '未知联系人',
     waLoggedOut: {
       title: 'WhatsApp 已断开',
       body: '已关联的号码已退出登录。请在 管理 > WhatsApp 中重新关联。',

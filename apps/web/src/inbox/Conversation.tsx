@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Composer } from './Composer';
 import { ConversationHeader } from './ConversationHeader';
+import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { NotesPanel } from './NotesPanel';
 import { buildTimeline } from './timeline';
@@ -227,7 +228,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     <div className="flex min-h-0 min-w-0 flex-1">
       <section
         className="flex min-h-0 min-w-0 flex-1 flex-col"
-        aria-label={t('conversation.label', { name: chat.name })}
+        aria-label={t('conversation.label', { name: chatTitle(chat, t) })}
       >
         <ConversationHeader
           chat={chat}

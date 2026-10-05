@@ -5,7 +5,8 @@ import type { Chat } from '@wa-team-inbox/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatListTime } from '../lib/format';
-import { encodeJid, formatJid } from '../lib/jid';
+import { encodeJid } from '../lib/jid';
+import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
 
 export interface ChatListItemProps {
@@ -28,11 +29,11 @@ export function ChatListItem({
   assigneeName,
   assignedToMe = false,
 }: ChatListItemProps) {
-  const name = chat.name || formatJid(chat.jid);
-  const unread = chat.unreadCount > 0;
-  const { pathname } = useLocation();
   // Subscribes to language changes so the localized list time re-renders.
   const { t } = useTranslation('inbox');
+  const name = chatTitle(chat, t);
+  const unread = chat.unreadCount > 0;
+  const { pathname } = useLocation();
   return (
     <Link
       to={`/chats/${encodeJid(chat.jid)}`}

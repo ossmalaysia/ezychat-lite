@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Chats for the same person under phone number and WhatsApp ID are merged: one inbox row per
+  customer, with all messages, notes, history, unread counts and AI Sales Agent state together.
+  Existing duplicates are merged when the server starts after the update (a backup named
+  `app-premerge-YYYYMMDD-HHMMSS.db` is written first and kept 30 days); new messages then go to the
+  right chat automatically. Replies, including the AI Sales Agent's, go to the address the customer
+  last used. When WhatsApp has not revealed a customer's number, the chat shows "Phone number hidden"
+  instead of an internal ID. Old links and notifications open the merged chat.
 - Windows in-app updates now record the result ("Update installed"), remove the downloaded installer and reopen the app; the background helper used to exit before it ran.
 - After a Windows restart the app no longer stays on "service not running" while the background service is still starting: it waits for a delayed auto-start and opens the inbox as soon as the service answers.
 

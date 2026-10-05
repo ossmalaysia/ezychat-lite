@@ -10,7 +10,7 @@ import { Banner, StatusDot, stateTone } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ButtonSpinner } from '../auth/AuthShell';
-import { formatJid } from '../lib/jid';
+import { connectedAsLabel } from './connected-label';
 
 export interface WaLinkStepProps {
   onContinue?: () => void;
@@ -52,13 +52,7 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
         <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
         <div className="min-w-0">
           <p className="font-medium">{t('setup.wa.linked')}</p>
-          <p className="break-words text-muted-foreground">
-            {s.me
-              ? s.me.name
-                ? t('setup.wa.connectedAsNamed', { name: s.me.name, number: formatJid(s.me.jid) })
-                : t('setup.wa.connectedAs', { number: formatJid(s.me.jid) })
-              : t('setup.wa.connected')}
-          </p>
+          <p className="break-words text-muted-foreground">{connectedAsLabel(s.me, t)}</p>
         </div>
       </div>
     );

@@ -203,6 +203,8 @@ export type HealthResponse = z.infer<typeof HealthResponse>;
 
 export const FakeIncomingBody = z.object({
   chatJid: z.string(),
+  /** fake WA only: the other address of the same person (PN for a LID chat, or the reverse) */
+  chatJidAlt: z.string().max(256).optional(),
   text: z.string(),
   senderName: z.string().optional(),
   type: MessageType.optional(),

@@ -175,6 +175,7 @@
       "cloudflareCreate": "Alamat peti masuk Cloudflare dikonfigurasi",
       "settingsUpdate": "Tetapan dikemas kini",
       "chatsResolveAll": "Semua sembang terbuka diselesaikan",
+      "chatMerge": "Sembang digabungkan",
       "logsDownload": "Log dimuat turun"
     }
   },

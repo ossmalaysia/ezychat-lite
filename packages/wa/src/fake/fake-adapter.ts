@@ -164,6 +164,14 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.media.set(messageId, buffer);
   }
 
+  /** Emit explicit PN/LID pairs as the adapter does when WhatsApp reveals them. */
+  simulateContactAliases(pairs: WaContactAlias[]): void {
+    this.emitTyped(
+      'contactAliases',
+      pairs.map((p) => ({ ...p })),
+    );
+  }
+
   /** Emit an incoming live message. Generates id `FAKE-<run>-<n>` unless given. */
   simulateIncoming(
     p: Partial<WaIncomingMessage> & { chatJid: string; body: string },
@@ -174,6 +182,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     const msg: WaIncomingMessage = {
       id,
       chatJid: p.chatJid,
+      chatJidAlt: p.chatJidAlt ?? null,
       senderJid: p.senderJid !== undefined ? p.senderJid : isGroup ? null : p.chatJid,
       senderName: p.senderName ?? null,
       fromMe: p.fromMe ?? false,

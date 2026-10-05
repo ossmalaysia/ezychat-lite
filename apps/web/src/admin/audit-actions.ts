@@ -25,6 +25,7 @@ const LABEL_KEYS = {
   'cloudflare.create': 'audit.actions.cloudflareCreate',
   'settings.update': 'audit.actions.settingsUpdate',
   'chats.resolve_all': 'audit.actions.chatsResolveAll',
+  'chat.merge': 'audit.actions.chatMerge',
   'logs.download': 'audit.actions.logsDownload',
 } as const;
 

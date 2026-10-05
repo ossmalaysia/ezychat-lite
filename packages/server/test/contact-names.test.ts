@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WaContactAlias } from '@wa-team-inbox/wa';
+import { getAliases } from '../src/chats/aliases.js';
 import { ChatRepo } from '../src/chats/repo.js';
 import { createChatService } from '../src/chats/service.js';
 import { getChats } from '../src/wa-bridge/index.js';
@@ -109,28 +110,33 @@ describe('contact names and explicit WhatsApp identities', () => {
     expect(chats.get(LID)?.name).toBe('Alice Updated');
   });
 
-  it('rejects conflicting and malformed mappings without combining different people', () => {
+  it('re-points a recycled phone number for future routing without combining different people', () => {
     const chats = getChats(t.ctx);
     const otherPN = '60222222222@s.whatsapp.net';
     const otherLID = '987654321@lid';
+    chats.upsertFromWa({ jid: LID, type: 'dm', name: null });
+    chats.upsertFromWa({ jid: otherLID, type: 'dm', name: null });
     chats.upsertContacts([
-      { jid: PN, savedName: 'Alice', pushName: null },
-      { jid: otherPN, savedName: 'Bob', pushName: null },
+      { jid: LID, savedName: 'Alice', pushName: null },
+      { jid: otherLID, savedName: 'Bob', pushName: null },
     ]);
     chats.upsertContactAliases([
       { jid: PN, alias: LID },
       { jid: otherPN, alias: otherLID },
     ]);
     chats.upsertContactAliases([
-      { jid: LID, alias: otherPN },
       { jid: PN, alias: otherLID },
       { jid: PN, alias: 'letters@lid' },
     ]);
-    chats.upsertFromWa({ jid: LID, type: 'dm', name: null });
-    chats.upsertFromWa({ jid: otherLID, type: 'dm', name: null });
-    chats.upsertContacts([{ jid: PN, savedName: 'Alice Updated', pushName: null }]);
-    expect(chats.get(LID)?.name).toBe('Alice Updated');
-    expect(chats.get(otherLID)?.name).toBe('Bob');
+    expect(getAliases(t.ctx).resolve(PN)).toBe(otherLID);
+    expect(chats.get(LID)).toMatchObject({ name: 'Alice', phone: null });
+    expect(chats.get(otherLID)).toMatchObject({ name: 'Bob', phone: '60111111111' });
+    expect(
+      chats
+        .list({ assigned: 'any', limit: 10 }, 1)
+        .chats.map((c) => c.jid)
+        .sort(),
+    ).toEqual([LID, otherLID]);
     expect(new ChatRepo(t.ctx.db).getContact('letters@lid')).toBeNull();
   });
 
@@ -183,7 +189,7 @@ describe('contact names and explicit WhatsApp identities', () => {
     t.wa.setConnected(false);
     finish([{ jid: LID, alias: PN }]);
     await settle();
-    expect(chats.get(LID)?.name).toBe('123456789');
+    expect(chats.get(LID)?.name).toBe('');
     lookup.mockResolvedValue([{ jid: LID, alias: PN }]);
     t.wa.setConnected(true);
     await settle();

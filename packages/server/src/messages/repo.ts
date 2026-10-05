@@ -20,6 +20,8 @@ export interface MessageRow {
   timestamp: number;
   created_at: number;
   client_id: string | null;
+  /** JID WhatsApp used for this message (PN or LID); replies and read receipts go back to it */
+  wa_remote_jid: string | null;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -49,7 +51,12 @@ export function rowToMessage(r: MessageRow): Message {
 }
 
 /** Chat list preview: body truncated to 120 chars or a media label. */
-export function previewOf(m: { type: MessageType; body: string | null; media_name?: string | null; mediaName?: string | null }): string {
+export function previewOf(m: {
+  type: MessageType;
+  body: string | null;
+  media_name?: string | null;
+  mediaName?: string | null;
+}): string {
   const name = m.media_name ?? m.mediaName ?? null;
   const label = (l: string) => (m.body ? `${l} ${truncate(m.body, 100)}` : l);
   switch (m.type) {
@@ -73,17 +80,29 @@ function truncate(s: string, n: number): string {
   return flat.length > n ? `${flat.slice(0, n - 1)}…` : flat;
 }
 
-export const STATUS_RANK: Record<MessageStatus, number> = { pending: 0, failed: 0, sent: 1, delivered: 2, read: 3 };
+export const STATUS_RANK: Record<MessageStatus, number> = {
+  pending: 0,
+  failed: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+};
 
 export class MessageRepo {
   constructor(private readonly db: DB) {}
 
   get(id: string): MessageRow | null {
-    return (this.db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as MessageRow | undefined) ?? null;
+    return (
+      (this.db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as MessageRow | undefined) ??
+      null
+    );
   }
 
   byClientId(clientId: string): MessageRow | null {
-    return (this.db.prepare('SELECT * FROM messages WHERE client_id = ?').get(clientId) as MessageRow | undefined) ?? null;
+    return (
+      (this.db.prepare('SELECT * FROM messages WHERE client_id = ?').get(clientId) as
+        MessageRow | undefined) ?? null
+    );
   }
 
   exists(id: string): boolean {
@@ -95,9 +114,11 @@ export class MessageRepo {
     const info = this.db
       .prepare(
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
-           media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id)
+           media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
+           wa_remote_jid)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
-           @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id)`,
+           @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
+           @wa_remote_jid)`,
       )
       .run(r);
     return info.changes > 0;
@@ -119,7 +140,11 @@ export class MessageRepo {
   }
 
   /** Newest first, strictly before (ts,id) if given. */
-  pageDesc(chatJid: string, before: { ts: number; id: string } | null, limit: number): MessageRow[] {
+  pageDesc(
+    chatJid: string,
+    before: { ts: number; id: string } | null,
+    limit: number,
+  ): MessageRow[] {
     if (before) {
       return this.db
         .prepare(
@@ -133,9 +158,22 @@ export class MessageRepo {
       .all(chatJid, limit) as MessageRow[];
   }
 
+  /** The JID WhatsApp used for the newest inbound message of a chat (where replies should go). */
+  lastInboundRemoteJid(chatJid: string): string | null {
+    const r = this.db
+      .prepare(
+        `SELECT wa_remote_jid FROM messages WHERE chat_jid = ? AND from_me = 0 AND wa_remote_jid IS NOT NULL
+         ORDER BY timestamp DESC, id DESC LIMIT 1`,
+      )
+      .get(chatJid) as { wa_remote_jid: string } | undefined;
+    return r?.wa_remote_jid ?? null;
+  }
+
   pendingLocal(): MessageRow[] {
     return this.db
-      .prepare("SELECT * FROM messages WHERE status = 'pending' AND id LIKE 'local-%' ORDER BY created_at ASC")
+      .prepare(
+        "SELECT * FROM messages WHERE status = 'pending' AND id LIKE 'local-%' ORDER BY created_at ASC",
+      )
       .all() as MessageRow[];
   }
 }
