@@ -158,6 +158,12 @@ export function mergeChat(
       // must run before DELETE FROM chats (cascade) and after the `to` row exists (foreign key)
       aiState: mergeAiState(db, from, to, fromNewer),
     };
+    if (isAiMember(db, assigneeDropped)) {
+      // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.
+      db.prepare(
+        'UPDATE ai_chat_state SET paused = 1, awaiting_confirmation = 0, due_at = NULL WHERE chat_jid = ?',
+      ).run(to);
+    }
     if (assigneeDropped !== null) {
       repo.insertEvent({
         chatJid: to,

@@ -70,24 +70,57 @@ describe('runBackup', () => {
   it('writes a labelled pre-merge backup that the daily rotation never deletes', () => {
     const now = new Date(2026, 9, 5, 9, 0);
     const file = runBackupSync(dir, db, now, { label: 'premerge' });
-    expect(file).toBe(join(dir, 'backups', 'app-premerge-20261005.db'));
+    expect(file).toBe(join(dir, 'backups', 'app-premerge-20261005-090000.db'));
     expect(
-      readFileSync(join(dir, 'backups', 'wa-auth-premerge-20261005', 'creds.json'), 'utf8'),
+      readFileSync(join(dir, 'backups', 'wa-auth-premerge-20261005-090000', 'creds.json'), 'utf8'),
     ).toBe('{"a":1}');
     for (let d = 6; d <= 14; d++) runBackupSync(dir, db, new Date(2026, 9, d, 3, 0));
     const names = readdirSync(join(dir, 'backups'));
-    expect(names).toContain('app-premerge-20261005.db');
+    expect(names).toContain('app-premerge-20261005-090000.db');
     expect(names.filter((n) => /^app-\d{8}\.db$/.test(n))).toHaveLength(7);
     expect(hasBackupFor(dir, now)).toBe(false);
   });
 
   it('removes pre-merge backups after 30 days', () => {
     runBackupSync(dir, db, new Date(2026, 9, 5), { label: 'premerge' });
+    // a pre-merge backup in the older date-only format is pruned too
+    mkdirSync(join(dir, 'backups', 'wa-auth-premerge-20261004'));
+    writeFileSync(join(dir, 'backups', 'app-premerge-20261004.db'), '');
     runBackupSync(dir, db, new Date(2026, 10, 3));
-    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005.db'))).toBe(true);
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005-000000.db'))).toBe(true);
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261004.db'))).toBe(true);
+    runBackupSync(dir, db, new Date(2026, 10, 4));
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261004.db'))).toBe(false);
+    expect(existsSync(join(dir, 'backups', 'wa-auth-premerge-20261004'))).toBe(false);
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005-000000.db'))).toBe(true);
     runBackupSync(dir, db, new Date(2026, 10, 5));
-    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005.db'))).toBe(false);
-    expect(existsSync(join(dir, 'backups', 'wa-auth-premerge-20261005'))).toBe(false);
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005-000000.db'))).toBe(false);
+    expect(existsSync(join(dir, 'backups', 'wa-auth-premerge-20261005-000000'))).toBe(false);
+  });
+
+  it('never overwrites a labelled backup: two on the same day (even the same second) both remain', () => {
+    const first = runBackupSync(dir, db, new Date(2026, 9, 5, 9, 0), { label: 'premerge' });
+    db.exec('INSERT INTO t VALUES (43)');
+    const second = runBackupSync(dir, db, new Date(2026, 9, 5, 9, 0), { label: 'premerge' });
+    const third = runBackupSync(dir, db, new Date(2026, 9, 5, 14, 30, 5), { label: 'premerge' });
+    expect([first, second, third]).toEqual([
+      join(dir, 'backups', 'app-premerge-20261005-090000.db'),
+      join(dir, 'backups', 'app-premerge-20261005-090000-2.db'),
+      join(dir, 'backups', 'app-premerge-20261005-143005.db'),
+    ]);
+    const rows = (f: string) => {
+      const copy = new Database(f, { readonly: true });
+      const n = (copy.prepare('SELECT COUNT(*) AS n FROM t').get() as { n: number }).n;
+      copy.close();
+      return n;
+    };
+    expect([rows(first), rows(second)]).toEqual([1, 2]);
+    expect(existsSync(join(dir, 'backups', 'wa-auth-premerge-20261005-090000-2'))).toBe(true);
+  });
+
+  it.each(['', 'Pre-merge', '../x', 'pre merge'])('rejects the backup label %j', (label) => {
+    expect(() => runBackupSync(dir, db, new Date(2026, 9, 5), { label })).toThrow(/label/);
+    expect(existsSync(join(dir, 'backups'))).toBe(false);
   });
 
   it('refuses to run inside a transaction', () => {

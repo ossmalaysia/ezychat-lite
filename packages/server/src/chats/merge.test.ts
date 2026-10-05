@@ -342,4 +342,23 @@ describe('mergeChat', () => {
       ]);
     },
   );
+  it('pauses the merged AI state when a teammate takes the chat from the AI Sales Agent', () => {
+    seedChat(PN, { assigned_to: 3 });
+    seedChat(LID, { assigned_to: 2 });
+    seedMessages(PN, 1, 3000);
+    seedMessages(LID, 1, 2000);
+    aiState(PN, { customer: `${PN}#0`, dueAt: 9000 });
+    const r = mergeChat(db, PN, LID, { now: 5000 })!;
+    expect(r).toMatchObject({ assignedTo: 2, assigneeDropped: 3 });
+    expect(db.prepare('SELECT * FROM ai_chat_state').all()).toEqual([
+      {
+        chat_jid: LID,
+        paused: 1,
+        awaiting_confirmation: 0,
+        last_customer_message_id: `${PN}#0`,
+        last_replied_message_id: null,
+        due_at: null,
+      },
+    ]);
+  });
 });
