@@ -109,7 +109,9 @@ export function ConversationHeader({
               <SelectItem key={u.id} value={String(u.id)} className="min-h-11 md:min-h-8">
                 {u.id === directory.me?.id
                   ? t('header.you', { name: u.displayName })
-                  : u.displayName}
+                  : u.kind === 'ai'
+                    ? t('header.ai', { name: u.displayName })
+                    : u.displayName}
               </SelectItem>
             ))}
           </SelectContent>

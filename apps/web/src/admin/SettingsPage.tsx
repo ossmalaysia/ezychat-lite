@@ -17,6 +17,7 @@ import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
 import { ErrorState, Field, Pending } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
+import { AiMemberPanel } from './AiMemberPanel';
 
 export function SettingsPage() {
   const settings = useSettings();
@@ -28,6 +29,7 @@ export function SettingsPage() {
   const [lanDraft, setLanEnabled] = useState<boolean>();
   const [historyDraft, setHistoryDays] = useState<string>();
   const [restartRequired, setRestartRequired] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   if (settings.isPending)
     return (
@@ -76,6 +78,19 @@ export function SettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title={t('settings.title')} />
+
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle>{t('ai.settingsTitle')}</CardTitle>
+          <CardDescription>{t('ai.settingsDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" size="touch" onClick={() => setAiOpen(true)}>
+            {t('ai.configure')}
+          </Button>
+        </CardContent>
+      </Card>
+      {aiOpen && <AiMemberPanel section="connection" onClose={() => setAiOpen(false)} />}
 
       {restartRequired && (
         <Banner tone="warning" title={t('settings.restartTitle')}>

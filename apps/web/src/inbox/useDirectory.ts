@@ -35,7 +35,12 @@ export function buildDirectory(
     nameOf(id, opts) {
       if (id == null) return null;
       if (opts?.youLabel && me && id === me.id) return i18n.t('inbox:directory.you');
-      return byId.get(id)?.displayName ?? i18n.t('inbox:directory.agent', { id });
+      const user = byId.get(id);
+      return user
+        ? user.kind === 'ai'
+          ? i18n.t('inbox:directory.ai', { name: user.displayName })
+          : user.displayName
+        : i18n.t('inbox:directory.agent', { id });
     },
   };
 }

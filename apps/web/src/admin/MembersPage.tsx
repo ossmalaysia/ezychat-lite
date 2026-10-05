@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import {
+  Bot,
   KeyRound,
   LogOut,
   MoreHorizontal,
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
 import type { Role, User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
+import { AiMemberPanel } from './AiMemberPanel';
 import {
   useCreateUser,
   usePatchUser,
@@ -62,6 +64,7 @@ import {
 
 type Dialog =
   | { kind: 'create' }
+  | { kind: 'ai' }
   | { kind: 'edit'; user: User }
   | { kind: 'reset'; user: User }
   | { kind: 'revoke'; user: User }
@@ -79,7 +82,9 @@ export function MembersPage() {
   const all = users.data ?? [];
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${u.role}`.toLocaleLowerCase().includes(query),
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? t('ai.roleBadge') : ''}`
+      .toLocaleLowerCase()
+      .includes(query),
   );
 
   const columns: Column<User>[] = [
@@ -88,7 +93,16 @@ export function MembersPage() {
       header: t('members.columns.member'),
       cell: (u) => <MemberIdentity user={u} isMe={u.id === me?.id} />,
     },
-    { key: 'role', header: t('members.columns.role'), cell: (u) => <RoleBadge role={u.role} /> },
+    {
+      key: 'role',
+      header: t('members.columns.role'),
+      cell: (u) =>
+        u.kind === 'ai' ? (
+          <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
+        ) : (
+          <RoleBadge role={u.role} />
+        ),
+    },
     { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
     {
       key: 'created',
@@ -106,15 +120,32 @@ export function MembersPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold tracking-tight">{t('members.title')}</h1>
-          <Button size="touch" className="md:min-h-9" onClick={() => setDialog({ kind: 'create' })}>
-            <UserPlus aria-hidden />
-            {t('members.add')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
+              <Button
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => setDialog({ kind: 'ai' })}
+              >
+                <Bot aria-hidden />
+                {t('ai.addMember')}
+              </Button>
+            )}
+            <Button
+              size="touch"
+              className="md:min-h-9"
+              onClick={() => setDialog({ kind: 'create' })}
+            >
+              <UserPlus aria-hidden />
+              {t('members.add')}
+            </Button>
+          </div>
         </div>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {t('members.description')}
+          {t('ai.membersDescription')}
         </p>
       </div>
 
@@ -147,7 +178,11 @@ export function MembersPage() {
                 <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
               </div>
               <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                <RoleBadge role={u.role} />
+                {u.kind === 'ai' ? (
+                  <Badge variant="secondary">{t('ai.roleBadge')}</Badge>
+                ) : (
+                  <RoleBadge role={u.role} />
+                )}
                 <StatusBadges user={u} />
               </div>
               <p className="pl-11 text-xs text-muted-foreground">
@@ -181,6 +216,7 @@ export function MembersPage() {
         />
       )}
 
+      {dialog?.kind === 'ai' && <AiMemberPanel onClose={close} />}
       {dialog?.kind === 'create' && (
         <CreateMemberDialog
           onClose={close}
@@ -236,7 +272,9 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
             </span>
           )}
         </p>
-        <p className="truncate text-sm text-muted-foreground">@{user.username}</p>
+        <p className="truncate text-sm text-muted-foreground">
+          {user.kind === 'ai' ? t('ai.assistant') : `@${user.username}`}
+        </p>
       </div>
     </div>
   );
@@ -290,52 +328,54 @@ function RowActions({
         aria-label={
           compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
         }
-        onClick={() => onAction({ kind: 'edit', user })}
+        onClick={() => onAction(user.kind === 'ai' ? { kind: 'ai' } : { kind: 'edit', user })}
       >
         <Pencil aria-hidden />
         {!compact && t('common:actions.edit')}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon-touch"
-            variant="ghost"
-            className={compact ? undefined : 'md:size-8'}
-            aria-label={t('members.actions.moreFor', { name: user.displayName })}
-          >
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            className="min-h-11 md:min-h-8"
-            onSelect={() => onAction({ kind: 'reset', user })}
-          >
-            <KeyRound aria-hidden />
-            {t('members.actions.resetPassword')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="min-h-11 md:min-h-8"
-            onSelect={() => onAction({ kind: 'revoke', user })}
-          >
-            <LogOut aria-hidden />
-            {t('members.actions.signOutEverywhere')}
-          </DropdownMenuItem>
-          {!isMe && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="min-h-11 md:min-h-8"
-                variant={user.disabled ? 'default' : 'destructive'}
-                onSelect={() => onAction({ kind: 'disable', user })}
-              >
-                {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
-                {user.disabled ? t('members.actions.enable') : t('members.actions.disable')}
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {user.kind !== 'ai' && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon-touch"
+              variant="ghost"
+              className={compact ? undefined : 'md:size-8'}
+              aria-label={t('members.actions.moreFor', { name: user.displayName })}
+            >
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="min-h-11 md:min-h-8"
+              onSelect={() => onAction({ kind: 'reset', user })}
+            >
+              <KeyRound aria-hidden />
+              {t('members.actions.resetPassword')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11 md:min-h-8"
+              onSelect={() => onAction({ kind: 'revoke', user })}
+            >
+              <LogOut aria-hidden />
+              {t('members.actions.signOutEverywhere')}
+            </DropdownMenuItem>
+            {!isMe && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="min-h-11 md:min-h-8"
+                  variant={user.disabled ? 'default' : 'destructive'}
+                  onSelect={() => onAction({ kind: 'disable', user })}
+                >
+                  {user.disabled ? <UserCheck aria-hidden /> : <UserX aria-hidden />}
+                  {user.disabled ? t('members.actions.enable') : t('members.actions.disable')}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

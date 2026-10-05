@@ -68,6 +68,7 @@ interface UserRow {
   password_hash: string;
   role: Role;
   must_change_password: number;
+  kind: 'human' | 'ai';
   disabled_at: number | null;
   created_at: number;
   locale: string | null;
@@ -79,6 +80,8 @@ export function rowToUser(r: UserRow): User {
     username: r.username,
     displayName: r.display_name,
     role: r.role,
+    kind: r.kind,
+    ...(r.kind === 'ai' ? { aiRole: 'sales' as const } : {}),
     mustChangePassword: r.must_change_password === 1,
     disabled: r.disabled_at !== null,
     createdAt: r.created_at,
@@ -180,7 +183,7 @@ export function createAuthService(
       if (!c.ok) throw errors.rateLimited(c.retryAfterSec);
       const row = q.byName.get(username) as UserRow | undefined;
       let ok = false;
-      if (row) ok = await verifyPassword(row.password_hash, password);
+      if (row && row.kind !== 'ai') ok = await verifyPassword(row.password_hash, password);
       else await dummyVerify(password);
       if (!row || !ok) {
         limiter.recordFailure(username, ip);
@@ -188,7 +191,12 @@ export function createAuthService(
       }
       // Argon2 yields: a reset, disable or role change may have happened during verification.
       const current = getRow(row.id);
-      if (!current || current.disabled_at !== null || current.password_hash !== row.password_hash) {
+      if (
+        !current ||
+        current.kind === 'ai' ||
+        current.disabled_at !== null ||
+        current.password_hash !== row.password_hash
+      ) {
         throw errors.unauthorized('Invalid username or password');
       }
       limiter.recordSuccess(username);
@@ -197,6 +205,8 @@ export function createAuthService(
     },
 
     createSession(userId, meta) {
+      const row = getRow(userId);
+      if (!row || row.kind === 'ai' || row.disabled_at !== null) throw errors.unauthorized();
       const token = randomToken(32);
       const t = now();
       q.sessionInsert.run(sha256(token), userId, t, t, meta.userAgent.slice(0, 512), meta.ip);
@@ -214,7 +224,7 @@ export function createAuthService(
         return null;
       }
       const row = getRow(s.user_id);
-      if (!row || row.disabled_at !== null) return null;
+      if (!row || row.kind === 'ai' || row.disabled_at !== null) return null;
       if (t - s.last_seen_at >= LAST_SEEN_THROTTLE_MS) q.sessionTouch.run(t, h);
       return rowToUser(row);
     },
@@ -252,6 +262,8 @@ export function createAuthService(
 
     async resetPassword(userId, actorToken) {
       if (!getRow(userId)) throw errors.notFound('User');
+      if (getRow(userId)!.kind === 'ai')
+        throw errors.validation('AI members do not have passwords');
       const password = generatePassword(12);
       const passwordHash = await hashPassword(password);
       const actor = this.resolveSession(actorToken);
@@ -269,6 +281,8 @@ export function createAuthService(
     updateUser(id, patch, actorId) {
       const row = getRow(id);
       if (!row) throw errors.notFound('User');
+      if (row.kind === 'ai' && patch.role && patch.role !== 'agent')
+        throw errors.validation('AI members cannot be admins');
       const isActiveAdmin = row.role === 'admin' && row.disabled_at === null;
       const demoting = patch.role === 'agent' && row.role === 'admin';
       const disabling = patch.disabled === true && row.disabled_at === null;

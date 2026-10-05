@@ -1,7 +1,7 @@
 {
   "name": "@wa-team-inbox/desktop",
   "productName": "EzyChat Lite",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc -p .",
     "start": "npm run build -w @wa-team-inbox/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron .",
-    "dist": "node ../../scripts/fetch-cloudflared.mjs && node ../../scripts/fetch-winsw.mjs && npm run build -w @wa-team-inbox/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron-builder --config electron-builder.yml",
+    "dist": "node ../../scripts/fetch-cloudflared.mjs && node ../../scripts/fetch-winsw.mjs && node ../../scripts/fetch-codex.mjs && npm run build -w @wa-team-inbox/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron-builder --config electron-builder.yml",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "bundle:server": "node ../../scripts/bundle-server.mjs"

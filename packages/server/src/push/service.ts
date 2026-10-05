@@ -134,7 +134,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     ),
     delOwn: db.prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?'),
     delById: db.prepare('DELETE FROM push_subscriptions WHERE id = ?'),
-    activeUsers: db.prepare('SELECT id FROM users WHERE disabled_at IS NULL'),
+    activeUsers: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND kind = 'human'"),
     activeAdmins: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND role = 'admin'"),
     activeUser: db.prepare('SELECT id FROM users WHERE id = ? AND disabled_at IS NULL'),
     subsFor: db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?'),

@@ -2,7 +2,8 @@
   "retrying": "Mencuba semula…",
   "directory": {
     "you": "Anda",
-    "agent": "Ejen #{{id}}"
+    "agent": "Ejen #{{id}}",
+    "ai": "{{name}} (AI)"
   },
   "page": {
     "chats": "Sembang",
@@ -63,7 +64,8 @@
     "notesTitle": "Nota dalaman",
     "notes": "Nota",
     "reopen": "Buka semula",
-    "resolve": "Selesai"
+    "resolve": "Selesai",
+    "ai": "{{name}} (AI Ejen Jualan)"
   },
   "conversation": {
     "loading": "Memuatkan sembang",

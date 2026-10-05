@@ -24,6 +24,8 @@ export interface BusEvents {
   'user:role-changed': [number, Role];
   /** for push routing */
   'inbound:notify': [{ chat: Chat; message: Message }];
+  /** Live WhatsApp receipt, before media downloads; automation must react to arrival order. */
+  'message:received': [{ chat: Chat; message: Message }];
 }
 
 type Listener<K extends keyof BusEvents> = (...args: BusEvents[K]) => void;

@@ -42,6 +42,7 @@ const external = [
   'utf-8-validate',
   'pino-pretty',
   'supports-color',
+  '@napi-rs/canvas',
 ];
 
 rmSync(outDir, { recursive: true, force: true });
@@ -69,13 +70,33 @@ const result = await build({
   },
 });
 
+// Upload parsing runs in a bounded worker rather than blocking the WhatsApp/auth server.
+await build({
+  entryPoints: [join(root, 'packages/server/src/ai/document-worker.ts')],
+  outfile: join(outDir, 'ai-document-worker.cjs'),
+  bundle: true,
+  platform: 'node',
+  target: 'node22',
+  format: 'cjs',
+  external,
+  mainFields: ['module', 'main'],
+  conditions: ['node', 'import', 'require', 'default'],
+  logLevel: 'warning',
+  legalComments: 'linked',
+});
+
 // migrations: db/migrate.ts looks for ./migrations next to the running file
-cpSync(join(root, 'packages', 'server', 'src', 'db', 'migrations'), join(outDir, 'migrations'), { recursive: true });
+cpSync(join(root, 'packages', 'server', 'src', 'db', 'migrations'), join(outDir, 'migrations'), {
+  recursive: true,
+});
 
 // The root package.json version is the single source of truth (npm run version:sync copies it
 // into apps/desktop, apps/web and packages/*), so /api/health reports the same version as the app.
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
-writeFileSync(join(outDir, 'package.json'), JSON.stringify({ type: 'commonjs', private: true, version }, null, 2) + '\n');
+writeFileSync(
+  join(outDir, 'package.json'),
+  JSON.stringify({ type: 'commonjs', private: true, version }, null, 2) + '\n',
+);
 // The server's appVersion() reads <dir of running file>/../package.json, i.e. dist/package.json.
 // Keep "type": "module" there so the tsc-compiled dist/main.js etc. stay ESM.
 writeFileSync(

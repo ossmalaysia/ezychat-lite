@@ -2,7 +2,8 @@
   "retrying": "正在重试…",
   "directory": {
     "you": "你",
-    "agent": "客服 #{{id}}"
+    "agent": "客服 #{{id}}",
+    "ai": "{{name}}（AI）"
   },
   "page": {
     "chats": "聊天",
@@ -63,7 +64,8 @@
     "notesTitle": "内部备注",
     "notes": "备注",
     "reopen": "重新打开",
-    "resolve": "解决"
+    "resolve": "解决",
+    "ai": "{{name}}（AI 销售客服）"
   },
   "conversation": {
     "loading": "正在加载聊天",

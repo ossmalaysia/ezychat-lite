@@ -26,6 +26,7 @@ test-results/
 # downloaded binaries
 resources/cloudflared/*/cloudflared*
 resources/winsw/*.exe
+resources/codex/**
 
 # misc
 .DS_Store

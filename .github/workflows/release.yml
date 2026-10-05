@@ -45,6 +45,7 @@ jobs:
       - run: node scripts/fetch-cloudflared.mjs
       - run: node scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
+      - run: node scripts/fetch-codex.mjs --target ${{ matrix.platform == 'win' && 'win32-x64' || format('darwin-{0}', matrix.arch) }}
       - run: npm run build -w @wa-team-inbox/web
       - run: node scripts/bundle-server.mjs
       - run: npm run build -w @wa-team-inbox/desktop

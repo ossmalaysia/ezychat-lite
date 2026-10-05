@@ -2,7 +2,8 @@
   "retrying": "Retrying…",
   "directory": {
     "you": "You",
-    "agent": "Agent #{{id}}"
+    "agent": "Agent #{{id}}",
+    "ai": "{{name}} (AI)"
   },
   "page": {
     "chats": "Chats",
@@ -65,7 +66,8 @@
     "notesTitle": "Internal notes",
     "notes": "Notes",
     "reopen": "Reopen",
-    "resolve": "Resolve"
+    "resolve": "Resolve",
+    "ai": "{{name}} (AI Sales Agent)"
   },
   "conversation": {
     "loading": "Loading chat",
