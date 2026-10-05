@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
@@ -29,6 +29,31 @@ const draftFrom = (s: AiSettings): AiKnowledgeDraft => ({
   notes: s.notes,
   faqs: s.faqs,
 });
+const draftKey = (s: AiMemberStatus) => `wati.ai-draft.${s.member?.id ?? 'new'}`;
+/** Unsaved edits survive leaving the page (the app's router cannot block navigation). */
+function readStoredDraft(key: string): AiKnowledgeDraft | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = AiMemberBody.pick({
+      displayName: true,
+      instructions: true,
+      notes: true,
+      faqs: true,
+    }).safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+function writeStoredDraft(key: string, draft: AiKnowledgeDraft | null) {
+  try {
+    if (draft) sessionStorage.setItem(key, JSON.stringify(draft));
+    else sessionStorage.removeItem(key);
+  } catch {
+    /* storage unavailable: edits just are not restored */
+  }
+}
 const same = (a: AiKnowledgeDraft, b: AiKnowledgeDraft) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Members ▸ AI Sales Agent: set up, test and turn on the AI member (replaces the popup). */
@@ -54,10 +79,27 @@ function AiMemberEditor({
   const reasonId = useId();
   const action = useAiMemberAction();
   // Polling and saves never replace what the admin is typing.
-  const [draft, setDraft] = useState<AiKnowledgeDraft>(() => draftFrom(status.settings));
+  const [draft, setDraft] = useState<AiKnowledgeDraft>(
+    () => readStoredDraft(draftKey(status)) ?? draftFrom(status.settings),
+  );
   const [saved, setSaved] = useState<AiKnowledgeDraft>(() => draftFrom(status.settings));
   const [localError, setLocalError] = useState<string | null>(null);
   const dirty = !same(draft, saved);
+  const storeKey = draftKey(status);
+  useEffect(() => {
+    if (dirty) writeStoredDraft(storeKey, draft);
+    else {
+      writeStoredDraft(storeKey, null);
+      writeStoredDraft('wati.ai-draft.new', null);
+    }
+  }, [dirty, draft, storeKey]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  const uploading = useRef(false);
   const enabled = Boolean(status.member && !status.member.disabled);
   const pill = memberPill(status, draft);
   const ready = connectionReady(status);
@@ -107,6 +149,15 @@ function AiMemberEditor({
   };
 
   const upload = async (file: File) => {
+    if (uploading.current) return;
+    uploading.current = true;
+    try {
+      await uploadFile(file);
+    } finally {
+      uploading.current = false;
+    }
+  };
+  const uploadFile = async (file: File) => {
     setLocalError(null);
     if (!/\.(txt|md|pdf|docx)$/i.test(file.name)) {
       setLocalError(t('ai.fileTypeError'));
@@ -127,7 +178,7 @@ function AiMemberEditor({
       <nav aria-label={t('ai.page.breadcrumb')} className="flex items-center gap-1 text-sm">
         <Link
           to="/admin/members"
-          className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex items-center text-muted-foreground underline-offset-4 hover:text-foreground hover:underline pointer-coarse:min-h-11"
         >
           {t('nav.members')}
         </Link>
@@ -236,7 +287,7 @@ function AiMemberEditor({
         <span>{t('ai.page.connectionLine', { state: connectionText })}</span>
         <Link
           to="/admin/settings/ai"
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
         >
           {t('ai.page.openSettings')}
         </Link>

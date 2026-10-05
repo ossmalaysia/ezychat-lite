@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -111,6 +111,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -246,5 +247,94 @@ describe('AI member page', () => {
     expect(screen.getByRole('link', { name: 'Members' }).getAttribute('href')).toBe(
       '/admin/members',
     );
+  });
+
+  it('restores unsaved edits after leaving for Settings → AI and coming back', async () => {
+    sessionStorage.clear();
+    const first = setup();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Business notes'), 'Delivery RM10');
+    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).notes).toBe('Delivery RM10');
+    await user.click(screen.getAllByRole('link', { name: 'Settings → AI' })[0]!);
+    expect(screen.getByTestId('location').textContent).toBe('/admin/settings/ai');
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    first.fetchMock.mockClear();
+    setup();
+    expect(((await screen.findByLabelText('Business notes')) as HTMLTextAreaElement).value).toBe(
+      'Delivery RM10',
+    );
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+    sessionStorage.clear();
+  });
+
+  it('clears the stored draft once saved', async () => {
+    sessionStorage.clear();
+    setup();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Business notes'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
+  });
+
+  it('ignores a second file pick while the draft is being saved', async () => {
+    const initial = status();
+    initial.member = null;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const { fetchMock } = setup(initial, (url, init, current) => {
+      if (url === '/api/ai' && init?.method === 'PUT')
+        return gate.then(() => json({ ...current, member: aiUser })) as unknown as Response;
+      if (url === '/api/ai/documents' && init?.method === 'POST') return json(current);
+      return undefined;
+    });
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('Upload business document');
+    await user.upload(input, new File(['a'], 'a.md', { type: 'text/markdown' }));
+    await user.upload(input, new File(['b'], 'b.md', { type: 'text/markdown' }));
+    release();
+    await waitFor(() =>
+      expect(writes(fetchMock).some((c) => c[0] === '/api/ai/documents')).toBe(true),
+    );
+    expect(writes(fetchMock).filter((c) => c[1]!.method === 'PUT')).toHaveLength(1);
+    expect(writes(fetchMock).filter((c) => c[0] === '/api/ai/documents')).toHaveLength(1);
+  });
+
+  it('shows a Try it server failure and an API error', async () => {
+    let n = 0;
+    setup(status(), (url, init) => {
+      if (url !== '/api/ai/try' || init?.method !== 'POST') return undefined;
+      return n++ === 0
+        ? json({ ok: false, reply: null, action: null, model: null, error: 'quota used up' })
+        : json({ error: { code: 'ai_unavailable', message: 'AI is not connected' } }, 409);
+    });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Customer question'), 'Hi?');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    await screen.findByText('Could not answer: quota used up');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    await screen.findByText('AI is not connected');
+  });
+
+  it('Turn off saves the member as disabled', async () => {
+    const initial = status();
+    initial.member = { ...aiUser, disabled: false };
+    initial.settings.enabled = true;
+    initial.settings.notes = 'Delivery RM10';
+    const { fetchMock } = setup(initial);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Turn off' }));
+    await screen.findByRole('button', { name: 'Turn on' });
+    const puts = writes(fetchMock);
+    expect(JSON.parse(String(puts[0]![1]!.body))).toMatchObject({ enabled: false });
+    expect(screen.getByText('Off')).toBeTruthy();
   });
 });

@@ -263,7 +263,10 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
       <div className="min-w-0">
         <p className="font-medium [overflow-wrap:anywhere] md:truncate">
           {user.kind === 'ai' ? (
-            <Link to="/admin/members/ai" className="underline-offset-4 hover:underline">
+            <Link
+              to="/admin/members/ai"
+              className="inline-flex items-center underline-offset-4 hover:underline pointer-coarse:min-h-11"
+            >
               {user.displayName}
             </Link>
           ) : (
