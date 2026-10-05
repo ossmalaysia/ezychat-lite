@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { backupStamp, hasBackupFor, runBackup } from './backup.js';
+import { backupStamp, hasBackupFor, runBackup, runBackupSync } from './backup.js';
 
 describe('runBackup', () => {
   let dir: string;
@@ -66,5 +66,33 @@ describe('runBackup', () => {
     expect(dbs[0]).toBe('app-20261004.db');
     expect(dbs[6]).toBe('app-20261010.db');
     expect(auths[0]).toBe('wa-auth-20261004');
+  });
+  it('writes a labelled pre-merge backup that the daily rotation never deletes', () => {
+    const now = new Date(2026, 9, 5, 9, 0);
+    const file = runBackupSync(dir, db, now, { label: 'premerge' });
+    expect(file).toBe(join(dir, 'backups', 'app-premerge-20261005.db'));
+    expect(
+      readFileSync(join(dir, 'backups', 'wa-auth-premerge-20261005', 'creds.json'), 'utf8'),
+    ).toBe('{"a":1}');
+    for (let d = 6; d <= 14; d++) runBackupSync(dir, db, new Date(2026, 9, d, 3, 0));
+    const names = readdirSync(join(dir, 'backups'));
+    expect(names).toContain('app-premerge-20261005.db');
+    expect(names.filter((n) => /^app-\d{8}\.db$/.test(n))).toHaveLength(7);
+    expect(hasBackupFor(dir, now)).toBe(false);
+  });
+
+  it('removes pre-merge backups after 30 days', () => {
+    runBackupSync(dir, db, new Date(2026, 9, 5), { label: 'premerge' });
+    runBackupSync(dir, db, new Date(2026, 10, 3));
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005.db'))).toBe(true);
+    runBackupSync(dir, db, new Date(2026, 10, 5));
+    expect(existsSync(join(dir, 'backups', 'app-premerge-20261005.db'))).toBe(false);
+    expect(existsSync(join(dir, 'backups', 'wa-auth-premerge-20261005'))).toBe(false);
+  });
+
+  it('refuses to run inside a transaction', () => {
+    expect(() => db.transaction(() => runBackupSync(dir, db, new Date(2026, 9, 5)))()).toThrow(
+      /transaction/,
+    );
   });
 });

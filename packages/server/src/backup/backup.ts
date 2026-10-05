@@ -30,14 +30,35 @@ function prune(dir: string, re: RegExp, keep: number): void {
   }
 }
 
+/** Days a pre-merge backup (`app-premerge-YYYYMMDD.db`) is kept; the daily rotation ignores it. */
+export const PREMERGE_KEEP_DAYS = 30;
+
+function prunePremerge(dir: string, now: Date): void {
+  // Calendar days (not 30 * 24h) so a DST change cannot shift the cutoff by a day.
+  const cutoff = backupStamp(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - PREMERGE_KEEP_DAYS),
+  );
+  for (const n of readdirSync(dir)) {
+    const m = /^(?:app|wa-auth)-premerge-(\d{8})(?:\.db)?$/.exec(n);
+    if (m && m[1]! < cutoff) rmSync(join(dir, n), { recursive: true, force: true });
+  }
+}
+
 /**
- * Nightly backup: `VACUUM INTO backups/app-YYYYMMDD.db` (same-day backup overwritten) and a copy of
- * `wa-auth` → `backups/wa-auth-YYYYMMDD/`. Keeps the newest 7 of each. Returns the db backup path.
+ * Synchronous backup: `VACUUM INTO backups/app-[label-]YYYYMMDD.db` plus a copy of `wa-auth`.
+ * Must not run inside a SQLite transaction (VACUUM INTO fails there). Daily backups keep the newest
+ * 7; labelled pre-merge backups are kept PREMERGE_KEEP_DAYS days. Returns the db backup path.
  */
-export async function runBackup(dataDir: string, db: DB, now: Date = new Date()): Promise<string> {
+export function runBackupSync(
+  dataDir: string,
+  db: DB,
+  now: Date = new Date(),
+  opts: { label?: string } = {},
+): string {
+  if (db.inTransaction) throw new Error('runBackupSync cannot run inside a SQLite transaction');
   const dir = backupsDir(dataDir);
   mkdirSync(dir, { recursive: true });
-  const stamp = backupStamp(now);
+  const stamp = opts.label ? `${opts.label}-${backupStamp(now)}` : backupStamp(now);
 
   const dbFile = join(dir, `app-${stamp}.db`);
   rmSync(dbFile, { force: true });
@@ -52,5 +73,11 @@ export async function runBackup(dataDir: string, db: DB, now: Date = new Date())
 
   prune(dir, /^app-\d{8}\.db$/, BACKUP_KEEP);
   prune(dir, /^wa-auth-\d{8}$/, BACKUP_KEEP);
+  prunePremerge(dir, now);
   return dbFile;
+}
+
+/** Nightly backup (see runBackupSync). */
+export async function runBackup(dataDir: string, db: DB, now: Date = new Date()): Promise<string> {
+  return runBackupSync(dataDir, db, now);
 }
