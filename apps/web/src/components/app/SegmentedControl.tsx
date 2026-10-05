@@ -48,7 +48,9 @@ export function SegmentedControl<V extends string>({
           htmlFor={`${base}-${option.value}`}
           className={cn(
             'inline-flex cursor-pointer items-center justify-center text-sm font-medium whitespace-nowrap transition-colors',
-            size === 'sm' ? 'h-8 px-2.5' : 'h-9 px-4',
+            size === 'sm'
+              ? 'h-8 px-2.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11'
+              : 'h-9 px-4 pointer-coarse:min-h-11',
             'border-l border-input first:border-l-0',
             'bg-muted text-muted-foreground hover:text-foreground',
             'has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:text-primary-foreground',

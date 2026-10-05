@@ -48,3 +48,24 @@ it('moves selection with the arrow keys', async () => {
   await waitFor(() => expect(onValueChange).toHaveBeenCalledWith('b'));
   await user.keyboard('{/ArrowRight}');
 });
+
+it('keeps a 44px minimum touch target on coarse pointers for both sizes', () => {
+  render(
+    <>
+      <SegmentedControl value="a" onValueChange={vi.fn()} options={options} aria-labelledby="x" />
+      <SegmentedControl
+        size="sm"
+        value="a"
+        onValueChange={vi.fn()}
+        options={[{ value: 's', label: 'Small' }]}
+        aria-labelledby="y"
+      />
+    </>,
+  );
+  expect(screen.getByText('Alpha').closest('label')?.className).toContain(
+    'pointer-coarse:min-h-11',
+  );
+  expect(screen.getByText('Small').closest('label')?.className).toContain(
+    'pointer-coarse:min-h-11',
+  );
+});
