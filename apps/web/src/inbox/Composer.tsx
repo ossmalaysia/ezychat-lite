@@ -384,7 +384,7 @@ export function Composer({
           <p className="min-w-0 flex-1 py-1.5">{t(VOICE_ERROR_KEY[voiceError])}</p>
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-touch"
             aria-label={t('composer.voice.dismiss')}
             onClick={voice.dismiss}
             className="shrink-0 text-muted-foreground"

@@ -61,6 +61,7 @@ export function mapWAMessage(
   let body: string | null = null;
   let ctx: ContextCarrier | null | undefined;
   let media: { mime: string; fileName: string | null } | null = null;
+  let voice: boolean | undefined;
 
   if (content.conversation != null) {
     type = 'text';
@@ -85,6 +86,7 @@ export function mapWAMessage(
     const m = content.audioMessage;
     type = 'audio';
     ctx = m;
+    voice = m.ptt === true;
     media = {
       mime: m.mimetype ?? (m.ptt ? 'audio/ogg; codecs=opus' : 'audio/mpeg'),
       fileName: null,
@@ -128,5 +130,6 @@ export function mapWAMessage(
     quotedId,
     timestamp,
     media: media ? { ...media, download: () => download(raw) } : null,
+    ...(voice === undefined ? {} : { voice }),
   };
 }

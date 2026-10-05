@@ -158,4 +158,59 @@ describe('useVoiceRecorder', () => {
     hook.unmount();
     expect(m.trackStop).toHaveBeenCalled();
   });
+
+  it('can record again straight after cancelling, before the old recorder has stopped', async () => {
+    const m = installMediaMocks();
+    FakeMediaRecorder.asyncStop = true;
+    const { result } = await startRecording();
+    await act(async () => {
+      vi.advanceTimersByTime(1_500);
+    });
+    act(() => {
+      result.current.cancel();
+      result.current.start();
+    });
+    await flush();
+    expect(m.getUserMedia).toHaveBeenCalledTimes(2);
+    expect(FakeMediaRecorder.instances).toHaveLength(2);
+    // the first recorder's late stop event must not reset the new recording
+    await act(async () => {
+      vi.advanceTimersByTime(1_200);
+    });
+    expect(result.current.state.status).toBe('recording');
+    expect(m.createObjectURL).not.toHaveBeenCalled();
+    act(() => result.current.stop());
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(result.current.state.status).toBe('review');
+  });
+
+  it('a microphone that answers after cancel is released and does not disturb a new start', async () => {
+    const m = installMediaMocks();
+    let answer!: (s: unknown) => void;
+    m.getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          answer = r;
+        }),
+    );
+    const { result } = renderHook(() => useVoiceRecorder());
+    act(() => result.current.start());
+    expect(result.current.state.status).toBe('starting');
+    act(() => {
+      result.current.cancel();
+      result.current.start();
+    });
+    await flush();
+    expect(result.current.state.status).toBe('recording');
+    const stale = vi.fn();
+    await act(async () => {
+      answer({ getTracks: () => [{ stop: stale }] });
+    });
+    await flush();
+    expect(stale).toHaveBeenCalled();
+    expect(result.current.state.status).toBe('recording');
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+  });
 });

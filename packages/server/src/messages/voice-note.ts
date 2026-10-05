@@ -17,7 +17,13 @@ export class VoiceNoteError extends Error {
 export const VOICE_NOTE_TOLERANCE_SECONDS = 1;
 
 const OPUS_RATE = 48_000;
-const MAX_PACKET_BYTES = 64 * 1024;
+/**
+ * Largest real Opus packet (6 frames × 1275 bytes, rounded up to 60 KiB). It must stay below one OGG
+ * page's lacing capacity (255 × 255 = 65,025 bytes) because the muxer never splits a packet.
+ */
+const MAX_PACKET_BYTES = 61_440;
+const MAX_PRE_SKIP = 0xffff;
+const MONO_ONLY = 'Voice notes must be mono';
 const DEFAULT_PRE_SKIP = 312;
 
 export interface OpusStream {
@@ -71,9 +77,7 @@ function parseOpusHead(head: Buffer): { channels: number; preSkip: number } {
   const channels = head[9]!;
   const mapping = head[18]!;
   if (version >> 4 !== 0) throw new VoiceNoteError('Voice note uses an unsupported Opus version');
-  if (channels < 1 || channels > 2 || mapping !== 0) {
-    throw new VoiceNoteError('Voice note must be mono or stereo Opus audio');
-  }
+  if (channels !== 1 || mapping !== 0) throw new VoiceNoteError(MONO_ONLY);
   return { channels, preSkip: head.readUInt16LE(10) };
 }
 
@@ -220,6 +224,8 @@ export function writeOggOpus(s: OpusStream, serial = 0x45_5a_43_4c): Buffer {
   };
   for (const p of s.packets) {
     const n = laceCount(p);
+    // a packet must fit on one page (the muxer does not continue packets across pages)
+    if (n > 255) throw new VoiceNoteError('Voice note contains an invalid Opus packet');
     if (page.length && (segs + n > 255 || pageSamples >= OPUS_RATE)) flush(false);
     page.push(p);
     segs += n;
@@ -358,13 +364,14 @@ export function readWebmOpus(buf: Buffer): OpusStream {
     ({ channels, preSkip } = parseOpusHead(head));
   } else {
     channels = audio.channels ?? 1;
-    if (channels < 1 || channels > 2) {
-      throw new VoiceNoteError('Voice note must be mono or stereo Opus audio');
-    }
+    if (channels !== 1) throw new VoiceNoteError(MONO_ONLY);
     preSkip =
       audio.codecDelayNs !== undefined
         ? Math.round((audio.codecDelayNs * OPUS_RATE) / 1e9)
         : DEFAULT_PRE_SKIP;
+    if (!Number.isSafeInteger(preSkip) || preSkip > MAX_PRE_SKIP) {
+      throw new VoiceNoteError('Voice note has an invalid Opus pre-skip');
+    }
     head = buildOpusHead(channels, preSkip);
   }
   const trackNo = audio.number ?? 1;

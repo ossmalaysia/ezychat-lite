@@ -458,7 +458,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         type: m.type,
         body: m.body,
         media_path: null,
-        media_mime: m.media?.mime ?? null,
+        // The voice-note MIME type marks a voice note (isVoiceRow), so it is kept only when WhatsApp
+        // reported push-to-talk; other OGG/Opus audio is stored as plain 'audio/ogg'.
+        media_mime: m.media
+          ? m.media.mime === VOICE_NOTE_MIME && !m.voice
+            ? 'audio/ogg'
+            : m.media.mime
+          : null,
         media_name: m.media?.fileName ?? null,
         media_status: m.media ? 'pending' : 'none',
         quoted_id: m.quotedId,

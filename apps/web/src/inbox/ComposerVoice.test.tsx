@@ -116,5 +116,9 @@ describe('Composer voice notes', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/Microphone access is blocked/);
     expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
+    const dismiss = screen.getByRole('button', { name: 'Dismiss' });
+    expect(dismiss.className).toContain('size-11'); // 44px touch target
+    await user.click(dismiss);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

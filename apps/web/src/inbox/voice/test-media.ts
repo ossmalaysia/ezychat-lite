@@ -4,6 +4,8 @@ import { vi } from 'vitest';
 export class FakeMediaRecorder {
   static instances: FakeMediaRecorder[] = [];
   static supported: string[] = ['audio/webm;codecs=opus'];
+  /** like real browsers: deliver the data and `stop` event on a later task */
+  static asyncStop = false;
   static isTypeSupported(type: string): boolean {
     return FakeMediaRecorder.supported.includes(type);
   }
@@ -29,8 +31,12 @@ export class FakeMediaRecorder {
   stop(): void {
     if (this.state === 'inactive') return;
     this.state = 'inactive';
-    this.ondataavailable?.({ data: new Blob(['opus-bytes'], { type: this.mimeType }) });
-    this.onstop?.();
+    const finish = () => {
+      this.ondataavailable?.({ data: new Blob(['opus-bytes'], { type: this.mimeType }) });
+      this.onstop?.();
+    };
+    if (FakeMediaRecorder.asyncStop) setTimeout(finish, 0);
+    else finish();
   }
 }
 
@@ -49,6 +55,7 @@ export function installMediaMocks(
   o: { supported?: string[]; secure?: boolean; deny?: string } = {},
 ): MediaMocks {
   FakeMediaRecorder.instances = [];
+  FakeMediaRecorder.asyncStop = false;
   FakeMediaRecorder.supported = o.supported ?? ['audio/webm;codecs=opus'];
   const trackStop = vi.fn();
   const getUserMedia = vi.fn(async () => {

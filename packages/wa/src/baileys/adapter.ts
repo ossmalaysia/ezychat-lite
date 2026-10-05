@@ -63,7 +63,6 @@ export function isConnectionError(err: unknown): boolean {
   );
 }
 
-/** Per-participant group receipt → our status (read wins over delivered). */
 /**
  * Baileys message content for an outgoing file. A voice note is push-to-talk OGG/Opus with its
  * length, so the phone shows it inline with a waveform instead of as an audio file.
@@ -89,6 +88,7 @@ export function mediaContent(file: WaSendFile): AnyMessageContent {
   return { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
 }
 
+/** Per-participant group receipt → our status (read wins over delivered). */
 export function receiptStatus(
   r: MessageUserReceiptUpdate['receipt'],
 ): WaMessageStatusUpdate['status'] | null {

@@ -18,6 +18,8 @@ export interface WaIncomingMessage {
   /** epoch ms */
   timestamp: number;
   media: null | { mime: string; fileName: string | null; download: () => Promise<Buffer> };
+  /** audio only: WhatsApp reported push-to-talk (`audioMessage.ptt`), i.e. a voice note */
+  voice?: boolean;
 }
 
 export interface WaChatInfo {

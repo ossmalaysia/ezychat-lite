@@ -251,4 +251,54 @@ describe('voice notes', () => {
     expect(t.wa.sent[0]!.ptt).toBeUndefined();
     expect(t.wa.presences.some((p) => p.presence === 'composing')).toBe(true);
   });
+
+  describe('received audio', () => {
+    async function ingestAudio(id: string, voice: boolean | undefined, mime = VOICE_NOTE_MIME) {
+      return getMessages(t.ctx).ingest(
+        {
+          id,
+          chatJid: JID,
+          senderJid: JID,
+          senderName: 'Gus',
+          fromMe: false,
+          type: 'audio',
+          body: null,
+          quotedId: null,
+          timestamp: 1_700_000_100_000,
+          media: { mime, fileName: null, download: async () => oggOpus(opusPackets(1)) },
+          ...(voice === undefined ? {} : { voice }),
+        },
+        'live',
+      );
+    }
+
+    it('a WhatsApp push-to-talk note is labelled as a voice note, also after reloading', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const m = await ingestAudio('IN-PTT', true);
+      expect(m?.voice).toBe(true);
+      const list = await t.app.inject({
+        method: 'GET',
+        url: `/api/chats/${enc(JID)}/messages`,
+        headers: { cookie },
+      });
+      const listed = (list.json() as { messages: Message[] }).messages.find(
+        (x) => x.id === 'IN-PTT',
+      );
+      expect(listed?.voice).toBe(true);
+      expect(listed?.mediaMime).toBe(VOICE_NOTE_MIME);
+    });
+
+    it('an OGG/Opus audio file that is not push-to-talk is not labelled', async () => {
+      const m = await ingestAudio('IN-FILE', false);
+      expect(m?.voice).toBeFalsy();
+      expect(m?.mediaMime).toBe('audio/ogg');
+      expect((await ingestAudio('IN-UNKNOWN', undefined))?.voice).toBeFalsy();
+    });
+
+    it('push-to-talk with another audio type is not labelled', async () => {
+      const m = await ingestAudio('IN-PTT-MP4', true, 'audio/mp4');
+      expect(m?.voice).toBeFalsy();
+      expect(m?.mediaMime).toBe('audio/mp4');
+    });
+  });
 });

@@ -76,6 +76,12 @@ function uint(id: number, v: number): Buffer {
   return el(id, b);
 }
 
+function u64(v: bigint): Buffer {
+  const b = Buffer.alloc(8);
+  b.writeBigUInt64BE(v);
+  return b;
+}
+
 function str(id: number, v: string): Buffer {
   return el(id, Buffer.from(v, 'latin1'));
 }
@@ -89,6 +95,8 @@ export interface WebmOptions {
   laced?: boolean;
   /** a video track before the audio track */
   withVideoTrack?: boolean;
+  /** CodecDelay element in nanoseconds (8-byte unsigned) */
+  codecDelayNs?: bigint;
 }
 
 /** Chrome MediaRecorder-style WebM: live (unknown-size) Segment and Clusters of SimpleBlocks. */
@@ -105,6 +113,7 @@ export function webmOpus(packets: Buffer[], o: WebmOptions = {}): Buffer {
       uint(0x83, 2),
       str(0x86, o.codecId ?? 'A_OPUS'),
       ...(o.codecPrivate === false ? [] : [el(0x63a2, opusHead(channels))]),
+      ...(o.codecDelayNs === undefined ? [] : [el(0x56aa, u64(o.codecDelayNs))]),
       el(0xe1, Buffer.concat([uint(0x9f, channels)])),
     ]),
   );

@@ -195,6 +195,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
       quotedId: p.quotedId ?? null,
       timestamp: p.timestamp ?? Date.now(),
       media: p.media ?? null,
+      ...(p.voice === undefined ? {} : { voice: p.voice }),
     };
     this.emitTyped('message', msg, { source: 'live' });
     return msg;

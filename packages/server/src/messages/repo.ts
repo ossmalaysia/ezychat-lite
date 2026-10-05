@@ -31,9 +31,10 @@ export interface MessageRow {
 }
 
 /**
- * A WhatsApp voice note: audio stored with exactly the voice-note MIME type. Received notes get it
- * from WhatsApp (`ptt`), inbox recordings from POST /voice; ordinary attachments never do (an
- * `.opus` file is stored as `audio/ogg`).
+ * A WhatsApp voice note: audio stored with exactly the voice-note MIME type. Writers keep that type
+ * only for voice notes: received audio only when WhatsApp reported push-to-talk (`ptt`), inbox
+ * recordings from POST /voice; any other OGG/Opus audio (incl. attached `.opus` files) is stored as
+ * `audio/ogg`. This persists the ptt flag without a new column.
  */
 export function isVoiceRow(r: Pick<MessageRow, 'type' | 'media_mime'>): boolean {
   return r.type === 'audio' && r.media_mime === VOICE_NOTE_MIME;

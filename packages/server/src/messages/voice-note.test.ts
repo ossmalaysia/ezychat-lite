@@ -82,8 +82,8 @@ describe('prepareVoiceNote', () => {
     const vorbis = Buffer.concat([Buffer.from([1]), Buffer.from('vorbis'), Buffer.alloc(23)]);
     reject(oggOpus(opusPackets(1), { firstPacket: vorbis }), /not Opus/);
     reject(webmOpus(opusPackets(1), { codecId: 'A_VORBIS' }), /not Opus/);
-    reject(webmOpus(opusPackets(1), { channels: 6 }), /mono or stereo/);
-    reject(oggOpus(opusPackets(1), { channels: 3 }), /mono or stereo/);
+    reject(webmOpus(opusPackets(1), { channels: 6 }), /must be mono/);
+    reject(oggOpus(opusPackets(1), { channels: 3 }), /must be mono/);
     reject(webmOpus(opusPackets(1), { laced: true }), /lacing/);
     reject(webmOpus([]), /empty/);
     reject(oggOpus([]), /empty/);
@@ -99,5 +99,36 @@ describe('prepareVoiceNote', () => {
     const webm = webmOpus(opusPackets(2));
     const note = prepareVoiceNote(webm.subarray(0, webm.length - 2));
     expect(note.seconds).toBeGreaterThan(1.7);
+  });
+
+  it('rejects stereo recordings: WhatsApp voice notes are mono', () => {
+    expect(() => prepareVoiceNote(webmOpus(opusPackets(1), { channels: 2 }))).toThrow(
+      'Voice notes must be mono',
+    );
+    expect(() => prepareVoiceNote(oggOpus(opusPackets(1), { channels: 2 }))).toThrow(
+      'Voice notes must be mono',
+    );
+    expect(() =>
+      prepareVoiceNote(webmOpus(opusPackets(1), { channels: 2, codecPrivate: false })),
+    ).toThrow('Voice notes must be mono');
+  });
+
+  it('rejects a packet larger than one OGG page can carry (65,030 bytes)', () => {
+    const packets = [...opusPackets(1), opus20ms(65_029)];
+    expect(packets.at(-1)!.length).toBe(65_030);
+    expect(() => prepareVoiceNote(webmOpus(packets))).toThrow(VoiceNoteError);
+    expect(() => prepareVoiceNote(webmOpus(packets))).toThrow(/invalid Opus packet/);
+  });
+
+  it('keeps the largest real Opus packet (61,440 bytes) on a valid, re-parsable page', () => {
+    const packets = [opus20ms(), opus20ms(61_439), opus20ms(), opus20ms(61_439)];
+    const note = prepareVoiceNote(webmOpus(packets));
+    expect(readOggOpus(note.ogg).packets).toEqual(packets);
+  });
+
+  it('rejects an impossible codec delay instead of crashing', () => {
+    const webm = webmOpus(opusPackets(1), { codecPrivate: false, codecDelayNs: 2n ** 52n });
+    expect(() => prepareVoiceNote(webm)).toThrow(VoiceNoteError);
+    expect(() => prepareVoiceNote(webm)).toThrow(/pre-skip/);
   });
 });

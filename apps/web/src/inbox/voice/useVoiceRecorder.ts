@@ -66,6 +66,22 @@ interface Session {
   aborted: boolean;
 }
 
+function release(s: Session): void {
+  if (s.timer) clearInterval(s.timer);
+  s.timer = null;
+  for (const track of s.stream?.getTracks() ?? []) track.stop();
+  s.stream = null;
+}
+
+/** Abandons a session synchronously, so start() can begin a new one immediately. */
+function abandon(s: Session, session: { current: Session | null }): void {
+  s.discard = true;
+  s.aborted = true;
+  if (session.current === s) session.current = null;
+  if (s.recorder && s.recorder.state !== 'inactive') s.recorder.stop(); // its late stop event is ignored
+  release(s);
+}
+
 /**
  * Voice-note recorder state machine:
  * idle → starting (permission) → recording (timer, auto-stop at 5 min) → review (listen back)
@@ -76,13 +92,6 @@ export function useVoiceRecorder() {
   const session = useRef<Session | null>(null);
   const review = useRef<VoiceRecording | null>(null);
   const mounted = useRef(true);
-
-  const release = (s: Session) => {
-    if (s.timer) clearInterval(s.timer);
-    s.timer = null;
-    for (const track of s.stream?.getTracks() ?? []) track.stop();
-    s.stream = null;
-  };
 
   const set = (next: VoiceRecorderState) => {
     if (mounted.current) setState(next);
@@ -134,10 +143,8 @@ export function useVoiceRecorder() {
           const elapsed = Math.min(Date.now() - s.startedAt, MAX_MS);
           release(s);
           if (session.current === s) session.current = null;
-          if (s.discard) {
-            set({ status: 'idle' });
-            return;
-          }
+          // cancelled: cancel() already reset the state, and a new session may be running
+          if (s.discard) return;
           if (elapsed < MIN_MS) {
             set({ status: 'idle', error: 'too-short' });
             return;
@@ -155,6 +162,7 @@ export function useVoiceRecorder() {
           else URL.revokeObjectURL(recording.url);
         };
         recorder.onerror = () => {
+          if (s.discard) return;
           s.discard = true;
           release(s);
           if (session.current === s) session.current = null;
@@ -175,7 +183,7 @@ export function useVoiceRecorder() {
       .catch((err: unknown) => {
         if (session.current === s) session.current = null;
         release(s);
-        set(s.aborted ? { status: 'idle' } : { status: 'idle', error: errorFor(err) });
+        if (!s.aborted) set({ status: 'idle', error: errorFor(err) });
       });
   }, []);
 
@@ -186,16 +194,7 @@ export function useVoiceRecorder() {
 
   const cancel = useCallback(() => {
     const s = session.current;
-    if (s) {
-      s.discard = true;
-      s.aborted = true;
-      if (s.recorder && s.recorder.state !== 'inactive') {
-        s.recorder.stop();
-      } else {
-        release(s);
-        session.current = null;
-      }
-    }
+    if (s) abandon(s, session);
     clearReview();
     set({ status: 'idle' });
   }, []);
@@ -218,13 +217,7 @@ export function useVoiceRecorder() {
     return () => {
       mounted.current = false;
       const s = session.current;
-      if (s) {
-        s.discard = true;
-        s.aborted = true;
-        if (s.recorder && s.recorder.state !== 'inactive') s.recorder.stop();
-        else release(s);
-        session.current = null;
-      }
+      if (s) abandon(s, session);
       clearReview();
     };
   }, []);
