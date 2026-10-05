@@ -13,6 +13,10 @@ import {
   QuickReplySchema,
   SettingsPatchBody,
   SetupAdminBody,
+  SendVoiceFields,
+  VOICE_NOTE_MAX_BYTES,
+  VOICE_NOTE_MAX_SECONDS,
+  VOICE_NOTE_MIME,
   type Message,
 } from './index.js';
 
@@ -133,5 +137,47 @@ describe('shared schemas', () => {
       FakeIncomingBody.parse({ chatJid: '60111@s.whatsapp.net', text: 'hi', chatJidAlt: '1@lid' })
         .chatJidAlt,
     ).toBe('1@lid');
+  });
+});
+
+describe('voice notes', () => {
+  const base: Message = {
+    id: 'V1',
+    chatJid: '60123456789@s.whatsapp.net',
+    senderJid: null,
+    senderName: null,
+    fromMe: true,
+    sentByUserId: 1,
+    type: 'audio',
+    body: null,
+    mediaUrl: '/api/media/V1',
+    mediaMime: VOICE_NOTE_MIME,
+    mediaName: null,
+    mediaStatus: 'ok',
+    quotedId: null,
+    status: 'pending',
+    error: null,
+    timestamp: 1_700_000_000_000,
+    clientId: 'c-v',
+  };
+
+  it('MessageSchema carries an optional voice flag', () => {
+    expect(MessageSchema.parse({ ...base, voice: true }).voice).toBe(true);
+    expect(MessageSchema.parse(base).voice).toBeUndefined();
+    expect(MessageSchema.safeParse({ ...base, voice: 'yes' }).success).toBe(false);
+  });
+
+  it('defines the WhatsApp voice-note format and limits', () => {
+    expect(VOICE_NOTE_MIME).toBe('audio/ogg; codecs=opus');
+    expect(VOICE_NOTE_MAX_SECONDS).toBe(300);
+    expect(VOICE_NOTE_MAX_BYTES).toBeGreaterThanOrEqual(5 * 1024 * 1024);
+    expect(VOICE_NOTE_MAX_BYTES).toBeLessThanOrEqual(16 * 1024 * 1024);
+  });
+
+  it('SendVoiceFields requires a clientId and accepts an optional quotedId', () => {
+    expect(SendVoiceFields.parse({ clientId: 'c-1' })).toEqual({ clientId: 'c-1' });
+    expect(SendVoiceFields.parse({ clientId: 'c-1', quotedId: 'Q' }).quotedId).toBe('Q');
+    expect(SendVoiceFields.safeParse({}).success).toBe(false);
+    expect(SendVoiceFields.safeParse({ clientId: 'x'.repeat(65) }).success).toBe(false);
   });
 });

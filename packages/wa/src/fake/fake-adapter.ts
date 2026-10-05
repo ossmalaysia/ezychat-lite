@@ -7,6 +7,7 @@ import {
   type WaAdapterEvents,
   type WaContactAlias,
   type WaIncomingMessage,
+  type WaPresence,
   type WaSendFile,
 } from '../types.js';
 
@@ -17,6 +18,9 @@ export interface FakeSentRecord {
   text?: string;
   file?: WaSendFile;
   id: string;
+  /** voice notes only: sent as push-to-talk, with the length in seconds */
+  ptt?: true;
+  seconds?: number;
 }
 
 /**
@@ -32,7 +36,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   readonly sent: FakeSentRecord[] = [];
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
-  readonly presences: Array<{ chatJid: string; presence: 'composing' | 'paused' }> = [];
+  readonly presences: Array<{ chatJid: string; presence: WaPresence }> = [];
 
   constructor(opts?: { autoOpen?: boolean }) {
     super();
@@ -129,7 +133,11 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   ): Promise<SendResult> {
     this.beforeSend();
     const id = `FAKE-OUT-${++this.outCounter}`;
-    this.sent.push({ chatJid, file, id });
+    this.sent.push(
+      file.voice
+        ? { chatJid, file, id, ptt: true, seconds: file.voice.seconds }
+        : { chatJid, file, id },
+    );
     this.media.set(id, file.buffer);
     return this.afterSend(chatJid, id);
   }
@@ -138,7 +146,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.reads.push({ chatJid, messageIds: [...messageIds] });
   }
 
-  async sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void> {
+  async sendPresence(chatJid: string, presence: WaPresence): Promise<void> {
     this.presences.push({ chatJid, presence });
   }
 

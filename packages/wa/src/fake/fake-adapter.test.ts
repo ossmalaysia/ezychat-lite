@@ -99,6 +99,31 @@ describe('FakeWaAdapter', () => {
     expect(wa.sent[0]).toEqual({ chatJid: '601111@s.whatsapp.net', file, id: res.id });
   });
 
+  it('sendMedia records a voice note as ptt with its length', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.connect();
+    const file = {
+      buffer: Buffer.from('OggS'),
+      mime: 'audio/ogg; codecs=opus',
+      fileName: 'voice.ogg',
+      voice: { seconds: 7 },
+    };
+    const res = await wa.sendMedia('601111@s.whatsapp.net', file);
+    expect(wa.sent[0]).toEqual({
+      chatJid: '601111@s.whatsapp.net',
+      file,
+      id: res.id,
+      ptt: true,
+      seconds: 7,
+    });
+  });
+
+  it('records recording presence', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.sendPresence('601111@s.whatsapp.net', 'recording');
+    expect(wa.presences).toEqual([{ chatJid: '601111@s.whatsapp.net', presence: 'recording' }]);
+  });
+
   it('simulateStatus merges and emits', () => {
     const wa = new FakeWaAdapter();
     const states: WaStatus[] = [];

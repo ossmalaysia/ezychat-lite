@@ -16,6 +16,8 @@ export interface SendJob {
   mime?: string;
   fileName?: string;
   caption?: string;
+  /** media jobs: send as a WhatsApp voice note (push-to-talk, 'recording' presence) */
+  voice?: boolean;
 }
 
 export interface SendQueueDeps {
@@ -48,7 +50,8 @@ function isUnavailable(err: unknown): boolean {
 /**
  * Outbound queue: FIFO per chat, chats processed concurrently.
  * Before each send: expired jobs fail; waits while disconnected (but never past expiry);
- * keeps >= spacingMs between sends in the same chat; sends 'composing' presence.
+ * keeps >= spacingMs between sends in the same chat; sends presence ('composing', or 'recording'
+ * for a voice note — chosen by the `presence` callback).
  */
 export class SendQueue {
   private readonly queues = new Map<string, SendJob[]>();

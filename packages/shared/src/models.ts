@@ -67,6 +67,8 @@ export const MessageSchema = z.object({
   error: z.string().nullable(),
   timestamp: z.number(),
   clientId: z.string().nullable(),
+  /** true for a WhatsApp voice note (push-to-talk audio), sent from the inbox or received */
+  voice: z.boolean().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

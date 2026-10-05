@@ -33,6 +33,7 @@ import {
   type WaAliasSource,
   type WaContactAlias,
   type WaMessageStatusUpdate,
+  type WaPresence,
   type WaSendFile,
 } from '../types.js';
 import { createAuthStore, type AuthStore } from './auth-store.js';
@@ -63,6 +64,31 @@ export function isConnectionError(err: unknown): boolean {
 }
 
 /** Per-participant group receipt → our status (read wins over delivered). */
+/**
+ * Baileys message content for an outgoing file. A voice note is push-to-talk OGG/Opus with its
+ * length, so the phone shows it inline with a waveform instead of as an audio file.
+ */
+export function mediaContent(file: WaSendFile): AnyMessageContent {
+  const { buffer, mime, fileName, caption, voice } = file;
+  if (voice) {
+    return {
+      audio: buffer,
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true,
+      seconds: Math.max(1, Math.round(voice.seconds)),
+    };
+  }
+  if (mime.startsWith('image/') && mime !== 'image/webp') {
+    return { image: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
+  }
+  if (mime === 'image/webp') return { sticker: buffer, mimetype: mime };
+  if (mime.startsWith('video/')) {
+    return { video: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
+  }
+  if (mime.startsWith('audio/')) return { audio: buffer, mimetype: mime };
+  return { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
+}
+
 export function receiptStatus(
   r: MessageUserReceiptUpdate['receipt'],
 ): WaMessageStatusUpdate['status'] | null {
@@ -671,20 +697,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   sendMedia(chatJid: string, file: WaSendFile, opts?: { quotedId?: string }): Promise<SendResult> {
-    const { buffer, mime, fileName, caption } = file;
-    let content: AnyMessageContent;
-    if (mime.startsWith('image/') && mime !== 'image/webp') {
-      content = { image: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
-    } else if (mime === 'image/webp') {
-      content = { sticker: buffer, mimetype: mime };
-    } else if (mime.startsWith('video/')) {
-      content = { video: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
-    } else if (mime.startsWith('audio/')) {
-      content = { audio: buffer, mimetype: mime };
-    } else {
-      content = { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
-    }
-    return this.send(chatJid, content, opts?.quotedId);
+    return this.send(chatJid, mediaContent(file), opts?.quotedId);
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {
@@ -698,7 +711,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     if (keys.length) await sock.readMessages(keys);
   }
 
-  async sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void> {
+  async sendPresence(chatJid: string, presence: WaPresence): Promise<void> {
     const sock = this.requireOpen();
     await sock.sendPresenceUpdate(presence, chatJid);
   }

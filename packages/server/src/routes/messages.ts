@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { MessageListQuery, SendTextBody } from '@wa-team-inbox/shared';
+import {
+  MessageListQuery,
+  SendTextBody,
+  SendVoiceFields,
+  VOICE_NOTE_MAX_BYTES,
+} from '@wa-team-inbox/shared';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
@@ -54,6 +59,35 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
     const msg = await messages.sendMedia(
       jid,
       { buffer: file.buffer, fileName: file.fileName, ...(f.caption ? { caption: f.caption } : {}), ...(f.quotedId ? { quotedId: f.quotedId } : {}) },
+      req.user!.id,
+      f.clientId,
+    );
+    return reply.status(201).send(msg);
+  });
+
+  // Voice notes recorded in the inbox: validated and remuxed to OGG/Opus (messages/voice-note.ts).
+  app.post('/chats/:jid/voice', async (req, reply) => {
+    const jid = chatJidParam(ctx, req.params);
+    if (!req.isMultipart()) throw errors.validation('Expected multipart/form-data');
+    const fields: Record<string, string> = {};
+    let buffer: Buffer | null = null;
+    // a smaller cap than other media; exceeding it fails the upload with 413
+    for await (const part of req.parts({ limits: { fileSize: VOICE_NOTE_MAX_BYTES, files: 1 } })) {
+      if (part.type === 'file') {
+        if (part.fieldname !== 'file' || buffer) {
+          part.file.resume();
+          continue;
+        }
+        buffer = await part.toBuffer();
+      } else if (typeof part.value === 'string') {
+        fields[part.fieldname] = part.value;
+      }
+    }
+    if (!buffer) throw errors.validation('file is required');
+    const f = parse(SendVoiceFields, fields);
+    const msg = messages.sendVoice(
+      jid,
+      { buffer, ...(f.quotedId ? { quotedId: f.quotedId } : {}) },
       req.user!.id,
       f.clientId,
     );

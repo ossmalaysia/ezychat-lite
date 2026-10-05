@@ -3,12 +3,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
-import type {
-  Message,
-  MessageListQuery,
-  MessageStatus,
-  MessageType,
-  SendTextBody,
+import {
+  VOICE_NOTE_MIME,
+  type Message,
+  type MessageListQuery,
+  type MessageStatus,
+  type MessageType,
+  type SendTextBody,
 } from '@wa-team-inbox/shared';
 import type { SendResult, WaIncomingMessage, WaMessageStatusUpdate } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
@@ -17,9 +18,17 @@ import { getAliases } from '../chats/aliases.js';
 import { ChatRepo, rowToChat } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import { MediaStore } from './media-store.js';
-import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
+import {
+  MessageRepo,
+  isVoiceRow,
+  previewOf,
+  rowToMessage,
+  STATUS_RANK,
+  type MessageRow,
+} from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
+import { VoiceNoteError, prepareVoiceNote, voiceNoteSeconds } from './voice-note.js';
 
 export interface MediaFile {
   path: string;
@@ -41,6 +50,16 @@ export interface MessageService {
     userId: number,
     clientId: string,
   ): Promise<Message>;
+  /**
+   * Queue a recorded voice note (OGG/Opus or WebM/Opus from the browser). It is validated, stored
+   * as OGG/Opus and sent as a WhatsApp push-to-talk note.
+   */
+  sendVoice(
+    jid: string,
+    file: { buffer: Buffer; quotedId?: string },
+    userId: number,
+    clientId: string,
+  ): Message;
   retry(id: string, userId: number): Message;
   applyStatus(u: WaMessageStatusUpdate): void;
   mediaPath(id: string): MediaFile | null;
@@ -163,6 +182,20 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         );
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
+      const quoted = job.quotedId ? { quotedId: job.quotedId } : undefined;
+      if (job.voice) {
+        // the stored file is our own OGG/Opus remux; its length is re-read for restored jobs too
+        return ctx.wa.sendMedia(
+          job.targetJid,
+          {
+            buffer,
+            mime: VOICE_NOTE_MIME,
+            fileName: job.fileName ?? 'voice.ogg',
+            voice: { seconds: voiceNoteSeconds(buffer) },
+          },
+          quoted,
+        );
+      }
       return ctx.wa.sendMedia(
         job.targetJid,
         {
@@ -171,7 +204,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           fileName: job.fileName ?? 'file',
           ...(job.caption ? { caption: job.caption } : {}),
         },
-        job.quotedId ? { quotedId: job.quotedId } : undefined,
+        quoted,
       );
     })();
     try {
@@ -230,7 +263,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     onSent,
     onFailed,
     isConnected: () => ctx.wa.status.state === 'open',
-    presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),
+    presence: (job) => ctx.wa.sendPresence(job.targetJid, job.voice ? 'recording' : 'composing'),
     now,
     ...(deps?.queue ?? {}),
   });
@@ -294,6 +327,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         mime: r.media_mime ?? 'application/octet-stream',
         fileName: r.media_name ?? 'file',
         ...(r.body ? { caption: r.body } : {}),
+        ...(isVoiceRow(r) ? { voice: true } : {}),
       };
     }
     return { ...base, kind: 'text', text: r.body ?? '' };
@@ -538,7 +572,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
-      const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
+      const detected = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
+      // An attached .opus file stays an audio file: only POST /voice stores the voice-note type.
+      const mimeType = detected === VOICE_NOTE_MIME ? 'audio/ogg' : detected;
       const ext = sniffed?.ext ?? extFor(mimeType, file.fileName);
       const id = `local-${clientId}`;
       const rel = media.save(jid, id, file.buffer, ext);
@@ -556,6 +592,61 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_path: rel,
         media_mime: mimeType,
         media_name: file.fileName.slice(0, 255) || null,
+        media_status: 'ok',
+        quoted_id: file.quotedId ?? null,
+        status: 'pending',
+        error: null,
+        timestamp: t,
+        created_at: t,
+        client_id: clientId,
+        wa_remote_jid: replyTarget(jid),
+      });
+    },
+
+    sendVoice(jid, file, userId, clientId) {
+      const existing = repo.byClientId(clientId);
+      if (existing) return rowToMessage(existing);
+      requireChat(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      let note: ReturnType<typeof prepareVoiceNote>;
+      try {
+        note = prepareVoiceNote(file.buffer);
+      } catch (err) {
+        if (err instanceof VoiceNoteError) {
+          log.info(
+            { chatJid: jid, bytes: file.buffer.length, reason: err.message },
+            'voice note rejected',
+          );
+          throw errors.validation(err.message);
+        }
+        throw err;
+      }
+      const id = `local-${clientId}`;
+      const rel = media.save(jid, id, note.ogg, 'ogg');
+      const t = now();
+      log.info(
+        {
+          id,
+          chatJid: jid,
+          seconds: Math.round(note.seconds * 10) / 10,
+          channels: note.channels,
+          bytes: note.ogg.length,
+        },
+        'voice note queued',
+      );
+      claimIfUnassigned(jid, userId, t);
+      return insertOutgoing({
+        id,
+        chat_jid: jid,
+        sender_jid: ctx.wa.status.me?.jid ?? null,
+        sender_name: null,
+        from_me: 1,
+        sent_by_user_id: userId,
+        type: 'audio',
+        body: null,
+        media_path: rel,
+        media_mime: VOICE_NOTE_MIME,
+        media_name: null,
         media_status: 'ok',
         quoted_id: file.quotedId ?? null,
         status: 'pending',

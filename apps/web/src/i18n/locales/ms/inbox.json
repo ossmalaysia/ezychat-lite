@@ -91,7 +91,25 @@
     "attach": "Lampirkan fail",
     "message": "Mesej",
     "send": "Hantar",
-    "quickReplies": "Balasan pantas"
+    "quickReplies": "Balasan pantas",
+    "voice": {
+      "record": "Rakam nota suara",
+      "stop": "Henti rakaman",
+      "discard": "Buang nota suara",
+      "send": "Hantar nota suara",
+      "starting": "Memulakan mikrofon…",
+      "recording": "Merakam",
+      "limit": "Nota suara berhenti pada 5 minit.",
+      "preview": "Pratonton nota suara",
+      "denied": "Akses mikrofon disekat. Benarkan mikrofon untuk laman ini dalam tetapan pelayar, kemudian cuba lagi.",
+      "noMic": "Tiada mikrofon ditemui pada peranti ini.",
+      "failed": "Rakaman tidak dapat dimulakan. Cuba lagi.",
+      "tooShort": "Terlalu pendek. Rakam sekurang-kurangnya sesaat.",
+      "unavailable": "Nota suara tidak tersedia",
+      "unsupported": "Nota suara tidak boleh dirakam dalam pelayar ini. Gunakan Chrome, Edge atau Firefox.",
+      "insecure": "Nota suara memerlukan sambungan selamat (HTTPS). Buka peti masuk melalui alamat HTTPS.",
+      "dismiss": "Tutup"
+    }
   },
   "quickReplies": {
     "title": "Balasan pantas",
@@ -235,7 +253,8 @@
     "imageAlt": "Imej",
     "document": "Dokumen",
     "file": "Fail",
-    "fileDownload": "{{type}} · Muat turun"
+    "fileDownload": "{{type}} · Muat turun",
+    "voiceNote": "Nota suara"
   },
   "notes": {
     "title": "Nota dalaman",
