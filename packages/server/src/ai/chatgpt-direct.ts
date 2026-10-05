@@ -78,6 +78,7 @@ export class DirectChatGptProvider implements AiProvider {
   private modelCache: { at: number; models: BackendModel[] } | null = null;
   /** Bumped on sign-in/out so late refreshes or answers never resurrect old credentials. */
   private epoch = 0;
+  private readonly problemListeners = new Set<() => void>();
   private readonly inflight = new Set<AbortController>();
   private readonly log;
   private readonly fetchImpl: typeof fetch;
@@ -123,13 +124,31 @@ export class DirectChatGptProvider implements AiProvider {
     return { state: 'signed_out', loginUrl: null, error: null, email: null };
   }
 
+  onProblem(listener: () => void) {
+    this.problemListeners.add(listener);
+  }
+
   private setProblem(state: 'expired' | 'error', message: string) {
-    if (this.problem?.message !== message)
-      this.log.warn(
-        { event: state === 'expired' ? 'chatgpt_signin_expired' : 'chatgpt_connection_blocked' },
-        'ChatGPT connection unavailable',
-      );
+    const changed = this.problem?.message !== message;
     this.problem = { state, message };
+    if (!changed) return;
+    this.log.warn(
+      { event: state === 'expired' ? 'chatgpt_signin_expired' : 'chatgpt_connection_blocked' },
+      'ChatGPT connection unavailable',
+    );
+    for (const listener of this.problemListeners) {
+      try {
+        listener();
+      } catch {
+        // a listener must never break the provider
+      }
+    }
+  }
+
+  /** Invalidates in-flight work and any shared refresh started for the previous credentials. */
+  private bumpEpoch() {
+    this.epoch++;
+    this.refreshing = null;
   }
 
   /** Only one sign-in at a time: a new request cancels the previous one (its link stops working). */
@@ -186,7 +205,7 @@ export class DirectChatGptProvider implements AiProvider {
     try {
       const tokens = await exchangeCode(code, pending.verifier, this.fetchImpl);
       if (this.pending !== pending) return;
-      this.epoch++;
+      this.bumpEpoch();
       this.modelCache = null;
       this.saveTokens(tokens);
       this.problem = null;
@@ -251,7 +270,7 @@ export class DirectChatGptProvider implements AiProvider {
 
   async logout(): Promise<void> {
     if (this.pending) this.endLogin(this.pending, null);
-    this.epoch++;
+    this.bumpEpoch();
     for (const controller of this.inflight) controller.abort();
     this.inflight.clear();
     this.saveTokens(null);
@@ -279,7 +298,8 @@ export class DirectChatGptProvider implements AiProvider {
     )
       return Promise.resolve(current);
     const epoch = this.epoch;
-    this.refreshing ??= refreshTokens(current ?? stale, this.fetchImpl)
+    if (this.refreshing) return this.refreshing;
+    const shared: Promise<ChatGptTokens> = refreshTokens(current ?? stale, this.fetchImpl)
       .then((next) => {
         if (epoch !== this.epoch) throw new Error('ChatGPT signed out.');
         this.saveTokens(next);
@@ -296,12 +316,16 @@ export class DirectChatGptProvider implements AiProvider {
         }
         throw error;
       })
-      .finally(() => (this.refreshing = null));
-    return this.refreshing;
+      .finally(() => {
+        if (this.refreshing === shared) this.refreshing = null;
+      });
+    this.refreshing = shared;
+    return shared;
   }
 
   /** Runs a backend call, refreshing once on 401. */
   private async withAuth<T>(call: (tokens: ChatGptTokens) => Promise<T>): Promise<T> {
+    const epoch = this.epoch;
     const tokens = await this.auth();
     try {
       return await call(tokens);
@@ -312,7 +336,7 @@ export class DirectChatGptProvider implements AiProvider {
         return await call(fresh);
       } catch (retryError) {
         // A token that was just refreshed and is still refused means the sign-in is gone.
-        if (retryError instanceof BackendError && retryError.status === 401)
+        if (retryError instanceof BackendError && retryError.status === 401 && epoch === this.epoch)
           this.setProblem('expired', SIGN_IN_AGAIN);
         throw retryError;
       }
@@ -368,6 +392,7 @@ export class DirectChatGptProvider implements AiProvider {
     const controller = new AbortController();
     this.inflight.add(controller);
     const started = Date.now();
+    const epoch = this.epoch;
     const bounded = AbortSignal.any([signal, controller.signal, AbortSignal.timeout(60_000)]);
     try {
       const text = await this.withAuth((tokens) =>
@@ -394,8 +419,9 @@ export class DirectChatGptProvider implements AiProvider {
         'ChatGPT answer failed',
       );
       if (isBlocked(error)) {
-        this.setProblem('error', CHATGPT_BLOCKED);
-        throw new BackendError(CHATGPT_BLOCKED, status);
+        // A request from before a new sign-in must not mark the new connection broken.
+        if (epoch === this.epoch) this.setProblem('error', CHATGPT_BLOCKED);
+        throw new BackendError(CHATGPT_BLOCKED, status, false, { cause: error });
       }
       throw error;
     } finally {

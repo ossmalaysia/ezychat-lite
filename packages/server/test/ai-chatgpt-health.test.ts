@@ -114,7 +114,6 @@ describe('blocked or changed ChatGPT endpoint', () => {
           headers: { 'content-type': 'text/html' },
         }),
     ],
-    ['a body without events', () => new Response('<html>blocked</html>', { status: 200 })],
   ])(
     'marks the connection blocked on %s and recovers after a successful test',
     async (_name, blocked) => {
@@ -145,5 +144,97 @@ describe('blocked or changed ChatGPT endpoint', () => {
     await vi.waitFor(() => expect(provider.connection().error).toContain('timed out'));
     expect(provider.connection().state).toBe('connected');
     await provider.shutdown();
+  });
+
+  it('treats one empty event stream as a transient failure, not a block', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    const fetchMock = vi.fn(
+      async () =>
+        new Response('', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
+    );
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    await expect(ask(provider)).rejects.toThrow();
+    expect(provider.connection().state).toBe('connected');
+  });
+
+  it('notifies listeners once when the connection newly breaks', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    const fetchMock = vi.fn(async () => json({}, 403));
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const listener = vi.fn();
+    provider.onProblem(listener);
+    await expect(ask(provider)).rejects.toThrow();
+    await expect(ask(provider)).rejects.toThrow();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('requests that outlive a sign-out', () => {
+  it('does not mark a new sign-in blocked when an old request is refused later', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const fetchMock = vi.fn(async () => {
+      await gate;
+      return json({}, 403);
+    });
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const old = ask(provider);
+    const settled = old.catch(() => {});
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await provider.logout();
+    seedTokens(t.ctx);
+    release();
+    await settled;
+    expect(provider.connection().state).toBe('connected');
+  });
+
+  it('does not mark a new sign-in expired when an old retried request is refused later', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let answers = 0;
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url) === CHATGPT_OAUTH.tokenUrl)
+        return tokenResponse({ access_token: ACCESS_2, refresh_token: 'refresh-2' });
+      if (++answers === 2) await gate;
+      return json({ error: { code: 'token_expired' } }, 401);
+    });
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const settled = ask(provider).catch(() => {});
+    await vi.waitFor(() => expect(answers).toBe(2));
+    await provider.logout();
+    seedTokens(t.ctx);
+    release();
+    await settled;
+    expect(provider.connection().state).toBe('connected');
+  });
+
+  it('does not reuse a refresh that was started for a previous sign-in', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx, { expiresAt: Date.now() + 60_000 });
+    let tokenCalls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url) === CHATGPT_OAUTH.tokenUrl) {
+        if (++tokenCalls === 1) await gate;
+        return tokenResponse({ access_token: ACCESS_2, refresh_token: 'refresh-2' });
+      }
+      return answer('Hello');
+    });
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const stale = ask(provider).catch(() => {});
+    await vi.waitFor(() => expect(tokenCalls).toBe(1));
+    await provider.logout();
+    seedTokens(t.ctx, { expiresAt: Date.now() + 60_000 });
+    expect(await ask(provider)).toEqual({ reply: 'Hello', action: 'answer' });
+    expect(tokenCalls).toBe(2);
+    release();
+    await stale;
   });
 });

@@ -22,6 +22,8 @@ export interface AiProvider {
   /** Finishes a pending sign-in with the redirect address pasted from another computer. */
   submitCallbackUrl?(url: string): Promise<AiConnection>;
   logout(): Promise<void>;
+  /** Called whenever the connection newly becomes expired or blocked (not on every failure). */
+  onProblem?(listener: () => void): void;
   shutdown(): Promise<void>;
   /** EXPERIMENTAL direct ChatGPT sign-in: live model list (or the documented fallback). */
   models?(): Promise<AiModelList>;

@@ -26,8 +26,9 @@ export class BackendError extends Error {
     readonly status: number | null = null,
     /** The reply was not the expected event stream (e.g. an HTML block page). */
     readonly unexpected = false,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
   }
 }
 
@@ -168,7 +169,8 @@ export async function aggregateSse(events: AsyncIterable<SseEvent>): Promise<str
       }
     }
   }
-  if (!seen) throw new BackendError('ChatGPT returned an unexpected response.', null, true);
+  // A single empty stream is a transient failure; only a non-event-stream reply marks us blocked.
+  if (!seen) throw new BackendError('ChatGPT returned an empty answer. Try again.');
   throw new BackendError('ChatGPT ended its answer early.');
 }
 

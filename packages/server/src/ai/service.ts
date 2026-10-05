@@ -171,6 +171,9 @@ export function createAiService(
       chats.patch(row.jid, { assignedTo: null }, user.id);
     }
   };
+  provider.onProblem?.(() => {
+    if (!closed) releaseForConnection();
+  });
   const eligible = (jid: string): boolean => {
     const user = member();
     const chat = chats.get(jid);

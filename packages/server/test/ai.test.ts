@@ -593,3 +593,20 @@ it('passes through only known sign-in messages when pasting a sign-in address', 
   await expect(leaky).rejects.toThrow('ChatGPT sign-in failed. Try again.');
   await expect(leaky).rejects.not.toThrow(/secret/);
 });
+
+it('releases its own chats without messaging customers when the connection breaks outside an answer', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(ai.id);
+  const sent = t.wa.sent.length;
+  await t.ctx.services.ai!.shutdown();
+  let broke!: () => void;
+  provider.onProblem = (listener) => (broke = listener);
+  provider.connection = () => ({ state: 'error', loginUrl: null, error: 'blocked' });
+  t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
+  broke();
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+  expect(t.wa.sent).toHaveLength(sent);
+});
