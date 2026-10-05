@@ -6,7 +6,10 @@ import { useSetMyLocale } from '@/api/queries';
 import { useAuth } from '@/auth/AuthProvider';
 import { localeStore, useLocale } from './locale-store';
 
-/** Current language plus a setter that applies it here and saves it to the account when signed in. */
+/**
+ * Current language plus a setter that applies it here and, once it has loaded, saves it to the
+ * account when signed in.
+ */
 export function useChangeLocale() {
   const locale = useLocale();
   const { user } = useAuth();
@@ -15,8 +18,12 @@ export function useChangeLocale() {
   const signedIn = !!user;
   const changeLocale = useCallback(
     (next: Locale) => {
-      void localeStore.setLocale(next);
-      if (signedIn) mutate(next, { onError: () => toast.error(t('language.saveFailed')) });
+      localeStore.setLocale(next).then(
+        () => {
+          if (signedIn) mutate(next, { onError: () => toast.error(t('language.saveFailed')) });
+        },
+        () => toast.error(t('language.loadFailed')),
+      );
     },
     [signedIn, mutate, t],
   );

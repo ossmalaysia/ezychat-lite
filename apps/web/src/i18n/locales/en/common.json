@@ -45,7 +45,8 @@
   },
   "language": {
     "label": "Language",
-    "saveFailed": "Could not save your language preference"
+    "saveFailed": "Could not save your language preference",
+    "loadFailed": "Could not load that language. Reload the page and try again."
   },
   "account": {
     "menu": "Account menu",

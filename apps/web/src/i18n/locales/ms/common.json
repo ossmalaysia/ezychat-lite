@@ -45,7 +45,8 @@
   },
   "language": {
     "label": "Bahasa",
-    "saveFailed": "Tidak dapat menyimpan pilihan bahasa anda"
+    "saveFailed": "Tidak dapat menyimpan pilihan bahasa anda",
+    "loadFailed": "Tidak dapat memuatkan bahasa itu. Muat semula halaman dan cuba lagi."
   },
   "account": {
     "menu": "Menu akaun",

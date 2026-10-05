@@ -15,6 +15,7 @@
   var strings = null;
   var intlTag = 'en-GB';
   var lastUpdateState = null;
+  var appliedLocale = null;
 
   function tr(key, vars) {
     var text = (strings && strings[key]) || key;
@@ -28,11 +29,15 @@
     return !!(strings && Object.prototype.hasOwnProperty.call(strings, key));
   }
 
+  // Static text is written once per language: the status poll calls this every few seconds, and
+  // rewriting [data-i18n] elements would clobber text that renderUpdates() fills in at runtime.
   function applyStrings(s) {
-    var first = !strings;
+    var locale = s.locale || 'en';
+    if (strings && appliedLocale === locale) return;
+    appliedLocale = locale;
     strings = s.strings || {};
     intlTag = s.intlTag || 'en-GB';
-    if (s.locale) document.documentElement.lang = s.locale;
+    document.documentElement.lang = locale;
     if (strings.documentTitle) document.title = strings.documentTitle;
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
@@ -42,7 +47,7 @@
       var key = el.getAttribute('data-i18n-aria-label');
       if (has(key)) el.setAttribute('aria-label', strings[key]);
     });
-    if (first && lastUpdateState) renderUpdates(lastUpdateState);
+    if (lastUpdateState) renderUpdates(lastUpdateState);
   }
 
   function renderUpdates(s) {

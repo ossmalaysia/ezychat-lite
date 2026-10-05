@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { isLocale, resolveLocale, type Locale } from '@wa-team-inbox/shared';
+import { DEFAULT_LOCALE, isLocale, resolveLocale, type Locale } from '@wa-team-inbox/shared';
 import { activateLocale } from './index';
 
 export const LOCALE_STORAGE_KEY = 'wati.locale';
@@ -26,19 +26,32 @@ export function createLocaleStore(target?: Window) {
   }
   let locale: Locale = isLocale(saved) ? saved : browserLocale(target);
 
-  function apply(next: Locale): Promise<void> {
-    const done = activateLocale(next);
-    if (locale !== next) {
-      locale = next;
-      listeners.forEach((l) => l());
-    }
-    return done;
+  const commit = (next: Locale) => {
+    if (locale === next) return;
+    locale = next;
+    listeners.forEach((l) => l());
+  };
+
+  let requestSeq = 0;
+  /**
+   * Switches only once the language's catalogs have loaded, so the picker never shows a language
+   * the UI is not in. A failed load (e.g. a stale tab missing a chunk after an update) rejects and
+   * leaves the current language in place; an overtaken request is dropped.
+   */
+  async function apply(next: Locale): Promise<boolean> {
+    const seq = ++requestSeq;
+    await activateLocale(next);
+    if (seq !== requestSeq) return false;
+    commit(next);
+    return true;
   }
 
   const onStorage = (event: StorageEvent) => {
     if (event.storageArea && event.storageArea !== storage) return;
     if (event.key !== LOCALE_STORAGE_KEY && event.key !== null) return;
-    void apply(isLocale(event.newValue) ? event.newValue : browserLocale(target));
+    apply(isLocale(event.newValue) ? event.newValue : browserLocale(target)).catch((e: unknown) =>
+      console.warn('Language switch from another tab failed', e),
+    );
   };
   target?.addEventListener('storage', onStorage);
 
@@ -48,15 +61,23 @@ export function createLocaleStore(target?: Window) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    /** Applies the initial language; resolves once its catalogs are ready. */
-    ready: () => apply(locale),
-    setLocale(next: Locale): Promise<void> {
+    /** Applies the initial language; on failure the UI (and snapshot) stay English. */
+    async ready(): Promise<void> {
+      try {
+        await apply(locale);
+      } catch (e) {
+        commit(DEFAULT_LOCALE);
+        throw e;
+      }
+    },
+    /** Resolves once the language is active; rejects (keeping the current one) if it can't load. */
+    async setLocale(next: Locale): Promise<void> {
+      if (!(await apply(next))) return;
       try {
         storage?.setItem(LOCALE_STORAGE_KEY, next);
       } catch {
-        // Continue applying the choice when persistence is unavailable.
+        // Continue with the choice when persistence is unavailable.
       }
-      return apply(next);
     },
     dispose() {
       target?.removeEventListener('storage', onStorage);

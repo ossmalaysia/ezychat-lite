@@ -45,7 +45,8 @@
   },
   "language": {
     "label": "语言",
-    "saveFailed": "无法保存您的语言偏好"
+    "saveFailed": "无法保存您的语言偏好",
+    "loadFailed": "无法加载该语言，请刷新页面后重试。"
   },
   "account": {
     "menu": "账户菜单",

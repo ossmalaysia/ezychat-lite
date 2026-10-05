@@ -1,4 +1,4 @@
-import { format, formatDistanceToNowStrict, isSameDay, isSameYear, isYesterday } from 'date-fns';
+import { format, formatDistanceToNowStrict, isSameDay, isSameYear, subDays } from 'date-fns';
 import { intlTag, isLocale } from '@wa-team-inbox/shared';
 import { dateLocale } from '@/i18n/date-locale';
 import { i18n } from '@/i18n';
@@ -15,7 +15,7 @@ export function formatListTime(ts: number | null | undefined, now: Date = new Da
   if (ts == null) return '';
   const d = new Date(ts);
   if (isSameDay(d, now)) return format(d, 'HH:mm');
-  if (isYesterday(d)) return i18n.t('common:time.yesterday');
+  if (isSameDay(d, subDays(now, 1))) return i18n.t('common:time.yesterday');
   if (isSameYear(d, now)) return dateFormat(d, { day: 'numeric', month: 'short' });
   return dateFormat(d, { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -32,7 +32,7 @@ export function formatDateTime(ts: number): string {
 export function formatDay(ts: number, now: Date = new Date()): string {
   const d = new Date(ts);
   if (isSameDay(d, now)) return i18n.t('common:time.today');
-  if (isYesterday(d)) return i18n.t('common:time.yesterday');
+  if (isSameDay(d, subDays(now, 1))) return i18n.t('common:time.yesterday');
   return dateFormat(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 

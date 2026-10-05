@@ -7,6 +7,14 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Internationalization
 
+- 2026-10-05 — The desktop status window reset its update card every 5 s → static `[data-i18n]` text
+  was re-applied on every status poll, overwriting runtime text → apply static strings once per
+  locale, then re-render the dynamic parts.
+- 2026-10-05 — The language picker could show a language whose catalogs failed to load → the store
+  committed before loading → switch the snapshot and persist only after `activateLocale` resolves.
+- 2026-10-05 — Date tests failed the day after they were written → `formatListTime(ts, now)` used
+  `isYesterday()`, which reads the real clock → helpers that take `now` must compare against it
+  (`isSameDay(d, subDays(now, 1))`).
 - 2026-10-04 — SonarCloud failed the PR on duplication and "hard-coded password" → Prettier expanded
   a data table into identical multi-line blocks, per-locale TS catalogs are structurally duplicate,
   and keys named `password` with non-English values look like credentials → keep data tables as
