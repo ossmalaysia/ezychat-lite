@@ -64,6 +64,13 @@ rejected in service mode.
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
 3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`).
+One person can arrive under a phone-number JID and a LID: chats are keyed by the LID once known
+(`chats/aliases.ts`, table `jid_aliases`). Existing duplicates are merged only by the startup identity
+migration (`chats/identity-migration.ts`, run by `initMessaging` before the message service, AI, HTTP
+and `wa.connect()`; pairs read offline by `readStoredLidMappings`; pre-merge backup first). Runtime code
+never merges: `AliasStore.route` picks the existing chat of either JID, routes resolve `:jid` through
+`chatJidParam`, and replies go to the `wa_remote_jid` of the last inbound message. Never merge on a
+name or number match.
 
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
