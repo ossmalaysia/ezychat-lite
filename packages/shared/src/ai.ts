@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { UserSchema } from './models.js';
 
-/** Models pinned by the bundled Codex helper path (kept for that path; unused by the direct spike). */
-export const CHATGPT_MODELS = ['gpt-5.4', 'gpt-5.3-codex'] as const;
-export const DEFAULT_CHATGPT_MODEL = CHATGPT_MODELS[0];
 /** EXPERIMENTAL direct ChatGPT sign-in: documented fallback when the live model list is unavailable
  * (ids from Codex 0.160's model list, visibility "list", by priority). The server validates a saved
  * model against the live list (or this list); '' means Auto. */

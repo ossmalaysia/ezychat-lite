@@ -11,7 +11,7 @@ import type {
   ChatEvent,
   Message,
 } from '@wa-team-inbox/shared';
-import { AiConnectionBody, AiDecision, CHATGPT_MODELS } from '@wa-team-inbox/shared';
+import { AiConnectionBody, AiDecision, CHATGPT_FALLBACK_MODELS } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
@@ -568,7 +568,7 @@ export function createAiService(
     saveConnection(body, actor) {
       body = parse(AiConnectionBody, body);
       if (body.mode === 'chatgpt' && body.model) {
-        const known = provider.knownModels?.() ?? CHATGPT_MODELS;
+        const known: readonly string[] = provider.knownModels?.() ?? CHATGPT_FALLBACK_MODELS;
         if (!known.includes(body.model))
           throw errors.validation(
             `ChatGPT mode supports ${known.join(', ')}. Choose Auto to use the default.`,
