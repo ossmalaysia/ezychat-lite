@@ -20,7 +20,7 @@ export function AiConnectionBanner({
       title={state === 'expired' ? t('ai.bannerExpiredTitle') : t('ai.bannerErrorTitle')}
       action={action}
     >
-      <p>{error ?? t('ai.bannerFallback')}</p>
+      <p>{error ?? (state === 'expired' ? t('ai.bannerExpiredText') : t('ai.bannerFallback'))}</p>
       <p>{t('ai.bannerChatsReleased')}</p>
     </Banner>
   );

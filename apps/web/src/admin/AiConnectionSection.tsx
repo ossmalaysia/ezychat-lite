@@ -31,6 +31,12 @@ import { ErrorState, Field, ListSkeleton, Pending } from './adminUi';
 /** Radix Select needs a non-empty value; '' (Auto) is what is stored. */
 const AUTO_MODEL = 'auto';
 type ConnectionDraft = Pick<AiSettings, 'mode' | 'model'>;
+type ModeDrafts = { mode: AiSettings['mode']; api: string; chatgpt: string };
+const draftsFrom = (settings: ConnectionDraft): ModeDrafts => ({
+  mode: settings.mode,
+  api: settings.mode === 'api' ? settings.model : '',
+  chatgpt: settings.mode === 'chatgpt' ? settings.model : '',
+});
 
 /** Settings → AI: the inbox-wide AI connection, edited in place (no popup). */
 export function AiConnectionSection() {
@@ -62,10 +68,11 @@ function ConnectionForm({
     expired: t('ai.state.expired'),
   };
   // Status polling replaces `status`; the draft keeps what the admin has not saved yet.
-  const [draft, setDraft] = useState<ConnectionDraft>({
-    mode: status.settings.mode,
-    model: status.settings.model,
-  });
+  // One model per mode, so flipping API -> ChatGPT -> API keeps what was typed.
+  const [drafts, setDrafts] = useState<ModeDrafts>(() => draftsFrom(status.settings));
+  const draft: ConnectionDraft = { mode: drafts.mode, model: drafts[drafts.mode] };
+  const setModel = (model: string) => setDrafts((old) => ({ ...old, [old.mode]: model }));
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [pasted, setPasted] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -74,11 +81,17 @@ function ConnectionForm({
   const saved = status.settings;
   const conn = status.connection;
   const savedChatgpt = saved.mode === 'chatgpt';
-  const dirty = draft.mode !== saved.mode || draft.model !== saved.model || apiKey.trim() !== '';
+  const dirty =
+    draft.mode !== saved.mode ||
+    draft.model !== saved.model ||
+    (draft.mode === 'api' && apiKey.trim() !== '');
   const loginUrl = officialLoginUrl(conn.loginUrl);
-  // Stored tokens exist (even if expired or rejected): sign-out and testing apply.
+  // Stored tokens exist: connected and expired always; a failed first sign-in has none.
   const hasTokens =
-    savedChatgpt && (Boolean(conn.email) || ['connected', 'expired', 'error'].includes(conn.state));
+    savedChatgpt &&
+    (conn.state === 'connected' ||
+      conn.state === 'expired' ||
+      (conn.state === 'error' && Boolean(conn.email)));
   const models = useAiModels(draft.mode === 'chatgpt', conn.state === 'connected');
   const modelOptions = (() => {
     const list = models.data?.models ?? CHATGPT_FALLBACK_MODELS.map((id) => ({ id, label: id }));
@@ -91,6 +104,7 @@ function ConnectionForm({
   const signIn = async () => {
     setLocalError(null);
     test.reset();
+    setPopupBlocked(false);
     // Open the tab synchronously so the browser treats it as user-initiated.
     const tab = window.open('about:blank', '_blank');
     try {
@@ -107,6 +121,7 @@ function ConnectionForm({
         tab.opener = null;
         tab.location.href = url;
       } else tab?.close();
+      setPopupBlocked(!tab);
     } catch {
       // The mutation error is shown below the form.
       tab?.close();
@@ -124,7 +139,7 @@ function ConnectionForm({
     setLocalError(null);
     const parsed = AiConnectionBody.safeParse({
       ...draft,
-      ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+      ...(draft.mode === 'api' && apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
     });
     if (!parsed.success) {
       setLocalError(
@@ -140,7 +155,7 @@ function ConnectionForm({
       { kind: 'connection', settings: parsed.data },
       {
         onSuccess: (next) => {
-          setDraft({ mode: next.settings.mode, model: next.settings.model });
+          setDrafts(draftsFrom(next.settings));
           setApiKey('');
           toast.success(t('ai.connectionSaved'));
         },
@@ -165,9 +180,7 @@ function ConnectionForm({
             <SegmentedControl
               aria-labelledby={modeLabelId}
               value={draft.mode}
-              onValueChange={(mode) =>
-                setDraft((old) => ({ mode, model: old.mode === mode ? old.model : '' }))
-              }
+              onValueChange={(mode) => setDrafts((old) => ({ ...old, mode }))}
               options={[
                 { value: 'api', label: t('ai.modeApi') },
                 {
@@ -257,6 +270,11 @@ function ConnectionForm({
                     </a>
                   </Button>
                 )}
+                {savedChatgpt && loginUrl && popupBlocked && (
+                  <p className="self-center text-sm text-muted-foreground">
+                    {t('ai.popupBlocked')}
+                  </p>
+                )}
               </div>
               {conn.loginUrl && !loginUrl && <Banner tone="danger">{t('ai.invalidLink')}</Banner>}
               {savedChatgpt && conn.state === 'signing_in' && (
@@ -305,9 +323,7 @@ function ConnectionForm({
                 <Select
                   value={draft.model || AUTO_MODEL}
                   disabled={action.isPending}
-                  onValueChange={(value) =>
-                    setDraft((old) => ({ ...old, model: value === AUTO_MODEL ? '' : value }))
-                  }
+                  onValueChange={(value) => setModel(value === AUTO_MODEL ? '' : value)}
                 >
                   <SelectTrigger {...p} className="min-h-11 w-full">
                     <SelectValue />
@@ -331,39 +347,44 @@ function ConnectionForm({
                   value={draft.model}
                   maxLength={128}
                   disabled={action.isPending}
-                  onChange={(e) => setDraft((old) => ({ ...old, model: e.target.value }))}
+                  onChange={(e) => setModel(e.target.value)}
                 />
               )}
             </Field>
           )}
 
-          {hasTokens && (conn.state === 'connected' || conn.state === 'error') && (
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="touch"
-                className="self-start"
-                disabled={action.isPending || test.isPending || dirty}
-                onClick={() => test.mutate()}
-              >
-                <Pending show={test.isPending} />
-                {t('ai.testConnection')}
-              </Button>
-              {dirty && <p className="text-sm text-muted-foreground">{t('ai.saveBeforeTest')}</p>}
-              {test.data &&
-                (test.data.ok ? (
-                  <p role="status" className="text-sm break-words">
-                    {t('ai.testOk', { model: test.data.model ?? '', reply: test.data.reply ?? '' })}
-                  </p>
-                ) : (
-                  <Banner tone="danger">
-                    {t('ai.testFailed', { error: test.data.error ?? '' })}
-                  </Banner>
-                ))}
-              {test.error && <Banner tone="danger">{errorMessage(test.error)}</Banner>}
-            </div>
-          )}
+          {draft.mode === 'chatgpt' &&
+            hasTokens &&
+            (conn.state === 'connected' || conn.state === 'error') && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="touch"
+                  className="self-start"
+                  disabled={action.isPending || test.isPending || dirty}
+                  onClick={() => test.mutate()}
+                >
+                  <Pending show={test.isPending} />
+                  {t('ai.testConnection')}
+                </Button>
+                {dirty && <p className="text-sm text-muted-foreground">{t('ai.saveBeforeTest')}</p>}
+                {test.data &&
+                  (test.data.ok ? (
+                    <p role="status" className="text-sm break-words">
+                      {t('ai.testOk', {
+                        model: test.data.model ?? '',
+                        reply: test.data.reply ?? '',
+                      })}
+                    </p>
+                  ) : (
+                    <Banner tone="danger">
+                      {t('ai.testFailed', { error: test.data.error ?? '' })}
+                    </Banner>
+                  ))}
+                {test.error && <Banner tone="danger">{errorMessage(test.error)}</Banner>}
+              </div>
+            )}
 
           {Boolean(refreshError) && (
             <Banner tone="danger">

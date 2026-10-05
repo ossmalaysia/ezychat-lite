@@ -458,7 +458,7 @@
       "signing_in": "sedang log masuk",
       "connected": "disambungkan",
       "error": "ralat",
-      "expired": "Log masuk ChatGPT telah tamat tempoh. Log masuk semula."
+      "expired": "tamat tempoh"
     },
     "experimental": "Percubaan",
     "directLoginHint": "Log masuk terus dengan akaun ChatGPT anda, tanpa aplikasi Codex. Ini menggunakan sambungan ChatGPT tidak rasmi yang mungkin berhenti berfungsi pada bila-bila masa. Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
@@ -485,6 +485,8 @@
     "bannerExpiredTitle": "Log masuk ChatGPT telah tamat tempoh",
     "bannerErrorTitle": "Sambungan ChatGPT berhenti berfungsi",
     "bannerFallback": "Sambungan AI tidak berfungsi.",
-    "bannerChatsReleased": "Ahli AI tidak menjawab. Perbualan kekal belum ditugaskan untuk pasukan anda sehingga sambungan berfungsi semula."
+    "bannerChatsReleased": "Ahli AI tidak menjawab. Perbualan kekal belum ditugaskan untuk pasukan anda sehingga sambungan berfungsi semula.",
+    "bannerExpiredText": "Log masuk ChatGPT telah tamat tempoh. Log masuk semula.",
+    "popupBlocked": "Halaman log masuk disekat daripada dibuka. Gunakan Buka log masuk."
   }
 }

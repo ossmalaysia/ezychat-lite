@@ -458,7 +458,7 @@
       "signing_in": "正在登录",
       "connected": "已连接",
       "error": "错误",
-      "expired": "ChatGPT 登录已过期，请重新登录。"
+      "expired": "已过期"
     },
     "experimental": "实验性",
     "directLoginHint": "无需 Codex 应用，直接使用您的 ChatGPT 账户登录。此功能使用非官方的 ChatGPT 连接，可能随时停止工作。请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
@@ -485,6 +485,8 @@
     "bannerExpiredTitle": "ChatGPT 登录已过期",
     "bannerErrorTitle": "ChatGPT 连接已停止工作",
     "bannerFallback": "AI 连接无法使用。",
-    "bannerChatsReleased": "AI 成员已停止回复。在连接恢复之前，聊天会保持未分配，交由您的团队处理。"
+    "bannerChatsReleased": "AI 成员已停止回复。在连接恢复之前，聊天会保持未分配，交由您的团队处理。",
+    "bannerExpiredText": "ChatGPT 登录已过期，请重新登录。",
+    "popupBlocked": "登录页面被浏览器拦截。请使用“打开登录页面”。"
   }
 }

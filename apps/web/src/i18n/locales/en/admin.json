@@ -462,7 +462,7 @@
       "signing_in": "signing in",
       "connected": "connected",
       "error": "error",
-      "expired": "ChatGPT sign-in expired. Sign in again."
+      "expired": "expired"
     },
     "experimental": "Experimental",
     "directLoginHint": "Signs in with your ChatGPT account directly, without the Codex app. This uses an unofficial ChatGPT connection that may stop working at any time. Sign in from a browser on the computer running the inbox; from another computer, paste the final address when asked.",
@@ -489,6 +489,8 @@
     "bannerExpiredTitle": "ChatGPT sign-in expired",
     "bannerErrorTitle": "ChatGPT connection stopped working",
     "bannerFallback": "The AI connection is not working.",
-    "bannerChatsReleased": "The AI member is not answering. Chats stay unassigned for your team until the connection works again."
+    "bannerChatsReleased": "The AI member is not answering. Chats stay unassigned for your team until the connection works again.",
+    "bannerExpiredText": "ChatGPT sign-in expired. Sign in again.",
+    "popupBlocked": "The sign-in page was blocked from opening. Use Open sign-in."
   }
 }

@@ -186,6 +186,7 @@ describe('Settings → AI connection (inline)', () => {
     const link = await screen.findByRole('link', { name: 'Open sign-in' });
     expect(link.getAttribute('href')).toBe(signingIn.connection.loginUrl);
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByText(/blocked from opening/)).toBeTruthy();
   });
 
   it('finishes sign-in from a pasted address (admin on another computer)', async () => {
@@ -245,6 +246,84 @@ describe('Settings → AI connection (inline)', () => {
     expect(screen.getByText('ChatGPT sign-in expired. Sign in again.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
+  });
+
+  it('keeps the model typed for each mode while flipping, and clears Unsaved when back to saved', async () => {
+    setup();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+    await user.click(screen.getByRole('radio', { name: /ChatGPT/ }));
+    await user.click(screen.getByRole('radio', { name: 'API key' }));
+    expect(((await screen.findByLabelText('Model (optional)')) as HTMLInputElement).value).toBe(
+      'gpt-4.1-mini',
+    );
+    await user.clear(screen.getByLabelText('Model (optional)'));
+    expect(screen.queryByText('Unsaved')).toBeNull();
+  });
+
+  it('offers no Sign out or Test after a failed first sign-in (no tokens)', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.connection = { state: 'error', loginUrl: null, error: 'Sign-in failed', email: null };
+    setup(initial);
+    expect(await screen.findByText('ChatGPT connection stopped working')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Test connection' })).toBeNull();
+  });
+
+  it('shows the rate-limit message when starting sign-in is refused (429)', async () => {
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => ({ opener: {}, location: { href: '' }, close: vi.fn() })),
+    );
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    setup(initial, (url, init) =>
+      url === '/api/ai/chatgpt/login' && init?.method === 'POST'
+        ? json({ error: { code: 'rate_limited', message: 'Too many attempts, retry in 30s' } }, 429)
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Sign in with ChatGPT' }));
+    await screen.findByText('Too many attempts. Try again in 30 s.');
+  });
+
+  it('shows the rate-limit message when the pasted address is refused (429)', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.connection = {
+      state: 'signing_in',
+      loginUrl: 'https://auth.openai.com/oauth/authorize?state=test',
+      error: null,
+    };
+    setup(initial, (url, init) =>
+      url === '/api/ai/chatgpt/callback' && init?.method === 'POST'
+        ? json({ error: { code: 'rate_limited', message: 'Too many attempts, retry in 30s' } }, 429)
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByLabelText('Signing in on another computer?'),
+      'http://localhost:1455/x',
+    );
+    await user.click(screen.getByRole('button', { name: 'Finish sign-in' }));
+    await screen.findByText('Too many attempts. Try again in 30 s.');
+  });
+
+  it('shows a failed connection test', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.connection = { state: 'connected', loginUrl: null, error: null, email: 'a@b.co' };
+    setup(initial, (url, init) =>
+      url === '/api/ai/chatgpt/test' && init?.method === 'POST'
+        ? json({ ok: false, model: null, reply: null, error: 'Model not available' })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Test connection' }));
+    await screen.findByText(/Model not available/);
   });
 
   it('keeps an unsaved draft while the language changes', async () => {
