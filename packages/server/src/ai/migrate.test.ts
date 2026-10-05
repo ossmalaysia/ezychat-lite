@@ -73,3 +73,9 @@ it('ignores malformed stored values instead of failing to load', () => {
   ).toEqual({ instructions: '', context: '', truncated: false });
   expect(migrateAiKnowledge(null)).toEqual({ instructions: '', context: '', truncated: false });
 });
+
+it('caps a stored Business context text at 100,000 code points', () => {
+  const result = migrateAiKnowledge({ context: 'c'.repeat(100_005) });
+  expect(result.truncated).toBe(true);
+  expect(result.context).toBe('c'.repeat(100_000));
+});

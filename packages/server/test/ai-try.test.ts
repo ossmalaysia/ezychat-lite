@@ -7,7 +7,7 @@ import { authHeaders } from './auth-helpers.js';
 let t: TestApp;
 let provider: AiProvider;
 let cookie: string;
-const knowledge = { displayName: 'Agent', instructions: '', context: 'Delivery RM10' };
+const knowledge = { displayName: 'Agent', instructions: '' };
 
 beforeEach(async () => {
   provider = {
@@ -32,10 +32,11 @@ beforeEach(async () => {
     mustChangePassword: false,
   });
   cookie = `sid=${auth.createSession(admin.id, { ip: '127.0.0.1', userAgent: 't' })}`;
-  t.ctx.services.ai!.saveConnection(
-    { mode: 'api', model: '', apiKey: 'test-api-key-123' },
-    { userId: admin.id, ip: null },
-  );
+  const actor = { userId: admin.id, ip: null };
+  t.ctx.services.ai!.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
+  // Try it answers from the saved context items.
+  t.ctx.services.ai!.saveMember({ displayName: 'Agent', enabled: false, instructions: '' }, actor);
+  t.ctx.services.ai!.addText({ name: 'Delivery', text: 'Delivery RM10' }, actor);
 });
 afterEach(async () => {
   await t.close();

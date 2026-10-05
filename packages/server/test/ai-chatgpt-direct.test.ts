@@ -373,7 +373,6 @@ describe('DirectChatGptProvider', () => {
         mode: 'chatgpt',
         model: '',
         instructions: '',
-        context: '',
       },
       null,
       { instructions: 'rules', input: 'hi' },

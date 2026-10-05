@@ -16,7 +16,6 @@ function status(): AiMemberStatus {
       mode: 'api',
       model: '',
       instructions: '',
-      context: '',
     },
     hasApiKey: true,
     connection: { state: 'signed_out', loginUrl: null, error: null },

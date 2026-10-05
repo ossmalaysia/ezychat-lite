@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Admin Settings is split into General, AI, This device and Maintenance tabs; theme and language use compact one-row switches.
 - The AI Sales Agent closes a chat when the customer confirms in their own words (and stops asking after two confirmations), answers order and delivery-slot questions with the known facts instead of handing off, and "Try it" shows its decision (Answer, Asked if resolved, Would resolve, Would hand off).
-- The AI Sales Agent is configured with just AI instructions and one Business context (text plus TXT, PDF, Markdown or Word files); existing notes and FAQs move into Business context automatically. Turning it on needs Business context or a file; instructions alone are not enough.
+- The AI Sales Agent is configured with just AI instructions and Business context. Business context is a list of items, uploaded files and text content you add, like a project knowledge panel; existing notes and FAQs become one 'Business context' item. Turning it on needs at least one context item; instructions alone are not enough.
 - The AI Sales Agent knows the current date, weekday and time (Asia/Kuala_Lumpur by default, or the `ai_timezone` setting), so it can answer "open today?" or "tomorrow at 3pm". Its prompt is laid out with a stable per-install cache key, so providers can reuse cached prompt prefixes.
 - The AI Sales Agent sends all business knowledge when it fits (up to 40,000 characters) and finds Chinese, Japanese and Korean questions in larger knowledge; a saved ChatGPT model that is no longer available falls back to Auto.
 

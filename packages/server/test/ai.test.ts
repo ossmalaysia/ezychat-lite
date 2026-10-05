@@ -19,8 +19,8 @@ const body: AiMemberBody = {
   displayName: 'Sales Agent',
   enabled: true,
   instructions: 'Be concise',
-  context: 'Opening hours: 9am to 5pm. Delivery costs RM10.',
 };
+const CONTEXT = 'Opening hours: 9am to 5pm. Delivery costs RM10.';
 beforeEach(async () => {
   t = await makeTestApp();
   const auth = t.ctx.services.auth!;
@@ -51,6 +51,9 @@ beforeEach(async () => {
   };
   t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: (id) => id % 2 === 0 });
   t.ctx.services.ai.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
+  // Context items belong to the member: save it as a draft, add the business facts, turn on.
+  t.ctx.services.ai.saveMember({ ...body, enabled: false }, actor);
+  t.ctx.services.ai.addText({ name: 'Business context', text: CONTEXT }, actor);
   t.ctx.services.ai.saveMember(body, actor);
 });
 afterEach(async () => {
@@ -520,8 +523,11 @@ it('extracts authenticated document uploads, removes them, and audits metadata w
     payload,
   });
   expect(result.statusCode, result.body).toBe(200);
-  expect(result.json().documents[0]).toMatchObject({ name: 'delivery.pdf', size: data.length });
-  const document = t.ctx.db.prepare('SELECT text FROM ai_documents').get() as { text: string };
+  const uploaded = result.json().documents.at(-1);
+  expect(uploaded).toMatchObject({ name: 'delivery.pdf', kind: 'file', size: data.length });
+  const document = t.ctx.db.prepare("SELECT text FROM ai_documents WHERE kind = 'file'").get() as {
+    text: string;
+  };
   expect(document.text).toContain('RM10');
   const audit = t.ctx.db
     .prepare("SELECT meta FROM audit_log WHERE action = 'ai.document_add'")
@@ -531,12 +537,14 @@ it('extracts authenticated document uploads, removes them, and audits metadata w
     (
       await t.app.inject({
         method: 'DELETE',
-        url: `/api/ai/documents/${result.json().documents[0].id}`,
+        url: `/api/ai/documents/${uploaded.id}`,
         headers: authHeaders(cookie),
       })
     ).statusCode,
   ).toBe(200);
-  expect(t.ctx.services.ai!.status().documents).toHaveLength(0);
+  expect(t.ctx.services.ai!.status().documents.map((doc) => doc.name)).toEqual([
+    'Business context',
+  ]);
 });
 
 it('disables AI and releases its active chats immediately', async () => {
@@ -613,16 +621,12 @@ it('releases its own chats without messaging customers when the connection break
 const count = (table: string) =>
   (t.ctx.db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n;
 
-it('answers Try it from draft knowledge without touching chats, messages, audit or WhatsApp', async () => {
+it('answers Try it from the draft name and instructions plus saved context without touching chats, messages, audit or WhatsApp', async () => {
   vi.mocked(provider.generate).mockResolvedValue({ reply: 'Delivery is RM10.', action: 'answer' });
   const before = ['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count);
   const result = await t.ctx.services.ai!.tryAnswer({
     question: 'How much is delivery?',
-    knowledge: {
-      displayName: 'Draft Agent',
-      instructions: 'Be brief',
-      context: 'Delivery costs RM10.\n\nQ: Open on Sunday?\nA: No',
-    },
+    knowledge: { displayName: 'Draft Agent', instructions: 'Be brief' },
   });
   expect(result).toEqual({
     ok: true,
@@ -635,11 +639,11 @@ it('answers Try it from draft knowledge without touching chats, messages, audit 
   expect(prompt.instructions).toContain('named Draft Agent');
   expect(prompt.instructions).toContain('Be brief');
   expect(prompt.input).toContain('Delivery costs RM10.');
-  expect(prompt.input).not.toContain('Opening hours');
+  expect(prompt.instructions).not.toContain('Be concise');
   expect(key).toBe('test-api-key-123');
   expect(['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count)).toEqual(before);
   expect(t.wa.sent).toHaveLength(0);
-  expect(t.ctx.services.ai!.status().settings.context).toBe(body.context);
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe(body.instructions);
 });
 
 it('Try it reports a missing connection and a provider failure without throwing', async () => {
@@ -647,7 +651,7 @@ it('Try it reports a missing connection and a provider failure without throwing'
   t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
   provider.connection = () => ({ state: 'signed_out', loginUrl: null, error: null });
   t.ctx.services.ai = createAiService(t.ctx, { provider });
-  const draft = { displayName: 'A', instructions: '', context: 'Delivery RM10' };
+  const draft = { displayName: 'A', instructions: '' };
   expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
     ok: false,
     reply: null,
@@ -668,21 +672,20 @@ it('Try it reports a missing connection and a provider failure without throwing'
   });
 });
 
-it('refuses to turn on the AI member without any knowledge', () => {
-  const empty = { ...body, instructions: '', context: '' };
-  expect(() => t.ctx.services.ai!.saveMember(empty, actor)).toThrow(
-    'Add business context or a document',
-  );
+it('refuses to turn on the AI member without any context item', () => {
+  const ai = t.ctx.services.ai!;
+  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
+  expect(() => ai.saveMember(body, actor)).toThrow('Add business context');
   // The AI may answer only from business facts: instructions alone are not enough.
-  expect(() =>
-    t.ctx.services.ai!.saveMember({ ...empty, instructions: 'Be friendly' }, actor),
-  ).toThrow('Add business context or a document');
-  expect(t.ctx.services.ai!.saveMember({ ...empty, enabled: false }, actor).settings.enabled).toBe(
-    false,
+  expect(() => ai.saveMember({ ...body, instructions: 'Be friendly' }, actor)).toThrow(
+    'Add business context',
   );
+  expect(ai.saveMember({ ...body, enabled: false }, actor).settings.enabled).toBe(false);
 });
 
 it('loads a 60,000-character migrated context intact and finds a deep fact by retrieval', async () => {
+  const ai = t.ctx.services.ai!;
+  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
   const filler = Array.from(
     { length: 1300 },
     (_, i) => `Paragraph ${i}: the office wall colour is white.`,
@@ -693,9 +696,12 @@ it('loads a 60,000-character migrated context intact and finds a deep fact by re
     notes: `Kedai Ezy sells cakes.\n\n${filler}`,
     faqs: [{ question: 'Wifi password?', answer: 'The wifi password is kopi123.' }],
   });
-  const context = t.ctx.services.ai!.status().settings.context;
-  expect(context.length).toBeGreaterThan(60_000);
-  expect(context.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.')).toBe(true);
+  const [migrated] = ai.status().documents;
+  expect(migrated).toMatchObject({ name: 'Business context', kind: 'text' });
+  expect(migrated!.characters).toBeGreaterThan(60_000);
+  expect(
+    ai.document(migrated!.id).text.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.'),
+  ).toBe(true);
   clock();
   await incoming('wifi', 'What is the wifi password?');
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
@@ -705,47 +711,6 @@ it('loads a 60,000-character migrated context intact and finds a deep fact by re
   expect(knowledge.startsWith('[Business context]\nKedai Ezy sells cakes.')).toBe(true);
   expect(knowledge).toContain('The wifi password is kopi123.');
   expect(knowledge.length).toBeLessThanOrEqual(24_000);
-});
-
-it('turns on with Business context only, or with a document only', () => {
-  const status = t.ctx.services.ai!.saveMember(
-    { ...body, instructions: '', context: 'Delivery RM10' },
-    actor,
-  );
-  expect(status.settings).toMatchObject({ enabled: true, context: 'Delivery RM10' });
-  t.ctx.services.ai!.addDocument('hours.md', 10, 'Open 9am', actor);
-  expect(
-    t.ctx.services.ai!.saveMember({ ...body, instructions: '', context: '' }, actor).settings
-      .enabled,
-  ).toBe(true);
-});
-
-it('loads stored notes and FAQs as Business context and saves only the new shape', () => {
-  t.ctx.settings.set('ai_sales_member', {
-    displayName: 'Sales Agent',
-    instructions: 'Be kind',
-    notes: 'Open 9am to 5pm.',
-    faqs: [{ question: 'Open on Sunday?', answer: 'No' }],
-  });
-  const migrated = 'Open 9am to 5pm.\n\nQ: Open on Sunday?\nA: No';
-  const settings = t.ctx.services.ai!.status().settings;
-  expect(settings).toMatchObject({ instructions: 'Be kind', context: migrated });
-  expect(settings).not.toHaveProperty('notes');
-  expect(settings).not.toHaveProperty('faqs');
-  t.ctx.services.ai!.saveMember(
-    {
-      displayName: settings.displayName,
-      enabled: settings.enabled,
-      instructions: settings.instructions,
-      context: settings.context,
-    },
-    actor,
-  );
-  expect(t.ctx.settings.get('ai_sales_member', {})).toEqual({
-    displayName: 'Sales Agent',
-    instructions: 'Be kind',
-    context: migrated,
-  });
 });
 
 it('sends the Business context to live replies as a named knowledge source', async () => {
@@ -827,7 +792,7 @@ it('Try it applies the resolution gate and never resolves or assigns anything', 
   vi.mocked(provider.generate).mockResolvedValue({ reply: 'Bye!', action: 'resolve' });
   const result = await t.ctx.services.ai!.tryAnswer({
     question: 'Thanks!',
-    knowledge: { displayName: 'A', instructions: '', context: 'Delivery RM10' },
+    knowledge: { displayName: 'A', instructions: '' },
   });
   expect(result).toMatchObject({ ok: true, action: 'ask_resolution' });
   expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });

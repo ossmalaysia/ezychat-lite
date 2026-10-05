@@ -7,7 +7,6 @@ import { errors } from '../http/errors.js';
 export const AI_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const AI_DOCUMENT_CHARACTERS = 100_000;
 export const AI_KNOWLEDGE_CHARACTERS = 500_000;
-export const AI_DOCUMENT_LIMIT = 20;
 
 /** Bound Word archive expansion before the document parser allocates its entries. */
 function checkWordArchive(buffer: Buffer): Promise<void> {
@@ -101,7 +100,7 @@ export async function extractKnowledge(name: string, buffer: Buffer): Promise<st
 export interface KnowledgeSource {
   name: string;
   text: string;
-  /** Always send this source's first chunk (the Business context overview) when selecting. */
+  /** Always send this source's first chunk (the overview: the oldest text item) when selecting. */
   pinFirst?: boolean;
 }
 

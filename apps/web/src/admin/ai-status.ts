@@ -1,4 +1,4 @@
-import type { AiMemberStatus, AiSettings } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberStatus, AiSettings } from '@wa-team-inbox/shared';
 
 /** Only the official ChatGPT sign-in hosts may be opened from the app. */
 export function officialLoginUrl(raw: string | null): string | null {
@@ -24,17 +24,17 @@ export function connectionReady(status: AiMemberStatus): boolean {
     : status.connection.state === 'connected';
 }
 
-export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions' | 'context'>;
+export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions'>;
 
-/** Business facts to answer from: context text or a file. Instructions alone are not enough. */
-export function hasKnowledge(draft: AiKnowledgeDraft, documents: number): boolean {
-  return Boolean(draft.context.trim() || documents > 0);
+/** Business facts to answer from: a context item with text. Instructions alone are not enough. */
+export function hasKnowledge(documents: readonly AiDocument[]): boolean {
+  return documents.some((doc) => doc.characters > 0);
 }
 
 export type AiPill = 'off' | 'on' | 'needsConnection' | 'needsKnowledge';
 
-export function memberPill(status: AiMemberStatus, draft: AiKnowledgeDraft): AiPill {
+export function memberPill(status: AiMemberStatus): AiPill {
   if (!connectionReady(status)) return 'needsConnection';
-  if (!hasKnowledge(draft, status.documents.length)) return 'needsKnowledge';
+  if (!hasKnowledge(status.documents)) return 'needsKnowledge';
   return status.member && !status.member.disabled ? 'on' : 'off';
 }

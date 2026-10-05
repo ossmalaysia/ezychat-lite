@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  AiContextPatchBody,
+  AiDocumentView,
   AiMemberBody,
   AiMemberStatus,
   AiModelList,
@@ -13,17 +15,21 @@ import type {
 } from '@wa-team-inbox/shared';
 import {
   AI_CONTEXT_CHARACTERS,
+  AI_CONTEXT_ITEMS,
+  AI_CONTEXT_PREVIEW_CHARACTERS,
   AiConnectionBody,
+  AiContextTextBody,
   AiDecision,
   CHATGPT_FALLBACK_MODELS,
+  codePointLength,
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
-import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
+import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { OAuthError } from './chatgpt-oauth.js';
-import { migrateAiKnowledge } from './migrate.js';
+import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
@@ -31,6 +37,7 @@ import {
   buildAiPrompt,
   knowledgeSources,
   resolveAiTimeZone,
+  type AiContextItem,
   type AiConversationTurn,
   type AiKnowledge,
 } from './prompt.js';
@@ -44,13 +51,17 @@ const MEMBER_KEY = 'ai_sales_member';
 const SECRET_KEY = 'ai_api_key';
 /** Random per-install id, created once; only its hash (with the model) is sent as prompt_cache_key. */
 const INSTALL_ID_KEY = 'ai_install_id';
+/** Set once the legacy member knowledge (context, or notes + FAQs) became a context item. */
+const CONTEXT_MIGRATED_KEY = 'ai_context_migrated';
+const LEGACY_KNOWLEDGE_FIELDS = ['context', 'notes', 'faqs'];
+/** The one text item created from legacy member knowledge. */
+export const MIGRATED_CONTEXT_NAME = 'Business context';
 const DEFAULT_SETTINGS: AiSettings = {
   displayName: 'Sales Agent',
   enabled: false,
   mode: 'api',
   model: '',
   instructions: '',
-  context: '',
 };
 type Actor = { userId: number; ip: string | null };
 interface State {
@@ -66,6 +77,9 @@ export interface AiService {
   saveMember(body: AiMemberBody, actor: Actor): AiMemberStatus;
   saveConnection(body: AiConnectionBody, actor: Actor): AiMemberStatus;
   addDocument(name: string, size: number, text: string, actor: Actor): AiMemberStatus;
+  addText(body: AiContextTextBody, actor: Actor): AiMemberStatus;
+  updateText(id: number, body: AiContextPatchBody, actor: Actor): AiMemberStatus;
+  document(id: number): AiDocumentView;
   removeDocument(id: number, actor: Actor): AiMemberStatus;
   login(): Promise<void>;
   completeSignIn(url: string): Promise<void>;
@@ -98,23 +112,58 @@ export function createAiService(
   const running = new Set<Promise<void>>();
   let closed = false;
   const member = () => ctx.services.auth!.listUsers().find((user) => user.kind === 'ai') ?? null;
-  let reportedTruncation = false;
-  const settings = (): AiSettings => {
-    const user = member();
-    // Installs from before Business context stored notes + FAQs: convert on read; the next save
-    // writes only the new shape.
-    const knowledge = migrateAiKnowledge(ctx.settings.get<unknown>(MEMBER_KEY, {}));
-    if (knowledge.truncated && !reportedTruncation) {
-      reportedTruncation = true;
+  /**
+   * Migration on read: member knowledge stored as one `context` text (or older notes + FAQs)
+   * becomes ONE "Business context" text item, then the fields are dropped. The flag makes it
+   * idempotent, even if a stale legacy value is written back later.
+   */
+  const migrateLegacyContext = () => {
+    const stored = ctx.settings.get<unknown>(MEMBER_KEY, null);
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return;
+    const old = stored as Record<string, unknown>;
+    if (!LEGACY_KNOWLEDGE_FIELDS.some((field) => field in old)) return;
+    const knowledge = migrateAiKnowledge(old);
+    const kept = Object.fromEntries(
+      Object.entries(old).filter(([field]) => !LEGACY_KNOWLEDGE_FIELDS.includes(field)),
+    );
+    let documentId: number | null = null;
+    ctx.db.transaction(() => {
+      if (!ctx.settings.get<boolean>(CONTEXT_MIGRATED_KEY, false) && knowledge.context.trim()) {
+        const now = Date.now();
+        documentId = Number(
+          ctx.db
+            .prepare(
+              "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
+            )
+            .run(
+              MIGRATED_CONTEXT_NAME,
+              Buffer.byteLength(knowledge.context),
+              knowledge.context,
+              now,
+              now,
+            ).lastInsertRowid,
+        );
+      }
+      ctx.settings.set(MEMBER_KEY, { ...kept, instructions: knowledge.instructions });
+      ctx.settings.set(CONTEXT_MIGRATED_KEY, true);
+    })();
+    log.info(
+      { event: 'ai_context_migrated', documentId, truncated: knowledge.truncated },
+      'Moved stored AI knowledge into a Business context item',
+    );
+    if (knowledge.truncated)
       log.warn(
         { event: 'ai_context_truncated', limit: AI_CONTEXT_CHARACTERS, unit: 'code_points' },
-        'Stored AI notes and FAQs exceed the Business context limit; keeping the start',
+        'Stored AI knowledge exceeded the text item limit; kept the start',
       );
-    }
+  };
+  const settings = (): AiSettings => {
+    const user = member();
+    migrateLegacyContext();
+    const stored = ctx.settings.get<{ instructions?: unknown }>(MEMBER_KEY, {});
     return {
       ...DEFAULT_SETTINGS,
-      instructions: knowledge.instructions,
-      context: knowledge.context,
+      instructions: typeof stored?.instructions === 'string' ? stored.instructions : '',
       ...ctx.settings.get<Pick<AiSettings, 'mode' | 'model'>>(PROVIDER_KEY, {
         mode: 'api',
         model: '',
@@ -147,11 +196,29 @@ export function createAiService(
   });
   const state = (jid: string) =>
     ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(jid) as State | undefined;
-  const documentsText = () =>
-    ctx.db.prepare('SELECT name, text FROM ai_documents ORDER BY id').all() as Array<{
-      name: string;
-      text: string;
-    }>;
+  /** Every Business context item with its text, oldest first (stable knowledge prefix). */
+  const contextItems = () =>
+    ctx.db
+      .prepare(
+        'SELECT id, name, kind, text, created_at AS createdAt FROM ai_documents ORDER BY created_at, id',
+      )
+      .all() as AiContextItem[];
+  const requireMember = () => {
+    if (!member()) throw errors.conflict('Add the Sales Agent before adding business context');
+  };
+  /** Item count and total text limits; `replacing` is the item being edited (not counted). */
+  const checkLimits = (adding: string, replacing: number | null) => {
+    const total = ctx.db
+      .prepare(
+        'SELECT count(*) AS count, coalesce(sum(length(text)), 0) AS characters FROM ai_documents WHERE id IS NOT ?',
+      )
+      .get(replacing) as { count: number; characters: number };
+    if (
+      (replacing === null && total.count >= AI_CONTEXT_ITEMS) ||
+      total.characters + codePointLength(adding) > AI_KNOWLEDGE_CHARACTERS
+    )
+      throw errors.validation('Business context can contain up to 20 items and 500,000 characters');
+  };
   const ready = () =>
     settings().mode === 'api'
       ? !!ctx.settings.getSecret(SECRET_KEY)
@@ -382,7 +449,7 @@ export function createAiService(
       const customer = history.find((message) => message.id === customerId);
       if (!customer || customer.fromMe) return;
       const knowledge = relevantKnowledge(
-        knowledgeSources(current, documentsText()),
+        knowledgeSources(contextItems()),
         history
           .filter((message) => !message.fromMe)
           .slice(-3)
@@ -546,7 +613,8 @@ export function createAiService(
       const current = settings();
       const documents = ctx.db
         .prepare(
-          'SELECT id, name, size, length(text) AS characters, created_at AS createdAt FROM ai_documents ORDER BY id',
+          `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
+          updated_at AS updatedAt FROM ai_documents ORDER BY created_at, id`,
         )
         .all() as AiMemberStatus['documents'];
       return {
@@ -565,14 +633,12 @@ export function createAiService(
         throw errors.validation(
           'Configure the inbox AI connection before enabling the Sales Agent',
         );
-      const documentCount = (
-        ctx.db.prepare('SELECT count(*) AS n FROM ai_documents').get() as { n: number }
-      ).n;
+      const hasContext = !!ctx.db
+        .prepare('SELECT 1 FROM ai_documents WHERE length(trim(text)) > 0 LIMIT 1')
+        .get();
       // The AI answers only from business facts, so instructions alone cannot turn it on.
-      if (body.enabled && !body.context.trim() && !documentCount)
-        throw errors.validation(
-          'Add business context or a document before turning on the AI member',
-        );
+      if (body.enabled && !hasContext)
+        throw errors.validation('Add business context before turning on the AI member');
       cancelAll();
       ctx.db.transaction(() => {
         const user = member();
@@ -594,7 +660,6 @@ export function createAiService(
         ctx.settings.set(MEMBER_KEY, {
           displayName: body.displayName,
           instructions: body.instructions,
-          context: body.context,
         });
         audit(ctx.db, {
           ...actor,
@@ -633,32 +698,94 @@ export function createAiService(
       return service.status();
     },
     addDocument(name, size, text, actor) {
-      if (!member()) throw errors.conflict('Add the Sales Agent before uploading documents');
+      requireMember();
       ctx.db.transaction(() => {
-        const total = ctx.db
-          .prepare(
-            'SELECT count(*) AS count, coalesce(sum(length(text)), 0) AS characters FROM ai_documents',
-          )
-          .get() as { count: number; characters: number };
-        if (
-          total.count >= AI_DOCUMENT_LIMIT ||
-          total.characters + text.length > AI_KNOWLEDGE_CHARACTERS
-        )
-          throw errors.validation(
-            'Business knowledge can contain up to 20 documents and 500,000 characters',
-          );
+        checkLimits(text, null);
+        const now = Date.now();
         const result = ctx.db
-          .prepare('INSERT INTO ai_documents(name, size, text, created_at) VALUES (?, ?, ?, ?)')
-          .run(name, size, text, Date.now());
+          .prepare(
+            "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'file', ?, ?, ?, ?)",
+          )
+          .run(name, size, text, now, now);
         audit(ctx.db, {
           ...actor,
           action: 'ai.document_add',
-          meta: { documentId: Number(result.lastInsertRowid), size },
+          meta: { documentId: Number(result.lastInsertRowid), kind: 'file', size },
         });
       })();
       cancelAll();
       refreshPending();
       return service.status();
+    },
+    addText(body, actor) {
+      const { name, text } = parse(AiContextTextBody, body);
+      requireMember();
+      const size = Buffer.byteLength(text);
+      ctx.db.transaction(() => {
+        checkLimits(text, null);
+        const now = Date.now();
+        const result = ctx.db
+          .prepare(
+            "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
+          )
+          .run(name, size, text, now, now);
+        audit(ctx.db, {
+          ...actor,
+          action: 'ai.document_add',
+          meta: { documentId: Number(result.lastInsertRowid), kind: 'text', size },
+        });
+      })();
+      cancelAll();
+      refreshPending();
+      return service.status();
+    },
+    updateText(id, body, actor) {
+      ctx.db.transaction(() => {
+        const row = ctx.db
+          .prepare('SELECT kind, name, text FROM ai_documents WHERE id = ?')
+          .get(id) as { kind: 'file' | 'text'; name: string; text: string } | undefined;
+        if (!row) throw errors.notFound('Document');
+        if (row.kind !== 'text')
+          throw errors.validation('Only text content can be edited. Upload a new file instead.');
+        const name = body.name ?? row.name;
+        const text = body.text ?? row.text;
+        if (body.text !== undefined) checkLimits(text, id);
+        const size = Buffer.byteLength(text);
+        ctx.db
+          .prepare(
+            'UPDATE ai_documents SET name = ?, text = ?, size = ?, updated_at = ? WHERE id = ?',
+          )
+          .run(name, text, size, Date.now(), id);
+        audit(ctx.db, {
+          ...actor,
+          action: 'ai.document_update',
+          meta: {
+            documentId: id,
+            size,
+            renamed: body.name !== undefined,
+            edited: body.text !== undefined,
+          },
+        });
+      })();
+      cancelAll();
+      refreshPending();
+      return service.status();
+    },
+    document(id) {
+      const row = ctx.db
+        .prepare(
+          `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
+          updated_at AS updatedAt, text FROM ai_documents WHERE id = ?`,
+        )
+        .get(id) as Omit<AiDocumentView, 'truncated'> | undefined;
+      if (!row) throw errors.notFound('Document');
+      // Text items are edited in full; a file shows a read-only preview of its extracted text.
+      const truncated = row.kind === 'file' && row.characters > AI_CONTEXT_PREVIEW_CHARACTERS;
+      return {
+        ...row,
+        text: truncated ? sliceCodePoints(row.text, AI_CONTEXT_PREVIEW_CHARACTERS) : row.text,
+        truncated,
+      };
     },
     removeDocument(id, actor) {
       ctx.db.transaction(() => {
@@ -710,10 +837,8 @@ export function createAiService(
           model: null,
           error: 'Set up the AI connection in Settings → AI first.',
         };
-      const knowledge = relevantKnowledge(
-        knowledgeSources(body.knowledge, documentsText()),
-        body.question,
-      );
+      // The draft name and instructions, with the saved Business context items.
+      const knowledge = relevantKnowledge(knowledgeSources(contextItems()), body.question);
       // Same rule as live replies: with no relevant knowledge the AI hands the chat to a human.
       if (!knowledge.trim())
         return { ok: true, reply: HANDOFF_REPLY, action: 'handoff', model: null, error: null };
@@ -766,6 +891,7 @@ export function createAiService(
       await Promise.allSettled([...running]);
     },
   };
+  migrateLegacyContext();
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.
   const pending = ctx.db
     .prepare(

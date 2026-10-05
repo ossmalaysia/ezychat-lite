@@ -3,19 +3,35 @@ import type { AiSettings } from '@wa-team-inbox/shared';
 import type { KnowledgeSource } from './knowledge.js';
 import type { AiPrompt } from './provider-types.js';
 
-export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'context'>;
+export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions'>;
 export interface AiConversationTurn {
   speaker: 'AI' | 'human' | 'customer';
   text: string;
 }
 export const HANDOFF_REPLY = 'A human agent will help with your question.';
 
-export function knowledgeSources(
-  knowledge: AiKnowledge,
-  documents: Array<{ name: string; text: string }>,
-): KnowledgeSource[] {
-  // Instructions go to the system prompt; the context's first chunk (the overview) is always sent.
-  return [{ name: 'Business context', text: knowledge.context, pinFirst: true }, ...documents];
+export interface AiContextItem {
+  id: number;
+  name: string;
+  kind: 'file' | 'text';
+  text: string;
+  createdAt: number;
+}
+
+/**
+ * Business context items → knowledge sources, oldest first (created date, then id) whatever the
+ * input order, so the knowledge block (the cached prompt prefix) stays byte-stable. Editing an
+ * item never moves it. Above the full-context budget, the first chunk of the oldest text item
+ * (usually the company overview, or the migrated "Business context") is always sent.
+ */
+export function knowledgeSources(items: readonly AiContextItem[]): KnowledgeSource[] {
+  const ordered = [...items].sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
+  const overview = ordered.find((item) => item.kind === 'text');
+  return ordered.map((item) => ({
+    name: item.name,
+    text: item.text,
+    ...(item === overview ? { pinFirst: true } : {}),
+  }));
 }
 
 export const AI_DEFAULT_TIMEZONE = 'Asia/Kuala_Lumpur';

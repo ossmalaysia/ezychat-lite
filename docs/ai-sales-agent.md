@@ -13,28 +13,46 @@
    the fixed business role **Sales Agent**. Besides its name it has exactly two settings:
    - **AI instructions** (up to 8,000 characters): how the AI behaves — tone, language, what
      to answer and what to leave to humans.
-   - **Business context**: one free-text box (up to 100,000 characters, counted as Unicode
-     code points so an emoji counts once) for facts — hours, prices, delivery, policies, FAQs —
-     plus attached files (below). A counter appears from 90,000 characters.
+   - **Business context**: a list of items, like a project knowledge panel. Each item is an
+     uploaded file or text content added in the app, shown with its name, size and added
+     date. Search filters by name; **Select** deletes several items after a confirmation;
+     **Add ▾** offers **Upload from device** and **Add text content**. Click an item to open
+     it: text items (name up to 120 characters, text up to 100,000 characters counted as
+     Unicode code points so an emoji counts once) can be edited; files show a read-only
+     preview of their extracted text (the first 20,000 characters). Below 640px the table
+     becomes a stacked list.
 
-   Turn on requires Business context text or at least one file: the AI answers only from
-   business facts, so instructions alone are not enough (the status shows "Needs business
-   context"). The first file upload saves the member as a disabled draft.
+   Turn on requires at least one context item with text: the AI answers only from business
+   facts, so instructions alone are not enough (the status shows "Needs business context").
+   Context items belong to the AI member, so the first upload or text item saves the member as
+   a disabled draft.
 
-4. Attach Markdown, UTF-8 text, Word `.docx` or PDFs containing selectable text. Each file
+4. Upload Markdown, UTF-8 text, Word `.docx` or PDFs containing selectable text. Each file
    can be at most 10 MB and 100,000 extracted characters; PDFs can have at most 100 pages.
-   The inbox accepts at most 20 files and 500,000 extracted document characters.
-   Convert legacy `.doc` files and apply OCR to scanned PDFs before upload.
+   The inbox accepts at most 20 context items (files and text together) and 500,000
+   characters of text in total. Convert legacy `.doc` files and apply OCR to scanned PDFs
+   before upload.
 
-**Upgrading from notes and FAQs.** Earlier versions stored separate business notes and an FAQ
-list. They are converted when the settings are read: Business context = the notes, then
-`Q: <question>` / `A: <answer>` for each FAQ, separated by blank lines. Nothing is lost on
-upgrade (the old limits were 30,000 characters of notes plus 100 FAQs); the next save writes
-only the new shape. Only if the combined text exceeds 100,000 code points is it cut: the first
-100,000 code points are kept (never splitting an emoji) and the server logs one warning per
-start (`mod: "ai"`, `event: "ai_context_truncated"`). Unsaved page drafts from the old shape
-are discarded. An install that was turned on with instructions only stays on, but hands every
-chat to a human until business context or a file is added.
+API: `GET /api/ai` lists the items (`documents`: id, name, `kind` `file`/`text`, `size` in
+bytes of the upload or of the text in UTF-8, characters, `createdAt`, `updatedAt`).
+`POST /api/ai/documents` uploads a file, `POST /api/ai/documents/text` adds text content
+(`{ name, text }`), `GET /api/ai/documents/:id` returns an item with its text (full for text
+items, a preview for files, with `truncated`), `PATCH /api/ai/documents/:id` edits a text item
+(`{ name?, text? }`; files are read-only) and `DELETE /api/ai/documents/:id` removes an item.
+All are admin-only and audited without content.
+
+**Upgrading from earlier versions.** Earlier versions stored member knowledge in the AI
+settings: first separate business notes and an FAQ list, later one Business context text.
+When the settings are read, that text becomes ONE text item named **Business context** (notes,
+then `Q: <question>` / `A: <answer>` for each FAQ, separated by blank lines), and the old
+fields are removed from the settings. The setting `ai_context_migrated` marks the move done, so
+it never creates a second item; empty old knowledge just drops the fields. The item is older
+than anything added afterwards, so it stays first. Only if the text exceeds 100,000 code
+points is it cut: the first 100,000 code points are kept (never splitting an emoji) and the
+server logs a warning (`mod: "ai"`, `event: "ai_context_truncated"`); the move itself logs
+`event: "ai_context_migrated"`. Unsaved page drafts from an older shape are discarded. An
+install that was turned on with instructions only stays on, but hands every chat to a human
+until a context item is added.
 
 Connection/model settings belong to the whole inbox. They are stored separately from the
 Sales Agent's instructions and knowledge so a future Follow-up Agent can share the provider.
@@ -86,16 +104,20 @@ inputs, OAuth URLs and credentials are omitted from logs and audits.
 Document parsing runs in a worker with a 15-second deadline and bounded V8 memory. Word archive
 expansion and extracted text are capped. Knowledge retrieval is local (no vector database) and
 bounds provider context. The AI instructions always go to the system prompt; the knowledge
-sources are the Business context, then each file, labelled `[Business context]` /
-`[<file name>]` and treated as data, never instructions. When the context and file texts total
-at most 40,000 characters, all of it is sent in order. Above that, the context and files are
-split into chunks (blank-line paragraphs packed up to 1,500 characters) and the 14 best matches
-for the latest customer messages are sent (at most 24,000 characters), always including the
-first context chunk (the business overview). Matching counts shared words (two or more letters,
+sources are the context items, oldest first (by added date, then id; editing an item never
+moves it), each labelled `[<item name>]` and treated as data, never instructions. When the item
+texts total at most 40,000 characters, all of it is sent in that order. Above that, the items
+are split into chunks (blank-line paragraphs packed up to 1,500 characters) and the 14 best
+matches for the latest customer messages are sent (at most 24,000 characters), always including
+the first chunk of the oldest text item (the business overview, for example the migrated
+"Business context"). Matching counts shared words (two or more letters,
 ignoring a few English/Malay stop words) and, for Chinese, Japanese and Korean, overlapping
 two-character pairs, because those languages have no spaces. Known limit: a question in one
 language about a fact written in another (for example Malay about an English fact) deep in a
 very large context may miss that fact; typical briefs fit the full-context budget.
+
+Try it answers with the page's current (possibly unsaved) name and instructions and the saved
+context items; items are saved as soon as they are added, so there is no unsaved context.
 
 ### Prompt layout and caching
 

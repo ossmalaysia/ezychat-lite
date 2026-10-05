@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { AiMemberBody, AiMemberStatus, User } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberBody, AiMemberStatus, User } from '@wa-team-inbox/shared';
 import { AiMemberPage } from './AiMemberPage';
 
 const aiUser: User = {
@@ -26,12 +26,24 @@ function status(): AiMemberStatus {
       mode: 'api',
       model: '',
       instructions: '',
-      context: '',
     },
     hasApiKey: true,
     connection: { state: 'connected', loginUrl: null, error: null },
     documents: [],
   };
+}
+const item: AiDocument = {
+  id: 1,
+  name: 'Business context',
+  kind: 'text',
+  size: 13,
+  characters: 13,
+  createdAt: 1,
+  updatedAt: 1,
+};
+function withContext(initial = status()) {
+  initial.documents = [{ ...item }];
+  return initial;
 }
 function json(data: unknown, code = 200) {
   return new Response(JSON.stringify(data), {
@@ -64,6 +76,14 @@ function setup(
           disabled: !body.enabled,
         },
         settings: { ...current.settings, ...body },
+      };
+      return json(current);
+    }
+    if (url === '/api/ai/documents/text' && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body)) as { name: string; text: string };
+      current = {
+        ...current,
+        documents: [...current.documents, { ...item, id: 7, name: body.name }],
       };
       return json(current);
     }
@@ -116,9 +136,8 @@ afterEach(() => {
 
 describe('AI member page', () => {
   it('keeps Turn on disabled with the reason until the connection works', async () => {
-    const initial = status();
+    const initial = withContext();
     initial.hasApiKey = false;
-    initial.settings.context = 'Delivery RM10';
     setup(initial);
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
@@ -126,79 +145,74 @@ describe('AI member page', () => {
     expect(screen.getByText('Connect the AI in Settings → AI first.')).toBeTruthy();
   });
 
-  it('shows exactly two knowledge cards: AI instructions and Business context with files', async () => {
+  it('shows Name & role, AI instructions, the Business context panel, then Try it', async () => {
     setup();
-    expect(await screen.findByText('2. AI instructions')).toBeTruthy();
-    expect(screen.getByText('3. Business context')).toBeTruthy();
-    expect(screen.getByText('4. Try it')).toBeTruthy();
-    expect(screen.getByLabelText('AI instructions')).toBeTruthy();
-    const context = screen.getByLabelText('Business context');
-    expect(context.closest('[data-slot="card"]')).toBe(
-      screen.getByLabelText('Attach files').closest('[data-slot="card"]'),
+    await screen.findByText('2. AI instructions');
+    const titles = [...document.querySelectorAll('[data-slot="card-title"]')].map(
+      (title) => title.textContent,
     );
-    expect(screen.queryByRole('button', { name: /FAQ/ })).toBeNull();
+    expect(titles).toEqual([
+      '1. Name & role',
+      '2. AI instructions',
+      '3. Business context',
+      '4. Try it',
+    ]);
+    expect(screen.getByLabelText('AI instructions')).toBeTruthy();
+    // The single Business context textarea is gone: context is a list of items.
+    expect(screen.queryByLabelText('Business context')).toBeNull();
+    expect(screen.queryByLabelText('Attach files')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
     expect(screen.queryByText(/Frequently asked questions|Business notes/)).toBeNull();
   });
 
-  it('drops a stored draft from before Business context without crashing', async () => {
+  it('drops a stored draft in an older shape without crashing', async () => {
     sessionStorage.setItem(
       'wati.ai-draft.3',
-      JSON.stringify({
-        displayName: 'Old draft',
-        instructions: 'Be kind',
-        notes: 'Delivery RM10',
-        faqs: [{ question: 'Q', answer: 'A' }],
-      }),
+      JSON.stringify({ displayName: 'Old draft', instructions: 'Be kind', context: 'RM10' }),
     );
     const initial = status();
-    initial.settings.context = 'Saved context';
+    initial.settings.instructions = 'Saved rules';
     setup(initial);
-    expect(((await screen.findByLabelText('Business context')) as HTMLTextAreaElement).value).toBe(
-      'Saved context',
+    expect(((await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement).value).toBe(
+      'Saved rules',
     );
     expect(screen.queryByText('Unsaved')).toBeNull();
     await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
   });
 
-  it('keeps Turn on disabled until there is knowledge', async () => {
+  it('keeps Turn on disabled until there is a context item', async () => {
     setup();
     const user = userEvent.setup();
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs business context')).toBeTruthy();
-    expect(screen.getByText('Add business context or a file first.')).toBeTruthy();
+    expect(screen.getByText('Add business context first.')).toBeTruthy();
     await user.type(screen.getByLabelText('AI instructions'), 'Be friendly');
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs business context')).toBeTruthy();
-    await user.type(screen.getByLabelText('Business context'), 'Delivery RM10');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Add text content' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Name'), 'Delivery');
+    await user.type(within(dialog).getByLabelText('Text content'), 'Delivery RM10');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(turnOn.disabled).toBe(false));
     expect(screen.getByText('Off')).toBeTruthy();
-    expect(turnOn.disabled).toBe(false);
-  });
-
-  it('shows a character counter only near the Business context limit', async () => {
-    const initial = status();
-    initial.settings.context = 'x'.repeat(95_000);
-    setup(initial);
-    expect(await screen.findByText('95,000 / 100,000 characters')).toBeTruthy();
-    cleanup();
-    setup();
-    await screen.findByLabelText('Business context');
-    expect(screen.queryByText(/\/ 100,000 characters/)).toBeNull();
   });
 
   it('Turn on saves unsaved edits in the same request', async () => {
-    const { fetchMock } = setup();
+    const { fetchMock } = setup(withContext());
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business context'), 'Delivery costs RM10.');
+    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief.');
     expect(screen.getByText('Unsaved')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Turn on' }));
     await screen.findByRole('button', { name: 'Turn off' });
     expect(screen.getByText('On')).toBeTruthy();
     const puts = writes(fetchMock);
     expect(puts.map((call) => `${call[1]!.method} ${call[0]}`)).toEqual(['PUT /api/ai']);
-    expect(JSON.parse(String(puts[0]![1]!.body))).toMatchObject({
+    expect(JSON.parse(String(puts[0]![1]!.body))).toEqual({
       displayName: 'Sales Assistant',
-      context: 'Delivery costs RM10.',
+      instructions: 'Be brief.',
       enabled: true,
     });
     expect(screen.queryByText('Unsaved')).toBeNull();
@@ -242,7 +256,7 @@ describe('AI member page', () => {
     expect(screen.getByText(/No matching business knowledge was found/)).toBeTruthy();
   });
 
-  it('Try it sends the current unsaved knowledge and shows the answer and model', async () => {
+  it('Try it sends the current unsaved name and instructions and shows the answer and model', async () => {
     const { fetchMock } = setup(status(), (url, init) =>
       url === '/api/ai/try' && init?.method === 'POST'
         ? json({
@@ -255,7 +269,7 @@ describe('AI member page', () => {
         : undefined,
     );
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business context'), 'Delivery costs RM10.');
+    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief.');
     await user.type(screen.getByLabelText('Customer question'), 'How much is delivery?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
     await screen.findByText('Delivery is RM10.');
@@ -264,11 +278,7 @@ describe('AI member page', () => {
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/try')!;
     expect(JSON.parse(String(call[1]!.body))).toEqual({
       question: 'How much is delivery?',
-      knowledge: {
-        displayName: 'Sales Assistant',
-        instructions: '',
-        context: 'Delivery costs RM10.',
-      },
+      knowledge: { displayName: 'Sales Assistant', instructions: 'Be brief.' },
     });
     expect(writes(fetchMock).some((c) => c[1]!.method === 'PUT')).toBe(false);
   });
@@ -280,7 +290,7 @@ describe('AI member page', () => {
       url === '/api/ai/documents' && init?.method === 'POST'
         ? json({
             ...current,
-            documents: [{ id: 1, name: 'hours.md', size: 12, characters: 12, createdAt: 1 }],
+            documents: [{ ...item, name: 'hours.md', kind: 'file' }],
           })
         : undefined,
     );
@@ -288,23 +298,23 @@ describe('AI member page', () => {
     const name = await screen.findByLabelText('AI member name');
     await user.clear(name);
     await user.type(name, 'Ezy Bot');
-    await user.type(screen.getByLabelText('Business context'), 'Open 9 to 5');
+    await user.type(screen.getByLabelText('AI instructions'), 'Be brief');
     await user.upload(
-      screen.getByLabelText('Attach files'),
+      screen.getByTestId('ai-context-file'),
       new File(['Delivery RM10'], 'hours.md', { type: 'text/markdown' }),
     );
-    await screen.findByText('hours.md');
+    expect((await screen.findAllByText('hours.md')).length).toBeGreaterThan(0);
     expect(writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`)).toEqual([
       'PUT /api/ai',
       'POST /api/ai/documents',
     ]);
     expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body))).toMatchObject({
       displayName: 'Ezy Bot',
-      context: 'Open 9 to 5',
+      instructions: 'Be brief',
       enabled: false,
     });
-    expect((screen.getByLabelText('Business context') as HTMLTextAreaElement).value).toBe(
-      'Open 9 to 5',
+    expect((screen.getByLabelText('AI instructions') as HTMLTextAreaElement).value).toBe(
+      'Be brief',
     );
   });
 
@@ -339,8 +349,8 @@ describe('AI member page', () => {
     sessionStorage.clear();
     const first = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business context'), 'Delivery RM10');
-    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).context).toBe('Delivery RM10');
+    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief');
+    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).instructions).toBe('Be brief');
     await user.click(screen.getAllByRole('link', { name: 'Settings → AI' })[0]!);
     expect(screen.getByTestId('location').textContent).toBe('/admin/settings/ai');
     cleanup();
@@ -355,8 +365,8 @@ describe('AI member page', () => {
     );
     first.fetchMock.mockClear();
     setup();
-    expect(((await screen.findByLabelText('Business context')) as HTMLTextAreaElement).value).toBe(
-      'Delivery RM10',
+    expect(((await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement).value).toBe(
+      'Be brief',
     );
     expect(screen.getByText('Unsaved')).toBeTruthy();
     sessionStorage.clear();
@@ -366,7 +376,7 @@ describe('AI member page', () => {
     sessionStorage.clear();
     setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Business context'), 'x');
+    await user.type(await screen.findByLabelText('AI instructions'), 'x');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
   });
@@ -383,7 +393,7 @@ describe('AI member page', () => {
       return undefined;
     });
     const user = userEvent.setup();
-    const input = await screen.findByLabelText('Attach files');
+    const input = await screen.findByTestId('ai-context-file');
     await user.upload(input, new File(['a'], 'a.md', { type: 'text/markdown' }));
     await user.upload(input, new File(['b'], 'b.md', { type: 'text/markdown' }));
     release();
@@ -414,7 +424,7 @@ describe('AI member page', () => {
     const initial = status();
     initial.member = { ...aiUser, disabled: false };
     initial.settings.enabled = true;
-    initial.settings.context = 'Delivery RM10';
+    initial.documents = [{ ...item }];
     const { fetchMock } = setup(initial);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Turn off' }));

@@ -61,7 +61,6 @@ function setup(memberList = users) {
           mode: 'api',
           model: '',
           instructions: '',
-          context: '',
         },
         hasApiKey: false,
         connection: { state: 'signed_out', loginUrl: null, error: null },

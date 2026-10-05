@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   AI_DEFAULT_TIMEZONE,
   buildAiPrompt,
+  knowledgeSources,
   promptCacheKey,
   resolveAiTimeZone,
   type AiSituation,
 } from './prompt.js';
 
-const knowledge = { displayName: 'Ezy', instructions: 'Be brief', context: '' };
+const knowledge = { displayName: 'Ezy', instructions: 'Be brief' };
 // 2026-10-06T06:05:00Z is Tuesday 14:05 in Kuala Lumpur (UTC+8).
 const situation: AiSituation = {
   now: new Date('2026-10-06T06:05:00Z'),
@@ -126,5 +127,41 @@ describe('timezone and cache key', () => {
     expect(promptCacheKey('install-1', 'gpt-6-sol')).toBe(key);
     expect(promptCacheKey('install-1', 'gpt-6-astra')).not.toBe(key);
     expect(promptCacheKey('install-2', 'gpt-6-sol')).not.toBe(key);
+  });
+});
+
+describe('knowledge sources (context items)', () => {
+  const item = (id: number, createdAt: number, kind: 'file' | 'text', name = `Item ${id}`) => ({
+    id,
+    name,
+    kind,
+    text: `Text ${id}`,
+    createdAt,
+  });
+
+  it('orders items oldest first by created date, then id, whatever the input order', () => {
+    const items = [
+      item(4, 20, 'file'),
+      item(3, 10, 'text'),
+      item(1, 20, 'text'),
+      item(2, 5, 'file'),
+    ];
+    const names = (sources: ReturnType<typeof knowledgeSources>) => sources.map((s) => s.name);
+    expect(names(knowledgeSources(items))).toEqual(['Item 2', 'Item 3', 'Item 1', 'Item 4']);
+    expect(names(knowledgeSources([...items].reverse()))).toEqual(names(knowledgeSources(items)));
+  });
+
+  it('pins the overview: the first chunk of the oldest text item only', () => {
+    const sources = knowledgeSources([
+      item(2, 5, 'file'),
+      item(3, 10, 'text'),
+      item(5, 30, 'text'),
+    ]);
+    expect(sources.map((s) => [s.name, !!s.pinFirst])).toEqual([
+      ['Item 2', false],
+      ['Item 3', true],
+      ['Item 5', false],
+    ]);
+    expect(sources[1]).toMatchObject({ name: 'Item 3', text: 'Text 3' });
   });
 });

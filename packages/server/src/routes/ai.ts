@@ -1,7 +1,14 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { AiCallbackBody, AiConnectionBody, AiMemberBody, AiTryBody } from '@wa-team-inbox/shared';
+import {
+  AiCallbackBody,
+  AiConnectionBody,
+  AiContextPatchBody,
+  AiContextTextBody,
+  AiMemberBody,
+  AiTryBody,
+} from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
@@ -45,6 +52,14 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     recheck(req);
     return ai.addDocument(name, buffer.length, text, actor(req));
   });
+  // Business context text items (file items are uploaded above and are read-only).
+  app.post('/ai/documents/text', async (req) =>
+    ai.addText(parse(AiContextTextBody, req.body), actor(req)),
+  );
+  app.get('/ai/documents/:id', async (req) => ai.document(parse(IdParams, req.params).id));
+  app.patch('/ai/documents/:id', async (req) =>
+    ai.updateText(parse(IdParams, req.params).id, parse(AiContextPatchBody, req.body), actor(req)),
+  );
   app.delete('/ai/documents/:id', async (req) =>
     ai.removeDocument(parse(IdParams, req.params).id, actor(req)),
   );

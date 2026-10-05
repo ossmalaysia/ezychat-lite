@@ -10,7 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import type { AiKnowledgeDraft } from './ai-status';
 import { Field, Pending } from './adminUi';
 
-/** Asks the AI a test question using the page's current (possibly unsaved) knowledge. */
+/**
+ * Asks the AI a test question with the page's current (possibly unsaved) name and instructions;
+ * the server answers from the saved Business context items.
+ */
 export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
   const { t } = useTranslation('admin');
   const ask = useAiTry();
@@ -29,7 +32,6 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
       knowledge: {
         displayName: draft.displayName.trim() || t('ai.page.defaultTitle'),
         instructions: draft.instructions,
-        context: draft.context,
       },
     });
   };

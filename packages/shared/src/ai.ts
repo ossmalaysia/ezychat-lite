@@ -17,10 +17,15 @@ export const CHATGPT_FALLBACK_MODELS = [
 export const CHATGPT_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
 /**
- * Business context limit in characters (Unicode code points, so an emoji counts once). Above the
- * server's 40,000-character full-context budget, relevant parts are selected per question.
+ * Text limit of one Business context text item in characters (Unicode code points, so an emoji
+ * counts once). Above the server's 40,000-character full-context budget, relevant parts of all
+ * context items are selected per question.
  */
 export const AI_CONTEXT_CHARACTERS = 100_000;
+/** Name limit of a Business context item. */
+export const AI_CONTEXT_NAME_CHARACTERS = 120;
+/** Business context items (uploaded files plus text content) per inbox. */
+export const AI_CONTEXT_ITEMS = 20;
 /** Length in Unicode code points (never splits surrogate pairs, unlike `string.length`). */
 export function codePointLength(text: string): number {
   let length = 0;
@@ -34,14 +39,6 @@ export const AiSettingsBody = z.object({
   mode: z.enum(['api', 'chatgpt']),
   model: z.string().trim().max(128),
   instructions: z.string().max(8000),
-  /** Business context: hours, prices, delivery, policies, FAQs (plus uploaded documents). */
-  context: z
-    .string()
-    // UTF-16 bound first (cheap), then the exact code point limit.
-    .max(AI_CONTEXT_CHARACTERS * 2)
-    .refine((text) => codePointLength(text) <= AI_CONTEXT_CHARACTERS, {
-      message: `Business context can contain up to ${AI_CONTEXT_CHARACTERS.toLocaleString('en')} characters`,
-    }),
   apiKey: z.string().trim().min(10).max(512).optional(),
 });
 export type AiSettingsBody = z.infer<typeof AiSettingsBody>;
@@ -60,14 +57,43 @@ export type AiConnectionBody = z.infer<typeof AiConnectionBody>;
 export const AiMemberBody = AiSettings.omit({ mode: true, model: true });
 export type AiMemberBody = z.infer<typeof AiMemberBody>;
 
+const contextName = z.string().trim().min(1).max(AI_CONTEXT_NAME_CHARACTERS);
+const contextText = z
+  .string()
+  // UTF-16 bound first (cheap), then the exact code point limit.
+  .max(AI_CONTEXT_CHARACTERS * 2)
+  .refine((text) => text.trim().length > 0, { message: 'Add some text' })
+  .refine((text) => codePointLength(text) <= AI_CONTEXT_CHARACTERS, {
+    message: `Text content can contain up to ${AI_CONTEXT_CHARACTERS.toLocaleString('en')} characters`,
+  });
+/** Business context "Add text content": a named text item (hours, prices, policies, FAQs…). */
+export const AiContextTextBody = z.object({ name: contextName, text: contextText });
+export type AiContextTextBody = z.infer<typeof AiContextTextBody>;
+/** Edits a text item (file items are read-only). */
+export const AiContextPatchBody = z
+  .object({ name: contextName.optional(), text: contextText.optional() })
+  .refine((body) => body.name !== undefined || body.text !== undefined, {
+    message: 'Change the name or the text',
+  });
+export type AiContextPatchBody = z.infer<typeof AiContextPatchBody>;
+
+/** One Business context item: an uploaded file or text content. */
 export const AiDocument = z.object({
   id: z.number().int(),
   name: z.string(),
+  kind: z.enum(['file', 'text']),
+  /** Bytes of the original upload, or of the text in UTF-8. */
   size: z.number(),
   characters: z.number(),
   createdAt: z.number(),
+  updatedAt: z.number(),
 });
 export type AiDocument = z.infer<typeof AiDocument>;
+/** Characters of a file item's extracted text shown in its read-only preview. */
+export const AI_CONTEXT_PREVIEW_CHARACTERS = 20_000;
+/** An item with its text: full for text items (editable), a preview for files. */
+export const AiDocumentView = AiDocument.extend({ text: z.string(), truncated: z.boolean() });
+export type AiDocumentView = z.infer<typeof AiDocumentView>;
 export const AiConnection = z.object({
   state: z.enum(['unavailable', 'signed_out', 'signing_in', 'connected', 'error', 'expired']),
   loginUrl: z.string().nullable(),
@@ -110,10 +136,13 @@ export const AiCallbackBody = z.object({ url: z.string().trim().min(1).max(4096)
 export type AiCallbackBody = z.infer<typeof AiCallbackBody>;
 
 export const AI_TRY_QUESTION_CHARACTERS = 500;
-/** Try it: a test question answered from the page's current (possibly unsaved) knowledge. */
+/**
+ * Try it: a test question answered with the page's current (possibly unsaved) name and
+ * instructions; the server adds the saved Business context items.
+ */
 export const AiTryBody = z.object({
   question: z.string().trim().min(1).max(AI_TRY_QUESTION_CHARACTERS),
-  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, context: true }),
+  knowledge: AiMemberBody.pick({ displayName: true, instructions: true }),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
 export const AiTryResult = z.object({

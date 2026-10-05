@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { AiConnectionBanner } from './AiConnectionBanner';
-import { AiKnowledgeSection } from './AiKnowledgeSection';
+import { AiContextPanel } from './AiContextPanel';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, memberPill, type AiKnowledgeDraft } from './ai-status';
 import { ErrorState, Field, ListSkeleton, Pending } from './adminUi';
@@ -26,22 +27,19 @@ const PILL_TONE = {
 const draftFrom = (s: AiSettings): AiKnowledgeDraft => ({
   displayName: s.displayName,
   instructions: s.instructions,
-  context: s.context,
 });
 const draftKey = (s: AiMemberStatus) => `wati.ai-draft.${s.member?.id ?? 'new'}`;
 /**
  * Unsaved edits survive leaving the page (the app's router cannot block navigation). A draft
- * stored in an older shape (notes + FAQs) fails to parse and is dropped.
+ * stored in an older shape (a Business context text, or notes + FAQs) fails to parse and is dropped.
  */
 function readStoredDraft(key: string): AiKnowledgeDraft | null {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const parsed = AiMemberBody.pick({
-      displayName: true,
-      instructions: true,
-      context: true,
-    }).safeParse(JSON.parse(raw));
+    const parsed = AiMemberBody.pick({ displayName: true, instructions: true })
+      .strict()
+      .safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
@@ -100,11 +98,10 @@ function AiMemberEditor({
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
-  const uploading = useRef(false);
   const enabled = Boolean(status.member && !status.member.disabled);
-  const pill = memberPill(status, draft);
+  const pill = memberPill(status);
   const ready = connectionReady(status);
-  const knowledge = hasKnowledge(draft, status.documents.length);
+  const knowledge = hasKnowledge(status.documents);
   const canTurnOn = ready && knowledge;
   const pillLabels = {
     on: t('ai.page.pill.on'),
@@ -149,29 +146,9 @@ function AiMemberEditor({
     }
   };
 
-  const upload = async (file: File) => {
-    if (uploading.current) return;
-    uploading.current = true;
-    try {
-      await uploadFile(file);
-    } finally {
-      uploading.current = false;
-    }
-  };
-  const uploadFile = async (file: File) => {
-    setLocalError(null);
-    if (!/\.(txt|md|pdf|docx)$/i.test(file.name)) {
-      setLocalError(t('ai.fileTypeError'));
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setLocalError(t('ai.fileSizeError'));
-      return;
-    }
-    // Documents belong to the AI member: the first upload saves a disabled draft member.
-    if (!status.member && !(await save(false, t('ai.page.draftSaved')))) return;
-    action.mutate({ kind: 'upload', file });
-  };
+  /** Context items belong to the AI member: the first one saves a disabled draft member. */
+  const ensureMember = async () =>
+    Boolean(status.member) || Boolean(await save(false, t('ai.page.draftSaved')));
 
   const reason = !ready ? t('ai.page.reasonConnection') : t('ai.page.reasonKnowledge');
   return (
@@ -251,14 +228,35 @@ function AiMemberEditor({
         </CardContent>
       </Card>
 
-      <AiKnowledgeSection
-        draft={draft}
-        onChange={setDraft}
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle>{t('ai.page.stepInstructions')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Field
+            label={t('ai.instructions')}
+            labelClassName="sr-only"
+            hint={t('ai.instructionsHint')}
+          >
+            {(p) => (
+              <Textarea
+                {...p}
+                value={draft.instructions}
+                maxLength={8000}
+                rows={4}
+                placeholder={t('ai.page.instructionsPlaceholder')}
+                disabled={action.isPending}
+                onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
+              />
+            )}
+          </Field>
+        </CardContent>
+      </Card>
+
+      <AiContextPanel
         documents={status.documents}
+        ensureMember={ensureMember}
         disabled={action.isPending}
-        uploadDisabled={false}
-        onUpload={(file) => void upload(file)}
-        onRemoveDocument={(id) => action.mutate({ kind: 'remove', id })}
       />
 
       <Card className="gap-4">

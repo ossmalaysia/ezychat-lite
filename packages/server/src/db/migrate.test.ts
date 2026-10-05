@@ -30,7 +30,7 @@ describe('migrate', () => {
       db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]
     ).map((r) => r.name);
     for (const t of TABLES) expect(names).toContain(t);
-    expect(db.pragma('user_version', { simple: true })).toBe(3);
+    expect(db.pragma('user_version', { simple: true })).toBe(4);
     const cols = (db.prepare('PRAGMA table_info(messages)').all() as { name: string }[]).map(
       (c) => c.name,
     );
@@ -48,7 +48,7 @@ describe('migrate', () => {
     migrate(db);
     db.prepare("INSERT INTO settings(key, value) VALUES ('a', '1')").run();
     expect(() => migrate(db)).not.toThrow();
-    expect(db.pragma('user_version', { simple: true })).toBe(3);
+    expect(db.pragma('user_version', { simple: true })).toBe(4);
     expect(db.prepare('SELECT count(*) AS n FROM settings').get()).toEqual({ n: 1 });
     db.close();
   });
@@ -63,7 +63,7 @@ describe('migrate', () => {
         "INSERT INTO users(username, display_name, password_hash, role, locale, created_at) VALUES ('existing', 'Existing', 'hash', 'agent', 'ms', 1)",
       ).run();
       migrate(db);
-      expect(db.pragma('user_version', { simple: true })).toBe(3);
+      expect(db.pragma('user_version', { simple: true })).toBe(4);
       expect(
         db.prepare("SELECT username, locale, kind FROM users WHERE username = 'existing'").get(),
       ).toEqual({ username: 'existing', locale: 'ms', kind: 'human' });
@@ -76,6 +76,39 @@ describe('migrate', () => {
     }
   });
 
+  it('turns stored AI documents into file context items with kind, size and dates', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of ['001_init.sql', '002_user_locale.sql', '003_ai_member.sql'])
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 3');
+      db.prepare(
+        "INSERT INTO ai_documents(name, size, text, created_at) VALUES ('hours.pdf', 2048, 'Open 9am', 1700)",
+      ).run();
+      migrate(db);
+      expect(db.pragma('user_version', { simple: true })).toBe(4);
+      expect(
+        db.prepare('SELECT name, kind, size, text, created_at, updated_at FROM ai_documents').get(),
+      ).toEqual({
+        name: 'hours.pdf',
+        kind: 'file',
+        size: 2048,
+        text: 'Open 9am',
+        created_at: 1700,
+        updated_at: 1700,
+      });
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES ('x', 'note', 1, 'x', 1, 1)",
+          )
+          .run(),
+      ).toThrow();
+    } finally {
+      db.close();
+    }
+  });
+
   it('openDb enables WAL + foreign keys + busy_timeout and migrates', () => {
     const dir = mkdtempSync(join(tmpdir(), 'wati-db-'));
     try {
@@ -83,7 +116,7 @@ describe('migrate', () => {
       expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
       expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
       expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
-      expect(db.pragma('user_version', { simple: true })).toBe(3);
+      expect(db.pragma('user_version', { simple: true })).toBe(4);
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AiMemberStatus } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberStatus } from '@wa-team-inbox/shared';
 import { connectionReady, hasKnowledge, memberPill, officialLoginUrl } from './ai-status';
 
 function status(): AiMemberStatus {
@@ -11,14 +11,21 @@ function status(): AiMemberStatus {
       mode: 'api',
       model: '',
       instructions: '',
-      context: '',
     },
     hasApiKey: true,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
   };
 }
-const empty = { displayName: 'A', instructions: '', context: '' };
+const doc = (characters: number): AiDocument => ({
+  id: 1,
+  name: 'Business context',
+  kind: 'text',
+  size: characters,
+  characters,
+  createdAt: 1,
+  updatedAt: 1,
+});
 
 describe('AI status helpers', () => {
   it('accepts only official sign-in links', () => {
@@ -42,21 +49,22 @@ describe('AI status helpers', () => {
     expect(connectionReady(s)).toBe(false);
   });
 
-  it('counts only Business context or documents as knowledge (instructions alone are not)', () => {
-    expect(hasKnowledge(empty, 0)).toBe(false);
-    expect(hasKnowledge({ ...empty, context: '  ' }, 0)).toBe(false);
-    expect(hasKnowledge({ ...empty, instructions: 'Be kind' }, 0)).toBe(false);
-    expect(hasKnowledge({ ...empty, context: 'RM10' }, 0)).toBe(true);
-    expect(hasKnowledge(empty, 1)).toBe(true);
+  it('counts only context items with text as knowledge (instructions alone are not)', () => {
+    expect(hasKnowledge([])).toBe(false);
+    expect(hasKnowledge([doc(0)])).toBe(false);
+    expect(hasKnowledge([doc(0), doc(12)])).toBe(true);
   });
 
   it('shows connection problems first, then missing knowledge, then on/off', () => {
     const s = status();
     s.hasApiKey = false;
-    expect(memberPill(s, { ...empty, context: 'x' })).toBe('needsConnection');
+    s.documents = [doc(5)];
+    expect(memberPill(s)).toBe('needsConnection');
     s.hasApiKey = true;
-    expect(memberPill(s, empty)).toBe('needsKnowledge');
-    expect(memberPill(s, { ...empty, context: 'x' })).toBe('off');
+    s.documents = [];
+    expect(memberPill(s)).toBe('needsKnowledge');
+    s.documents = [doc(5)];
+    expect(memberPill(s)).toBe('off');
     s.member = {
       id: 3,
       username: 'ai',
@@ -68,6 +76,6 @@ describe('AI status helpers', () => {
       createdAt: 1,
       locale: null,
     };
-    expect(memberPill(s, { ...empty, context: 'x' })).toBe('on');
+    expect(memberPill(s)).toBe('on');
   });
 });
