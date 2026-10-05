@@ -4,7 +4,7 @@
 
 **Goal:** One inbox row per WhatsApp person: messages addressed by phone-number JID (PN, `<digits>@s.whatsapp.net`) and by WhatsApp ID (LID, `<digits>@lid`) land in a single chat; existing duplicates are merged once (after a pre-merge backup); the UI shows the real phone number or "Phone number hidden", never LID digits; old links and notifications keep working.
 
-**Architecture:** `chats.jid` stays the primary key. A new `jid_aliases` table (migration 003) maps every PN whose LID is known to the LID chat; an in-memory `AliasStore` resolves JIDs at ingest, routes and `chats.upsert`. An `IdentityService` learns explicit WhatsApp pairs, takes a one-time pre-merge backup, and calls `mergeChat` (one synchronous SQLite transaction per pair), then publishes `chat:merged` so the send queue re-keys and browsers redirect. Replies go to the `wa_remote_jid` of the last inbound message.
+**Architecture:** `chats.jid` stays the primary key. A new `jid_aliases` table (migration 004) maps every PN whose LID is known to the LID chat; an in-memory `AliasStore` resolves JIDs at ingest, routes and `chats.upsert`. An `IdentityService` learns explicit WhatsApp pairs, takes a one-time pre-merge backup, and calls `mergeChat` (one synchronous SQLite transaction per pair), then publishes `chat:merged` so the send queue re-keys, the AI Sales Agent follows the chat, and browsers redirect. Replies (human and AI) go to the `wa_remote_jid` of the last inbound message. `mergeChat` also moves the AI Sales Agent's per-chat state (`ai_chat_state`, which would otherwise cascade away with the PN row).
 
 **Tech Stack:** Node 22+, TypeScript strict ESM, better-sqlite3, Fastify, Socket.IO, zod (`packages/shared`), Baileys 7.0.0-rc14 (`packages/wa/src/baileys/**` only), React 19 + TanStack Query + react-i18next (`apps/web`), Vitest.
 
@@ -19,7 +19,8 @@
 - Never send WhatsApp messages from a real linked number; the real-WhatsApp smoke (Task 12) is done by the owner on a test number.
 - Run tests with `npx vitest run <paths>` (only the files you touched) plus `npm run typecheck -w @wa-team-inbox/<pkg>` for the package you touched.
 - No e2e and no full suite inside a task; Task 12 is the single consolidated verification.
-- Migration file is `003_jid_aliases.sql` (`002_user_locale.sql` already exists); `PRAGMA user_version` becomes 3.
+- Migration file is `004_jid_aliases.sql` (`002_user_locale.sql` and `003_ai_member.sql` already exist); `PRAGMA user_version` becomes 4.
+- AI Sales Agent (#18): `ai_chat_state(chat_jid PK REFERENCES chats(jid) ON DELETE CASCADE)` holds per-chat AI state; AI replies go through `MessageService.sendText` and the send queue (`sendJob` calls `ai.canSend(job.chatJid, …)`); the AI member is a `users` row with `kind = 'ai'`. Every merge/send/ingest change must keep these working: move `ai_chat_state` before deleting a chat row, keep `job.chatJid` the canonical chat (queue key) and put the WhatsApp address in `job.targetJid`, and keep the live `message:received` bus event (the AI's trigger) in `ingest`, keyed by the canonical chat.
 - `VACUUM INTO` (backups) cannot run inside a SQLite transaction: alias learning that can trigger a merge must run outside `db.transaction`.
 - Web UI: shadcn primitives and token classes only (no raw `<button>`, no palette/hex colours), every screen works at 360px, routes stay inside the existing `ErrorBoundary`.
 - Every user-visible string goes through i18n with EN, MS and zh-CN in the same commit (`apps/web/src/i18n/locales/*/*.json`, `packages/server/src/i18n/messages.ts`); the catalog tests enforce parity.
@@ -32,32 +33,33 @@
 
 ## Review Focus
 
-The five failure modes most likely to hurt users, each with an owning test:
+The six failure modes most likely to hurt users, each with an owning test:
 
 1. **The same customer is open in two browser tabs during a merge.** One tab shows the PN chat and keeps replying to `/api/chats/<pn>/…`. Covered by Task 8 (`chats.test.ts` "old phone-number URLs resolve…": POSTing a message or note to the PN URL lands in the LID chat) and Task 10 (`socket.test.tsx` + `InboxPage.test.tsx`: `chat:merged` points the open detail at the LID and the page redirects).
 2. **A send is queued in the PN chat when the merge happens.** It must neither be lost nor sent twice, and it must still go to the address the customer used. Covered by Task 7 (`send-queue.test.ts` rekey tests + `messages.test.ts` "a send queued in the PN chat during a merge is delivered once, to the PN, from the LID chat").
 3. **A push notification still points at the old PN URL.** Covered by Task 8 (`chats.test.ts` route resolution) and Task 8 (`push/service.test.ts`: new notifications use the canonical JID and never use LID digits as the title).
 4. **The pre-merge backup fails.** Chats must stay split, both must stay reachable, and the merge must run later. Covered by Task 5 (`identity.test.ts` "leaves chats split when the backup fails…") and Task 8 (`bridge.test.ts` "the connect sweep merges a pair left split…" + `chats.test.ts` "a chat left split by a failed backup stays reachable").
 5. **History sync `chats.upsert` recreates the PN row after the merge.** Covered by Task 5 (`identity.test.ts` "upsertFromWa for a merged phone number never recreates its chat") and Task 6 (`bridge.test.ts` "history chats.upsert for a merged PN does not recreate the PN row").
+6. **The AI Sales Agent is waiting to answer, or is mid-reply, in the PN chat when it merges.** `ai_chat_state` cascades away with the PN row, the AI's in-memory timer/generation stay keyed by the PN, and the reply is either lost, sent twice, or sent while a teammate owns the merged chat. Covered by Task 3 (`merge.test.ts` "moves the AI Sales Agent's chat state…", "keeps the newer AI state and stays paused…", and the owner table rows where a human beats the AI member) and Task 7 (`ai.test.ts` "follows a phone-number chat merged into its WhatsApp ID chat…", "a reply being written when the chats merge is sent once…", "a merge that gives the chat to a teammate stops the AI").
 
 Also covered: a recycled number (PN → other LID) only re-points future routing and never joins two people (Task 2 `aliases.test.ts` rule 3; Task 5 `contact-names.test.ts` rewrite).
 
 ---
 
-## Task 1: Shared contract, migration 003, chat phone and `wa_remote_jid` columns
+## Task 1: Shared contract, migration 004, chat phone and `wa_remote_jid` columns
 
 **Files:**
-- Create: `packages/server/src/db/migrations/003_jid_aliases.sql`
-- Modify: `packages/server/src/db/migrate.test.ts` (user_version 2 → 3, new upgrade test)
-- Modify: `packages/shared/src/models.ts:31-43` (`ChatSchema.phone`)
+- Create: `packages/server/src/db/migrations/004_jid_aliases.sql`
+- Modify: `packages/server/src/db/migrate.test.ts` (user_version 3 → 4, `jid_aliases` in `TABLES`, new upgrade test)
+- Modify: `packages/shared/src/models.ts:35-47` (`ChatSchema.phone`)
 - Modify: `packages/shared/src/socket.ts` (`ChatMergedPayload`, `'chat:merged'`)
 - Modify: `packages/shared/src/api.ts:204-209` (`FakeIncomingBody.chatJidAlt`)
 - Modify: `packages/shared/src/schemas.test.ts`
-- Modify: `packages/server/src/bus.ts:168-182` (`'chat:merged'`)
+- Modify: `packages/server/src/bus.ts:2-29` (`'chat:merged'`)
 - Modify: `packages/server/src/chats/repo.ts` (`ChatRow.phone`, `rowToChat`, `ensure`, `phoneFor`, `list` search)
 - Modify: `packages/server/src/messages/repo.ts` (`MessageRow.wa_remote_jid`, `insert`)
 - Modify: `packages/server/src/messages/service.ts` (three `MessageRow` literals)
-- Modify (fixtures): `packages/server/test/chats.test.ts:194`, `packages/server/test/contact-names.test.ts:183`, `packages/server/src/push/service.test.ts:25`, `apps/web/src/inbox/ChatList.test.tsx:50`, `apps/web/src/inbox/InboxPage.test.tsx:21`
+- Modify (fixtures): `packages/server/test/chats.test.ts:194`, `packages/server/test/contact-names.test.ts:186`, `packages/server/src/push/service.test.ts:25`, `apps/web/src/inbox/ChatList.test.tsx:50`, `apps/web/src/inbox/InboxPage.test.tsx:21` (no other `Chat`/`ChatRow` literals exist; `test/ai.test.ts` builds chats through `ingest`)
 
 **Interfaces:**
 - Produces: `ChatSchema` gains `phone: z.string().nullable()` → `Chat['phone']: string | null` (PN digits without `+`).
@@ -68,23 +70,20 @@ Also covered: a recycled number (PN → other LID) only re-points future routing
 
 - [ ] **Step 1: Write the failing migration test**
 
-In `packages/server/src/db/migrate.test.ts` change both `toBe(2)` on `user_version` (3 occurrences, lines 30, 47, 62) to `toBe(3)`, add `copyFileSync` to the `node:fs` import and `migrationsDir` to the `./migrate.js` import, then append inside `describe('migrate', …)`:
+In `packages/server/src/db/migrate.test.ts` (already imports `migrationsDir` and `readFileSync` since #18):
+- add `'jid_aliases',` after `'ai_chat_state',` in `TABLES`;
+- change every `toBe(3)` on `user_version` to `toBe(4)` — 4 occurrences, lines 33, 51, 66 (the "upgrades a main-branch locale database…" test migrates to the latest version) and 86; leave its `db.pragma('user_version = 2')` setup line alone;
+
+then append inside `describe('migrate', …)`:
 
 ```ts
-  it('003 adds jid_aliases and backfills wa_remote_jid and chats.phone on an existing v2 database', () => {
-    const v2 = mkdtempSync(join(tmpdir(), 'wati-mig-'));
+  it('004 adds jid_aliases and backfills wa_remote_jid and chats.phone on an existing v3 database', () => {
+    const db = new Database(':memory:');
     try {
-      for (const f of ['001_init.sql', '002_user_locale.sql']) {
-        copyFileSync(join(migrationsDir(), f), join(v2, f));
+      for (const f of ['001_init.sql', '002_user_locale.sql', '003_ai_member.sql']) {
+        db.exec(readFileSync(join(migrationsDir(), f), 'utf8'));
       }
-      const db = new Database(':memory:');
-      process.env.WATI_MIGRATIONS_DIR = v2;
-      try {
-        migrate(db);
-      } finally {
-        delete process.env.WATI_MIGRATIONS_DIR;
-      }
-      expect(db.pragma('user_version', { simple: true })).toBe(2);
+      db.pragma('user_version = 3');
       db.exec(`
         INSERT INTO chats (jid, type, name, updated_at) VALUES
           ('60111@s.whatsapp.net', 'dm', 'A', 1), ('999@lid', 'dm', '', 1),
@@ -94,7 +93,7 @@ In `packages/server/src/db/migrate.test.ts` change both `toBe(2)` on `user_versi
           ('m1', '60111@s.whatsapp.net', 'text', 1, 1), ('m2', '999@lid', 'text', 2, 2);
       `);
       migrate(db);
-      expect(db.pragma('user_version', { simple: true })).toBe(3);
+      expect(db.pragma('user_version', { simple: true })).toBe(4);
       expect(db.prepare('SELECT id, wa_remote_jid FROM messages ORDER BY id').all()).toEqual([
         { id: 'm1', wa_remote_jid: '60111@s.whatsapp.net' },
         { id: 'm2', wa_remote_jid: '999@lid' },
@@ -108,9 +107,9 @@ In `packages/server/src/db/migrate.test.ts` change both `toBe(2)` on `user_versi
       expect(
         db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'jid_aliases'").get(),
       ).toEqual({ name: 'jid_aliases' });
-      db.close();
+      expect(() => migrate(db)).not.toThrow();
     } finally {
-      rmSync(v2, { recursive: true, force: true });
+      db.close();
     }
   });
 ```
@@ -118,11 +117,11 @@ In `packages/server/src/db/migrate.test.ts` change both `toBe(2)` on `user_versi
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run packages/server/src/db/migrate.test.ts`
-Expected: FAIL — `expected 2 to be 3` (no migration 003 yet).
+Expected: FAIL — `expected 3 to be 4` (no migration 004 yet).
 
 - [ ] **Step 3: Create the migration**
 
-`packages/server/src/db/migrations/003_jid_aliases.sql`:
+`packages/server/src/db/migrations/004_jid_aliases.sql`:
 
 ```sql
 -- One person, two WhatsApp addresses. A phone-number JID (PN) whose WhatsApp ID (LID) is known
@@ -151,7 +150,7 @@ UPDATE chats
 - [ ] **Step 4: Run the migration test again**
 
 Run: `npx vitest run packages/server/src/db/migrate.test.ts`
-Expected: PASS (4 tests).
+Expected: PASS (5 tests).
 
 - [ ] **Step 5: Write the failing shared schema test**
 
@@ -266,7 +265,7 @@ In `packages/server/test/chats.test.ts`: change the import from `../src/chats/re
   });
 ```
 
-In `packages/server/test/contact-names.test.ts` line 183 change `expect(chats.get(LID)?.name).toBe('123456789');` to `expect(chats.get(LID)?.name).toBe('');` (LID digits are no longer a display name).
+In `packages/server/test/contact-names.test.ts` line 186 change `expect(chats.get(LID)?.name).toBe('123456789');` to `expect(chats.get(LID)?.name).toBe('');` (LID digits are no longer a display name).
 
 Run: `npx vitest run packages/server/test/chats.test.ts`
 Expected: FAIL — TypeScript/vitest error on unknown `phone` property / `expected '123456789' to be '60111'`.
@@ -359,7 +358,7 @@ and replace the `insert` SQL:
       )
 ```
 
-`packages/server/src/messages/service.ts`: add `wa_remote_jid` after `client_id` in the three row literals — `ingest` (line 311): `wa_remote_jid: m.chatJid,`; `sendText` (line 387) and `sendMedia` (line 421): `wa_remote_jid: jid,` (Tasks 6 and 7 refine these).
+`packages/server/src/messages/service.ts`: add `wa_remote_jid` after `client_id` in the three row literals — `ingest` (`client_id: null,` at line 369): `wa_remote_jid: m.chatJid,`; `sendText` (`client_id: body.clientId,` at line 460) and `sendMedia` (`client_id: clientId,` at line 494): `wa_remote_jid: jid,` (Tasks 6 and 7 refine these). The AI Sales Agent sends through `sendText`, so it gets the same column.
 
 Fixtures: add `phone: null,` after `updatedAt: 0,` in `apps/web/src/inbox/ChatList.test.tsx` `chat()`; add `phone: '60123456789',` after `updatedAt: now,` in `apps/web/src/inbox/InboxPage.test.tsx` `chat`; add `phone: '60123',` after `updatedAt: 1,` in `packages/server/src/push/service.test.ts` `chat()`.
 
@@ -376,7 +375,7 @@ Expected: no errors.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add packages/server/src/db/migrations/003_jid_aliases.sql packages/server/src/db/migrate.test.ts packages/shared/src/models.ts packages/shared/src/socket.ts packages/shared/src/api.ts packages/shared/src/schemas.test.ts packages/server/src/bus.ts packages/server/src/chats/repo.ts packages/server/src/messages/repo.ts packages/server/src/messages/service.ts packages/server/test/chats.test.ts packages/server/test/contact-names.test.ts packages/server/src/push/service.test.ts apps/web/src/inbox/ChatList.test.tsx apps/web/src/inbox/InboxPage.test.tsx
+git add packages/server/src/db/migrations/004_jid_aliases.sql packages/server/src/db/migrate.test.ts packages/shared/src/models.ts packages/shared/src/socket.ts packages/shared/src/api.ts packages/shared/src/schemas.test.ts packages/server/src/bus.ts packages/server/src/chats/repo.ts packages/server/src/messages/repo.ts packages/server/src/messages/service.ts packages/server/test/chats.test.ts packages/server/test/contact-names.test.ts packages/server/src/push/service.test.ts apps/web/src/inbox/ChatList.test.tsx apps/web/src/inbox/InboxPage.test.tsx
 git commit -m "feat(shared,server): jid_aliases table, chat phone and message wa_remote_jid"
 ```
 
@@ -704,9 +703,11 @@ git commit -m "feat(server): AliasStore routes phone-number JIDs to their WhatsA
 - Test: `packages/server/src/backup/backup.test.ts`
 
 **Interfaces:**
-- Consumes: `ChatRepo`, `ChatRow`, `jidUser` (`chats/repo.ts`), `audit` (`db/audit.ts`), `AliasSource` (Task 2).
+- Consumes: `ChatRepo`, `ChatRow`, `jidUser` (`chats/repo.ts`), `audit` (`db/audit.ts`), `AliasSource` (Task 2); tables `ai_chat_state` and `users.kind` (migration 003, #18).
 - Produces:
-  - `export interface MergeResult { from: string; to: string; rekeyed: boolean; moved: { messages: number; events: number; notes: number }; assignedTo: number | null; assigneeDropped: number | null; events: ChatEvent[] }`
+  - `export interface MergeResult { from: string; to: string; rekeyed: boolean; moved: { messages: number; events: number; notes: number; aiState: number }; assignedTo: number | null; assigneeDropped: number | null; events: ChatEvent[] }`
+  - Owner rule: one owner kept; a teammate (`users.kind = 'human'`) always beats the AI Sales Agent member; otherwise the chat with the newest inbound message keeps its owner.
+  - AI state rule: `ai_chat_state` of `from` moves to `to` (it has `ON DELETE CASCADE` and would vanish with the `from` row); when both exist, the newer-inbound chat's state wins and `paused` is kept if either chat was paused (handoff).
   - `export function mergeChat(db: DB, from: string, to: string, opts: { now: number; source?: AliasSource }): MergeResult | null`
   - `export const PREMERGE_KEEP_DAYS = 30;`
   - `export function runBackupSync(dataDir: string, db: DB, now?: Date, opts?: { label?: string }): string`
@@ -873,7 +874,18 @@ beforeEach(() => {
   );
   user.run('u1', 'U1');
   user.run('u2', 'U2');
+  // id 3: the AI Sales Agent member (#18; at most one `kind = 'ai'` user, always an agent)
+  db.prepare(
+    "INSERT INTO users (username, display_name, password_hash, role, kind, created_at) VALUES ('ai-1', 'Sales Agent', '', 'agent', 'ai', 1)",
+  ).run();
 });
+const aiState = (jid: string, f: { paused?: number; customer: string; dueAt: number | null }) =>
+  db
+    .prepare(
+      `INSERT INTO ai_chat_state (chat_jid, paused, awaiting_confirmation, last_customer_message_id, due_at)
+       VALUES (?, ?, 1, ?, ?)`,
+    )
+    .run(jid, f.paused ?? 0, f.customer, f.dueAt);
 afterEach(() => {
   db.close();
   rmSync(dir, { recursive: true, force: true });
@@ -915,7 +927,7 @@ describe('mergeChat', () => {
       from: PN,
       to: LID,
       rekeyed: false,
-      moved: { messages: 66, events: 1, notes: 1 },
+      moved: { messages: 66, events: 1, notes: 1, aiState: 0 },
       assigneeDropped: null,
     });
     expect(chat(PN)).toBeUndefined();
@@ -949,7 +961,7 @@ describe('mergeChat', () => {
       from: PN,
       to: LID,
       rekeyed: false,
-      moved: { messages: 66, events: 1, notes: 1 },
+      moved: { messages: 66, events: 1, notes: 1, aiState: 0 },
       assigneeDropped: null,
     });
   });
@@ -978,6 +990,10 @@ describe('mergeChat', () => {
     { pnOwner: 1, lidOwner: null, pnNewest: false, kept: 1, dropped: null },
     { pnOwner: 1, lidOwner: 2, pnNewest: true, kept: 1, dropped: 2 },
     { pnOwner: 1, lidOwner: 2, pnNewest: false, kept: 2, dropped: 1 },
+    // 3 = the AI Sales Agent: a teammate always wins, whichever chat is newer
+    { pnOwner: 3, lidOwner: 2, pnNewest: true, kept: 2, dropped: 3 },
+    { pnOwner: 1, lidOwner: 3, pnNewest: false, kept: 1, dropped: 3 },
+    { pnOwner: 3, lidOwner: null, pnNewest: false, kept: 3, dropped: null },
   ])(
     'one owner: PN=$pnOwner LID=$lidOwner (PN has newest inbound: $pnNewest) keeps $kept',
     ({ pnOwner, lidOwner, pnNewest, kept, dropped }) => {
@@ -1031,7 +1047,10 @@ describe('mergeChat', () => {
     });
     seedMessages(PN, 3, 1);
     const r = mergeChat(db, PN, LID, { now: 5000 })!;
-    expect(r).toMatchObject({ rekeyed: true, moved: { messages: 3, events: 0, notes: 0 } });
+    expect(r).toMatchObject({
+      rekeyed: true,
+      moved: { messages: 3, events: 0, notes: 0, aiState: 0 },
+    });
     expect(chat(PN)).toBeUndefined();
     expect(chat(LID)).toMatchObject({
       type: 'dm',
@@ -1083,6 +1102,52 @@ describe('mergeChat', () => {
       canonical_jid: '555@lid',
     });
   });
+
+  it("moves the AI Sales Agent's chat state with a re-keyed phone-number chat", () => {
+    seedChat(PN, { assigned_to: 3 });
+    seedMessages(PN, 1, 1000);
+    aiState(PN, { customer: `${PN}#0`, dueAt: 9000 });
+    const r = mergeChat(db, PN, LID, { now: 5000 })!;
+    expect(r.moved.aiState).toBe(1);
+    expect(chat(LID)!.assigned_to).toBe(3);
+    expect(db.prepare('SELECT * FROM ai_chat_state').all()).toEqual([
+      {
+        chat_jid: LID,
+        paused: 0,
+        awaiting_confirmation: 1,
+        last_customer_message_id: `${PN}#0`,
+        last_replied_message_id: null,
+        due_at: 9000,
+      },
+    ]);
+  });
+
+  it.each([
+    { pnNewest: true, lidPaused: 0, paused: 0, customer: `${PN}#0`, dueAt: 9000, awaiting: 1 },
+    { pnNewest: false, lidPaused: 0, paused: 0, customer: `${LID}#0`, dueAt: 8000, awaiting: 1 },
+    { pnNewest: true, lidPaused: 1, paused: 1, customer: `${PN}#0`, dueAt: null, awaiting: 0 },
+  ])(
+    'keeps the newer AI state and stays paused if either chat was handed off (PN newest: $pnNewest, LID paused: $lidPaused)',
+    ({ pnNewest, lidPaused, paused, customer, dueAt, awaiting }) => {
+      seedChat(PN);
+      seedChat(LID);
+      seedMessages(PN, 1, pnNewest ? 3000 : 1000);
+      seedMessages(LID, 1, 2000);
+      aiState(PN, { customer: `${PN}#0`, dueAt: 9000 });
+      aiState(LID, { paused: lidPaused, customer: `${LID}#0`, dueAt: 8000 });
+      expect(mergeChat(db, PN, LID, { now: 5000 })!.moved.aiState).toBe(1);
+      expect(db.prepare('SELECT * FROM ai_chat_state').all()).toEqual([
+        {
+          chat_jid: LID,
+          paused,
+          awaiting_confirmation: awaiting,
+          last_customer_message_id: customer,
+          last_replied_message_id: null,
+          due_at: dueAt,
+        },
+      ]);
+    },
+  );
 });
 ```
 
@@ -1103,7 +1168,8 @@ export interface MergeResult {
   to: string;
   /** `to` had no chat row: `from` was renamed instead */
   rekeyed: boolean;
-  moved: { messages: number; events: number; notes: number };
+  /** `aiState`: 1 when the AI Sales Agent's `ai_chat_state` row of `from` was moved/merged */
+  moved: { messages: number; events: number; notes: number; aiState: number };
   assignedTo: number | null;
   /** owner removed because both chats had different owners (one owner per chat) */
   assigneeDropped: number | null;
@@ -1120,6 +1186,50 @@ function lastInboundAt(db: DB, jid: string): number {
     .prepare('SELECT MAX(timestamp) AS ts FROM messages WHERE chat_jid = ? AND from_me = 0')
     .get(jid) as { ts: number | null };
   return r.ts ?? -1;
+}
+
+const isAiMember = (db: DB, id: number | null): boolean =>
+  id !== null &&
+  (db.prepare('SELECT kind FROM users WHERE id = ?').get(id) as { kind: string } | undefined)
+    ?.kind === 'ai';
+
+interface AiStateRow {
+  paused: number;
+  awaiting_confirmation: number;
+  last_customer_message_id: string | null;
+  last_replied_message_id: string | null;
+  due_at: number | null;
+}
+
+/**
+ * Moves the AI Sales Agent's per-chat state: `ai_chat_state` has ON DELETE CASCADE and would vanish
+ * with the `from` row. Both present: the newer-inbound chat's state wins, and a handoff (paused) in
+ * either chat keeps the AI out until a teammate acts. Returns 1 when a row was moved or merged.
+ */
+function mergeAiState(db: DB, from: string, to: string, fromNewer: boolean): number {
+  const get = db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?');
+  const a = get.get(from) as AiStateRow | undefined;
+  if (!a) return 0;
+  const b = get.get(to) as AiStateRow | undefined;
+  if (!b) {
+    db.prepare('UPDATE ai_chat_state SET chat_jid = ? WHERE chat_jid = ?').run(to, from);
+    return 1;
+  }
+  const keep = fromNewer ? a : b;
+  const paused = Math.max(a.paused, b.paused);
+  db.prepare(
+    `UPDATE ai_chat_state SET paused = ?, awaiting_confirmation = ?, last_customer_message_id = ?,
+       last_replied_message_id = ?, due_at = ? WHERE chat_jid = ?`,
+  ).run(
+    paused,
+    paused ? 0 : keep.awaiting_confirmation,
+    keep.last_customer_message_id,
+    keep.last_replied_message_id,
+    paused ? null : keep.due_at,
+    to,
+  );
+  db.prepare('DELETE FROM ai_chat_state WHERE chat_jid = ?').run(from);
+  return 1;
 }
 
 /** saved contact name > a real (non-fallback) chat name > the canonical chat's name */
@@ -1153,6 +1263,8 @@ export function mergeChat(
     const a = repo.get(from);
     if (!a) return null;
     const b = repo.get(to);
+    // Decide before any message moves: which chat heard from the customer last.
+    const fromNewer = lastInboundAt(db, from) > lastInboundAt(db, to);
     const phone = pnDigits(from) ?? a.phone;
     const events: ChatEvent[] = [];
     let assignedTo = a.assigned_to;
@@ -1180,7 +1292,11 @@ export function mergeChat(
       if (a.assigned_to === null || b.assigned_to === null || a.assigned_to === b.assigned_to) {
         assignedTo = b.assigned_to ?? a.assigned_to;
       } else {
-        const keepFrom = lastInboundAt(db, from) > lastInboundAt(db, to);
+        // A teammate always beats the AI Sales Agent (human ownership cancels AI work);
+        // otherwise the chat with the newest inbound keeps its owner.
+        const aiFrom = isAiMember(db, a.assigned_to);
+        const aiTo = isAiMember(db, b.assigned_to);
+        const keepFrom = aiFrom !== aiTo ? aiTo : fromNewer;
         assignedTo = keepFrom ? a.assigned_to : b.assigned_to;
         assigneeDropped = keepFrom ? b.assigned_to : a.assigned_to;
       }
@@ -1202,6 +1318,8 @@ export function mergeChat(
       messages: db.prepare('UPDATE messages SET chat_jid = ? WHERE chat_jid = ?').run(to, from).changes,
       events: db.prepare('UPDATE chat_events SET chat_jid = ? WHERE chat_jid = ?').run(to, from).changes,
       notes: db.prepare('UPDATE notes SET chat_jid = ? WHERE chat_jid = ?').run(to, from).changes,
+      // must run before DELETE FROM chats (cascade) and after the `to` row exists (foreign key)
+      aiState: mergeAiState(db, from, to, fromNewer),
     };
     if (assigneeDropped !== null) {
       events.push(
@@ -1858,13 +1976,13 @@ git commit -m "feat(server): identity service merges chats when WhatsApp links a
 ## Task 6: Ingest routing and dev `fake-incoming` `chatJidAlt`
 
 **Files:**
-- Modify: `packages/server/src/messages/service.ts:282-361` (`ingest`)
+- Modify: `packages/server/src/messages/service.ts:336-434` (`ingest`, including the AI's `message:received` emit added by #18)
 - Modify: `packages/server/src/routes/dev.ts`
 - Test: `packages/server/src/wa-bridge/bridge.test.ts`, `packages/server/test/admin.test.ts`
 
 **Interfaces:**
 - Consumes: `getIdentity(ctx).learn/resolve` (Task 5), `WaIncomingMessage.chatJidAlt` (Task 4), `FakeIncomingBody.chatJidAlt` (Task 1), `MessageRow.wa_remote_jid` (Task 1).
-- Produces: inbound DM rows stored with `chat_jid = identity.resolve(m.chatJid)` and `wa_remote_jid = m.chatJid`; `message:new`, `chat:updated`, `inbound:notify` and the media folder use the canonical JID; `POST /api/dev/fake-incoming` returns `{ id, chatJid: <canonical>, timestamp }`.
+- Produces: inbound DM rows stored with `chat_jid = identity.resolve(m.chatJid)` and `wa_remote_jid = m.chatJid`; `message:new`, `message:received` (AI Sales Agent trigger), `chat:updated`, `inbound:notify` and the media folder use the canonical JID; `POST /api/dev/fake-incoming` returns `{ id, chatJid: <canonical>, timestamp }`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1907,12 +2025,17 @@ describe('one chat per person (phone number / WhatsApp ID)', () => {
     expect(notified).toEqual([PN, LID]);
   });
 
-  it('a later message on the PN goes straight to the LID chat', async () => {
+  it('a later message on the PN goes straight to the LID chat (and the AI trigger names that chat)', async () => {
+    const received: string[] = [];
+    t.ctx.bus.on('message:received', ({ chat, message }) =>
+      received.push(`${chat.jid}/${message.chatJid}`),
+    );
     t.wa.simulateIncoming({ id: 'L-1', chatJid: LID, chatJidAlt: PN, body: 'hi' });
     await settle();
     t.wa.simulateIncoming({ id: 'P-2', chatJid: PN, body: 'again' });
     await settle();
     expect(chatJids()).toEqual([LID]);
+    expect(received).toEqual([`${LID}/${LID}`, `${LID}/${LID}`]);
     expect(t.ctx.db.prepare("SELECT chat_jid, wa_remote_jid FROM messages WHERE id = 'P-2'").get()).toEqual({
       chat_jid: LID,
       wa_remote_jid: PN,
@@ -1964,7 +2087,7 @@ Expected: FAIL — `expected [ '123456789@lid', '60111111111@s.whatsapp.net' ] t
 
 - [ ] **Step 2: Implement ingest routing**
 
-`packages/server/src/messages/service.ts`: add `import { getIdentity } from '../chats/identity.js';` and replace `ingest` (lines 282-361) with:
+`packages/server/src/messages/service.ts`: add `import { getIdentity } from '../chats/identity.js';` and replace `ingest` (lines 336-434) with:
 
 ```ts
     async ingest(m, source) {
@@ -1981,12 +2104,16 @@ Expected: FAIL — `expected [ '123456789@lid', '60111111111@s.whatsapp.net' ] t
       // One person, one chat: a phone-number JID whose WhatsApp ID is known lands in the LID chat.
       const chatJid = isGroup ? m.chatJid : identity.resolve(m.chatJid);
       if (m.fromMe && inflight.has(chatJid)) {
-        // our own send may be echoing back before its promise resolved; let it settle first
+        // Our own send may echo before the queue has committed its WhatsApp id and sender.
         await inflight.get(chatJid);
         if (repo.exists(m.id)) return null;
       }
       const t = now();
-      const chatBefore = chats.ensure(chatJid, { name: !isGroup && !m.fromMe ? m.senderName : null }, t);
+      const chatBefore = chats.ensure(
+        chatJid,
+        { name: !isGroup && !m.fromMe ? m.senderName : null },
+        t,
+      );
 
       const row: MessageRow = {
         id: m.id,
@@ -2016,7 +2143,9 @@ Expected: FAIL — `expected [ '123456789@lid', '60111111111@s.whatsapp.net' ] t
       ctx.db.transaction(() => {
         touchChat(row, t);
         if (isNewLiveInbound) {
-          ctx.db.prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?').run(chatJid);
+          ctx.db
+            .prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?')
+            .run(chatJid);
           const cur = chats.get(chatJid)!;
           if (cur.status === 'resolved') {
             chats.update(chatJid, { status: 'open', updated_at: t });
@@ -2031,8 +2160,23 @@ Expected: FAIL — `expected [ '123456789@lid', '60111111111@s.whatsapp.net' ] t
         }
       })();
       if (reopened) {
-        const ev = chats.insertEvent({ chatJid, type: 'reopened', actorId: null, payload: { reason: 'inbound' }, at: t });
+        const ev = chats.insertEvent({
+          chatJid,
+          type: 'reopened',
+          actorId: null,
+          payload: { reason: 'inbound' },
+          at: t,
+        });
         ctx.bus.emit('chat:event', ev);
+      }
+
+      if (source === 'live') {
+        // AI Sales Agent trigger (#18): keyed by the canonical chat so its ai_chat_state, timers
+        // and replies follow the one chat per person.
+        ctx.bus.emit('message:received', {
+          chat: rowToChat(chats.get(chatJid)!),
+          message: rowToMessage(row),
+        });
       }
 
       // History media stays 'pending' (mime/name kept) and is fetched on demand (ensureMedia /
@@ -2121,8 +2265,8 @@ No new import is needed: `ctx.services.identity` is typed by the module augmenta
 
 - [ ] **Step 4: Run the tests**
 
-Run: `npx vitest run packages/server/src/wa-bridge/bridge.test.ts packages/server/test/admin.test.ts packages/server/test/messages.test.ts packages/server/test/contact-names.test.ts`
-Expected: PASS.
+Run: `npx vitest run packages/server/src/wa-bridge/bridge.test.ts packages/server/test/admin.test.ts packages/server/test/messages.test.ts packages/server/test/contact-names.test.ts packages/server/test/ai.test.ts`
+Expected: PASS (`ai.test.ts` proves the AI still triggers on `message:received` and its echo/ownership checks still hold).
 
 - [ ] **Step 5: Typecheck**
 
@@ -2137,22 +2281,24 @@ git commit -m "feat(server): route inbound phone-number and LID messages to one 
 
 ---
 
-## Task 7: Replies to the last inbound address, send-queue rekey, grouped read receipts, presence
+## Task 7: Replies to the last inbound address, send-queue rekey, grouped read receipts, presence, AI Sales Agent follows merges
 
 **Files:**
 - Modify: `packages/server/src/messages/send-queue.ts` (`SendJob.targetJid`, `presence(job)`, `rekey`, in-flight guard)
 - Modify: `packages/server/src/messages/repo.ts` (`lastInboundRemoteJid`)
-- Modify: `packages/server/src/messages/service.ts` (`sendJob`, `jobFromRow`, `sendText`, `sendMedia`, queue `presence`, `chat:merged` listener, `shutdown`)
+- Modify: `packages/server/src/messages/service.ts:137-235, 237-255, 436-496, 595-597` (`sendJob` + its echo-guard reconciliation, queue `presence`, `jobFromRow`, `sendText`, `sendMedia`, `chat:merged` listener, `shutdown`)
 - Modify: `packages/server/src/chats/service.ts:294-315` (`markRead` grouped by `wa_remote_jid`)
-- Test: `packages/server/src/messages/send-queue.test.ts`, `packages/server/test/messages.test.ts`
+- Modify: `packages/server/src/ai/service.ts:290-390, 455-460, 598-603` (`respond` follows the canonical chat; `chat:merged` listener moves timers/generations)
+- Test: `packages/server/src/messages/send-queue.test.ts`, `packages/server/test/messages.test.ts`, `packages/server/test/ai.test.ts`
 
 **Interfaces:**
-- Consumes: `BusEvents['chat:merged']` (Task 1, emitted by Task 5), `MessageRow.wa_remote_jid`.
+- Consumes: `BusEvents['chat:merged']` (Task 1, emitted by Task 5), `MessageRow.wa_remote_jid`, `ChatService.resolveJid` (Task 5), merged `ai_chat_state` (Task 3).
 - Produces:
-  - `SendJob.targetJid: string` (JID passed to `wa.sendText/sendMedia/sendPresence`; `chatJid` stays the queue key)
+  - `SendJob.targetJid: string` (JID passed to `wa.sendText/sendMedia/sendPresence`; `chatJid` stays the queue key and the chat passed to `ai.canSend`)
   - `SendQueueDeps.presence?: (job: SendJob) => Promise<void>`
   - `SendQueue.rekey(from: string, to: string): void`
   - `MessageRepo.lastInboundRemoteJid(chatJid: string): string | null`
+  - AI Sales Agent replies (sent through `MessageService.sendText`) target the customer's last inbound address like human replies; a pending AI timer or running AI reply in a merged chat continues in the canonical chat and is recorded there (no lost or duplicate reply).
 
 - [ ] **Step 1: Write the failing send-queue tests**
 
@@ -2483,11 +2629,14 @@ Expected: FAIL — first test `expected '123456789@lid' to be '60111111111@s.wha
 ```
 
 `packages/server/src/messages/service.ts`:
-- in `sendJob`, use `job.targetJid` for `ctx.wa.sendText(…)`/`ctx.wa.sendMedia(…)` (first argument), and replace the `finally` body with:
+- in `sendJob` (lines 137-182; since #18 the echo guard is a `reconciliations` closure released by `onSent`/`onFailed`, not a `finally`):
+  - keep the AI check `ctx.services.ai?.canSend(job.chatJid, …)` unchanged — `job.chatJid` is the canonical chat (re-keyed by `rekey`), which is where `ai_chat_state` lives after a merge;
+  - use `job.targetJid` as the first argument of `ctx.wa.sendText(…)` and `ctx.wa.sendMedia(…)`;
+  - in the `reconciliations.set(job.localId, () => { … })` closure replace `if (inflight.get(job.chatJid) === guard) inflight.delete(job.chatJid);` with:
 
 ```ts
-      // the entry may have been copied to the canonical chat by a merge
-      for (const [k, v] of inflight) if (v === guard) inflight.delete(k);
+        // the guard may also have been copied to the canonical chat by a merge
+        for (const [k, v] of inflight) if (v === guard) inflight.delete(k);
 ```
 
 - queue construction: `presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),`
@@ -2542,20 +2691,158 @@ Expected: FAIL — first test `expected '123456789@lid' to be '60111111111@s.wha
     },
 ```
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 5: Write the failing AI Sales Agent tests**
 
-Run: `npx vitest run packages/server/src/messages/send-queue.test.ts packages/server/test/messages.test.ts packages/server/test/chats.test.ts packages/server/src/wa-bridge/bridge.test.ts`
-Expected: PASS.
+The AI Sales Agent (#18) keeps per-chat state in `ai_chat_state` (moved by `mergeChat`, Task 3) but its
+timers and running replies are in-memory maps keyed by chat JID, and `respond(jid)` re-reads the chat
+and state by that JID. Without this step a PN chat that merges while the AI's 10-second timer runs is
+never answered, and a reply being written during the merge is sent but not recorded on the LID state,
+so the AI answers the same customer message twice.
 
-- [ ] **Step 6: Typecheck**
+Append to `packages/server/test/ai.test.ts` (add `import { getIdentity } from '../src/chats/identity.js';`):
+
+```ts
+const PN = '60111111111@s.whatsapp.net';
+const LID = '123456789@lid';
+const aiStateOf = (chatJid: string) =>
+  t.ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(chatJid) as
+    | { last_replied_message_id: string | null; awaiting_confirmation: number; paused: number }
+    | undefined;
+
+it('follows a phone-number chat merged into its WhatsApp ID chat: one reply, to the address the customer used', async () => {
+  clock();
+  await incoming('p-1', 'What are your opening hours?', 'live', PN);
+  getIdentity(t.ctx).learn([{ jid: PN, alias: LID }], 'contacts');
+  expect(t.ctx.db.prepare('SELECT chat_jid FROM ai_chat_state').all()).toEqual([{ chat_jid: LID }]);
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent.map((s) => s.chatJid)).toEqual([PN]);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(getChats(t.ctx).get(LID)?.assignedTo).toBe(ai.id);
+  expect(aiStateOf(LID)).toMatchObject({ last_replied_message_id: 'p-1' });
+  expect(
+    t.ctx.db.prepare('SELECT chat_jid, wa_remote_jid FROM messages WHERE sent_by_user_id = ?').all(ai.id),
+  ).toEqual([{ chat_jid: LID, wa_remote_jid: PN }]);
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(t.wa.sent).toHaveLength(1);
+});
+
+it('a reply being written when the chats merge is sent once and recorded on the merged chat', async () => {
+  clock();
+  let release!: () => void;
+  vi.mocked(provider.generate).mockImplementationOnce(async () => {
+    await new Promise<void>((resolve) => (release = resolve));
+    return { reply: 'We open at 9am. Has this answered your question?', action: 'ask_resolution' };
+  });
+  await incoming('p-1', 'What are your opening hours?', 'live', PN);
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  getIdentity(t.ctx).learn([{ jid: PN, alias: LID }], 'contacts');
+  release();
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(t.wa.sent.map((s) => s.chatJid)).toEqual([PN]);
+  expect(aiStateOf(LID)).toMatchObject({ last_replied_message_id: 'p-1', awaiting_confirmation: 1 });
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent).toHaveLength(1);
+});
+
+it('a merge that gives the chat to a teammate stops the AI', async () => {
+  clock();
+  const teammate = human('teammate');
+  await incoming('l-1', 'Hello', 'live', LID);
+  getChats(t.ctx).patch(LID, { assignedTo: teammate.id }, actor.userId);
+  await incoming('p-1', 'What are your opening hours?', 'live', PN);
+  getIdentity(t.ctx).learn([{ jid: PN, alias: LID }], 'contacts');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
+  expect(provider.generate).not.toHaveBeenCalled();
+  expect(t.wa.sent).toHaveLength(0);
+  expect(getChats(t.ctx).get(LID)?.assignedTo).toBe(teammate.id);
+  expect(aiStateOf(LID)).toMatchObject({ paused: 1 });
+});
+```
+
+Run: `npx vitest run packages/server/test/ai.test.ts`
+Expected: FAIL — first test `expected "spy" to be called 1 times, but got 0 times` (the PN timer fires, finds no PN state and gives up); second test `expected [] to deeply equal [ '60111111111@s.whatsapp.net' ]` (the running reply re-reads the PN state, finds none and drops the answer; without the generation hand-over in Step 6 it would instead be sent but not recorded on the LID state and answered twice). The third test is a guard (passes once Tasks 3 and 5 are in).
+
+- [ ] **Step 6: Make the AI Sales Agent follow merges**
+
+`packages/server/src/ai/service.ts`:
+
+Replace the head of `respond` (lines 290-306, from `async function respond(jid: string) {` through `const history = messages.list(jid, { limit: 20 }).messages;`) with:
+
+```ts
+  async function respond(start: string) {
+    if (!eligible(start)) return;
+    const user = member()!;
+    const customerId = state(start)!.last_customer_message_id!;
+    const controller = new AbortController();
+    generations.set(start, controller);
+    // A merge (phone number → WhatsApp ID) can re-key this chat mid-reply: follow the canonical chat.
+    const key = () => chats.resolveJid(start);
+    const owned = () =>
+      !controller.signal.aborted &&
+      chats.get(key())?.assignedTo === user.id &&
+      state(key())?.last_customer_message_id === customerId &&
+      !state(key())?.paused &&
+      !member()?.disabled;
+    try {
+      if (chats.get(key())!.assignedTo === null)
+        chats.patch(key(), { assignedTo: user.id }, user.id);
+      if (!owned()) return;
+      const current = settings();
+      const history = messages.list(key(), { limit: 20 }).messages;
+```
+
+In the rest of `respond`, replace every remaining use of `jid` with `key()`: the two `log.warn({ jid, … })` calls become `log.warn({ jid: key(), … })`, `sendReply(key(), user.id, customerId, decision.reply, controller.signal)`, the final `UPDATE ai_chat_state … WHERE chat_jid = ?` runs with `key()`, `handoff(key(), user.id)` (both calls), `chats.patch(key(), { status: 'resolved' }, user.id)` and `meta: { chatJid: key() }`. Replace the `finally` body with:
+
+```ts
+      // the generation may have been moved to the canonical chat by onMerged
+      for (const [k, c] of generations) if (c === controller) generations.delete(k);
+```
+
+After `onDisabled` add:
+
+```ts
+  /** A PN chat merged into its LID chat (ai_chat_state already moved by mergeChat): move timers and work. */
+  const onMerged = ({ from, to }: { from: string; to: string }) => {
+    const timer = timers.get(from);
+    if (timer) clearTimeout(timer);
+    timers.delete(from);
+    const generation = generations.get(from);
+    if (generation) {
+      generations.delete(from);
+      // respond() follows the canonical chat; cancel(to) must reach it. Two replies at once: keep one.
+      if (generations.has(to)) generation.abort();
+      else generations.set(to, generation);
+    }
+    const s = state(to);
+    // schedule() cancels pending AI sends of `to`, so never while a reply is being written there.
+    if (!generations.has(to) && s && !s.paused && s.due_at !== null)
+      schedule(to, Math.max(Date.now() + 300, s.due_at));
+  };
+```
+
+(`identity.ts` publishes `chat:merged` only after the merge transaction commits, so `state(to)` already reads the moved row.)
+
+register it with `.on('chat:merged', onMerged)` after `.on('user:disabled', onDisabled)` and unregister it in `shutdown()` with `.off('chat:merged', onMerged)` after `.off('user:disabled', onDisabled)`.
+
+`canSend` is unchanged: the send queue passes the canonical `job.chatJid` (re-keyed by `rekey`), whose `ai_chat_state` row `mergeChat` kept. `onChat` needs no change either: the merge publishes `chat:updated` for the LID chat, which pauses the AI when a teammate owns it and clears its state when the merged chat is resolved.
+
+- [ ] **Step 7: Run the tests**
+
+Run: `npx vitest run packages/server/src/messages/send-queue.test.ts packages/server/test/messages.test.ts packages/server/test/chats.test.ts packages/server/src/wa-bridge/bridge.test.ts packages/server/test/ai.test.ts`
+Expected: PASS (including every pre-existing AI ownership, echo and cancellation test).
+
+- [ ] **Step 8: Typecheck**
 
 Run: `npm run typecheck -w @wa-team-inbox/server` → no errors.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add packages/server/src/messages/send-queue.ts packages/server/src/messages/send-queue.test.ts packages/server/src/messages/repo.ts packages/server/src/messages/service.ts packages/server/src/chats/service.ts packages/server/test/messages.test.ts
-git commit -m "feat(server): reply to the customer's last address, rekey queued sends on merge, per-address receipts"
+git add packages/server/src/messages/send-queue.ts packages/server/src/messages/send-queue.test.ts packages/server/src/messages/repo.ts packages/server/src/messages/service.ts packages/server/src/chats/service.ts packages/server/test/messages.test.ts packages/server/src/ai/service.ts packages/server/test/ai.test.ts
+git commit -m "feat(server): reply to the customer's last address, rekey queued sends on merge, per-address receipts, AI follows merges"
 ```
 
 ---
@@ -2567,7 +2854,7 @@ git commit -m "feat(server): reply to the customer's last address, rekey queued 
 - Modify: `packages/server/src/routes/messages.ts`, `packages/server/src/routes/notes.ts`
 - Modify: `packages/server/src/realtime/socket.ts` (broadcast `chat:merged` to `all`)
 - Modify: `packages/server/src/wa-bridge/bridge.ts:26-44` (sweep after alias recovery)
-- Modify: `packages/server/src/push/service.ts:216-221` (title fallback)
+- Modify: `packages/server/src/push/service.ts:218` (title fallback)
 - Modify: `packages/server/src/i18n/messages.ts` (`push.unknownContact` in en/ms/zh-CN)
 - Test: `packages/server/test/chats.test.ts`, `packages/server/test/realtime.test.ts`, `packages/server/src/wa-bridge/bridge.test.ts`, `packages/server/src/push/service.test.ts`
 
@@ -3241,7 +3528,7 @@ git commit -m "feat(web): follow merged chats live and redirect old phone-number
 
 - [ ] **Step 1: CHANGELOG**
 
-In `CHANGELOG.md`, after the `### Added` block of `## [Unreleased]` and before `## [0.1.19]`, add:
+In `CHANGELOG.md`, under `## [Unreleased]` (currently empty — `## [0.1.20]` with the AI Sales Agent follows it), add:
 
 ```markdown
 ### Fixed
@@ -3249,9 +3536,11 @@ In `CHANGELOG.md`, after the `### Added` block of `## [Unreleased]` and before `
 - Chats for the same person under phone number and WhatsApp ID are merged: one inbox row per
   customer, with all messages, notes, history and unread counts together. Existing duplicates are
   merged automatically on the first connection after the update (a backup named
-  `app-premerge-YYYYMMDD.db` is written first and kept 30 days). Replies go to the address the
-  customer last used. When WhatsApp has not revealed a customer's number, the chat shows
-  "Phone number hidden" instead of an internal ID. Old links and notifications open the merged chat.
+  `app-premerge-YYYYMMDD.db` is written first and kept 30 days). Replies, including the AI Sales
+  Agent's, go to the address the customer last used, and the AI Sales Agent continues in the merged
+  chat without answering twice; a teammate who owns either chat keeps it over the AI. When WhatsApp
+  has not revealed a customer's number, the chat shows "Phone number hidden" instead of an internal
+  ID. Old links and notifications open the merged chat.
 ```
 
 - [ ] **Step 2: LEARNINGS**
@@ -3261,6 +3550,7 @@ Append under the most fitting section of `docs/LEARNINGS.md`:
 ```markdown
 - 2026-10-05 — One customer showed as two inbox rows (phone-number JID and LID) → `chats.jid` was the raw `remoteJid` and PN↔LID pairs were only used for names → key chats by the LID once known, route PNs through `jid_aliases`, merge duplicates in one transaction after a pre-merge backup, and resolve `:jid` in every route so old links keep working.
 - 2026-10-05 — A merge needs a backup first, but alias learning ran inside `db.transaction` → SQLite refuses `VACUUM INTO` inside a transaction → learn aliases (and anything that can merge) before opening a transaction; check `db.inTransaction` before backing up.
+- 2026-10-05 — The merge plan was written before the AI Sales Agent (#18) landed: `ai_chat_state` cascades away with a deleted chat row and the AI keys timers and running replies by chat JID → anything that re-keys or deletes a chat must move every `chat_jid`-keyed table (check `REFERENCES chats` / `ON DELETE CASCADE` in all migrations) and notify in-memory per-chat workers (`chat:merged`).
 ```
 
 - [ ] **Step 3: AGENTS.md**
@@ -3272,6 +3562,8 @@ One person can arrive under a phone-number JID and a LID: chats are keyed by the
 (`chats/aliases.ts`, table `jid_aliases`), PN chats are merged into it by `chats/merge.ts` after a
 one-time pre-merge backup (`chats/identity.ts`), routes resolve `:jid` through `chatJidParam`, and
 replies go to the `wa_remote_jid` of the last inbound message. Never merge on a name or number match.
+A merge moves every `chat_jid`-keyed row (messages, events, notes, `ai_chat_state`) and publishes
+`chat:merged` so the send queue and the AI Sales Agent re-key their in-memory per-chat work.
 ```
 
 - [ ] **Step 4: Commit**
@@ -3325,6 +3617,7 @@ Checklist for the owner, recording results in the PR:
 5. Read receipts: blue ticks appear for messages that arrived under the LID and under the PN.
 6. `lid-mapping` key-store coverage: count of LID chats with `phone` set before/after first connect; chats still showing "Phone number hidden" are the ones WhatsApp has not revealed.
 7. Push notification from before the upgrade (PN URL) opens the merged chat.
+8. With the AI Sales Agent enabled on the test install, a second test phone writes to the linked number; after its chat merges, the AI answers once, to the address that phone used, and `ai_chat_state` has a single row for the LID chat.
 
 - [ ] **Step 8: Report**
 
