@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -32,10 +32,10 @@ it('lists every supported language by its native name and changes language', asy
     </MemoryRouter>,
   );
   await user.click(screen.getByRole('button', { name: 'Account menu' }));
-  const group = screen.getByRole('group', { name: 'Language' });
+  const group = screen.getByRole('radiogroup', { name: 'Language' });
   for (const name of ['English', 'Bahasa Melayu', '简体中文'])
     expect(group.textContent).toContain(name);
-  await user.click(screen.getByRole('menuitemradio', { name: 'Bahasa Melayu' }));
+  await user.click(screen.getByRole('radio', { name: 'Bahasa Melayu' }));
   expect(changeLocale).toHaveBeenCalledWith('ms');
 });
 
@@ -50,4 +50,18 @@ it('renders menu labels in the active language', async () => {
   await user.click(screen.getByRole('button', { name: '账户菜单' }));
   expect(screen.getByRole('menuitem', { name: '退出登录' })).toBeTruthy();
   expect(screen.getByText(/客服/)).toBeTruthy();
+});
+
+it('puts theme on one compact switch with Light, Dark and System', async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <UserMenu />
+    </MemoryRouter>,
+  );
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  const theme = screen.getByRole('radiogroup', { name: 'Appearance' });
+  for (const name of ['Light', 'Dark', 'System']) {
+    expect(within(theme).getByRole('radio', { name })).toBeTruthy();
+  }
 });

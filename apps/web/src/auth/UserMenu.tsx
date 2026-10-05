@@ -11,12 +11,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AboutDialog } from '@/components/app';
+import { AboutDialog, SegmentedControl } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { ShareAppAction } from '@/components/app/ShareAppAction';
 import { GITHUB_ISSUES_URL } from '@/lib/links';
@@ -32,6 +30,12 @@ import { useAuth } from './AuthProvider';
  * (admins only), change password and sign out. The English accessible names ("Account menu",
  * "Admin settings", "Sign out") are relied on by e2e tests, which run in English.
  */
+/** Short button text for the language switch (endonyms/codes, not translated). */
+const SHORT_LOCALE: Record<string, string> = { en: 'EN', ms: 'BM', 'zh-CN': '中文' };
+function shortLocaleLabel(code: string, nativeName: string): string {
+  return SHORT_LOCALE[code] ?? nativeName;
+}
+
 export function UserMenu({
   className,
   align = 'end',
@@ -73,36 +77,56 @@ export function UserMenu({
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel id="account-appearance-label">{t('theme.label')}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-labelledby="account-appearance-label"
-            value={theme}
-            onValueChange={setTheme}
+          {/* One compact row each; arrow keys belong to the switch, not to menu navigation. */}
+          <div
+            className="flex flex-col gap-2 px-2 py-1.5"
+            onKeyDown={(e) => {
+              if (e.key.startsWith('Arrow')) e.stopPropagation();
+            }}
           >
-            {THEME_OPTIONS.map((option) => {
-              const Icon =
-                option.value === 'light' ? Sun : option.value === 'dark' ? Moon : Monitor;
-              return (
-                <DropdownMenuRadioItem key={option.value} value={option.value} className="min-h-11">
-                  <Icon aria-hidden="true" />
-                  {t(option.labelKey)}
-                </DropdownMenuRadioItem>
-              );
-            })}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel id="account-language-label">{t('language.label')}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-labelledby="account-language-label"
-            value={locale}
-            onValueChange={(v) => isLocale(v) && changeLocale(v)}
-          >
-            {SUPPORTED_LOCALES.map((l) => (
-              <DropdownMenuRadioItem key={l.code} value={l.code} lang={l.code} className="min-h-11">
-                {l.nativeName}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+            <div className="flex items-center justify-between gap-2">
+              <span id="account-appearance-label" className="text-sm font-medium">
+                {t('theme.label')}
+              </span>
+              <SegmentedControl
+                aria-labelledby="account-appearance-label"
+                value={theme}
+                onValueChange={setTheme}
+                options={THEME_OPTIONS.map((option) => {
+                  const Icon =
+                    option.value === 'light' ? Sun : option.value === 'dark' ? Moon : Monitor;
+                  return {
+                    value: option.value,
+                    label: (
+                      <span title={t(option.labelKey)}>
+                        <Icon aria-hidden="true" className="size-4" />
+                        <span className="sr-only">{t(option.labelKey)}</span>
+                      </span>
+                    ),
+                  };
+                })}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span id="account-language-label" className="text-sm font-medium">
+                {t('language.label')}
+              </span>
+              <SegmentedControl
+                aria-labelledby="account-language-label"
+                value={locale}
+                onValueChange={(v) => isLocale(v) && changeLocale(v)}
+                options={SUPPORTED_LOCALES.map((l) => ({
+                  value: l.code,
+                  label: (
+                    <span lang={l.code} title={l.nativeName}>
+                      <span aria-hidden="true">{shortLocaleLabel(l.code, l.nativeName)}</span>
+                      <span className="sr-only">{l.nativeName}</span>
+                    </span>
+                  ),
+                }))}
+              />
+            </div>
+          </div>
           <DropdownMenuSeparator />
           <PushToggle compact className="px-2" />
           <DropdownMenuSeparator />
