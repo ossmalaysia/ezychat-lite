@@ -188,7 +188,12 @@ function ConnectionForm({
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       {t('ai.modeChatgpt')}
-                      <Badge variant="outline" className="px-1.5 text-xs">
+                      {/* Inherit the segment's token colour: primary-foreground when selected,
+                          muted-foreground otherwise, so the badge never clashes with the fill. */}
+                      <Badge
+                        variant="outline"
+                        className="border-current/40 bg-transparent px-1.5 text-xs font-normal text-inherit"
+                      >
                         {t('ai.experimental')}
                       </Badge>
                     </span>
