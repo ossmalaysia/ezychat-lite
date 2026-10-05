@@ -33,6 +33,7 @@ const chat = (assignedTo: number | null): Chat => ({
   status: 'open',
   assignedTo,
   updatedAt: 1,
+  phone: '60123',
 });
 const message = { id: 'm1', chatJid: JID, body: 'hello there' } as Message;
 
@@ -184,6 +185,21 @@ describe('PushService', () => {
       { ...message, body: null },
     );
     expect(sent[0]!.payload.body).toBe('Mesej baharu');
+  });
+
+  it('titles a chat without a name or phone "Unknown contact" and links its own JID', async () => {
+    const a = mkUser('a1');
+    const { push, sent } = setup(new Set());
+    push.subscribe(a.id, sub('a'));
+    await push.notifyInbound(
+      { ...chat(a.id), jid: '123456789@lid', name: '', phone: null },
+      message,
+    );
+    expect(sent[0]!.payload).toMatchObject({
+      title: 'Unknown contact',
+      url: '/chats/123456789%40lid',
+      tag: '123456789@lid',
+    });
   });
 
   it('routes bus inbound:notify and wa:status logged_out', async () => {

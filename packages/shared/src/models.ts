@@ -44,6 +44,8 @@ export const ChatSchema = z.object({
   status: ChatStatus,
   assignedTo: z.number().nullable(),
   updatedAt: z.number(),
+  /** Phone-number digits without `+`; null when WhatsApp has only revealed the WhatsApp ID (LID). */
+  phone: z.string().nullable(),
 });
 export type Chat = z.infer<typeof ChatSchema>;
 

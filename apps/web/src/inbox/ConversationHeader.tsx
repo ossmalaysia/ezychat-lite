@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { formatJid } from '../lib/jid';
+import { formatPhone } from '../lib/jid';
+import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
 import { GroupIcon } from './ChatListItem';
 import type { Directory } from './useDirectory';
@@ -41,8 +42,11 @@ export function ConversationHeader({
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
-  const name = chat.name || formatJid(chat.jid);
-  const phone = formatJid(chat.jid);
+  const name = chatTitle(chat, t);
+  const subtitle =
+    chat.type === 'group'
+      ? t('chatListItem.group')
+      : (formatPhone(chat) ?? t('header.phoneHidden'));
   const resolved = chat.status === 'resolved';
 
   // Options: active team members (from the team directory) + current assignee.
@@ -83,7 +87,7 @@ export function ConversationHeader({
           </span>
         </h2>
         <p className="truncate text-xs text-muted-foreground">
-          {phone}
+          {subtitle}
           {resolved && ` · ${t('header.resolved')}`}
         </p>
       </div>

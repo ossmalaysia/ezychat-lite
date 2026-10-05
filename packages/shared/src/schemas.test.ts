@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ApiErrorSchema,
   ChatEventSchema,
+  ChatSchema,
   ChatListQuery,
   CloudflareCreateBody,
   ErrorCode,
+  FakeIncomingBody,
   HealthResponse,
   MessageSchema,
   QuickReplyBody,
@@ -109,5 +111,27 @@ describe('shared schemas', () => {
     expect(
       ApiErrorSchema.safeParse({ error: { code: ErrorCode.NOT_FOUND, message: 'x' } }).success,
     ).toBe(true);
+  });
+
+  it('a chat carries its phone number, or null when WhatsApp hides it', () => {
+    const chat = {
+      jid: '1@lid',
+      type: 'dm',
+      name: '',
+      avatarUrl: null,
+      unreadCount: 0,
+      lastMessageAt: null,
+      lastMessagePreview: null,
+      status: 'open',
+      assignedTo: null,
+      updatedAt: 1,
+    };
+    expect(ChatSchema.safeParse(chat).success).toBe(false);
+    expect(ChatSchema.parse({ ...chat, phone: null }).phone).toBeNull();
+    expect(ChatSchema.parse({ ...chat, phone: '60111' }).phone).toBe('60111');
+    expect(
+      FakeIncomingBody.parse({ chatJid: '60111@s.whatsapp.net', text: 'hi', chatJidAlt: '1@lid' })
+        .chatJidAlt,
+    ).toBe('1@lid');
   });
 });

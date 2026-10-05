@@ -4,6 +4,8 @@ export interface SendJob {
   /** row id of the pending message (`local-<clientId>`) */
   localId: string;
   chatJid: string;
+  /** JID WhatsApp sends to (the customer's last inbound address); `chatJid` is the queue key */
+  targetJid: string;
   /** epoch ms; jobs older than maxAgeMs are failed with 'expired' instead of being sent */
   createdAt: number;
   kind: 'text' | 'media';
@@ -21,7 +23,7 @@ export interface SendQueueDeps {
   onSent(job: SendJob, r: SendResult): void;
   onFailed(job: SendJob, err: Error): void;
   isConnected(): boolean;
-  presence?: (jid: string) => Promise<void>;
+  presence?: (job: SendJob) => Promise<void>;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
   /** default 600000 (10 min) */
@@ -166,7 +168,7 @@ export class SendQueue {
         }
       }
 
-      if (this.deps.presence) await this.deps.presence(chatJid).catch(() => undefined);
+      if (this.deps.presence) await this.deps.presence(job).catch(() => undefined);
       if (this.stopped) return;
 
       try {

@@ -3,6 +3,8 @@ import type { Message } from '@wa-team-inbox/shared';
 import type { WaIncomingMessage } from '@wa-team-inbox/wa';
 import { makeTestApp, type TestApp } from '../../test/helpers.js';
 import { createUserAndLogin } from '../../test/auth-helpers.js';
+import { getAliases } from '../chats/aliases.js';
+import { runIdentityMigration } from '../chats/identity-migration.js';
 import { getChats, getMessages } from './index.js';
 
 let t: TestApp;
@@ -175,5 +177,115 @@ describe('wa bridge / ingest', () => {
     expect(row.status).toBe('read');
     t.wa.setConnected(false);
     expect(statuses).toContain('disconnected');
+  });
+});
+
+const PN = '60111111111@s.whatsapp.net';
+const LID = '123456789@lid';
+const chatJids = () =>
+  (t.ctx.db.prepare('SELECT jid FROM chats ORDER BY jid').all() as Array<{ jid: string }>).map(
+    (r) => r.jid,
+  );
+
+describe('one chat per person at runtime (routing only, never merging)', () => {
+  it('a WhatsApp ID message joins the existing phone-number chat; the next start re-keys it', async () => {
+    t.wa.simulateIncoming({ id: 'P-1', chatJid: PN, body: 'first', senderName: 'Aisyah' });
+    await settle();
+    t.wa.simulateIncoming({
+      id: 'L-1',
+      chatJid: LID,
+      chatJidAlt: PN,
+      body: 'second',
+      senderName: 'Aisyah',
+    });
+    await settle();
+    expect(chatJids()).toEqual([PN]);
+    expect(getChats(t.ctx).get(PN)).toMatchObject({ unreadCount: 2 });
+    expect(
+      t.ctx.db.prepare('SELECT id, chat_jid, wa_remote_jid FROM messages ORDER BY id').all(),
+    ).toEqual([
+      { id: 'L-1', chat_jid: PN, wa_remote_jid: LID },
+      { id: 'P-1', chat_jid: PN, wa_remote_jid: PN },
+    ]);
+    // what the next server start does
+    expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 1, result: 'merged' });
+    expect(chatJids()).toEqual([LID]);
+    expect(getChats(t.ctx).get(LID)).toMatchObject({ unreadCount: 2, phone: '60111111111' });
+  });
+
+  it('a first message on the WhatsApp ID opens one LID chat; later phone-number messages follow it (and the AI trigger names it)', async () => {
+    const received: string[] = [];
+    t.ctx.bus.on('message:received', ({ chat, message }) =>
+      received.push(`${chat.jid}/${message.chatJid}`),
+    );
+    const notified: string[] = [];
+    t.ctx.bus.on('inbound:notify', ({ chat }) => notified.push(chat.jid));
+    t.wa.simulateIncoming({
+      id: 'L-1',
+      chatJid: LID,
+      chatJidAlt: PN,
+      body: 'hi',
+      senderName: 'Aisyah',
+    });
+    await settle();
+    t.wa.simulateIncoming({ id: 'P-2', chatJid: PN, body: 'again' });
+    await settle();
+    expect(chatJids()).toEqual([LID]);
+    expect(getChats(t.ctx).get(LID)).toMatchObject({
+      unreadCount: 2,
+      phone: '60111111111',
+      name: 'Aisyah',
+    });
+    expect(received).toEqual([`${LID}/${LID}`, `${LID}/${LID}`]);
+    expect(notified).toEqual([LID, LID]);
+    expect(
+      t.ctx.db.prepare("SELECT chat_jid, wa_remote_jid FROM messages WHERE id = 'P-2'").get(),
+    ).toEqual({
+      chat_jid: LID,
+      wa_remote_jid: PN,
+    });
+  });
+
+  it('a pair learned while both chats exist routes new messages to the LID chat and merges nothing until the next start', async () => {
+    t.wa.simulateIncoming({ id: 'P-1', chatJid: PN, body: 'old', senderName: 'Aisyah' });
+    t.wa.simulateIncoming({ id: 'L-1', chatJid: LID, body: 'new', senderName: 'Aisyah' });
+    await settle();
+    t.wa.simulateContactAliases([{ jid: PN, alias: LID }]);
+    await settle();
+    expect(chatJids()).toEqual([LID, PN]);
+    t.wa.simulateIncoming({ id: 'P-2', chatJid: PN, body: 'again' });
+    await settle();
+    expect(
+      t.ctx.db.prepare("SELECT chat_jid, wa_remote_jid FROM messages WHERE id = 'P-2'").get(),
+    ).toEqual({
+      chat_jid: LID,
+      wa_remote_jid: PN,
+    });
+    expect(getChats(t.ctx).resolveJid(PN)).toBe(PN);
+    expect(getAliases(t.ctx).pendingMerges()).toEqual([{ from: PN, to: LID }]);
+    expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 0 });
+    expect(chatJids()).toEqual([LID]);
+    expect(getChats(t.ctx).get(LID)!.unreadCount).toBe(3);
+  });
+
+  it('history chats.upsert for a known phone number does not create a phone-number row', async () => {
+    t.wa.simulateIncoming({ id: 'L-1', chatJid: LID, chatJidAlt: PN, body: 'hi' });
+    await settle();
+    t.wa.emit('chats', [{ jid: PN, type: 'dm', name: 'Aisyah' }]);
+    await settle();
+    expect(chatJids()).toEqual([LID]);
+  });
+
+  it('never learns an alternate address for a group', async () => {
+    t.wa.simulateIncoming({
+      id: 'G-1',
+      chatJid: '1203@g.us',
+      chatJidAlt: PN,
+      senderJid: PN,
+      body: 'group',
+    });
+    await settle();
+    expect(getAliases(t.ctx).resolve(PN)).toBe(PN);
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM jid_aliases').get()).toEqual({ n: 0 });
   });
 });

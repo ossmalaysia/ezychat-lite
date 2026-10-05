@@ -3,6 +3,7 @@ import { MessageListResponse, MessageSchema } from '@wa-team-inbox/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
+import { createMessageService } from '../src/messages/service.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -149,7 +150,7 @@ describe('messages routes', () => {
     await settle();
     const row = () => t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-2') as { id: string; status: string };
     expect(row().status).toBe('pending');
-    expect(t.wa.sent.length).toBe(0);
+    expect(t.wa.sent).toHaveLength(0);
     t.wa.setConnected(true);
     await waitFor(() => row().status !== 'pending');
     expect(row().id).toMatch(/^FAKE-OUT-/);
@@ -398,5 +399,159 @@ describe('ownership on reply', () => {
     );
     expect(getChats(t.ctx).get(JID)?.assignedTo).toBeNull();
     expect(getChats(t.ctx).events(JID)).toEqual([]);
+  });
+});
+
+describe('replies and receipts for one person with two addresses', () => {
+  const PN = '60111111111@s.whatsapp.net';
+  const LID = '123456789@lid';
+  const inbound = (id: string, chatJid: string, ts: number, chatJidAlt: string | null = null) =>
+    getMessages(t.ctx).ingest(
+      {
+        id,
+        chatJid,
+        chatJidAlt,
+        senderJid: chatJid,
+        senderName: 'Aisyah',
+        fromMe: false,
+        type: 'text',
+        body: id,
+        quotedId: null,
+        timestamp: ts,
+        media: null,
+      },
+      'live',
+    );
+
+  it('replies go to the address of the last inbound message and composing uses it too', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    getMessages(t.ctx).sendText(LID, { clientId: 'reply-1', text: 'hello' }, user.id);
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.chatJid).toBe(PN);
+    expect(t.wa.presences.some((p) => p.chatJid === PN && p.presence === 'composing')).toBe(true);
+    expect(
+      t.ctx.db
+        .prepare("SELECT chat_jid, wa_remote_jid FROM messages WHERE client_id = 'reply-1'")
+        .get(),
+    ).toEqual({ chat_jid: LID, wa_remote_jid: PN });
+  });
+
+  it('never replies to a phone number that has since moved to another WhatsApp ID', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]); // number recycled
+    getMessages(t.ctx).sendText(LID, { clientId: 'moved-1', text: 'hello' }, user.id);
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.chatJid).toBe(LID);
+  });
+
+  it('read receipts are sent per WhatsApp address', async () => {
+    const { cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(LID)}/read`,
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    expect(t.wa.reads).toEqual([
+      { chatJid: LID, messageIds: ['L-1'] },
+      { chatJid: PN, messageIds: ['P-2'] },
+    ]);
+  });
+
+  it('the echo of our own send to the PN is stored once, in the LID chat', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    getMessages(t.ctx).sendText(LID, { clientId: 'echo-1', text: 'echo me' }, user.id);
+    await waitFor(() => t.wa.sent.length === 1);
+    const waId = t.wa.sent[0]!.id;
+    t.wa.simulateIncoming({ id: waId, chatJid: PN, fromMe: true, body: 'echo me' });
+    await settle();
+    expect(t.ctx.db.prepare('SELECT chat_jid FROM messages WHERE id = ?').all(waId)).toEqual([
+      { chat_jid: LID },
+    ]);
+  });
+
+  it('a retry never goes to a phone number that has since moved to another WhatsApp ID', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    t.wa.failNextSend(new Error('nope'));
+    getMessages(t.ctx).sendText(LID, { clientId: 'retry-moved', text: 'hello' }, user.id);
+    const row = () =>
+      t.ctx.db
+        .prepare('SELECT id, status, wa_remote_jid FROM messages WHERE client_id = ?')
+        .get('retry-moved') as { id: string; status: string; wa_remote_jid: string };
+    await waitFor(() => row().status === 'failed');
+    expect(row().wa_remote_jid).toBe(PN);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]); // number recycled
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/messages/local-retry-moved/retry`,
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.chatJid).toBe(LID);
+    expect(row().wa_remote_jid).toBe(LID);
+  });
+
+  it('refuses to send from a phone-number chat whose number now belongs to someone else', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('P-1', PN, 1000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '555555555@lid' }]);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]);
+    expect(() =>
+      getMessages(t.ctx).sendText(PN, { clientId: 'stale-1', text: 'hello' }, user.id),
+    ).toThrow(/now belongs to a different WhatsApp account/);
+    await settle();
+    expect(t.wa.sent).toHaveLength(0);
+  });
+
+  it('a retry from such a chat is marked failed and nothing is sent', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('P-1', PN, 1000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '555555555@lid' }]);
+    t.wa.failNextSend(new Error('nope'));
+    getMessages(t.ctx).sendText(PN, { clientId: 'stale-2', text: 'hello' }, user.id);
+    const row = () =>
+      t.ctx.db
+        .prepare('SELECT status, error FROM messages WHERE client_id = ?')
+        .get('stale-2') as { status: string; error: string };
+    await waitFor(() => row().status === 'failed');
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]);
+    const r = await t.app.inject({
+      method: 'POST',
+      url: '/api/messages/local-stale-2/retry',
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    await settle();
+    expect(row()).toMatchObject({
+      status: 'failed',
+      error: expect.stringMatching(/different WhatsApp account/),
+    });
+    expect(t.wa.sent).toHaveLength(0);
+  });
+
+  it('restored pending sends after a restart still go to their stored target', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    t.wa.setConnected(false);
+    getMessages(t.ctx).sendText(LID, { clientId: 'restart-1', text: 'after restart' }, user.id);
+    getMessages(t.ctx).shutdown();
+    const restarted = createMessageService(t.ctx);
+    t.wa.setConnected(true);
+    restarted.queue.onConnected();
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.chatJid).toBe(PN);
+    restarted.shutdown();
   });
 });

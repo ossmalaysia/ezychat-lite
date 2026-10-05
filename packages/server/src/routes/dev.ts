@@ -24,6 +24,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     const body = parse(FakeIncomingBody, req.body ?? {});
     const waitIngest = Boolean(ctx.services.messages);
     let expectId: string | null = null;
+    let ingestedChatJid: string | null = null;
     let onNew: ((m: Message) => void) | null = null;
     let done: () => void = () => undefined;
     const ingested = new Promise<void>((resolve) => {
@@ -33,10 +34,19 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     if (waitIngest) {
       timer = setTimeout(done, INGEST_WAIT_MS);
       onNew = (m: Message) => {
-        // The bridge may emit synchronously inside simulateIncoming (before expectId is known),
-        // so also match on content.
-        if (expectId !== null ? m.id === expectId : m.chatJid === body.chatJid && m.body === body.text && !m.fromMe)
+        // The bridge may emit synchronously inside simulateIncoming (before expectId is known), so also
+        // match on content. A known phone number is stored in its WhatsApp ID chat.
+        const routed = ctx.services.aliases?.route(body.chatJid) ?? body.chatJid;
+        const match =
+          expectId !== null
+            ? m.id === expectId
+            : (m.chatJid === routed || m.chatJid === body.chatJid) &&
+              m.body === body.text &&
+              !m.fromMe;
+        if (match) {
+          ingestedChatJid = m.chatJid;
           done();
+        }
       };
       ctx.bus.on('message:new', onNew);
     } else {
@@ -45,13 +55,14 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     try {
       const msg = wa.simulateIncoming({
         chatJid: body.chatJid,
+        ...(body.chatJidAlt ? { chatJidAlt: body.chatJidAlt } : {}),
         body: body.text,
         senderName: body.senderName ?? null,
         type: body.type ?? 'text',
       });
       expectId = msg.id;
       await ingested;
-      return { id: msg.id, chatJid: msg.chatJid, timestamp: msg.timestamp };
+      return { id: msg.id, chatJid: ingestedChatJid ?? msg.chatJid, timestamp: msg.timestamp };
     } finally {
       if (timer) clearTimeout(timer);
       if (onNew) ctx.bus.off('message:new', onNew);

@@ -15,6 +15,7 @@ import { Conversation } from './Conversation';
 import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
+import { useCanonicalChatRedirect } from './useCanonicalChatRedirect';
 
 const FILTERS_KEY = 'wati.inbox.filters';
 const DEFAULT_FILTERS: Filters = { assigned: 'any', status: 'open' };
@@ -40,6 +41,7 @@ export function InboxPage() {
   const location = useLocation();
   const directory = useDirectory();
   const version = useAppVersion();
+  useCanonicalChatRedirect(jid);
 
   // Mobile back: when the conversation was opened from the list, pop history so the hardware /
   // swipe back gesture doesn't bounce into the chat again; deep links replace instead.

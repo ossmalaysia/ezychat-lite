@@ -177,6 +177,7 @@
       "cloudflareCreate": "Cloudflare inbox address configured",
       "settingsUpdate": "Settings updated",
       "chatsResolveAll": "All open chats resolved",
+      "chatMerge": "Chats merged",
       "logsDownload": "Logs downloaded"
     }
   },

@@ -27,14 +27,24 @@ describe('mapWAMessage', () => {
 
   it('handles Long-like timestamps', () => {
     const m = mapWAMessage(
-      base({ messageTimestamp: { low: 1_700_000_000, high: 0, unsigned: true, toNumber: () => 1_700_000_000 }, message: { conversation: 'x' } }),
+      base({
+        messageTimestamp: {
+          low: 1_700_000_000,
+          high: 0,
+          unsigned: true,
+          toNumber: () => 1_700_000_000,
+        },
+        message: { conversation: 'x' },
+      }),
     );
     expect(m?.timestamp).toBe(1_700_000_000_000);
   });
 
   it('maps extended text with quote', () => {
     const m = mapWAMessage(
-      base({ message: { extendedTextMessage: { text: 'reply', contextInfo: { stanzaId: 'Q1' } } } }),
+      base({
+        message: { extendedTextMessage: { text: 'reply', contextInfo: { stanzaId: 'Q1' } } },
+      }),
     );
     expect(m?.type).toBe('text');
     expect(m?.body).toBe('reply');
@@ -42,7 +52,9 @@ describe('mapWAMessage', () => {
   });
 
   it('maps image with caption and media download', () => {
-    const m = mapWAMessage(base({ message: { imageMessage: { caption: 'look', mimetype: 'image/jpeg' } } }));
+    const m = mapWAMessage(
+      base({ message: { imageMessage: { caption: 'look', mimetype: 'image/jpeg' } } }),
+    );
     expect(m?.type).toBe('image');
     expect(m?.body).toBe('look');
     expect(m?.media?.mime).toBe('image/jpeg');
@@ -58,15 +70,26 @@ describe('mapWAMessage', () => {
   });
 
   it('maps audio, video and sticker', () => {
-    expect(mapWAMessage(base({ message: { audioMessage: { ptt: true, mimetype: 'audio/ogg' } } }))?.type).toBe('audio');
-    expect(mapWAMessage(base({ message: { videoMessage: { mimetype: 'video/mp4' } } }))?.type).toBe('video');
-    expect(mapWAMessage(base({ message: { stickerMessage: { mimetype: 'image/webp' } } }))?.type).toBe('sticker');
+    expect(
+      mapWAMessage(base({ message: { audioMessage: { ptt: true, mimetype: 'audio/ogg' } } }))?.type,
+    ).toBe('audio');
+    expect(mapWAMessage(base({ message: { videoMessage: { mimetype: 'video/mp4' } } }))?.type).toBe(
+      'video',
+    );
+    expect(
+      mapWAMessage(base({ message: { stickerMessage: { mimetype: 'image/webp' } } }))?.type,
+    ).toBe('sticker');
   });
 
   it('uses key.participant as sender in groups', () => {
     const m = mapWAMessage(
       base({
-        key: { remoteJid: '1203630@g.us', fromMe: false, id: 'G1', participant: '60111@s.whatsapp.net' },
+        key: {
+          remoteJid: '1203630@g.us',
+          fromMe: false,
+          id: 'G1',
+          participant: '60111@s.whatsapp.net',
+        },
         message: { conversation: 'hi group' },
       }),
     );
@@ -76,13 +99,18 @@ describe('mapWAMessage', () => {
 
   it('fromMe messages have null sender name', () => {
     const m = mapWAMessage(
-      base({ key: { remoteJid: '60123@s.whatsapp.net', fromMe: true, id: 'ME1' }, message: { conversation: 'out' } }),
+      base({
+        key: { remoteJid: '60123@s.whatsapp.net', fromMe: true, id: 'ME1' },
+        message: { conversation: 'out' },
+      }),
     );
     expect(m?.fromMe).toBe(true);
   });
 
   it('ignores reactions, protocol messages and key distribution', () => {
-    expect(mapWAMessage(base({ message: { reactionMessage: { text: '👍', key: { id: 'ABC' } } } }))).toBeNull();
+    expect(
+      mapWAMessage(base({ message: { reactionMessage: { text: '👍', key: { id: 'ABC' } } } })),
+    ).toBeNull();
     expect(mapWAMessage(base({ message: { protocolMessage: { type: 0 } } }))).toBeNull();
     expect(
       mapWAMessage(base({ message: { senderKeyDistributionMessage: { groupId: 'x' } } })),
@@ -91,14 +119,54 @@ describe('mapWAMessage', () => {
 
   it('ignores status broadcast and messages without content', () => {
     expect(
-      mapWAMessage(base({ key: { remoteJid: 'status@broadcast', id: 'S', fromMe: false }, message: { conversation: 'x' } })),
+      mapWAMessage(
+        base({
+          key: { remoteJid: 'status@broadcast', id: 'S', fromMe: false },
+          message: { conversation: 'x' },
+        }),
+      ),
     ).toBeNull();
     expect(mapWAMessage(base({ message: null }))).toBeNull();
   });
 
   it('unwraps ephemeral messages', () => {
-    const m = mapWAMessage(base({ message: { ephemeralMessage: { message: { conversation: 'eph' } } } }));
+    const m = mapWAMessage(
+      base({ message: { ephemeralMessage: { message: { conversation: 'eph' } } } }),
+    );
     expect(m?.body).toBe('eph');
+  });
+
+  it('carries the alternate address of a direct chat without its device suffix', () => {
+    const m = mapWAMessage(
+      base({
+        key: {
+          remoteJid: '123456789@lid',
+          remoteJidAlt: '60123456789:12@s.whatsapp.net',
+          fromMe: false,
+          id: 'ALT',
+        },
+        message: { conversation: 'hi' },
+      }),
+    );
+    expect(m?.chatJid).toBe('123456789@lid');
+    expect(m?.chatJidAlt).toBe('60123456789@s.whatsapp.net');
+  });
+
+  it('has no alternate address for groups or when WhatsApp sends none', () => {
+    expect(mapWAMessage(base({ message: { conversation: 'x' } }))?.chatJidAlt).toBeNull();
+    const g = mapWAMessage(
+      base({
+        key: {
+          remoteJid: '1203@g.us',
+          remoteJidAlt: '60123456789@s.whatsapp.net',
+          participant: '60123456789@s.whatsapp.net',
+          fromMe: false,
+          id: 'G',
+        },
+        message: { conversation: 'x' },
+      }),
+    );
+    expect(g?.chatJidAlt).toBeNull();
   });
 });
 

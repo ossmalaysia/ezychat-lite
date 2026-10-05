@@ -19,6 +19,7 @@ export interface ChatRow {
   status: ChatStatus;
   assigned_to: number | null;
   updated_at: number;
+  phone: string | null;
 }
 
 export interface ChatEventRow {
@@ -46,10 +47,16 @@ export interface ContactRow {
 }
 
 export function rowToChat(r: ChatRow): Chat {
+  // A LID is an opaque WhatsApp ID, never a phone number: do not show its digits as a name.
+  const lidDigits = r.jid.endsWith('@lid') && r.name === jidUser(r.jid);
+  const name =
+    (r.name && !lidDigits ? r.name : null) ||
+    r.phone ||
+    (r.jid.endsWith('@lid') ? '' : jidUser(r.jid));
   return {
     jid: r.jid,
     type: r.type,
-    name: r.name || jidUser(r.jid),
+    name,
     avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
     unreadCount: r.unread_count,
     lastMessageAt: r.last_message_at,
@@ -57,6 +64,7 @@ export function rowToChat(r: ChatRow): Chat {
     status: r.status,
     assignedTo: r.assigned_to,
     updatedAt: r.updated_at,
+    phone: r.phone ?? null,
   };
 }
 
@@ -102,6 +110,18 @@ export class ChatRepo {
     );
   }
 
+  /** PN digits for a DM: from a PN JID itself, or from the newest phone number aliased to a LID. */
+  phoneFor(jid: string): string | null {
+    if (jid.endsWith('@s.whatsapp.net')) return jidUser(jid);
+    if (!jid.endsWith('@lid')) return null;
+    const row = this.db
+      .prepare(
+        'SELECT alias_jid FROM jid_aliases WHERE canonical_jid = ? ORDER BY learned_at DESC LIMIT 1',
+      )
+      .get(jid) as { alias_jid: string } | undefined;
+    return row ? jidUser(row.alias_jid) : null;
+  }
+
   openCount(): number {
     return (
       this.db.prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open'").get() as {
@@ -125,10 +145,10 @@ export class ChatRepo {
     const name = contact?.saved_name || (meaningful ? supplied : contact?.push_name || supplied);
     this.db
       .prepare(
-        `INSERT INTO chats (jid, type, name, unread_count, status, updated_at)
-         VALUES (?, ?, ?, 0, 'open', ?) ON CONFLICT(jid) DO NOTHING`,
+        `INSERT INTO chats (jid, type, name, unread_count, status, updated_at, phone)
+         VALUES (?, ?, ?, 0, 'open', ?, ?) ON CONFLICT(jid) DO NOTHING`,
       )
-      .run(jid, type, name, now);
+      .run(jid, type, name, now, type === 'dm' ? this.phoneFor(jid) : null);
     return this.get(jid)!;
   }
 
@@ -172,7 +192,7 @@ export class ChatRepo {
     if (q) {
       params.q = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       where.push(
-        `(c.name LIKE @q ESCAPE '\\' OR c.jid LIKE @q ESCAPE '\\'
+        `(c.name LIKE @q ESCAPE '\\' OR c.jid LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
           OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\')`,
       );
     }

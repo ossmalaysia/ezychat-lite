@@ -13,6 +13,7 @@ import type {
 import type { SendResult, WaIncomingMessage, WaMessageStatusUpdate } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
+import { getAliases } from '../chats/aliases.js';
 import { ChatRepo, rowToChat } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import { MediaStore } from './media-store.js';
@@ -156,14 +157,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const p = (async () => {
       if (job.kind === 'text') {
         return ctx.wa.sendText(
-          job.chatJid,
+          job.targetJid,
           job.text ?? '',
           job.quotedId ? { quotedId: job.quotedId } : undefined,
         );
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       return ctx.wa.sendMedia(
-        job.chatJid,
+        job.targetJid,
         {
           buffer,
           mime: job.mime ?? 'application/octet-stream',
@@ -229,15 +230,59 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     onSent,
     onFailed,
     isConnected: () => ctx.wa.status.state === 'open',
-    presence: (jid) => ctx.wa.sendPresence(jid, 'composing'),
+    presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),
     now,
     ...(deps?.queue ?? {}),
   });
+
+  /** `address` still belongs to the person of `chatJid` (not a number recycled to someone else). */
+  const addressOf = (address: string, chatJid: string): boolean => {
+    if (address === chatJid) return true;
+    const aliases = getAliases(ctx);
+    return aliases.resolve(address) === chatJid || aliases.route(address) === chatJid;
+  };
+
+  /**
+   * Restored and retried jobs re-check their stored target: a number re-pointed to another person
+   * since the message was queued falls back to the chat JID (persisted on the row).
+   */
+  const jobTarget = (r: MessageRow): string => {
+    const stored = r.wa_remote_jid ?? r.chat_jid;
+    if (addressOf(stored, r.chat_jid)) return stored;
+    repo.update(r.id, { wa_remote_jid: r.chat_jid });
+    log.warn(
+      { id: r.id, chatJid: r.chat_jid, stored },
+      'send target moved to another WhatsApp ID; sending to the chat instead',
+    );
+    return r.chat_jid;
+  };
+
+  const MOVED_NUMBER_MESSAGE =
+    'This phone number now belongs to a different WhatsApp account; reply from the current chat.';
+
+  /** The chat's own phone number was re-pointed to another person: nothing may be sent from it. */
+  const chatNumberMoved = (chatJid: string): boolean => getAliases(ctx).movedAway(chatJid);
+
+  const failMoved = (r: MessageRow): void => {
+    log.warn(
+      { id: r.id, chatJid: r.chat_jid },
+      'send refused: chat number moved to another WhatsApp ID',
+    );
+    repo.update(r.id, { status: 'failed', error: MOVED_NUMBER_MESSAGE });
+    emitStatus(repo.get(r.id)!);
+  };
+
+  /** Queue a row's send, or fail it when its chat's number now belongs to someone else. */
+  const enqueueRow = (r: MessageRow): void => {
+    if (chatNumberMoved(r.chat_jid)) failMoved(r);
+    else queue.enqueue(jobFromRow(r));
+  };
 
   const jobFromRow = (r: MessageRow): SendJob => {
     const base = {
       localId: r.id,
       chatJid: r.chat_jid,
+      targetJid: jobTarget(r),
       createdAt: r.created_at,
       ...(r.quoted_id ? { quotedId: r.quoted_id } : {}),
     };
@@ -252,6 +297,15 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       };
     }
     return { ...base, kind: 'text', text: r.body ?? '' };
+  };
+
+  /**
+   * Where a reply goes: the address of the customer's last inbound message (PN or LID, as WhatsApp
+   * delivered it), unless that address now belongs to someone else (a recycled number) → the chat JID.
+   */
+  const replyTarget = (chatJid: string): string => {
+    const last = repo.lastInboundRemoteJid(chatJid);
+    return last && addressOf(last, chatJid) ? last : chatJid;
   };
 
   const requireChat = (jid: string) => {
@@ -281,7 +335,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const msg = rowToMessage(repo.get(row.id)!);
     ctx.bus.emit('message:new', msg);
     emitChat(row.chat_jid);
-    queue.enqueue(jobFromRow(row));
+    enqueueRow(row);
     return msg;
   };
 
@@ -335,22 +389,34 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
     async ingest(m, source) {
       if (repo.exists(m.id)) return null;
-      if (m.fromMe && inflight.has(m.chatJid)) {
-        // Our own send may echo before the queue has committed its WhatsApp id and sender.
-        await inflight.get(m.chatJid);
+      const isGroup = m.chatJid.endsWith('@g.us');
+      const aliases = getAliases(ctx);
+      if (!isGroup && m.chatJidAlt) {
+        // Persist the pair; routing never merges (a second chat waits for the next start).
+        aliases.learn(
+          { jid: m.chatJid, alias: m.chatJidAlt },
+          source === 'history' ? 'history' : 'message',
+        );
+      }
+      // One person, one chat: the existing chat of either address (the LID chat first).
+      const chatJid = isGroup ? m.chatJid : aliases.route(m.chatJid);
+      // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
+      // is keyed by the chat the send came from: the routed chat, or a PN chat still kept separate.
+      const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(m.chatJid)) : undefined;
+      if (guard) {
+        await guard;
         if (repo.exists(m.id)) return null;
       }
       const t = now();
-      const isGroup = m.chatJid.endsWith('@g.us');
       const chatBefore = chats.ensure(
-        m.chatJid,
+        chatJid,
         { name: !isGroup && !m.fromMe ? m.senderName : null },
         t,
       );
 
       const row: MessageRow = {
         id: m.id,
-        chat_jid: m.chatJid,
+        chat_jid: chatJid,
         sender_jid: m.senderJid,
         sender_name: m.senderName,
         from_me: m.fromMe ? 1 : 0,
@@ -367,6 +433,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: m.timestamp,
         created_at: t,
         client_id: null,
+        wa_remote_jid: m.chatJid,
       };
       if (!repo.insert(row)) return null; // concurrent duplicate
 
@@ -377,15 +444,15 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         if (isNewLiveInbound) {
           ctx.db
             .prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?')
-            .run(m.chatJid);
-          const cur = chats.get(m.chatJid)!;
+            .run(chatJid);
+          const cur = chats.get(chatJid)!;
           if (cur.status === 'resolved') {
-            chats.update(m.chatJid, { status: 'open', updated_at: t });
+            chats.update(chatJid, { status: 'open', updated_at: t });
             reopened = true;
           }
         }
-        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, m.chatJid)) {
-          chats.setName(m.chatJid, m.senderName, t);
+        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, chatJid)) {
+          chats.setName(chatJid, m.senderName, t);
         }
         if (m.senderJid && m.senderName && !m.fromMe) {
           chats.upsertContact({ jid: m.senderJid, pushName: m.senderName, savedName: null });
@@ -393,7 +460,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       })();
       if (reopened) {
         const ev = chats.insertEvent({
-          chatJid: m.chatJid,
+          chatJid,
           type: 'reopened',
           actorId: null,
           payload: { reason: 'inbound' },
@@ -403,8 +470,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       }
 
       if (source === 'live') {
+        // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
-          chat: rowToChat(chats.get(m.chatJid)!),
+          chat: rowToChat(chats.get(chatJid)!),
           message: rowToMessage(row),
         });
       }
@@ -416,7 +484,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         const dl = m.media.download;
         try {
           const buf = await downloads.run(() => dl());
-          const rel = media.save(m.chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
+          const rel = media.save(chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
           repo.update(m.id, { media_path: rel, media_status: 'ok' });
         } catch (err) {
           log.warn({ err, id: m.id }, 'media download failed');
@@ -428,7 +496,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (!final) return null;
       const msg = rowToMessage(final);
       ctx.bus.emit('message:new', msg);
-      const chat = emitChat(m.chatJid);
+      const chat = emitChat(chatJid);
       if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
       return msg;
     },
@@ -437,6 +505,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const existing = repo.byClientId(body.clientId);
       if (existing) return rowToMessage(existing);
       requireChat(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       const t = now();
       claimIfUnassigned(jid, userId, t);
       return insertOutgoing({
@@ -458,6 +527,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: body.clientId,
+        wa_remote_jid: replyTarget(jid),
       });
     },
 
@@ -465,6 +535,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const existing = repo.byClientId(clientId);
       if (existing) return rowToMessage(existing);
       requireChat(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
       const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
@@ -492,6 +563,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: clientId,
+        wa_remote_jid: replyTarget(jid),
       });
     },
 
@@ -522,13 +594,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         })();
         const moved = repo.get(localId)!;
         emitStatus({ ...moved, id: r.id }, localId);
-        queue.enqueue(jobFromRow(moved));
+        enqueueRow(moved);
         return rowToMessage(moved);
       }
       repo.update(id, { status: 'pending', error: null, created_at: t });
       const updated = repo.get(id)!;
       emitStatus(updated);
-      queue.enqueue(jobFromRow(updated));
+      enqueueRow(updated);
       return rowToMessage(updated);
     },
 
@@ -599,7 +671,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
   // restore persisted pending sends (expired ones fail immediately when processed)
   const pending = repo.pendingLocal();
-  if (pending.length) queue.restore(pending.map(jobFromRow));
+  if (pending.length) {
+    const live = pending.filter((r) => {
+      if (!chatNumberMoved(r.chat_jid)) return true;
+      failMoved(r);
+      return false;
+    });
+    queue.restore(live.map(jobFromRow));
+  }
 
   return svc;
 }

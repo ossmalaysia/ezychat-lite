@@ -196,6 +196,19 @@ describe('dev fake-incoming', () => {
     }
   });
 
+  it('accepts chatJidAlt and reports the routed chat', async () => {
+    t = await makeTestApp();
+    const agent = await createUserAndLogin(t, { role: 'agent' });
+    const r = await t.app.inject({
+      method: 'POST',
+      url: '/api/dev/fake-incoming',
+      headers: authHeaders(agent.cookie),
+      payload: { chatJid: '60123456789@s.whatsapp.net', chatJidAlt: '123456789@lid', text: 'hi' },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().chatJid).toBe('123456789@lid');
+  });
+
   it('is absent when fakeWa is false', async () => {
     t = await makeTestApp({ config: { fakeWa: false } });
     const agent = await createUserAndLogin(t, { role: 'agent' });
