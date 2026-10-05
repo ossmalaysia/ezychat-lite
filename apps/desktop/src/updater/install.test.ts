@@ -401,7 +401,11 @@ describe.skipIf(process.platform !== 'win32')('isolated native PowerShell and ha
   }, 20_000);
 
   it('launches a broker that actually runs (not a detached powershell that exits at once)', async () => {
-    const { plan } = await erroredBrokerPlan('ezychat-install-launch-', 'control dir', 'profile');
+    const { plan } = await erroredBrokerPlan(
+      'ezychat-install-launch-',
+      "Team's control dir",
+      'profile',
+    );
     await launchBroker(plan, buildInstallBrokerScript(plan));
     const deadline = Date.now() + 20_000;
     let result = await readUpdateInstallResult(plan.context.userDataDir);

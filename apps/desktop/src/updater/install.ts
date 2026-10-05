@@ -330,9 +330,9 @@ async function startWindowsProcess(startProcessArgs: string, failure: string): P
 export async function launchBroker(plan: InstallPlan, script: string): Promise<void> {
   const windows = plan.context.platform === 'win32';
   const file = join(plan.controlDir, windows ? 'broker.ps1' : 'broker.sh');
-  await writeFile(file, windows ? '﻿' + script : script, { mode: 0o700 });
+  await writeFile(file, windows ? '\uFEFF' + script : script, { mode: 0o700 });
   if (windows) {
-    // Never start the elevated helper without a live broker to report and relaunch.
+    // Start the broker before the elevated helper; a failed launch cancels the install.
     await startWindowsProcess(
       `-WindowStyle Hidden -ArgumentList ${psQuote(`-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${file}"`)}`,
       'The update helper could not start.',
