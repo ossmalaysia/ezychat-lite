@@ -5,7 +5,7 @@ import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
-import { JidParams } from './chats.js';
+import { chatJidParam } from './chats.js';
 
 const IdParams = z.object({ id: z.string().min(1).max(256) });
 const MediaFields = z.object({
@@ -20,21 +20,21 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
   app.addHook('preHandler', requireUser(ctx));
 
   app.get('/chats/:jid/messages', async (req) => {
-    const { jid } = parse(JidParams, req.params);
+    const jid = chatJidParam(ctx, req.params);
     if (!chats.get(jid)) throw errors.notFound('Chat');
     const q = parse(MessageListQuery, req.query);
     return messages.list(jid, q);
   });
 
   app.post('/chats/:jid/messages', async (req, reply) => {
-    const { jid } = parse(JidParams, req.params);
+    const jid = chatJidParam(ctx, req.params);
     const body = parse(SendTextBody, req.body);
     const msg = messages.sendText(jid, body, req.user!.id);
     return reply.status(201).send(msg);
   });
 
   app.post('/chats/:jid/media', async (req, reply) => {
-    const { jid } = parse(JidParams, req.params);
+    const jid = chatJidParam(ctx, req.params);
     if (!req.isMultipart()) throw errors.validation('Expected multipart/form-data');
     const fields: Record<string, string> = {};
     let file: { buffer: Buffer; fileName: string } | null = null;

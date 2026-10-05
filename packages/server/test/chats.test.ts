@@ -9,6 +9,7 @@ import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { ChatRepo, rowToChat, type ChatRow } from '../src/chats/repo.js';
+import { runIdentityMigration } from '../src/chats/identity-migration.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -469,5 +470,73 @@ describe('chats routes', () => {
       headers: { cookie },
     });
     expect(r.json().notes.map((n: { body: string }) => n.body)).toEqual(['VIP customer']);
+  });
+
+  it('old phone-number URLs (links, push notifications) open the WhatsApp ID chat after the startup re-key', async () => {
+    const { cookie } = await createUserAndLogin(t, { role: 'agent' });
+    const h = authHeaders(cookie);
+    const PN = '60155555555@s.whatsapp.net';
+    const LID = '555555555@lid';
+    await seedChat(PN, 'Eve', 1000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: LID }]);
+    expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 1 });
+
+    const detail = await t.app.inject({ method: 'GET', url: `/api/chats/${enc(PN)}`, headers: h });
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().chat.jid).toBe(LID);
+    const list = await t.app.inject({
+      method: 'GET',
+      url: `/api/chats/${enc(PN)}/messages`,
+      headers: h,
+    });
+    expect(list.json().messages.map((m: { id: string }) => m.id)).toEqual([`seed-${PN}`]);
+    const note = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(PN)}/notes`,
+      headers: h,
+      payload: { body: 'merged note' },
+    });
+    expect(note.statusCode).toBe(201);
+    expect(note.json().chatJid).toBe(LID);
+    const notes = await t.app.inject({
+      method: 'GET',
+      url: `/api/chats/${enc(PN)}/notes`,
+      headers: h,
+    });
+    expect(notes.json().notes.map((n: { body: string }) => n.body)).toEqual(['merged note']);
+    const sent = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(PN)}/messages`,
+      headers: h,
+      payload: { clientId: 'route-merge', text: 'hello' },
+    });
+    expect(sent.statusCode).toBe(201);
+    expect(sent.json().chatJid).toBe(LID);
+    const patch = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/chats/${enc(PN)}`,
+      headers: h,
+      payload: { status: 'resolved' },
+    });
+    expect(patch.json().jid).toBe(LID);
+    const read = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(PN)}/read`,
+      headers: h,
+    });
+    expect(read.statusCode).toBe(200);
+  });
+
+  it('a phone-number chat that stays separate until the next start is still reachable under its own URL', async () => {
+    const { cookie } = await createUserAndLogin(t, { role: 'agent' });
+    const PN = '60166666666@s.whatsapp.net';
+    const LID = '666666666@lid';
+    await seedChat(PN, 'Fay', 1000);
+    await seedChat(LID, 'Fay', 2000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: LID }]);
+    const get = (jid: string) =>
+      t.app.inject({ method: 'GET', url: `/api/chats/${enc(jid)}`, headers: authHeaders(cookie) });
+    expect((await get(PN)).json().chat.jid).toBe(PN);
+    expect((await get(LID)).json().chat.jid).toBe(LID);
   });
 });

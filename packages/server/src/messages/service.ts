@@ -13,6 +13,7 @@ import type {
 import type { SendResult, WaIncomingMessage, WaMessageStatusUpdate } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
+import { getAliases } from '../chats/aliases.js';
 import { ChatRepo, rowToChat } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import { MediaStore } from './media-store.js';
@@ -335,22 +336,34 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
     async ingest(m, source) {
       if (repo.exists(m.id)) return null;
-      if (m.fromMe && inflight.has(m.chatJid)) {
-        // Our own send may echo before the queue has committed its WhatsApp id and sender.
-        await inflight.get(m.chatJid);
+      const isGroup = m.chatJid.endsWith('@g.us');
+      const aliases = getAliases(ctx);
+      if (!isGroup && m.chatJidAlt) {
+        // Persist the pair; routing never merges (a second chat waits for the next start).
+        aliases.learn(
+          { jid: m.chatJid, alias: m.chatJidAlt },
+          source === 'history' ? 'history' : 'message',
+        );
+      }
+      // One person, one chat: the existing chat of either address (the LID chat first).
+      const chatJid = isGroup ? m.chatJid : aliases.route(m.chatJid);
+      // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
+      // is keyed by the chat the send came from: the routed chat, or a PN chat still kept separate.
+      const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(m.chatJid)) : undefined;
+      if (guard) {
+        await guard;
         if (repo.exists(m.id)) return null;
       }
       const t = now();
-      const isGroup = m.chatJid.endsWith('@g.us');
       const chatBefore = chats.ensure(
-        m.chatJid,
+        chatJid,
         { name: !isGroup && !m.fromMe ? m.senderName : null },
         t,
       );
 
       const row: MessageRow = {
         id: m.id,
-        chat_jid: m.chatJid,
+        chat_jid: chatJid,
         sender_jid: m.senderJid,
         sender_name: m.senderName,
         from_me: m.fromMe ? 1 : 0,
@@ -378,15 +391,15 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         if (isNewLiveInbound) {
           ctx.db
             .prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?')
-            .run(m.chatJid);
-          const cur = chats.get(m.chatJid)!;
+            .run(chatJid);
+          const cur = chats.get(chatJid)!;
           if (cur.status === 'resolved') {
-            chats.update(m.chatJid, { status: 'open', updated_at: t });
+            chats.update(chatJid, { status: 'open', updated_at: t });
             reopened = true;
           }
         }
-        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, m.chatJid)) {
-          chats.setName(m.chatJid, m.senderName, t);
+        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, chatJid)) {
+          chats.setName(chatJid, m.senderName, t);
         }
         if (m.senderJid && m.senderName && !m.fromMe) {
           chats.upsertContact({ jid: m.senderJid, pushName: m.senderName, savedName: null });
@@ -394,7 +407,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       })();
       if (reopened) {
         const ev = chats.insertEvent({
-          chatJid: m.chatJid,
+          chatJid,
           type: 'reopened',
           actorId: null,
           payload: { reason: 'inbound' },
@@ -404,8 +417,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       }
 
       if (source === 'live') {
+        // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
-          chat: rowToChat(chats.get(m.chatJid)!),
+          chat: rowToChat(chats.get(chatJid)!),
           message: rowToMessage(row),
         });
       }
@@ -417,7 +431,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         const dl = m.media.download;
         try {
           const buf = await downloads.run(() => dl());
-          const rel = media.save(m.chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
+          const rel = media.save(chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
           repo.update(m.id, { media_path: rel, media_status: 'ok' });
         } catch (err) {
           log.warn({ err, id: m.id }, 'media download failed');
@@ -429,7 +443,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (!final) return null;
       const msg = rowToMessage(final);
       ctx.bus.emit('message:new', msg);
-      const chat = emitChat(m.chatJid);
+      const chat = emitChat(chatJid);
       if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
       return msg;
     },
