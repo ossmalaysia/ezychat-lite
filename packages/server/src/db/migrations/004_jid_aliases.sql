@@ -14,7 +14,7 @@ CREATE INDEX idx_jid_aliases_canonical ON jid_aliases(canonical_jid);
 ALTER TABLE chats ADD COLUMN phone TEXT;            -- PN digits for display/search; NULL when unknown
 ALTER TABLE messages ADD COLUMN wa_remote_jid TEXT; -- JID WhatsApp used for this message (replies, read receipts)
 
-UPDATE messages SET wa_remote_jid = chat_jid;
+UPDATE messages SET wa_remote_jid = chat_jid WHERE wa_remote_jid IS NULL;
 UPDATE chats SET phone = substr(jid, 1, instr(jid, '@') - 1) WHERE jid LIKE '%@s.whatsapp.net';
 UPDATE chats
    SET phone = (SELECT ct.phone FROM contacts ct WHERE ct.jid = chats.jid)

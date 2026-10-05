@@ -150,7 +150,7 @@ describe('messages routes', () => {
     await settle();
     const row = () => t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-2') as { id: string; status: string };
     expect(row().status).toBe('pending');
-    expect(t.wa.sent.length).toBe(0);
+    expect(t.wa.sent).toHaveLength(0);
     t.wa.setConnected(true);
     await waitFor(() => row().status !== 'pending');
     expect(row().id).toMatch(/^FAKE-OUT-/);
@@ -511,7 +511,7 @@ describe('replies and receipts for one person with two addresses', () => {
       getMessages(t.ctx).sendText(PN, { clientId: 'stale-1', text: 'hello' }, user.id),
     ).toThrow(/now belongs to a different WhatsApp account/);
     await settle();
-    expect(t.wa.sent.length).toBe(0);
+    expect(t.wa.sent).toHaveLength(0);
   });
 
   it('a retry from such a chat is marked failed and nothing is sent', async () => {
@@ -537,7 +537,7 @@ describe('replies and receipts for one person with two addresses', () => {
       status: 'failed',
       error: expect.stringMatching(/different WhatsApp account/),
     });
-    expect(t.wa.sent.length).toBe(0);
+    expect(t.wa.sent).toHaveLength(0);
   });
 
   it('restored pending sends after a restart still go to their stored target', async () => {

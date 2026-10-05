@@ -118,7 +118,7 @@ export class AliasStore {
 
   /** Every PN that currently routes to `lid`, sorted. */
   aliasesOf(lid: string): string[] {
-    return [...(this.byLid.get(lid) ?? [])].sort();
+    return [...(this.byLid.get(lid) ?? [])].sort((a, b) => a.localeCompare(b));
   }
 
   /** `[canonical, ...its PNs]`: every JID of the person, for name sync. */

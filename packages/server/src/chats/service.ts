@@ -301,7 +301,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       if (rows.length && ctx.wa.status.state === 'open') {
         // Receipt keys carry remoteJid = the address WhatsApp used; never mix PN and LID ids.
         const byRemote = new Map<string, string[]>();
-        for (const r of rows.reverse()) {
+        const oldestFirst = [...rows].reverse();
+        for (const r of oldestFirst) {
           const ids = byRemote.get(r.remote) ?? [];
           ids.push(r.id);
           byRemote.set(r.remote, ids);
