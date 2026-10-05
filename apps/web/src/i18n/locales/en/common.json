@@ -1,5 +1,6 @@
 {
   "appName": "EzyChat Lite",
+  "devBuild": "Dev Build",
   "actions": {
     "save": "Save",
     "saving": "Saving…",

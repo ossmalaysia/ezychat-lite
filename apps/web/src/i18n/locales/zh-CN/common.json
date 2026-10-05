@@ -1,5 +1,6 @@
 {
   "appName": "EzyChat Lite",
+  "devBuild": "开发版本",
   "actions": {
     "save": "保存",
     "saving": "正在保存…",

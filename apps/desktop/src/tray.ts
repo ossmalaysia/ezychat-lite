@@ -1,5 +1,5 @@
 // System tray icon + menu.
-import { Menu, Tray, type NativeImage } from 'electron';
+import { app, Menu, Tray, type NativeImage } from 'electron';
 import type { Locale } from '@wa-team-inbox/shared';
 import { appTitle } from './app-title.js';
 import { t } from './i18n.js';
@@ -22,7 +22,7 @@ export function createTray(
   version: string,
   locale: Locale,
 ): { tray: Tray; refresh(): void } {
-  const title = appTitle(version);
+  const title = appTitle(version, { devBuild: !app.isPackaged });
   const tray = new Tray(icon);
   tray.setToolTip(title);
   const refresh = () => {

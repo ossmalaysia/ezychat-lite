@@ -2,8 +2,15 @@
 
 export const APP_NAME = 'EzyChat Lite';
 
-/** "EzyChat Lite v1.2.3" (just the name when the version is unknown). */
-export function appTitle(version: string | null | undefined): string {
+/** Marks local, unpackaged builds so a test instance is never mistaken for the installed app. */
+export const DEV_BUILD_LABEL = 'Dev Build';
+
+/** "EzyChat Lite v1.2.3" (just the name when the version is unknown), "… · Dev Build" for dev builds. */
+export function appTitle(
+  version: string | null | undefined,
+  options: { devBuild?: boolean } = {},
+): string {
   const v = (version ?? '').trim().replace(/^v/i, '');
-  return v ? `${APP_NAME} v${v}` : APP_NAME;
+  const title = v ? `${APP_NAME} v${v}` : APP_NAME;
+  return options.devBuild ? `${title} · ${DEV_BUILD_LABEL}` : title;
 }
