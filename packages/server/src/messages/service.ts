@@ -157,14 +157,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const p = (async () => {
       if (job.kind === 'text') {
         return ctx.wa.sendText(
-          job.chatJid,
+          job.targetJid,
           job.text ?? '',
           job.quotedId ? { quotedId: job.quotedId } : undefined,
         );
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       return ctx.wa.sendMedia(
-        job.chatJid,
+        job.targetJid,
         {
           buffer,
           mime: job.mime ?? 'application/octet-stream',
@@ -230,7 +230,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     onSent,
     onFailed,
     isConnected: () => ctx.wa.status.state === 'open',
-    presence: (jid) => ctx.wa.sendPresence(jid, 'composing'),
+    presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),
     now,
     ...(deps?.queue ?? {}),
   });
@@ -239,6 +239,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const base = {
       localId: r.id,
       chatJid: r.chat_jid,
+      targetJid: r.wa_remote_jid ?? r.chat_jid,
       createdAt: r.created_at,
       ...(r.quoted_id ? { quotedId: r.quoted_id } : {}),
     };
@@ -253,6 +254,17 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       };
     }
     return { ...base, kind: 'text', text: r.body ?? '' };
+  };
+
+  /**
+   * Where a reply goes: the address of the customer's last inbound message (PN or LID, as WhatsApp
+   * delivered it), unless that address now belongs to someone else (a recycled number) → the chat JID.
+   */
+  const replyTarget = (chatJid: string): string => {
+    const last = repo.lastInboundRemoteJid(chatJid);
+    if (!last || last === chatJid) return chatJid;
+    const aliases = getAliases(ctx);
+    return aliases.resolve(last) === chatJid || aliases.route(last) === chatJid ? last : chatJid;
   };
 
   const requireChat = (jid: string) => {
@@ -473,7 +485,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: body.clientId,
-        wa_remote_jid: jid,
+        wa_remote_jid: replyTarget(jid),
       });
     },
 
@@ -508,7 +520,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         timestamp: t,
         created_at: t,
         client_id: clientId,
-        wa_remote_jid: jid,
+        wa_remote_jid: replyTarget(jid),
       });
     },
 

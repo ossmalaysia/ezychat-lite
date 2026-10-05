@@ -551,3 +551,22 @@ it('disables AI and releases its active chats immediately', async () => {
   expect(provider.generate).toHaveBeenCalledTimes(1);
   expect(t.ctx.services.ai!.status().settings.enabled).toBe(false);
 });
+
+it('replies to the address the customer last wrote from when one person has a phone number and a WhatsApp ID', async () => {
+  clock();
+  const PN = '60111111111@s.whatsapp.net';
+  const LID = '123456789@lid';
+  await incoming('l-1', 'Hello', 'history', LID);
+  getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: LID }]);
+  await incoming('p-1', 'What are your opening hours?', 'live', PN);
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent.map((s) => s.chatJid)).toEqual([PN]);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(getChats(t.ctx).get(LID)?.assignedTo).toBe(ai.id);
+  expect(
+    t.ctx.db
+      .prepare('SELECT chat_jid, wa_remote_jid FROM messages WHERE sent_by_user_id = ?')
+      .all(ai.id),
+  ).toEqual([{ chat_jid: LID, wa_remote_jid: PN }]);
+});

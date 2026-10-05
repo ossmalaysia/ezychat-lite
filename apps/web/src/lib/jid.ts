@@ -1,4 +1,5 @@
 /** Helpers for WhatsApp JIDs (e.g. `60123456789@s.whatsapp.net`, `12345-678@g.us`). */
+import type { Chat } from '@wa-team-inbox/shared';
 
 export function isGroupJid(jid: string): boolean {
   return jid.endsWith('@g.us');
@@ -15,10 +16,16 @@ export function jidUser(jid: string): string {
 /** Human-readable phone (`+60123456789`) for user JIDs, the raw id for groups/others. */
 export function formatJid(jid: string): string {
   if (isGroupJid(jid)) return 'Group';
+  if (jid.endsWith('@lid')) return ''; // opaque WhatsApp ID: never shown as a number
   const user = jidUser(jid);
   if (/^\d{5,}$/.test(user) && (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@c.us')))
     return `+${user}`;
   return user;
+}
+
+/** `+<digits>` when WhatsApp has told us the chat's phone number, else null (WhatsApp ID only). */
+export function formatPhone(chat: Pick<Chat, 'phone'>): string | null {
+  return chat.phone ? `+${chat.phone}` : null;
 }
 
 /** For use in route paths: `/chats/${encodeJid(jid)}`. */

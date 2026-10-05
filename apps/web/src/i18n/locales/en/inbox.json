@@ -50,6 +50,7 @@
   },
   "chatListItem": {
     "group": "Group",
+    "unknownContact": "Unknown contact",
     "resolved": "Resolved",
     "assignedTo": "Assigned to {{name}}",
     "unread_one": "{{count}} unread",
@@ -57,6 +58,7 @@
   },
   "header": {
     "back": "Back to chats",
+    "phoneHidden": "Phone number hidden",
     "resolved": "Resolved",
     "assignedTo": "Assigned to",
     "unassigned": "Unassigned",

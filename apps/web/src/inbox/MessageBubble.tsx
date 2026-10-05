@@ -101,7 +101,10 @@ export function MessageBubble({
 
   const out = m.fromMe;
   const hasMedia = m.type !== 'text';
-  const senderName = m.senderName ?? (m.senderJid ? formatJid(m.senderJid) : null);
+  // A WhatsApp ID (LID) sender formats to '' (never its digits): fall back to a placeholder.
+  const senderName =
+    m.senderName ??
+    (m.senderJid ? formatJid(m.senderJid) || t('chatListItem.unknownContact') : null);
 
   return (
     <div className={cn('flex px-2 py-0.5 sm:px-4', out ? 'justify-end' : 'justify-start')}>

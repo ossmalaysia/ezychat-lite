@@ -7,12 +7,12 @@ const flush = async (n = 20) => {
 };
 
 function job(localId: string, chatJid: string, createdAt: number): SendJob {
-  return { localId, chatJid, createdAt, kind: 'text', text: localId };
+  return { localId, chatJid, targetJid: chatJid, createdAt, kind: 'text', text: localId };
 }
 
 function makeQueue(opts: { connected?: boolean; now?: () => number; sleep?: (ms: number) => Promise<void>; failIds?: string[] } = {}) {
   let connected = opts.connected ?? true;
-  const sent: Array<{ id: string; at: number }> = [];
+  const sent: Array<{ id: string; at: number; target: string; chat: string }> = [];
   const ok: string[] = [];
   const failed: Array<{ id: string; msg: string }> = [];
   const presence: string[] = [];
@@ -21,14 +21,14 @@ function makeQueue(opts: { connected?: boolean; now?: () => number; sleep?: (ms:
   const q = new SendQueue({
     send: async (j): Promise<SendResult> => {
       if (opts.failIds?.includes(j.localId)) throw new Error('boom');
-      sent.push({ id: j.localId, at: now() });
+      sent.push({ id: j.localId, at: now(), target: j.targetJid, chat: j.chatJid });
       return { id: `WA-${++n}`, timestamp: now() };
     },
     onSent: (j) => ok.push(j.localId),
     onFailed: (j, err) => failed.push({ id: j.localId, msg: err.message }),
     isConnected: () => connected,
-    presence: async (jid) => {
-      presence.push(jid);
+    presence: async (j) => {
+      presence.push(j.targetJid);
     },
     now,
     sleep: opts.sleep,
@@ -174,6 +174,15 @@ describe('SendQueue', () => {
     q.restore([job('r1', 'A', Date.now()), job('r2', 'B', Date.now())]);
     await flush();
     expect(sent.map((s) => s.id).sort()).toEqual(['r1', 'r2']);
+    q.stop();
+  });
+
+  it('sends to the job target with composing presence on it; the chat stays the queue key', async () => {
+    const { q, sent, presence } = makeQueue();
+    q.enqueue({ ...job('a1', 'LID', Date.now()), targetJid: 'PN' });
+    await flush();
+    expect(sent).toEqual([expect.objectContaining({ id: 'a1', target: 'PN', chat: 'LID' })]);
+    expect(presence).toEqual(['PN']);
     q.stop();
   });
 });

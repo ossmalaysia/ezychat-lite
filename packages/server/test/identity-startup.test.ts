@@ -66,6 +66,13 @@ const premerge = (): string[] => {
 };
 const merges = (app: TestApp) =>
   app.ctx.db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'chat.merge'").get();
+const waitFor = async (fn: () => boolean, ms = 3000) => {
+  const end = Date.now() + ms;
+  while (!fn()) {
+    if (Date.now() > end) throw new Error('timeout');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+};
 
 const TWO_CHATS = `
   INSERT INTO chats (jid, type, name, unread_count, last_message_at, last_message_preview, status, updated_at) VALUES
@@ -173,5 +180,23 @@ describe('startup identity migration', () => {
     const next = await restart();
     expect(jids(next)).toEqual([LID]);
     expect(premerge()).toHaveLength(1);
+  });
+
+  it('a send pending in the phone-number chat before the update is sent once, to the phone number, from the merged chat', async () => {
+    const queuedAt = Date.now();
+    seed(`${TWO_CHATS}
+      INSERT INTO messages (id, chat_jid, from_me, type, body, status, timestamp, created_at, client_id, wa_remote_jid)
+        VALUES ('local-q1', '${PN}', 1, 'text', 'queued before the update', 'pending', ${queuedAt}, ${queuedAt}, 'q1', '${PN}');`);
+    lidMapping('60111111111', '123456789');
+    const app = await start();
+    await waitFor(() => app.wa.sent.length === 1);
+    expect(app.wa.sent.map((s) => s.chatJid)).toEqual([PN]);
+    expect(
+      app.ctx.db
+        .prepare("SELECT chat_jid, wa_remote_jid FROM messages WHERE client_id = 'q1'")
+        .get(),
+    ).toEqual({ chat_jid: LID, wa_remote_jid: PN });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(app.wa.sent).toHaveLength(1);
   });
 });

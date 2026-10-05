@@ -158,6 +158,17 @@ export class MessageRepo {
       .all(chatJid, limit) as MessageRow[];
   }
 
+  /** The JID WhatsApp used for the newest inbound message of a chat (where replies should go). */
+  lastInboundRemoteJid(chatJid: string): string | null {
+    const r = this.db
+      .prepare(
+        `SELECT wa_remote_jid FROM messages WHERE chat_jid = ? AND from_me = 0 AND wa_remote_jid IS NOT NULL
+         ORDER BY timestamp DESC, id DESC LIMIT 1`,
+      )
+      .get(chatJid) as { wa_remote_jid: string } | undefined;
+    return r?.wa_remote_jid ?? null;
+  }
+
   pendingLocal(): MessageRow[] {
     return this.db
       .prepare(

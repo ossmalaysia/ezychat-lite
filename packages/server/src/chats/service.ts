@@ -288,22 +288,30 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     async markRead(jid, _userId) {
       const cur = repo.get(jid);
       if (!cur) throw errors.notFound('Chat');
-      const ids = (
-        ctx.db
-          .prepare(
-            'SELECT id FROM messages WHERE chat_jid = ? AND from_me = 0 ORDER BY timestamp DESC, id DESC LIMIT 20',
-          )
-          .all(jid) as Array<{ id: string }>
-      ).map((r) => r.id);
+      const rows = ctx.db
+        .prepare(
+          `SELECT id, COALESCE(wa_remote_jid, chat_jid) AS remote FROM messages
+           WHERE chat_jid = ? AND from_me = 0 ORDER BY timestamp DESC, id DESC LIMIT 20`,
+        )
+        .all(jid) as Array<{ id: string; remote: string }>;
       if (cur.unread_count !== 0) {
         repo.update(jid, { unread_count: 0, updated_at: now() });
         emitChat(jid);
       }
-      if (ids.length && ctx.wa.status.state === 'open') {
-        try {
-          await ctx.wa.markRead(jid, ids.reverse());
-        } catch (err) {
-          ctx.log.debug({ err, jid }, 'wa markRead failed (ignored)');
+      if (rows.length && ctx.wa.status.state === 'open') {
+        // Receipt keys carry remoteJid = the address WhatsApp used; never mix PN and LID ids.
+        const byRemote = new Map<string, string[]>();
+        for (const r of rows.reverse()) {
+          const ids = byRemote.get(r.remote) ?? [];
+          ids.push(r.id);
+          byRemote.set(r.remote, ids);
+        }
+        for (const [remote, ids] of byRemote) {
+          try {
+            await ctx.wa.markRead(remote, ids);
+          } catch (err) {
+            ctx.log.debug({ err, jid: remote }, 'wa markRead failed (ignored)');
+          }
         }
       }
     },
