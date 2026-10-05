@@ -87,6 +87,24 @@ describe('AliasStore', () => {
     expect(phoneOf(LID)).toBe('60111111111');
   });
 
+  it('a pair from stale history never re-points a known number; live evidence does', () => {
+    const s = store();
+    const lidA = '111111@lid';
+    const lidB = '222222@lid';
+    s.learn({ jid: PN, alias: lidA }, 'message');
+    expect(s.learn({ jid: PN, alias: lidB }, 'history')).toEqual({
+      kind: 'unchanged',
+      pn: PN,
+      lid: lidA,
+    });
+    expect(s.resolve(PN)).toBe(lidA);
+    expect(db.prepare('SELECT repointed_from FROM jid_aliases').get()).toEqual({
+      repointed_from: null,
+    });
+    expect(s.learn({ jid: PN, alias: lidB }, 'message')).toMatchObject({ kind: 'repointed' });
+    expect(s.resolve(PN)).toBe(lidB);
+  });
+
   it('rule 2: a known pair is a no-op', () => {
     const s = store();
     s.learn({ jid: PN, alias: LID }, 'contacts');

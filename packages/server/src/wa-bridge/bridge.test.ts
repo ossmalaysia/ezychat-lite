@@ -208,7 +208,7 @@ describe('one chat per person at runtime (routing only, never merging)', () => {
       { id: 'P-1', chat_jid: PN, wa_remote_jid: PN },
     ]);
     // what the next server start does
-    expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 1 });
+    expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 1, result: 'merged' });
     expect(chatJids()).toEqual([LID]);
     expect(getChats(t.ctx).get(LID)).toMatchObject({ unreadCount: 2, phone: '60111111111' });
   });

@@ -502,6 +502,44 @@ describe('replies and receipts for one person with two addresses', () => {
     expect(row().wa_remote_jid).toBe(LID);
   });
 
+  it('refuses to send from a phone-number chat whose number now belongs to someone else', async () => {
+    const { user } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('P-1', PN, 1000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '555555555@lid' }]);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]);
+    expect(() =>
+      getMessages(t.ctx).sendText(PN, { clientId: 'stale-1', text: 'hello' }, user.id),
+    ).toThrow(/now belongs to a different WhatsApp account/);
+    await settle();
+    expect(t.wa.sent.length).toBe(0);
+  });
+
+  it('a retry from such a chat is marked failed and nothing is sent', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('P-1', PN, 1000);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '555555555@lid' }]);
+    t.wa.failNextSend(new Error('nope'));
+    getMessages(t.ctx).sendText(PN, { clientId: 'stale-2', text: 'hello' }, user.id);
+    const row = () =>
+      t.ctx.db
+        .prepare('SELECT status, error FROM messages WHERE client_id = ?')
+        .get('stale-2') as { status: string; error: string };
+    await waitFor(() => row().status === 'failed');
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]);
+    const r = await t.app.inject({
+      method: 'POST',
+      url: '/api/messages/local-stale-2/retry',
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    await settle();
+    expect(row()).toMatchObject({
+      status: 'failed',
+      error: expect.stringMatching(/different WhatsApp account/),
+    });
+    expect(t.wa.sent.length).toBe(0);
+  });
+
   it('restored pending sends after a restart still go to their stored target', async () => {
     const { user } = await createUserAndLogin(t, { role: 'agent' });
     await inbound('L-1', LID, 1000, PN);

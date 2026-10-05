@@ -257,6 +257,27 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     return r.chat_jid;
   };
 
+  const MOVED_NUMBER_MESSAGE =
+    'This phone number now belongs to a different WhatsApp account; reply from the current chat.';
+
+  /** The chat's own phone number was re-pointed to another person: nothing may be sent from it. */
+  const chatNumberMoved = (chatJid: string): boolean => getAliases(ctx).movedAway(chatJid);
+
+  const failMoved = (r: MessageRow): void => {
+    log.warn(
+      { id: r.id, chatJid: r.chat_jid },
+      'send refused: chat number moved to another WhatsApp ID',
+    );
+    repo.update(r.id, { status: 'failed', error: MOVED_NUMBER_MESSAGE });
+    emitStatus(repo.get(r.id)!);
+  };
+
+  /** Queue a row's send, or fail it when its chat's number now belongs to someone else. */
+  const enqueueRow = (r: MessageRow): void => {
+    if (chatNumberMoved(r.chat_jid)) failMoved(r);
+    else queue.enqueue(jobFromRow(r));
+  };
+
   const jobFromRow = (r: MessageRow): SendJob => {
     const base = {
       localId: r.id,
@@ -314,7 +335,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const msg = rowToMessage(repo.get(row.id)!);
     ctx.bus.emit('message:new', msg);
     emitChat(row.chat_jid);
-    queue.enqueue(jobFromRow(row));
+    enqueueRow(row);
     return msg;
   };
 
@@ -484,6 +505,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const existing = repo.byClientId(body.clientId);
       if (existing) return rowToMessage(existing);
       requireChat(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       const t = now();
       claimIfUnassigned(jid, userId, t);
       return insertOutgoing({
@@ -513,6 +535,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const existing = repo.byClientId(clientId);
       if (existing) return rowToMessage(existing);
       requireChat(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
       const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
@@ -571,13 +594,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         })();
         const moved = repo.get(localId)!;
         emitStatus({ ...moved, id: r.id }, localId);
-        queue.enqueue(jobFromRow(moved));
+        enqueueRow(moved);
         return rowToMessage(moved);
       }
       repo.update(id, { status: 'pending', error: null, created_at: t });
       const updated = repo.get(id)!;
       emitStatus(updated);
-      queue.enqueue(jobFromRow(updated));
+      enqueueRow(updated);
       return rowToMessage(updated);
     },
 
@@ -648,7 +671,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
   // restore persisted pending sends (expired ones fail immediately when processed)
   const pending = repo.pendingLocal();
-  if (pending.length) queue.restore(pending.map(jobFromRow));
+  if (pending.length) {
+    const live = pending.filter((r) => {
+      if (!chatNumberMoved(r.chat_jid)) return true;
+      failMoved(r);
+      return false;
+    });
+    queue.restore(live.map(jobFromRow));
+  }
 
   return svc;
 }

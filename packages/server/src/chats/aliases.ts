@@ -110,6 +110,12 @@ export class AliasStore {
     return pnChat ?? (pn ? lid : jid);
   }
 
+  /** True when `jid` is a phone-number JID that was re-pointed to another person (its chat is the old owner's). */
+  movedAway(jid: string): boolean {
+    const pn = normalizePn(jid);
+    return pn !== null && this.repointed.has(pn);
+  }
+
   /** Every PN that currently routes to `lid`, sorted. */
   aliasesOf(lid: string): string[] {
     return [...(this.byLid.get(lid) ?? [])].sort();
@@ -128,6 +134,8 @@ export class AliasStore {
     if (own && p.pn === own) return { kind: 'ignored' };
     const previous = this.canonical.get(p.pn);
     if (previous === p.lid) return { kind: 'unchanged', ...p };
+    // Stale history must never move a number to another person; only live evidence re-points.
+    if (previous && source === 'history') return { kind: 'unchanged', pn: p.pn, lid: previous };
     const phone = digits(p.pn);
     this.db.transaction(() => {
       this.db

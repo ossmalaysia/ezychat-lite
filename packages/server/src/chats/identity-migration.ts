@@ -27,7 +27,7 @@ export interface IdentityMigrationSummary {
   failed: number;
   backup: string | null;
   /** 'idle' = nothing to merge (no backup); 'backup-failed' = chats stay separate until a later start */
-  result: 'idle' | 'merged' | 'backup-failed';
+  result: 'idle' | 'merged' | 'failed' | 'backup-failed';
 }
 
 /**
@@ -111,7 +111,7 @@ export function runIdentityMigration(
       log.error({ err, from: p.from, to: p.to }, 'chat merge failed; chats stay separate');
     }
   }
-  summary.result = 'merged';
+  summary.result = summary.merged === 0 && summary.failed > 0 ? 'failed' : 'merged';
   log.info(summary, 'identity migration completed');
   return summary;
 }
