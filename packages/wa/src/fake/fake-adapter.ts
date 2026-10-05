@@ -22,6 +22,9 @@ export interface FakeSentRecord {
 /**
  * In-memory WaAdapter for tests and `--fake-wa` dev mode. Never touches the network.
  */
+/** Per-process id prefix, so a restarted dev server never reuses message ids stored in app.db. */
+export const FAKE_RUN = Date.now().toString(36);
+
 export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private readonly autoOpen: boolean;
@@ -117,7 +120,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     _opts?: { quotedId?: string },
   ): Promise<SendResult> {
     this.beforeSend();
-    const id = `FAKE-OUT-${++this.outCounter}`;
+    const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
     this.sent.push({ chatJid, text, id });
     return this.afterSend(chatJid, id);
   }
@@ -128,7 +131,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     _opts?: { quotedId?: string },
   ): Promise<SendResult> {
     this.beforeSend();
-    const id = `FAKE-OUT-${++this.outCounter}`;
+    const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
     this.sent.push({ chatJid, file, id });
     this.media.set(id, file.buffer);
     return this.afterSend(chatJid, id);
@@ -161,11 +164,12 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.media.set(messageId, buffer);
   }
 
-  /** Emit an incoming live message. Generates id `FAKE-<n>` unless given. */
+  /** Emit an incoming live message. Generates id `FAKE-<run>-<n>` unless given. */
   simulateIncoming(
     p: Partial<WaIncomingMessage> & { chatJid: string; body: string },
   ): WaIncomingMessage {
-    const id = p.id ?? `FAKE-${++this.inCounter}`;
+    // Unique per process start: a restarted dev server must not reuse ids already stored in app.db.
+    const id = p.id ?? `FAKE-${FAKE_RUN}-${++this.inCounter}`;
     const isGroup = p.chatJid.endsWith('@g.us');
     const msg: WaIncomingMessage = {
       id,
