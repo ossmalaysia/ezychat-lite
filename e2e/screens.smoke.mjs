@@ -17,6 +17,7 @@ const ROUTES = [
   ['inbox', '/'],
   ['conversation', `/chats/${encodeURIComponent(CHAT)}`],
   ['admin-members', '/admin/members'],
+  ['admin-members-ai', '/admin/members/ai'],
   ['admin-quick-replies', '/admin/quick-replies'],
   ['admin-whatsapp', '/admin/whatsapp'],
   ['admin-tunnel', '/admin/tunnel'],

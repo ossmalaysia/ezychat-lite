@@ -3,7 +3,7 @@
  *
  * Reimplements the Codex CLI OAuth flow (authorization code + PKCE S256) the way OpenClaw / pi-ai
  * does. It borrows the public Codex CLI client id and talks to non-public endpoints, so it may stop
- * working at any time. Protocol facts and their sources are in SPIKE-NOTES.md.
+ * working at any time. Protocol facts and their sources are in docs/ai-chatgpt-protocol.md.
  *
  * Never log tokens, codes, state, verifiers or full URLs: they are credentials.
  */

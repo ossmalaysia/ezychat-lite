@@ -145,7 +145,7 @@ Cache key: on first use the server stores a random per-install id in the setting
 Both providers send `prompt_cache_key = "ezychat-" + first 16 hex of sha256(install id + "\n" +
 model)`, so the key is stable for this inbox and model, differs by model, and never contains
 customer data. The ChatGPT backend also gets the same value as its `session_id` header. pi-ai
-sends one value for both, and SPIKE-NOTES lists `session_id` as optional, so the key is not
+sends one value for both, and docs/ai-chatgpt-protocol.md lists `session_id` as optional, so the key is not
 per-request. The connection test, which has no install id, still uses a random id. The OpenAI
 Responses API accepts `prompt_cache_key`, and its prefix caching is automatic.
 

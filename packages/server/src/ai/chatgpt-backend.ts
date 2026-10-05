@@ -1,6 +1,6 @@
 /**
  * EXPERIMENTAL (owner-approved spike): calls the non-public ChatGPT Codex backend directly with a
- * ChatGPT sign-in, as OpenClaw / pi-ai do. See SPIKE-NOTES.md for the protocol and sources.
+ * ChatGPT sign-in, as OpenClaw / pi-ai do. See docs/ai-chatgpt-protocol.md for the protocol and sources.
  * Never log request bodies, tokens or account ids.
  */
 import { randomUUID } from 'node:crypto';

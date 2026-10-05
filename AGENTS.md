@@ -72,6 +72,26 @@ never merges: `AliasStore.route` picks the existing chat of either JID, routes r
 `chatJidParam`, and replies go to the `wa_remote_jid` of the last inbound message. Never merge on a
 name or number match.
 
+**AI Sales Agent.** Code in `packages/server/src/ai/`: `service.ts` decides when the one AI member
+claims, answers, hands off or resolves a chat; `prompt.ts` builds the single prompt used by live replies
+and `POST /api/ai/try` (admin-only, no chat side effects); `resolution.ts` is the resolution guard;
+`knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
+(EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
+only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
+`docs/ai-chatgpt-protocol.md`). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
+the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
+(table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
+`AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
+Prompt layout for caching: static instructions, then input JSON in fixed order `businessKnowledge` →
+`conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
+awaited); never put per-call values earlier. `prompt_cache_key` is derived from the random `ai_install_id`
+and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
+questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
+Order and delivery questions keep the chat with the AI. Web: `admin/AiConnectionSection.tsx` (Settings → AI),
+`admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai`). **Tests and e2e never call OpenAI or
+ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
+that need no model call (Try it with empty context hands off locally).
+
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and

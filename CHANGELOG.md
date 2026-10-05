@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Experimental: "Sign in with ChatGPT" works without the Codex helper. One click saves ChatGPT mode, opens the sign-in page and shows "Signed in as …"; the model is chosen from a dropdown (Auto or your account's live models), and "Test connection" sends a short prompt. Uses an unofficial ChatGPT endpoint that may stop working.
+- Experimental: "Sign in with ChatGPT" works without the Codex helper. One click opens the sign-in page; an admin on another computer pastes the final sign-in address to finish. Choose the model (Auto or your account's live models) and use "Test connection". It uses an unofficial ChatGPT endpoint that may stop working: if ChatGPT rejects the sign-in or blocks the connection, the AI member stops taking chats, leaves them unassigned for the team and admins see a banner.
+- AI member page (Members → AI Sales Agent, replacing the popup): a status (Off, On, Needs connection, Needs business context), a guarded Turn on that saves the page first, name, instructions, a Business context list (Upload from device or Add text content, search, Select and delete; the first item saves a draft member) and "Try it" to ask a test question with unsaved instructions. Nothing is sent to customers.
 - Local and test builds are marked "Dev Build": the desktop window and tray title show it for unpackaged builds, and the inbox shows a badge and a "[Dev Build]" tab title when the server runs with `--mode dev`.
 
 ### Changed
 
+- Settings → AI edits the AI connection in place (no popup): an API key / ChatGPT switch, the model dropdown, Test connection and one Save with an "Unsaved" marker.
+- Installers no longer include the Codex helper (about 140 MB smaller); ChatGPT mode signs in directly.
 - Admin Settings is split into General, AI, This device and Maintenance tabs; theme and language use compact one-row switches.
 - The AI Sales Agent closes a chat when the customer confirms in their own words (and stops asking after two confirmations), answers order and delivery-slot questions with the known facts instead of handing off, and "Try it" shows its decision (Answer, Asked if resolved, Would resolve, Would hand off).
 - The AI Sales Agent is configured with just AI instructions and Business context. Business context is a list of items, uploaded files and text content you add, like a project knowledge panel; existing notes and FAQs become one 'Business context' item. Turning it on needs at least one context item; instructions alone are not enough.

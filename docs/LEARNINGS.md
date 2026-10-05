@@ -59,6 +59,37 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
 ## Maintainability and performance
 
+- 2026-10-06 — OAuth refresh tokens rotate: a request whose 401 arrived after another request's
+  refresh would send the spent refresh token, get `invalid_grant` and sign the inbox out →
+  single-flight alone does not cover late 401s → before refreshing, reuse stored tokens that are
+  newer than the ones that failed; test a 401 that lands after the rotation.
+- 2026-10-06 — A localhost OAuth callback cannot reach the inbox when the admin uses the tunnel or
+  LAN → the redirect lands on the admin's own computer → offer "paste the final address", check
+  `state` exactly as the listener does, and let only one exchange run per sign-in.
+- 2026-10-06 — An unofficial backend can fail as 403/404 or an HTML page with 200 → treating it
+  as a normal failure kept the AI claiming chats and sending hand-off text → classify blocked
+  responses (status, content type, zero recognised events) as a connection state, stop claiming
+  and release chats silently.
+- 2026-10-06 — pino's `redact` matches keys only and the message hook saw only string arguments,
+  so OAuth URLs inside `err.message` or nested strings reached the log → scrub plain objects,
+  arrays and Errors deeply (leave framework instances to serializers) and test nested fields.
+- 2026-10-06 — A scripted edit that wrote the two characters backslash-b into source left an invisible backspace
+  (U+0008) that looked like a word boundary in review and broke a regex → escapes passed through
+  shell/Python string literals are interpreted before they reach the file → write regex-heavy edits
+  with the Edit tool, then search the changed files for U+0008 before committing.
+- 2026-10-06 — The AI branch's `004_ai_context_items.sql` collided with `main`'s `004_jid_aliases.sql`
+  merged in parallel (same collision as 002 earlier) → two branches both took the next number →
+  after merging `main`, list `db/migrations` first; renumber the unmerged branch's file (here to 005),
+  keep main's published numbers, and test an upgrade from both orders of applied versions.
+- 2026-10-06 — Unit tests passed with a random `prompt_cache_key` per request; only a live check
+  against the real backend (read the cached-token counts and logs) showed caching never hit →
+  mocks cannot prove a provider-side optimisation → verify cache keys, headers and formats with one
+  live call on a Dev Build (never customer data) and assert the stable value in a unit test.
+- 2026-10-06 — Merging `main` into the AI branch conflicted in `docs/LEARNINGS.md`, `CHANGELOG.md`
+  and test fixtures that both sides only appended to → append-only files collide whenever two
+  branches add at the same spot → resolve by keeping both sides (never `--ours`/`--theirs`), and
+  insert new entries at a section's top once per branch so merges stay mechanical.
+
 - 2026-10-05 — Merging language support into the AI feature introduced two migration files
   numbered 002 and untranslated AI controls → independent branches changed the same database
   version and UI conventions → preserve main's published migration number, renumber the new
@@ -94,7 +125,7 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 - 2026-10-05 — OpenClaw's ChatGPT OAuth lives in its bundled `@mariozechner/pi-ai`, not its own dist,
   and has no model-list call; the GPT-6.x ids and `/codex/models?client_version=` came from Codex's
   own `models_cache.json` and binary → trace a protocol to the package that really implements it and
-  record each fact with its source file (SPIKE-NOTES.md); never copy tokens from those caches.
+  record each fact with its source file (docs/ai-chatgpt-protocol.md); never copy tokens from those caches.
 
 - 2026-10-05 — A daily inbox reset affects all teammates and more chats than a paginated list
   contains → bulk resolution must be admin-only, transactional, confirmed, and publish events
