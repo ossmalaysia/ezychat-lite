@@ -9,6 +9,7 @@ import {
   buildInstallBrokerScript,
   buildMacInstallScript,
   buildWindowsInstallScript,
+  launchBroker,
   prepareUpdateInstall,
   readUpdateInstallResult,
   updateInstallEligibility,
@@ -388,6 +389,36 @@ describe.skipIf(process.platform !== 'win32')('isolated native PowerShell and ha
       message: 'Previous version retained.',
     });
   }, 20_000);
+
+  it('launches a broker that actually runs (not a detached powershell that exits at once)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ezychat-install-launch-'));
+    directories.push(dir);
+    const plan = fixture();
+    plan.stageDir = join(dir, nonce);
+    plan.controlDir = join(dir, 'control dir');
+    plan.context.userDataDir = join(dir, 'profile');
+    await mkdir(plan.stageDir);
+    await mkdir(plan.controlDir);
+    await writeFile(
+      join(plan.stageDir, 'state.json'),
+      JSON.stringify({
+        phase: 'error',
+        nonce,
+        version: plan.artifact.version,
+        message: 'Previous version retained.',
+        accepted: false,
+        completedAt: new Date().toISOString(),
+      }),
+    );
+    await launchBroker(plan, buildInstallBrokerScript(plan));
+    const deadline = Date.now() + 20_000;
+    let result = await readUpdateInstallResult(plan.context.userDataDir);
+    while (!result && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 250));
+      result = await readUpdateInstallResult(plan.context.userDataDir);
+    }
+    expect(result).toMatchObject({ status: 'error', version: plan.artifact.version });
+  }, 30_000);
 
   async function prepared(phase: 'ready' | 'error' = 'ready') {
     const dir = await mkdtemp(join(tmpdir(), 'ezychat-install-handshake-'));

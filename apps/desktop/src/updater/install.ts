@@ -299,23 +299,43 @@ export async function prepareUpdateInstall(
   };
 }
 
-async function launchBroker(plan: InstallPlan, script: string): Promise<void> {
+/**
+ * Windows broker launch: a short-lived PowerShell starts the broker with `Start-Process`.
+ * Never spawn the broker itself with `detached: true` — powershell.exe exits before running the
+ * script that way — and a non-detached child dies with the app. The `Start-Process` grandchild
+ * outlives both.
+ */
+export function windowsBrokerLaunch(binary: string, file: string): string[] {
+  const launch = `$ErrorActionPreference='Stop'; Start-Process -FilePath ${psQuote(binary)} -WindowStyle Hidden -ArgumentList ${psQuote(`-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${file}"`)} | Out-Null`;
+  return ['-NoProfile', '-NonInteractive', '-Command', launch];
+}
+
+export async function launchBroker(plan: InstallPlan, script: string): Promise<void> {
   const windows = plan.context.platform === 'win32';
   const file = join(plan.controlDir, windows ? 'broker.ps1' : 'broker.sh');
   await writeFile(file, windows ? '\uFEFF' + script : script, { mode: 0o700 });
-  const binary = windows
-    ? win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      )
-    : '/bin/bash';
-  const args = windows
-    ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file]
-    : [file];
-  const child = spawn(binary, args, { detached: true, stdio: 'ignore', windowsHide: true });
+  if (windows) {
+    const binary = win32.join(
+      process.env.SystemRoot ?? 'C:\\Windows',
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    );
+    const child = spawn(binary, windowsBrokerLaunch(binary, file), {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+    });
+    // Never start the elevated helper without a live broker to report and relaunch.
+    await new Promise<void>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code) =>
+        code === 0 ? resolve() : reject(new Error('The update helper could not start.')),
+      );
+    });
+    return;
+  }
+  const child = spawn('/bin/bash', [file], { detached: true, stdio: 'ignore', windowsHide: true });
   await new Promise<void>((resolve, reject) => {
     child.once('spawn', resolve);
     child.once('error', reject);

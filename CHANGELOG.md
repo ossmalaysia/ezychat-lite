@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows in-app updates now record the result ("Update installed"), remove the downloaded installer and reopen the app; the background helper used to exit before it ran.
+
 ## [0.1.20] - 2026-10-05
 
 ### Added
