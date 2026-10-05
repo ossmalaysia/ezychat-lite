@@ -235,11 +235,33 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     ...(deps?.queue ?? {}),
   });
 
+  /** `address` still belongs to the person of `chatJid` (not a number recycled to someone else). */
+  const addressOf = (address: string, chatJid: string): boolean => {
+    if (address === chatJid) return true;
+    const aliases = getAliases(ctx);
+    return aliases.resolve(address) === chatJid || aliases.route(address) === chatJid;
+  };
+
+  /**
+   * Restored and retried jobs re-check their stored target: a number re-pointed to another person
+   * since the message was queued falls back to the chat JID (persisted on the row).
+   */
+  const jobTarget = (r: MessageRow): string => {
+    const stored = r.wa_remote_jid ?? r.chat_jid;
+    if (addressOf(stored, r.chat_jid)) return stored;
+    repo.update(r.id, { wa_remote_jid: r.chat_jid });
+    log.warn(
+      { id: r.id, chatJid: r.chat_jid, stored },
+      'send target moved to another WhatsApp ID; sending to the chat instead',
+    );
+    return r.chat_jid;
+  };
+
   const jobFromRow = (r: MessageRow): SendJob => {
     const base = {
       localId: r.id,
       chatJid: r.chat_jid,
-      targetJid: r.wa_remote_jid ?? r.chat_jid,
+      targetJid: jobTarget(r),
       createdAt: r.created_at,
       ...(r.quoted_id ? { quotedId: r.quoted_id } : {}),
     };
@@ -262,9 +284,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    */
   const replyTarget = (chatJid: string): string => {
     const last = repo.lastInboundRemoteJid(chatJid);
-    if (!last || last === chatJid) return chatJid;
-    const aliases = getAliases(ctx);
-    return aliases.resolve(last) === chatJid || aliases.route(last) === chatJid ? last : chatJid;
+    return last && addressOf(last, chatJid) ? last : chatJid;
   };
 
   const requireChat = (jid: string) => {

@@ -13,7 +13,10 @@ export function jidUser(jid: string): string {
   return colon === -1 ? user : user.slice(0, colon);
 }
 
-/** Human-readable phone (`+60123456789`) for user JIDs, the raw id for groups/others. */
+/**
+ * Human-readable phone (`+60123456789`) for phone-number JIDs; '' for a WhatsApp ID (`@lid`),
+ * whose digits are never shown; 'Group' for groups; the raw user part for anything else.
+ */
 export function formatJid(jid: string): string {
   if (isGroupJid(jid)) return 'Group';
   if (jid.endsWith('@lid')) return ''; // opaque WhatsApp ID: never shown as a number

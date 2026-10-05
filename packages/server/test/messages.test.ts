@@ -478,6 +478,30 @@ describe('replies and receipts for one person with two addresses', () => {
     ]);
   });
 
+  it('a retry never goes to a phone number that has since moved to another WhatsApp ID', async () => {
+    const { user, cookie } = await createUserAndLogin(t, { role: 'agent' });
+    await inbound('L-1', LID, 1000, PN);
+    await inbound('P-2', PN, 2000);
+    t.wa.failNextSend(new Error('nope'));
+    getMessages(t.ctx).sendText(LID, { clientId: 'retry-moved', text: 'hello' }, user.id);
+    const row = () =>
+      t.ctx.db
+        .prepare('SELECT id, status, wa_remote_jid FROM messages WHERE client_id = ?')
+        .get('retry-moved') as { id: string; status: string; wa_remote_jid: string };
+    await waitFor(() => row().status === 'failed');
+    expect(row().wa_remote_jid).toBe(PN);
+    getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]); // number recycled
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/messages/local-retry-moved/retry`,
+      headers: authHeaders(cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.chatJid).toBe(LID);
+    expect(row().wa_remote_jid).toBe(LID);
+  });
+
   it('restored pending sends after a restart still go to their stored target', async () => {
     const { user } = await createUserAndLogin(t, { role: 'agent' });
     await inbound('L-1', LID, 1000, PN);

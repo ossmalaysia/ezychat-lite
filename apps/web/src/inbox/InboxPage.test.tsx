@@ -200,4 +200,41 @@ describe('InboxPage', () => {
       true,
     );
   });
+  it('labels a nameless WhatsApp ID conversation without its digits', async () => {
+    const lid = '123456789012345@lid';
+    const nameless: Chat = { ...chat, jid: lid, name: '', phone: null };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if ((init?.method ?? 'GET') !== 'GET') return json({ ok: true });
+        if (url === '/api/me') return json(me);
+        if (url === '/api/wa/status')
+          return json({ state: 'open', me: null, qr: null, lastError: null });
+        if (url.startsWith('/api/chats?')) return json({ chats: [nameless], nextCursor: null });
+        if (url === `/api/chats/${encodeURIComponent(lid)}`)
+          return json({ chat: nameless, events: [] });
+        if (url.startsWith(`/api/chats/${encodeURIComponent(lid)}/messages`))
+          return json({ messages: [], nextBefore: null });
+        if (url.endsWith('/notes')) return json([]);
+        if (url === '/api/quick-replies') return json([]);
+        return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+      }),
+    );
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/chats/${encodeURIComponent(lid)}`]}>
+          <Routes>
+            <Route path="/chats/:jid" element={<InboxPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole('region', { name: 'Conversation with Unknown contact' }),
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toContain('123456789012345');
+  });
 });
