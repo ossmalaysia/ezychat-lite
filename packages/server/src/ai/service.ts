@@ -15,6 +15,7 @@ import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
+import { OAuthError } from './chatgpt-oauth.js';
 import { createAiProvider } from './provider-factory.js';
 import type { AiProvider } from './provider-types.js';
 
@@ -151,6 +152,22 @@ export function createAiService(
       .all(user.id) as Array<{ jid: string }>;
     for (const row of rows) {
       pause(row.jid);
+      chats.patch(row.jid, { assignedTo: null }, user.id);
+    }
+  };
+  /**
+   * The connection itself broke (sign-in expired, or ChatGPT blocked us): stop all AI work and
+   * leave its open chats unassigned for the team. Customers are never sent error text.
+   */
+  const releaseForConnection = () => {
+    const user = member();
+    if (!user) return;
+    cancelAll();
+    const rows = ctx.db
+      .prepare("SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open'")
+      .all(user.id) as Array<{ jid: string }>;
+    for (const row of rows) {
+      ctx.db.prepare('UPDATE ai_chat_state SET due_at = NULL WHERE chat_jid = ?').run(row.jid);
       chats.patch(row.jid, { assignedTo: null }, user.id);
     }
   };
@@ -356,6 +373,11 @@ export function createAiService(
               );
       } catch {
         if (controller.signal.aborted) return;
+        if (!ready()) {
+          log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
+          releaseForConnection();
+          return;
+        }
         log.warn({ jid, reason: 'provider_failed' }, 'AI answer unavailable');
         decision = {
           action: 'handoff' as const,
@@ -595,8 +617,10 @@ export function createAiService(
       try {
         await provider.submitCallbackUrl(url);
       } catch (error) {
-        // Provider messages are fixed, credential-free strings.
-        throw errors.validation(error instanceof Error ? error.message : 'ChatGPT sign-in failed');
+        // Only known OAuth / sign-in messages (fixed, credential-free) reach the admin.
+        throw errors.validation(
+          error instanceof OAuthError ? error.message : 'ChatGPT sign-in failed. Try again.',
+        );
       }
     },
     async logout() {

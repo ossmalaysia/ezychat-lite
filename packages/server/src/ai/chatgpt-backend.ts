@@ -24,6 +24,8 @@ export class BackendError extends Error {
   constructor(
     message: string,
     readonly status: number | null = null,
+    /** The reply was not the expected event stream (e.g. an HTML block page). */
+    readonly unexpected = false,
   ) {
     super(message);
   }
@@ -139,7 +141,9 @@ function outputText(response: unknown): string {
 export async function aggregateSse(events: AsyncIterable<SseEvent>): Promise<string> {
   let deltas = '';
   let done: string | null = null;
+  let seen = 0;
   for await (const event of events) {
+    if (typeof event.type === 'string') seen++;
     switch (event.type) {
       case 'response.output_text.delta':
         if (typeof event.delta === 'string') deltas += event.delta;
@@ -164,6 +168,7 @@ export async function aggregateSse(events: AsyncIterable<SseEvent>): Promise<str
       }
     }
   }
+  if (!seen) throw new BackendError('ChatGPT returned an unexpected response.', null, true);
   throw new BackendError('ChatGPT ended its answer early.');
 }
 
@@ -210,11 +215,18 @@ export async function streamResponse(
         ? 'ChatGPT sign-in expired. Sign in again.'
         : response.status === 429 || usageMessage(code)
           ? 'ChatGPT usage limit reached. Try again later.'
-          : response.status === 400 || response.status === 404
-            ? 'ChatGPT rejected the request. Choose another model or Auto.'
-            : 'ChatGPT could not answer. Try again later.',
+          : response.status === 403 || response.status === 404
+            ? 'ChatGPT refused the connection.'
+            : response.status === 400
+              ? 'ChatGPT rejected the request. Choose another model or Auto.'
+              : 'ChatGPT could not answer. Try again later.',
       response.status,
     );
+  }
+  const type = response.headers.get('content-type');
+  if (type && !type.toLowerCase().includes('text/event-stream')) {
+    await response.body?.cancel().catch(() => {});
+    throw new BackendError('ChatGPT returned an unexpected response.', response.status, true);
   }
   if (!response.body) throw new BackendError('ChatGPT returned an empty answer.');
   return aggregateSse(parseSse(response.body));

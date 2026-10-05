@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { AiMemberBody } from '@wa-team-inbox/shared';
+import type { AiConnection, AiMemberBody } from '@wa-team-inbox/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -8,6 +8,7 @@ import { authHeaders } from './auth-helpers.js';
 import { sha256 } from '../src/crypto/secret.js';
 import { createMessageService } from '../src/messages/service.js';
 import { pdfFixture } from './ai-fixtures.js';
+import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 
 let t: TestApp;
 let provider: AiProvider;
@@ -550,4 +551,45 @@ it('disables AI and releases its active chats immediately', async () => {
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
   expect(provider.generate).toHaveBeenCalledTimes(1);
   expect(t.ctx.services.ai!.status().settings.enabled).toBe(false);
+});
+
+it('stops claiming chats and releases its own without messaging customers when the ChatGPT connection breaks', async () => {
+  await t.ctx.services.ai!.shutdown();
+  t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
+  let state: AiConnection['state'] = 'connected';
+  provider.connection = () => ({
+    state,
+    loginUrl: null,
+    error: state === 'error' ? 'ChatGPT stopped accepting this connection.' : null,
+  });
+  vi.mocked(provider.generate).mockImplementation(async () => {
+    state = 'error';
+    throw new Error('ChatGPT stopped accepting this connection.');
+  });
+  human('online-agent');
+  clock();
+  t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent).toHaveLength(0);
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+  await incoming('second', 'Hello?', 'live', 'other@s.whatsapp.net');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(getChats(t.ctx).get('other@s.whatsapp.net')?.assignedTo).toBeNull();
+  expect(t.wa.sent).toHaveLength(0);
+});
+
+it('passes through only known sign-in messages when pasting a sign-in address', async () => {
+  const failWith = (error: Error) => {
+    provider.submitCallbackUrl = vi.fn().mockRejectedValue(error);
+    return t.ctx.services.ai!.completeSignIn('http://localhost:1455/auth/callback?code=c&state=s');
+  };
+  await expect(failWith(new OAuthError('Start sign-in again.'))).rejects.toThrow(
+    'Start sign-in again.',
+  );
+  const leaky = failWith(new Error('boom at /home/user/secret?token=abc'));
+  await expect(leaky).rejects.toThrow('ChatGPT sign-in failed. Try again.');
+  await expect(leaky).rejects.not.toThrow(/secret/);
 });
