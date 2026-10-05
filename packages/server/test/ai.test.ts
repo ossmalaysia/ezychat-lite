@@ -726,3 +726,41 @@ it('Try it applies the resolution gate and never resolves or assigns anything', 
   expect(result).toMatchObject({ ok: true, action: 'ask_resolution' });
   expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });
 });
+
+it('never turns a model answer into a resolution, even after two resolution questions', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await incoming('first-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: '3 boxes are RM30.', action: 'answer' });
+  await incoming('order', "Ok great, I'll take 3 boxes");
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent.at(-1)?.text).toBe('3 boxes are RM30.');
+});
+
+it('restarts the resolution count after the customer asks something new', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await incoming('new-question', 'And how much is delivery?');
+  await vi.advanceTimersByTimeAsync(1200);
+  await incoming('ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent).toHaveLength(3);
+});
+
+it('checks every customer message in a debounce batch before resolving', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Glad to help!', action: 'resolve' });
+  await incoming('objection', 'No, still not working');
+  await incoming('thanks', 'thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent).toHaveLength(2);
+  expect(t.wa.sent.at(-1)?.text).toBe('Does that answer your question?');
+});

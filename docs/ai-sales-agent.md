@@ -40,13 +40,17 @@ notes are not automatically included in the approved business knowledge.
   and an active inbox connection. If nobody qualifies, it tells the customer a human will
   help and returns the chat to unassigned. AI stays paused after handoff; a human can
   explicitly assign AI again to resume it.
-- AI asks whether the issue is resolved. After that question, the chat closes when the model
+- After answering, the AI asks "Does that answer your question?" in the customer's language
+  (it does not invite new questions). After that question, the chat closes when the model
   decides the customer confirmed — in any words ("Ok noted, yes that answers it. Thank you!",
-  "Ok baik, terima kasih", "好的，明白了，谢谢") — unless the reply has a question mark, a negation
-  or hesitation ("no", "not", "but", "however", "tidak", "bukan", "tapi", "不", "没", "但是") or a
-  new request. After two resolution questions answered with confirming-looking replies, the
-  server closes the chat so customers are never asked forever. A human can resolve an AI-owned
-  chat at any time.
+  "Ok baik, terima kasih", "好的，明白了，谢谢", or closings such as "no thanks", "that's all",
+  "tak ada lagi", "没有了") — unless any customer message since the AI's last reply has a
+  question mark, a negation or hesitation ("no", "not", "didn't", "but", "however", "tidak",
+  "bukan", "tapi", "不", "没", "但是") or a new request ("also", "one more thing", "need").
+  After two resolution questions in a row answered with confirming-looking replies, the server
+  closes the chat so customers are never asked forever; a new question or objection restarts
+  that count, and the server never turns an answer into a resolution. A human can resolve an
+  AI-owned chat at any time.
 - Order, booking and delivery-slot questions get the known facts (prices, totals, delivery fee)
   and "the team will confirm the slot/order"; the AI keeps the chat. It hands off only when a
   human is requested, facts are missing or conflicting, or the topic is sensitive.

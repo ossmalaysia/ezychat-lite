@@ -22,7 +22,7 @@ import { createAiProvider } from './provider-factory.js';
 import { HANDOFF_REPLY, buildAiPrompt, knowledgeSources } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiProvider } from './provider-types.js';
-import { guardResolution } from './resolution.js';
+import { guardResolution, objectsToResolution } from './resolution.js';
 
 export const AI_FALLBACK_MS = 10_000;
 const PROVIDER_KEY = 'ai_inbox_provider';
@@ -382,14 +382,31 @@ export function createAiService(
         };
       }
       if (!owned()) return;
-      decision = guardResolution(decision, asked, customer.body ?? '');
+      // Judge every customer message since the last AI reply (the debounce batch), not only the
+      // latest, so "No, still not working" + "thanks" never closes the chat.
+      const repliedIndex = history.findIndex(
+        (message) => message.id === state(jid)!.last_replied_message_id,
+      );
+      const batchStart =
+        repliedIndex >= 0
+          ? repliedIndex + 1
+          : history.findLastIndex((message) => message.fromMe) + 1;
+      const batchText = history
+        .slice(batchStart, history.indexOf(customer) + 1)
+        .filter((message) => !message.fromMe)
+        .map((message) => message.body ?? '')
+        .join('\n');
+      decision = guardResolution(decision, asked, batchText);
+      // Consecutive resolution questions: a new question or objection restarts the count at 1.
+      const nextAsked =
+        decision.action !== 'ask_resolution' ? 0 : objectsToResolution(batchText) ? 1 : asked + 1;
       await sendReply(jid, user.id, customerId, decision.reply, controller.signal);
       if (!owned()) return;
       ctx.db
         .prepare(
           'UPDATE ai_chat_state SET last_replied_message_id = ?, awaiting_confirmation = ?, due_at = NULL WHERE chat_jid = ?',
         )
-        .run(customerId, decision.action === 'ask_resolution' ? asked + 1 : 0, jid);
+        .run(customerId, nextAsked, jid);
       if (decision.action === 'handoff') handoff(jid, user.id);
       else if (decision.action === 'resolve') {
         chats.patch(jid, { status: 'resolved' }, user.id);

@@ -74,3 +74,55 @@ describe('guardResolution', () => {
       expect(looksLikeConfirmation(text)).toBe(false);
   });
 });
+
+describe('review fixes', () => {
+  it('applies the cap only to a model resolution question, never to an answer', () => {
+    const answer = { action: 'answer' as const, reply: 'Sure, 3 boxes is RM30.' };
+    expect(guardResolution(answer, 2, "Ok great, I'll take 3 boxes")).toEqual(answer);
+    expect(guardResolution(answer, 9, 'ok thanks')).toEqual(answer);
+  });
+
+  it.each([
+    "Thanks, it didn't help",
+    'Thanks, it didn’t help',
+    'Please don’t close it yet, thanks',
+    "Ok, but it won't open",
+    "Thanks, I can't log in",
+    "I haven't received it, thanks",
+    "It wasn't delivered, ok",
+    'Thanks, also need 2 more delivered',
+    'Ok thanks, one more thing',
+    'Wait, thanks',
+    'Actually ok thanks',
+    'ok thanks, want 2 more',
+  ])('treats contractions and follow-ups as objections: %s', (text) => {
+    expect(objectsToResolution(text)).toBe(true);
+    expect(looksLikeConfirmation(text)).toBe(false);
+    expect(guardResolution(resolve, 1, text).action).toBe('ask_resolution');
+  });
+
+  it.each([
+    'No thanks',
+    'no thank you',
+    "Nope, that's all",
+    'No, that’s all',
+    "That's all",
+    'All good',
+    'all good, thanks',
+    'Tak ada lagi',
+    'takde lagi, terima kasih',
+    'Tiada lagi',
+    '没有了',
+    '没有了，谢谢',
+    '没事了',
+  ])('treats closing phrases as confirmations: %s', (text) => {
+    expect(objectsToResolution(text)).toBe(false);
+    expect(looksLikeConfirmation(text)).toBe(true);
+    expect(guardResolution(resolve, 1, text)).toEqual(resolve);
+    expect(guardResolution(ask, 2, text)).toEqual({ action: 'resolve', reply: RESOLVED_REPLY });
+  });
+
+  it('asks only whether the answer helped, without inviting new questions', () => {
+    expect(ASK_RESOLUTION_REPLY).toBe('Does that answer your question?');
+  });
+});

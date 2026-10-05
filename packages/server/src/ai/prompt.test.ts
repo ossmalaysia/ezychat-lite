@@ -14,3 +14,11 @@ it('answers order and delivery-slot questions with known facts and keeps the cha
   expect(instructions).toContain('confirms, in any words');
   expect(instructions).toContain('Administrator instructions:\nBe brief');
 });
+
+it('asks "Does that answer your question?" in the customer language without inviting more', () => {
+  const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], false);
+  expect(instructions).toContain(
+    'ask "Does that answer your question?" in the customer\'s language',
+  );
+  expect(instructions).not.toContain('anything else');
+});
