@@ -31,4 +31,6 @@ export interface AiProvider {
   knownModels?(): readonly string[];
   /** Sends a short prompt with the saved model and reports the reply or error. */
   test?(model: string): Promise<AiTestResult>;
+  /** The model a ChatGPT request will use ('' = Auto resolves to the first live model). */
+  resolveModel?(model: string): Promise<string>;
 }

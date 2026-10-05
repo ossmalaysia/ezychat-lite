@@ -610,3 +610,72 @@ it('releases its own chats without messaging customers when the connection break
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
   expect(t.wa.sent).toHaveLength(sent);
 });
+
+const count = (table: string) =>
+  (t.ctx.db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n;
+
+it('answers Try it from draft knowledge without touching chats, messages, audit or WhatsApp', async () => {
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Delivery is RM10.', action: 'answer' });
+  const before = ['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count);
+  const result = await t.ctx.services.ai!.tryAnswer({
+    question: 'How much is delivery?',
+    knowledge: {
+      displayName: 'Draft Agent',
+      instructions: 'Be brief',
+      notes: 'Delivery costs RM10.',
+      faqs: [{ question: 'Open on Sunday?', answer: 'No' }],
+    },
+  });
+  expect(result).toEqual({
+    ok: true,
+    reply: 'Delivery is RM10.',
+    action: 'answer',
+    model: 'gpt-4.1-mini',
+    error: null,
+  });
+  const [, key, prompt] = vi.mocked(provider.generate).mock.calls[0]!;
+  expect(prompt.instructions).toContain('named Draft Agent');
+  expect(prompt.instructions).toContain('Be brief');
+  expect(prompt.input).toContain('Delivery costs RM10.');
+  expect(prompt.input).not.toContain('Opening hours');
+  expect(key).toBe('test-api-key-123');
+  expect(['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count)).toEqual(before);
+  expect(t.wa.sent).toHaveLength(0);
+  expect(t.ctx.services.ai!.status().settings.notes).toBe(body.notes);
+});
+
+it('Try it reports a missing connection and a provider failure without throwing', async () => {
+  await t.ctx.services.ai!.shutdown();
+  t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
+  provider.connection = () => ({ state: 'signed_out', loginUrl: null, error: null });
+  t.ctx.services.ai = createAiService(t.ctx, { provider });
+  const draft = { displayName: 'A', instructions: '', notes: 'Delivery RM10', faqs: [] };
+  expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
+    ok: false,
+    reply: null,
+    action: null,
+    model: null,
+    error: 'Set up the AI connection in Settings → AI first.',
+  });
+  expect(provider.generate).not.toHaveBeenCalled();
+  provider.connection = () => ({ state: 'connected', loginUrl: null, error: null });
+  provider.resolveModel = vi.fn(async () => 'gpt-6.1-sol');
+  vi.mocked(provider.generate).mockRejectedValue(new Error('ChatGPT usage limit reached.'));
+  expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
+    ok: false,
+    reply: null,
+    action: null,
+    model: 'gpt-6.1-sol',
+    error: 'ChatGPT usage limit reached.',
+  });
+});
+
+it('refuses to turn on the AI member without any knowledge', () => {
+  const empty = { ...body, instructions: '', notes: '', faqs: [] };
+  expect(() => t.ctx.services.ai!.saveMember(empty, actor)).toThrow(
+    'Add instructions, notes, FAQs or a document',
+  );
+  expect(t.ctx.services.ai!.saveMember({ ...empty, enabled: false }, actor).settings.enabled).toBe(
+    false,
+  );
+});

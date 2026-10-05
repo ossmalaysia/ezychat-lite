@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { AiCallbackBody, AiConnectionBody, AiMemberBody } from '@wa-team-inbox/shared';
+import { AiCallbackBody, AiConnectionBody, AiMemberBody, AiTryBody } from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
@@ -24,6 +24,7 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   };
   const signInLimiter = new WindowLimiter({ windowMs: 60_000, max: 5 });
   const pasteLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const tryLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
   const limit = (limiter: WindowLimiter, req: FastifyRequest) => {
     const result = limiter.hit(String(req.user!.id));
     if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
@@ -47,6 +48,12 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.delete('/ai/documents/:id', async (req) =>
     ai.removeDocument(parse(IdParams, req.params).id, actor(req)),
   );
+  app.post('/ai/try', async (req) => {
+    limit(tryLimiter, req);
+    const result = await ai.tryAnswer(parse(AiTryBody, req.body));
+    recheck(req);
+    return result;
+  });
   app.get('/ai/models', async () => ai.models());
   app.post('/ai/chatgpt/test', async (req) => {
     const result = await ai.testConnection();

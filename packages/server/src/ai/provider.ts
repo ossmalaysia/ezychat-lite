@@ -13,6 +13,8 @@ import {
   safeModelCatalog,
 } from './codex-config.js';
 
+export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
+
 export const AI_OUTPUT_SCHEMA = {
   type: 'object',
   properties: {
@@ -50,7 +52,7 @@ export async function generateOpenAi(
       signal: boundedSignal,
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: settings.model || 'gpt-4.1-mini',
+        model: settings.model || OPENAI_DEFAULT_MODEL,
         instructions: prompt.instructions,
         input: prompt.input,
         store: false,

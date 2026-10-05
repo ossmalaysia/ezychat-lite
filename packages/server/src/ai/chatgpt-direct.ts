@@ -377,7 +377,7 @@ export class DirectChatGptProvider implements AiProvider {
     return (this.modelCache?.models ?? fallbackModels()).map((model) => model.id);
   }
 
-  private async resolveModel(model: string): Promise<string> {
+  async resolveModel(model: string): Promise<string> {
     if (model) return model;
     return ((await this.liveModels()) ?? fallbackModels())[0]!.id;
   }
