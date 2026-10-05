@@ -68,6 +68,19 @@ function mergeAiState(db: DB, from: string, to: string, fromNewer: boolean): num
   return 1;
 }
 
+/** Name for a re-keyed chat: saved contact name > WhatsApp push name > the chat's own real name. */
+function rekeyName(db: DB, from: ChatRow, to: string): string {
+  const contact = db
+    .prepare(
+      `SELECT saved_name, push_name FROM contacts WHERE jid IN (?, ?)
+       ORDER BY (saved_name IS NOT NULL AND saved_name <> '') DESC, jid = ? DESC LIMIT 1`,
+    )
+    .get(to, from.jid, to) as { saved_name: string | null; push_name: string | null } | undefined;
+  if (contact?.saved_name) return contact.saved_name;
+  if (!isFallbackName(from.name, from.jid)) return from.name;
+  return contact?.push_name ?? '';
+}
+
 /** saved contact name > a real (non-fallback) chat name > the canonical chat's name */
 function bestName(db: DB, from: ChatRow, to: ChatRow): string {
   const saved = db
@@ -112,7 +125,7 @@ export function mergeChat(
          VALUES (@jid, 'dm', @name, @avatar, @unread, @lastAt, @preview, @status, @assigned, @now, @phone)`,
       ).run({
         jid: to,
-        name: isFallbackName(a.name, from) ? '' : a.name,
+        name: rekeyName(db, a, to),
         avatar: a.avatar_path,
         unread: a.unread_count,
         lastAt: a.last_message_at,

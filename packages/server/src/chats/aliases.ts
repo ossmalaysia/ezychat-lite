@@ -151,6 +151,10 @@ export class AliasStore {
         this.db
           .prepare('UPDATE chats SET phone = NULL WHERE jid = ? AND phone = ?')
           .run(previous, phone);
+        // Search also matches contacts.phone: the old person must not come up for the moved number.
+        this.db
+          .prepare('UPDATE contacts SET phone = NULL WHERE jid = ? AND phone = ?')
+          .run(previous, phone);
       }
       this.db.prepare('UPDATE chats SET phone = ? WHERE jid = ?').run(phone, p.lid);
     })();

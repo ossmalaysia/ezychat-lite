@@ -123,6 +123,7 @@ describe('AliasStore', () => {
   it('rule 3: a recycled number re-points future routing only, clears the old phone and warns', () => {
     chat(LID);
     chat(OTHER_LID);
+    db.prepare("INSERT INTO contacts (jid, phone) VALUES (?, '60111111111')").run(LID);
     const s = store();
     s.learn({ jid: PN, alias: LID }, 'contacts');
     expect(s.learn({ jid: PN, alias: OTHER_LID }, 'message')).toEqual({
@@ -134,6 +135,9 @@ describe('AliasStore', () => {
     expect(s.resolve(PN)).toBe(OTHER_LID);
     expect(phoneOf(LID)).toBeNull();
     expect(phoneOf(OTHER_LID)).toBe('60111111111');
+    expect(db.prepare('SELECT phone FROM contacts WHERE jid = ?').get(LID)).toEqual({
+      phone: null,
+    });
     expect(s.aliasesOf(LID)).toEqual([]);
     expect(s.aliasesOf(OTHER_LID)).toEqual([PN]);
     expect(

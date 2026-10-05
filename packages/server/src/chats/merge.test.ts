@@ -275,6 +275,22 @@ describe('mergeChat', () => {
     });
   });
 
+  it('re-keying keeps the contact name when the phone-number chat only had a fallback name', () => {
+    seedChat(PN, { name: '60111111111', last_message_at: 10 });
+    db.prepare(
+      "INSERT INTO contacts (jid, saved_name, push_name) VALUES (?, 'Saved Aisyah', 'Aisyah')",
+    ).run(PN);
+    mergeChat(db, PN, LID, { now: 5000 });
+    expect(chat(LID)).toMatchObject({ name: 'Saved Aisyah' });
+  });
+
+  it('re-keying falls back to the WhatsApp push name when there is no saved name', () => {
+    seedChat(PN, { name: '60111111111', last_message_at: 10 });
+    db.prepare("INSERT INTO contacts (jid, push_name) VALUES (?, 'Aisyah')").run(PN);
+    mergeChat(db, PN, LID, { now: 5000 });
+    expect(chat(LID)).toMatchObject({ name: 'Aisyah' });
+  });
+
   it('is idempotent: a second run finds nothing to merge', () => {
     seedChat(PN);
     seedChat(LID);
