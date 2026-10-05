@@ -475,8 +475,8 @@ it('rejects an incompatible ChatGPT connection before changing saved settings, c
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(before.member!.id);
 });
 
-it.each(['', 'gpt-5.4', 'gpt-5.3-codex'])(
-  'accepts the supported ChatGPT model %s',
+it.each(['', 'gpt-6-sol', 'gpt-5.5'])(
+  'accepts a listed ChatGPT model %s (experimental direct sign-in list)',
   async (model) => {
     const response = await t.app.inject({
       method: 'PATCH',

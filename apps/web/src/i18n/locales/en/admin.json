@@ -424,11 +424,7 @@
     "apiKeyHint": "Stored securely on the inbox server. API usage is billed separately from ChatGPT.",
     "hiddenKey": "Saved key — hidden",
     "enterKey": "Enter API key",
-    "loginHint": "Sign in through the supported Codex integration. Open the sign-in link in a browser on the computer running the inbox server so the local callback can complete.",
-    "saveModeFirst": "Save the ChatGPT connection mode before signing in.",
     "cancelLogin": "Cancel sign-in",
-    "disconnect": "Disconnect ChatGPT",
-    "login": "Sign in to ChatGPT",
     "openLogin": "Open sign-in",
     "invalidLink": "The sign-in link is invalid. Cancel sign-in and try again.",
     "model": "Model (optional)",
@@ -452,7 +448,6 @@
     "fileTypeError": "Choose a TXT, Markdown, PDF or DOCX document.",
     "fileSizeError": "Documents must be 10 MB or smaller.",
     "chatgptState": "ChatGPT: {{state}}",
-    "chatgptModelHint": "Leave blank for {{model}}. Supported: {{models}}.",
     "modelInvalid": "ChatGPT mode supports {{models}}. Leave blank to use the default.",
     "modelSeparator": " or ",
     "question": "Question {{number}}",
@@ -467,6 +462,20 @@
       "signing_in": "signing in",
       "connected": "connected",
       "error": "error"
-    }
+    },
+    "experimental": "Experimental",
+    "directLoginHint": "Signs in with your ChatGPT account directly, without the Codex app. This uses an unofficial ChatGPT connection that may stop working at any time. Finish sign-in in a browser on the computer running the inbox server (it uses local port 1455).",
+    "signedInAs": "Signed in as {{email}}",
+    "signedIn": "Signed in to ChatGPT",
+    "signInSavesMode": "Signing in also saves ChatGPT as the connection mode.",
+    "signOut": "Sign out",
+    "signInWithChatgpt": "Sign in with ChatGPT",
+    "testConnection": "Test connection",
+    "testOk": "{{model}} replied: {{reply}}",
+    "testFailed": "Test failed: {{error}}",
+    "chatgptModel": "Model",
+    "modelAuto": "Auto (recommended)",
+    "modelsLive": "Models available to your ChatGPT account.",
+    "modelsFallback": "Default model list. Sign in to load your account's models."
   }
 }

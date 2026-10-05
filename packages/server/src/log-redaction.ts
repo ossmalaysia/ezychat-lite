@@ -18,7 +18,29 @@ const SECRET_FIELDS = [
   'authorization',
   'cookie',
   'set-cookie',
+  // EXPERIMENTAL ChatGPT direct sign-in (OAuth tokens, PKCE, callback data).
+  'idToken',
+  'id_token',
+  'access_token',
+  'refresh_token',
+  'authCode',
+  'codeVerifier',
+  'code_verifier',
+  'oauthState',
+  'authorizeUrl',
+  'callbackUrl',
+  'chatgptAccountId',
+  'chatgpt-account-id',
 ];
+
+const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
+const OAUTH_PARAM =
+  /\b(code|state|code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
+
+/** Scrubs bearer JWTs and OAuth query parameters from free text (messages, URLs, stacks). */
+export function redactSecretText(text: string): string {
+  return text.replace(JWT, '[REDACTED_JWT]').replace(OAUTH_PARAM, '$1=[REDACTED]');
+}
 
 export const LOG_REDACT_PATHS = SECRET_FIELDS.flatMap((field) => [
   `["${field}"]`,
@@ -32,6 +54,8 @@ function redact(value: unknown): void {
   for (const [key, child] of Object.entries(value)) {
     if (secrets.has(key.toLowerCase())) {
       (value as Record<string, unknown>)[key] = '[REDACTED]';
+    } else if (typeof child === 'string') {
+      (value as Record<string, unknown>)[key] = redactSecretText(child);
     } else {
       redact(child);
     }

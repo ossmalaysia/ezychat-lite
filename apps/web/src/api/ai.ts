@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AiMemberStatus, type AiMemberBody, type AiConnectionBody } from '@wa-team-inbox/shared';
+import {
+  AiMemberStatus,
+  AiModelList,
+  AiTestResult,
+  type AiMemberBody,
+  type AiConnectionBody,
+} from '@wa-team-inbox/shared';
 import { api } from './client';
 import { qk } from './queries';
 
@@ -11,6 +17,22 @@ export function useAiMember() {
     queryFn: ({ signal }) => api('/ai', { signal, schema: AiMemberStatus }),
     refetchInterval: (query) =>
       query.state.data?.connection.state === 'signing_in' ? 2000 : false,
+  });
+}
+
+/** EXPERIMENTAL direct ChatGPT sign-in: live models for the signed-in account (or a fallback). */
+export function useAiModels(enabled: boolean, connected: boolean) {
+  return useQuery({
+    queryKey: ['ai-models', connected] as const,
+    queryFn: ({ signal }) => api('/ai/models', { signal, schema: AiModelList }),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAiTest() {
+  return useMutation({
+    mutationFn: () => api('/ai/chatgpt/test', { method: 'POST', schema: AiTestResult }),
   });
 }
 

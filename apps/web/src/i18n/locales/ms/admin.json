@@ -420,11 +420,7 @@
     "apiKeyHint": "Disimpan dengan selamat pada pelayan peti masuk. Penggunaan API dicaj berasingan daripada ChatGPT.",
     "hiddenKey": "Kunci tersimpan — disembunyikan",
     "enterKey": "Masukkan kunci API",
-    "loginHint": "Log masuk melalui integrasi Codex yang disokong. Buka pautan log masuk dalam pelayar pada komputer yang menjalankan pelayan peti masuk supaya proses panggil balik tempatan dapat diselesaikan.",
-    "saveModeFirst": "Simpan mod sambungan ChatGPT sebelum log masuk.",
     "cancelLogin": "Batalkan log masuk",
-    "disconnect": "Putuskan sambungan ChatGPT",
-    "login": "Log masuk ke ChatGPT",
     "openLogin": "Buka log masuk",
     "invalidLink": "Pautan log masuk tidak sah. Batalkan log masuk dan cuba lagi.",
     "model": "Model (pilihan)",
@@ -448,7 +444,6 @@
     "fileTypeError": "Pilih dokumen TXT, Markdown, PDF atau DOCX.",
     "fileSizeError": "Dokumen mestilah 10 MB atau lebih kecil.",
     "chatgptState": "ChatGPT: {{state}}",
-    "chatgptModelHint": "Biarkan kosong untuk {{model}}. Disokong: {{models}}.",
     "modelInvalid": "Mod ChatGPT menyokong {{models}}. Biarkan kosong untuk menggunakan model lalai.",
     "modelSeparator": " atau ",
     "question": "Soalan {{number}}",
@@ -463,6 +458,20 @@
       "signing_in": "sedang log masuk",
       "connected": "disambungkan",
       "error": "ralat"
-    }
+    },
+    "experimental": "Percubaan",
+    "directLoginHint": "Log masuk terus dengan akaun ChatGPT anda, tanpa aplikasi Codex. Ini menggunakan sambungan ChatGPT tidak rasmi yang mungkin berhenti berfungsi pada bila-bila masa. Selesaikan log masuk dalam pelayar pada komputer yang menjalankan pelayan peti masuk (ia menggunakan port tempatan 1455).",
+    "signedInAs": "Log masuk sebagai {{email}}",
+    "signedIn": "Log masuk ke ChatGPT",
+    "signInSavesMode": "Log masuk juga menyimpan ChatGPT sebagai mod sambungan.",
+    "signOut": "Log keluar",
+    "signInWithChatgpt": "Log masuk dengan ChatGPT",
+    "testConnection": "Uji sambungan",
+    "testOk": "{{model}} membalas: {{reply}}",
+    "testFailed": "Ujian gagal: {{error}}",
+    "chatgptModel": "Model",
+    "modelAuto": "Auto (disyorkan)",
+    "modelsLive": "Model yang tersedia untuk akaun ChatGPT anda.",
+    "modelsFallback": "Senarai model lalai. Log masuk untuk memuatkan model akaun anda."
   }
 }

@@ -5,7 +5,7 @@ import { AiConnectionBody, AiMemberBody } from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
-import { errors, parse } from '../http/errors.js';
+import { HttpError, errors, parse } from '../http/errors.js';
 import { AI_UPLOAD_BYTES } from '../ai/knowledge.js';
 import { extractKnowledgeIsolated } from '../ai/knowledge-worker.js';
 
@@ -40,8 +40,20 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.delete('/ai/documents/:id', async (req) =>
     ai.removeDocument(parse(IdParams, req.params).id, actor(req)),
   );
+  app.get('/ai/models', async () => ai.models());
+  app.post('/ai/chatgpt/test', async (req) => {
+    const result = await ai.testConnection();
+    recheck(req);
+    return result;
+  });
   app.post('/ai/chatgpt/login', async (req) => {
-    await ai.login();
+    try {
+      await ai.login();
+    } catch (error) {
+      // Provider messages are fixed, credential-free strings (e.g. callback port in use).
+      if (error instanceof HttpError) throw error;
+      throw errors.conflict(error instanceof Error ? error.message : 'ChatGPT sign-in failed');
+    }
     try {
       recheck(req);
     } catch (error) {

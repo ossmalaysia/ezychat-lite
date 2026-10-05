@@ -2,18 +2,20 @@ import { randomUUID } from 'node:crypto';
 import type {
   AiMemberBody,
   AiMemberStatus,
+  AiModelList,
+  AiTestResult,
   AiSettings,
   Chat,
   ChatEvent,
   Message,
 } from '@wa-team-inbox/shared';
-import { AiConnectionBody, AiDecision } from '@wa-team-inbox/shared';
+import { AiConnectionBody, AiDecision, CHATGPT_MODELS } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_DOCUMENT_LIMIT, AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
-import { createAiProvider } from './provider.js';
+import { createAiProvider } from './provider-factory.js';
 import type { AiProvider } from './provider-types.js';
 
 export const AI_FALLBACK_MS = 10_000;
@@ -46,6 +48,8 @@ export interface AiService {
   removeDocument(id: number, actor: Actor): AiMemberStatus;
   login(): Promise<void>;
   logout(): Promise<void>;
+  models(): Promise<AiModelList>;
+  testConnection(): Promise<AiTestResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
   shutdown(): Promise<void>;
 }
@@ -521,6 +525,13 @@ export function createAiService(
     },
     saveConnection(body, actor) {
       body = parse(AiConnectionBody, body);
+      if (body.mode === 'chatgpt' && body.model) {
+        const known = provider.knownModels?.() ?? CHATGPT_MODELS;
+        if (!known.includes(body.model))
+          throw errors.validation(
+            `ChatGPT mode supports ${known.join(', ')}. Choose Auto to use the default.`,
+          );
+      }
       cancelAll();
       ctx.db.transaction(() => {
         ctx.settings.set(PROVIDER_KEY, { mode: body.mode, model: body.model });
@@ -581,6 +592,16 @@ export function createAiService(
       cancelAll();
       await provider.logout();
       releaseOwned();
+    },
+    async models() {
+      if (!provider.models) return { models: [], source: 'fallback' };
+      return provider.models();
+    },
+    async testConnection() {
+      const current = settings();
+      if (current.mode !== 'chatgpt' || !provider.test)
+        throw errors.validation('Connection test is available for ChatGPT sign-in only');
+      return provider.test(current.model);
     },
     canSend(jid, userId, quotedId) {
       return (

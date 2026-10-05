@@ -86,6 +86,15 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
   own early WhatsApp echo → asynchronous completion differs from message arrival and committed
   sender provenance → notify automation on live receipt before downloading and correlate echoes
   through completed send reconciliation; keep regression tests for both orderings.
+- 2026-10-05 — Spike: direct ChatGPT sign-in (no Codex binary) changed the accepted ChatGPT models,
+  but a test that swapped `ctx.services.ai` for a mock-provider service still saw the real list →
+  `routes/ai.ts` captures `ctx.services.ai` at registration, so HTTP tests always hit the service
+  built by `initAi` → assert route behaviour against the real provider (or rebuild the app), and
+  keep provider-specific validation (live model list) behind an optional provider method.
+- 2026-10-05 — OpenClaw's ChatGPT OAuth lives in its bundled `@mariozechner/pi-ai`, not its own dist,
+  and has no model-list call; the GPT-6.x ids and `/codex/models?client_version=` came from Codex's
+  own `models_cache.json` and binary → trace a protocol to the package that really implements it and
+  record each fact with its source file (SPIKE-NOTES.md); never copy tokens from those caches.
 
 - 2026-10-05 — A daily inbox reset affects all teammates and more chats than a paginated list
   contains → bulk resolution must be admin-only, transactional, confirmed, and publish events
@@ -182,6 +191,11 @@ file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
   server on a temp data dir. Use it instead of the full e2e for "does every screen render?".
 
 ## Build / tooling (Windows)
+
+- 2026-10-05 — A Python edit run through a Bash heredoc wrote literal backspace bytes (0x08) into a
+  TypeScript regex (`\b` became BS) and later Edit calls could not match the line → the heredoc and
+  Python string escaping both consume backslashes → write files containing regex escapes with the
+  Write/Edit tools or a Node script using `String.raw`, then grep for `$'\x08'` before running tests.
 
 - 2026-10-03 — A GUI smoke harness supplied as an argument to a packaged executable launched its normal entry, and a top-level wait for Electron readiness stalled a separate harness → packaged apps ignore replacement entry arguments and readiness depends on main-module evaluation → use plain Electron with an explicit temporary profile, schedule setup with whenReady().then, and import the packaged modules/preloads being verified.
 - 2026-10-03 — A valid iPhone browser sign-in failed only in the combined suite → parallel browser projects shared the loopback login quota and hit a genuine HTTP 429 → let the test sign-in helper honor the server's Retry-After and extend only its cooldown budget; never weaken production authentication limits to make browser tests pass.

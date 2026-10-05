@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Experimental: "Sign in with ChatGPT" works without the Codex helper. One click saves ChatGPT mode, opens the sign-in page and shows "Signed in as …"; the model is chosen from a dropdown (Auto or your account's live models), and "Test connection" sends a short prompt. Uses an unofficial ChatGPT endpoint that may stop working.
 - Local and test builds are marked "Dev Build": the desktop window and tray title show it for unpackaged builds, and the inbox shows a badge and a "[Dev Build]" tab title when the server runs with `--mode dev`.
 
 ### Changed

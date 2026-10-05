@@ -1,8 +1,23 @@
 import { z } from 'zod';
 import { UserSchema } from './models.js';
 
+/** Models pinned by the bundled Codex helper path (kept for that path; unused by the direct spike). */
 export const CHATGPT_MODELS = ['gpt-5.4', 'gpt-5.3-codex'] as const;
 export const DEFAULT_CHATGPT_MODEL = CHATGPT_MODELS[0];
+/** EXPERIMENTAL direct ChatGPT sign-in: documented fallback when the live model list is unavailable
+ * (ids from Codex 0.160's model list, visibility "list", by priority). The server validates a saved
+ * model against the live list (or this list); '' means Auto. */
+export const CHATGPT_FALLBACK_MODELS = [
+  'gpt-6.1-sol',
+  'gpt-6-astra',
+  'gpt-6-sol',
+  'gpt-6-luna',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.5',
+] as const;
+export const CHATGPT_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
@@ -29,14 +44,10 @@ export const AiConnectionBody = AiSettingsBody.pick({
   mode: true,
   model: true,
   apiKey: true,
-}).refine(
-  ({ mode, model }) =>
-    mode !== 'chatgpt' || !model || (CHATGPT_MODELS as readonly string[]).includes(model),
-  {
-    path: ['model'],
-    message: `ChatGPT mode supports ${CHATGPT_MODELS.join(' or ')}. Leave blank to use the default.`,
-  },
-);
+}).refine(({ mode, model }) => mode !== 'chatgpt' || !model || CHATGPT_MODEL_ID.test(model), {
+  path: ['model'],
+  message: 'ChatGPT mode supports only listed model ids. Choose Auto to use the default.',
+});
 export type AiConnectionBody = z.infer<typeof AiConnectionBody>;
 export const AiMemberBody = AiSettings.omit({ mode: true, model: true });
 export type AiMemberBody = z.infer<typeof AiMemberBody>;
@@ -53,6 +64,8 @@ export const AiConnection = z.object({
   state: z.enum(['unavailable', 'signed_out', 'signing_in', 'connected', 'error']),
   loginUrl: z.string().nullable(),
   error: z.string().nullable(),
+  /** Signed-in ChatGPT account email (direct sign-in only). */
+  email: z.string().nullable().optional(),
 });
 export type AiConnection = z.infer<typeof AiConnection>;
 export const AiMemberStatus = z.object({
@@ -63,6 +76,19 @@ export const AiMemberStatus = z.object({
   documents: z.array(AiDocument),
 });
 export type AiMemberStatus = z.infer<typeof AiMemberStatus>;
+
+export const AiModelList = z.object({
+  models: z.array(z.object({ id: z.string(), label: z.string() })),
+  source: z.enum(['live', 'fallback']),
+});
+export type AiModelList = z.infer<typeof AiModelList>;
+export const AiTestResult = z.object({
+  ok: z.boolean(),
+  model: z.string().nullable(),
+  reply: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type AiTestResult = z.infer<typeof AiTestResult>;
 
 /** Structured decisions are checked by the server before sending or changing ownership. */
 export const AiDecision = z.object({

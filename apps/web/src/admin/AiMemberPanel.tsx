@@ -6,13 +6,12 @@ import { toast } from 'sonner';
 import {
   AiMemberBody,
   AiConnectionBody,
-  CHATGPT_MODELS,
-  DEFAULT_CHATGPT_MODEL,
+  CHATGPT_FALLBACK_MODELS,
   type AiMemberStatus,
   type AiSettings,
 } from '@wa-team-inbox/shared';
 import { Link } from 'react-router-dom';
-import { useAiMember, useAiMemberAction } from '../api/ai';
+import { useAiMember, useAiMemberAction, useAiModels, useAiTest } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog } from '@/components/app';
 import { Button } from '@/components/ui/button';
@@ -62,6 +61,9 @@ export function AiMemberPanel({
   );
 }
 
+/** Radix Select needs a non-empty value; '' (Auto) is stored. */
+const AUTO_MODEL = 'auto';
+
 function officialLoginUrl(raw: string | null): string | null {
   if (!raw) return null;
   try {
@@ -106,6 +108,43 @@ function AiMemberForm({
     setSettings((old) => ({ ...old, [key]: value }));
   const loginUrl = officialLoginUrl(status.connection.loginUrl);
   const connectionModeSaved = settings.mode === status.settings.mode;
+  const test = useAiTest();
+  const models = useAiModels(
+    section === 'connection' && settings.mode === 'chatgpt',
+    status.connection.state === 'connected',
+  );
+  const modelOptions = (() => {
+    const list = models.data?.models ?? CHATGPT_FALLBACK_MODELS.map((id) => ({ id, label: id }));
+    return settings.model && !list.some((model) => model.id === settings.model)
+      ? [...list, { id: settings.model, label: settings.model }]
+      : list;
+  })();
+
+  /** EXPERIMENTAL one-click sign-in: save ChatGPT mode if needed, start sign-in, open the page. */
+  const signIn = async () => {
+    setLocalError(null);
+    test.reset();
+    // Open the tab synchronously so the browser treats it as user-initiated.
+    const tab = window.open('about:blank', '_blank');
+    try {
+      if (!connectionModeSaved) {
+        const parsed = AiConnectionBody.safeParse({ mode: 'chatgpt', model: settings.model });
+        await action.mutateAsync({
+          kind: 'connection',
+          settings: parsed.success ? parsed.data : { mode: 'chatgpt', model: '' },
+        });
+      }
+      const next = await action.mutateAsync({ kind: 'login' });
+      const url = officialLoginUrl(next.connection.loginUrl);
+      if (tab && url) {
+        tab.opener = null;
+        tab.location.href = url;
+      } else tab?.close();
+    } catch {
+      // The mutation error is shown below the form.
+      tab?.close();
+    }
+  };
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -117,7 +156,9 @@ function AiMemberForm({
     if (!parsed.success) {
       setLocalError(
         settings.mode === 'chatgpt' && parsed.error.issues[0]?.path[0] === 'model'
-          ? t('ai.modelInvalid', { models: CHATGPT_MODELS.join(t('ai.modelSeparator')) })
+          ? t('ai.modelInvalid', {
+              models: modelOptions.map((model) => model.id).join(t('ai.modelSeparator')),
+            })
           : t('ai.checkSettings'),
       );
       return;
@@ -272,11 +313,17 @@ function AiMemberForm({
               </Field>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">{t('ai.loginHint')}</p>
+                <Banner tone="warning" title={t('ai.experimental')}>
+                  <p>{t('ai.directLoginHint')}</p>
+                </Banner>
                 <p role="status" className="text-sm">
-                  {connectionModeSaved
-                    ? t('ai.chatgptState', { state: connectionStates[status.connection.state] })
-                    : t('ai.saveModeFirst')}
+                  {connectionModeSaved && status.connection.state === 'connected'
+                    ? status.connection.email
+                      ? t('ai.signedInAs', { email: status.connection.email })
+                      : t('ai.signedIn')
+                    : connectionModeSaved
+                      ? t('ai.chatgptState', { state: connectionStates[status.connection.state] })
+                      : t('ai.signInSavesMode')}
                 </p>
                 {connectionModeSaved && status.connection.error && (
                   <Banner tone="danger">{status.connection.error}</Banner>
@@ -294,21 +341,28 @@ function AiMemberForm({
                     >
                       {status.connection.state === 'signing_in'
                         ? t('ai.cancelLogin')
-                        : t('ai.disconnect')}
+                        : t('ai.signOut')}
                     </Button>
                   ) : (
                     <Button
                       type="button"
+                      size="touch"
+                      disabled={action.isPending || status.connection.state === 'unavailable'}
+                      onClick={() => void signIn()}
+                    >
+                      {t('ai.signInWithChatgpt')}
+                    </Button>
+                  )}
+                  {connectionModeSaved && status.connection.state === 'connected' && (
+                    <Button
+                      type="button"
                       variant="outline"
                       size="touch"
-                      disabled={
-                        !connectionModeSaved ||
-                        action.isPending ||
-                        status.connection.state === 'unavailable'
-                      }
-                      onClick={() => action.mutate({ kind: 'login' })}
+                      disabled={action.isPending || test.isPending}
+                      onClick={() => test.mutate()}
                     >
-                      {t('ai.login')}
+                      <Pending show={test.isPending} />
+                      {t('ai.testConnection')}
                     </Button>
                   )}
                   {connectionModeSaved && loginUrl && (
@@ -323,29 +377,60 @@ function AiMemberForm({
                 {status.connection.loginUrl && !loginUrl && (
                   <Banner tone="danger">{t('ai.invalidLink')}</Banner>
                 )}
+                {test.data &&
+                  (test.data.ok ? (
+                    <p role="status" className="break-words text-sm">
+                      {t('ai.testOk', {
+                        model: test.data.model ?? '',
+                        reply: test.data.reply ?? '',
+                      })}
+                    </p>
+                  ) : (
+                    <Banner tone="danger">
+                      {t('ai.testFailed', { error: test.data.error ?? '' })}
+                    </Banner>
+                  ))}
+                {test.error && <Banner tone="danger">{errorMessage(test.error)}</Banner>}
               </div>
             )}
-            <Field
-              label={t('ai.model')}
-              hint={
-                settings.mode === 'api'
-                  ? t('ai.apiModelHint')
-                  : t('ai.chatgptModelHint', {
-                      model: DEFAULT_CHATGPT_MODEL,
-                      models: CHATGPT_MODELS.join(t('ai.modelSeparator')),
-                    })
-              }
-            >
-              {(p) => (
-                <Input
-                  {...p}
-                  value={settings.model}
-                  maxLength={128}
-                  disabled={action.isPending}
-                  onChange={(e) => update('model', e.target.value)}
-                />
-              )}
-            </Field>
+            {settings.mode === 'chatgpt' ? (
+              <Field
+                label={t('ai.chatgptModel')}
+                hint={models.data?.source === 'live' ? t('ai.modelsLive') : t('ai.modelsFallback')}
+              >
+                {(p) => (
+                  <Select
+                    value={settings.model || AUTO_MODEL}
+                    disabled={action.isPending}
+                    onValueChange={(value) => update('model', value === AUTO_MODEL ? '' : value)}
+                  >
+                    <SelectTrigger {...p} className="min-h-11 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={AUTO_MODEL}>{t('ai.modelAuto')}</SelectItem>
+                      {modelOptions.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+            ) : (
+              <Field label={t('ai.model')} hint={t('ai.apiModelHint')}>
+                {(p) => (
+                  <Input
+                    {...p}
+                    value={settings.model}
+                    maxLength={128}
+                    disabled={action.isPending}
+                    onChange={(e) => update('model', e.target.value)}
+                  />
+                )}
+              </Field>
+            )}
           </section>
         )}
         {section === 'member' && (

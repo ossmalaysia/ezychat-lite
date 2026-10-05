@@ -421,7 +421,3 @@ function toml(value: unknown): string {
   }
   return JSON.stringify(value);
 }
-
-export function createAiProvider(ctx: AppContext): AiProvider {
-  return new BusinessAiProvider(ctx);
-}

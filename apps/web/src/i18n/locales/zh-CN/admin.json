@@ -420,11 +420,7 @@
     "apiKeyHint": "安全存储在收件箱服务器上。API 用量与 ChatGPT 分开计费。",
     "hiddenKey": "已保存的密钥 — 已隐藏",
     "enterKey": "输入 API 密钥",
-    "loginHint": "通过受支持的 Codex 集成登录。请在运行收件箱服务器的电脑上用浏览器打开登录链接，以完成本地回调。",
-    "saveModeFirst": "请先保存 ChatGPT 连接模式，再登录。",
     "cancelLogin": "取消登录",
-    "disconnect": "断开 ChatGPT",
-    "login": "登录 ChatGPT",
     "openLogin": "打开登录页面",
     "invalidLink": "登录链接无效。请取消登录后重试。",
     "model": "模型（可选）",
@@ -448,7 +444,6 @@
     "fileTypeError": "请选择 TXT、Markdown、PDF 或 DOCX 文档。",
     "fileSizeError": "文档大小不得超过 10 MB。",
     "chatgptState": "ChatGPT：{{state}}",
-    "chatgptModelHint": "留空使用 {{model}}。支持：{{models}}。",
     "modelInvalid": "ChatGPT 模式支持 {{models}}。留空使用默认模型。",
     "modelSeparator": " 或 ",
     "question": "问题 {{number}}",
@@ -463,6 +458,20 @@
       "signing_in": "正在登录",
       "connected": "已连接",
       "error": "错误"
-    }
+    },
+    "experimental": "实验性",
+    "directLoginHint": "无需 Codex 应用，直接使用您的 ChatGPT 账户登录。此功能使用非官方的 ChatGPT 连接，可能随时停止工作。请在运行收件箱服务器的电脑上的浏览器中完成登录（使用本地端口 1455）。",
+    "signedInAs": "已登录：{{email}}",
+    "signedIn": "已登录 ChatGPT",
+    "signInSavesMode": "登录时也会将 ChatGPT 保存为连接方式。",
+    "signOut": "退出登录",
+    "signInWithChatgpt": "使用 ChatGPT 登录",
+    "testConnection": "测试连接",
+    "testOk": "{{model}} 回复：{{reply}}",
+    "testFailed": "测试失败：{{error}}",
+    "chatgptModel": "模型",
+    "modelAuto": "自动（推荐）",
+    "modelsLive": "您的 ChatGPT 账户可用的模型。",
+    "modelsFallback": "默认模型列表。登录后可加载您账户的模型。"
   }
 }

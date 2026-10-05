@@ -111,74 +111,206 @@ describe('AI member settings', () => {
   ])(
     'keeps a connection draft while changing the language to $locale',
     async ({ locale, label, save }) => {
-      const initial = status();
-      initial.settings.mode = 'chatgpt';
-      const { fetchMock } = setup(initial, undefined, 'connection');
+      const { fetchMock } = setup(status(), undefined, 'connection');
       const user = userEvent.setup();
-      await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-5.4');
+      await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
       await act(() => activateLocale(locale));
-      expect(((await screen.findByLabelText(label)) as HTMLInputElement).value).toBe('gpt-5.4');
+      expect(((await screen.findByLabelText(label)) as HTMLInputElement).value).toBe(
+        'gpt-4.1-mini',
+      );
       await user.click(screen.getByRole('button', { name: save }));
       await waitFor(() =>
         expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
       );
       const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
-      expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: 'chatgpt', model: 'gpt-5.4' });
+      expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: 'api', model: 'gpt-4.1-mini' });
     },
   );
 
-  it.each([
-    { mode: 'api' as const, model: 'gpt-4.1-mini', option: 'ChatGPT sign-in', next: 'chatgpt' },
-    { mode: 'chatgpt' as const, model: 'gpt-5.3-codex', option: 'OpenAI API key', next: 'api' },
-  ])(
-    'resets an explicit $mode model when switching providers and saves the new default',
-    async ({ mode, model, option, next }) => {
-      const initial = status();
-      initial.settings.mode = mode;
-      initial.settings.model = model;
-      const { fetchMock } = setup(initial, undefined, 'connection');
-      const user = userEvent.setup();
-      const input = await screen.findByLabelText('Model (optional)');
-      expect((input as HTMLInputElement).value).toBe(model);
-      await user.click(screen.getByRole('combobox', { name: 'Connection mode' }));
-      await user.click(screen.getByRole('option', { name: option }));
-      expect((input as HTMLInputElement).value).toBe('');
-      await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
-      await waitFor(() =>
-        expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
-      );
-      const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
-      expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: next, model: '' });
-    },
-  );
-
-  it('rejects an unsupported ChatGPT model before submitting the connection', async () => {
+  it('resets an explicit API model when switching to ChatGPT and saves Auto', async () => {
     const initial = status();
-    initial.settings.mode = 'chatgpt';
+    initial.settings.model = 'gpt-4.1-mini';
     const { fetchMock } = setup(initial, undefined, 'connection');
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
-    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
-    await screen.findByText(
-      'ChatGPT mode supports gpt-5.4 or gpt-5.3-codex. Leave blank to use the default.',
+    await screen.findByLabelText('Model (optional)');
+    await user.click(screen.getByRole('combobox', { name: 'Connection mode' }));
+    await user.click(screen.getByRole('option', { name: 'ChatGPT sign-in' }));
+    expect(screen.getByRole('combobox', { name: 'Model' }).textContent).toContain(
+      'Auto (recommended)',
     );
-    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+    expect(screen.getByText('Experimental')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
+    );
+    const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
+    expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: 'chatgpt', model: '' });
   });
 
-  it('requires saving a changed connection mode before exposing ChatGPT sign-in controls', async () => {
+  it('resets a ChatGPT model when switching to the API key', async () => {
     const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.settings.model = 'gpt-6-sol';
+    setup(initial, undefined, 'connection');
+    const user = userEvent.setup();
+    expect((await screen.findByRole('combobox', { name: 'Model' })).textContent).toContain(
+      'gpt-6-sol',
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Connection mode' }));
+    await user.click(screen.getByRole('option', { name: 'OpenAI API key' }));
+    expect((screen.getByLabelText('Model (optional)') as HTMLInputElement).value).toBe('');
+  });
+
+  it('offers Auto plus the live ChatGPT models in a dropdown and saves the choice', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
     initial.connection.state = 'connected';
-    const { fetchMock } = setup(initial, undefined, 'connection');
+    const { fetchMock } = setup(
+      initial,
+      (url) =>
+        url === '/api/ai/models'
+          ? json({
+              source: 'live',
+              models: [
+                { id: 'gpt-6.1-sol', label: 'GPT-6.1-Sol' },
+                { id: 'gpt-5.5', label: 'GPT-5.5' },
+              ],
+            })
+          : undefined,
+      'connection',
+    );
+    const user = userEvent.setup();
+    await screen.findByText('Models available to your ChatGPT account.');
+    await user.click(screen.getByRole('combobox', { name: 'Model' }));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Auto (recommended)',
+      'GPT-6.1-Sol',
+      'GPT-5.5',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'GPT-5.5' }));
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(true),
+    );
+    const saved = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')!;
+    expect(JSON.parse(String(saved[1]?.body))).toEqual({ mode: 'chatgpt', model: 'gpt-5.5' });
+  });
+
+  it('signs in with one click: saves ChatGPT mode, starts sign-in and opens the page', async () => {
+    const tab = { opener: {} as unknown, location: { href: 'about:blank' }, close: vi.fn() };
+    const open = vi.fn(() => tab);
+    vi.stubGlobal('open', open);
+    const loginUrl = 'https://auth.openai.com/oauth/authorize?state=test';
+    const { fetchMock, setStatus } = setup(
+      status(),
+      (url, init) => {
+        if (url === '/api/ai/chatgpt/login' && init?.method === 'POST') {
+          const signingIn: AiMemberStatus = {
+            ...status(),
+            settings: { ...status().settings, mode: 'chatgpt' },
+            connection: { state: 'signing_in', loginUrl, error: null },
+          };
+          setStatus(signingIn);
+          return json(signingIn);
+        }
+      },
+      'connection',
+    );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('combobox', { name: 'Connection mode' }));
     await user.click(screen.getByRole('option', { name: 'ChatGPT sign-in' }));
-    expect(screen.queryByText('ChatGPT: connected')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Disconnect ChatGPT' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Sign in to ChatGPT' })).toHaveProperty(
-      'disabled',
-      true,
+    await user.click(screen.getByRole('button', { name: 'Sign in with ChatGPT' }));
+    await waitFor(() => expect(tab.location.href).toBe(loginUrl));
+    expect(open).toHaveBeenCalledWith('about:blank', '_blank');
+    expect(tab.opener).toBeNull();
+    const calls = fetchMock.mock.calls.filter(
+      (call) => call[1]?.method && call[1].method !== 'GET',
     );
-    expect(fetchMock.mock.calls.some((call) => call[0] === '/api/ai/chatgpt/login')).toBe(false);
+    expect(calls.map((call) => `${call[1]?.method} ${call[0]}`)).toEqual([
+      'PATCH /api/ai/connection',
+      'POST /api/ai/chatgpt/login',
+    ]);
+    expect(JSON.parse(String(calls[0]![1]?.body))).toEqual({ mode: 'chatgpt', model: '' });
+    setStatus({
+      ...status(),
+      settings: { ...status().settings, mode: 'chatgpt' },
+      connection: { state: 'connected', loginUrl: null, error: null, email: 'owner@example.com' },
+    });
+    await screen.findByText('Signed in as owner@example.com', {}, { timeout: 4000 });
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
+  });
+
+  it('closes the blank tab and shows the error when sign-in cannot start', async () => {
+    const tab = { opener: {}, location: { href: 'about:blank' }, close: vi.fn() };
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => tab),
+    );
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    setup(
+      initial,
+      (url) =>
+        url === '/api/ai/chatgpt/login'
+          ? json(
+              {
+                error: {
+                  code: 'conflict',
+                  message:
+                    'Port 1455 is in use (another Codex or OpenClaw sign-in may be open). Close it and try again.',
+                },
+              },
+              409,
+            )
+          : undefined,
+      'connection',
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Sign in with ChatGPT' }));
+    await screen.findByText(/Port 1455 is in use/);
+    expect(tab.close).toHaveBeenCalled();
+    expect(tab.location.href).toBe('about:blank');
+  });
+
+  it('tests the connection and shows the reply', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.connection = { state: 'connected', loginUrl: null, error: null, email: null };
+    const { fetchMock } = setup(
+      initial,
+      (url, init) =>
+        url === '/api/ai/chatgpt/test' && init?.method === 'POST'
+          ? json({ ok: true, model: 'gpt-6.1-sol', reply: 'OK', error: null })
+          : undefined,
+      'connection',
+    );
+    const user = userEvent.setup();
+    await screen.findByText('Signed in to ChatGPT');
+    await user.click(screen.getByRole('button', { name: 'Test connection' }));
+    await screen.findByText('gpt-6.1-sol replied: OK');
+    expect(fetchMock.mock.calls.some((call) => call[0] === '/api/ai/chatgpt/test')).toBe(true);
+  });
+
+  it('shows a failed connection test', async () => {
+    const initial = status();
+    initial.settings.mode = 'chatgpt';
+    initial.connection = { state: 'connected', loginUrl: null, error: null, email: null };
+    setup(
+      initial,
+      (url) =>
+        url === '/api/ai/chatgpt/test'
+          ? json({
+              ok: false,
+              model: 'gpt-6.1-sol',
+              reply: null,
+              error: 'ChatGPT usage limit reached. Try again later.',
+            })
+          : undefined,
+      'connection',
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Test connection' }));
+    await screen.findByText('Test failed: ChatGPT usage limit reached. Try again later.');
   });
   it('saves notes and FAQs without changing the shared inbox connection', async () => {
     const { fetchMock } = setup();
@@ -251,7 +383,11 @@ describe('AI member settings', () => {
     await waitFor(() => expect(screen.queryByText('hours.md')).toBeNull());
   });
 
-  it('starts ChatGPT sign-in and polls until connected without losing unsaved settings', async () => {
+  it('falls back to an Open sign-in link when the tab is blocked and keeps unsaved settings', async () => {
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => null),
+    );
     const initial = status();
     initial.settings.mode = 'chatgpt';
     const signingIn: AiMemberStatus = {
@@ -269,17 +405,16 @@ describe('AI member settings', () => {
       'connection',
     );
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Model (optional)'), 'keep-draft-model');
-    await user.click(screen.getByRole('button', { name: 'Sign in to ChatGPT' }));
+    await user.click(await screen.findByRole('combobox', { name: 'Model' }));
+    await user.click(screen.getByRole('option', { name: 'gpt-6-luna' }));
+    await user.click(screen.getByRole('button', { name: 'Sign in with ChatGPT' }));
     const link = await screen.findByRole('link', { name: 'Open sign-in' });
     expect(link.getAttribute('href')).toBe(signingIn.connection.loginUrl);
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     setStatus({ ...initial, connection: { state: 'connected', loginUrl: null, error: null } });
-    await screen.findByText('ChatGPT: connected', {}, { timeout: 4000 });
-    expect((screen.getByLabelText('Model (optional)') as HTMLInputElement).value).toBe(
-      'keep-draft-model',
-    );
-    expect(screen.getByRole('button', { name: 'Disconnect ChatGPT' })).toBeTruthy();
+    await screen.findByText('Signed in to ChatGPT', {}, { timeout: 4000 });
+    expect(screen.getByRole('combobox', { name: 'Model' }).textContent).toContain('gpt-6-luna');
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
   });
 
   it('shows server failures and rejects an unsafe sign-in link', async () => {
