@@ -91,7 +91,25 @@
     "attach": "附加文件",
     "message": "消息",
     "send": "发送",
-    "quickReplies": "快捷回复"
+    "quickReplies": "快捷回复",
+    "voice": {
+      "record": "录制语音消息",
+      "stop": "停止录制",
+      "discard": "放弃语音消息",
+      "send": "发送语音消息",
+      "starting": "正在启动麦克风…",
+      "recording": "正在录制",
+      "limit": "语音消息最长 5 分钟。",
+      "preview": "语音消息预览",
+      "denied": "麦克风访问已被阻止。请在浏览器设置中允许此网站使用麦克风，然后重试。",
+      "noMic": "此设备上未找到麦克风。",
+      "failed": "无法开始录制，请重试。",
+      "tooShort": "太短了，请至少录制一秒。",
+      "unavailable": "语音消息不可用",
+      "unsupported": "此浏览器无法录制语音消息。请使用 Chrome、Edge 或 Firefox。",
+      "insecure": "语音消息需要安全 (HTTPS) 连接。请通过 HTTPS 地址打开收件箱。",
+      "dismiss": "关闭"
+    }
   },
   "quickReplies": {
     "title": "快捷回复",
@@ -235,7 +253,8 @@
     "imageAlt": "图片",
     "document": "文件",
     "file": "文件",
-    "fileDownload": "{{type}} · 下载"
+    "fileDownload": "{{type}} · 下载",
+    "voiceNote": "语音消息"
   },
   "notes": {
     "title": "内部备注",

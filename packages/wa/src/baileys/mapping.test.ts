@@ -81,6 +81,22 @@ describe('mapWAMessage', () => {
     ).toBe('sticker');
   });
 
+  it('marks push-to-talk audio as a voice note and plain audio as not', () => {
+    const ptt = mapWAMessage(
+      base({ message: { audioMessage: { ptt: true, mimetype: 'audio/ogg; codecs=opus' } } }),
+    );
+    expect(ptt?.voice).toBe(true);
+    expect(ptt?.media?.mime).toBe('audio/ogg; codecs=opus');
+    const file = mapWAMessage(
+      base({ message: { audioMessage: { ptt: false, mimetype: 'audio/ogg; codecs=opus' } } }),
+    );
+    expect(file?.voice).toBe(false);
+    expect(
+      mapWAMessage(base({ message: { audioMessage: { mimetype: 'audio/mpeg' } } }))?.voice,
+    ).toBe(false);
+    expect(mapWAMessage(base({ message: { conversation: 'hi' } }))?.voice).toBeUndefined();
+  });
+
   it('uses key.participant as sender in groups', () => {
     const m = mapWAMessage(
       base({

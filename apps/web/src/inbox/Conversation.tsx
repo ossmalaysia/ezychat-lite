@@ -16,6 +16,7 @@ import {
   useRetryMessage,
   useSendMedia,
   useSendText,
+  useSendVoice,
   useWaStatus,
   type MessagesData,
 } from '../api/queries';
@@ -68,6 +69,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const wa = useWaStatus();
   const sendText = useSendText(jid);
   const sendMedia = useSendMedia(jid);
+  const sendVoice = useSendVoice(jid);
   const retry = useRetryMessage();
   const markRead = useMarkRead(jid);
   const patch = usePatchChat(jid);
@@ -286,6 +288,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               onAttach={(file, caption) =>
                 sendMedia.mutate({ file, caption, clientId: newClientId() })
               }
+              onVoice={(note) => sendVoice.mutate({ ...note, clientId: newClientId() })}
             />
           </div>
         </div>

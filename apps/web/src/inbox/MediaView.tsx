@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
+import { Download, FileText, Loader2, Mic, RotateCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Message } from '@wa-team-inbox/shared';
@@ -86,7 +86,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
   const { t } = useTranslation(['inbox', 'common']);
   const [open, setOpen] = useState(false);
   const redownload = useRedownload();
-  const label = m.mediaName ?? t(`media.types.${m.type}`);
+  const label = m.voice ? t('media.voiceNote') : (m.mediaName ?? t(`media.types.${m.type}`));
   // History media (received, or sent from the phone) is imported without downloading it: status 'pending'
   // on a real WhatsApp id. Only app-sent messages still uploading carry a temporary 'local-' id.
   const onDemand = m.mediaStatus === 'pending' && !m.id.startsWith('local-');
@@ -206,6 +206,17 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
         />
       );
     case 'audio':
+      if (m.voice) {
+        return (
+          <div className="flex w-64 max-w-full flex-col gap-1">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Mic className="size-3.5 shrink-0" aria-hidden="true" />
+              {t('media.voiceNote')}
+            </span>
+            <audio src={url} controls preload="metadata" className="w-full max-w-full" />
+          </div>
+        );
+      }
       return <audio src={url} controls preload="metadata" className="w-64 max-w-full" />;
     default:
       return (

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Team voice notes: tap the mic in an empty composer to record (up to 5 minutes), listen back, then send it as a real WhatsApp voice note. Recording needs HTTPS (or localhost) and Chrome, Edge or Firefox; Safari shows why it is unavailable. Voice notes show a "Voice note" label in the conversation.
 - Local and test builds are marked "Dev Build": the desktop window and tray title show it for unpackaged builds, and the inbox shows a badge and a "[Dev Build]" tab title when the server runs with `--mode dev`.
 
 ### Changed

@@ -16,6 +16,7 @@ import {
   BaileysAdapter,
   WA_BROWSER,
   isConnectionError,
+  mediaContent,
   normalizePairingPhone,
   receiptStatus,
 } from './adapter.js';
@@ -381,5 +382,54 @@ describe('contact identity mapping', () => {
     expect(contacts.at(-1)?.savedName).toBe('New name');
     expect(wipe).toHaveBeenCalledOnce();
     expect(sock.signalRepository.lidMapping.getLIDForPN).not.toHaveBeenCalled();
+  });
+});
+
+describe('mediaContent', () => {
+  const buffer = Buffer.from('OggS-voice');
+
+  it('sends a voice note as push-to-talk OGG/Opus with its length', () => {
+    expect(
+      mediaContent({
+        buffer,
+        mime: 'audio/ogg; codecs=opus',
+        fileName: 'voice.ogg',
+        voice: { seconds: 12 },
+      }),
+    ).toEqual({ audio: buffer, mimetype: 'audio/ogg; codecs=opus', ptt: true, seconds: 12 });
+  });
+
+  it('rounds the voice-note length to whole seconds, at least 1', () => {
+    const c = (seconds: number) =>
+      mediaContent({ buffer, mime: 'audio/ogg; codecs=opus', fileName: 'v', voice: { seconds } });
+    expect(c(0.2)).toMatchObject({ seconds: 1 });
+    expect(c(4.6)).toMatchObject({ seconds: 5 });
+  });
+
+  it('keeps an audio attachment as a plain audio file', () => {
+    const content = mediaContent({ buffer, mime: 'audio/mpeg', fileName: 'song.mp3' });
+    expect(content).toEqual({ audio: buffer, mimetype: 'audio/mpeg' });
+    expect(content).not.toHaveProperty('ptt');
+  });
+
+  it('maps images, stickers, video and documents as before', () => {
+    expect(mediaContent({ buffer, mime: 'image/png', fileName: 'a.png', caption: 'hi' })).toEqual({
+      image: buffer,
+      mimetype: 'image/png',
+      caption: 'hi',
+    });
+    expect(mediaContent({ buffer, mime: 'image/webp', fileName: 's.webp' })).toEqual({
+      sticker: buffer,
+      mimetype: 'image/webp',
+    });
+    expect(mediaContent({ buffer, mime: 'video/mp4', fileName: 'v.mp4' })).toEqual({
+      video: buffer,
+      mimetype: 'video/mp4',
+    });
+    expect(mediaContent({ buffer, mime: 'application/pdf', fileName: 'a.pdf' })).toEqual({
+      document: buffer,
+      mimetype: 'application/pdf',
+      fileName: 'a.pdf',
+    });
   });
 });

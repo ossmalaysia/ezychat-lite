@@ -18,6 +18,8 @@ export interface WaIncomingMessage {
   /** epoch ms */
   timestamp: number;
   media: null | { mime: string; fileName: string | null; download: () => Promise<Buffer> };
+  /** audio only: WhatsApp reported push-to-talk (`audioMessage.ptt`), i.e. a voice note */
+  voice?: boolean;
 }
 
 export interface WaChatInfo {
@@ -68,7 +70,15 @@ export interface WaSendFile {
   mime: string;
   fileName: string;
   caption?: string;
+  /**
+   * Send as a WhatsApp voice note (push-to-talk): `buffer` must be OGG/Opus and `mime`
+   * `audio/ogg; codecs=opus`. `seconds` is the playback length shown on the phone.
+   */
+  voice?: { seconds: number };
 }
+
+/** Chat presence shown to the customer: typing, recording audio, or neither. */
+export type WaPresence = 'composing' | 'recording' | 'paused';
 
 export interface WaAdapter {
   readonly status: WaStatus;
@@ -87,7 +97,7 @@ export interface WaAdapter {
   sendText(chatJid: string, text: string, opts?: { quotedId?: string }): Promise<SendResult>;
   sendMedia(chatJid: string, file: WaSendFile, opts?: { quotedId?: string }): Promise<SendResult>;
   markRead(chatJid: string, messageIds: string[]): Promise<void>;
-  sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
+  sendPresence(chatJid: string, presence: WaPresence): Promise<void>;
   /** re-download by id if still cached */
   downloadMedia(messageId: string): Promise<Buffer | null>;
   /** URL */

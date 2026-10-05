@@ -1,4 +1,10 @@
-import type { MediaStatus, Message, MessageStatus, MessageType } from '@wa-team-inbox/shared';
+import {
+  VOICE_NOTE_MIME,
+  type MediaStatus,
+  type Message,
+  type MessageStatus,
+  type MessageType,
+} from '@wa-team-inbox/shared';
 import type { DB } from '../db/index.js';
 
 export interface MessageRow {
@@ -24,6 +30,16 @@ export interface MessageRow {
   wa_remote_jid: string | null;
 }
 
+/**
+ * A WhatsApp voice note: audio stored with exactly the voice-note MIME type. Writers keep that type
+ * only for voice notes: received audio only when WhatsApp reported push-to-talk (`ptt`), inbox
+ * recordings from POST /voice; any other OGG/Opus audio (incl. attached `.opus` files) is stored as
+ * `audio/ogg`. This persists the ptt flag without a new column.
+ */
+export function isVoiceRow(r: Pick<MessageRow, 'type' | 'media_mime'>): boolean {
+  return r.type === 'audio' && r.media_mime === VOICE_NOTE_MIME;
+}
+
 export function mediaUrlFor(id: string): string {
   return `/api/media/${encodeURIComponent(id)}`;
 }
@@ -47,6 +63,7 @@ export function rowToMessage(r: MessageRow): Message {
     error: r.error,
     timestamp: r.timestamp,
     clientId: r.client_id,
+    ...(isVoiceRow(r) ? { voice: true } : {}),
   };
 }
 

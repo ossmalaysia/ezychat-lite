@@ -94,6 +94,20 @@ export const SendTextBody = z.object({
 });
 export type SendTextBody = z.infer<typeof SendTextBody>;
 
+/** WhatsApp voice notes are OGG/Opus; the server stores and sends exactly this MIME type. */
+export const VOICE_NOTE_MIME = 'audio/ogg; codecs=opus';
+/** Longest voice note the inbox records or accepts (5 minutes). */
+export const VOICE_NOTE_MAX_SECONDS = 300;
+/** Upload cap for one recording (5 minutes of Opus at up to ~200 kbit/s). */
+export const VOICE_NOTE_MAX_BYTES = 8 * 1024 * 1024;
+
+/** Multipart fields of `POST /api/chats/:jid/voice` (the recording is the `file` part). */
+export const SendVoiceFields = z.object({
+  clientId: z.string().min(1).max(64),
+  quotedId: z.string().max(256).optional(),
+});
+export type SendVoiceFields = z.infer<typeof SendVoiceFields>;
+
 export const NoteBody = z.object({ body: z.string().min(1).max(8192) });
 export type NoteBody = z.infer<typeof NoteBody>;
 

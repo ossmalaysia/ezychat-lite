@@ -538,6 +538,53 @@ export function useSendMedia(jid: string) {
   });
 }
 
+export interface SendVoiceInput {
+  blob: Blob;
+  mime: string;
+  seconds: number;
+  clientId: string;
+}
+
+/** Uploads a recorded voice note; the server converts it to a WhatsApp voice note (OGG/Opus). */
+export function useSendVoice(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendVoiceInput) => {
+      const form = new FormData();
+      form.append('clientId', input.clientId);
+      const ext = input.mime.startsWith('audio/ogg') ? 'ogg' : 'webm';
+      form.append('file', input.blob, `voice.${ext}`);
+      return api<Message>(`/chats/${enc(jid)}/voice`, { method: 'POST', form });
+    },
+    onMutate: (input) => {
+      upsertMessageInCache(
+        qc,
+        optimisticMessage(qc, jid, input.clientId, {
+          type: 'audio',
+          voice: true,
+          mediaMime: input.mime || null,
+          mediaStatus: 'pending',
+        }),
+      );
+    },
+    onSuccess: (m) => {
+      if (m && typeof m === 'object' && 'id' in m) upsertMessageInCache(qc, m);
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    },
+    onError: (e, input) => {
+      patchMessageInCache(
+        qc,
+        jid,
+        { id: `local-${input.clientId}`, clientId: input.clientId },
+        {
+          status: 'failed',
+          error: e instanceof Error ? e.message : 'Upload failed',
+        },
+      );
+    },
+  });
+}
+
 export function useRetryMessage() {
   const qc = useQueryClient();
   return useMutation({

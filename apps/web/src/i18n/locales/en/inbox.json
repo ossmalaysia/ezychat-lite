@@ -93,7 +93,25 @@
     "attach": "Attach file",
     "message": "Message",
     "send": "Send",
-    "quickReplies": "Quick replies"
+    "quickReplies": "Quick replies",
+    "voice": {
+      "record": "Record voice note",
+      "stop": "Stop recording",
+      "discard": "Discard voice note",
+      "send": "Send voice note",
+      "starting": "Starting microphone…",
+      "recording": "Recording",
+      "limit": "Voice notes stop at 5 minutes.",
+      "preview": "Voice note preview",
+      "denied": "Microphone access is blocked. Allow the microphone for this site in your browser settings, then try again.",
+      "noMic": "No microphone was found on this device.",
+      "failed": "Recording could not start. Try again.",
+      "tooShort": "Too short. Hold on for at least a second.",
+      "unavailable": "Voice notes unavailable",
+      "unsupported": "Voice notes can’t be recorded in this browser. Use Chrome, Edge or Firefox.",
+      "insecure": "Voice notes need a secure (HTTPS) connection. Open the inbox through its HTTPS address.",
+      "dismiss": "Dismiss"
+    }
   },
   "quickReplies": {
     "title": "Quick replies",
@@ -237,7 +255,8 @@
     "imageAlt": "Image",
     "document": "Document",
     "file": "File",
-    "fileDownload": "{{type}} · Download"
+    "fileDownload": "{{type}} · Download",
+    "voiceNote": "Voice note"
   },
   "notes": {
     "title": "Internal notes",

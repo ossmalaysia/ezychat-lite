@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Message } from '@wa-team-inbox/shared';
 import { MediaView } from './MediaView';
@@ -32,7 +32,10 @@ function show(m: Message) {
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('MediaView pending media', () => {
   it('history audio sent from the phone is loaded on demand, not shown as uploading', () => {
@@ -52,5 +55,32 @@ describe('MediaView pending media', () => {
     show({ ...base, type: 'image', mediaMime: 'image/jpeg' });
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(String((fetchMock.mock.calls[0] as unknown as [string])[0])).toBe('/api/media/3EB0ABC/redownload');
+  });
+});
+
+describe('MediaView voice notes', () => {
+  it('labels a voice note above the audio player', () => {
+    show({
+      ...base,
+      fromMe: true,
+      voice: true,
+      mediaMime: 'audio/ogg; codecs=opus',
+      mediaStatus: 'ok',
+      mediaUrl: '/api/media/3EB0ABC',
+      status: 'sent',
+    });
+    expect(screen.getByText('Voice note')).toBeTruthy();
+    expect(document.querySelector('audio')?.getAttribute('src')).toBe('/api/media/3EB0ABC');
+  });
+
+  it('plain audio files have no voice-note label', () => {
+    show({ ...base, mediaStatus: 'ok', mediaUrl: '/api/media/3EB0ABC' });
+    expect(screen.queryByText('Voice note')).toBeNull();
+    expect(document.querySelector('audio')).toBeTruthy();
+  });
+
+  it('a voice note still uploading says so', () => {
+    show({ ...base, id: 'local-v1', fromMe: true, voice: true, status: 'pending' });
+    expect(screen.getByText(/voice note/i)).toBeTruthy();
   });
 });

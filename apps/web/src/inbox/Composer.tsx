@@ -1,13 +1,16 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquareText, Paperclip, SendHorizontal } from 'lucide-react';
+import { MessageSquareText, Mic, MicOff, Paperclip, SendHorizontal, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 import { EmojiPicker } from './EmojiPicker';
+import { VoiceRecorderBar } from './voice/VoiceRecorderBar';
+import { useVoiceRecorder, voiceSupport, type VoiceError } from './voice/useVoiceRecorder';
 import './composer.css';
 
 export interface ComposerProps {
@@ -15,6 +18,11 @@ export interface ComposerProps {
   onSend(text: string): void;
   /** Attach button: file + caption (current text, if any). */
   onAttach(file: File, caption?: string): void;
+  /**
+   * Voice notes: when set, an empty draft shows a mic button instead of Send. The recording is
+   * OGG/Opus or WebM/Opus (the server converts it to a WhatsApp voice note).
+   */
+  onVoice?(note: { blob: Blob; mime: string; seconds: number }): void;
   /** Called while typing; throttled to once per 2s. */
   onTyping?(): void;
   /**
@@ -27,6 +35,13 @@ export interface ComposerProps {
 }
 
 const TYPING_THROTTLE_MS = 2_000;
+
+const VOICE_ERROR_KEY = {
+  denied: 'composer.voice.denied',
+  'no-mic': 'composer.voice.noMic',
+  failed: 'composer.voice.failed',
+  'too-short': 'composer.voice.tooShort',
+} as const satisfies Record<VoiceError, string>;
 const MAX_HEIGHT_PX = 160;
 
 /** Touch devices: Enter inserts a newline, the Send button sends. */
@@ -48,6 +63,7 @@ export function Composer({
   quickReplies,
   onSend,
   onAttach,
+  onVoice,
   onTyping,
   confirmSend,
   disabled = false,
@@ -68,6 +84,10 @@ export function Composer({
   const pendingCaret = useRef<number | null>(null);
   const pickerId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
+  const [voiceAvailability] = useState(voiceSupport);
+  const voice = useVoiceRecorder();
+  const recorder = onVoice && voice.state.status !== 'idle' ? voice.state : null;
+  const voiceError = onVoice && voice.state.status === 'idle' ? (voice.state.error ?? null) : null;
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -176,6 +196,18 @@ export function Composer({
     setText('');
   }
 
+  async function sendVoice() {
+    if (!onVoice || disabled || busy) return;
+    setBusy(true);
+    try {
+      if (!(await confirmed())) return;
+      const note = voice.take();
+      if (note) onVoice({ blob: note.blob, mime: note.mime, seconds: note.seconds });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const v = e.target.value;
     setText(v);
@@ -227,6 +259,50 @@ export function Composer({
   }
 
   const canSend = text.trim().length > 0 && !disabled && !busy;
+  // An empty draft offers a voice note in the Send button's place (same 44px slot at 360px).
+  const showVoice = !!onVoice && text.trim().length === 0;
+  const voiceUnavailableReason =
+    voiceAvailability === 'insecure'
+      ? t('composer.voice.insecure')
+      : t('composer.voice.unsupported');
+
+  const sendButton = showVoice ? (
+    voiceAvailability === 'ok' ? (
+      <Button
+        size="icon-touch"
+        aria-label={t('composer.voice.record')}
+        title={t('composer.voice.record')}
+        disabled={disabled}
+        onClick={() => voice.start()}
+        className="rounded-full"
+      >
+        <Mic className="size-5" aria-hidden="true" />
+      </Button>
+    ) : (
+      <Button
+        variant="ghost"
+        size="icon-touch"
+        aria-label={t('composer.voice.unavailable')}
+        title={voiceUnavailableReason}
+        onClick={() => toast.info(voiceUnavailableReason)}
+        className="rounded-full text-muted-foreground"
+      >
+        <MicOff className="size-5" aria-hidden="true" />
+      </Button>
+    )
+  ) : (
+    <Button
+      size="icon-touch"
+      aria-label={t('composer.send')}
+      title={t('composer.send')}
+      disabled={!canSend}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => void submit()}
+      className="rounded-full"
+    >
+      <SendHorizontal className="size-5" aria-hidden="true" />
+    </Button>
+  );
 
   return (
     <Popover
@@ -239,68 +315,84 @@ export function Composer({
       }}
     >
       <PopoverAnchor asChild>
-        <div ref={rowRef} className="flex items-end gap-1.5">
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(e) => void onFile(e)}
-          />
+        <div ref={rowRef} className="flex min-w-0 items-end gap-1.5">
+          {recorder ? (
+            <VoiceRecorderBar
+              state={recorder}
+              busy={busy || disabled}
+              onStop={voice.stop}
+              onCancel={voice.cancel}
+              onSend={() => void sendVoice()}
+            />
+          ) : (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                className="hidden"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(e) => void onFile(e)}
+              />
+              <Button
+                variant="ghost"
+                size="icon-touch"
+                aria-label={t('composer.attach')}
+                title={t('composer.attach')}
+                disabled={disabled}
+                onClick={() => fileRef.current?.click()}
+                className="rounded-full text-muted-foreground"
+              >
+                <Paperclip className="size-5" aria-hidden="true" />
+              </Button>
+              <EmojiPicker
+                disabled={disabled}
+                onOpen={() => {
+                  const el = areaRef.current;
+                  emojiSelection.current = {
+                    start: el?.selectionStart ?? text.length,
+                    end: el?.selectionEnd ?? text.length,
+                  };
+                  setBrowseReplies(false);
+                  setPickerDismissed(true);
+                }}
+                onPick={insertEmoji}
+              />
+              <Textarea
+                ref={areaRef}
+                aria-label={t('composer.message')}
+                aria-autocomplete="list"
+                aria-expanded={pickerOpen}
+                aria-controls={pickerOpen ? pickerId : undefined}
+                rows={1}
+                value={text}
+                disabled={disabled}
+                placeholder={placeholder ?? t('composer.placeholder')}
+                onChange={onChange}
+                onKeyDown={onKeyDown}
+                // Enter inserts a newline on touch keyboards, so label the key accordingly.
+                enterKeyHint={coarsePointer ? 'enter' : 'send'}
+                className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+              />
+              {sendButton}
+            </>
+          )}
+        </div>
+      </PopoverAnchor>
+      {voiceError && (
+        <div role="alert" className="mt-1 flex items-start gap-1 px-1 text-sm text-danger">
+          <p className="min-w-0 flex-1 py-1.5">{t(VOICE_ERROR_KEY[voiceError])}</p>
           <Button
             variant="ghost"
             size="icon-touch"
-            aria-label={t('composer.attach')}
-            title={t('composer.attach')}
-            disabled={disabled}
-            onClick={() => fileRef.current?.click()}
-            className="rounded-full text-muted-foreground"
+            aria-label={t('composer.voice.dismiss')}
+            onClick={voice.dismiss}
+            className="shrink-0 text-muted-foreground"
           >
-            <Paperclip className="size-5" aria-hidden="true" />
-          </Button>
-          <EmojiPicker
-            disabled={disabled}
-            onOpen={() => {
-              const el = areaRef.current;
-              emojiSelection.current = {
-                start: el?.selectionStart ?? text.length,
-                end: el?.selectionEnd ?? text.length,
-              };
-              setBrowseReplies(false);
-              setPickerDismissed(true);
-            }}
-            onPick={insertEmoji}
-          />
-          <Textarea
-            ref={areaRef}
-            aria-label={t('composer.message')}
-            aria-autocomplete="list"
-            aria-expanded={pickerOpen}
-            aria-controls={pickerOpen ? pickerId : undefined}
-            rows={1}
-            value={text}
-            disabled={disabled}
-            placeholder={placeholder ?? t('composer.placeholder')}
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-            // Enter inserts a newline on touch keyboards, so label the key accordingly.
-            enterKeyHint={coarsePointer ? 'enter' : 'send'}
-            className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
-          />
-          <Button
-            size="icon-touch"
-            aria-label={t('composer.send')}
-            title={t('composer.send')}
-            disabled={!canSend}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => void submit()}
-            className="rounded-full"
-          >
-            <SendHorizontal className="size-5" aria-hidden="true" />
+            <X aria-hidden="true" />
           </Button>
         </div>
-      </PopoverAnchor>
+      )}
       {quickReplies.length > 0 && (
         <Button
           ref={repliesButtonRef}
