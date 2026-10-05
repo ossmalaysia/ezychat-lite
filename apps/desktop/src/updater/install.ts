@@ -299,23 +299,47 @@ export async function prepareUpdateInstall(
   };
 }
 
-async function launchBroker(plan: InstallPlan, script: string): Promise<void> {
+const windowsPowerShell = (): string =>
+  win32.join(
+    process.env.SystemRoot ?? 'C:\\Windows',
+    'System32',
+    'WindowsPowerShell',
+    'v1.0',
+    'powershell.exe',
+  );
+
+/**
+ * Runs a short-lived PowerShell whose `Start-Process` launches the real helper, and resolves once
+ * that launcher exits 0. Never spawn a helper itself with `detached: true` — powershell.exe exits
+ * before running its script that way — and a non-detached child dies with the app; the
+ * `Start-Process` grandchild outlives both.
+ */
+async function startWindowsProcess(startProcessArgs: string, failure: string): Promise<void> {
+  const binary = windowsPowerShell();
+  const launch = `$ErrorActionPreference='Stop'; Start-Process -FilePath ${psQuote(binary)} ${startProcessArgs} | Out-Null`;
+  const child = spawn(binary, ['-NoProfile', '-NonInteractive', '-Command', launch], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+    windowsHide: true,
+  });
+  await new Promise<void>((resolve, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code) => (code === 0 ? resolve() : reject(new Error(failure))));
+  });
+}
+
+export async function launchBroker(plan: InstallPlan, script: string): Promise<void> {
   const windows = plan.context.platform === 'win32';
   const file = join(plan.controlDir, windows ? 'broker.ps1' : 'broker.sh');
   await writeFile(file, windows ? '\uFEFF' + script : script, { mode: 0o700 });
-  const binary = windows
-    ? win32.join(
-        process.env.SystemRoot ?? 'C:\\Windows',
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      )
-    : '/bin/bash';
-  const args = windows
-    ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file]
-    : [file];
-  const child = spawn(binary, args, { detached: true, stdio: 'ignore', windowsHide: true });
+  if (windows) {
+    // Start the broker before the elevated helper; a failed launch cancels the install.
+    await startWindowsProcess(
+      `-WindowStyle Hidden -ArgumentList ${psQuote(`-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${file}"`)}`,
+      'The update helper could not start.',
+    );
+    return;
+  }
+  const child = spawn('/bin/bash', [file], { detached: true, stdio: 'ignore', windowsHide: true });
   await new Promise<void>((resolve, reject) => {
     child.once('spawn', resolve);
     child.once('error', reject);
@@ -332,26 +356,10 @@ async function launchElevated(plan: InstallPlan, script: string): Promise<void> 
     // Read once, hash once, execute those exact in-memory bytes: no writable-script verification race.
     const bootstrap = `$bytes = [IO.File]::ReadAllBytes(${psQuote(file)}); $hash = [Security.Cryptography.SHA256]::Create(); $actual = [BitConverter]::ToString($hash.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant(); if ($actual -ne ${psQuote(digest)}) { exit 12 }; & ([ScriptBlock]::Create([Text.Encoding]::UTF8.GetString($bytes)))`;
     const encoded = Buffer.from(bootstrap, 'utf16le').toString('base64');
-    const binary = win32.join(
-      process.env.SystemRoot ?? 'C:\\Windows',
-      'System32',
-      'WindowsPowerShell',
-      'v1.0',
-      'powershell.exe',
+    await startWindowsProcess(
+      `-Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encoded}'`,
+      'Administrator approval was cancelled or could not start.',
     );
-    const launch = `$ErrorActionPreference='Stop'; Start-Process -FilePath ${psQuote(binary)} -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encoded}' | Out-Null`;
-    const child = spawn(binary, ['-NoProfile', '-NonInteractive', '-Command', launch], {
-      stdio: ['ignore', 'ignore', 'pipe'],
-      windowsHide: true,
-    });
-    await new Promise<void>((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', (code) =>
-        code === 0
-          ? resolve()
-          : reject(new Error('Administrator approval was cancelled or could not start.')),
-      );
-    });
   } else {
     // The generated script is embedded in the approved command, then written root-owned outside the app.
     const encoded = Buffer.from(script, 'utf8').toString('base64');
