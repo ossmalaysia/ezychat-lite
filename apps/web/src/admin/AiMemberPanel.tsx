@@ -98,6 +98,7 @@ function AiMemberForm({
     signing_in: t('ai.state.signing_in'),
     connected: t('ai.state.connected'),
     error: t('ai.state.error'),
+    expired: t('ai.state.expired'),
   };
   // Connection polling must not replace the admin's unsaved settings.
   const [settings, setSettings] = useState<AiSettings>(status.settings);

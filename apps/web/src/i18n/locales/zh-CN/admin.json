@@ -457,10 +457,11 @@
       "signed_out": "已退出",
       "signing_in": "正在登录",
       "connected": "已连接",
-      "error": "错误"
+      "error": "错误",
+      "expired": "ChatGPT 登录已过期，请重新登录。"
     },
     "experimental": "实验性",
-    "directLoginHint": "无需 Codex 应用，直接使用您的 ChatGPT 账户登录。此功能使用非官方的 ChatGPT 连接，可能随时停止工作。请在运行收件箱服务器的电脑上的浏览器中完成登录（使用本地端口 1455）。",
+    "directLoginHint": "无需 Codex 应用，直接使用您的 ChatGPT 账户登录。此功能使用非官方的 ChatGPT 连接，可能随时停止工作。请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
     "signedInAs": "已登录：{{email}}",
     "signedIn": "已登录 ChatGPT",
     "signInSavesMode": "登录时也会将 ChatGPT 保存为连接方式。",
@@ -472,6 +473,18 @@
     "chatgptModel": "模型",
     "modelAuto": "自动（推荐）",
     "modelsLive": "您的 ChatGPT 账户可用的模型。",
-    "modelsFallback": "默认模型列表。登录后可加载您账户的模型。"
+    "modelsFallback": "默认模型列表。登录后可加载您账户的模型。",
+    "modeApi": "API 密钥",
+    "modeChatgpt": "ChatGPT",
+    "unsaved": "未保存",
+    "pasteLabel": "在另一台电脑上登录？",
+    "pasteHint": "批准后，浏览器会打开一个可能无法加载的页面。请从地址栏复制完整地址并粘贴到这里。",
+    "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
+    "pasteSubmit": "完成登录",
+    "saveBeforeTest": "请先保存连接再测试。",
+    "bannerExpiredTitle": "ChatGPT 登录已过期",
+    "bannerErrorTitle": "ChatGPT 连接已停止工作",
+    "bannerFallback": "AI 连接无法使用。",
+    "bannerChatsReleased": "AI 成员已停止回复。在连接恢复之前，聊天会保持未分配，交由您的团队处理。"
   }
 }

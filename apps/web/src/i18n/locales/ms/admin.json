@@ -457,10 +457,11 @@
       "signed_out": "telah log keluar",
       "signing_in": "sedang log masuk",
       "connected": "disambungkan",
-      "error": "ralat"
+      "error": "ralat",
+      "expired": "Log masuk ChatGPT telah tamat tempoh. Log masuk semula."
     },
     "experimental": "Percubaan",
-    "directLoginHint": "Log masuk terus dengan akaun ChatGPT anda, tanpa aplikasi Codex. Ini menggunakan sambungan ChatGPT tidak rasmi yang mungkin berhenti berfungsi pada bila-bila masa. Selesaikan log masuk dalam pelayar pada komputer yang menjalankan pelayan peti masuk (ia menggunakan port tempatan 1455).",
+    "directLoginHint": "Log masuk terus dengan akaun ChatGPT anda, tanpa aplikasi Codex. Ini menggunakan sambungan ChatGPT tidak rasmi yang mungkin berhenti berfungsi pada bila-bila masa. Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
     "signedInAs": "Log masuk sebagai {{email}}",
     "signedIn": "Log masuk ke ChatGPT",
     "signInSavesMode": "Log masuk juga menyimpan ChatGPT sebagai mod sambungan.",
@@ -472,6 +473,18 @@
     "chatgptModel": "Model",
     "modelAuto": "Auto (disyorkan)",
     "modelsLive": "Model yang tersedia untuk akaun ChatGPT anda.",
-    "modelsFallback": "Senarai model lalai. Log masuk untuk memuatkan model akaun anda."
+    "modelsFallback": "Senarai model lalai. Log masuk untuk memuatkan model akaun anda.",
+    "modeApi": "Kunci API",
+    "modeChatgpt": "ChatGPT",
+    "unsaved": "Belum disimpan",
+    "pasteLabel": "Log masuk pada komputer lain?",
+    "pasteHint": "Selepas anda meluluskan, pelayar membuka halaman yang mungkin tidak dimuatkan. Salin alamat penuh dari bar alamat dan tampal di sini.",
+    "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
+    "pasteSubmit": "Selesaikan log masuk",
+    "saveBeforeTest": "Simpan sambungan sebelum mengujinya.",
+    "bannerExpiredTitle": "Log masuk ChatGPT telah tamat tempoh",
+    "bannerErrorTitle": "Sambungan ChatGPT berhenti berfungsi",
+    "bannerFallback": "Sambungan AI tidak berfungsi.",
+    "bannerChatsReleased": "Ahli AI tidak menjawab. Perbualan kekal belum ditugaskan untuk pasukan anda sehingga sambungan berfungsi semula."
   }
 }

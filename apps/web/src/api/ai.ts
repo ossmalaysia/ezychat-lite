@@ -31,8 +31,10 @@ export function useAiModels(enabled: boolean, connected: boolean) {
 }
 
 export function useAiTest() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api('/ai/chatgpt/test', { method: 'POST', schema: AiTestResult }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: aiMemberKey }),
   });
 }
 
@@ -42,7 +44,8 @@ export type AiMemberAction =
   | { kind: 'upload'; file: File }
   | { kind: 'remove'; id: number }
   | { kind: 'login' }
-  | { kind: 'logout' };
+  | { kind: 'logout' }
+  | { kind: 'callback'; url: string };
 
 export function useAiMemberAction() {
   const qc = useQueryClient();
@@ -65,6 +68,8 @@ export function useAiMemberAction() {
           return api('/ai/chatgpt/login', { method: 'POST', schema });
         case 'logout':
           return api('/ai/chatgpt/logout', { method: 'POST', schema });
+        case 'callback':
+          return api('/ai/chatgpt/callback', { method: 'POST', body: { url: action.url }, schema });
       }
     },
     onSuccess: (status) => {

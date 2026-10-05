@@ -12,8 +12,8 @@ vi.mock('../api/queries', () => ({
 }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('./ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => <p>Resolve all card</p> }));
-vi.mock('./AiMemberPanel', () => ({
-  AiMemberPanel: ({ section }: { section: string }) => <p>Configure inbox AI: {section}</p>,
+vi.mock('./AiConnectionSection', () => ({
+  AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
 const setTheme = vi.hoisted(() => vi.fn());
 const changeLocale = vi.hoisted(() => vi.fn());
@@ -63,11 +63,10 @@ beforeEach(() => {
   );
 });
 
-it('opens shared AI connection configuration from Settings', async () => {
+it('shows the AI connection inline on the AI tab (no popup)', () => {
   renderAt('/admin/settings/ai');
-  const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Configure AI connection' }));
-  expect(screen.getByText('Configure inbox AI: connection')).toBeTruthy();
+  expect(screen.getByText('Inline AI connection')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Configure AI connection' })).toBeNull();
   expect(patch.mutate).not.toHaveBeenCalled();
 });
 
@@ -140,10 +139,10 @@ it('keeps the switch keyboard accessible without submitting network settings', a
 });
 
 it.each([
-  ['general', 'Port', ['Configure AI connection', 'Resolve all card', 'Appearance']],
-  ['ai', 'Configure AI connection', ['Port', 'Resolve all card', 'Appearance']],
-  ['device', 'Appearance', ['Port', 'Configure AI connection', 'Resolve all card']],
-  ['maintenance', 'Resolve all card', ['Port', 'Configure AI connection', 'Appearance']],
+  ['general', 'Port', ['Inline AI connection', 'Resolve all card', 'Appearance']],
+  ['ai', 'Inline AI connection', ['Port', 'Resolve all card', 'Appearance']],
+  ['device', 'Appearance', ['Port', 'Inline AI connection', 'Resolve all card']],
+  ['maintenance', 'Resolve all card', ['Port', 'Inline AI connection', 'Appearance']],
 ])('renders only the %s section on its route', (tab, shown, hidden) => {
   renderAt(`/admin/settings/${tab}`);
   expect(screen.getAllByText(shown).length).toBeGreaterThan(0);

@@ -461,10 +461,11 @@
       "signed_out": "signed out",
       "signing_in": "signing in",
       "connected": "connected",
-      "error": "error"
+      "error": "error",
+      "expired": "ChatGPT sign-in expired. Sign in again."
     },
     "experimental": "Experimental",
-    "directLoginHint": "Signs in with your ChatGPT account directly, without the Codex app. This uses an unofficial ChatGPT connection that may stop working at any time. Finish sign-in in a browser on the computer running the inbox server (it uses local port 1455).",
+    "directLoginHint": "Signs in with your ChatGPT account directly, without the Codex app. This uses an unofficial ChatGPT connection that may stop working at any time. Sign in from a browser on the computer running the inbox; from another computer, paste the final address when asked.",
     "signedInAs": "Signed in as {{email}}",
     "signedIn": "Signed in to ChatGPT",
     "signInSavesMode": "Signing in also saves ChatGPT as the connection mode.",
@@ -476,6 +477,18 @@
     "chatgptModel": "Model",
     "modelAuto": "Auto (recommended)",
     "modelsLive": "Models available to your ChatGPT account.",
-    "modelsFallback": "Default model list. Sign in to load your account's models."
+    "modelsFallback": "Default model list. Sign in to load your account's models.",
+    "modeApi": "API key",
+    "modeChatgpt": "ChatGPT",
+    "unsaved": "Unsaved",
+    "pasteLabel": "Signing in on another computer?",
+    "pasteHint": "After you approve, your browser opens a page that may not load. Copy the full address from the address bar and paste it here.",
+    "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
+    "pasteSubmit": "Finish sign-in",
+    "saveBeforeTest": "Save the connection before testing it.",
+    "bannerExpiredTitle": "ChatGPT sign-in expired",
+    "bannerErrorTitle": "ChatGPT connection stopped working",
+    "bannerFallback": "The AI connection is not working.",
+    "bannerChatsReleased": "The AI member is not answering. Chats stay unassigned for your team until the connection works again."
   }
 }
