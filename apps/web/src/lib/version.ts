@@ -18,12 +18,22 @@ export const BUILD_VERSION: string | null =
  * The running app version: the server's version from GET /api/health, falling back to the web
  * build version while loading (or if the request fails).
  */
-export function useAppVersion(): string | null {
-  const { data } = useQuery({
+function useHealth(): HealthInfo | undefined {
+  return useQuery({
     queryKey: healthQueryKey,
     queryFn: () => api<HealthInfo>('/health'),
     staleTime: Infinity,
     retry: 1,
-  });
+  }).data;
+}
+
+export function useAppVersion(): string | null {
+  const data = useHealth();
   return typeof data?.version === 'string' && data.version ? data.version : BUILD_VERSION;
+}
+
+/** The server's run mode from GET /api/health ('dev' for local and test servers), or null while unknown. */
+export function useServerMode(): string | null {
+  const mode = useHealth()?.mode;
+  return typeof mode === 'string' ? mode : null;
 }

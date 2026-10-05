@@ -423,7 +423,7 @@ async function main(): Promise<void> {
       mainWindow = createMainWindow({
         icon: appIcon,
         baseUrl: () => url,
-        title: appTitle(version),
+        title: appTitle(version, { devBuild: !isPackaged }),
         preload: join(here, 'inbox-preload.cjs'),
       });
       mainWindow.on('close', (e) => {
@@ -464,7 +464,7 @@ async function main(): Promise<void> {
       icon: appIcon,
       preload: join(here, 'preload.cjs'),
       html: statusFile,
-      title: appTitle(version),
+      title: appTitle(version, { devBuild: !isPackaged }),
       locale,
     });
     statusWindow.on('closed', () => (statusWindow = null));

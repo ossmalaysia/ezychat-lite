@@ -7,6 +7,7 @@ import { InboxPage } from './inbox/InboxPage';
 import { SetupWizard } from './setup/SetupWizard';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import { DesktopUpdateNotice } from '@/components/app/DesktopUpdates';
+import { DevBuildBadge } from '@/components/app/DevBuildBadge';
 
 export function App() {
   const { pathname } = useLocation();
@@ -15,6 +16,7 @@ export function App() {
   return (
     <ErrorBoundary resetKey={pathname}>
       <DesktopUpdateNotice />
+      <DevBuildBadge />
       <Routes>
         <Route path="/setup" element={<SetupWizard />} />
         <Route path="/login" element={<LoginPage />} />
