@@ -679,3 +679,50 @@ it('refuses to turn on the AI member without any knowledge', () => {
     false,
   );
 });
+
+it('tells the AI to answer an order question with known facts and keeps the chat', async () => {
+  clock();
+  await incoming('order', 'Can I get delivery tomorrow at 3pm? How much in total?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { instructions } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(instructions).toContain('say the team will confirm the slot or order');
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(t.ctx.services.ai!.status().member!.id);
+});
+
+it('resolves once when the customer confirms in free text', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Glad to help!', action: 'resolve' });
+  await incoming('confirm', 'Ok noted, yes that answers it. Thank you!');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+  expect(t.wa.sent.map((message) => message.text)).toEqual([
+    'We open at 9am. Has this answered your question?',
+    'Glad to help!',
+  ]);
+});
+
+it('resolves after two resolution questions answered with confirming-looking replies', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  // The model keeps asking; the server stops the loop.
+  await incoming('first-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  await incoming('second-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+  expect(t.wa.sent).toHaveLength(3);
+});
+
+it('Try it applies the resolution gate and never resolves or assigns anything', async () => {
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Bye!', action: 'resolve' });
+  const result = await t.ctx.services.ai!.tryAnswer({
+    question: 'Thanks!',
+    knowledge: { displayName: 'A', instructions: '', notes: 'Delivery RM10', faqs: [] },
+  });
+  expect(result).toMatchObject({ ok: true, action: 'ask_resolution' });
+  expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });
+});

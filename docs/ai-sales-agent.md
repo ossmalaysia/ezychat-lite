@@ -40,10 +40,16 @@ notes are not automatically included in the approved business knowledge.
   and an active inbox connection. If nobody qualifies, it tells the customer a human will
   help and returns the chat to unassigned. AI stays paused after handoff; a human can
   explicitly assign AI again to resume it.
-- AI asks whether the issue is resolved. Closing requires a later affirmative customer
-  reply, the model's resolve decision, and a conservative server confirmation check.
-  Common English, Malay and Chinese confirmations are recognized; ambiguous replies keep
-  the chat open. A human can resolve an AI-owned chat at any time.
+- AI asks whether the issue is resolved. After that question, the chat closes when the model
+  decides the customer confirmed — in any words ("Ok noted, yes that answers it. Thank you!",
+  "Ok baik, terima kasih", "好的，明白了，谢谢") — unless the reply has a question mark, a negation
+  or hesitation ("no", "not", "but", "however", "tidak", "bukan", "tapi", "不", "没", "但是") or a
+  new request. After two resolution questions answered with confirming-looking replies, the
+  server closes the chat so customers are never asked forever. A human can resolve an AI-owned
+  chat at any time.
+- Order, booking and delivery-slot questions get the known facts (prices, totals, delivery fee)
+  and "the team will confirm the slot/order"; the AI keeps the chat. It hands off only when a
+  human is requested, facts are missing or conflicting, or the topic is sensitive.
 - Resolution clears ownership. A later customer message reopens the chat and starts a new
   fallback opportunity. Disabling AI stops automatic work and releases its open chats.
 

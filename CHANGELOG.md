@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Admin Settings is split into General, AI, This device and Maintenance tabs; theme and language use compact one-row switches.
+- The AI Sales Agent closes a chat when the customer confirms in their own words (and stops asking after two confirmations), answers order and delivery-slot questions with the known facts instead of handing off, and "Try it" shows its decision (Answer, Asked if resolved, Would resolve, Would hand off).
 
 ### Fixed
 

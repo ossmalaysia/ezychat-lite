@@ -22,6 +22,7 @@ import { createAiProvider } from './provider-factory.js';
 import { HANDOFF_REPLY, buildAiPrompt, knowledgeSources } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiProvider } from './provider-types.js';
+import { guardResolution } from './resolution.js';
 
 export const AI_FALLBACK_MS = 10_000;
 const PROVIDER_KEY = 'ai_inbox_provider';
@@ -67,17 +68,7 @@ declare module '../context.js' {
   }
 }
 
-/** Conservative server-side confirmation gate; a model decision alone cannot close a chat. */
-export function isResolutionConfirmation(text: string): boolean {
-  const normalized = text
-    .toLocaleLowerCase()
-    .replace(/[.!?,。！？，]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return /^(yes|yep|yeah|yes thanks|yes thank you|yes resolved|resolved|all sorted|that's all|that is all|that's all thanks|no more questions|ya|ya terima kasih|sudah|sudah selesai|selesai|betul|baik|是|是的|好了|已解决|解决了|谢谢|是的谢谢)$/.test(
-    normalized,
-  );
-}
+export { isResolutionConfirmation } from './resolution.js';
 
 export function createAiService(
   ctx: AppContext,
@@ -349,7 +340,9 @@ export function createAiService(
           .map((message) => message.body ?? '')
           .join('\n'),
       );
-      const awaiting = state(jid)!.awaiting_confirmation === 1;
+      // awaiting_confirmation counts the resolution questions already sent in a row.
+      const asked = state(jid)!.awaiting_confirmation;
+      const awaiting = asked > 0;
       let decision;
       try {
         decision =
@@ -389,22 +382,14 @@ export function createAiService(
         };
       }
       if (!owned()) return;
-      if (
-        decision.action === 'resolve' &&
-        (!awaiting || !isResolutionConfirmation(customer.body ?? ''))
-      ) {
-        decision = {
-          action: 'ask_resolution',
-          reply: 'Has your question been resolved, or is there anything else I can help with?',
-        };
-      }
+      decision = guardResolution(decision, asked, customer.body ?? '');
       await sendReply(jid, user.id, customerId, decision.reply, controller.signal);
       if (!owned()) return;
       ctx.db
         .prepare(
           'UPDATE ai_chat_state SET last_replied_message_id = ?, awaiting_confirmation = ?, due_at = NULL WHERE chat_jid = ?',
         )
-        .run(customerId, decision.action === 'ask_resolution' ? 1 : 0, jid);
+        .run(customerId, decision.action === 'ask_resolution' ? asked + 1 : 0, jid);
       if (decision.action === 'handoff') handoff(jid, user.id);
       else if (decision.action === 'resolve') {
         chats.patch(jid, { status: 'resolved' }, user.id);
@@ -689,7 +674,9 @@ export function createAiService(
           ),
           AbortSignal.timeout(60_000),
         );
-        return { ok: true, reply: decision.reply, action: decision.action, model, error: null };
+        // Same gate as live replies; Try it has never asked, so it can never resolve.
+        const guarded = guardResolution(decision, 0, body.question);
+        return { ok: true, reply: guarded.reply, action: guarded.action, model, error: null };
       } catch (error) {
         log.warn({ event: 'ai_try_failed' }, 'AI Try it answer failed');
         return {
