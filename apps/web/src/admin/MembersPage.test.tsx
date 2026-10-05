@@ -15,6 +15,7 @@ const users: User[] = [
     mustChangePassword: false,
     disabled: false,
     createdAt: 1_700_000_000_000,
+    locale: null,
   },
   {
     id: 2,
@@ -24,6 +25,7 @@ const users: User[] = [
     mustChangePassword: false,
     disabled: true,
     createdAt: 1_700_000_100_000,
+    locale: null,
   },
 ];
 

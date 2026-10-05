@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Check, CircleCheck, Globe, Inbox, UserPlus } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { ApiError, errorMessage } from '../api/client';
 import { useSetupAdmin, useSetupStatus } from '../api/queries';
@@ -11,18 +12,15 @@ import { WaLinkStep } from './WaLinkStep';
 
 type Step = 'admin' | 'whatsapp' | 'done';
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'admin', label: 'Admin account' },
-  { id: 'whatsapp', label: 'Link WhatsApp' },
-  { id: 'done', label: 'Remote access' },
-];
+const STEPS: Step[] = ['admin', 'whatsapp', 'done'];
 
 function StepIndicator({ current }: { current: Step }) {
-  const idx = STEPS.findIndex((s) => s.id === current);
+  const { t } = useTranslation('auth');
+  const idx = STEPS.indexOf(current);
   return (
-    <ol className="mb-5 flex items-center gap-2 text-xs" aria-label="Setup progress">
+    <ol className="mb-5 flex items-center gap-2 text-xs" aria-label={t('setup.progress')}>
       {STEPS.map((s, i) => (
-        <li key={s.id} className="flex min-w-0 flex-1 items-center gap-2">
+        <li key={s} className="flex min-w-0 flex-1 items-center gap-2">
           <span
             className={cn(
               'inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
@@ -32,7 +30,7 @@ function StepIndicator({ current }: { current: Step }) {
             )}
             aria-current={i === idx ? 'step' : undefined}
           >
-            {i < idx ? <Check className="size-4" aria-label="Done" /> : i + 1}
+            {i < idx ? <Check className="size-4" aria-label={t('setup.stepDone')} /> : i + 1}
           </span>
           <span
             className={cn(
@@ -40,7 +38,7 @@ function StepIndicator({ current }: { current: Step }) {
               i === idx ? 'font-medium text-foreground' : 'text-muted-foreground',
             )}
           >
-            {s.label}
+            {t(`setup.steps.${s}`)}
           </span>
           {i < STEPS.length - 1 && (
             <span
@@ -55,6 +53,7 @@ function StepIndicator({ current }: { current: Step }) {
 }
 
 function AdminStep({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation('auth');
   const create = useSetupAdmin();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -63,12 +62,12 @@ function AdminStep({ onDone }: { onDone: () => void }) {
 
   const usernameError =
     username.length > 0 && !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)
-      ? '3–32 characters: letters, numbers, dot, dash, underscore.'
+      ? t('setup.admin.usernameRule')
       : undefined;
   const passwordError =
-    password.length > 0 && password.length < 8 ? 'At least 8 characters.' : undefined;
+    password.length > 0 && password.length < 8 ? t('setup.admin.minLength') : undefined;
   const confirmError =
-    confirm.length > 0 && confirm !== password ? 'Passwords do not match.' : undefined;
+    confirm.length > 0 && confirm !== password ? t('setup.admin.mismatch') : undefined;
   const valid =
     !usernameError &&
     username.length >= 3 &&
@@ -86,18 +85,14 @@ function AdminStep({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <p className="text-sm text-muted-foreground">
-        Create the first admin account. You can add team members later.
-      </p>
+      <p className="text-sm text-muted-foreground">{t('setup.admin.intro')}</p>
       {create.error && (
-        <Banner tone="danger" title={forbidden ? 'Setup must be done on this computer' : undefined}>
-          {forbidden
-            ? 'For security, the first admin can only be created from the computer running EzyChat Lite. Open http://localhost:7420 there.'
-            : errorMessage(create.error)}
+        <Banner tone="danger" title={forbidden ? t('setup.admin.forbiddenTitle') : undefined}>
+          {forbidden ? t('setup.admin.forbiddenBody') : errorMessage(create.error)}
         </Banner>
       )}
       <Field
-        label="Username"
+        label={t('setup.admin.username')}
         autoComplete="username"
         autoCapitalize="none"
         autoCorrect="off"
@@ -107,23 +102,23 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         error={usernameError}
       />
       <Field
-        label="Display name"
+        label={t('setup.admin.displayName')}
         autoComplete="name"
         value={displayName}
         onChange={(e) => setDisplayName(e.target.value)}
-        hint="Shown to teammates next to your replies."
+        hint={t('setup.admin.displayNameHint')}
       />
       <Field
-        label="Password"
+        label={t('setup.admin.passLabel')}
         type="password"
         autoComplete="new-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         error={passwordError}
-        hint="At least 8 characters."
+        hint={t('setup.admin.minLength')}
       />
       <Field
-        label="Confirm password"
+        label={t('setup.admin.confirm')}
         type="password"
         autoComplete="new-password"
         value={confirm}
@@ -138,13 +133,14 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         disabled={create.isPending || !valid}
       >
         {create.isPending ? <ButtonSpinner /> : <UserPlus aria-hidden="true" />}
-        Create admin
+        {t('setup.admin.submit')}
       </Button>
     </form>
   );
 }
 
 function DoneStep() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   return (
     <div className="flex flex-col gap-4">
@@ -154,14 +150,16 @@ function DoneStep() {
       >
         <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
         <div className="min-w-0">
-          <p className="font-medium">You're all set</p>
-          <p className="text-muted-foreground">Your team inbox is ready.</p>
+          <p className="font-medium">{t('setup.done.title')}</p>
+          <p className="text-muted-foreground">{t('setup.done.body')}</p>
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        Want teammates to use the inbox from their phones outside this network? Turn on a Cloudflare
-        connection under <strong className="text-foreground">Admin → Cloudflare</strong>. You can
-        also add team members under <strong className="text-foreground">Admin → Members</strong>.
+        <Trans
+          t={t}
+          i18nKey="setup.done.remoteHint"
+          components={{ b: <strong className="text-foreground" /> }}
+        />
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button
@@ -170,12 +168,12 @@ function DoneStep() {
           onClick={() => navigate('/', { replace: true })}
         >
           <Inbox aria-hidden="true" />
-          Go to inbox
+          {t('setup.done.goInbox')}
         </Button>
         <Button asChild variant="outline" size="touch" className="w-full sm:flex-1">
           <Link to="/admin/tunnel">
             <Globe aria-hidden="true" />
-            Set up remote access
+            {t('setup.done.remoteAccess')}
           </Link>
         </Button>
       </div>
@@ -185,6 +183,7 @@ function DoneStep() {
 
 /** First-run wizard: create admin → link WhatsApp → optional remote access. */
 export function SetupWizard() {
+  const { t } = useTranslation('auth');
   const status = useSetupStatus();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('admin');
@@ -200,8 +199,8 @@ export function SetupWizard() {
 
   return (
     <AuthShell
-      title="Welcome to EzyChat Lite"
-      subtitle="Let's get your shared inbox running."
+      title={t('setup.title')}
+      subtitle={t('setup.subtitle')}
       illustration={step === 'admin' ? '/illustrations/welcome.png' : undefined}
       wide
     >

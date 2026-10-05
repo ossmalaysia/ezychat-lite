@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { GITHUB_REPO_URL } from '@/lib/links';
 import { ResponsiveDialog } from './index';
@@ -15,12 +16,13 @@ export function AboutDialog({
   onOpenChange: (open: boolean) => void;
   version?: string;
 }) {
+  const { t } = useTranslation(['app', 'common']);
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="About EzyChat Lite"
-      description="One WhatsApp number, one shared inbox for your whole team — served from your own computer."
+      title={t('about.title')}
+      description={t('about.description')}
     >
       <div className="flex flex-col items-center gap-4 pb-4 text-center">
         <img
@@ -30,15 +32,15 @@ export function AboutDialog({
           className="size-16 select-none rounded-2xl"
         />
         <div>
-          <p className="text-base font-semibold">EzyChat Lite</p>
+          <p className="text-base font-semibold">{t('common:appName')}</p>
           <p className="text-sm text-muted-foreground">
-            {version ? `Version ${version}` : 'Version unknown'}
+            {version ? t('about.version', { version }) : t('about.versionUnknown')}
           </p>
         </div>
         <DesktopUpdatePanel />
         <Button asChild variant="outline" size="touch">
           <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-            View on GitHub
+            {t('about.github')}
             <ExternalLink aria-hidden="true" />
           </a>
         </Button>

@@ -5,6 +5,37 @@ Append new entries at the top of the matching section: `- YYYY-MM-DD — what ha
 A Stop hook (`.claude/hooks/learnings-gate.mjs`) blocks a code-changing session from finishing until this
 file is updated. Promote anything that changes _how_ to work into CLAUDE.md.
 
+## Internationalization
+
+- 2026-10-05 — The desktop status window reset its update card every 5 s → static `[data-i18n]` text
+  was re-applied on every status poll, overwriting runtime text → apply static strings once per
+  locale, then re-render the dynamic parts.
+- 2026-10-05 — The language picker could show a language whose catalogs failed to load → the store
+  committed before loading → switch the snapshot and persist only after `activateLocale` resolves.
+- 2026-10-05 — Date tests failed the day after they were written → `formatListTime(ts, now)` used
+  `isYesterday()`, which reads the real clock → helpers that take `now` must compare against it
+  (`isSameDay(d, subDays(now, 1))`).
+- 2026-10-04 — SonarCloud failed the PR on duplication and "hard-coded password" → Prettier expanded
+  a data table into identical multi-line blocks, per-locale TS catalogs are structurally duplicate,
+  and keys named `password` with non-English values look like credentials → keep data tables as
+  one-line tuples, keep catalogs in JSON, and avoid `password`/`pwd` in translation key names.
+- 2026-10-04 — Translated screens can overflow at phone width while English e2e stays green →
+  specs pin `en-US` → also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is the longest)
+  after UI text changes and look at the screenshots.
+- 2026-10-04 — A `<Trans>` link lost its text → `<link>` is a void HTML element and the parser drops
+  its children → name `<Trans>` component tags after non-void elements (`<a>`, `<b>`).
+- 2026-10-04 — Desktop i18n could not import `@wa-team-inbox/shared` at runtime → desktop main is
+  tsc output run by Electron, while shared ships TS source plus zod → desktop imports only types from
+  shared and mirrors tiny runtime helpers, guarded by parity tests (or bundle main first).
+- 2026-10-04 — Running Prettier on whole folders reformatted untouched files → the repo is not
+  Prettier-clean (102 files differ) → run `prettier --write` only on files you changed.
+- 2026-10-04 — Typed i18next keys rejected `t('common:x')` from `useTranslation()` → a prefixed key
+  only type-checks for namespaces passed to the hook → use `useTranslation(['inbox', 'common'])`
+  for cross-namespace keys; plain `t('x')` for the default `common` namespace.
+- 2026-10-04 — New web tests leaked open menus between cases and `toHaveTextContent` was undefined →
+  Vitest runs without globals (no RTL auto-cleanup) and jest-dom is not installed → call `cleanup()`
+  in `afterEach` and assert on `textContent`.
+
 ## Cloudflare and sharing
 
 - 2026-10-04 — Token-configured named tunnels with unknown hostnames enabled a global Host wildcard → direct requests could bypass DNS-rebinding defenses → scope unknown hosts to validated loopback proxy traffic and use the same policy for HTTP and Socket.IO.

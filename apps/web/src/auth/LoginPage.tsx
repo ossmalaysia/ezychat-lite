@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { useLogin, useMe, useSetupStatus } from '../api/queries';
 import { Banner } from '@/components/app';
@@ -13,6 +14,7 @@ function safeFrom(state: unknown): string {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const location = useLocation();
   const me = useMe();
@@ -46,11 +48,11 @@ export function LoginPage() {
   };
 
   return (
-    <AuthShell title="Sign in" subtitle="Shared team inbox">
+    <AuthShell title={t('login.title')} subtitle={t('login.subtitle')}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         {login.error && <Banner tone="danger">{errorMessage(login.error)}</Banner>}
         <Field
-          label="Username"
+          label={t('login.username')}
           name="username"
           autoComplete="username"
           autoCapitalize="none"
@@ -61,7 +63,7 @@ export function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
         />
         <Field
-          label="Password"
+          label={t('login.passLabel')}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -77,11 +79,9 @@ export function LoginPage() {
           disabled={login.isPending || !username.trim() || !password}
         >
           {login.isPending ? <ButtonSpinner /> : <LogIn aria-hidden="true" />}
-          Sign in
+          {t('login.submit')}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          Forgot your password? Ask an admin to reset it.
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('login.forgot')}</p>
       </form>
     </AuthShell>
   );

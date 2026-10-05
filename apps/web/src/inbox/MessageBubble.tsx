@@ -1,4 +1,6 @@
 import type React from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { AlertCircle, Check, CheckCheck, Clock, RotateCw } from 'lucide-react';
 import type { Message } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
@@ -41,37 +43,39 @@ function linkify(text: string): React.ReactNode[] {
   );
 }
 
-function quotedPreview(q: Message): string {
+function quotedPreview(q: Message, t: TFunction<'inbox'>): string {
   if (q.body) return truncate(q.body, 140);
   switch (q.type) {
     case 'image':
-      return '[Image]';
+      return t('message.quote.image');
     case 'video':
-      return '[Video]';
+      return t('message.quote.video');
     case 'audio':
-      return '[Audio]';
+      return t('message.quote.audio');
     case 'sticker':
-      return '[Sticker]';
+      return t('message.quote.sticker');
     case 'document':
-      return `[Document] ${q.mediaName ?? ''}`.trim();
+      return t('message.quote.document', { name: q.mediaName ?? '' }).trim();
     default:
-      return 'Message';
+      return t('message.quote.message');
   }
 }
 
 export function StatusTicks({ status }: { status: Message['status'] }) {
+  const { t } = useTranslation('inbox');
   const cls = 'inline-block size-3.5 shrink-0';
+  const label = t(`message.status.${status}`);
   switch (status) {
     case 'pending':
-      return <Clock className={cls} role="img" aria-label="Pending" />;
+      return <Clock className={cls} role="img" aria-label={label} />;
     case 'sent':
-      return <Check className={cls} role="img" aria-label="Sent" />;
+      return <Check className={cls} role="img" aria-label={label} />;
     case 'delivered':
-      return <CheckCheck className={cls} role="img" aria-label="Delivered" />;
+      return <CheckCheck className={cls} role="img" aria-label={label} />;
     case 'read':
-      return <CheckCheck className={cn(cls, 'text-primary')} role="img" aria-label="Read" />;
+      return <CheckCheck className={cn(cls, 'text-primary')} role="img" aria-label={label} />;
     case 'failed':
-      return <AlertCircle className={cn(cls, 'text-danger')} role="img" aria-label="Failed" />;
+      return <AlertCircle className={cn(cls, 'text-danger')} role="img" aria-label={label} />;
   }
 }
 
@@ -84,6 +88,7 @@ export function MessageBubble({
   retrying,
   onMediaLoad,
 }: MessageBubbleProps) {
+  const { t } = useTranslation(['inbox', 'common']);
   if (m.type === 'system') {
     return (
       <div className="flex justify-center px-3 py-1">
@@ -123,12 +128,14 @@ export function MessageBubble({
             {quoted ? (
               <>
                 <p className="font-semibold text-primary">
-                  {quoted.fromMe ? 'You' : (quoted.senderName ?? 'Contact')}
+                  {quoted.fromMe ? t('message.you') : (quoted.senderName ?? t('message.contact'))}
                 </p>
-                <p className="line-clamp-2 break-words text-muted-foreground">{quotedPreview(quoted)}</p>
+                <p className="line-clamp-2 break-words text-muted-foreground">
+                  {quotedPreview(quoted, t)}
+                </p>
               </>
             ) : (
-              <p className="italic text-muted-foreground">Quoted message</p>
+              <p className="italic text-muted-foreground">{t('message.quotedMessage')}</p>
             )}
           </div>
         )}
@@ -150,7 +157,7 @@ export function MessageBubble({
         </div>
         {out && m.status === 'failed' && (
           <div className="mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-danger">
-            <span className="min-w-0 truncate">{m.error ?? 'Not sent'}</span>
+            <span className="min-w-0 truncate">{m.error ?? t('message.notSent')}</span>
             {onRetry && (
               <Button
                 variant="outline"
@@ -160,7 +167,7 @@ export function MessageBubble({
                 className="min-h-11 border-danger/40 text-danger hover:bg-danger/10 hover:text-danger sm:min-h-8"
               >
                 <RotateCw className={cn(retrying && 'animate-spin')} aria-hidden="true" />
-                {retrying ? 'Retrying…' : 'Retry'}
+                {retrying ? t('retrying') : t('common:actions.retry')}
               </Button>
             )}
           </div>

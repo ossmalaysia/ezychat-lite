@@ -1,0 +1,317 @@
+{
+  "retrying": "Retrying…",
+  "directory": {
+    "you": "You",
+    "agent": "Agent #{{id}}"
+  },
+  "page": {
+    "chats": "Chats",
+    "title": "Inbox",
+    "admin": "Admin",
+    "version": "{{appName}} · v{{version}}",
+    "selectTitle": "Select a chat",
+    "selectDescription": "Pick a conversation from the list to read and reply as a team."
+  },
+  "filters": {
+    "searchLabel": "Search chats",
+    "searchPlaceholder": "Search name or number",
+    "assignment": "Assignment",
+    "status": "Chat status",
+    "mine": "Mine",
+    "unassigned": "Unassigned",
+    "all": "All",
+    "open": "Open",
+    "resolved": "Resolved"
+  },
+  "chatList": {
+    "loading": "Loading chats",
+    "loadFailed": "Couldn’t load chats",
+    "loadingMore": "Loading more chats",
+    "loadMore": "Load more",
+    "showAllOpen": "Show all open chats",
+    "empty": {
+      "me": {
+        "title": "Nothing assigned to you",
+        "description": "No chats are assigned to you."
+      },
+      "none": {
+        "title": "All caught up",
+        "description": "Every chat has an owner. Nice work."
+      },
+      "any": {
+        "title": "No chats yet",
+        "description": "New WhatsApp conversations will appear here."
+      },
+      "search": "No chats match “{{query}}”.",
+      "resolvedTitle": "No resolved chats",
+      "resolvedDescription": "No resolved chats here."
+    }
+  },
+  "chatListItem": {
+    "group": "Group",
+    "resolved": "Resolved",
+    "assignedTo": "Assigned to {{name}}",
+    "unread_one": "{{count}} unread",
+    "unread_other": "{{count}} unread"
+  },
+  "header": {
+    "back": "Back to chats",
+    "resolved": "Resolved",
+    "assignedTo": "Assigned to",
+    "unassigned": "Unassigned",
+    "you": "{{name}} (you)",
+    "notesLabel_one": "Notes ({{count}})",
+    "notesLabel_other": "Notes ({{count}})",
+    "notesTitle": "Internal notes",
+    "notes": "Notes",
+    "reopen": "Reopen",
+    "resolve": "Resolve"
+  },
+  "conversation": {
+    "loading": "Loading chat",
+    "notFound": "This chat doesn’t exist.",
+    "loadFailed": "Couldn’t load this chat.",
+    "back": "Back to chats",
+    "label": "Conversation with {{name}}",
+    "sendingBlocked": "Sending is unavailable until WhatsApp is linked again.",
+    "reconnecting": "WhatsApp is reconnecting — messages will send when reconnected.",
+    "placeholderBlocked": "WhatsApp is not connected",
+    "placeholder": "Type a message — “/” for quick replies",
+    "updateFailed": "Update failed",
+    "retryFailed": "Retry failed",
+    "someoneElse": "someone else",
+    "confirmTitle": "Assigned to {{name}}",
+    "confirmBody": "This chat is assigned to <strong>{{name}}</strong> — reply anyway? You won’t be asked again for this chat during this session.",
+    "replyAnyway": "Reply anyway"
+  },
+  "composer": {
+    "placeholder": "Type a message",
+    "attach": "Attach file",
+    "message": "Message",
+    "send": "Send",
+    "quickReplies": "Quick replies"
+  },
+  "quickReplies": {
+    "title": "Quick replies",
+    "noMatch": "No quick reply starts with “/{{query}}”."
+  },
+  "emoji": {
+    "insert": "Insert emoji",
+    "title": "Emoji",
+    "search": "Search emoji",
+    "searchPlaceholder": "Search emoji…",
+    "categories": "Emoji categories",
+    "choices": "Emoji choices",
+    "empty": "No emoji found. Try “smile”, “thanks” or “delivery”.",
+    "category": {
+      "all": "All",
+      "faces": "Faces",
+      "gestures": "Gestures",
+      "hearts": "Hearts",
+      "work": "Work"
+    },
+    "names": {
+      "grinningFace": "Grinning face",
+      "smilingFace": "Smiling face",
+      "tearsOfJoy": "Tears of joy",
+      "rollingOnTheFloorLaughing": "Rolling on the floor laughing",
+      "winkingFace": "Winking face",
+      "heartEyes": "Heart eyes",
+      "smilingFaceWithHearts": "Smiling face with hearts",
+      "sunglassesFace": "Sunglasses face",
+      "thinkingFace": "Thinking face",
+      "smilingFaceWithSweat": "Smiling face with sweat",
+      "pensiveFace": "Pensive face",
+      "cryingFace": "Crying face",
+      "loudlyCryingFace": "Loudly crying face",
+      "surprisedFace": "Surprised face",
+      "upsideDownFace": "Upside down face",
+      "huggingFace": "Hugging face",
+      "thumbsUp": "Thumbs up",
+      "thumbsDown": "Thumbs down",
+      "wavingHand": "Waving hand",
+      "foldedHands": "Folded hands",
+      "okHand": "OK hand",
+      "clappingHands": "Clapping hands",
+      "raisedHands": "Raised hands",
+      "handshake": "Handshake",
+      "flexedBiceps": "Flexed biceps",
+      "victoryHand": "Victory hand",
+      "redHeart": "Red heart",
+      "orangeHeart": "Orange heart",
+      "yellowHeart": "Yellow heart",
+      "greenHeart": "Green heart",
+      "blueHeart": "Blue heart",
+      "purpleHeart": "Purple heart",
+      "whiteHeart": "White heart",
+      "twoHearts": "Two hearts",
+      "checkMark": "Check mark",
+      "crossMark": "Cross mark",
+      "questionMark": "Question mark",
+      "warning": "Warning",
+      "pushpin": "Pushpin",
+      "package": "Package",
+      "deliveryTruck": "Delivery truck",
+      "locationPin": "Location pin",
+      "calendar": "Calendar",
+      "alarmClock": "Alarm clock",
+      "telephone": "Telephone",
+      "speechBalloon": "Speech balloon",
+      "moneyBag": "Money bag",
+      "partyPopper": "Party popper",
+      "birthdayCake": "Birthday cake",
+      "gift": "Gift",
+      "glowingStar": "Glowing star",
+      "fire": "Fire"
+    }
+  },
+  "events": {
+    "system": "System",
+    "someone": "Someone",
+    "someoneLower": "someone",
+    "tookByReply": "{{actor}} took this chat by replying",
+    "took": "{{actor}} took this chat",
+    "assigned": "{{actor}} assigned this chat to {{assignee}}",
+    "returned": "Chat returned to the team",
+    "unassigned": "{{actor}} unassigned this chat",
+    "resolved": "{{actor}} resolved this chat",
+    "reopenedByMessage": "Chat reopened by a new message",
+    "reopened": "{{actor}} reopened this chat",
+    "internalNote": "Internal note"
+  },
+  "messageList": {
+    "label": "Messages",
+    "loadingOlder": "Loading older messages",
+    "start": "Start of conversation",
+    "loading": "Loading messages",
+    "empty": "No messages yet.",
+    "viaPhone": "via phone",
+    "jumpToLatest": "Jump to latest"
+  },
+  "message": {
+    "status": {
+      "pending": "Pending",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "read": "Read",
+      "failed": "Failed"
+    },
+    "you": "You",
+    "contact": "Contact",
+    "quotedMessage": "Quoted message",
+    "notSent": "Not sent",
+    "quote": {
+      "image": "[Image]",
+      "video": "[Video]",
+      "audio": "[Audio]",
+      "sticker": "[Sticker]",
+      "document": "[Document] {{name}}",
+      "message": "Message"
+    }
+  },
+  "media": {
+    "types": {
+      "text": "text",
+      "image": "image",
+      "video": "video",
+      "audio": "audio",
+      "document": "document",
+      "sticker": "sticker",
+      "system": "system"
+    },
+    "preview": "Image preview",
+    "download": "Download",
+    "tapToLoad": "Tap to load",
+    "loading": "Media loading",
+    "uploading": "Uploading {{label}}…",
+    "downloading": "Downloading {{label}}…",
+    "loadFailed": "Couldn’t load {{label}}",
+    "unavailable": "{{label}} unavailable",
+    "retryDownload": "Retry download",
+    "openImage": "Open image",
+    "openSticker": "Open sticker",
+    "imageAlt": "Image",
+    "document": "Document",
+    "file": "File",
+    "fileDownload": "{{type}} · Download"
+  },
+  "notes": {
+    "title": "Internal notes",
+    "description": "Only your team can see notes. They are never sent on WhatsApp.",
+    "close": "Close notes",
+    "loading": "Loading notes",
+    "empty": "No notes yet.",
+    "newNote": "New note",
+    "placeholder": "Add a note for your team",
+    "add": "Add note",
+    "saveFailed": "Could not save note"
+  },
+  "reconnect": {
+    "title": "Reconnecting to server…",
+    "body": "New messages and updates may be delayed until the connection is back."
+  },
+  "typing": {
+    "one": "{{name}} is typing…",
+    "two": "{{first}} and {{second}} are typing…",
+    "many_one": "{{count}} teammates are typing…",
+    "many_other": "{{count}} teammates are typing…"
+  },
+  "waBanner": {
+    "settingsShort": "Settings",
+    "openSettings": "Open WhatsApp settings",
+    "connecting": {
+      "title": "Connecting to WhatsApp…",
+      "body": "Messages you send will go out when the connection is back."
+    },
+    "disconnected": {
+      "title": "WhatsApp is disconnected",
+      "body": "Reconnecting automatically. Messages will send when reconnected."
+    },
+    "qr": {
+      "title": "WhatsApp is not linked",
+      "body": "An admin needs to scan the QR code to link the team number."
+    },
+    "loggedOut": {
+      "title": "WhatsApp was logged out",
+      "body": "An admin must re-link the number before messages can be sent."
+    },
+    "replaced": {
+      "title": "WhatsApp opened in another session",
+      "body": "This app was disconnected because the number was used elsewhere. An admin can take over."
+    },
+    "blocked": {
+      "title": "WhatsApp connection blocked",
+      "body": "The connection was refused. An admin should check the WhatsApp page."
+    }
+  },
+  "phoneLink": {
+    "label": "WhatsApp number (with country code)",
+    "requesting": "Requesting…",
+    "getCode": "Get pairing code",
+    "enterCode": "Enter this code on your phone",
+    "copied": "Code copied",
+    "copy": "Copy code",
+    "step1": "Open WhatsApp on the phone with this number.",
+    "step2": "Go to <strong>Settings → Linked devices → Link a device</strong>.",
+    "step3": "Tap <strong>Link with phone number instead</strong> and enter the code."
+  },
+  "push": {
+    "unsupported": "Notifications aren't supported in this browser.",
+    "label": "Notifications",
+    "labelDevice": "Notifications on this device",
+    "desktopHint": "Alerts appear when this app is in the background. Keep it running in the tray and allow WA EzyChat Lite in your system notification settings.",
+    "blocked": "Notifications are blocked. Allow them in the browser's site settings.",
+    "errors": {
+      "browserUnsupported": "This browser does not support push notifications.",
+      "permissionDenied": "Notification permission was not granted.",
+      "serviceWorker": "Service worker is not active yet. Reload the page and try again.",
+      "noKey": "Server did not return a push key",
+      "desktopUnavailable": "Desktop notifications are unavailable. Check your operating system notification settings."
+    }
+  },
+  "installHint": {
+    "title": "Add to Home Screen to receive notifications",
+    "body": "Tap the Share button <share/> in Safari, choose <strong>Add to Home Screen</strong>, then open EzyChat Lite from your home screen and turn on notifications.",
+    "share": "Share"
+  }
+}

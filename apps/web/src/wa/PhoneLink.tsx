@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Copy, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
@@ -16,6 +17,7 @@ export function formatPairingCode(code: string): string {
 
 /** Link WhatsApp with a phone number + 8-character pairing code instead of scanning a QR. */
 export function PhoneLink() {
+  const { t } = useTranslation('inbox');
   const [phone, setPhone] = useState('');
   const req = useRequestPairingCode();
   const code = req.data?.code ? formatPairingCode(req.data.code) : null;
@@ -29,7 +31,7 @@ export function PhoneLink() {
           req.mutate(phone);
         }}
       >
-        <Label htmlFor="wa-phone">WhatsApp number (with country code)</Label>
+        <Label htmlFor="wa-phone">{t('phoneLink.label')}</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             id="wa-phone"
@@ -42,9 +44,13 @@ export function PhoneLink() {
             onChange={(e) => setPhone(e.target.value)}
             required
           />
-          <Button type="submit" size="touch" disabled={req.isPending || phone.replace(/\D/g, '').length < 8}>
+          <Button
+            type="submit"
+            size="touch"
+            disabled={req.isPending || phone.replace(/\D/g, '').length < 8}
+          >
             <KeyRound aria-hidden="true" />
-            {req.isPending ? 'Requesting…' : 'Get pairing code'}
+            {req.isPending ? t('phoneLink.requesting') : t('phoneLink.getCode')}
           </Button>
         </div>
       </form>
@@ -53,8 +59,11 @@ export function PhoneLink() {
 
       {code && (
         <div className="flex flex-col items-center gap-3 rounded-lg border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Enter this code on your phone</p>
-          <p data-testid="pairing-code" className="font-mono text-3xl font-semibold tracking-[0.2em] select-all">
+          <p className="text-sm text-muted-foreground">{t('phoneLink.enterCode')}</p>
+          <p
+            data-testid="pairing-code"
+            className="font-mono text-3xl font-semibold tracking-[0.2em] select-all"
+          >
             {code}
           </p>
           <Button
@@ -62,22 +71,30 @@ export function PhoneLink() {
             size="sm"
             onClick={() => {
               void navigator.clipboard?.writeText(code.replace('-', ''));
-              toast.success('Code copied');
+              toast.success(t('phoneLink.copied'));
             }}
           >
             <Copy aria-hidden="true" />
-            Copy code
+            {t('phoneLink.copy')}
           </Button>
         </div>
       )}
 
       <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-        <li>Open WhatsApp on the phone with this number.</li>
+        <li>{t('phoneLink.step1')}</li>
         <li>
-          Go to <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
+          <Trans
+            t={t}
+            i18nKey="phoneLink.step2"
+            components={{ strong: <strong className="text-foreground" /> }}
+          />
         </li>
         <li>
-          Tap <strong className="text-foreground">Link with phone number instead</strong> and enter the code.
+          <Trans
+            t={t}
+            i18nKey="phoneLink.step3"
+            components={{ strong: <strong className="text-foreground" /> }}
+          />
         </li>
       </ol>
     </div>

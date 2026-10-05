@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Users } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Badge } from '@/components/ui/badge';
@@ -17,13 +18,21 @@ export interface ChatListItemProps {
 }
 
 export function GroupIcon({ className }: { className?: string }) {
-  return <Users className={className} role="img" aria-label="Group" />;
+  const { t } = useTranslation('inbox');
+  return <Users className={className} role="img" aria-label={t('chatListItem.group')} />;
 }
 
-export function ChatListItem({ chat, active, assigneeName, assignedToMe = false }: ChatListItemProps) {
+export function ChatListItem({
+  chat,
+  active,
+  assigneeName,
+  assignedToMe = false,
+}: ChatListItemProps) {
   const name = chat.name || formatJid(chat.jid);
   const unread = chat.unreadCount > 0;
   const { pathname } = useLocation();
+  // Subscribes to language changes so the localized list time re-renders.
+  const { t } = useTranslation('inbox');
   return (
     <Link
       to={`/chats/${encodeJid(chat.jid)}`}
@@ -41,7 +50,9 @@ export function ChatListItem({ chat, active, assigneeName, assignedToMe = false 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="flex min-w-0 flex-1 items-center gap-1">
-            {chat.type === 'group' && <GroupIcon className="size-4 shrink-0 text-muted-foreground" />}
+            {chat.type === 'group' && (
+              <GroupIcon className="size-4 shrink-0 text-muted-foreground" />
+            )}
             <span
               className={cn(
                 'truncate text-[15px] text-foreground',
@@ -76,22 +87,24 @@ export function ChatListItem({ chat, active, assigneeName, assignedToMe = false 
               className={cn(
                 'max-w-24 truncate px-1.5 text-[11px]',
                 // Outline only: the solid accent is reserved for the unread count.
-                assignedToMe ? 'border-primary/40 font-medium text-primary' : 'text-muted-foreground',
+                assignedToMe
+                  ? 'border-primary/40 font-medium text-primary'
+                  : 'text-muted-foreground',
               )}
-              title={`Assigned to ${assigneeName}`}
+              title={t('chatListItem.assignedTo', { name: assigneeName })}
             >
               <span className="truncate">{assigneeName}</span>
             </Badge>
           )}
           {chat.status === 'resolved' && (
-            <Badge variant="secondary" className="px-1.5 text-[11px]">
-              Resolved
+            <Badge variant="secondary" className="max-w-24 truncate px-1.5 text-[11px]">
+              {t('chatListItem.resolved')}
             </Badge>
           )}
           {unread && (
             <Badge
               className="min-w-5 bg-unread px-1.5 text-[11px] font-bold text-primary-foreground"
-              aria-label={`${chat.unreadCount} unread`}
+              aria-label={t('chatListItem.unread', { count: chat.unreadCount })}
             >
               {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
             </Badge>

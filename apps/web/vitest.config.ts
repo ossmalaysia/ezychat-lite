@@ -15,6 +15,7 @@ export default defineConfig({
     name: 'web',
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./vitest.setup.ts'],
     passWithNoTests: true,
     restoreMocks: true,
   },

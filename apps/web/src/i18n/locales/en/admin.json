@@ -1,0 +1,381 @@
+{
+  "title": "Admin",
+  "titleWithSection": "Admin · {{section}}",
+  "nav": {
+    "label": "Admin sections",
+    "members": "Members",
+    "quickReplies": "Quick replies",
+    "whatsapp": "WhatsApp",
+    "tunnel": "Cloudflare",
+    "settings": "Settings",
+    "audit": "Audit"
+  },
+  "layout": {
+    "inbox": "Inbox",
+    "menu": "Admin menu",
+    "footer": "Admin tools and support",
+    "backToInbox": "Back to inbox",
+    "logOut": "Log out",
+    "loggingOut": "Logging out…",
+    "logOutFailed": "Could not log out: {{error}}",
+    "loading": "Loading"
+  },
+  "ui": {
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed — select the text and copy it manually.",
+    "loadFailed": "Couldn't load",
+    "loading": "Loading"
+  },
+  "members": {
+    "title": "Members",
+    "description": "People who can sign in to the team inbox.",
+    "add": "Add member",
+    "searchLabel": "Search members",
+    "searchPlaceholder": "Search name, username or role",
+    "count_one": "{{shown}} of {{count}} member",
+    "count_other": "{{shown}} of {{count}} members",
+    "added": "Added <time>{{date}}</time>",
+    "you": "(you)",
+    "columns": {
+      "member": "Member",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "empty": {
+      "noMatchTitle": "No matching members",
+      "noMatchBody": "Try a different name, username or role.",
+      "clearSearch": "Clear search",
+      "noneTitle": "No members yet",
+      "noneBody": "Add a member so they can sign in."
+    },
+    "status": {
+      "disabled": "Disabled",
+      "active": "Active",
+      "mustChangePassword": "Must change password"
+    },
+    "actions": {
+      "editMember": "Edit {{name}}",
+      "moreFor": "More actions for {{name}}",
+      "resetPassword": "Reset password",
+      "signOutEverywhere": "Sign out everywhere",
+      "enable": "Enable",
+      "disable": "Disable"
+    },
+    "form": {
+      "role": "Role",
+      "username": "Username",
+      "displayName": "Display name",
+      "tempPass": "Temporary password",
+      "tempPasswordHint": "They will be asked to change it at first sign-in.",
+      "tempPasswordManualHint": "Automatic generation is unavailable in this browser. Enter a strong password; they will change it at first sign-in.",
+      "generate": "Generate",
+      "usernameTooShort": "Username must be at least 3 characters.",
+      "passTooShort": "Password must be at least 8 characters.",
+      "ownRoleHint": "You can't change your own role."
+    },
+    "create": {
+      "title": "Add member",
+      "submit": "Create member",
+      "done": "{{name}} was added. Share the temporary password with them."
+    },
+    "edit": {
+      "title": "Edit {{name}}",
+      "done": "Member updated."
+    },
+    "disable": {
+      "enableTitle": "Enable {{name}}?",
+      "disableTitle": "Disable {{name}}?",
+      "enableBody": "They will be able to sign in again.",
+      "disableBody": "Disabled members are signed out immediately and cannot sign in.",
+      "enabled": "{{name}} can sign in again.",
+      "disabled": "{{name}} was disabled."
+    },
+    "reset": {
+      "title": "Reset password for {{name}}?",
+      "body": "A new temporary password will be generated and all of their sessions signed out.",
+      "newTitle": "New temporary password",
+      "newBody": "Share this password with {{name}}. It is shown only once; they must change it at next sign-in. Their other sessions were signed out."
+    },
+    "revoke": {
+      "title": "Sign {{name}} out everywhere?",
+      "confirm": "Sign out",
+      "body": "All of their devices will be signed out immediately.",
+      "done": "Signed {{name}} out of all devices."
+    }
+  },
+  "quickReplies": {
+    "title": "Quick replies",
+    "description": "Agents type <kbd>/</kbd> followed by a shortcut in the composer to insert a reply.",
+    "new": "New quick reply",
+    "searchLabel": "Search quick replies",
+    "searchPlaceholder": "Search shortcut or reply text",
+    "count_one": "{{shown}} of {{count}} quick reply",
+    "count_other": "{{shown}} of {{count}} quick replies",
+    "empty": {
+      "noMatchTitle": "No matching quick replies",
+      "noMatchBody": "Try a different shortcut or phrase.",
+      "noneTitle": "No quick replies yet",
+      "noneBody": "Create one to speed up common answers.",
+      "clearSearch": "Clear search"
+    },
+    "editLabel": "Edit /{{shortcut}}",
+    "deleteLabel": "Delete /{{shortcut}}",
+    "delete": {
+      "title": "Delete /{{shortcut}}?",
+      "body": "This quick reply will no longer be available to agents.",
+      "done": "Deleted /{{shortcut}}."
+    },
+    "form": {
+      "editTitle": "Edit /{{shortcut}}",
+      "shortcut": "Shortcut",
+      "shortcutHint": "Typed after / in the composer, e.g. /{{example}}",
+      "shortcutExample": "price",
+      "shortcutInvalid": "Use 1-32 lowercase letters, digits, \"-\" or \"_\".",
+      "body": "Reply text",
+      "bodyRequired": "Reply text is required.",
+      "saved": "Saved /{{shortcut}}."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Sign-ins, member changes, WhatsApp and tunnel actions.",
+    "download": "Download logs",
+    "empty": "No audit entries yet",
+    "loadOlder": "Load older",
+    "system": "System",
+    "userNumber": "User #{{id}}",
+    "columns": {
+      "time": "Time",
+      "who": "Who",
+      "action": "Action",
+      "details": "Details",
+      "ip": "IP"
+    },
+    "actions": {
+      "authLogin": "Signed in",
+      "authLoginFailed": "Sign-in failed",
+      "authLogout": "Signed out",
+      "authChangePassword": "Password changed",
+      "authResetAdminCli": "Admin password reset",
+      "setupAdmin": "Admin account created",
+      "userCreate": "Member added",
+      "userUpdate": "Member updated",
+      "userResetPassword": "Member password reset",
+      "userRevokeSessions": "Member signed out of all devices",
+      "quickReplyCreate": "Quick reply created",
+      "quickReplyUpdate": "Quick reply updated",
+      "quickReplyDelete": "Quick reply deleted",
+      "waLogout": "WhatsApp unlinked",
+      "waRelink": "WhatsApp linking restarted",
+      "waTakeover": "WhatsApp session taken over",
+      "waPairingCode": "WhatsApp pairing code requested",
+      "tunnelStart": "Tunnel started",
+      "tunnelStop": "Tunnel stopped",
+      "cloudflareLogin": "Cloudflare sign-in started",
+      "cloudflareCreate": "Cloudflare inbox address configured",
+      "settingsUpdate": "Settings updated",
+      "chatsResolveAll": "All open chats resolved",
+      "logsDownload": "Logs downloaded"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "saved": "Settings saved.",
+    "save": "Save settings",
+    "portInvalid": "Port must be between 1024 and 65535.",
+    "historyInvalid": "History must be between 0 and 365 days.",
+    "restartTitle": "Restart required",
+    "restartBody": "Network changes take effect after the app (or service) restarts.",
+    "network": {
+      "title": "Network",
+      "port": "Port",
+      "portHint": "Default 7420.",
+      "lan": "Allow access from the local network (LAN)",
+      "lanHint": "Other devices on the same Wi-Fi can open the inbox.",
+      "lanWarningTitle": "LAN traffic is plain HTTP",
+      "lanWarningBody": "Passwords and messages travel unencrypted on your local network. Only enable this on a network you trust; use the tunnel for encrypted remote access."
+    },
+    "history": {
+      "title": "History",
+      "days": "Days of history to import when linking"
+    },
+    "device": {
+      "title": "This device",
+      "description": "Preferences are saved on this device and apply immediately.",
+      "themeHint": "System follows your device's light or dark setting.",
+      "notifications": "Notifications",
+      "notificationsHint": "Get a notification for new messages when the inbox isn't open."
+    }
+  },
+  "resolveAll": {
+    "title": "Inbox",
+    "description": "Finish the day by resolving every open chat for the whole team. Messages are kept and new incoming messages reopen chats automatically.",
+    "loading": "Loading open chats…",
+    "none": "No open chats to resolve.",
+    "openCount_one": "{{count}} open chat",
+    "openCount_other": "{{count}} open chats",
+    "button": "Resolve all open chats",
+    "confirmTitle": "Resolve all open chats?",
+    "confirm": "Resolve all",
+    "done_one": "Resolved {{count}} chat.",
+    "done_other": "Resolved {{count}} chats.",
+    "confirmBody": "This will resolve all currently open chats across the whole team. Assignees will be cleared. Messages and unread counts are kept. You can reopen individual chats later.",
+    "confirmBodyWithCount": "This will resolve all currently open chats across the whole team ({{openCount}} right now). Assignees will be cleared. Messages and unread counts are kept. You can reopen individual chats later."
+  },
+  "whatsapp": {
+    "description": "The WhatsApp number linked to this team inbox.",
+    "state": {
+      "open": "Connected",
+      "connecting": "Connecting",
+      "qr": "Waiting for QR scan",
+      "disconnected": "Disconnected",
+      "loggedOut": "Logged out",
+      "replaced": "Opened elsewhere",
+      "blocked": "Blocked"
+    },
+    "connection": "Connection",
+    "status": "Status",
+    "linkedNumber": "Linked number",
+    "name": "Name",
+    "replacedTitle": "Session opened elsewhere",
+    "replacedBody": "This number was connected from another place. Use “Take over” to reconnect here.",
+    "unlinkedBody": "Link the number again with “Re-link”.",
+    "scanTitle": "Scan to link",
+    "scanHint": "On the phone: WhatsApp → Settings → Linked devices → Link a device.",
+    "qrLabel": "WhatsApp link QR code",
+    "waitingQrTitle": "Waiting for QR code",
+    "waitingQrBody": "A code appears here in a few seconds.",
+    "phoneTitle": "Or link with a phone number",
+    "phoneHint": "Get an 8-character code instead of scanning the QR.",
+    "linkTitle": "Link WhatsApp",
+    "linkBody": "Re-link to show a new QR code, then scan it from the phone.",
+    "actionsTitle": "Actions",
+    "actionsHint": "Log out disconnects this inbox. Re-link starts a fresh pairing. Take over reconnects a session opened elsewhere.",
+    "actions": {
+      "logout": {
+        "label": "Log out",
+        "title": "Log out of WhatsApp?",
+        "body": "The linked device is removed from the phone. The team inbox stops receiving and sending messages until you link again. Message history is kept.",
+        "done": "Logged out of WhatsApp."
+      },
+      "relink": {
+        "label": "Re-link",
+        "title": "Re-link WhatsApp?",
+        "body": "The current session is discarded and a new QR code is shown. Scan it from WhatsApp > Linked devices on the phone.",
+        "done": "Session reset — scan the new QR code."
+      },
+      "takeover": {
+        "label": "Take over",
+        "title": "Take over the session?",
+        "body": "Another instance (e.g. WhatsApp Web on another computer) replaced this connection. Taking over reconnects here and disconnects the other one.",
+        "done": "Reconnecting here."
+      }
+    }
+  },
+  "tunnel": {
+    "title": "Cloudflare access",
+    "description": "Give your team a link to open the inbox from phones anywhere.",
+    "state": {
+      "stopped": "Stopped",
+      "starting": "Starting",
+      "running": "Running",
+      "error": "Error"
+    },
+    "modes": {
+      "off": "Off",
+      "offHint": "Only this computer (and the LAN, if enabled).",
+      "quick": "Temporary link",
+      "quickHint": "A free link that changes on restart. No account needed.",
+      "named": "Your domain",
+      "namedHint": "Sign in to Cloudflare and choose a permanent inbox address."
+    },
+    "action": {
+      "disconnect": "Disconnect Cloudflare",
+      "off": "Remote access is off",
+      "namedConnecting": "Connecting saved address…",
+      "namedConnect": "Connect saved address",
+      "quickRestart": "Restart temporary link",
+      "quickCreate": "Create temporary link"
+    },
+    "tokenTooShort": "That token looks too short.",
+    "tokenRequired": "Paste the tunnel token from the Cloudflare dashboard.",
+    "statusTitle": "Connection status",
+    "copyUrl": "Copy URL",
+    "qrLabel": "Tunnel URL QR code",
+    "scanHint": "Scan with a phone camera to open the inbox.",
+    "quickNote": "Temporary links change every time the connection or the app restarts. Choose Your domain for a permanent inbox address.",
+    "lastError": "Last error",
+    "connectTitle": "How your team connects",
+    "remoteAccess": "Remote access",
+    "remoteAccessMode": "Remote access mode",
+    "advancedToken": "Advanced: use a tunnel token",
+    "advancedTokenBody": "For an existing tunnel configured in the Cloudflare dashboard. Guided sign-in above handles this setup for you.",
+    "token": "Tunnel token",
+    "tokenHint": "Cloudflare Zero Trust → Networks → Tunnels → your tunnel → install token.",
+    "tokenSavedPlaceholder": "•••••••• (saved — leave blank to keep)",
+    "hostname": "Public hostname",
+    "hostnameHint": "The hostname routed to http://127.0.0.1:<port> in the tunnel config.",
+    "connectWithToken": "Connect with token",
+    "disconnectNote": "Disconnect Cloudflare stops the public link. The inbox still works on this computer. Messages and the saved domain are kept, so you can connect again later.",
+    "disconnectNoteLan": "Disconnect Cloudflare stops the public link. The inbox still works on this computer and over your enabled local network. Messages and the saved domain are kept, so you can connect again later.",
+    "diagnostics": "Advanced: connection diagnostics"
+  },
+  "cloudflare": {
+    "loading": "Loading Cloudflare setup",
+    "invalidApproval": "The Cloudflare sign-in address could not be verified. Cancel sign-in and try again.",
+    "saved": {
+      "label": "Your saved Cloudflare address",
+      "running": "Your domain is connected",
+      "starting": "Connecting your inbox…",
+      "idle": "Cloudflare connection saved",
+      "runningBody": "Your team can use this address and sign in with their inbox accounts.",
+      "startingBody": "Waiting for Cloudflare to connect. Keep this computer and the app running.",
+      "idleBody": "Connect the saved address below to make the inbox available to your team.",
+      "change": "Change address"
+    },
+    "setupLabel": "Set up your Cloudflare domain",
+    "step1": {
+      "title": "1. Connect your Cloudflare account",
+      "body": "Sign in on Cloudflare and approve the domain you want to use. Return here after approval. You need a domain already added to your Cloudflare account.",
+      "connected": "Cloudflare account connected.",
+      "refresh": "Refresh domains",
+      "another": "Choose another domain",
+      "anotherHint": "Only approved domains appear below. Choose another domain starts a new Cloudflare approval.",
+      "waitingApproval": "Waiting for your approval on Cloudflare…",
+      "preparing": "Preparing Cloudflare sign-in…",
+      "open": "Open Cloudflare sign-in",
+      "cancel": "Cancel sign-in",
+      "autoUpdate": "This page updates automatically after approval. Keep the app running.",
+      "retry": "Try Cloudflare sign-in again",
+      "signIn": "Sign in to Cloudflare"
+    },
+    "attention": "Cloudflare setup needs attention",
+    "noDomainTitle": "No approved domain found",
+    "noDomainBody": "Add a domain to Cloudflare, then choose another domain to approve it. If you just approved a domain, try Refresh domains.",
+    "formInvalid": "Check the domain, address and tunnel name.",
+    "step2": {
+      "title": "2. Choose your inbox address",
+      "domain": "Domain",
+      "domainPlaceholder": "Choose an approved domain",
+      "account": "Account: {{name}}",
+      "prefix": "Address prefix",
+      "prefixHint": "A short word before your domain, such as inbox or support.",
+      "preview": "Your team will open",
+      "previewLabel": "Inbox address preview",
+      "tunnelName": "Tunnel name",
+      "tunnelNameHint": "A friendly name in Cloudflare so you can recognise this app. It does not change the address."
+    },
+    "step3": {
+      "saveTitle": "3. Save your changes",
+      "connectTitle": "3. Connect your inbox",
+      "body": "This publishes the inbox using the address above and sets up its Cloudflare connection. Team members still need their normal inbox sign-in. Keep this computer and the app running.",
+      "connecting": "Connecting your inbox…",
+      "saveSubmit": "Save and connect changes",
+      "createSubmit": "Create and connect inbox",
+      "unchanged": "This address and tunnel name are already saved.",
+      "cancel": "Cancel changes"
+    }
+  }
+}

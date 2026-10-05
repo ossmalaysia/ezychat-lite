@@ -1,0 +1,188 @@
+{
+  "tray": {
+    "open": "Buka",
+    "status": "Status & Perkhidmatan…",
+    "openCloudflare": "Buka admin → Cloudflare",
+    "resetAdmin": "Set semula kata laluan pentadbir…",
+    "quit": "Keluar"
+  },
+  "mode": {
+    "client": "Perkhidmatan latar belakang — bersambung",
+    "standalone": "Kendiri — {{state}}",
+    "error": "Pelayan tidak berjalan",
+    "starting": "Memulakan…"
+  },
+  "serverState": {
+    "starting": "sedang dimulakan",
+    "running": "berjalan",
+    "crashed": "ranap",
+    "stopped": "dihentikan"
+  },
+  "window": {
+    "statusTitle": "{{title}} — Status & Perkhidmatan"
+  },
+  "page": {
+    "startingTitle": "Memulakan EzyChat Lite…",
+    "startingBody": "Memulakan pelayan tempatan.",
+    "notStartedTitle": "Pelayan tidak dapat dimulakan",
+    "notStartedBody": "Port {{port}} mungkin sedang digunakan oleh program lain. Buka \"Status & Perkhidmatan…\" dari dulang sistem untuk melihat log.",
+    "serviceNotAnsweringTitle": "Perkhidmatan latar belakang tidak memberikan respons",
+    "serviceNotRunningTitle": "Perkhidmatan latar belakang tidak berjalan",
+    "serviceDownBody": "EzyChat Lite berjalan sebagai perkhidmatan latar belakang pada komputer ini. Buka \"Status & Perkhidmatan…\" dari dulang sistem untuk memulakannya atau melihat lognya.",
+    "connectingTitle": "Menyambung ke perkhidmatan latar belakang…",
+    "connectingBody": "Menunggu perkhidmatan EzyChat Lite dimulakan.",
+    "serviceStoppedTitle": "Perkhidmatan dihentikan",
+    "serviceStoppedBody": "Mulakan semula perkhidmatan melalui \"Status & Perkhidmatan…\"."
+  },
+  "updates": {
+    "trayRestart": "Mulakan semula dan kemas kini ke v{{version}}…",
+    "trayDownloading": "Memuat turun kemas kini…",
+    "trayAvailable": "Kemas kini tersedia: v{{version}}…",
+    "trayCheck": "Semak kemas kini…",
+    "installUnsupported": "Pemasangan automatik tersedia dalam aplikasi Windows dan Mac yang telah dipasang.",
+    "hostOnly": "Hanya komputer hos boleh memasang kemas kini ini.",
+    "waitForOperation": "Tunggu operasi aplikasi semasa selesai sebelum mengemas kini.",
+    "preparing": "Menyediakan kemas kini…",
+    "installFailed": "Kemas kini tidak dapat dipasang",
+    "hostGone": "Aplikasi hos tidak lagi tersedia untuk dikemas kini.",
+    "closedBeforeConfirm": "Aplikasi ditutup sebelum pemasangan disahkan.",
+    "approvePrompt": "Menyediakan kemas kini yang selamat. Luluskan gesaan sistem pengendalian untuk meneruskan.",
+    "restarting": "Memulakan semula untuk memasang kemas kini…"
+  },
+  "check": {
+    "tooMuch": "GitHub memulangkan maklumat kemas kini yang terlalu banyak. Cuba lagi kemudian.",
+    "noInfo": "GitHub tidak memulangkan maklumat kemas kini.",
+    "invalid": "GitHub memulangkan maklumat kemas kini yang tidak sah. Cuba lagi kemudian.",
+    "invalidVersion": "Binaan ini mempunyai versi yang tidak sah. Semak keluaran projek.",
+    "timeout": "Semakan kemas kini tamat masa. Sila cuba lagi kemudian.",
+    "rateLimited": "GitHub sedang mengehadkan semakan kemas kini. Sila cuba lagi kemudian.",
+    "http": "GitHub tidak dapat menyemak kemas kini. Sila cuba lagi kemudian.",
+    "pagination": "Sejarah keluaran terlalu besar untuk mengesahkan versi terkini. Semak keluaran projek.",
+    "network": "GitHub tidak dapat dihubungi. Semak sambungan internet anda dan cuba lagi."
+  },
+  "reset": {
+    "busyConfirm": "Mengesahkan set semula kata laluan…",
+    "busy": "Menetapkan semula kata laluan pentadbir…",
+    "failed": "Kata laluan pentadbir tidak dapat ditetapkan semula",
+    "confirmTitle": "Set semula kata laluan pentadbir",
+    "confirmMessage": "Tetapkan semula kata laluan akaun pentadbir pertama?",
+    "confirmDetail": "Kata laluan sementara baharu akan dijana dan semua sesi pentadbir tersebut akan dilog keluar.",
+    "confirmButton": "Set semula kata laluan",
+    "notManaged": "Pelayan yang sedang berjalan tidak diurus oleh aplikasi ini; tetapkan semula di tempat pelayan itu berjalan.",
+    "exitCode": "Set semula gagal (kod keluar {{code}}).",
+    "doneTitle": "Kata laluan pentadbir telah ditetapkan semula",
+    "doneMessage": "Kata laluan baharu untuk {{user}}:",
+    "doneDetail": "{{password}}\n\nAnda akan diminta menukarnya selepas log masuk.",
+    "copy": "Salin kata laluan"
+  },
+  "service": {
+    "enableBusyConfirm": "Mengesahkan pemasangan perkhidmatan…",
+    "enableFailed": "Perkhidmatan latar belakang tidak dapat didayakan",
+    "enableTitle": "Jalankan sebagai perkhidmatan latar belakang",
+    "enableMessage": "Jalankan EzyChat Lite sebagai perkhidmatan latar belakang?",
+    "enableDetail": "Pelayan akan bermula apabila komputer ini dihidupkan, walaupun tiada sesiapa log masuk. Data anda akan dipindahkan ke folder seluruh mesin:\n{{folder}}\n\nAnda akan diminta kebenaran pentadbir.",
+    "enableButton": "Dayakan perkhidmatan",
+    "installing": "Memasang perkhidmatan…",
+    "waiting": "Menunggu perkhidmatan dimulakan…",
+    "noAnswer": "Perkhidmatan telah dipasang tetapi tidak memberikan respons pada port {{port}}.",
+    "disableBusyConfirm": "Mengesahkan pembuangan perkhidmatan…",
+    "disableFailed": "Perkhidmatan latar belakang tidak dapat dibuang",
+    "disableTitle": "Hentikan perkhidmatan latar belakang",
+    "disableMessage": "Buang perkhidmatan latar belakang dan jalankan semula dalam aplikasi ini?",
+    "disableDetail": "Data anda akan dipindahkan semula ke profil pengguna anda. Anda akan diminta kebenaran pentadbir.",
+    "disableButton": "Buang perkhidmatan",
+    "removing": "Membuang perkhidmatan…",
+    "startingLocal": "Memulakan pelayan tempatan…",
+    "starting": "Memulakan perkhidmatan…",
+    "startFailed": "Perkhidmatan tidak dapat dimulakan",
+    "stopping": "Menghentikan perkhidmatan…",
+    "stopFailed": "Perkhidmatan tidak dapat dihentikan"
+  },
+  "common": {
+    "cancel": "Batal",
+    "close": "Tutup",
+    "trayPrefFailed": "Tetapan dulang sistem tidak dapat disimpan."
+  },
+  "status": {
+    "documentTitle": "EzyChat Lite — Status & Perkhidmatan",
+    "updatesTitle": "Kemas kini aplikasi",
+    "checkingInitial": "Menyemak kemas kini…",
+    "downloadAria": "Muat turun kemas kini",
+    "checkButton": "Semak kemas kini",
+    "checkingButton": "Menyemak…",
+    "downloadButton": "Muat turun kemas kini",
+    "downloadVersion": "Muat turun v{{version}}",
+    "installButton": "Mulakan semula dan kemas kini",
+    "cancelButton": "Batalkan muat turun",
+    "releaseButton": "Butiran keluaran",
+    "updatesHelp": "Kemas kini diurus pada komputer hos ini. Pasang keluaran baharu apabila pasukan anda boleh berhenti seketika. Akaun, sembang dan tetapan anda dikekalkan.",
+    "server": "Pelayan",
+    "mode": "Mod",
+    "state": "Keadaan",
+    "address": "Alamat",
+    "dataFolder": "Folder data",
+    "appVersion": "Versi aplikasi",
+    "serverVersion": "Versi pelayan",
+    "serverMode": "Mod pelayan",
+    "openInbox": "Buka peti masuk",
+    "openLogs": "Buka folder log",
+    "resetAdmin": "Set semula kata laluan pentadbir…",
+    "desktopApp": "Aplikasi desktop",
+    "keepInTray": "Kekalkan EzyChat Lite dalam dulang sistem",
+    "backgroundService": "Perkhidmatan latar belakang",
+    "serviceStatus": "Status:",
+    "serviceNote": "Sebagai perkhidmatan, pelayan bermula bersama komputer, walaupun tiada sesiapa log masuk, dan memastikan sambungan WhatsApp serta terowong terus berjalan. Memerlukan kebenaran pentadbir.",
+    "enableService": "Dayakan perkhidmatan",
+    "start": "Mula",
+    "stop": "Henti",
+    "removeService": "Buang perkhidmatan",
+    "recentLog": "Log terkini",
+    "notAnswering": "tidak memberikan respons",
+    "modeLabel": {
+      "starting": "Memulakan…",
+      "standalone": "Kendiri (dalam aplikasi ini)",
+      "client": "Bersambung ke perkhidmatan latar belakang",
+      "error": "Tidak berjalan"
+    },
+    "serverModeLabel": {
+      "standalone": "kendiri",
+      "service": "perkhidmatan latar belakang",
+      "dev": "pembangunan"
+    },
+    "serverState": {
+      "starting": "sedang dimulakan",
+      "running": "berjalan",
+      "crashed": "ranap",
+      "stopped": "dihentikan",
+      "external": "berjalan (perkhidmatan)"
+    },
+    "svcLabel": {
+      "notInstalled": "Belum dipasang",
+      "stopped": "Dihentikan",
+      "running": "Berjalan"
+    },
+    "trayNote": {
+      "keep": "Menutup tetingkap akan mengekalkan EzyChat Lite dalam dulang sistem untuk akses pantas dan pemberitahuan desktop. Keluar melalui menu dulang sistem.",
+      "quit": "Menutup tetingkap akan menutup aplikasi. Perkhidmatan latar belakang memastikan peti masuk terus berjalan.",
+      "host": "Aplikasi ini menjadi hos pelayan, jadi ia sentiasa kekal dalam dulang sistem semasa peti masuk berjalan."
+    },
+    "updates": {
+      "installed": "Dipasang: v{{version}}.",
+      "checking": "Menyemak kemas kini di GitHub…",
+      "available": "v{{version}} kini tersedia.",
+      "availablePreview": "v{{version}} kini tersedia (pratonton).",
+      "current": "Aplikasi anda terkini — v{{version}}.",
+      "checkFailed": "Kemas kini tidak dapat disemak. Cuba lagi kemudian.",
+      "downloading": "Memuat turun kemas kini… {{percent}}%. Peti masuk anda terus berfungsi.",
+      "ready": "v{{version}} telah dimuat turun dan disahkan. Sedia untuk dikemas kini.",
+      "installing": "Bersedia untuk dimulakan semula dan dikemas kini… Luluskan gesaan sistem untuk meneruskan.",
+      "lastChecked": "Semakan terakhir: {{time}}",
+      "autoCheck": "Menyemak GitHub secara automatik semasa aplikasi ini berjalan.",
+      "noInstaller": "Keluaran ini tiada pemasang untuk komputer ini. Buka butiran keluaran untuk muat turun yang tersedia.",
+      "managedHelp": "Muat turun dahulu, kemudian pilih Mulakan semula dan kemas kini apabila pasukan anda boleh berhenti seketika. Aplikasi dan sebarang perkhidmatan yang dipasang akan dimulakan semula secara automatik. Akaun, sembang dan tetapan anda dikekalkan.",
+      "unverifiable": "Keluaran ini tidak dapat disahkan untuk dipasang di sini. Buka butiran keluaran untuk pemasang manual.",
+      "manualHelp": "Muat turun pemasang dan tutup aplikasi ini sebelum memasang. Hentikan perkhidmatan Windows sebelum memasang, kemudian mulakannya semula. Pada Mac, buang perkhidmatan sebelum memasang dan dayakannya semula selepas itu untuk menyegarkan salinan aplikasi yang dilindungi. Akaun, sembang dan tetapan anda dikekalkan.",
+      "openFailed": "Kemas kini tidak dapat dibuka."
+    }
+  }
+}

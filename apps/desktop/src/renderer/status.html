@@ -16,82 +16,92 @@
       <div id="busy" hidden></div>
 
       <section class="card" id="updates-card" hidden aria-labelledby="updates-title">
-        <h2 id="updates-title">App updates</h2>
-        <p id="updates-state" role="status" aria-live="polite">Checking for updates…</p>
+        <h2 id="updates-title" data-i18n="updatesTitle">App updates</h2>
+        <p id="updates-state" role="status" aria-live="polite" data-i18n="checkingInitial">
+          Checking for updates…
+        </p>
         <p class="note" id="updates-checked"></p>
         <progress
           id="updates-progress"
           max="100"
           value="0"
           aria-label="Update download"
+          data-i18n-aria-label="downloadAria"
           hidden
         ></progress>
         <p class="note" id="updates-result" hidden></p>
         <pre id="update-notes" hidden></pre>
         <div class="row">
-          <button id="updates-check">Check for updates</button>
-          <button id="updates-download" class="primary" hidden>Download update</button>
-          <button id="updates-install" class="primary" hidden>Restart and update</button>
-          <button id="updates-cancel" hidden>Cancel download</button>
-          <button id="updates-release" hidden>Release details</button>
+          <button id="updates-check" data-i18n="checkButton">Check for updates</button>
+          <button id="updates-download" class="primary" data-i18n="downloadButton" hidden>
+            Download update
+          </button>
+          <button id="updates-install" class="primary" data-i18n="installButton" hidden>
+            Restart and update
+          </button>
+          <button id="updates-cancel" data-i18n="cancelButton" hidden>Cancel download</button>
+          <button id="updates-release" data-i18n="releaseButton" hidden>Release details</button>
         </div>
-        <p class="note" id="updates-help">
+        <p class="note" id="updates-help" data-i18n="updatesHelp">
           Updates are managed on this hosting computer. Install the new release when your team can
           briefly pause work. Your accounts, chats and settings are preserved.
         </p>
       </section>
 
       <section class="card">
-        <h2>Server</h2>
+        <h2 data-i18n="server">Server</h2>
         <dl>
-          <dt>Mode</dt>
+          <dt data-i18n="mode">Mode</dt>
           <dd id="mode">…</dd>
-          <dt>State</dt>
+          <dt data-i18n="state">State</dt>
           <dd id="state">…</dd>
-          <dt>Address</dt>
+          <dt data-i18n="address">Address</dt>
           <dd id="url">…</dd>
-          <dt>Data folder</dt>
+          <dt data-i18n="dataFolder">Data folder</dt>
           <dd id="data">…</dd>
-          <dt>App version</dt>
+          <dt data-i18n="appVersion">App version</dt>
           <dd id="version">…</dd>
-          <dt>Server version</dt>
+          <dt data-i18n="serverVersion">Server version</dt>
           <dd id="server-version">…</dd>
-          <dt>Server mode</dt>
+          <dt data-i18n="serverMode">Server mode</dt>
           <dd id="server-mode">…</dd>
         </dl>
         <div class="row">
-          <button id="open" class="primary">Open inbox</button>
-          <button id="logs">Open logs folder</button>
-          <button id="reset">Reset admin password…</button>
+          <button id="open" class="primary" data-i18n="openInbox">Open inbox</button>
+          <button id="logs" data-i18n="openLogs">Open logs folder</button>
+          <button id="reset" data-i18n="resetAdmin">Reset admin password…</button>
         </div>
       </section>
 
       <section class="card" id="tray-card">
-        <h2>Desktop app</h2>
+        <h2 data-i18n="desktopApp">Desktop app</h2>
         <label class="check">
           <input type="checkbox" id="keep-in-tray" />
-          <span>Keep EzyChat Lite in the system tray</span>
+          <span data-i18n="keepInTray">Keep EzyChat Lite in the system tray</span>
         </label>
         <p class="note" id="tray-note"></p>
       </section>
 
       <section class="card" id="svc-card">
-        <h2>Background service</h2>
-        <p>Status: <span id="svc-state" class="badge">…</span></p>
-        <p class="note">
+        <h2 data-i18n="backgroundService">Background service</h2>
+        <p>
+          <span data-i18n="serviceStatus">Status:</span>
+          <span id="svc-state" class="badge">…</span>
+        </p>
+        <p class="note" data-i18n="serviceNote">
           As a service the server starts with the computer, even when nobody is signed in, and keeps
           the WhatsApp connection and tunnel running. Requires administrator permission.
         </p>
         <div class="row">
-          <button id="svc-enable" class="primary">Enable service</button>
-          <button id="svc-start">Start</button>
-          <button id="svc-stop">Stop</button>
-          <button id="svc-disable" class="danger">Remove service</button>
+          <button id="svc-enable" class="primary" data-i18n="enableService">Enable service</button>
+          <button id="svc-start" data-i18n="start">Start</button>
+          <button id="svc-stop" data-i18n="stop">Stop</button>
+          <button id="svc-disable" class="danger" data-i18n="removeService">Remove service</button>
         </div>
       </section>
 
       <section class="card">
-        <h2>Recent log</h2>
+        <h2 data-i18n="recentLog">Recent log</h2>
         <pre id="log"></pre>
       </section>
     </main>

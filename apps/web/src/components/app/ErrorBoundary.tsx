@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { RotateCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { reportClientError } from '@/lib/error-reporter';
 import { Button } from '@/components/ui/button';
 import { Banner } from './index';
@@ -40,19 +41,24 @@ export class ErrorBoundary extends Component<Props, State> {
   override render(): ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
-    return (
-      <div className="flex flex-col gap-3 p-4" data-testid="error-boundary">
-        <Banner tone="danger" title="This screen hit an error">
-          <span className="break-words font-mono text-xs">{error.message}</span>
-          <span className="mt-1 block">It was reported to the server log. Try reloading.</span>
-        </Banner>
-        <div>
-          <Button variant="outline" size="touch" onClick={() => window.location.reload()}>
-            <RotateCw aria-hidden="true" />
-            Reload
-          </Button>
-        </div>
-      </div>
-    );
+    return <ErrorFallback error={error} />;
   }
+}
+
+function ErrorFallback({ error }: { error: Error }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3 p-4" data-testid="error-boundary">
+      <Banner tone="danger" title={t('errorBoundary.title')}>
+        <span className="break-words font-mono text-xs">{error.message}</span>
+        <span className="mt-1 block">{t('errorBoundary.body')}</span>
+      </Banner>
+      <div>
+        <Button variant="outline" size="touch" onClick={() => window.location.reload()}>
+          <RotateCw aria-hidden="true" />
+          {t('errorBoundary.reload')}
+        </Button>
+      </div>
+    </div>
+  );
 }

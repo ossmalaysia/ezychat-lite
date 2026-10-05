@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, CircleDot } from 'lucide-react';
 import type { ChatFilters as Filters } from '../api/queries';
 import { SearchField } from '@/components/app/SearchField';
@@ -9,15 +10,16 @@ export interface ChatFiltersProps {
   onChange(next: Filters): void;
 }
 
-const tabs: { key: Filters['assigned']; label: string }[] = [
-  { key: 'me', label: 'Mine' },
-  { key: 'none', label: 'Unassigned' },
-  { key: 'any', label: 'All' },
-];
+const tabs = [
+  { key: 'me', labelKey: 'filters.mine' },
+  { key: 'none', labelKey: 'filters.unassigned' },
+  { key: 'any', labelKey: 'filters.all' },
+] as const satisfies readonly { key: Filters['assigned']; labelKey: string }[];
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function ChatFilters({ value, onChange }: ChatFiltersProps) {
+  const { t } = useTranslation('inbox');
   const [search, setSearch] = useState(value.q ?? '');
   const latest = useRef({ value, onChange });
   latest.current = { value, onChange };
@@ -25,12 +27,12 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
 
   // Debounce search → filters.
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const { value: v, onChange: cb } = latest.current;
       const q = search.trim() || undefined;
       if (q !== (v.q || undefined)) cb({ ...v, q });
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [search]);
 
   const status = value.status ?? 'open';
@@ -40,8 +42,8 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
       <SearchField
         value={search}
         onChange={setSearch}
-        label="Search chats"
-        placeholder="Search name or number"
+        label={t('filters.searchLabel')}
+        placeholder={t('filters.searchPlaceholder')}
       />
       <div className="flex items-center gap-2">
         <Tabs
@@ -49,10 +51,10 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
           onValueChange={(v) => onChange({ ...value, assigned: v as Filters['assigned'] })}
           className="min-w-0 flex-1"
         >
-          <TabsList aria-label="Assignment" className="h-11! w-full">
-            {tabs.map((t) => (
-              <TabsTrigger key={t.key} value={t.key} className="min-w-0 truncate">
-                {t.label}
+          <TabsList aria-label={t('filters.assignment')} className="h-11! w-full">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key} className="min-w-0 truncate">
+                {t(tab.labelKey)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -62,14 +64,14 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
         value={status}
         onValueChange={(v) => onChange({ ...value, status: v as Filters['status'] })}
       >
-        <TabsList aria-label="Chat status" className="h-11! w-full">
+        <TabsList aria-label={t('filters.status')} className="h-11! w-full">
           <TabsTrigger value="open">
             <CircleDot aria-hidden="true" className="size-4" />
-            Open
+            {t('filters.open')}
           </TabsTrigger>
           <TabsTrigger value="resolved">
             <CheckCircle2 aria-hidden="true" className="size-4" />
-            Resolved
+            {t('filters.resolved')}
           </TabsTrigger>
         </TabsList>
       </Tabs>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import type { WaState } from '@wa-team-inbox/shared';
 import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
 import { PhoneLink } from '../wa/PhoneLink';
@@ -10,42 +11,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog, ErrorState } from './adminUi';
 
-export const WA_STATE_LABEL: Record<WaState, string> = {
-  open: 'Connected',
-  connecting: 'Connecting',
-  qr: 'Waiting for QR scan',
-  disconnected: 'Disconnected',
-  logged_out: 'Logged out',
-  replaced: 'Opened elsewhere',
-  blocked: 'Blocked',
-};
+/** WhatsApp connection state → translation key in the `admin` namespace. */
+export const WA_STATE_LABEL_KEY = {
+  open: 'whatsapp.state.open',
+  connecting: 'whatsapp.state.connecting',
+  qr: 'whatsapp.state.qr',
+  disconnected: 'whatsapp.state.disconnected',
+  logged_out: 'whatsapp.state.loggedOut',
+  replaced: 'whatsapp.state.replaced',
+  blocked: 'whatsapp.state.blocked',
+} as const satisfies Record<WaState, string>;
 
-const ACTIONS: Record<
-  WaAction,
-  { label: string; title: string; body: string; danger: boolean; done: string }
-> = {
-  logout: {
-    label: 'Log out',
-    title: 'Log out of WhatsApp?',
-    body: 'The linked device is removed from the phone. The team inbox stops receiving and sending messages until you link again. Message history is kept.',
-    danger: true,
-    done: 'Logged out of WhatsApp.',
-  },
-  relink: {
-    label: 'Re-link',
-    title: 'Re-link WhatsApp?',
-    body: 'The current session is discarded and a new QR code is shown. Scan it from WhatsApp > Linked devices on the phone.',
-    danger: true,
-    done: 'Session reset — scan the new QR code.',
-  },
-  takeover: {
-    label: 'Take over',
-    title: 'Take over the session?',
-    body: 'Another instance (e.g. WhatsApp Web on another computer) replaced this connection. Taking over reconnects here and disconnects the other one.',
-    danger: false,
-    done: 'Reconnecting here.',
-  },
-};
+const ACTIONS = {
+  logout: { danger: true },
+  relink: { danger: true },
+  takeover: { danger: false },
+} as const satisfies Record<WaAction, { danger: boolean }>;
 
 const LINK_ILLUSTRATION = '/illustrations/link-whatsapp.png';
 
@@ -58,10 +39,11 @@ export function WhatsAppPage() {
   const wa = useWaStatus();
   const action = useWaAction();
   const [pending, setPending] = useState<WaAction | null>(null);
+  const { t } = useTranslation('admin');
 
   if (wa.isPending)
     return (
-      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('ui.loading')}>
         <Skeleton className="h-7 w-40" />
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -70,20 +52,22 @@ export function WhatsAppPage() {
   if (wa.isError) return <ErrorState error={wa.error} onRetry={() => void wa.refetch()} />;
 
   const s = wa.data;
-  const label = WA_STATE_LABEL[s.state] ?? s.state;
+  // Guard against a state added on the server before the web catalog knows it.
+  const labelKey: (typeof WA_STATE_LABEL_KEY)[WaState] | undefined = WA_STATE_LABEL_KEY[s.state];
+  const label = labelKey ? t(labelKey) : s.state;
   const unlinked = s.state === 'logged_out' || s.state === 'blocked';
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="WhatsApp" description="The WhatsApp number linked to this team inbox." />
+      <PageHeader title={t('nav.whatsapp')} description={t('whatsapp.description')} />
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>Connection</CardTitle>
+          <CardTitle>{t('whatsapp.connection')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted-foreground">Status</span>
+            <span className="text-sm text-muted-foreground">{t('whatsapp.status')}</span>
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'connecting'}
@@ -97,12 +81,12 @@ export function WhatsAppPage() {
           {s.me && (
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-muted-foreground">Linked number</dt>
+                <dt className="text-muted-foreground">{t('whatsapp.linkedNumber')}</dt>
                 <dd className="font-medium">{formatPhone(s.me.jid)}</dd>
               </div>
               {s.me.name && (
                 <div>
-                  <dt className="text-muted-foreground">Name</dt>
+                  <dt className="text-muted-foreground">{t('whatsapp.name')}</dt>
                   <dd className="font-medium">{s.me.name}</dd>
                 </div>
               )}
@@ -110,21 +94,19 @@ export function WhatsAppPage() {
           )}
           {s.lastError && s.state !== 'open' && <Banner tone="warning">{s.lastError}</Banner>}
           {s.state === 'replaced' && (
-            <Banner tone="danger" title="Session opened elsewhere">
-              This number was connected from another place. Use “Take over” to reconnect here.
+            <Banner tone="danger" title={t('whatsapp.replacedTitle')}>
+              {t('whatsapp.replacedBody')}
             </Banner>
           )}
-          {unlinked && <Banner tone="danger">Link the number again with “Re-link”.</Banner>}
+          {unlinked && <Banner tone="danger">{t('whatsapp.unlinkedBody')}</Banner>}
         </CardContent>
       </Card>
 
       {s.state === 'qr' && (
         <Card className="gap-4">
           <CardHeader>
-            <CardTitle>Scan to link</CardTitle>
-            <CardDescription>
-              On the phone: WhatsApp → Settings → Linked devices → Link a device.
-            </CardDescription>
+            <CardTitle>{t('whatsapp.scanTitle')}</CardTitle>
+            <CardDescription>{t('whatsapp.scanHint')}</CardDescription>
           </CardHeader>
           <CardContent>
             {s.qr ? (
@@ -137,15 +119,15 @@ export function WhatsAppPage() {
                     bgColor="transparent"
                     fgColor="currentColor"
                     className="h-auto w-full max-w-64 text-foreground dark:text-background"
-                    aria-label="WhatsApp link QR code"
+                    aria-label={t('whatsapp.qrLabel')}
                   />
                 </div>
               </div>
             ) : (
               <EmptyState
                 illustration={LINK_ILLUSTRATION}
-                title="Waiting for QR code"
-                description="A code appears here in a few seconds."
+                title={t('whatsapp.waitingQrTitle')}
+                description={t('whatsapp.waitingQrBody')}
               />
             )}
           </CardContent>
@@ -155,8 +137,8 @@ export function WhatsAppPage() {
       {(s.state === 'qr' || s.state === 'connecting') && (
         <Card className="gap-4">
           <CardHeader>
-            <CardTitle>Or link with a phone number</CardTitle>
-            <CardDescription>Get an 8-character code instead of scanning the QR.</CardDescription>
+            <CardTitle>{t('whatsapp.phoneTitle')}</CardTitle>
+            <CardDescription>{t('whatsapp.phoneHint')}</CardDescription>
           </CardHeader>
           <CardContent>
             <PhoneLink />
@@ -168,8 +150,8 @@ export function WhatsAppPage() {
         <Card>
           <EmptyState
             illustration={LINK_ILLUSTRATION}
-            title="Link WhatsApp"
-            description="Re-link to show a new QR code, then scan it from the phone."
+            title={t('whatsapp.linkTitle')}
+            description={t('whatsapp.linkBody')}
             action={
               <Button
                 size="touch"
@@ -179,7 +161,7 @@ export function WhatsAppPage() {
                   setPending('relink');
                 }}
               >
-                Re-link
+                {t('whatsapp.actions.relink.label')}
               </Button>
             }
           />
@@ -188,11 +170,8 @@ export function WhatsAppPage() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>Actions</CardTitle>
-          <CardDescription>
-            Log out disconnects this inbox. Re-link starts a fresh pairing. Take over reconnects a
-            session opened elsewhere.
-          </CardDescription>
+          <CardTitle>{t('whatsapp.actionsTitle')}</CardTitle>
+          <CardDescription>{t('whatsapp.actionsHint')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -213,7 +192,7 @@ export function WhatsAppPage() {
                   setPending(a);
                 }}
               >
-                {ACTIONS[a].label}
+                {t(`whatsapp.actions.${a}.label`)}
               </Button>
             ))}
           </div>
@@ -223,22 +202,22 @@ export function WhatsAppPage() {
       {pending && (
         <ConfirmDialog
           open
-          title={ACTIONS[pending].title}
-          confirmLabel={ACTIONS[pending].label}
+          title={t(`whatsapp.actions.${pending}.title`)}
+          confirmLabel={t(`whatsapp.actions.${pending}.label`)}
           danger={ACTIONS[pending].danger}
           loading={action.isPending}
           error={action.error ?? undefined}
           onConfirm={() =>
             action.mutate(pending, {
               onSuccess: () => {
-                toast.success(ACTIONS[pending].done);
+                toast.success(t(`whatsapp.actions.${pending}.done`));
                 setPending(null);
               },
             })
           }
           onClose={() => setPending(null)}
         >
-          <p>{ACTIONS[pending].body}</p>
+          <p>{t(`whatsapp.actions.${pending}.body`)}</p>
         </ConfirmDialog>
       )}
     </div>

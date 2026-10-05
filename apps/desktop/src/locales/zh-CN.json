@@ -1,0 +1,188 @@
+{
+  "tray": {
+    "open": "打开",
+    "status": "状态与服务…",
+    "openCloudflare": "打开管理 → Cloudflare",
+    "resetAdmin": "重置管理员密码…",
+    "quit": "退出"
+  },
+  "mode": {
+    "client": "后台服务 — 已连接",
+    "standalone": "独立运行 — {{state}}",
+    "error": "服务器未运行",
+    "starting": "正在启动…"
+  },
+  "serverState": {
+    "starting": "正在启动",
+    "running": "运行中",
+    "crashed": "已崩溃",
+    "stopped": "已停止"
+  },
+  "window": {
+    "statusTitle": "{{title}} — 状态与服务"
+  },
+  "page": {
+    "startingTitle": "正在启动 EzyChat Lite…",
+    "startingBody": "正在启动本地服务器。",
+    "notStartedTitle": "服务器未能启动",
+    "notStartedBody": "端口 {{port}} 可能已被其他程序占用。请从系统托盘打开“状态与服务…”查看日志。",
+    "serviceNotAnsweringTitle": "后台服务没有响应",
+    "serviceNotRunningTitle": "后台服务未运行",
+    "serviceDownBody": "EzyChat Lite 以后台服务的方式在此电脑上运行。请从系统托盘打开“状态与服务…”来启动服务或查看日志。",
+    "connectingTitle": "正在连接后台服务…",
+    "connectingBody": "正在等待 EzyChat Lite 服务启动。",
+    "serviceStoppedTitle": "服务已停止",
+    "serviceStoppedBody": "请在“状态与服务…”中重新启动服务。"
+  },
+  "updates": {
+    "trayRestart": "重启并更新到 v{{version}}…",
+    "trayDownloading": "正在下载更新…",
+    "trayAvailable": "有可用更新：v{{version}}…",
+    "trayCheck": "检查更新…",
+    "installUnsupported": "自动安装仅适用于已安装的 Windows 和 Mac 应用。",
+    "hostOnly": "只有主机电脑可以安装此更新。",
+    "waitForOperation": "请等待当前应用操作完成后再更新。",
+    "preparing": "正在准备更新…",
+    "installFailed": "无法安装更新",
+    "hostGone": "主机应用已不可用，无法更新。",
+    "closedBeforeConfirm": "应用在确认安装前已关闭。",
+    "approvePrompt": "正在准备安全更新。请批准操作系统提示以继续。",
+    "restarting": "正在重启以安装更新…"
+  },
+  "check": {
+    "tooMuch": "GitHub 返回的更新信息过多。请稍后再试。",
+    "noInfo": "GitHub 没有返回更新信息。",
+    "invalid": "GitHub 返回的更新信息无效。请稍后再试。",
+    "invalidVersion": "此版本的版本号无效。请查看项目的发布页面。",
+    "timeout": "检查更新超时。请稍后再试。",
+    "rateLimited": "GitHub 正在限制更新检查。请稍后再试。",
+    "http": "GitHub 无法检查更新。请稍后再试。",
+    "pagination": "发布历史过多，无法确认最新版本。请查看项目的发布页面。",
+    "network": "无法连接 GitHub。请检查网络连接后重试。"
+  },
+  "reset": {
+    "busyConfirm": "正在确认重置密码…",
+    "busy": "正在重置管理员密码…",
+    "failed": "无法重置管理员密码",
+    "confirmTitle": "重置管理员密码",
+    "confirmMessage": "要重置第一个管理员账号的密码吗？",
+    "confirmDetail": "系统将生成新的临时密码，并注销该管理员的所有会话。",
+    "confirmButton": "重置密码",
+    "notManaged": "正在运行的服务器不由此应用管理；请在服务器运行的地方进行重置。",
+    "exitCode": "重置失败（退出代码 {{code}}）。",
+    "doneTitle": "管理员密码已重置",
+    "doneMessage": "{{user}} 的新密码：",
+    "doneDetail": "{{password}}\n\n登录后系统会要求你更改密码。",
+    "copy": "复制密码"
+  },
+  "service": {
+    "enableBusyConfirm": "正在确认安装服务…",
+    "enableFailed": "无法启用后台服务",
+    "enableTitle": "作为后台服务运行",
+    "enableMessage": "要将 EzyChat Lite 作为后台服务运行吗？",
+    "enableDetail": "服务器将在电脑开机时启动，即使没有人登录。你的数据将移至全机共用的文件夹：\n{{folder}}\n\n系统会要求你提供管理员权限。",
+    "enableButton": "启用服务",
+    "installing": "正在安装服务…",
+    "waiting": "正在等待服务启动…",
+    "noAnswer": "服务已安装，但在端口 {{port}} 上没有响应。",
+    "disableBusyConfirm": "正在确认移除服务…",
+    "disableFailed": "无法移除后台服务",
+    "disableTitle": "停止后台服务",
+    "disableMessage": "要移除后台服务，改回在此应用内运行吗？",
+    "disableDetail": "你的数据将移回你的用户配置文件夹。系统会要求你提供管理员权限。",
+    "disableButton": "移除服务",
+    "removing": "正在移除服务…",
+    "startingLocal": "正在启动本地服务器…",
+    "starting": "正在启动服务…",
+    "startFailed": "无法启动服务",
+    "stopping": "正在停止服务…",
+    "stopFailed": "无法停止服务"
+  },
+  "common": {
+    "cancel": "取消",
+    "close": "关闭",
+    "trayPrefFailed": "无法保存托盘设置。"
+  },
+  "status": {
+    "documentTitle": "EzyChat Lite — 状态与服务",
+    "updatesTitle": "应用更新",
+    "checkingInitial": "正在检查更新…",
+    "downloadAria": "更新下载",
+    "checkButton": "检查更新",
+    "checkingButton": "正在检查…",
+    "downloadButton": "下载更新",
+    "downloadVersion": "下载 v{{version}}",
+    "installButton": "重启并更新",
+    "cancelButton": "取消下载",
+    "releaseButton": "发布详情",
+    "updatesHelp": "更新由这台主机电脑管理。请在团队可以短暂暂停工作时安装新版本。你的账号、聊天和设置都会保留。",
+    "server": "服务器",
+    "mode": "模式",
+    "state": "状态",
+    "address": "地址",
+    "dataFolder": "数据文件夹",
+    "appVersion": "应用版本",
+    "serverVersion": "服务器版本",
+    "serverMode": "服务器模式",
+    "openInbox": "打开收件箱",
+    "openLogs": "打开日志文件夹",
+    "resetAdmin": "重置管理员密码…",
+    "desktopApp": "桌面应用",
+    "keepInTray": "将 EzyChat Lite 保留在系统托盘",
+    "backgroundService": "后台服务",
+    "serviceStatus": "状态：",
+    "serviceNote": "作为服务运行时，服务器会随电脑启动，即使没有人登录，也会保持 WhatsApp 连接和隧道运行。需要管理员权限。",
+    "enableService": "启用服务",
+    "start": "启动",
+    "stop": "停止",
+    "removeService": "移除服务",
+    "recentLog": "最近日志",
+    "notAnswering": "没有响应",
+    "modeLabel": {
+      "starting": "正在启动…",
+      "standalone": "独立运行（在此应用内）",
+      "client": "已连接到后台服务",
+      "error": "未运行"
+    },
+    "serverModeLabel": {
+      "standalone": "独立运行",
+      "service": "后台服务",
+      "dev": "开发"
+    },
+    "serverState": {
+      "starting": "正在启动",
+      "running": "运行中",
+      "crashed": "已崩溃",
+      "stopped": "已停止",
+      "external": "运行中（服务）"
+    },
+    "svcLabel": {
+      "notInstalled": "未安装",
+      "stopped": "已停止",
+      "running": "运行中"
+    },
+    "trayNote": {
+      "keep": "关闭窗口后，EzyChat Lite 会保留在系统托盘，方便快速访问和接收桌面通知。请从托盘菜单退出。",
+      "quit": "关闭窗口会退出应用。后台服务会继续运行收件箱。",
+      "host": "此应用正在运行服务器，因此在收件箱运行期间会一直保留在系统托盘。"
+    },
+    "updates": {
+      "installed": "已安装：v{{version}}。",
+      "checking": "正在从 GitHub 检查更新…",
+      "available": "v{{version}} 现已推出。",
+      "availablePreview": "v{{version}} 现已推出（预览版）。",
+      "current": "已是最新版本 — v{{version}}。",
+      "checkFailed": "无法检查更新。请稍后再试。",
+      "downloading": "正在下载更新… {{percent}}%。收件箱可照常使用。",
+      "ready": "v{{version}} 已下载并通过验证，可以更新。",
+      "installing": "正在准备重启并更新… 请批准系统提示以继续。",
+      "lastChecked": "上次检查：{{time}}",
+      "autoCheck": "此应用运行时会自动从 GitHub 检查更新。",
+      "noInstaller": "此版本没有适用于这台电脑的安装程序。请打开发布详情查看可用的下载。",
+      "managedHelp": "请先下载，然后在团队可以短暂暂停工作时选择“重启并更新”。应用及已安装的服务会自动重启。你的账号、聊天和设置都会保留。",
+      "unverifiable": "此版本无法在这里通过安装验证。请打开发布详情获取手动安装程序。",
+      "manualHelp": "请下载安装程序，并在安装前退出此应用。安装前先停止 Windows 服务，安装后再启动。在 Mac 上，请在安装前移除服务，安装后重新启用，以刷新受保护的应用副本。你的账号、聊天和设置都会保留。",
+      "openFailed": "无法打开更新。"
+    }
+  }
+}

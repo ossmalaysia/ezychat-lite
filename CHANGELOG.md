@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Language setting: English, Bahasa Melayu and 简体中文 (Simplified Chinese). Members choose a
+  language from the Account menu and it follows them to every device; the sign-in and setup
+  screens have a language picker and otherwise follow the browser language. Dates, numbers,
+  error messages and push notifications use the chosen language; the desktop tray, dialogs and
+  status window follow the operating-system language. Malay and Chinese translations are an
+  initial draft pending native-speaker review.
+
 ## [0.1.19] - 2026-10-05
 
 ### Added

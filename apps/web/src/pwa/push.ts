@@ -3,6 +3,7 @@
 import type { PushSubscribeBody } from '@wa-team-inbox/shared';
 import { api } from '../api/client';
 import { reportClientError } from '@/lib/error-reporter';
+import { i18n } from '@/i18n';
 import { isDesktopNotifications, setDesktopNotifications } from './desktop-notifications';
 
 export function isPushSupported(): boolean {
@@ -60,7 +61,7 @@ export async function fetchVapidKey(): Promise<string> {
     const k = d.publicKey ?? d.key ?? d.vapidPublicKey;
     if (typeof k === 'string') return k;
   }
-  throw new Error('Server did not return a push key');
+  throw new Error(i18n.t('inbox:push.errors.noKey'));
 }
 
 /** Current service worker registration (waits for it to become ready, max `timeoutMs`). */
@@ -99,12 +100,12 @@ export async function subscribePush(): Promise<PushSubscription | null> {
   }
   let stage = 'permission';
   try {
-    if (!isPushSupported()) throw new Error('This browser does not support push notifications.');
+    if (!isPushSupported()) throw new Error(i18n.t('inbox:push.errors.browserUnsupported'));
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+    if (permission !== 'granted') throw new Error(i18n.t('inbox:push.errors.permissionDenied'));
     stage = 'service-worker';
     const reg = await getSWRegistration();
-    if (!reg) throw new Error('Service worker is not active yet. Reload the page and try again.');
+    if (!reg) throw new Error(i18n.t('inbox:push.errors.serviceWorker'));
     stage = 'vapid-key';
     const vapid = await fetchVapidKey();
     stage = 'subscription';

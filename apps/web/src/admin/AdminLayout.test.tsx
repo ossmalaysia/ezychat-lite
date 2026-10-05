@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AdminLayout, ADMIN_NAV } from './AdminLayout';
+import { AdminLayout, ADMIN_NAV as NAV_ITEMS } from './AdminLayout';
+import { i18n } from '@/i18n';
 import { reportClientError } from '@/lib/error-reporter';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
 import { toast } from 'sonner';
@@ -22,6 +23,8 @@ vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
 vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Cloudflare</h1> }));
 vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
+
+const ADMIN_NAV = NAV_ITEMS.map((n) => ({ ...n, label: i18n.t(`admin:${n.labelKey}`) }));
 
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;

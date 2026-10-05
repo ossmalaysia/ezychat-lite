@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Bug, Info, KeyRound, LogOut, Monitor, Moon, Settings, Share2, Sun } from 'lucide-react';
+import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,23 +20,17 @@ import { AboutDialog } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { ShareAppAction } from '@/components/app/ShareAppAction';
 import { GITHUB_ISSUES_URL } from '@/lib/links';
+import { initials } from '@/lib/format';
 import { useAppVersion } from '@/lib/version';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
+import { useChangeLocale } from '@/i18n/use-change-locale';
 import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from './AuthProvider';
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
-  return (first + last).toUpperCase();
-}
-
 /**
- * Account menu: display name, push-notification toggle, Admin link (admins only),
- * change password and sign out. Accessible names ("Account menu", "Admin settings",
- * "Sign out") are relied on by e2e tests.
+ * Account menu: display name, appearance, language, push-notification toggle, Admin link
+ * (admins only), change password and sign out. The English accessible names ("Account menu",
+ * "Admin settings", "Sign out") are relied on by e2e tests, which run in English.
  */
 export function UserMenu({
   className,
@@ -46,6 +42,8 @@ export function UserMenu({
   const { user, isAdmin, logout } = useAuth();
   const version = useAppVersion();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
+  const { locale, changeLocale } = useChangeLocale();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   if (!user) return null;
@@ -57,7 +55,7 @@ export function UserMenu({
           <Button
             variant="ghost"
             size="icon-touch"
-            aria-label="Account menu"
+            aria-label={t('account.menu')}
             className={cn('rounded-full', className)}
           >
             <Avatar className="size-8">
@@ -71,11 +69,11 @@ export function UserMenu({
           <DropdownMenuLabel className="font-normal">
             <p className="truncate text-sm font-semibold">{user.displayName}</p>
             <p className="truncate text-xs text-muted-foreground">
-              @{user.username} · {user.role}
+              @{user.username} · {t(`roles.${user.role}`)}
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel id="account-appearance-label">Appearance</DropdownMenuLabel>
+          <DropdownMenuLabel id="account-appearance-label">{t('theme.label')}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             aria-labelledby="account-appearance-label"
             value={theme}
@@ -87,10 +85,23 @@ export function UserMenu({
               return (
                 <DropdownMenuRadioItem key={option.value} value={option.value} className="min-h-11">
                   <Icon aria-hidden="true" />
-                  {option.label}
+                  {t(option.labelKey)}
                 </DropdownMenuRadioItem>
               );
             })}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel id="account-language-label">{t('language.label')}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            aria-labelledby="account-language-label"
+            value={locale}
+            onValueChange={(v) => isLocale(v) && changeLocale(v)}
+          >
+            {SUPPORTED_LOCALES.map((l) => (
+              <DropdownMenuRadioItem key={l.code} value={l.code} lang={l.code} className="min-h-11">
+                {l.nativeName}
+              </DropdownMenuRadioItem>
+            ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
           <PushToggle compact className="px-2" />
@@ -99,31 +110,31 @@ export function UserMenu({
             <DropdownMenuItem asChild className="min-h-11">
               <Link to="/admin">
                 <Settings aria-hidden="true" />
-                Admin settings
+                {t('account.adminSettings')}
               </Link>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild className="min-h-11">
             <Link to="/change-password">
               <KeyRound aria-hidden="true" />
-              Change password
+              {t('account.changePassword')}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="min-h-11" onSelect={() => setShareOpen(true)}>
             <Share2 aria-hidden="true" />
-            Share this app
+            {t('account.share')}
           </DropdownMenuItem>
           <FeatureRequestAction placement="menu" />
           <DropdownMenuItem asChild className="min-h-11">
             <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener noreferrer">
               <Bug aria-hidden="true" />
-              Report an issue
+              {t('account.reportIssue')}
             </a>
           </DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => setAboutOpen(true)}>
             <Info aria-hidden="true" />
-            About EzyChat Lite
+            {t('account.about', { appName: t('appName') })}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -134,7 +145,7 @@ export function UserMenu({
             }}
           >
             <LogOut aria-hidden="true" />
-            Sign out
+            {t('account.signOut')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

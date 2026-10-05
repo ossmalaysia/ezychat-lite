@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ChatStatus, MessageType, Role } from './enums.js';
+import { LocaleSchema } from './i18n/locales.js';
 import {
   ChatEventSchema,
   ChatSchema,
@@ -34,6 +35,10 @@ export type ChangePasswordBody = z.infer<typeof ChangePasswordBody>;
 
 export const MeResponse = UserSchema;
 export type MeResponse = z.infer<typeof MeResponse>;
+
+/** Self-service preferences of the signed-in user. */
+export const PatchMeBody = z.strictObject({ locale: LocaleSchema.nullable() });
+export type PatchMeBody = z.infer<typeof PatchMeBody>;
 
 export const ChatListQuery = z.object({
   status: ChatStatus.optional(),

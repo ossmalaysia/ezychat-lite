@@ -1,6 +1,7 @@
 import type React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ArrowRight, CircleCheck, Loader2, QrCode, Smartphone } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PhoneLink } from '../wa/PhoneLink';
 import { errorMessage } from '../api/client';
@@ -16,26 +17,30 @@ export interface WaLinkStepProps {
   onSkip?: () => void;
 }
 
-const STATE_LABEL: Record<string, string> = {
-  open: 'Connected',
-  qr: 'Waiting for scan',
-  connecting: 'Connecting…',
-  starting: 'Starting…',
-  logged_out: 'Logged out',
-  replaced: 'Opened elsewhere',
-  blocked: 'Blocked',
-  disconnected: 'Disconnected',
-};
+const KNOWN_STATES = [
+  'open',
+  'qr',
+  'connecting',
+  'starting',
+  'logged_out',
+  'replaced',
+  'blocked',
+  'disconnected',
+] as const;
+type KnownState = (typeof KNOWN_STATES)[number];
+const isKnownState = (state: string): state is KnownState =>
+  (KNOWN_STATES as readonly string[]).includes(state);
 
 /** Shows the pairing QR (from wa status) until the number is linked. */
 export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
+  const { t } = useTranslation(['auth', 'common']);
   const wa = useWaStatus();
   const action = useWaAction();
   const s = wa.data;
 
   let body: React.ReactNode;
   if (wa.isPending) {
-    body = <Waiting text="Checking WhatsApp connection…" />;
+    body = <Waiting text={t('setup.wa.checking')} />;
   } else if (wa.error) {
     body = <Banner tone="danger">{errorMessage(wa.error)}</Banner>;
   } else if (s?.state === 'open') {
@@ -46,11 +51,13 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
       >
         <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
         <div className="min-w-0">
-          <p className="font-medium">WhatsApp linked</p>
+          <p className="font-medium">{t('setup.wa.linked')}</p>
           <p className="break-words text-muted-foreground">
             {s.me
-              ? `Connected as ${s.me.name ? `${s.me.name} (${formatJid(s.me.jid)})` : formatJid(s.me.jid)}.`
-              : 'Connected.'}
+              ? s.me.name
+                ? t('setup.wa.connectedAsNamed', { name: s.me.name, number: formatJid(s.me.jid) })
+                : t('setup.wa.connectedAs', { number: formatJid(s.me.jid) })
+              : t('setup.wa.connected')}
           </p>
         </div>
       </div>
@@ -65,13 +72,11 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
               size={240}
               marginSize={1}
               className="h-auto w-[min(240px,70vw)] rounded-md"
-              title="Pairing QR code"
+              title={t('setup.wa.qrTitle')}
             />
           </CardContent>
         </Card>
-        <p className="text-center text-xs text-muted-foreground">
-          The code refreshes automatically.
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('setup.wa.qrRefresh')}</p>
       </div>
     );
   } else if (
@@ -82,8 +87,8 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
   ) {
     body = (
       <div className="flex flex-col gap-3">
-        <Banner tone="warning" title={stateTitle(s.state)}>
-          {s.lastError ?? 'Generate a new QR code to link this number.'}
+        <Banner tone="warning" title={t(`setup.wa.stateTitles.${s.state}`)}>
+          {s.lastError ?? t('setup.wa.relinkHint')}
         </Banner>
         {action.error && <Banner tone="danger">{errorMessage(action.error)}</Banner>}
         <Button
@@ -94,12 +99,12 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
           onClick={() => action.mutate('relink')}
         >
           {action.isPending ? <ButtonSpinner /> : <QrCode aria-hidden="true" />}
-          Show a new QR code
+          {t('setup.wa.showNewQr')}
         </Button>
       </div>
     );
   } else {
-    body = <Waiting text="Waiting for a QR code…" />;
+    body = <Waiting text={t('setup.wa.waitingQr')} />;
   }
 
   const linked = s?.state === 'open';
@@ -110,11 +115,11 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="qr" className="min-h-9">
             <QrCode aria-hidden="true" />
-            QR code
+            {t('setup.wa.tabQr')}
           </TabsTrigger>
           <TabsTrigger value="phone" className="min-h-9">
             <Smartphone aria-hidden="true" />
-            Phone number
+            {t('setup.wa.tabPhone')}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="qr">{body}</TabsContent>
@@ -129,59 +134,48 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
     <div className="flex flex-col gap-5">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Link your WhatsApp number</h2>
+          <h2 className="text-base font-semibold">{t('setup.wa.title')}</h2>
           {s?.state && (
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'qr' || s.state === 'connecting'}
               label={
-                <span className="text-muted-foreground">{STATE_LABEL[s.state] ?? s.state}</span>
+                <span className="text-muted-foreground">
+                  {isKnownState(s.state) ? t(`setup.wa.states.${s.state}`) : s.state}
+                </span>
               }
             />
           )}
         </div>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Open WhatsApp on the phone with the business number.</li>
+          <li>{t('setup.wa.step1')}</li>
           <li>
-            Go to{' '}
-            <strong className="text-foreground">Settings → Linked devices → Link a device</strong>.
+            <Trans
+              t={t}
+              i18nKey="setup.wa.step2"
+              components={{ b: <strong className="text-foreground" /> }}
+            />
           </li>
-          <li>Scan this QR code — or use the Phone number tab to link with a code instead.</li>
+          <li>{t('setup.wa.step3')}</li>
         </ol>
       </div>
       {body}
-      <p className="text-xs text-muted-foreground">
-        EzyChat Lite is not affiliated with WhatsApp or Meta. Unofficial clients can get numbers
-        banned — avoid bulk messaging.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('setup.wa.disclaimer')}</p>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {onSkip && !linked && (
           <Button variant="ghost" size="touch" onClick={onSkip}>
-            Skip for now
+            {t('setup.wa.skip')}
           </Button>
         )}
         {onContinue && (
           <Button size="touch" onClick={onContinue} disabled={!linked}>
-            Continue
+            {t('common:actions.continue')}
             <ArrowRight aria-hidden="true" />
           </Button>
         )}
       </div>
     </div>
   );
-}
-
-function stateTitle(state: string): string {
-  switch (state) {
-    case 'logged_out':
-      return 'WhatsApp was logged out';
-    case 'replaced':
-      return 'Session opened elsewhere';
-    case 'blocked':
-      return 'WhatsApp refused the connection';
-    default:
-      return 'WhatsApp is disconnected';
-  }
 }
 
 function Waiting({ text }: { text: string }) {

@@ -1,5 +1,6 @@
 import { NotificationPayload } from '@wa-team-inbox/shared';
 import { reportClientError } from '@/lib/error-reporter';
+import { i18n } from '@/i18n';
 
 interface DesktopNotifications {
   isSupported(): Promise<boolean>;
@@ -32,9 +33,7 @@ export async function setDesktopNotifications(enabledNext: boolean): Promise<voi
   const bridge = window.watiNotifications;
   if (!bridge) return;
   if (enabledNext && !(await bridge.isSupported())) {
-    throw new Error(
-      'Desktop notifications are unavailable. Check your operating system notification settings.',
-    );
+    throw new Error(i18n.t('inbox:push.errors.desktopUnavailable'));
   }
   // Persist before showing "on" so reopening the menu reflects the same state.
   try {

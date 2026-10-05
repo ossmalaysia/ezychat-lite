@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ApiError, api } from './client';
+import { activateLocale } from '@/i18n';
+import { ApiError, api, errorMessage } from './client';
 
 function mockFetch(status: number, body: unknown) {
   const fn = vi.fn(
@@ -73,5 +74,31 @@ describe('api()', () => {
       vi.fn(async () => new Response(null, { status: 204 })),
     );
     await expect(api('/auth/logout', { method: 'POST' })).resolves.toBeUndefined();
+  });
+});
+
+describe('errorMessage (translated)', () => {
+  afterEach(async () => {
+    await activateLocale('en');
+  });
+
+  it('translates known server messages and generic codes, keeps specific ones', async () => {
+    await activateLocale('ms');
+    expect(errorMessage(new ApiError(401, 'unauthorized', 'Invalid username or password'))).toBe(
+      'Nama pengguna atau kata laluan tidak sah',
+    );
+    expect(errorMessage(new ApiError(0, 'network', 'Cannot reach the server.'))).toBe(
+      'Tidak dapat menghubungi pelayan. Semak sambungan anda.',
+    );
+    expect(errorMessage(new ApiError(409, 'conflict', 'Shortcut "/hi" already exists'))).toBe(
+      'Shortcut "/hi" already exists',
+    );
+    await activateLocale('en');
+    expect(errorMessage(new ApiError(429, 'rate_limited', 'Too many attempts, retry in 5s'))).toBe(
+      'Too many attempts. Try again in 5 s.',
+    );
+    expect(errorMessage(new ApiError(429, 'rate_limited', ''))).toBe(
+      'Too many attempts. Please wait and try again.',
+    );
   });
 });

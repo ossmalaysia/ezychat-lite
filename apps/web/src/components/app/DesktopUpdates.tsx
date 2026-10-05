@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, ExternalLink, RefreshCw, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthProvider';
 import { useDesktopUpdates } from '@/lib/desktop-updates';
+import { formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Banner, ResponsiveDialog } from './index';
 
 export function DesktopUpdatePanel() {
+  const { t } = useTranslation('app');
   const { state, error, check, open, install, cancelDownload } = useDesktopUpdates();
   if (!state?.isHost) return null;
   const checking = state.status === 'checking';
@@ -21,21 +24,26 @@ export function DesktopUpdatePanel() {
     ? Math.min(100, Math.max(0, Math.round((transfer.downloadedBytes / transfer.totalBytes) * 100)))
     : 0;
   return (
-    <section aria-label="App updates" className="w-full space-y-3 rounded-lg border p-3 text-left">
+    <section
+      aria-label={t('updates.title')}
+      className="w-full space-y-3 rounded-lg border p-3 text-left"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">App updates</h2>
-        <span className="text-xs text-muted-foreground">Installed {state.currentVersion}</span>
+        <h2 className="text-base font-semibold">{t('updates.title')}</h2>
+        <span className="text-xs text-muted-foreground">
+          {t('updates.installed', { version: state.currentVersion })}
+        </span>
       </div>
       <p role="status" className="text-sm text-muted-foreground">
         {checking
-          ? 'Checking GitHub…'
+          ? t('updates.checkingGitHub')
           : state.status === 'current'
-            ? 'No newer published release is available.'
+            ? t('updates.current')
             : release
-              ? `Version ${release.version} is available.`
+              ? t('updates.available', { version: release.version })
               : state.status === 'error'
-                ? 'Update check could not finish.'
-                : 'This computer checks GitHub for new releases automatically.'}
+                ? t('updates.checkFailed')
+                : t('updates.automatic')}
       </p>
       {(error || transfer?.error || state.error) && (
         <Banner tone="warning">{error ?? transfer?.error ?? state.error}</Banner>
@@ -49,16 +57,16 @@ export function DesktopUpdatePanel() {
         <div className="space-y-2" aria-live="polite">
           <p className="text-sm font-medium">
             {downloading
-              ? `Downloading update… ${percentage}%`
+              ? t('updates.downloading', { percent: percentage })
               : ready
-                ? `Version ${transfer.version} is downloaded and verified.`
-                : 'Preparing to restart and update…'}
+                ? t('updates.downloaded', { version: transfer.version })
+                : t('updates.preparing')}
           </p>
           {downloading && (
             <>
               <div
                 role="progressbar"
-                aria-label="Update download"
+                aria-label={t('updates.progressLabel')}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={percentage}
@@ -69,9 +77,7 @@ export function DesktopUpdatePanel() {
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Your inbox keeps working while this downloads.
-              </p>
+              <p className="text-xs text-muted-foreground">{t('updates.keepsWorking')}</p>
             </>
           )}
         </div>
@@ -80,7 +86,7 @@ export function DesktopUpdatePanel() {
         <>
           <div className="flex flex-wrap items-center gap-2">
             <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{release.name}</p>
-            {release.prerelease && <Badge variant="secondary">Preview release</Badge>}
+            {release.prerelease && <Badge variant="secondary">{t('updates.preview')}</Badge>}
           </div>
           {release.notes && (
             <div className="max-h-44 overflow-y-auto rounded-md bg-muted/50 p-3 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
@@ -89,29 +95,24 @@ export function DesktopUpdatePanel() {
           )}
           <p className="text-sm text-muted-foreground">
             {managed && release.downloadUrl
-              ? 'Download the update first. When it is ready, choose Restart and update and approve the system prompt. The app and any installed background service will restart automatically. Your accounts, chats and settings are preserved.'
+              ? t('updates.howManaged')
               : release.downloadUrl
-                ? 'Download the installer, quit this app from the tray menu, then install the new version. Your accounts, chats and settings stay on this computer.'
-                : 'A compatible installer is not available for this computer yet. See the release on GitHub for details.'}
+                ? t('updates.howManual')
+                : t('updates.noInstaller')}
           </p>
           <p className="text-xs text-muted-foreground">
-            Updating briefly interrupts team access. Choose a quiet time.
-            {!managed &&
-              ' For a Windows service, stop it before installing and start it afterward. On Mac, remove the service before installing and enable it afterward to refresh its protected app copy.'}
+            {managed ? t('updates.interrupt') : t('updates.interruptManual')}
           </p>
           {state.installUnavailableReason && (
             <p className="text-sm text-muted-foreground">{state.installUnavailableReason}</p>
           )}
           {managed && !verifiedMetadata && release.downloadUrl && (
-            <Banner tone="info">
-              This release cannot be verified for installation here. Open the release on GitHub for
-              a manual installer.
-            </Banner>
+            <Banner tone="info">{t('updates.unverified')}</Banner>
           )}
           <div className="flex flex-wrap gap-2">
             {ready && managed ? (
               <Button size="touch" onClick={() => void install()}>
-                <RefreshCw aria-hidden /> Restart and update
+                <RefreshCw aria-hidden /> {t('updates.restart')}
               </Button>
             ) : (
               release.downloadUrl && (
@@ -120,13 +121,13 @@ export function DesktopUpdatePanel() {
                   disabled={downloading || installing || (managed && !verifiedMetadata)}
                   onClick={() => void open('download')}
                 >
-                  <Download aria-hidden /> Download {release.version}
+                  <Download aria-hidden /> {t('updates.download', { version: release.version })}
                 </Button>
               )
             )}
             {downloading && (
               <Button variant="outline" size="touch" onClick={() => void cancelDownload()}>
-                Cancel download
+                {t('updates.cancelDownload')}
               </Button>
             )}
             <Button
@@ -135,7 +136,7 @@ export function DesktopUpdatePanel() {
               disabled={installing}
               onClick={() => void open('release')}
             >
-              Release on GitHub <ExternalLink aria-hidden />
+              {t('updates.releaseOnGitHub')} <ExternalLink aria-hidden />
             </Button>
           </div>
         </>
@@ -147,11 +148,11 @@ export function DesktopUpdatePanel() {
         onClick={() => void check()}
       >
         <RefreshCw aria-hidden className={checking ? 'animate-spin' : undefined} />
-        {checking ? 'Checking…' : 'Check for updates'}
+        {checking ? t('updates.checking') : t('updates.check')}
       </Button>
       {state.checkedAt && (
         <p className="text-xs text-muted-foreground">
-          Last checked {new Date(state.checkedAt).toLocaleString()}
+          {t('updates.lastChecked', { time: formatDateTime(Date.parse(state.checkedAt)) })}
         </p>
       )}
     </section>
@@ -160,6 +161,7 @@ export function DesktopUpdatePanel() {
 
 /** A suggestion, never an automatic installation or interruption of a conversation. */
 export function DesktopUpdateNotice() {
+  const { t } = useTranslation('app');
   const { user } = useAuth();
   const { state } = useDesktopUpdates();
   const shown = useRef<string | null>(null);
@@ -190,25 +192,25 @@ export function DesktopUpdateNotice() {
     <>
       {suggestion === state.release?.version && !open && (
         <aside
-          aria-label="App update available"
+          aria-label={t('updates.notice.label')}
           aria-live="polite"
           className="fixed inset-x-3 top-3 z-40 mx-auto max-w-md space-y-2 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 space-y-1">
               <p className="text-sm font-semibold [overflow-wrap:anywhere]">
-                EzyChat Lite {suggestion} is available
+                {t('updates.notice.title', { version: suggestion })}
               </p>
               <p className="text-sm text-muted-foreground">
                 {state.release?.prerelease
-                  ? 'A new preview release is ready on GitHub.'
-                  : 'A new release is ready on GitHub.'}
+                  ? t('updates.notice.preview')
+                  : t('updates.notice.release')}
               </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Dismiss update suggestion"
+              aria-label={t('updates.notice.dismiss')}
               onClick={() => setSuggestion(null)}
             >
               <X aria-hidden />
@@ -221,11 +223,11 @@ export function DesktopUpdateNotice() {
               setOpen(true);
             }}
           >
-            Review update
+            {t('updates.notice.review')}
           </Button>
         </aside>
       )}
-      <ResponsiveDialog open={open} onOpenChange={setOpen} title="Update EzyChat Lite">
+      <ResponsiveDialog open={open} onOpenChange={setOpen} title={t('updates.dialogTitle')}>
         <DesktopUpdatePanel />
       </ResponsiveDialog>
     </>

@@ -7,6 +7,8 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import {
+  type Locale,
+  type PatchMeBody,
   MeResponse,
   OpenChatCountResponse,
   ResolveAllChatsResponse,
@@ -334,6 +336,16 @@ export function useLogout() {
       qc.clear();
       qc.setQueryData(qk.me, null);
     },
+  });
+}
+
+/** Saves the signed-in user's language preference (null = follow the browser). */
+export function useSetMyLocale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (locale: Locale | null) =>
+      api('/me', { method: 'PATCH', body: { locale } satisfies PatchMeBody, schema: MeResponse }),
+    onSuccess: (user) => qc.setQueryData(qk.me, user),
   });
 }
 

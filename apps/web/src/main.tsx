@@ -9,6 +9,8 @@ import { AuthProvider } from './auth/AuthProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { installGlobalErrorReporting } from '@/lib/error-reporter';
+import { localeStore } from '@/i18n/locale-store';
+import { LocaleSync } from '@/i18n/LocaleSync';
 import './index.css';
 
 // Uncaught errors / unhandled rejections → server log (structured `mod: "web"` entries).
@@ -29,22 +31,31 @@ const queryClient = new QueryClient({
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing');
 
-createRoot(root).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <RealtimeProvider>
-            <TooltipProvider delayDuration={300}>
-              <App />
-              <Toaster position="top-center" closeButton richColors={false} />
-            </TooltipProvider>
-          </RealtimeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+const render = () =>
+  createRoot(root).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <LocaleSync />
+            <RealtimeProvider>
+              <TooltipProvider delayDuration={300}>
+                <App />
+                <Toaster position="top-center" closeButton richColors={false} />
+              </TooltipProvider>
+            </RealtimeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+
+// Load the chosen language's catalogs before the first paint so nobody sees an English flash.
+// A failed chunk load still renders (English fallback) rather than a blank page.
+localeStore
+  .ready()
+  .catch((e: unknown) => console.warn('Language load failed', e))
+  .finally(render);
 
 // PWA service-worker registration lives in src/pwa/registerSW.ts (Task 13). The glob keeps this
 // file building whether or not that module exists yet.
