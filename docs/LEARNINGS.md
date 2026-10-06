@@ -37,6 +37,8 @@ into AGENTS.md.
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
 - Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
+- Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
+  be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
 
 ## Git, GitHub and CI
 
