@@ -10,7 +10,7 @@ import {
   resample,
   VOICE_MAX_SECONDS,
 } from './audio.js';
-import { craftedNote } from '../../test/fixtures/ogg.js';
+import { craftedNote, smuggledNote } from '../../test/fixtures/ogg.js';
 
 /** 1 s, 440 Hz, mono Ogg/Opus at 48 kHz (ffmpeg libopus, 16 kbit/s voip): 2.4 KB. */
 const TONE = new Uint8Array(
@@ -32,6 +32,13 @@ describe('voice audio', () => {
     expect(oggOpusDurationSeconds(note)!).toBeGreaterThan(VOICE_MAX_SECONDS);
     await expect(decodeVoiceNote(note)).rejects.toThrow('too long or malformed');
     expect(oggOpusDurationSeconds(craftedNote(1))).toBeCloseTo(30.6 - 312 / 48_000, 2);
+  });
+
+  it('counts a fragment the next page does not continue as its own packet', async () => {
+    // 1,100 × (2.5 ms fragment + 120 ms packet) = 134.75 s; joining fragments would count 2.75 s.
+    const note = smuggledNote(1100);
+    expect(oggOpusDurationSeconds(note)).toBeCloseTo(134.75 - 312 / 48_000, 2);
+    await expect(decodeVoiceNote(note)).rejects.toThrow('too long or malformed');
   });
 
   it('rejects chained streams, more than two channels and truncated pages', () => {

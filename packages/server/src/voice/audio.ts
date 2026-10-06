@@ -19,6 +19,7 @@ export function isOgg(bytes: Uint8Array): boolean {
 
 const OPUS_HEAD = [0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64]; // "OpusHead"
 const PAGE_HEADER = 27;
+const CONTINUED = 0x01;
 const BOS = 0x02;
 
 /** Opus frame length in 48 kHz samples from a packet's TOC byte (RFC 6716 §3.1). */
@@ -53,6 +54,23 @@ export function oggOpusDurationSeconds(bytes: Uint8Array): number | null {
   let preSkip = 0;
   let samples = 0;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  /** Ends the packet being assembled; false when the stream is invalid. */
+  const finish = (): boolean => {
+    packetOpen = false;
+    if (packetIndex === 0) {
+      if (packetBytes.length < 19 || OPUS_HEAD.some((byte, k) => packetBytes[k] !== byte))
+        return false;
+      const channels = packetBytes[9]!;
+      if (channels < 1 || channels > 2) return false;
+      preSkip = packetBytes[10]! | (packetBytes[11]! << 8);
+    } else if (packetIndex > 1 && packetBytes.length > 0) {
+      const count = packetSamples(packetBytes[0]!, packetBytes[1]);
+      if (count === null) return false;
+      samples += count;
+    }
+    packetIndex++;
+    return true;
+  };
   while (offset < bytes.length) {
     if (offset + PAGE_HEADER > bytes.length || !isOgg(bytes.subarray(offset, offset + 4)))
       return null;
@@ -63,6 +81,10 @@ export function oggOpusDurationSeconds(bytes: Uint8Array): number | null {
       if (!(flags & BOS)) return null;
       serial = pageSerial;
     } else if (pageSerial !== serial || flags & BOS) return null; // chained or multiplexed streams
+    // A packet left open by the previous page but not continued here is a hole to a demuxer, which
+    // starts afresh: count the fragment as its own packet. Counting every possible packet start
+    // keeps the total an upper bound of what any decoder plays.
+    if (packetOpen && !(flags & CONTINUED) && !finish()) return null;
     const segments = bytes[offset + 26]!;
     let data = offset + PAGE_HEADER + segments;
     if (data > bytes.length) return null;
@@ -78,22 +100,12 @@ export function oggOpusDurationSeconds(bytes: Uint8Array): number | null {
         packetBytes.push(bytes[data + j]!);
       data += length;
       if (length === 255) continue; // packet continues in the next segment
-      packetOpen = false;
-      if (packetIndex === 0) {
-        if (packetBytes.length < 19 || OPUS_HEAD.some((byte, k) => packetBytes[k] !== byte))
-          return null;
-        const channels = packetBytes[9]!;
-        if (channels < 1 || channels > 2) return null;
-        preSkip = packetBytes[10]! | (packetBytes[11]! << 8);
-      } else if (packetIndex > 1 && packetBytes.length > 0) {
-        const count = packetSamples(packetBytes[0]!, packetBytes[1]);
-        if (count === null) return null;
-        samples += count;
-      }
-      packetIndex++;
+      if (!finish()) return null;
     }
     offset = data;
   }
+  // An unterminated last packet may still be decoded: count it too.
+  if (packetOpen && !finish()) return null;
   if (packetIndex < 2) return null;
   return Math.max(0, samples - preSkip) / OPUS_RATE;
 }

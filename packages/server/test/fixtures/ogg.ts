@@ -45,3 +45,19 @@ export function craftedNote(pages: number, channels = 1, extraStream = false): U
   if (extraStream) bytes.push(...oggPage(8, 0x02, 0n, [opusHead(1)]));
   return new Uint8Array(bytes);
 }
+
+/** CELT 2.5 ms, one frame (config 16, code 0): the short TOC a crafted fragment advertises. */
+const SHORT_TOC = 16 << 3;
+
+/**
+ * Pairs of pages: an unterminated 255-byte packet whose TOC claims 2.5 ms, then a page that does
+ * not continue it (a demuxer drops the fragment) holding a real 120 ms packet. Joining the two
+ * would count only 2.5 ms per pair.
+ */
+export function smuggledNote(pairs: number): Uint8Array {
+  const fragment = [SHORT_TOC, ...new Array<number>(254).fill(0)];
+  const bytes = [...oggPage(7, 0x02, 0n, [opusHead(1)]), ...oggPage(7, 0, 0n, [opusTags])];
+  for (let i = 0; i < pairs; i++)
+    bytes.push(...oggPage(7, 0, -1n, [fragment]), ...oggPage(7, 0, 960n, [LONG_PACKET]));
+  return new Uint8Array(bytes);
+}
