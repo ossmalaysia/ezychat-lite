@@ -813,16 +813,24 @@ export function createAiService(
               body.enabled ? null : Date.now(),
               Date.now(),
             );
+        const before = settings();
+        // Older clients send no rules: keep the effective ones.
+        const handoffRules = body.handoffRules ?? before.handoffRules;
         ctx.settings.set(MEMBER_KEY, {
           displayName: body.displayName,
           instructions: body.instructions,
-          // Older clients send no rules: keep the effective ones.
-          handoffRules: body.handoffRules ?? settings().handoffRules,
+          handoffRules,
         });
+        // Record who changed the AI's behaviour, without copying the text into the audit log.
         audit(ctx.db, {
           ...actor,
           action: 'ai.member_update',
-          meta: { enabled: body.enabled, role: 'sales' },
+          meta: {
+            enabled: body.enabled,
+            role: 'sales',
+            instructionsChanged: body.instructions !== before.instructions,
+            handoffRulesChanged: handoffRules !== before.handoffRules,
+          },
         });
       })();
       if (!body.enabled) {

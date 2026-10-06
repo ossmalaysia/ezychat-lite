@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Voice notes: the 2-minute limit now counts the real audio instead of trusting the length written in
+  the file, so a crafted voice note can no longer exhaust memory on your computer or run up cloud
+  transcription costs. Stored transcripts are capped, and the audit log shows when someone changes the
+  AI's instructions or hand-off rules.
+
 ## [0.1.22] - 2026-10-06
 
 ### Added

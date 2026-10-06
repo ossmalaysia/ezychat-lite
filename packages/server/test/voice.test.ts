@@ -10,6 +10,7 @@ import type { VoiceModelFile } from '../src/voice/model.js';
 import { getMessages } from '../src/wa-bridge/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
+import { craftedNote } from './fixtures/ogg.js';
 
 const TONE = readFileSync(join(import.meta.dirname, 'fixtures/tone-1s.ogg'));
 const TRANSCRIPT = 'Do you deliver to Penang tomorrow?';
@@ -141,11 +142,8 @@ describe('voice note transcription', () => {
     const voice = await voiceService();
     voice.setTranscription('cloud', actor);
 
-    // Longer than 120 s by its Ogg granule position (no decoding needed).
-    const long = Buffer.from(TONE);
-    const last = long.lastIndexOf(Buffer.from('OggS'));
-    long.writeBigInt64LE(BigInt(48_000 * 200), last + 6);
-    await voiceNote('long', long);
+    // 153 s of Opus packets whose granule positions claim 20 ms: the real length counts.
+    await voiceNote('long', Buffer.from(craftedNote(5)));
     // Larger than 10 MB.
     await voiceNote('large', Buffer.concat([TONE, Buffer.alloc(10 * 1024 * 1024)]));
     // Not an audio format the cloud accepts.

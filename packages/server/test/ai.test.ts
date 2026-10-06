@@ -925,6 +925,13 @@ it('keeps business hand-off rules: default until saved, then the saved text (eve
   // An older client that sends no rules keeps the saved ones.
   t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
   expect(t.ctx.services.ai!.status().settings.handoffRules).toBe('');
+  // The audit log says what changed, never the text itself.
+  const metas = t.ctx.db
+    .prepare("SELECT meta FROM audit_log WHERE action = 'ai.member_update' ORDER BY id")
+    .all()
+    .map((row) => JSON.parse((row as { meta: string }).meta) as Record<string, unknown>);
+  expect(metas.slice(-2).map((m) => m.handoffRulesChanged)).toEqual([true, false]);
+  expect(JSON.stringify(metas)).not.toContain(body.instructions);
 });
 
 it('answers every reply from the latest saved business context', async () => {
