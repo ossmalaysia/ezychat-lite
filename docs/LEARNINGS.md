@@ -78,6 +78,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Teammate-written data keyed by `chat_jid` never `ON DELETE CASCADE` from `chats` (like `notes`): an app
+  rollback runs an older `mergeChat` that deletes chat rows without moving new tables.
 - Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
   migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
@@ -202,6 +204,8 @@ into AGENTS.md.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
+- A child that writes into a parent-owned ref (guards, Esc handlers) registers it in an effect with a
+  cleanup; render-time writes outlive the unmount and leave the parent calling a dead closure.
 - In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
   `getByRole`; query background controls with `{ hidden: true }`.
 - Bars that share width with side panels (chat header) size by their own width (`@container`), not
