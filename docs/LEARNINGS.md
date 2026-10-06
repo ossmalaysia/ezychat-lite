@@ -210,6 +210,9 @@ into AGENTS.md.
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
 - A child that writes into a parent-owned ref (guards, Esc handlers) registers it in an effect with a
   cleanup; render-time writes outlive the unmount and leave the parent calling a dead closure.
+- Prefilled forms keep two baselines: "unsaved changes" compares with what the form opened with,
+  the save merges against the stored record (so a prefill is saved but never prompts a discard).
+  A WhatsApp chat name can be the phone number: never prefill or show it as a person's name.
 - In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
   `getByRole`; query background controls with `{ hidden: true }`.
 - Bars that share width with side panels (chat header) size by their own width (`@container`), not
