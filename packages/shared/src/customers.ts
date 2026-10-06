@@ -86,6 +86,19 @@ export const CustomerProfileResponse = z.object({
   /** Phone-number digits WhatsApp gave us (no `+`); null when hidden behind a WhatsApp ID (LID).
    *  Optional only for older servers. */
   whatsappPhone: z.string().nullable().optional(),
+  /** Read-only facts from WhatsApp (never edited by the team). Optional only for older servers. */
+  whatsapp: z
+    .object({
+      /** Name the customer set on their own WhatsApp. */
+      pushName: z.string().nullable(),
+      /** Name saved in the linked phone's contacts. */
+      savedName: z.string().nullable(),
+      /** Phone-number digits (no `+`); null when WhatsApp hides it behind a WhatsApp ID. */
+      phone: z.string().nullable(),
+      /** WhatsApp ID (`…@lid`); only sent to admins, null for agents or when unknown. */
+      lid: z.string().nullable(),
+    })
+    .optional(),
 });
 export type CustomerProfileResponse = z.infer<typeof CustomerProfileResponse>;
 

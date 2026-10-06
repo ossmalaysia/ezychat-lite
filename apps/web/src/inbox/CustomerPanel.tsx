@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, UserRound, X } from 'lucide-react';
+import { Copy, Loader2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import {
@@ -129,23 +129,93 @@ function whatsappDetails(
   return shown.length ? shown.join(' · ') : null;
 }
 
+type WhatsappFactsData = NonNullable<CustomerProfileResponse['whatsapp']>;
+
+/** Read-only facts from WhatsApp, kept apart from what the team types. */
+function WhatsappFacts({ facts }: { facts: WhatsappFactsData }) {
+  const { t } = useTranslation('inbox');
+  const headingId = useId();
+  const rows: { key: string; label: string; value: React.ReactNode }[] = [];
+  if (facts.pushName)
+    rows.push({ key: 'push', label: t('customer.wa.pushName'), value: facts.pushName });
+  if (facts.savedName)
+    rows.push({ key: 'saved', label: t('customer.wa.savedName'), value: facts.savedName });
+  rows.push({
+    key: 'phone',
+    label: t('customer.wa.phone'),
+    value: facts.phone ? (
+      `+${facts.phone}`
+    ) : (
+      <span className="italic text-muted-foreground">{t('customer.wa.phoneHidden')}</span>
+    ),
+  });
+  if (facts.lid) {
+    const lid = facts.lid;
+    rows.push({
+      key: 'lid',
+      label: t('customer.wa.lid'),
+      value: (
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 truncate font-mono text-xs">{lid}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-touch"
+            className="-my-2 shrink-0 text-muted-foreground"
+            aria-label={t('customer.wa.copyLid')}
+            onClick={() =>
+              void navigator.clipboard
+                ?.writeText(lid)
+                .then(() => toast.success(t('customer.wa.copied')))
+                .catch(() => undefined)
+            }
+          >
+            <Copy className="size-4" aria-hidden="true" />
+          </Button>
+        </span>
+      ),
+    });
+  }
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+    >
+      <h4 id={headingId} className="mb-1 text-xs font-semibold text-muted-foreground">
+        {t('customer.wa.title')}
+      </h4>
+      <dl className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.key} className="flex min-w-0 items-baseline justify-between gap-3">
+            <dt className="shrink-0 text-xs text-muted-foreground">{row.label}</dt>
+            <dd className="min-w-0 text-right [overflow-wrap:anywhere]">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 /** Read-only view of a customer profile (also used in the group sender popover). */
 export function CustomerDetails({
   profile,
   whatsappName,
   whatsappPhone,
+  whatsapp,
   directory,
 }: {
   profile: CustomerProfile;
   whatsappName: string | null;
   /** Digits WhatsApp gave us (no `+`), when known. */
   whatsappPhone?: string | null;
+  /** Read-only WhatsApp facts; replaces the one-line summary when the server sends them. */
+  whatsapp?: WhatsappFactsData;
   /** For "Updated by <teammate>"; that line is left out without it. */
   directory?: Directory;
 }) {
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
-  const fromWhatsapp = whatsappDetails(whatsappName, whatsappPhone, name);
+  const fromWhatsapp = whatsapp ? null : whatsappDetails(whatsappName, whatsappPhone, name);
   const updatedByName = directory?.nameOf(profile.updatedBy, { youLabel: true }) ?? null;
   const rows: { key: Field; label: string; value: React.ReactNode }[] = [];
   if (profile.company)
@@ -202,6 +272,7 @@ export function CustomerDetails({
           </p>
         )}
       </div>
+      {whatsapp && <WhatsappFacts facts={whatsapp} />}
       {rows.length > 0 && (
         <dl className="space-y-2">
           {rows.map((row) => (
@@ -261,6 +332,7 @@ function CustomerForm({
   latest,
   whatsappName,
   whatsappPhone,
+  whatsapp,
   directory,
   onDone,
   escapeRef,
@@ -274,6 +346,7 @@ function CustomerForm({
   /** What WhatsApp tells us: prefills a new profile's name and is shown read-only. */
   whatsappName: string | null;
   whatsappPhone?: string | null;
+  whatsapp?: WhatsappFactsData;
   directory: Directory;
   onDone(): void;
   /** Lets the panel route Esc here (the Sheet would otherwise close). Returns true if handled. */
@@ -374,10 +447,14 @@ function CustomerForm({
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-        {fromWhatsapp && (
-          <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-            {t('customer.whatsappName', { name: fromWhatsapp })}
-          </p>
+        {whatsapp ? (
+          <WhatsappFacts facts={whatsapp} />
+        ) : (
+          fromWhatsapp && (
+            <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+              {t('customer.whatsappName', { name: fromWhatsapp })}
+            </p>
+          )
         )}
         {changedMeanwhile && (
           <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -530,6 +607,7 @@ function CustomerBody({
           latest={data?.profile ?? editing}
           whatsappName={data?.whatsappName ?? null}
           whatsappPhone={data?.whatsappPhone ?? null}
+          whatsapp={data?.whatsapp}
           directory={directory}
           onDone={() => setEditing(null)}
           escapeRef={escapeRef}
@@ -553,6 +631,7 @@ function CustomerBody({
                 profile={data.profile}
                 whatsappName={data.whatsappName}
                 whatsappPhone={data.whatsappPhone ?? null}
+                whatsapp={data.whatsapp}
                 directory={directory}
               />
               <Button variant="outline" size="touch" onClick={() => setEditing(data.profile)}>
@@ -561,12 +640,16 @@ function CustomerBody({
             </>
           ) : (
             <div className="space-y-3">
-              {whatsappDetails(data.whatsappName, data.whatsappPhone, null) && (
-                <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                  {t('customer.whatsappName', {
-                    name: whatsappDetails(data.whatsappName, data.whatsappPhone, null),
-                  })}
-                </p>
+              {data.whatsapp ? (
+                <WhatsappFacts facts={data.whatsapp} />
+              ) : (
+                whatsappDetails(data.whatsappName, data.whatsappPhone, null) && (
+                  <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                    {t('customer.whatsappName', {
+                      name: whatsappDetails(data.whatsappName, data.whatsappPhone, null),
+                    })}
+                  </p>
+                )
               )}
               <p className="text-sm text-muted-foreground">{t('customer.empty')}</p>
               <Button size="touch" onClick={() => setEditing(data.profile)}>

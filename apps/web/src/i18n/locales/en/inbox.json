@@ -380,6 +380,16 @@
       "tooLong": "Use at most {{max}} characters",
       "tags": "Check the tags: up to 10, each up to 30 characters"
     },
-    "otherPhoneHint": "The WhatsApp number {{phone}} is already saved."
+    "otherPhoneHint": "The WhatsApp number {{phone}} is already saved.",
+    "wa": {
+      "title": "From WhatsApp",
+      "pushName": "Name on WhatsApp",
+      "savedName": "Saved in phone as",
+      "phone": "Phone",
+      "phoneHidden": "Hidden by WhatsApp",
+      "lid": "WhatsApp ID",
+      "copyLid": "Copy WhatsApp ID",
+      "copied": "WhatsApp ID copied"
+    }
   }
 }

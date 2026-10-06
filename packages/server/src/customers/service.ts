@@ -14,12 +14,12 @@ import { CustomerRepo, PROFILE_FIELDS, type ProfileFields } from './repo.js';
 
 export interface CustomerService {
   /** The direct chat's profile (empty when never saved). Throws 404 for a missing chat, 400 for a group. */
-  profile(chatJid: string): CustomerProfileResponse;
+  profile(chatJid: string, viewer?: Viewer): CustomerProfileResponse;
   /** Replaces the whole profile; audits which fields changed (never values). No change, no write. */
   save(
     chatJid: string,
     body: CustomerProfileBody,
-    actor: { userId: number; ip: string | null },
+    actor: { userId: number; ip: string | null; isAdmin?: boolean },
   ): CustomerProfileResponse;
   suggestTags(q?: string): string[];
   /** Group messages: sender JID → their direct chat's profile name (only when one is set). */
@@ -32,6 +32,11 @@ declare module '../context.js' {
   interface Services {
     customers?: CustomerService;
   }
+}
+
+/** Who is reading: only admins get the WhatsApp ID (LID). */
+export interface Viewer {
+  isAdmin: boolean;
 }
 
 const EMPTY: CustomerProfile = {
@@ -57,13 +62,37 @@ export function createCustomerService(ctx: AppContext): CustomerService {
     return chat;
   }
 
+  /** Read-only WhatsApp facts across every JID of the person (phone number and LID forms). */
+  function whatsappFacts(chat: Chat, viewer: Viewer) {
+    const jids = ctx.services.aliases?.group(chat.jid) ?? [chat.jid];
+    const all = [...new Set([chat.jid, ...jids])];
+    const rows = ctx.db
+      .prepare(
+        `SELECT push_name, saved_name, phone FROM contacts WHERE jid IN (${all.map(() => '?').join(', ')})`,
+      )
+      .all(...all) as Array<{
+      push_name: string | null;
+      saved_name: string | null;
+      phone: string | null;
+    }>;
+    const first = (pick: (r: (typeof rows)[number]) => string | null) =>
+      rows.map(pick).find((v) => !!v?.trim()) ?? null;
+    return {
+      pushName: first((r) => r.push_name),
+      savedName: first((r) => r.saved_name),
+      phone: chat.phone ?? first((r) => r.phone),
+      lid: viewer.isAdmin ? (all.find((jid) => jid.endsWith('@lid')) ?? null) : null,
+    };
+  }
+
   const service: CustomerService = {
-    profile(chatJid) {
+    profile(chatJid, viewer = { isAdmin: false }) {
       const chat = directChat(chatJid);
       return {
         profile: repo.get(chat.jid) ?? EMPTY,
         whatsappName: chat.whatsappName ?? null,
         whatsappPhone: chat.phone ?? null,
+        whatsapp: whatsappFacts(chat, viewer),
       };
     },
 
@@ -93,7 +122,7 @@ export function createCustomerService(ctx: AppContext): CustomerService {
         const chat = chats().get(jid);
         if (chat) ctx.bus.emit('chat:updated', chat);
       }
-      return service.profile(jid);
+      return service.profile(jid, { isAdmin: !!actor.isAdmin });
     },
 
     suggestTags(q) {

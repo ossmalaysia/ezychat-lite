@@ -377,6 +377,16 @@
       "tooLong": "Gunakan paling banyak {{max}} aksara",
       "tags": "Semak tag: sehingga 10, setiap satu paling banyak 30 aksara"
     },
-    "otherPhoneHint": "Nombor WhatsApp {{phone}} sudah disimpan."
+    "otherPhoneHint": "Nombor WhatsApp {{phone}} sudah disimpan.",
+    "wa": {
+      "title": "Daripada WhatsApp",
+      "pushName": "Nama di WhatsApp",
+      "savedName": "Disimpan dalam telefon sebagai",
+      "phone": "Telefon",
+      "phoneHidden": "Disembunyikan oleh WhatsApp",
+      "lid": "ID WhatsApp",
+      "copyLid": "Salin ID WhatsApp",
+      "copied": "ID WhatsApp disalin"
+    }
   }
 }

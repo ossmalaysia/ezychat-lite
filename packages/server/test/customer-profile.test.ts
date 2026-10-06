@@ -149,6 +149,8 @@ describe('customer profile routes', () => {
       whatsappName: 'Farah 🌸',
       // The number WhatsApp gave us, so the panel can show it and prefill nothing by hand.
       whatsappPhone: '60123110021',
+      // Agents get the WhatsApp facts without the WhatsApp ID.
+      whatsapp: expect.objectContaining({ phone: '60123110021', lid: null }),
     });
     const saved = await t.app.inject({
       method: 'PUT',
@@ -286,6 +288,35 @@ describe('customer profile routes', () => {
     });
     expect(cross.statusCode).toBe(403);
     expect(auditCount()).toBe(0);
+  });
+
+  it('lists what WhatsApp tells us; only admins see the WhatsApp ID', async () => {
+    const LID = '888000222@lid';
+    await incoming(LID, 'Farah 🌸');
+    t.ctx.services.aliases!.learn({ jid: FARAH, alias: LID }, 'message');
+    t.ctx.db
+      .prepare(
+        'INSERT OR REPLACE INTO contacts (jid, push_name, saved_name, phone) VALUES (?, ?, ?, ?)',
+      )
+      .run(FARAH, 'Farah 🌸', 'Farah (catering)', '60123110021');
+    const admin = await createUserAndLogin(t, { role: 'admin' });
+    const agent = await createUserAndLogin(t, { role: 'agent' });
+    const read = async (c: string) =>
+      CustomerProfileResponse.parse(
+        (await t.app.inject({ method: 'GET', url: url(LID), headers: { cookie: c } })).json(),
+      ).whatsapp;
+    expect(await read(admin.cookie)).toEqual({
+      pushName: 'Farah 🌸',
+      savedName: 'Farah (catering)',
+      phone: '60123110021',
+      lid: LID,
+    });
+    expect(await read(agent.cookie)).toEqual({
+      pushName: 'Farah 🌸',
+      savedName: 'Farah (catering)',
+      phone: '60123110021',
+      lid: null,
+    });
   });
 
   it('resolves an alias JID to the merged chat', async () => {

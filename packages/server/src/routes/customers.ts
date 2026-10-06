@@ -12,12 +12,15 @@ export default async function customerRoutes(app: FastifyInstance, ctx: AppConte
   if (!customers) throw new Error('customer service not initialized');
   app.addHook('preHandler', requireUser(ctx));
 
-  app.get('/chats/:jid/profile', async (req) => customers.profile(chatJidParam(ctx, req.params)));
+  app.get('/chats/:jid/profile', async (req) =>
+    customers.profile(chatJidParam(ctx, req.params), { isAdmin: req.user!.role === 'admin' }),
+  );
 
   app.put('/chats/:jid/profile', async (req) =>
     customers.save(chatJidParam(ctx, req.params), parse(CustomerProfileBody, req.body), {
       userId: req.user!.id,
       ip: clientIp(req),
+      isAdmin: req.user!.role === 'admin',
     }),
   );
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -92,6 +92,41 @@ afterEach(() => {
 });
 
 describe('CustomerPanel', () => {
+  it('shows what WhatsApp tells us in its own section, with a copyable WhatsApp ID', async () => {
+    mockApi({
+      ...EMPTY,
+      whatsapp: {
+        pushName: 'Farah 🌸',
+        savedName: 'Farah (catering)',
+        phone: '601234567',
+        lid: '888000222@lid',
+      },
+    });
+    renderPanel();
+    const section = await screen.findByRole('region', { name: 'From WhatsApp' });
+    expect(within(section).getByText('Farah 🌸')).toBeTruthy();
+    expect(within(section).getByText('Farah (catering)')).toBeTruthy();
+    expect(within(section).getByText('+601234567')).toBeTruthy();
+    expect(within(section).getByText('888000222@lid')).toBeTruthy();
+    expect(within(section).getByRole('button', { name: 'Copy WhatsApp ID' })).toBeTruthy();
+    // The same facts stay visible while editing.
+    await userEvent.click(screen.getByRole('button', { name: 'Add details' }));
+    expect(screen.getByRole('region', { name: 'From WhatsApp' })).toBeTruthy();
+  });
+
+  it('says when WhatsApp hides the number, and hides the WhatsApp ID row for agents', async () => {
+    mockApi({
+      ...EMPTY,
+      whatsappPhone: null,
+      whatsapp: { pushName: 'Farah 🌸', savedName: null, phone: null, lid: null },
+    });
+    renderPanel();
+    const section = await screen.findByRole('region', { name: 'From WhatsApp' });
+    expect(within(section).getByText('Hidden by WhatsApp')).toBeTruthy();
+    expect(within(section).queryByText('WhatsApp ID')).toBeNull();
+    expect(within(section).queryByText('Saved in phone as')).toBeNull();
+  });
+
   it('prefills the name from WhatsApp and shows the WhatsApp name and number', async () => {
     const put = mockApi(EMPTY);
     const { onClose } = renderPanel();
