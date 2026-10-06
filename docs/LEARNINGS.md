@@ -50,7 +50,9 @@ into AGENTS.md.
 - Before removing a worktree, delete its `node_modules` junctions with `[IO.Directory]::Delete(path, $false)`
   (Git follows junctions); prefer `npm ci` in new worktrees.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
-  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates.
+  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Bring a long PR branch
+  up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
+  commit.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
@@ -99,6 +101,8 @@ into AGENTS.md.
 - Vitest: no globals (call `cleanup()` in `afterEach`, assert on `textContent`); native subprocess tests get
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
+  Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
+  several times slower than local runs.
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
 - Windows background scripts: launch via a short-lived `powershell -Command Start-Process …`, wait for its
@@ -209,8 +213,9 @@ into AGENTS.md.
 
 ## Internationalization
 
-- Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`; cross-namespace keys need
-  `useTranslation(['ns', 'common'])`.
+- Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`, including prefilled editable
+  content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
+  canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Date helpers that take `now` must compare against it, not the real clock.
