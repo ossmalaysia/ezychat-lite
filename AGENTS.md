@@ -184,9 +184,9 @@ cover navigation from every admin section and recovery from malformed URLs.
 - A change that adds a native module or worker (e.g. voice transcription) must be smoke-tested end to
   end in a `--dir` packaged build before release: `ELECTRON_RUN_AS_NODE=1`, a temp data dir and
   `--fake-wa`, exercising the feature itself, not only server start-up.
-- After a base PR is squash-merged, replay only your own commits (`git rebase --onto origin/main <old
-  base>`) and typecheck even when the rebase is clean. Never chain `git add` or `rebase --continue`
-  after edits that may have failed: search for conflict markers first.
+- After a base PR is squash-merged, replay only your own commits with
+  `git rebase --onto origin/main <old-base>` and typecheck even when the rebase is clean. Never chain
+  `git add` or `rebase --continue` after edits that may have failed: search for conflict markers first.
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
