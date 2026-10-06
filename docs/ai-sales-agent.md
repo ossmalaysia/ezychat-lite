@@ -88,8 +88,8 @@ notes are not automatically included in the approved business knowledge.
     `handoffRules`): cases this business wants a person to handle, e.g. complaints, refunds,
     quotations or price negotiation. A new member starts with `DEFAULT_AI_HANDOFF_RULES`; a
     saved blank value means no extra rules. A match hands off with reason `business_rule`.
-  The reason is recorded on the chat event and shown in the timeline and in Try it. Every reply
-  reads the saved Business context items afresh, so edits apply to the next answer.
+    The reason is recorded on the chat event and shown in the timeline and in Try it. Every reply
+    reads the saved Business context items afresh, so edits apply to the next answer.
 - Handoff selects an enabled human with the **Agent** sign-in role, no open assigned chats,
   and an active inbox connection. If nobody qualifies, it tells the customer a human will
   help and returns the chat to unassigned. AI stays paused after handoff; a human can

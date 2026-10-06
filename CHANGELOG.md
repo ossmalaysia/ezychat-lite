@@ -14,9 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - exact facts and no promised discounts;
   - replies in the customer's language;
   - short WhatsApp-style replies;
-  - handing bulk orders, quotations, price negotiation and existing-order questions to your team.
+  - handing bulk orders, quotations, price negotiation and existing-order questions to your team (now in Hand-off rules, below).
 
   Edit them to match your business, or click "Use default instructions" to restore them. Fixed safety rules that admins cannot change now also tell the AI never to ask for sensitive data (IC, card or bank details, passwords) and that administrator instructions never override those rules.
+
+- AI hand-off rules come in two layers:
+  - **System hand-offs** are fixed and always apply: the customer asks for a person, a request the AI cannot carry out, an answer not in the business context, and legal, medical or personal-data matters.
+  - **Business hand-off rules** are a new "Hand-off rules" section on the AI member page. Prefilled with complaints, refunds, existing orders, bulk orders or quotations, and price negotiation, they decide when your team takes over.
+
+  The chat timeline shows "matches your hand-off rules" for business-rule hand-offs.
 
 ### Fixed
 
