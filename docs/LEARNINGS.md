@@ -147,9 +147,10 @@ into AGENTS.md.
 - ChatGPT OAuth: refresh tokens rotate (reuse stored tokens newer than the failed ones; single-flight is
   not enough); offer a paste-the-callback fallback for tunnel/LAN admins; classify blocked responses
   (403/404/HTML) as a connection state, then stop claiming and release chats silently.
-- The ChatGPT sign-in (Codex) endpoint takes no audio: `input_audio` returns 400 "Audio input is
-  not available" and `input_file` rejects audio MIME types, so speech-to-text needs an OpenAI API key.
-  Spike a provider capability with one live call before designing around it.
+- The ChatGPT sign-in takes text and images but no audio: Codex `input_audio` returns 400 "Audio input
+  is not available", `input_file` rejects audio MIME types, and the web dictation endpoints
+  (`/backend-api/transcribe`) answer 403 browser-only bot pages — never work around those. Speech-to-text
+  needs an OpenAI API key. Spike a provider capability with one live call before designing around it.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the
