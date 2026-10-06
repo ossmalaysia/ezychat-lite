@@ -194,6 +194,8 @@ into AGENTS.md.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
+- Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
+  (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
 - `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check.
 - The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
   widens grid dialogs: long-form editors use `field-sizing-fixed` with a fixed height, wide dialogs use
