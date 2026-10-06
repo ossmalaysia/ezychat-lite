@@ -127,7 +127,8 @@ export function TagInput({
               tags = [...tags, tag];
             }
             if (tags !== value) onChange(tags);
-            setQuery(rest);
+            // A full list disables the input: never leave text there that Save would add.
+            setQuery(tags.length >= CUSTOMER_TAG_LIMIT ? '' : rest);
           } else {
             setQuery(next);
           }

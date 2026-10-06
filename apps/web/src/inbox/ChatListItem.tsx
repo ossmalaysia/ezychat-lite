@@ -8,6 +8,7 @@ import { formatListTime } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
+import { useGuardedLinkClick } from './navigation-guard';
 
 export interface ChatListItemProps {
   chat: Chat;
@@ -34,11 +35,16 @@ export function ChatListItem({
   const name = chatTitle(chat, t);
   const unread = chat.unreadCount > 0;
   const { pathname } = useLocation();
+  const to = `/chats/${encodeJid(chat.jid)}`;
+  // Lets the mobile back button pop history instead of pushing "/" again.
+  const state = pathname === '/' ? { fromList: true } : undefined;
+  // Unsaved customer edits in the open conversation ask before switching chats.
+  const onClick = useGuardedLinkClick(to, { state });
   return (
     <Link
-      to={`/chats/${encodeJid(chat.jid)}`}
-      // Lets the mobile back button pop history instead of pushing "/" again.
-      state={pathname === '/' ? { fromList: true } : undefined}
+      to={to}
+      state={state}
+      onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex min-h-16 items-center gap-3 px-3 py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',

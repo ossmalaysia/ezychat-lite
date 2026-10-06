@@ -42,6 +42,7 @@ import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { NotesPanel } from './NotesPanel';
+import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
@@ -78,8 +79,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [notesOpen, setNotesOpen] = useState(false);
   // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
   const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
-  // Set by CustomerPanel while editing: switching or closing panels asks before losing changes.
-  const customerGuard = useRef<((next: () => void) => void) | null>(null);
+  // Set by CustomerPanel while editing: switching panels or chats asks before losing changes.
+  // It is the inbox page's navigation guard, so chat list links ask too.
+  const customerGuard = useNavigationGuardRef();
   const leaveCustomer = (next: () => void) =>
     customerGuard.current ? customerGuard.current(next) : next();
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);

@@ -107,6 +107,20 @@ describe('message cache', () => {
     expect(cached(qc)[0]).toMatchObject({ id: 'WA/1', mediaUrl: '/api/media/WA%2F1' });
   });
 
+  it('keeps a known sender profile when a copy of the message arrives without one', () => {
+    const qc = new QueryClient();
+    const senderProfile = { chatJid: '601@s.whatsapp.net', name: 'Farah Aziz' };
+    seed(qc, [msg({ id: 'G1', fromMe: false, status: 'delivered', senderProfile })]);
+    upsertMessageInCache(qc, msg({ id: 'G1', fromMe: false, status: 'delivered' }));
+    expect(cached(qc)[0]!.senderProfile).toEqual(senderProfile);
+    // An explicit null (profile name cleared) still applies.
+    upsertMessageInCache(
+      qc,
+      msg({ id: 'G1', fromMe: false, status: 'delivered', senderProfile: null }),
+    );
+    expect(cached(qc)[0]!.senderProfile).toBeNull();
+  });
+
   it('a text message rename leaves mediaUrl null', () => {
     const qc = new QueryClient();
     seed(qc, [msg({ id: 'local-c1' })]);
@@ -124,6 +138,7 @@ describe('customer profile queries', () => {
   const FARAH = '601@s.whatsapp.net';
   const response = {
     profile: {
+      id: 'p1',
       name: 'Farah Aziz',
       company: null,
       email: null,
@@ -199,6 +214,26 @@ describe('customer profile queries', () => {
     );
     expect(calls[0]).toMatch(/^PUT \/api\/chats\/601%40s\.whatsapp\.net\/profile /);
     expect(queryClient.getQueryData(qk.customerProfile(FARAH))).toEqual(response);
+  });
+
+  it('refreshes the chat and the chat list after a save, without waiting for the socket', async () => {
+    mockFetchJson(response);
+    const { queryClient, wrapper } = setup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useSaveCustomerProfile(FARAH), { wrapper });
+    await act(() =>
+      result.current.mutateAsync({
+        name: 'Farah Aziz',
+        company: '',
+        email: '',
+        otherPhone: '',
+        address: '',
+        tags: ['VIP'],
+      }),
+    );
+    const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
+    expect(keys).toContainEqual(qk.chat(FARAH));
+    expect(keys).toContainEqual(qk.chatsAll);
   });
 
   it('loads tag suggestions for a search', async () => {

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { CustomerProfileResponse } from '@wa-team-inbox/shared';
-import { CustomerPanel } from './CustomerPanel';
+import { CustomerDetails, CustomerPanel } from './CustomerPanel';
 import { buildDirectory } from './useDirectory';
 
 const JID = '601@s.whatsapp.net';
@@ -15,6 +16,7 @@ const directory = buildDirectory(null, false, [
 
 const EMPTY: CustomerProfileResponse = {
   profile: {
+    id: null,
     name: null,
     company: null,
     email: null,
@@ -39,6 +41,7 @@ function mockApi(initial: CustomerProfileResponse) {
   const put = vi.fn((body: Record<string, unknown>) => {
     current = {
       profile: {
+        id: current.profile.id ?? 'p1',
         name: (body.name as string) || null,
         company: (body.company as string) || null,
         email: (body.email as string) || null,
@@ -63,7 +66,12 @@ function mockApi(initial: CustomerProfileResponse) {
       return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     }),
   );
-  return put;
+  return Object.assign(put, {
+    /** A teammate's save: the next GET returns this. */
+    setServer(next: CustomerProfileResponse) {
+      current = next;
+    },
+  });
 }
 
 function renderPanel(onClose = vi.fn()) {
@@ -115,6 +123,7 @@ describe('CustomerPanel', () => {
   it('shows saved fields as links and hides empty ones', async () => {
     mockApi({
       profile: {
+        id: 'p1',
         name: 'Farah Aziz',
         company: 'Farah Catering Co',
         email: 'orders@farah.my',
@@ -212,5 +221,137 @@ describe('CustomerPanel', () => {
     expect(next).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(next).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the header guard when a discarded form closes with the panel', async () => {
+    mockApi(EMPTY);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const guardRef: { current: ((next: () => void) => void) | null } = { current: null };
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <CustomerPanel
+          jid={JID}
+          open={open}
+          directory={directory}
+          onClose={() => setOpen(false)}
+          guardRef={guardRef}
+        />
+      );
+    }
+    render(
+      <QueryClientProvider client={qc}>
+        <Harness />
+      </QueryClientProvider>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    await userEvent.type(screen.getByLabelText('Company'), 'Farah Co');
+    expect(guardRef.current).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Close customer details' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(screen.queryByLabelText('Company')).toBeNull());
+    expect(guardRef.current).toBeNull();
+  });
+
+  it('keeps fields a teammate changed while this form was open', async () => {
+    const api = mockApi({
+      profile: {
+        id: 'p1',
+        name: 'Farah',
+        company: 'Old Co',
+        email: null,
+        otherPhone: null,
+        address: null,
+        tags: ['VIP'],
+        updatedAt: 1000,
+        updatedBy: 1,
+      },
+      whatsappName: 'Farah',
+    });
+    const { qc } = renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    expect(screen.queryByText(/while you were editing/)).toBeNull();
+    api.setServer({
+      profile: {
+        id: 'p1',
+        name: 'Farah Aziz',
+        company: 'Old Co',
+        email: null,
+        otherPhone: null,
+        address: null,
+        tags: ['VIP', 'Halal'],
+        updatedAt: 2000,
+        updatedBy: 1,
+      },
+      whatsappName: 'Farah',
+    });
+    await act(() => qc.invalidateQueries({ queryKey: ['customer-profile', JID] }));
+    expect(
+      await screen.findByText(
+        'Updated by Mei Ling while you were editing — your changes are kept, theirs too',
+      ),
+    ).toBeTruthy();
+    await userEvent.clear(screen.getByLabelText('Company'));
+    await userEvent.type(screen.getByLabelText('Company'), 'New Co');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api).toHaveBeenCalledOnce());
+    expect(api.mock.calls[0]![0]).toEqual({
+      name: 'Farah Aziz',
+      company: 'New Co',
+      email: '',
+      otherPhone: '',
+      address: '',
+      tags: ['VIP', 'Halal'],
+    });
+  });
+
+  it('does not add a leftover typed tag beyond the limit', async () => {
+    const nine = Array.from({ length: 9 }, (_, i) => `t${i}`);
+    const put = mockApi({ ...EMPTY, profile: { ...EMPTY.profile, tags: nine } });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'x,y' } });
+    expect(input.value).toBe('');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    expect(put.mock.calls[0]![0]).toMatchObject({ tags: [...nine, 'x'] });
+  });
+});
+
+describe('CustomerDetails', () => {
+  const base = EMPTY.profile;
+
+  it('says "Updated <when>" when the teammate is unknown', () => {
+    render(
+      <CustomerDetails
+        profile={{ ...base, name: 'Farah', updatedAt: Date.now(), updatedBy: null }}
+        whatsappName={null}
+        directory={directory}
+      />,
+    );
+    const line = screen.getByText(/^Updated/);
+    expect(line.textContent).not.toMatch(/Updated by/);
+    expect(line.textContent).not.toContain('·');
+  });
+
+  it('builds a mailto link that cannot carry extra headers', () => {
+    render(
+      <CustomerDetails
+        profile={{ ...base, email: 'a+b@farah.my' }}
+        whatsappName={null}
+        directory={directory}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'a+b@farah.my' }).getAttribute('href')).toBe(
+      'mailto:a%2Bb@farah.my',
+    );
+  });
+
+  it('shows a stored email with query characters as plain text', () => {
+    const email = 'sales@farah.my?cc=boss@evil.example&body=hi';
+    render(<CustomerDetails profile={{ ...base, email }} whatsappName={null} />);
+    expect(screen.getByText(email)).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });

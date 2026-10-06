@@ -48,6 +48,22 @@ function renderFilters({ value, onChange }: { value: Filters; onChange(next: Fil
 }
 
 describe('ChatFilters', () => {
+  it('keeps a long selected tag narrow on phones so the assignment tabs keep their room', () => {
+    mockTags([]);
+    renderFilters({
+      value: { assigned: 'any', status: 'open', tag: 'Pelanggan borong utama' },
+      onChange: vi.fn(),
+    });
+    const trigger = screen.getByRole('button', { name: 'Filter by tag' });
+    const label = trigger.querySelector('span')!;
+    expect(label.textContent).toBe('Pelanggan borong utama');
+    expect(label.className).toMatch(/(^|\s)truncate(\s|$)/);
+    expect(label.className).toMatch(/(^|\s)max-w-20(\s|$)/);
+    expect(label.className).toMatch(/(^|\s)sm:max-w-none(\s|$)/);
+    // Still a 44px touch target.
+    expect(trigger.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+  });
+
   it('exposes both statuses and preserves assignment and search when switching', async () => {
     const onChange = vi.fn();
     render(

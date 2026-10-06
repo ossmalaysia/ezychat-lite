@@ -1,10 +1,11 @@
 import type React from 'react';
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import {
+  CUSTOMER_TAG_LIMIT,
   CustomerProfileBody,
   customerTagKey,
   normalizeTag,
@@ -76,12 +77,30 @@ function draftOf(p: CustomerProfile): Draft {
   };
 }
 
+function sameTags(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((tag, i) => tag === b[i]);
+}
+
 function sameDraft(a: Draft, b: Draft): boolean {
-  return (
-    FIELDS.every((f) => a[f].trim() === b[f].trim()) &&
-    a.tags.length === b.tags.length &&
-    a.tags.every((tag, i) => tag === b.tags[i])
-  );
+  return FIELDS.every((f) => a[f].trim() === b[f].trim()) && sameTags(a.tags, b.tags);
+}
+
+/**
+ * What to save: the latest profile (a teammate may have saved while this form was open) plus only
+ * the fields this teammate changed since the form opened.
+ */
+function mergeEdits(draft: Draft, initial: Draft, latest: Draft): Draft {
+  const out = { ...latest, tags: sameTags(draft.tags, initial.tags) ? latest.tags : draft.tags };
+  for (const f of FIELDS) if (draft[f].trim() !== initial[f].trim()) out[f] = draft[f];
+  return out;
+}
+
+/** `mailto:` that cannot carry extra headers; null when the stored value must stay plain text. */
+function mailtoHref(email: string): string | null {
+  const at = email.lastIndexOf('@');
+  // eslint-disable-next-line no-control-regex
+  if (at < 1 || /[?#%&\s\u0000-\u001f\u007f]/.test(email)) return null;
+  return `mailto:${encodeURIComponent(email.slice(0, at))}@${email.slice(at + 1)}`;
 }
 
 /** Read-only view of a customer profile (also used in the group sender popover). */
@@ -98,22 +117,24 @@ export function CustomerDetails({
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
   const showWhatsapp = !!whatsappName && whatsappName !== name;
+  const updatedByName = directory?.nameOf(profile.updatedBy, { youLabel: true }) ?? null;
   const rows: { key: Field; label: string; value: React.ReactNode }[] = [];
   if (profile.company)
     rows.push({ key: 'company', label: t('customer.company'), value: profile.company });
-  if (profile.email)
+  if (profile.email) {
+    const href = mailtoHref(profile.email);
     rows.push({
       key: 'email',
       label: t('customer.email'),
-      value: (
-        <a
-          href={`mailto:${profile.email}`}
-          className="text-primary underline-offset-4 hover:underline"
-        >
+      value: href ? (
+        <a href={href} className="text-primary underline-offset-4 hover:underline">
           {profile.email}
         </a>
+      ) : (
+        profile.email
       ),
     });
+  }
   if (profile.otherPhone)
     rows.push({
       key: 'otherPhone',
@@ -175,10 +196,12 @@ export function CustomerDetails({
       )}
       {profile.updatedAt != null && directory && (
         <p className="text-xs text-muted-foreground">
-          {t('customer.updatedBy', {
-            name: directory.nameOf(profile.updatedBy, { youLabel: true }) ?? '',
-            when: formatRelative(profile.updatedAt),
-          })}
+          {updatedByName
+            ? t('customer.updatedBy', {
+                name: updatedByName,
+                when: formatRelative(profile.updatedAt),
+              })
+            : t('customer.updated', { when: formatRelative(profile.updatedAt) })}
         </p>
       )}
     </div>
@@ -205,13 +228,19 @@ function issueMessages(
 
 function CustomerForm({
   jid,
-  initial,
+  snapshot,
+  latest,
+  directory,
   onDone,
   escapeRef,
   guardRef,
 }: {
   jid: string;
-  initial: Draft;
+  /** The profile when editing started. */
+  snapshot: CustomerProfile;
+  /** The newest profile from the server (a teammate may save while this form is open). */
+  latest: CustomerProfile;
+  directory: Directory;
   onDone(): void;
   /** Lets the panel route Esc here (the Sheet would otherwise close). Returns true if handled. */
   escapeRef: React.RefObject<(() => boolean) | null>;
@@ -221,6 +250,7 @@ function CustomerForm({
   const { t } = useTranslation('inbox');
   const ids = useId();
   const formRef = useRef<HTMLFormElement>(null);
+  const [initial] = useState(() => draftOf(snapshot));
   const [draft, setDraft] = useState<Draft>(initial);
   const [errors, setErrors] = useState<Errors>({});
   const [tagQuery, setTagQuery] = useState('');
@@ -237,12 +267,25 @@ function CustomerForm({
   function cancel() {
     guard(onDone);
   }
-  escapeRef.current = () => {
+  function onEscape() {
     if (pending) return false;
     cancel();
     return true;
-  };
-  guardRef.current = guard;
+  }
+  // Registered after commit and cleared on unmount, so a form that closed with its panel
+  // (desktop aside, mobile sheet) never leaves a stale guard behind for the header buttons.
+  useLayoutEffect(() => {
+    escapeRef.current = onEscape;
+    guardRef.current = guard;
+    return () => {
+      if (escapeRef.current === onEscape) escapeRef.current = null;
+      if (guardRef.current === guard) guardRef.current = null;
+    };
+  });
+  const changedMeanwhile = latest.updatedAt !== snapshot.updatedAt;
+  const changedBy = changedMeanwhile
+    ? directory.nameOf(latest.updatedBy, { youLabel: true })
+    : null;
 
   function set(field: Field, value: string) {
     setDraft((d) => ({ ...d, [field]: value }));
@@ -252,13 +295,15 @@ function CustomerForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (save.isPending) return;
-    // A tag still in the input (typed, Enter not pressed) is saved too.
+    // A tag still in the input (typed, Enter not pressed) is saved too, while there is room.
     const typed = normalizeTag(tagQuery);
     const withTyped =
-      typed && !draft.tags.some((tag) => customerTagKey(tag) === customerTagKey(typed))
+      typed &&
+      draft.tags.length < CUSTOMER_TAG_LIMIT &&
+      !draft.tags.some((tag) => customerTagKey(tag) === customerTagKey(typed))
         ? { ...draft, tags: [...draft.tags, typed] }
         : draft;
-    const parsed = CustomerProfileBody.safeParse(withTyped);
+    const parsed = CustomerProfileBody.safeParse(mergeEdits(withTyped, initial, draftOf(latest)));
     if (!parsed.success) {
       setErrors(issueMessages(parsed.error.issues, t as never));
       return;
@@ -289,6 +334,13 @@ function CustomerForm({
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+        {changedMeanwhile && (
+          <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            {changedBy
+              ? t('customer.changedWhileEditing', { name: changedBy })
+              : t('customer.changedWhileEditingUnknown')}
+          </p>
+        )}
         {FORM_FIELDS.map(({ key, type }) => {
           const id = `${ids}-${key}`;
           const errorId = `${id}-error`;
@@ -398,12 +450,9 @@ function CustomerBody({
 }) {
   const { t } = useTranslation('inbox');
   const query = useCustomerProfile(jid);
-  const [editing, setEditing] = useState<Draft | null>(null);
+  /** The profile when editing started; null while viewing. */
+  const [editing, setEditing] = useState<CustomerProfile | null>(null);
   const data: CustomerProfileResponse | undefined = query.data;
-  if (!editing) {
-    escapeRef.current = null;
-    guardRef.current = null;
-  }
   const requestClose = () => (guardRef.current ? guardRef.current(onClose) : onClose());
 
   return (
@@ -427,7 +476,9 @@ function CustomerBody({
       {editing ? (
         <CustomerForm
           jid={jid}
-          initial={editing}
+          snapshot={editing}
+          latest={data?.profile ?? editing}
+          directory={directory}
           onDone={() => setEditing(null)}
           escapeRef={escapeRef}
           guardRef={guardRef}
@@ -451,18 +502,14 @@ function CustomerBody({
                 whatsappName={data.whatsappName}
                 directory={directory}
               />
-              <Button
-                variant="outline"
-                size="touch"
-                onClick={() => setEditing(draftOf(data.profile))}
-              >
+              <Button variant="outline" size="touch" onClick={() => setEditing(data.profile)}>
                 {t('customer.edit')}
               </Button>
             </>
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">{t('customer.empty')}</p>
-              <Button size="touch" onClick={() => setEditing(draftOf(data.profile))}>
+              <Button size="touch" onClick={() => setEditing(data.profile)}>
                 {t('customer.addDetails')}
               </Button>
             </div>

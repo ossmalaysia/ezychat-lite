@@ -21,6 +21,7 @@ import {
   dropPushSubscription,
   patchMessageInCache,
   qk,
+  patchSenderProfilesInCache,
   upsertChatInCache,
   upsertMessageInCache,
   useMe,
@@ -118,6 +119,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     socket.on('chat:updated', (c) => {
       upsertChatInCache(qc, c);
+      patchSenderProfilesInCache(qc, c);
       refreshChats();
       void qc.invalidateQueries({ queryKey: qk.customerProfile(c.jid) });
     });

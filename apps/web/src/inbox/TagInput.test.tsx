@@ -51,6 +51,25 @@ describe('TagInput', () => {
     expect(input.placeholder).toBe('Up to 10 tags');
   });
 
+  it('clears leftover text when a pasted list fills the limit', () => {
+    const queries: string[] = [];
+    function Limited() {
+      const [tags, setTags] = useState(Array.from({ length: 9 }, (_, i) => `t${i}`));
+      return (
+        <>
+          <TagInput value={tags} onChange={setTags} onQueryChange={(q) => queries.push(q)} />
+          <output data-testid="tags">{tags.join('|')}</output>
+        </>
+      );
+    }
+    render(<Limited />);
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'x,y' } });
+    expect(screen.getByTestId('tags').textContent).toBe('t0|t1|t2|t3|t4|t5|t6|t7|t8|x');
+    expect(input.value).toBe('');
+    expect(queries.at(-1)).toBe('');
+  });
+
   it('ignores Enter while an input method is composing, and caps tags at 30 characters', () => {
     render(<Harness />);
     const input = screen.getByRole('combobox') as HTMLInputElement;

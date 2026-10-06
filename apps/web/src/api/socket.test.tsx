@@ -191,6 +191,73 @@ it('shares one list/count refresh between a new message and its chat update', as
   qc.clear();
 });
 
+it('relabels cached group messages when a sender profile name changes', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const group = 'team@g.us';
+  const farah = '601@s.whatsapp.net';
+  const groupMsg = (id: string, senderProfile: unknown) => ({
+    id,
+    chatJid: group,
+    senderJid: farah,
+    fromMe: false,
+    clientId: null,
+    senderProfile,
+  });
+  qc.setQueryData(['messages', group], {
+    pages: [
+      {
+        messages: [
+          groupMsg('G1', { chatJid: farah, name: 'Farah' }),
+          groupMsg('G2', { chatJid: 'other@s.whatsapp.net', name: 'Ali' }),
+        ],
+        nextBefore: null,
+      },
+    ],
+    pageParams: [null],
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  const profiles = () =>
+    (
+      qc.getQueryData(['messages', group]) as {
+        pages: { messages: { senderProfile: unknown }[] }[];
+      }
+    ).pages[0]!.messages.map((m) => m.senderProfile);
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: farah,
+      type: 'dm',
+      name: 'Farah Aziz',
+      whatsappName: 'Farah 🌸',
+      status: 'open',
+    }),
+  );
+  expect(profiles()).toEqual([
+    { chatJid: farah, name: 'Farah Aziz' },
+    { chatJid: 'other@s.whatsapp.net', name: 'Ali' },
+  ]);
+  // Profile name cleared: the chat name falls back to the WhatsApp name.
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: farah,
+      type: 'dm',
+      name: 'Farah 🌸',
+      whatsappName: 'Farah 🌸',
+      status: 'open',
+    }),
+  );
+  expect(profiles()).toEqual([null, { chatJid: 'other@s.whatsapp.net', name: 'Ali' }]);
+  qc.clear();
+});
+
 it('refetches an open customer profile when its chat is updated live', async () => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },

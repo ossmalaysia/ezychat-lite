@@ -16,6 +16,7 @@ import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
 import { useCanonicalChatRedirect } from './useCanonicalChatRedirect';
+import { NavigationGuardProvider } from './navigation-guard';
 
 const FILTERS_KEY = 'wati.inbox.filters';
 const DEFAULT_FILTERS: Filters = { assigned: 'any', status: 'open' };
@@ -63,65 +64,67 @@ export function InboxPage() {
   }, [filters]);
 
   return (
-    <div className="safe-x flex h-dvh flex-col overflow-hidden bg-background">
-      <div className="safe-top bg-surface" />
-      <WaBanner />
-      <ReconnectBanner />
-      <div className="flex min-h-0 flex-1">
-        <aside
-          className={cn(
-            'min-h-0 w-full flex-col bg-surface md:w-[360px] md:shrink-0 md:border-r',
-            jid ? 'hidden md:flex' : 'flex',
-          )}
-          aria-label={t('page.chats')}
-        >
-          <header className="flex items-center gap-2 px-3 py-1">
-            <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
-              {t('page.title')}
-            </h1>
-            {directory.isAdmin && (
-              <Button asChild variant="ghost" size="touch">
-                <Link to="/admin">
-                  <Settings aria-hidden="true" />
-                  {t('page.admin')}
-                </Link>
-              </Button>
+    <NavigationGuardProvider>
+      <div className="safe-x flex h-dvh flex-col overflow-hidden bg-background">
+        <div className="safe-top bg-surface" />
+        <WaBanner />
+        <ReconnectBanner />
+        <div className="flex min-h-0 flex-1">
+          <aside
+            className={cn(
+              'min-h-0 w-full flex-col bg-surface md:w-[360px] md:shrink-0 md:border-r',
+              jid ? 'hidden md:flex' : 'flex',
             )}
-            <UserMenu />
-          </header>
-          <ChatFilters value={filters} onChange={setFilters} />
-          <ChatList
-            filters={filters}
-            activeJid={jid}
-            directory={directory}
-            onResetFilters={() => setFilters(DEFAULT_FILTERS)}
-          />
-          {version && (
-            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-              {t('page.version', { appName: t('common:appName'), version })}
-            </p>
-          )}
-          <div className="safe-bottom" />
-        </aside>
-        <main
-          className={cn(
-            'min-h-0 min-w-0 flex-1 flex-col bg-background',
-            jid ? 'flex' : 'hidden md:flex',
-          )}
-        >
-          {jid ? (
-            <Conversation key={jid} jid={jid} directory={directory} onBack={onBack} />
-          ) : (
-            <EmptyState
-              className="flex-1"
-              illustration="/illustrations/empty-inbox.png"
-              title={t('page.selectTitle')}
-              description={t('page.selectDescription')}
+            aria-label={t('page.chats')}
+          >
+            <header className="flex items-center gap-2 px-3 py-1">
+              <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
+                {t('page.title')}
+              </h1>
+              {directory.isAdmin && (
+                <Button asChild variant="ghost" size="touch">
+                  <Link to="/admin">
+                    <Settings aria-hidden="true" />
+                    {t('page.admin')}
+                  </Link>
+                </Button>
+              )}
+              <UserMenu />
+            </header>
+            <ChatFilters value={filters} onChange={setFilters} />
+            <ChatList
+              filters={filters}
+              activeJid={jid}
+              directory={directory}
+              onResetFilters={() => setFilters(DEFAULT_FILTERS)}
             />
-          )}
-        </main>
+            {version && (
+              <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+                {t('page.version', { appName: t('common:appName'), version })}
+              </p>
+            )}
+            <div className="safe-bottom" />
+          </aside>
+          <main
+            className={cn(
+              'min-h-0 min-w-0 flex-1 flex-col bg-background',
+              jid ? 'flex' : 'hidden md:flex',
+            )}
+          >
+            {jid ? (
+              <Conversation key={jid} jid={jid} directory={directory} onBack={onBack} />
+            ) : (
+              <EmptyState
+                className="flex-1"
+                illustration="/illustrations/empty-inbox.png"
+                title={t('page.selectTitle')}
+                description={t('page.selectDescription')}
+              />
+            )}
+          </main>
+        </div>
       </div>
-    </div>
+    </NavigationGuardProvider>
   );
 }
 

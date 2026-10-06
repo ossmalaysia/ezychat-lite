@@ -120,7 +120,12 @@ const STATUS_RANK: Record<Message['status'], number> = {
  * that still carries the pending server row. Never let such a stale copy regress the cached
  * message's status or WA id; an explicit `failed` (or failed → pending retry) always applies.
  */
-function mergeMessage(existing: Message, incoming: Message): Message {
+function mergeMessage(existing: Message, rawIncoming: Message): Message {
+  // A copy without `senderProfile` (undefined, not null) says nothing about it: keep the known one.
+  const incoming =
+    rawIncoming.senderProfile === undefined && existing.senderProfile !== undefined
+      ? { ...rawIncoming, senderProfile: existing.senderProfile }
+      : rawIncoming;
   if (incoming.status !== 'failed' && STATUS_RANK[existing.status] > STATUS_RANK[incoming.status]) {
     return {
       ...incoming,
@@ -131,6 +136,37 @@ function mergeMessage(existing: Message, incoming: Message): Message {
     };
   }
   return incoming;
+}
+
+/**
+ * A direct chat's profile name changed: relabel that customer's cached group messages
+ * (the server attaches `senderProfile` only when messages are loaded or arrive).
+ */
+export function patchSenderProfilesInCache(qc: QueryClient, chat: Chat): void {
+  // Older servers omit `whatsappName`: then the chat name cannot tell a profile name apart.
+  if (chat.type !== 'dm' || chat.whatsappName === undefined) return;
+  const name = chat.name.trim();
+  const profile =
+    name && (chat.whatsappName === null || name !== chat.whatsappName)
+      ? { chatJid: chat.jid, name }
+      : null;
+  qc.setQueriesData<MessagesData>({ queryKey: ['messages'] }, (old) => {
+    if (!old?.pages) return old;
+    let changed = false;
+    const pages = old.pages.map((p) => {
+      let pageChanged = false;
+      const messages = p.messages.map((m) => {
+        if (m.senderProfile?.chatJid !== chat.jid) return m;
+        if (profile && m.senderProfile.name === profile.name) return m;
+        pageChanged = true;
+        return { ...m, senderProfile: profile };
+      });
+      if (!pageChanged) return p;
+      changed = true;
+      return { ...p, messages };
+    });
+    return changed ? { ...old, pages } : old;
+  });
 }
 
 /** Same URL the server builds for a message's media (`mediaUrlFor` in messages/repo.ts). */
@@ -637,6 +673,9 @@ export function useSaveCustomerProfile(jid: string) {
     onSuccess: (saved) => {
       qc.setQueryData(qk.customerProfile(jid), saved);
       void qc.invalidateQueries({ queryKey: ['customer-tags'] });
+      // Header name and list row/tags, even when the socket is down.
+      void qc.invalidateQueries({ queryKey: qk.chat(jid) });
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
     },
   });
 }

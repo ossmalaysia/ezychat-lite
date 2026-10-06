@@ -13,6 +13,7 @@ import { formatDateTime, formatTime, truncate } from '../lib/format';
 import { formatJid } from '../lib/jid';
 import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
+import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
 
 export interface MessageBubbleProps {
@@ -33,6 +34,8 @@ export interface MessageBubbleProps {
 function SenderProfileCard({ chatJid, directory }: { chatJid: string; directory?: Directory }) {
   const { t } = useTranslation('inbox');
   const query = useCustomerProfile(chatJid);
+  const to = `/chats/${encodeURIComponent(chatJid)}?customer=1`;
+  const onClick = useGuardedLinkClick(to);
   return (
     <div className="space-y-3">
       {query.data ? (
@@ -48,7 +51,9 @@ function SenderProfileCard({ chatJid, directory }: { chatJid: string; directory?
         </div>
       ) : null}
       <Button asChild variant="outline" size="sm" className="w-full">
-        <Link to={`/chats/${encodeURIComponent(chatJid)}?customer=1`}>{t('customer.open')}</Link>
+        <Link to={to} onClick={onClick}>
+          {t('customer.open')}
+        </Link>
       </Button>
     </div>
   );

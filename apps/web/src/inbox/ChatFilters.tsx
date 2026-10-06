@@ -117,7 +117,10 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
                 )}
               >
                 <Tag aria-hidden="true" />
-                <span className="truncate">{value.tag ?? t('filters.tag')}</span>
+                {/* Narrow below sm so the assignment tabs keep their room (Malay labels at 360px). */}
+                <span className="max-w-20 truncate sm:max-w-none">
+                  {value.tag ?? t('filters.tag')}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 max-w-[calc(100vw-2rem)] p-0">
