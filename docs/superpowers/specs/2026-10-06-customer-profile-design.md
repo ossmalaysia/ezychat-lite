@@ -6,7 +6,7 @@ Status: approved in conversation on 2026-10-06; waiting for written-spec review.
 
 Every teammate can see and edit who a customer is: proper name, company, email, other phone, address/area
 and tags. Any teammate who opens the chat then knows the customer at a glance. Phase 1 is a simple
-customer profile. It is not a CRM.
+customer profile: one per customer (contact). It is not a CRM.
 
 ### Decided with the owner
 
@@ -55,7 +55,10 @@ CREATE TABLE customer_tags (
 CREATE INDEX idx_customer_tags_key ON customer_tags(tag_key);
 ```
 
-- Profiles exist only for one-to-one chats (`chats.type = 'dm'`). Group chats have none.
+- **One profile per customer (contact).** Each customer has exactly one direct chat: the
+  phone-number and WhatsApp-ID (LID) forms of the same person are merged into one chat. The profile
+  is stored against that chat (`chats.type = 'dm'`). WhatsApp group chats have no profile, because a
+  group is not one customer.
 - **Keying.** The key is the chat JID, because the chat is already the app's single identity for a
   person: phone-number and LID chats are merged, and runtime code never merges. This avoids the
   phone-number/LID "twin" problem that a `contacts`-keyed design would have.
