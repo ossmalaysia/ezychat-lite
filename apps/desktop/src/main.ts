@@ -65,6 +65,7 @@ import {
   createStatusWindow,
   messagePage,
 } from './window.js';
+import { appUserModelId } from './app-identity.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -73,7 +74,7 @@ preserveInstalledProfile(app, (path) => mkdirSync(path, { recursive: true }));
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.setAppUserModelId('org.ossmalaysia.wateaminbox');
+  app.setAppUserModelId(appUserModelId(app.isPackaged));
   void main();
 }
 

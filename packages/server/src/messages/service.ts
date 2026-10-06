@@ -314,15 +314,27 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     return c;
   };
 
-  /** The first teammate to reply in an unassigned chat becomes its owner; an existing owner is kept. */
-  const claimIfUnassigned = (jid: string, userId: number, t: number) => {
-    if (requireChat(jid).assigned_to !== null) return;
+  const isAiUser = (userId: number) =>
+    (
+      ctx.db.prepare('SELECT kind FROM users WHERE id = ?').get(userId) as
+        { kind: string } | undefined
+    )?.kind === 'ai';
+
+  /**
+   * Whoever handles a chat owns it: the first teammate to reply in an unassigned chat becomes its
+   * owner, and a teammate replying in a chat the AI owns takes it over (the AI then stops). A human
+   * owner is kept when another teammate replies; replies from the linked phone (no user) change nothing.
+   */
+  const claimOnReply = (jid: string, userId: number, t: number) => {
+    const owner = requireChat(jid).assigned_to;
+    if (owner === userId) return;
+    if (owner !== null && !(isAiUser(owner) && !isAiUser(userId))) return;
     chats.update(jid, { assigned_to: userId, updated_at: t });
     const ev = chats.insertEvent({
       chatJid: jid,
       type: 'assigned',
       actorId: userId,
-      payload: { assignedTo: userId, previous: null, reason: 'reply' },
+      payload: { assignedTo: userId, previous: owner, reason: 'reply' },
       at: t,
     });
     ctx.bus.emit('chat:event', ev);
@@ -507,7 +519,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       requireChat(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       const t = now();
-      claimIfUnassigned(jid, userId, t);
+      claimOnReply(jid, userId, t);
       return insertOutgoing({
         id: `local-${body.clientId}`,
         chat_jid: jid,
@@ -543,7 +555,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const id = `local-${clientId}`;
       const rel = media.save(jid, id, file.buffer, ext);
       const t = now();
-      claimIfUnassigned(jid, userId, t);
+      claimOnReply(jid, userId, t);
       return insertOutgoing({
         id,
         chat_jid: jid,

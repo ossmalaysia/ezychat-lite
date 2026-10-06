@@ -939,3 +939,24 @@ it('answers every reply from the latest saved business context', async () => {
   expect(latest).toContain('10am to 8pm');
   expect(latest).not.toContain('9am to 5pm');
 });
+
+it('hands an AI-owned chat to the teammate who replies from the inbox, and the AI stops', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(ai.id);
+  const agent = human('agent');
+  getMessages(t.ctx).sendText(jid, { text: 'Let me help you', clientId: 'take-over' }, agent.id);
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(agent.id);
+  expect(getChats(t.ctx).events(jid).at(-1)).toMatchObject({
+    type: 'assigned',
+    actorId: agent.id,
+    payload: { assignedTo: agent.id, previous: ai.id, reason: 'reply' },
+  });
+  // The customer writes again: the teammate owns the chat, so the AI does not answer.
+  await incoming('after', 'Thanks, one more question');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(agent.id);
+});

@@ -24,8 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The chat timeline shows "matches your hand-off rules" for business-rule hand-offs.
 
+### Changed
+
+- A teammate who replies from the inbox in a chat the AI Sales Agent is handling now takes the chat over: it is assigned to them, their owner chip replaces the AI's, the timeline shows "took this chat by replying", and the AI stops answering. Replying in a chat another teammate owns still keeps that owner, and replies sent from the phone's WhatsApp app don't change the owner.
+
 ### Fixed
 
+- Windows: local and test (unpackaged) builds use their own taskbar identity, so running one can no longer leave the installed EzyChat Lite with a blank white taskbar icon.
 - Editing a long Business context item no longer squeezes the text sideways and cuts it off: the editor opens in a wide dialog with wrapping text, vertical scrolling and a character counter. The AI instructions box behaves the same way.
 - In "Try it", pressing Enter asks the question (Shift+Enter adds a new line).
 
