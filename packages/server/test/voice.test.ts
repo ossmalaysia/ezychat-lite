@@ -194,6 +194,17 @@ describe('voice note transcription', () => {
     );
   });
 
+  it('never sends audio whose length cannot be checked to the cloud', async () => {
+    saveApiKey();
+    const voice = await voiceService();
+    voice.setTranscription('cloud', actor);
+    // A low-bitrate MP3 could last hours inside 10 MB: only Ogg/Opus voice notes are measured.
+    await voiceNote('mp3-cloud', Buffer.concat([Buffer.from('ID3'), Buffer.alloc(64)]));
+    await voice.idle();
+    expect(stored('mp3-cloud')?.transcriptStatus).toBe('unsupported');
+    expect(transcribe).not.toHaveBeenCalled();
+  });
+
   it('shows jobs interrupted by a restart as failed', async () => {
     saveApiKey();
     const voice = await voiceService();

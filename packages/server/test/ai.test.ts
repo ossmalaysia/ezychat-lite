@@ -6,6 +6,7 @@ import {
   type AiMemberBody,
 } from '@wa-team-inbox/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
+import { VOICE_RETRY_REPLY } from '../src/ai/prompt.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -1202,6 +1203,33 @@ describe('customer voice notes', () => {
     await vi.advanceTimersByTimeAsync(1200);
     expect(provider.generate).toHaveBeenCalledTimes(1);
     expect(handoffs()).toEqual(['unsupported_message']);
+  });
+
+  it('answers the first untranscribed voice note with "please type it" even if the model hands off', async () => {
+    await transcribing('off');
+    provider.generate = vi.fn().mockResolvedValue({
+      reply: 'A team member will help you.',
+      action: 'handoff',
+      handoffReason: 'missing_facts',
+    });
+    clock();
+    await voiceNote('first-handoff');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(t.wa.sent[0]?.text).toBe(VOICE_RETRY_REPLY);
+    expect(handoffs()).toEqual([]);
+  });
+
+  it('still hands off the first voice note when the customer asks for a person', async () => {
+    await transcribing('off');
+    provider.generate = vi.fn().mockResolvedValue({
+      reply: 'A team member will help you.',
+      action: 'handoff',
+      handoffReason: 'asked_for_human',
+    });
+    clock();
+    await voiceNote('first-human');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(handoffs()).toEqual(['asked_for_human']);
   });
 });
 

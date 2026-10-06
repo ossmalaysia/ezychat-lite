@@ -182,11 +182,14 @@ export function createVoiceService(ctx: AppContext, deps: VoiceServiceDeps = {})
       return store(id, 'failed');
     }
     if (audio.length > VOICE_MAX_BYTES) return store(id, 'too_long');
+    // Only Ogg/Opus (what WhatsApp voice notes are) is transcribed, by either engine: its length can
+    // be checked before any work or cloud charge. Other audio files (songs, m4a/mp3 attachments) are
+    // not voice notes and their length cannot be validated cheaply.
     const seconds = oggOpusDurationSeconds(audio);
-    if (seconds !== null && seconds > VOICE_MAX_SECONDS) return store(id, 'too_long');
+    if (seconds === null) return store(id, 'unsupported');
+    if (seconds > VOICE_MAX_SECONDS) return store(id, 'too_long');
     const extension = await extensionOf(audio);
-    // The local engine decodes Ogg/Opus only; the cloud takes the common audio formats.
-    if (engine === 'local' ? extension !== 'ogg' : !extension) return store(id, 'unsupported');
+    if (extension !== 'ogg') return store(id, 'unsupported');
     try {
       const result = await run(engine, audio, file.mime.split(';')[0]!.trim(), extension);
       const ok = !!result.text.trim();

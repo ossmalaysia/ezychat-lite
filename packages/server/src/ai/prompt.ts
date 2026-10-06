@@ -19,6 +19,9 @@ export interface AiConversationTurn {
   text: string;
 }
 export const HANDOFF_REPLY = 'A human agent will help with your question.';
+/** Fixed answer to the first voice note the AI could not listen to (normally the model words it). */
+export const VOICE_RETRY_REPLY =
+  "Sorry, I can't listen to voice messages. Could you please type your question so I can help?";
 
 export interface AiContextItem {
   id: number;

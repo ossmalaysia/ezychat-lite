@@ -37,6 +37,7 @@ import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
   HANDOFF_REPLY,
+  VOICE_RETRY_REPLY,
   buildAiPrompt,
   knowledgeSources,
   resolveAiTimeZone,
@@ -617,17 +618,18 @@ export function createAiService(
                   controller.signal,
                 ),
               );
-        // A hand-off over a voice note the AI could not listen to is an unreadable message
-        // (the model's reasons do not include it), unless the customer asked for a person.
+        // The first voice note the AI could not listen to always gets the "please type it" answer
+        // (a repeat was handed off above); only a request for a person or a sensitive topic
+        // still hands off.
         if (
           voice &&
+          !voiceRepeat &&
           !isTranscribed(customer) &&
           decision.action === 'handoff' &&
           decision.handoffReason !== 'asked_for_human' &&
-          decision.handoffReason !== 'sensitive' &&
-          knowledge.trim()
+          decision.handoffReason !== 'sensitive'
         )
-          decision = { ...decision, handoffReason: 'unsupported_message' };
+          decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
       } catch {
         if (controller.signal.aborted) return;
         if (!ready()) {
