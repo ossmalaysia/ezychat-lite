@@ -83,6 +83,25 @@ describe('mergeCustomerProfile', () => {
     });
   });
 
+  it("keeps the newer profile's id on the target", () => {
+    repo.save(LID, { ...empty, name: 'Old' }, [], 1, 100);
+    repo.save(PN, { ...empty, name: 'Newer' }, [], 2, 300);
+    const newerId = repo.get(PN)!.id;
+    mergeCustomerProfile(db, PN, LID);
+    expect(repo.get(LID)!.id).toBe(newerId);
+
+    repo.save(PN, { ...empty, name: 'Older again' }, [], 2, 50);
+    mergeCustomerProfile(db, PN, LID);
+    expect(repo.get(LID)!.id).toBe(newerId);
+  });
+
+  it('moves the id with a profile moved to a chat that has none', () => {
+    repo.save(PN, { ...empty, name: 'Farah' }, [], 1, 100);
+    const id = repo.get(PN)!.id;
+    mergeCustomerProfile(db, PN, LID);
+    expect(repo.get(LID)!.id).toBe(id);
+  });
+
   it('does nothing when neither chat has a profile', () => {
     expect(mergeCustomerProfile(db, PN, LID)).toEqual({ profiles: 0, tags: 0, tagsDropped: 0 });
     expect(repo.get(LID)).toBeNull();

@@ -101,8 +101,13 @@ unassigned), skipping users who are online.
 
 **Customer profiles.** `packages/server/src/customers/`: one profile per direct chat
 (`customer_profiles`, `customer_tags`), edited by any teammate, audited by changed field names only.
-`rowToChat` prefers the profile name and adds `tags`/`whatsappName`; startup merges carry profiles
-(`customers/merge.ts`); group messages get `senderProfile` via `AliasStore.route()`.
+Profiles have a stable `id` (kept across merges) and no foreign key to `chats` (user data never
+cascades). `rowToChat` prefers the profile name and adds `tags`/`whatsappName`; its rows come only
+from `ChatRepo.get`/`list` (profile join + one batched tag query; SQL in `customers/sql.ts`). Every
+outbound Message goes through the message service's `present()` (group `senderProfile` via
+`AliasStore.route()`). `mergeChat` must move every table keyed by `chat_jid` (profiles via
+`customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
+never earlier in the prompt.
 
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.

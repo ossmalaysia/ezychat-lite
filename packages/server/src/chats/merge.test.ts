@@ -406,10 +406,12 @@ describe('mergeChat', () => {
       const repo = new CustomerRepo(db);
       repo.save(PN, { ...empty, name: 'Aisyah Rahman', email: 'a@pn.my' }, ['VIP'], 1, 300);
       repo.save(LID, { ...empty, name: 'Older', company: 'Co' }, ['vip', 'Wholesale'], 2, 100);
+      const newerId = repo.get(PN)!.id;
       const r = mergeChat(db, PN, LID, { now: 5000 })!;
       expect(r.moved).toMatchObject({ profiles: 1, tags: 2, tagsDropped: 0 });
       expect(repo.get(LID)).toEqual({
         ...empty,
+        id: newerId,
         name: 'Aisyah Rahman',
         email: 'a@pn.my',
         company: 'Co',

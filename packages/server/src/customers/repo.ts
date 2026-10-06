@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   CUSTOMER_TAG_LIMIT,
   customerTagKey,
@@ -11,6 +12,7 @@ export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type ProfileFields = Record<ProfileField, string | null>;
 
 interface ProfileRow {
+  id: string;
   name: string | null;
   company: string | null;
   email: string | null;
@@ -31,12 +33,13 @@ export class CustomerRepo {
   get(chatJid: string): CustomerProfile | null {
     const r = this.db
       .prepare(
-        'SELECT name, company, email, other_phone, address, updated_at, updated_by FROM customer_profiles WHERE chat_jid = ?',
+        'SELECT id, name, company, email, other_phone, address, updated_at, updated_by FROM customer_profiles WHERE chat_jid = ?',
       )
       .get(chatJid) as ProfileRow | undefined;
     const tags = this.tags(chatJid);
     if (!r && !tags.length) return null;
     return {
+      id: r?.id ?? null,
       name: r?.name ?? null,
       company: r?.company ?? null,
       email: r?.email ?? null,
@@ -56,10 +59,13 @@ export class CustomerRepo {
     ).map((r) => r.tag);
   }
 
-  /** Dedupe by key (keeping the first), reuse the spelling already stored anywhere, cap at the limit. */
-  canonicalTags(tags: string[]): string[] {
+  /**
+   * Dedupe by key (keeping the first), reuse the spelling already stored on another customer, cap at
+   * the limit. `exceptChatJid`'s own rows are ignored, so the only customer with a tag can re-case it.
+   */
+  canonicalTags(tags: string[], exceptChatJid?: string): string[] {
     const existing = this.db.prepare(
-      'SELECT tag FROM customer_tags WHERE tag_key = ? ORDER BY created_at, rowid LIMIT 1',
+      'SELECT tag FROM customer_tags WHERE tag_key = ? AND chat_jid IS NOT ? ORDER BY created_at, rowid LIMIT 1',
     );
     const out: string[] = [];
     const seen = new Set<string>();
@@ -68,30 +74,35 @@ export class CustomerRepo {
       const key = customerTagKey(tag);
       if (!tag || seen.has(key)) continue;
       seen.add(key);
-      const prior = existing.get(key) as { tag: string } | undefined;
+      const prior = existing.get(key, exceptChatJid ?? null) as { tag: string } | undefined;
       out.push(prior?.tag ?? tag);
       if (out.length === CUSTOMER_TAG_LIMIT) break;
     }
     return out;
   }
 
-  /** Upsert the fields and replace the tags in one transaction. Tags must already be canonical. */
+  /**
+   * Upsert the fields and replace the tags in one transaction. Tags must already be canonical.
+   * A new profile gets a random id; an existing one keeps its id unless `id` is given (merge only).
+   */
   save(
     chatJid: string,
     fields: ProfileFields,
     tags: string[],
     userId: number | null,
     now: number,
+    id?: string,
   ): void {
     this.db.transaction(() => {
       this.db
         .prepare(
-          `INSERT INTO customer_profiles (chat_jid, name, company, email, other_phone, address, updated_at, updated_by)
-           VALUES (@chatJid, @name, @company, @email, @otherPhone, @address, @now, @userId)
-           ON CONFLICT(chat_jid) DO UPDATE SET name = @name, company = @company, email = @email,
-             other_phone = @otherPhone, address = @address, updated_at = @now, updated_by = @userId`,
+          `INSERT INTO customer_profiles (chat_jid, id, name, company, email, other_phone, address, updated_at, updated_by)
+           VALUES (@chatJid, @newId, @name, @company, @email, @otherPhone, @address, @now, @userId)
+           ON CONFLICT(chat_jid) DO UPDATE SET id = COALESCE(@id, id), name = @name, company = @company,
+             email = @email, other_phone = @otherPhone, address = @address, updated_at = @now,
+             updated_by = @userId`,
         )
-        .run({ chatJid, ...fields, now, userId });
+        .run({ chatJid, ...fields, now, userId, id: id ?? null, newId: id ?? randomUUID() });
       this.db.prepare('DELETE FROM customer_tags WHERE chat_jid = ?').run(chatJid);
       const insert = this.db.prepare(
         'INSERT INTO customer_tags (chat_jid, tag, tag_key, created_at) VALUES (?, ?, ?, ?)',

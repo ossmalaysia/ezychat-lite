@@ -31,6 +31,7 @@ describe('CustomerRepo', () => {
     repo.save(A, { ...empty, name: 'Farah', email: 'f@x.co' }, ['VIP'], null, 1000);
     expect(repo.get(A)).toEqual({
       ...empty,
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       name: 'Farah',
       email: 'f@x.co',
       tags: ['VIP'],
@@ -83,10 +84,29 @@ describe('CustomerRepo', () => {
     expect(repo.namesByChat([])).toEqual(new Map());
   });
 
-  it('deletes the profile with its chat', () => {
+  it('keeps the profile when its chat row is deleted (user data never cascades)', () => {
     repo.save(A, { ...empty, name: 'Farah' }, ['VIP'], null, 1);
     db.prepare('DELETE FROM chats WHERE jid = ?').run(A);
-    expect(repo.get(A)).toBeNull();
-    expect(repo.suggest(undefined)).toEqual([]);
+    expect(repo.get(A)).toMatchObject({ name: 'Farah', tags: ['VIP'] });
+    expect(repo.suggest(undefined)).toEqual(['VIP']);
+  });
+
+  it('gives a profile a stable id on first save that later saves never change', () => {
+    repo.save(A, { ...empty, name: 'Farah' }, [], null, 1);
+    const id = repo.get(A)!.id;
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    repo.save(A, { ...empty, name: 'Farah R' }, ['VIP'], null, 2);
+    expect(repo.get(A)!.id).toBe(id);
+    repo.save(B, { ...empty, name: 'Other' }, [], null, 3);
+    expect(repo.get(B)!.id).not.toBe(id);
+  });
+
+  it("lets a customer change the casing of a tag only they use, but keeps other customers' spelling", () => {
+    repo.save(A, empty, ['vip'], null, 1);
+    expect(repo.canonicalTags(['VIP'], A)).toEqual(['VIP']);
+    repo.save(A, empty, repo.canonicalTags(['VIP'], A), null, 2);
+    expect(repo.tags(A)).toEqual(['VIP']);
+    repo.save(B, empty, ['Wholesale'], null, 3);
+    expect(repo.canonicalTags(['wholesale', 'Vip'], A)).toEqual(['Wholesale', 'Vip']);
   });
 });

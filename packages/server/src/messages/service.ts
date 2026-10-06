@@ -46,6 +46,13 @@ export interface MessageService {
   mediaPath(id: string): MediaFile | null;
   redownload(id: string): Promise<Message>;
   /**
+   * The one way to turn stored rows into outbound Messages (REST and socket): maps each row and
+   * attaches `senderProfile` to inbound group messages (one batched lookup). Every path that returns
+   * or emits a Message goes through this.
+   */
+  present(row: MessageRow): Message;
+  presentAll(rows: MessageRow[]): Message[];
+  /**
    * Media file for serving. A 'pending' (not yet fetched, e.g. history) message is downloaded on
    * demand first. Returns null when the message has no servable media, 'unavailable' when it was
    * pending but the download failed.
@@ -103,9 +110,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const inflight = new Map<string, Promise<unknown>>();
   const reconciliations = new Map<string, () => void>();
 
-  /** Group messages: each inbound sender's customer profile name (one batched lookup per page). */
-  const withSenderProfiles = (list: Message[]): Message[] =>
-    ctx.services.customers?.withSenderProfiles(list) ?? list;
+  /** Rows → Messages, with each inbound group sender's customer profile (one batched lookup). */
+  const presentAll = (rows: MessageRow[]): Message[] => {
+    const list = rows.map(rowToMessage);
+    return ctx.services.customers?.withSenderProfiles(list) ?? list;
+  };
+  const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
   const emitChat = (jid: string) => {
     const r = chats.get(jid);
@@ -348,7 +358,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const t = row.created_at;
     repo.insert(row);
     touchChat(row, t);
-    const msg = rowToMessage(repo.get(row.id)!);
+    const msg = present(repo.get(row.id)!);
     ctx.bus.emit('message:new', msg);
     emitChat(row.chat_jid);
     enqueueRow(row);
@@ -381,11 +391,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       'application/octet-stream';
     const rel = media.save(r.chat_jid, id, buf, extFor(mimeType, r.media_name));
     repo.update(id, { media_path: rel, media_mime: mimeType, media_status: 'ok' });
-    return rowToMessage(repo.get(id)!);
+    return present(repo.get(id)!);
   };
 
   const svc: MessageService = {
     queue,
+    present,
+    presentAll,
 
     list(jid, q) {
       let before: { ts: number; id: string } | null = null;
@@ -398,7 +410,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const page = more ? rows.slice(0, q.limit) : rows;
       const oldest = page[page.length - 1];
       return {
-        messages: withSenderProfiles(page.reverse().map(rowToMessage)),
+        messages: presentAll(page.reverse()),
         nextBefore: more && oldest ? encodeBefore(oldest.timestamp, oldest.id) : null,
       };
     },
@@ -489,7 +501,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
           chat: rowToChat(chats.get(chatJid)!),
-          message: rowToMessage(row),
+          message: present(row),
         });
       }
 
@@ -512,7 +524,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
       const final = repo.get(m.id);
       if (!final) return null;
-      const msg = withSenderProfiles([rowToMessage(final)])[0]!;
+      const msg = present(final);
       ctx.bus.emit('message:new', msg);
       const chat = emitChat(chatJid);
       if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
@@ -521,7 +533,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
     sendText(jid, body, userId) {
       const existing = repo.byClientId(body.clientId);
-      if (existing) return rowToMessage(existing);
+      if (existing) return present(existing);
       requireChat(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       const t = now();
@@ -551,7 +563,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
     async sendMedia(jid, file, userId, clientId) {
       const existing = repo.byClientId(clientId);
-      if (existing) return rowToMessage(existing);
+      if (existing) return present(existing);
       requireChat(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
@@ -613,13 +625,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         const moved = repo.get(localId)!;
         emitStatus({ ...moved, id: r.id }, localId);
         enqueueRow(moved);
-        return rowToMessage(moved);
+        return present(moved);
       }
       repo.update(id, { status: 'pending', error: null, created_at: t });
       const updated = repo.get(id)!;
       emitStatus(updated);
       enqueueRow(updated);
-      return rowToMessage(updated);
+      return present(updated);
     },
 
     applyStatus(u) {

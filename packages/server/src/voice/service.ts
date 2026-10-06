@@ -130,9 +130,8 @@ export function createVoiceService(ctx: AppContext, deps: VoiceServiceDeps = {})
     });
     const row = repo.get(id);
     if (!emit || !row) return;
-    const msg = rowToMessage(row);
-    // Keep a group sender's customer profile name on the updated message.
-    ctx.bus.emit('message:updated', ctx.services.customers?.withSenderProfiles([msg])[0] ?? msg);
+    // The message service presents every outbound Message (group sender's customer profile).
+    ctx.bus.emit('message:updated', ctx.services.messages?.present(row) ?? rowToMessage(row));
   };
 
   const throttled = (chatJid: string): boolean => {

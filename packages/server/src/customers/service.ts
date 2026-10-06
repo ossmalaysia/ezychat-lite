@@ -35,6 +35,7 @@ declare module '../context.js' {
 }
 
 const EMPTY: CustomerProfile = {
+  id: null,
   name: null,
   company: null,
   email: null,
@@ -69,7 +70,7 @@ export function createCustomerService(ctx: AppContext): CustomerService {
       ) as ProfileFields;
       // Compare and write in one synchronous transaction: nothing can interleave.
       const changed = ctx.db.transaction((): string[] => {
-        const tags = repo.canonicalTags(body.tags);
+        const tags = repo.canonicalTags(body.tags, jid);
         const before = repo.get(jid) ?? EMPTY;
         const diff: string[] = PROFILE_FIELDS.filter((f) => before[f] !== fields[f]);
         if (before.tags.join('\u001f') !== tags.join('\u001f')) diff.push('tags');

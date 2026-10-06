@@ -1,7 +1,7 @@
 import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
-import { ChatRepo, jidUser, type ChatRow } from './repo.js';
+import { ChatRepo, jidUser, type ChatColumns } from './repo.js';
 import { isFallbackName } from './service.js';
 
 export interface MergeResult {
@@ -79,7 +79,7 @@ function mergeAiState(db: DB, from: string, to: string, fromNewer: boolean): num
 }
 
 /** Name for a re-keyed chat: saved contact name > WhatsApp push name > the chat's own real name. */
-function rekeyName(db: DB, from: ChatRow, to: string): string {
+function rekeyName(db: DB, from: ChatColumns, to: string): string {
   const contact = db
     .prepare(
       `SELECT saved_name, push_name FROM contacts WHERE jid IN (?, ?)
@@ -92,7 +92,7 @@ function rekeyName(db: DB, from: ChatRow, to: string): string {
 }
 
 /** saved contact name > a real (non-fallback) chat name > the canonical chat's name */
-function bestName(db: DB, from: ChatRow, to: ChatRow): string {
+function bestName(db: DB, from: ChatColumns, to: ChatColumns): string {
   const saved = db
     .prepare(
       `SELECT saved_name FROM contacts WHERE jid IN (?, ?) AND saved_name IS NOT NULL AND saved_name <> ''

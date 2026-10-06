@@ -4,7 +4,8 @@ import { CustomerRepo, PROFILE_FIELDS, type ProfileFields } from './repo.js';
 
 /**
  * Startup identity merge: carry `from`'s customer profile into `to`. Newest non-empty value per
- * field wins; tags are unioned (newer profile's first, first spelling kept, capped at the limit).
+ * field wins and the newer profile's stable id survives; tags are unioned (newer profile's first,
+ * first spelling kept, capped at the limit).
  * Runs inside mergeChat's transaction, after the `to` chat row exists and before `from` is deleted.
  * Reports counts only (never values): `tagsDropped` = tags beyond the cap.
  */
@@ -25,14 +26,16 @@ export function mergeCustomerProfile(
   const union = [...newer.tags, ...(older?.tags ?? [])];
   const tags = repo.canonicalTags(union);
   const tagsDropped = new Set(union.map(customerTagKey)).size - tags.length;
+  // Delete `from` first: the id is UNIQUE and may move to `to`.
+  db.prepare('DELETE FROM customer_profiles WHERE chat_jid = ?').run(from);
+  db.prepare('DELETE FROM customer_tags WHERE chat_jid = ?').run(from);
   repo.save(
     to,
     fields,
     tags,
     newer.updatedBy ?? null,
     Math.max(a.updatedAt ?? 0, b?.updatedAt ?? 0),
+    newer.id ?? older?.id ?? undefined,
   );
-  db.prepare('DELETE FROM customer_profiles WHERE chat_jid = ?').run(from);
-  db.prepare('DELETE FROM customer_tags WHERE chat_jid = ?').run(from);
   return { profiles: 1, tags: tags.length, tagsDropped };
 }

@@ -61,7 +61,11 @@ const QUERY_SECRET_KEYS = new Set([
 const OAUTH_PARAM =
   /\b(code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;
 
-/** Scrubs OAuth addresses, bearer tokens, JWTs and OAuth parameters from free text. */
+// Inbox search and tag filter terms are customer data (names, emails, phones): only as URL query
+// parameters, so prose such as "a q=b" is left alone.
+const SEARCH_PARAM = /(?<=[?&])(q|tag)=[^&#\s"']*/gi;
+
+/** Scrubs OAuth addresses, bearer tokens, JWTs, OAuth parameters and search/tag terms from free text. */
 export function redactSecretText(text: string): string {
   return text
     .replace(OAUTH_URL, '$1?[REDACTED]')
@@ -69,8 +73,35 @@ export function redactSecretText(text: string): string {
     .replace(BEARER, 'Bearer [REDACTED]')
     .replace(JSON_TOKEN, '$1[REDACTED]')
     .replace(QUERY_PARAM, '$1=[REDACTED]')
-    .replace(OAUTH_PARAM, '$1=[REDACTED]');
+    .replace(OAUTH_PARAM, '$1=[REDACTED]')
+    .replace(SEARCH_PARAM, '$1=[REDACTED]');
 }
+
+interface LoggedRequest {
+  method?: string;
+  url?: string;
+  host?: string;
+  ip?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  socket?: { remotePort?: number };
+}
+
+/**
+ * pino serializers for the live logger. `req` mirrors Fastify's default request serializer, with
+ * secrets and search/tag terms scrubbed from the URL (serializers run after the logMethod hook).
+ */
+export const LOG_SERIALIZERS = {
+  req(req: LoggedRequest) {
+    return {
+      method: req.method,
+      url: typeof req.url === 'string' ? redactSecretText(req.url) : req.url,
+      version: req.headers?.['accept-version'],
+      host: req.host,
+      remoteAddress: req.ip,
+      remotePort: req.socket?.remotePort,
+    };
+  },
+};
 
 export const LOG_REDACT_PATHS = SECRET_FIELDS.flatMap((field) => [
   `["${field}"]`,

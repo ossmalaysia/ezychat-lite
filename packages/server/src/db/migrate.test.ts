@@ -50,6 +50,22 @@ describe('migrate', () => {
     db.close();
   });
 
+  it('customer tables never cascade from chats (user-written data survives a chat delete)', () => {
+    const db = new Database(':memory:');
+    migrate(db);
+    const fks = (t: string) =>
+      (db.prepare(`PRAGMA foreign_key_list(${t})`).all() as Array<{ table: string }>).map(
+        (f) => f.table,
+      );
+    expect(fks('customer_profiles')).toEqual(['users']);
+    expect(fks('customer_tags')).toEqual([]);
+    const cols = (
+      db.prepare('PRAGMA table_info(customer_profiles)').all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toContain('id');
+    db.close();
+  });
+
   it('is idempotent on second run', () => {
     const db = new Database(':memory:');
     migrate(db);

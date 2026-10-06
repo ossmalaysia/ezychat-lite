@@ -145,7 +145,7 @@ describe('customer profile routes', () => {
     });
     expect(first.statusCode).toBe(200);
     expect(CustomerProfileResponse.parse(first.json())).toEqual({
-      profile: { ...empty, tags: [], updatedAt: null, updatedBy: null },
+      profile: { ...empty, id: null, tags: [], updatedAt: null, updatedBy: null },
       whatsappName: 'Farah 🌸',
     });
     const saved = await t.app.inject({
@@ -174,6 +174,48 @@ describe('customer profile routes', () => {
     expect(meta.changed.sort()).toEqual(['address', 'company', 'email', 'name', 'tags']);
     for (const value of ['Farah Aziz', 'orders@farah.my', 'Georgetown', 'Halal'])
       expect(audits[0]!.meta).not.toContain(value);
+  });
+
+  it('returns a stable customer id across saves', async () => {
+    await incoming(FARAH, 'Farah');
+    const put = (payload: typeof body) =>
+      t.app.inject({ method: 'PUT', url: url(), headers: authHeaders(cookie), payload });
+    const first = CustomerProfileResponse.parse((await put(body)).json()).profile.id;
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    const second = CustomerProfileResponse.parse((await put({ ...body, name: 'Farah A.' })).json());
+    expect(second.profile.id).toBe(first);
+    const got = await t.app.inject({ method: 'GET', url: url(), headers: { cookie } });
+    expect(CustomerProfileResponse.parse(got.json()).profile.id).toBe(first);
+  });
+
+  it("re-cases a tag only this customer uses, but keeps another customer's spelling", async () => {
+    await incoming(FARAH, 'Farah');
+    await incoming(OTHER, 'Other');
+    const put = (jid: string, tags: string[]) =>
+      t.app.inject({
+        method: 'PUT',
+        url: url(jid),
+        headers: authHeaders(cookie),
+        payload: { ...body, tags },
+      });
+    await put(FARAH, ['vip']);
+    const recased = await put(FARAH, ['VIP']);
+    expect(CustomerProfileResponse.parse(recased.json()).profile.tags).toEqual(['VIP']);
+    const other = await put(OTHER, ['Vip']);
+    expect(CustomerProfileResponse.parse(other.json()).profile.tags).toEqual(['VIP']);
+  });
+
+  it('rejects an email that would smuggle mailto headers', async () => {
+    await incoming(FARAH, 'Farah');
+    const r = await t.app.inject({
+      method: 'PUT',
+      url: url(),
+      headers: authHeaders(cookie),
+      payload: { ...body, email: 'a@b.co?bcc=evil@x.co' },
+    });
+    expect(r.statusCode).toBe(400);
+    expect(r.body).toContain('email');
+    expect(auditCount()).toBe(0);
   });
 
   it('writes nothing when nothing changed', async () => {
@@ -342,6 +384,30 @@ describe('group messages', () => {
     await incoming(GROUP, 'Other', 'hi', OTHER);
     const msgs = await groupMessages();
     expect(msgs.map((m) => m.senderProfile ?? null)).toEqual([null, null]);
+  });
+
+  it('keeps the sender profile on a redownloaded group message', async () => {
+    await incoming(FARAH, 'Farah');
+    repo().save(FARAH, { ...empty, name: 'Farah Aziz' }, [], null, 1);
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'grp-img',
+        chatJid: GROUP,
+        senderJid: FARAH,
+        senderName: 'Farah 🌸',
+        fromMe: false,
+        type: 'image',
+        body: null,
+        quotedId: null,
+        timestamp: Date.now(),
+        media: { mime: 'image/png', fileName: null, download: async () => png },
+      },
+      'history',
+    );
+    t.wa.setMedia('grp-img', png);
+    const msg = await getMessages(t.ctx).redownload('grp-img');
+    expect(msg.senderProfile).toEqual({ chatJid: FARAH, name: 'Farah Aziz' });
   });
 
   it('adds no sender profile to direct-chat messages', async () => {
