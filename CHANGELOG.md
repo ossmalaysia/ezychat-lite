@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-10-06
+
 ### Added
 
 - Experimental: "Sign in with ChatGPT" works without the Codex helper. One click opens the sign-in page; an admin on another computer pastes the final sign-in address to finish. Choose the model (Auto or your account's live models) and use "Test connection". It uses an unofficial ChatGPT endpoint that may stop working: if ChatGPT rejects the sign-in or blocks the connection, the AI member stops taking chats, leaves them unassigned for the team and admins see a banner.
