@@ -38,6 +38,8 @@ export function spawnTranscribeWorker(paths: VoiceModelPaths): WorkerLike {
   const worker = new Worker(compiled ?? join(here, 'transcribe-worker.ts'), {
     workerData: { paths, numThreads: voiceThreads() },
     execArgv: compiled ? [] : ['--import', 'tsx'],
+    // Backstop for the JS heap; decoded audio is bounded by the length check in audio.ts.
+    resourceLimits: { maxOldGenerationSizeMb: 512 },
     stdout: true,
     stderr: true,
   });

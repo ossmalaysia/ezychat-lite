@@ -8,7 +8,9 @@ import {
   isOgg,
   oggOpusDurationSeconds,
   resample,
+  VOICE_MAX_SECONDS,
 } from './audio.js';
+import { craftedNote } from '../../test/fixtures/ogg.js';
 
 /** 1 s, 440 Hz, mono Ogg/Opus at 48 kHz (ffmpeg libopus, 16 kbit/s voip): 2.4 KB. */
 const TONE = new Uint8Array(
@@ -19,8 +21,23 @@ describe('voice audio', () => {
   it('recognises Ogg and reads the duration without decoding', () => {
     expect(isOgg(TONE)).toBe(true);
     expect(isOgg(new Uint8Array([0x49, 0x44, 0x33, 0x04]))).toBe(false);
-    expect(oggOpusDurationSeconds(TONE)).toBeCloseTo(1, 2);
+    // Counted packets include the encoder's end padding that the granule position trims (~13 ms).
+    expect(oggOpusDurationSeconds(TONE)).toBeCloseTo(1, 1);
     expect(oggOpusDurationSeconds(new Uint8Array(64))).toBeNull();
+  });
+
+  it('counts the real packets instead of trusting the sender-controlled granule position', async () => {
+    const note = craftedNote(5); // claims 20 ms, holds 5 × 255 × 120 ms = 153 s
+    expect(oggOpusDurationSeconds(note)).toBeCloseTo(153 - 312 / 48_000, 2);
+    expect(oggOpusDurationSeconds(note)!).toBeGreaterThan(VOICE_MAX_SECONDS);
+    await expect(decodeVoiceNote(note)).rejects.toThrow('too long or malformed');
+    expect(oggOpusDurationSeconds(craftedNote(1))).toBeCloseTo(30.6 - 312 / 48_000, 2);
+  });
+
+  it('rejects chained streams, more than two channels and truncated pages', () => {
+    expect(oggOpusDurationSeconds(craftedNote(1, 1, true))).toBeNull();
+    expect(oggOpusDurationSeconds(craftedNote(1, 3))).toBeNull();
+    expect(oggOpusDurationSeconds(TONE.subarray(0, TONE.length - 10))).toBeNull();
   });
 
   it('decodes an Ogg/Opus voice note to mono 16 kHz Float32 PCM', async () => {

@@ -13,7 +13,7 @@ import { errors } from '../http/errors.js';
 import { openAiApiKey } from '../ai/settings-keys.js';
 import { MessageRepo, rowToMessage } from '../messages/repo.js';
 import { getMessages } from '../wa-bridge/index.js';
-import { isOgg, oggOpusDurationSeconds } from './audio.js';
+import { VOICE_MAX_SECONDS, isOgg, oggOpusDurationSeconds } from './audio.js';
 import { CLOUD_AUDIO_EXTENSIONS, transcribeCloud } from './cloud-engine.js';
 import { LocalEngine, type WorkerLike } from './local-engine.js';
 import { VoiceModelManager, type VoiceModelManagerOptions } from './model.js';
@@ -22,8 +22,8 @@ import type { TranscriptResult, VoiceModelPaths } from './recognizer.js';
 /** Setting key of the chosen engine (`off` | `local` | `cloud`). */
 export const VOICE_SETTING = 'voice_transcription';
 /** Longer voice notes are not transcribed. */
-export const VOICE_MAX_SECONDS = 120;
 export const VOICE_MAX_BYTES = 10 * 1024 * 1024;
+export const VOICE_MAX_TRANSCRIPT_CHARACTERS = 4000;
 /** Per chat, in memory: at most this many transcriptions per minute. */
 export const VOICE_PER_CHAT_PER_MINUTE = 12;
 /** Queued jobs beyond this are skipped (a burst must not pile up unbounded work). */
@@ -191,8 +191,10 @@ export function createVoiceService(ctx: AppContext, deps: VoiceServiceDeps = {})
     const extension = await extensionOf(audio);
     if (extension !== 'ogg') return store(id, 'unsupported');
     try {
-      const result = await run(engine, audio, file.mime.split(';')[0]!.trim(), extension);
-      const ok = !!result.text.trim();
+      const raw = await run(engine, audio, file.mime.split(';')[0]!.trim(), extension);
+      // Two minutes of speech is about 2,000 characters; cap what an engine can make us store.
+      const result = { ...raw, text: raw.text.trim().slice(0, VOICE_MAX_TRANSCRIPT_CHARACTERS) };
+      const ok = !!result.text;
       store(id, ok ? 'ok' : 'failed', result);
       // Never log transcript text or audio: only the outcome.
       log.info(
