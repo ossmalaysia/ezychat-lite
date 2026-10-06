@@ -28,6 +28,7 @@ npm run typecheck                             # tsc --noEmit in each workspace +
 npm run e2e                                   # Playwright: builds web, starts server --fake-wa on :7499 with .e2e-data
 node e2e/screens.smoke.mjs <url> <outDir>     # every screen (desktop+mobile): page errors, blank, overflow, screenshots
 node e2e/electron-screens.smoke.mjs <url> <outDir>  # same, inside a real Electron window
+node e2e/marketing-screenshots.mjs <port> docs/screenshots  # demo-data screenshot library (docs/screenshots/README.md)
 npm start -w @wa-team-inbox/desktop           # build web + bundle server + tsc + launch Electron
 npm run dist -w @wa-team-inbox/desktop        # fetch cloudflared/WinSW, build, electron-builder (host OS only)
 npx tsx packages/server/src/cli.ts --data ./data/x --reset-admin       # print a new password for the first admin
@@ -211,7 +212,8 @@ themselves.)
 ## Conventions
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
-`CHANGELOG.md` under `[Unreleased]`. Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
+`CHANGELOG.md` under `[Unreleased]`. When a UI change ships, refresh that module's shots in
+`docs/screenshots/` (demo data only). Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
 This is currently a solo-maintainer repository, so second-person approval is not required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
