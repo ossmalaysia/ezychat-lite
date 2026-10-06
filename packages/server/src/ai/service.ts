@@ -22,6 +22,7 @@ import {
   AiContextTextBody,
   AiDecision,
   CHATGPT_FALLBACK_MODELS,
+  DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
 } from '@wa-team-inbox/shared';
@@ -64,6 +65,7 @@ const DEFAULT_SETTINGS: AiSettings = {
   mode: 'api',
   model: '',
   instructions: DEFAULT_AI_INSTRUCTIONS,
+  handoffRules: DEFAULT_AI_HANDOFF_RULES,
 };
 type Actor = { userId: number; ip: string | null };
 interface State {
@@ -162,12 +164,17 @@ export function createAiService(
   const settings = (): AiSettings => {
     const user = member();
     migrateLegacyContext();
-    const stored = ctx.settings.get<{ instructions?: unknown }>(MEMBER_KEY, {});
+    const stored = ctx.settings.get<{ instructions?: unknown; handoffRules?: unknown }>(
+      MEMBER_KEY,
+      {},
+    );
     return {
       ...DEFAULT_SETTINGS,
-      // A member that never saved instructions starts from the default; saved text (even blank) is kept.
+      // Never saved → the defaults; saved text (even blank) is kept.
       instructions:
         typeof stored?.instructions === 'string' ? stored.instructions : DEFAULT_AI_INSTRUCTIONS,
+      handoffRules:
+        typeof stored?.handoffRules === 'string' ? stored.handoffRules : DEFAULT_AI_HANDOFF_RULES,
       ...ctx.settings.get<Pick<AiSettings, 'mode' | 'model'>>(PROVIDER_KEY, {
         mode: 'api',
         model: '',
@@ -688,6 +695,8 @@ export function createAiService(
         ctx.settings.set(MEMBER_KEY, {
           displayName: body.displayName,
           instructions: body.instructions,
+          // Older clients send no rules: keep the effective ones.
+          handoffRules: body.handoffRules ?? settings().handoffRules,
         });
         audit(ctx.db, {
           ...actor,
@@ -886,7 +895,13 @@ export function createAiService(
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
-          prompt(body.knowledge, knowledge, [{ speaker: 'customer', text: body.question }], false),
+          // Draft rules when the page sends them, else the saved ones.
+          prompt(
+            { handoffRules: current.handoffRules, ...body.knowledge },
+            knowledge,
+            [{ speaker: 'customer', text: body.question }],
+            false,
+          ),
           AbortSignal.timeout(60_000),
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.

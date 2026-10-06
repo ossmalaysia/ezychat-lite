@@ -78,8 +78,18 @@ notes are not automatically included in the approved business knowledge.
   latest customer message are checked again immediately before WhatsApp sending. A message
   already transmitted to WhatsApp cannot be recalled by this cancellation.
 - AI answers only from relevant approved knowledge and the current conversation. It cannot
-  browse, execute commands, place orders or make payments. Unsupported/non-text questions,
-  missing facts, a request for a human, or a provider failure trigger handoff.
+  browse, execute commands, place orders or make payments. Hand-offs come in two layers:
+  - **System hand-offs** (fixed in `ai/prompt.ts`, business-agnostic, cannot be removed): the
+    customer asks for a person (`asked_for_human`), a request the AI cannot carry out such as
+    placing, changing or cancelling an order, booking or paying (`needs_action`), facts missing
+    from the business context (`missing_facts`), and legal, medical or personal-data matters
+    (`sensitive`). Unsupported/non-text messages and provider failures also hand off.
+  - **Business hand-off rules** (Members → AI Sales Agent → "Hand-off rules", stored as
+    `handoffRules`): cases this business wants a person to handle, e.g. complaints, refunds,
+    quotations or price negotiation. A new member starts with `DEFAULT_AI_HANDOFF_RULES`; a
+    saved blank value means no extra rules. A match hands off with reason `business_rule`.
+  The reason is recorded on the chat event and shown in the timeline and in Try it. Every reply
+  reads the saved Business context items afresh, so edits apply to the next answer.
 - Handoff selects an enabled human with the **Agent** sign-in role, no open assigned chats,
   and an active inbox connection. If nobody qualifies, it tells the customer a human will
   help and returns the chat to unassigned. AI stays paused after handoff; a human can

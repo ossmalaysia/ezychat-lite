@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  AI_HANDOFF_RULES_CHARACTERS,
   AiMemberBody,
+  DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   type AiMemberStatus,
   type AiSettings,
@@ -32,6 +34,7 @@ const PILL_TONE = {
 const draftFrom = (s: AiSettings): AiKnowledgeDraft => ({
   displayName: s.displayName,
   instructions: s.instructions,
+  handoffRules: s.handoffRules ?? DEFAULT_AI_HANDOFF_RULES,
 });
 const draftKey = (s: AiMemberStatus) => `wati.ai-draft.${s.member?.id ?? 'new'}`;
 /**
@@ -42,10 +45,13 @@ function readStoredDraft(key: string): AiKnowledgeDraft | null {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const parsed = AiMemberBody.pick({ displayName: true, instructions: true })
+    const parsed = AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true })
       .strict()
       .safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
+    // A draft saved before hand-off rules existed is dropped rather than half-restored.
+    return parsed.success && typeof parsed.data.handoffRules === 'string'
+      ? { ...parsed.data, handoffRules: parsed.data.handoffRules }
+      : null;
   } catch {
     return null;
   }
@@ -276,6 +282,46 @@ function AiMemberEditor({
         ensureMember={ensureMember}
         disabled={action.isPending}
       />
+
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle>{t('ai.page.stepHandoff')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Banner tone="info">{t('ai.page.handoffSystem')}</Banner>
+          <Field
+            label={t('ai.page.handoffLabel')}
+            labelClassName="sr-only"
+            hint={t('ai.page.handoffHint')}
+          >
+            {(p) => (
+              <Textarea
+                {...p}
+                value={draft.handoffRules}
+                maxLength={AI_HANDOFF_RULES_CHARACTERS}
+                className="field-sizing-fixed h-40 resize-y overflow-y-auto text-base leading-6 md:text-sm"
+                placeholder={t('ai.page.handoffPlaceholder')}
+                disabled={action.isPending}
+                onChange={(e) => setDraft((old) => ({ ...old, handoffRules: e.target.value }))}
+              />
+            )}
+          </Field>
+          {draft.handoffRules !== DEFAULT_AI_HANDOFF_RULES && (
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="self-start"
+              disabled={action.isPending}
+              onClick={() =>
+                setDraft((old) => ({ ...old, handoffRules: DEFAULT_AI_HANDOFF_RULES }))
+              }
+            >
+              {t('ai.page.useDefaultHandoff')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="gap-4">
         <CardHeader>

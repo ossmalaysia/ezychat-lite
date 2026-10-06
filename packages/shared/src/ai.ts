@@ -66,13 +66,21 @@ export const DEFAULT_AI_INSTRUCTIONS = [
   '- Answer first: no long greetings and no repeating the question back.',
   '- Ask at most one clarifying question when needed (for example which model, size or area).',
   '- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.',
-  '',
-  'HAND OVER TO OUR TEAM when the customer:',
-  '- asks for a person, is upset or complains',
-  '- wants a bulk or custom order, a quotation, or to negotiate the price',
-  '- asks about an existing order, payment, refund or warranty claim',
-  '- asks something the business context does not cover',
-  'Tell them, in their language, that you are passing this to our team and they will reply during business hours.',
+].join('\n');
+
+export const AI_HANDOFF_RULES_CHARACTERS = 4000;
+/**
+ * Business hand-off rules (layer 2): cases this business wants a person to handle, on top of the
+ * fixed system hand-offs (customer asks for a person, a request the AI cannot carry out, facts not
+ * in the context, legal/medical/personal data). Shown (editable) on a new AI member; a saved blank
+ * value means "no extra rules".
+ */
+export const DEFAULT_AI_HANDOFF_RULES = [
+  '- The customer is upset or makes a complaint',
+  '- The customer asks for a refund, return, exchange or warranty claim',
+  '- The customer asks about an existing order, delivery or payment',
+  '- The customer wants a bulk or custom order, or a quotation',
+  '- The customer wants to negotiate the price or asks for a discount',
 ].join('\n');
 
 export const AiSettingsBody = z.object({
@@ -81,6 +89,8 @@ export const AiSettingsBody = z.object({
   mode: z.enum(['api', 'chatgpt']),
   model: z.string().trim().max(128),
   instructions: z.string().max(8000),
+  /** Optional in requests (older clients); the server always returns the effective rules. */
+  handoffRules: z.string().max(AI_HANDOFF_RULES_CHARACTERS).optional(),
   apiKey: z.string().trim().min(10).max(512).optional(),
 });
 export type AiSettingsBody = z.infer<typeof AiSettingsBody>;
@@ -176,6 +186,7 @@ export const AI_MODEL_HANDOFF_REASONS = [
   'missing_facts',
   'sensitive',
   'needs_action',
+  'business_rule',
 ] as const;
 /** Model reasons plus the server's own: a message the AI cannot read, or the AI being unavailable. */
 export const AiHandoffReason = z.enum([
@@ -205,7 +216,7 @@ export const AI_TRY_QUESTION_CHARACTERS = 500;
  */
 export const AiTryBody = z.object({
   question: z.string().trim().min(1).max(AI_TRY_QUESTION_CHARACTERS),
-  knowledge: AiMemberBody.pick({ displayName: true, instructions: true }),
+  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true }),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
 export const AiTryResult = z.object({

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
+  DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   type AiConnection,
   type AiMemberBody,
@@ -909,4 +910,32 @@ it('starts a member that never saved instructions with the default ones, and kee
   expect(t.ctx.services.ai!.status().settings.instructions).toBe('');
   t.ctx.settings.set('ai_sales_member', { instructions: 'Be concise' });
   expect(t.ctx.services.ai!.status().settings.instructions).toBe('Be concise');
+});
+
+it('keeps business hand-off rules: default until saved, then the saved text (even blank)', () => {
+  t.ctx.settings.set('ai_sales_member', {});
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe(DEFAULT_AI_HANDOFF_RULES);
+  t.ctx.services.ai!.saveMember({ ...body, enabled: false, handoffRules: '' }, actor);
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe('');
+  // An older client that sends no rules keeps the saved ones.
+  t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe('');
+});
+
+it('answers every reply from the latest saved business context', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(vi.mocked(provider.generate).mock.calls[0]![2].input).toContain('9am to 5pm');
+  const [item] = t.ctx.services.ai!.status().documents;
+  t.ctx.services.ai!.updateText(
+    item!.id,
+    { text: 'Opening hours: 10am to 8pm. Delivery costs RM12.' },
+    actor,
+  );
+  await incoming('next', 'When do you open?');
+  await vi.advanceTimersByTimeAsync(1200);
+  const latest = vi.mocked(provider.generate).mock.calls.at(-1)![2].input;
+  expect(latest).toContain('10am to 8pm');
+  expect(latest).not.toContain('9am to 5pm');
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_AI_INSTRUCTIONS } from '@wa-team-inbox/shared';
+import { DEFAULT_AI_HANDOFF_RULES, DEFAULT_AI_INSTRUCTIONS } from '@wa-team-inbox/shared';
 import {
   AI_DEFAULT_TIMEZONE,
   buildAiPrompt,
@@ -179,7 +179,7 @@ it('uses the default AI instructions when the saved instructions are blank', () 
       [],
       situation,
     );
-    expect(prompt.endsWith(`Administrator instructions:\n${DEFAULT_AI_INSTRUCTIONS}`)).toBe(true);
+    expect(prompt).toContain(`Administrator instructions:\n${DEFAULT_AI_INSTRUCTIONS}\nBusiness`);
   }
   const custom = buildAiPrompt(knowledge, 'Delivery RM10', [], situation).instructions;
   expect(custom).toContain('Administrator instructions:\nBe brief');
@@ -209,4 +209,22 @@ it('keeps the fixed guardrails above, and in charge of, the administrator instru
 it('ships default instructions without placeholders or text hand-off markers', () => {
   expect(DEFAULT_AI_INSTRUCTIONS).not.toMatch(/\{\{|\[HANDOFF/);
   expect(DEFAULT_AI_INSTRUCTIONS.length).toBeLessThan(8000);
+});
+
+it('keeps business-agnostic hand-offs in the system layer and business ones in their own block', () => {
+  const build = (handoffRules: string | undefined) =>
+    buildAiPrompt({ displayName: 'Ezy', instructions: 'Be brief', handoffRules }, '', [], situation)
+      .instructions;
+  const system = build(undefined).split('Administrator instructions:')[0]!;
+  expect(system).toContain('asked_for_human when the customer asks for a person');
+  expect(system).toContain('missing_facts');
+  expect(system).toContain('needs_action');
+  expect(system).toContain('sensitive for legal, medical or personal-data matters');
+  // Complaints and refunds are business policy now, not fixed system rules.
+  expect(system).not.toMatch(/complaints|refunds/);
+  expect(build(undefined)).toContain(
+    `business_rule when one matches):\n${DEFAULT_AI_HANDOFF_RULES}`,
+  );
+  expect(build('- Wholesale prices')).toContain('when one matches):\n- Wholesale prices');
+  expect(build('  ')).toContain('when one matches):\n(none: only the system hand-offs apply)');
 });

@@ -12,6 +12,8 @@ export function handoffReasonLabel(reason: AiHandoffReason): string {
       return i18n.t('inbox:events.handoffReason.sensitive');
     case 'needs_action':
       return i18n.t('inbox:events.handoffReason.needs_action');
+    case 'business_rule':
+      return i18n.t('inbox:events.handoffReason.business_rule');
     case 'unsupported_message':
       return i18n.t('inbox:events.handoffReason.unsupported_message');
     case 'ai_unavailable':

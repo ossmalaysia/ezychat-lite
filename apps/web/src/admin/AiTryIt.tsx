@@ -33,6 +33,7 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
       knowledge: {
         displayName: draft.displayName.trim() || t('ai.page.defaultTitle'),
         instructions: draft.instructions,
+        handoffRules: draft.handoffRules,
       },
     });
   };

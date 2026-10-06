@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import {
+  DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   type AiDocument,
   type AiMemberBody,
@@ -161,7 +162,8 @@ describe('AI member page', () => {
       '1. Name & role',
       '2. AI instructions',
       '3. Business context',
-      '4. Try it',
+      '4. Hand-off rules',
+      '5. Try it',
     ]);
     expect(screen.getByLabelText('AI instructions')).toBeTruthy();
     // The single Business context textarea is gone: context is a list of items.
@@ -219,6 +221,7 @@ describe('AI member page', () => {
     expect(JSON.parse(String(puts[0]![1]!.body))).toEqual({
       displayName: 'Sales Assistant',
       instructions: 'Be brief.',
+      handoffRules: DEFAULT_AI_HANDOFF_RULES,
       enabled: true,
     });
     expect(screen.queryByText('Unsaved')).toBeNull();
@@ -286,7 +289,11 @@ describe('AI member page', () => {
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/try')!;
     expect(JSON.parse(String(call[1]!.body))).toEqual({
       question: 'How much is delivery?',
-      knowledge: { displayName: 'Sales Assistant', instructions: 'Be brief.' },
+      knowledge: {
+        displayName: 'Sales Assistant',
+        instructions: 'Be brief.',
+        handoffRules: DEFAULT_AI_HANDOFF_RULES,
+      },
     });
     expect(writes(fetchMock).some((c) => c[1]!.method === 'PUT')).toBe(false);
   });
@@ -475,5 +482,23 @@ describe('AI member page', () => {
     expect(JSON.parse(String(tries[0]![1]!.body)).question).toBe(
       'How much' + String.fromCharCode(10) + 'is delivery?',
     );
+  });
+
+  it('edits business hand-off rules, shows the fixed system hand-offs, and restores the defaults', async () => {
+    const { fetchMock } = setup();
+    const box = (await screen.findByLabelText('Hand-off rules')) as HTMLTextAreaElement;
+    expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
+    expect(screen.getByText(/Always handed over, whatever you write here/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Use default rules' })).toBeNull();
+    const user = userEvent.setup();
+    await user.clear(box);
+    await user.type(box, '- The customer asks for a wholesale price');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writes(fetchMock)).toHaveLength(1));
+    expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body)).handoffRules).toBe(
+      '- The customer asks for a wholesale price',
+    );
+    await user.click(screen.getByRole('button', { name: 'Use default rules' }));
+    expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
   });
 });
