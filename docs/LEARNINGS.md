@@ -165,6 +165,9 @@ into AGENTS.md.
 - Desktop: one main-process gate for service/data operations; probe and self-recover when a background
   service starts late; a desktop window is not the update owner unless it owns the server or service;
   after an exe/path rename, users must re-pin the tray icon (`NotifyIconSettings`).
+- A blank white taskbar icon means Windows bound the window's AppUserModelID to a shortcut whose target
+  is gone: scan Start Menu `.lnk` files for `System.AppUserModel.ID`. Unpackaged runs use
+  `appUserModelId(false)` (`….dev`) so dev runs never claim the installed app's identity.
 - Renames keep data folders, profile, service ID and app ID; plan install-path renames as a one-time
   scripted step; regenerate service XML from code, never hand-patch it.
 - Update discovery lists releases and compares strict semver (the latest-release endpoint skips previews).
