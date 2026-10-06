@@ -128,6 +128,8 @@ into AGENTS.md.
 - Every raw `node:http` handler parses the request target inside try/catch and answers 4xx; an uncaught
   throw ends the server process.
 - Document parsers run in a worker with time, memory and expansion limits.
+- Never trust a media file's self-declared length or size (Ogg granule, headers): count the real
+  packets before decoding or uploading, and cap decoded output, because customers send crafted files.
 
 ## WhatsApp / Baileys
 
