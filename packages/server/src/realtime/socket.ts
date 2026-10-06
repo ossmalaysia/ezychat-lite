@@ -10,6 +10,7 @@ import type {
   ServerToClientEvents,
   TunnelStatus,
   User,
+  VoiceStatus,
   WaStatus,
 } from '@wa-team-inbox/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
@@ -159,6 +160,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   // bus → clients
   const onMessageNew = (m: Message) => io.to('all').emit('message:new', m);
   const onMessageStatus = (p: MessageStatusPayload) => io.to('all').emit('message:status', p);
+  const onMessageUpdated = (m: Message) => io.to('all').emit('message:updated', m);
+  const onVoice = (s: VoiceStatus) => io.to('admins').emit('voice:status', s);
   const onChatUpdated = (c: Chat) => io.to('all').emit('chat:updated', c);
   const onChatEvent = (e: ChatEvent) => io.to('all').emit('chat:event', e);
   const onNote = (n: Note) => io.to('all').emit('note:new', n);
@@ -195,6 +198,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const { bus } = ctx;
   bus.on('message:new', onMessageNew);
   bus.on('message:status', onMessageStatus);
+  bus.on('message:updated', onMessageUpdated);
+  bus.on('voice:status', onVoice);
   bus.on('chat:updated', onChatUpdated);
   bus.on('chat:event', onChatEvent);
   bus.on('note:new', onNote);
@@ -213,6 +218,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       closed = true;
       bus.off('message:new', onMessageNew);
       bus.off('message:status', onMessageStatus);
+      bus.off('message:updated', onMessageUpdated);
+      bus.off('voice:status', onVoice);
       bus.off('chat:updated', onChatUpdated);
       bus.off('chat:event', onChatEvent);
       bus.off('note:new', onNote);

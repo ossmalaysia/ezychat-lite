@@ -37,6 +37,7 @@ import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
   HANDOFF_REPLY,
+  VOICE_RETRY_REPLY,
   buildAiPrompt,
   knowledgeSources,
   resolveAiTimeZone,
@@ -48,11 +49,13 @@ import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiPromptImage, AiProvider } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
+import { AI_PROVIDER_KEY, AI_SECRET_KEY } from './settings-keys.js';
+import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 
 export const AI_FALLBACK_MS = 10_000;
-const PROVIDER_KEY = 'ai_inbox_provider';
+const PROVIDER_KEY = AI_PROVIDER_KEY;
 const MEMBER_KEY = 'ai_sales_member';
-const SECRET_KEY = 'ai_api_key';
+const SECRET_KEY = AI_SECRET_KEY;
 /** Random per-install id, created once; only its hash (with the model) is sent as prompt_cache_key. */
 const INSTALL_ID_KEY = 'ai_install_id';
 /** Set once the legacy member knowledge (context, or notes + FAQs) became a context item. */
@@ -504,44 +507,91 @@ export function createAiService(
       if (chats.get(jid)!.assignedTo === null) chats.patch(jid, { assignedTo: user.id }, user.id);
       if (!owned()) return;
       const current = settings();
-      const history = messages.list(jid, { limit: 20 }).messages;
-      const customer = history.find((message) => message.id === customerId);
-      if (!customer || customer.fromMe) return;
+      /** The last 20 messages, the customer message being answered and its debounce batch. */
+      const snapshot = () => {
+        const history = messages.list(jid, { limit: 20 }).messages;
+        const customer = history.find((message) => message.id === customerId);
+        if (!customer || customer.fromMe) return null;
+        // The debounce batch: every customer message since the last AI reply.
+        const repliedIndex = history.findIndex(
+          (message) => message.id === state(jid)!.last_replied_message_id,
+        );
+        const batchStart =
+          repliedIndex >= 0
+            ? repliedIndex + 1
+            : history.findLastIndex((message) => message.fromMe) + 1;
+        const batch = history
+          .slice(batchStart, history.indexOf(customer) + 1)
+          .filter((message) => !message.fromMe);
+        return { history, customer, batchStart, batch };
+      };
+      let snap = snapshot();
+      if (!snap) return;
+      // Voice notes are transcribed before the AI decides: wait (bounded) for their audio and
+      // transcripts, then read the conversation again with the transcripts.
+      // Imported history voice notes stay pending until opened and are never transcribed: skip them.
+      const voiceNotes = snap.batch.filter(
+        (message) =>
+          message.type === 'audio' &&
+          !(mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS),
+      );
+      if (voiceNotes.length) {
+        const deadline = Date.now() + AI_VOICE_WAIT_MS;
+        for (const note of voiceNotes) {
+          await waitForMedia(note.id, controller.signal, deadline);
+          await ctx.services.voice?.waitForTranscript(
+            note.id,
+            controller.signal,
+            Math.max(0, deadline - Date.now()),
+          );
+        }
+        if (!owned()) return;
+        snap = snapshot();
+        if (!snap) return;
+      }
+      const { history, customer, batchStart, batch } = snap;
       const knowledge = relevantKnowledge(
         knowledgeSources(contextItems()),
         history
           .filter((message) => !message.fromMe)
           .slice(-3)
-          .map((message) => message.body ?? '')
+          .map(customerText)
           .join('\n'),
       );
       // awaiting_confirmation counts the resolution questions already sent in a row.
       const asked = state(jid)!.awaiting_confirmation;
       const awaiting = asked > 0;
-      // The debounce batch: every customer message since the last AI reply.
-      const repliedIndex = history.findIndex(
-        (message) => message.id === state(jid)!.last_replied_message_id,
-      );
-      const batchStart =
-        repliedIndex >= 0
-          ? repliedIndex + 1
-          : history.findLastIndex((message) => message.fromMe) + 1;
-      const batch = history
-        .slice(batchStart, history.indexOf(customer) + 1)
-        .filter((message) => !message.fromMe);
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
       const started = Date.now();
       try {
-        // Text and images (with or without a caption) can be read; voice, video, documents,
-        // stickers and the like go to the team.
-        const readable = customer.type === 'text' || customer.type === 'image';
+        // Text, images (with or without a caption) and voice notes can be handled; video,
+        // documents, stickers and the like go to the team.
+        const voice = customer.type === 'audio';
+        const readable = customer.type === 'text' || customer.type === 'image' || voice;
         if (readable && knowledge.trim()) images = await batchImages(batch, controller.signal);
         if (!owned()) return;
         const understood =
-          !!customer.body?.trim() || (customer.type === 'image' && images.length > 0);
+          !!customer.body?.trim() || (customer.type === 'image' && images.length > 0) || voice;
+        // An untranscribed voice note gets one "please type it" answer; a second one after
+        // that request goes to the team.
+        const customerIndex = history.indexOf(customer);
+        const voiceRepeat =
+          voice &&
+          !isTranscribed(customer) &&
+          history
+            .slice(0, batchStart)
+            .some(
+              (message, index) =>
+                !message.fromMe &&
+                message.type === 'audio' &&
+                !isTranscribed(message) &&
+                history
+                  .slice(index + 1, customerIndex)
+                  .some((reply) => reply.fromMe && reply.sentByUserId === user.id),
+            );
         decision =
-          !readable || !understood || !knowledge.trim()
+          !readable || !understood || !knowledge.trim() || voiceRepeat
             ? {
                 action: 'handoff' as const,
                 reply: HANDOFF_REPLY,
@@ -560,10 +610,7 @@ export function createAiService(
                           ? 'AI'
                           : 'human'
                         : 'customer',
-                      text:
-                        message.type === 'image'
-                          ? `[image]${message.body?.trim() ? ` ${message.body.slice(0, 2000)}` : ''}`
-                          : (message.body?.slice(0, 2000) ?? `[${message.type} message]`),
+                      text: conversationLine(message),
                     })),
                     awaiting,
                     images,
@@ -571,6 +618,18 @@ export function createAiService(
                   controller.signal,
                 ),
               );
+        // The first voice note the AI could not listen to always gets the "please type it" answer
+        // (a repeat was handed off above); only a request for a person or a sensitive topic
+        // still hands off.
+        if (
+          voice &&
+          !voiceRepeat &&
+          !isTranscribed(customer) &&
+          decision.action === 'handoff' &&
+          decision.handoffReason !== 'asked_for_human' &&
+          decision.handoffReason !== 'sensitive'
+        )
+          decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
       } catch {
         if (controller.signal.aborted) return;
         if (!ready()) {
@@ -588,10 +647,10 @@ export function createAiService(
       if (!owned()) return;
       // Judge every customer message since the last AI reply (the debounce batch), not only the
       // latest, so "No, still not working" + "thanks" never closes the chat.
-      const batchText = batch.map((message) => message.body ?? '').join('\n');
+      const batchText = batch.map(customerText).join('\n');
       const conversationText = history
         .filter((message) => !message.fromMe)
-        .map((message) => message.body ?? '')
+        .map(customerText)
         .join('\n');
       const proposed = decision.action;
       decision = guardResolution(decision, asked, batchText, conversationText);
@@ -604,6 +663,7 @@ export function createAiService(
           handoffReason: decision.handoffReason ?? null,
           asked,
           images: images.length,
+          voiceNotes: voiceNotes.length,
           model: current.model ?? null,
           ms: Date.now() - started,
         },

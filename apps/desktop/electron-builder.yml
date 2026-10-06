@@ -27,14 +27,18 @@ asarUnpack:
   # app.asar.unpacked/dist/server/server.cjs with plain module resolution
   - '**/node_modules/better-sqlite3/**'
   - '**/node_modules/@node-rs/**'
+  # voice notes: sherpa-onnx-node loader + its platform package (sherpa-onnx.node with the
+  # onnxruntime/sherpa .dll/.dylib/.so libraries it loads from the same folder)
+  - '**/node_modules/sherpa-onnx-node/**'
+  - '**/node_modules/sherpa-onnx-*/**'
   - '**/server/**'
   # server launcher (forked / run by the OS service, like server.cjs)
   - 'dist/server-host.cjs'
   # read by the server for its version (<server dir>/../package.json)
   - 'dist/package.json'
 
-# Native modules: better-sqlite3 (v12+) and @node-rs/argon2 are Node-API addons with prebuilt
-# binaries, so the same build loads in Node (tests) and in Electron (utilityProcess /
+# Native modules: better-sqlite3 (v12+), @node-rs/argon2 and sherpa-onnx-node are Node-API addons
+# with prebuilt binaries, so the same build loads in Node (tests) and in Electron (utilityProcess /
 # ELECTRON_RUN_AS_NODE=1). No Electron rebuild needed; rebuilding would also touch the shared
 # workspace node_modules used by the server tests.
 npmRebuild: false

@@ -18,6 +18,11 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/chatgpt/callback' },
   { method: 'POST', url: '/api/ai/chatgpt/logout' },
   { method: 'POST', url: '/api/ai/try' },
+  { method: 'GET', url: '/api/ai/voice' },
+  { method: 'PATCH', url: '/api/ai/voice' },
+  { method: 'POST', url: '/api/ai/voice/download' },
+  { method: 'POST', url: '/api/ai/voice/cancel' },
+  { method: 'DELETE', url: '/api/ai/voice/model' },
 ] as const;
 
 let t: TestApp;

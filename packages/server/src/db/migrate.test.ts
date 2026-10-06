@@ -22,6 +22,7 @@ const TABLES = [
   'ai_chat_state',
   'jid_aliases',
 ];
+const LATEST = 6;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {
@@ -31,11 +32,14 @@ describe('migrate', () => {
       db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]
     ).map((r) => r.name);
     for (const t of TABLES) expect(names).toContain(t);
-    expect(db.pragma('user_version', { simple: true })).toBe(5);
+    expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
     const cols = (db.prepare('PRAGMA table_info(messages)').all() as { name: string }[]).map(
       (c) => c.name,
     );
     expect(cols).toContain('client_id');
+    expect(cols).toEqual(
+      expect.arrayContaining(['transcript', 'transcript_lang', 'transcript_status']),
+    );
     const userCols = (db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map(
       (c) => c.name,
     );
@@ -49,7 +53,7 @@ describe('migrate', () => {
     migrate(db);
     db.prepare("INSERT INTO settings(key, value) VALUES ('a', '1')").run();
     expect(() => migrate(db)).not.toThrow();
-    expect(db.pragma('user_version', { simple: true })).toBe(5);
+    expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
     expect(db.prepare('SELECT count(*) AS n FROM settings').get()).toEqual({ n: 1 });
     db.close();
   });
@@ -64,7 +68,7 @@ describe('migrate', () => {
         "INSERT INTO users(username, display_name, password_hash, role, locale, created_at) VALUES ('existing', 'Existing', 'hash', 'agent', 'ms', 1)",
       ).run();
       migrate(db);
-      expect(db.pragma('user_version', { simple: true })).toBe(5);
+      expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
       expect(
         db.prepare("SELECT username, locale, kind FROM users WHERE username = 'existing'").get(),
       ).toEqual({ username: 'existing', locale: 'ms', kind: 'human' });
@@ -87,7 +91,7 @@ describe('migrate', () => {
         "INSERT INTO ai_documents(name, size, text, created_at) VALUES ('hours.pdf', 2048, 'Open 9am', 1700)",
       ).run();
       migrate(db);
-      expect(db.pragma('user_version', { simple: true })).toBe(5);
+      expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
       expect(
         db.prepare('SELECT name, kind, size, text, created_at, updated_at FROM ai_documents').get(),
       ).toEqual({
@@ -117,7 +121,7 @@ describe('migrate', () => {
       expect(db.pragma('journal_mode', { simple: true })).toBe('wal');
       expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
       expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
-      expect(db.pragma('user_version', { simple: true })).toBe(5);
+      expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -140,7 +144,7 @@ describe('migrate', () => {
           ('m1', '60111@s.whatsapp.net', 'text', 1, 1), ('m2', '999@lid', 'text', 2, 2);
       `);
       migrate(db);
-      expect(db.pragma('user_version', { simple: true })).toBe(5);
+      expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
       expect(db.prepare('SELECT id, wa_remote_jid FROM messages ORDER BY id').all()).toEqual([
         { id: 'm1', wa_remote_jid: '60111@s.whatsapp.net' },
         { id: 'm2', wa_remote_jid: '999@lid' },

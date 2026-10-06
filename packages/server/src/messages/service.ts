@@ -498,6 +498,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           const buf = await downloads.run(() => dl());
           const rel = media.save(chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
           repo.update(m.id, { media_path: rel, media_status: 'ok' });
+          // Live customer voice notes are transcribed (marked pending before message:new).
+          if (m.type === 'audio' && !m.fromMe) ctx.services.voice?.onAudioStored(m.id);
         } catch (err) {
           log.warn({ err, id: m.id }, 'media download failed');
           repo.update(m.id, { media_status: 'failed' });

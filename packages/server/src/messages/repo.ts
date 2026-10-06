@@ -1,4 +1,10 @@
-import type { MediaStatus, Message, MessageStatus, MessageType } from '@wa-team-inbox/shared';
+import type {
+  MediaStatus,
+  Message,
+  MessageStatus,
+  MessageType,
+  TranscriptStatus,
+} from '@wa-team-inbox/shared';
 import type { DB } from '../db/index.js';
 
 export interface MessageRow {
@@ -22,6 +28,10 @@ export interface MessageRow {
   client_id: string | null;
   /** JID WhatsApp used for this message (PN or LID); replies and read receipts go back to it */
   wa_remote_jid: string | null;
+  /** Voice note transcript columns (006); optional so inserts need not name them. */
+  transcript?: string | null;
+  transcript_lang?: string | null;
+  transcript_status?: TranscriptStatus | null;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -47,6 +57,14 @@ export function rowToMessage(r: MessageRow): Message {
     error: r.error,
     timestamp: r.timestamp,
     clientId: r.client_id,
+    // Only voice notes that went through transcription carry these fields.
+    ...(r.transcript_status
+      ? {
+          transcript: r.transcript ?? null,
+          transcriptLang: r.transcript_lang ?? null,
+          transcriptStatus: r.transcript_status,
+        }
+      : {}),
   };
 }
 

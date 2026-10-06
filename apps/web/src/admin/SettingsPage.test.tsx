@@ -15,6 +15,7 @@ vi.mock('./ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => <p>Resolve 
 vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
+vi.mock('./AiVoiceSection', () => ({ AiVoiceSection: () => <p>Voice messages card</p> }));
 const setTheme = vi.hoisted(() => vi.fn());
 const changeLocale = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/theme', () => ({
@@ -66,6 +67,7 @@ beforeEach(() => {
 it('shows the AI connection inline on the AI tab (no popup)', () => {
   renderAt('/admin/settings/ai');
   expect(screen.getByText('Inline AI connection')).toBeTruthy();
+  expect(screen.getByText('Voice messages card')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Configure AI connection' })).toBeNull();
   expect(patch.mutate).not.toHaveBeenCalled();
 });

@@ -108,7 +108,8 @@ chat, `composing` presence before each send. Jobs wait while disconnected and fa
 **Data dir:** `app.db` (SQLite, migrations in `db/migrations`), `wa-auth/` (Baileys creds),
 `media/`, `secret.key` (AES key for settings secrets such as the tunnel token), `logs/` (pino-roll,
 daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`, nightly, 7 kept),
-plus a lock file. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
+`models/whisper-small/` (optional voice model, downloaded on demand; see `docs/ai-sales-agent.md`),
+plus a lock file. Tests never download the real model or call OpenAI. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
 The Windows program is `EzyChat Lite.exe` in `Program Files\EzyChat Lite` since 0.1.17 (the updater
 still accepts the legacy `WA Team Inbox.exe`). The data folders, desktop profile, service ID and app ID
 are intentional upgrade contracts; do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
