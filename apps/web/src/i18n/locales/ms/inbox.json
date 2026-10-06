@@ -376,6 +376,7 @@
       "otherPhone": "Gunakan digit, ruang, +, -, ( atau )",
       "tooLong": "Gunakan paling banyak {{max}} aksara",
       "tags": "Semak tag: sehingga 10, setiap satu paling banyak 30 aksara"
-    }
+    },
+    "otherPhoneHint": "Nombor WhatsApp {{phone}} sudah disimpan."
   }
 }

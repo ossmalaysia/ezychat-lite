@@ -103,20 +103,49 @@ function mailtoHref(email: string): string | null {
   return `mailto:${encodeURIComponent(email.slice(0, at))}@${email.slice(at + 1)}`;
 }
 
+/** A WhatsApp "name" that is really just the phone number (WhatsApp falls back to it). */
+function isPhoneLike(name: string, phone: string | null | undefined): boolean {
+  return /^\+?[\d\s()-]+$/.test(name) || (!!phone && name.replace(/\D/g, '') === phone);
+}
+
+/** Name to start a new profile with: the WhatsApp name, unless it is only the number. */
+function prefillName(whatsappName: string | null, whatsappPhone?: string | null): string {
+  const name = whatsappName?.trim() ?? '';
+  return name && !isPhoneLike(name, whatsappPhone) ? name : '';
+}
+
+/** "Farah 🌸 · +60123…": what WhatsApp tells us, minus a name equal to the profile name. */
+function whatsappDetails(
+  whatsappName: string | null,
+  whatsappPhone: string | null | undefined,
+  profileName: string | null,
+): string | null {
+  const name = prefillName(whatsappName, whatsappPhone);
+  const parts = [
+    name && name !== profileName ? name : null,
+    whatsappPhone ? `+${whatsappPhone}` : null,
+  ];
+  const shown = parts.filter((part): part is string => !!part);
+  return shown.length ? shown.join(' · ') : null;
+}
+
 /** Read-only view of a customer profile (also used in the group sender popover). */
 export function CustomerDetails({
   profile,
   whatsappName,
+  whatsappPhone,
   directory,
 }: {
   profile: CustomerProfile;
   whatsappName: string | null;
+  /** Digits WhatsApp gave us (no `+`), when known. */
+  whatsappPhone?: string | null;
   /** For "Updated by <teammate>"; that line is left out without it. */
   directory?: Directory;
 }) {
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
-  const showWhatsapp = !!whatsappName && whatsappName !== name;
+  const fromWhatsapp = whatsappDetails(whatsappName, whatsappPhone, name);
   const updatedByName = directory?.nameOf(profile.updatedBy, { youLabel: true }) ?? null;
   const rows: { key: Field; label: string; value: React.ReactNode }[] = [];
   if (profile.company)
@@ -167,9 +196,9 @@ export function CustomerDetails({
         >
           {name ?? t('customer.noName')}
         </p>
-        {showWhatsapp && (
+        {fromWhatsapp && (
           <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-            {t('customer.whatsappName', { name: whatsappName })}
+            {t('customer.whatsappName', { name: fromWhatsapp })}
           </p>
         )}
       </div>
@@ -230,6 +259,8 @@ function CustomerForm({
   jid,
   snapshot,
   latest,
+  whatsappName,
+  whatsappPhone,
   directory,
   onDone,
   escapeRef,
@@ -240,6 +271,9 @@ function CustomerForm({
   snapshot: CustomerProfile;
   /** The newest profile from the server (a teammate may save while this form is open). */
   latest: CustomerProfile;
+  /** What WhatsApp tells us: prefills a new profile's name and is shown read-only. */
+  whatsappName: string | null;
+  whatsappPhone?: string | null;
   directory: Directory;
   onDone(): void;
   /** Lets the panel route Esc here (the Sheet would otherwise close). Returns true if handled. */
@@ -250,15 +284,21 @@ function CustomerForm({
   const { t } = useTranslation('inbox');
   const ids = useId();
   const formRef = useRef<HTMLFormElement>(null);
+  // `initial` is the saved profile (merge baseline: a prefilled name counts as a change and is
+  // saved); `start` is what the form opened with (dirty baseline: opening and cancelling never asks).
   const [initial] = useState(() => draftOf(snapshot));
-  const [draft, setDraft] = useState<Draft>(initial);
+  const [start] = useState<Draft>(() =>
+    initial.name ? initial : { ...initial, name: prefillName(whatsappName, whatsappPhone) },
+  );
+  const [draft, setDraft] = useState<Draft>(start);
+  const fromWhatsapp = whatsappDetails(whatsappName, whatsappPhone, snapshot.name?.trim() || null);
   const [errors, setErrors] = useState<Errors>({});
   const [tagQuery, setTagQuery] = useState('');
   /** The action waiting for "Discard" (cancel editing, close the panel, switch panels). */
   const [pending, setPending] = useState<(() => void) | null>(null);
   const tags = useCustomerTags(tagQuery);
   const save = useSaveCustomerProfile(jid);
-  const dirty = !sameDraft(draft, initial);
+  const dirty = !sameDraft(draft, start);
 
   function guard(next: () => void) {
     if (dirty) setPending(() => next);
@@ -334,6 +374,11 @@ function CustomerForm({
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+        {fromWhatsapp && (
+          <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+            {t('customer.whatsappName', { name: fromWhatsapp })}
+          </p>
+        )}
         {changedMeanwhile && (
           <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
             {changedBy
@@ -373,6 +418,11 @@ function CustomerForm({
               {errors[key] && (
                 <p id={errorId} className="text-xs text-danger">
                   {errors[key]}
+                </p>
+              )}
+              {key === 'otherPhone' && whatsappPhone && !errors[key] && (
+                <p className="text-xs text-muted-foreground">
+                  {t('customer.otherPhoneHint', { phone: `+${whatsappPhone}` })}
                 </p>
               )}
             </div>
@@ -478,6 +528,8 @@ function CustomerBody({
           jid={jid}
           snapshot={editing}
           latest={data?.profile ?? editing}
+          whatsappName={data?.whatsappName ?? null}
+          whatsappPhone={data?.whatsappPhone ?? null}
           directory={directory}
           onDone={() => setEditing(null)}
           escapeRef={escapeRef}
@@ -500,6 +552,7 @@ function CustomerBody({
               <CustomerDetails
                 profile={data.profile}
                 whatsappName={data.whatsappName}
+                whatsappPhone={data.whatsappPhone ?? null}
                 directory={directory}
               />
               <Button variant="outline" size="touch" onClick={() => setEditing(data.profile)}>
@@ -508,6 +561,13 @@ function CustomerBody({
             </>
           ) : (
             <div className="space-y-3">
+              {whatsappDetails(data.whatsappName, data.whatsappPhone, null) && (
+                <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                  {t('customer.whatsappName', {
+                    name: whatsappDetails(data.whatsappName, data.whatsappPhone, null),
+                  })}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">{t('customer.empty')}</p>
               <Button size="touch" onClick={() => setEditing(data.profile)}>
                 {t('customer.addDetails')}

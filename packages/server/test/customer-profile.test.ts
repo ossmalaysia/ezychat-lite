@@ -147,6 +147,8 @@ describe('customer profile routes', () => {
     expect(CustomerProfileResponse.parse(first.json())).toEqual({
       profile: { ...empty, id: null, tags: [], updatedAt: null, updatedBy: null },
       whatsappName: 'Farah 🌸',
+      // The number WhatsApp gave us, so the panel can show it and prefill nothing by hand.
+      whatsappPhone: '60123110021',
     });
     const saved = await t.app.inject({
       method: 'PUT',

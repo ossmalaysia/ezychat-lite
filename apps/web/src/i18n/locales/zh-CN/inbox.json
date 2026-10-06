@@ -376,6 +376,7 @@
       "otherPhone": "只能使用数字、空格、+、-、( 或 )",
       "tooLong": "最多 {{max}} 个字符",
       "tags": "请检查标签：最多 10 个，每个最多 30 个字符"
-    }
+    },
+    "otherPhoneHint": "WhatsApp 号码 {{phone}} 已保存。"
   }
 }

@@ -379,6 +379,7 @@
       "otherPhone": "Use digits, spaces, +, -, ( or )",
       "tooLong": "Use at most {{max}} characters",
       "tags": "Check the tags: up to 10, each up to 30 characters"
-    }
+    },
+    "otherPhoneHint": "The WhatsApp number {{phone}} is already saved."
   }
 }

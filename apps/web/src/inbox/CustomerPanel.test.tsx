@@ -27,6 +27,7 @@ const EMPTY: CustomerProfileResponse = {
     updatedBy: null,
   },
   whatsappName: 'Farah 🌸',
+  whatsappPhone: '601234567',
 };
 
 function json(data: unknown, status = 200) {
@@ -91,11 +92,39 @@ afterEach(() => {
 });
 
 describe('CustomerPanel', () => {
+  it('prefills the name from WhatsApp and shows the WhatsApp name and number', async () => {
+    const put = mockApi(EMPTY);
+    const { onClose } = renderPanel();
+    expect(await screen.findByText('WhatsApp: Farah 🌸 · +601234567')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Add details' }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Farah 🌸');
+    expect(screen.getByText('WhatsApp: Farah 🌸 · +601234567')).toBeTruthy();
+    expect(screen.getByText('The WhatsApp number +601234567 is already saved.')).toBeTruthy();
+    // A prefilled form is not "unsaved changes": cancelling does not ask.
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText('Discard your changes?')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    // Saving keeps the prefilled name.
+    await userEvent.click(screen.getByRole('button', { name: 'Add details' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    expect(put.mock.calls[0]![0]).toMatchObject({ name: 'Farah 🌸' });
+  });
+
+  it('does not prefill a name that is only the phone number', async () => {
+    mockApi({ ...EMPTY, whatsappName: '601234567' });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('');
+    expect(screen.getByText('WhatsApp: +601234567')).toBeTruthy();
+  });
+
   it('shows an empty state, then validates and saves edited details', async () => {
     const put = mockApi(EMPTY);
     renderPanel();
     expect(await screen.findByText('No details yet')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Add details' }));
+    await userEvent.clear(screen.getByLabelText('Name'));
     await userEvent.type(screen.getByLabelText('Name'), 'Farah Aziz');
     await userEvent.type(screen.getByLabelText('Email'), 'nope');
     await userEvent.type(screen.getByRole('combobox'), 'VIP{Enter}');
@@ -177,9 +206,10 @@ describe('CustomerPanel', () => {
     const put = mockApi(EMPTY);
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
-    await userEvent.type(screen.getByLabelText('Name'), 'Farah{Control>}{Enter}{/Control}');
+    await userEvent.clear(screen.getByLabelText('Name'));
+    await userEvent.type(screen.getByLabelText('Name'), 'Farah Aziz{Control>}{Enter}{/Control}');
     await waitFor(() => expect(put).toHaveBeenCalledOnce());
-    expect(await screen.findByText('Farah')).toBeTruthy();
+    expect(await screen.findByText('Farah Aziz')).toBeTruthy();
   });
 
   it('saves a tag that was typed but not yet added', async () => {

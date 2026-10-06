@@ -60,7 +60,11 @@ export function createCustomerService(ctx: AppContext): CustomerService {
   const service: CustomerService = {
     profile(chatJid) {
       const chat = directChat(chatJid);
-      return { profile: repo.get(chat.jid) ?? EMPTY, whatsappName: chat.whatsappName ?? null };
+      return {
+        profile: repo.get(chat.jid) ?? EMPTY,
+        whatsappName: chat.whatsappName ?? null,
+        whatsappPhone: chat.phone ?? null,
+      };
     },
 
     save(chatJid, body, actor) {

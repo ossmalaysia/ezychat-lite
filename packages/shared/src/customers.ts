@@ -83,6 +83,9 @@ export const CustomerProfileResponse = z.object({
   profile: CustomerProfileSchema,
   /** The name WhatsApp/the phone gives the customer, shown under the profile name. */
   whatsappName: z.string().nullable(),
+  /** Phone-number digits WhatsApp gave us (no `+`); null when hidden behind a WhatsApp ID (LID).
+   *  Optional only for older servers. */
+  whatsappPhone: z.string().nullable().optional(),
 });
 export type CustomerProfileResponse = z.infer<typeof CustomerProfileResponse>;
 
