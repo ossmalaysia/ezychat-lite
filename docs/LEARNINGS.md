@@ -130,6 +130,7 @@ into AGENTS.md.
 - Document parsers run in a worker with time, memory and expansion limits.
 - Never trust a media file's self-declared length or size (Ogg granule, headers): count the real
   packets before decoding or uploading, and cap decoded output, because customers send crafted files.
+  Test such limits with genuinely oversized input, not by editing the header (that is the attack).
 
 ## WhatsApp / Baileys
 
