@@ -41,6 +41,8 @@ into AGENTS.md.
 - Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
 - Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
   be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
+- Run Prettier on the files you changed, never on a whole folder: parts of the tree are not
+  Prettier-clean on `main`, so a folder run rewrites files another agent or nobody owns.
 - Workflow/subagents start in the session's primary checkout: when work lives in another worktree, give
   its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
 
