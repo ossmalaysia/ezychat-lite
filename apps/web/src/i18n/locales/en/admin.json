@@ -496,6 +496,7 @@
     "try": {
       "label": "Customer question",
       "placeholder": "Example: How much is delivery?",
+      "enterHint": "Press Enter to ask, Shift+Enter for a new line.",
       "ask": "Ask",
       "hint": "Answers with your saved business context and the name and instructions on this page, including unsaved changes. Nothing is sent to customers.",
       "decision": {
@@ -534,6 +535,7 @@
       "noMatches": "No items match “{{query}}”.",
       "limitReached": "Delete an item to add another (up to 20).",
       "textLabel": "Text content",
+      "characterCount": "{{count}} / {{max}} characters",
       "namePlaceholder": "Example: Price list",
       "textPlaceholder": "Example:\nKedai Ezy sells cakes and bread in Johor Bahru.\nOpen daily 9am–6pm, closed on public holidays.\nDelivery within 10 km costs RM10.\n\nQ: Do you take custom orders?\nA: Yes, with 3 days’ notice.",
       "addTextTitle": "Add text content",

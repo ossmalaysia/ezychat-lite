@@ -492,6 +492,7 @@
     "try": {
       "label": "客户问题",
       "placeholder": "例如：运费是多少？",
+      "enterHint": "按 Enter 提问，Shift+Enter 换行。",
       "ask": "提问",
       "hint": "使用已保存的业务背景以及本页的名称和指令（包括未保存的更改）回答。不会向客户发送任何内容。",
       "decision": {
@@ -529,6 +530,7 @@
       "noMatches": "没有与“{{query}}”匹配的项目。",
       "limitReached": "删除一项后才能添加新的（最多 20 项）。",
       "textLabel": "文本内容",
+      "characterCount": "{{count}} / {{max}} 个字符",
       "namePlaceholder": "例如：价目表",
       "textPlaceholder": "例如：\nEzy 饼屋在新山销售蛋糕和面包。\n每天上午 9 点至下午 6 点营业，公共假期休息。\n10 公里内配送费 RM10。\n\n问：可以定制订单吗？\n答：可以，需提前 3 天通知。",
       "addTextTitle": "添加文本内容",

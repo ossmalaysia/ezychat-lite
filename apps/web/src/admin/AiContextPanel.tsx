@@ -7,6 +7,7 @@ import {
   AI_CONTEXT_ITEMS,
   AI_CONTEXT_NAME_CHARACTERS,
   AiContextTextBody,
+  codePointLength,
   type AiDocument,
 } from '@wa-team-inbox/shared';
 import { BatchDeleteError, useAiDocument, useAiMemberAction } from '../api/ai';
@@ -32,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
+import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, Field, Pending } from './adminUi';
 
@@ -491,6 +492,7 @@ function ItemDialog({
   return (
     <ResponsiveDialog
       open
+      size="wide"
       onOpenChange={(o) => !o && !pending && onClose()}
       title={<span className="break-words">{doc?.name ?? t('ai.contextPanel.loading')}</span>}
       description={doc ? t('ai.contextPanel.fileReadOnly') : undefined}
@@ -570,6 +572,7 @@ function TextItemDialog({
   return (
     <ResponsiveDialog
       open
+      size="wide"
       onOpenChange={(o) => !o && !pending && onClose()}
       title={<span className="break-words">{title}</span>}
       footer={
@@ -611,12 +614,18 @@ function TextItemDialog({
             />
           )}
         </Field>
-        <Field label={t('ai.contextPanel.textLabel')}>
+        <Field
+          label={t('ai.contextPanel.textLabel')}
+          hint={t('ai.contextPanel.characterCount', {
+            count: formatNumber(codePointLength(draft.text)),
+            max: formatNumber(AI_CONTEXT_CHARACTERS),
+          })}
+        >
           {(p) => (
             <Textarea
               {...p}
-              rows={10}
-              className="max-h-[50dvh]"
+              // Fixed size: long lines wrap and the box scrolls instead of widening the dialog.
+              className="field-sizing-fixed h-[min(55dvh,32rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
               value={draft.text}
               // Counts UTF-16 units (≥ code points), so typing can never pass the server limit.
               maxLength={AI_CONTEXT_CHARACTERS}

@@ -492,6 +492,7 @@
     "try": {
       "label": "Soalan pelanggan",
       "placeholder": "Contoh: Berapakah kos penghantaran?",
+      "enterHint": "Tekan Enter untuk bertanya, Shift+Enter untuk baris baharu.",
       "ask": "Tanya",
       "hint": "Menjawab dengan konteks perniagaan yang disimpan serta nama dan arahan di halaman ini, termasuk perubahan yang belum disimpan. Tiada apa-apa dihantar kepada pelanggan.",
       "decision": {
@@ -529,6 +530,7 @@
       "noMatches": "Tiada item sepadan dengan “{{query}}”.",
       "limitReached": "Padam satu item untuk menambah yang lain (sehingga 20).",
       "textLabel": "Kandungan teks",
+      "characterCount": "{{count}} / {{max}} aksara",
       "namePlaceholder": "Contoh: Senarai harga",
       "textPlaceholder": "Contoh:\nKedai Ezy menjual kek dan roti di Johor Bahru.\nDibuka setiap hari 9 pagi–6 petang, tutup pada cuti umum.\nPenghantaran dalam 10 km berharga RM10.\n\nS: Adakah anda menerima tempahan khas?\nJ: Ya, dengan notis 3 hari.",
       "addTextTitle": "Tambah kandungan teks",

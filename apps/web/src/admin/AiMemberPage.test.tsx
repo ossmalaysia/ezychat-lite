@@ -456,4 +456,24 @@ describe('AI member page', () => {
     expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
     expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
   });
+
+  it('Try it asks on Enter and keeps Shift+Enter for a new line', async () => {
+    const { fetchMock } = setup(status(), (url, init) =>
+      url === '/api/ai/try' && init?.method === 'POST'
+        ? json({ ok: true, reply: 'Delivery is RM10.', action: 'answer', model: 'm', error: null })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    const box = (await screen.findByLabelText('Customer question')) as HTMLTextAreaElement;
+    await user.type(box, 'How much{Shift>}{Enter}{/Shift}is delivery?');
+    expect(box.value).toBe('How much' + String.fromCharCode(10) + 'is delivery?');
+    expect(fetchMock.mock.calls.some((c) => c[0] === '/api/ai/try')).toBe(false);
+    await user.type(box, '{Enter}');
+    await screen.findByText('Delivery is RM10.');
+    const tries = fetchMock.mock.calls.filter((c) => c[0] === '/api/ai/try');
+    expect(tries).toHaveLength(1);
+    expect(JSON.parse(String(tries[0]![1]!.body)).question).toBe(
+      'How much' + String.fromCharCode(10) + 'is delivery?',
+    );
+  });
 });
