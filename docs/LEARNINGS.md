@@ -52,7 +52,10 @@ into AGENTS.md.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
   sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
-  commit.
+  commit. After a base PR is squash-merged, replay only your own commits
+  (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
+  conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
+  conflict markers first.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
@@ -94,7 +97,9 @@ into AGENTS.md.
   worker with plain node and one real job.
 - Packaging: asar-unpack native loaders with their `.node`; pin esbuild's `ws` build; mac builds need an
   explicit `--mac dmg:<arch>` and a native-runner smoke; smoke packaged servers with
-  `ELECTRON_RUN_AS_NODE=1` on a temp data dir.
+  `ELECTRON_RUN_AS_NODE=1` on a temp data dir. A feature that adds a native module or worker is smoked
+  end to end in a `--dir` packaged build (e.g. voice: copy the model in, simulate a voice note on
+  `--fake-wa`, check the transcript), not just server start-up.
 - GUI smoke tests use plain Electron with a temporary profile (packaged apps ignore entry arguments).
 - Playwright may lack Chromium: fall back to `channel: 'chrome'`. Run e2e alone (memory); browser test
   sign-in honours `Retry-After` instead of weakening limits.
