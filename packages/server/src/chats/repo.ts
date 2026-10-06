@@ -6,6 +6,7 @@ import type {
   ChatType,
   Note,
 } from '@wa-team-inbox/shared';
+import { customerTagKey } from '@wa-team-inbox/shared';
 import type { DB } from '../db/index.js';
 
 export interface ChatRow {
@@ -20,7 +21,21 @@ export interface ChatRow {
   assigned_to: number | null;
   updated_at: number;
   phone: string | null;
+  /** customer_profiles.name, joined by CHAT_SELECT (direct chats). */
+  profile_name?: string | null;
+  /** Customer tags joined by TAG_SEPARATOR, in CHAT_SELECT. */
+  profile_tags?: string | null;
 }
+
+/** Columns of `chats` itself (the joined profile columns are read-only). */
+export type ChatColumns = Omit<ChatRow, 'profile_name' | 'profile_tags'>;
+
+export const TAG_SEPARATOR = '\u001f';
+/** Chat columns plus the customer profile name and tags; FROM `chats c` with alias `cp`. */
+const CHAT_SELECT = `SELECT c.*, cp.name AS profile_name,
+  (SELECT group_concat(tag, char(31)) FROM
+     (SELECT tag FROM customer_tags WHERE chat_jid = c.jid ORDER BY created_at, rowid)) AS profile_tags
+  FROM chats c LEFT JOIN customer_profiles cp ON cp.chat_jid = c.jid`;
 
 export interface ChatEventRow {
   id: number;
@@ -49,14 +64,17 @@ export interface ContactRow {
 export function rowToChat(r: ChatRow): Chat {
   // A LID is an opaque WhatsApp ID, never a phone number: do not show its digits as a name.
   const lidDigits = r.jid.endsWith('@lid') && r.name === jidUser(r.jid);
-  const name =
+  const waName =
     (r.name && !lidDigits ? r.name : null) ||
     r.phone ||
     (r.jid.endsWith('@lid') ? '' : jidUser(r.jid));
+  const dm = r.type === 'dm';
+  // A customer profile name wins; a cleared (NULL/blank) one falls back to the WhatsApp name.
+  const profileName = dm ? r.profile_name?.trim() || null : null;
   return {
     jid: r.jid,
     type: r.type,
-    name,
+    name: profileName ?? waName,
     avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
     unreadCount: r.unread_count,
     lastMessageAt: r.last_message_at,
@@ -65,6 +83,8 @@ export function rowToChat(r: ChatRow): Chat {
     assignedTo: r.assigned_to,
     updatedAt: r.updated_at,
     phone: r.phone ?? null,
+    tags: dm && r.profile_tags ? r.profile_tags.split(TAG_SEPARATOR) : [],
+    whatsappName: dm ? waName || null : null,
   };
 }
 
@@ -106,7 +126,7 @@ export class ChatRepo {
 
   get(jid: string): ChatRow | null {
     return (
-      (this.db.prepare('SELECT * FROM chats WHERE jid = ?').get(jid) as ChatRow | undefined) ?? null
+      (this.db.prepare(`${CHAT_SELECT} WHERE c.jid = ?`).get(jid) as ChatRow | undefined) ?? null
     );
   }
 
@@ -156,7 +176,7 @@ export class ChatRepo {
     this.db.prepare('UPDATE chats SET name = ?, updated_at = ? WHERE jid = ?').run(name, now, jid);
   }
 
-  update(jid: string, fields: Partial<Omit<ChatRow, 'jid'>>): void {
+  update(jid: string, fields: Partial<Omit<ChatColumns, 'jid'>>): void {
     const keys = Object.keys(fields) as Array<keyof typeof fields>;
     if (!keys.length) return;
     const sets = keys.map((k) => `${k} = @${k}`).join(', ');
@@ -168,6 +188,8 @@ export class ChatRepo {
     assigned: 'me' | 'none' | 'any';
     userId: number;
     q?: string;
+    /** Customer tag, matched by key (case-insensitive). */
+    tag?: string;
     since?: number;
     cursor?: { ts: number; jid: string } | null;
     limit: number;
@@ -188,12 +210,21 @@ export class ChatRepo {
       where.push('c.updated_at > @since');
       params.since = f.since;
     }
+    if (f.tag) {
+      where.push(
+        'EXISTS (SELECT 1 FROM customer_tags tg WHERE tg.chat_jid = c.jid AND tg.tag_key = @tagKey)',
+      );
+      params.tagKey = customerTagKey(f.tag);
+    }
     const q = f.q?.trim();
     if (q) {
       params.q = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       where.push(
         `(c.name LIKE @q ESCAPE '\\' OR c.jid LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
-          OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\')`,
+          OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\'
+          OR cp.name LIKE @q ESCAPE '\\' OR cp.company LIKE @q ESCAPE '\\' OR cp.email LIKE @q ESCAPE '\\'
+          OR cp.other_phone LIKE @q ESCAPE '\\' OR cp.address LIKE @q ESCAPE '\\'
+          OR EXISTS (SELECT 1 FROM customer_tags tq WHERE tq.chat_jid = c.jid AND tq.tag LIKE @q ESCAPE '\\'))`,
       );
     }
     if (f.cursor) {
@@ -203,7 +234,7 @@ export class ChatRepo {
       params.cts = f.cursor.ts;
       params.cjid = f.cursor.jid;
     }
-    const sql = `SELECT c.* FROM chats c LEFT JOIN contacts ct ON ct.jid = c.jid
+    const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = c.jid
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY COALESCE(c.last_message_at, 0) DESC, c.jid ASC LIMIT @limit`;
     return this.db.prepare(sql).all(params) as ChatRow[];

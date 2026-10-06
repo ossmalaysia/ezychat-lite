@@ -7,6 +7,7 @@ import users from './users.js';
 import chats from './chats.js';
 import messages from './messages.js';
 import notes from './notes.js';
+import customers from './customers.js';
 import media from './media.js';
 import quickReplies from './quick-replies.js';
 import push from './push.js';
@@ -29,6 +30,7 @@ export const routeModules: RouteModule[] = [
   chats,
   messages,
   notes,
+  customers,
   media,
   quickReplies,
   push,

@@ -103,6 +103,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const inflight = new Map<string, Promise<unknown>>();
   const reconciliations = new Map<string, () => void>();
 
+  /** Group messages: each inbound sender's customer profile name (one batched lookup per page). */
+  const withSenderProfiles = (list: Message[]): Message[] =>
+    ctx.services.customers?.withSenderProfiles(list) ?? list;
+
   const emitChat = (jid: string) => {
     const r = chats.get(jid);
     if (r) ctx.bus.emit('chat:updated', rowToChat(r));
@@ -394,7 +398,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const page = more ? rows.slice(0, q.limit) : rows;
       const oldest = page[page.length - 1];
       return {
-        messages: page.reverse().map(rowToMessage),
+        messages: withSenderProfiles(page.reverse().map(rowToMessage)),
         nextBefore: more && oldest ? encodeBefore(oldest.timestamp, oldest.id) : null,
       };
     },
@@ -508,7 +512,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
       const final = repo.get(m.id);
       if (!final) return null;
-      const msg = rowToMessage(final);
+      const msg = withSenderProfiles([rowToMessage(final)])[0]!;
       ctx.bus.emit('message:new', msg);
       const chat = emitChat(chatJid);
       if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });

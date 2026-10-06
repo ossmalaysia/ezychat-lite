@@ -1,3 +1,4 @@
+import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
 import { ChatRepo, jidUser, type ChatRow } from './repo.js';
@@ -9,7 +10,16 @@ export interface MergeResult {
   /** `to` had no chat row: `from` was renamed instead */
   rekeyed: boolean;
   /** `aiState`: 1 when the AI Sales Agent's `ai_chat_state` row of `from` was moved/merged */
-  moved: { messages: number; events: number; notes: number; aiState: number };
+  moved: {
+    messages: number;
+    events: number;
+    notes: number;
+    aiState: number;
+    /** customer profiles carried over (counts only; values never leave the tables) */
+    profiles: number;
+    tags: number;
+    tagsDropped: number;
+  };
   assignedTo: number | null;
   /** owner removed because both chats had different owners (one owner per chat) */
   assigneeDropped: number | null;
@@ -170,6 +180,7 @@ export function mergeChat(
       notes: db.prepare('UPDATE notes SET chat_jid = ? WHERE chat_jid = ?').run(to, from).changes,
       // must run before DELETE FROM chats (cascade) and after the `to` row exists (foreign key)
       aiState: mergeAiState(db, from, to, fromNewer),
+      ...mergeCustomerProfile(db, from, to),
     };
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.

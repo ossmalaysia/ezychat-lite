@@ -21,8 +21,10 @@ const TABLES = [
   'ai_documents',
   'ai_chat_state',
   'jid_aliases',
+  'customer_profiles',
+  'customer_tags',
 ];
-const LATEST = 6;
+const LATEST = 7;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {

@@ -130,6 +130,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         assigned: q.assigned ?? 'any',
         userId,
         q: q.q,
+        tag: q.tag,
         since: q.since,
         cursor,
         limit: q.limit + 1,
