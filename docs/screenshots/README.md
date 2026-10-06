@@ -11,7 +11,7 @@ demo data only: the fictional "Kopi Apong" coffee shop on fake WhatsApp. No real
 | `ai-member/`     | AI Sales Agent page (instructions, hand-off rules, Business context)  |
 | `ai-settings/`   | AI connection settings                                                |
 | `quick-replies/` | Quick replies                                                         |
-| `whatsapp-link/` | WhatsApp linking                                                      |
+| `whatsapp-link/` | WhatsApp page (fake WhatsApp shows "Fake": internal use only)         |
 | `remote-access/` | Cloudflare remote access                                              |
 | `settings/`      | Admin settings                                                        |
 
