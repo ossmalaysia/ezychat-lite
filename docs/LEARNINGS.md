@@ -41,6 +41,8 @@ into AGENTS.md.
 - Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
 - Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
   be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
+- Workflow/subagents start in the session's primary checkout: when work lives in another worktree, give
+  its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
 
 ## Git, GitHub and CI
 
