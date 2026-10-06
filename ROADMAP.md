@@ -8,13 +8,13 @@ on a computer you control.
 This is a direction, not a release schedule. Planned features are not available yet; priorities
 may change with feedback from businesses using the inbox.
 
-| Stage                               | Status               | What it covers                                                                                                                                                          |
-| ----------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Basic team inbox                    | Available; improving | One linked WhatsApp number, shared conversations, assignments, internal notes, quick replies, member roles, mobile access, notifications and local backups.             |
-| Security and easy setup             | Ongoing              | Safer defaults, clear connection status, guided remote access, dependable updates, better recovery and accessible desktop/mobile workflows.                             |
-| BYOK sales agent                    | Planned              | Optional AI assistance using your own provider API key: draft replies, summarise conversations, suggest follow-ups and answer from an approved business knowledge base. |
-| Light CRM                           | Planned              | Customer profiles, tags, notes, simple sales stages, next actions and follow-up reminders alongside the conversation.                                                   |
-| Business workflows and integrations | Exploring            | Team handovers, saved views, basic reporting, import/export, webhooks and integrations with tools businesses already use.                                               |
+| Stage                               | Status               | What it covers                                                                                                                                                                               |
+| ----------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Basic team inbox                    | Available; improving | One linked WhatsApp number, shared conversations, assignments, internal notes, quick replies, member roles, mobile access, notifications and local backups.                                  |
+| Security and easy setup             | Ongoing              | Safer defaults, clear connection status, guided remote access, dependable updates, better recovery and accessible desktop/mobile workflows.                                                  |
+| AI sales agent                      | In preview           | Optional AI member that answers basic questions from your business context, hands off to people and closes chats only after the customer confirms. Uses your own API key or ChatGPT sign-in. |
+| Light CRM                           | Planned              | Customer profiles, tags, notes, simple sales stages, next actions and follow-up reminders alongside the conversation.                                                                        |
+| Business workflows and integrations | Exploring            | Team handovers, saved views, basic reporting, import/export, webhooks and integrations with tools businesses already use.                                                                    |
 
 ## Next: strengthen the inbox
 
@@ -23,15 +23,26 @@ may change with feedback from businesses using the inbox.
 - Make release downloads and upgrades clearer, with data preservation and recovery guidance.
 - Keep security checks, permissions and setup protections covered by tests.
 
-## BYOK sales agent
+## AI sales agent
 
-- Let the hosting admin configure an optional provider and their own API key.
-- Start with reply drafts, summaries and suggested next actions that people review before sending.
-- Add a business knowledge base for product information and common questions.
-- Show what leaves the machine, require explicit configuration, protect stored keys, and provide
-  usage controls. AI providers may charge for usage; BYOK does not mean free AI.
-- Explore controlled automation only after review, permissions, audit trails and a clear handover
-  to a person are in place.
+In preview:
+
+- An optional AI member, set up on its own page: AI instructions plus a business context list
+  (uploaded TXT/PDF/MD/DOCX files and text you add), with **Try it** before turning it on.
+- Connect with your own OpenAI API key or, experimentally, a ChatGPT sign-in.
+- It answers from your context only, hands complaints, refunds and missing facts to a person, and
+  closes a chat only after the customer confirms. Customers never see error messages.
+
+Next:
+
+- **AI actions:** a clear, extensible set of things the agent may do in the inbox (resolve, hand
+  off, add an internal note, then more), each with code-level checks, an audit trail and an admin
+  switch; risky actions become "AI drafts, a person approves".
+- **Voice:** the team sends voice notes; the agent understands customer voice messages through
+  transcription.
+- Reply drafts and conversation summaries that people review before sending.
+- Usage controls and a clear view of what leaves the machine. AI providers may charge for usage;
+  your own key does not mean free AI.
 
 ## Light CRM
 
