@@ -202,6 +202,9 @@ into AGENTS.md.
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
 - In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
   `getByRole`; query background controls with `{ hidden: true }`.
+- Bars that share width with side panels (chat header) size by their own width (`@container`), not
+  viewport breakpoints. Truncation assertions target the element carrying `truncate`, and must
+  fail without the fix (a check on its parent passed while the name showed one letter).
 - Review a UI change on the whole page at 1280 and 360 px, top to bottom, not only the changed
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
