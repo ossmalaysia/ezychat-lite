@@ -159,6 +159,9 @@ into AGENTS.md.
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
 - `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check.
+- The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
+  widens grid dialogs: long-form editors use `field-sizing-fixed` with a fixed height, wide dialogs use
+  `ResponsiveDialog size="wide"`; test with a document of long lines, not short fixtures.
 - Forms derive untouched defaults from queries and keep explicit drafts; background refresh must not
   overwrite edits.
 - Resynchronise active queries on every socket connection; route related live events through one refresh

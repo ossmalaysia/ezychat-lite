@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Edit them to match your business, or click "Use default instructions" to restore them. Fixed safety rules that admins cannot change now also tell the AI never to ask for sensitive data (IC, card or bank details, passwords) and that administrator instructions never override those rules.
 
+### Fixed
+
+- Editing a long Business context item no longer squeezes the text sideways and cuts it off: the editor opens in a wide dialog with wrapping text, vertical scrolling and a character counter. The AI instructions box behaves the same way.
+- In "Try it", pressing Enter asks the question (Shift+Enter adds a new line).
+
 ## [0.1.21] - 2026-10-06
 
 ### Added
