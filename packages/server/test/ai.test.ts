@@ -960,7 +960,8 @@ it('hands an AI-owned chat to the teammate who replies from the inbox, and the A
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
   expect(provider.generate).toHaveBeenCalledTimes(1);
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(agent.id);
-=======
+});
+
 describe('customer images', () => {
   const PNG = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -1107,7 +1108,6 @@ describe('customer images', () => {
     expect(provider.generate).not.toHaveBeenCalled();
     expect(lastHandoff()).toBe('unsupported_message');
   });
->>>>>>> f13d153 (feat(ai): the AI Sales Agent understands customer images)
 });
 
 it('never waits for imported history photos that are only downloaded on demand', async () => {
