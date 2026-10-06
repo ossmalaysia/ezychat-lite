@@ -314,7 +314,8 @@ it('drains a persisted live chat that exceeded the initial timer capacity', asyn
   await vi.advanceTimersByTimeAsync(90_000);
   expect(provider.generate).toHaveBeenCalledTimes(201);
   expect(t.wa.sent).toHaveLength(201);
-});
+  // 201 chats end to end: several seconds on slow CI runners (Windows took 8 s), not a hang.
+}, 30_000);
 
 it('hands off to an enabled online human with zero open chats, then pauses AI fallback', async () => {
   const idle = human('idle'); // admin=1,AI=2,idle=3 => offline by test predicate
