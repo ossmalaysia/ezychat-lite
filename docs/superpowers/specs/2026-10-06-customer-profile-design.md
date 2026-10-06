@@ -20,7 +20,8 @@ customer profile: one per customer (contact). It is not a CRM.
 | Export            | Not in phase 1                                                                                                      |
 | Tags              | Free text with suggestions from existing tags; the inbox can filter by tag                                         |
 | Profile name      | Used everywhere in EzyChat (inbox, header, search); the WhatsApp name stays visible; the phone's contacts never change |
-| Storage approach  | New tables keyed by the one-to-one chat (approach 1 of 3)                                                          |
+| Group chats       | Show a customer's profile name on their group messages; read-only there (option B)                                   |
+| Storage approach  | One profile per customer, stored against their direct chat (approach 1 of 3)                                                          |
 
 ### Out of scope (later phases; the data model must not block them)
 
@@ -156,6 +157,29 @@ Origin checks.
   suggestions, and stays remembered while switching chats.
 - **Text and style.** All text goes through `t()` with keys in `en`, `ms` and `zh-CN`. Only design-system
   components and tokens (Calm Desk). Every route keeps its `ErrorBoundary`.
+
+## Group chats
+
+Groups have no profile of their own, but a customer who writes in a group is recognised:
+
+- **Linking.** When the server returns group messages (list and live), it maps each message's
+  `sender_jid` to that person's direct chat with `AliasStore.route()`. This works for both the
+  phone-number and the WhatsApp-ID (LID) form. If that direct chat has a profile name,
+  the message carries `senderProfile: { chatJid, name }`. Otherwise the field is `null`.
+- **Display.** Above that sender's bubbles the group view shows the profile name instead of the
+  WhatsApp name. Clicking it opens a read-only popover with the profile's read view, plus
+  **Open chat**, which goes to their direct chat with the Customer panel open.
+- **Editing** happens only in the direct chat. The group view never edits a profile.
+- **No direct chat.** A group member who has never messaged the business directly has no direct
+  chat and no profile, so their WhatsApp name shows as today. Phase 1 does not create hidden
+  contacts for group-only people.
+- **Freshness.** The mapping is resolved when messages are read. An open group view picks up a
+  renamed profile on its next message fetch or reload. That is acceptable for a display name.
+- **Contract.** `MessageSchema` gains `senderProfile: { chatJid, name } | null`. The lookup is batched
+  per message page (one query for the page's distinct senders), never once per message.
+- **Tests.** A group message from a sender whose direct chat has a profile shows the profile name.
+  The same works when the sender appears under the other JID form. A sender with no direct chat
+  shows the WhatsApp name. The popover opens the right chat.
 
 ## 4. Testing
 
