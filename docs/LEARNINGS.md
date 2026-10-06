@@ -131,6 +131,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Ownership follows who handles the chat: a teammate's inbox reply claims an unassigned chat and takes
+  over an AI-owned one (the AI then stops); it never takes a chat from another teammate, and phone-app
+  replies assign nobody. Pausing the AI without moving the owner left a stale AI chip.
 - The model proposes, code decides: guard every action (resolve only after a customer confirmation;
   objections keep the chat open).
 - When the AI promises a human follow-up, the code hands the chat to the team. Questions about X stay with
