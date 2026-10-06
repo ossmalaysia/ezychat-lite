@@ -1,11 +1,19 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { AiConnectionBody, AiMemberBody } from '@wa-team-inbox/shared';
+import {
+  AiCallbackBody,
+  AiConnectionBody,
+  AiContextPatchBody,
+  AiContextTextBody,
+  AiMemberBody,
+  AiTryBody,
+} from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
-import { errors, parse } from '../http/errors.js';
+import { HttpError, errors, parse } from '../http/errors.js';
+import { WindowLimiter } from '../http/window-limiter.js';
 import { AI_UPLOAD_BYTES } from '../ai/knowledge.js';
 import { extractKnowledgeIsolated } from '../ai/knowledge-worker.js';
 
@@ -20,6 +28,13 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!current) throw errors.unauthorized();
     if (current.role !== 'admin' || current.mustChangePassword)
       throw errors.forbidden('Admin only');
+  };
+  const signInLimiter = new WindowLimiter({ windowMs: 60_000, max: 5 });
+  const pasteLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const tryLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const limit = (limiter: WindowLimiter, req: FastifyRequest) => {
+    const result = limiter.hit(String(req.user!.id));
+    if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
   };
   app.get('/ai', async () => ai.status());
   app.put('/ai', async (req) => ai.saveMember(parse(AiMemberBody, req.body), actor(req)));
@@ -37,11 +52,50 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     recheck(req);
     return ai.addDocument(name, buffer.length, text, actor(req));
   });
+  // Business context text items (file items are uploaded above and are read-only).
+  app.post('/ai/documents/text', async (req) =>
+    ai.addText(parse(AiContextTextBody, req.body), actor(req)),
+  );
+  app.get('/ai/documents/:id', async (req) => ai.document(parse(IdParams, req.params).id));
+  app.patch('/ai/documents/:id', async (req) =>
+    ai.updateText(parse(IdParams, req.params).id, parse(AiContextPatchBody, req.body), actor(req)),
+  );
   app.delete('/ai/documents/:id', async (req) =>
     ai.removeDocument(parse(IdParams, req.params).id, actor(req)),
   );
+  app.post('/ai/try', async (req) => {
+    limit(tryLimiter, req);
+    const result = await ai.tryAnswer(parse(AiTryBody, req.body));
+    recheck(req);
+    return result;
+  });
+  app.get('/ai/models', async () => ai.models());
+  app.post('/ai/chatgpt/test', async (req) => {
+    const result = await ai.testConnection();
+    recheck(req);
+    return result;
+  });
   app.post('/ai/chatgpt/login', async (req) => {
-    await ai.login();
+    limit(signInLimiter, req);
+    try {
+      await ai.login();
+    } catch (error) {
+      // Provider messages are fixed, credential-free strings (e.g. callback port in use).
+      if (error instanceof HttpError) throw error;
+      throw errors.conflict(error instanceof Error ? error.message : 'ChatGPT sign-in failed');
+    }
+    try {
+      recheck(req);
+    } catch (error) {
+      await ai.logout();
+      throw error;
+    }
+    return ai.status();
+  });
+  app.post('/ai/chatgpt/callback', async (req) => {
+    limit(pasteLimiter, req);
+    const body = parse(AiCallbackBody, req.body);
+    await ai.completeSignIn(body.url);
     try {
       recheck(req);
     } catch (error) {

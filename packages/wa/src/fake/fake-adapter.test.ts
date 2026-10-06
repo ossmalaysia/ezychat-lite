@@ -37,7 +37,7 @@ describe('FakeWaAdapter', () => {
     const got: Array<[WaIncomingMessage, { source: string }]> = [];
     wa.on('message', (m, meta) => got.push([m, meta]));
     const m = wa.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'hi' });
-    expect(m.id).toMatch(/^FAKE-\d+$/);
+    expect(m.id).toMatch(/^FAKE-[0-9a-z]+-\d+$/);
     expect(got).toHaveLength(1);
     expect(got[0]![0]).toEqual(m);
     expect(got[0]![1]).toEqual({ source: 'live' });
@@ -54,7 +54,7 @@ describe('FakeWaAdapter', () => {
     const updates: WaMessageStatusUpdate[] = [];
     wa.on('messageStatus', (u) => updates.push(u));
     const res = await wa.sendText('601111@s.whatsapp.net', 'hello');
-    expect(res.id).toMatch(/^FAKE-OUT-\d+$/);
+    expect(res.id).toMatch(/^FAKE-OUT-[0-9a-z]+-\d+$/);
     expect(typeof res.timestamp).toBe('number');
     expect(wa.sent).toEqual([{ chatJid: '601111@s.whatsapp.net', text: 'hello', id: res.id }]);
     expect(updates.map((u) => u.status)).toEqual(['sent']);

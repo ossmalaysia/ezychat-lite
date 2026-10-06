@@ -178,6 +178,16 @@
     "assigned": "{{actor}} assigned this chat to {{assignee}}",
     "returned": "Chat returned to the team",
     "unassigned": "{{actor}} unassigned this chat",
+    "handedToTeam": "{{actor}} handed this chat to the team: {{reason}}",
+    "handedTo": "{{actor}} handed this chat to {{assignee}}: {{reason}}",
+    "handoffReason": {
+      "asked_for_human": "customer asked for a person",
+      "missing_facts": "answer not in the business context",
+      "sensitive": "sensitive topic",
+      "needs_action": "customer wants something done (order, booking, payment…)",
+      "unsupported_message": "a message the AI cannot read",
+      "ai_unavailable": "AI unavailable"
+    },
     "resolved": "{{actor}} resolved this chat",
     "reopenedByMessage": "Chat reopened by a new message",
     "reopened": "{{actor}} reopened this chat",

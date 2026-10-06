@@ -32,7 +32,8 @@
   },
   "time": {
     "today": "Hari ini",
-    "yesterday": "Semalam"
+    "yesterday": "Semalam",
+    "justNow": "sebentar tadi"
   },
   "roles": {
     "admin": "Pentadbir",

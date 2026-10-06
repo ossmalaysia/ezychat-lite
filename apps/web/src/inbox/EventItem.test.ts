@@ -44,4 +44,22 @@ describe('describeEvent', () => {
       'Jee Fong unassigned this chat',
     );
   });
+
+  it('explains why the AI handed a chat to the team', () => {
+    expect(
+      describeEvent(event('unassigned', 2, { previous: 2, handoff: 'needs_action' }), dir),
+    ).toBe(
+      'Jee Fong handed this chat to the team: customer wants something done (order, booking, payment…)',
+    );
+    expect(
+      describeEvent(
+        event('assigned', 2, { assignedTo: 1, previous: 2, handoff: 'sensitive' }),
+        dir,
+      ),
+    ).toBe('Jee Fong handed this chat to You: sensitive topic');
+    // Unknown or missing reasons keep the plain wording.
+    expect(describeEvent(event('unassigned', 2, { previous: 2, handoff: 'other' }), dir)).toBe(
+      'Jee Fong unassigned this chat',
+    );
+  });
 });

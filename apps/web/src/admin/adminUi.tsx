@@ -31,12 +31,15 @@ export function Field({
   hint,
   error,
   className,
+  labelClassName,
   children,
 }: {
   label: React.ReactNode;
   hint?: React.ReactNode;
   error?: React.ReactNode;
   className?: string;
+  /** For example `sr-only` when a card title already shows the same words. */
+  labelClassName?: string;
   children: (props: FieldControlProps) => React.ReactNode;
 }) {
   const id = React.useId();
@@ -44,7 +47,9 @@ export function Field({
   const hasDesc = Boolean(error || hint);
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={labelClassName}>
+        {label}
+      </Label>
       {children({
         id,
         'aria-describedby': hasDesc ? descId : undefined,

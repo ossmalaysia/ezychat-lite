@@ -50,3 +50,49 @@ it('retrieves the most relevant chunks from large knowledge sources within the p
   expect(selected.startsWith('[Delivery]')).toBe(true);
   expect(selected.length).toBeLessThanOrEqual(24_000);
 });
+
+it('sends every knowledge source verbatim and in order when it fits the full-context budget', () => {
+  const sources = [
+    {
+      name: 'Business context',
+      text: 'Kedai Kopi Ezy sells coffee.\n\nWi-Fi is free for dine-in.',
+    },
+    { name: 'menu.pdf', text: 'Latte RM9' },
+    { name: 'empty.md', text: '   ' },
+    { name: 'hours.txt', text: 'Open 8am-10pm daily' },
+  ];
+  expect(relevantKnowledge(sources, '堂食有免费上网吗？')).toBe(
+    '[Business context]\nKedai Kopi Ezy sells coffee.\n\nWi-Fi is free for dine-in.\n\n' +
+      '[menu.pdf]\nLatte RM9\n\n[hours.txt]\nOpen 8am-10pm daily',
+  );
+  expect(relevantKnowledge([{ name: 'Business context', text: '' }], 'hi')).toBe('');
+});
+
+const filler = (count: number) =>
+  Array.from({ length: count }, (_, i) => `Paragraph ${i}: the office wall colour is white.`).join(
+    '\n\n',
+  );
+
+it('finds a Chinese fact deep in a large context by character bigrams', () => {
+  const context = `${filler(1500)}\n\n堂食顾客可以免费使用无线上网。`;
+  expect(context.length).toBeGreaterThan(40_000);
+  const selected = relevantKnowledge(
+    [{ name: 'Business context', text: context, pinFirst: true }],
+    '堂食有免费上网吗？',
+  );
+  expect(selected).toContain('堂食顾客可以免费使用无线上网。');
+  expect(selected.length).toBeLessThanOrEqual(24_000);
+});
+
+it('always includes the first context chunk (the overview) above the budget', () => {
+  const context = `Ezy Bakery: we sell cakes and bread in Johor Bahru.\n\n${filler(1500)}`;
+  const selected = relevantKnowledge(
+    [
+      { name: 'Business context', text: context, pinFirst: true },
+      { name: 'delivery.md', text: 'Delivery costs RM10 in Malaysia.' },
+    ],
+    'What does delivery cost in Malaysia?',
+  );
+  expect(selected.startsWith('[Business context]\nEzy Bakery: we sell cakes')).toBe(true);
+  expect(selected).toContain('[delivery.md]\nDelivery costs RM10 in Malaysia.');
+});

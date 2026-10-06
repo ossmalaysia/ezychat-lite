@@ -7,7 +7,6 @@ import { errors } from '../http/errors.js';
 export const AI_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const AI_DOCUMENT_CHARACTERS = 100_000;
 export const AI_KNOWLEDGE_CHARACTERS = 500_000;
-export const AI_DOCUMENT_LIMIT = 20;
 
 /** Bound Word archive expansion before the document parser allocates its entries. */
 function checkWordArchive(buffer: Buffer): Promise<void> {
@@ -98,29 +97,101 @@ export async function extractKnowledge(name: string, buffer: Buffer): Promise<st
   return text;
 }
 
-/** Local retrieval: keep provider context bounded; no documents are hosted or executed. */
-export function relevantKnowledge(
-  sources: Array<{ name: string; text: string }>,
-  query: string,
-): string {
-  const words = [...new Set(query.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? [])].slice(
-    0,
-    80,
-  );
-  const chunks = sources.flatMap((source) => {
-    const result: Array<{ text: string; score: number; index: number }> = [];
-    for (let offset = 0; offset < source.text.length; offset += 1200) {
-      const text = source.text.slice(offset, offset + 1500);
+export interface KnowledgeSource {
+  name: string;
+  text: string;
+  /** Always send this source's first chunk (the overview: the oldest text item) when selecting. */
+  pinFirst?: boolean;
+}
+
+/** Knowledge up to this size is sent whole, in source order, without relevance selection. */
+export const AI_FULL_CONTEXT_CHARACTERS = 40_000;
+const CHUNK_CHARACTERS = 1500;
+const CHUNK_STRIDE = 1200;
+const SELECTED_CHUNKS = 14;
+const SELECTED_CHARACTERS = 24_000;
+const CJK_RUN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu;
+const STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'you',
+  'your',
+  'are',
+  'is',
+  'ada',
+  'yang',
+  'untuk',
+  'di',
+  'ke',
+  'dan',
+]);
+
+/** Query terms: Latin/other words (≥2 characters) plus overlapping bigrams of CJK runs, which have no spaces. */
+export function knowledgeTerms(text: string): string[] {
+  const lower = text.toLocaleLowerCase();
+  const terms = new Set<string>();
+  for (const run of lower.match(CJK_RUN) ?? []) {
+    if (run.length === 1) terms.add(run);
+    for (let i = 0; i + 1 < run.length; i++) terms.add(run.slice(i, i + 2));
+  }
+  for (const word of lower.replace(CJK_RUN, ' ').match(/[\p{L}\p{N}]{2,}/gu) ?? [])
+    if (!STOP_WORDS.has(word)) terms.add(word);
+  return [...terms];
+}
+
+/** Packs blank-line-separated paragraphs (so a Q/A stays together) into bounded chunks. */
+function chunkText(text: string): string[] {
+  const chunks: string[] = [];
+  let current = '';
+  const flush = () => {
+    if (current.trim()) chunks.push(current);
+    current = '';
+  };
+  for (const paragraph of text.split(/\n[ \t]*\n/)) {
+    if (!paragraph.trim()) continue;
+    if (paragraph.length > CHUNK_CHARACTERS) {
+      flush();
+      for (let offset = 0; offset < paragraph.length; offset += CHUNK_STRIDE) {
+        chunks.push(paragraph.slice(offset, offset + CHUNK_CHARACTERS));
+        if (offset + CHUNK_CHARACTERS >= paragraph.length) break;
+      }
+    } else if (current && current.length + 2 + paragraph.length > CHUNK_CHARACTERS) {
+      flush();
+      current = paragraph;
+    } else current = current ? `${current}\n\n${paragraph}` : paragraph;
+  }
+  flush();
+  return chunks;
+}
+
+/**
+ * Local retrieval, no hosted index: small knowledge is sent whole; above
+ * AI_FULL_CONTEXT_CHARACTERS the best-matching chunks are sent within a bounded budget.
+ */
+export function relevantKnowledge(sources: KnowledgeSource[], query: string): string {
+  const present = sources.filter((source) => source.text.trim());
+  const total = present.reduce((sum, source) => sum + source.text.length, 0);
+  if (total <= AI_FULL_CONTEXT_CHARACTERS)
+    return present.map((source) => `[${source.name}]\n${source.text}`).join('\n\n');
+  const terms = knowledgeTerms(query).slice(0, 200);
+  let order = 0;
+  const pinned: string[] = [];
+  const chunks = present.flatMap((source) =>
+    chunkText(source.text).flatMap((text, index) => {
+      const labelled = `[${source.name}]\n${text}`;
+      if (source.pinFirst && index === 0) {
+        pinned.push(labelled);
+        return [];
+      }
       const lower = text.toLocaleLowerCase();
-      const score = words.reduce((sum, word) => sum + (lower.includes(word) ? 1 : 0), 0);
-      result.push({ text: `[${source.name}]\n${text}`, score, index: result.length });
-    }
-    return result;
-  });
-  chunks.sort((a, b) => b.score - a.score || a.index - b.index);
-  return chunks
-    .slice(0, 14)
-    .map((chunk) => chunk.text)
+      const score = terms.reduce((sum, term) => sum + (lower.includes(term) ? 1 : 0), 0);
+      return [{ text: labelled, score, index, order: order++ }];
+    }),
+  );
+  chunks.sort((a, b) => b.score - a.score || a.index - b.index || a.order - b.order);
+  return [...pinned, ...chunks.map((chunk) => chunk.text)]
+    .slice(0, SELECTED_CHUNKS)
     .join('\n\n')
-    .slice(0, 24_000);
+    .slice(0, SELECTED_CHARACTERS);
 }

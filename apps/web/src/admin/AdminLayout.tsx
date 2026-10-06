@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { useAppVersion } from '@/lib/version';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
+import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
 import { QuickRepliesPage } from './QuickRepliesPage';
@@ -216,6 +217,7 @@ export function AdminLayout() {
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
             <Route path="members" element={<MembersPage />} />
+            <Route path="members/ai" element={<AiMemberPage />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
             <Route path="whatsapp" element={<WhatsAppPage />} />
             <Route path="tunnel" element={<TunnelPage />} />

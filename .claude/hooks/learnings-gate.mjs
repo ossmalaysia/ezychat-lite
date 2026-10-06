@@ -17,7 +17,10 @@ if (input.stop_hook_active) process.exit(0);
 
 const git = (...args) => {
   try {
-    return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
   } catch {
     return '';
   }
@@ -30,7 +33,9 @@ const changed = git('status', '--porcelain')
 if (changed.includes(LEARNINGS)) process.exit(0); // already being recorded this run
 
 const lastLearnings = git('log', '-1', '--format=%H', '--', LEARNINGS);
-const commitsSince = lastLearnings ? git('rev-list', '--count', `${lastLearnings}..HEAD`) : git('rev-list', '--count', 'HEAD');
+const commitsSince = lastLearnings
+  ? git('rev-list', '--count', `${lastLearnings}..HEAD`)
+  : git('rev-list', '--count', 'HEAD');
 const codeChanged = changed.some((f) => !f.startsWith('docs/')) || Number(commitsSince || 0) > 0;
 if (!codeChanged) process.exit(0);
 
@@ -38,10 +43,9 @@ process.stdout.write(
   JSON.stringify({
     decision: 'block',
     reason:
-      `Before finishing: record what this run learned in ${LEARNINGS} (append dated entries under the right section: ` +
-      'what went wrong or was slow, the root cause, and the rule that prevents it next time). Only real, ' +
-      're-usable lessons — skip if the run taught nothing new, but then add a one-line "no new lessons" entry so ' +
-      'this gate is satisfied. If a lesson changes how agents must work in this repo, also update the rule in ' +
-      'CLAUDE.md (AGENTS.md points to it). Keep entries short.',
+      `Before finishing: if this run taught a real, re-usable lesson, record it in ${LEARNINGS} as one short ` +
+      'rule bullet in the matching section (or sharpen an existing bullet instead of adding a near-duplicate). ' +
+      'The file is a compact summary: no dated stories, no "no new lessons" filler. If nothing new was learned, ' +
+      'say so and finish. If a lesson changes how agents must work in this repo, also update AGENTS.md.',
   }),
 );

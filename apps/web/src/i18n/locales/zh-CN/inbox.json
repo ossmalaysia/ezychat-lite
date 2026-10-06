@@ -176,6 +176,16 @@
     "assigned": "{{actor}} 将此聊天指派给 {{assignee}}",
     "returned": "聊天已退回团队",
     "unassigned": "{{actor}} 取消了此聊天的指派",
+    "handedToTeam": "{{actor}} 已将此聊天转交团队：{{reason}}",
+    "handedTo": "{{actor}} 已将此聊天转交给 {{assignee}}：{{reason}}",
+    "handoffReason": {
+      "asked_for_human": "客户要求人工服务",
+      "missing_facts": "业务资料中没有答案",
+      "sensitive": "敏感话题",
+      "needs_action": "客户需要办理事项（下单、预订、付款等）",
+      "unsupported_message": "AI 无法读取的消息",
+      "ai_unavailable": "AI 暂不可用"
+    },
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",
     "reopened": "{{actor}} 重新打开了此聊天",

@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import type { ChatEvent, Note } from '@wa-team-inbox/shared';
 import { i18n } from '@/i18n';
 import { formatTime } from '../lib/format';
+import { handoffReasonLabel, isHandoffReason } from '../lib/ai-handoff';
 import type { Directory } from './useDirectory';
 
 function payloadUserId(payload: Record<string, unknown>): number | null {
@@ -19,9 +20,17 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
     e.actorId == null
       ? i18n.t('inbox:events.system')
       : (dir.nameOf(e.actorId, { youLabel: true }) ?? i18n.t('inbox:events.someone'));
+  // An AI hand-off records why it gave the chat to the team.
+  const handoff = isHandoffReason(e.payload.handoff) ? handoffReasonLabel(e.payload.handoff) : null;
   switch (e.type) {
     case 'assigned': {
       const to = payloadUserId(e.payload);
+      if (handoff && to != null && to !== e.actorId)
+        return i18n.t('inbox:events.handedTo', {
+          actor,
+          assignee: dir.nameOf(to, { youLabel: true }) ?? i18n.t('inbox:events.someoneLower'),
+          reason: handoff,
+        });
       if (to != null && to === e.actorId)
         return e.payload.reason === 'reply'
           ? i18n.t('inbox:events.tookByReply', { actor })
@@ -31,6 +40,7 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       return i18n.t('inbox:events.assigned', { actor, assignee });
     }
     case 'unassigned':
+      if (handoff) return i18n.t('inbox:events.handedToTeam', { actor, reason: handoff });
       return e.payload.reason === 'resolved'
         ? i18n.t('inbox:events.returned')
         : i18n.t('inbox:events.unassigned', { actor });

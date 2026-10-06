@@ -1,7 +1,7 @@
 import { pino, multistream, type Level, type Logger, type StreamEntry } from 'pino';
 import pinoRoll from 'pino-roll';
 import { join } from 'node:path';
-import { LOG_REDACT_PATHS } from './log-redaction.js';
+import { LOG_REDACT_PATHS, scrubLogValue } from './log-redaction.js';
 
 export type { Logger };
 
@@ -43,6 +43,19 @@ export async function createLogger(opts: {
             level,
             base: { app: 'wa-team-inbox' },
             redact: { paths: LOG_REDACT_PATHS, censor: '[REDACTED]' },
+            // Message strings and nested fields may embed OAuth addresses, codes or JWTs.
+            hooks: {
+              logMethod(args, method) {
+                method.apply(
+                  this,
+                  args.map((arg, index) =>
+                    index === 0 && arg instanceof Error
+                      ? { err: scrubLogValue(arg) }
+                      : scrubLogValue(arg),
+                  ) as Parameters<typeof method>,
+                );
+              },
+            },
           },
           multistream(streams),
         );

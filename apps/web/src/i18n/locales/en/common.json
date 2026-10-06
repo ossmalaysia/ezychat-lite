@@ -32,7 +32,8 @@
   },
   "time": {
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "justNow": "just now"
   },
   "roles": {
     "admin": "Admin",

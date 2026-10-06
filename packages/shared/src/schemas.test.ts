@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AI_CONTEXT_CHARACTERS,
+  AI_CONTEXT_NAME_CHARACTERS,
+  AiContextPatchBody,
+  AiContextTextBody,
+  AiDocument,
+  AiDocumentView,
+  AiMemberBody,
+  codePointLength,
+  AiTryBody,
   ApiErrorSchema,
   ChatEventSchema,
   ChatSchema,
@@ -133,5 +142,66 @@ describe('shared schemas', () => {
       FakeIncomingBody.parse({ chatJid: '60111@s.whatsapp.net', text: 'hi', chatJidAlt: '1@lid' })
         .chatJidAlt,
     ).toBe('1@lid');
+  });
+});
+
+describe('AI member knowledge', () => {
+  const member = { displayName: 'Sales Agent', enabled: false, instructions: '' };
+  it('keeps no Business context text on the member (context is a list of items)', () => {
+    const parsed = AiMemberBody.parse({ ...member, context: 'Open 9am-5pm' });
+    expect(parsed).toEqual(member);
+    expect(parsed).not.toHaveProperty('context');
+  });
+  it('accepts a text context item: name 1-120, text 1-100,000 code points', () => {
+    const item = { name: 'Price list', text: 'Cake RM50' };
+    expect(AiContextTextBody.parse({ ...item, name: '  Price list  ' }).name).toBe('Price list');
+    expect(AiContextTextBody.safeParse({ ...item, name: '   ' }).success).toBe(false);
+    expect(AiContextTextBody.safeParse({ ...item, name: 'n'.repeat(120) }).success).toBe(true);
+    expect(AiContextTextBody.safeParse({ ...item, name: 'n'.repeat(121) }).success).toBe(false);
+    expect(AiContextTextBody.safeParse({ ...item, text: '' }).success).toBe(false);
+    expect(AiContextTextBody.safeParse({ ...item, text: ' \n ' }).success).toBe(false);
+    expect(AiContextTextBody.safeParse({ ...item, text: 'x'.repeat(100_000) }).success).toBe(true);
+    expect(AiContextTextBody.safeParse({ ...item, text: 'x'.repeat(100_001) }).success).toBe(false);
+    // An emoji is one character for the limit, although it is two UTF-16 units.
+    expect(AiContextTextBody.safeParse({ ...item, text: '😀'.repeat(100_000) }).success).toBe(true);
+    expect(AI_CONTEXT_CHARACTERS).toBe(100_000);
+    expect(AI_CONTEXT_NAME_CHARACTERS).toBe(120);
+    expect(codePointLength('a😀b')).toBe(3);
+  });
+  it('edits a text item by name and/or text, but needs at least one', () => {
+    expect(AiContextPatchBody.safeParse({ name: 'Hours' }).success).toBe(true);
+    expect(AiContextPatchBody.safeParse({ text: 'Open 9am' }).success).toBe(true);
+    expect(AiContextPatchBody.safeParse({ name: 'Hours', text: 'Open 9am' }).success).toBe(true);
+    expect(AiContextPatchBody.safeParse({}).success).toBe(false);
+    expect(AiContextPatchBody.safeParse({ text: '' }).success).toBe(false);
+    expect(AiContextPatchBody.safeParse({ text: 'x'.repeat(100_001) }).success).toBe(false);
+  });
+  it('lists items with kind, size and dates; the view adds the text', () => {
+    const doc = {
+      id: 1,
+      name: 'Business context',
+      kind: 'text',
+      size: 9,
+      characters: 9,
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    expect(AiDocument.parse(doc)).toEqual(doc);
+    expect(AiDocument.safeParse({ ...doc, kind: 'note' }).success).toBe(false);
+    expect(AiDocumentView.parse({ ...doc, text: 'Cake RM50', truncated: false })).toMatchObject({
+      kind: 'text',
+      text: 'Cake RM50',
+      truncated: false,
+    });
+  });
+  it('Try it sends name and instructions only; the server adds the saved items', () => {
+    const parsed = AiTryBody.parse({
+      question: 'Delivery?',
+      knowledge: { displayName: 'A', instructions: 'Be brief', context: 'RM10', notes: 'old' },
+    });
+    expect(parsed.knowledge).toEqual({ displayName: 'A', instructions: 'Be brief' });
+    expect(AiTryBody.safeParse({ question: 'x', knowledge: { displayName: 'A' } }).success).toBe(
+      false,
+    );
   });
 });

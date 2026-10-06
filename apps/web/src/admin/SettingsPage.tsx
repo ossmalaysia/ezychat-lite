@@ -20,7 +20,7 @@ import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
 import { ErrorState, Field, Pending } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
-import { AiMemberPanel } from './AiMemberPanel';
+import { AiConnectionSection } from './AiConnectionSection';
 
 const TABS = ['general', 'ai', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -77,7 +77,6 @@ export function SettingsPage() {
   const [lanDraft, setLanEnabled] = useState<boolean>();
   const [historyDraft, setHistoryDays] = useState<string>();
   const [restartRequired, setRestartRequired] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
 
   if (!isTab(tab)) return <Navigate to="/admin/settings/general" replace />;
 
@@ -240,18 +239,7 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="ai">
-          <Card className="gap-4">
-            <CardHeader>
-              <CardTitle>{t('ai.settingsTitle')}</CardTitle>
-              <CardDescription>{t('ai.settingsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="touch" onClick={() => setAiOpen(true)}>
-                {t('ai.configure')}
-              </Button>
-            </CardContent>
-          </Card>
-          {aiOpen && <AiMemberPanel section="connection" onClose={() => setAiOpen(false)} />}
+          <AiConnectionSection />
         </TabsContent>
 
         <TabsContent value="device">

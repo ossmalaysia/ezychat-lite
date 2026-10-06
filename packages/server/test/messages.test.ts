@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MessageListResponse, MessageSchema } from '@wa-team-inbox/shared';
+import { FAKE_RUN } from '@wa-team-inbox/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -52,11 +53,16 @@ async function seed(n = 1) {
   }
 }
 
-function multipart(fields: Record<string, string>, file: { name: string; mime: string; data: Buffer }) {
+function multipart(
+  fields: Record<string, string>,
+  file: { name: string; mime: string; data: Buffer },
+) {
   const boundary = '----watiboundary' + Math.random().toString(16).slice(2);
   const parts: Buffer[] = [];
   for (const [k, v] of Object.entries(fields)) {
-    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+    parts.push(
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`),
+    );
   }
   parts.push(
     Buffer.from(
@@ -64,14 +70,21 @@ function multipart(fields: Record<string, string>, file: { name: string; mime: s
     ),
   );
   parts.push(file.data, Buffer.from(`\r\n--${boundary}--\r\n`));
-  return { payload: Buffer.concat(parts), contentType: `multipart/form-data; boundary=${boundary}` };
+  return {
+    payload: Buffer.concat(parts),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
 }
 
 describe('messages routes', () => {
   it('lists messages ascending with before-cursor paging', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed(5);
-    let r = await t.app.inject({ method: 'GET', url: `/api/chats/${enc(JID)}/messages?limit=3`, headers: { cookie } });
+    let r = await t.app.inject({
+      method: 'GET',
+      url: `/api/chats/${enc(JID)}/messages?limit=3`,
+      headers: { cookie },
+    });
     expect(r.statusCode).toBe(200);
     const p1 = MessageListResponse.parse(r.json());
     expect(p1.messages.map((m) => m.body)).toEqual(['m2', 'm3', 'm4']);
@@ -89,7 +102,8 @@ describe('messages routes', () => {
   it('send text via FakeWaAdapter ends with status sent and the WA id', async () => {
     const { user, cookie } = await createUserAndLogin(t);
     await seed();
-    const statuses: Array<{ id: string; clientId: string | null; status: string; newId?: string }> = [];
+    const statuses: Array<{ id: string; clientId: string | null; status: string; newId?: string }> =
+      [];
     t.ctx.bus.on('message:status', (s) => statuses.push(s));
     const r = await t.app.inject({
       method: 'POST',
@@ -106,15 +120,17 @@ describe('messages routes', () => {
 
     await waitFor(() => statuses.some((s) => s.clientId === 'c-1' && s.status === 'sent'));
     const sentEv = statuses.find((s) => s.status === 'sent')!;
-    expect(sentEv.newId).toBe('FAKE-OUT-1');
-    expect(sentEv.id).toBe('FAKE-OUT-1');
+    expect(sentEv.newId).toMatch(/^FAKE-OUT-[0-9a-z]+-1$/);
+    expect(sentEv.id).toBe(sentEv.newId);
     expect(t.wa.sent[0]).toMatchObject({ chatJid: JID, text: 'Hello there' });
     await settle();
-    const row = t.ctx.db.prepare('SELECT id, status, client_id FROM messages WHERE client_id = ?').get('c-1') as {
+    const row = t.ctx.db
+      .prepare('SELECT id, status, client_id FROM messages WHERE client_id = ?')
+      .get('c-1') as {
       id: string;
       status: string;
     };
-    expect(row.id).toBe('FAKE-OUT-1');
+    expect(row.id).toBe(sentEv.newId);
     expect(['sent', 'delivered']).toContain(row.status);
     expect(t.wa.presences.some((p) => p.chatJid === JID && p.presence === 'composing')).toBe(true);
   });
@@ -132,7 +148,11 @@ describe('messages routes', () => {
       });
       expect(r.statusCode).toBe(201);
     }
-    const n = (t.ctx.db.prepare("SELECT COUNT(*) AS n FROM messages WHERE client_id='dup'").get() as { n: number }).n;
+    const n = (
+      t.ctx.db.prepare("SELECT COUNT(*) AS n FROM messages WHERE client_id='dup'").get() as {
+        n: number;
+      }
+    ).n;
     expect(n).toBe(1);
   });
 
@@ -148,7 +168,11 @@ describe('messages routes', () => {
     });
     expect(r.statusCode).toBe(201);
     await settle();
-    const row = () => t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-2') as { id: string; status: string };
+    const row = () =>
+      t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-2') as {
+        id: string;
+        status: string;
+      };
     expect(row().status).toBe('pending');
     expect(t.wa.sent).toHaveLength(0);
     t.wa.setConnected(true);
@@ -174,7 +198,11 @@ describe('messages routes', () => {
       };
     await waitFor(() => row().status === 'failed');
     expect(row().error).toBe('nope');
-    const r = await t.app.inject({ method: 'POST', url: `/api/messages/local-c-3/retry`, headers: authHeaders(cookie) });
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/messages/local-c-3/retry`,
+      headers: authHeaders(cookie),
+    });
     expect(r.statusCode).toBe(200);
     expect(MessageSchema.parse(r.json()).status).toBe('pending');
     await waitFor(() => row().id.startsWith('FAKE-OUT-'));
@@ -183,8 +211,12 @@ describe('messages routes', () => {
   it('an ERROR ack that arrives before the id rename leaves the message failed', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();
-    // the fake adapter's next outgoing id is FAKE-OUT-1; its failure ack races ahead of the send result
-    getMessages(t.ctx).applyStatus({ id: 'FAKE-OUT-1', chatJid: JID, status: 'failed' });
+    // the fake adapter's next outgoing id is FAKE-OUT-<run>-1; its failure ack races ahead of the send result
+    getMessages(t.ctx).applyStatus({
+      id: `FAKE-OUT-${FAKE_RUN}-1`,
+      chatJid: JID,
+      status: 'failed',
+    });
     await t.app.inject({
       method: 'POST',
       url: `/api/chats/${enc(JID)}/messages`,
@@ -192,12 +224,14 @@ describe('messages routes', () => {
       payload: { text: 'doomed', clientId: 'c-early' },
     });
     const row = () =>
-      t.ctx.db.prepare('SELECT id, status, error FROM messages WHERE client_id = ?').get('c-early') as {
+      t.ctx.db
+        .prepare('SELECT id, status, error FROM messages WHERE client_id = ?')
+        .get('c-early') as {
         id: string;
         status: string;
         error: string | null;
       };
-    await waitFor(() => row().id === 'FAKE-OUT-1');
+    await waitFor(() => row().id === `FAKE-OUT-${FAKE_RUN}-1`);
     await settle();
     expect(row().status).toBe('failed');
     expect(row().error).toBe('Delivery failed');
@@ -213,16 +247,25 @@ describe('messages routes', () => {
       payload: { text: 'retry me', clientId: 'c-wa' },
     });
     const row = () =>
-      t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-wa') as { id: string; status: string };
+      t.ctx.db.prepare('SELECT id, status FROM messages WHERE client_id = ?').get('c-wa') as {
+        id: string;
+        status: string;
+      };
     await waitFor(() => row().id.startsWith('FAKE-OUT-'));
     const waId = row().id;
     await settle();
     // simulate WhatsApp rejecting it after the rename (ERROR ack on the WA-id row)
-    t.ctx.db.prepare("UPDATE messages SET status = 'failed', error = 'Delivery failed' WHERE id = ?").run(waId);
+    t.ctx.db
+      .prepare("UPDATE messages SET status = 'failed', error = 'Delivery failed' WHERE id = ?")
+      .run(waId);
     expect(row().status).toBe('failed');
     const statuses: Array<{ id: string; newId?: string; status: string }> = [];
     t.ctx.bus.on('message:status', (s) => statuses.push(s));
-    const r = await t.app.inject({ method: 'POST', url: `/api/messages/${enc(waId)}/retry`, headers: authHeaders(cookie) });
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/messages/${enc(waId)}/retry`,
+      headers: authHeaders(cookie),
+    });
     expect(r.statusCode).toBe(200);
     const m = MessageSchema.parse(r.json());
     expect(m.status).toBe('pending');
@@ -235,7 +278,10 @@ describe('messages routes', () => {
   it('media upload of a PNG stores and serves it with correct content-type and Range 206', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();
-    const mp = multipart({ clientId: 'c-img', caption: 'look' }, { name: 'dot.png', mime: 'application/octet-stream', data: PNG });
+    const mp = multipart(
+      { clientId: 'c-img', caption: 'look' },
+      { name: 'dot.png', mime: 'application/octet-stream', data: PNG },
+    );
     const r = await t.app.inject({
       method: 'POST',
       url: `/api/chats/${enc(JID)}/media`,
@@ -252,28 +298,45 @@ describe('messages routes', () => {
     await waitFor(() => t.wa.sent.length === 1);
     expect(t.wa.sent[0]!.file!.mime).toBe('image/png');
     await settle();
-    const row = t.ctx.db.prepare('SELECT id FROM messages WHERE client_id = ?').get('c-img') as { id: string };
+    const row = t.ctx.db.prepare('SELECT id FROM messages WHERE client_id = ?').get('c-img') as {
+      id: string;
+    };
 
-    let res = await t.app.inject({ method: 'GET', url: `/api/media/${enc(row.id)}`, headers: { cookie } });
+    let res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/${enc(row.id)}`,
+      headers: { cookie },
+    });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('image/png');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(String(res.headers['content-disposition'])).toMatch(/^inline/);
     expect(res.rawPayload.equals(PNG)).toBe(true);
 
-    res = await t.app.inject({ method: 'GET', url: `/api/media/${enc(row.id)}`, headers: { cookie, range: 'bytes=0-9' } });
+    res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/${enc(row.id)}`,
+      headers: { cookie, range: 'bytes=0-9' },
+    });
     expect(res.statusCode).toBe(206);
     expect(res.headers['content-range']).toBe(`bytes 0-9/${PNG.length}`);
     expect(res.rawPayload.equals(PNG.subarray(0, 10))).toBe(true);
 
-    res = await t.app.inject({ method: 'GET', url: `/api/media/${enc(row.id)}`, headers: { cookie, range: 'bytes=9999-' } });
+    res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/${enc(row.id)}`,
+      headers: { cookie, range: 'bytes=9999-' },
+    });
     expect(res.statusCode).toBe(416);
   });
 
   it('non-image media is served as attachment', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();
-    const mp = multipart({ clientId: 'c-doc' }, { name: 'notes.txt', mime: 'text/plain', data: Buffer.from('hello world') });
+    const mp = multipart(
+      { clientId: 'c-doc' },
+      { name: 'notes.txt', mime: 'text/plain', data: Buffer.from('hello world') },
+    );
     const r = await t.app.inject({
       method: 'POST',
       url: `/api/chats/${enc(JID)}/media`,
@@ -283,7 +346,11 @@ describe('messages routes', () => {
     expect(r.statusCode).toBe(201);
     const m = MessageSchema.parse(r.json());
     expect(m.type).toBe('document');
-    const res = await t.app.inject({ method: 'GET', url: `/api/media/${enc(m.id)}`, headers: { cookie } });
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/${enc(m.id)}`,
+      headers: { cookie },
+    });
     expect(res.statusCode).toBe(200);
     expect(String(res.headers['content-disposition'])).toMatch(/^attachment; filename="notes.txt"/);
   });
@@ -310,18 +377,28 @@ describe('messages routes', () => {
     const m = await ingestHistoryImage('HIST-IMG-1');
     expect(m!.mediaStatus).toBe('pending');
     t.wa.setMedia('HIST-IMG-1', PNG);
-    const res = await t.app.inject({ method: 'GET', url: `/api/media/HIST-IMG-1`, headers: { cookie } });
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/HIST-IMG-1`,
+      headers: { cookie },
+    });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('image/png');
     expect(res.rawPayload.equals(PNG)).toBe(true);
-    const row = t.ctx.db.prepare('SELECT media_status FROM messages WHERE id = ?').get('HIST-IMG-1') as { media_status: string };
+    const row = t.ctx.db
+      .prepare('SELECT media_status FROM messages WHERE id = ?')
+      .get('HIST-IMG-1') as { media_status: string };
     expect(row.media_status).toBe('ok');
   });
 
   it('GET /api/media/:id on pending media that cannot be downloaded → 404 media_pending', async () => {
     const { cookie } = await createUserAndLogin(t);
     await ingestHistoryImage('HIST-IMG-2');
-    const res = await t.app.inject({ method: 'GET', url: `/api/media/HIST-IMG-2`, headers: { cookie } });
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/media/HIST-IMG-2`,
+      headers: { cookie },
+    });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe('media_pending');
   });
@@ -358,10 +435,24 @@ describe('ownership on reply', () => {
   it('a media reply assigns too, and a repeated clientId does not add a second event', async () => {
     const { user } = await createUserAndLogin(t, { role: 'agent' });
     await seed();
-    await getMessages(t.ctx).sendMedia(JID, { buffer: PNG, fileName: 'a.png' }, user.id, 'own-media');
-    await getMessages(t.ctx).sendMedia(JID, { buffer: PNG, fileName: 'a.png' }, user.id, 'own-media');
+    await getMessages(t.ctx).sendMedia(
+      JID,
+      { buffer: PNG, fileName: 'a.png' },
+      user.id,
+      'own-media',
+    );
+    await getMessages(t.ctx).sendMedia(
+      JID,
+      { buffer: PNG, fileName: 'a.png' },
+      user.id,
+      'own-media',
+    );
     expect(getChats(t.ctx).get(JID)?.assignedTo).toBe(user.id);
-    expect(getChats(t.ctx).events(JID).map((e) => e.type)).toEqual(['assigned']);
+    expect(
+      getChats(t.ctx)
+        .events(JID)
+        .map((e) => e.type),
+    ).toEqual(['assigned']);
   });
 
   it('replying never takes over a chat another teammate owns', async () => {
@@ -377,7 +468,11 @@ describe('ownership on reply', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(getChats(t.ctx).get(JID)?.assignedTo).toBe(owner.user.id);
-    expect(getChats(t.ctx).events(JID).map((e) => e.type)).toEqual(['assigned']);
+    expect(
+      getChats(t.ctx)
+        .events(JID)
+        .map((e) => e.type),
+    ).toEqual(['assigned']);
   });
 
   it('a reply sent from the WhatsApp phone app assigns nobody', async () => {

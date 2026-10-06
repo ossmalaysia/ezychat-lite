@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { AiMemberBody } from '@wa-team-inbox/shared';
+import type { AiConnection, AiMemberBody } from '@wa-team-inbox/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -8,6 +8,7 @@ import { authHeaders } from './auth-helpers.js';
 import { sha256 } from '../src/crypto/secret.js';
 import { createMessageService } from '../src/messages/service.js';
 import { pdfFixture } from './ai-fixtures.js';
+import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 
 let t: TestApp;
 let provider: AiProvider;
@@ -18,9 +19,8 @@ const body: AiMemberBody = {
   displayName: 'Sales Agent',
   enabled: true,
   instructions: 'Be concise',
-  notes: 'Opening hours: 9am to 5pm. Delivery costs RM10.',
-  faqs: [],
 };
+const CONTEXT = 'Opening hours: 9am to 5pm. Delivery costs RM10.';
 beforeEach(async () => {
   t = await makeTestApp();
   const auth = t.ctx.services.auth!;
@@ -51,6 +51,9 @@ beforeEach(async () => {
   };
   t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: (id) => id % 2 === 0 });
   t.ctx.services.ai.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
+  // Context items belong to the member: save it as a draft, add the business facts, turn on.
+  t.ctx.services.ai.saveMember({ ...body, enabled: false }, actor);
+  t.ctx.services.ai.addText({ name: 'Business context', text: CONTEXT }, actor);
   t.ctx.services.ai.saveMember(body, actor);
 });
 afterEach(async () => {
@@ -475,8 +478,8 @@ it('rejects an incompatible ChatGPT connection before changing saved settings, c
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(before.member!.id);
 });
 
-it.each(['', 'gpt-5.4', 'gpt-5.3-codex'])(
-  'accepts the supported ChatGPT model %s',
+it.each(['', 'gpt-6-sol', 'gpt-5.5'])(
+  'accepts a listed ChatGPT model %s (experimental direct sign-in list)',
   async (model) => {
     const response = await t.app.inject({
       method: 'PATCH',
@@ -520,8 +523,11 @@ it('extracts authenticated document uploads, removes them, and audits metadata w
     payload,
   });
   expect(result.statusCode, result.body).toBe(200);
-  expect(result.json().documents[0]).toMatchObject({ name: 'delivery.pdf', size: data.length });
-  const document = t.ctx.db.prepare('SELECT text FROM ai_documents').get() as { text: string };
+  const uploaded = result.json().documents.at(-1);
+  expect(uploaded).toMatchObject({ name: 'delivery.pdf', kind: 'file', size: data.length });
+  const document = t.ctx.db.prepare("SELECT text FROM ai_documents WHERE kind = 'file'").get() as {
+    text: string;
+  };
   expect(document.text).toContain('RM10');
   const audit = t.ctx.db
     .prepare("SELECT meta FROM audit_log WHERE action = 'ai.document_add'")
@@ -531,12 +537,14 @@ it('extracts authenticated document uploads, removes them, and audits metadata w
     (
       await t.app.inject({
         method: 'DELETE',
-        url: `/api/ai/documents/${result.json().documents[0].id}`,
+        url: `/api/ai/documents/${uploaded.id}`,
         headers: authHeaders(cookie),
       })
     ).statusCode,
   ).toBe(200);
-  expect(t.ctx.services.ai!.status().documents).toHaveLength(0);
+  expect(t.ctx.services.ai!.status().documents.map((doc) => doc.name)).toEqual([
+    'Business context',
+  ]);
 });
 
 it('disables AI and releases its active chats immediately', async () => {
@@ -550,6 +558,325 @@ it('disables AI and releases its active chats immediately', async () => {
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
   expect(provider.generate).toHaveBeenCalledTimes(1);
   expect(t.ctx.services.ai!.status().settings.enabled).toBe(false);
+});
+
+it('stops claiming chats and releases its own without messaging customers when the ChatGPT connection breaks', async () => {
+  await t.ctx.services.ai!.shutdown();
+  t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
+  let state: AiConnection['state'] = 'connected';
+  provider.connection = () => ({
+    state,
+    loginUrl: null,
+    error: state === 'error' ? 'ChatGPT stopped accepting this connection.' : null,
+  });
+  vi.mocked(provider.generate).mockImplementation(async () => {
+    state = 'error';
+    throw new Error('ChatGPT stopped accepting this connection.');
+  });
+  human('online-agent');
+  clock();
+  t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent).toHaveLength(0);
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+  await incoming('second', 'Hello?', 'live', 'other@s.whatsapp.net');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(getChats(t.ctx).get('other@s.whatsapp.net')?.assignedTo).toBeNull();
+  expect(t.wa.sent).toHaveLength(0);
+});
+
+it('passes through only known sign-in messages when pasting a sign-in address', async () => {
+  const failWith = (error: Error) => {
+    provider.submitCallbackUrl = vi.fn().mockRejectedValue(error);
+    return t.ctx.services.ai!.completeSignIn('http://localhost:1455/auth/callback?code=c&state=s');
+  };
+  await expect(failWith(new OAuthError('Start sign-in again.'))).rejects.toThrow(
+    'Start sign-in again.',
+  );
+  const leaky = failWith(new Error('boom at /home/user/secret?token=abc'));
+  await expect(leaky).rejects.toThrow('ChatGPT sign-in failed. Try again.');
+  await expect(leaky).rejects.not.toThrow(/secret/);
+});
+
+it('releases its own chats without messaging customers when the connection breaks outside an answer', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(ai.id);
+  const sent = t.wa.sent.length;
+  await t.ctx.services.ai!.shutdown();
+  let broke!: () => void;
+  provider.onProblem = (listener) => (broke = listener);
+  provider.connection = () => ({ state: 'error', loginUrl: null, error: 'blocked' });
+  t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
+  broke();
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+  expect(t.wa.sent).toHaveLength(sent);
+});
+
+const count = (table: string) =>
+  (t.ctx.db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n;
+
+it('answers Try it from the draft name and instructions plus saved context without touching chats, messages, audit or WhatsApp', async () => {
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Delivery is RM10.', action: 'answer' });
+  const before = ['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count);
+  const result = await t.ctx.services.ai!.tryAnswer({
+    question: 'How much is delivery?',
+    knowledge: { displayName: 'Draft Agent', instructions: 'Be brief' },
+  });
+  expect(result).toEqual({
+    ok: true,
+    reply: 'Delivery is RM10.',
+    action: 'answer',
+    handoffReason: null,
+    model: 'gpt-4.1-mini',
+    error: null,
+  });
+  const [, key, prompt] = vi.mocked(provider.generate).mock.calls[0]!;
+  expect(prompt.instructions).toContain('named Draft Agent');
+  expect(prompt.instructions).toContain('Be brief');
+  expect(prompt.input).toContain('Delivery costs RM10.');
+  expect(prompt.instructions).not.toContain('Be concise');
+  expect(key).toBe('test-api-key-123');
+  expect(['chats', 'messages', 'ai_chat_state', 'audit_log'].map(count)).toEqual(before);
+  expect(t.wa.sent).toHaveLength(0);
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe(body.instructions);
+});
+
+it('Try it reports a missing connection and a provider failure without throwing', async () => {
+  await t.ctx.services.ai!.shutdown();
+  t.ctx.settings.set('ai_inbox_provider', { mode: 'chatgpt', model: '' });
+  provider.connection = () => ({ state: 'signed_out', loginUrl: null, error: null });
+  t.ctx.services.ai = createAiService(t.ctx, { provider });
+  const draft = { displayName: 'A', instructions: '' };
+  expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
+    ok: false,
+    reply: null,
+    action: null,
+    model: null,
+    error: 'Set up the AI connection in Settings → AI first.',
+  });
+  expect(provider.generate).not.toHaveBeenCalled();
+  provider.connection = () => ({ state: 'connected', loginUrl: null, error: null });
+  provider.resolveModel = vi.fn(async () => 'gpt-6.1-sol');
+  vi.mocked(provider.generate).mockRejectedValue(new Error('ChatGPT usage limit reached.'));
+  expect(await t.ctx.services.ai.tryAnswer({ question: 'Delivery?', knowledge: draft })).toEqual({
+    ok: false,
+    reply: null,
+    action: null,
+    model: 'gpt-6.1-sol',
+    error: 'ChatGPT usage limit reached.',
+  });
+});
+
+it('refuses to turn on the AI member without any context item', () => {
+  const ai = t.ctx.services.ai!;
+  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
+  expect(() => ai.saveMember(body, actor)).toThrow('Add business context');
+  // The AI may answer only from business facts: instructions alone are not enough.
+  expect(() => ai.saveMember({ ...body, instructions: 'Be friendly' }, actor)).toThrow(
+    'Add business context',
+  );
+  expect(ai.saveMember({ ...body, enabled: false }, actor).settings.enabled).toBe(false);
+});
+
+it('loads a 60,000-character migrated context intact and finds a deep fact by retrieval', async () => {
+  const ai = t.ctx.services.ai!;
+  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
+  const filler = Array.from(
+    { length: 1300 },
+    (_, i) => `Paragraph ${i}: the office wall colour is white.`,
+  ).join('\n\n');
+  t.ctx.settings.set('ai_sales_member', {
+    displayName: 'Sales Agent',
+    instructions: 'Be concise',
+    notes: `Kedai Ezy sells cakes.\n\n${filler}`,
+    faqs: [{ question: 'Wifi password?', answer: 'The wifi password is kopi123.' }],
+  });
+  const [migrated] = ai.status().documents;
+  expect(migrated).toMatchObject({ name: 'Business context', kind: 'text' });
+  expect(migrated!.characters).toBeGreaterThan(60_000);
+  expect(
+    ai.document(migrated!.id).text.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.'),
+  ).toBe(true);
+  clock();
+  await incoming('wifi', 'What is the wifi password?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const knowledge: string = JSON.parse(
+    vi.mocked(provider.generate).mock.calls[0]![2].input,
+  ).businessKnowledge;
+  expect(knowledge.startsWith('[Business context]\nKedai Ezy sells cakes.')).toBe(true);
+  expect(knowledge).toContain('The wifi password is kopi123.');
+  expect(knowledge.length).toBeLessThanOrEqual(24_000);
+});
+
+it('sends the Business context to live replies as a named knowledge source', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { input } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(JSON.parse(input).businessKnowledge).toBe(
+    '[Business context]\nOpening hours: 9am to 5pm. Delivery costs RM10.',
+  );
+});
+
+it('appends the current time, zone and resolution state last and keeps a stable cache id', async () => {
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout', 'Date'],
+    now: new Date('2026-10-06T06:05:00Z'),
+  });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  t.ctx.settings.set('ai_timezone', 'Europe/London');
+  await incoming('next', 'Open tomorrow?');
+  await vi.advanceTimersByTimeAsync(1200);
+  const [first, second] = vi.mocked(provider.generate).mock.calls.map((call) => call[2]);
+  expect(Object.keys(JSON.parse(first!.input)).at(-1)).toBe('currentSituation');
+  expect(JSON.parse(first!.input).currentSituation).toMatchObject({
+    date: '2026-10-06',
+    weekday: 'Tuesday',
+    time: '14:05',
+    timeZone: 'Asia/Kuala_Lumpur',
+  });
+  expect(JSON.parse(second!.input).currentSituation).toMatchObject({
+    time: '07:05',
+    timeZone: 'Europe/London',
+  });
+  expect(second!.instructions).toBe(first!.instructions);
+  expect(first!.cacheId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(second!.cacheId).toBe(first!.cacheId);
+  expect(t.ctx.settings.get('ai_install_id', null)).toBe(first!.cacheId);
+});
+
+it('tells the AI to answer order questions and hand order requests to the team', async () => {
+  clock();
+  await incoming('order', 'Can I get delivery tomorrow at 3pm? How much in total?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { instructions } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(instructions).toContain('Questions about ordering');
+  expect(instructions).toContain('choose handoff with handoffReason needs_action');
+  expect(instructions).toContain('Never pretend a request is done or confirmed');
+  // A question keeps the chat with the AI.
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(t.ctx.services.ai!.status().member!.id);
+});
+
+it('hands an order request to the team with its reason instead of resolving it', async () => {
+  clock();
+  await incoming('order', 'I want to order 5 regular kopi, deliver tomorrow 3pm');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  // The model wrongly closes the chat when the customer says thanks.
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'You are welcome!', action: 'resolve' });
+  await incoming('thanks', 'ok great, thanks, that is all');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: null });
+  const handoffs = t.ctx.db
+    .prepare("SELECT payload FROM chat_events WHERE chat_jid = ? AND type = 'unassigned'")
+    .all(jid) as Array<{ payload: string }>;
+  expect(handoffs.map((row) => JSON.parse(row.payload).handoff)).toEqual(['needs_action']);
+  const audits = t.ctx.db
+    .prepare("SELECT meta FROM audit_log WHERE action = 'ai.handoff'")
+    .all() as Array<{ meta: string }>;
+  expect(audits.map((row) => JSON.parse(row.meta).reason)).toEqual(['needs_action']);
+  // The team owns it now: further messages get no AI reply.
+  await incoming('later', 'Hello?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(2);
+});
+
+it("records the model's hand-off reason on the chat event", async () => {
+  vi.mocked(provider.generate).mockResolvedValue({
+    reply: 'A team member will help you.',
+    action: 'handoff',
+    handoffReason: 'sensitive',
+  });
+  clock();
+  await incoming('complaint', 'My order was cold, I want a refund');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const events = t.ctx.db
+    .prepare('SELECT type, payload FROM chat_events WHERE chat_jid = ? ORDER BY id')
+    .all(jid) as Array<{ type: string; payload: string }>;
+  expect(events.at(-1)?.type).toBe('unassigned');
+  expect(JSON.parse(events.at(-1)!.payload)).toMatchObject({ handoff: 'sensitive' });
+});
+
+it('resolves once when the customer confirms in free text', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Glad to help!', action: 'resolve' });
+  await incoming('confirm', 'Ok noted, yes that answers it. Thank you!');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+  expect(t.wa.sent.map((message) => message.text)).toEqual([
+    'We open at 9am. Has this answered your question?',
+    'Glad to help!',
+  ]);
+});
+
+it('resolves after two resolution questions answered with confirming-looking replies', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  // The model keeps asking; the server stops the loop.
+  await incoming('first-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  await incoming('second-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+  expect(t.wa.sent).toHaveLength(3);
+});
+
+it('Try it applies the resolution gate and never resolves or assigns anything', async () => {
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Bye!', action: 'resolve' });
+  const result = await t.ctx.services.ai!.tryAnswer({
+    question: 'Thanks!',
+    knowledge: { displayName: 'A', instructions: '' },
+  });
+  expect(result).toMatchObject({ ok: true, action: 'ask_resolution' });
+  expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chats').get()).toEqual({ n: 0 });
+});
+
+it('never turns a model answer into a resolution, even after two resolution questions', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await incoming('first-ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: '3 boxes are RM30.', action: 'answer' });
+  await incoming('order', "Ok great, I'll take 3 boxes");
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent.at(-1)?.text).toBe('3 boxes are RM30.');
+});
+
+it('restarts the resolution count after the customer asks something new', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await incoming('new-question', 'And how much is delivery?');
+  await vi.advanceTimersByTimeAsync(1200);
+  await incoming('ok', 'ok thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent).toHaveLength(3);
+});
+
+it('checks every customer message in a debounce batch before resolving', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Glad to help!', action: 'resolve' });
+  await incoming('objection', 'No, still not working');
+  await incoming('thanks', 'thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(t.wa.sent).toHaveLength(2);
+  expect(t.wa.sent.at(-1)?.text).toBe('Does that answer your question?');
 });
 
 it('replies to the address the customer last wrote from when one person has a phone number and a WhatsApp ID', async () => {

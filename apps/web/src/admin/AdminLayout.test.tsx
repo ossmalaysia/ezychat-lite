@@ -17,6 +17,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
+vi.mock('./AiMemberPage', () => ({ AiMemberPage: () => <h1>AI member page</h1> }));
 vi.mock('./MembersPage', () => ({ MembersPage: () => <h1>Members</h1> }));
 vi.mock('./QuickRepliesPage', () => ({ QuickRepliesPage: () => <h1>Quick replies</h1> }));
 vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
@@ -65,16 +66,24 @@ describe('AdminLayout routing', () => {
     }
   });
 
-  it.each(['/admin', '/admin/', '/admin/members/quick-replies/members/members', '/admin/unknown'])(
-    'recovers %s to the canonical Members page',
-    async (path) => {
-      setup(path);
-      await waitFor(() =>
-        expect(screen.getByTestId('location').textContent).toBe('/admin/members'),
-      );
-      expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
-    },
-  );
+  it.each([
+    '/admin',
+    '/admin/',
+    '/admin/members/quick-replies/members/members',
+    '/admin/members/ai/unknown',
+    '/admin/unknown',
+  ])('recovers %s to the canonical Members page', async (path) => {
+    setup(path);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
+    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+  });
+
+  it('opens the AI member page under an active Members section', () => {
+    setup('/admin/members/ai');
+    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Members' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai');
+  });
 
   it.each(['general', 'ai', 'device', 'maintenance'])(
     'keeps Settings active and mounted on /admin/settings/%s',
