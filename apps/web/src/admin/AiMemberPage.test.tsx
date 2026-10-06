@@ -12,6 +12,8 @@ import {
   type User,
 } from '@wa-team-inbox/shared';
 import { AiMemberPage } from './AiMemberPage';
+import { activateLocale } from '../i18n';
+import msAdmin from '../i18n/locales/ms/admin.json';
 
 const aiUser: User = {
   id: 3,
@@ -500,5 +502,21 @@ describe('AI member page', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Use default rules' }));
     expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
+  });
+
+  it('shows the never-edited defaults in the admin language (Malay)', async () => {
+    await activateLocale('ms');
+    try {
+      const initial = status();
+      initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
+      setup(initial);
+      const rules = (await screen.findByLabelText('Peraturan serahan')) as HTMLTextAreaElement;
+      expect(rules.value).toBe(msAdmin.ai.defaults.handoffRules);
+      expect(screen.getByDisplayValue(/PERANAN/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Guna arahan lalai' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Guna peraturan lalai' })).toBeNull();
+    } finally {
+      await activateLocale('en');
+    }
   });
 });
