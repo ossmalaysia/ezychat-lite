@@ -24,6 +24,8 @@ into AGENTS.md.
   agent's words.
 - Mocks cannot prove provider-side behaviour (prompt caching, headers): confirm with one live call on a
   Dev Build (never customer data), then pin the stable value in a unit test.
+- A feature that reacts to inbound media must ship with a way to simulate that media on `--fake-wa`
+  (`/api/dev/fake-incoming` `media`), or the owner cannot test it end to end on a Dev Build.
 - Record protocol facts from the package that really implements them, with the source file; never copy
   tokens from local caches.
 
