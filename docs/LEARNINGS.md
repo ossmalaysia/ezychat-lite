@@ -157,6 +157,9 @@ into AGENTS.md.
   route, OpenClaw's broke) — never fake attestation or work around bot challenges — and the Codex CLI's
   speech engine (`thread/realtime/*`, incl. its transcription mode) refuses ChatGPT login: "requires API
   key auth". Speech-to-text needs an OpenAI API key. Spike a provider capability with one live call first.
+- The AI is notified before live media downloads (300 ms debounce once it owns a chat): wait for a
+  `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
+  bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the

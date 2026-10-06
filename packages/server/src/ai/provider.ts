@@ -1,6 +1,6 @@
 import { AI_MODEL_HANDOFF_REASONS, AiDecision, type AiSettings } from '@wa-team-inbox/shared';
 import { promptCacheKey } from './prompt.js';
-import type { AiPrompt } from './provider-types.js';
+import { userMessageContent, type AiPrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
 
@@ -48,7 +48,17 @@ export async function generateOpenAi(
       body: JSON.stringify({
         model,
         instructions: prompt.instructions,
-        input: prompt.input,
+        // Text only: the plain string input, as always. With images: one user message whose
+        // content is the same text part followed by the `input_image` parts.
+        input: prompt.images?.length
+          ? [
+              {
+                type: 'message',
+                role: 'user',
+                content: userMessageContent(prompt.input, prompt.images),
+              },
+            ]
+          : prompt.input,
         // Responses API prefix caching is automatic; a stable key routes this inbox's requests together.
         ...(prompt.cacheId ? { prompt_cache_key: promptCacheKey(prompt.cacheId, model) } : {}),
         store: false,

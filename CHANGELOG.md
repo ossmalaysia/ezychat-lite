@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The AI Sales Agent understands photos and screenshots customers send, with or without a caption (up to 3 per reply, JPEG, PNG or WebP up to 5 MB). It works with ChatGPT sign-in and with an OpenAI API key; voice notes, videos and documents still go to your team.
 - The AI Sales Agent comes with recommended default instructions, so you only need to add your Business context. They cover:
   - its role and scope (products and general enquiries only, politely declining unrelated topics);
   - exact facts and no promised discounts;
