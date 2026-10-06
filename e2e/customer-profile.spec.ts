@@ -5,6 +5,7 @@ import {
   expect,
   fakeIncoming,
   inboxHeading,
+  projectTag,
   test,
 } from './helpers';
 
@@ -49,7 +50,7 @@ test('customer profile: edit in the chat, live name + tag in the inbox, filter b
   await tags.fill('VIP');
   await tags.press('Enter');
   await panel.getByRole('button', { name: 'Save' }).click();
-  await expect(panel.getByText('WhatsApp: Farah 🌸')).toBeVisible();
+  await expect(panel.getByRole('region', { name: 'From WhatsApp' })).toContainText('Farah 🌸');
   await expect(panel.getByText('Farah Catering Co')).toBeVisible();
 
   // Live in the other tab: the profile name and the tag chip.
@@ -65,4 +66,18 @@ test('customer profile: edit in the chat, live name + tag in the inbox, filter b
   await inbox.getByRole('button', { name: 'Clear tag filter' }).click();
   await inbox.getByRole('searchbox').fill('Catering Co');
   await expect(chatItem(inbox, jid)).toBeVisible();
+  await inbox.getByRole('searchbox').fill('');
+
+  // A brand-new tag added in the chat tab is offered at once by the other tab's Tag filter (whose
+  // tag list was already loaded above) and filters the list to that customer.
+  const tag = `Hungry${projectTag(info)}`;
+  await panel.getByRole('button', { name: 'Edit' }).click();
+  await panel.getByRole('combobox').fill(tag);
+  await panel.getByRole('combobox').press('Enter');
+  await panel.getByRole('button', { name: 'Save' }).click();
+  await expect(chatItem(inbox, jid)).toContainText(tag);
+  await inbox.getByRole('button', { name: 'Filter by tag' }).click();
+  await inbox.getByRole('option', { name: tag }).click();
+  await expect(chatItem(inbox, jid)).toBeVisible();
+  await expect(inbox.locator('a[href^="/chats/"]')).toHaveCount(1);
 });

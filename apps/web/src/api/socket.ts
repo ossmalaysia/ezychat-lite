@@ -122,6 +122,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       patchSenderProfilesInCache(qc, c);
       refreshChats();
       void qc.invalidateQueries({ queryKey: qk.customerProfile(c.jid) });
+      // A teammate may have created a tag: the Tag filter and tag input must offer it. Only an open
+      // tag list refetches; closed ones just turn stale.
+      if (c.tags?.length) void qc.invalidateQueries({ queryKey: ['customer-tags'] });
     });
     socket.on('chat:event', (e) => {
       qc.setQueryData<ChatDetailResponse>(qk.chat(e.chatJid), (old) =>

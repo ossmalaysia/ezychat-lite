@@ -283,3 +283,34 @@ it('refetches an open customer profile when its chat is updated live', async () 
   await screen.findByText('Profile Farah Aziz');
   qc.clear();
 });
+
+it('refreshes the tag suggestions when a chat arrives with tags (a teammate added a new tag)', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  let tags = ['VIP'];
+  const queryTags = vi.fn(async () => tags);
+  function Tags() {
+    const { data } = useQuery({ queryKey: ['customer-tags', ''], queryFn: queryTags });
+    return <span>Tags {data?.join(',')}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Tags />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('Tags VIP');
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  tags = ['Hungry', 'VIP'];
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: '1@s.whatsapp.net',
+      status: 'open',
+      tags: ['Hungry'],
+    }),
+  );
+  await screen.findByText('Tags Hungry,VIP');
+  qc.clear();
+});
