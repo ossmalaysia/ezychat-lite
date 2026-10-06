@@ -408,6 +408,9 @@ describe('Business context panel', () => {
     const text = (await within(dialog).findByLabelText('Text content')) as HTMLTextAreaElement;
     expect(text.value).toBe('Cake RM50');
     expect((within(dialog).getByLabelText('Name') as HTMLInputElement).value).toBe('Price list');
+    // A long document wraps in a fixed-size box instead of widening the dialog.
+    expect(text.className).toContain('field-sizing-fixed');
+    expect(within(dialog).getByText('9 / 100,000 characters')).toBeTruthy();
     await user.clear(text);
     await user.type(text, 'Cake RM45');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));

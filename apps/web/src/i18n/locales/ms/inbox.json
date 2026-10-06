@@ -184,7 +184,8 @@
       "sensitive": "topik sensitif",
       "needs_action": "pelanggan mahu sesuatu dilakukan (pesanan, tempahan, bayaran…)",
       "unsupported_message": "mesej yang tidak dapat dibaca oleh AI",
-      "ai_unavailable": "AI tidak tersedia"
+      "ai_unavailable": "AI tidak tersedia",
+      "business_rule": "sepadan dengan peraturan serahan anda"
     },
     "resolved": "{{actor}} menyelesaikan sembang ini",
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",

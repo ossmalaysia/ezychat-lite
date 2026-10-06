@@ -37,6 +37,8 @@ into AGENTS.md.
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
 - Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
+- Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
+  be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
 
 ## Git, GitHub and CI
 
@@ -148,7 +150,18 @@ into AGENTS.md.
 - ChatGPT OAuth: refresh tokens rotate (reuse stored tokens newer than the failed ones; single-flight is
   not enough); offer a paste-the-callback fallback for tunnel/LAN admins; classify blocked responses
   (403/404/HTML) as a connection state, then stop claiming and release chats silently.
+- The ChatGPT sign-in takes text and images but no audio: Codex `input_audio` returns 400 "Audio input
+  is not available", `input_file` rejects audio MIME types, and the web dictation endpoints
+  (`/backend-api/transcribe`) answer 403 `cf-mitigated: challenge` even with the Codex CLI fingerprint
+  (the Codex desktop app's dictation passes only with native device attestation; Hermes abandoned this
+  route, OpenClaw's broke) — never fake attestation or work around bot challenges — and the Codex CLI's
+  speech engine (`thread/realtime/*`, incl. its transcription mode) refuses ChatGPT login: "requires API
+  key auth". Speech-to-text needs an OpenAI API key. Spike a provider capability with one live call first.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
+  never override them; editable instructions hold role, scope and style only, company facts go in the
+  Business context, and hand-offs are structured actions, never text markers (they would reach the
+  customer).
 
 ## Desktop and web UI
 
@@ -158,6 +171,9 @@ into AGENTS.md.
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
 - `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check.
+- The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
+  widens grid dialogs: long-form editors use `field-sizing-fixed` with a fixed height, wide dialogs use
+  `ResponsiveDialog size="wide"`; test with a document of long lines, not short fixtures.
 - Forms derive untouched defaults from queries and keep explicit drafts; background refresh must not
   overwrite edits.
 - Resynchronise active queries on every socket connection; route related live events through one refresh

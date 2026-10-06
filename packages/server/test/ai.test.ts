@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { AiConnection, AiMemberBody } from '@wa-team-inbox/shared';
+import {
+  DEFAULT_AI_HANDOFF_RULES,
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiConnection,
+  type AiMemberBody,
+} from '@wa-team-inbox/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -309,7 +314,8 @@ it('drains a persisted live chat that exceeded the initial timer capacity', asyn
   await vi.advanceTimersByTimeAsync(90_000);
   expect(provider.generate).toHaveBeenCalledTimes(201);
   expect(t.wa.sent).toHaveLength(201);
-});
+  // 201 chats end to end: several seconds on slow CI runners (Windows took 8 s), not a hang.
+}, 30_000);
 
 it('hands off to an enabled online human with zero open chats, then pauses AI fallback', async () => {
   const idle = human('idle'); // admin=1,AI=2,idle=3 => offline by test predicate
@@ -896,6 +902,43 @@ it('replies to the address the customer last wrote from when one person has a ph
       .prepare('SELECT chat_jid, wa_remote_jid FROM messages WHERE sent_by_user_id = ?')
       .all(ai.id),
   ).toEqual([{ chat_jid: LID, wa_remote_jid: PN }]);
+});
+
+it('starts a member that never saved instructions with the default ones, and keeps saved text', async () => {
+  t.ctx.settings.set('ai_sales_member', {});
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe(DEFAULT_AI_INSTRUCTIONS);
+  t.ctx.settings.set('ai_sales_member', { instructions: '' });
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe('');
+  t.ctx.settings.set('ai_sales_member', { instructions: 'Be concise' });
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe('Be concise');
+});
+
+it('keeps business hand-off rules: default until saved, then the saved text (even blank)', () => {
+  t.ctx.settings.set('ai_sales_member', {});
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe(DEFAULT_AI_HANDOFF_RULES);
+  t.ctx.services.ai!.saveMember({ ...body, enabled: false, handoffRules: '' }, actor);
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe('');
+  // An older client that sends no rules keeps the saved ones.
+  t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
+  expect(t.ctx.services.ai!.status().settings.handoffRules).toBe('');
+});
+
+it('answers every reply from the latest saved business context', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(vi.mocked(provider.generate).mock.calls[0]![2].input).toContain('9am to 5pm');
+  const [item] = t.ctx.services.ai!.status().documents;
+  t.ctx.services.ai!.updateText(
+    item!.id,
+    { text: 'Opening hours: 10am to 8pm. Delivery costs RM12.' },
+    actor,
+  );
+  await incoming('next', 'When do you open?');
+  await vi.advanceTimersByTimeAsync(1200);
+  const latest = vi.mocked(provider.generate).mock.calls.at(-1)![2].input;
+  expect(latest).toContain('10am to 8pm');
+  expect(latest).not.toContain('9am to 5pm');
 });
 
 it('hands an AI-owned chat to the teammate who replies from the inbox, and the AI stops', async () => {

@@ -3,7 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { AiMemberBody, type AiMemberStatus, type AiSettings } from '@wa-team-inbox/shared';
+import {
+  AI_HANDOFF_RULES_CHARACTERS,
+  AiMemberBody,
+  DEFAULT_AI_HANDOFF_RULES,
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiMemberStatus,
+  type AiSettings,
+} from '@wa-team-inbox/shared';
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';
@@ -24,9 +31,16 @@ const PILL_TONE = {
   needsConnection: 'danger',
   needsKnowledge: 'warning',
 } as const;
-const draftFrom = (s: AiSettings): AiKnowledgeDraft => ({
+/** The defaults in the admin's language (catalog `ai.defaults.*`); the server keeps English ones. */
+type LocalDefaults = Pick<AiKnowledgeDraft, 'instructions' | 'handoffRules'>;
+/** A never-edited default (stored in English by the server) is shown in the admin's language. */
+const draftFrom = (s: AiSettings, local: LocalDefaults): AiKnowledgeDraft => ({
   displayName: s.displayName,
-  instructions: s.instructions,
+  instructions: s.instructions === DEFAULT_AI_INSTRUCTIONS ? local.instructions : s.instructions,
+  handoffRules:
+    s.handoffRules === undefined || s.handoffRules === DEFAULT_AI_HANDOFF_RULES
+      ? local.handoffRules
+      : s.handoffRules,
 });
 const draftKey = (s: AiMemberStatus) => `wati.ai-draft.${s.member?.id ?? 'new'}`;
 /**
@@ -37,10 +51,13 @@ function readStoredDraft(key: string): AiKnowledgeDraft | null {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const parsed = AiMemberBody.pick({ displayName: true, instructions: true })
+    const parsed = AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true })
       .strict()
       .safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
+    // A draft saved before hand-off rules existed is dropped rather than half-restored.
+    return parsed.success && typeof parsed.data.handoffRules === 'string'
+      ? { ...parsed.data, handoffRules: parsed.data.handoffRules }
+      : null;
   } catch {
     return null;
   }
@@ -77,11 +94,20 @@ function AiMemberEditor({
   const { t } = useTranslation('admin');
   const reasonId = useId();
   const action = useAiMemberAction();
+  const local: LocalDefaults = {
+    instructions: t('ai.defaults.instructions'),
+    handoffRules: t('ai.defaults.handoffRules'),
+  };
+  /** Either language's default counts as "the default" (no Use default button). */
+  const isDefaultInstructions = (text: string) =>
+    text === local.instructions || text === DEFAULT_AI_INSTRUCTIONS;
+  const isDefaultRules = (text: string) =>
+    text === local.handoffRules || text === DEFAULT_AI_HANDOFF_RULES;
   // Polling and saves never replace what the admin is typing.
   const [draft, setDraft] = useState<AiKnowledgeDraft>(
-    () => readStoredDraft(draftKey(status)) ?? draftFrom(status.settings),
+    () => readStoredDraft(draftKey(status)) ?? draftFrom(status.settings, local),
   );
-  const [saved, setSaved] = useState<AiKnowledgeDraft>(() => draftFrom(status.settings));
+  const [saved, setSaved] = useState<AiKnowledgeDraft>(() => draftFrom(status.settings, local));
   const [localError, setLocalError] = useState<string | null>(null);
   const dirty = !same(draft, saved);
   const storeKey = draftKey(status);
@@ -135,7 +161,7 @@ function AiMemberEditor({
     }
     try {
       const next = await action.mutateAsync({ kind: 'save', settings: parsed.data });
-      const stored = draftFrom(next.settings);
+      const stored = draftFrom(next.settings, local);
       setSaved(stored);
       // Adopt the stored values only if nothing was typed while saving.
       setDraft((current) => (same(current, sent) ? stored : current));
@@ -243,13 +269,26 @@ function AiMemberEditor({
                 {...p}
                 value={draft.instructions}
                 maxLength={8000}
-                rows={4}
+                // Fixed size: long instructions wrap and scroll instead of growing the page.
+                className="field-sizing-fixed h-[min(50dvh,24rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
                 placeholder={t('ai.page.instructionsPlaceholder')}
                 disabled={action.isPending}
                 onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
               />
             )}
           </Field>
+          {!isDefaultInstructions(draft.instructions) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="mt-2"
+              disabled={action.isPending}
+              onClick={() => setDraft((old) => ({ ...old, instructions: local.instructions }))}
+            >
+              {t('ai.page.useDefaultInstructions')}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -258,6 +297,44 @@ function AiMemberEditor({
         ensureMember={ensureMember}
         disabled={action.isPending}
       />
+
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle>{t('ai.page.stepHandoff')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Banner tone="info">{t('ai.page.handoffSystem')}</Banner>
+          <Field
+            label={t('ai.page.handoffLabel')}
+            labelClassName="sr-only"
+            hint={t('ai.page.handoffHint')}
+          >
+            {(p) => (
+              <Textarea
+                {...p}
+                value={draft.handoffRules}
+                maxLength={AI_HANDOFF_RULES_CHARACTERS}
+                className="field-sizing-fixed h-40 resize-y overflow-y-auto text-base leading-6 md:text-sm"
+                placeholder={t('ai.page.handoffPlaceholder')}
+                disabled={action.isPending}
+                onChange={(e) => setDraft((old) => ({ ...old, handoffRules: e.target.value }))}
+              />
+            )}
+          </Field>
+          {!isDefaultRules(draft.handoffRules) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="self-start"
+              disabled={action.isPending}
+              onClick={() => setDraft((old) => ({ ...old, handoffRules: local.handoffRules }))}
+            >
+              {t('ai.page.useDefaultHandoff')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="gap-4">
         <CardHeader>

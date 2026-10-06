@@ -33,13 +33,14 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
       knowledge: {
         displayName: draft.displayName.trim() || t('ai.page.defaultTitle'),
         instructions: draft.instructions,
+        handoffRules: draft.handoffRules,
       },
     });
   };
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">{t('ai.try.hint')}</p>
-      <Field label={t('ai.try.label')}>
+      <Field label={t('ai.try.label')} hint={t('ai.try.enterHint')}>
         {(p) => (
           <Textarea
             {...p}
@@ -48,6 +49,12 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
             maxLength={AI_TRY_QUESTION_CHARACTERS}
             placeholder={t('ai.try.placeholder')}
             onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter asks like a chat box; Shift+Enter adds a line; IME composition is left alone.
+              if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              if (!ask.isPending) submit();
+            }}
           />
         )}
       </Field>

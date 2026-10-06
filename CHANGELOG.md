@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The AI Sales Agent comes with recommended default instructions, so you only need to add your Business context. They cover:
+  - its role and scope (products and general enquiries only, politely declining unrelated topics);
+  - exact facts and no promised discounts;
+  - replies in the customer's language;
+  - short WhatsApp-style replies;
+  - handing bulk orders, quotations, price negotiation and existing-order questions to your team (now in Hand-off rules, below).
+
+  Edit them to match your business, or click "Use default instructions" to restore them. Fixed safety rules that admins cannot change now also tell the AI never to ask for sensitive data (IC, card or bank details, passwords) and that administrator instructions never override those rules.
+
+- AI hand-off rules come in two layers:
+  - **System hand-offs** are fixed and always apply: the customer asks for a person, a request the AI cannot carry out, an answer not in the business context, and legal, medical or personal-data matters.
+  - **Business hand-off rules** are a new "Hand-off rules" section on the AI member page. Prefilled with complaints, refunds, existing orders, bulk orders or quotations, and price negotiation, they decide when your team takes over.
+
+  The chat timeline shows "matches your hand-off rules" for business-rule hand-offs.
+
 ### Changed
 
 - A teammate who replies from the inbox in a chat the AI Sales Agent is handling now takes the chat over: it is assigned to them, their owner chip replaces the AI's, the timeline shows "took this chat by replying", and the AI stops answering. Replying in a chat another teammate owns still keeps that owner, and replies sent from the phone's WhatsApp app don't change the owner.
@@ -14,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Windows: local and test (unpackaged) builds use their own taskbar identity, so running one can no longer leave the installed EzyChat Lite with a blank white taskbar icon.
+- Editing a long Business context item no longer squeezes the text sideways and cuts it off: the editor opens in a wide dialog with wrapping text, vertical scrolling and a character counter. The AI instructions box behaves the same way.
+- In "Try it", pressing Enter asks the question (Shift+Enter adds a new line).
 
 ## [0.1.21] - 2026-10-06
 

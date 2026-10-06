@@ -172,6 +172,7 @@ export function ResponsiveDialog({
   description,
   children,
   footer,
+  size = 'default',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -179,17 +180,20 @@ export function ResponsiveDialog({
   description?: React.ReactNode;
   children?: React.ReactNode;
   footer?: React.ReactNode;
+  /** `wide` gives long-form editing (documents, previews) room on desktop; phones use the drawer. */
+  size?: 'default' | 'wide';
 }) {
   const desktop = useMediaQuery('(min-width: 640px)');
   if (desktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className={size === 'wide' ? 'sm:max-w-4xl' : undefined}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}
           </DialogHeader>
-          {children}
+          {/* min-w-0: a grid item may otherwise grow to its content's width and scroll sideways. */}
+          <div className="min-w-0">{children}</div>
           {footer && <DialogFooter>{footer}</DialogFooter>}
         </DialogContent>
       </Dialog>

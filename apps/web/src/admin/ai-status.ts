@@ -24,7 +24,9 @@ export function connectionReady(status: AiMemberStatus): boolean {
     : status.connection.state === 'connected';
 }
 
-export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions'>;
+export type AiKnowledgeDraft = Pick<AiSettings, 'displayName' | 'instructions'> & {
+  handoffRules: string;
+};
 
 /** Business facts to answer from: a context item with text. Instructions alone are not enough. */
 export function hasKnowledge(documents: readonly AiDocument[]): boolean {

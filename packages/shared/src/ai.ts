@@ -33,12 +33,64 @@ export function codePointLength(text: string): number {
   return length;
 }
 
+/**
+ * Starting AI instructions, so a business can turn the agent on with only its Business context.
+ * Shown (editable) on a new AI member and used whenever the saved instructions are blank. They set
+ * role, scope, style and extra hand-off cases only; company facts belong in the Business context,
+ * and the fixed safety rules (facts only from context, hand-offs, no fake orders, resolution,
+ * privacy, prompt protection) live in the server prompt where admins cannot change them.
+ */
+export const DEFAULT_AI_INSTRUCTIONS = [
+  'ROLE',
+  "You are this business's WhatsApp assistant. You answer customer enquiries and product questions and represent the business professionally.",
+  '',
+  'SCOPE',
+  'You help with:',
+  '- Products: features, specifications, variants, availability and usage',
+  '- General enquiries: business hours, location, how to order, delivery areas, payment methods and return policy',
+  '- The right next step: how to order, how to request a quotation, or reaching our team',
+  'You do not help with topics unrelated to the business or its products (general chat, news, coding, homework, opinions, politics, religion). Reply politely in one line and steer back, for example: "Sorry, I can only help with questions about our products and services. How can I help you with those?"',
+  '',
+  'KNOWLEDGE',
+  '- Keep product names, model numbers and prices exactly as written in the business context.',
+  '- Never guess prices, stock, specifications, delivery dates, promotions or policies. If a detail is missing, say so and let our team confirm.',
+  '- Never promise discounts, free gifts or exceptions.',
+  '',
+  'LANGUAGE',
+  "- Reply in the customer's language. If they mix languages, reply in the main language of their message.",
+  '- If you cannot reply in their language, use the default language named in the business context, otherwise English.',
+  '',
+  'STYLE',
+  '- Professional, polite and friendly; no slang. At most one emoji, and only where it fits.',
+  '- One to three short sentences. Use a short list only for options or specifications.',
+  '- Answer first: no long greetings and no repeating the question back.',
+  '- Ask at most one clarifying question when needed (for example which model, size or area).',
+  '- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.',
+].join('\n');
+
+export const AI_HANDOFF_RULES_CHARACTERS = 4000;
+/**
+ * Business hand-off rules (layer 2): cases this business wants a person to handle, on top of the
+ * fixed system hand-offs (customer asks for a person, a request the AI cannot carry out, facts not
+ * in the context, legal/medical/personal data). Shown (editable) on a new AI member; a saved blank
+ * value means "no extra rules".
+ */
+export const DEFAULT_AI_HANDOFF_RULES = [
+  '- The customer is upset or makes a complaint',
+  '- The customer asks for a refund, return, exchange or warranty claim',
+  '- The customer asks about an existing order, delivery or payment',
+  '- The customer wants a bulk or custom order, or a quotation',
+  '- The customer wants to negotiate the price or asks for a discount',
+].join('\n');
+
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
   enabled: z.boolean(),
   mode: z.enum(['api', 'chatgpt']),
   model: z.string().trim().max(128),
   instructions: z.string().max(8000),
+  /** Optional in requests (older clients); the server always returns the effective rules. */
+  handoffRules: z.string().max(AI_HANDOFF_RULES_CHARACTERS).optional(),
   apiKey: z.string().trim().min(10).max(512).optional(),
 });
 export type AiSettingsBody = z.infer<typeof AiSettingsBody>;
@@ -134,6 +186,7 @@ export const AI_MODEL_HANDOFF_REASONS = [
   'missing_facts',
   'sensitive',
   'needs_action',
+  'business_rule',
 ] as const;
 /** Model reasons plus the server's own: a message the AI cannot read, or the AI being unavailable. */
 export const AiHandoffReason = z.enum([
@@ -163,7 +216,7 @@ export const AI_TRY_QUESTION_CHARACTERS = 500;
  */
 export const AiTryBody = z.object({
   question: z.string().trim().min(1).max(AI_TRY_QUESTION_CHARACTERS),
-  knowledge: AiMemberBody.pick({ displayName: true, instructions: true }),
+  knowledge: AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true }),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
 export const AiTryResult = z.object({

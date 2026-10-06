@@ -415,7 +415,7 @@
     "model": "Model (pilihan)",
     "apiModelHint": "Biarkan kosong untuk menggunakan gpt-4.1-mini.",
     "instructions": "Arahan AI",
-    "instructionsHint": "Terangkan nada, bahasa dan soalan yang perlu dikendalikan oleh AI.",
+    "instructionsHint": "Diisi dengan arahan yang disyorkan; ubah suai mengikut gaya anda, atau kekalkan seperti sedia ada.",
     "saveConnection": "Simpan sambungan AI",
     "connectionSaved": "Sambungan AI peti masuk disimpan.",
     "memberSaved": "Tetapan ahli AI disimpan.",
@@ -481,8 +481,15 @@
       "stepName": "1. Nama & peranan",
       "stepInstructions": "2. Arahan AI",
       "stepContext": "3. Konteks perniagaan",
-      "stepTry": "4. Cuba",
+      "stepHandoff": "4. Peraturan serahan",
+      "stepTry": "5. Cuba",
       "instructionsPlaceholder": "Contoh: Balas dengan ringkas dan sopan. Jawab soalan tentang harga, penghantaran dan waktu operasi. Serahkan kepada manusia untuk aduan atau bayaran balik.",
+      "useDefaultInstructions": "Guna arahan lalai",
+      "handoffLabel": "Peraturan serahan",
+      "handoffHint": "Bila AI patut menyerahkan sembang kepada pasukan anda? Satu peraturan setiap baris. Biarkan kosong jika tiada peraturan tambahan.",
+      "handoffPlaceholder": "Contoh:\n- Pelanggan meminta bayaran balik\n- Pelanggan mahukan sebut harga",
+      "handoffSystem": "Sentiasa diserahkan, walau apa pun yang anda tulis di sini: pelanggan meminta untuk bercakap dengan orang, permintaan yang AI tidak dapat laksanakan (pesanan, tempahan, bayaran), jawapan yang tiada dalam konteks perniagaan anda, serta hal undang-undang, perubatan atau data peribadi.",
+      "useDefaultHandoff": "Guna peraturan lalai",
       "howItWorks": "Cara ia berfungsi",
       "connectionLine": "Sambungan: {{state}}",
       "openSettings": "Tetapan → AI",
@@ -491,6 +498,7 @@
     "try": {
       "label": "Soalan pelanggan",
       "placeholder": "Contoh: Berapakah kos penghantaran?",
+      "enterHint": "Tekan Enter untuk bertanya, Shift+Enter untuk baris baharu.",
       "ask": "Tanya",
       "hint": "Menjawab dengan konteks perniagaan yang disimpan serta nama dan arahan di halaman ini, termasuk perubahan yang belum disimpan. Tiada apa-apa dihantar kepada pelanggan.",
       "decision": {
@@ -528,6 +536,7 @@
       "noMatches": "Tiada item sepadan dengan “{{query}}”.",
       "limitReached": "Padam satu item untuk menambah yang lain (sehingga 20).",
       "textLabel": "Kandungan teks",
+      "characterCount": "{{count}} / {{max}} aksara",
       "namePlaceholder": "Contoh: Senarai harga",
       "textPlaceholder": "Contoh:\nKedai Ezy menjual kek dan roti di Johor Bahru.\nDibuka setiap hari 9 pagi–6 petang, tutup pada cuti umum.\nPenghantaran dalam 10 km berharga RM10.\n\nS: Adakah anda menerima tempahan khas?\nJ: Ya, dengan notis 3 hari.",
       "addTextTitle": "Tambah kandungan teks",
@@ -548,6 +557,10 @@
       "confirmText": "AI berhenti menggunakannya serta-merta. Tindakan ini tidak boleh dibuat asal.",
       "deleteFailed": "Tidak dapat memadam: {{names}}",
       "namesMore": "{{names}} +{{count}} lagi"
+    },
+    "defaults": {
+      "instructions": "PERANAN\nAnda pembantu WhatsApp perniagaan ini. Anda menjawab pertanyaan pelanggan dan soalan tentang produk, serta mewakili perniagaan secara profesional.\n\nSKOP\nAnda membantu tentang:\n- Produk: ciri, spesifikasi, varian, ketersediaan dan cara penggunaan\n- Pertanyaan umum: waktu operasi, lokasi, cara membuat pesanan, kawasan penghantaran, kaedah bayaran dan polisi pemulangan\n- Langkah seterusnya: cara membuat pesanan, cara meminta sebut harga, atau menghubungi pasukan kami\nAnda tidak membantu tentang topik yang tiada kaitan dengan perniagaan atau produknya (sembang umum, berita, pengekodan, kerja rumah, pendapat, politik, agama). Balas dengan sopan dalam satu baris dan bawa semula perbualan, contohnya: \"Maaf, saya hanya boleh membantu dengan soalan tentang produk dan perkhidmatan kami. Bagaimana saya boleh membantu?\"\n\nPENGETAHUAN\n- Kekalkan nama produk, nombor model dan harga tepat seperti dalam konteks perniagaan.\n- Jangan meneka harga, stok, spesifikasi, tarikh penghantaran, promosi atau polisi. Jika maklumat tiada, nyatakannya dan biar pasukan kami mengesahkan.\n- Jangan menjanjikan diskaun, hadiah percuma atau pengecualian.\n\nBAHASA\n- Balas dalam bahasa pelanggan. Jika mereka mencampurkan bahasa, balas dalam bahasa utama mesej mereka.\n- Jika anda tidak dapat membalas dalam bahasa mereka, gunakan bahasa lalai yang dinyatakan dalam konteks perniagaan, jika tiada gunakan bahasa Inggeris.\n\nGAYA\n- Profesional, sopan dan mesra; tiada slanga. Paling banyak satu emoji, dan hanya jika sesuai.\n- Satu hingga tiga ayat pendek. Gunakan senarai pendek hanya untuk pilihan atau spesifikasi.\n- Jawab dahulu: tiada ucapan panjang dan jangan mengulang soalan.\n- Tanya paling banyak satu soalan penjelasan apabila perlu (contohnya model, saiz atau kawasan mana).\n- Format WhatsApp sahaja: *tebal* untuk butiran penting dan baris baharu biasa. Tiada tajuk, jadual atau pautan yang tidak diberikan kepada anda.",
+      "handoffRules": "- Pelanggan kecewa atau membuat aduan\n- Pelanggan meminta bayaran balik, pemulangan, pertukaran atau tuntutan waranti\n- Pelanggan bertanya tentang pesanan, penghantaran atau bayaran sedia ada\n- Pelanggan mahukan pesanan pukal atau tempahan khas, atau sebut harga\n- Pelanggan mahu tawar-menawar harga atau meminta diskaun"
     }
   }
 }
