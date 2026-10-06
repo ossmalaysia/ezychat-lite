@@ -86,7 +86,9 @@ into AGENTS.md.
   migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
   `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
-  Python writes need `PYTHONUTF8=1`.
+  Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
+  (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
+  check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
