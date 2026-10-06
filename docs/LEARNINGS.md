@@ -200,6 +200,8 @@ into AGENTS.md.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
+- In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
+  `getByRole`; query background controls with `{ hidden: true }`.
 - Review a UI change on the whole page at 1280 and 360 px, top to bottom, not only the changed
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server

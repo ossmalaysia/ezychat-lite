@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Customer details:** every teammate can save a customer's name, company, email, other phone,
+  address and tags from the chat (**Customer** button next to Notes). The name shows across the inbox
+  with the WhatsApp name kept underneath, search finds these details, the inbox can be filtered by tag,
+  and the customer's name also shows on their messages in group chats.
+
 ### Security
 
 - Voice notes: the 2-minute limit now counts the real audio instead of trusting the length written in

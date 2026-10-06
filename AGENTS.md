@@ -99,6 +99,11 @@ rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` o
 `push/service.ts` sends web push for `inbound:notify` to the assignee (or every active user if
 unassigned), skipping users who are online.
 
+**Customer profiles.** `packages/server/src/customers/`: one profile per direct chat
+(`customer_profiles`, `customer_tags`), edited by any teammate, audited by changed field names only.
+`rowToChat` prefers the profile name and adds `tags`/`whatsappName`; startup merges carry profiles
+(`customers/merge.ts`); group messages get `senderProfile` via `AliasStore.route()`.
+
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.
 
