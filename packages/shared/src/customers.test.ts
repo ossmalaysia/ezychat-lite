@@ -5,6 +5,7 @@ import {
   normalizeTag,
   ChatListQuery,
   ChatSchema,
+  CustomerProfileSchema,
 } from './index.js';
 
 describe('customer profile contract', () => {
@@ -55,5 +56,35 @@ describe('customer profile contract', () => {
       phone: '601',
     });
     expect(chat.tags).toBeUndefined();
+  });
+
+  it('rejects mail-header tricks, control characters and invisible direction marks', () => {
+    const ok = (body: unknown) => CustomerProfileBody.safeParse(body).success;
+    expect(ok({ email: 'orders@shop.my?bcc=evil%40x.com' })).toBe(false);
+    expect(ok({ email: 'a&b@shop.my' })).toBe(false);
+    expect(ok({ email: 'a#b@shop.my' })).toBe(false);
+    expect(ok({ tags: ['VIP\u001fBlocked'] })).toBe(false);
+    expect(ok({ address: 'Lebuh\u0000Chulia' })).toBe(false);
+    expect(ok({ name: 'Farah\u202Eheknab' })).toBe(false);
+    expect(ok({ name: 'Far\u200Bah' })).toBe(false);
+    expect(ok({ company: 'Co\u2066' })).toBe(false);
+    expect(ok({ name: 'Farah 🌸 陈伟杰', address: 'Line one, George Town' })).toBe(true);
+  });
+
+  it('caps the inbox search length and exposes a stable profile id', () => {
+    expect(ChatListQuery.safeParse({ q: 'x'.repeat(101) }).success).toBe(false);
+    expect(
+      CustomerProfileSchema.parse({
+        id: null,
+        name: null,
+        company: null,
+        email: null,
+        otherPhone: null,
+        address: null,
+        tags: [],
+        updatedAt: null,
+        updatedBy: null,
+      }).id,
+    ).toBeNull();
   });
 });

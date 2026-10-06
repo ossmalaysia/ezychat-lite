@@ -2,9 +2,17 @@ import { z } from 'zod';
 
 export const CUSTOMER_TAG_LIMIT = 10;
 export const CUSTOMER_TAG_MAX_CHARS = 30;
-// Deliberately simple: one @, something on both sides, a dot in the domain, no spaces.
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Deliberately simple: one @, something on both sides, a dot in the domain, no spaces. `?#%&` are
+// refused so a stored address can never smuggle headers (bcc, subject…) into a mailto: link.
+const EMAIL = /^[^\s@?#%&]+@[^\s@?#%&]+\.[^\s@?#%&]+$/;
 const PHONE = /^[0-9+\-() ]*$/;
+/** Control characters (incl. the \u001f tag separator). Line breaks are allowed only in the address. */
+const CONTROL = /\p{Cc}/u;
+const CONTROL_EXCEPT_LINES = /[^\P{Cc}\n\r\t]/u;
+/** Bidi overrides/isolates and zero-width characters: they would let a name spoof how it looks. */
+const INVISIBLE = /[​-‍‪-‮⁦-⁩﻿]/;
+const NO_CONTROL = { message: 'Remove control characters' };
+const NO_INVISIBLE = { message: 'Remove invisible formatting characters' };
 
 /** Trim and collapse inner whitespace: the display spelling of a tag. */
 export function normalizeTag(tag: string): string {
@@ -15,33 +23,50 @@ export function customerTagKey(tag: string): string {
   return normalizeTag(tag).toLowerCase();
 }
 
-const text = (max: number) => z.string().trim().max(max).default('');
+const line = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .refine((v) => !CONTROL.test(v), NO_CONTROL);
+/** Shown as a display name (list, header, push title, group label): no invisible marks either. */
+const displayText = (max: number) =>
+  line(max)
+    .refine((v) => !INVISIBLE.test(v), NO_INVISIBLE)
+    .default('');
 
 /** PUT body: the whole profile. Empty strings mean "not set". */
 export const CustomerProfileBody = z.object({
-  name: text(120),
-  company: text(120),
-  email: z
-    .string()
-    .trim()
-    .max(254)
+  name: displayText(120),
+  company: displayText(120),
+  email: line(254)
     .refine((v) => v === '' || EMAIL.test(v), { message: 'Enter a valid email address' })
     .default(''),
-  otherPhone: z
-    .string()
-    .trim()
-    .max(32)
+  otherPhone: line(32)
     .refine((v) => PHONE.test(v), { message: 'Use digits, spaces, +, -, ( or )' })
     .default(''),
-  address: text(300),
+  address: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => !CONTROL_EXCEPT_LINES.test(v), NO_CONTROL)
+    .default(''),
   tags: z
-    .array(z.string().transform(normalizeTag).pipe(z.string().min(1).max(CUSTOMER_TAG_MAX_CHARS)))
+    .array(
+      z
+        .string()
+        .refine((v) => !CONTROL.test(v) && !INVISIBLE.test(v), NO_CONTROL)
+        .transform(normalizeTag)
+        .pipe(z.string().min(1).max(CUSTOMER_TAG_MAX_CHARS)),
+    )
     .max(CUSTOMER_TAG_LIMIT)
     .default([]),
 });
 export type CustomerProfileBody = z.infer<typeof CustomerProfileBody>;
 
 export const CustomerProfileSchema = z.object({
+  /** Stable customer id (survives chat merges); null until the profile is first saved. */
+  id: z.string().nullable(),
   name: z.string().nullable(),
   company: z.string().nullable(),
   email: z.string().nullable(),
