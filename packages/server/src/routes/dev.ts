@@ -41,7 +41,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
           expectId !== null
             ? m.id === expectId
             : (m.chatJid === routed || m.chatJid === body.chatJid) &&
-              m.body === body.text &&
+              (m.body ?? '') === body.text &&
               !m.fromMe;
         if (match) {
           ingestedChatJid = m.chatJid;
@@ -59,6 +59,14 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         body: body.text,
         senderName: body.senderName ?? null,
         type: body.type ?? 'text',
+        // A simulated voice note or photo: the fake adapter serves these bytes as the download.
+        media: body.media
+          ? {
+              mime: body.media.mime,
+              fileName: body.media.fileName ?? null,
+              download: async () => Buffer.from(body.media!.base64, 'base64'),
+            }
+          : null,
       });
       expectId = msg.id;
       await ingested;

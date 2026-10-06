@@ -208,5 +208,13 @@ export const FakeIncomingBody = z.object({
   text: z.string(),
   senderName: z.string().optional(),
   type: MessageType.optional(),
+  /** fake WA only: attached media (e.g. a voice note), base64; served by the fake adapter's download. */
+  media: z
+    .object({
+      mime: z.string().min(1).max(100),
+      fileName: z.string().max(200).optional(),
+      base64: z.string().min(1).max(1_000_000),
+    })
+    .optional(),
 });
 export type FakeIncomingBody = z.infer<typeof FakeIncomingBody>;
