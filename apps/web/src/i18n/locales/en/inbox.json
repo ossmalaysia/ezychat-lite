@@ -222,6 +222,13 @@
       "sticker": "[Sticker]",
       "document": "[Document] {{name}}",
       "message": "Message"
+    },
+    "transcript": {
+      "label": "Transcript:",
+      "pending": "Transcribing…",
+      "failed": "Couldn’t transcribe this voice note",
+      "too_long": "Too long to transcribe",
+      "unsupported": "This audio format can’t be transcribed"
     }
   },
   "media": {

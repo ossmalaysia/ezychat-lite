@@ -8,6 +8,7 @@ import {
   MessageType,
   Role,
   TunnelMode,
+  TranscriptStatus,
   TunnelState,
   WaState,
 } from './enums.js';
@@ -67,6 +68,12 @@ export const MessageSchema = z.object({
   error: z.string().nullable(),
   timestamp: z.number(),
   clientId: z.string().nullable(),
+  /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
+  transcript: z.string().nullable().optional(),
+  /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */
+  transcriptLang: z.string().nullable().optional(),
+  /** Missing/null = never transcribed (feature off, history, outbound). */
+  transcriptStatus: TranscriptStatus.nullable().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

@@ -7,12 +7,17 @@ import type {
   Note,
   ServerToClientEvents,
   TunnelStatus,
+  VoiceStatus,
   WaStatus,
 } from '@wa-team-inbox/shared';
 
 export interface BusEvents {
   'message:new': [Message];
   'message:status': [Parameters<ServerToClientEvents['message:status']>[0]];
+  /** An existing message changed after `message:new` (voice note transcript). */
+  'message:updated': [Message];
+  /** Voice model download/install state (admins only). */
+  'voice:status': [VoiceStatus];
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];

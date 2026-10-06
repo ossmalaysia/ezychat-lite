@@ -220,6 +220,13 @@
       "sticker": "[Pelekat]",
       "document": "[Dokumen] {{name}}",
       "message": "Mesej"
+    },
+    "transcript": {
+      "label": "Transkrip:",
+      "pending": "Sedang ditranskripsi…",
+      "failed": "Nota suara ini tidak dapat ditranskripsi",
+      "too_long": "Terlalu panjang untuk ditranskripsi",
+      "unsupported": "Format audio ini tidak dapat ditranskripsi"
     }
   },
   "media": {

@@ -8,6 +8,7 @@ import {
   AiContextTextBody,
   AiMemberBody,
   AiTryBody,
+  VoiceSettingBody,
 } from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
@@ -109,4 +110,22 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     recheck(req);
     return ai.status();
   });
+
+  // Voice messages: transcription engine and the on-demand local Whisper model.
+  const voice = () => {
+    const service = ctx.services.voice;
+    if (!service) throw errors.conflict('Voice transcription is unavailable');
+    return service;
+  };
+  const voiceDownloadLimiter = new WindowLimiter({ windowMs: 60_000, max: 5 });
+  app.get('/ai/voice', async () => voice().status());
+  app.patch('/ai/voice', async (req) =>
+    voice().setTranscription(parse(VoiceSettingBody, req.body).transcription, actor(req)),
+  );
+  app.post('/ai/voice/download', async (req) => {
+    limit(voiceDownloadLimiter, req);
+    return voice().startDownload(actor(req));
+  });
+  app.post('/ai/voice/cancel', async (req) => voice().cancelDownload(actor(req)));
+  app.delete('/ai/voice/model', async (req) => voice().removeModel(actor(req)));
 }

@@ -26,6 +26,7 @@ import {
   useMe,
   useWaStatus,
 } from './queries';
+import { voiceStatusKey } from './voice';
 import { ProfileImageContext } from '../inbox/ProfileImageContext';
 import { clearDesktopNotifications, showDesktopNotification } from '../pwa/desktop-notifications';
 
@@ -104,6 +105,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       upsertMessageInCache(qc, m);
       refreshChats();
     });
+    // A transcript arrived for a voice note: update it in place (no chat list refresh needed).
+    socket.on('message:updated', (m) => upsertMessageInCache(qc, m));
+    socket.on('voice:status', (s) => qc.setQueryData(voiceStatusKey, s));
     socket.on('message:status', (p) => {
       const patch: { status: typeof p.status; error: string | null; id?: string } = {
         status: p.status,

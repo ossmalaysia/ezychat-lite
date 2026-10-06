@@ -60,6 +60,8 @@ into AGENTS.md.
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
+- Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
+  pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
@@ -70,7 +72,8 @@ into AGENTS.md.
   `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
   Python writes need `PYTHONUTF8=1`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
-  Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash.
+  Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
+  space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
   Finish browser checks before packaging.
@@ -81,6 +84,10 @@ into AGENTS.md.
   from a Program Files install.
 - Version bumps: `npm pkg set` the root, `npm run version:sync`, edit only workspace entries in the
   lockfile, and verify `/api/health` and the UI show the new version.
+- Bundled workers can break where source runs pass: a package whose `exports` lists `require`
+  first with a CommonJS file inside `"type": "module"` (simple-yenc) bundles with no exports.
+  Resolve such packages to their ESM build in `bundle-server.mjs` and smoke each bundled
+  worker with plain node and one real job.
 - Packaging: asar-unpack native loaders with their `.node`; pin esbuild's `ws` build; mac builds need an
   explicit `--mac dmg:<arch>` and a native-runner smoke; smoke packaged servers with
   `ELECTRON_RUN_AS_NODE=1` on a temp data dir.
@@ -161,6 +168,9 @@ into AGENTS.md.
   `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
   bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
+  one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
+  model's structured output has no `unsupported_message` reason, so the server maps it.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the
   Business context, and hand-offs are structured actions, never text markers (they would reach the

@@ -13,6 +13,7 @@ import {
 } from '@wa-team-inbox/shared';
 import { api, ApiError } from './client';
 import { qk } from './queries';
+import { voiceStatusKey } from './voice';
 
 export const aiMemberKey = ['ai-member'] as const;
 
@@ -138,6 +139,8 @@ export function useAiMemberAction() {
       qc.setQueryData(aiMemberKey, status);
       qc.removeQueries({ queryKey: ['ai-document'] });
       void qc.invalidateQueries({ queryKey: qk.users });
+      // Cloud voice transcription depends on the saved API key.
+      void qc.invalidateQueries({ queryKey: voiceStatusKey });
     },
     // A batch delete can fail part-way: reload what the server has now.
     onError: () => void qc.invalidateQueries({ queryKey: aiMemberKey }),

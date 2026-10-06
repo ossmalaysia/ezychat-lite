@@ -14,6 +14,9 @@ import { sha256 } from '../src/crypto/secret.js';
 import { createMessageService } from '../src/messages/service.js';
 import { pdfFixture } from './ai-fixtures.js';
 import { OAuthError } from '../src/ai/chatgpt-oauth.js';
+import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 let t: TestApp;
 let provider: AiProvider;
@@ -1100,13 +1103,105 @@ describe('customer images', () => {
     expect(provider.generate).not.toHaveBeenCalled();
     expect(lastHandoff()).toBe('unsupported_message');
   });
+});
 
-  it('still hands voice notes to the team', async () => {
+describe('customer voice notes', () => {
+  const TONE = readFileSync(join(import.meta.dirname, 'fixtures/tone-1s.ogg'));
+  let transcribe: ReturnType<typeof vi.fn<NonNullable<VoiceServiceDeps['transcribe']>>>;
+  function voiceNote(id: string) {
+    return getMessages(t.ctx).ingest(
+      {
+        id,
+        chatJid: jid,
+        body: null,
+        type: 'audio',
+        fromMe: false,
+        senderJid: jid,
+        senderName: 'Customer',
+        timestamp: Date.now(),
+        quotedId: null,
+        media: { mime: 'audio/ogg; codecs=opus', fileName: null, download: async () => TONE },
+      },
+      'live',
+    );
+  }
+  function handoffs() {
+    return (
+      t.ctx.db
+        .prepare('SELECT payload FROM chat_events WHERE chat_jid = ? ORDER BY id')
+        .all(jid) as Array<{ payload: string }>
+    )
+      .map((event) => JSON.parse(event.payload).handoff as string | undefined)
+      .filter(Boolean);
+  }
+  const conversation = (call: number) =>
+    JSON.parse(vi.mocked(provider.generate).mock.calls[call]![2].input).conversation;
+  async function transcribing(engine: 'cloud' | 'off') {
+    await t.ctx.services.voice?.shutdown();
+    transcribe = vi.fn<NonNullable<VoiceServiceDeps['transcribe']>>(async () => ({
+      text: 'Do you deliver to Penang?',
+      lang: 'en',
+    }));
+    t.ctx.services.voice = createVoiceService(t.ctx, { transcribe });
+    if (engine === 'cloud') t.ctx.services.voice.setTranscription('cloud', actor);
+  }
+
+  it('answers a transcribed voice note as customer text', async () => {
+    await transcribing('cloud');
     clock();
-    await incomingMedia('voice', { type: 'audio', mime: 'audio/ogg; codecs=opus' });
+    await voiceNote('voice');
     await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(conversation(0)).toEqual([
+      { speaker: 'customer', text: '[voice note] Do you deliver to Penang?' },
+    ]);
+    expect(t.wa.sent[0]?.text).toContain('9am');
+    expect(handoffs()).toEqual([]);
+  });
+
+  it('waits for a pending transcription before deciding', async () => {
+    await transcribing('cloud');
+    let finish!: () => void;
+    transcribe.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ text: 'Is the shop open on Sunday?', lang: 'en' });
+        }),
+    );
+    clock();
+    await voiceNote('slow-voice');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 5000);
     expect(provider.generate).not.toHaveBeenCalled();
-    expect(lastHandoff()).toBe('unsupported_message');
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(conversation(0)).toEqual([
+      { speaker: 'customer', text: '[voice note] Is the shop open on Sunday?' },
+    ]);
+  });
+
+  it('asks the customer to type an untranscribed voice note, then hands a second one to the team', async () => {
+    await transcribing('off');
+    provider.generate = vi.fn().mockResolvedValue({
+      reply: 'Sorry, I cannot listen to voice messages. Could you type your question?',
+      action: 'answer',
+    });
+    clock();
+    await voiceNote('first');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(conversation(0)).toEqual([
+      { speaker: 'customer', text: '[voice note — not transcribed]' },
+    ]);
+    const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
+    expect(prompt.instructions).toContain('[voice note — not transcribed]');
+    expect(t.wa.sent[0]?.text).toContain('type your question');
+    expect(handoffs()).toEqual([]);
+
+    await voiceNote('second');
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(handoffs()).toEqual(['unsupported_message']);
   });
 });
 

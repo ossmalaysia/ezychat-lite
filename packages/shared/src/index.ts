@@ -4,6 +4,7 @@ export * from './api.js';
 export * from './errors.js';
 export * from './socket.js';
 export * from './ai.js';
+export * from './voice.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,

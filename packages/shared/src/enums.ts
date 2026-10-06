@@ -18,6 +18,21 @@ export type MessageStatus = z.infer<typeof MessageStatus>;
 export const MediaStatus = z.enum(['none', 'ok', 'failed', 'pending']);
 export type MediaStatus = z.infer<typeof MediaStatus>;
 
+/**
+ * Voice note transcription of an inbound audio message: `pending` while queued or running, `ok`
+ * with a transcript, otherwise why there is none (too long or large, a format the engine cannot
+ * read, skipped by the per-chat limit or an engine that is not ready, or failed).
+ */
+export const TranscriptStatus = z.enum([
+  'pending',
+  'ok',
+  'failed',
+  'too_long',
+  'unsupported',
+  'skipped',
+]);
+export type TranscriptStatus = z.infer<typeof TranscriptStatus>;
+
 export const WaState = z.enum(['disconnected', 'connecting', 'qr', 'open', 'logged_out', 'replaced', 'blocked']);
 export type WaState = z.infer<typeof WaState>;
 

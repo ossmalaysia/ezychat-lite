@@ -23,5 +23,8 @@ initializers.push(initMessaging);
 import { initPush } from './push/index.js';
 initializers.push(initPush);
 
+import { initVoice } from './voice/service.js';
+initializers.push(initVoice);
+
 import { initAi } from './ai/service.js';
 initializers.push(initAi);

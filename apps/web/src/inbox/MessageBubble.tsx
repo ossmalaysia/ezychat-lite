@@ -79,6 +79,30 @@ export function StatusTicks({ status }: { status: Message['status'] }) {
   }
 }
 
+/** A voice note's transcript (customer words, shown as text) or why there is none. */
+function VoiceTranscript({ message: m }: { message: Message }) {
+  const { t } = useTranslation('inbox');
+  if (m.transcriptStatus === 'ok' && m.transcript)
+    return (
+      <p
+        className="mb-1 whitespace-pre-wrap break-words text-xs italic text-muted-foreground [overflow-wrap:anywhere]"
+        data-testid="voice-transcript"
+      >
+        <span className="sr-only">{t('message.transcript.label')} </span>
+        {m.transcript}
+      </p>
+    );
+  const note =
+    m.transcriptStatus === 'pending'
+      ? t('message.transcript.pending')
+      : m.transcriptStatus === 'failed' ||
+          m.transcriptStatus === 'too_long' ||
+          m.transcriptStatus === 'unsupported'
+        ? t(`message.transcript.${m.transcriptStatus}`)
+        : null;
+  return note ? <p className="mb-1 text-xs italic text-muted-foreground">{note}</p> : null;
+}
+
 export function MessageBubble({
   message: m,
   showSender,
@@ -147,6 +171,7 @@ export function MessageBubble({
             <MediaView message={m} onLoad={onMediaLoad} />
           </div>
         )}
+        {m.type === 'audio' && <VoiceTranscript message={m} />}
         {m.body && (
           <p className="whitespace-pre-wrap break-words text-[15px] leading-snug [overflow-wrap:anywhere]">
             {linkify(m.body)}

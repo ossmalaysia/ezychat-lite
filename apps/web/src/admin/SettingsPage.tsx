@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { ErrorState, Field, Pending } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
+import { AiVoiceSection } from './AiVoiceSection';
 
 const TABS = ['general', 'ai', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -238,8 +239,9 @@ export function SettingsPage() {
           </form>
         </TabsContent>
 
-        <TabsContent value="ai">
+        <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
+          <AiVoiceSection />
         </TabsContent>
 
         <TabsContent value="device">
