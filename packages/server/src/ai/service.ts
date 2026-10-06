@@ -46,7 +46,7 @@ import {
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiPromptImage, AiProvider } from './provider-types.js';
-import { AI_IMAGE_WAIT_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
+import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 
 export const AI_FALLBACK_MS = 10_000;
@@ -219,7 +219,7 @@ export function createAiService(
         { media_status: string } | undefined
     )?.media_status === 'pending';
   /** Live media is downloaded after the AI is notified: wait (bounded) until it is stored or failed. */
-  const waitForMedia = (id: string, signal: AbortSignal) =>
+  const waitForMedia = (id: string, signal: AbortSignal, deadline: number) =>
     new Promise<void>((resolve) => {
       const done = () => {
         clearTimeout(timeout);
@@ -230,7 +230,7 @@ export function createAiService(
       const onStored = (message: Message) => {
         if (message.id === id) done();
       };
-      const timeout = setTimeout(done, AI_IMAGE_WAIT_MS);
+      const timeout = setTimeout(done, Math.max(0, deadline - Date.now()));
       timeout.unref?.();
       ctx.bus.on('message:new', onStored);
       signal.addEventListener('abort', done, { once: true });
@@ -239,10 +239,14 @@ export function createAiService(
   /** The newest readable customer images of a batch (newest first), at most AI_MAX_IMAGES. */
   async function batchImages(batch: readonly Message[], signal: AbortSignal) {
     const images: AiPromptImage[] = [];
+    // One wait budget for the whole batch, not per image.
+    const deadline = Date.now() + AI_IMAGE_WAIT_MS;
     for (const message of [...batch].reverse()) {
       if (images.length >= AI_MAX_IMAGES || signal.aborted) break;
       if (message.fromMe || message.type !== 'image') continue;
-      await waitForMedia(message.id, signal);
+      // Imported history media stays pending until someone opens it: never wait for it.
+      if (mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS) continue;
+      await waitForMedia(message.id, signal, deadline);
       const file = messages.mediaPath(message.id);
       const image = file ? readPromptImage(file.path) : null;
       if (image) images.push(image);

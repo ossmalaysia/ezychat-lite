@@ -73,9 +73,10 @@ export function guardResolution(
 ): AiDecision {
   if (decision.action === 'handoff') return decision;
   let guarded: AiDecision = decision;
+  // A confirmation must be words: a captionless photo or other textless batch never closes a chat.
   if (decision.action === 'resolve')
     guarded =
-      asked > 0 && !objectsToResolution(customerText)
+      asked > 0 && customerText.trim() !== '' && !objectsToResolution(customerText)
         ? decision
         : { action: 'ask_resolution', reply: ASK_RESOLUTION_REPLY };
   else if (

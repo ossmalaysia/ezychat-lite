@@ -7,6 +7,8 @@ export const AI_MAX_IMAGES = 3;
 export const AI_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 /** How long an answer waits for a live image that is still downloading from WhatsApp. */
 export const AI_IMAGE_WAIT_MS = 20_000;
+/** A pending image older than this is imported history (downloaded only on demand), not a live download. */
+export const AI_LIVE_MEDIA_MS = 2 * 60_000;
 
 /**
  * The image type from the file's own bytes, never from the sender's declared type. Only JPEG, PNG

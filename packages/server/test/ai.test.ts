@@ -1109,3 +1109,28 @@ describe('customer images', () => {
   });
 >>>>>>> f13d153 (feat(ai): the AI Sales Agent understands customer images)
 });
+
+it('never waits for imported history photos that are only downloaded on demand', async () => {
+  clock();
+  // A photo from the history import: stays pending until someone opens it.
+  await getMessages(t.ctx).ingest(
+    {
+      id: 'history-photo',
+      chatJid: jid,
+      body: null,
+      type: 'image',
+      fromMe: false,
+      senderJid: jid,
+      senderName: 'Customer',
+      timestamp: Date.now() - 24 * 60 * 60_000,
+      quotedId: null,
+      media: { mime: 'image/png', fileName: null, download: async () => Buffer.from('x') },
+    },
+    'history',
+  );
+  await incoming('question', 'What are your opening hours?');
+  // Fallback delay plus a little: an answer that waited for the history photo would take 20 s more.
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(provider.generate).mock.calls[0]![2].images ?? []).toHaveLength(0);
+});
