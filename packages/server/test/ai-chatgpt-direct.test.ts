@@ -303,6 +303,21 @@ describe('local OAuth callback listener', () => {
     }
   });
 
+  it('answers a malformed request target with 404 and keeps waiting for the real callback', async () => {
+    const port = await freePort();
+    const listener = await startCallbackListener('expected-state', port);
+    try {
+      expect(await rawGet(port, '//', `127.0.0.1:${port}`)).toBe(404);
+      expect(await rawGet(port, '//evil.example/auth/callback', `127.0.0.1:${port}`)).toBe(404);
+      const ok = fetch(`http://127.0.0.1:${port}/auth/callback?code=the-code&state=expected-state`);
+      expect(await listener.result).toEqual({ code: 'the-code' });
+      listener.finish(true);
+      expect((await ok).status).toBe(200);
+    } finally {
+      listener.close();
+    }
+  });
+
   it('reports a busy callback port clearly', async () => {
     const port = await freePort();
     const busy = createServer().listen(port, '127.0.0.1');

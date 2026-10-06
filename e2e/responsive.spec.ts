@@ -120,7 +120,7 @@ test.describe('360px: no horizontal scroll', () => {
       ['Quick replies', 'quick-replies'],
       ['WhatsApp', 'whatsapp'],
       ['Cloudflare', 'tunnel'],
-      ['Settings', 'settings'],
+      ['Settings', 'settings/general'],
       ['Audit', 'audit'],
     ]) {
       await page.getByRole('button', { name: 'Admin menu' }).click();

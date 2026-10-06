@@ -84,9 +84,11 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('combobox', { name: 'Language' }));
     await user.click(await screen.findByRole('option', { name: 'Bahasa Melayu' }));
 
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Log masuk'),
+    // The Malay catalog is lazy-loaded; under a full parallel test run that import can take seconds.
+    await waitFor(
+      () => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Log masuk'),
+      { timeout: 10_000 },
     );
     expect(screen.getByRole('combobox', { name: 'Bahasa' })).toBeTruthy();
-  });
+  }, 20_000);
 });

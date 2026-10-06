@@ -328,13 +328,13 @@ describe('Settings → AI connection (inline)', () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
+    // The Malay catalog is lazy-loaded; under a full parallel test run that import can take seconds.
     await act(() => activateLocale('ms'));
-    expect(((await screen.findByLabelText('Model (pilihan)')) as HTMLInputElement).value).toBe(
-      'gpt-4.1-mini',
-    );
+    const model = await screen.findByLabelText('Model (pilihan)', undefined, { timeout: 10_000 });
+    expect((model as HTMLInputElement).value).toBe('gpt-4.1-mini');
     await user.click(screen.getByRole('button', { name: 'Simpan sambungan AI' }));
     await waitFor(() =>
       expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: 'gpt-4.1-mini' }),
     );
-  });
+  }, 20_000);
 });

@@ -270,8 +270,14 @@ export function startCallbackListener(
       res.writeHead(421).end();
       return;
     }
-    const url = new URL(req.url ?? '/', `http://localhost:${port}`);
-    if (req.method !== 'GET' || url.pathname !== CHATGPT_OAUTH.callbackPath || done) {
+    // A request target such as "//" makes new URL() throw; an uncaught throw here would end the server process.
+    let url: URL | null;
+    try {
+      url = new URL(`http://localhost:${port}${req.url?.startsWith('/') ? req.url : '/'}`);
+    } catch {
+      url = null;
+    }
+    if (!url || req.method !== 'GET' || url.pathname !== CHATGPT_OAUTH.callbackPath || done) {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Not found');
       return;
     }
