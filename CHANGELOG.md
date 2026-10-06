@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Settings → AI edits the AI connection in place (no popup): an API key / ChatGPT switch, the model dropdown, Test connection and one Save with an "Unsaved" marker.
 - Installers no longer include the Codex helper (about 140 MB smaller); ChatGPT mode signs in directly.
+- The AI Sales Agent hands a chat to the team as soon as the customer wants something done that it cannot do (place, change or cancel an order, book, pay), after answering the known facts, and never closes such a chat. The chat timeline and Try it show why the AI handed over.
 - Admin Settings is split into General, AI, This device and Maintenance tabs; theme and language use compact one-row switches.
 - The AI Sales Agent closes a chat when the customer confirms in their own words (and stops asking after two confirmations), answers order and delivery-slot questions with the known facts instead of handing off, and "Try it" shows its decision (Answer, Asked if resolved, Would resolve, Would hand off).
 - The AI Sales Agent is configured with just AI instructions and Business context. Business context is a list of items, uploaded files and text content you add, like a project knowledge panel; existing notes and FAQs become one 'Business context' item. Turning it on needs at least one context item; instructions alone are not enough.

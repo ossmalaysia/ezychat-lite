@@ -124,10 +124,31 @@ export const AiTestResult = z.object({
 });
 export type AiTestResult = z.infer<typeof AiTestResult>;
 
+/**
+ * Why the AI handed a chat to the team: the customer asked for a person, the facts are missing or
+ * conflicting, the topic is sensitive, or the customer wants something done that the AI cannot do
+ * (place/change/cancel an order, book, pay…).
+ */
+export const AI_MODEL_HANDOFF_REASONS = [
+  'asked_for_human',
+  'missing_facts',
+  'sensitive',
+  'needs_action',
+] as const;
+/** Model reasons plus the server's own: a message the AI cannot read, or the AI being unavailable. */
+export const AiHandoffReason = z.enum([
+  ...AI_MODEL_HANDOFF_REASONS,
+  'unsupported_message',
+  'ai_unavailable',
+]);
+export type AiHandoffReason = z.infer<typeof AiHandoffReason>;
+
 /** Structured decisions are checked by the server before sending or changing ownership. */
 export const AiDecision = z.object({
   reply: z.string().trim().min(1).max(4096),
   action: z.enum(['answer', 'ask_resolution', 'resolve', 'handoff']),
+  /** Set with `handoff`; missing or null otherwise (an answer without it still parses). */
+  handoffReason: AiHandoffReason.nullable().optional(),
 });
 export type AiDecision = z.infer<typeof AiDecision>;
 
@@ -149,6 +170,7 @@ export const AiTryResult = z.object({
   ok: z.boolean(),
   reply: z.string().nullable(),
   action: AiDecision.shape.action.nullable(),
+  handoffReason: AiHandoffReason.nullable().optional(),
   model: z.string().nullable(),
   error: z.string().nullable(),
 });

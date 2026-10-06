@@ -499,6 +499,7 @@
         "resolve": "将标记为已解决",
         "handoff": "将转交人工"
       },
+      "handoffReason": "原因：{{reason}}",
       "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
       "failed": "无法回答：{{error}}"

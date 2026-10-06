@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { handoffReasonLabel } from '@/lib/ai-handoff';
 import { AI_TRY_QUESTION_CHARACTERS } from '@wa-team-inbox/shared';
 import { useAiTry } from '../api/ai';
 import { errorMessage } from '../api/client';
@@ -74,6 +75,13 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
                   </span>
                 )}
               </div>
+              {ask.data.action === 'handoff' && ask.data.handoffReason && (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {t('ai.try.handoffReason', {
+                    reason: handoffReasonLabel(ask.data.handoffReason),
+                  })}
+                </p>
+              )}
               <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
               {ask.data.action === 'handoff' && !ask.data.model && (
                 <p className="mt-2 text-xs text-muted-foreground">{t('ai.try.noKnowledge')}</p>

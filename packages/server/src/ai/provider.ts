@@ -1,4 +1,4 @@
-import { AiDecision, type AiSettings } from '@wa-team-inbox/shared';
+import { AI_MODEL_HANDOFF_REASONS, AiDecision, type AiSettings } from '@wa-team-inbox/shared';
 import { promptCacheKey } from './prompt.js';
 import type { AiPrompt } from './provider-types.js';
 
@@ -9,8 +9,12 @@ export const AI_OUTPUT_SCHEMA = {
   properties: {
     reply: { type: 'string' },
     action: { type: 'string', enum: ['answer', 'ask_resolution', 'resolve', 'handoff'] },
+    handoffReason: {
+      type: ['string', 'null'],
+      enum: [...AI_MODEL_HANDOFF_REASONS, null],
+    },
   },
-  required: ['reply', 'action'],
+  required: ['reply', 'action', 'handoffReason'],
   additionalProperties: false,
 };
 

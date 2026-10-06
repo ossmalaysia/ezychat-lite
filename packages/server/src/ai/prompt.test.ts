@@ -16,11 +16,15 @@ const situation: AiSituation = {
   awaitingConfirmation: false,
 };
 
-it('answers order and delivery-slot questions with known facts and keeps the chat', () => {
+it('answers order questions but hands requests it cannot carry out to the team', () => {
   const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
-  expect(instructions).toContain('say the team will confirm the slot or order');
-  expect(instructions).toContain('choose answer or ask_resolution and keep the conversation');
-  expect(instructions).toContain('Choose handoff only when the customer asks for a human');
+  expect(instructions).toContain('Questions about ordering');
+  expect(instructions).toContain('are normal questions: answer them');
+  expect(instructions).toContain('choose handoff with handoffReason needs_action');
+  expect(instructions).toContain('Never pretend a request is done or confirmed');
+  expect(instructions).toContain(
+    'handoffReason asked_for_human when the customer asks for a person',
+  );
   expect(instructions).not.toContain(
     'If information is missing, conflicting, sensitive or a human is requested, choose handoff',
   );

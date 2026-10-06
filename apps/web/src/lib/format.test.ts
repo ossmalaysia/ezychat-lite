@@ -31,6 +31,7 @@ describe('format (locale-aware)', () => {
       expect(formatListTime(earlier, now)).toBe('5 Feb');
       expect(formatDay(earlier, now)).toMatch(/Khamis/);
       expect(formatRelative(Date.now() - 5 * 60_000)).toMatch(/minit/);
+      expect(formatRelative(Date.now() - 2_000)).toBe('sebentar tadi');
     });
   });
 
@@ -41,6 +42,7 @@ describe('format (locale-aware)', () => {
       expect(formatListTime(lastYear, now)).toBe('2025年2月5日');
       expect(formatDay(earlier, now)).toMatch(/星期四/);
       expect(formatRelative(Date.now() - 5 * 60_000)).toMatch(/分钟/);
+      expect(formatRelative(Date.now())).toBe('刚刚');
     });
   });
 });

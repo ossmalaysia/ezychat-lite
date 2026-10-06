@@ -225,6 +225,7 @@ describe('AI member page', () => {
             ok: true,
             reply: 'A human agent will help with your question.',
             action: 'handoff',
+            handoffReason: 'sensitive',
             model: 'gpt-6.1-sol',
             error: null,
           })
@@ -234,6 +235,7 @@ describe('AI member page', () => {
     await user.type(await screen.findByLabelText('Customer question'), 'I want a refund');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
     expect(await screen.findByText('Would hand off')).toBeTruthy();
+    expect(screen.getByText('Reason: sensitive topic')).toBeTruthy();
     expect(screen.queryByText(/no matching business knowledge/i)).toBeNull();
   });
 

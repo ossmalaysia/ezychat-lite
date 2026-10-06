@@ -36,8 +36,9 @@ export function formatDay(ts: number, now: Date = new Date()): string {
   return dateFormat(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** "5 minutes ago" in the active language. */
+/** "5 minutes ago" in the active language; "just now" for the last minute. */
 export function formatRelative(ts: number): string {
+  if (Math.abs(Date.now() - ts) < 60_000) return i18n.t('common:time.justNow');
   return formatDistanceToNowStrict(new Date(ts), { addSuffix: true, locale: dateLocale() });
 }
 

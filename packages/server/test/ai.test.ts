@@ -632,6 +632,7 @@ it('answers Try it from the draft name and instructions plus saved context witho
     ok: true,
     reply: 'Delivery is RM10.',
     action: 'answer',
+    handoffReason: null,
     model: 'gpt-4.1-mini',
     error: null,
   });
@@ -751,13 +752,55 @@ it('appends the current time, zone and resolution state last and keeps a stable 
   expect(t.ctx.settings.get('ai_install_id', null)).toBe(first!.cacheId);
 });
 
-it('tells the AI to answer an order question with known facts and keeps the chat', async () => {
+it('tells the AI to answer order questions and hand order requests to the team', async () => {
   clock();
   await incoming('order', 'Can I get delivery tomorrow at 3pm? How much in total?');
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
   const { instructions } = vi.mocked(provider.generate).mock.calls[0]![2];
-  expect(instructions).toContain('say the team will confirm the slot or order');
+  expect(instructions).toContain('Questions about ordering');
+  expect(instructions).toContain('choose handoff with handoffReason needs_action');
+  expect(instructions).toContain('Never pretend a request is done or confirmed');
+  // A question keeps the chat with the AI.
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(t.ctx.services.ai!.status().member!.id);
+});
+
+it('hands an order request to the team with its reason instead of resolving it', async () => {
+  clock();
+  await incoming('order', 'I want to order 5 regular kopi, deliver tomorrow 3pm');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  // The model wrongly closes the chat when the customer says thanks.
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'You are welcome!', action: 'resolve' });
+  await incoming('thanks', 'ok great, thanks, that is all');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: null });
+  const handoffs = t.ctx.db
+    .prepare("SELECT payload FROM chat_events WHERE chat_jid = ? AND type = 'unassigned'")
+    .all(jid) as Array<{ payload: string }>;
+  expect(handoffs.map((row) => JSON.parse(row.payload).handoff)).toEqual(['needs_action']);
+  const audits = t.ctx.db
+    .prepare("SELECT meta FROM audit_log WHERE action = 'ai.handoff'")
+    .all() as Array<{ meta: string }>;
+  expect(audits.map((row) => JSON.parse(row.meta).reason)).toEqual(['needs_action']);
+  // The team owns it now: further messages get no AI reply.
+  await incoming('later', 'Hello?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(2);
+});
+
+it("records the model's hand-off reason on the chat event", async () => {
+  vi.mocked(provider.generate).mockResolvedValue({
+    reply: 'A team member will help you.',
+    action: 'handoff',
+    handoffReason: 'sensitive',
+  });
+  clock();
+  await incoming('complaint', 'My order was cold, I want a refund');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const events = t.ctx.db
+    .prepare('SELECT type, payload FROM chat_events WHERE chat_jid = ? ORDER BY id')
+    .all(jid) as Array<{ type: string; payload: string }>;
+  expect(events.at(-1)?.type).toBe('unassigned');
+  expect(JSON.parse(events.at(-1)!.payload)).toMatchObject({ handoff: 'sensitive' });
 });
 
 it('resolves once when the customer confirms in free text', async () => {

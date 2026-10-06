@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
   AiContextPatchBody,
+  AiHandoffReason,
   AiDocumentView,
   AiMemberBody,
   AiMemberStatus,
@@ -408,7 +409,7 @@ export function createAiService(
     signal.throwIfAborted();
   }
 
-  function handoff(jid: string, userId: number) {
+  function handoff(jid: string, userId: number, reason: AiHandoffReason | null) {
     // Selection and assignment are synchronous, so simultaneous handoffs cannot choose the same idle agent.
     const candidates = ctx.db
       .prepare(
@@ -420,12 +421,12 @@ export function createAiService(
       (deps.isOnline ?? ((id) => ctx.services.realtime?.isOnline(id) ?? false))(user.id),
     );
     pause(jid);
-    chats.patch(jid, { assignedTo: idle?.id ?? null }, userId);
+    chats.patch(jid, { assignedTo: idle?.id ?? null }, userId, { handoff: reason });
     audit(ctx.db, {
       userId,
       action: 'ai.handoff',
       ip: null,
-      meta: { chatJid: jid, assignedTo: idle?.id ?? null },
+      meta: { chatJid: jid, assignedTo: idle?.id ?? null, reason },
     });
   }
 
@@ -459,11 +460,16 @@ export function createAiService(
       // awaiting_confirmation counts the resolution questions already sent in a row.
       const asked = state(jid)!.awaiting_confirmation;
       const awaiting = asked > 0;
-      let decision;
+      let decision: AiDecision;
+      const started = Date.now();
       try {
         decision =
           customer.type !== 'text' || !customer.body?.trim() || !knowledge.trim()
-            ? { action: 'handoff' as const, reply: HANDOFF_REPLY }
+            ? {
+                action: 'handoff' as const,
+                reply: HANDOFF_REPLY,
+                handoffReason: knowledge.trim() ? 'unsupported_message' : 'missing_facts',
+              }
             : AiDecision.parse(
                 await provider.generate(
                   current,
@@ -495,6 +501,7 @@ export function createAiService(
         decision = {
           action: 'handoff' as const,
           reply: HANDOFF_REPLY,
+          handoffReason: 'ai_unavailable',
         };
       }
       if (!owned()) return;
@@ -512,7 +519,25 @@ export function createAiService(
         .filter((message) => !message.fromMe)
         .map((message) => message.body ?? '')
         .join('\n');
-      decision = guardResolution(decision, asked, batchText);
+      const conversationText = history
+        .filter((message) => !message.fromMe)
+        .map((message) => message.body ?? '')
+        .join('\n');
+      const proposed = decision.action;
+      decision = guardResolution(decision, asked, batchText, conversationText);
+      // One line per decision (no message text) so a chat's AI behaviour can be traced from the log.
+      log.info(
+        {
+          jid,
+          action: decision.action,
+          proposed,
+          handoffReason: decision.handoffReason ?? null,
+          asked,
+          model: current.model ?? null,
+          ms: Date.now() - started,
+        },
+        'AI decision',
+      );
       // Consecutive resolution questions: a new question or objection restarts the count at 1.
       const nextAsked =
         decision.action !== 'ask_resolution' ? 0 : objectsToResolution(batchText) ? 1 : asked + 1;
@@ -523,7 +548,7 @@ export function createAiService(
           'UPDATE ai_chat_state SET last_replied_message_id = ?, awaiting_confirmation = ?, due_at = NULL WHERE chat_jid = ?',
         )
         .run(customerId, nextAsked, jid);
-      if (decision.action === 'handoff') handoff(jid, user.id);
+      if (decision.action === 'handoff') handoff(jid, user.id, decision.handoffReason ?? null);
       else if (decision.action === 'resolve') {
         chats.patch(jid, { status: 'resolved' }, user.id);
         audit(ctx.db, { userId: user.id, action: 'ai.resolve', ip: null, meta: { chatJid: jid } });
@@ -531,7 +556,7 @@ export function createAiService(
     } catch {
       if (owned()) {
         log.warn({ jid, reason: 'send_failed' }, 'AI reply could not be sent');
-        handoff(jid, user.id);
+        handoff(jid, user.id, 'ai_unavailable');
       }
     } finally {
       if (generations.get(jid) === controller) generations.delete(jid);
@@ -841,7 +866,14 @@ export function createAiService(
       const knowledge = relevantKnowledge(knowledgeSources(contextItems()), body.question);
       // Same rule as live replies: with no relevant knowledge the AI hands the chat to a human.
       if (!knowledge.trim())
-        return { ok: true, reply: HANDOFF_REPLY, action: 'handoff', model: null, error: null };
+        return {
+          ok: true,
+          reply: HANDOFF_REPLY,
+          action: 'handoff',
+          handoffReason: 'missing_facts',
+          model: null,
+          error: null,
+        };
       let model: string | null = null;
       try {
         model =
@@ -856,7 +888,14 @@ export function createAiService(
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.
         const guarded = guardResolution(decision, 0, body.question);
-        return { ok: true, reply: guarded.reply, action: guarded.action, model, error: null };
+        return {
+          ok: true,
+          reply: guarded.reply,
+          action: guarded.action,
+          handoffReason: guarded.handoffReason ?? null,
+          model,
+          error: null,
+        };
       } catch (error) {
         log.warn({ event: 'ai_try_failed' }, 'AI Try it answer failed');
         return {

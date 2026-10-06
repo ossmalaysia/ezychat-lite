@@ -5,6 +5,7 @@ import {
   guardResolution,
   looksLikeConfirmation,
   objectsToResolution,
+  requestsAction,
 } from './resolution.js';
 
 const resolve = { action: 'resolve' as const, reply: 'Glad to help!' };
@@ -124,5 +125,54 @@ describe('review fixes', () => {
 
   it('asks only whether the answer helped, without inviting new questions', () => {
     expect(ASK_RESOLUTION_REPLY).toBe('Does that answer your question?');
+  });
+
+  it.each([
+    'I want to order 5 regular Kopi Gula Apong, deliver tomorrow 3pm',
+    'Yes please proceed with the order',
+    'Can I place an order for 10 cups?',
+    "I'd like to book a table for 6",
+    'Please cancel my order',
+    'Ok go ahead',
+    'I will take 2 gift boxes',
+    'Saya nak order 3 teh tarik',
+    'Nak tempah untuk esok',
+    'Tolong batalkan pesanan saya',
+    '我要订 5 杯咖啡',
+    '帮我下单',
+    '可以付款吗',
+  ])('recognises a request the AI cannot carry out: %s', (text) => {
+    expect(requestsAction(text)).toBe(true);
+  });
+
+  it.each([
+    'How much is a large Kopi Gula Apong?',
+    'Do you deliver to Butterworth?',
+    'What time do you open on Saturday?',
+    'ok noted, thanks!',
+    'Berapa harga teh tarik?',
+    '你们几点开门？',
+  ])('does not treat a question or a thank-you as a request: %s', (text) => {
+    expect(requestsAction(text)).toBe(false);
+  });
+
+  it('hands an order to the team instead of resolving it, keeping the model reply', () => {
+    const conversation = 'I want to order 5 regular Kopi Gula Apong\nok great, thanks, that is all';
+    expect(guardResolution(resolve, 1, 'ok great, thanks, that is all', conversation)).toEqual({
+      action: 'handoff',
+      reply: resolve.reply,
+      handoffReason: 'needs_action',
+    });
+    // The cap path (customer confirms after repeated questions) is guarded the same way.
+    expect(guardResolution(ask, 2, 'ok thanks', conversation)).toEqual({
+      action: 'handoff',
+      reply: RESOLVED_REPLY,
+      handoffReason: 'needs_action',
+    });
+    // Answers and resolution questions are never changed; a plain question still resolves.
+    expect(guardResolution(ask, 0, 'I want to order 5', conversation)).toEqual(ask);
+    expect(
+      guardResolution(resolve, 1, 'ok thanks', 'How much is a large kopi?\nok thanks'),
+    ).toEqual(resolve);
   });
 });

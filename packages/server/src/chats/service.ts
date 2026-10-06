@@ -16,7 +16,13 @@ export interface ChatService {
   events(jid: string): ChatEvent[];
   upsertFromWa(info: WaChatInfo): Chat;
   /** actorId null = system */
-  patch(jid: string, body: ChatPatchBody, actorId: number | null): Chat;
+  /** `eventDetail` is merged into the assignment event's payload (e.g. `{ handoff: reason }`). */
+  patch(
+    jid: string,
+    body: ChatPatchBody,
+    actorId: number | null,
+    eventDetail?: Record<string, unknown>,
+  ): Chat;
   markRead(jid: string, userId: number): Promise<void>;
   addNote(jid: string, userId: number, body: string): Note;
   listNotes(jid: string): Note[];
@@ -215,7 +221,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       return rowToChat(existing);
     },
 
-    patch(jid, body, actorId) {
+    patch(jid, body, actorId, eventDetail = {}) {
       const cur = repo.get(jid);
       if (!cur) throw errors.notFound('Chat');
       const t = now();
@@ -232,7 +238,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               chatJid: jid,
               type: 'assigned',
               actorId,
-              payload: { assignedTo: body.assignedTo, previous: cur.assigned_to },
+              payload: { assignedTo: body.assignedTo, previous: cur.assigned_to, ...eventDetail },
               at: t,
             }),
           );
@@ -243,7 +249,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               chatJid: jid,
               type: 'unassigned',
               actorId,
-              payload: { previous: cur.assigned_to },
+              payload: { previous: cur.assigned_to, ...eventDetail },
               at: t,
             }),
           );

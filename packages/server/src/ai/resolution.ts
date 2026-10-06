@@ -26,6 +26,17 @@ const NEW_REQUEST =
 const CONFIRMING =
   /\b(yes|yep|yeah|ok|okay|noted|thanks|thank you|resolved|sorted|done|great|perfect|all good|that['’]s all|that is all|ya|baik|terima kasih|selesai|sudah|dah|faham|okey|tak ada lagi|takde lagi|tiada lagi)\b|好|谢谢|明白|是的|可以了|解决|没有了|没事了/i;
 
+/**
+ * The customer asks the business to do something the AI cannot (order, book, cancel, pay…). Kept
+ * broad on purpose: a false match only hands a chat to the team, a miss could lose an order.
+ */
+const ACTION_REQUEST =
+  /\b(?:i(?:['’]?d| would)? (?:like|want|wanna) to (?:order|buy|book|reserve|cancel|pay)|i (?:want|need)(?: to)? (?:order|buy|book)|place (?:an|the|my|this) order|(?:confirm|cancel|change|update) (?:my|the|this) (?:order|booking|reservation|delivery)|proceed|go ahead|book (?:a|an|the|me)|reserve|reschedule|i(?:['’]ll| will) take|make (?:a |the )?payment|pay (?:now|for)|nak (?:order|pesan|beli|tempah|bayar)|saya (?:nak|mahu|ingin) (?:order|pesan|beli|tempah)|tempah|batalkan|teruskan|bayar sekarang)\b|下单|订购|预订|预定|我要买|我要订|我想订|取消订单|付款|付钱/i;
+
+export function requestsAction(text: string): boolean {
+  return ACTION_REQUEST.test(text);
+}
+
 /** The customer asks something, hesitates or objects — never close the chat on this message. */
 export function objectsToResolution(text: string): boolean {
   const rest = text.replace(HARMLESS, ' ');
@@ -50,23 +61,30 @@ export const RESOLVED_REPLY =
  * MAX_RESOLUTION_QUESTIONS questions, a confirming-looking reply resolves when the model would
  * only ask again, so customers are never asked forever. Answers and hand-offs are never changed.
  * `customerText` is every customer message since the last AI reply, so one objection in a batch
- * keeps the chat open.
+ * keeps the chat open. `conversationText` is every customer message in the prompt's history: if
+ * any asked the business to do something (order, book, pay…), a close becomes a hand-off so the
+ * team carries the request out instead of it being lost in a resolved chat.
  */
 export function guardResolution(
   decision: AiDecision,
   asked: number,
   customerText: string,
+  conversationText = customerText,
 ): AiDecision {
   if (decision.action === 'handoff') return decision;
+  let guarded: AiDecision = decision;
   if (decision.action === 'resolve')
-    return asked > 0 && !objectsToResolution(customerText)
-      ? decision
-      : { action: 'ask_resolution', reply: ASK_RESOLUTION_REPLY };
-  if (
+    guarded =
+      asked > 0 && !objectsToResolution(customerText)
+        ? decision
+        : { action: 'ask_resolution', reply: ASK_RESOLUTION_REPLY };
+  else if (
     decision.action === 'ask_resolution' &&
     asked >= MAX_RESOLUTION_QUESTIONS &&
     looksLikeConfirmation(customerText)
   )
-    return { action: 'resolve', reply: RESOLVED_REPLY };
-  return decision;
+    guarded = { action: 'resolve', reply: RESOLVED_REPLY };
+  if (guarded.action === 'resolve' && requestsAction(conversationText))
+    return { action: 'handoff', reply: guarded.reply, handoffReason: 'needs_action' };
+  return guarded;
 }

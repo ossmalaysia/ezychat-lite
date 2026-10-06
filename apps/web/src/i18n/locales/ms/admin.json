@@ -499,6 +499,7 @@
         "resolve": "Akan diselesaikan",
         "handoff": "Akan diserahkan kepada manusia"
       },
+      "handoffReason": "Sebab: {{reason}}",
       "noKnowledge": "Tiada pengetahuan perniagaan yang sepadan ditemui, jadi AI akan menyerahkan perbualan ini kepada manusia tanpa memanggil model.",
       "model": "Model: {{model}}",
       "failed": "Tidak dapat menjawab: {{error}}"
