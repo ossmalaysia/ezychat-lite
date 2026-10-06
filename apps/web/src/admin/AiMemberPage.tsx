@@ -248,7 +248,8 @@ function AiMemberEditor({
                 {...p}
                 value={draft.instructions}
                 maxLength={8000}
-                rows={10}
+                // Fixed size: long instructions wrap and scroll instead of growing the page.
+                className="field-sizing-fixed h-[min(50dvh,24rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
                 placeholder={t('ai.page.instructionsPlaceholder')}
                 disabled={action.isPending}
                 onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
