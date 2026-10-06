@@ -9,8 +9,8 @@ const PHONE = /^[0-9+\-() ]*$/;
 /** Control characters (incl. the \u001f tag separator). Line breaks are allowed only in the address. */
 const CONTROL = /\p{Cc}/u;
 const CONTROL_EXCEPT_LINES = /[^\P{Cc}\n\r\t]/u;
-/** Bidi overrides/isolates and zero-width characters: they would let a name spoof how it looks. */
-const INVISIBLE = /[​-‍‪-‮⁦-⁩﻿]/;
+/** Format characters (bidi overrides/isolates, zero-width marks) would let a name spoof its looks. */
+const INVISIBLE = /\p{Cf}/u;
 const NO_CONTROL = { message: 'Remove control characters' };
 const NO_INVISIBLE = { message: 'Remove invisible formatting characters' };
 
