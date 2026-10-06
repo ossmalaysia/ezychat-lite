@@ -2,7 +2,12 @@ import type React from 'react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
-import { CUSTOMER_TAG_LIMIT, customerTagKey, normalizeTag } from '@wa-team-inbox/shared';
+import {
+  CUSTOMER_TAG_LIMIT,
+  CUSTOMER_TAG_MAX_CHARS,
+  customerTagKey,
+  normalizeTag,
+} from '@wa-team-inbox/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +63,8 @@ export function TagInput({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Enter also confirms an input-method candidate (Chinese, Japanese…): never add half-typed text.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       add(text);
@@ -101,7 +108,7 @@ export function TagInput({
         aria-autocomplete="list"
         autoComplete="off"
         enterKeyHint="enter"
-        maxLength={60}
+        maxLength={CUSTOMER_TAG_MAX_CHARS}
         value={text}
         disabled={full}
         placeholder={full ? t('customer.tagLimit') : t('customer.tagPlaceholder')}

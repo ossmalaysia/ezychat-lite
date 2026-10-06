@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { TagInput } from './TagInput';
@@ -49,5 +49,14 @@ describe('TagInput', () => {
     const input = screen.getByRole('combobox') as HTMLInputElement;
     expect(input.disabled).toBe(true);
     expect(input.placeholder).toBe('Up to 10 tags');
+  });
+
+  it('ignores Enter while an input method is composing, and caps tags at 30 characters', () => {
+    render(<Harness />);
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '批发' } });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(screen.getByTestId('tags').textContent).toBe('');
+    expect(input.maxLength).toBe(30);
   });
 });

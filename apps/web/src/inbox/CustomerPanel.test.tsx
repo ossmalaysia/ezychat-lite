@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { CustomerProfileResponse } from '@wa-team-inbox/shared';
@@ -68,12 +68,13 @@ function mockApi(initial: CustomerProfileResponse) {
 
 function renderPanel(onClose = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const guardRef: { current: ((next: () => void) => void) | null } = { current: null };
   render(
     <QueryClientProvider client={qc}>
-      <CustomerPanel jid={JID} open directory={directory} onClose={onClose} />
+      <CustomerPanel jid={JID} open directory={directory} onClose={onClose} guardRef={guardRef} />
     </QueryClientProvider>,
   );
-  return { qc, onClose };
+  return { qc, onClose, guardRef };
 }
 
 afterEach(() => {
@@ -170,5 +171,46 @@ describe('CustomerPanel', () => {
     await userEvent.type(screen.getByLabelText('Name'), 'Farah{Control>}{Enter}{/Control}');
     await waitFor(() => expect(put).toHaveBeenCalledOnce());
     expect(await screen.findByText('Farah')).toBeTruthy();
+  });
+
+  it('saves a tag that was typed but not yet added', async () => {
+    const put = mockApi(EMPTY);
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    await userEvent.type(screen.getByRole('combobox'), 'Wholesale');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    expect(put.mock.calls[0]![0]).toMatchObject({ tags: ['Wholesale'] });
+  });
+
+  it('asks before the close button discards unsaved changes', async () => {
+    mockApi(EMPTY);
+    const { onClose } = renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    await userEvent.type(screen.getByLabelText('Company'), 'Farah Co');
+    await userEvent.click(screen.getByRole('button', { name: 'Close customer details' }));
+    expect(await screen.findByText('Discard your changes?')).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect((screen.getByLabelText('Company') as HTMLInputElement).value).toBe('Farah Co');
+    await userEvent.click(screen.getByRole('button', { name: 'Close customer details' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('lets the header guard ask before leaving unsaved changes', async () => {
+    mockApi(EMPTY);
+    const { guardRef } = renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    const next = vi.fn();
+    // Not dirty yet: the guard runs the action straight away.
+    act(() => guardRef.current!(next));
+    expect(next).toHaveBeenCalledOnce();
+    await userEvent.type(screen.getByLabelText('Company'), 'Farah Co');
+    act(() => guardRef.current!(next));
+    expect(await screen.findByText('Discard your changes?')).toBeTruthy();
+    expect(next).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(next).toHaveBeenCalledTimes(2);
   });
 });

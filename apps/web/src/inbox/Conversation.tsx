@@ -78,6 +78,10 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [notesOpen, setNotesOpen] = useState(false);
   // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
   const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
+  // Set by CustomerPanel while editing: switching or closing panels asks before losing changes.
+  const customerGuard = useRef<((next: () => void) => void) | null>(null);
+  const leaveCustomer = (next: () => void) =>
+    customerGuard.current ? customerGuard.current(next) : next();
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
@@ -249,14 +253,17 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
-          onToggleNotes={() => {
-            setNotesOpen((o) => !o);
-            setCustomerOpen(false);
-          }}
+          onToggleNotes={() =>
+            leaveCustomer(() => {
+              setNotesOpen((o) => !o);
+              setCustomerOpen(false);
+            })
+          }
           showCustomer={chat.type === 'dm'}
           customerOpen={customerOpen && chat.type === 'dm'}
           onToggleCustomer={() => {
-            setCustomerOpen((o) => !o);
+            if (customerOpen) return leaveCustomer(() => setCustomerOpen(false));
+            setCustomerOpen(true);
             setNotesOpen(false);
           }}
         />
@@ -318,6 +325,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           open={customerOpen}
           directory={directory}
           onClose={() => setCustomerOpen(false)}
+          guardRef={customerGuard}
         />
       )}
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>

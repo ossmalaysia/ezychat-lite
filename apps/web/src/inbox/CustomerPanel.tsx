@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import type { z } from 'zod';
 import {
   CustomerProfileBody,
+  customerTagKey,
+  normalizeTag,
   type CustomerProfile,
   type CustomerProfileResponse,
 } from '@wa-team-inbox/shared';
@@ -37,6 +39,11 @@ export interface CustomerPanelProps {
   open: boolean;
   directory: Directory;
   onClose(): void;
+  /**
+   * Filled by the panel while editing: run an action (close, switch panels) now, or after the
+   * teammate confirms discarding unsaved changes. The conversation header buttons use it.
+   */
+  guardRef?: React.RefObject<((next: () => void) => void) | null>;
 }
 
 type Field = 'name' | 'company' | 'email' | 'otherPhone' | 'address';
@@ -201,12 +208,15 @@ function CustomerForm({
   initial,
   onDone,
   escapeRef,
+  guardRef,
 }: {
   jid: string;
   initial: Draft;
   onDone(): void;
   /** Lets the panel route Esc here (the Sheet would otherwise close). Returns true if handled. */
   escapeRef: React.RefObject<(() => boolean) | null>;
+  /** Runs `next` now, or after "Discard" when there are unsaved changes (close, header buttons). */
+  guardRef: React.RefObject<((next: () => void) => void) | null>;
 }) {
   const { t } = useTranslation('inbox');
   const ids = useId();
@@ -214,20 +224,25 @@ function CustomerForm({
   const [draft, setDraft] = useState<Draft>(initial);
   const [errors, setErrors] = useState<Errors>({});
   const [tagQuery, setTagQuery] = useState('');
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** The action waiting for "Discard" (cancel editing, close the panel, switch panels). */
+  const [pending, setPending] = useState<(() => void) | null>(null);
   const tags = useCustomerTags(tagQuery);
   const save = useSaveCustomerProfile(jid);
   const dirty = !sameDraft(draft, initial);
 
+  function guard(next: () => void) {
+    if (dirty) setPending(() => next);
+    else next();
+  }
   function cancel() {
-    if (dirty) setConfirmDiscard(true);
-    else onDone();
+    guard(onDone);
   }
   escapeRef.current = () => {
-    if (confirmDiscard) return false;
+    if (pending) return false;
     cancel();
     return true;
   };
+  guardRef.current = guard;
 
   function set(field: Field, value: string) {
     setDraft((d) => ({ ...d, [field]: value }));
@@ -237,7 +252,13 @@ function CustomerForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (save.isPending) return;
-    const parsed = CustomerProfileBody.safeParse(draft);
+    // A tag still in the input (typed, Enter not pressed) is saved too.
+    const typed = normalizeTag(tagQuery);
+    const withTyped =
+      typed && !draft.tags.some((tag) => customerTagKey(tag) === customerTagKey(typed))
+        ? { ...draft, tags: [...draft.tags, typed] }
+        : draft;
+    const parsed = CustomerProfileBody.safeParse(withTyped);
     if (!parsed.success) {
       setErrors(issueMessages(parsed.error.issues, t as never));
       return;
@@ -335,7 +356,7 @@ function CustomerForm({
           {t('customer.save')}
         </Button>
       </div>
-      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+      <AlertDialog open={!!pending} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('customer.discardTitle')}</AlertDialogTitle>
@@ -347,8 +368,9 @@ function CustomerForm({
             <AlertDialogAction
               className="min-h-11 sm:min-h-9"
               onClick={() => {
-                setConfirmDiscard(false);
-                onDone();
+                const next = pending;
+                setPending(null);
+                next?.();
               }}
             >
               {t('customer.discard')}
@@ -367,16 +389,22 @@ function CustomerBody({
   title,
   description,
   escapeRef,
-}: Omit<CustomerPanelProps, 'open'> & {
+  guardRef,
+}: Omit<CustomerPanelProps, 'open' | 'guardRef'> & {
   title: React.ReactNode;
   description: React.ReactNode;
   escapeRef: React.RefObject<(() => boolean) | null>;
+  guardRef: React.RefObject<((next: () => void) => void) | null>;
 }) {
   const { t } = useTranslation('inbox');
   const query = useCustomerProfile(jid);
   const [editing, setEditing] = useState<Draft | null>(null);
   const data: CustomerProfileResponse | undefined = query.data;
-  if (!editing) escapeRef.current = null;
+  if (!editing) {
+    escapeRef.current = null;
+    guardRef.current = null;
+  }
+  const requestClose = () => (guardRef.current ? guardRef.current(onClose) : onClose());
 
   return (
     <>
@@ -389,7 +417,7 @@ function CustomerBody({
           variant="ghost"
           size="icon-touch"
           aria-label={t('customer.close')}
-          onClick={onClose}
+          onClick={requestClose}
           className="text-muted-foreground"
         >
           <X className="size-5" aria-hidden="true" />
@@ -402,6 +430,7 @@ function CustomerBody({
           initial={editing}
           onDone={() => setEditing(null)}
           escapeRef={escapeRef}
+          guardRef={guardRef}
         />
       ) : (
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
@@ -448,10 +477,17 @@ function CustomerBody({
  * Customer profile of a direct chat, editable by every teammate. Side panel on >= lg,
  * full-height Sheet below (same layout as Notes).
  */
-export function CustomerPanel({ open, onClose, ...rest }: CustomerPanelProps) {
+export function CustomerPanel({
+  open,
+  onClose,
+  guardRef: outerGuard,
+  ...rest
+}: CustomerPanelProps) {
   const { t } = useTranslation('inbox');
   const desktop = useMediaQuery('(min-width: 1024px)');
   const escapeRef = useRef<(() => boolean) | null>(null);
+  const ownGuard = useRef<((next: () => void) => void) | null>(null);
+  const guardRef = outerGuard ?? ownGuard;
 
   if (desktop) {
     if (!open) return null;
@@ -464,6 +500,7 @@ export function CustomerPanel({ open, onClose, ...rest }: CustomerPanelProps) {
           {...rest}
           onClose={onClose}
           escapeRef={escapeRef}
+          guardRef={guardRef}
           title={<h3>{t('customer.title')}</h3>}
           description={<p>{t('customer.description')}</p>}
         />
@@ -472,7 +509,12 @@ export function CustomerPanel({ open, onClose, ...rest }: CustomerPanelProps) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) (guardRef.current ?? ((next: () => void) => next()))(onClose);
+      }}
+    >
       <SheetContent
         side="right"
         showCloseButton={false}
@@ -486,6 +528,7 @@ export function CustomerPanel({ open, onClose, ...rest }: CustomerPanelProps) {
           {...rest}
           onClose={onClose}
           escapeRef={escapeRef}
+          guardRef={guardRef}
           title={<SheetTitle className="text-sm">{t('customer.title')}</SheetTitle>}
           description={
             <SheetDescription className="text-xs">{t('customer.description')}</SheetDescription>
