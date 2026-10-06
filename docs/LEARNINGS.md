@@ -146,6 +146,10 @@ into AGENTS.md.
   not enough); offer a paste-the-callback fallback for tunnel/LAN admins; classify blocked responses
   (403/404/HTML) as a connection state, then stop claiming and release chats silently.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
+  never override them; editable instructions hold role, scope and style only, company facts go in the
+  Business context, and hand-offs are structured actions, never text markers (they would reach the
+  customer).
 
 ## Desktop and web UI
 
