@@ -248,7 +248,7 @@ function AiMemberEditor({
                 {...p}
                 value={draft.instructions}
                 maxLength={8000}
-                rows={7}
+                rows={10}
                 placeholder={t('ai.page.instructionsPlaceholder')}
                 disabled={action.isPending}
                 onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}

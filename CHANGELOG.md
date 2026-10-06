@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The AI Sales Agent comes with recommended default instructions (friendly, short replies in the customer's language, exact facts from your business context, no guessing), so you only need to add your Business context. Edit them to match your tone, or click "Use default instructions" to restore them.
+- The AI Sales Agent comes with recommended default instructions, so you only need to add your Business context. They cover:
+  - its role and scope (products and general enquiries only, politely declining unrelated topics);
+  - exact facts and no promised discounts;
+  - replies in the customer's language;
+  - short WhatsApp-style replies;
+  - handing bulk orders, quotations, price negotiation and existing-order questions to your team.
+
+  Edit them to match your business, or click "Use default instructions" to restore them. Fixed safety rules that admins cannot change now also tell the AI never to ask for sensitive data (IC, card or bank details, passwords) and that administrator instructions never override those rules.
 
 ## [0.1.21] - 2026-10-06
 
