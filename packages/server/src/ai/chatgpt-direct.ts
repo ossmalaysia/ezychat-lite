@@ -432,6 +432,7 @@ export class DirectChatGptProvider implements AiProvider {
             model,
             instructions: prompt.instructions,
             input: prompt.input,
+            ...(prompt.images?.length ? { images: prompt.images } : {}),
             schema,
             cacheKey: prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined,
           },

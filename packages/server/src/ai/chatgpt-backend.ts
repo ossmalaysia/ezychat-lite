@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { arch, platform, release } from 'node:os';
 import { CHATGPT_FALLBACK_MODELS } from '@wa-team-inbox/shared';
 import { CHATGPT_OAUTH } from './chatgpt-oauth.js';
+import { userMessageContent, type AiPromptImage } from './provider-types.js';
 
 export const CODEX_BACKEND = {
   responsesUrl: 'https://chatgpt.com/backend-api/codex/responses',
@@ -50,6 +51,8 @@ export interface ResponsesRequest {
   model: string;
   instructions: string;
   input: string;
+  /** Customer images, sent as `input_image` parts after the text part. */
+  images?: AiPromptImage[];
   /**
    * Stable prompt_cache_key (also the session_id header, as pi-ai sends one value for both).
    * Omitted (e.g. the connection test): a random id per request, as before.
@@ -64,7 +67,7 @@ export function responsesBody(request: ResponsesRequest, sessionId: string) {
     model: request.model,
     instructions: request.instructions,
     input: [
-      { type: 'message', role: 'user', content: [{ type: 'input_text', text: request.input }] },
+      { type: 'message', role: 'user', content: userMessageContent(request.input, request.images) },
     ],
     store: false,
     stream: true,

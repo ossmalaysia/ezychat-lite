@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
@@ -960,4 +960,177 @@ it('hands an AI-owned chat to the teammate who replies from the inbox, and the A
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2000);
   expect(provider.generate).toHaveBeenCalledTimes(1);
   expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(agent.id);
+});
+
+describe('customer images', () => {
+  const PNG = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.from('png-pixels'),
+  ]);
+  const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('jpeg-pixels')]);
+  function incomingMedia(
+    id: string,
+    options: {
+      type?: 'image' | 'audio';
+      caption?: string | null;
+      mime?: string;
+      download?: () => Promise<Buffer>;
+    } = {},
+  ) {
+    return getMessages(t.ctx).ingest(
+      {
+        id,
+        chatJid: jid,
+        body: options.caption ?? null,
+        type: options.type ?? 'image',
+        fromMe: false,
+        senderJid: jid,
+        senderName: 'Customer',
+        timestamp: Date.now(),
+        quotedId: null,
+        media: {
+          mime: options.mime ?? 'image/png',
+          fileName: null,
+          download: options.download ?? (async () => PNG),
+        },
+      },
+      'live',
+    );
+  }
+  function lastHandoff() {
+    const events = t.ctx.db
+      .prepare('SELECT type, payload FROM chat_events WHERE chat_jid = ? ORDER BY id')
+      .all(jid) as Array<{ type: string; payload: string }>;
+    return JSON.parse(events.at(-1)?.payload ?? '{}').handoff as string | undefined;
+  }
+
+  it('answers a photo with its caption, attaching the pixels and showing [image] in the history', async () => {
+    clock();
+    await incomingMedia('photo', { caption: 'How much is this chair?' });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
+    expect(prompt.images).toEqual([{ mime: 'image/png', base64: PNG.toString('base64') }]);
+    expect(JSON.parse(prompt.input).conversation).toEqual([
+      { speaker: 'customer', text: '[image] How much is this chair?' },
+    ]);
+    expect(prompt.input).not.toContain(PNG.toString('base64'));
+    expect(t.wa.sent[0]?.text).toContain('9am');
+    expect(lastHandoff()).toBeUndefined();
+  });
+
+  it('answers a photo without a caption and one sent before a text question', async () => {
+    clock();
+    await incomingMedia('photo', { mime: 'image/jpeg', download: async () => JPEG });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    const first = vi.mocked(provider.generate).mock.calls[0]![2];
+    expect(first.images).toEqual([{ mime: 'image/jpeg', base64: JPEG.toString('base64') }]);
+    expect(JSON.parse(first.input).conversation.at(-1)).toEqual({
+      speaker: 'customer',
+      text: '[image]',
+    });
+    await incomingMedia('second-photo');
+    await vi.advanceTimersByTimeAsync(100);
+    await incoming('question', 'Do you have this in red?');
+    await vi.advanceTimersByTimeAsync(1200);
+    const second = vi.mocked(provider.generate).mock.calls[1]![2];
+    // Only the batch since the last reply is attached; the first photo stays text.
+    expect(second.images).toEqual([{ mime: 'image/png', base64: PNG.toString('base64') }]);
+  });
+
+  it('attaches at most the newest three images of the batch, in order', async () => {
+    clock();
+    const bytes = (n: number) => Buffer.concat([PNG, Buffer.from(`#${n}`)]);
+    for (let n = 1; n <= 4; n += 1)
+      await incomingMedia(`photo-${n}`, { download: async () => bytes(n) });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
+    expect(prompt.images?.map((image) => image.base64)).toEqual(
+      [2, 3, 4].map((n) => bytes(n).toString('base64')),
+    );
+    expect(JSON.parse(prompt.input).conversation).toHaveLength(4);
+  });
+
+  it('waits for a live image that is still downloading', async () => {
+    clock();
+    let finish!: (buffer: Buffer) => void;
+    const ingest = incomingMedia('slow', {
+      download: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+    expect(provider.generate).not.toHaveBeenCalled();
+    finish(PNG);
+    await ingest;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(provider.generate).mock.calls[0]![2].images).toHaveLength(1);
+  });
+
+  for (const [name, options] of [
+    ['too large', { download: async () => Buffer.concat([PNG, Buffer.alloc(5 * 1024 * 1024)]) }],
+    [
+      'not a JPEG, PNG or WebP',
+      { mime: 'image/gif', download: async () => Buffer.from('GIF89a-pixels') },
+    ],
+    [
+      'not downloaded',
+      {
+        download: async () => {
+          throw new Error('media expired');
+        },
+      },
+    ],
+  ] as const) {
+    it(`hands an image that is ${name} to the team as unsupported`, async () => {
+      clock();
+      await incomingMedia('photo', options);
+      await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+      expect(provider.generate).not.toHaveBeenCalled();
+      expect(lastHandoff()).toBe('unsupported_message');
+    });
+  }
+
+  it('hands an image still not downloaded after the wait to the team', async () => {
+    clock();
+    void incomingMedia('stuck', { download: () => new Promise(() => {}) });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 20_000);
+    expect(provider.generate).not.toHaveBeenCalled();
+    expect(lastHandoff()).toBe('unsupported_message');
+  });
+
+  it('still hands voice notes to the team', async () => {
+    clock();
+    await incomingMedia('voice', { type: 'audio', mime: 'audio/ogg; codecs=opus' });
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+    expect(provider.generate).not.toHaveBeenCalled();
+    expect(lastHandoff()).toBe('unsupported_message');
+  });
+});
+
+it('never waits for imported history photos that are only downloaded on demand', async () => {
+  clock();
+  // A photo from the history import: stays pending until someone opens it.
+  await getMessages(t.ctx).ingest(
+    {
+      id: 'history-photo',
+      chatJid: jid,
+      body: null,
+      type: 'image',
+      fromMe: false,
+      senderJid: jid,
+      senderName: 'Customer',
+      timestamp: Date.now() - 24 * 60 * 60_000,
+      quotedId: null,
+      media: { mime: 'image/png', fileName: null, download: async () => Buffer.from('x') },
+    },
+    'history',
+  );
+  await incoming('question', 'What are your opening hours?');
+  // Fallback delay plus a little: an answer that waited for the history photo would take 20 s more.
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1000);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(provider.generate).mock.calls[0]![2].images ?? []).toHaveLength(0);
 });

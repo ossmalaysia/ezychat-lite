@@ -45,7 +45,8 @@ import {
   type AiKnowledge,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
-import type { AiProvider } from './provider-types.js';
+import type { AiPromptImage, AiProvider } from './provider-types.js';
+import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 
 export const AI_FALLBACK_MS = 10_000;
@@ -197,14 +198,61 @@ export function createAiService(
     business: string,
     conversation: AiConversationTurn[],
     awaitingConfirmation: boolean,
+    images: readonly AiPromptImage[] = [],
   ) => ({
-    ...buildAiPrompt(knowledge, business, conversation, {
-      now: new Date(),
-      timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
-      awaitingConfirmation,
-    }),
+    ...buildAiPrompt(
+      knowledge,
+      business,
+      conversation,
+      {
+        now: new Date(),
+        timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
+        awaitingConfirmation,
+      },
+      images,
+    ),
     cacheId: installId(),
   });
+  const mediaPending = (id: string) =>
+    (
+      ctx.db.prepare('SELECT media_status FROM messages WHERE id = ?').get(id) as
+        { media_status: string } | undefined
+    )?.media_status === 'pending';
+  /** Live media is downloaded after the AI is notified: wait (bounded) until it is stored or failed. */
+  const waitForMedia = (id: string, signal: AbortSignal, deadline: number) =>
+    new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timeout);
+        ctx.bus.off('message:new', onStored);
+        signal.removeEventListener('abort', done);
+        resolve();
+      };
+      const onStored = (message: Message) => {
+        if (message.id === id) done();
+      };
+      const timeout = setTimeout(done, Math.max(0, deadline - Date.now()));
+      timeout.unref?.();
+      ctx.bus.on('message:new', onStored);
+      signal.addEventListener('abort', done, { once: true });
+      if (!mediaPending(id) || signal.aborted) done();
+    });
+  /** The newest readable customer images of a batch (newest first), at most AI_MAX_IMAGES. */
+  async function batchImages(batch: readonly Message[], signal: AbortSignal) {
+    const images: AiPromptImage[] = [];
+    // One wait budget for the whole batch, not per image.
+    const deadline = Date.now() + AI_IMAGE_WAIT_MS;
+    for (const message of [...batch].reverse()) {
+      if (images.length >= AI_MAX_IMAGES || signal.aborted) break;
+      if (message.fromMe || message.type !== 'image') continue;
+      // Imported history media stays pending until someone opens it: never wait for it.
+      if (mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS) continue;
+      await waitForMedia(message.id, signal, deadline);
+      const file = messages.mediaPath(message.id);
+      const image = file ? readPromptImage(file.path) : null;
+      if (image) images.push(image);
+    }
+    return images.reverse();
+  }
   const state = (jid: string) =>
     ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(jid) as State | undefined;
   /** Every Business context item with its text, oldest first (stable knowledge prefix). */
@@ -470,11 +518,30 @@ export function createAiService(
       // awaiting_confirmation counts the resolution questions already sent in a row.
       const asked = state(jid)!.awaiting_confirmation;
       const awaiting = asked > 0;
+      // The debounce batch: every customer message since the last AI reply.
+      const repliedIndex = history.findIndex(
+        (message) => message.id === state(jid)!.last_replied_message_id,
+      );
+      const batchStart =
+        repliedIndex >= 0
+          ? repliedIndex + 1
+          : history.findLastIndex((message) => message.fromMe) + 1;
+      const batch = history
+        .slice(batchStart, history.indexOf(customer) + 1)
+        .filter((message) => !message.fromMe);
       let decision: AiDecision;
+      let images: AiPromptImage[] = [];
       const started = Date.now();
       try {
+        // Text and images (with or without a caption) can be read; voice, video, documents,
+        // stickers and the like go to the team.
+        const readable = customer.type === 'text' || customer.type === 'image';
+        if (readable && knowledge.trim()) images = await batchImages(batch, controller.signal);
+        if (!owned()) return;
+        const understood =
+          !!customer.body?.trim() || (customer.type === 'image' && images.length > 0);
         decision =
-          customer.type !== 'text' || !customer.body?.trim() || !knowledge.trim()
+          !readable || !understood || !knowledge.trim()
             ? {
                 action: 'handoff' as const,
                 reply: HANDOFF_REPLY,
@@ -493,9 +560,13 @@ export function createAiService(
                           ? 'AI'
                           : 'human'
                         : 'customer',
-                      text: message.body?.slice(0, 2000) ?? `[${message.type} message]`,
+                      text:
+                        message.type === 'image'
+                          ? `[image]${message.body?.trim() ? ` ${message.body.slice(0, 2000)}` : ''}`
+                          : (message.body?.slice(0, 2000) ?? `[${message.type} message]`),
                     })),
                     awaiting,
+                    images,
                   ),
                   controller.signal,
                 ),
@@ -517,18 +588,7 @@ export function createAiService(
       if (!owned()) return;
       // Judge every customer message since the last AI reply (the debounce batch), not only the
       // latest, so "No, still not working" + "thanks" never closes the chat.
-      const repliedIndex = history.findIndex(
-        (message) => message.id === state(jid)!.last_replied_message_id,
-      );
-      const batchStart =
-        repliedIndex >= 0
-          ? repliedIndex + 1
-          : history.findLastIndex((message) => message.fromMe) + 1;
-      const batchText = history
-        .slice(batchStart, history.indexOf(customer) + 1)
-        .filter((message) => !message.fromMe)
-        .map((message) => message.body ?? '')
-        .join('\n');
+      const batchText = batch.map((message) => message.body ?? '').join('\n');
       const conversationText = history
         .filter((message) => !message.fromMe)
         .map((message) => message.body ?? '')
@@ -543,6 +603,7 @@ export function createAiService(
           proposed,
           handoffReason: decision.handoffReason ?? null,
           asked,
+          images: images.length,
           model: current.model ?? null,
           ms: Date.now() - started,
         },

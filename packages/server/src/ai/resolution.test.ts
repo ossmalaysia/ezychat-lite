@@ -175,4 +175,15 @@ describe('review fixes', () => {
       guardResolution(resolve, 1, 'ok thanks', 'How much is a large kopi?\nok thanks'),
     ).toEqual(resolve);
   });
+
+  it('never closes a chat on a batch without words (e.g. a captionless photo)', () => {
+    expect(guardResolution(resolve, 1, '')).toEqual({
+      action: 'ask_resolution',
+      reply: ASK_RESOLUTION_REPLY,
+    });
+    expect(guardResolution(resolve, 1, '   ')).toEqual({
+      action: 'ask_resolution',
+      reply: ASK_RESOLUTION_REPLY,
+    });
+  });
 });

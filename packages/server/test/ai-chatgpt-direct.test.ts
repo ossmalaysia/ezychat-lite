@@ -169,6 +169,30 @@ describe('ChatGPT Codex backend (experimental)', () => {
     });
   });
 
+  it('adds customer images as low-detail input_image parts after the text, and nothing without them', () => {
+    const request = { model: 'gpt-6-sol', instructions: 'rules', input: 'hello', cacheKey: 'k' };
+    const plain = JSON.stringify(responsesBody(request, 'sess'));
+    expect(JSON.stringify(responsesBody({ ...request, images: [] }, 'sess'))).toBe(plain);
+    expect(JSON.parse(plain).input).toEqual([
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+    ]);
+    const body = responsesBody(
+      { ...request, images: [{ mime: 'image/webp', base64: 'UklGRg==' }] },
+      'sess',
+    );
+    expect(body.input).toEqual([
+      {
+        type: 'message',
+        role: 'user',
+        content: [
+          { type: 'input_text', text: 'hello' },
+          { type: 'input_image', image_url: 'data:image/webp;base64,UklGRg==', detail: 'low' },
+        ],
+      },
+    ]);
+    expect(body.instructions).toBe('rules');
+  });
+
   it('aggregates streamed SSE text across split chunks, CRLF frames and [DONE]', async () => {
     const stream = sse([
       frame({ type: 'response.created' }),
@@ -590,6 +614,29 @@ describe('ChatGPT prompt cache key', () => {
       expect(header).toBe(key);
       expect(key).not.toMatch(/Siti|60123456789|install-abc/);
     }
+    await provider.shutdown();
+  });
+
+  it('passes customer images from the prompt to the Codex request', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) => answer('A blue chair'));
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    await provider.generate(
+      { ...CHATGPT_SETTINGS, model: 'gpt-6-astra' },
+      null,
+      {
+        instructions: 'rules',
+        input: 'what is this?',
+        images: [{ mime: 'image/png', base64: 'iVBORw0KGgo=' }],
+      },
+      new AbortController().signal,
+    );
+    const call = fetchMock.mock.calls.find((c) => c[0] === CODEX_BACKEND.responsesUrl)!;
+    expect(JSON.parse(String(call[1]!.body)).input[0].content).toEqual([
+      { type: 'input_text', text: 'what is this?' },
+      { type: 'input_image', image_url: 'data:image/png;base64,iVBORw0KGgo=', detail: 'low' },
+    ]);
     await provider.shutdown();
   });
 });
