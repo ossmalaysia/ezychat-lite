@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows: local and test (unpackaged) builds use their own taskbar identity, so running one can no longer leave the installed EzyChat Lite with a blank white taskbar icon.
+
 ## [0.1.21] - 2026-10-06
 
 ### Added
