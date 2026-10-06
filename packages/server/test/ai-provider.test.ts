@@ -16,6 +16,24 @@ const prompt = {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+/** A stubbed global fetch that answers every request with a completed `{reply:"OK"}` response. */
+function stubOkFetch() {
+  const reply = () =>
+    new Response(
+      JSON.stringify({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: '{"reply":"OK","action":"answer"}' }],
+          },
+        ],
+      }),
+    );
+  const fetcher = vi.fn().mockImplementation(async () => reply());
+  vi.stubGlobal('fetch', fetcher);
+  return fetcher;
+}
 
 describe('OpenAI Responses provider', () => {
   it('uses the official fixed endpoint, private structured output and no tools', async () => {
@@ -48,20 +66,7 @@ describe('OpenAI Responses provider', () => {
     });
   });
   it('sends a stable prompt_cache_key per install and model, and none without an install id', async () => {
-    const reply = () =>
-      new Response(
-        JSON.stringify({
-          status: 'completed',
-          output: [
-            {
-              type: 'message',
-              content: [{ type: 'output_text', text: '{"reply":"OK","action":"answer"}' }],
-            },
-          ],
-        }),
-      );
-    const fetcher = vi.fn().mockImplementation(async () => reply());
-    vi.stubGlobal('fetch', fetcher);
+    const fetcher = stubOkFetch();
     const signal = new AbortController().signal;
     const cached = { ...prompt, cacheId: 'install-abc' };
     await generateOpenAi(settings, 'sk', cached, signal);
@@ -77,20 +82,7 @@ describe('OpenAI Responses provider', () => {
     expect(keys[3]).toBeUndefined();
   });
   it('sends customer images as low-detail input_image parts after the text, and plain text without them', async () => {
-    const reply = () =>
-      new Response(
-        JSON.stringify({
-          status: 'completed',
-          output: [
-            {
-              type: 'message',
-              content: [{ type: 'output_text', text: '{"reply":"OK","action":"answer"}' }],
-            },
-          ],
-        }),
-      );
-    const fetcher = vi.fn().mockImplementation(async () => reply());
-    vi.stubGlobal('fetch', fetcher);
+    const fetcher = stubOkFetch();
     const signal = new AbortController().signal;
     await generateOpenAi(settings, 'sk', prompt, signal);
     await generateOpenAi(settings, 'sk', { ...prompt, images: [] }, signal);
