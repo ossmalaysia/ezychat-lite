@@ -150,8 +150,9 @@ into AGENTS.md.
 - The ChatGPT sign-in takes text and images but no audio: Codex `input_audio` returns 400 "Audio input
   is not available", `input_file` rejects audio MIME types, and the web dictation endpoints
   (`/backend-api/transcribe`) answer 403 `cf-mitigated: challenge` even with the Codex CLI fingerprint
-  (Hermes abandoned this route, OpenClaw's broke) — never work around bot challenges. Speech-to-text
-  needs an OpenAI API key. Spike a provider capability with one live call before designing around it.
+  (Hermes abandoned this route, OpenClaw's broke) — never work around bot challenges — and the Codex
+  CLI's realtime voice (`thread/realtime/*`) refuses ChatGPT login: "requires API key auth".
+  Speech-to-text needs an OpenAI API key. Spike a provider capability with one live call first.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the
