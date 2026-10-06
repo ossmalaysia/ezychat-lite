@@ -444,6 +444,29 @@ describe('DirectChatGptProvider', () => {
     vi.restoreAllMocks();
   });
 
+  it("treats the account's cached live list as authoritative over the fallback list", async () => {
+    const warn = vi.fn();
+    const log = { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+    const ctx = {
+      log: { child: () => log },
+      settings: { getSecret: () => null },
+    } as unknown as ConstructorParameters<typeof DirectChatGptProvider>[0];
+    const provider = new DirectChatGptProvider(ctx, { fetch: vi.fn() as unknown as typeof fetch });
+    // The signed-in account's live list (cached) lacks gpt-5.5, which the fallback list has.
+    (provider as unknown as { modelCache: unknown }).modelCache = {
+      at: Date.now(),
+      models: [{ id: 'gpt-6-sol', label: 'GPT-6-Sol', priority: 0 }],
+    };
+    expect(provider.knownModels()).toEqual(['gpt-6-sol']);
+    expect(await provider.resolveModel('gpt-5.5')).toBe('gpt-6-sol');
+    expect(await provider.resolveModel('gpt-6-sol')).toBe('gpt-6-sol');
+    expect(warn.mock.calls[0]![0]).toMatchObject({
+      event: 'chatgpt_model_unavailable',
+      model: 'gpt-5.5',
+      reason: 'not_in_live_list',
+    });
+  });
+
   it('times out an abandoned sign-in and releases the callback port', async () => {
     t = await makeTestApp();
     const port = await freePort();

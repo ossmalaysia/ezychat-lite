@@ -388,8 +388,9 @@ export class DirectChatGptProvider implements AiProvider {
   async resolveModel(model: string): Promise<string> {
     const known = (models: BackendModel[] | null | undefined) =>
       !!models?.some((item) => item.id === model);
-    // A listed model needs no network call; only an unknown id fetches the live list to confirm.
-    if (model && (known(this.modelCache?.models) || known(fallbackModels()))) return model;
+    // A listed model needs no network call; only an unknown id fetches the live list to confirm. Once
+    // the account's live list is cached it is authoritative: a fallback-only id must not be sent.
+    if (model && known(this.modelCache?.models ?? fallbackModels())) return model;
     const live = await this.liveModels();
     const auto = (live ?? fallbackModels())[0]!.id;
     if (!model) return auto;
