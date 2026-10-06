@@ -528,11 +528,16 @@ export function createAiService(
       if (!snap) return;
       // Voice notes are transcribed before the AI decides: wait (bounded) for their audio and
       // transcripts, then read the conversation again with the transcripts.
-      const voiceNotes = snap.batch.filter((message) => message.type === 'audio');
+      // Imported history voice notes stay pending until opened and are never transcribed: skip them.
+      const voiceNotes = snap.batch.filter(
+        (message) =>
+          message.type === 'audio' &&
+          !(mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS),
+      );
       if (voiceNotes.length) {
         const deadline = Date.now() + AI_VOICE_WAIT_MS;
         for (const note of voiceNotes) {
-          await waitForMedia(note.id, controller.signal);
+          await waitForMedia(note.id, controller.signal, deadline);
           await ctx.services.voice?.waitForTranscript(
             note.id,
             controller.signal,
