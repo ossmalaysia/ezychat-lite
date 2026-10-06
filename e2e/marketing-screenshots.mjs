@@ -3,14 +3,18 @@
 // Usage (fresh data dir, never the real app data):
 //   npm run build -w @wa-team-inbox/web
 //   npx tsx packages/server/src/cli.ts --data <tmp> --port 7477 --fake-wa --mode standalone --web-dist apps/web/dist
-//   node e2e/marketing-screenshots.mjs http://127.0.0.1:7477 docs/screenshots
+//   node e2e/marketing-screenshots.mjs 7477 docs/screenshots
 // `--mode standalone` keeps the "Dev Build" badge out of the shots. Nothing is sent to real WhatsApp.
 /* global window -- used inside addInitScript (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BASE = process.argv[2] ?? 'http://127.0.0.1:7477';
+// Only a port is accepted: the script seeds data and logs in, so it must only ever talk to a local demo server.
+const PORT = Number.parseInt(process.argv[2] ?? '7477', 10);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535)
+  throw new Error('Usage: node e2e/marketing-screenshots.mjs <port> [outDir]');
+const BASE = `http://127.0.0.1:${PORT}`;
 const OUT = process.argv[3] ?? 'docs/screenshots';
 const PASSWORD = 'demo-pass-123';
 const OWNER = { username: 'aisyah', displayName: 'Aisyah', password: PASSWORD };
