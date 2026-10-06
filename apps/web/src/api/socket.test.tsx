@@ -190,3 +190,29 @@ it('shares one list/count refresh between a new message and its chat update', as
   expect(queryList).toHaveBeenCalledTimes(1);
   qc.clear();
 });
+
+it('refetches an open customer profile when its chat is updated live', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const profileKey = ['customer-profile', '1@s.whatsapp.net'];
+  let name = 'Farah';
+  const queryProfile = vi.fn(async () => name);
+  function Profile() {
+    const { data } = useQuery({ queryKey: profileKey, queryFn: queryProfile });
+    return <span>Profile {data}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Profile />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('Profile Farah');
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  name = 'Farah Aziz';
+  act(() => socket.listeners.get('chat:updated')!({ jid: '1@s.whatsapp.net', status: 'open' }));
+  await screen.findByText('Profile Farah Aziz');
+  qc.clear();
+});

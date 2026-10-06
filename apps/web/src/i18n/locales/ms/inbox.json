@@ -22,7 +22,12 @@
     "unassigned": "Belum ditugaskan",
     "all": "Semua",
     "open": "Terbuka",
-    "resolved": "Selesai"
+    "resolved": "Selesai",
+    "tag": "Tag",
+    "tagLabel": "Tapis mengikut tag",
+    "tagSearch": "Cari tag",
+    "tagClear": "Kosongkan tapisan tag",
+    "tagEmpty": "Belum ada tag"
   },
   "chatList": {
     "loading": "Memuatkan sembang",
@@ -45,7 +50,8 @@
       },
       "search": "Tiada sembang sepadan dengan “{{query}}”.",
       "resolvedTitle": "Tiada sembang selesai",
-      "resolvedDescription": "Tiada sembang selesai di sini."
+      "resolvedDescription": "Tiada sembang selesai di sini.",
+      "tag": "Tiada sembang dengan tag “{{tag}}”."
     }
   },
   "chatListItem": {
@@ -53,7 +59,8 @@
     "unknownContact": "Kenalan tidak dikenali",
     "resolved": "Selesai",
     "assignedTo": "Ditugaskan kepada {{name}}",
-    "unread_other": "{{count}} belum dibaca"
+    "unread_other": "{{count}} belum dibaca",
+    "moreTags": "+{{count}}"
   },
   "header": {
     "back": "Kembali ke sembang",
@@ -67,7 +74,9 @@
     "notes": "Nota",
     "reopen": "Buka semula",
     "resolve": "Selesai",
-    "ai": "{{name}} (AI Ejen Jualan)"
+    "ai": "{{name}} (AI Ejen Jualan)",
+    "customer": "Pelanggan",
+    "customerLabel": "Butiran pelanggan"
   },
   "conversation": {
     "loading": "Memuatkan sembang",
@@ -332,5 +341,38 @@
     "title": "Tambah ke Skrin Utama untuk menerima pemberitahuan",
     "body": "Ketik butang Kongsi <share/> dalam Safari, pilih <strong>Tambah ke Skrin Utama</strong>, kemudian buka EzyChat Lite dari skrin utama dan hidupkan pemberitahuan.",
     "share": "Kongsi"
+  },
+  "customer": {
+    "title": "Pelanggan",
+    "description": "Butiran yang disimpan pasukan tentang pelanggan ini",
+    "close": "Tutup butiran pelanggan",
+    "empty": "Belum ada butiran",
+    "addDetails": "Tambah butiran",
+    "edit": "Sunting",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "saveFailed": "Tidak dapat menyimpan butiran pelanggan",
+    "noName": "Tiada nama",
+    "whatsappName": "WhatsApp: {{name}}",
+    "updatedBy": "Dikemas kini oleh {{name}} · {{when}}",
+    "name": "Nama",
+    "company": "Syarikat",
+    "email": "E-mel",
+    "otherPhone": "Telefon lain",
+    "address": "Alamat / kawasan",
+    "tags": "Tag",
+    "tagPlaceholder": "Tambah tag dan tekan Enter",
+    "tagLimit": "Sehingga 10 tag",
+    "removeTag": "Buang tag {{tag}}",
+    "discardTitle": "Buang perubahan anda?",
+    "discard": "Buang",
+    "keepEditing": "Teruskan menyunting",
+    "open": "Buka sembang",
+    "errors": {
+      "email": "Masukkan alamat e-mel yang sah",
+      "otherPhone": "Gunakan digit, ruang, +, -, ( atau )",
+      "tooLong": "Gunakan paling banyak {{max}} aksara",
+      "tags": "Semak tag: sehingga 10, setiap satu paling banyak 30 aksara"
+    }
   }
 }

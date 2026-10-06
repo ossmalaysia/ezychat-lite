@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,10 @@ export interface ConversationHeaderProps {
   notesOpen: boolean;
   notesCount: number;
   onToggleNotes(): void;
+  /** Direct chats only: the Customer details button. */
+  showCustomer: boolean;
+  customerOpen: boolean;
+  onToggleCustomer(): void;
   busy?: boolean;
 }
 
@@ -39,6 +43,9 @@ export function ConversationHeader({
   notesOpen,
   notesCount,
   onToggleNotes,
+  showCustomer,
+  customerOpen,
+  onToggleCustomer,
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
@@ -120,6 +127,23 @@ export function ConversationHeader({
             ))}
           </SelectContent>
         </Select>
+        {showCustomer && (
+          <Button
+            variant="ghost"
+            size="touch"
+            onClick={onToggleCustomer}
+            aria-pressed={customerOpen}
+            aria-label={t('header.customerLabel')}
+            title={t('header.customerLabel')}
+            className={cn(
+              'relative',
+              customerOpen ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+            )}
+          >
+            <UserRound className="size-5" aria-hidden="true" />
+            <span className="max-sm:sr-only">{t('header.customer')}</span>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="touch"

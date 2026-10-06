@@ -23,6 +23,9 @@ import {
   type ChatPatchBody,
   type ChatStatus,
   type CreateUserBody,
+  type CustomerProfileBody,
+  type CustomerProfileResponse,
+  type CustomerTagsResponse,
   type CloudflareCreateBody,
   type LoginBody,
   type Message,
@@ -51,6 +54,8 @@ export interface ChatFilters {
   status?: ChatStatus;
   assigned: 'me' | 'none' | 'any';
   q?: string;
+  /** customer tag filter */
+  tag?: string;
 }
 
 export const qk = {
@@ -62,6 +67,8 @@ export const qk = {
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
+  customerProfile: (jid: string) => ['customer-profile', jid] as const,
+  customerTags: (q: string) => ['customer-tags', q] as const,
   quickReplies: ['quick-replies'] as const,
   users: ['users'] as const,
   directory: ['users', 'directory'] as const,
@@ -375,6 +382,7 @@ export function useChats(filters: ChatFilters) {
       if (filters.status) p.set('status', filters.status);
       p.set('assigned', filters.assigned);
       if (filters.q?.trim()) p.set('q', filters.q.trim());
+      if (filters.tag) p.set('tag', filters.tag);
       if (pageParam) p.set('cursor', pageParam);
       return api<ChatListResponse>(`/chats?${p.toString()}`, { signal });
     },
@@ -605,6 +613,41 @@ export function useAddNote(jid: string) {
         old ? (old.some((n) => n.id === note.id) ? old : [...old, note]) : old,
       );
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Customer profiles
+// ---------------------------------------------------------------------------
+
+export function useCustomerProfile(jid: string | null | undefined) {
+  return useQuery({
+    queryKey: qk.customerProfile(jid ?? ''),
+    queryFn: ({ signal }) =>
+      api<CustomerProfileResponse>(`/chats/${enc(jid ?? '')}/profile`, { signal }),
+    enabled: !!jid,
+  });
+}
+
+export function useSaveCustomerProfile(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CustomerProfileBody) =>
+      api<CustomerProfileResponse>(`/chats/${enc(jid)}/profile`, { method: 'PUT', body }),
+    onSuccess: (saved) => {
+      qc.setQueryData(qk.customerProfile(jid), saved);
+      void qc.invalidateQueries({ queryKey: ['customer-tags'] });
+    },
+  });
+}
+
+export function useCustomerTags(q: string) {
+  return useQuery({
+    queryKey: qk.customerTags(q),
+    queryFn: ({ signal }) =>
+      api<CustomerTagsResponse>(`/customer-tags?q=${encodeURIComponent(q)}`, { signal }),
+    select: (r) => r.tags,
+    staleTime: 30_000,
   });
 }
 

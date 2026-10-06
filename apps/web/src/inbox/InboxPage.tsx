@@ -27,7 +27,9 @@ function loadFilters(): Filters {
     const v = JSON.parse(raw) as Partial<Filters>;
     const assigned = v.assigned === 'me' || v.assigned === 'none' ? v.assigned : 'any';
     const status = v.status === 'resolved' ? 'resolved' : 'open';
-    return { assigned, status, q: typeof v.q === 'string' && v.q ? v.q : undefined };
+    const tag =
+      typeof v.tag === 'string' && v.tag.trim() && v.tag.length <= 30 ? v.tag.trim() : undefined;
+    return { assigned, status, q: typeof v.q === 'string' && v.q ? v.q : undefined, tag };
   } catch {
     return DEFAULT_FILTERS;
   }

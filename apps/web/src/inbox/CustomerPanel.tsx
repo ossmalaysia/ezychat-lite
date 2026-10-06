@@ -1,0 +1,497 @@
+import type React from 'react';
+import { useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2, UserRound, X } from 'lucide-react';
+import { toast } from 'sonner';
+import type { z } from 'zod';
+import {
+  CustomerProfileBody,
+  type CustomerProfile,
+  type CustomerProfileResponse,
+} from '@wa-team-inbox/shared';
+import { errorMessage } from '../api/client';
+import { useCustomerProfile, useCustomerTags, useSaveCustomerProfile } from '../api/queries';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { useMediaQuery } from '@/lib/use-media-query';
+import { formatRelative } from '../lib/format';
+import { TagInput } from './TagInput';
+import type { Directory } from './useDirectory';
+
+export interface CustomerPanelProps {
+  jid: string;
+  open: boolean;
+  directory: Directory;
+  onClose(): void;
+}
+
+type Field = 'name' | 'company' | 'email' | 'otherPhone' | 'address';
+interface Draft extends Record<Field, string> {
+  tags: string[];
+}
+type Errors = Partial<Record<Field | 'tags', string>>;
+
+const FIELDS: readonly Field[] = ['name', 'company', 'email', 'otherPhone', 'address'];
+const FORM_FIELDS: readonly { key: Field; type: 'text' | 'email' | 'tel' | 'area' }[] = [
+  { key: 'name', type: 'text' },
+  { key: 'company', type: 'text' },
+  { key: 'email', type: 'email' },
+  { key: 'otherPhone', type: 'tel' },
+  { key: 'address', type: 'area' },
+];
+
+function hasDetails(p: CustomerProfile): boolean {
+  return FIELDS.some((f) => !!p[f]?.trim()) || p.tags.length > 0;
+}
+
+function draftOf(p: CustomerProfile): Draft {
+  return {
+    name: p.name ?? '',
+    company: p.company ?? '',
+    email: p.email ?? '',
+    otherPhone: p.otherPhone ?? '',
+    address: p.address ?? '',
+    tags: [...p.tags],
+  };
+}
+
+function sameDraft(a: Draft, b: Draft): boolean {
+  return (
+    FIELDS.every((f) => a[f].trim() === b[f].trim()) &&
+    a.tags.length === b.tags.length &&
+    a.tags.every((tag, i) => tag === b.tags[i])
+  );
+}
+
+/** Read-only view of a customer profile (also used in the group sender popover). */
+export function CustomerDetails({
+  profile,
+  whatsappName,
+  directory,
+}: {
+  profile: CustomerProfile;
+  whatsappName: string | null;
+  /** For "Updated by <teammate>"; that line is left out without it. */
+  directory?: Directory;
+}) {
+  const { t } = useTranslation('inbox');
+  const name = profile.name?.trim() || null;
+  const showWhatsapp = !!whatsappName && whatsappName !== name;
+  const rows: { key: Field; label: string; value: React.ReactNode }[] = [];
+  if (profile.company)
+    rows.push({ key: 'company', label: t('customer.company'), value: profile.company });
+  if (profile.email)
+    rows.push({
+      key: 'email',
+      label: t('customer.email'),
+      value: (
+        <a
+          href={`mailto:${profile.email}`}
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          {profile.email}
+        </a>
+      ),
+    });
+  if (profile.otherPhone)
+    rows.push({
+      key: 'otherPhone',
+      label: t('customer.otherPhone'),
+      value: (
+        <a
+          href={`tel:${profile.otherPhone.replace(/[^0-9+]/g, '')}`}
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          {profile.otherPhone}
+        </a>
+      ),
+    });
+  if (profile.address)
+    rows.push({
+      key: 'address',
+      label: t('customer.address'),
+      value: <span className="whitespace-pre-wrap">{profile.address}</span>,
+    });
+
+  return (
+    <div className="min-w-0 space-y-3 text-sm">
+      <div className="min-w-0">
+        <p
+          className={
+            name
+              ? 'font-semibold text-foreground [overflow-wrap:anywhere]'
+              : 'italic text-muted-foreground'
+          }
+        >
+          {name ?? t('customer.noName')}
+        </p>
+        {showWhatsapp && (
+          <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+            {t('customer.whatsappName', { name: whatsappName })}
+          </p>
+        )}
+      </div>
+      {rows.length > 0 && (
+        <dl className="space-y-2">
+          {rows.map((row) => (
+            <div key={row.key} className="min-w-0">
+              <dt className="text-xs text-muted-foreground">{row.label}</dt>
+              <dd className="break-words [overflow-wrap:anywhere]">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {profile.tags.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label={t('customer.tags')}>
+          {profile.tags.map((tag) => (
+            <li key={tag} className="min-w-0 max-w-full">
+              <Badge variant="secondary" className="max-w-full">
+                <span className="truncate">{tag}</span>
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+      {profile.updatedAt != null && directory && (
+        <p className="text-xs text-muted-foreground">
+          {t('customer.updatedBy', {
+            name: directory.nameOf(profile.updatedBy, { youLabel: true }) ?? '',
+            when: formatRelative(profile.updatedAt),
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function issueMessages(
+  issues: readonly z.core.$ZodIssue[],
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): Errors {
+  const errors: Errors = {};
+  for (const issue of issues) {
+    const field = issue.path[0];
+    if (typeof field !== 'string' || field in errors) continue;
+    const key = field as Field | 'tags';
+    if (key === 'tags') errors.tags = t('customer.errors.tags');
+    else if (issue.code === 'too_big')
+      errors[key] = t('customer.errors.tooLong', { max: Number(issue.maximum) });
+    else if (key === 'email') errors.email = t('customer.errors.email');
+    else if (key === 'otherPhone') errors.otherPhone = t('customer.errors.otherPhone');
+  }
+  return errors;
+}
+
+function CustomerForm({
+  jid,
+  initial,
+  onDone,
+  escapeRef,
+}: {
+  jid: string;
+  initial: Draft;
+  onDone(): void;
+  /** Lets the panel route Esc here (the Sheet would otherwise close). Returns true if handled. */
+  escapeRef: React.RefObject<(() => boolean) | null>;
+}) {
+  const { t } = useTranslation('inbox');
+  const ids = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [draft, setDraft] = useState<Draft>(initial);
+  const [errors, setErrors] = useState<Errors>({});
+  const [tagQuery, setTagQuery] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const tags = useCustomerTags(tagQuery);
+  const save = useSaveCustomerProfile(jid);
+  const dirty = !sameDraft(draft, initial);
+
+  function cancel() {
+    if (dirty) setConfirmDiscard(true);
+    else onDone();
+  }
+  escapeRef.current = () => {
+    if (confirmDiscard) return false;
+    cancel();
+    return true;
+  };
+
+  function set(field: Field, value: string) {
+    setDraft((d) => ({ ...d, [field]: value }));
+    if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (save.isPending) return;
+    const parsed = CustomerProfileBody.safeParse(draft);
+    if (!parsed.success) {
+      setErrors(issueMessages(parsed.error.issues, t as never));
+      return;
+    }
+    setErrors({});
+    save.mutate(parsed.data, {
+      onSuccess: onDone,
+      onError: (err) => toast.error(t('customer.saveFailed'), { description: errorMessage(err) }),
+    });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
+    } else if (e.key === 'Escape' && !e.defaultPrevented) {
+      e.preventDefault();
+      cancel();
+    }
+  }
+
+  return (
+    <form
+      ref={formRef}
+      noValidate
+      onSubmit={submit}
+      onKeyDown={onKeyDown}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+        {FORM_FIELDS.map(({ key, type }) => {
+          const id = `${ids}-${key}`;
+          const errorId = `${id}-error`;
+          const common = {
+            id,
+            value: draft[key],
+            'aria-invalid': !!errors[key] || undefined,
+            'aria-describedby': errors[key] ? errorId : undefined,
+          };
+          return (
+            <div key={key} className="space-y-1.5">
+              <Label htmlFor={id}>{t(`customer.${key}`)}</Label>
+              {type === 'area' ? (
+                <Textarea
+                  {...common}
+                  rows={2}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="field-sizing-fixed min-h-16 resize-none text-base md:text-sm"
+                />
+              ) : (
+                <Input
+                  {...common}
+                  type={type}
+                  inputMode={type === 'tel' ? 'tel' : undefined}
+                  autoComplete="off"
+                  onChange={(e) => set(key, e.target.value)}
+                  className="text-base md:text-sm"
+                />
+              )}
+              {errors[key] && (
+                <p id={errorId} className="text-xs text-danger">
+                  {errors[key]}
+                </p>
+              )}
+            </div>
+          );
+        })}
+        <div className="space-y-1.5">
+          <Label htmlFor={`${ids}-tags`}>{t('customer.tags')}</Label>
+          <TagInput
+            id={`${ids}-tags`}
+            value={draft.tags}
+            onChange={(next) => {
+              setDraft((d) => ({ ...d, tags: next }));
+              if (errors.tags) setErrors((e) => ({ ...e, tags: undefined }));
+            }}
+            suggestions={tags.data ?? []}
+            onQueryChange={setTagQuery}
+            aria-invalid={!!errors.tags || undefined}
+            aria-describedby={errors.tags ? `${ids}-tags-error` : undefined}
+          />
+          {errors.tags && (
+            <p id={`${ids}-tags-error`} className="text-xs text-danger">
+              {errors.tags}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="safe-bottom flex gap-2 border-t p-3">
+        <Button type="button" variant="outline" size="touch" className="flex-1" onClick={cancel}>
+          {t('customer.cancel')}
+        </Button>
+        <Button type="submit" size="touch" className="flex-1" disabled={save.isPending}>
+          {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+          {t('customer.save')}
+        </Button>
+      </div>
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent aria-describedby={undefined}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('customer.discardTitle')}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-11 sm:min-h-9">
+              {t('customer.keepEditing')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="min-h-11 sm:min-h-9"
+              onClick={() => {
+                setConfirmDiscard(false);
+                onDone();
+              }}
+            >
+              {t('customer.discard')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </form>
+  );
+}
+
+function CustomerBody({
+  jid,
+  directory,
+  onClose,
+  title,
+  description,
+  escapeRef,
+}: Omit<CustomerPanelProps, 'open'> & {
+  title: React.ReactNode;
+  description: React.ReactNode;
+  escapeRef: React.RefObject<(() => boolean) | null>;
+}) {
+  const { t } = useTranslation('inbox');
+  const query = useCustomerProfile(jid);
+  const [editing, setEditing] = useState<Draft | null>(null);
+  const data: CustomerProfileResponse | undefined = query.data;
+  if (!editing) escapeRef.current = null;
+
+  return (
+    <>
+      <div className="flex items-center gap-2 border-b py-1 pl-4 pr-1.5">
+        <div className="flex flex-1 items-center gap-1.5 py-2 text-sm font-semibold">
+          <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
+          {title}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-touch"
+          aria-label={t('customer.close')}
+          onClick={onClose}
+          className="text-muted-foreground"
+        >
+          <X className="size-5" aria-hidden="true" />
+        </Button>
+      </div>
+      <div className="px-4 pt-2 text-xs text-muted-foreground">{description}</div>
+      {editing ? (
+        <CustomerForm
+          jid={jid}
+          initial={editing}
+          onDone={() => setEditing(null)}
+          escapeRef={escapeRef}
+        />
+      ) : (
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
+          {query.isPending ? (
+            <div className="space-y-2" role="status" aria-label={t('customer.title')}>
+              <Skeleton className="h-5 w-40 max-w-full" />
+              <Skeleton className="h-4 w-56 max-w-full" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ) : query.isError || !data ? (
+            <p className="text-sm text-danger" role="alert">
+              {errorMessage(query.error)}
+            </p>
+          ) : hasDetails(data.profile) ? (
+            <>
+              <CustomerDetails
+                profile={data.profile}
+                whatsappName={data.whatsappName}
+                directory={directory}
+              />
+              <Button
+                variant="outline"
+                size="touch"
+                onClick={() => setEditing(draftOf(data.profile))}
+              >
+                {t('customer.edit')}
+              </Button>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t('customer.empty')}</p>
+              <Button size="touch" onClick={() => setEditing(draftOf(data.profile))}>
+                {t('customer.addDetails')}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Customer profile of a direct chat, editable by every teammate. Side panel on >= lg,
+ * full-height Sheet below (same layout as Notes).
+ */
+export function CustomerPanel({ open, onClose, ...rest }: CustomerPanelProps) {
+  const { t } = useTranslation('inbox');
+  const desktop = useMediaQuery('(min-width: 1024px)');
+  const escapeRef = useRef<(() => boolean) | null>(null);
+
+  if (desktop) {
+    if (!open) return null;
+    return (
+      <aside
+        aria-label={t('customer.title')}
+        className="flex w-80 shrink-0 flex-col border-l bg-surface"
+      >
+        <CustomerBody
+          {...rest}
+          onClose={onClose}
+          escapeRef={escapeRef}
+          title={<h3>{t('customer.title')}</h3>}
+          description={<p>{t('customer.description')}</p>}
+        />
+      </aside>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        aria-label={t('customer.title')}
+        className="safe-top safe-x w-full gap-0 bg-surface sm:max-w-sm"
+        onEscapeKeyDown={(e) => {
+          if (escapeRef.current?.()) e.preventDefault();
+        }}
+      >
+        <CustomerBody
+          {...rest}
+          onClose={onClose}
+          escapeRef={escapeRef}
+          title={<SheetTitle className="text-sm">{t('customer.title')}</SheetTitle>}
+          description={
+            <SheetDescription className="text-xs">{t('customer.description')}</SheetDescription>
+          }
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}

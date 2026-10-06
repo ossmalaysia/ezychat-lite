@@ -87,6 +87,20 @@ function setup(path: string, opts: { directory?: unknown[] } = {}) {
       if (url.startsWith(`/api/chats/${encodeURIComponent(jid)}/messages`))
         return json({ messages, nextBefore: null });
       if (url === `/api/chats/${encodeURIComponent(jid)}/notes`) return json([]);
+      if (url === `/api/chats/${encodeURIComponent(jid)}/profile`)
+        return json({
+          profile: {
+            name: 'Bob Tan',
+            company: 'Bob Bakery',
+            email: null,
+            otherPhone: null,
+            address: null,
+            tags: ['VIP'],
+            updatedAt: null,
+            updatedBy: null,
+          },
+          whatsappName: 'Bob',
+        });
       if (url === `/api/chats/${encodeURIComponent(jid)}`) return json({ chat, events: [] });
       if (url === '/api/quick-replies') return json([]);
       if (url === '/api/users/directory' && opts.directory) return json({ users: opts.directory });
@@ -236,5 +250,30 @@ describe('InboxPage', () => {
       await screen.findByRole('region', { name: 'Conversation with Unknown contact' }),
     ).toBeTruthy();
     expect(document.body.textContent).not.toContain('123456789012345');
+  });
+  it('remembers the tag filter and sends it with the chat list', async () => {
+    sessionStorage.setItem(
+      'wati.inbox.filters',
+      JSON.stringify({ assigned: 'any', status: 'open', tag: 'VIP' }),
+    );
+    try {
+      setup('/');
+      await screen.findByText('Bob Customer');
+      const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+      expect(urls.find((u) => u.startsWith('/api/chats?'))).toContain('tag=VIP');
+      expect(screen.getByRole('button', { name: 'Filter by tag' }).textContent).toContain('VIP');
+    } finally {
+      sessionStorage.clear();
+    }
+  });
+
+  it('opens the customer panel from a ?customer=1 link', async () => {
+    setup(`/chats/${encodeURIComponent(jid)}?customer=1`);
+    expect(await screen.findByText('Bob Bakery')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Customer details', hidden: true })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 });

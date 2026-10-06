@@ -22,7 +22,12 @@
     "unassigned": "Unassigned",
     "all": "All",
     "open": "Open",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "tag": "Tag",
+    "tagLabel": "Filter by tag",
+    "tagSearch": "Search tags",
+    "tagClear": "Clear tag filter",
+    "tagEmpty": "No tags yet"
   },
   "chatList": {
     "loading": "Loading chats",
@@ -45,7 +50,8 @@
       },
       "search": "No chats match “{{query}}”.",
       "resolvedTitle": "No resolved chats",
-      "resolvedDescription": "No resolved chats here."
+      "resolvedDescription": "No resolved chats here.",
+      "tag": "No chats are tagged “{{tag}}”."
     }
   },
   "chatListItem": {
@@ -54,7 +60,8 @@
     "resolved": "Resolved",
     "assignedTo": "Assigned to {{name}}",
     "unread_one": "{{count}} unread",
-    "unread_other": "{{count}} unread"
+    "unread_other": "{{count}} unread",
+    "moreTags": "+{{count}}"
   },
   "header": {
     "back": "Back to chats",
@@ -69,7 +76,9 @@
     "notes": "Notes",
     "reopen": "Reopen",
     "resolve": "Resolve",
-    "ai": "{{name}} (AI Sales Agent)"
+    "ai": "{{name}} (AI Sales Agent)",
+    "customer": "Customer",
+    "customerLabel": "Customer details"
   },
   "conversation": {
     "loading": "Loading chat",
@@ -335,5 +344,38 @@
     "title": "Add to Home Screen to receive notifications",
     "body": "Tap the Share button <share/> in Safari, choose <strong>Add to Home Screen</strong>, then open EzyChat Lite from your home screen and turn on notifications.",
     "share": "Share"
+  },
+  "customer": {
+    "title": "Customer",
+    "description": "Details your team keeps about this customer",
+    "close": "Close customer details",
+    "empty": "No details yet",
+    "addDetails": "Add details",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveFailed": "Could not save customer details",
+    "noName": "No name set",
+    "whatsappName": "WhatsApp: {{name}}",
+    "updatedBy": "Updated by {{name}} · {{when}}",
+    "name": "Name",
+    "company": "Company",
+    "email": "Email",
+    "otherPhone": "Other phone",
+    "address": "Address / area",
+    "tags": "Tags",
+    "tagPlaceholder": "Add a tag and press Enter",
+    "tagLimit": "Up to 10 tags",
+    "removeTag": "Remove tag {{tag}}",
+    "discardTitle": "Discard your changes?",
+    "discard": "Discard",
+    "keepEditing": "Keep editing",
+    "open": "Open chat",
+    "errors": {
+      "email": "Enter a valid email address",
+      "otherPhone": "Use digits, spaces, +, -, ( or )",
+      "tooLong": "Use at most {{max}} characters",
+      "tags": "Check the tags: up to 10, each up to 30 characters"
+    }
   }
 }

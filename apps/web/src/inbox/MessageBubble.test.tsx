@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import type { Message } from '@wa-team-inbox/shared';
 import { MessageBubble } from './MessageBubble';
 
@@ -24,7 +26,10 @@ const groupMessage: Message = {
   clientId: null,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('MessageBubble group sender', () => {
   it('labels a WhatsApp ID sender without a name as "Unknown contact", never its digits', () => {
@@ -92,5 +97,63 @@ describe('MessageBubble voice note transcript', () => {
     cleanup();
     const plain = bubble(voice);
     expect(plain.container.textContent).not.toMatch(/transcri/i);
+  });
+});
+
+describe('MessageBubble sender profile', () => {
+  const FARAH = '601@s.whatsapp.net';
+  function renderBubble(message: Message) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === `/api/chats/${encodeURIComponent(FARAH)}/profile`
+          ? new Response(
+              JSON.stringify({
+                profile: {
+                  name: 'Farah Aziz',
+                  company: 'Farah Catering Co',
+                  email: null,
+                  otherPhone: null,
+                  address: null,
+                  tags: ['VIP'],
+                  updatedAt: null,
+                  updatedBy: null,
+                },
+                whatsappName: 'Farah 🌸',
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          : new Response('{}', { status: 404 }),
+      ),
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MessageBubble message={message} showSender outboundLabel={null} quoted={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('shows the sender profile name in groups and opens their details', async () => {
+    renderBubble({
+      ...groupMessage,
+      senderName: 'Farah 🌸',
+      senderProfile: { chatJid: FARAH, name: 'Farah Aziz' },
+    });
+    expect(screen.queryByText('Farah 🌸')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Farah Aziz' }));
+    expect(await screen.findByText('Farah Catering Co')).toBeTruthy();
+    expect(screen.getByText('WhatsApp: Farah 🌸')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open chat' }).getAttribute('href')).toBe(
+      '/chats/601%40s.whatsapp.net?customer=1',
+    );
+  });
+
+  it('keeps the plain WhatsApp name without a profile', () => {
+    renderBubble({ ...groupMessage, senderName: 'Farah 🌸', senderProfile: null });
+    expect(screen.getByText('Farah 🌸')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Farah 🌸' })).toBeNull();
   });
 });

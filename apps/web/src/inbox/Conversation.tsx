@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import type { Message } from '@wa-team-inbox/shared';
 import { ApiError } from '../api/client';
 import {
@@ -36,6 +37,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Composer } from './Composer';
+import { CustomerPanel } from './CustomerPanel';
 import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
@@ -72,7 +74,10 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const markRead = useMarkRead(jid);
   const patch = usePatchChat(jid);
   const { typing, emitTyping } = useRealtime();
+  const [searchParams] = useSearchParams();
   const [notesOpen, setNotesOpen] = useState(false);
+  // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
+  const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
@@ -244,7 +249,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
-          onToggleNotes={() => setNotesOpen((o) => !o)}
+          onToggleNotes={() => {
+            setNotesOpen((o) => !o);
+            setCustomerOpen(false);
+          }}
+          showCustomer={chat.type === 'dm'}
+          customerOpen={customerOpen && chat.type === 'dm'}
+          onToggleCustomer={() => {
+            setCustomerOpen((o) => !o);
+            setNotesOpen(false);
+          }}
         />
         <MessageList
           items={items}
@@ -298,6 +312,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         directory={directory}
         onClose={() => setNotesOpen(false)}
       />
+      {chat.type === 'dm' && (
+        <CustomerPanel
+          jid={jid}
+          open={customerOpen}
+          directory={directory}
+          onClose={() => setCustomerOpen(false)}
+        />
+      )}
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>

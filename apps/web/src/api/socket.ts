@@ -119,6 +119,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     socket.on('chat:updated', (c) => {
       upsertChatInCache(qc, c);
       refreshChats();
+      void qc.invalidateQueries({ queryKey: qk.customerProfile(c.jid) });
     });
     socket.on('chat:event', (e) => {
       qc.setQueryData<ChatDetailResponse>(qk.chat(e.chatJid), (old) =>

@@ -44,3 +44,31 @@ describe('ChatListItem identity', () => {
     expect(screen.getByText('+60123456789')).toBeTruthy();
   });
 });
+
+describe('ChatListItem tags', () => {
+  it('shows up to two tags and a +N count', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', tags: ['VIP', 'Wholesale', 'Halal', 'Repeat'] }}
+          active={false}
+          assigneeName={null}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('VIP')).toBeTruthy();
+    expect(screen.getByText('Wholesale')).toBeTruthy();
+    expect(screen.queryByText('Halal')).toBeNull();
+    const more = screen.getByText('+2');
+    expect(more.getAttribute('title')).toBe('Halal, Repeat');
+  });
+
+  it('shows no tag chips without tags', () => {
+    const view = render(
+      <MemoryRouter>
+        <ChatListItem chat={{ ...lidChat, name: 'Farah' }} active={false} assigneeName={null} />
+      </MemoryRouter>,
+    );
+    expect(view.container.textContent).not.toContain('+');
+  });
+});

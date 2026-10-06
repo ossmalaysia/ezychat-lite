@@ -97,6 +97,30 @@ export function ChatListItem({
               <span className="truncate">{assigneeName}</span>
             </Badge>
           )}
+          {chat.tags && chat.tags.length > 0 && (
+            // Tags shrink (and truncate) before anything else so the row never overflows at 360px.
+            <span className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
+              {chat.tags.slice(0, 2).map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="min-w-0 max-w-20 shrink px-1.5 text-[11px] text-muted-foreground"
+                  title={tag}
+                >
+                  <span className="truncate">{tag}</span>
+                </Badge>
+              ))}
+              {chat.tags.length > 2 && (
+                <Badge
+                  variant="outline"
+                  className="px-1.5 text-[11px] text-muted-foreground"
+                  title={chat.tags.slice(2).join(', ')}
+                >
+                  {t('chatListItem.moreTags', { count: chat.tags.length - 2 })}
+                </Badge>
+              )}
+            </span>
+          )}
           {chat.status === 'resolved' && (
             <Badge variant="secondary" className="max-w-24 truncate px-1.5 text-[11px]">
               {t('chatListItem.resolved')}

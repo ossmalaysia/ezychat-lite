@@ -1,13 +1,19 @@
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { Link } from 'react-router-dom';
 import { AlertCircle, Check, CheckCheck, Clock, RotateCw } from 'lucide-react';
 import type { Message } from '@wa-team-inbox/shared';
+import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDateTime, formatTime, truncate } from '../lib/format';
 import { formatJid } from '../lib/jid';
+import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
+import type { Directory } from './useDirectory';
 
 export interface MessageBubbleProps {
   message: Message;
@@ -19,6 +25,33 @@ export interface MessageBubbleProps {
   onRetry?(m: Message): void;
   retrying?: boolean;
   onMediaLoad?(): void;
+  /** Team directory, for "Updated by" in a group sender's profile popover. */
+  directory?: Directory;
+}
+
+/** Read-only profile of a group sender, from their direct chat, with a link to that chat. */
+function SenderProfileCard({ chatJid, directory }: { chatJid: string; directory?: Directory }) {
+  const { t } = useTranslation('inbox');
+  const query = useCustomerProfile(chatJid);
+  return (
+    <div className="space-y-3">
+      {query.data ? (
+        <CustomerDetails
+          profile={query.data.profile}
+          whatsappName={query.data.whatsappName}
+          directory={directory}
+        />
+      ) : query.isPending ? (
+        <div className="space-y-2" role="status" aria-label={t('customer.title')}>
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-44 max-w-full" />
+        </div>
+      ) : null}
+      <Button asChild variant="outline" size="sm" className="w-full">
+        <Link to={`/chats/${encodeURIComponent(chatJid)}?customer=1`}>{t('customer.open')}</Link>
+      </Button>
+    </div>
+  );
 }
 
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
@@ -111,6 +144,7 @@ export function MessageBubble({
   onRetry,
   retrying,
   onMediaLoad,
+  directory,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
   if (m.type === 'system') {
@@ -129,6 +163,8 @@ export function MessageBubble({
   const senderName =
     m.senderName ??
     (m.senderJid ? formatJid(m.senderJid) || t('chatListItem.unknownContact') : null);
+  // Group messages: the sender's own customer profile (from their direct chat), when set.
+  const profile = !out ? (m.senderProfile ?? null) : null;
 
   return (
     <div className={cn('flex px-2 py-0.5 sm:px-4', out ? 'justify-end' : 'justify-start')}>
@@ -142,8 +178,27 @@ export function MessageBubble({
         )}
         data-message-id={m.id}
       >
-        {!out && showSender && senderName && (
-          <p className="mb-0.5 truncate text-xs font-semibold text-primary">{senderName}</p>
+        {!out && showSender && profile ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="link"
+                title={senderName ?? undefined}
+                className="mb-0.5 block h-auto max-w-full truncate p-0 text-left text-xs font-semibold text-primary"
+              >
+                {profile.name}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)]">
+              <SenderProfileCard chatJid={profile.chatJid} directory={directory} />
+            </PopoverContent>
+          </Popover>
+        ) : (
+          !out &&
+          showSender &&
+          senderName && (
+            <p className="mb-0.5 truncate text-xs font-semibold text-primary">{senderName}</p>
+          )
         )}
         {out && outboundLabel && (
           <p className="mb-0.5 truncate text-[11px] font-medium text-muted-foreground">
