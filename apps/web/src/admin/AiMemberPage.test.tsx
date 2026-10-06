@@ -3,7 +3,13 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { AiDocument, AiMemberBody, AiMemberStatus, User } from '@wa-team-inbox/shared';
+import {
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiDocument,
+  type AiMemberBody,
+  type AiMemberStatus,
+  type User,
+} from '@wa-team-inbox/shared';
 import { AiMemberPage } from './AiMemberPage';
 
 const aiUser: User = {
@@ -434,5 +440,20 @@ describe('AI member page', () => {
     const puts = writes(fetchMock);
     expect(JSON.parse(String(puts[0]![1]!.body))).toMatchObject({ enabled: false });
     expect(screen.getByText('Off')).toBeTruthy();
+  });
+
+  it('shows the default AI instructions and restores them with Use default', async () => {
+    const initial = status();
+    initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
+    setup(initial);
+    const box = (await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement;
+    expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
+    expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
+    const user = userEvent.setup();
+    await user.clear(box);
+    await user.type(box, 'Always mention our Grab link.');
+    await user.click(screen.getByRole('button', { name: 'Use default instructions' }));
+    expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
+    expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
   });
 });

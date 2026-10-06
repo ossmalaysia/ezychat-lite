@@ -22,6 +22,7 @@ import {
   AiContextTextBody,
   AiDecision,
   CHATGPT_FALLBACK_MODELS,
+  DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
@@ -62,7 +63,7 @@ const DEFAULT_SETTINGS: AiSettings = {
   enabled: false,
   mode: 'api',
   model: '',
-  instructions: '',
+  instructions: DEFAULT_AI_INSTRUCTIONS,
 };
 type Actor = { userId: number; ip: string | null };
 interface State {
@@ -164,7 +165,9 @@ export function createAiService(
     const stored = ctx.settings.get<{ instructions?: unknown }>(MEMBER_KEY, {});
     return {
       ...DEFAULT_SETTINGS,
-      instructions: typeof stored?.instructions === 'string' ? stored.instructions : '',
+      // A member that never saved instructions starts from the default; saved text (even blank) is kept.
+      instructions:
+        typeof stored?.instructions === 'string' ? stored.instructions : DEFAULT_AI_INSTRUCTIONS,
       ...ctx.settings.get<Pick<AiSettings, 'mode' | 'model'>>(PROVIDER_KEY, {
         mode: 'api',
         model: '',

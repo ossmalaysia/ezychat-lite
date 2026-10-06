@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The AI Sales Agent comes with recommended default instructions (friendly, short replies in the customer's language, exact facts from your business context, no guessing), so you only need to add your Business context. Edit them to match your tone, or click "Use default instructions" to restore them.
+
 ## [0.1.21] - 2026-10-06
 
 ### Added

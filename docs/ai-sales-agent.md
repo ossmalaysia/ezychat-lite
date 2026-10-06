@@ -12,7 +12,10 @@
 3. Open **Admin → Members → AI Sales Agent**. The first version supports one AI member with
    the fixed business role **Sales Agent**. Besides its name it has exactly two settings:
    - **AI instructions** (up to 8,000 characters): how the AI behaves — tone, language, what
-     to answer and what to leave to humans.
+     to answer and what to leave to humans. A new member starts with recommended default
+     instructions (`DEFAULT_AI_INSTRUCTIONS` in `packages/shared/src/ai.ts`: friendly, short,
+     the customer's language, exact facts from the context, no guessing); "Use default
+     instructions" restores them, and blank saved instructions also fall back to them.
    - **Business context**: a list of items, like a project knowledge panel. Each item is an
      uploaded file or text content added in the app, shown with its name, size and added
      date. Search filters by name; **Select** deletes several items after a confirmation;

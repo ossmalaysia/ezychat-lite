@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { AiMemberBody, type AiMemberStatus, type AiSettings } from '@wa-team-inbox/shared';
+import {
+  AiMemberBody,
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiMemberStatus,
+  type AiSettings,
+} from '@wa-team-inbox/shared';
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';
@@ -243,13 +248,25 @@ function AiMemberEditor({
                 {...p}
                 value={draft.instructions}
                 maxLength={8000}
-                rows={4}
+                rows={7}
                 placeholder={t('ai.page.instructionsPlaceholder')}
                 disabled={action.isPending}
                 onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
               />
             )}
           </Field>
+          {draft.instructions !== DEFAULT_AI_INSTRUCTIONS && (
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="mt-2"
+              disabled={action.isPending}
+              onClick={() => setDraft((old) => ({ ...old, instructions: DEFAULT_AI_INSTRUCTIONS }))}
+            >
+              {t('ai.page.useDefaultInstructions')}
+            </Button>
+          )}
         </CardContent>
       </Card>
 

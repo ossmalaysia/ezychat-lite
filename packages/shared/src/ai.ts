@@ -33,6 +33,20 @@ export function codePointLength(text: string): number {
   return length;
 }
 
+/**
+ * Starting AI instructions, so a business can turn the agent on with only its Business context.
+ * Shown (editable) on a new AI member and used whenever the saved instructions are blank. The
+ * fixed safety rules (hand-offs, no invented facts, resolution) live in the server prompt.
+ */
+export const DEFAULT_AI_INSTRUCTIONS = [
+  'Be friendly, polite and professional, like a helpful shop assistant.',
+  'Keep replies short and easy to read on a phone: one to three short sentences, under 60 words.',
+  "Reply in the customer's language, and greet them by name when you know it.",
+  'Give exact prices, totals, opening hours and delivery details from the business context.',
+  'If the answer is not in the business context, say a team member will help instead of guessing.',
+  'Use plain text with simple lists only; no headings, tables or links you were not given.',
+].join('\n');
+
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
   enabled: z.boolean(),

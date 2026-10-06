@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { AiConnection, AiMemberBody } from '@wa-team-inbox/shared';
+import {
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiConnection,
+  type AiMemberBody,
+} from '@wa-team-inbox/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -896,4 +900,13 @@ it('replies to the address the customer last wrote from when one person has a ph
       .prepare('SELECT chat_jid, wa_remote_jid FROM messages WHERE sent_by_user_id = ?')
       .all(ai.id),
   ).toEqual([{ chat_jid: LID, wa_remote_jid: PN }]);
+});
+
+it('starts a member that never saved instructions with the default ones, and keeps saved text', async () => {
+  t.ctx.settings.set('ai_sales_member', {});
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe(DEFAULT_AI_INSTRUCTIONS);
+  t.ctx.settings.set('ai_sales_member', { instructions: '' });
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe('');
+  t.ctx.settings.set('ai_sales_member', { instructions: 'Be concise' });
+  expect(t.ctx.services.ai!.status().settings.instructions).toBe('Be concise');
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_AI_INSTRUCTIONS } from '@wa-team-inbox/shared';
 import {
   AI_DEFAULT_TIMEZONE,
   buildAiPrompt,
@@ -168,4 +169,19 @@ describe('knowledge sources (context items)', () => {
     ]);
     expect(sources[1]).toMatchObject({ name: 'Item 3', text: 'Text 3' });
   });
+});
+
+it('uses the default AI instructions when the saved instructions are blank', () => {
+  for (const instructions of ['', '   \n ']) {
+    const { instructions: prompt } = buildAiPrompt(
+      { displayName: 'Ezy', instructions },
+      'Delivery RM10',
+      [],
+      situation,
+    );
+    expect(prompt.endsWith(`Administrator instructions:\n${DEFAULT_AI_INSTRUCTIONS}`)).toBe(true);
+  }
+  const custom = buildAiPrompt(knowledge, 'Delivery RM10', [], situation).instructions;
+  expect(custom).toContain('Administrator instructions:\nBe brief');
+  expect(custom).not.toContain(DEFAULT_AI_INSTRUCTIONS);
 });
