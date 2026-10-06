@@ -64,6 +64,7 @@ into AGENTS.md.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve.
+  After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
@@ -75,6 +76,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
+  migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
   `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
   Python writes need `PYTHONUTF8=1`.
