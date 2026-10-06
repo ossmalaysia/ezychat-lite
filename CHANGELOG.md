@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-10-06
+
 ### Added
 
 - Customer voice notes are transcribed, so the AI Sales Agent answers them like typed messages and your team can read them under the audio player. Choose the engine in **Settings → AI → Voice messages**:
