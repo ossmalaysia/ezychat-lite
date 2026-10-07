@@ -88,6 +88,25 @@ describe('ChatListItem tags', () => {
     expect(wideMore.className).toMatch(/(^|\s)@sm:inline-flex(\s|$)/);
   });
 
+  it('keeps the first tag readable next to an unread count: the assignee name truncates first', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', unreadCount: 2, tags: ['VIP', 'Wholesale'] }}
+          active={false}
+          assigneeName="Mei Ling"
+        />
+      </MemoryRouter>,
+    );
+    // A tag squeezed to "V." is unreadable; a truncated assignee name still reads ("Mei L…").
+    const tag = screen.getByText('VIP').closest('[data-slot="badge"]')!;
+    expect(tag.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    expect(tag.parentElement!.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    const assignee = screen.getByText('Mei Ling').closest('[data-slot="badge"]')!;
+    expect(assignee.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    expect(assignee.className).toMatch(/(^|\s)shrink(\s|$)/);
+  });
+
   it('tells the assignee apart from tags: person icon on the assignee, filled tag chips', () => {
     render(
       <MemoryRouter>

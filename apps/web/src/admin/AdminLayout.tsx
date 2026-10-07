@@ -111,12 +111,6 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
       className="safe-bottom flex shrink-0 flex-col gap-1 border-t p-3"
     >
       <PushToggle compact className="px-2" />
-      <Button asChild variant="ghost" size="touch" className="justify-start px-2 text-primary">
-        <Link to="/" onClick={onNavigate}>
-          <ChevronLeft aria-hidden />
-          {t('layout.backToInbox')}
-        </Link>
-      </Button>
       <Button
         variant="ghost"
         size="touch"
@@ -135,8 +129,23 @@ function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: (
 }
 
 function AdminMenu({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      {/* The way out comes first, right under "Admin", not buried below the footer tools. */}
+      <div className="border-b p-2">
+        <Button
+          asChild
+          variant="ghost"
+          size="touch"
+          className="w-full justify-start px-3 text-primary"
+        >
+          <Link to="/" onClick={onNavigate}>
+            <ChevronLeft aria-hidden />
+            {t('layout.backToInbox')}
+          </Link>
+        </Button>
+      </div>
       <AdminNav className="flex-1 p-2" onNavigate={onNavigate} />
       <AdminFooter version={version} onNavigate={onNavigate} />
     </div>

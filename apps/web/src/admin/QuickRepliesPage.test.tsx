@@ -17,6 +17,15 @@ vi.mock('../api/queries', () => ({
 }));
 afterEach(cleanup);
 
+it('keeps Delete inside each reply’s More menu and still confirms it', async () => {
+  render(<QuickRepliesPage />);
+  const user = userEvent.setup();
+  expect(screen.queryByRole('button', { name: 'Delete /delivery' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'More actions for /delivery' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+  expect(screen.getByRole('alertdialog', { name: 'Delete /delivery?' })).toBeTruthy();
+});
+
 it('finds replies by content or shortcut and clears an empty search', async () => {
   render(<QuickRepliesPage />);
   const user = userEvent.setup();

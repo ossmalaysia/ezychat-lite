@@ -24,7 +24,8 @@
     "copied": "Disalin ke papan keratan",
     "copyFailed": "Gagal menyalin — pilih teks dan salin secara manual.",
     "loadFailed": "Tidak dapat dimuatkan",
-    "loading": "Memuatkan"
+    "loading": "Memuatkan",
+    "unsaved": "Belum disimpan"
   },
   "members": {
     "title": "Ahli",
@@ -119,7 +120,6 @@
       "clearSearch": "Kosongkan carian"
     },
     "editLabel": "Edit /{{shortcut}}",
-    "deleteLabel": "Padam /{{shortcut}}",
     "delete": {
       "title": "Padam /{{shortcut}}?",
       "body": "Balasan pantas ini tidak lagi tersedia kepada ejen.",
@@ -134,7 +134,8 @@
       "body": "Teks balasan",
       "bodyRequired": "Teks balasan diperlukan.",
       "saved": "/{{shortcut}} disimpan."
-    }
+    },
+    "moreLabel": "Tindakan lain untuk /{{shortcut}}"
   },
   "audit": {
     "title": "Log audit",
@@ -177,8 +178,68 @@
       "chatsResolveAll": "Semua sembang terbuka diselesaikan",
       "chatMerge": "Sembang digabungkan",
       "logsDownload": "Log dimuat turun",
+      "aiConnectionUpdate": "Sambungan AI diubah",
+      "aiMemberUpdate": "Ahli AI diubah",
+      "aiDocumentAdd": "Konteks perniagaan ditambah",
+      "aiDocumentUpdate": "Konteks perniagaan disunting",
+      "aiDocumentRemove": "Konteks perniagaan dibuang",
+      "aiHandoff": "AI menyerahkan sembang kepada pasukan",
+      "aiResolve": "AI menyelesaikan sembang",
+      "aiVoiceUpdate": "Tetapan mesej suara diubah",
+      "aiVoiceModelDownload": "Muat turun model suara dimulakan",
+      "aiVoiceModelCancel": "Muat turun model suara dibatalkan",
+      "aiVoiceModelRemove": "Model suara dibuang",
       "customerProfileUpdate": "Butiran pelanggan dikemas kini"
     },
+    "fields": {
+      "chat": "Sembang",
+      "from": "Daripada",
+      "to": "Kepada",
+      "member": "Ahli",
+      "assignedTo": "Ditugaskan kepada",
+      "reason": "Sebab",
+      "enabled": "Didayakan",
+      "disabled": "Dinyahdayakan",
+      "role": "Peranan",
+      "mode": "Mod",
+      "model": "Model",
+      "kind": "Jenis",
+      "size": "Saiz",
+      "document": "Item",
+      "transcription": "Transkripsi",
+      "resolvedCount": "Sembang diselesaikan",
+      "username": "Nama pengguna",
+      "displayName": "Nama paparan",
+      "id": "ID",
+      "shortcut": "Pintasan",
+      "hostname": "Nama hos",
+      "subdomain": "Subdomain",
+      "tunnelName": "Terowong",
+      "domain": "Domain",
+      "restartRequired": "Perlu mula semula",
+      "moved": "Dipindahkan",
+      "name": "Nama",
+      "tags": "Tag",
+      "instructions": "Arahan",
+      "handoffRules": "Peraturan serahan",
+      "text": "Teks",
+      "token": "Token",
+      "port": "Port",
+      "lanEnabled": "Akses LAN",
+      "historyDays": "Hari sejarah"
+    },
+    "reasons": {
+      "rateLimited": "Terlalu banyak cubaan",
+      "invalid": "Nama pengguna atau kata laluan salah"
+    },
+    "yes": "Ya",
+    "no": "Tidak",
+    "changed": "Mengubah {{fields}}",
+    "filterLabel": "Tunjuk",
+    "filterAll": "Semua aktiviti",
+    "filterChanges": "Sembunyikan log masuk",
+    "hiddenSignIns_one": "{{count}} log masuk disembunyikan",
+    "hiddenSignIns_other": "{{count}} log masuk disembunyikan",
     "details": {
       "customerChanged": "Diubah: {{fields}}"
     },
@@ -203,7 +264,7 @@
     "network": {
       "title": "Rangkaian",
       "port": "Port",
-      "portHint": "Lalai 7420.",
+      "portHint": "Tukar hanya jika aplikasi lain sudah menggunakan port ini. Lalai 7420.",
       "lan": "Benarkan akses dari rangkaian setempat (LAN)",
       "lanHint": "Peranti lain pada Wi-Fi yang sama boleh membuka peti masuk.",
       "lanWarningTitle": "Trafik LAN ialah HTTP biasa",
@@ -211,15 +272,17 @@
     },
     "history": {
       "title": "Sejarah",
-      "days": "Bilangan hari sejarah untuk diimport semasa memaut"
+      "days": "Bilangan hari sejarah untuk diimport semasa memaut",
+      "daysHint": "0–365 hari. Digunakan apabila anda memaut WhatsApp seterusnya.",
+      "unit": "hari"
     },
     "device": {
       "title": "Peranti ini",
-      "description": "Keutamaan disimpan pada peranti ini dan berkuat kuasa serta-merta.",
+      "description": "Disimpan dalam pelayar ini dan berkuat kuasa serta-merta.",
       "themeHint": "Sistem mengikut tetapan cerah atau gelap peranti anda.",
       "notifications": "Pemberitahuan",
       "notificationsHint": "Terima pemberitahuan untuk mesej baharu apabila peti masuk tidak dibuka.",
-      "languageHint": "Mengikut anda di setiap peranti",
+      "languageHint": "Menu, butang dan mesej dalam aplikasi ini.",
       "languageShort": {
         "en": "English",
         "ms": "BM",
@@ -229,16 +292,17 @@
     "tabs": {
       "general": "Umum",
       "ai": "AI",
-      "device": "Peranti ini",
+      "device": "Keutamaan",
       "maintenance": "Penyelenggaraan"
     },
-    "maintenance": {
-      "title": "Zon bahaya",
-      "description": "Tindakan di sini menjejaskan seluruh pasukan dan tidak boleh dibuat asal dengan satu klik."
+    "description": "Tetapan seluruh pasukan untuk peti masuk ini, serta keutamaan anda sendiri.",
+    "account": {
+      "title": "Akaun anda",
+      "description": "Disimpan pada akaun anda, jadi ia mengikut anda di setiap peranti."
     }
   },
   "resolveAll": {
-    "title": "Peti masuk",
+    "title": "Hujung hari",
     "description": "Tamatkan hari dengan menyelesaikan setiap sembang terbuka bagi seluruh pasukan. Mesej disimpan dan mesej masuk baharu akan membuka semula sembang secara automatik.",
     "loading": "Memuatkan sembang terbuka…",
     "none": "Tiada sembang terbuka untuk diselesaikan.",
@@ -278,25 +342,27 @@
     "linkTitle": "Paut WhatsApp",
     "linkBody": "Paut semula untuk memaparkan kod QR baharu, kemudian imbas dari telefon.",
     "actionsTitle": "Tindakan",
-    "actionsHint": "Log keluar memutuskan peti masuk ini. Paut semula memulakan gandingan baharu. Ambil alih menyambung semula sesi yang dibuka di tempat lain.",
     "actions": {
       "logout": {
         "label": "Log keluar",
         "title": "Log keluar daripada WhatsApp?",
         "body": "Peranti dipaut dialih keluar daripada telefon. Peti masuk pasukan berhenti menerima dan menghantar mesej sehingga anda memaut semula. Sejarah mesej dikekalkan.",
-        "done": "Telah log keluar daripada WhatsApp."
+        "done": "Telah log keluar daripada WhatsApp.",
+        "hint": "Alih keluar peti masuk ini daripada peranti dipaut pada telefon. Sejarah mesej dikekalkan."
       },
       "relink": {
         "label": "Paut semula",
         "title": "Paut semula WhatsApp?",
         "body": "Sesi semasa dibuang dan kod QR baharu dipaparkan. Imbas dari WhatsApp > Peranti dipaut pada telefon.",
-        "done": "Sesi diset semula — imbas kod QR baharu."
+        "done": "Sesi diset semula — imbas kod QR baharu.",
+        "hint": "Buang sesi semasa dan mulakan gandingan baharu dengan kod QR baharu."
       },
       "takeover": {
         "label": "Ambil alih",
         "title": "Ambil alih sesi?",
         "body": "Contoh lain (cth. WhatsApp Web pada komputer lain) telah menggantikan sambungan ini. Mengambil alih akan menyambung semula di sini dan memutuskan yang satu lagi.",
-        "done": "Menyambung semula di sini."
+        "done": "Menyambung semula di sini.",
+        "hint": "Sambung semula di sini dan putuskan sesi yang dibuka di tempat lain."
       }
     }
   },
@@ -319,7 +385,6 @@
     },
     "action": {
       "disconnect": "Putuskan Cloudflare",
-      "off": "Akses jauh dimatikan",
       "namedConnecting": "Menyambung alamat tersimpan…",
       "namedConnect": "Sambung alamat tersimpan",
       "quickRestart": "Mulakan semula pautan sementara",
@@ -327,7 +392,6 @@
     },
     "tokenTooShort": "Token itu kelihatan terlalu pendek.",
     "tokenRequired": "Tampal token terowong dari papan pemuka Cloudflare.",
-    "statusTitle": "Status sambungan",
     "copyUrl": "Salin URL",
     "qrLabel": "Kod QR URL terowong",
     "scanHint": "Imbas dengan kamera telefon untuk membuka peti masuk.",
@@ -418,9 +482,8 @@
     "keyMissing": "Kunci API OpenAI belum dikonfigurasikan.",
     "connectionMode": "Mod sambungan",
     "apiKey": "Kunci API OpenAI",
-    "keepKeyHint": "Kunci telah disimpan. Biarkan kosong untuk mengekalkannya, atau masukkan kunci baharu.",
+    "keepKeyHint": "Masukkan kunci baharu. Biarkan kosong untuk mengekalkan kunci tersimpan.",
     "apiKeyHint": "Disimpan dengan selamat pada pelayan peti masuk. Penggunaan API dicaj berasingan daripada ChatGPT.",
-    "hiddenKey": "Kunci tersimpan — disembunyikan",
     "enterKey": "Masukkan kunci API",
     "cancelLogin": "Batalkan log masuk",
     "openLogin": "Buka log masuk",
@@ -463,7 +526,6 @@
     "modelsFallback": "Senarai model lalai. Log masuk untuk memuatkan model akaun anda.",
     "modeApi": "Kunci API",
     "modeChatgpt": "ChatGPT",
-    "unsaved": "Belum disimpan",
     "pasteLabel": "Log masuk pada komputer lain?",
     "pasteHint": "Selepas anda meluluskan, pelayar membuka halaman yang mungkin tidak dimuatkan. Salin alamat penuh dari bar alamat dan tampal di sini.",
     "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
@@ -491,11 +553,11 @@
       "turnedOn": "Ahli AI dihidupkan.",
       "turnedOff": "Ahli AI dimatikan.",
       "draftSaved": "Ahli AI disimpan sebagai draf supaya konteks perniagaan boleh ditambah.",
-      "stepName": "1. Nama & peranan",
-      "stepInstructions": "2. Arahan AI",
-      "stepContext": "3. Konteks perniagaan",
-      "stepHandoff": "4. Peraturan serahan",
-      "stepTry": "5. Cuba",
+      "stepName": "Nama & peranan",
+      "stepInstructions": "Arahan AI",
+      "stepContext": "Konteks perniagaan",
+      "stepHandoff": "Peraturan serahan",
+      "stepTry": "Cuba",
       "instructionsPlaceholder": "Contoh: Balas dengan ringkas dan sopan. Jawab soalan tentang harga, penghantaran dan waktu operasi. Serahkan kepada manusia untuk aduan atau bayaran balik.",
       "useDefaultInstructions": "Guna arahan lalai",
       "handoffLabel": "Peraturan serahan",
@@ -506,7 +568,9 @@
       "howItWorks": "Cara ia berfungsi",
       "connectionLine": "Sambungan: {{state}}",
       "openSettings": "Tetapan → AI",
-      "save": "Simpan"
+      "save": "Simpan",
+      "description": "Sediakan, uji dan hidupkan pembantu AI yang menjawab sembang pelanggan.",
+      "usingRecommended": "Menggunakan arahan yang disyorkan. Suntingnya mengikut gaya anda."
     },
     "try": {
       "label": "Soalan pelanggan",
@@ -608,6 +672,9 @@
     "defaults": {
       "instructions": "PERANAN\nAnda pembantu WhatsApp perniagaan ini. Anda menjawab pertanyaan pelanggan dan soalan tentang produk, serta mewakili perniagaan secara profesional.\n\nSKOP\nAnda membantu tentang:\n- Produk: ciri, spesifikasi, varian, ketersediaan dan cara penggunaan\n- Pertanyaan umum: waktu operasi, lokasi, cara membuat pesanan, kawasan penghantaran, kaedah bayaran dan polisi pemulangan\n- Langkah seterusnya: cara membuat pesanan, cara meminta sebut harga, atau menghubungi pasukan kami\nAnda tidak membantu tentang topik yang tiada kaitan dengan perniagaan atau produknya (sembang umum, berita, pengekodan, kerja rumah, pendapat, politik, agama). Balas dengan sopan dalam satu baris dan bawa semula perbualan, contohnya: \"Maaf, saya hanya boleh membantu dengan soalan tentang produk dan perkhidmatan kami. Bagaimana saya boleh membantu?\"\n\nPENGETAHUAN\n- Kekalkan nama produk, nombor model dan harga tepat seperti dalam konteks perniagaan.\n- Jangan meneka harga, stok, spesifikasi, tarikh penghantaran, promosi atau polisi. Jika maklumat tiada, nyatakannya dan biar pasukan kami mengesahkan.\n- Jangan menjanjikan diskaun, hadiah percuma atau pengecualian.\n\nBAHASA\n- Balas dalam bahasa pelanggan. Jika mereka mencampurkan bahasa, balas dalam bahasa utama mesej mereka.\n- Jika anda tidak dapat membalas dalam bahasa mereka, gunakan bahasa lalai yang dinyatakan dalam konteks perniagaan, jika tiada gunakan bahasa Inggeris.\n\nGAYA\n- Profesional, sopan dan mesra; tiada slanga. Paling banyak satu emoji, dan hanya jika sesuai.\n- Satu hingga tiga ayat pendek. Gunakan senarai pendek hanya untuk pilihan atau spesifikasi.\n- Jawab dahulu: tiada ucapan panjang dan jangan mengulang soalan.\n- Tanya paling banyak satu soalan penjelasan apabila perlu (contohnya model, saiz atau kawasan mana).\n- Format WhatsApp sahaja: *tebal* untuk butiran penting dan baris baharu biasa. Tiada tajuk, jadual atau pautan yang tidak diberikan kepada anda.",
       "handoffRules": "- Pelanggan kecewa atau membuat aduan\n- Pelanggan meminta bayaran balik, pemulangan, pertukaran atau tuntutan waranti\n- Pelanggan bertanya tentang pesanan, penghantaran atau bayaran sedia ada\n- Pelanggan mahukan pesanan pukal atau tempahan khas, atau sebut harga\n- Pelanggan mahu tawar-menawar harga atau meminta diskaun"
-    }
+    },
+    "replaceKey": "Ganti kunci",
+    "keepKey": "Kekalkan kunci tersimpan",
+    "modelAdvanced": "Lanjutan: pilih model"
   }
 }

@@ -95,7 +95,7 @@ export function ChatListItem({
             <Badge
               variant="outline"
               className={cn(
-                'max-w-24 px-1.5 text-xs sm:max-w-28',
+                'min-w-0 max-w-24 shrink px-1.5 text-xs sm:max-w-28',
                 // Outline only: the solid accent is reserved for the unread count.
                 assignedToMe
                   ? 'border-primary/40 font-medium text-primary'
@@ -109,15 +109,15 @@ export function ChatListItem({
             </Badge>
           )}
           {tags.length > 0 && (
-            // Tags shrink (and truncate) before anything else so the row never overflows at 360px.
+            // Tag chips keep their (capped) width: the preview and the assignee name truncate first.
             // Narrow rows (phones, the desktop list column) show one tag, wide rows two; each gets its "+N".
-            <span className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
+            <span className="flex shrink-0 items-center gap-1">
               {tags.slice(0, 2).map((tag, i) => (
                 <Badge
                   key={tag}
                   variant="secondary"
                   className={cn(
-                    'min-w-0 max-w-20 shrink px-1.5 text-xs font-normal',
+                    'max-w-20 shrink-0 px-1.5 text-xs font-normal',
                     i === 1 && 'hidden @sm:inline-flex',
                   )}
                   title={tag}

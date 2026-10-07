@@ -27,10 +27,12 @@ export function DevBuildBadge() {
   }, [dev, label]);
 
   if (!dev) return null;
+  // A small tab hanging from the top edge, centred: corners hold the avatar, menu, sidebar
+  // links and last-card actions, which a corner badge used to cover.
   return (
     <Badge
       variant="destructive"
-      className="pointer-events-none fixed bottom-2 left-2 z-50 shadow-sm"
+      className="pointer-events-none fixed top-[env(safe-area-inset-top)] left-1/2 z-50 -translate-x-1/2 rounded-none rounded-b-md px-2 py-0 text-[0.625rem] leading-3.5 opacity-90 shadow-sm"
       role="status"
     >
       {label}

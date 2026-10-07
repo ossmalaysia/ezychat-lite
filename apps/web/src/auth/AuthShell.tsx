@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { ExternalLink, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AppCredits } from '@/components/app';
-import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { LanguageSelect } from '@/i18n/LanguageSelect';
+import { GITHUB_ISSUES_URL } from '@/lib/links';
 import { useAppVersion } from '@/lib/version';
 
 /** Official EzyChat brand mark, shared by desktop and installed PWA. */
@@ -37,13 +37,14 @@ export function AuthShell({
   /** Optional decorative illustration shown above the title. */
   illustration?: string;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['common', 'app']);
   const version = useAppVersion();
   return (
-    <div className="safe-x safe-top safe-bottom min-h-dvh bg-background text-foreground">
+    <div className="safe-x safe-top safe-bottom relative min-h-dvh bg-background text-foreground">
       <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
         <div className={cn('w-full min-w-0', wide ? 'max-w-xl' : 'max-w-sm')}>
-          <div className="mb-2 flex justify-end">
+          {/* Top-right of the page on wider screens; above the card on phones. */}
+          <div className="mb-2 flex justify-end sm:absolute sm:top-4 sm:right-4 sm:mb-0">
             <LanguageSelect />
           </div>
           <div className="mb-4 flex items-center justify-center gap-2">
@@ -70,10 +71,19 @@ export function AuthShell({
             </CardHeader>
             <CardContent className="px-4 sm:px-6">{children}</CardContent>
           </Card>
-          <div className="mt-4 flex justify-center">
-            <FeatureRequestAction />
-          </div>
-          <AppCredits version={version ?? undefined} className="mt-1 px-2" />
+          {/* Only what someone stuck at sign-in needs: the version and a way to report it. */}
+          <footer className="mt-4 flex items-center justify-center gap-x-3 text-sm text-muted-foreground">
+            {version && <span>{t('app:credits.versionShort', { version })}</span>}
+            <a
+              href={GITHUB_ISSUES_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center gap-1 rounded-sm px-1 py-2 underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {t('app:credits.reportIssue')}
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          </footer>
         </div>
       </main>
     </div>
@@ -93,25 +103,44 @@ export function Field({
   hint?: React.ReactNode;
   error?: React.ReactNode;
 }) {
+  const { t } = useTranslation('auth');
   const autoId = React.useId();
   const id = idProp ?? autoId;
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+  const isPassword = props.type === 'password';
+  const [revealed, setRevealed] = React.useState(false);
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        className="h-11 text-base md:text-base"
-        {...props}
-      />
+      <div className="relative">
+        <Input
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn('h-11 text-base md:text-base', isPassword && 'pr-12')}
+          {...props}
+          type={isPassword && revealed ? 'text' : props.type}
+        />
+        {isPassword && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-touch"
+            className="absolute inset-y-0 right-0 text-muted-foreground hover:bg-transparent"
+            aria-label={revealed ? t('reveal.hide') : t('reveal.show')}
+            aria-controls={id}
+            onClick={() => setRevealed((r) => !r)}
+          >
+            {revealed ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+          </Button>
+        )}
+      </div>
       {error ? (
-        <p id={`${id}-error`} className="text-xs text-danger">
+        <p id={`${id}-error`} className="text-sm text-danger">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
           {hint}
         </p>
       ) : null}

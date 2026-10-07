@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
 import type { QuickReply } from '@wa-team-inbox/shared';
@@ -8,6 +8,12 @@ import { errorMessage } from '../api/client';
 import { useDeleteQuickReply, useQuickReplies, useSaveQuickReply } from '../api/queries';
 import { Banner, EmptyState, PageHeader, ResponsiveDialog } from '@/components/app';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchField } from '@/components/app/SearchField';
@@ -90,27 +96,40 @@ export function QuickRepliesPage() {
                   {r.body}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              {/* Same row pattern as Members: Edit, then rarer actions in a "…" menu. */}
+              <div className="flex shrink-0 items-center gap-1">
                 <Button
                   size="touch"
                   variant="outline"
-                  className="md:min-h-8"
+                  className="md:pointer-fine:min-h-8"
                   onClick={() => setEditing(r)}
                   aria-label={t('quickReplies.editLabel', { shortcut: r.shortcut })}
                 >
                   <Pencil aria-hidden />
                   {t('common:actions.edit')}
                 </Button>
-                <Button
-                  size="touch"
-                  variant="ghost"
-                  className="text-danger hover:text-danger md:min-h-8"
-                  onClick={() => setDeleting(r)}
-                  aria-label={t('quickReplies.deleteLabel', { shortcut: r.shortcut })}
-                >
-                  <Trash2 aria-hidden />
-                  {t('common:actions.delete')}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="icon-touch"
+                      variant="ghost"
+                      className="md:pointer-fine:size-8"
+                      aria-label={t('quickReplies.moreLabel', { shortcut: r.shortcut })}
+                    >
+                      <MoreHorizontal aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="min-h-11 md:min-h-8"
+                      variant="destructive"
+                      onSelect={() => setDeleting(r)}
+                    >
+                      <Trash2 aria-hidden />
+                      {t('common:actions.delete')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </li>
           ))}

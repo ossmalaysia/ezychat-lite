@@ -150,7 +150,7 @@ it.each([
   expect(screen.getAllByText(shown).length).toBeGreaterThan(0);
   for (const h of hidden) expect(screen.queryByText(h)).toBeNull();
   expect(screen.getByRole('tab', { selected: true }).textContent).toBe(
-    { general: 'General', ai: 'AI', device: 'This device', maintenance: 'Maintenance' }[tab],
+    { general: 'General', ai: 'AI', device: 'Preferences', maintenance: 'Maintenance' }[tab],
   );
 });
 
@@ -183,9 +183,28 @@ it('shows the restart banner only on the General tab', async () => {
   expect(screen.queryByText('Restart required')).toBeNull();
 });
 
-it('marks maintenance as a danger zone', () => {
+it('shows the reversible end-of-day action without a danger-zone frame', () => {
   renderAt('/admin/settings/maintenance');
-  expect(screen.getByRole('heading', { name: 'Danger zone' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Danger zone' })).toBeNull();
+  expect(screen.getByText('Resolve all card')).toBeTruthy();
+});
+
+it('describes the page and explains when to change the port and history', () => {
+  renderAt();
+  expect(
+    screen.getByText('Team-wide settings for this inbox, plus your own preferences.'),
+  ).toBeTruthy();
+  expect(screen.getByText(/Only change this if another app already uses this port/)).toBeTruthy();
+  expect(screen.getByText(/0–365 days/)).toBeTruthy();
+  expect(screen.getByText('days')).toBeTruthy();
+});
+
+it('marks unsaved general settings next to Save', async () => {
+  renderAt();
+  const user = userEvent.setup();
+  expect(screen.queryByText('Unsaved')).toBeNull();
+  await user.click(screen.getByRole('switch'));
+  expect(screen.getByText('Unsaved')).toBeTruthy();
 });
 
 it('changes theme and language from compact segmented controls', async () => {
@@ -197,5 +216,11 @@ it('changes theme and language from compact segmented controls', async () => {
   expect(screen.getByRole('radio', { name: 'English' }).getAttribute('aria-checked')).toBe('true');
   await user.click(screen.getByText('中文'));
   expect(changeLocale).toHaveBeenCalledWith('zh-CN');
-  expect(screen.getByText('Follows you on every device')).toBeTruthy();
+  // Language is saved to the account, so it is grouped apart from this-device preferences.
+  const account = screen.getByText('Your account').closest('[data-slot="card"]')!;
+  expect(account.textContent).toContain('Language');
+  expect(account.textContent).toContain('follows you on every device');
+  const device = screen.getByText('This device').closest('[data-slot="card"]')!;
+  expect(device.textContent).toContain('Appearance');
+  expect(device.textContent).not.toContain('Language');
 });

@@ -19,13 +19,19 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     await expect(page.getByText('Connection mode', { exact: true })).toBeVisible();
     await expect(page.getByRole('radio', { name: /ChatGPT/ })).toBeVisible();
     await page.getByText('API key', { exact: true }).first().click();
+    // On the second viewport the key is already saved: replacing it reopens the field.
+    const replace = page.getByRole('button', { name: 'Replace key' });
+    if (await replace.isVisible()) await replace.click();
     await page
       .getByLabel('OpenAI API key', { exact: true })
       .fill('test-key-not-a-real-provider-credential');
+    await page.getByRole('button', { name: 'Advanced: choose a model' }).click();
     await page.getByLabel('Model (optional)', { exact: true }).fill('gpt-4.1-mini');
     await page.getByRole('button', { name: 'Save AI connection', exact: true }).click();
-    await expect(page.getByText('A key is saved.', { exact: false })).toBeVisible();
-    await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveValue('');
+    await expect(page.getByText('OpenAI API key is saved.', { exact: false })).toBeVisible();
+    // The saved key is never shown again: the field becomes a 'saved' note with Replace.
+    await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Replace key' })).toBeVisible();
     await expectNoHorizontalScroll(page, `settings/ai ${tag}`);
 
     // Members lists the AI member (or offers to add it) and opens the page, not a popup.

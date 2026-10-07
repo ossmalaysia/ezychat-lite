@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,6 +65,40 @@ export function Field({
           {hint}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The one place Save lives on admin forms: right-aligned at the end of the form, full width on
+ * phones, and pinned to the bottom of the screen with an "Unsaved" marker while there are edits.
+ * `inset` matches the horizontal padding of the surface it sits in (page or card).
+ */
+export function SaveBar({
+  dirty,
+  inset = 'page',
+  children,
+}: {
+  dirty: boolean;
+  inset?: 'page' | 'card';
+  children: React.ReactNode;
+}) {
+  const { t } = useTranslation('admin');
+  return (
+    <div
+      data-dirty={dirty || undefined}
+      className={cn(
+        'flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3 [&>button]:w-full sm:[&>button]:w-auto',
+        dirty && 'sticky bottom-0 z-10 border-t py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+        dirty && (inset === 'card' ? '-mx-6 bg-card px-6' : '-mx-4 bg-background px-4'),
+      )}
+    >
+      {dirty && (
+        <Badge variant="outline" className="self-center">
+          {t('ui.unsaved')}
+        </Badge>
+      )}
+      {children}
     </div>
   );
 }

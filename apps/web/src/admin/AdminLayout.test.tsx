@@ -126,10 +126,18 @@ describe('AdminLayout routing', () => {
 
   it('keeps version and support destinations available in both footer layouts', async () => {
     const user = setup('/admin/members');
-    const checkFooter = (footer: HTMLElement) => {
+    const checkMenu = async (menu: HTMLElement) => {
+      // Back to inbox sits at the top of the menu, above the admin sections.
+      const back = within(menu).getByRole('link', { name: 'Back to inbox' });
+      expect(back.getAttribute('href')).toBe('/');
+      const sections = within(menu).getByRole('navigation', { name: 'Admin sections' });
+      expect(
+        back.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      const footer = within(menu).getByLabelText('Admin tools and support');
       const tools = within(footer);
       expect(tools.getByText('v0.1.0')).toBeTruthy();
-      expect(tools.getByRole('link', { name: 'Back to inbox' }).getAttribute('href')).toBe('/');
+      await user.click(tools.getByRole('button', { name: 'Help & feedback' }));
       for (const [name, href] of [
         ['Anchor Sprint', ANCHOR_SPRINT_URL],
         ['Report an issue', GITHUB_ISSUES_URL],
@@ -141,11 +149,9 @@ describe('AdminLayout routing', () => {
         expect(link.getAttribute('rel')).toBe('noopener noreferrer');
       }
     };
-    checkFooter(screen.getByLabelText('Admin tools and support'));
+    await checkMenu(screen.getByRole('complementary'));
     await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-    checkFooter(
-      within(await screen.findByRole('dialog')).getByLabelText('Admin tools and support'),
-    );
+    await checkMenu(await screen.findByRole('dialog'));
   });
 
   it('returns to the inbox and closes the mobile menu from its footer', async () => {
