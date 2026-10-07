@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Customer details:** every teammate can save a customer's name, company, email, other phone,
+  address and tags from the chat (**Customer** button next to Notes). The name shows across the inbox
+  with the WhatsApp name kept underneath, search finds these details, the inbox can be filtered by tag,
+  and the customer's name also shows on their messages in group chats. A new profile starts from what
+  WhatsApp knows (name prefilled), and a read-only **From WhatsApp** section shows the WhatsApp name,
+  the name saved on your phone, the number, and — for admins — the WhatsApp ID.
+
+### Changed
+
+- Inbox polish: the Mine / Unassigned / All tabs keep their own row (no clipped labels with a tag
+  filter), owner chips carry a person icon, phones show one tag plus "+N" so the message preview has
+  room, and the Audit page describes customer-detail changes in words.
+
 ### Security
 
 - Voice notes: the 2-minute limit now counts the real audio instead of trusting the length written in

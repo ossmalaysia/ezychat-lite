@@ -26,5 +26,8 @@ initializers.push(initPush);
 import { initVoice } from './voice/service.js';
 initializers.push(initVoice);
 
+import { initCustomers } from './customers/service.js';
+initializers.push(initCustomers);
+
 import { initAi } from './ai/service.js';
 initializers.push(initAi);

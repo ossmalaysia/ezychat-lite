@@ -129,7 +129,9 @@ export function createVoiceService(ctx: AppContext, deps: VoiceServiceDeps = {})
       transcript_lang: transcriptStatus === 'ok' ? (result?.lang ?? null) : null,
     });
     const row = repo.get(id);
-    if (emit && row) ctx.bus.emit('message:updated', rowToMessage(row));
+    if (!emit || !row) return;
+    // The message service presents every outbound Message (group sender's customer profile).
+    ctx.bus.emit('message:updated', ctx.services.messages?.present(row) ?? rowToMessage(row));
   };
 
   const throttled = (chatJid: string): boolean => {

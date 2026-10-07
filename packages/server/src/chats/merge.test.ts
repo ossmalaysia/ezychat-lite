@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDb, type DB } from '../db/index.js';
+import { CustomerRepo } from '../customers/repo.js';
 import { mergeChat } from './merge.js';
 import type { ChatRow } from './repo.js';
 
@@ -123,7 +124,15 @@ describe('mergeChat', () => {
       from: PN,
       to: LID,
       rekeyed: false,
-      moved: { messages: 66, events: 1, notes: 1, aiState: 0 },
+      moved: {
+        messages: 66,
+        events: 1,
+        notes: 1,
+        aiState: 0,
+        profiles: 0,
+        tags: 0,
+        tagsDropped: 0,
+      },
       assignedTo: null,
       assigneeDropped: null,
     });
@@ -157,7 +166,15 @@ describe('mergeChat', () => {
       from: PN,
       to: LID,
       rekeyed: false,
-      moved: { messages: 66, events: 1, notes: 1, aiState: 0 },
+      moved: {
+        messages: 66,
+        events: 1,
+        notes: 1,
+        aiState: 0,
+        profiles: 0,
+        tags: 0,
+        tagsDropped: 0,
+      },
       assigneeDropped: null,
     });
   });
@@ -260,7 +277,7 @@ describe('mergeChat', () => {
     const r = mergeChat(db, PN, LID, { now: 5000 })!;
     expect(r).toMatchObject({
       rekeyed: true,
-      moved: { messages: 3, events: 0, notes: 0, aiState: 0 },
+      moved: { messages: 3, events: 0, notes: 0, aiState: 0, profiles: 0, tags: 0, tagsDropped: 0 },
     });
     expect(chat(PN)).toBeUndefined();
     expect(chat(LID)).toMatchObject({
@@ -376,5 +393,51 @@ describe('mergeChat', () => {
         due_at: null,
       },
     ]);
+  });
+
+  describe('customer profiles', () => {
+    const empty = { name: null, company: null, email: null, otherPhone: null, address: null };
+
+    it('keeps a profile saved on the phone-number chat through the merge into the LID chat', () => {
+      seedChat(PN);
+      seedChat(LID);
+      seedMessages(PN, 1, 1000);
+      seedMessages(LID, 1, 2000);
+      const repo = new CustomerRepo(db);
+      repo.save(PN, { ...empty, name: 'Aisyah Rahman', email: 'a@pn.my' }, ['VIP'], 1, 300);
+      repo.save(LID, { ...empty, name: 'Older', company: 'Co' }, ['vip', 'Wholesale'], 2, 100);
+      const newerId = repo.get(PN)!.id;
+      const r = mergeChat(db, PN, LID, { now: 5000 })!;
+      expect(r.moved).toMatchObject({ profiles: 1, tags: 2, tagsDropped: 0 });
+      expect(repo.get(LID)).toEqual({
+        ...empty,
+        id: newerId,
+        name: 'Aisyah Rahman',
+        email: 'a@pn.my',
+        company: 'Co',
+        // one tag per key, in the first-used spelling ('vip' was saved before 'VIP')
+        tags: ['vip', 'Wholesale'],
+        updatedAt: 300,
+        updatedBy: 1,
+      });
+      expect(count('SELECT COUNT(*) AS n FROM customer_profiles WHERE chat_jid = ?', PN)).toBe(0);
+      expect(count('SELECT COUNT(*) AS n FROM customer_tags WHERE chat_jid = ?', PN)).toBe(0);
+      const meta = JSON.stringify(
+        db.prepare("SELECT meta FROM audit_log WHERE action = 'chat.merge'").get(),
+      );
+      expect(meta).not.toContain('Aisyah Rahman');
+    });
+
+    it('carries the profile when the phone-number chat is re-keyed to a new LID chat', () => {
+      seedChat(PN);
+      seedMessages(PN, 1, 1000);
+      const repo = new CustomerRepo(db);
+      repo.save(PN, { ...empty, name: 'Aisyah Rahman' }, ['VIP'], 1, 300);
+      const r = mergeChat(db, PN, LID, { now: 5000 })!;
+      expect(r.rekeyed).toBe(true);
+      expect(r.moved).toMatchObject({ profiles: 1, tags: 1 });
+      expect(repo.get(LID)).toMatchObject({ name: 'Aisyah Rahman', tags: ['VIP'] });
+      expect(repo.get(PN)).toBeNull();
+    });
   });
 });

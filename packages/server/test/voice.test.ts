@@ -5,6 +5,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Message, VoiceStatus } from '@wa-team-inbox/shared';
 import { AI_SECRET_KEY } from '../src/ai/settings-keys.js';
+import { CustomerRepo } from '../src/customers/repo.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
 import type { VoiceModelFile } from '../src/voice/model.js';
 import { getMessages } from '../src/wa-bridge/index.js';
@@ -125,6 +126,56 @@ describe('voice note transcription', () => {
     const log = lines.join('\n');
     expect(log).toContain('voice_transcribed');
     expect(log).not.toContain('Penang');
+  });
+
+  it('keeps a group sender profile name on the transcript update', async () => {
+    const group = '120363000000009@g.us';
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'dm-1',
+        chatJid: jid,
+        body: 'hi',
+        type: 'text',
+        fromMe: false,
+        senderJid: jid,
+        senderName: 'Customer',
+        timestamp: Date.now(),
+        quotedId: null,
+        media: null,
+      },
+      'live',
+    );
+    new CustomerRepo(t.ctx.db).save(
+      jid,
+      { name: 'Farah Aziz', company: null, email: null, otherPhone: null, address: null },
+      [],
+      null,
+      1,
+    );
+    saveApiKey();
+    const voice = await voiceService();
+    voice.setTranscription('cloud', actor);
+    const updates: Message[] = [];
+    t.ctx.bus.on('message:updated', (m) => updates.push(m));
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'group-voice-1',
+        chatJid: group,
+        body: null,
+        type: 'audio',
+        fromMe: false,
+        senderJid: jid,
+        senderName: 'Customer',
+        timestamp: Date.now(),
+        quotedId: null,
+        media: { mime: 'audio/ogg; codecs=opus', fileName: null, download: async () => TONE },
+      },
+      'live',
+    );
+    await voice.idle();
+    expect(updates.map((m) => [m.id, m.transcriptStatus, m.senderProfile])).toEqual([
+      ['group-voice-1', 'ok', { chatJid: jid, name: 'Farah Aziz' }],
+    ]);
   });
 
   it('leaves voice notes alone when transcription is off and never transcribes history', async () => {

@@ -23,6 +23,9 @@ import {
   type ChatPatchBody,
   type ChatStatus,
   type CreateUserBody,
+  type CustomerProfileBody,
+  type CustomerProfileResponse,
+  type CustomerTagsResponse,
   type CloudflareCreateBody,
   type LoginBody,
   type Message,
@@ -51,6 +54,8 @@ export interface ChatFilters {
   status?: ChatStatus;
   assigned: 'me' | 'none' | 'any';
   q?: string;
+  /** customer tag filter */
+  tag?: string;
 }
 
 export const qk = {
@@ -62,6 +67,8 @@ export const qk = {
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
+  customerProfile: (jid: string) => ['customer-profile', jid] as const,
+  customerTags: (q: string) => ['customer-tags', q] as const,
   quickReplies: ['quick-replies'] as const,
   users: ['users'] as const,
   directory: ['users', 'directory'] as const,
@@ -113,7 +120,12 @@ const STATUS_RANK: Record<Message['status'], number> = {
  * that still carries the pending server row. Never let such a stale copy regress the cached
  * message's status or WA id; an explicit `failed` (or failed → pending retry) always applies.
  */
-function mergeMessage(existing: Message, incoming: Message): Message {
+function mergeMessage(existing: Message, rawIncoming: Message): Message {
+  // A copy without `senderProfile` (undefined, not null) says nothing about it: keep the known one.
+  const incoming =
+    rawIncoming.senderProfile === undefined && existing.senderProfile !== undefined
+      ? { ...rawIncoming, senderProfile: existing.senderProfile }
+      : rawIncoming;
   if (incoming.status !== 'failed' && STATUS_RANK[existing.status] > STATUS_RANK[incoming.status]) {
     return {
       ...incoming,
@@ -124,6 +136,37 @@ function mergeMessage(existing: Message, incoming: Message): Message {
     };
   }
   return incoming;
+}
+
+/**
+ * A direct chat's profile name changed: relabel that customer's cached group messages
+ * (the server attaches `senderProfile` only when messages are loaded or arrive).
+ */
+export function patchSenderProfilesInCache(qc: QueryClient, chat: Chat): void {
+  // Older servers omit `whatsappName`: then the chat name cannot tell a profile name apart.
+  if (chat.type !== 'dm' || chat.whatsappName === undefined) return;
+  const name = chat.name.trim();
+  const profile =
+    name && (chat.whatsappName === null || name !== chat.whatsappName)
+      ? { chatJid: chat.jid, name }
+      : null;
+  qc.setQueriesData<MessagesData>({ queryKey: ['messages'] }, (old) => {
+    if (!old?.pages) return old;
+    let changed = false;
+    const pages = old.pages.map((p) => {
+      let pageChanged = false;
+      const messages = p.messages.map((m) => {
+        if (m.senderProfile?.chatJid !== chat.jid) return m;
+        if (profile && m.senderProfile.name === profile.name) return m;
+        pageChanged = true;
+        return { ...m, senderProfile: profile };
+      });
+      if (!pageChanged) return p;
+      changed = true;
+      return { ...p, messages };
+    });
+    return changed ? { ...old, pages } : old;
+  });
 }
 
 /** Same URL the server builds for a message's media (`mediaUrlFor` in messages/repo.ts). */
@@ -375,6 +418,7 @@ export function useChats(filters: ChatFilters) {
       if (filters.status) p.set('status', filters.status);
       p.set('assigned', filters.assigned);
       if (filters.q?.trim()) p.set('q', filters.q.trim());
+      if (filters.tag) p.set('tag', filters.tag);
       if (pageParam) p.set('cursor', pageParam);
       return api<ChatListResponse>(`/chats?${p.toString()}`, { signal });
     },
@@ -605,6 +649,44 @@ export function useAddNote(jid: string) {
         old ? (old.some((n) => n.id === note.id) ? old : [...old, note]) : old,
       );
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Customer profiles
+// ---------------------------------------------------------------------------
+
+export function useCustomerProfile(jid: string | null | undefined) {
+  return useQuery({
+    queryKey: qk.customerProfile(jid ?? ''),
+    queryFn: ({ signal }) =>
+      api<CustomerProfileResponse>(`/chats/${enc(jid ?? '')}/profile`, { signal }),
+    enabled: !!jid,
+  });
+}
+
+export function useSaveCustomerProfile(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CustomerProfileBody) =>
+      api<CustomerProfileResponse>(`/chats/${enc(jid)}/profile`, { method: 'PUT', body }),
+    onSuccess: (saved) => {
+      qc.setQueryData(qk.customerProfile(jid), saved);
+      void qc.invalidateQueries({ queryKey: ['customer-tags'] });
+      // Header name and list row/tags, even when the socket is down.
+      void qc.invalidateQueries({ queryKey: qk.chat(jid) });
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+    },
+  });
+}
+
+export function useCustomerTags(q: string) {
+  return useQuery({
+    queryKey: qk.customerTags(q),
+    queryFn: ({ signal }) =>
+      api<CustomerTagsResponse>(`/customer-tags?q=${encodeURIComponent(q)}`, { signal }),
+    select: (r) => r.tags,
+    staleTime: 30_000,
   });
 }
 

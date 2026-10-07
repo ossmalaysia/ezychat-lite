@@ -116,23 +116,33 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
           title: t('common:status.noResults'),
           description: t('chatList.empty.search', { query: filters.q }),
         }
-      : filters.status === 'resolved'
+      : filters.tag
         ? {
-            title: t('chatList.empty.resolvedTitle'),
-            description: t('chatList.empty.resolvedDescription'),
+            title: t('common:status.noResults'),
+            description: t('chatList.empty.tag', { tag: filters.tag }),
           }
-        : { title: t(empty.titleKey), description: t(empty.descriptionKey) };
+        : filters.status === 'resolved'
+          ? {
+              title: t('chatList.empty.resolvedTitle'),
+              description: t('chatList.empty.resolvedDescription'),
+            }
+          : { title: t(empty.titleKey), description: t(empty.descriptionKey) };
     return (
       <EmptyState
         className="flex-1"
         illustration={
-          filters.q ? '/illustrations/no-results.png' : '/illustrations/empty-inbox.png'
+          filters.q || filters.tag
+            ? '/illustrations/no-results.png'
+            : '/illustrations/empty-inbox.png'
         }
         title={copy.title}
         description={copy.description}
         action={
           onResetFilters &&
-          (filters.q || filters.assigned !== 'any' || filters.status === 'resolved') ? (
+          (filters.q ||
+            filters.tag ||
+            filters.assigned !== 'any' ||
+            filters.status === 'resolved') ? (
             <Button variant="outline" size="touch" onClick={onResetFilters}>
               {t('chatList.showAllOpen')}
             </Button>

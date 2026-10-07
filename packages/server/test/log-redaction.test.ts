@@ -1,5 +1,7 @@
-import { expect, it } from 'vitest';
-import { redactSecretText, scrubLogValue } from '../src/log-redaction.js';
+import Fastify, { type FastifyBaseLogger } from 'fastify';
+import { expect, it, vi } from 'vitest';
+import { redactLogLine, redactSecretText, scrubLogValue } from '../src/log-redaction.js';
+import { createLogger } from '../src/logger.js';
 
 it('redacts JSON-embedded token fields, plain and escaped', () => {
   const plain = redactSecretText(
@@ -61,4 +63,45 @@ it('redacts a leading code= in bare bodies and URLSearchParams', () => {
   expect(scrubLogValue(new URLSearchParams('code=abc&state=xyz&keep=1&refresh_token=rt'))).toBe(
     'code=[REDACTED]&state=[REDACTED]&keep=1&refresh_token=[REDACTED]',
   );
+});
+
+it('redacts inbox search and tag terms in logged URLs, live and in support exports', () => {
+  expect(redactSecretText('GET /api/chats?status=open&q=Farah%20Aziz&tag=VIP&limit=50')).toBe(
+    'GET /api/chats?status=open&q=[REDACTED]&tag=[REDACTED]&limit=50',
+  );
+  expect(redactSecretText('/api/customer-tags?q=hal')).toBe('/api/customer-tags?q=[REDACTED]');
+  expect(redactSecretText('a q=b in prose stays')).toBe('a q=b in prose stays');
+  const exported = redactLogLine(
+    JSON.stringify({
+      msg: 'incoming request',
+      req: { url: '/api/chats?q=orders%40farah.my&tag=Halal' },
+    }),
+  );
+  expect(exported).not.toMatch(/farah|Halal/);
+  expect(exported).toContain('/api/chats?q=[REDACTED]&tag=[REDACTED]');
+});
+
+it('the live request log never contains search or tag terms', async () => {
+  const lines: string[] = [];
+  const write = vi
+    .spyOn(process.stdout, 'write')
+    .mockImplementation((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    });
+  const handle = await createLogger({ stdout: true, level: 'info' });
+  const app = Fastify({ loggerInstance: handle.log as FastifyBaseLogger });
+  app.get('/api/chats', async () => ({ ok: true }));
+  try {
+    const r = await app.inject({ method: 'GET', url: '/api/chats?status=open&q=Farah&tag=VIP' });
+    expect(r.statusCode).toBe(200);
+  } finally {
+    await app.close();
+    handle.close();
+    write.mockRestore();
+  }
+  const out = lines.join('');
+  expect(out).toContain('incoming request');
+  expect(out).toContain('/api/chats?status=open&q=[REDACTED]&tag=[REDACTED]');
+  expect(out).not.toMatch(/Farah|VIP/);
 });

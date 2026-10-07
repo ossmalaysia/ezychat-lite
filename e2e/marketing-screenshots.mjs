@@ -151,6 +151,23 @@ async function seed() {
   await pause(300);
   await reply(d, jid('6677889'), 'Sure Nurul! 2 Nasi Lemak Ayam, ready at 1pm. Total RM24.');
   await say(owner, jid('6677889'), 'Perfect, see you then!', 'Nurul Huda');
+  // Customer profiles (lead info): a filled profile and a tagged repeat customer.
+  await owner.call('PUT', `/chats/${encodeURIComponent(jid('3110021'))}/profile`, {
+    name: 'Farah Aziz',
+    company: 'Farah Catering Co',
+    email: 'orders@farahcatering.example',
+    otherPhone: '',
+    address: 'Georgetown, Penang',
+    tags: ['VIP', 'Catering'],
+  });
+  await owner.call('PUT', `/chats/${encodeURIComponent(jid('8814455'))}/profile`, {
+    name: '',
+    company: '',
+    email: '',
+    otherPhone: '',
+    address: '',
+    tags: ['Repeat'],
+  });
   await pause(500);
   return owner;
 }
@@ -160,6 +177,12 @@ const SHOTS = [
   ['inbox', 'inbox', '/', ['desktop', 'mobile']],
   ['chat', 'conversation', `/chats/${encodeURIComponent(jid('8814455'))}`, ['desktop', 'mobile']],
   ['chat', 'conversation-notes', `/chats/${encodeURIComponent(jid('3110021'))}`, ['desktop']],
+  [
+    'chat',
+    'customer',
+    `/chats/${encodeURIComponent(jid('3110021'))}?customer=1`,
+    ['desktop', 'mobile'],
+  ],
   ['chat', 'conversation-chinese', `/chats/${encodeURIComponent(jid('7020388'))}`, ['mobile']],
   ['admin-members', 'members', '/admin/members', ['desktop', 'mobile']],
   ['ai-member', 'ai-member', '/admin/members/ai', ['desktop', 'mobile']],

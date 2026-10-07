@@ -21,8 +21,10 @@ const TABLES = [
   'ai_documents',
   'ai_chat_state',
   'jid_aliases',
+  'customer_profiles',
+  'customer_tags',
 ];
-const LATEST = 6;
+const LATEST = 7;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {
@@ -45,6 +47,22 @@ describe('migrate', () => {
     );
     expect(userCols).toContain('locale');
     expect(userCols).toContain('kind');
+    db.close();
+  });
+
+  it('customer tables never cascade from chats (user-written data survives a chat delete)', () => {
+    const db = new Database(':memory:');
+    migrate(db);
+    const fks = (t: string) =>
+      (db.prepare(`PRAGMA foreign_key_list(${t})`).all() as Array<{ table: string }>).map(
+        (f) => f.table,
+      );
+    expect(fks('customer_profiles')).toEqual(['users']);
+    expect(fks('customer_tags')).toEqual([]);
+    const cols = (
+      db.prepare('PRAGMA table_info(customer_profiles)').all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toContain('id');
     db.close();
   });
 

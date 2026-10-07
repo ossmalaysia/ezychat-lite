@@ -6,15 +6,7 @@ import { formatDateTime } from '../lib/format';
 import { EmptyState, PageHeader, ResponsiveTable, type Column } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { ErrorState, ListSkeleton, Pending } from './adminUi';
-import { auditActionLabel } from './audit-actions';
-
-function metaSummary(meta: Record<string, unknown>): string {
-  const parts = Object.entries(meta).map(([k, v]) => {
-    const val = typeof v === 'string' ? v : JSON.stringify(v);
-    return `${k}: ${val}`;
-  });
-  return parts.join(', ');
-}
+import { auditActionLabel, auditDetails } from './audit-actions';
 
 export function AuditPage() {
   const audit = useAudit();
@@ -41,7 +33,7 @@ export function AuditPage() {
       header: t('audit.columns.action'),
       className: 'md:w-44',
       cell: (e) => (
-        <span title={e.action} className="font-medium">
+        <span title={e.action} className="break-words font-medium">
           {auditActionLabel(e.action, t)}
         </span>
       ),
@@ -49,7 +41,11 @@ export function AuditPage() {
     {
       key: 'details',
       header: t('audit.columns.details'),
-      cell: (e) => <span className="break-words text-muted-foreground">{metaSummary(e.meta)}</span>,
+      cell: (e) => (
+        <span className="break-words text-muted-foreground">
+          {auditDetails(e.action, e.meta, t)}
+        </span>
+      ),
     },
     {
       key: 'ip',

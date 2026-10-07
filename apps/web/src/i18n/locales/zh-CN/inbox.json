@@ -22,7 +22,12 @@
     "unassigned": "未指派",
     "all": "全部",
     "open": "进行中",
-    "resolved": "已解决"
+    "resolved": "已解决",
+    "tag": "标签",
+    "tagLabel": "按标签筛选",
+    "tagSearch": "搜索标签",
+    "tagClear": "清除标签筛选",
+    "tagEmpty": "暂无标签"
   },
   "chatList": {
     "loading": "正在加载聊天",
@@ -45,7 +50,8 @@
       },
       "search": "没有与“{{query}}”匹配的聊天。",
       "resolvedTitle": "没有已解决的聊天",
-      "resolvedDescription": "这里没有已解决的聊天。"
+      "resolvedDescription": "这里没有已解决的聊天。",
+      "tag": "没有带“{{tag}}”标签的聊天。"
     }
   },
   "chatListItem": {
@@ -53,7 +59,8 @@
     "unknownContact": "未知联系人",
     "resolved": "已解决",
     "assignedTo": "已指派给 {{name}}",
-    "unread_other": "{{count}} 条未读"
+    "unread_other": "{{count}} 条未读",
+    "moreTags": "+{{count}}"
   },
   "header": {
     "back": "返回聊天列表",
@@ -67,7 +74,9 @@
     "notes": "备注",
     "reopen": "重新打开",
     "resolve": "解决",
-    "ai": "{{name}}（AI 销售客服）"
+    "ai": "{{name}}（AI 销售客服）",
+    "customer": "客户",
+    "customerLabel": "客户资料"
   },
   "conversation": {
     "loading": "正在加载聊天",
@@ -332,5 +341,56 @@
     "title": "添加到主屏幕以接收通知",
     "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 EzyChat Lite 并开启通知。",
     "share": "分享"
+  },
+  "customer": {
+    "title": "客户",
+    "description": "团队为此客户保存的资料",
+    "close": "关闭客户资料",
+    "empty": "暂无资料",
+    "emptyHint": "添加公司、电子邮箱、地址和标签，方便任何同事接手此聊天。",
+    "addDetails": "添加资料",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "saveFailed": "无法保存客户资料",
+    "noName": "未设置姓名",
+    "whatsappName": "WhatsApp：{{name}}",
+    "updatedBy": "由 {{name}} 更新 · {{when}}",
+    "updated": "更新于 {{when}}",
+    "updatedByYou": "你更新了资料 · {{when}}",
+    "changedWhileEditing": "{{name}} 在你编辑期间更新了资料 — 你的更改和对方的更改都会保留",
+    "changedWhileEditingUnknown": "一位同事在你编辑期间更新了资料 — 你的更改和对方的更改都会保留",
+    "changedWhileEditingYou": "你在编辑期间于其他地方保存了更改 — 两边的更改都会保留",
+    "name": "姓名",
+    "company": "公司",
+    "email": "电子邮箱",
+    "otherPhone": "其他电话",
+    "address": "地址 / 地区",
+    "tags": "标签",
+    "tagPlaceholder": "输入标签",
+    "addTag": "添加标签",
+    "tagLimit": "最多 10 个标签",
+    "removeTag": "移除标签 {{tag}}",
+    "discardTitle": "放弃更改？",
+    "discard": "放弃",
+    "keepEditing": "继续编辑",
+    "open": "打开对话",
+    "errors": {
+      "email": "请输入有效的电子邮箱地址",
+      "otherPhone": "只能使用数字、空格、+、-、( 或 )",
+      "tooLong": "最多 {{max}} 个字符",
+      "tags": "请检查标签：最多 10 个，每个最多 30 个字符"
+    },
+    "otherPhoneHint": "WhatsApp 号码 {{phone}} 已保存。",
+    "wa": {
+      "title": "来自 WhatsApp",
+      "pushName": "WhatsApp 名称",
+      "savedName": "手机通讯录名称",
+      "phone": "电话",
+      "phoneHidden": "已被 WhatsApp 隐藏",
+      "lid": "WhatsApp ID",
+      "copyLid": "复制 WhatsApp ID",
+      "copied": "已复制 WhatsApp ID"
+    }
   }
 }
