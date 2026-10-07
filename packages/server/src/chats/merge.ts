@@ -1,6 +1,7 @@
+import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
-import { ChatRepo, jidUser, type ChatRow } from './repo.js';
+import { ChatRepo, jidUser, type ChatColumns } from './repo.js';
 import { isFallbackName } from './service.js';
 
 export interface MergeResult {
@@ -9,7 +10,16 @@ export interface MergeResult {
   /** `to` had no chat row: `from` was renamed instead */
   rekeyed: boolean;
   /** `aiState`: 1 when the AI Sales Agent's `ai_chat_state` row of `from` was moved/merged */
-  moved: { messages: number; events: number; notes: number; aiState: number };
+  moved: {
+    messages: number;
+    events: number;
+    notes: number;
+    aiState: number;
+    /** customer profiles carried over (counts only; values never leave the tables) */
+    profiles: number;
+    tags: number;
+    tagsDropped: number;
+  };
   assignedTo: number | null;
   /** owner removed because both chats had different owners (one owner per chat) */
   assigneeDropped: number | null;
@@ -69,7 +79,7 @@ function mergeAiState(db: DB, from: string, to: string, fromNewer: boolean): num
 }
 
 /** Name for a re-keyed chat: saved contact name > WhatsApp push name > the chat's own real name. */
-function rekeyName(db: DB, from: ChatRow, to: string): string {
+function rekeyName(db: DB, from: ChatColumns, to: string): string {
   const contact = db
     .prepare(
       `SELECT saved_name, push_name FROM contacts WHERE jid IN (?, ?)
@@ -82,7 +92,7 @@ function rekeyName(db: DB, from: ChatRow, to: string): string {
 }
 
 /** saved contact name > a real (non-fallback) chat name > the canonical chat's name */
-function bestName(db: DB, from: ChatRow, to: ChatRow): string {
+function bestName(db: DB, from: ChatColumns, to: ChatColumns): string {
   const saved = db
     .prepare(
       `SELECT saved_name FROM contacts WHERE jid IN (?, ?) AND saved_name IS NOT NULL AND saved_name <> ''
@@ -170,6 +180,7 @@ export function mergeChat(
       notes: db.prepare('UPDATE notes SET chat_jid = ? WHERE chat_jid = ?').run(to, from).changes,
       // must run before DELETE FROM chats (cascade) and after the `to` row exists (foreign key)
       aiState: mergeAiState(db, from, to, fromNewer),
+      ...mergeCustomerProfile(db, from, to),
     };
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.

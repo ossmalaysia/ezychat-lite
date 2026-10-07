@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,10 @@ export interface ConversationHeaderProps {
   notesOpen: boolean;
   notesCount: number;
   onToggleNotes(): void;
+  /** Direct chats only: the Customer details button. */
+  showCustomer: boolean;
+  customerOpen: boolean;
+  onToggleCustomer(): void;
   busy?: boolean;
 }
 
@@ -39,6 +43,9 @@ export function ConversationHeader({
   notesOpen,
   notesCount,
   onToggleNotes,
+  showCustomer,
+  customerOpen,
+  onToggleCustomer,
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
@@ -65,7 +72,7 @@ export function ConversationHeader({
   }
 
   return (
-    <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b bg-surface px-1.5 py-1.5 sm:px-3">
+    <header className="@container flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b bg-surface px-1.5 py-1.5 sm:px-3">
       <Button
         variant="ghost"
         size="icon-touch"
@@ -91,7 +98,9 @@ export function ConversationHeader({
           {resolved && ` · ${t('header.resolved')}`}
         </p>
       </div>
-      <div className="flex w-full items-center gap-2 px-1 md:w-auto md:px-0">
+      {/* One row from a 672px-wide header (Customer/Notes icon-only below 768px); narrower
+          headers put the actions on their own row under the name, with Resolve on the right. */}
+      <div className="flex w-full items-center gap-2 px-1 @2xl:w-auto @2xl:px-0">
         <Select
           value={chat.assignedTo == null ? UNASSIGNED : String(chat.assignedTo)}
           disabled={busy}
@@ -101,7 +110,8 @@ export function ConversationHeader({
             id={`assign-${chat.jid}`}
             aria-label={t('header.assignedTo')}
             title={directory.nameOf(chat.assignedTo) ?? t('header.unassigned')}
-            className="h-11! min-w-0 flex-1 bg-surface text-base md:w-44 md:flex-none md:text-sm"
+            // The value is a flex box by default, which clips without an ellipsis.
+            className="h-11! min-w-0 flex-1 bg-surface text-base *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate md:w-44 md:flex-none md:text-sm"
           >
             <SelectValue placeholder={t('header.unassigned')} />
           </SelectTrigger>
@@ -120,6 +130,23 @@ export function ConversationHeader({
             ))}
           </SelectContent>
         </Select>
+        {showCustomer && (
+          <Button
+            variant="ghost"
+            size="touch"
+            onClick={onToggleCustomer}
+            aria-pressed={customerOpen}
+            aria-label={t('header.customerLabel')}
+            title={t('header.customerLabel')}
+            className={cn(
+              'relative',
+              customerOpen ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+            )}
+          >
+            <UserRound className="size-5" aria-hidden="true" />
+            <span className="@max-3xl:sr-only">{t('header.customer')}</span>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="touch"
@@ -133,7 +160,8 @@ export function ConversationHeader({
           )}
         >
           <NotebookPen className="size-5" aria-hidden="true" />
-          <span>{t('header.notes')}</span>
+          {/* Icon-only below a 768px header (aria-label keeps the name). */}
+          <span className="@max-3xl:sr-only">{t('header.notes')}</span>
           {notesCount > 0 && (
             <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
               {notesCount}
@@ -145,7 +173,7 @@ export function ConversationHeader({
           size="touch"
           onClick={onToggleStatus}
           disabled={busy}
-          className="shrink-0"
+          className="ml-auto shrink-0"
         >
           {resolved ? <RotateCcw aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
           {resolved ? t('header.reopen') : t('header.resolve')}

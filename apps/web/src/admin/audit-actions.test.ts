@@ -56,7 +56,7 @@ describe('auditActionLabel', () => {
   });
 
   it('turns an action the catalog does not know yet into words that wrap', () => {
-    expect(auditActionLabel('customer.profile_update', t)).toBe('Customer profile update');
+    expect(auditActionLabel('order.status_change', t)).toBe('Order status change');
   });
 });
 
@@ -115,4 +115,18 @@ it('treats only successful sign-ins and sign-outs as routine', () => {
   expect(isSignInAction('auth.logout')).toBe(true);
   expect(isSignInAction('auth.login_failed')).toBe(false);
   expect(isSignInAction('user.update')).toBe(false);
+});
+
+it('labels customer detail changes and lists the changed fields, never the WhatsApp ID', () => {
+  expect(auditActionLabel('customer.profile_update', t)).toBe('Customer details updated');
+  expect(
+    auditDetails(
+      { chatJid: '60123456789@s.whatsapp.net', changed: ['company', 'otherPhone'] },
+      t,
+      () => undefined,
+    ),
+  ).toBe('Chat: +60123456789 · Changed company, other phone');
+  const lid = auditDetails({ chatJid: '888000222@lid', changed: ['email'] }, t, () => undefined);
+  expect(lid).toBe('Changed email');
+  expect(lid).not.toContain('888000222');
 });

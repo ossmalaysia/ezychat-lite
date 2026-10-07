@@ -99,6 +99,16 @@ rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` o
 `push/service.ts` sends web push for `inbound:notify` to the assignee (or every active user if
 unassigned), skipping users who are online.
 
+**Customer profiles.** `packages/server/src/customers/`: one profile per direct chat
+(`customer_profiles`, `customer_tags`), edited by any teammate, audited by changed field names only.
+Profiles have a stable `id` (kept across merges) and no foreign key to `chats` (user data never
+cascades). `rowToChat` prefers the profile name and adds `tags`/`whatsappName`; its rows come only
+from `ChatRepo.get`/`list` (profile join + one batched tag query; SQL in `customers/sql.ts`). Every
+outbound Message goes through the message service's `present()` (group `senderProfile` via
+`AliasStore.route()`). `mergeChat` must move every table keyed by `chat_jid` (profiles via
+`customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
+never earlier in the prompt.
+
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.
 
@@ -192,6 +202,16 @@ cover navigation from every admin section and recovery from malformed URLs.
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
+- **Screen review for every UI change.** Before a feature that changes screens is done:
+  1. Capture each affected screen at desktop 1280 px and mobile 360 px, in light and dark where relevant,
+     and in every state: empty, filled, editing, error and long text.
+  2. Run a UI/UX product-designer review against `docs/design-system.md`, the shadcn components and
+     usability/accessibility practice. Check hierarchy, spacing, labels, touch targets, focus and
+     consistency with neighbouring screens.
+  3. Fix the findings with tests: e2e plus `screens.smoke.mjs`. Then re-capture the screens and compare
+     before/after pairs: design fixes can introduce new problems.
+  4. Refresh `docs/screenshots/`.
+  5. Show the desktop and mobile screenshots to the owner.
 
 ## Multi-agent rules (orchestrators)
 

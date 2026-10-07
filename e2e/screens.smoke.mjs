@@ -16,6 +16,7 @@ const CHAT = '60123456789@s.whatsapp.net';
 const ROUTES = [
   ['inbox', '/'],
   ['conversation', `/chats/${encodeURIComponent(CHAT)}`],
+  ['conversation-customer', `/chats/${encodeURIComponent(CHAT)}?customer=1`],
   ['admin-members', '/admin/members'],
   ['admin-members-ai', '/admin/members/ai'],
   ['admin-quick-replies', '/admin/quick-replies'],
@@ -41,16 +42,26 @@ async function check(page, name) {
   // A logged-out visit to /setup or /login probes /api/me and gets the expected 401.
   const expected401 = name === 'setup' || name === 'login';
   const onConsole = (m) =>
-    m.type() === 'error' && !(expected401 && m.text().includes('401')) && errors.push(`console: ${m.text().slice(0, 200)}`);
-  const onResp = (r) => r.url().includes('/api/') && r.status() >= 500 && errors.push(`api ${r.status()}: ${r.url()}`);
+    m.type() === 'error' &&
+    !(expected401 && m.text().includes('401')) &&
+    errors.push(`console: ${m.text().slice(0, 200)}`);
+  const onResp = (r) =>
+    r.url().includes('/api/') && r.status() >= 500 && errors.push(`api ${r.status()}: ${r.url()}`);
   page.on('pageerror', onErr);
   page.on('console', onConsole);
   page.on('response', onResp);
   return async (vp) => {
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(800);
-    const text = (await page.locator('body').innerText().catch(() => '')).trim();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    const text = (
+      await page
+        .locator('body')
+        .innerText()
+        .catch(() => '')
+    ).trim();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
     if (text.length < 20) errors.push(`blank screen (${text.length} chars of text)`);
     if (overflow > 1) errors.push(`horizontal overflow ${overflow}px`);
     await page.screenshot({ path: join(OUT, `${name}-${vp}.png`), fullPage: false });
@@ -71,7 +82,10 @@ for (const [vp, size] of Object.entries(VIEWPORTS)) {
     let done = await check(page, 'setup');
     await page.goto('/setup');
     await done(vp);
-    const r = await page.request.post('/api/setup/admin', { data: ADMIN, headers: { origin: BASE } });
+    const r = await page.request.post('/api/setup/admin', {
+      data: ADMIN,
+      headers: { origin: BASE },
+    });
     if (!r.ok()) throw new Error(`setup failed ${r.status()} ${await r.text()}`);
     await page.request.post('/api/auth/logout', { headers: { origin: BASE } });
   }
@@ -90,6 +104,18 @@ for (const [vp, size] of Object.entries(VIEWPORTS)) {
         headers: { origin: BASE },
       });
     }
+    // A long CJK profile name and tags exercise truncation in the list, header and panel.
+    const profile = await page.request.put(`/api/chats/${encodeURIComponent(CHAT)}/profile`, {
+      data: {
+        name: '陈伟杰（槟城分店采购负责人）',
+        company: 'Syarikat Perdagangan Pulau Pinang Sdn Bhd',
+        email: 'procurement@example.com',
+        address: 'Lebuh Chulia, George Town',
+        tags: ['VIP', 'Wholesale', 'Halal catering'],
+      },
+      headers: { origin: BASE },
+    });
+    if (!profile.ok()) throw new Error(`profile seed failed ${profile.status()}`);
   }
   for (const [name, path] of ROUTES) {
     done = await check(page, name);
@@ -100,7 +126,10 @@ for (const [vp, size] of Object.entries(VIEWPORTS)) {
 }
 await browser.close();
 
-for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.viewport.padEnd(7)} ${r.screen}${r.ok ? '' : '\n      ' + r.errors.join('\n      ')}`);
+for (const r of results)
+  console.log(
+    `${r.ok ? 'PASS' : 'FAIL'}  ${r.viewport.padEnd(7)} ${r.screen}${r.ok ? '' : '\n      ' + r.errors.join('\n      ')}`,
+  );
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed}/${results.length} screens OK — screenshots in ${OUT}`);
 process.exit(failed ? 1 : 0);

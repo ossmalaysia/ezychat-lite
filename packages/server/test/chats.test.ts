@@ -204,6 +204,8 @@ describe('chat profile images', () => {
       assigned_to: null,
       updated_at: Date.now(),
       phone: null,
+      profile_name: null,
+      profile_tags: [],
     };
     expect(rowToChat(row).avatarUrl).toBe('/api/chats/60123%3A7%40s.whatsapp.net/avatar');
   });
@@ -218,6 +220,8 @@ describe('chat profile images', () => {
       status: 'open',
       assigned_to: null,
       updated_at: 1,
+      profile_name: null,
+      profile_tags: [] as string[],
     } as const;
     expect(rowToChat({ ...base, jid: '123456789@lid', name: '', phone: null })).toMatchObject({
       name: '',

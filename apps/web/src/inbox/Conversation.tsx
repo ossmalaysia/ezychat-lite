@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import type { Message } from '@wa-team-inbox/shared';
 import { ApiError } from '../api/client';
 import {
@@ -35,11 +36,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { Composer } from './Composer';
+import { CustomerPanel } from './CustomerPanel';
 import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { NotesPanel } from './NotesPanel';
+import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
@@ -60,6 +64,8 @@ const confirmedChats = new Set<string>();
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const { t } = useTranslation(['inbox', 'common']);
+  // Phones get the short placeholder (one line); the "/" quick-reply hint fits from sm.
+  const wideComposer = useMediaQuery('(min-width: 640px)');
   const qc = useQueryClient();
   const chatQ = useChat(jid);
   const messagesQ = useMessages(jid);
@@ -72,7 +78,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const markRead = useMarkRead(jid);
   const patch = usePatchChat(jid);
   const { typing, emitTyping } = useRealtime();
+  const [searchParams] = useSearchParams();
   const [notesOpen, setNotesOpen] = useState(false);
+  // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
+  const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
+  // Set by CustomerPanel while editing: switching panels or chats asks before losing changes.
+  // It is the inbox page's navigation guard, so chat list links ask too.
+  const customerGuard = useNavigationGuardRef();
+  const leaveCustomer = (next: () => void) =>
+    customerGuard.current ? customerGuard.current(next) : next();
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
@@ -244,7 +258,19 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
-          onToggleNotes={() => setNotesOpen((o) => !o)}
+          onToggleNotes={() =>
+            leaveCustomer(() => {
+              setNotesOpen((o) => !o);
+              setCustomerOpen(false);
+            })
+          }
+          showCustomer={chat.type === 'dm'}
+          customerOpen={customerOpen && chat.type === 'dm'}
+          onToggleCustomer={() => {
+            if (customerOpen) return leaveCustomer(() => setCustomerOpen(false));
+            setCustomerOpen(true);
+            setNotesOpen(false);
+          }}
         />
         <MessageList
           items={items}
@@ -278,7 +304,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               quickReplies={quickReplies.data ?? []}
               disabled={blocked}
               placeholder={
-                blocked ? t('conversation.placeholderBlocked') : t('conversation.placeholder')
+                blocked
+                  ? t('conversation.placeholderBlocked')
+                  : wideComposer
+                    ? t('conversation.placeholder')
+                    : t('composer.placeholder')
               }
               confirmSend={confirmSend}
               onTyping={() => emitTyping(jid)}
@@ -298,6 +328,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         directory={directory}
         onClose={() => setNotesOpen(false)}
       />
+      {chat.type === 'dm' && (
+        <CustomerPanel
+          jid={jid}
+          open={customerOpen}
+          directory={directory}
+          onClose={() => setCustomerOpen(false)}
+          guardRef={customerGuard}
+        />
+      )}
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>

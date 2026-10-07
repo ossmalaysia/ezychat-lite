@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { ConversationHeader } from './ConversationHeader';
 import { buildDirectory } from './useDirectory';
@@ -18,7 +18,10 @@ const base: Chat = {
   phone: null,
 };
 
-function renderHeader(chat: Chat) {
+function renderHeader(
+  chat: Chat,
+  customer: { customerOpen?: boolean; onToggleCustomer?: () => void } = {},
+) {
   return render(
     <ConversationHeader
       chat={chat}
@@ -29,6 +32,9 @@ function renderHeader(chat: Chat) {
       notesOpen={false}
       notesCount={0}
       onToggleNotes={vi.fn()}
+      showCustomer={chat.type === 'dm'}
+      customerOpen={customer.customerOpen ?? false}
+      onToggleCustomer={customer.onToggleCustomer ?? vi.fn()}
     />,
   );
 }
@@ -57,5 +63,22 @@ describe('ConversationHeader identity', () => {
       phone: '60123456789',
     });
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('+60123456789');
+  });
+});
+
+describe('ConversationHeader customer button', () => {
+  it('toggles the customer details of a direct chat', async () => {
+    const onToggleCustomer = vi.fn();
+    renderHeader({ ...base, name: 'Farah' }, { customerOpen: true, onToggleCustomer });
+    const button = screen.getByRole('button', { name: 'Customer details' });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.textContent).toContain('Customer');
+    fireEvent.click(button);
+    expect(onToggleCustomer).toHaveBeenCalledOnce();
+  });
+
+  it('has no customer button in a group', () => {
+    renderHeader({ ...base, jid: '1203@g.us', type: 'group', name: 'Team' });
+    expect(screen.queryByRole('button', { name: 'Customer details' })).toBeNull();
   });
 });

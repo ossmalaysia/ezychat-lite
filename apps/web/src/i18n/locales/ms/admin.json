@@ -188,7 +188,8 @@
       "aiVoiceUpdate": "Tetapan mesej suara diubah",
       "aiVoiceModelDownload": "Muat turun model suara dimulakan",
       "aiVoiceModelCancel": "Muat turun model suara dibatalkan",
-      "aiVoiceModelRemove": "Model suara dibuang"
+      "aiVoiceModelRemove": "Model suara dibuang",
+      "customerProfileUpdate": "Butiran pelanggan dikemas kini"
     },
     "fields": {
       "chat": "Sembang",
@@ -238,7 +239,19 @@
     "filterAll": "Semua aktiviti",
     "filterChanges": "Sembunyikan log masuk",
     "hiddenSignIns_one": "{{count}} log masuk disembunyikan",
-    "hiddenSignIns_other": "{{count}} log masuk disembunyikan"
+    "hiddenSignIns_other": "{{count}} log masuk disembunyikan",
+    "details": {
+      "customerChanged": "Diubah: {{fields}}"
+    },
+    "customerFields": {
+      "name": "nama",
+      "company": "syarikat",
+      "email": "e-mel",
+      "otherPhone": "telefon lain",
+      "address": "alamat",
+      "tags": "tag"
+    },
+    "listSeparator": ", "
   },
   "settings": {
     "title": "Tetapan",

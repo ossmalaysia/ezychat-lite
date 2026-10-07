@@ -237,3 +237,12 @@ it('coalesces repeated sentinel and manual next-page requests', async () => {
     client.clear();
   }
 });
+
+it('explains an empty tag filter and offers to show all open chats', () => {
+  chats([]);
+  const onResetFilters = vi.fn();
+  render(list({ filters: { assigned: 'any', status: 'open', tag: 'VIP' }, onResetFilters }));
+  expect(screen.getByText('No chats are tagged “VIP”.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all open chats' }));
+  expect(onResetFilters).toHaveBeenCalledOnce();
+});

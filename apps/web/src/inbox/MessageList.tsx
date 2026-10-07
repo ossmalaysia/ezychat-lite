@@ -194,6 +194,7 @@ export function MessageList({
                     onRetry={onRetry}
                     retrying={retryingId === m.id}
                     onMediaLoad={onMediaLoad}
+                    directory={directory}
                   />
                 );
               }

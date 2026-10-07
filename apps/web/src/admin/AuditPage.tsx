@@ -49,7 +49,7 @@ export function AuditPage() {
       // Wrap between words, never inside one (the table cell otherwise breaks anywhere).
       className: 'md:w-48 [overflow-wrap:break-word]',
       cell: (e) => (
-        <span title={e.action} className="font-medium break-words">
+        <span title={e.action} className="break-words font-medium">
           {auditActionLabel(e.action, t)}
         </span>
       ),

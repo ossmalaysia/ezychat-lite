@@ -44,3 +44,93 @@ describe('ChatListItem identity', () => {
     expect(screen.getByText('+60123456789')).toBeTruthy();
   });
 });
+
+describe('ChatListItem tags', () => {
+  it('shows up to two tags and a +N count', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', tags: ['VIP', 'Wholesale', 'Halal', 'Repeat'] }}
+          active={false}
+          assigneeName={null}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('VIP')).toBeTruthy();
+    expect(screen.getByText('Wholesale')).toBeTruthy();
+    expect(screen.queryByText('Halal')).toBeNull();
+    // A wide row: two tags and "+2" (narrow rows: one tag and "+3").
+    const more = screen.getAllByText('+2').find((el) => !el.className.includes('@sm:hidden'))!;
+    expect(more.getAttribute('title')).toBe('Halal, Repeat');
+  });
+
+  it('shows one tag in a narrow row and two in a wide one (row width, not screen width)', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', tags: ['VIP', 'Wholesale', 'Halal'] }}
+          active={false}
+          assigneeName={null}
+        />
+      </MemoryRouter>,
+    );
+    // The inbox list is a narrow column on desktop too: the row's own width decides (container
+    // query), so the preview keeps its room and tags never squeeze to "V…".
+    const second = screen.getByText('Wholesale').closest('[data-slot="badge"]')!;
+    expect(second.className).toMatch(/(^|\s)hidden(\s|$)/);
+    expect(second.className).toMatch(/(^|\s)@sm:inline-flex(\s|$)/);
+    expect(second.closest('[class~="@container"]')).not.toBeNull();
+    const narrowMore = screen.getByText('+2');
+    expect(narrowMore.className).toMatch(/(^|\s)@sm:hidden(\s|$)/);
+    expect(narrowMore.getAttribute('title')).toBe('Wholesale, Halal');
+    const wideMore = screen.getByText('+1');
+    expect(wideMore.className).toMatch(/(^|\s)hidden(\s|$)/);
+    expect(wideMore.className).toMatch(/(^|\s)@sm:inline-flex(\s|$)/);
+  });
+
+  it('keeps the first tag readable next to an unread count: the assignee name truncates first', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', unreadCount: 2, tags: ['VIP', 'Wholesale'] }}
+          active={false}
+          assigneeName="Mei Ling"
+        />
+      </MemoryRouter>,
+    );
+    // A tag squeezed to "V." is unreadable; a truncated assignee name still reads ("Mei L…").
+    const tag = screen.getByText('VIP').closest('[data-slot="badge"]')!;
+    expect(tag.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    expect(tag.parentElement!.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    const assignee = screen.getByText('Mei Ling').closest('[data-slot="badge"]')!;
+    expect(assignee.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    expect(assignee.className).toMatch(/(^|\s)shrink(\s|$)/);
+  });
+
+  it('tells the assignee apart from tags: person icon on the assignee, filled tag chips', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah', tags: ['VIP'] }}
+          active={false}
+          assigneeName="Mei Ling"
+        />
+      </MemoryRouter>,
+    );
+    const assignee = screen.getByTitle('Assigned to Mei Ling');
+    expect(assignee.querySelector('svg')).toBeTruthy();
+    expect(assignee.className).toMatch(/(^|\s)text-xs(\s|$)/);
+    const tag = screen.getByText('VIP').closest('[data-slot="badge"]')!;
+    expect(tag.getAttribute('data-variant')).toBe('secondary');
+    expect(tag.className).toMatch(/(^|\s)text-xs(\s|$)/);
+  });
+
+  it('shows no tag chips without tags', () => {
+    const view = render(
+      <MemoryRouter>
+        <ChatListItem chat={{ ...lidChat, name: 'Farah' }} active={false} assigneeName={null} />
+      </MemoryRouter>,
+    );
+    expect(view.container.textContent).not.toContain('+');
+  });
+});

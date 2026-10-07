@@ -87,6 +87,20 @@ function setup(path: string, opts: { directory?: unknown[] } = {}) {
       if (url.startsWith(`/api/chats/${encodeURIComponent(jid)}/messages`))
         return json({ messages, nextBefore: null });
       if (url === `/api/chats/${encodeURIComponent(jid)}/notes`) return json([]);
+      if (url === `/api/chats/${encodeURIComponent(jid)}/profile`)
+        return json({
+          profile: {
+            name: 'Bob Tan',
+            company: 'Bob Bakery',
+            email: null,
+            otherPhone: null,
+            address: null,
+            tags: ['VIP'],
+            updatedAt: null,
+            updatedBy: null,
+          },
+          whatsappName: 'Bob',
+        });
       if (url === `/api/chats/${encodeURIComponent(jid)}`) return json({ chat, events: [] });
       if (url === '/api/quick-replies') return json([]);
       if (url === '/api/users/directory' && opts.directory) return json({ users: opts.directory });
@@ -236,5 +250,124 @@ describe('InboxPage', () => {
       await screen.findByRole('region', { name: 'Conversation with Unknown contact' }),
     ).toBeTruthy();
     expect(document.body.textContent).not.toContain('123456789012345');
+  });
+  it('remembers the tag filter and sends it with the chat list', async () => {
+    sessionStorage.setItem(
+      'wati.inbox.filters',
+      JSON.stringify({ assigned: 'any', status: 'open', tag: 'VIP' }),
+    );
+    try {
+      setup('/');
+      await screen.findByText('Bob Customer');
+      const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+      expect(urls.find((u) => u.startsWith('/api/chats?'))).toContain('tag=VIP');
+      expect(screen.getByRole('button', { name: 'Filter by tag' }).textContent).toContain('VIP');
+    } finally {
+      sessionStorage.clear();
+    }
+  });
+
+  describe('customer edits on desktop', () => {
+    const jid2 = '60199999999@s.whatsapp.net';
+    const chat2: Chat = { ...chat, jid: jid2, name: 'Carol Customer', phone: '60199999999' };
+
+    function setupDesktop(path: string) {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('min-width'),
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+        addListener() {},
+        removeListener() {},
+      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if ((init?.method ?? 'GET') !== 'GET') return json({ ok: true });
+          if (url === '/api/me') return json(me);
+          if (url === '/api/wa/status')
+            return json({ state: 'open', me: null, qr: null, lastError: null });
+          if (url.startsWith('/api/chats?'))
+            return json({ chats: [chat, chat2], nextCursor: null });
+          for (const c of [chat, chat2]) {
+            const base = `/api/chats/${encodeURIComponent(c.jid)}`;
+            if (url === base) return json({ chat: c, events: [] });
+            if (url.startsWith(`${base}/messages`)) return json({ messages: [], nextBefore: null });
+            if (url === `${base}/notes`) return json([]);
+            if (url === `${base}/profile`)
+              return json({
+                profile: {
+                  id: null,
+                  name: c.name,
+                  company: 'Bakery',
+                  email: null,
+                  otherPhone: null,
+                  address: null,
+                  tags: [],
+                  updatedAt: null,
+                  updatedBy: null,
+                },
+                whatsappName: c.name,
+              });
+          }
+          if (url === '/api/quick-replies') return json([]);
+          return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+        }),
+      );
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={[path]}>
+            <Routes>
+              <Route path="/chats/:jid" element={<InboxPage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    async function startEditing() {
+      setupDesktop(`/chats/${encodeURIComponent(jid)}?customer=1`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      await userEvent.type(screen.getByLabelText('Company'), ' Sdn Bhd');
+    }
+
+    it('after discarding through the close button, the Notes toggle works again', async () => {
+      await startEditing();
+      await userEvent.click(screen.getByRole('button', { name: 'Close customer details' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+      expect(screen.queryByRole('complementary', { name: 'Customer' })).toBeNull();
+      const notes = screen.getByRole('button', { name: /^Notes \(/ });
+      await userEvent.click(notes);
+      expect(notes.getAttribute('aria-pressed')).toBe('true');
+      await userEvent.click(notes);
+      expect(notes.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('asks before switching chats with unsaved customer changes', async () => {
+      await startEditing();
+      await userEvent.click(screen.getByRole('link', { name: /Carol Customer/ }));
+      expect(await screen.findByText('Discard your changes?')).toBeTruthy();
+      // Still on the first chat (hidden from the accessibility tree behind the dialog).
+      expect(
+        screen.getByRole('region', { name: 'Conversation with Bob Customer', hidden: true }),
+      ).toBeTruthy();
+      await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      expect(
+        await screen.findByRole('region', { name: 'Conversation with Carol Customer' }),
+      ).toBeTruthy();
+    });
+  });
+
+  it('opens the customer panel from a ?customer=1 link', async () => {
+    setup(`/chats/${encodeURIComponent(jid)}?customer=1`);
+    expect(await screen.findByText('Bob Bakery')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Customer details', hidden: true })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 });

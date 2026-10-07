@@ -43,7 +43,9 @@ export type PatchMeBody = z.infer<typeof PatchMeBody>;
 export const ChatListQuery = z.object({
   status: ChatStatus.optional(),
   assigned: z.enum(['me', 'none', 'any']).default('any'),
-  q: z.string().optional(),
+  q: z.string().max(100).optional(),
+  /** Customer tag filter, matched case-insensitively. */
+  tag: z.string().trim().min(1).max(30).optional(),
   cursor: z.string().optional(),
   since: z.coerce.number().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),

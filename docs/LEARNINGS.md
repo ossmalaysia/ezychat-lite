@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
+  the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
@@ -41,6 +43,10 @@ into AGENTS.md.
 - Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
 - Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
   be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
+- Run Prettier on the files you changed, never on a whole folder: parts of the tree are not
+  Prettier-clean on `main`, so a folder run rewrites files another agent or nobody owns.
+- Workflow/subagents start in the session's primary checkout: when work lives in another worktree, give
+  its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
 
 ## Git, GitHub and CI
 
@@ -64,6 +70,9 @@ into AGENTS.md.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve.
+- SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
+  over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
+  After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
@@ -75,9 +84,15 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Teammate-written data keyed by `chat_jid` never `ON DELETE CASCADE` from `chats` (like `notes`): an app
+  rollback runs an older `mergeChat` that deletes chat rows without moving new tables.
+- Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
+  migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
   `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
-  Python writes need `PYTHONUTF8=1`.
+  Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
+  (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
+  check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
@@ -201,6 +216,32 @@ into AGENTS.md.
   tablets are touch at `md`, and 44px targets must survive there.
 - Playwright `getByLabel('Password')` is a case-insensitive substring match that also hits
   aria-labels like "Show password": use `{ exact: true }` for form fields in e2e helpers.
+- A child that writes into a parent-owned ref (guards, Esc handlers) registers it in an effect with a
+  cleanup; render-time writes outlive the unmount and leave the parent calling a dead closure.
+- Prefilled forms keep two baselines: "unsaved changes" compares with what the form opened with,
+  the save merges against the stored record (so a prefill is saved but never prompts a discard).
+  A WhatsApp chat name can be the phone number: never prefill or show it as a person's name.
+- In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
+  `getByRole`; query background controls with `{ hidden: true }`.
+- Bars and rows that share width with columns or side panels (chat header, inbox list rows) size by
+  their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
+  phone. Truncation assertions target the element carrying `truncate`, and must
+  fail without the fix (a check on its parent passed while the name showed one letter).
+- In a crowded row decide which item gives up width: short, meaningless-when-cut chips (tags, counts) are
+  `shrink-0` with a `max-w` cap; names and previews (`min-w-0 shrink` + `truncate`) give way first. Re-check
+  rows with every badge present (assignee + tags + unread), not just the demo row that looked fine.
+- shadcn primitives defeat naive truncation and hit areas: `TabsTrigger` centres its content (truncate
+  an inner `min-w-0 truncate` span), `SelectValue` is `display:flex` (add
+  `*:data-[slot=select-value]:block … truncate` on the trigger), and `Badge` is `overflow-hidden`
+  (a `before:-inset-*` hit area inside it needs `overflow-visible`).
+- Every new audit action gets a label in `admin/audit-actions.ts` (en/ms/zh-CN) and a readable
+  meta summary in the same change; otherwise the Audit page shows raw keys and JSON.
+- Review screenshots taken after animations settle (wait ~500 ms after opening a popover/sheet):
+  mid-fade captures make opaque popovers look transparent and send reviews after false bugs.
+- Cached lookup lists (tag suggestions) must be invalidated by the live event that can add entries
+  (`chat:updated` with tags), or another tab or teammate sees stale options until the cache expires.
+- E2E data that other tests or projects could share (tags, names) gets a per-project suffix
+  (`projectTag(info)`); `npm run e2e` rebuilds `apps/web/dist`, so stop any Dev Build serving it first.
 - Review a UI change on the whole page at 1280 and 360 px, top to bottom, not only the changed
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server

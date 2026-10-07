@@ -47,6 +47,10 @@ export const ChatSchema = z.object({
   updatedAt: z.number(),
   /** Phone-number digits without `+`; null when WhatsApp has only revealed the WhatsApp ID (LID). */
   phone: z.string().nullable(),
+  /** Customer profile tags (direct chats only). */
+  tags: z.array(z.string()).optional(),
+  /** WhatsApp/saved name, shown under a customer profile name (direct chats only). */
+  whatsappName: z.string().nullable().optional(),
 });
 export type Chat = z.infer<typeof ChatSchema>;
 
@@ -74,6 +78,8 @@ export const MessageSchema = z.object({
   transcriptLang: z.string().nullable().optional(),
   /** Missing/null = never transcribed (feature off, history, outbound). */
   transcriptStatus: TranscriptStatus.nullable().optional(),
+  /** Group messages: the sender's customer profile (from their direct chat), when one is set. */
+  senderProfile: z.object({ chatJid: z.string(), name: z.string() }).nullable().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

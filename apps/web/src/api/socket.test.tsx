@@ -190,3 +190,127 @@ it('shares one list/count refresh between a new message and its chat update', as
   expect(queryList).toHaveBeenCalledTimes(1);
   qc.clear();
 });
+
+it('relabels cached group messages when a sender profile name changes', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const group = 'team@g.us';
+  const farah = '601@s.whatsapp.net';
+  const groupMsg = (id: string, senderProfile: unknown) => ({
+    id,
+    chatJid: group,
+    senderJid: farah,
+    fromMe: false,
+    clientId: null,
+    senderProfile,
+  });
+  qc.setQueryData(['messages', group], {
+    pages: [
+      {
+        messages: [
+          groupMsg('G1', { chatJid: farah, name: 'Farah' }),
+          groupMsg('G2', { chatJid: 'other@s.whatsapp.net', name: 'Ali' }),
+        ],
+        nextBefore: null,
+      },
+    ],
+    pageParams: [null],
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  const profiles = () =>
+    (
+      qc.getQueryData(['messages', group]) as {
+        pages: { messages: { senderProfile: unknown }[] }[];
+      }
+    ).pages[0]!.messages.map((m) => m.senderProfile);
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: farah,
+      type: 'dm',
+      name: 'Farah Aziz',
+      whatsappName: 'Farah 🌸',
+      status: 'open',
+    }),
+  );
+  expect(profiles()).toEqual([
+    { chatJid: farah, name: 'Farah Aziz' },
+    { chatJid: 'other@s.whatsapp.net', name: 'Ali' },
+  ]);
+  // Profile name cleared: the chat name falls back to the WhatsApp name.
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: farah,
+      type: 'dm',
+      name: 'Farah 🌸',
+      whatsappName: 'Farah 🌸',
+      status: 'open',
+    }),
+  );
+  expect(profiles()).toEqual([null, { chatJid: 'other@s.whatsapp.net', name: 'Ali' }]);
+  qc.clear();
+});
+
+it('refetches an open customer profile when its chat is updated live', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const profileKey = ['customer-profile', '1@s.whatsapp.net'];
+  let name = 'Farah';
+  const queryProfile = vi.fn(async () => name);
+  function Profile() {
+    const { data } = useQuery({ queryKey: profileKey, queryFn: queryProfile });
+    return <span>Profile {data}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Profile />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('Profile Farah');
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  name = 'Farah Aziz';
+  act(() => socket.listeners.get('chat:updated')!({ jid: '1@s.whatsapp.net', status: 'open' }));
+  await screen.findByText('Profile Farah Aziz');
+  qc.clear();
+});
+
+it('refreshes the tag suggestions when a chat arrives with tags (a teammate added a new tag)', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  let tags = ['VIP'];
+  const queryTags = vi.fn(async () => tags);
+  function Tags() {
+    const { data } = useQuery({ queryKey: ['customer-tags', ''], queryFn: queryTags });
+    return <span>Tags {data?.join(',')}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Tags />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('Tags VIP');
+  await waitFor(() => expect(socket.listeners.has('chat:updated')).toBe(true));
+  tags = ['Hungry', 'VIP'];
+  act(() =>
+    socket.listeners.get('chat:updated')!({
+      jid: '1@s.whatsapp.net',
+      status: 'open',
+      tags: ['Hungry'],
+    }),
+  );
+  await screen.findByText('Tags Hungry,VIP');
+  qc.clear();
+});

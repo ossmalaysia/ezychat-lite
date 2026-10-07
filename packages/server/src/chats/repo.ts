@@ -6,9 +6,18 @@ import type {
   ChatType,
   Note,
 } from '@wa-team-inbox/shared';
+import { customerTagKey } from '@wa-team-inbox/shared';
+import {
+  PROFILE_JOIN,
+  PROFILE_NAME_COLUMN,
+  PROFILE_SEARCH,
+  TAG_FILTER,
+  tagsByChat,
+} from '../customers/sql.js';
 import type { DB } from '../db/index.js';
 
-export interface ChatRow {
+/** Columns of the `chats` table itself (e.g. `SELECT * FROM chats`). */
+export interface ChatColumns {
   jid: string;
   type: ChatType;
   name: string;
@@ -21,6 +30,21 @@ export interface ChatRow {
   updated_at: number;
   phone: string | null;
 }
+
+/**
+ * A chat as the read model needs it: its columns plus the customer profile name and tags. Only
+ * `ChatRepo.get()`/`list()` build these (profile join + one batched tag query), so a raw
+ * `SELECT * FROM chats` row cannot reach rowToChat by mistake.
+ */
+export interface ChatRow extends ChatColumns {
+  /** customer_profiles.name (null when none). */
+  profile_name: string | null;
+  /** Customer tags in saved order. */
+  profile_tags: string[];
+}
+
+/** Chat columns plus the customer profile name; FROM `chats c`. Tags are attached by withTags(). */
+const CHAT_SELECT = `SELECT c.*, ${PROFILE_NAME_COLUMN} FROM chats c ${PROFILE_JOIN}`;
 
 export interface ChatEventRow {
   id: number;
@@ -49,14 +73,17 @@ export interface ContactRow {
 export function rowToChat(r: ChatRow): Chat {
   // A LID is an opaque WhatsApp ID, never a phone number: do not show its digits as a name.
   const lidDigits = r.jid.endsWith('@lid') && r.name === jidUser(r.jid);
-  const name =
+  const waName =
     (r.name && !lidDigits ? r.name : null) ||
     r.phone ||
     (r.jid.endsWith('@lid') ? '' : jidUser(r.jid));
+  const dm = r.type === 'dm';
+  // A customer profile name wins; a cleared (NULL/blank) one falls back to the WhatsApp name.
+  const profileName = dm ? r.profile_name?.trim() || null : null;
   return {
     jid: r.jid,
     type: r.type,
-    name,
+    name: profileName ?? waName,
     avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
     unreadCount: r.unread_count,
     lastMessageAt: r.last_message_at,
@@ -65,6 +92,8 @@ export function rowToChat(r: ChatRow): Chat {
     assignedTo: r.assigned_to,
     updatedAt: r.updated_at,
     phone: r.phone ?? null,
+    tags: dm ? r.profile_tags : [],
+    whatsappName: dm ? waName || null : null,
   };
 }
 
@@ -101,13 +130,23 @@ export function chatTypeOf(jid: string): ChatType {
   return jid.endsWith('@g.us') ? 'group' : 'dm';
 }
 
+type JoinedRow = Omit<ChatRow, 'profile_tags'>;
+
 export class ChatRepo {
   constructor(private readonly db: DB) {}
 
-  get(jid: string): ChatRow | null {
-    return (
-      (this.db.prepare('SELECT * FROM chats WHERE jid = ?').get(jid) as ChatRow | undefined) ?? null
+  /** Attaches each chat's customer tags with one batched query. */
+  private withTags(rows: JoinedRow[]): ChatRow[] {
+    const tags = tagsByChat(
+      this.db,
+      rows.filter((r) => r.type === 'dm').map((r) => r.jid),
     );
+    return rows.map((r) => ({ ...r, profile_tags: tags.get(r.jid) ?? [] }));
+  }
+
+  get(jid: string): ChatRow | null {
+    const r = this.db.prepare(`${CHAT_SELECT} WHERE c.jid = ?`).get(jid) as JoinedRow | undefined;
+    return r ? this.withTags([r])[0]! : null;
   }
 
   /** PN digits for a DM: from a PN JID itself, or from the newest phone number aliased to a LID. */
@@ -130,10 +169,10 @@ export class ChatRepo {
     ).count;
   }
 
-  openChats(): ChatRow[] {
+  openChats(): ChatColumns[] {
     return this.db
       .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")
-      .all() as ChatRow[];
+      .all() as ChatColumns[];
   }
 
   /** Inserts a chat if missing; returns the row. */
@@ -156,7 +195,7 @@ export class ChatRepo {
     this.db.prepare('UPDATE chats SET name = ?, updated_at = ? WHERE jid = ?').run(name, now, jid);
   }
 
-  update(jid: string, fields: Partial<Omit<ChatRow, 'jid'>>): void {
+  update(jid: string, fields: Partial<Omit<ChatColumns, 'jid'>>): void {
     const keys = Object.keys(fields) as Array<keyof typeof fields>;
     if (!keys.length) return;
     const sets = keys.map((k) => `${k} = @${k}`).join(', ');
@@ -168,6 +207,8 @@ export class ChatRepo {
     assigned: 'me' | 'none' | 'any';
     userId: number;
     q?: string;
+    /** Customer tag, matched by key (case-insensitive). */
+    tag?: string;
     since?: number;
     cursor?: { ts: number; jid: string } | null;
     limit: number;
@@ -188,12 +229,17 @@ export class ChatRepo {
       where.push('c.updated_at > @since');
       params.since = f.since;
     }
+    if (f.tag) {
+      where.push(TAG_FILTER);
+      params.tagKey = customerTagKey(f.tag);
+    }
     const q = f.q?.trim();
     if (q) {
       params.q = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       where.push(
         `(c.name LIKE @q ESCAPE '\\' OR c.jid LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
-          OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\')`,
+          OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\'
+          OR ${PROFILE_SEARCH})`,
       );
     }
     if (f.cursor) {
@@ -203,10 +249,10 @@ export class ChatRepo {
       params.cts = f.cursor.ts;
       params.cjid = f.cursor.jid;
     }
-    const sql = `SELECT c.* FROM chats c LEFT JOIN contacts ct ON ct.jid = c.jid
+    const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = c.jid
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY COALESCE(c.last_message_at, 0) DESC, c.jid ASC LIMIT @limit`;
-    return this.db.prepare(sql).all(params) as ChatRow[];
+    return this.withTags(this.db.prepare(sql).all(params) as JoinedRow[]);
   }
 
   insertEvent(e: {
@@ -284,7 +330,7 @@ export class ChatRepo {
     ).map((r) => r.jid);
   }
 
-  directChats(): ChatRow[] {
-    return this.db.prepare("SELECT * FROM chats WHERE type = 'dm'").all() as ChatRow[];
+  directChats(): ChatColumns[] {
+    return this.db.prepare("SELECT * FROM chats WHERE type = 'dm'").all() as ChatColumns[];
   }
 }

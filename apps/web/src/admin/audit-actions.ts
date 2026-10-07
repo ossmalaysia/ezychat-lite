@@ -38,6 +38,7 @@ const LABEL_KEYS = {
   'ai.voice_model_download': 'audit.actions.aiVoiceModelDownload',
   'ai.voice_model_cancel': 'audit.actions.aiVoiceModelCancel',
   'ai.voice_model_remove': 'audit.actions.aiVoiceModelRemove',
+  'customer.profile_update': 'audit.actions.customerProfileUpdate',
 } as const;
 
 type KnownAction = keyof typeof LABEL_KEYS;
@@ -95,6 +96,10 @@ const FIELD_KEYS: Record<string, string> = {
   moved: 'audit.fields.moved',
   name: 'audit.fields.name',
   tags: 'audit.fields.tags',
+  company: 'audit.customerFields.company',
+  email: 'audit.customerFields.email',
+  otherPhone: 'audit.customerFields.otherPhone',
+  address: 'audit.customerFields.address',
   instructions: 'audit.fields.instructions',
   handoffRules: 'audit.fields.handoffRules',
   text: 'audit.fields.text',
@@ -157,7 +162,9 @@ export function auditDetails(
   };
   const value = (key: string, v: unknown): string | null => {
     if (v === null || v === undefined || v === '') return null;
-    if (JID_FIELDS.has(key) && typeof v === 'string') return chatLabel(v);
+    if (JID_FIELDS.has(key) && typeof v === 'string')
+      // An opaque WhatsApp ID (LID) means nothing to a reader and is never shown.
+      return v.endsWith('@lid') ? null : chatLabel(v);
     if (USER_FIELDS.has(key) && typeof v === 'number')
       return userName(v) ?? t('audit.userNumber', { id: v });
     if (typeof v === 'boolean') return v ? t('audit.yes') : t('audit.no');

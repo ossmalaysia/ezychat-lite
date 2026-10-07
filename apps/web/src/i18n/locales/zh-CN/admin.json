@@ -188,7 +188,8 @@
       "aiVoiceUpdate": "已更改语音消息设置",
       "aiVoiceModelDownload": "已开始下载语音模型",
       "aiVoiceModelCancel": "已取消下载语音模型",
-      "aiVoiceModelRemove": "已删除语音模型"
+      "aiVoiceModelRemove": "已删除语音模型",
+      "customerProfileUpdate": "已更新客户资料"
     },
     "fields": {
       "chat": "对话",
@@ -237,7 +238,19 @@
     "filterLabel": "显示",
     "filterAll": "全部活动",
     "filterChanges": "隐藏登录记录",
-    "hiddenSignIns_other": "已隐藏 {{count}} 条登录记录"
+    "hiddenSignIns_other": "已隐藏 {{count}} 条登录记录",
+    "details": {
+      "customerChanged": "已更改：{{fields}}"
+    },
+    "customerFields": {
+      "name": "姓名",
+      "company": "公司",
+      "email": "电子邮箱",
+      "otherPhone": "其他电话",
+      "address": "地址",
+      "tags": "标签"
+    },
+    "listSeparator": "、"
   },
   "settings": {
     "title": "设置",

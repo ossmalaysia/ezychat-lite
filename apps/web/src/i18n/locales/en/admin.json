@@ -190,7 +190,8 @@
       "aiVoiceUpdate": "Voice messages setting changed",
       "aiVoiceModelDownload": "Voice model download started",
       "aiVoiceModelCancel": "Voice model download cancelled",
-      "aiVoiceModelRemove": "Voice model removed"
+      "aiVoiceModelRemove": "Voice model removed",
+      "customerProfileUpdate": "Customer details updated"
     },
     "fields": {
       "chat": "Chat",
@@ -240,7 +241,19 @@
     "filterAll": "All activity",
     "filterChanges": "Hide sign-ins",
     "hiddenSignIns_one": "{{count}} sign-in hidden",
-    "hiddenSignIns_other": "{{count}} sign-ins hidden"
+    "hiddenSignIns_other": "{{count}} sign-ins hidden",
+    "details": {
+      "customerChanged": "Changed {{fields}}"
+    },
+    "customerFields": {
+      "name": "name",
+      "company": "company",
+      "email": "email",
+      "otherPhone": "other phone",
+      "address": "address",
+      "tags": "tags"
+    },
+    "listSeparator": ", "
   },
   "settings": {
     "title": "Settings",

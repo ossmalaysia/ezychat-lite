@@ -1,11 +1,91 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ChatFilters as Filters } from '../api/queries';
 import { ChatFilters } from './ChatFilters';
 
-afterEach(cleanup);
+// cmdk (Command) measures its list with ResizeObserver and scrolls the active row into view;
+// jsdom implements neither.
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+  }
+  Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+function mockTags(tags: string[]) {
+  const urls: string[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      urls.push(url);
+      return new Response(JSON.stringify({ tags }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }),
+  );
+  return urls;
+}
+
+function renderFilters({ value, onChange }: { value: Filters; onChange(next: Filters): void }) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ChatFilters value={value} onChange={onChange} />
+    </QueryClientProvider>,
+  );
+}
 
 describe('ChatFilters', () => {
+  it('keeps a long selected tag narrow on phones so the assignment tabs keep their room', () => {
+    mockTags([]);
+    renderFilters({
+      value: { assigned: 'any', status: 'open', tag: 'Pelanggan borong utama' },
+      onChange: vi.fn(),
+    });
+    const trigger = screen.getByRole('button', { name: 'Filter by tag' });
+    const label = trigger.querySelector('span')!;
+    expect(label.textContent).toBe('Pelanggan borong utama');
+    expect(label.className).toMatch(/(^|\s)truncate(\s|$)/);
+    expect(label.className).toMatch(/(^|\s)max-w-20(\s|$)/);
+    expect(label.className).toMatch(/(^|\s)sm:max-w-none(\s|$)/);
+    // Still a 44px touch target.
+    expect(trigger.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+  });
+
+  it('gives the assignment tabs their own row, with the Tag control beside the status tabs', () => {
+    mockTags([]);
+    renderFilters({ value: { assigned: 'any', status: 'open', tag: 'VIP' }, onChange: vi.fn() });
+    const assignment = screen.getByRole('tablist', { name: 'Assignment' });
+    const status = screen.getByRole('tablist', { name: 'Chat status' });
+    const tag = screen.getByRole('button', { name: 'Filter by tag' });
+    const clear = screen.getByRole('button', { name: 'Clear tag filter' });
+    // Document order: assignment tabs, status tabs, then the tag controls.
+    expect(
+      assignment.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(status.compareDocumentPosition(tag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(assignment.parentElement!.contains(tag)).toBe(false);
+    expect(status.parentElement!.parentElement!.contains(clear)).toBe(true);
+    // A label that does not fit ellipsizes instead of being clipped on both sides.
+    for (const name of ['Mine', 'Unassigned', 'All']) {
+      const label = screen.getByRole('tab', { name }).querySelector('span');
+      expect(label?.className).toMatch(/(^|\s)truncate(\s|$)/);
+      expect(label?.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    }
+  });
+
   it('exposes both statuses and preserves assignment and search when switching', async () => {
     const onChange = vi.fn();
     render(
@@ -31,5 +111,28 @@ describe('ChatFilters', () => {
     expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('Maya');
     view.rerender(<ChatFilters value={{ assigned: 'any', status: 'open' }} onChange={onChange} />);
     expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+  });
+  it('sets and clears the tag filter', async () => {
+    const onChange = vi.fn();
+    const urls = mockTags(['VIP', 'Wholesale']);
+    const view = renderFilters({ value: { assigned: 'any' }, onChange });
+    expect(urls).toEqual([]);
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by tag' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'VIP' }));
+    expect(onChange).toHaveBeenLastCalledWith({ assigned: 'any', tag: 'VIP' });
+    expect(urls[0]).toBe('/api/customer-tags?q=');
+
+    view.unmount();
+    renderFilters({ value: { assigned: 'any', tag: 'VIP' }, onChange });
+    expect(screen.getByRole('button', { name: 'Filter by tag' }).textContent).toContain('VIP');
+    await userEvent.click(screen.getByRole('button', { name: 'Clear tag filter' }));
+    expect(onChange).toHaveBeenLastCalledWith({ assigned: 'any', tag: undefined });
+  });
+
+  it('says so when there are no tags yet', async () => {
+    mockTags([]);
+    renderFilters({ value: { assigned: 'any' }, onChange: vi.fn() });
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by tag' }));
+    expect(await screen.findByText('No tags yet')).toBeTruthy();
   });
 });
