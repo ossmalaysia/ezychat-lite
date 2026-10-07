@@ -181,6 +181,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- OpenAI documents ChatGPT plan usage (Sign in with ChatGPT, open-source/locally hosted apps) on the
+  public `api.openai.com/v1/responses` with `stream:true`, `store:false` and namespaced function tools,
+  and says not to call `chatgpt.com/backend-api` (what `chatgpt-backend.ts` uses). Read
+  developers.openai.com/siwc before changing the ChatGPT provider.
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
   Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so
