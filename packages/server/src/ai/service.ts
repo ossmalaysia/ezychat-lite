@@ -1074,13 +1074,17 @@ export function createAiService(
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
-          // Draft rules when the page sends them, else the saved ones.
-          prompt(
-            { handoffRules: current.handoffRules, ...body.knowledge },
-            knowledge,
-            [{ speaker: 'customer', text: body.question }],
-            false,
-          ),
+          // Draft rules when the page sends them, else the saved ones. Same knowledge tools as a
+          // live reply, so Try it tests what customers get; no chat, so no chat history.
+          {
+            ...prompt(
+              { handoffRules: current.handoffRules, ...body.knowledge },
+              knowledge,
+              [{ speaker: 'customer', text: body.question }],
+              false,
+            ),
+            tools: chatTools({ knowledge: knowledgeSources(contextItems()) }),
+          },
           AbortSignal.timeout(60_000),
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.

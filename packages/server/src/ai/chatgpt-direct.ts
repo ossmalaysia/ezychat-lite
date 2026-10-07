@@ -70,6 +70,8 @@ export interface DirectDeps {
   fetch?: typeof fetch;
   callbackPort?: number;
   loginTimeoutMs?: number;
+  /** Bound for one whole reply (every model call and tool of the turn); default 60 s. */
+  turnTimeoutMs?: number;
 }
 
 const aborted = () => new DOMException('AI reply cancelled', 'AbortError');
@@ -504,6 +506,11 @@ export class DirectChatGptProvider implements AiProvider {
     const model = await this.resolveModel(settings.model);
     const cacheKey = prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined;
     const sessionId = cacheKey ?? randomUUID();
+    // One bound for the whole reply: a multi-step turn must not reset it on every model call.
+    const turnSignal = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(this.deps.turnTimeoutMs ?? 60_000),
+    ]);
     try {
       const turn = await runAgentTurn({
         model: chatGptModel({
@@ -513,11 +520,12 @@ export class DirectChatGptProvider implements AiProvider {
         }),
         prompt,
         tools: prompt.tools,
-        signal,
+        signal: turnSignal,
       });
       return turn.decision;
     } catch (error) {
       if (signal.aborted) throw aborted();
+      if (turnSignal.aborted) throw new Error('ChatGPT answer timed out.', { cause: error });
       throw agentFailure(error, 'ChatGPT returned an invalid answer.', 'ChatGPT could not answer.');
     }
   }

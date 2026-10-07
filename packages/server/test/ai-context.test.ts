@@ -190,6 +190,17 @@ it('sends context items oldest first so the knowledge prefix stays byte-stable',
   ).toEqual(['Company', 'delivery.md', 'Hours']);
 });
 
+it('Try it can search a large Business context like live replies, but has no chat history', async () => {
+  ai().saveMember(member, actor);
+  ai().addText({ name: 'Catalogue', text: `Widgets. ${'Spare part. '.repeat(4_000)}` }, actor);
+  await ai().tryAnswer({
+    question: 'Do you sell widgets?',
+    knowledge: { displayName: 'Draft Agent', instructions: 'Draft rules' },
+  });
+  const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(Object.keys(prompt.tools ?? {})).toEqual(['search_business_context']);
+});
+
 it('Try it answers from the saved items plus the draft name and instructions', async () => {
   ai().saveMember(member, actor);
   ai().addText({ name: 'Delivery', text: 'Delivery costs RM10.' }, actor);
