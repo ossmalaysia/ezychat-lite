@@ -11,7 +11,9 @@ into AGENTS.md.
 ## Working method
 
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
-  the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP.
+  the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
+  data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
+  cost a fix-and-recapture round each. Add new check tooling only when a problem keeps recurring.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
