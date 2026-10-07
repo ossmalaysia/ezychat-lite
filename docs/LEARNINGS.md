@@ -176,6 +176,8 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
+  a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
 - Ownership follows who handles the chat: a teammate's inbox reply claims an unassigned chat and takes
   over an AI-owned one (the AI then stops); it never takes a chat from another teammate, and phone-app
   replies assign nobody. Pausing the AI without moving the owner left a stale AI chip.
