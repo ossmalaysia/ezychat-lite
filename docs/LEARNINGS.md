@@ -80,6 +80,8 @@ into AGENTS.md.
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
+- A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
+  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest`.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
