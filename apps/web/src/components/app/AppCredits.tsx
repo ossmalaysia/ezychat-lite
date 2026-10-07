@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink, LifeBuoy } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -42,22 +42,41 @@ export function AppCredits({
   variant?: 'inline' | 'sidebar';
 }) {
   const { t } = useTranslation('app');
+  const [open, setOpen] = React.useState(false);
+  const linksId = React.useId();
   if (variant === 'sidebar') {
+    // One quiet "Help & feedback" row instead of three always-visible links (version inside).
     return (
       <div className={cn('min-w-0 text-xs text-muted-foreground', className)}>
-        <div className="flex flex-wrap items-center justify-between gap-x-2 px-2">
-          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-            <Trans
-              t={t}
-              i18nKey="credits.builtBy"
-              components={{ a: <CreditLink href={ANCHOR_SPRINT_URL} className="min-h-11" /> }}
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="touch"
+            aria-expanded={open}
+            aria-controls={linksId}
+            className="min-w-0 flex-1 justify-start px-2 text-sm font-normal text-muted-foreground"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <LifeBuoy aria-hidden="true" />
+            <span className="truncate">{t('credits.helpFeedback')}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('ml-auto transition-transform', open && 'rotate-180')}
             />
-          </span>
-          {version && (
-            <span className="whitespace-nowrap">{t('credits.versionShort', { version })}</span>
-          )}
+          </Button>
         </div>
-        <nav aria-label={t('credits.supportLinks')} className="flex flex-col">
+        <nav
+          id={linksId}
+          hidden={!open}
+          aria-label={t('credits.supportLinks')}
+          className="flex flex-col pl-6"
+        >
+          {/* The version lives in the panel: beside the toggle it squeezed "Help & feedback". */}
+          {version && (
+            <span className="px-2 py-1 whitespace-nowrap">
+              {t('credits.versionShort', { version })}
+            </span>
+          )}
           {[
             { href: GITHUB_ISSUES_URL, label: t('credits.reportIssue') },
             { href: CUSTOM_FEATURE_URL, label: t('credits.customFeatures') },
@@ -75,6 +94,13 @@ export function AppCredits({
               </a>
             </Button>
           ))}
+          <span className="inline-flex items-center gap-1 px-2 whitespace-nowrap">
+            <Trans
+              t={t}
+              i18nKey="credits.builtBy"
+              components={{ a: <CreditLink href={ANCHOR_SPRINT_URL} className="min-h-11" /> }}
+            />
+          </span>
         </nav>
       </div>
     );

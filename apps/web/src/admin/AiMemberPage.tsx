@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_HANDOFF_RULES_CHARACTERS,
@@ -14,7 +14,6 @@ import {
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,7 +22,7 @@ import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiContextPanel } from './AiContextPanel';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, memberPill, type AiKnowledgeDraft } from './ai-status';
-import { ErrorState, Field, ListSkeleton, Pending } from './adminUi';
+import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 
 const PILL_TONE = {
   on: 'success',
@@ -194,6 +193,7 @@ function AiMemberEditor({
       <PageHeader
         className="pb-0"
         title={draft.displayName.trim() || t('ai.page.defaultTitle')}
+        description={t('ai.page.description')}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <StatusDot tone={PILL_TONE[pill]} label={pillLabels[pill]} />
@@ -258,7 +258,13 @@ function AiMemberEditor({
         <CardHeader>
           <CardTitle>{t('ai.page.stepInstructions')}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          {isDefaultInstructions(draft.instructions) && (
+            <p className="inline-flex items-start gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              {t('ai.page.usingRecommended')}
+            </p>
+          )}
           <Field
             label={t('ai.instructions')}
             labelClassName="sr-only"
@@ -269,8 +275,9 @@ function AiMemberEditor({
                 {...p}
                 value={draft.instructions}
                 maxLength={8000}
-                // Fixed size: long instructions wrap and scroll instead of growing the page.
-                className="field-sizing-fixed h-[min(50dvh,24rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
+                // Fixed, modest height: the long default scrolls inside the box (drag to enlarge)
+                // so Business context, Hand-off rules and Try it stay close.
+                className="field-sizing-fixed h-48 max-h-[70dvh] resize-y overflow-y-auto text-base leading-6 md:h-56 md:text-sm"
                 placeholder={t('ai.page.instructionsPlaceholder')}
                 disabled={action.isPending}
                 onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
@@ -282,7 +289,7 @@ function AiMemberEditor({
               type="button"
               variant="outline"
               size="touch"
-              className="mt-2"
+              className="self-start"
               disabled={action.isPending}
               onClick={() => setDraft((old) => ({ ...old, instructions: local.instructions }))}
             >
@@ -369,8 +376,7 @@ function AiMemberEditor({
         <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>
       )}
 
-      <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t bg-background px-4 py-3 md:static md:mx-0 md:border-0 md:px-0">
-        {dirty && <Badge variant="outline">{t('ai.unsaved')}</Badge>}
+      <SaveBar dirty={dirty}>
         <Button
           size="touch"
           disabled={action.isPending || (!dirty && Boolean(status.member))}
@@ -379,7 +385,7 @@ function AiMemberEditor({
           <Pending show={action.isPending} />
           {t('ai.page.save')}
         </Button>
-      </div>
+      </SaveBar>
     </div>
   );
 }

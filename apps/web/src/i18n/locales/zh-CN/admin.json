@@ -24,7 +24,8 @@
     "copied": "已复制到剪贴板",
     "copyFailed": "复制失败，请选中文本后手动复制。",
     "loadFailed": "无法加载",
-    "loading": "正在加载"
+    "loading": "正在加载",
+    "unsaved": "未保存"
   },
   "members": {
     "title": "成员",
@@ -119,7 +120,6 @@
       "clearSearch": "清除搜索"
     },
     "editLabel": "编辑 /{{shortcut}}",
-    "deleteLabel": "删除 /{{shortcut}}",
     "delete": {
       "title": "删除 /{{shortcut}}？",
       "body": "客服将无法再使用此快捷回复。",
@@ -134,7 +134,8 @@
       "body": "回复内容",
       "bodyRequired": "请输入回复内容。",
       "saved": "已保存 /{{shortcut}}。"
-    }
+    },
+    "moreLabel": "/{{shortcut}} 的更多操作"
   },
   "audit": {
     "title": "审计日志",
@@ -177,8 +178,67 @@
       "chatsResolveAll": "已解决所有未结对话",
       "chatMerge": "已合并聊天",
       "logsDownload": "已下载日志",
+      "aiConnectionUpdate": "已更改 AI 连接",
+      "aiMemberUpdate": "已更改 AI 成员",
+      "aiDocumentAdd": "已添加业务资料",
+      "aiDocumentUpdate": "已编辑业务资料",
+      "aiDocumentRemove": "已删除业务资料",
+      "aiHandoff": "AI 已将对话转交团队",
+      "aiResolve": "AI 已解决对话",
+      "aiVoiceUpdate": "已更改语音消息设置",
+      "aiVoiceModelDownload": "已开始下载语音模型",
+      "aiVoiceModelCancel": "已取消下载语音模型",
+      "aiVoiceModelRemove": "已删除语音模型",
       "customerProfileUpdate": "已更新客户资料"
     },
+    "fields": {
+      "chat": "对话",
+      "from": "来自",
+      "to": "到",
+      "member": "成员",
+      "assignedTo": "分配给",
+      "reason": "原因",
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "role": "角色",
+      "mode": "模式",
+      "model": "模型",
+      "kind": "类型",
+      "size": "大小",
+      "document": "条目",
+      "transcription": "转写",
+      "resolvedCount": "已解决对话",
+      "username": "用户名",
+      "displayName": "显示名称",
+      "id": "ID",
+      "shortcut": "快捷词",
+      "hostname": "主机名",
+      "subdomain": "子域名",
+      "tunnelName": "隧道",
+      "domain": "域名",
+      "restartRequired": "需要重启",
+      "moved": "已移动",
+      "name": "名称",
+      "tags": "标签",
+      "instructions": "指令",
+      "handoffRules": "转交规则",
+      "text": "文本",
+      "token": "令牌",
+      "port": "端口",
+      "lanEnabled": "局域网访问",
+      "historyDays": "历史天数"
+    },
+    "reasons": {
+      "rateLimited": "尝试次数过多",
+      "invalid": "用户名或密码错误"
+    },
+    "yes": "是",
+    "no": "否",
+    "changed": "已更改 {{fields}}",
+    "filterLabel": "显示",
+    "filterAll": "全部活动",
+    "filterChanges": "隐藏登录记录",
+    "hiddenSignIns_other": "已隐藏 {{count}} 条登录记录",
     "details": {
       "customerChanged": "已更改：{{fields}}"
     },
@@ -203,7 +263,7 @@
     "network": {
       "title": "网络",
       "port": "端口",
-      "portHint": "默认 7420。",
+      "portHint": "仅当其他应用已占用此端口时才需更改。默认 7420。",
       "lan": "允许从局域网（LAN）访问",
       "lanHint": "同一 Wi-Fi 下的其他设备可以打开收件箱。",
       "lanWarningTitle": "局域网流量为明文 HTTP",
@@ -211,15 +271,17 @@
     },
     "history": {
       "title": "历史记录",
-      "days": "关联时导入的历史天数"
+      "days": "关联时导入的历史天数",
+      "daysHint": "0–365 天。下次关联 WhatsApp 时使用。",
+      "unit": "天"
     },
     "device": {
       "title": "本设备",
-      "description": "偏好设置保存在本设备上，并立即生效。",
+      "description": "保存在此浏览器中，并立即生效。",
       "themeHint": "“跟随系统”会使用设备的浅色或深色设置。",
       "notifications": "通知",
       "notificationsHint": "未打开收件箱时，收到新消息会通知您。",
-      "languageHint": "在您的每台设备上保持一致",
+      "languageHint": "应用中的菜单、按钮和提示。",
       "languageShort": {
         "en": "English",
         "ms": "BM",
@@ -229,16 +291,17 @@
     "tabs": {
       "general": "常规",
       "ai": "AI",
-      "device": "此设备",
+      "device": "偏好",
       "maintenance": "维护"
     },
-    "maintenance": {
-      "title": "危险区域",
-      "description": "此处的操作会影响整个团队,且无法一键撤销。"
+    "description": "此收件箱的团队设置，以及您自己的偏好。",
+    "account": {
+      "title": "您的账户",
+      "description": "保存到您的账户，在您的每台设备上保持一致。"
     }
   },
   "resolveAll": {
-    "title": "收件箱",
+    "title": "日终处理",
     "description": "下班前一键解决全团队的所有未结对话。消息会保留，新收到的消息会自动重新打开对话。",
     "loading": "正在加载未结对话…",
     "none": "没有需要解决的未结对话。",
@@ -278,25 +341,27 @@
     "linkTitle": "关联 WhatsApp",
     "linkBody": "重新关联以显示新的二维码，然后用手机扫描。",
     "actionsTitle": "操作",
-    "actionsHint": "退出登录会断开此收件箱。重新关联会开始新的配对。接管会重新连接在别处打开的会话。",
     "actions": {
       "logout": {
         "label": "退出登录",
         "title": "退出 WhatsApp？",
         "body": "已关联的设备将从手机中移除。在重新关联之前，团队收件箱将停止收发消息。消息记录会保留。",
-        "done": "已退出 WhatsApp。"
+        "done": "已退出 WhatsApp。",
+        "hint": "从手机的已关联设备中移除此收件箱。消息记录会保留。"
       },
       "relink": {
         "label": "重新关联",
         "title": "重新关联 WhatsApp？",
         "body": "当前会话将被丢弃，并显示新的二维码。请在手机上通过 WhatsApp > 已关联的设备 扫描。",
-        "done": "会话已重置，请扫描新的二维码。"
+        "done": "会话已重置，请扫描新的二维码。",
+        "hint": "丢弃当前会话，并用新的二维码重新配对。"
       },
       "takeover": {
         "label": "接管",
         "title": "接管会话？",
         "body": "另一个实例（例如其他电脑上的 WhatsApp Web）取代了此连接。接管后将在此处重新连接，并断开另一个连接。",
-        "done": "正在此处重新连接。"
+        "done": "正在此处重新连接。",
+        "hint": "在此处重新连接，并断开在其他地方打开的会话。"
       }
     }
   },
@@ -319,7 +384,6 @@
     },
     "action": {
       "disconnect": "断开 Cloudflare",
-      "off": "远程访问已关闭",
       "namedConnecting": "正在连接已保存的地址…",
       "namedConnect": "连接已保存的地址",
       "quickRestart": "重启临时链接",
@@ -327,7 +391,6 @@
     },
     "tokenTooShort": "该令牌似乎太短。",
     "tokenRequired": "请粘贴 Cloudflare 控制台中的隧道令牌。",
-    "statusTitle": "连接状态",
     "copyUrl": "复制网址",
     "qrLabel": "隧道网址二维码",
     "scanHint": "用手机相机扫描即可打开收件箱。",
@@ -418,9 +481,8 @@
     "keyMissing": "尚未配置 OpenAI API 密钥。",
     "connectionMode": "连接模式",
     "apiKey": "OpenAI API 密钥",
-    "keepKeyHint": "密钥已保存。留空以保留，或输入替换密钥。",
+    "keepKeyHint": "输入新密钥。留空则保留已保存的密钥。",
     "apiKeyHint": "安全存储在收件箱服务器上。API 用量与 ChatGPT 分开计费。",
-    "hiddenKey": "已保存的密钥 — 已隐藏",
     "enterKey": "输入 API 密钥",
     "cancelLogin": "取消登录",
     "openLogin": "打开登录页面",
@@ -463,7 +525,6 @@
     "modelsFallback": "默认模型列表。登录后可加载您账户的模型。",
     "modeApi": "API 密钥",
     "modeChatgpt": "ChatGPT",
-    "unsaved": "未保存",
     "pasteLabel": "在另一台电脑上登录？",
     "pasteHint": "批准后，浏览器会打开一个可能无法加载的页面。请从地址栏复制完整地址并粘贴到这里。",
     "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
@@ -491,11 +552,11 @@
       "turnedOn": "AI 成员已开启。",
       "turnedOff": "AI 成员已关闭。",
       "draftSaved": "已将 AI 成员保存为草稿，以便添加业务背景。",
-      "stepName": "1. 名称和角色",
-      "stepInstructions": "2. AI 指令",
-      "stepContext": "3. 业务背景",
-      "stepHandoff": "4. 转交规则",
-      "stepTry": "5. 试一试",
+      "stepName": "名称和角色",
+      "stepInstructions": "AI 指令",
+      "stepContext": "业务背景",
+      "stepHandoff": "转交规则",
+      "stepTry": "试一试",
       "instructionsPlaceholder": "例如：简短礼貌地回复。回答有关价格、配送和营业时间的问题。投诉或退款请转交人工。",
       "useDefaultInstructions": "使用默认指令",
       "handoffLabel": "转交规则",
@@ -506,7 +567,9 @@
       "howItWorks": "工作原理",
       "connectionLine": "连接：{{state}}",
       "openSettings": "设置 → AI",
-      "save": "保存"
+      "save": "保存",
+      "description": "设置、测试并开启回复客户对话的 AI 助手。",
+      "usingRecommended": "正在使用推荐的指令。可按您的语气进行编辑。"
     },
     "try": {
       "label": "客户问题",
@@ -608,6 +671,9 @@
     "defaults": {
       "instructions": "角色\n你是本商家的 WhatsApp 助手。你负责回答客户咨询和产品问题，并以专业的方式代表商家。\n\n范围\n你可以协助：\n- 产品：功能、规格、款式、库存情况和使用方法\n- 一般咨询：营业时间、地点、下单方式、配送区域、付款方式和退货政策\n- 下一步：如何下单、如何索取报价，或联系我们的团队\n与本商家或其产品无关的话题（闲聊、新闻、编程、作业、观点、政治、宗教），你不提供帮助。请用一句话礼貌回复并引导回正题，例如：“抱歉，我只能回答有关我们产品和服务的问题。请问有什么可以帮您？”\n\n知识\n- 产品名称、型号和价格必须与业务背景中的写法完全一致。\n- 切勿猜测价格、库存、规格、配送日期、促销或政策。如果缺少信息，请说明并让我们的团队确认。\n- 切勿承诺折扣、赠品或特殊处理。\n\n语言\n- 使用客户的语言回复。如果客户混用多种语言，请使用其消息的主要语言回复。\n- 如果无法使用客户的语言回复，请使用业务背景中指定的默认语言，否则使用英语。\n\n风格\n- 专业、礼貌、友好；不用俚语。最多使用一个表情符号，且仅在合适时使用。\n- 一到三句短句。仅在列出选项或规格时使用简短列表。\n- 先回答问题：不要冗长的问候，也不要复述问题。\n- 需要时最多问一个澄清问题（例如哪个型号、尺寸或区域）。\n- 仅使用 WhatsApp 格式：用 *粗体* 标出关键信息，使用普通换行。不要使用标题、表格或未提供给你的链接。",
       "handoffRules": "- 客户不满或提出投诉\n- 客户要求退款、退货、换货或保修索赔\n- 客户询问现有订单、配送或付款\n- 客户需要批量或定制订单，或索取报价\n- 客户想议价或要求折扣"
-    }
+    },
+    "replaceKey": "替换密钥",
+    "keepKey": "保留已保存的密钥",
+    "modelAdvanced": "高级：选择模型"
   }
 }

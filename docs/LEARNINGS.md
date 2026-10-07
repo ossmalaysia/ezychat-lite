@@ -212,6 +212,10 @@ into AGENTS.md.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog
   height with dynamic viewport units, wrap long titles, and use real 44px hit targets (padded labels).
   After text changes also run `SMOKE_LOCALE=ms node e2e/screens.smoke.mjs` (Malay is longest).
+- Shrink dense desktop controls only with `md:pointer-fine:` (mouse), never by breakpoint alone:
+  tablets are touch at `md`, and 44px targets must survive there.
+- Playwright `getByLabel('Password')` is a case-insensitive substring match that also hits
+  aria-labels like "Show password": use `{ exact: true }` for form fields in e2e helpers.
 - A child that writes into a parent-owned ref (guards, Esc handlers) registers it in an effect with a
   cleanup; render-time writes outlive the unmount and leave the parent calling a dead closure.
 - Prefilled forms keep two baselines: "unsaved changes" compares with what the form opened with,
@@ -223,6 +227,9 @@ into AGENTS.md.
   their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
   phone. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- In a crowded row decide which item gives up width: short, meaningless-when-cut chips (tags, counts) are
+  `shrink-0` with a `max-w` cap; names and previews (`min-w-0 shrink` + `truncate`) give way first. Re-check
+  rows with every badge present (assignee + tags + unread), not just the demo row that looked fine.
 - shadcn primitives defeat naive truncation and hit areas: `TabsTrigger` centres its content (truncate
   an inner `min-w-0 truncate` span), `SelectValue` is `display:flex` (add
   `*:data-[slot=select-value]:block … truncate` on the trigger), and `Badge` is `overflow-hidden`

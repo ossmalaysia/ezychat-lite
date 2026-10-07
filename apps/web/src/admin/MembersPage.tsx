@@ -14,7 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
-import type { Role, User } from '@wa-team-inbox/shared';
+import { intlTag, isLocale, type Role, type User } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import {
   useCreateUser,
@@ -24,10 +24,10 @@ import {
   useUsers,
 } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { formatDateTime } from '../lib/format';
 import {
   Banner,
   EmptyState,
+  PageHeader,
   ResponsiveDialog,
   ResponsiveTable,
   type Column,
@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SearchField } from '@/components/app/SearchField';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -73,7 +74,7 @@ type Dialog =
 export function MembersPage() {
   const users = useUsers();
   const { user: me } = useAuth();
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [search, setSearch] = useState('');
   const close = () => setDialog(null);
@@ -101,7 +102,14 @@ export function MembersPage() {
     {
       key: 'created',
       header: t('members.columns.created'),
-      cell: (u) => <span className="text-muted-foreground">{formatDateTime(u.createdAt)}</span>,
+      cell: (u) => (
+        <time
+          dateTime={new Date(u.createdAt).toISOString()}
+          className="whitespace-nowrap text-muted-foreground"
+        >
+          {formatDate(u.createdAt, i18n.language)}
+        </time>
+      ),
     },
     {
       key: 'actions',
@@ -113,10 +121,11 @@ export function MembersPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">{t('members.title')}</h1>
-          <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title={t('members.title')}
+        description={t('ai.membersDescription')}
+        actions={
+          <>
             {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
               <Button asChild variant="outline" size="touch" className="md:min-h-9">
                 <Link to="/admin/members/ai">
@@ -133,12 +142,9 @@ export function MembersPage() {
               <UserPlus aria-hidden />
               {t('members.add')}
             </Button>
-          </div>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {t('ai.membersDescription')}
-        </p>
-      </div>
+          </>
+        }
+      />
 
       <div className="mb-4 space-y-2">
         <SearchField
@@ -176,7 +182,7 @@ export function MembersPage() {
                 <Trans
                   t={t}
                   i18nKey="members.added"
-                  values={{ date: formatDateTime(u.createdAt) }}
+                  values={{ date: formatDate(u.createdAt, i18n.language) }}
                   components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
                 />
               </p>
@@ -229,6 +235,15 @@ export function MembersPage() {
       {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
     </div>
   );
+}
+
+/** "7 Oct 2026" in the active language: when someone joined, the time of day adds nothing. */
+function formatDate(ts: number, language: string) {
+  return new Intl.DateTimeFormat(intlTag(isLocale(language) ? language : 'en'), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(ts);
 }
 
 function initials(name: string) {
@@ -299,8 +314,11 @@ function StatusBadges({ user }: { user: User }) {
   const { t } = useTranslation('admin');
   return (
     <span className="inline-flex flex-wrap gap-1">
+      {/* A switched-off account is a normal state, not an error: neutral, never red. */}
       {user.disabled ? (
-        <Badge className="bg-danger/15 text-danger">{t('members.status.disabled')}</Badge>
+        <Badge variant="secondary">
+          {user.kind === 'ai' ? t('ai.page.pill.off') : t('members.status.disabled')}
+        </Badge>
       ) : (
         <Badge className="bg-success/15 text-success">{t('members.status.active')}</Badge>
       )}
@@ -325,6 +343,9 @@ function RowActions({
   compact?: boolean;
 }) {
   const { t } = useTranslation(['admin', 'common']);
+  // 44px targets on touch screens; compact 32px buttons only with a precise pointer.
+  const editClass = compact ? undefined : 'md:pointer-fine:min-h-8';
+  const menuClass = compact ? undefined : 'md:pointer-fine:size-8';
   return (
     <div className="flex shrink-0 items-center gap-1 md:justify-end">
       {user.kind === 'ai' ? (
@@ -332,7 +353,7 @@ function RowActions({
           asChild
           size={compact ? 'icon-touch' : 'touch'}
           variant={compact ? 'ghost' : 'outline'}
-          className={compact ? undefined : 'md:min-h-8'}
+          className={editClass}
         >
           <Link
             to="/admin/members/ai"
@@ -348,7 +369,7 @@ function RowActions({
         <Button
           size={compact ? 'icon-touch' : 'touch'}
           variant={compact ? 'ghost' : 'outline'}
-          className={compact ? undefined : 'md:min-h-8'}
+          className={editClass}
           aria-label={
             compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
           }
@@ -358,13 +379,15 @@ function RowActions({
           {!compact && t('common:actions.edit')}
         </Button>
       )}
+      {/* The AI row has no menu; keep its slot so every row's Edit lines up. */}
+      {user.kind === 'ai' && <span aria-hidden className={cn('size-11 shrink-0', menuClass)} />}
       {user.kind !== 'ai' && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon-touch"
               variant="ghost"
-              className={compact ? undefined : 'md:size-8'}
+              className={menuClass}
               aria-label={t('members.actions.moreFor', { name: user.displayName })}
             >
               <MoreHorizontal aria-hidden />

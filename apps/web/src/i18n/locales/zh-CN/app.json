@@ -12,7 +12,8 @@
     "supportLinks": "支持链接",
     "reportIssue": "报告问题",
     "customFeatures": "定制功能",
-    "customFeature": "需要定制功能？<a>联系 Anchor Sprint</a>"
+    "customFeature": "需要定制功能？<a>联系 Anchor Sprint</a>",
+    "helpFeedback": "帮助与反馈"
   },
   "featureRequest": {
     "label": "建议新功能",

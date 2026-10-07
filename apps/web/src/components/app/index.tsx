@@ -235,7 +235,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between',
+        'flex flex-col gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between',
         className,
       )}
     >
@@ -247,7 +247,8 @@ export function PageHeader({
           </p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {/* Actions sit top-right beside the title on wider screens and wrap below it on phones. */}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
@@ -260,6 +261,8 @@ export interface Column<T> {
   cell: (row: T) => React.ReactNode;
   /** Hide this column in the stacked mobile card (e.g. redundant with the title). */
   hideOnMobile?: boolean;
+  /** Hide this column in one row's mobile card, e.g. when that row has nothing to show. */
+  hideOnMobileFor?: (row: T) => boolean;
   className?: string;
 }
 
@@ -315,7 +318,7 @@ export function ResponsiveTable<T>({
             ) : (
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
                 {columns
-                  .filter((c) => !c.hideOnMobile)
+                  .filter((c) => !c.hideOnMobile && !c.hideOnMobileFor?.(r))
                   .map((c) => (
                     <React.Fragment key={c.key}>
                       <dt className="text-muted-foreground">{c.header}</dt>

@@ -21,11 +21,21 @@ test('admin footer stays readable and reachable on phones and short screens', as
     await page.goto('/admin/settings');
     if (size.width < 768)
       await page.getByRole('button', { name: 'Admin menu', exact: true }).click();
+    // The way back to the inbox is the first item of the admin menu.
+    const back = page
+      .getByRole('link', { name: 'Back to inbox', exact: true })
+      .filter({ visible: true });
+    await expect(back).toBeInViewport();
+    expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const footer = page
       .getByLabel('Admin tools and support', { exact: true })
       .filter({ visible: true });
     await expect(footer).toBeVisible();
-    for (const name of ['Back to inbox', 'Report an issue', 'Custom features']) {
+    // Support links are folded into one "Help & feedback" item.
+    const help = footer.getByRole('button', { name: 'Help & feedback', exact: true });
+    await help.scrollIntoViewIfNeeded();
+    await help.click();
+    for (const name of ['Report an issue', 'Custom features']) {
       const link = footer.getByRole('link', { name, exact: true });
       await link.scrollIntoViewIfNeeded();
       await expect(link).toBeInViewport();

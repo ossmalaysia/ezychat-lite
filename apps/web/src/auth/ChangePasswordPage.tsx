@@ -23,8 +23,9 @@ export function ChangePasswordPage() {
   if (!user) return <Navigate to="/login" replace />;
 
   const forced = user.mustChangePassword;
-  const tooShort = next.length > 0 && next.length < 8;
-  const mismatch = confirm.length > 0 && next !== confirm;
+  // Errors show while typing once there is something to judge, and for every field on submit.
+  const tooShort = (touched || next.length > 0) && next.length < 8;
+  const mismatch = (touched || confirm.length > 0) && next !== confirm;
   const sameAsOld = next.length > 0 && next === current;
   const valid = current.length > 0 && next.length >= 8 && next === confirm && !sameAsOld;
 
@@ -81,7 +82,7 @@ export function ChangePasswordPage() {
           size="touch"
           className="w-full"
           aria-busy={change.isPending || undefined}
-          disabled={change.isPending || !valid}
+          disabled={change.isPending}
         >
           {change.isPending ? <ButtonSpinner /> : <KeyRound aria-hidden="true" />}
           {t('changePassword.submit')}

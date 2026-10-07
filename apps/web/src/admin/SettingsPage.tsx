@@ -18,7 +18,7 @@ import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
 import { useChangeLocale } from '@/i18n/use-change-locale';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
-import { ErrorState, Field, Pending } from './adminUi';
+import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { AiVoiceSection } from './AiVoiceSection';
@@ -126,11 +126,16 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader title={t('settings.title')} />
+    <div className="flex flex-col gap-3">
+      <PageHeader
+        className="pb-0"
+        title={t('settings.title')}
+        description={t('settings.description')}
+      />
 
       <Tabs value={tab} onValueChange={(next) => navigate(`/admin/settings/${next}`)}>
-        <div className="-mx-4 overflow-x-auto px-4 pb-1">
+        {/* Tabs scroll sideways on narrow phones (Malay labels are longest) instead of clipping. */}
+        <div className="-mx-4 scroll-px-4 overflow-x-auto px-4 pb-1">
           <TabsList variant="line" className="w-max justify-start">
             {TABS.map((id) => (
               <TabsTrigger key={id} value={id} className="flex-none px-3">
@@ -206,18 +211,27 @@ export function SettingsPage() {
                 <CardTitle>{t('settings.history.title')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Field label={t('settings.history.days')} error={daysError}>
+                <Field
+                  label={t('settings.history.days')}
+                  error={daysError}
+                  hint={t('settings.history.daysHint')}
+                >
                   {(p) => (
-                    <Input
-                      {...p}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={365}
-                      className="h-11 md:h-9 md:max-w-48"
-                      value={historyDays}
-                      onChange={(e) => setHistoryDays(e.target.value)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        {...p}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={365}
+                        className="h-11 md:h-9 md:max-w-32"
+                        value={historyDays}
+                        onChange={(e) => setHistoryDays(e.target.value)}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {t('settings.history.unit')}
+                      </span>
+                    </div>
                   )}
                 </Field>
               </CardContent>
@@ -225,7 +239,7 @@ export function SettingsPage() {
 
             {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
 
-            <div className="flex flex-col sm:flex-row">
+            <SaveBar dirty={dirty}>
               <Button
                 type="submit"
                 size="touch"
@@ -235,7 +249,7 @@ export function SettingsPage() {
                 <Pending show={patch.isPending} />
                 {t('settings.save')}
               </Button>
-            </div>
+            </SaveBar>
           </form>
         </TabsContent>
 
@@ -244,7 +258,7 @@ export function SettingsPage() {
           <AiVoiceSection />
         </TabsContent>
 
-        <TabsContent value="device">
+        <TabsContent value="device" className="flex flex-col gap-4">
           <Card className="gap-4">
             <CardHeader>
               <CardTitle>{t('settings.device.title')}</CardTitle>
@@ -269,6 +283,25 @@ export function SettingsPage() {
                 />
               </PreferenceRow>
               <PreferenceRow
+                labelId="settings-notifications-label"
+                label={t('settings.device.notifications')}
+                hintId="settings-notifications-desc"
+                hint={t('settings.device.notificationsHint')}
+              >
+                {/* The row already names the switch; keep PushToggle's own label for screen
+                    readers only so "Notifications" is not printed twice. */}
+                <PushToggle className="[&_label>span]:sr-only" />
+              </PreferenceRow>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4">
+            <CardHeader>
+              <CardTitle>{t('settings.account.title')}</CardTitle>
+              <CardDescription>{t('settings.account.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              <PreferenceRow
                 labelId="settings-language-label"
                 label={t('common:language.label')}
                 hintId="settings-language-desc"
@@ -285,33 +318,13 @@ export function SettingsPage() {
                   }))}
                 />
               </PreferenceRow>
-              <PreferenceRow
-                labelId="settings-notifications-label"
-                label={t('settings.device.notifications')}
-                hintId="settings-notifications-desc"
-                hint={t('settings.device.notificationsHint')}
-              >
-                <PushToggle />
-              </PreferenceRow>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Resolving every chat is reversible (chats can be reopened), so no danger styling. */}
         <TabsContent value="maintenance">
-          <section
-            aria-labelledby="settings-danger-title"
-            className="flex flex-col gap-3 rounded-xl border border-destructive/40 p-4"
-          >
-            <div>
-              <h2 id="settings-danger-title" className="font-semibold text-destructive">
-                {t('settings.maintenance.title')}
-              </h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {t('settings.maintenance.description')}
-              </p>
-            </div>
-            <ResolveAllChatsCard />
-          </section>
+          <ResolveAllChatsCard />
         </TabsContent>
       </Tabs>
     </div>

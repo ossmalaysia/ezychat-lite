@@ -80,7 +80,7 @@ export function TunnelPage() {
   const namedStarting =
     s.mode === 'named' && s.state === 'starting' && s.hostname === savedHostname;
   const actionLabel = {
-    off: active ? t('tunnel.action.disconnect') : t('tunnel.action.off'),
+    off: t('tunnel.action.disconnect'),
     named: namedStarting ? t('tunnel.action.namedConnecting') : t('tunnel.action.namedConnect'),
     quick: active ? t('tunnel.action.quickRestart') : t('tunnel.action.quickCreate'),
   }[mode];
@@ -115,11 +115,9 @@ export function TunnelPage() {
       <PageHeader title={t('tunnel.title')} description={t('tunnel.description')} />
 
       <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('tunnel.statusTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <CardTitle>{t('tunnel.connectTitle')}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
             <StatusDot
               tone={stateTone(s.state)}
               pulse={s.state === 'starting'}
@@ -129,7 +127,8 @@ export function TunnelPage() {
               <span className="text-sm text-muted-foreground">({currentModeLabel})</span>
             )}
           </div>
-
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
           {s.url && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -166,14 +165,7 @@ export function TunnelPage() {
               {s.lastError}
             </Banner>
           )}
-        </CardContent>
-      </Card>
 
-      <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('tunnel.connectTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
           <fieldset className="min-w-0">
             <legend className="mb-2 text-sm font-medium">{t('tunnel.remoteAccess')}</legend>
             <RadioGroup
@@ -271,17 +263,16 @@ export function TunnelPage() {
             <Banner tone="danger">{formError ?? errorMessage(mutationError)}</Banner>
           )}
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {(mode !== 'named' || (hasToken && !namedRunning)) && (
+          <div className="flex flex-col gap-2 empty:hidden sm:flex-row">
+            {/* Off while nothing runs needs no button: the status above already says it. */}
+            {(mode === 'off' ? active : mode !== 'named' || (hasToken && !namedRunning)) && (
               <Button
                 size="touch"
                 className="md:min-h-9"
                 onClick={() => onStart()}
-                disabled={
-                  pending || (mode === 'off' && !active) || (mode === 'named' && namedStarting)
-                }
+                disabled={pending || (mode === 'named' && namedStarting)}
               >
-                <Pending show={start.isPending} />
+                <Pending show={mode === 'off' ? stop.isPending : start.isPending} />
                 {actionLabel}
               </Button>
             )}
@@ -298,9 +289,13 @@ export function TunnelPage() {
               </Button>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {settings.data?.lanEnabled ? t('tunnel.disconnectNoteLan') : t('tunnel.disconnectNote')}
-          </p>
+          {active && (
+            <p className="text-sm text-muted-foreground">
+              {settings.data?.lanEnabled
+                ? t('tunnel.disconnectNoteLan')
+                : t('tunnel.disconnectNote')}
+            </p>
+          )}
         </CardContent>
       </Card>
 
