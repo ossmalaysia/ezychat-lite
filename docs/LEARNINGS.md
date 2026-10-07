@@ -109,6 +109,9 @@ into AGENTS.md.
   Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
+- Before adopting a dependency for the server, bundle it with the real settings (esbuild, one CJS
+  file) and **run** the bundle: esbuild reports `import.meta` in CJS only at debug level, so a clean
+  build can still crash at load (Google ADK: `createRequire(import.meta.url)`).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
   Finish browser checks before packaging.
 - Delete custom build output folders (`release-*`, `dist-*`) after use; ESLint ignores them, but they

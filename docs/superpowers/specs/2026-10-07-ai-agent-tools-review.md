@@ -136,6 +136,41 @@ elsewhere by default, and bundling into the desktop's single CommonJS server fil
 Others: Mastra (heavier, adds deps for a framework we don't need), LangGraph.js (a graph runtime,
 more than one agent needs). Claude Agent SDK runs Claude models only, the opposite of agnostic.
 
+### Measured comparison (2026-10-07)
+
+Two checks, four SDKs: a docs review against our needs (source for every cell) and a hands-on test.
+The test builds the same agent in each (two zod tools; the chat id given by the server, not the
+model; a structured `{ action, reply }` answer), runs it on each SDK's **mock model** (no AI calls),
+bundles it the way the desktop app does (esbuild, one CommonJS file), and logs every network
+attempt.
+
+| | Vercel AI SDK `ai` 7.0 | OpenAI Agents 0.19 | Mastra 1.75 | Google ADK TS 2.2 |
+| --- | --- | --- | --- | --- |
+| OpenAI key + ChatGPT route from TypeScript | `createOpenAI({ fetch, headers })`; a custom fetch reshapes requests for ChatGPT | native, incl. `toolNamespace()` | through the AI SDK | **no OpenAI model in TS** (LiteLLM is Python-only): we would write the whole model adapter |
+| Chat id into tools (not chosen by the model) | typed per-tool context | run context | `RequestContext` | session state |
+| Structured answer + tools | `Output.object` | `outputType` | `structuredOutput` | `set_model_response` tool |
+| Sessions required | no (we pass history) | no | no | **yes** (Runner + session service) |
+| Sends data elsewhere by default (docs) | nothing | **traces to OpenAI** | **PostHog analytics** (server/CLI paths; 0 attempts in our test) | nothing (OTLP only if configured) |
+| Official mock model | `ai/test` | `@openai/agents/testing` | AI SDK mock | **none** |
+| Dependency tree / node_modules | 50 lines / 38 MB | 73 / 87 MB | 395 / 155 MB | 360 / 156 MB |
+| One-file CJS bundle | **OK, 1.2 MB, no warnings** | OK, 4.5 MB | OK, 11.4 MB | **crashes at load** (`createRequire(import.meta.url)`), OK only with a shim; 7.4 MB |
+| Run time (bare Node ≈ 830 ms) | ≈ 900 ms | ≈ 1,030 ms | ≈ 1,175 ms | ≈ 1,045 ms |
+| Network attempts in the test | 0 | 0 | 0 | 0 |
+| Already-aborted signal | throws | throws | returns empty | ends silently |
+| Maturity | major every ~6 months | 0.x | very frequent releases | 2 majors in 4 months |
+
+**Google ADK, fairly:** strong guardrails (callbacks, a security plugin, per-tool confirmation),
+cancellation down to the model, nothing sent by default, MCP. But for this app it is Gemini-first:
+we would write and maintain the OpenAI adapter ourselves, run its session layer next to our SQLite
+history, and patch the bundle. It becomes a real option only if Gemini becomes the main model.
+
+**Mastra** works, but it adds a framework layer we don't use, 10× the bundle and analytics we
+would have to keep off. **OpenAI Agents** is the runner-up: clean bundle and the best test kit, but
+traces go to OpenAI unless disabled, and it is still 0.x.
+
+Whichever SDK we use, add a test that cancelling a reply really stops it: two of the four return
+quietly instead of throwing.
+
 **Recommendation: adopt the Vercel AI SDK**, behind a thin port of our own, so the vendor choice is
 configuration, not code:
 
