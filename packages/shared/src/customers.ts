@@ -4,7 +4,8 @@ export const CUSTOMER_TAG_LIMIT = 10;
 export const CUSTOMER_TAG_MAX_CHARS = 30;
 // Deliberately simple: one @, something on both sides, a dot in the domain, no spaces. `?#%&` are
 // refused so a stored address can never smuggle headers (bcc, subject…) into a mailto: link.
-const EMAIL = /^[^\s@?#%&]+@[^\s@?#%&]+\.[^\s@?#%&]+$/;
+// Domain labels exclude "." so the pattern is linear (no backtracking between labels).
+const EMAIL = /^[^\s@?#%&]+@[^\s@?#%&.]+(?:\.[^\s@?#%&.]+)+$/;
 const PHONE = /^[0-9+\-() ]*$/;
 /** Control characters (incl. the \u001f tag separator). Line breaks are allowed only in the address. */
 const CONTROL = /\p{Cc}/u;

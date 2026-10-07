@@ -100,8 +100,7 @@ function mergeEdits(draft: Draft, initial: Draft, latest: Draft): Draft {
 /** `mailto:` that cannot carry extra headers; null when the stored value must stay plain text. */
 function mailtoHref(email: string): string | null {
   const at = email.lastIndexOf('@');
-  // eslint-disable-next-line no-control-regex
-  if (at < 1 || /[?#%&\s\u0000-\u001f\u007f]/.test(email)) return null;
+  if (at < 1 || /[?#%&\s\p{Cc}]/u.test(email)) return null;
   return `mailto:${encodeURIComponent(email.slice(0, at))}@${email.slice(at + 1)}`;
 }
 

@@ -39,7 +39,7 @@ export function TagInput({
   const [focused, setFocused] = useState(false);
   const full = value.length >= CUSTOMER_TAG_LIMIT;
 
-  const chosen = new Set(value.map(customerTagKey));
+  const chosen = new Set(value.map((tag) => customerTagKey(tag)));
   const prefix = customerTagKey(text);
   const options = suggestions
     .filter((s) => !chosen.has(customerTagKey(s)) && customerTagKey(s).startsWith(prefix))
@@ -65,10 +65,7 @@ export function TagInput({
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     // Enter also confirms an input-method candidate (Chinese, Japanese…): never add half-typed text.
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault();
-      add(text);
-    } else if (e.key === ',') {
+    if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === ',') {
       e.preventDefault();
       add(text);
     } else if (e.key === 'Backspace' && text === '' && value.length > 0) {
@@ -124,7 +121,7 @@ export function TagInput({
               const parts = next.split(',');
               const rest = parts.pop() ?? '';
               let tags = value;
-              const keys = new Set(tags.map(customerTagKey));
+              const keys = new Set(tags.map((tag) => customerTagKey(tag)));
               for (const part of parts) {
                 const tag = normalizeTag(part);
                 if (!tag || keys.has(customerTagKey(tag)) || tags.length >= CUSTOMER_TAG_LIMIT)

@@ -410,7 +410,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const page = more ? rows.slice(0, q.limit) : rows;
       const oldest = page[page.length - 1];
       return {
-        messages: presentAll(page.reverse()),
+        messages: presentAll([...page].reverse()),
         nextBefore: more && oldest ? encodeBefore(oldest.timestamp, oldest.id) : null,
       };
     },

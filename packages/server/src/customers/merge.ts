@@ -25,7 +25,7 @@ export function mergeCustomerProfile(
   ) as ProfileFields;
   const union = [...newer.tags, ...(older?.tags ?? [])];
   const tags = repo.canonicalTags(union);
-  const tagsDropped = new Set(union.map(customerTagKey)).size - tags.length;
+  const tagsDropped = new Set(union.map((tag) => customerTagKey(tag))).size - tags.length;
   // Delete `from` first: the id is UNIQUE and may move to `to`.
   db.prepare('DELETE FROM customer_profiles WHERE chat_jid = ?').run(from);
   db.prepare('DELETE FROM customer_tags WHERE chat_jid = ?').run(from);
