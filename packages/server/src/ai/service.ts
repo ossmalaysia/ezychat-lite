@@ -31,6 +31,18 @@ import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
+import { runAgentTurn } from './agent/turn.js';
+
+/** EXPERIMENTAL: answer through the AI SDK agent loop with tools (`WATI_AI_AGENT_SDK=1`). */
+const agentSdkEnabled = () => process.env.WATI_AI_AGENT_SDK === '1';
+/** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
+const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
+  history.map((message) => ({
+    speaker: message.fromMe ? (message.sentByUserId === aiUserId ? 'AI' : 'human') : 'customer',
+    text: conversationLine(message),
+  }));
+const AGENT_SEARCH_RULE =
+  'The business facts are not included in the input: call search_business_context to look them up before answering a question about the business, and search again with other words if the first result does not answer it.';
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
@@ -571,7 +583,38 @@ export function createAiService(
       const awaiting = asked > 0;
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
+      let toolCalls: string[] = [];
       const started = Date.now();
+      /** One model decision: the classic single call, or (experimental) the AI SDK agent loop. */
+      const decide = async (
+        turns: AiConversationTurn[],
+        facts: string,
+        awaitingConfirmation: boolean,
+        batchImages: AiPromptImage[],
+      ): Promise<AiDecision> => {
+        const secret = ctx.settings.getSecret(SECRET_KEY);
+        if (agentSdkEnabled() && provider.agentModel) {
+          // The facts are not pushed: the model looks them up with search_business_context.
+          const base = prompt(current, '', turns, awaitingConfirmation, batchImages, savedCustomer);
+          const turn = await runAgentTurn({
+            model: await provider.agentModel(current, secret, installId()),
+            prompt: { ...base, instructions: `${base.instructions}\n${AGENT_SEARCH_RULE}` },
+            knowledge: knowledgeSources(contextItems()),
+            chatJid: jid,
+            signal: controller.signal,
+          });
+          toolCalls = turn.toolCalls;
+          return turn.decision;
+        }
+        return AiDecision.parse(
+          await provider.generate(
+            current,
+            secret,
+            prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+            controller.signal,
+          ),
+        );
+      };
       try {
         // Text, images (with or without a caption) and voice notes can be handled; video,
         // documents, stickers and the like go to the team.
@@ -605,28 +648,7 @@ export function createAiService(
                 reply: HANDOFF_REPLY,
                 handoffReason: knowledge.trim() ? 'unsupported_message' : 'missing_facts',
               }
-            : AiDecision.parse(
-                await provider.generate(
-                  current,
-                  ctx.settings.getSecret(SECRET_KEY),
-                  prompt(
-                    current,
-                    knowledge,
-                    history.map((message) => ({
-                      speaker: message.fromMe
-                        ? message.sentByUserId === user.id
-                          ? 'AI'
-                          : 'human'
-                        : 'customer',
-                      text: conversationLine(message),
-                    })),
-                    awaiting,
-                    images,
-                    savedCustomer,
-                  ),
-                  controller.signal,
-                ),
-              );
+            : await decide(conversation(history, user.id), knowledge, awaiting, images);
         // The first voice note the AI could not listen to always gets the "please type it" answer
         // (a repeat was handed off above); only a request for a person or a sensitive topic
         // still hands off.
@@ -639,14 +661,25 @@ export function createAiService(
           decision.handoffReason !== 'sensitive'
         )
           decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
-      } catch {
+      } catch (error) {
         if (controller.signal.aborted) return;
         if (!ready()) {
           log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
           releaseForConnection();
           return;
         }
-        log.warn({ jid, reason: 'provider_failed' }, 'AI answer unavailable');
+        // Error type and HTTP status only: messages and bodies can carry customer text.
+        const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
+        log.warn(
+          {
+            jid,
+            reason: 'provider_failed',
+            errName: typeof failure?.name === 'string' ? failure.name : null,
+            status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
+            finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
+          },
+          'AI answer unavailable',
+        );
         decision = {
           action: 'handoff' as const,
           reply: HANDOFF_REPLY,
@@ -679,6 +712,7 @@ export function createAiService(
           handoffReason: decision.handoffReason ?? null,
           asked,
           images: images.length,
+          toolCalls,
           voiceNotes: voiceNotes.length,
           model: current.model ?? null,
           ms: Date.now() - started,

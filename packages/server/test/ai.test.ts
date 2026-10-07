@@ -17,6 +17,7 @@ import { pdfFixture } from './ai-fixtures.js';
 import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
 import { readFileSync } from 'node:fs';
+import { MockLanguageModelV4 } from 'ai/test';
 import { join } from 'node:path';
 
 let t: TestApp;
@@ -148,6 +149,57 @@ it('answers with the customer details the team saved, but never their tags', asy
     address: '12 Jalan Ampang',
   });
   expect(input).not.toContain('Late payer');
+});
+
+it('EXPERIMENTAL agent SDK: answers through the agent loop, searching the business context', async () => {
+  vi.stubEnv('WATI_AI_AGENT_SDK', '1');
+  const usage = {
+    inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 1, text: 1, reasoning: 0 },
+  };
+  const model = new MockLanguageModelV4({
+    doGenerate: [
+      {
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: 'c1',
+            toolName: 'search_business_context',
+            input: JSON.stringify({ query: 'opening hours' }),
+          },
+        ],
+        finishReason: { unified: 'tool-calls', raw: 'tool_calls' },
+        usage,
+        warnings: [],
+      },
+      {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              reply: 'We open at 9am.',
+              action: 'answer',
+              handoffReason: null,
+            }),
+          },
+        ],
+        finishReason: { unified: 'stop', raw: 'stop' },
+        usage,
+        warnings: [],
+      },
+    ],
+  });
+  provider.agentModel = vi.fn(async () => model);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(provider.generate).not.toHaveBeenCalled();
+  expect(t.wa.sent[0]?.text).toBe('We open at 9am.');
+  // The facts are not pushed into the prompt: the model had to search for them.
+  const first = JSON.stringify(model.doGenerateCalls[0]!.prompt);
+  expect(first).not.toContain('Opening hours: 9am');
+  expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain('Opening hours: 9am');
+  vi.unstubAllEnvs();
 });
 
 it('drops a reply written with details a teammate corrected meanwhile, and answers again', async () => {

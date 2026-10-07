@@ -181,6 +181,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- AI SDK on the Responses API with `store:false`: multi-step runs must also `include`
+  `reasoning.encrypted_content`, or the SDK sends `item_reference` to reasoning ids the server never
+  kept (HTTP 404 on the ChatGPT backend, only when the model reasoned before a tool call).
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
   Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so

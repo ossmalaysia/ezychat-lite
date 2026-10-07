@@ -16,7 +16,9 @@ import {
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { AiPrompt, AiProvider } from './provider-types.js';
-import { AI_OUTPUT_SCHEMA, generateOpenAi } from './provider.js';
+import { AI_OUTPUT_SCHEMA, generateOpenAi, OPENAI_DEFAULT_MODEL } from './provider.js';
+import type { LanguageModel } from 'ai';
+import { chatGptModel, openAiKeyModel } from './agent/models.js';
 import {
   LOGIN_TIMEOUT_MS,
   OAuthError,
@@ -464,6 +466,31 @@ export class DirectChatGptProvider implements AiProvider {
     } finally {
       this.inflight.delete(controller);
     }
+  }
+
+  /**
+   * EXPERIMENTAL (`WATI_AI_AGENT_SDK=1`): the AI SDK model for the saved mode, for the agent loop
+   * with tool calls. ChatGPT mode reuses this client's sign-in and token refresh.
+   */
+  async agentModel(
+    settings: AiSettings,
+    apiKey: string | null,
+    cacheId: string,
+  ): Promise<LanguageModel> {
+    if (settings.mode === 'api') {
+      if (!apiKey) throw new Error('Add an OpenAI API key in the AI settings.');
+      return openAiKeyModel(apiKey, settings.model || OPENAI_DEFAULT_MODEL);
+    }
+    const model = await this.resolveModel(settings.model);
+    return chatGptModel({
+      modelId: model,
+      cacheKey: promptCacheKey(cacheId, model),
+      auth: async () => {
+        const tokens = await this.auth();
+        return { accessToken: tokens.accessToken, accountId: tokens.accountId };
+      },
+      fetch: this.fetchImpl,
+    });
   }
 
   async generate(

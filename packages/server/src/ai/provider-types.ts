@@ -1,3 +1,4 @@
+import type { LanguageModel } from 'ai';
 import type {
   AiConnection,
   AiDecision,
@@ -45,6 +46,8 @@ export interface AiProvider {
     prompt: AiPrompt,
     signal: AbortSignal,
   ): Promise<AiDecision>;
+  /** EXPERIMENTAL (`WATI_AI_AGENT_SDK=1`): the AI SDK model for the agent loop with tools. */
+  agentModel?(settings: AiSettings, apiKey: string | null, cacheId: string): Promise<LanguageModel>;
   connection(): AiConnection;
   login(): Promise<AiConnection>;
   /** Finishes a pending sign-in with the redirect address pasted from another computer. */
