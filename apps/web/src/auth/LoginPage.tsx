@@ -22,6 +22,7 @@ export function LoginPage() {
   const login = useLogin();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   if (setup.data?.needsSetup) return <Navigate to="/setup" replace />;
   if (me.data && !login.isPending) {
@@ -35,6 +36,8 @@ export function LoginPage() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Sign in stays enabled; an incomplete form explains itself instead of a dead button.
+    setSubmitted(true);
     if (!username.trim() || !password) return;
     login.mutate(
       { username: username.trim(), password },
@@ -61,6 +64,7 @@ export function LoginPage() {
           required
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          error={submitted && !username.trim() ? t('login.usernameRequired') : undefined}
         />
         <Field
           label={t('login.passLabel')}
@@ -70,18 +74,19 @@ export function LoginPage() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          error={submitted && !password ? t('login.passRequired') : undefined}
         />
         <Button
           type="submit"
           size="touch"
           className="w-full"
           aria-busy={login.isPending || undefined}
-          disabled={login.isPending || !username.trim() || !password}
+          disabled={login.isPending}
         >
           {login.isPending ? <ButtonSpinner /> : <LogIn aria-hidden="true" />}
           {t('login.submit')}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">{t('login.forgot')}</p>
+        <p className="text-center text-sm text-muted-foreground">{t('login.forgot')}</p>
       </form>
     </AuthShell>
   );

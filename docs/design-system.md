@@ -62,7 +62,8 @@ labels, allow wrapping or truncation in tight rows, and check every screen at 36
 ### Appearance preference
 
 Light, Dark, and System are available in the Account menu for every member and under
-Settings → This device. System is the default and follows operating-system changes.
+Settings → Preferences → This device (Language sits in the separate "Your account" card there,
+because it is saved to the account rather than the device). System is the default and follows operating-system changes.
 The choice applies immediately and is stored per browser/device (`wati.theme` in local storage),
 with updates synchronized between tabs. It does not change another member's appearance or require
 Save settings. If storage is unavailable, the choice still applies for the current session.
@@ -84,7 +85,9 @@ Inputs are **≥16px** on mobile to avoid iOS zoom.
 - Radius: `--radius-sm 6px` (inputs, chips), `--radius 10px` (cards, buttons), `--radius-lg 16px` (sheets, bubbles).
 - Elevation: `shadow-sm` (cards), `shadow-lg` (popovers/dialogs) — nothing else.
 - Motion: 150ms ease-out; respect `prefers-reduced-motion`.
-- Touch targets ≥ 44px on touch devices (`size="touch"` button variant / `min-h-11`).
+- Touch targets ≥ 44px on touch devices (`size="touch"` / `"icon-touch"` button sizes / `min-h-11`).
+  Shrink dense desktop rows only for precise pointers (`md:pointer-fine:min-h-8`), never by
+  breakpoint alone: tablets are touch screens at `md` widths.
 
 ## Components (all in `src/components/ui`)
 
@@ -99,6 +102,28 @@ App-level composites live in `src/components/app/` (e.g. `ChatAvatar`, `Assignee
 
 ## Patterns
 
+- **Page headers** use `PageHeader`: title, one-line description, actions top-right (they wrap
+  below the title on phones). Every admin page has a description.
+- **Saving forms** use `SaveBar` (`admin/adminUi.tsx`): Save sits at the end of the form,
+  right-aligned (full width on phones); while there are edits it sticks to the bottom of the
+  screen with an "Unsaved" marker. Don't place Save buttons elsewhere.
+- **Row actions** (members, quick replies): one visible Edit button, everything else (including
+  Delete) in a "…" `DropdownMenu`. Rows without a menu keep its slot so buttons line up.
+- **Action lists** (e.g. WhatsApp): one row per action — what it does on the left, the button on
+  the right (stacked on phones), least disruptive first; irreversible ones last, as outline
+  buttons with `text-danger`, always confirmed with `AlertDialog`.
+- **Danger styling** (red frames, destructive buttons) is only for irreversible actions.
+  Reversible bulk actions (resolve all chats) use normal styling. A switched-off item (AI member
+  Off, disabled member) is neutral (`Badge variant="secondary"`), never red.
+- **Disabled buttons**: filled variants turn `bg-muted text-muted-foreground`; never leave a
+  faded teal button. Prefer keeping a form's primary action enabled and explaining missing
+  fields on submit (sign-in, change password). Don't show a disabled button as a status label.
+- **Secrets** (API keys, tokens) are never shown: a saved one appears as a read-only "saved"
+  line with **Replace**; raw technical options (model ids) sit behind an "Advanced" disclosure.
+- **Status** belongs in the header of the card it describes (`StatusDot`), not a separate card.
+- **Tabs**: the selected tab (default variant) is a white `surface` segment with an `input`
+  border (≥3:1 against the track). Tab rows that may overflow at 360px scroll sideways
+  (`overflow-x-auto` with `scroll-px-4`).
 - **Confirmations** use `AlertDialog` (logout WhatsApp, reset password, reply to someone else's chat).
 - **Feedback** uses toasts for success/failure of actions; inline `Banner` for persistent state
   (WhatsApp disconnected, tunnel error, LAN over HTTP).
@@ -111,8 +136,10 @@ App-level composites live in `src/components/app/` (e.g. `ChatAvatar`, `Assignee
 
 ## Brand assets (`apps/web/public`, `apps/desktop/build`)
 
-App icon: two smiling lilac and coral chat teammates on a teal square; no text or third-party logo.
-Source and reproducible exports live in `design/app-icon/` (see `docs/brand.md`).
+App icon: the official EzyChat headset parrot on a green gradient tile (the same mark on the
+sign-in screen, desktop window, installer, PWA and sharing card); no third-party logo. The tile's
+green belongs to the brand mark only — UI colour stays on the tokens above (teal accent).
+Source, provenance and reproducible exports live in `design/app-icon/` (see `docs/brand.md`).
 Generated variants: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
 `apple-touch-icon.png`, `favicon.ico`, desktop `icon.ico` / `icon.icns` / tray template images.
 Illustrations (empty inbox, no results, link WhatsApp, tunnel, welcome) share one flat style:

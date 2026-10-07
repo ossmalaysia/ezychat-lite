@@ -14,6 +14,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transcription costs. Stored transcripts are capped, and the audit log shows when someone changes the
   AI's instructions or hand-off rules.
 
+### Changed
+
+- Admin and account screens are calmer and more consistent:
+  - **Audit log**: every action has a readable name (including AI, Business context and voice
+    changes), details read like "Chat: +60123… · Changed name, tags" with member names instead of
+    ids, and **Hide sign-ins** filters out routine sign-ins (failed sign-ins stay visible).
+  - **Cloudflare**: the connection status sits in the "How your team connects" card; there is no
+    more greyed-out "Remote access is off" button, and the disconnect note only shows while connected.
+  - **WhatsApp**: each action has its own row with a short explanation; Log out comes last in red
+    text (still confirmed), and Take over only appears when the session was opened elsewhere.
+  - **Members**: a turned-off AI member shows a neutral "Off" (disabled members are grey, not red),
+    the list shows the date someone was added without the time, and Edit buttons line up.
+  - **Quick replies**: Delete moved into each reply's "…" menu, like Members.
+  - **Settings**: one Save pattern everywhere — Save at the end of the form, pinned to the bottom
+    with an "Unsaved" marker while you have edits. Port and history fields explain when to change
+    them; a saved OpenAI key shows as "saved" with **Replace**, and the API model moved under
+    **Advanced**. "This device" is now **Preferences**, with Language in its own "Your account"
+    card. Maintenance is now **End of day** without the red danger frame (resolving chats can be
+    undone).
+  - **AI member page**: a short description, plain section titles (no step numbers), a smaller
+    instructions box with a "Using the recommended instructions" note.
+  - **Admin menu**: Back to inbox is at the top; support links are folded into **Help & feedback**.
+  - **Sign in and Change password**: the main button stays enabled and explains missing fields,
+    passwords have a show/hide button, and the page footer keeps just the version and Report an issue.
+  - The **Dev Build** marker is a small tab at the top centre, so it no longer covers buttons.
+  - Disabled buttons are grey instead of faded teal, and the selected tab is easier to see in
+    light mode.
+
 ## [0.1.22] - 2026-10-06
 
 ### Added

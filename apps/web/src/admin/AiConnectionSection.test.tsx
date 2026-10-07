@@ -87,7 +87,8 @@ describe('Settings → AI connection (inline)', () => {
   it('edits in place with one Save and an Unsaved marker', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    const model = await screen.findByLabelText('Model (optional)');
+    await user.click(await screen.findByRole('button', { name: 'Advanced: choose a model' }));
+    const model = screen.getByLabelText('Model (optional)');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByText('Unsaved')).toBeNull();
     await user.type(model, 'gpt-4.1-mini');
@@ -95,6 +96,26 @@ describe('Settings → AI connection (inline)', () => {
     await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
     await waitFor(() => expect(screen.queryByText('Unsaved')).toBeNull());
     expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: 'gpt-4.1-mini' });
+  });
+
+  it('shows a saved API key as a read-only status with Replace', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    expect(await screen.findByText('OpenAI API key is saved.')).toBeTruthy();
+    expect(screen.queryByLabelText('OpenAI API key')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Replace key' }));
+    await user.type(screen.getByLabelText('OpenAI API key'), 'sk-new-key-1234567890');
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Keep saved key' }));
+    expect(screen.queryByLabelText('OpenAI API key')).toBeNull();
+    expect(screen.queryByText('Unsaved')).toBeNull();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+  });
+
+  it('asks for a key directly when none is saved', async () => {
+    setup({ ...status(), hasApiKey: false });
+    expect(await screen.findByLabelText('OpenAI API key')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Replace key' })).toBeNull();
   });
 
   it('switches with the segmented control, labels ChatGPT experimental and offers Auto first', async () => {
@@ -249,7 +270,8 @@ describe('Settings → AI connection (inline)', () => {
   it('keeps the model typed for each mode while flipping, and clears Unsaved when back to saved', async () => {
     setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
+    await user.click(await screen.findByRole('button', { name: 'Advanced: choose a model' }));
+    await user.type(screen.getByLabelText('Model (optional)'), 'gpt-4.1-mini');
     expect(screen.getByText('Unsaved')).toBeTruthy();
     await user.click(screen.getByRole('radio', { name: /ChatGPT/ }));
     await user.click(screen.getByRole('radio', { name: 'API key' }));
@@ -327,7 +349,8 @@ describe('Settings → AI connection (inline)', () => {
   it('keeps an unsaved draft while the language changes', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Model (optional)'), 'gpt-4.1-mini');
+    await user.click(await screen.findByRole('button', { name: 'Advanced: choose a model' }));
+    await user.type(screen.getByLabelText('Model (optional)'), 'gpt-4.1-mini');
     // The Malay catalog is lazy-loaded; under a full parallel test run that import can take seconds.
     await act(() => activateLocale('ms'));
     const model = await screen.findByLabelText('Model (pilihan)', undefined, { timeout: 10_000 });

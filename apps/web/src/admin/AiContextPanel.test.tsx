@@ -156,7 +156,7 @@ const writes = (fetchMock: ReturnType<typeof vi.fn>) =>
     .filter((call) => call[1]?.method && call[1].method !== 'GET')
     .map((call) => `${call[1]!.method} ${call[0]}`);
 const table = async () => within(await screen.findByRole('table'));
-const mobileList = () => within(screen.getByRole('list', { name: '3. Business context' }));
+const mobileList = () => within(screen.getByRole('list', { name: 'Business context' }));
 
 beforeAll(() => {
   const proto = Element.prototype as unknown as Record<string, unknown>;
@@ -203,7 +203,7 @@ describe('Business context panel', () => {
     const wide = (await screen.findByRole('table')).closest('[data-slot="context-table"]')!;
     expect(wide.className).toContain('hidden');
     expect(wide.className).toContain('sm:block');
-    const list = screen.getByRole('list', { name: '3. Business context' });
+    const list = screen.getByRole('list', { name: 'Business context' });
     expect(list.className).toContain('sm:hidden');
     const name = mobileList().getByText('menu.pdf');
     expect(name.className).toContain('truncate');

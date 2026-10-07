@@ -50,8 +50,8 @@ describe('LoginPage', () => {
 
     renderLogin();
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/username/i), 'alice');
-    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.type(screen.getByLabelText('Username'), 'alice');
+    await user.type(screen.getByLabelText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText('Invalid username or password')).toBeTruthy();
@@ -61,6 +61,54 @@ describe('LoginPage', () => {
     ];
     expect(call).toBeTruthy();
     expect(JSON.parse(String(call[1].body))).toEqual({ username: 'alice', password: 'secret123' });
+  });
+
+  it('keeps Sign in enabled and explains missing fields on submit', async () => {
+    const fetchMock = vi.fn(
+      async (_url: string) =>
+        new Response(JSON.stringify({ error: { code: 'unauthorized', message: 'no' } }), {
+          status: 401,
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    renderLogin();
+    const user = userEvent.setup();
+    const submit = screen.getByRole('button', { name: 'Sign in' }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    await user.click(submit);
+    expect(screen.getByText('Enter your username.')).toBeTruthy();
+    expect(screen.getByText('Enter your password.')).toBeTruthy();
+    expect(screen.getByLabelText('Username').getAttribute('aria-invalid')).toBe('true');
+    expect(fetchMock.mock.calls.some((c) => c[0] === '/api/auth/login')).toBe(false);
+    await user.type(screen.getByLabelText('Username'), 'alice');
+    expect(screen.queryByText('Enter your username.')).toBeNull();
+  });
+
+  it('shows and hides the password', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 401 })),
+    );
+    renderLogin();
+    const user = userEvent.setup();
+    const password = screen.getByLabelText('Password') as HTMLInputElement;
+    expect(password.type).toBe('password');
+    await user.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(password.type).toBe('text');
+    await user.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(password.type).toBe('password');
+  });
+
+  it('keeps only the version and Report an issue below the card', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 401 })),
+    );
+    renderLogin();
+    expect(screen.getByText('Sign in to your team inbox')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Report an issue' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Request a feature/ })).toBeNull();
+    expect(screen.queryByText(/Need a custom feature/)).toBeNull();
   });
 
   it('offers a language picker before sign-in that translates the page', async () => {

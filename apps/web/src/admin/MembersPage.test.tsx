@@ -147,6 +147,20 @@ describe('MembersPage', () => {
     expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai');
   });
 
+  it('shows a turned-off AI member as a neutral Off, not as Disabled', async () => {
+    setup([users[0]!, { ...aiUser, disabled: true }]);
+    await screen.findAllByText('Business AI');
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Disabled')).toBeNull();
+  });
+
+  it('shows the date a member was added without the time', async () => {
+    setup();
+    await screen.findAllByText('Alice Admin');
+    expect(screen.queryByText(/\d{1,2}:\d{2}/)).toBeNull();
+    expect(screen.getAllByText(/2023/).length).toBeGreaterThan(0);
+  });
+
   it('links Add AI member to the AI member page when there is no AI member', async () => {
     setup();
     const link = await screen.findByRole('link', { name: 'Add AI member' });

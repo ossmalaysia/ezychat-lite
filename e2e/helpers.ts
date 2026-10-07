@@ -101,7 +101,7 @@ export async function signOutFromInbox(page: Page): Promise<void> {
 export async function signIn(page: Page, username: string, password: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Username').fill(username);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   const submit = async () => {
     const [response] = await Promise.all([
       page.waitForResponse(

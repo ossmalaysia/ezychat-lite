@@ -9,6 +9,7 @@ import { Banner, EmptyState, PageHeader, StatusDot, stateTone } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { ConfirmDialog, ErrorState } from './adminUi';
 
 /** WhatsApp connection state → translation key in the `admin` namespace. */
@@ -27,6 +28,9 @@ const ACTIONS = {
   relink: { danger: true },
   takeover: { danger: false },
 } as const satisfies Record<WaAction, { danger: boolean }>;
+
+/** Least to most disruptive: Log out (the loudest consequence) always comes last. */
+const ACTION_ORDER = ['takeover', 'relink', 'logout'] as const satisfies readonly WaAction[];
 
 const LINK_ILLUSTRATION = '/illustrations/link-whatsapp.png';
 
@@ -66,32 +70,32 @@ export function WhatsAppPage() {
           <CardTitle>{t('whatsapp.connection')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted-foreground">{t('whatsapp.status')}</span>
-            <StatusDot
-              tone={stateTone(s.state)}
-              pulse={s.state === 'connecting'}
-              label={
-                <span className="font-medium" data-testid="wa-state">
-                  {label}
-                </span>
-              }
-            />
-          </div>
-          {s.me && (
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
+          <dl className="grid max-w-xl grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">{t('whatsapp.status')}</dt>
+            <dd>
+              <StatusDot
+                tone={stateTone(s.state)}
+                pulse={s.state === 'connecting'}
+                label={
+                  <span className="font-medium" data-testid="wa-state">
+                    {label}
+                  </span>
+                }
+              />
+            </dd>
+            {s.me && (
+              <>
                 <dt className="text-muted-foreground">{t('whatsapp.linkedNumber')}</dt>
-                <dd className="font-medium">{formatPhone(s.me.jid)}</dd>
-              </div>
-              {s.me.name && (
-                <div>
-                  <dt className="text-muted-foreground">{t('whatsapp.name')}</dt>
-                  <dd className="font-medium">{s.me.name}</dd>
-                </div>
-              )}
-            </dl>
-          )}
+                <dd className="font-medium break-words">{formatPhone(s.me.jid)}</dd>
+                {s.me.name && (
+                  <>
+                    <dt className="text-muted-foreground">{t('whatsapp.name')}</dt>
+                    <dd className="font-medium break-words">{s.me.name}</dd>
+                  </>
+                )}
+              </>
+            )}
+          </dl>
           {s.lastError && s.state !== 'open' && <Banner tone="warning">{s.lastError}</Banner>}
           {s.state === 'replaced' && (
             <Banner tone="danger" title={t('whatsapp.replacedTitle')}>
@@ -170,32 +174,36 @@ export function WhatsAppPage() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>{t('whatsapp.actionsTitle')}</CardTitle>
-          <CardDescription>{t('whatsapp.actionsHint')}</CardDescription>
+          <CardTitle id="wa-actions-title">{t('whatsapp.actionsTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {(Object.keys(ACTIONS) as WaAction[]).map((a) => (
-              <Button
+          <ul aria-labelledby="wa-actions-title" className="flex flex-col divide-y">
+            {/* Take over only helps when another session replaced this one. */}
+            {ACTION_ORDER.filter((a) => a !== 'takeover' || s.state === 'replaced').map((a) => (
+              <li
                 key={a}
-                size="touch"
-                className="md:min-h-9"
-                variant={
-                  a === 'takeover' && s.state === 'replaced'
-                    ? 'default'
-                    : a === 'logout'
-                      ? 'outline'
-                      : 'secondary'
-                }
-                onClick={() => {
-                  action.reset();
-                  setPending(a);
-                }}
+                className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
               >
-                {t(`whatsapp.actions.${a}.label`)}
-              </Button>
+                <p className="min-w-0 text-sm text-muted-foreground">
+                  {t(`whatsapp.actions.${a}.hint`)}
+                </p>
+                <Button
+                  size="touch"
+                  className={cn(
+                    'shrink-0 md:min-h-9',
+                    a === 'logout' && 'border-danger/40 text-danger hover:text-danger',
+                  )}
+                  variant={a === 'takeover' ? 'default' : 'outline'}
+                  onClick={() => {
+                    action.reset();
+                    setPending(a);
+                  }}
+                >
+                  {t(`whatsapp.actions.${a}.label`)}
+                </Button>
+              </li>
             ))}
-          </div>
+          </ul>
         </CardContent>
       </Card>
 

@@ -12,7 +12,8 @@
     "supportLinks": "Support links",
     "reportIssue": "Report an issue",
     "customFeatures": "Custom features",
-    "customFeature": "Need a custom feature? <a>Contact Anchor Sprint</a>"
+    "customFeature": "Need a custom feature? <a>Contact Anchor Sprint</a>",
+    "helpFeedback": "Help & feedback"
   },
   "featureRequest": {
     "label": "Request a feature",

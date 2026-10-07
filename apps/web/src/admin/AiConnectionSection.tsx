@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AiConnectionBody,
@@ -26,7 +26,8 @@ import {
 } from '@/components/ui/select';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { officialLoginUrl } from './ai-status';
-import { ErrorState, Field, ListSkeleton, Pending } from './adminUi';
+import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
+import { cn } from '@/lib/utils';
 
 /** Radix Select needs a non-empty value; '' (Auto) is what is stored. */
 const AUTO_MODEL = 'auto';
@@ -74,6 +75,11 @@ function ConnectionForm({
   const setModel = (model: string) => setDrafts((old) => ({ ...old, [old.mode]: model }));
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [replacingKey, setReplacingKey] = useState(false);
+  const apiModelId = useId();
+  const [apiModelOpen, setApiModelOpen] = useState(false);
+  // A custom model stays visible; the default ("leave blank") stays tucked away.
+  const showApiModel = apiModelOpen || drafts.api !== '';
   const [pasted, setPasted] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const action = useAiMemberAction();
@@ -157,6 +163,7 @@ function ConnectionForm({
         onSuccess: (next) => {
           setDrafts(draftsFrom(next.settings));
           setApiKey('');
+          setReplacingKey(false);
           toast.success(t('ai.connectionSaved'));
         },
       },
@@ -166,10 +173,7 @@ function ConnectionForm({
   return (
     <Card className="gap-4">
       <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          {t('ai.settingsTitle')}
-          {dirty && <Badge variant="outline">{t('ai.unsaved')}</Badge>}
-        </CardTitle>
+        <CardTitle>{t('ai.settingsTitle')}</CardTitle>
         <CardDescription>{t('ai.settingsDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -204,22 +208,62 @@ function ConnectionForm({
           </div>
 
           {draft.mode === 'api' ? (
-            <Field
-              label={t('ai.apiKey')}
-              hint={status.hasApiKey ? t('ai.keepKeyHint') : t('ai.apiKeyHint')}
-            >
-              {(p) => (
-                <Input
-                  {...p}
-                  type="password"
-                  value={apiKey}
-                  autoComplete="new-password"
-                  disabled={action.isPending}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={status.hasApiKey ? t('ai.hiddenKey') : t('ai.enterKey')}
-                />
-              )}
-            </Field>
+            status.hasApiKey && !replacingKey ? (
+              // A saved key is never shown; say so plainly instead of an empty "hidden" field.
+              <div className="flex flex-col gap-2">
+                <p className="text-sm leading-none font-medium">{t('ai.apiKey')}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                  <span className="inline-flex items-center gap-2 text-sm">
+                    <KeyRound className="size-4 text-success" aria-hidden />
+                    {t('ai.keySaved')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    className="md:pointer-fine:min-h-8"
+                    disabled={action.isPending}
+                    onClick={() => setReplacingKey(true)}
+                  >
+                    {t('ai.replaceKey')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Field
+                  label={t('ai.apiKey')}
+                  hint={status.hasApiKey ? t('ai.keepKeyHint') : t('ai.apiKeyHint')}
+                >
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="password"
+                      value={apiKey}
+                      autoComplete="new-password"
+                      disabled={action.isPending}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder={t('ai.enterKey')}
+                    />
+                  )}
+                </Field>
+                {status.hasApiKey && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="touch"
+                    className="self-start"
+                    disabled={action.isPending}
+                    onClick={() => {
+                      setApiKey('');
+                      setReplacingKey(false);
+                    }}
+                  >
+                    {t('ai.keepKey')}
+                  </Button>
+                )}
+              </div>
+            )
           ) : (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{t('ai.directLoginHint')}</p>
@@ -345,17 +389,37 @@ function ConnectionForm({
               )}
             </Field>
           ) : (
-            <Field label={t('ai.model')} hint={t('ai.apiModelHint')}>
-              {(p) => (
-                <Input
-                  {...p}
-                  value={draft.model}
-                  maxLength={128}
-                  disabled={action.isPending}
-                  onChange={(e) => setModel(e.target.value)}
+            // Most inboxes keep the default model, so the free-text model id sits behind Advanced.
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="touch"
+                aria-expanded={showApiModel}
+                aria-controls={apiModelId}
+                className="justify-start self-start px-2 whitespace-normal text-left"
+                onClick={() => setApiModelOpen((open) => !open)}
+              >
+                <ChevronRight
+                  aria-hidden
+                  className={cn('transition-transform', showApiModel && 'rotate-90')}
                 />
-              )}
-            </Field>
+                {t('ai.modelAdvanced')}
+              </Button>
+              <div id={apiModelId} hidden={!showApiModel}>
+                <Field label={t('ai.model')} hint={t('ai.apiModelHint')}>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      value={draft.model}
+                      maxLength={128}
+                      disabled={action.isPending}
+                      onChange={(e) => setModel(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+            </div>
           )}
 
           {draft.mode === 'chatgpt' &&
@@ -399,12 +463,12 @@ function ConnectionForm({
           {(localError || action.error) && (
             <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>
           )}
-          <div className="flex justify-end">
+          <SaveBar dirty={dirty} inset="card">
             <Button type="submit" size="touch" disabled={action.isPending || !dirty}>
               <Pending show={action.isPending} />
               {t('ai.saveConnection')}
             </Button>
-          </div>
+          </SaveBar>
         </form>
       </CardContent>
     </Card>

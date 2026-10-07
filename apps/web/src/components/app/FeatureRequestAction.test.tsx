@@ -23,14 +23,12 @@ vi.mock('@/lib/theme', () => ({
 
 afterEach(cleanup);
 
-it('offers a feature-request draft before signing in', () => {
+it('keeps the sign-in screen to Report an issue; feature requests live in the account menu', () => {
   render(<AuthShell title="Sign in">Login form</AuthShell>);
-  const action = screen.getByRole('link', { name: /Request a feature/ });
-  expect(action.getAttribute('href')).toBe(
-    'https://github.com/ossmalaysia/ezychat-lite/issues/new?template=feature_request.yml',
-  );
-  expect(action.getAttribute('target')).toBe('_blank');
-  expect(action.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(screen.queryByRole('link', { name: /Request a feature/ })).toBeNull();
+  const report = screen.getByRole('link', { name: 'Report an issue' });
+  expect(report.getAttribute('target')).toBe('_blank');
+  expect(report.getAttribute('rel')).toBe('noopener noreferrer');
 });
 
 it.each([false, true])('offers the request action to an account with admin=%s', async (isAdmin) => {

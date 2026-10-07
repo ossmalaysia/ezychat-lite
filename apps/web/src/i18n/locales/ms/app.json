@@ -12,7 +12,8 @@
     "supportLinks": "Pautan sokongan",
     "reportIssue": "Laporkan masalah",
     "customFeatures": "Ciri tersuai",
-    "customFeature": "Perlukan ciri tersuai? <a>Hubungi Anchor Sprint</a>"
+    "customFeature": "Perlukan ciri tersuai? <a>Hubungi Anchor Sprint</a>",
+    "helpFeedback": "Bantuan & maklum balas"
   },
   "featureRequest": {
     "label": "Cadangkan ciri",

@@ -24,7 +24,8 @@
     "copied": "Copied to clipboard",
     "copyFailed": "Copy failed — select the text and copy it manually.",
     "loadFailed": "Couldn't load",
-    "loading": "Loading"
+    "loading": "Loading",
+    "unsaved": "Unsaved"
   },
   "members": {
     "title": "Members",
@@ -121,7 +122,6 @@
       "clearSearch": "Clear search"
     },
     "editLabel": "Edit /{{shortcut}}",
-    "deleteLabel": "Delete /{{shortcut}}",
     "delete": {
       "title": "Delete /{{shortcut}}?",
       "body": "This quick reply will no longer be available to agents.",
@@ -136,7 +136,8 @@
       "body": "Reply text",
       "bodyRequired": "Reply text is required.",
       "saved": "Saved /{{shortcut}}."
-    }
+    },
+    "moreLabel": "More actions for /{{shortcut}}"
   },
   "audit": {
     "title": "Audit log",
@@ -178,8 +179,68 @@
       "settingsUpdate": "Settings updated",
       "chatsResolveAll": "All open chats resolved",
       "chatMerge": "Chats merged",
-      "logsDownload": "Logs downloaded"
-    }
+      "logsDownload": "Logs downloaded",
+      "aiConnectionUpdate": "AI connection changed",
+      "aiMemberUpdate": "AI member changed",
+      "aiDocumentAdd": "Business context added",
+      "aiDocumentUpdate": "Business context edited",
+      "aiDocumentRemove": "Business context removed",
+      "aiHandoff": "AI handed a chat to the team",
+      "aiResolve": "AI resolved a chat",
+      "aiVoiceUpdate": "Voice messages setting changed",
+      "aiVoiceModelDownload": "Voice model download started",
+      "aiVoiceModelCancel": "Voice model download cancelled",
+      "aiVoiceModelRemove": "Voice model removed"
+    },
+    "fields": {
+      "chat": "Chat",
+      "from": "From",
+      "to": "To",
+      "member": "Member",
+      "assignedTo": "Assigned to",
+      "reason": "Reason",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "role": "Role",
+      "mode": "Mode",
+      "model": "Model",
+      "kind": "Type",
+      "size": "Size",
+      "document": "Item",
+      "transcription": "Transcription",
+      "resolvedCount": "Chats resolved",
+      "username": "Username",
+      "displayName": "Display name",
+      "id": "ID",
+      "shortcut": "Shortcut",
+      "hostname": "Hostname",
+      "subdomain": "Subdomain",
+      "tunnelName": "Tunnel",
+      "domain": "Domain",
+      "restartRequired": "Restart required",
+      "moved": "Moved",
+      "name": "Name",
+      "tags": "Tags",
+      "instructions": "Instructions",
+      "handoffRules": "Hand-off rules",
+      "text": "Text",
+      "token": "Token",
+      "port": "Port",
+      "lanEnabled": "LAN access",
+      "historyDays": "History days"
+    },
+    "reasons": {
+      "rateLimited": "Too many attempts",
+      "invalid": "Wrong username or password"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "changed": "Changed {{fields}}",
+    "filterLabel": "Show",
+    "filterAll": "All activity",
+    "filterChanges": "Hide sign-ins",
+    "hiddenSignIns_one": "{{count}} sign-in hidden",
+    "hiddenSignIns_other": "{{count}} sign-ins hidden"
   },
   "settings": {
     "title": "Settings",
@@ -192,7 +253,7 @@
     "network": {
       "title": "Network",
       "port": "Port",
-      "portHint": "Default 7420.",
+      "portHint": "Only change this if another app already uses this port. Default 7420.",
       "lan": "Allow access from the local network (LAN)",
       "lanHint": "Other devices on the same Wi-Fi can open the inbox.",
       "lanWarningTitle": "LAN traffic is plain HTTP",
@@ -200,15 +261,17 @@
     },
     "history": {
       "title": "History",
-      "days": "Days of history to import when linking"
+      "days": "Days of history to import when linking",
+      "daysHint": "0–365 days. Used the next time you link WhatsApp.",
+      "unit": "days"
     },
     "device": {
       "title": "This device",
-      "description": "Preferences are saved on this device and apply immediately.",
+      "description": "Saved in this browser and applied right away.",
       "themeHint": "System follows your device's light or dark setting.",
       "notifications": "Notifications",
       "notificationsHint": "Get a notification for new messages when the inbox isn't open.",
-      "languageHint": "Follows you on every device",
+      "languageHint": "Menus, buttons and messages in this app.",
       "languageShort": {
         "en": "English",
         "ms": "BM",
@@ -218,16 +281,17 @@
     "tabs": {
       "general": "General",
       "ai": "AI",
-      "device": "This device",
+      "device": "Preferences",
       "maintenance": "Maintenance"
     },
-    "maintenance": {
-      "title": "Danger zone",
-      "description": "Actions here affect the whole team and cannot be undone in one click."
+    "description": "Team-wide settings for this inbox, plus your own preferences.",
+    "account": {
+      "title": "Your account",
+      "description": "Saved to your account, so it follows you on every device."
     }
   },
   "resolveAll": {
-    "title": "Inbox",
+    "title": "End of day",
     "description": "Finish the day by resolving every open chat for the whole team. Messages are kept and new incoming messages reopen chats automatically.",
     "loading": "Loading open chats…",
     "none": "No open chats to resolve.",
@@ -269,25 +333,27 @@
     "linkTitle": "Link WhatsApp",
     "linkBody": "Re-link to show a new QR code, then scan it from the phone.",
     "actionsTitle": "Actions",
-    "actionsHint": "Log out disconnects this inbox. Re-link starts a fresh pairing. Take over reconnects a session opened elsewhere.",
     "actions": {
       "logout": {
         "label": "Log out",
         "title": "Log out of WhatsApp?",
         "body": "The linked device is removed from the phone. The team inbox stops receiving and sending messages until you link again. Message history is kept.",
-        "done": "Logged out of WhatsApp."
+        "done": "Logged out of WhatsApp.",
+        "hint": "Remove this inbox from the phone's linked devices. Message history is kept."
       },
       "relink": {
         "label": "Re-link",
         "title": "Re-link WhatsApp?",
         "body": "The current session is discarded and a new QR code is shown. Scan it from WhatsApp > Linked devices on the phone.",
-        "done": "Session reset — scan the new QR code."
+        "done": "Session reset — scan the new QR code.",
+        "hint": "Discard the current session and start a fresh pairing with a new QR code."
       },
       "takeover": {
         "label": "Take over",
         "title": "Take over the session?",
         "body": "Another instance (e.g. WhatsApp Web on another computer) replaced this connection. Taking over reconnects here and disconnects the other one.",
-        "done": "Reconnecting here."
+        "done": "Reconnecting here.",
+        "hint": "Reconnect here and disconnect the session that was opened elsewhere."
       }
     }
   },
@@ -310,7 +376,6 @@
     },
     "action": {
       "disconnect": "Disconnect Cloudflare",
-      "off": "Remote access is off",
       "namedConnecting": "Connecting saved address…",
       "namedConnect": "Connect saved address",
       "quickRestart": "Restart temporary link",
@@ -318,7 +383,6 @@
     },
     "tokenTooShort": "That token looks too short.",
     "tokenRequired": "Paste the tunnel token from the Cloudflare dashboard.",
-    "statusTitle": "Connection status",
     "copyUrl": "Copy URL",
     "qrLabel": "Tunnel URL QR code",
     "scanHint": "Scan with a phone camera to open the inbox.",
@@ -409,9 +473,8 @@
     "keyMissing": "OpenAI API key is not configured.",
     "connectionMode": "Connection mode",
     "apiKey": "OpenAI API key",
-    "keepKeyHint": "A key is saved. Leave blank to keep it, or enter a replacement.",
+    "keepKeyHint": "Enter the new key. Leave blank to keep the saved one.",
     "apiKeyHint": "Stored securely on the inbox server. API usage is billed separately from ChatGPT.",
-    "hiddenKey": "Saved key — hidden",
     "enterKey": "Enter API key",
     "cancelLogin": "Cancel sign-in",
     "openLogin": "Open sign-in",
@@ -454,7 +517,6 @@
     "modelsFallback": "Default model list. Sign in to load your account's models.",
     "modeApi": "API key",
     "modeChatgpt": "ChatGPT",
-    "unsaved": "Unsaved",
     "pasteLabel": "Signing in on another computer?",
     "pasteHint": "After you approve, your browser opens a page that may not load. Copy the full address from the address bar and paste it here.",
     "pastePlaceholder": "http://localhost:1455/auth/callback?code=…",
@@ -482,11 +544,11 @@
       "turnedOn": "AI member turned on.",
       "turnedOff": "AI member turned off.",
       "draftSaved": "Saved the AI member as a draft so business context can be added.",
-      "stepName": "1. Name & role",
-      "stepInstructions": "2. AI instructions",
-      "stepContext": "3. Business context",
-      "stepHandoff": "4. Hand-off rules",
-      "stepTry": "5. Try it",
+      "stepName": "Name & role",
+      "stepInstructions": "AI instructions",
+      "stepContext": "Business context",
+      "stepHandoff": "Hand-off rules",
+      "stepTry": "Try it",
       "instructionsPlaceholder": "Example: Reply briefly and politely. Answer questions about prices, delivery and opening hours. Hand over to a human for complaints or refunds.",
       "useDefaultInstructions": "Use default instructions",
       "handoffLabel": "Hand-off rules",
@@ -497,7 +559,9 @@
       "howItWorks": "How it works",
       "connectionLine": "Connection: {{state}}",
       "openSettings": "Settings → AI",
-      "save": "Save"
+      "save": "Save",
+      "description": "Set up, test and turn on the AI assistant that answers customer chats.",
+      "usingRecommended": "Using the recommended instructions. Edit them to match your tone."
     },
     "try": {
       "label": "Customer question",
@@ -602,6 +666,9 @@
     "defaults": {
       "instructions": "ROLE\nYou are this business's WhatsApp assistant. You answer customer enquiries and product questions and represent the business professionally.\n\nSCOPE\nYou help with:\n- Products: features, specifications, variants, availability and usage\n- General enquiries: business hours, location, how to order, delivery areas, payment methods and return policy\n- The right next step: how to order, how to request a quotation, or reaching our team\nYou do not help with topics unrelated to the business or its products (general chat, news, coding, homework, opinions, politics, religion). Reply politely in one line and steer back, for example: \"Sorry, I can only help with questions about our products and services. How can I help you with those?\"\n\nKNOWLEDGE\n- Keep product names, model numbers and prices exactly as written in the business context.\n- Never guess prices, stock, specifications, delivery dates, promotions or policies. If a detail is missing, say so and let our team confirm.\n- Never promise discounts, free gifts or exceptions.\n\nLANGUAGE\n- Reply in the customer's language. If they mix languages, reply in the main language of their message.\n- If you cannot reply in their language, use the default language named in the business context, otherwise English.\n\nSTYLE\n- Professional, polite and friendly; no slang. At most one emoji, and only where it fits.\n- One to three short sentences. Use a short list only for options or specifications.\n- Answer first: no long greetings and no repeating the question back.\n- Ask at most one clarifying question when needed (for example which model, size or area).\n- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.",
       "handoffRules": "- The customer is upset or makes a complaint\n- The customer asks for a refund, return, exchange or warranty claim\n- The customer asks about an existing order, delivery or payment\n- The customer wants a bulk or custom order, or a quotation\n- The customer wants to negotiate the price or asks for a discount"
-    }
+    },
+    "replaceKey": "Replace key",
+    "keepKey": "Keep saved key",
+    "modelAdvanced": "Advanced: choose a model"
   }
 }

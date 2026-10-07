@@ -156,17 +156,21 @@ describe('AI member page', () => {
 
   it('shows Name & role, AI instructions, the Business context panel, then Try it', async () => {
     setup();
-    await screen.findByText('2. AI instructions');
+    await screen.findByText('Name & role');
+    // Plain section titles: the page is not a wizard, so no step numbers.
     const titles = [...document.querySelectorAll('[data-slot="card-title"]')].map(
       (title) => title.textContent,
     );
     expect(titles).toEqual([
-      '1. Name & role',
-      '2. AI instructions',
-      '3. Business context',
-      '4. Hand-off rules',
-      '5. Try it',
+      'Name & role',
+      'AI instructions',
+      'Business context',
+      'Hand-off rules',
+      'Try it',
     ]);
+    expect(
+      screen.getByText('Set up, test and turn on the AI assistant that answers customer chats.'),
+    ).toBeTruthy();
     expect(screen.getByLabelText('AI instructions')).toBeTruthy();
     // The single Business context textarea is gone: context is a list of items.
     expect(screen.queryByLabelText('Business context')).toBeNull();
@@ -458,9 +462,11 @@ describe('AI member page', () => {
     const box = (await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement;
     expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
     expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
+    expect(screen.getByText(/Using the recommended instructions/)).toBeTruthy();
     const user = userEvent.setup();
     await user.clear(box);
     await user.type(box, 'Always mention our Grab link.');
+    expect(screen.queryByText(/Using the recommended instructions/)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Use default instructions' }));
     expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
     expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();

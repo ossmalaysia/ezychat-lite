@@ -114,6 +114,26 @@ it('reconnects the saved address without using an unfinished advanced draft', as
   );
 });
 
+it('shows no status button or disconnect note while remote access is already off', () => {
+  hooks.tunnel = { ...hooks.tunnel, mode: 'off' };
+  render(<TunnelPage />);
+  expect(screen.queryByRole('button', { name: 'Remote access is off' })).toBeNull();
+  expect(screen.queryByText(/Disconnect Cloudflare stops the public link/)).toBeNull();
+  // The connection state lives in the card header instead of a separate status card.
+  const card = screen.getByText('How your team connects').closest('[data-slot="card"]')!;
+  expect(card.textContent).toContain('Stopped');
+  expect(screen.queryByText('Connection status')).toBeNull();
+});
+
+it('offers Disconnect with its note when Off is chosen while connected', async () => {
+  hooks.tunnel = { ...hooks.tunnel, mode: 'quick', state: 'running' };
+  const user = userEvent.setup();
+  render(<TunnelPage />);
+  await user.click(screen.getByRole('radio', { name: /^Off/ }));
+  expect(screen.getAllByRole('button', { name: 'Disconnect Cloudflare' }).length).toBe(1);
+  expect(screen.getByText(/Disconnect Cloudflare stops the public link/)).toBeTruthy();
+});
+
 it('retains account-free temporary links and the option to turn off access', async () => {
   hooks.tunnel = { ...hooks.tunnel, mode: 'off' };
   const user = userEvent.setup();
