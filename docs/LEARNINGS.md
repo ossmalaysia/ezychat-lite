@@ -215,8 +215,9 @@ into AGENTS.md.
   A WhatsApp chat name can be the phone number: never prefill or show it as a person's name.
 - In jsdom `useMediaQuery` is false, so panels render as modal Sheets that hide the page from
   `getByRole`; query background controls with `{ hidden: true }`.
-- Bars that share width with side panels (chat header) size by their own width (`@container`), not
-  viewport breakpoints. Truncation assertions target the element carrying `truncate`, and must
+- Bars and rows that share width with columns or side panels (chat header, inbox list rows) size by
+  their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
+  phone. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
 - shadcn primitives defeat naive truncation and hit areas: `TabsTrigger` centres its content (truncate
   an inner `min-w-0 truncate` span), `SelectValue` is `display:flex` (add

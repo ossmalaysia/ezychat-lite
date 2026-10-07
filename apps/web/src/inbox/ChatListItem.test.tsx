@@ -59,12 +59,12 @@ describe('ChatListItem tags', () => {
     expect(screen.getByText('VIP')).toBeTruthy();
     expect(screen.getByText('Wholesale')).toBeTruthy();
     expect(screen.queryByText('Halal')).toBeNull();
-    // From sm: two tags and "+2" (phones: one tag and "+3").
-    const more = screen.getAllByText('+2').find((el) => !el.className.includes('sm:hidden'))!;
+    // A wide row: two tags and "+2" (narrow rows: one tag and "+3").
+    const more = screen.getAllByText('+2').find((el) => !el.className.includes('@sm:hidden'))!;
     expect(more.getAttribute('title')).toBe('Halal, Repeat');
   });
 
-  it('shows one tag on phones and two from sm, each with a matching +N', () => {
+  it('shows one tag in a narrow row and two in a wide one (row width, not screen width)', () => {
     render(
       <MemoryRouter>
         <ChatListItem
@@ -74,16 +74,18 @@ describe('ChatListItem tags', () => {
         />
       </MemoryRouter>,
     );
-    // The second tag is hidden below sm, so the preview keeps its room at 360px.
+    // The inbox list is a narrow column on desktop too: the row's own width decides (container
+    // query), so the preview keeps its room and tags never squeeze to "V…".
     const second = screen.getByText('Wholesale').closest('[data-slot="badge"]')!;
     expect(second.className).toMatch(/(^|\s)hidden(\s|$)/);
-    expect(second.className).toMatch(/(^|\s)sm:inline-flex(\s|$)/);
-    const phoneMore = screen.getByText('+2');
-    expect(phoneMore.className).toMatch(/(^|\s)sm:hidden(\s|$)/);
-    expect(phoneMore.getAttribute('title')).toBe('Wholesale, Halal');
+    expect(second.className).toMatch(/(^|\s)@sm:inline-flex(\s|$)/);
+    expect(second.closest('[class~="@container"]')).not.toBeNull();
+    const narrowMore = screen.getByText('+2');
+    expect(narrowMore.className).toMatch(/(^|\s)@sm:hidden(\s|$)/);
+    expect(narrowMore.getAttribute('title')).toBe('Wholesale, Halal');
     const wideMore = screen.getByText('+1');
     expect(wideMore.className).toMatch(/(^|\s)hidden(\s|$)/);
-    expect(wideMore.className).toMatch(/(^|\s)sm:inline-flex(\s|$)/);
+    expect(wideMore.className).toMatch(/(^|\s)@sm:inline-flex(\s|$)/);
   });
 
   it('tells the assignee apart from tags: person icon on the assignee, filled tag chips', () => {

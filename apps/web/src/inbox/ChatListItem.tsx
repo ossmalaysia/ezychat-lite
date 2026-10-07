@@ -55,7 +55,8 @@ export function ChatListItem({
       )}
     >
       <ChatAvatar name={name} src={chat.avatarUrl} seed={chat.jid} size="lg" />
-      <div className="min-w-0 flex-1">
+      {/* Container: the inbox list is a narrow column on desktop, so chips follow the row's width. */}
+      <div className="@container min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="flex min-w-0 flex-1 items-center gap-1">
             {chat.type === 'group' && (
@@ -109,7 +110,7 @@ export function ChatListItem({
           )}
           {tags.length > 0 && (
             // Tags shrink (and truncate) before anything else so the row never overflows at 360px.
-            // Phones show one tag, wider screens two; each width gets its own "+N".
+            // Narrow rows (phones, the desktop list column) show one tag, wide rows two; each gets its "+N".
             <span className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
               {tags.slice(0, 2).map((tag, i) => (
                 <Badge
@@ -117,7 +118,7 @@ export function ChatListItem({
                   variant="secondary"
                   className={cn(
                     'min-w-0 max-w-20 shrink px-1.5 text-xs font-normal',
-                    i === 1 && 'hidden sm:inline-flex',
+                    i === 1 && 'hidden @sm:inline-flex',
                   )}
                   title={tag}
                 >
@@ -127,7 +128,7 @@ export function ChatListItem({
               {tags.length > 1 && (
                 <Badge
                   variant="secondary"
-                  className="px-1.5 text-xs font-normal sm:hidden"
+                  className="px-1.5 text-xs font-normal @sm:hidden"
                   title={tags.slice(1).join(', ')}
                 >
                   {t('chatListItem.moreTags', { count: tags.length - 1 })}
@@ -136,7 +137,7 @@ export function ChatListItem({
               {tags.length > 2 && (
                 <Badge
                   variant="secondary"
-                  className="hidden px-1.5 text-xs font-normal sm:inline-flex"
+                  className="hidden px-1.5 text-xs font-normal @sm:inline-flex"
                   title={tags.slice(2).join(', ')}
                 >
                   {t('chatListItem.moreTags', { count: tags.length - 2 })}
