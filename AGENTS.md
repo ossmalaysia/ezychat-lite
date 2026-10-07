@@ -203,6 +203,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
+- **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
+  add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement.
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.
