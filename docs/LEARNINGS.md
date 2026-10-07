@@ -180,6 +180,8 @@ into AGENTS.md.
 
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
+  The demo chats are all assigned to people: unassign the test chat and add a Business context item
+  first, or the AI never claims it or hands off at once.
 - Ownership follows who handles the chat: a teammate's inbox reply claims an unassigned chat and takes
   over an AI-owned one (the AI then stops); it never takes a chat from another teammate, and phone-app
   replies assign nobody. Pausing the AI without moving the owner left a stale AI chip.
