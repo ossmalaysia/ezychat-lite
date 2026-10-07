@@ -178,8 +178,21 @@
       "settingsUpdate": "Settings updated",
       "chatsResolveAll": "All open chats resolved",
       "chatMerge": "Chats merged",
-      "logsDownload": "Logs downloaded"
-    }
+      "logsDownload": "Logs downloaded",
+      "customerProfileUpdate": "Customer details updated"
+    },
+    "details": {
+      "customerChanged": "Changed {{fields}}"
+    },
+    "customerFields": {
+      "name": "name",
+      "company": "company",
+      "email": "email",
+      "otherPhone": "other phone",
+      "address": "address",
+      "tags": "tags"
+    },
+    "listSeparator": ", "
   },
   "settings": {
     "title": "Settings",

@@ -176,8 +176,21 @@
       "settingsUpdate": "Tetapan dikemas kini",
       "chatsResolveAll": "Semua sembang terbuka diselesaikan",
       "chatMerge": "Sembang digabungkan",
-      "logsDownload": "Log dimuat turun"
-    }
+      "logsDownload": "Log dimuat turun",
+      "customerProfileUpdate": "Butiran pelanggan dikemas kini"
+    },
+    "details": {
+      "customerChanged": "Diubah: {{fields}}"
+    },
+    "customerFields": {
+      "name": "nama",
+      "company": "syarikat",
+      "email": "e-mel",
+      "otherPhone": "telefon lain",
+      "address": "alamat",
+      "tags": "tag"
+    },
+    "listSeparator": ", "
   },
   "settings": {
     "title": "Tetapan",

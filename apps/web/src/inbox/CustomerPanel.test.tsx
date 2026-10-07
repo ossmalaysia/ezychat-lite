@@ -370,6 +370,96 @@ describe('CustomerPanel', () => {
     });
   });
 
+  it('leads with the team details and keeps the WhatsApp facts last', async () => {
+    mockApi({
+      profile: {
+        id: 'p1',
+        name: 'Farah Aziz',
+        company: 'Farah Catering Co',
+        email: null,
+        otherPhone: null,
+        address: null,
+        tags: ['VIP'],
+        updatedAt: Date.now(),
+        updatedBy: 1,
+      },
+      whatsappName: 'Farah 🌸',
+      whatsapp: { pushName: 'Farah 🌸', savedName: null, phone: '601234567', lid: null },
+    });
+    renderPanel();
+    const name = await screen.findByRole('heading', { name: 'Farah Aziz' });
+    const company = screen.getByText('Farah Catering Co');
+    const tags = screen.getByRole('list', { name: 'Tags' });
+    const updated = screen.getByText(/^Updated by Mei Ling · /);
+    const whatsapp = screen.getByRole('region', { name: 'From WhatsApp' });
+    const order = [name, company, tags, updated, whatsapp];
+    for (let i = 1; i < order.length; i++)
+      expect(
+        order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    // In the form the WhatsApp facts stay as a reference below the fields.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const tagInput = screen.getByRole('combobox');
+    expect(
+      tagInput.compareDocumentPosition(screen.getByRole('region', { name: 'From WhatsApp' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // 44px fields on phones, compact from md.
+    expect(screen.getByLabelText('Company').className).toMatch(/(^|\s)h-11(\s|$)/);
+    expect(screen.getByLabelText('Company').className).toMatch(/(^|\s)md:h-9(\s|$)/);
+  });
+
+  it('puts Edit in the panel header next to Close, and hides it while editing', async () => {
+    mockApi({ ...EMPTY, profile: { ...EMPTY.profile, name: 'Farah', updatedAt: 1, updatedBy: 1 } });
+    renderPanel();
+    const edit = await screen.findByRole('button', { name: 'Edit' });
+    const close = screen.getByRole('button', { name: 'Close customer details' });
+    expect(close.parentElement!.contains(edit)).toBe(true);
+    await userEvent.click(edit);
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.getByLabelText('Name')).toBeTruthy();
+  });
+
+  it('explains why to add details in the empty state', async () => {
+    mockApi(EMPTY);
+    renderPanel();
+    expect(await screen.findByText('No details yet')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Add company, email, address and tags so any teammate can pick up this chat.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('offers Try again when the profile cannot be loaded', async () => {
+    let fail = true;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === PROFILE_URL && fail)
+          return json({ error: { code: 'internal', message: 'Server unavailable' } }, 500);
+        if (url === PROFILE_URL) return json(EMPTY);
+        return json({ tags: [] });
+      }),
+    );
+    renderPanel();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Server unavailable');
+    fail = false;
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('No details yet')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('focuses the sheet title on open instead of the close button', async () => {
+    mockApi(EMPTY);
+    renderPanel();
+    await screen.findByText('No details yet');
+    const title = screen.getByRole('heading', { name: 'Customer' });
+    expect(document.activeElement).toBe(title);
+  });
+
   it('does not add a leftover typed tag beyond the limit', async () => {
     const nine = Array.from({ length: 9 }, (_, i) => `t${i}`);
     const put = mockApi({ ...EMPTY, profile: { ...EMPTY.profile, tags: nine } });
@@ -398,6 +488,20 @@ describe('CustomerDetails', () => {
     const line = screen.getByText(/^Updated/);
     expect(line.textContent).not.toMatch(/Updated by/);
     expect(line.textContent).not.toContain('·');
+  });
+
+  it('says "You updated this" for your own change', () => {
+    const me = { id: 7, username: 'me', displayName: 'Me', role: 'agent', disabled: false };
+    const withMe = buildDirectory(me as never, false, []);
+    render(
+      <CustomerDetails
+        profile={{ ...base, name: 'Farah', updatedAt: Date.now(), updatedBy: 7 }}
+        whatsappName={null}
+        directory={withMe}
+      />,
+    );
+    expect(screen.getByText(/^You updated this · /)).toBeTruthy();
+    expect(screen.queryByText(/Updated by You/)).toBeNull();
   });
 
   it('builds a mailto link that cannot carry extra headers', () => {

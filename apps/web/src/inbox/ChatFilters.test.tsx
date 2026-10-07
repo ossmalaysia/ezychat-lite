@@ -64,6 +64,28 @@ describe('ChatFilters', () => {
     expect(trigger.className).toMatch(/(^|\s)min-h-11(\s|$)/);
   });
 
+  it('gives the assignment tabs their own row, with the Tag control beside the status tabs', () => {
+    mockTags([]);
+    renderFilters({ value: { assigned: 'any', status: 'open', tag: 'VIP' }, onChange: vi.fn() });
+    const assignment = screen.getByRole('tablist', { name: 'Assignment' });
+    const status = screen.getByRole('tablist', { name: 'Chat status' });
+    const tag = screen.getByRole('button', { name: 'Filter by tag' });
+    const clear = screen.getByRole('button', { name: 'Clear tag filter' });
+    // Document order: assignment tabs, status tabs, then the tag controls.
+    expect(
+      assignment.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(status.compareDocumentPosition(tag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(assignment.parentElement!.contains(tag)).toBe(false);
+    expect(status.parentElement!.parentElement!.contains(clear)).toBe(true);
+    // A label that does not fit ellipsizes instead of being clipped on both sides.
+    for (const name of ['Mine', 'Unassigned', 'All']) {
+      const label = screen.getByRole('tab', { name }).querySelector('span');
+      expect(label?.className).toMatch(/(^|\s)truncate(\s|$)/);
+      expect(label?.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    }
+  });
+
   it('exposes both statuses and preserves assignment and search when switching', async () => {
     const onChange = vi.fn();
     render(

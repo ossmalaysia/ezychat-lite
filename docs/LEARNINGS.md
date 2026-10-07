@@ -218,6 +218,10 @@ into AGENTS.md.
 - Bars that share width with side panels (chat header) size by their own width (`@container`), not
   viewport breakpoints. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- shadcn primitives defeat naive truncation and hit areas: `TabsTrigger` centres its content (truncate
+  an inner `min-w-0 truncate` span), `SelectValue` is `display:flex` (add
+  `*:data-[slot=select-value]:block … truncate` on the trigger), and `Badge` is `overflow-hidden`
+  (a `before:-inset-*` hit area inside it needs `overflow-visible`).
 - Every new audit action gets a label in `admin/audit-actions.ts` (en/ms/zh-CN) and a readable
   meta summary in the same change; otherwise the Audit page shows raw keys and JSON.
 - Review screenshots taken after animations settle (wait ~500 ms after opening a popover/sheet):

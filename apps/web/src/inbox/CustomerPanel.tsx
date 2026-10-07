@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Loader2, UserRound, X } from 'lucide-react';
+import { Copy, Loader2, Pencil, Plus, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import {
@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { formatRelative } from '../lib/format';
+import { PanelHeader } from './PanelHeader';
 import { TagInput } from './TagInput';
 import type { Directory } from './useDirectory';
 
@@ -216,7 +218,9 @@ export function CustomerDetails({
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
   const fromWhatsapp = whatsapp ? null : whatsappDetails(whatsappName, whatsappPhone, name);
-  const updatedByName = directory?.nameOf(profile.updatedBy, { youLabel: true }) ?? null;
+  const updatedByMe =
+    profile.updatedBy != null && directory?.me != null && profile.updatedBy === directory.me.id;
+  const updatedByName = directory?.nameOf(profile.updatedBy) ?? null;
   const rows: { key: Field; label: string; value: React.ReactNode }[] = [];
   if (profile.company)
     rows.push({ key: 'company', label: t('customer.company'), value: profile.company });
@@ -255,24 +259,24 @@ export function CustomerDetails({
     });
 
   return (
+    // What the team keeps comes first (name, fields, tags); WhatsApp's own facts close the panel.
     <div className="min-w-0 space-y-3 text-sm">
       <div className="min-w-0">
-        <p
+        <h4
           className={
             name
-              ? 'font-semibold text-foreground [overflow-wrap:anywhere]'
-              : 'italic text-muted-foreground'
+              ? 'text-base font-semibold text-foreground [overflow-wrap:anywhere]'
+              : 'text-base italic text-muted-foreground'
           }
         >
           {name ?? t('customer.noName')}
-        </p>
+        </h4>
         {fromWhatsapp && (
           <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {t('customer.whatsappName', { name: fromWhatsapp })}
           </p>
         )}
       </div>
-      {whatsapp && <WhatsappFacts facts={whatsapp} />}
       {rows.length > 0 && (
         <dl className="space-y-2">
           {rows.map((row) => (
@@ -296,14 +300,17 @@ export function CustomerDetails({
       )}
       {profile.updatedAt != null && directory && (
         <p className="text-xs text-muted-foreground">
-          {updatedByName
-            ? t('customer.updatedBy', {
-                name: updatedByName,
-                when: formatRelative(profile.updatedAt),
-              })
-            : t('customer.updated', { when: formatRelative(profile.updatedAt) })}
+          {updatedByMe
+            ? t('customer.updatedByYou', { when: formatRelative(profile.updatedAt) })
+            : updatedByName
+              ? t('customer.updatedBy', {
+                  name: updatedByName,
+                  when: formatRelative(profile.updatedAt),
+                })
+              : t('customer.updated', { when: formatRelative(profile.updatedAt) })}
         </p>
       )}
+      {whatsapp && <WhatsappFacts facts={whatsapp} />}
     </div>
   );
 }
@@ -396,9 +403,9 @@ function CustomerForm({
     };
   });
   const changedMeanwhile = latest.updatedAt !== snapshot.updatedAt;
-  const changedBy = changedMeanwhile
-    ? directory.nameOf(latest.updatedBy, { youLabel: true })
-    : null;
+  const changedByMe =
+    changedMeanwhile && latest.updatedBy != null && latest.updatedBy === directory.me?.id;
+  const changedBy = changedMeanwhile ? directory.nameOf(latest.updatedBy) : null;
 
   function set(field: Field, value: string) {
     setDraft((d) => ({ ...d, [field]: value }));
@@ -447,20 +454,13 @@ function CustomerForm({
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-        {whatsapp ? (
-          <WhatsappFacts facts={whatsapp} />
-        ) : (
-          fromWhatsapp && (
-            <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-              {t('customer.whatsappName', { name: fromWhatsapp })}
-            </p>
-          )
-        )}
         {changedMeanwhile && (
           <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            {changedBy
-              ? t('customer.changedWhileEditing', { name: changedBy })
-              : t('customer.changedWhileEditingUnknown')}
+            {changedByMe
+              ? t('customer.changedWhileEditingYou')
+              : changedBy
+                ? t('customer.changedWhileEditing', { name: changedBy })
+                : t('customer.changedWhileEditingUnknown')}
           </p>
         )}
         {FORM_FIELDS.map(({ key, type }) => {
@@ -489,7 +489,7 @@ function CustomerForm({
                   inputMode={type === 'tel' ? 'tel' : undefined}
                   autoComplete="off"
                   onChange={(e) => set(key, e.target.value)}
-                  className="text-base md:text-sm"
+                  className="h-11 text-base md:h-9 md:text-sm"
                 />
               )}
               {errors[key] && (
@@ -525,6 +525,16 @@ function CustomerForm({
             </p>
           )}
         </div>
+        {/* What WhatsApp says stays visible as a reference, below what the team edits. */}
+        {whatsapp ? (
+          <WhatsappFacts facts={whatsapp} />
+        ) : (
+          fromWhatsapp && (
+            <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+              {t('customer.whatsappName', { name: fromWhatsapp })}
+            </p>
+          )
+        )}
       </div>
       <div className="safe-bottom flex gap-2 border-t p-3">
         <Button type="button" variant="outline" size="touch" className="flex-1" onClick={cancel}>
@@ -575,31 +585,36 @@ function CustomerBody({
   escapeRef: React.RefObject<(() => boolean) | null>;
   guardRef: React.RefObject<((next: () => void) => void) | null>;
 }) {
-  const { t } = useTranslation('inbox');
+  const { t } = useTranslation(['inbox', 'common']);
   const query = useCustomerProfile(jid);
   /** The profile when editing started; null while viewing. */
   const [editing, setEditing] = useState<CustomerProfile | null>(null);
   const data: CustomerProfileResponse | undefined = query.data;
   const requestClose = () => (guardRef.current ? guardRef.current(onClose) : onClose());
+  const viewing = !editing && !query.isError && data && hasDetails(data.profile) ? data : null;
 
   return (
     <>
-      <div className="flex items-center gap-2 border-b py-1 pl-4 pr-1.5">
-        <div className="flex flex-1 items-center gap-1.5 py-2 text-sm font-semibold">
-          <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
-          {title}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-touch"
-          aria-label={t('customer.close')}
-          onClick={requestClose}
-          className="text-muted-foreground"
-        >
-          <X className="size-5" aria-hidden="true" />
-        </Button>
-      </div>
-      <div className="px-4 pt-2 text-xs text-muted-foreground">{description}</div>
+      <PanelHeader
+        icon={<UserRound className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+        title={title}
+        description={description}
+        closeLabel={t('customer.close')}
+        onClose={requestClose}
+        action={
+          viewing && (
+            <Button
+              variant="ghost"
+              size="touch"
+              onClick={() => setEditing(viewing.profile)}
+              className="shrink-0 text-muted-foreground"
+            >
+              <Pencil aria-hidden="true" />
+              {t('customer.edit')}
+            </Button>
+          )
+        }
+      />
       {editing ? (
         <CustomerForm
           jid={jid}
@@ -622,24 +637,42 @@ function CustomerBody({
               <Skeleton className="h-4 w-32" />
             </div>
           ) : query.isError || !data ? (
-            <p className="text-sm text-danger" role="alert">
+            <Banner
+              tone="danger"
+              action={
+                <Button
+                  variant="outline"
+                  size="touch"
+                  className="md:min-h-9"
+                  disabled={query.isFetching}
+                  onClick={() => void query.refetch()}
+                >
+                  {query.isFetching && <Loader2 className="animate-spin" aria-hidden="true" />}
+                  {t('common:actions.tryAgain')}
+                </Button>
+              }
+            >
               {errorMessage(query.error)}
-            </p>
+            </Banner>
           ) : hasDetails(data.profile) ? (
-            <>
-              <CustomerDetails
-                profile={data.profile}
-                whatsappName={data.whatsappName}
-                whatsappPhone={data.whatsappPhone ?? null}
-                whatsapp={data.whatsapp}
-                directory={directory}
-              />
-              <Button variant="outline" size="touch" onClick={() => setEditing(data.profile)}>
-                {t('customer.edit')}
-              </Button>
-            </>
+            <CustomerDetails
+              profile={data.profile}
+              whatsappName={data.whatsappName}
+              whatsappPhone={data.whatsappPhone ?? null}
+              whatsapp={data.whatsapp}
+              directory={directory}
+            />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Compact empty state: what is missing, why it matters, one action. */}
+              <div className="space-y-2 rounded-lg border border-dashed px-4 py-4">
+                <p className="text-sm font-medium text-foreground">{t('customer.empty')}</p>
+                <p className="text-sm text-muted-foreground">{t('customer.emptyHint')}</p>
+                <Button size="touch" className="w-full" onClick={() => setEditing(data.profile)}>
+                  <Plus aria-hidden="true" />
+                  {t('customer.addDetails')}
+                </Button>
+              </div>
               {data.whatsapp ? (
                 <WhatsappFacts facts={data.whatsapp} />
               ) : (
@@ -651,10 +684,6 @@ function CustomerBody({
                   </p>
                 )
               )}
-              <p className="text-sm text-muted-foreground">{t('customer.empty')}</p>
-              <Button size="touch" onClick={() => setEditing(data.profile)}>
-                {t('customer.addDetails')}
-              </Button>
             </div>
           )}
         </div>
@@ -678,6 +707,7 @@ export function CustomerPanel({
   const escapeRef = useRef<(() => boolean) | null>(null);
   const ownGuard = useRef<((next: () => void) => void) | null>(null);
   const guardRef = outerGuard ?? ownGuard;
+  const sheetTitleRef = useRef<HTMLHeadingElement>(null);
 
   if (desktop) {
     if (!open) return null;
@@ -709,7 +739,13 @@ export function CustomerPanel({
         side="right"
         showCloseButton={false}
         aria-label={t('customer.title')}
-        className="safe-top safe-x w-full gap-0 bg-surface sm:max-w-sm"
+        // Full width on phones: no left border there.
+        className="safe-top safe-x w-full gap-0 bg-surface max-sm:border-l-0 sm:max-w-sm"
+        // Start on the title, not with a focus ring on Close.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          sheetTitleRef.current?.focus();
+        }}
         onEscapeKeyDown={(e) => {
           if (escapeRef.current?.()) e.preventDefault();
         }}
@@ -719,7 +755,11 @@ export function CustomerPanel({
           onClose={onClose}
           escapeRef={escapeRef}
           guardRef={guardRef}
-          title={<SheetTitle className="text-sm">{t('customer.title')}</SheetTitle>}
+          title={
+            <SheetTitle ref={sheetTitleRef} tabIndex={-1} className="text-sm outline-none">
+              {t('customer.title')}
+            </SheetTitle>
+          }
           description={
             <SheetDescription className="text-xs">{t('customer.description')}</SheetDescription>
           }

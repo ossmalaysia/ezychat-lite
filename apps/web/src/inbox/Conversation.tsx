@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { Composer } from './Composer';
 import { CustomerPanel } from './CustomerPanel';
 import { ConversationHeader } from './ConversationHeader';
@@ -63,6 +64,8 @@ const confirmedChats = new Set<string>();
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const { t } = useTranslation(['inbox', 'common']);
+  // Phones get the short placeholder (one line); the "/" quick-reply hint fits from sm.
+  const wideComposer = useMediaQuery('(min-width: 640px)');
   const qc = useQueryClient();
   const chatQ = useChat(jid);
   const messagesQ = useMessages(jid);
@@ -301,7 +304,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               quickReplies={quickReplies.data ?? []}
               disabled={blocked}
               placeholder={
-                blocked ? t('conversation.placeholderBlocked') : t('conversation.placeholder')
+                blocked
+                  ? t('conversation.placeholderBlocked')
+                  : wideComposer
+                    ? t('conversation.placeholder')
+                    : t('composer.placeholder')
               }
               confirmSend={confirmSend}
               onTyping={() => emitTyping(jid)}

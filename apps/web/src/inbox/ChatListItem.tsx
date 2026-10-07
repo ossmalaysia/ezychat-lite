@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Users } from 'lucide-react';
+import { UserRound, Users } from 'lucide-react';
 import type { Chat } from '@wa-team-inbox/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ export function ChatListItem({
   const { t } = useTranslation('inbox');
   const name = chatTitle(chat, t);
   const unread = chat.unreadCount > 0;
+  const tags = chat.tags ?? [];
   const { pathname } = useLocation();
   const to = `/chats/${encodeJid(chat.jid)}`;
   // Lets the mobile back button pop history instead of pushing "/" again.
@@ -82,7 +83,8 @@ export function ChatListItem({
         <div className="mt-0.5 flex items-center gap-2">
           <p
             className={cn(
-              'min-w-0 flex-1 truncate text-sm',
+              // The preview keeps at least ~12 characters; the tag chips shrink first.
+              'min-w-24 flex-1 truncate text-sm',
               unread ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -92,7 +94,7 @@ export function ChatListItem({
             <Badge
               variant="outline"
               className={cn(
-                'max-w-24 truncate px-1.5 text-[11px]',
+                'max-w-24 px-1.5 text-xs sm:max-w-28',
                 // Outline only: the solid accent is reserved for the unread count.
                 assignedToMe
                   ? 'border-primary/40 font-medium text-primary'
@@ -100,35 +102,50 @@ export function ChatListItem({
               )}
               title={t('chatListItem.assignedTo', { name: assigneeName })}
             >
+              {/* The person icon tells the assignee apart from the (filled) tag chips. */}
+              <UserRound aria-hidden="true" />
               <span className="truncate">{assigneeName}</span>
             </Badge>
           )}
-          {chat.tags && chat.tags.length > 0 && (
+          {tags.length > 0 && (
             // Tags shrink (and truncate) before anything else so the row never overflows at 360px.
+            // Phones show one tag, wider screens two; each width gets its own "+N".
             <span className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
-              {chat.tags.slice(0, 2).map((tag) => (
+              {tags.slice(0, 2).map((tag, i) => (
                 <Badge
                   key={tag}
-                  variant="outline"
-                  className="min-w-0 max-w-20 shrink px-1.5 text-[11px] text-muted-foreground"
+                  variant="secondary"
+                  className={cn(
+                    'min-w-0 max-w-20 shrink px-1.5 text-xs font-normal',
+                    i === 1 && 'hidden sm:inline-flex',
+                  )}
                   title={tag}
                 >
                   <span className="truncate">{tag}</span>
                 </Badge>
               ))}
-              {chat.tags.length > 2 && (
+              {tags.length > 1 && (
                 <Badge
-                  variant="outline"
-                  className="px-1.5 text-[11px] text-muted-foreground"
-                  title={chat.tags.slice(2).join(', ')}
+                  variant="secondary"
+                  className="px-1.5 text-xs font-normal sm:hidden"
+                  title={tags.slice(1).join(', ')}
                 >
-                  {t('chatListItem.moreTags', { count: chat.tags.length - 2 })}
+                  {t('chatListItem.moreTags', { count: tags.length - 1 })}
+                </Badge>
+              )}
+              {tags.length > 2 && (
+                <Badge
+                  variant="secondary"
+                  className="hidden px-1.5 text-xs font-normal sm:inline-flex"
+                  title={tags.slice(2).join(', ')}
+                >
+                  {t('chatListItem.moreTags', { count: tags.length - 2 })}
                 </Badge>
               )}
             </span>
           )}
           {chat.status === 'resolved' && (
-            <Badge variant="secondary" className="max-w-24 truncate px-1.5 text-[11px]">
+            <Badge variant="secondary" className="max-w-24 truncate px-1.5 text-xs">
               {t('chatListItem.resolved')}
             </Badge>
           )}

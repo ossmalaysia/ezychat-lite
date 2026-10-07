@@ -78,6 +78,8 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
 
   const status = value.status ?? 'open';
   const [tagOpen, setTagOpen] = useState(false);
+  // A selected tag (+ clear) takes ~170px of the status row: drop the status icons on phones.
+  const statusIcon = cn('size-4', value.tag && 'max-sm:hidden');
 
   return (
     <div className="space-y-2 border-b px-3 pb-2.5 pt-1">
@@ -87,18 +89,35 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
         label={t('filters.searchLabel')}
         placeholder={t('filters.searchPlaceholder')}
       />
+      {/* Assignment gets the full row: its labels are the longest (Malay "Belum ditugaskan"). */}
+      <Tabs
+        value={value.assigned}
+        onValueChange={(v) => onChange({ ...value, assigned: v as Filters['assigned'] })}
+      >
+        <TabsList aria-label={t('filters.assignment')} className="h-11! w-full">
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key} className="min-w-0">
+              {/* The trigger centres its content: truncate an inner span so it ellipsizes. */}
+              <span className="min-w-0 truncate">{t(tab.labelKey)}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       <div className="flex items-center gap-2">
         <Tabs
-          value={value.assigned}
-          onValueChange={(v) => onChange({ ...value, assigned: v as Filters['assigned'] })}
+          value={status}
+          onValueChange={(v) => onChange({ ...value, status: v as Filters['status'] })}
           className="min-w-0 flex-1"
         >
-          <TabsList aria-label={t('filters.assignment')} className="h-11! w-full">
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.key} value={tab.key} className="min-w-0 truncate">
-                {t(tab.labelKey)}
-              </TabsTrigger>
-            ))}
+          <TabsList aria-label={t('filters.status')} className="h-11! w-full">
+            <TabsTrigger value="open" className="min-w-0">
+              <CircleDot aria-hidden="true" className={statusIcon} />
+              <span className="min-w-0 truncate">{t('filters.open')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="resolved" className="min-w-0">
+              <CheckCircle2 aria-hidden="true" className={statusIcon} />
+              <span className="min-w-0 truncate">{t('filters.resolved')}</span>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="flex shrink-0 items-center">
@@ -117,7 +136,7 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
                 )}
               >
                 <Tag aria-hidden="true" />
-                {/* Narrow below sm so the assignment tabs keep their room (Malay labels at 360px). */}
+                {/* Narrow below sm so the status tabs keep their room at 360px. */}
                 <span className="max-w-20 truncate sm:max-w-none">
                   {value.tag ?? t('filters.tag')}
                 </span>
@@ -146,21 +165,6 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
           )}
         </div>
       </div>
-      <Tabs
-        value={status}
-        onValueChange={(v) => onChange({ ...value, status: v as Filters['status'] })}
-      >
-        <TabsList aria-label={t('filters.status')} className="h-11! w-full">
-          <TabsTrigger value="open">
-            <CircleDot aria-hidden="true" className="size-4" />
-            {t('filters.open')}
-          </TabsTrigger>
-          <TabsTrigger value="resolved">
-            <CheckCircle2 aria-hidden="true" className="size-4" />
-            {t('filters.resolved')}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
     </div>
   );
 }

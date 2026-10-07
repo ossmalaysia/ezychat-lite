@@ -1,7 +1,7 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Lock, X } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Note } from '@wa-team-inbox/shared';
 import { useAddNote } from '../api/queries';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { formatDateTime } from '../lib/format';
+import { PanelHeader } from './PanelHeader';
 import type { Directory } from './useDirectory';
 
 export interface NotesPanelProps {
@@ -49,23 +50,14 @@ function NotesBody({
 
   return (
     <>
-      <div className="flex items-center gap-2 border-b py-1 pl-4 pr-1.5">
-        <div className="flex flex-1 items-center gap-1.5 py-2 text-sm font-semibold">
-          <Lock className="size-4 text-note-foreground" aria-hidden="true" />
-          {title}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-touch"
-          aria-label={t('notes.close')}
-          onClick={onClose}
-          className="text-muted-foreground"
-        >
-          <X className="size-5" aria-hidden="true" />
-        </Button>
-      </div>
-      <div className="px-4 pt-2 text-xs text-muted-foreground">{description}</div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3">
+      <PanelHeader
+        icon={<Lock className="size-4 shrink-0 text-note-foreground" aria-hidden="true" />}
+        title={title}
+        description={description}
+        closeLabel={t('notes.close')}
+        onClose={onClose}
+      />
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3">
         {loading ? (
           <div className="space-y-2" role="status" aria-label={t('notes.loading')}>
             <Skeleton className="h-16 w-full" />
@@ -91,7 +83,7 @@ function NotesBody({
         )}
       </div>
       <form onSubmit={submit} className="safe-bottom border-t">
-        <div className="flex flex-col gap-2 p-3">
+        <div className="flex flex-col gap-2 px-4 py-3">
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -117,6 +109,7 @@ function NotesBody({
 export function NotesPanel({ open, onClose, ...rest }: NotesPanelProps) {
   const { t } = useTranslation('inbox');
   const desktop = useMediaQuery('(min-width: 1024px)');
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   if (desktop) {
     if (!open) return null;
@@ -141,12 +134,21 @@ export function NotesPanel({ open, onClose, ...rest }: NotesPanelProps) {
         side="right"
         showCloseButton={false}
         aria-label={t('notes.title')}
-        className="safe-top safe-x w-full gap-0 bg-surface sm:max-w-sm"
+        // Same as the Customer sheet: no left border at full width, focus starts on the title.
+        className="safe-top safe-x w-full gap-0 bg-surface max-sm:border-l-0 sm:max-w-sm"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          titleRef.current?.focus();
+        }}
       >
         <NotesBody
           {...rest}
           onClose={onClose}
-          title={<SheetTitle className="text-sm">{t('notes.title')}</SheetTitle>}
+          title={
+            <SheetTitle ref={titleRef} tabIndex={-1} className="text-sm outline-none">
+              {t('notes.title')}
+            </SheetTitle>
+          }
           description={
             <SheetDescription className="text-xs">{t('notes.description')}</SheetDescription>
           }

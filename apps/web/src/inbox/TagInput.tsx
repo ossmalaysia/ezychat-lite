@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import {
   CUSTOMER_TAG_LIMIT,
   CUSTOMER_TAG_MAX_CHARS,
@@ -33,7 +33,7 @@ export function TagInput({
   id,
   ...aria
 }: TagInputProps) {
-  const { t } = useTranslation('inbox');
+  const { t } = useTranslation(['inbox', 'common']);
   const listId = useId();
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
@@ -83,13 +83,18 @@ export function TagInput({
         <ul className="flex flex-wrap gap-1.5">
           {value.map((tag) => (
             <li key={tag} className="min-w-0 max-w-full">
-              <Badge variant="secondary" className="max-w-full gap-0.5 py-0 pr-0.5">
+              {/* overflow-visible: Badge clips by default, which would clip the × hit area too. */}
+              <Badge
+                variant="secondary"
+                className="max-w-full gap-0.5 overflow-visible py-0 pr-0.5"
+              >
                 <span className="truncate">{tag}</span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  className="rounded-full"
+                  // 24px visible, ~44px hit area on touch screens.
+                  className="relative size-6 rounded-full before:absolute before:-inset-2.5 before:content-['']"
                   aria-label={t('customer.removeTag', { tag })}
                   onClick={() => remove(tag)}
                 >
@@ -100,45 +105,61 @@ export function TagInput({
           ))}
         </ul>
       )}
-      <Input
-        id={id}
-        role="combobox"
-        aria-expanded={showOptions}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        autoComplete="off"
-        enterKeyHint="enter"
-        maxLength={CUSTOMER_TAG_MAX_CHARS}
-        value={text}
-        disabled={full}
-        placeholder={full ? t('customer.tagLimit') : t('customer.tagPlaceholder')}
-        onChange={(e) => {
-          const next = e.target.value;
-          if (next.includes(',')) {
-            const parts = next.split(',');
-            const rest = parts.pop() ?? '';
-            let tags = value;
-            const keys = new Set(tags.map(customerTagKey));
-            for (const part of parts) {
-              const tag = normalizeTag(part);
-              if (!tag || keys.has(customerTagKey(tag)) || tags.length >= CUSTOMER_TAG_LIMIT)
-                continue;
-              keys.add(customerTagKey(tag));
-              tags = [...tags, tag];
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          role="combobox"
+          aria-expanded={showOptions}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          autoComplete="off"
+          enterKeyHint="enter"
+          maxLength={CUSTOMER_TAG_MAX_CHARS}
+          value={text}
+          disabled={full}
+          placeholder={full ? t('customer.tagLimit') : t('customer.tagPlaceholder')}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (next.includes(',')) {
+              const parts = next.split(',');
+              const rest = parts.pop() ?? '';
+              let tags = value;
+              const keys = new Set(tags.map(customerTagKey));
+              for (const part of parts) {
+                const tag = normalizeTag(part);
+                if (!tag || keys.has(customerTagKey(tag)) || tags.length >= CUSTOMER_TAG_LIMIT)
+                  continue;
+                keys.add(customerTagKey(tag));
+                tags = [...tags, tag];
+              }
+              if (tags !== value) onChange(tags);
+              // A full list disables the input: never leave text there that Save would add.
+              setQuery(tags.length >= CUSTOMER_TAG_LIMIT ? '' : rest);
+            } else {
+              setQuery(next);
             }
-            if (tags !== value) onChange(tags);
-            // A full list disables the input: never leave text there that Save would add.
-            setQuery(tags.length >= CUSTOMER_TAG_LIMIT ? '' : rest);
-          } else {
-            setQuery(next);
-          }
-        }}
-        onKeyDown={onKeyDown}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className="text-base md:text-sm"
-        {...aria}
-      />
+          }}
+          onKeyDown={onKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className="h-11 min-w-0 flex-1 text-base md:h-9 md:text-sm"
+          {...aria}
+        />
+        {/* Phone keyboards may not show an Enter key that adds: an explicit Add button. */}
+        <Button
+          type="button"
+          variant="outline"
+          aria-label={t('customer.addTag')}
+          disabled={full || !normalizeTag(text)}
+          // Keep focus in the input so the next tag can be typed straight away.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => add(text)}
+          className="min-h-11 shrink-0 md:min-h-9"
+        >
+          <Plus aria-hidden="true" />
+          {t('common:actions.add')}
+        </Button>
+      </div>
       <div
         id={listId}
         role="listbox"
@@ -155,7 +176,7 @@ export function TagInput({
               aria-selected={false}
               variant="ghost"
               size="sm"
-              className="max-w-full justify-start truncate"
+              className="min-h-11 max-w-full justify-start truncate md:min-h-8"
               // Keep focus in the input so the list stays open for the next tag.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => add(s)}

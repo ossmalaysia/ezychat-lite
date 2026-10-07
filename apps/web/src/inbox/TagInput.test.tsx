@@ -44,9 +44,32 @@ describe('TagInput', () => {
     expect(screen.getByTestId('tags').textContent).toBe('VIP|Halal');
   });
 
+  it('adds the typed tag with the Add button (no Enter needed on phone keyboards)', async () => {
+    render(<Harness initial={['VIP']} />);
+    const add = screen.getByRole('button', { name: 'Add tag' });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.type(screen.getByRole('combobox'), 'Halal catering');
+    expect((add as HTMLButtonElement).disabled).toBe(false);
+    await userEvent.click(add);
+    expect(screen.getByTestId('tags').textContent).toBe('VIP|Halal catering');
+    expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe('');
+    // 44px touch targets on phones: Add, remove ×, and suggestions.
+    expect(add.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+    const remove = screen.getByRole('button', { name: 'Remove tag VIP' });
+    expect(remove.className).toMatch(/(^|\s)size-6(\s|$)/);
+    expect(remove.className).toMatch(/before:-inset-2\.5/);
+    await userEvent.type(screen.getByRole('combobox'), 'w');
+    expect(screen.getByRole('option', { name: 'Wholesale' }).className).toMatch(
+      /(^|\s)min-h-11(\s|$)/,
+    );
+  });
+
   it('stops at 10 tags', () => {
     render(<Harness initial={Array.from({ length: 10 }, (_, i) => `t${i}`)} />);
     const input = screen.getByRole('combobox') as HTMLInputElement;
+    expect((screen.getByRole('button', { name: 'Add tag' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect(input.disabled).toBe(true);
     expect(input.placeholder).toBe('Up to 10 tags');
   });

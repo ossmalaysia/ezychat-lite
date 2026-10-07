@@ -176,8 +176,21 @@
       "settingsUpdate": "已更新设置",
       "chatsResolveAll": "已解决所有未结对话",
       "chatMerge": "已合并聊天",
-      "logsDownload": "已下载日志"
-    }
+      "logsDownload": "已下载日志",
+      "customerProfileUpdate": "已更新客户资料"
+    },
+    "details": {
+      "customerChanged": "已更改：{{fields}}"
+    },
+    "customerFields": {
+      "name": "姓名",
+      "company": "公司",
+      "email": "电子邮箱",
+      "otherPhone": "其他电话",
+      "address": "地址",
+      "tags": "标签"
+    },
+    "listSeparator": "、"
   },
   "settings": {
     "title": "设置",

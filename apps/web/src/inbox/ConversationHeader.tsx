@@ -98,7 +98,9 @@ export function ConversationHeader({
           {resolved && ` · ${t('header.resolved')}`}
         </p>
       </div>
-      <div className="flex w-full items-center gap-2 px-1 @3xl:w-auto @3xl:px-0">
+      {/* One row from a 672px-wide header (Customer/Notes icon-only below 768px); narrower
+          headers put the actions on their own row under the name, with Resolve on the right. */}
+      <div className="flex w-full items-center gap-2 px-1 @2xl:w-auto @2xl:px-0">
         <Select
           value={chat.assignedTo == null ? UNASSIGNED : String(chat.assignedTo)}
           disabled={busy}
@@ -108,7 +110,8 @@ export function ConversationHeader({
             id={`assign-${chat.jid}`}
             aria-label={t('header.assignedTo')}
             title={directory.nameOf(chat.assignedTo) ?? t('header.unassigned')}
-            className="h-11! min-w-0 flex-1 bg-surface text-base md:w-44 md:flex-none md:text-sm"
+            // The value is a flex box by default, which clips without an ellipsis.
+            className="h-11! min-w-0 flex-1 bg-surface text-base *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate md:w-44 md:flex-none md:text-sm"
           >
             <SelectValue placeholder={t('header.unassigned')} />
           </SelectTrigger>
@@ -141,7 +144,7 @@ export function ConversationHeader({
             )}
           >
             <UserRound className="size-5" aria-hidden="true" />
-            <span className="@max-md:sr-only">{t('header.customer')}</span>
+            <span className="@max-3xl:sr-only">{t('header.customer')}</span>
           </Button>
         )}
         <Button
@@ -157,8 +160,8 @@ export function ConversationHeader({
           )}
         >
           <NotebookPen className="size-5" aria-hidden="true" />
-          {/* Icon-only on phone widths; a narrow header wraps the actions under the name instead. */}
-          <span className="@max-md:sr-only">{t('header.notes')}</span>
+          {/* Icon-only below a 768px header (aria-label keeps the name). */}
+          <span className="@max-3xl:sr-only">{t('header.notes')}</span>
           {notesCount > 0 && (
             <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
               {notesCount}
@@ -170,7 +173,7 @@ export function ConversationHeader({
           size="touch"
           onClick={onToggleStatus}
           disabled={busy}
-          className="shrink-0"
+          className="ml-auto shrink-0"
         >
           {resolved ? <RotateCcw aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
           {resolved ? t('header.reopen') : t('header.resolve')}
