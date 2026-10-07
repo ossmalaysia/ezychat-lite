@@ -1,6 +1,6 @@
 # AI data access review: tool calls and an agent SDK
 
-Status: **proposal for the owner's decision** (no code yet). Date: 2026-10-07.
+Status: **proposal for the owner's decision** (no code yet). Date: 2026-10-07. Requirement: the agent must be LLM-agnostic.
 
 ## 1. How the AI reads data today
 
@@ -114,55 +114,76 @@ streaming rule. That makes the SDK choice below simpler and removes the undocume
 
 ## 4. Should we bring in an agent SDK?
 
-You already decided (2026-10-06) not to hand-write the loop and tools. Candidates, checked against
-this app's constraints: both sign-in modes, streaming-only ChatGPT route, structured final output
-with tools, abort, mock models in tests, no data sent elsewhere by default, and bundling into the
-desktop's single CommonJS server file (esbuild, `format: 'cjs'`).
+You already decided (2026-10-06) not to hand-write the loop and tools, and the agent must be
+**LLM-agnostic**: OpenAI (API key and ChatGPT sign-in) today, and later Claude, Gemini, local models
+(Ollama) or OpenRouter without rewriting the agent. Other constraints: streaming-only ChatGPT
+route, structured final output together with tools, abort, mock models in tests, no data sent
+elsewhere by default, and bundling into the desktop's single CommonJS server file (esbuild,
+`format: 'cjs'`).
 
-| | OpenAI Agents SDK `@openai/agents` 0.19 | Vercel AI SDK `ai` 7.x |
+| | Vercel AI SDK `ai` 7.x | OpenAI Agents SDK `@openai/agents` 0.19 |
 | --- | --- | --- |
-| Tool loop, max steps | `tool()` + zod, `maxTurns` | `tool()` + zod, `stopWhen` |
-| Final structured output with tools | `outputType` (zod), native | `Output.object` + one extra step |
-| ChatGPT route (stream-only, namespaces) | streaming runs; `toolNamespace()`; custom `Model` possible | needs `streamText` or a custom provider; namespaces unverified |
-| Abort | `signal` | `abortSignal` (also passed to tools) |
-| Test without network | `ScriptedModel`, `assertComplete()` | `MockLanguageModel` |
-| Sends data elsewhere by default | **Tracing on by default in servers** → must call `setTracingDisabled(true)` | Nothing unless enabled |
-| Maturity | 0.x, still changing | Breaking major about every 6 months |
-| License | MIT | Apache-2.0 |
+| **Other vendors** | **Native**: official providers for OpenAI, Anthropic, Google, OpenAI-compatible (Ollama, OpenRouter, …); one tool/agent API | OpenAI-first; other models only through `@openai/agents-extensions` → AI SDK adapter, **still beta**, no tool namespaces through it |
+| Tool loop, max steps | `tool()` + zod, `stopWhen` | `tool()` + zod, `maxTurns` |
+| Final structured output with tools | `Output.object` + one extra step | `outputType` (zod), native |
+| ChatGPT route (stream-only, namespaced tools, some fields rejected) | `streamText`; `createOpenAI({ baseURL, fetch, headers })` — a custom `fetch` can rewrite the request (group tools into a namespace, drop rejected fields); **to prove in the spike** | streaming runs; `toolNamespace()` native |
+| Abort | `abortSignal` (also passed to tools) | `signal` |
+| Test without network | `MockLanguageModel` (`ai/test`) | `ScriptedModel`, `assertComplete()` |
+| Sends data elsewhere by default | Nothing unless telemetry is registered | **Tracing on by default in servers** (must be disabled) |
+| Maturity | Breaking major about every 6 months | 0.x, still changing |
+| License | Apache-2.0 | MIT |
 
-Others: Mastra (heavy, extra deps), LangGraph.js (a graph runtime, more than one agent needs).
-Claude Agent SDK runs Claude models, not this app's OpenAI/ChatGPT accounts.
+Others: Mastra (heavier, adds deps for a framework we don't need), LangGraph.js (a graph runtime,
+more than one agent needs). Claude Agent SDK runs Claude models only, the opposite of agnostic.
 
-**Recommendation: yes, adopt `@openai/agents`**, behind a thin port of our own
-(`runAgentTurn(chat, signal) → AiDecision + proposals`). It is Responses-native (namespaced tools,
-`store`, input items), is made by the same vendor as both endpoints, has the best test kit for
-multi-step tool runs, and keeps our guards outside the model. Conditions:
+**Recommendation: adopt the Vercel AI SDK**, behind a thin port of our own, so the vendor choice is
+configuration, not code:
 
-1. Tracing disabled at startup, with a test that asserts it (otherwise chats go to OpenAI's trace
-   dashboard and tests would call OpenAI).
-2. Pin the version; it is 0.x.
-3. A spike first proves it bundles into `server.cjs` and runs in the packaged app.
+```ts
+// ai/agent/port.ts — the only thing service.ts calls
+runAgentTurn(input: {
+  model: AgentModelConfig;      // { vendor: 'openai' | 'chatgpt' | 'anthropic' | 'google' | 'openai-compatible', model, credentials }
+  instructions: string;         // unchanged prompt.ts output
+  input: string;                // businessKnowledge → conversation → currentSituation
+  images: AiPromptImage[];
+  tools: AiReadTool[];          // chat-bound (section 2)
+  signal: AbortSignal;
+}): Promise<{ decision: AiDecision; proposals: AiProposal[]; usage }>;
+```
 
-Choose the AI SDK only if multi-vendor models (e.g. Gemini, Claude) become a goal.
+- `openai` = `@ai-sdk/openai` Responses with the API key; `chatgpt` = the same provider pointed at the
+  official route with the sign-in token and a request-rewriting `fetch`; other vendors are one
+  provider package each, added when wanted.
+- Prompt caching stays vendor-neutral because the layout is already "most stable first"; per-vendor
+  hints (OpenAI `promptCacheKey`, Anthropic cache breakpoints) go through `providerOptions`.
+- Weaker models (small local ones) may call tools badly or miss the output schema: the server
+  guards still decide, and a schema failure hands the chat to the team as today.
+- Pin the major version; budget a short upgrade PR per AI SDK major.
+
+The OpenAI Agents SDK stays the better choice only if we were OpenAI-only: it has native namespaced
+tools and a richer test kit, but agnostic use means the beta adapter on top of the AI SDK anyway.
 
 ## 5. Plan, in small PRs
 
-1. **Spike (throwaway, 1 day):** `@openai/agents` bundled into `server.cjs`; one streaming run
-   with a function tool on both the API key and the official ChatGPT route; tracing off;
-   `ScriptedModel` test. Report: bundle size, cold start, any rejected request field.
-2. **ChatGPT mode → official route** (if you approve it): new token audience and host id, same
-   UX. Useful on its own, even without tools.
-3. **Parity swap:** replace the single provider call with an Agents SDK run that has **no tools**
-   and the same `AiDecision` output. Every existing test and the Dev Build checks must pass unchanged.
+1. **Spike (throwaway, 1 day):** `ai` + `@ai-sdk/openai` bundled into `server.cjs`; one
+   `streamText` run with a function tool and `Output.object` on (a) the API key, (b) the official
+   ChatGPT route through a rewriting `fetch` (namespaced tools, rejected fields removed), and (c) one
+   non-OpenAI provider (e.g. a local Ollama model) to prove the port is vendor-neutral;
+   `MockLanguageModel` test. Report: bundle size, cold start, rejected fields, tool-call quality.
+2. **ChatGPT mode → official route** (if you approve it): new token audience and host id, same UX.
+   Useful on its own, even without tools.
+3. **Parity swap:** replace the two hand-written providers with `runAgentTurn` and **no tools**, same
+   `AiDecision` output. Every existing test and the Dev Build checks must pass unchanged.
 4. **First read tools:** `search_business_context`, `get_chat_history`, with the invariants above;
    Dev Build checks logged in `docs/dev-build-checks.md`.
-5. **Action proposals:** `add_internal_note`, then booking drafts.
+5. **More vendors** (Settings → AI gets a vendor picker) and **action proposals**
+   (`add_internal_note`, then booking drafts), in the order you prefer.
 
 ## 6. Decisions needed from the owner
 
-1. Adopt `@openai/agents` (recommended) or the Vercel AI SDK?
+1. Adopt the Vercel AI SDK for an LLM-agnostic agent (recommended)?
 2. Move ChatGPT sign-in to OpenAI's official route? This requires confirming that EzyChat Lite fits
    "open-source and locally hosted". Otherwise we stay on the undocumented endpoint OpenAI says not
    to use.
-3. Which first tools matter most for your customers: deeper knowledge search, older history, or an
-   integration such as orders or bookings?
+3. Which vendor after OpenAI (Claude, Gemini, local Ollama, OpenRouter), and which first tools:
+   deeper knowledge search, older history, or an integration such as orders or bookings?
