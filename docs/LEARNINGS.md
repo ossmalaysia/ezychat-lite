@@ -64,6 +64,8 @@ into AGENTS.md.
   (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
   conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
+- After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
+  `###` headings: two branches adding the same section merge cleanly into two copies.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
