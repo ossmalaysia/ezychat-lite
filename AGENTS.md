@@ -73,7 +73,9 @@ never merges: `AliasStore.route` picks the existing chat of either JID, routes r
 `chatJidParam`, and replies go to the `wa_remote_jid` of the last inbound message. Never merge on a
 name or number match.
 
-**AI Sales Agent.** Code in `packages/server/src/ai/`: `service.ts` decides when the one AI member
+**AI Sales Agent.** The agent must stay **LLM-agnostic** (owner requirement): vendor-specific request
+code lives only in provider adapters, never in the prompt, guards or tools (planned rework on an
+agent SDK: `docs/superpowers/specs/2026-10-07-ai-agent-tools-review.md`). Code in `packages/server/src/ai/`: `service.ts` decides when the one AI member
 claims, answers, hands off or resolves a chat; `prompt.ts` builds the single prompt used by live replies
 and `POST /api/ai/try` (admin-only, no chat side effects); `resolution.ts` is the resolution guard;
 `knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
