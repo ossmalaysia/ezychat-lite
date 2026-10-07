@@ -218,6 +218,12 @@ into AGENTS.md.
 - Bars that share width with side panels (chat header) size by their own width (`@container`), not
   viewport breakpoints. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- Review screenshots taken after animations settle (wait ~500 ms after opening a popover/sheet):
+  mid-fade captures make opaque popovers look transparent and send reviews after false bugs.
+- Cached lookup lists (tag suggestions) must be invalidated by the live event that can add entries
+  (`chat:updated` with tags), or another tab or teammate sees stale options until the cache expires.
+- E2E data that other tests or projects could share (tags, names) gets a per-project suffix
+  (`projectTag(info)`); `npm run e2e` rebuilds `apps/web/dist`, so stop any Dev Build serving it first.
 - Review a UI change on the whole page at 1280 and 360 px, top to bottom, not only the changed
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
