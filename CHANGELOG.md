@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.23] - 2026-10-07
+
 ### Added
 
 - **Customer details:** every teammate can save a customer's name, company, email, other phone,
@@ -21,15 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inbox polish: the Mine / Unassigned / All tabs keep their own row (no clipped labels with a tag
   filter), owner chips carry a person icon, phones show one tag plus "+N" so the message preview has
   room, and the Audit page describes customer-detail changes in words.
-
-### Security
-
-- Voice notes: the 2-minute limit now counts the real audio instead of trusting the length written in
-  the file, so a crafted voice note can no longer exhaust memory on your computer or run up cloud
-  transcription costs. Stored transcripts are capped, and the audit log shows when someone changes the
-  AI's instructions or hand-off rules.
-
-### Changed
 
 - Admin and account screens are calmer and more consistent:
   - **Audit log**: every action has a readable name (including AI, Business context and voice
@@ -56,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The **Dev Build** marker is a small tab at the top centre, so it no longer covers buttons.
   - Disabled buttons are grey instead of faded teal, and the selected tab is easier to see in
     light mode.
+
+### Security
+
+- Voice notes: the 2-minute limit now counts the real audio instead of trusting the length written in
+  the file, so a crafted voice note can no longer exhaust memory on your computer or run up cloud
+  transcription costs. Stored transcripts are capped, and the audit log shows when someone changes the
+  AI's instructions or hand-off rules.
 
 ## [0.1.22] - 2026-10-06
 
