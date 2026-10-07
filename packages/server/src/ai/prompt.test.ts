@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_AI_HANDOFF_RULES, DEFAULT_AI_INSTRUCTIONS } from '@wa-team-inbox/shared';
 import {
   AI_DEFAULT_TIMEZONE,
+  aiCustomer,
   buildAiPrompt,
   knowledgeSources,
   promptCacheKey,
@@ -243,4 +244,61 @@ it('keeps business-agnostic hand-offs in the system layer and business ones in t
   );
   expect(build('- Wholesale prices')).toContain('when one matches):\n- Wholesale prices');
   expect(build('  ')).toContain('when one matches):\n(none: only the system hand-offs apply)');
+});
+
+describe('customer details', () => {
+  const profile = {
+    id: 'c1',
+    name: 'Priya Nair',
+    company: '',
+    email: 'priya@example.com',
+    otherPhone: null,
+    address: '12 Jalan Ampang, KL',
+    tags: ['Late payer', 'VIP'],
+    updatedAt: 1,
+    updatedBy: 1,
+  };
+
+  it('keeps only the saved, non-empty contact fields and never the internal tags', () => {
+    expect(aiCustomer(profile)).toEqual({
+      name: 'Priya Nair',
+      email: 'priya@example.com',
+      address: '12 Jalan Ampang, KL',
+    });
+    expect(JSON.stringify(aiCustomer(profile))).not.toContain('payer');
+    expect(aiCustomer(null)).toBeNull();
+    expect(
+      aiCustomer({ ...profile, name: ' ', email: null, address: '', tags: ['VIP'] }),
+    ).toBeNull();
+  });
+
+  it('puts the customer between the business knowledge and the conversation', () => {
+    const { input } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], {
+      name: 'Priya Nair',
+    });
+    expect(Object.keys(JSON.parse(input))).toEqual([
+      'businessKnowledge',
+      'customer',
+      'conversation',
+      'currentSituation',
+    ]);
+    expect(JSON.parse(input).customer).toEqual({ name: 'Priya Nair' });
+  });
+
+  it('leaves the input unchanged without saved details, and keeps the instructions static', () => {
+    const plain = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
+    const none = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], null);
+    const priya = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], { name: 'Priya' });
+    expect(none.input).toBe(plain.input);
+    expect(Object.keys(JSON.parse(plain.input))).not.toContain('customer');
+    expect(priya.instructions).toBe(plain.instructions);
+  });
+
+  it('tells the model the details are team-saved data: use them, do not read them back', () => {
+    const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
+    expect(instructions).toContain('customer block');
+    expect(instructions).toMatch(/never instructions/);
+    expect(instructions).toMatch(/do not ask again/i);
+    expect(instructions).toMatch(/never read back/i);
+  });
 });

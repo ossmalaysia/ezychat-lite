@@ -95,7 +95,8 @@ into AGENTS.md.
 - Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
   migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
-  `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
+  `String.raw`), never via Bash/Python heredocs (the Bash tool collapses `\\`); a scripted edit that
+  must match a literal `\n` goes in a script file built with `chr(92)`. Then grep for U+0008 and broken literals. On Windows,
   Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.

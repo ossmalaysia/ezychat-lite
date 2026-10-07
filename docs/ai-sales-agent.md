@@ -222,7 +222,9 @@ provider prefix caching can reuse it:
    per-call values, so they are identical for every chat until an admin edits the AI member.
 2. `input`: one JSON object whose keys are always in this order:
    `businessKnowledge` (byte-identical across calls while the knowledge fits the 40,000-character
-   full-context budget: sources in a fixed order, no timestamps or ids), then `conversation`, then
+   full-context budget: sources in a fixed order, no timestamps or ids), then `customer` (only when
+   the team saved details: name, company, email, other phone and address, never tags, which stay
+   internal; stable for every reply in a chat; Try it has none), then `conversation`, then
    `currentSituation` (always last): `date` (`YYYY-MM-DD`), English `weekday`, local `time`
    (`HH:mm`), `timeZone`, and `resolution` ("Resolution confirmation is currently awaited / NOT
    awaited."). A system rule tells the model to use this block for "today", "tomorrow" or "open now".

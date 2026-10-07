@@ -38,11 +38,13 @@ import {
   AI_TIMEZONE_SETTING,
   HANDOFF_REPLY,
   VOICE_RETRY_REPLY,
+  aiCustomer,
   buildAiPrompt,
   knowledgeSources,
   resolveAiTimeZone,
   type AiContextItem,
   type AiConversationTurn,
+  type AiCustomer,
   type AiKnowledge,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
@@ -202,6 +204,7 @@ export function createAiService(
     conversation: AiConversationTurn[],
     awaitingConfirmation: boolean,
     images: readonly AiPromptImage[] = [],
+    customer: AiCustomer | null = null,
   ) => ({
     ...buildAiPrompt(
       knowledge,
@@ -213,6 +216,7 @@ export function createAiService(
         awaitingConfirmation,
       },
       images,
+      customer,
     ),
     cacheId: installId(),
   });
@@ -614,6 +618,7 @@ export function createAiService(
                     })),
                     awaiting,
                     images,
+                    aiCustomer(ctx.services.customers?.profile(jid).profile ?? null),
                   ),
                   controller.signal,
                 ),

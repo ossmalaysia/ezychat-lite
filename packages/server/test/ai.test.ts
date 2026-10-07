@@ -125,6 +125,31 @@ it('claims an unassigned live direct chat after ten seconds, answers with only i
   expect(t.wa.sent).toHaveLength(2);
 });
 
+it('answers with the customer details the team saved, but never their tags', async () => {
+  clock();
+  await incoming();
+  t.ctx.services.customers!.save(
+    jid,
+    {
+      name: 'Priya Nair',
+      company: 'Acme',
+      email: '',
+      otherPhone: '',
+      address: '12 Jalan Ampang',
+      tags: ['Late payer'],
+    },
+    actor,
+  );
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { input } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(JSON.parse(input).customer).toEqual({
+    name: 'Priya Nair',
+    company: 'Acme',
+    address: '12 Jalan Ampang',
+  });
+  expect(input).not.toContain('Late payer');
+});
+
 it('batches customer messages and ignores imported history, groups, and chats already assigned to a human', async () => {
   clock();
   await incoming('history', 'Old question', 'history', 'old@s.whatsapp.net');

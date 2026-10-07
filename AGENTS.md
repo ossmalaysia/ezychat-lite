@@ -84,7 +84,8 @@ the AI stops claiming and releases its chats without messaging customers. Knowle
 (table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
 Prompt layout for caching: static instructions, then input JSON in fixed order `businessKnowledge` →
-`conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
+`customer` (only when saved: the team's name, company, email, other phone and address via `aiCustomer`,
+never tags; none in Try it) → `conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
 awaited); never put per-call values earlier. `prompt_cache_key` is derived from the random `ai_install_id`
 and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
 questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
