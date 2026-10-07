@@ -90,6 +90,21 @@ describe('auditDetails', () => {
     expect(auditDetails({ mode: 'api', model: '' }, t, names)).toBe('Mode: API key');
   });
 
+  it('summarises object values such as the moved counts of a chat merge instead of dropping them', () => {
+    const details = auditDetails(
+      {
+        from: '60129001234@s.whatsapp.net',
+        to: '888000111@lid',
+        moved: { messages: 12, events: 0, notes: 1, aiState: 0 },
+      },
+      t,
+      names,
+    );
+    expect(details).toContain('messages 12');
+    expect(details).toContain('notes 1');
+    expect(details).not.toContain('[object Object]');
+  });
+
   it('is empty when there is nothing to show', () => {
     expect(auditDetails({}, t, names)).toBe('');
   });

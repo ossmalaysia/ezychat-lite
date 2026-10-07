@@ -166,6 +166,17 @@ export function auditDetails(
       return known ? t(known as never) : String(v);
     }
     if (Array.isArray(v)) return v.map(String).join(', ');
+    if (typeof v === 'object') {
+      // e.g. a chat merge's `moved: { messages: 12, notes: 1 }` → "messages 12, notes 1".
+      const inner = Object.entries(v as Record<string, unknown>)
+        .filter(([, x]) => ['string', 'number', 'boolean'].includes(typeof x))
+        .map(([k, x]) => {
+          const shown =
+            typeof x === 'boolean' ? t(x ? 'audit.yes' : 'audit.no') : String(x as string | number);
+          return `${inSentence(k)} ${shown}`;
+        });
+      return inner.length ? inner.join(', ') : null;
+    }
     return null;
   };
 
