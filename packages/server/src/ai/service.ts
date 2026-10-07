@@ -511,6 +511,10 @@ export function createAiService(
       if (chats.get(jid)!.assignedTo === null) chats.patch(jid, { assignedTo: user.id }, user.id);
       if (!owned()) return;
       const current = settings();
+      /** The team's saved details as the AI sees them (no tags). */
+      const customerDetails = () =>
+        aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
+      const savedCustomer = customerDetails();
       /** The last 20 messages, the customer message being answered and its debounce batch. */
       const snapshot = () => {
         const history = messages.list(jid, { limit: 20 }).messages;
@@ -618,7 +622,7 @@ export function createAiService(
                     })),
                     awaiting,
                     images,
-                    aiCustomer(ctx.services.customers?.profile(jid).profile ?? null),
+                    savedCustomer,
                   ),
                   controller.signal,
                 ),
@@ -650,6 +654,13 @@ export function createAiService(
         };
       }
       if (!owned()) return;
+      // A teammate corrected the customer's details while the model was writing: never send
+      // the outdated reply, answer again with the current details.
+      if (JSON.stringify(customerDetails()) !== JSON.stringify(savedCustomer)) {
+        log.info({ jid, reason: 'customer_details_changed' }, 'AI reply regenerated');
+        schedule(jid, Date.now());
+        return;
+      }
       // Judge every customer message since the last AI reply (the debounce batch), not only the
       // latest, so "No, still not working" + "thanks" never closes the chat.
       const batchText = batch.map(customerText).join('\n');

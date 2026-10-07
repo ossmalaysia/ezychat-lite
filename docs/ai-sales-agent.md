@@ -222,12 +222,13 @@ provider prefix caching can reuse it:
    per-call values, so they are identical for every chat until an admin edits the AI member.
 2. `input`: one JSON object whose keys are always in this order:
    `businessKnowledge` (byte-identical across calls while the knowledge fits the 40,000-character
-   full-context budget: sources in a fixed order, no timestamps or ids), then `customer` (only when
-   the team saved details: name, company, email, other phone and address, never tags, which stay
-   internal; stable for every reply in a chat; Try it has none), then `conversation`, then
+   full-context budget: sources in a fixed order, no timestamps or ids), then `conversation`, then
    `currentSituation` (always last): `date` (`YYYY-MM-DD`), English `weekday`, local `time`
-   (`HH:mm`), `timeZone`, and `resolution` ("Resolution confirmation is currently awaited / NOT
-   awaited."). A system rule tells the model to use this block for "today", "tomorrow" or "open now".
+   (`HH:mm`), `timeZone`, `resolution` ("Resolution confirmation is currently awaited / NOT
+   awaited."), and `customer` when the team saved details (name, company, email, other phone and
+   address; never tags, which stay internal; Try it has none). The customer details sit in this
+   per-call block because a teammate can edit them at any time; if they change while the model is
+   writing, the reply is dropped and generated again. A system rule tells the model to use this block for "today", "tomorrow" or "open now".
 
 The time zone comes from the optional setting `ai_timezone` (an IANA name such as
 `Europe/London`; no UI yet). If the setting is missing or the zone is unknown, the default is

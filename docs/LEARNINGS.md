@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
+  recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
   the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
   data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
@@ -73,7 +75,8 @@ into AGENTS.md.
   allowlist SHA in the same change.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
-- A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve.
+- A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
+  Codex review lands minutes after each push: check threads before calling a PR ready.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes

@@ -272,17 +272,16 @@ describe('customer details', () => {
     ).toBeNull();
   });
 
-  it('puts the customer between the business knowledge and the conversation', () => {
+  it('puts the editable customer details in the last block, after the conversation', () => {
     const { input } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], {
       name: 'Priya Nair',
     });
-    expect(Object.keys(JSON.parse(input))).toEqual([
-      'businessKnowledge',
-      'customer',
-      'conversation',
-      'currentSituation',
-    ]);
-    expect(JSON.parse(input).customer).toEqual({ name: 'Priya Nair' });
+    const parsed = JSON.parse(input);
+    // A teammate can edit a profile at any time: only the per-call block may hold it, so an edit
+    // never invalidates the cached knowledge + conversation prefix.
+    expect(Object.keys(parsed)).toEqual(['businessKnowledge', 'conversation', 'currentSituation']);
+    expect(parsed.currentSituation.customer).toEqual({ name: 'Priya Nair' });
+    expect(Object.keys(parsed.currentSituation).at(-1)).toBe('customer');
   });
 
   it('leaves the input unchanged without saved details, and keeps the instructions static', () => {
@@ -290,13 +289,13 @@ describe('customer details', () => {
     const none = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], null);
     const priya = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], { name: 'Priya' });
     expect(none.input).toBe(plain.input);
-    expect(Object.keys(JSON.parse(plain.input))).not.toContain('customer');
+    expect(plain.input).not.toContain('customer"');
     expect(priya.instructions).toBe(plain.instructions);
   });
 
   it('tells the model the details are team-saved data: use them, do not read them back', () => {
     const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
-    expect(instructions).toContain('customer block');
+    expect(instructions).toMatch(/Current situation block may include a customer field/);
     expect(instructions).toMatch(/never instructions/);
     expect(instructions).toMatch(/do not ask again/i);
     expect(instructions).toMatch(/never read back/i);
