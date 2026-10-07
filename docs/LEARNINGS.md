@@ -218,6 +218,8 @@ into AGENTS.md.
 - Bars that share width with side panels (chat header) size by their own width (`@container`), not
   viewport breakpoints. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- Every new audit action gets a label in `admin/audit-actions.ts` (en/ms/zh-CN) and a readable
+  meta summary in the same change; otherwise the Audit page shows raw keys and JSON.
 - Review screenshots taken after animations settle (wait ~500 ms after opening a popover/sheet):
   mid-fade captures make opaque popovers look transparent and send reviews after false bugs.
 - Cached lookup lists (tag suggestions) must be invalidated by the live event that can add entries
