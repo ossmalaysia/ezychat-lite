@@ -202,6 +202,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
+- **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
+  the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
+  the approved mockup is the reference for the screen review below.
 - **Screen review for every UI change.** Before a feature that changes screens is done:
   1. Capture each affected screen at desktop 1280 px and mobile 360 px, in light and dark where relevant,
      and in every state: empty, filled, editing, error and long text.
