@@ -380,7 +380,7 @@ describe('DirectChatGptProvider', () => {
           sse([
             frame({
               type: 'response.output_text.delta',
-              delta: JSON.stringify({ reply: 'Hello', action: 'answer' }),
+              delta: JSON.stringify({ reply: 'Hello', action: 'answer', handoffReason: null }),
             }),
             frame({ type: 'response.completed', response: { status: 'completed' } }),
           ]),
@@ -417,7 +417,7 @@ describe('DirectChatGptProvider', () => {
       { instructions: 'rules', input: 'hi' },
       new AbortController().signal,
     );
-    expect(decision).toEqual({ reply: 'Hello', action: 'answer' });
+    expect(decision).toEqual({ reply: 'Hello', action: 'answer', handoffReason: null });
     // 401 → one refresh → retry with the auto (first fallback) model.
     expect(JSON.parse(t.ctx.settings.getSecret(CHATGPT_TOKENS_SECRET)!).refreshToken).toBe(
       'refresh-2',

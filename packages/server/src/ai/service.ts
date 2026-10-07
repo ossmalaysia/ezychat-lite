@@ -31,18 +31,14 @@ import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
-import { runAgentTurn } from './agent/turn.js';
+import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
 
-/** EXPERIMENTAL: answer through the AI SDK agent loop with tools (`WATI_AI_AGENT_SDK=1`). */
-const agentSdkEnabled = () => process.env.WATI_AI_AGENT_SDK === '1';
 /** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
 const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
   history.map((message) => ({
     speaker: message.fromMe ? (message.sentByUserId === aiUserId ? 'AI' : 'human') : 'customer',
     text: conversationLine(message),
   }));
-const AGENT_SEARCH_RULE =
-  'The business facts are not included in the input: call search_business_context to look them up before answering a question about the business, and search again with other words if the first result does not answer it.';
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
@@ -529,7 +525,8 @@ export function createAiService(
       const savedCustomer = customerDetails();
       /** The last 20 messages, the customer message being answered and its debounce batch. */
       const snapshot = () => {
-        const history = messages.list(jid, { limit: 20 }).messages;
+        const page = messages.list(jid, { limit: 20 });
+        const history = page.messages;
         const customer = history.find((message) => message.id === customerId);
         if (!customer || customer.fromMe) return null;
         // The debounce batch: every customer message since the last AI reply.
@@ -543,7 +540,7 @@ export function createAiService(
         const batch = history
           .slice(batchStart, history.indexOf(customer) + 1)
           .filter((message) => !message.fromMe);
-        return { history, customer, batchStart, batch };
+        return { history, customer, batchStart, batch, olderBefore: page.nextBefore };
       };
       let snap = snapshot();
       if (!snap) return;
@@ -569,7 +566,7 @@ export function createAiService(
         snap = snapshot();
         if (!snap) return;
       }
-      const { history, customer, batchStart, batch } = snap;
+      const { history, customer, batchStart, batch, olderBefore } = snap;
       const knowledge = relevantKnowledge(
         knowledgeSources(contextItems()),
         history
@@ -583,38 +580,41 @@ export function createAiService(
       const awaiting = asked > 0;
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
-      let toolCalls: string[] = [];
+      const toolCalls: string[] = [];
       const started = Date.now();
-      /** One model decision: the classic single call, or (experimental) the AI SDK agent loop. */
+      /** Page `n` of this chat's messages older than the prompt's, oldest first. */
+      const olderMessages = (n: number) => {
+        let before = olderBefore;
+        let older: Message[] = [];
+        for (let page = 1; page <= n && before; page++) {
+          const result = messages.list(jid, { limit: AI_OLDER_MESSAGES_PAGE, before });
+          older = result.messages;
+          before = result.nextBefore;
+        }
+        return conversation(older, user.id);
+      };
+      /** One model decision; the model may use this chat's read tools first. */
       const decide = async (
         turns: AiConversationTurn[],
         facts: string,
         awaitingConfirmation: boolean,
         batchImages: AiPromptImage[],
-      ): Promise<AiDecision> => {
-        const secret = ctx.settings.getSecret(SECRET_KEY);
-        if (agentSdkEnabled() && provider.agentModel) {
-          // The facts are not pushed: the model looks them up with search_business_context.
-          const base = prompt(current, '', turns, awaitingConfirmation, batchImages, savedCustomer);
-          const turn = await runAgentTurn({
-            model: await provider.agentModel(current, secret, installId()),
-            prompt: { ...base, instructions: `${base.instructions}\n${AGENT_SEARCH_RULE}` },
-            knowledge: knowledgeSources(contextItems()),
-            chatJid: jid,
-            signal: controller.signal,
-          });
-          toolCalls = turn.toolCalls;
-          return turn.decision;
-        }
-        return AiDecision.parse(
+      ): Promise<AiDecision> =>
+        AiDecision.parse(
           await provider.generate(
             current,
-            secret,
-            prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+            ctx.settings.getSecret(SECRET_KEY),
+            {
+              ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+              tools: chatTools({
+                knowledge: knowledgeSources(contextItems()),
+                olderMessages: olderBefore ? olderMessages : undefined,
+                onCall: (name) => toolCalls.push(name),
+              }),
+            },
             controller.signal,
           ),
         );
-      };
       try {
         // Text, images (with or without a caption) and voice notes can be handled; video,
         // documents, stickers and the like go to the team.

@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { createOpenAI } from '@ai-sdk/openai';
-import { defaultSettingsMiddleware, wrapLanguageModel, type LanguageModel } from 'ai';
-import { backendHeaders, CODEX_BACKEND, parseSse, type BackendAuth } from '../chatgpt-backend.js';
+import { APICallError, defaultSettingsMiddleware, wrapLanguageModel, type LanguageModel } from 'ai';
 
 /**
  * We never store responses at OpenAI, so earlier items (reasoning, tool calls) must be resent in
@@ -20,9 +18,55 @@ const stateless = (model: Parameters<typeof wrapLanguageModel>[0]['model']) =>
     }),
   });
 
-/** API key mode: the public OpenAI Responses API. */
-export function openAiKeyModel(apiKey: string, modelId: string): LanguageModel {
-  return stateless(createOpenAI({ apiKey }).responses(modelId));
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+/** An OpenAI-shaped error the SDK turns into an APICallError carrying only our fixed message. */
+const failed = (message: string, status: number) => json({ error: { message } }, status);
+
+/**
+ * API key mode: the public OpenAI Responses API. Redirects are refused, every request carries the
+ * install's cache key, and upstream error bodies are never read or passed on.
+ */
+export function openAiKeyModel(options: {
+  apiKey: string;
+  modelId: string;
+  cacheKey?: string;
+  fetch?: typeof fetch;
+}): LanguageModel {
+  const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const adapter = (async (url: string | URL | Request, init?: RequestInit) => {
+    const body = withInstructions(
+      JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>,
+    );
+    if (options.cacheKey) body.prompt_cache_key = options.cacheKey;
+    // A reply cancelled before the request left (e.g. a teammate took the chat) never sends it.
+    init?.signal?.throwIfAborted();
+    let response: Response;
+    try {
+      response = await send(url, { ...init, body: JSON.stringify(body), redirect: 'error' });
+    } catch (error) {
+      if (init?.signal?.aborted) throw error;
+      return failed('OpenAI could not answer. Check your connection and API settings.', 503);
+    }
+    if (!response.ok) {
+      // Do not read the body: upstream errors can echo credentials or customer content.
+      await response.body?.cancel().catch(() => {});
+      return failed(
+        response.status === 401
+          ? 'The OpenAI API key was rejected.'
+          : response.status === 429
+            ? 'OpenAI usage limit reached. Check your account or try again later.'
+            : 'OpenAI could not answer. Check your API settings.',
+        response.status,
+      );
+    }
+    const result = (await response.json()) as { status?: unknown };
+    if (result.status !== 'completed') return failed('OpenAI did not complete its answer.', 502);
+    return json(result, 200);
+  }) as typeof fetch;
+  return stateless(
+    createOpenAI({ apiKey: options.apiKey, fetch: adapter }).responses(options.modelId),
+  );
 }
 
 /** Request fields the ChatGPT route rejects (it streams, stores nothing and fixes sampling). */
@@ -51,6 +95,23 @@ const textOf = (content: unknown): string =>
       : '';
 
 /**
+ * The SDK sends the system prompt as a `system` message; put it in the `instructions` field, as
+ * our cache-friendly layout expects (and the ChatGPT route requires: it rejects `system` items).
+ */
+export function withInstructions(sdkBody: Record<string, unknown>): Record<string, unknown> {
+  const body: Record<string, unknown> = { ...sdkBody };
+  const input = Array.isArray(body.input) ? (body.input as InputItem[]) : [];
+  const leading = input.filter((item) => item.role === 'system' || item.role === 'developer');
+  if (!leading.length) return body;
+  body.instructions = [typeof body.instructions === 'string' ? body.instructions : '']
+    .concat(leading.map((item) => textOf(item.content)))
+    .filter(Boolean)
+    .join('\n');
+  body.input = input.filter((item) => item.role !== 'system' && item.role !== 'developer');
+  return body;
+}
+
+/**
  * Rewrites an AI SDK Responses request for the ChatGPT backend: streamed, `store: false`, no
  * rejected fields, and the system/developer text moved into `instructions` (which it requires).
  */
@@ -58,91 +119,65 @@ export function codexRequestBody(
   sdkBody: Record<string, unknown>,
   cacheKey?: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = { ...sdkBody };
+  const body = withInstructions(sdkBody);
   for (const field of REJECTED_FIELDS) delete body[field];
-  const input = Array.isArray(body.input) ? (body.input as InputItem[]) : [];
-  const leading = input.filter((item) => item.role === 'system' || item.role === 'developer');
-  const rules = [typeof body.instructions === 'string' ? body.instructions : '']
-    .concat(leading.map((item) => textOf(item.content)))
-    .filter(Boolean)
-    .join('\n');
-  body.input = input.filter((item) => item.role !== 'system' && item.role !== 'developer');
-  body.instructions = rules;
   body.stream = true;
   body.store = false;
   if (cacheKey) body.prompt_cache_key = cacheKey;
   return body;
 }
 
-/** Reads a Responses event stream to the end and returns the final response object. */
-export async function collectStreamedResponse(
-  stream: ReadableStream<Uint8Array>,
-): Promise<Record<string, unknown>> {
-  const items: unknown[] = [];
-  for await (const event of parseSse(stream)) {
-    switch (event.type) {
-      case 'response.output_item.done':
-        items.push(event.item);
-        break;
-      case 'error':
-      case 'response.failed':
-        throw new Error('ChatGPT could not answer.');
-      case 'response.completed':
-      case 'response.done':
-      case 'response.incomplete': {
-        const response = { ...(event.response as Record<string, unknown>) };
-        // The Codex stream reports items one by one; its final event may carry an empty list.
-        const output = Array.isArray(response.output) ? response.output : [];
-        response.output = output.length ? output : items;
-        return response;
-      }
-    }
-  }
-  throw new Error('ChatGPT ended the answer early.');
-}
-
-const json = (body: unknown, status: number) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-
 /**
- * ChatGPT sign-in mode on the AI SDK: the standard OpenAI Responses provider, with a fetch that
- * signs the request, sends it streamed to the ChatGPT backend and hands the SDK the final response.
+ * ChatGPT sign-in mode on the AI SDK: the standard OpenAI Responses provider whose requests go
+ * through `send`, the ChatGPT client's own call (token refresh, 60 s bound, blocked state), which
+ * returns the final response object read from the event stream.
  */
 export function chatGptModel(options: {
   modelId: string;
-  auth: () => Promise<BackendAuth>;
   cacheKey?: string;
-  fetch?: typeof fetch;
+  send: (body: Record<string, unknown>, signal: AbortSignal) => Promise<Record<string, unknown>>;
 }): LanguageModel {
-  const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
-  const sessionId = randomUUID();
   const adapter = (async (_url: string | URL | Request, init?: RequestInit) => {
-    const auth = await options.auth();
+    const signal = init?.signal ?? new AbortController().signal;
     const body = codexRequestBody(
       JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>,
       options.cacheKey,
     );
-    const response = await send(CODEX_BACKEND.responsesUrl, {
-      method: 'POST',
-      headers: backendHeaders(auth, sessionId),
-      body: JSON.stringify(body),
-      signal: init?.signal,
-    });
-    if (!response.ok || !response.body) {
-      // Never pass the upstream body on: it can echo credentials or customer content.
-      await response.body?.cancel().catch(() => {});
-      return json(
-        { error: { message: `ChatGPT request failed (${response.status}).` } },
-        response.status || 502,
+    try {
+      return json(await options.send(body, signal), 200);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      // The client's errors carry fixed, user-facing messages (never upstream bodies).
+      const status = (error as { status?: unknown }).status;
+      return failed(
+        error instanceof Error ? error.message : 'ChatGPT could not answer.',
+        typeof status === 'number' && status >= 400 ? status : 502,
       );
     }
-    return json(await collectStreamedResponse(response.body), 200);
   }) as typeof fetch;
   return stateless(
     createOpenAI({
       apiKey: 'chatgpt-sign-in',
-      baseURL: CODEX_BACKEND.responsesUrl.replace(/\/responses$/, ''),
+      baseURL: 'https://chatgpt.com/backend-api/codex',
       fetch: adapter,
     }).responses(options.modelId),
   );
+}
+
+/**
+ * The error a failed agent turn reports: our adapters' fixed messages pass through; a malformed or
+ * missing decision becomes `invalid`; anything else the generic message. Never upstream text.
+ */
+export function agentFailure(error: unknown, invalid: string, generic: string): Error {
+  // Only our adapters answer with an error status; anything else (e.g. an unreadable success
+  // response) means the answer itself was unusable.
+  if (APICallError.isInstance(error))
+    return new Error((error.statusCode ?? 0) >= 400 ? error.message : invalid);
+  const name = (error as { name?: unknown } | null)?.name;
+  if (
+    typeof name === 'string' &&
+    /NoObjectGenerated|NoOutputGenerated|TypeValidation|JSONParse|ZodError/.test(name)
+  )
+    return new Error(invalid);
+  return new Error(generic);
 }

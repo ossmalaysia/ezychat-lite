@@ -79,9 +79,12 @@ and `POST /api/ai/try` (admin-only, no chat side effects); `resolution.ts` is th
 `knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
-`docs/ai-chatgpt-protocol.md`). EXPERIMENTAL `WATI_AI_AGENT_SDK=1`: live replies run the Vercel AI SDK agent
-loop (`ai/agent/turn.ts`, models in `ai/agent/models.ts`) with the `search_business_context` tool
-instead of pushed knowledge; off by default, Try it unchanged. A rejected refresh sets `expired` and a blocked backend sets `error`; in both
+`docs/ai-chatgpt-protocol.md`). Both modes run one agent turn on the Vercel AI SDK
+(`ai/agent/turn.ts`: tools, structured decision, ≤ 4 steps, no retries; models in `ai/agent/models.ts`,
+which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
+built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
+(`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is
+longer than the prompt). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
 the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
 (table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).

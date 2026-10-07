@@ -301,3 +301,10 @@ describe('customer details', () => {
     expect(instructions).toMatch(/never read back/i);
   });
 });
+
+it('tells the model that offered tools are read-only look-ups, in the static instructions', () => {
+  const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
+  expect(instructions).toMatch(/search_business_context/);
+  expect(instructions).toMatch(/get_older_messages/);
+  expect(instructions).toMatch(/instead of guessing/);
+});

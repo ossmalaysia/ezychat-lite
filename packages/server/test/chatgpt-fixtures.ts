@@ -52,9 +52,9 @@ export const answerText = (text: string) =>
     ]),
     { headers: { 'content-type': 'text/event-stream' } },
   );
-/** A streamed structured business decision. */
+/** A streamed structured business decision (strict schema: every field present). */
 export const answer = (reply: string, action = 'answer') =>
-  answerText(JSON.stringify({ reply, action }));
+  answerText(JSON.stringify({ reply, action, handoffReason: null }));
 
 export function rawGet(port: number, path: string, host: string): Promise<number> {
   return new Promise((resolve, reject) => {

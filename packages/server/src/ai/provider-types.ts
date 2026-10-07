@@ -1,4 +1,4 @@
-import type { LanguageModel } from 'ai';
+import type { ToolSet } from 'ai';
 import type {
   AiConnection,
   AiDecision,
@@ -20,6 +20,11 @@ export interface AiPrompt {
    * part of the user message. Absent or empty: the request body is exactly as without images.
    */
   images?: AiPromptImage[];
+  /**
+   * Read tools bound to the chat being answered (`agent/tools.ts`). Absent or empty: the model
+   * answers in one call, as before.
+   */
+  tools?: ToolSet;
 }
 export interface AiPromptImage {
   mime: string;
@@ -46,8 +51,6 @@ export interface AiProvider {
     prompt: AiPrompt,
     signal: AbortSignal,
   ): Promise<AiDecision>;
-  /** EXPERIMENTAL (`WATI_AI_AGENT_SDK=1`): the AI SDK model for the agent loop with tools. */
-  agentModel?(settings: AiSettings, apiKey: string | null, cacheId: string): Promise<LanguageModel>;
   connection(): AiConnection;
   login(): Promise<AiConnection>;
   /** Finishes a pending sign-in with the redirect address pasted from another computer. */

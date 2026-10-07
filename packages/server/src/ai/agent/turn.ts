@@ -1,8 +1,7 @@
-import { generateText, Output, stepCountIs, tool, type LanguageModel } from 'ai';
+import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@wa-team-inbox/shared';
-import { relevantKnowledge, type KnowledgeSource } from '../knowledge.js';
-import type { AiPrompt } from '../provider-types.js';
+import { AI_IMAGE_DETAIL, type AiPrompt } from '../provider-types.js';
 
 /** At most this many model calls per customer turn (tool calls + the final decision). */
 export const AGENT_MAX_STEPS = 4;
@@ -17,13 +16,9 @@ const DecisionOutput = z.object({
 export interface AgentTurn {
   model: LanguageModel;
   prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images'>;
-  /** This AI member's business context; the search tool reads only this. */
-  knowledge: readonly KnowledgeSource[];
-  /** The chat being answered. Tools receive it from the server, never from the model. */
-  chatJid: string;
+  /** Read tools already bound to this chat by the server (see `agent/tools.ts`); none is fine. */
+  tools?: ToolSet;
   signal: AbortSignal;
-  /** Provider-specific options (e.g. OpenAI `store: false`, `promptCacheKey`). */
-  providerOptions?: Parameters<typeof generateText>[0]['providerOptions'];
 }
 
 export interface AgentTurnResult {
@@ -39,15 +34,6 @@ export interface AgentTurnResult {
  */
 export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
   turn.signal.throwIfAborted();
-  const tools = {
-    search_business_context: tool({
-      description:
-        "Search the business's own facts (products, prices, hours, delivery, policies). " +
-        'Call it before answering any question about the business; search again with other words if needed.',
-      inputSchema: z.object({ query: z.string().min(1).max(200) }),
-      execute: async ({ query }) => relevantKnowledge([...turn.knowledge], query),
-    }),
-  };
   const result = await generateText({
     model: turn.model,
     instructions: turn.prompt.instructions,
@@ -60,15 +46,19 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
             type: 'image' as const,
             image: image.base64,
             mediaType: image.mime,
+            providerOptions: { openai: { imageDetail: AI_IMAGE_DETAIL } },
           })),
         ],
       },
     ],
-    tools,
+    tools: turn.tools ?? {},
     stopWhen: stepCountIs(AGENT_MAX_STEPS),
     output: Output.object({ schema: DecisionOutput }),
     abortSignal: turn.signal,
-    providerOptions: turn.providerOptions,
+    // Never retry silently: a retry costs the business's usage and delays the reply; the service
+    // hands the chat to the team instead.
+    maxRetries: 0,
+    maxOutputTokens: 2000,
   });
   turn.signal.throwIfAborted();
   return {

@@ -230,6 +230,23 @@ provider prefix caching can reuse it:
    per-call block because a teammate can edit them at any time; if they change while the model is
    writing, the reply is dropped and generated again. A system rule tells the model to use this block for "today", "tomorrow" or "open now".
 
+### Agent loop and read tools
+
+Each reply is one agent turn on the Vercel AI SDK (`ai/agent/turn.ts`): the model may call read
+tools, then must return the structured decision (at most 4 model calls, no silent retries). The
+server still decides what happens with the decision.
+
+Tools are built per chat (`ai/agent/tools.ts`) and offered only when useful, so most replies stay a
+single call:
+
+- `search_business_context(query)` when the Business context is larger than the 40,000-character
+  budget (smaller knowledge is already in the prompt in full);
+- `get_older_messages(page)` when the chat is longer than the 20 messages in the prompt.
+
+No tool input names a chat, phone number or person: the server binds each tool to the chat being
+answered, so a customer message cannot make the AI read another customer. Results are capped at
+12,000 characters and are data, never instructions. The decision log records tool names only.
+
 The time zone comes from the optional setting `ai_timezone` (an IANA name such as
 `Europe/London`; no UI yet). If the setting is missing or the zone is unknown, the default is
 `Asia/Kuala_Lumpur`. The builder is pure: the service passes `now` and the zone.

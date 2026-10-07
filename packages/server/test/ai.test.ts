@@ -17,7 +17,6 @@ import { pdfFixture } from './ai-fixtures.js';
 import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
 import { readFileSync } from 'node:fs';
-import { MockLanguageModelV4 } from 'ai/test';
 import { join } from 'node:path';
 
 let t: TestApp;
@@ -151,55 +150,32 @@ it('answers with the customer details the team saved, but never their tags', asy
   expect(input).not.toContain('Late payer');
 });
 
-it('EXPERIMENTAL agent SDK: answers through the agent loop, searching the business context', async () => {
-  vi.stubEnv('WATI_AI_AGENT_SDK', '1');
-  const usage = {
-    inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
-    outputTokens: { total: 1, text: 1, reasoning: 0 },
-  };
-  const model = new MockLanguageModelV4({
-    doGenerate: [
-      {
-        content: [
-          {
-            type: 'tool-call',
-            toolCallId: 'c1',
-            toolName: 'search_business_context',
-            input: JSON.stringify({ query: 'opening hours' }),
-          },
-        ],
-        finishReason: { unified: 'tool-calls', raw: 'tool_calls' },
-        usage,
-        warnings: [],
-      },
-      {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              reply: 'We open at 9am.',
-              action: 'answer',
-              handoffReason: null,
-            }),
-          },
-        ],
-        finishReason: { unified: 'stop', raw: 'stop' },
-        usage,
-        warnings: [],
-      },
-    ],
-  });
-  provider.agentModel = vi.fn(async () => model);
+it('offers older messages as a tool only when the chat is longer than the prompt shows', async () => {
   clock();
-  await incoming();
+  await incoming('short', 'What are your opening hours?');
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
-  expect(provider.generate).not.toHaveBeenCalled();
-  expect(t.wa.sent[0]?.text).toBe('We open at 9am.');
-  // The facts are not pushed into the prompt: the model had to search for them.
-  const first = JSON.stringify(model.doGenerateCalls[0]!.prompt);
-  expect(first).not.toContain('Opening hours: 9am');
-  expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain('Opening hours: 9am');
-  vi.unstubAllEnvs();
+  // Small business facts are in the prompt and the whole chat fits: a single call, no tools.
+  expect(Object.keys(vi.mocked(provider.generate).mock.calls[0]![2].tools ?? {})).toEqual([]);
+
+  const other = 'long@s.whatsapp.net';
+  // Real messages have distinct times (the fake clock is frozen otherwise).
+  for (let i = 0; i < 22; i++) {
+    await vi.advanceTimersByTimeAsync(1000);
+    await incoming(`h${i}`, i === 0 ? 'My order number is 4521' : `Message ${i}`, 'history', other);
+  }
+  await vi.advanceTimersByTimeAsync(1000);
+  await incoming('ask', 'What was my order number?', 'live', other);
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const call = vi.mocked(provider.generate).mock.calls.find(([, , p]) =>
+    p.input.includes('What was my order number?'),
+  )!;
+  const tools = call[2].tools ?? {};
+  expect(Object.keys(tools)).toEqual(['get_older_messages']);
+  expect(call[2].input).not.toContain('4521');
+  const older = await (
+    tools.get_older_messages as { execute: (i: object, o: object) => Promise<unknown> }
+  ).execute({ page: 1 }, { toolCallId: 't', messages: [] });
+  expect(String(older)).toContain('My order number is 4521');
 });
 
 it('drops a reply written with details a teammate corrected meanwhile, and answers again', async () => {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MockLanguageModelV4 } from 'ai/test';
+import { AI_FULL_CONTEXT_CHARACTERS } from '../knowledge.js';
+import { chatTools } from './tools.js';
 import { runAgentTurn } from './turn.js';
 
 const usage = {
@@ -25,15 +27,16 @@ const answer = (decision: object) => ({
   usage,
   warnings: [],
 });
+// Knowledge too big to send in full, so the search tool is offered.
 const knowledge = [
   { name: 'Hours', text: 'We open 9am to 6pm, Monday to Saturday.' },
   { name: 'Delivery', text: 'Delivery costs RM15, free above RM300.' },
+  { name: 'Catalogue', text: 'x'.repeat(AI_FULL_CONTEXT_CHARACTERS) },
 ];
 const turn = (model: MockLanguageModelV4, signal = new AbortController().signal) => ({
   model,
   prompt: { instructions: 'Answer from business facts.', input: '{"conversation":[]}' },
-  knowledge,
-  chatJid: '60123456789@s.whatsapp.net',
+  tools: chatTools({ knowledge }),
   signal,
 });
 
@@ -57,15 +60,13 @@ describe('runAgentTurn', () => {
     expect(second).toContain('Delivery costs RM15');
   });
 
-  it('never lets the model choose whose data a tool reads: tool inputs carry no chat id', async () => {
+  it('answers in one call when no tools are offered', async () => {
     const model = new MockLanguageModelV4({
       doGenerate: [answer({ reply: 'Hi', action: 'answer', handoffReason: null })],
     });
-    await runAgentTurn(turn(model));
-    const tools = model.doGenerateCalls[0]!.tools ?? [];
-    expect(tools.map((t) => t.name)).toEqual(['search_business_context']);
-    const schema = JSON.stringify(tools.map((t) => ('inputSchema' in t ? t.inputSchema : t)));
-    expect(schema).not.toMatch(/chat|jid|phone/i);
+    const result = await runAgentTurn({ ...turn(model), tools: undefined });
+    expect(result).toMatchObject({ toolCalls: [], steps: 1 });
+    expect(model.doGenerateCalls[0]!.tools ?? []).toEqual([]);
   });
 
   it('stops after four model steps without a decision', async () => {

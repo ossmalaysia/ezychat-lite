@@ -34,7 +34,7 @@ describe('ChatGPT token refresh', () => {
         : answer('Hello'),
     );
     const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
-    expect(await ask(provider)).toEqual({ reply: 'Hello', action: 'answer' });
+    expect(await ask(provider)).toEqual({ reply: 'Hello', action: 'answer', handoffReason: null });
     expect(String(fetchMock.mock.calls[0]![0])).toBe(CHATGPT_OAUTH.tokenUrl);
     expect(authOf(fetchMock.mock.calls[1]![1])).toBe(`Bearer ${ACCESS_2}`);
   });
@@ -66,9 +66,13 @@ describe('ChatGPT token refresh', () => {
     const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
     const first = ask(provider);
     const second = ask(provider);
-    await expect(first).resolves.toEqual({ reply: 'Hello', action: 'answer' });
+    await expect(first).resolves.toEqual({ reply: 'Hello', action: 'answer', handoffReason: null });
     releaseSecond();
-    await expect(second).resolves.toEqual({ reply: 'Hello', action: 'answer' });
+    await expect(second).resolves.toEqual({
+      reply: 'Hello',
+      action: 'answer',
+      handoffReason: null,
+    });
     expect(tokenCalls).toBe(1);
     expect(provider.connection().state).toBe('connected');
   });
@@ -232,7 +236,7 @@ describe('requests that outlive a sign-out', () => {
     await vi.waitFor(() => expect(tokenCalls).toBe(1));
     await provider.logout();
     seedTokens(t.ctx, { expiresAt: Date.now() + 60_000 });
-    expect(await ask(provider)).toEqual({ reply: 'Hello', action: 'answer' });
+    expect(await ask(provider)).toEqual({ reply: 'Hello', action: 'answer', handoffReason: null });
     expect(tokenCalls).toBe(2);
     release();
     await stale;

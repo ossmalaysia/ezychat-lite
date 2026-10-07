@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The AI can look things up while it answers:** when a customer refers to something said long
+  ago, the AI reads further back in the chat instead of guessing (for example an order number from
+  earlier in the conversation). With a very large Business context it searches it, and searches
+  again with other words when the first try doesn't answer the question. Short questions are
+  answered as quickly as before.
+
+### Changed
+
+- The AI Sales Agent now runs on the Vercel AI SDK (both ChatGPT sign-in and API key). Replies are
+  never retried silently, and errors still never show what OpenAI sent back.
+
 ## [0.1.24] - 2026-10-07
 
 ### Added

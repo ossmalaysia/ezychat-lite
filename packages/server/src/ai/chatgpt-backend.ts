@@ -198,6 +198,27 @@ export async function streamResponse(
   fetchImpl: FetchFn = fetch,
 ): Promise<string> {
   const sessionId = request.cacheKey ?? randomUUID();
+  const body = await openStream(
+    auth,
+    responsesBody(request, sessionId),
+    sessionId,
+    signal,
+    fetchImpl,
+  );
+  return aggregateSse(parseSse(body));
+}
+
+/**
+ * Sends a Responses request body to the ChatGPT backend and returns its event stream. Every failure
+ * becomes a BackendError with a fixed message; the upstream body is never returned or logged.
+ */
+export async function openStream(
+  auth: BackendAuth,
+  requestBody: Record<string, unknown>,
+  sessionId: string,
+  signal: AbortSignal,
+  fetchImpl: FetchFn = fetch,
+): Promise<ReadableStream<Uint8Array>> {
   let response: Response;
   try {
     response = await fetchImpl(CODEX_BACKEND.responsesUrl, {
@@ -205,7 +226,7 @@ export async function streamResponse(
       redirect: 'error',
       signal,
       headers: backendHeaders(auth, sessionId),
-      body: JSON.stringify(responsesBody(request, sessionId)),
+      body: JSON.stringify(requestBody),
     });
   } catch (error) {
     if (signal.aborted) throw error;
@@ -239,7 +260,69 @@ export async function streamResponse(
     throw new BackendError('ChatGPT returned an unexpected response.', response.status, true);
   }
   if (!response.body) throw new BackendError('ChatGPT returned an empty answer.');
-  return aggregateSse(parseSse(response.body));
+  return response.body;
+}
+
+/**
+ * Reads a streamed response to its final response object (for the AI SDK). The Codex stream
+ * reports output items one by one; its final event may carry an empty `output`.
+ */
+export async function collectResponse(
+  events: AsyncIterable<SseEvent>,
+  model = '',
+): Promise<Record<string, unknown>> {
+  const items: unknown[] = [];
+  let deltas = '';
+  let seen = 0;
+  for await (const event of events) {
+    if (typeof event.type === 'string') seen++;
+    switch (event.type) {
+      case 'response.output_item.done':
+        items.push(event.item);
+        break;
+      case 'response.output_text.delta':
+        if (typeof event.delta === 'string') deltas += event.delta;
+        break;
+      case 'error':
+        throw new BackendError(usageMessage(event.code) ?? 'ChatGPT could not answer.');
+      case 'response.failed': {
+        const error = (event.response as { error?: { code?: unknown } } | undefined)?.error;
+        throw new BackendError(usageMessage(error?.code) ?? 'ChatGPT could not answer.');
+      }
+      case 'response.incomplete':
+        throw new BackendError('ChatGPT did not complete its answer.');
+      case 'response.completed':
+      case 'response.done': {
+        const response = { ...((event.response as Record<string, unknown> | undefined) ?? {}) };
+        if (typeof response.status === 'string' && response.status !== 'completed')
+          throw new BackendError('ChatGPT did not complete its answer.');
+        const output = Array.isArray(response.output) ? response.output : [];
+        // Prefer the response's own items, then the streamed items, then the streamed text.
+        response.output = output.length
+          ? output
+          : items.length
+            ? items
+            : deltas
+              ? [
+                  {
+                    type: 'message',
+                    id: 'msg_stream',
+                    role: 'assistant',
+                    status: 'completed',
+                    content: [{ type: 'output_text', text: deltas, annotations: [] }],
+                  },
+                ]
+              : [];
+        response.id ??= 'resp_stream';
+        response.created_at ??= Math.floor(Date.now() / 1000);
+        response.model ??= model;
+        response.status ??= 'completed';
+        return response;
+      }
+    }
+  }
+  if (!seen) throw new BackendError('ChatGPT returned an empty answer. Try again.');
+  throw new BackendError('ChatGPT ended its answer early.');
 }
 
 export interface BackendModel {

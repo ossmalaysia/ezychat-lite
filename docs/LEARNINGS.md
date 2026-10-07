@@ -181,9 +181,12 @@ into AGENTS.md.
 
 ## AI sales agent
 
-- AI SDK on the Responses API with `store:false`: multi-step runs must also `include`
-  `reasoning.encrypted_content`, or the SDK sends `item_reference` to reasoning ids the server never
-  kept (HTTP 404 on the ChatGPT backend, only when the model reasoned before a tool call).
+- AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`
+  `reasoning.encrypted_content` (else `item_reference` to unkept reasoning ids → HTTP 404); lift the
+  SDK's `system` message into `instructions` (cache layout; the ChatGPT route rejects `system`); set
+  `maxRetries: 0` (it retries twice by default); pass only our fixed error messages (HTTP ≥ 400).
+- Tests that ingest many messages under frozen fake timers must tick the clock between them: equal
+  timestamps reorder by id and can push the message being answered out of the last 20.
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
   Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so
