@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
+  recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
   the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
   data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
@@ -73,13 +75,18 @@ into AGENTS.md.
   allowlist SHA in the same change.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
-- A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve.
+- A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
+  Codex review lands minutes after each push: check threads before calling a PR ready.
+- Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
+  wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
+- A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
+  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest`.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
@@ -93,7 +100,8 @@ into AGENTS.md.
 - Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
   migration, so check `001_init.sql` before designing a new enum value.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
-  `String.raw`), never via Bash/Python heredocs; then grep for U+0008 and broken literals. On Windows,
+  `String.raw`), never via Bash/Python heredocs (the Bash tool collapses `\\`); a scripted edit that
+  must match a literal `\n` goes in a script file built with `chr(92)`. Then grep for U+0008 and broken literals. On Windows,
   Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
@@ -173,6 +181,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
+  a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
+  Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so
+  each scenario gets a fresh number) and log every run in `docs/dev-build-checks.md`.
 - Ownership follows who handles the chat: a teammate's inbox reply claims an unassigned chat and takes
   over an AI-owned one (the AI then stops); it never takes a chat from another teammate, and phone-app
   replies assign nobody. Pausing the AI without moving the owner left a stale AI chip.

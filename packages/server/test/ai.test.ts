@@ -125,6 +125,59 @@ it('claims an unassigned live direct chat after ten seconds, answers with only i
   expect(t.wa.sent).toHaveLength(2);
 });
 
+it('answers with the customer details the team saved, but never their tags', async () => {
+  clock();
+  await incoming();
+  t.ctx.services.customers!.save(
+    jid,
+    {
+      name: 'Priya Nair',
+      company: 'Acme',
+      email: '',
+      otherPhone: '',
+      address: '12 Jalan Ampang',
+      tags: ['Late payer'],
+    },
+    actor,
+  );
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { input } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(JSON.parse(input).currentSituation.customer).toEqual({
+    name: 'Priya Nair',
+    company: 'Acme',
+    address: '12 Jalan Ampang',
+  });
+  expect(input).not.toContain('Late payer');
+});
+
+it('drops a reply written with details a teammate corrected meanwhile, and answers again', async () => {
+  clock();
+  await incoming();
+  const details = (name: string) => ({
+    name,
+    company: '',
+    email: '',
+    otherPhone: '',
+    address: '',
+    tags: [],
+  });
+  t.ctx.services.customers!.save(jid, details('Priya Nair'), actor);
+  vi.mocked(provider.generate).mockImplementationOnce(async () => {
+    // The correction lands while the model is still writing the first reply.
+    t.ctx.services.customers!.save(jid, details('Priya Kumar'), actor);
+    return { reply: 'Hi Priya Nair, we open at 9am.', action: 'answer' };
+  });
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await vi.advanceTimersByTimeAsync(100);
+  const calls = vi.mocked(provider.generate).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(JSON.parse(calls[1]![2].input).currentSituation.customer).toEqual({
+    name: 'Priya Kumar',
+  });
+  expect(t.wa.sent.map((m) => m.text)).not.toContain('Hi Priya Nair, we open at 9am.');
+  expect(t.wa.sent).toHaveLength(1);
+});
+
 it('batches customer messages and ignores imported history, groups, and chats already assigned to a human', async () => {
   clock();
   await incoming('history', 'Old question', 'history', 'old@s.whatsapp.net');

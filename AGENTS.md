@@ -85,7 +85,9 @@ the AI stops claiming and releases its chats without messaging customers. Knowle
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
 Prompt layout for caching: static instructions, then input JSON in fixed order `businessKnowledge` →
 `conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
-awaited); never put per-call values earlier. `prompt_cache_key` is derived from the random `ai_install_id`
+awaited; `customer` = the team's saved name, company, email, other phone and address via `aiCustomer`,
+never tags, none in Try it); never put per-call or team-editable values earlier. A reply generated with
+customer details that changed meanwhile is dropped and regenerated. `prompt_cache_key` is derived from the random `ai_install_id`
 and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
 questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
 Order and delivery questions keep the chat with the AI. Web: `admin/AiConnectionSection.tsx` (Settings → AI),
@@ -202,6 +204,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
+- **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
+  add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement.
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.

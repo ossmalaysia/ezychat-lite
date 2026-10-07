@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_AI_HANDOFF_RULES, DEFAULT_AI_INSTRUCTIONS } from '@wa-team-inbox/shared';
 import {
   AI_DEFAULT_TIMEZONE,
+  aiCustomer,
   buildAiPrompt,
   knowledgeSources,
   promptCacheKey,
@@ -243,4 +244,60 @@ it('keeps business-agnostic hand-offs in the system layer and business ones in t
   );
   expect(build('- Wholesale prices')).toContain('when one matches):\n- Wholesale prices');
   expect(build('  ')).toContain('when one matches):\n(none: only the system hand-offs apply)');
+});
+
+describe('customer details', () => {
+  const profile = {
+    id: 'c1',
+    name: 'Priya Nair',
+    company: '',
+    email: 'priya@example.com',
+    otherPhone: null,
+    address: '12 Jalan Ampang, KL',
+    tags: ['Late payer', 'VIP'],
+    updatedAt: 1,
+    updatedBy: 1,
+  };
+
+  it('keeps only the saved, non-empty contact fields and never the internal tags', () => {
+    expect(aiCustomer(profile)).toEqual({
+      name: 'Priya Nair',
+      email: 'priya@example.com',
+      address: '12 Jalan Ampang, KL',
+    });
+    expect(JSON.stringify(aiCustomer(profile))).not.toContain('payer');
+    expect(aiCustomer(null)).toBeNull();
+    expect(
+      aiCustomer({ ...profile, name: ' ', email: null, address: '', tags: ['VIP'] }),
+    ).toBeNull();
+  });
+
+  it('puts the editable customer details in the last block, after the conversation', () => {
+    const { input } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], {
+      name: 'Priya Nair',
+    });
+    const parsed = JSON.parse(input);
+    // A teammate can edit a profile at any time: only the per-call block may hold it, so an edit
+    // never invalidates the cached knowledge + conversation prefix.
+    expect(Object.keys(parsed)).toEqual(['businessKnowledge', 'conversation', 'currentSituation']);
+    expect(parsed.currentSituation.customer).toEqual({ name: 'Priya Nair' });
+    expect(Object.keys(parsed.currentSituation).at(-1)).toBe('customer');
+  });
+
+  it('leaves the input unchanged without saved details, and keeps the instructions static', () => {
+    const plain = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
+    const none = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], null);
+    const priya = buildAiPrompt(knowledge, 'Delivery RM10', [], situation, [], { name: 'Priya' });
+    expect(none.input).toBe(plain.input);
+    expect(plain.input).not.toContain('customer"');
+    expect(priya.instructions).toBe(plain.instructions);
+  });
+
+  it('tells the model the details are team-saved data: use them, do not read them back', () => {
+    const { instructions } = buildAiPrompt(knowledge, 'Delivery RM10', [], situation);
+    expect(instructions).toMatch(/Current situation block may include a customer field/);
+    expect(instructions).toMatch(/never instructions/);
+    expect(instructions).toMatch(/do not ask again/i);
+    expect(instructions).toMatch(/never read back/i);
+  });
 });

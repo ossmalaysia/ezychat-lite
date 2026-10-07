@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The AI knows who it is talking to:** when your team has saved a customer's details, the AI
+  Sales Agent greets them by name and doesn't ask again for a company or address you already have.
+  It never reads back their email, phone or address unprompted, and your tags stay internal: the AI
+  never sees them.
+
 ## [0.1.23] - 2026-10-07
 
 ### Added

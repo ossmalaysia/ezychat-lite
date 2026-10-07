@@ -4,6 +4,9 @@ Run before every release, on a **packaged build** (`npm run dist -w @wa-team-inb
 real WhatsApp number you can afford to lose. Automated tests use the fake adapter; this checklist covers
 what only a real number, real phones and a real OS can prove.
 
+Per-feature checks in a Dev Build (fake WhatsApp, demo data, real AI model) are logged in
+[dev-build-checks.md](dev-build-checks.md).
+
 Record: version, OS + version, phone models, date, tester. Attach `logs/` (Admin → Settings → Download
 logs) to any failure report.
 
