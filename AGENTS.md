@@ -208,7 +208,8 @@ cover navigation from every admin section and recovery from malformed URLs.
   2. Run a UI/UX product-designer review against `docs/design-system.md`, the shadcn components and
      usability/accessibility practice. Check hierarchy, spacing, labels, touch targets, focus and
      consistency with neighbouring screens.
-  3. Fix the findings with tests: e2e plus `screens.smoke.mjs`.
+  3. Fix the findings with tests: e2e plus `screens.smoke.mjs`. Then re-capture the screens and compare
+     before/after pairs: design fixes can introduce new problems.
   4. Refresh `docs/screenshots/`.
   5. Show the desktop and mobile screenshots to the owner.
 
