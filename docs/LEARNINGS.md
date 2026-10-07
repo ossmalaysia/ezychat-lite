@@ -74,6 +74,8 @@ into AGENTS.md.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve.
+- Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
+  wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
