@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Edit with AI** on the AI member page: describe a change to the AI instructions or the hand-off
+  rules in your own words ("hand refund requests to a person", "use a warmer tone") and review the
+  suggested text as a before/after, showing only what changes. Apply fills the box; nothing is saved
+  until you press Save. The AI changes as little as possible and leaves the text unchanged when a
+  request is unclear or already covered.
+
+### Fixed
+
+- Dialogs now dim the page behind them again in current Chrome (the backdrop colour was drawn
+  transparent).
+
 ## [0.1.25] - 2026-10-08
 
 ### Added

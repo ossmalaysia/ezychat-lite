@@ -26,6 +26,7 @@ export interface AiPrompt {
    */
   tools?: ToolSet;
 }
+export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
 export interface AiPromptImage {
   mime: string;
   base64: string;
@@ -51,6 +52,13 @@ export interface AiProvider {
     prompt: AiPrompt,
     signal: AbortSignal,
   ): Promise<AiDecision>;
+  /** Edit with AI: one tool-free call returning the full suggested text of one setting. */
+  rewrite?(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    signal: AbortSignal,
+  ): Promise<{ text: string; model: string }>;
   connection(): AiConnection;
   login(): Promise<AiConnection>;
   /** Finishes a pending sign-in with the redirect address pasted from another computer. */

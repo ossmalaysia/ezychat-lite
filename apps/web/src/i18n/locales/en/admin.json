@@ -682,6 +682,40 @@
     },
     "replaceKey": "Replace key",
     "keepKey": "Keep saved key",
-    "modelAdvanced": "Advanced: choose a model"
+    "modelAdvanced": "Advanced: choose a model",
+    "edit": {
+      "open": "Edit with AI",
+      "unavailable": "Connect the AI in Settings → AI to use Edit with AI.",
+      "title": {
+        "instructions": "Edit AI instructions with AI",
+        "handoffRules": "Edit hand-off rules with AI"
+      },
+      "description": "Describe the change. You review it before anything is applied.",
+      "requestLabel": "What should change?",
+      "placeholder": {
+        "instructions": "e.g. Reply in a warmer, more casual tone",
+        "handoffRules": "e.g. Hand refund requests to a person"
+      },
+      "suggest": "Suggest",
+      "suggestAgain": "Suggest again",
+      "writing": "Writing a suggestion…",
+      "result": {
+        "instructions": "Suggested AI instructions",
+        "handoffRules": "Suggested hand-off rules"
+      },
+      "removed": "Removed:",
+      "added": "Added:",
+      "noChange": "No change suggested — try describing it differently.",
+      "failed": "The AI could not suggest a change. Try again.",
+      "discard": "Discard",
+      "apply": {
+        "instructions": "Apply to AI instructions",
+        "handoffRules": "Apply to hand-off rules"
+      },
+      "applyNote": "Applying fills the box; press Save on the page to keep it.",
+      "applied": "Applied. Press Save to keep it.",
+      "unchanged_one": "{{count}} unchanged line",
+      "unchanged_other": "{{count}} unchanged lines"
+    }
   }
 }

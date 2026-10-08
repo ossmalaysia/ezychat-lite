@@ -675,6 +675,39 @@
     },
     "replaceKey": "Ganti kunci",
     "keepKey": "Kekalkan kunci tersimpan",
-    "modelAdvanced": "Lanjutan: pilih model"
+    "modelAdvanced": "Lanjutan: pilih model",
+    "edit": {
+      "open": "Sunting dengan AI",
+      "unavailable": "Sambungkan AI dalam Tetapan → AI untuk menggunakan Sunting dengan AI.",
+      "title": {
+        "instructions": "Sunting arahan AI dengan AI",
+        "handoffRules": "Sunting peraturan serahan dengan AI"
+      },
+      "description": "Terangkan perubahan. Anda menyemaknya sebelum apa-apa digunakan.",
+      "requestLabel": "Apa yang perlu diubah?",
+      "placeholder": {
+        "instructions": "cth. Balas dengan nada yang lebih mesra dan santai",
+        "handoffRules": "cth. Serahkan permintaan bayaran balik kepada staf"
+      },
+      "suggest": "Cadangkan",
+      "suggestAgain": "Cadangkan lagi",
+      "writing": "Sedang menulis cadangan…",
+      "result": {
+        "instructions": "Cadangan arahan AI",
+        "handoffRules": "Cadangan peraturan serahan"
+      },
+      "removed": "Dibuang:",
+      "added": "Ditambah:",
+      "noChange": "Tiada perubahan dicadangkan — cuba terangkan dengan cara lain.",
+      "failed": "AI tidak dapat mencadangkan perubahan. Cuba lagi.",
+      "discard": "Buang",
+      "apply": {
+        "instructions": "Guna pada arahan AI",
+        "handoffRules": "Guna pada peraturan serahan"
+      },
+      "applyNote": "Menggunakan cadangan hanya mengisi kotak; tekan Simpan pada halaman untuk menyimpannya.",
+      "applied": "Digunakan. Tekan Simpan untuk menyimpannya.",
+      "unchanged_other": "{{count}} baris tidak berubah"
+    }
   }
 }
