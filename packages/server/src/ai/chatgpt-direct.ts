@@ -6,8 +6,9 @@
  * Tokens live only in the encrypted settings secret store. Logs carry event names and HTTP
  * status codes only — never tokens, codes, state, account ids or URLs with parameters.
  */
+import { randomUUID } from 'node:crypto';
 import {
-  AiDecision,
+  type AiDecision,
   type AiConnection,
   type AiModelList,
   type AiSettings,
@@ -16,7 +17,9 @@ import {
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { AiPrompt, AiProvider } from './provider-types.js';
-import { AI_OUTPUT_SCHEMA, generateOpenAi } from './provider.js';
+import { generateOpenAi } from './provider.js';
+import { agentFailure, chatGptModel } from './agent/models.js';
+import { runAgentTurn } from './agent/turn.js';
 import {
   LOGIN_TIMEOUT_MS,
   OAuthError,
@@ -34,7 +37,10 @@ import {
 import {
   BackendError,
   fallbackModels,
+  collectResponse,
   fetchModels,
+  openStream,
+  parseSse,
   streamResponse,
   type BackendModel,
 } from './chatgpt-backend.js';
@@ -64,6 +70,8 @@ export interface DirectDeps {
   fetch?: typeof fetch;
   callbackPort?: number;
   loginTimeoutMs?: number;
+  /** Bound for one whole reply (every model call and tool of the turn); default 60 s. */
+  turnTimeoutMs?: number;
 }
 
 const aborted = () => new DOMException('AI reply cancelled', 'AbortError');
@@ -412,12 +420,47 @@ export class DirectChatGptProvider implements AiProvider {
     return auto;
   }
 
-  private async complete(
+  /** The connection test: a plain-text answer to a fixed prompt. */
+  private complete(model: string, prompt: AiPrompt, signal: AbortSignal): Promise<string> {
+    return this.call(model, signal, (tokens, bounded) =>
+      streamResponse(
+        tokens,
+        {
+          model,
+          instructions: prompt.instructions,
+          input: prompt.input,
+          cacheKey: prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined,
+        },
+        bounded,
+        this.fetchImpl,
+      ),
+    );
+  }
+
+  /** One AI SDK request (already a Responses body): the final response object. */
+  private respond(
     model: string,
-    prompt: AiPrompt,
-    schema: Record<string, unknown> | undefined,
+    body: Record<string, unknown>,
+    sessionId: string,
     signal: AbortSignal,
-  ): Promise<string> {
+  ): Promise<Record<string, unknown>> {
+    return this.call(model, signal, async (tokens, bounded) =>
+      collectResponse(
+        parseSse(await openStream(tokens, body, sessionId, bounded, this.fetchImpl)),
+        model,
+      ),
+    );
+  }
+
+  /**
+   * Every ChatGPT answer: a 60 s bound, cancellation on sign-out, one token refresh on 401, and the
+   * blocked state when the backend stops answering with an event stream.
+   */
+  private async call<T>(
+    model: string,
+    signal: AbortSignal,
+    request: (tokens: ChatGptTokens, bounded: AbortSignal) => Promise<T>,
+  ): Promise<T> {
     signal.throwIfAborted();
     const controller = new AbortController();
     this.inflight.add(controller);
@@ -425,28 +468,14 @@ export class DirectChatGptProvider implements AiProvider {
     const epoch = this.epoch;
     const bounded = AbortSignal.any([signal, controller.signal, AbortSignal.timeout(60_000)]);
     try {
-      const text = await this.withAuth((tokens) =>
-        streamResponse(
-          tokens,
-          {
-            model,
-            instructions: prompt.instructions,
-            input: prompt.input,
-            ...(prompt.images?.length ? { images: prompt.images } : {}),
-            schema,
-            cacheKey: prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined,
-          },
-          bounded,
-          this.fetchImpl,
-        ),
-      );
+      const result = await this.withAuth((tokens) => request(tokens, bounded));
       // ChatGPT answers again: a blocked state is over (an expired sign-in needs a new sign-in).
       if (this.problem?.state === 'error') this.problem = null;
       this.log.debug(
         { event: 'chatgpt_answer_completed', model, ms: Date.now() - started },
         'ChatGPT answered',
       );
-      return text;
+      return result;
     } catch (error) {
       if (signal.aborted || controller.signal.aborted) throw aborted();
       if (bounded.aborted) throw new Error('ChatGPT answer timed out.', { cause: error });
@@ -473,12 +502,31 @@ export class DirectChatGptProvider implements AiProvider {
     signal: AbortSignal,
   ): Promise<AiDecision> {
     if (settings.mode === 'api') return generateOpenAi(settings, apiKey, prompt, signal);
+    signal.throwIfAborted();
     const model = await this.resolveModel(settings.model);
-    const text = await this.complete(model, prompt, AI_OUTPUT_SCHEMA, signal);
+    const cacheKey = prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined;
+    const sessionId = cacheKey ?? randomUUID();
+    // One bound for the whole reply: a multi-step turn must not reset it on every model call.
+    const turnSignal = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(this.deps.turnTimeoutMs ?? 60_000),
+    ]);
     try {
-      return AiDecision.parse(JSON.parse(text));
-    } catch {
-      throw new Error('ChatGPT returned an invalid answer.');
+      const turn = await runAgentTurn({
+        model: chatGptModel({
+          modelId: model,
+          cacheKey,
+          send: (body, bounded) => this.respond(model, body, sessionId, bounded),
+        }),
+        prompt,
+        tools: prompt.tools,
+        signal: turnSignal,
+      });
+      return turn.decision;
+    } catch (error) {
+      if (signal.aborted) throw aborted();
+      if (turnSignal.aborted) throw new Error('ChatGPT answer timed out.', { cause: error });
+      throw agentFailure(error, 'ChatGPT returned an invalid answer.', 'ChatGPT could not answer.');
     }
   }
 
@@ -489,7 +537,6 @@ export class DirectChatGptProvider implements AiProvider {
       const reply = await this.complete(
         model,
         { instructions: 'You are a connection test. Reply with OK.', input: 'Reply with OK' },
-        undefined,
         AbortSignal.timeout(60_000),
       );
       return { ok: true, model, reply: reply.trim().slice(0, 200), error: null };

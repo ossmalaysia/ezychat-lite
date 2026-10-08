@@ -31,6 +31,14 @@ import { audit } from '../db/audit.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
+import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
+
+/** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
+const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
+  history.map((message) => ({
+    speaker: message.fromMe ? (message.sentByUserId === aiUserId ? 'AI' : 'human') : 'customer',
+    text: conversationLine(message),
+  }));
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { createAiProvider } from './provider-factory.js';
@@ -517,7 +525,8 @@ export function createAiService(
       const savedCustomer = customerDetails();
       /** The last 20 messages, the customer message being answered and its debounce batch. */
       const snapshot = () => {
-        const history = messages.list(jid, { limit: 20 }).messages;
+        const page = messages.list(jid, { limit: 20 });
+        const history = page.messages;
         const customer = history.find((message) => message.id === customerId);
         if (!customer || customer.fromMe) return null;
         // The debounce batch: every customer message since the last AI reply.
@@ -531,7 +540,7 @@ export function createAiService(
         const batch = history
           .slice(batchStart, history.indexOf(customer) + 1)
           .filter((message) => !message.fromMe);
-        return { history, customer, batchStart, batch };
+        return { history, customer, batchStart, batch, olderBefore: page.nextBefore };
       };
       let snap = snapshot();
       if (!snap) return;
@@ -557,7 +566,7 @@ export function createAiService(
         snap = snapshot();
         if (!snap) return;
       }
-      const { history, customer, batchStart, batch } = snap;
+      const { history, customer, batchStart, batch, olderBefore } = snap;
       const knowledge = relevantKnowledge(
         knowledgeSources(contextItems()),
         history
@@ -571,7 +580,41 @@ export function createAiService(
       const awaiting = asked > 0;
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
+      const toolCalls: string[] = [];
       const started = Date.now();
+      /** Page `n` of this chat's messages older than the prompt's, oldest first. */
+      const olderMessages = (n: number) => {
+        let before = olderBefore;
+        let older: Message[] = [];
+        for (let page = 1; page <= n && before; page++) {
+          const result = messages.list(jid, { limit: AI_OLDER_MESSAGES_PAGE, before });
+          older = result.messages;
+          before = result.nextBefore;
+        }
+        return conversation(older, user.id);
+      };
+      /** One model decision; the model may use this chat's read tools first. */
+      const decide = async (
+        turns: AiConversationTurn[],
+        facts: string,
+        awaitingConfirmation: boolean,
+        batchImages: AiPromptImage[],
+      ): Promise<AiDecision> =>
+        AiDecision.parse(
+          await provider.generate(
+            current,
+            ctx.settings.getSecret(SECRET_KEY),
+            {
+              ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+              tools: chatTools({
+                knowledge: knowledgeSources(contextItems()),
+                olderMessages: olderBefore ? olderMessages : undefined,
+                onCall: (name) => toolCalls.push(name),
+              }),
+            },
+            controller.signal,
+          ),
+        );
       try {
         // Text, images (with or without a caption) and voice notes can be handled; video,
         // documents, stickers and the like go to the team.
@@ -605,28 +648,7 @@ export function createAiService(
                 reply: HANDOFF_REPLY,
                 handoffReason: knowledge.trim() ? 'unsupported_message' : 'missing_facts',
               }
-            : AiDecision.parse(
-                await provider.generate(
-                  current,
-                  ctx.settings.getSecret(SECRET_KEY),
-                  prompt(
-                    current,
-                    knowledge,
-                    history.map((message) => ({
-                      speaker: message.fromMe
-                        ? message.sentByUserId === user.id
-                          ? 'AI'
-                          : 'human'
-                        : 'customer',
-                      text: conversationLine(message),
-                    })),
-                    awaiting,
-                    images,
-                    savedCustomer,
-                  ),
-                  controller.signal,
-                ),
-              );
+            : await decide(conversation(history, user.id), knowledge, awaiting, images);
         // The first voice note the AI could not listen to always gets the "please type it" answer
         // (a repeat was handed off above); only a request for a person or a sensitive topic
         // still hands off.
@@ -639,14 +661,25 @@ export function createAiService(
           decision.handoffReason !== 'sensitive'
         )
           decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
-      } catch {
+      } catch (error) {
         if (controller.signal.aborted) return;
         if (!ready()) {
           log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
           releaseForConnection();
           return;
         }
-        log.warn({ jid, reason: 'provider_failed' }, 'AI answer unavailable');
+        // Error type and HTTP status only: messages and bodies can carry customer text.
+        const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
+        log.warn(
+          {
+            jid,
+            reason: 'provider_failed',
+            errName: typeof failure?.name === 'string' ? failure.name : null,
+            status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
+            finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
+          },
+          'AI answer unavailable',
+        );
         decision = {
           action: 'handoff' as const,
           reply: HANDOFF_REPLY,
@@ -679,6 +712,7 @@ export function createAiService(
           handoffReason: decision.handoffReason ?? null,
           asked,
           images: images.length,
+          toolCalls,
           voiceNotes: voiceNotes.length,
           model: current.model ?? null,
           ms: Date.now() - started,
@@ -1040,13 +1074,17 @@ export function createAiService(
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
-          // Draft rules when the page sends them, else the saved ones.
-          prompt(
-            { handoffRules: current.handoffRules, ...body.knowledge },
-            knowledge,
-            [{ speaker: 'customer', text: body.question }],
-            false,
-          ),
+          // Draft rules when the page sends them, else the saved ones. Same knowledge tools as a
+          // live reply, so Try it tests what customers get; no chat, so no chat history.
+          {
+            ...prompt(
+              { handoffRules: current.handoffRules, ...body.knowledge },
+              knowledge,
+              [{ speaker: 'customer', text: body.question }],
+              false,
+            ),
+            tools: chatTools({ knowledge: knowledgeSources(contextItems()) }),
+          },
           AbortSignal.timeout(60_000),
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.

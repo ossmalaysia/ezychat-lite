@@ -4,11 +4,14 @@
 //   node e2e/devbuild-ai-check.mjs <port> send ["text"]   send a fake customer message from Farah
 //   node e2e/devbuild-ai-check.mjs <port> new <digits> "text" [profile]
 //       a message from a fresh number (no earlier hand-off); `profile` saves demo details right away
+//   node e2e/devbuild-ai-check.mjs <port> long <digits>
+//       a 24-message chat whose first message holds an order number, then an unassigned question
+//       about it: the AI must read older messages to answer
 // The owner signs in to the AI and turns the AI member on in between; `send`/`new` make real model
 // calls. Record every run in docs/dev-build-checks.md.
 const [port, command = 'prep', ...rest] = process.argv.slice(2);
-if (!/^\d+$/.test(port ?? '') || !['prep', 'send', 'new'].includes(command))
-  throw new Error('Usage: node e2e/devbuild-ai-check.mjs <port> prep|send|new …');
+if (!/^\d+$/.test(port ?? '') || !['prep', 'send', 'new', 'long'].includes(command))
+  throw new Error('Usage: node e2e/devbuild-ai-check.mjs <port> prep|send|new|long …');
 const BASE = `http://127.0.0.1:${port}`;
 const FARAH = '60123110021@s.whatsapp.net';
 
@@ -48,7 +51,7 @@ if (command === 'prep') {
     senderName: 'Farah Aziz',
     text: rest[0] ?? 'Hi, can you deliver 3 trays of nasi lemak to me this Saturday?',
   });
-} else {
+} else if (command === 'new') {
   const [digits, message, profile] = rest;
   if (!/^\d{6,15}$/.test(digits ?? '') || !message)
     throw new Error('new <digits> "text" [profile]');
@@ -64,4 +67,29 @@ if (command === 'prep') {
       address: 'Bayan Lepas, Penang',
       tags: ['VIP', 'Late payer'],
     });
+} else if (command === 'long') {
+  const [digits] = rest;
+  if (!/^\d{6,15}$/.test(digits ?? '')) throw new Error('long <digits>');
+  const chatJid = `${digits}@s.whatsapp.net`;
+  const path = `/chats/${encodeURIComponent(chatJid)}`;
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const customer = (text) =>
+    call('POST', '/dev/fake-incoming', { chatJid, senderName: 'Customer', text });
+  // A teammate replying keeps the chat with them, so the AI stays out until it is unassigned.
+  let seq = 0;
+  const teammate = (text) =>
+    call('POST', `${path}/messages`, { text, clientId: `long-${digits}-${++seq}` });
+  await customer('Hi, I placed an order yesterday, my order number is 4521.');
+  await pause(300);
+  await teammate('Thanks! I have noted order 4521.');
+  for (let i = 1; i <= 11; i++) {
+    await pause(300);
+    await customer(`Also, question ${i} about the menu.`);
+    await pause(300);
+    await teammate(`Sure, answer ${i}.`);
+  }
+  await pause(300);
+  await call('PATCH', path, { assignedTo: null });
+  await pause(300);
+  await customer('Sorry, what was my order number again?');
 }

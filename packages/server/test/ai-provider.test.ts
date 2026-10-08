@@ -16,20 +16,32 @@ const prompt = {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+/** A completed Responses API answer whose output text is `text`. */
+const responseJson = (text: string, status = 'completed') =>
+  new Response(
+    JSON.stringify({
+      id: 'resp_1',
+      object: 'response',
+      created_at: 1,
+      model: 'gpt-4.1-mini',
+      status,
+      output: [
+        {
+          type: 'message',
+          id: 'msg_1',
+          role: 'assistant',
+          status: 'completed',
+          content: [{ type: 'output_text', text, annotations: [] }],
+        },
+      ],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }),
+  );
+const decision = (reply: string, action = 'answer') =>
+  JSON.stringify({ reply, action, handoffReason: null });
 /** A stubbed global fetch that answers every request with a completed `{reply:"OK"}` response. */
 function stubOkFetch() {
-  const reply = () =>
-    new Response(
-      JSON.stringify({
-        status: 'completed',
-        output: [
-          {
-            type: 'message',
-            content: [{ type: 'output_text', text: '{"reply":"OK","action":"answer"}' }],
-          },
-        ],
-      }),
-    );
+  const reply = () => responseJson(decision('OK'));
   const fetcher = vi.fn().mockImplementation(async () => reply());
   vi.stubGlobal('fetch', fetcher);
   return fetcher;
@@ -37,33 +49,23 @@ function stubOkFetch() {
 
 describe('OpenAI Responses provider', () => {
   it('uses the official fixed endpoint, private structured output and no tools', async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          status: 'completed',
-          output: [
-            {
-              type: 'message',
-              content: [{ type: 'output_text', text: '{"reply":"9am to 5pm","action":"answer"}' }],
-            },
-          ],
-        }),
-      ),
-    );
+    const fetcher = vi.fn().mockResolvedValue(responseJson(decision('9am to 5pm')));
     vi.stubGlobal('fetch', fetcher);
     expect(
       await generateOpenAi(settings, 'sk-test-secret', prompt, new AbortController().signal),
-    ).toEqual({ reply: '9am to 5pm', action: 'answer' });
+    ).toEqual({ reply: '9am to 5pm', action: 'answer', handoffReason: null });
     const [url, request] = fetcher.mock.calls[0]!;
     expect(url).toBe('https://api.openai.com/v1/responses');
     expect(request.redirect).toBe('error');
-    expect(JSON.parse(request.body)).toMatchObject({
+    const body = JSON.parse(request.body);
+    expect(body).toMatchObject({
       model: 'gpt-4.1-mini',
-      tools: [],
       store: false,
       instructions: prompt.instructions,
       text: { format: { strict: true, type: 'json_schema' } },
     });
+    // No tools offered: the model answers in one call.
+    expect(body.tools ?? []).toEqual([]);
   });
   it('sends a stable prompt_cache_key per install and model, and none without an install id', async () => {
     const fetcher = stubOkFetch();
@@ -99,12 +101,11 @@ describe('OpenAI Responses provider', () => {
       signal,
     );
     const [plain, empty, images] = fetcher.mock.calls.map(([, request]) => request.body as string);
-    expect(JSON.parse(plain!).input).toBe(prompt.input);
     expect(empty).toBe(plain);
+    expect(JSON.stringify(JSON.parse(plain!).input)).not.toContain('input_image');
     const body = JSON.parse(images!);
     expect(body.input).toEqual([
       {
-        type: 'message',
         role: 'user',
         content: [
           { type: 'input_text', text: prompt.input },
@@ -143,21 +144,7 @@ describe('OpenAI Responses provider', () => {
   it('rejects invalid decisions and incomplete responses', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            status: 'completed',
-            output: [
-              {
-                type: 'message',
-                content: [
-                  { type: 'output_text', text: '{"reply":"invented","action":"delete_files"}' },
-                ],
-              },
-            ],
-          }),
-        ),
-      ),
+      vi.fn().mockResolvedValue(responseJson('{"reply":"invented","action":"delete_files"}')),
     );
     await expect(
       generateOpenAi(settings, 'key', prompt, new AbortController().signal),

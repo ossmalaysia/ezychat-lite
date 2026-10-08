@@ -79,7 +79,14 @@ and `POST /api/ai/try` (admin-only, no chat side effects); `resolution.ts` is th
 `knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
-`docs/ai-chatgpt-protocol.md`). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
+`docs/ai-chatgpt-protocol.md`). Both modes run one agent turn on the Vercel AI SDK
+(`ai/agent/turn.ts`: tools, structured decision, ≤ 4 steps, no retries; models in `ai/agent/models.ts`,
+which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
+built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
+(`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is
+longer than the prompt). Rule for new data: push what is small and needed in most replies (customer
+details, current situation); add a tool only for data that is large or rarely needed (each call costs
+a model round trip). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
 the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
 (table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
@@ -206,7 +213,8 @@ cover navigation from every admin section and recovery from malformed URLs.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
-  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement.
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
+  changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.

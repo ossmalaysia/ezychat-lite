@@ -25,6 +25,8 @@ import {
 } from '../src/ai/chatgpt-backend.js';
 import { CHATGPT_TOKENS_SECRET, DirectChatGptProvider } from '../src/ai/chatgpt-direct.js';
 import { redactLogLine, redactSecretText } from '../src/log-redaction.js';
+import { chatTools } from '../src/ai/agent/tools.js';
+import { AI_FULL_CONTEXT_CHARACTERS } from '../src/ai/knowledge.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 
@@ -380,7 +382,7 @@ describe('DirectChatGptProvider', () => {
           sse([
             frame({
               type: 'response.output_text.delta',
-              delta: JSON.stringify({ reply: 'Hello', action: 'answer' }),
+              delta: JSON.stringify({ reply: 'Hello', action: 'answer', handoffReason: null }),
             }),
             frame({ type: 'response.completed', response: { status: 'completed' } }),
           ]),
@@ -417,7 +419,7 @@ describe('DirectChatGptProvider', () => {
       { instructions: 'rules', input: 'hi' },
       new AbortController().signal,
     );
-    expect(decision).toEqual({ reply: 'Hello', action: 'answer' });
+    expect(decision).toEqual({ reply: 'Hello', action: 'answer', handoffReason: null });
     // 401 → one refresh → retry with the auto (first fallback) model.
     expect(JSON.parse(t.ctx.settings.getSecret(CHATGPT_TOKENS_SECRET)!).refreshToken).toBe(
       'refresh-2',
@@ -575,6 +577,66 @@ describe('experimental ChatGPT routes', () => {
       ok: false,
       error: 'Sign in to ChatGPT in the AI settings.',
     });
+  });
+});
+
+describe('ChatGPT agent turn', () => {
+  let t: TestApp;
+  afterEach(async () => {
+    await t.close();
+  });
+
+  it('bounds the whole multi-step turn, not each model call', async () => {
+    t = await makeTestApp();
+    seedTokens(t.ctx);
+    const toolCall = () =>
+      new Response(
+        sse([
+          frame({
+            type: 'response.output_item.done',
+            item: {
+              type: 'function_call',
+              id: 'fc_1',
+              call_id: 'call_1',
+              name: 'search_business_context',
+              arguments: JSON.stringify({ query: 'delivery' }),
+              status: 'completed',
+            },
+          }),
+          frame({ type: 'response.completed', response: { status: 'completed' } }),
+        ]),
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    let calls = 0;
+    // Each model call takes 150 ms; the second one alone would still fit a per-call bound.
+    const fetchMock = vi.fn(
+      async (_url: unknown, init?: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          calls++;
+          const timer = setTimeout(() => resolve(calls === 1 ? toolCall() : answer('Late')), 150);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new DOMException('aborted', 'AbortError'));
+          });
+        }),
+    );
+    const provider = new DirectChatGptProvider(t.ctx, {
+      fetch: fetchMock as typeof fetch,
+      turnTimeoutMs: 200,
+    });
+    const tools = chatTools({
+      knowledge: [{ name: 'Big', text: 'x'.repeat(AI_FULL_CONTEXT_CHARACTERS + 1) }],
+    });
+    await expect(
+      provider.generate(
+        CHATGPT_SETTINGS,
+        null,
+        { instructions: 'rules', input: 'delivery?', tools },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('ChatGPT answer timed out.');
+    expect(calls).toBe(2);
+    await provider.shutdown();
   });
 });
 

@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai';
 import type {
   AiConnection,
   AiDecision,
@@ -19,6 +20,11 @@ export interface AiPrompt {
    * part of the user message. Absent or empty: the request body is exactly as without images.
    */
   images?: AiPromptImage[];
+  /**
+   * Read tools bound to the chat being answered (`agent/tools.ts`). Absent or empty: the model
+   * answers in one call, as before.
+   */
+  tools?: ToolSet;
 }
 export interface AiPromptImage {
   mime: string;
