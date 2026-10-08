@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ciSummary,
   devBuildSummary,
+  overviewRows,
+  paint,
   parseWorkbook,
   renderFeature,
+  renderMerged,
   setStage,
   STAGES,
 } from './build-summary.mjs';
@@ -168,5 +171,91 @@ describe('renderFeature', () => {
     expect(text).toMatch(/Review\s+✗ 1 open comment$/m);
     expect(text).toMatch(/Dev\s+● PR open, ready for review, 1 commit$/m);
     expect(text).toMatch(/Mergeable\s+· GitHub is still checking/);
+  });
+});
+
+describe('display', () => {
+  const ESC = String.fromCharCode(27);
+  const ready = {
+    number: 47,
+    title: 'feat(ai): Edit with AI for the AI instructions and hand-off rules',
+    branch: 'feat/ai-edit-instructions',
+    state: 'OPEN',
+    isDraft: false,
+    commits: 5,
+    ci: { unit: { ubuntu: 'pass', windows: 'pass', macos: 'pass' }, quality: 'pass' },
+    workbook: {
+      stages: {
+        Design: { status: 'done', detail: 'x', updated: '' },
+        Dev: { status: 'done', detail: 'x', updated: '' },
+        E2E: { status: 'pass', detail: 'x', updated: '' },
+        'Dev Build': { status: 'pass', detail: 'x', updated: '' },
+        'Screen review': { status: 'skip', detail: 'x', updated: '' },
+      },
+    },
+    devBuild: { pass: 0, fail: 0 },
+    openComments: 0,
+    mergeState: 'CLEAN',
+  };
+  const running = {
+    ...ready,
+    number: 48,
+    title: 'feat(tooling): build summary',
+    ci: { unit: { ubuntu: 'running' }, quality: null },
+    workbook: null,
+    openComments: 2,
+    mergeState: 'BLOCKED',
+  };
+
+  it('draws every open feature as one row of a bordered table, one mark per stage', () => {
+    const lines = overviewRows([ready, running], 120);
+    const cells = (line) =>
+      line
+        .split('│')
+        .slice(1, -1)
+        .map((cell) => cell.trim());
+    expect(lines[0]).toMatch(/^┌─+┬.*┐$/);
+    expect(cells(lines[1])).toEqual([
+      'PR',
+      'Feature',
+      'Design',
+      'Dev',
+      'Unit',
+      'Qual',
+      'E2E',
+      'DevB',
+      'Screen',
+      'Review',
+      'Merge',
+    ]);
+    expect(lines[2]).toMatch(/^├─+┼.*┤$/);
+    const [first, second] = [cells(lines[3]), cells(lines[4])];
+    expect(first[0]).toBe('#47');
+    expect(first[1]).toMatch(/^feat\(ai\): Edit with AI.*…$/); // shortened to fit
+    expect(first.slice(2)).toEqual(['✓', '✓', '✓', '✓', '✓', '✓', '–', '✓', '✓ ready']);
+    expect(second.slice(2)).toEqual(['·', '·', '…', '·', '·', '·', '·', '✗ 2', '✗ blocked']);
+    expect(lines.at(-1)).toMatch(/^└─+┴.*┘$/);
+    // Every line has the same width and fits the terminal.
+    expect(new Set(lines.map((line) => [...line].length)).size).toBe(1);
+    expect([...lines[0]].length).toBeLessThanOrEqual(120);
+  });
+
+  it('collapses merged features to one line each', () => {
+    expect(
+      renderMerged({
+        number: 46,
+        title: 'chore(release): 0.1.25',
+        mergedAt: '2026-10-08T01:00:00Z',
+      }),
+    ).toBe('✓ #46  chore(release): 0.1.25  merged 2026-10-08');
+  });
+
+  it('colours marks only when asked: green done, red problem, yellow in progress, grey not yet', () => {
+    expect(paint('✓ ready', false)).toBe('✓ ready');
+    expect(paint('✓ ready', true)).toBe(`${ESC}[32m✓${ESC}[39m ready`);
+    expect(paint('✗ 2', true)).toContain(`${ESC}[31m✗`);
+    expect(paint('… CI', true)).toContain(`${ESC}[33m…`);
+    expect(paint('· not yet', true)).toContain(`${ESC}[90m·`);
+    expect(renderFeature(ready)).not.toContain(`${ESC}[`);
   });
 });

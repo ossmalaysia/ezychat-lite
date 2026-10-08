@@ -123,6 +123,111 @@ const stageText = (entry, empty) =>
     ? `${MARK[entry.status]} ${entry.detail || entry.status}${entry.updated ? `  (${entry.updated})` : ''}`
     : `· ${empty}`;
 
+/* ------------------------------------------------------------------- colour and table */
+
+const ESC = String.fromCharCode(27);
+const COLOUR = { '✓': 32, '✗': 31, '…': 33, '◐': 33, '·': 90, '–': 90 };
+
+/** Colours standalone marks: green done, red problem, yellow in progress, grey not yet. */
+export function paint(text, colour) {
+  if (!colour) return text;
+  return text.replace(
+    /(^|\s)([✓✗…◐·–])(?=\s|$)/g,
+    (_match, before, mark) => `${before}${ESC}[${COLOUR[mark]}m${mark}${ESC}[39m`,
+  );
+}
+const bold = (text, colour) => (colour ? `${ESC}[1m${text}${ESC}[22m` : text);
+
+const COLUMNS = [
+  ['Design', 6],
+  ['Dev', 3],
+  ['Unit', 4],
+  ['Qual', 4],
+  ['E2E', 3],
+  ['DevB', 4],
+  ['Screen', 6],
+  ['Review', 6],
+];
+const MERGE_SHORT = {
+  CLEAN: '✓ ready',
+  BLOCKED: '✗ blocked',
+  DIRTY: '✗ conflicts',
+  BEHIND: '◐ behind',
+  UNSTABLE: '◐ unstable',
+  DRAFT: '◐ draft',
+  UNKNOWN: '· checking',
+};
+
+/** The overview marks of one feature, in COLUMNS order, then Merge. */
+function overviewMarks(f) {
+  const stages = f.workbook?.stages ?? {};
+  const mark = (entry) => (entry && entry.status !== 'todo' ? MARK[entry.status] : '·');
+  const runs = OS.map((os) => f.ci.unit[os]).filter(Boolean);
+  const unit = runs.length
+    ? runs.every((run) => run === 'pass')
+      ? '✓'
+      : runs.some((run) => run === 'fail')
+        ? '✗'
+        : '…'
+    : mark(stages['Unit tests']);
+  const devBuild =
+    stages['Dev Build'] && stages['Dev Build'].status !== 'todo'
+      ? mark(stages['Dev Build'])
+      : f.devBuild.fail
+        ? '✗'
+        : f.devBuild.pass
+          ? '✓'
+          : '·';
+  return [
+    mark(stages.Design),
+    mark(stages.Dev),
+    unit,
+    f.ci.quality ? MARK[f.ci.quality] : '·',
+    mark(stages.E2E),
+    devBuild,
+    mark(stages['Screen review']),
+    f.openComments ? `✗ ${f.openComments}` : '✓',
+    MERGE_SHORT[f.mergeState] ?? `· ${String(f.mergeState).toLowerCase()}`,
+  ];
+}
+
+const centre = (text, width) => {
+  const left = Math.floor((width - [...text].length) / 2);
+  return `${' '.repeat(left)}${text}`.padEnd(width);
+};
+
+/** Open features as a bordered table that fits `width` columns (the feature title is shortened). */
+export function overviewRows(features, width = 120) {
+  const headers = ['PR', 'Feature', ...COLUMNS.map(([name]) => name), 'Merge'];
+  const fixed = [4, ...COLUMNS.map(([, size]) => size), 11];
+  const borders = 3 * headers.length + 1;
+  const titleWidth = Math.max(20, width - borders - fixed.reduce((sum, size) => sum + size, 0));
+  const widths = [fixed[0], titleWidth, ...fixed.slice(1)];
+  const short = (title) =>
+    [...title].length > titleWidth ? `${[...title].slice(0, titleWidth - 1).join('')}…` : title;
+  const line = (cells) =>
+    `│ ${cells
+      .map((cell, index) =>
+        index > 1 && index < cells.length - 1
+          ? centre(cell, widths[index])
+          : cell.padEnd(widths[index]),
+      )
+      .join(' │ ')} │`;
+  const rule = (left, middle, right) =>
+    `${left}${widths.map((size) => '─'.repeat(size + 2)).join(middle)}${right}`;
+  return [
+    rule('┌', '┬', '┐'),
+    line(headers),
+    rule('├', '┼', '┤'),
+    ...features.map((f) => line([`#${f.number}`, short(f.title), ...overviewMarks(f)])),
+    rule('└', '┴', '┘'),
+  ];
+}
+
+/** A merged feature on one line. */
+export const renderMerged = (f) =>
+  `✓ #${f.number}  ${f.title}  merged ${String(f.mergedAt ?? '').slice(0, 10)}`;
+
 /** One feature as a short block of aligned lines. */
 export function renderFeature(f) {
   const lines = [`#${f.number}  ${f.title}  (${f.branch})`];
@@ -283,13 +388,36 @@ function record(args) {
 
 function main(args) {
   if (args[0] === 'record') return record(args.slice(1));
-  const only = args[0] ? Number(args[0]) : null;
-  const list = features(only);
+  // Colour only in a real terminal: piped or pasted output stays plain text.
+  const colour =
+    Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !args.includes('--plain');
+  const width = Math.min(Math.max(process.stdout.columns || 120, 100), 160);
+  const number = args.find((arg) => /^\d+$/.test(arg));
+  const list = features(number ? Number(number) : null);
+  const open = list.filter((f) => f.state !== 'MERGED');
+  const merged = list.filter((f) => f.state === 'MERGED');
+  const out = (text = '') => console.log(paint(text, colour));
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  console.log(`Build summary — ${stamp}\n`);
-  if (!list.length) console.log('No pull requests found.');
-  for (const feature of list) console.log(`${renderFeature(feature)}\n`);
-  console.log('✓ done  ✗ problem  … in progress  ◐ partly  · not yet  – not needed');
+
+  console.log(bold(`Build summary — ${stamp}`, colour));
+  out();
+  if (!list.length) out('No pull requests found.');
+  if (open.length) {
+    for (const line of overviewRows(open, width)) out(line);
+    out();
+    for (const feature of open) {
+      const [title, ...details] = renderFeature(feature).split('\n');
+      console.log(bold(title, colour));
+      for (const line of details) out(line);
+      out();
+    }
+  }
+  if (merged.length) {
+    console.log(bold('Recently merged', colour));
+    for (const feature of merged) out(`  ${renderMerged(feature)}`);
+    out();
+  }
+  out('✓ done  ✗ problem  … in progress  ◐ partly  · not yet  – not needed');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
