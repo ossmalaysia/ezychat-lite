@@ -68,6 +68,8 @@ into AGENTS.md.
 
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
+- `/code-review` with no target reviews the session's checkout, not a feature worktree: pass the
+  branch or path (e.g. `/code-review feat/x`) when the work lives in another worktree.
 - Never hard-reset a working tree with changes you didn't make; stash or use a worktree.
 - Before removing a worktree, delete its `node_modules` junctions with `[IO.Directory]::Delete(path, $false)`
   (Git follows junctions); prefer `npm ci` in new worktrees.
