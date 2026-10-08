@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.25] - 2026-10-08
+
 ### Added
 
 - **The AI can look things up while it answers:** when a customer refers to something said long
