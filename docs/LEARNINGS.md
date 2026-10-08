@@ -146,7 +146,9 @@ into AGENTS.md.
   `--fake-wa`, check the transcript), not just server start-up.
 - GUI smoke tests use plain Electron with a temporary profile (packaged apps ignore entry arguments).
 - Playwright may lack Chromium: fall back to `channel: 'chrome'`. Run e2e alone (memory); browser test
-  sign-in honours `Retry-After` instead of weakening limits.
+  sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
+  `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
+  shots stretch fixed elements and hide the drawer's scrolling body.
 - Vitest: no globals (call `cleanup()` in `afterEach`, assert on `textContent`); native subprocess tests get
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
