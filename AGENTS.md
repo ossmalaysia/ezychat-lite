@@ -223,6 +223,10 @@ cover navigation from every admin section and recovery from malformed URLs.
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
   `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
+- **Run the Dev Build check yourself before saying a feature works.** Unit tests, e2e and a screen
+  review are not enough: run the feature end to end in a Dev Build (and with the real outside client
+  where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
+  "built and tested, not yet checked in a Dev Build".
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.
