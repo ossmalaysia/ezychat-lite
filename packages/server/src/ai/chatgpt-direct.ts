@@ -16,9 +16,11 @@ import {
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
-import type { AiPrompt, AiProvider } from './provider-types.js';
-import { generateOpenAi } from './provider.js';
+import type { LanguageModel } from 'ai';
+import type { AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
+import { generateOpenAi, rewriteOpenAi } from './provider.js';
 import { agentFailure, chatGptModel } from './agent/models.js';
+import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
   LOGIN_TIMEOUT_MS,
@@ -502,9 +504,36 @@ export class DirectChatGptProvider implements AiProvider {
     signal: AbortSignal,
   ): Promise<AiDecision> {
     if (settings.mode === 'api') return generateOpenAi(settings, apiKey, prompt, signal);
+    return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal) => {
+      const turn = await runAgentTurn({ model, prompt, tools: prompt.tools, signal: turnSignal });
+      return turn.decision;
+    });
+  }
+
+  /** Edit with AI: one tool-free call with the saved (or Auto) model. */
+  async rewrite(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    signal: AbortSignal,
+  ): Promise<{ text: string; model: string }> {
+    if (settings.mode === 'api') return rewriteOpenAi(settings, apiKey, prompt, signal);
+    return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal, id) => ({
+      ...(await runRewrite({ model, prompt, signal: turnSignal })),
+      model: id,
+    }));
+  }
+
+  /** One ChatGPT turn: the resolved model, a single bound for all its calls, fixed error messages. */
+  private async turn<T>(
+    settings: AiSettings,
+    cacheId: string | undefined,
+    signal: AbortSignal,
+    run: (model: LanguageModel, turnSignal: AbortSignal, modelId: string) => Promise<T>,
+  ): Promise<T> {
     signal.throwIfAborted();
     const model = await this.resolveModel(settings.model);
-    const cacheKey = prompt.cacheId ? promptCacheKey(prompt.cacheId, model) : undefined;
+    const cacheKey = cacheId ? promptCacheKey(cacheId, model) : undefined;
     const sessionId = cacheKey ?? randomUUID();
     // One bound for the whole reply: a multi-step turn must not reset it on every model call.
     const turnSignal = AbortSignal.any([
@@ -512,17 +541,15 @@ export class DirectChatGptProvider implements AiProvider {
       AbortSignal.timeout(this.deps.turnTimeoutMs ?? 60_000),
     ]);
     try {
-      const turn = await runAgentTurn({
-        model: chatGptModel({
+      return await run(
+        chatGptModel({
           modelId: model,
           cacheKey,
           send: (body, bounded) => this.respond(model, body, sessionId, bounded),
         }),
-        prompt,
-        tools: prompt.tools,
-        signal: turnSignal,
-      });
-      return turn.decision;
+        turnSignal,
+        model,
+      );
     } catch (error) {
       if (signal.aborted) throw aborted();
       if (turnSignal.aborted) throw new Error('ChatGPT answer timed out.', { cause: error });

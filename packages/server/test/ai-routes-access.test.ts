@@ -18,6 +18,7 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/chatgpt/callback' },
   { method: 'POST', url: '/api/ai/chatgpt/logout' },
   { method: 'POST', url: '/api/ai/try' },
+  { method: 'POST', url: '/api/ai/edit' },
   { method: 'GET', url: '/api/ai/voice' },
   { method: 'PATCH', url: '/api/ai/voice' },
   { method: 'POST', url: '/api/ai/voice/download' },

@@ -674,6 +674,39 @@
     },
     "replaceKey": "替换密钥",
     "keepKey": "保留已保存的密钥",
-    "modelAdvanced": "高级：选择模型"
+    "modelAdvanced": "高级：选择模型",
+    "edit": {
+      "open": "用 AI 修改",
+      "unavailable": "请先在 设置 → AI 中连接 AI，才能使用“用 AI 修改”。",
+      "title": {
+        "instructions": "用 AI 修改 AI 指令",
+        "handoffRules": "用 AI 修改转交规则"
+      },
+      "description": "描述要做的修改。应用前你会先审阅。",
+      "requestLabel": "需要修改什么？",
+      "placeholder": {
+        "instructions": "例如：用更亲切、轻松的语气回复",
+        "handoffRules": "例如：把退款请求转交给人工"
+      },
+      "suggest": "生成建议",
+      "suggestAgain": "重新建议",
+      "writing": "正在撰写建议…",
+      "result": {
+        "instructions": "建议的 AI 指令",
+        "handoffRules": "建议的转交规则"
+      },
+      "removed": "删除：",
+      "added": "新增：",
+      "noChange": "没有建议任何修改——请换个方式描述。",
+      "failed": "AI 无法给出修改建议，请重试。",
+      "discard": "放弃",
+      "apply": {
+        "instructions": "应用到 AI 指令",
+        "handoffRules": "应用到转交规则"
+      },
+      "applyNote": "应用只会填入文本框；请在页面上按“保存”才会保留。",
+      "applied": "已应用。请按“保存”保留修改。",
+      "unchanged_other": "{{count}} 行未更改"
+    }
   }
 }

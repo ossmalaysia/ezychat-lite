@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AiDocumentView,
+  AiEditResult,
   AiMemberStatus,
   AiModelList,
   AiTestResult,
@@ -9,6 +10,7 @@ import {
   type AiConnectionBody,
   type AiContextPatchBody,
   type AiContextTextBody,
+  type AiEditBody,
   type AiTryBody,
 } from '@wa-team-inbox/shared';
 import { api, ApiError } from './client';
@@ -59,6 +61,14 @@ export function useAiTest() {
 export function useAiTry() {
   return useMutation({
     mutationFn: (body: AiTryBody) => api('/ai/try', { method: 'POST', body, schema: AiTryResult }),
+  });
+}
+
+/** Edit with AI: a suggested rewrite of one box; nothing is saved (the page's Save does that). */
+export function useAiEdit() {
+  return useMutation({
+    mutationFn: (body: AiEditBody) =>
+      api('/ai/edit', { method: 'POST', body, schema: AiEditResult }),
   });
 }
 

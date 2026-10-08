@@ -251,6 +251,11 @@ into AGENTS.md.
   their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
   phone. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- Modal backdrops use the `bg-overlay` token (`rgb(0 0 0 / 0.5)`), never `bg-black/50`: its
+  `oklab(0 0 0 / 0.5)` paints fully transparent in current Chrome, so dialogs stop dimming the page
+  (bottom drawers hid it because vaul adds its own backdrop). Guarded by `ui/overlay.test.ts`.
+- A before/after review of long text shows the changes with one line of context and folds the rest
+  ("⋯ 19 unchanged lines"); a full-text diff buries the change below the fold.
 - A multi-step task on a page (describe → review → apply) opens in a dialog (a full-height bottom sheet
   at 360 px), not an inline panel that stretches the card; the page keeps its own Save.
 - In a crowded row decide which item gives up width: short, meaningless-when-cut chips (tags, counts) are

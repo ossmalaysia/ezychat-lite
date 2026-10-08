@@ -180,14 +180,21 @@ export function ResponsiveDialog({
   description?: React.ReactNode;
   children?: React.ReactNode;
   footer?: React.ReactNode;
-  /** `wide` gives long-form editing (documents, previews) room on desktop; phones use the drawer. */
-  size?: 'default' | 'wide';
+  /**
+   * `wide` gives long-form editing (documents, previews) room on desktop; `medium` suits side-by-side
+   * text such as a before/after review. Phones always use the drawer.
+   */
+  size?: 'default' | 'medium' | 'wide';
 }) {
   const desktop = useMediaQuery('(min-width: 640px)');
   if (desktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={size === 'wide' ? 'sm:max-w-4xl' : undefined}>
+        <DialogContent
+          className={
+            size === 'wide' ? 'sm:max-w-4xl' : size === 'medium' ? 'sm:max-w-2xl' : undefined
+          }
+        >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}
@@ -202,7 +209,8 @@ export function ResponsiveDialog({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="safe-bottom">
-        <DrawerHeader className="text-left">
+        {/* Left-aligned like the desktop dialog (the drawer centres bottom sheets by default). */}
+        <DrawerHeader className="text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
