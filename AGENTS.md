@@ -211,7 +211,8 @@ cover navigation from every admin section and recovery from malformed URLs.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
-  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement.
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
+  changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.
