@@ -132,7 +132,10 @@ export function renderFeature(f) {
   }
   const stages = f.workbook?.stages ?? {};
   lines.push(
-    row('Dev', `${f.isDraft ? '◐ draft PR' : '● PR open, ready for review'}, ${f.commits} commits`),
+    row(
+      'Dev',
+      `${f.isDraft ? '◐ draft PR' : '● PR open, ready for review'}, ${f.commits} commit${f.commits === 1 ? '' : 's'}`,
+    ),
   );
   if (!f.workbook)
     lines.push(row('Workbook', `✗ missing: ${workbookPath(f.branch).replace(/\\/g, '/')}`));

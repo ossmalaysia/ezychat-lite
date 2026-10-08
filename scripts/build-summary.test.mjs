@@ -166,6 +166,7 @@ describe('renderFeature', () => {
       mergeState: 'UNKNOWN',
     });
     expect(text).toMatch(/Review\s+✗ 1 open comment$/m);
+    expect(text).toMatch(/Dev\s+● PR open, ready for review, 1 commit$/m);
     expect(text).toMatch(/Mergeable\s+· GitHub is still checking/);
   });
 });
