@@ -251,6 +251,8 @@ into AGENTS.md.
   their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
   phone. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- A multi-step task on a page (describe → review → apply) opens in a dialog (a full-height bottom sheet
+  at 360 px), not an inline panel that stretches the card; the page keeps its own Save.
 - In a crowded row decide which item gives up width: short, meaningless-when-cut chips (tags, counts) are
   `shrink-0` with a `max-w` cap; names and previews (`min-w-0 shrink` + `truncate`) give way first. Re-check
   rows with every badge present (assignee + tags + unread), not just the demo row that looked fine.
