@@ -7,3 +7,5 @@ playwright-report
 test-results
 package-lock.json
 docs/superpowers
+# Machine-written by scripts/build-summary.mjs record
+docs/workbooks

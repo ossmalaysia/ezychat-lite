@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
+  log), never from an agent's memory of the session: record each stage when it finishes.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
