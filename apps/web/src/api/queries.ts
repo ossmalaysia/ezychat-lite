@@ -8,6 +8,12 @@ import {
 } from '@tanstack/react-query';
 import {
   type Locale,
+  type ApiToken,
+  type CreateApiTokenBodyInput,
+  type McpSettingsPatch,
+  ApiTokenListResponse,
+  CreateApiTokenResponse,
+  McpSettingsResponse,
   type PatchMeBody,
   MeResponse,
   OpenChatCountResponse,
@@ -77,6 +83,8 @@ export const qk = {
   cloudflareSetup: ['cloudflare-setup'] as const,
   settings: ['settings'] as const,
   audit: ['audit'] as const,
+  mcpSettings: ['integrations', 'mcp'] as const,
+  apiTokens: ['integrations', 'tokens'] as const,
 };
 
 export type ChatsData = InfiniteData<ChatListResponse, string | null>;
@@ -939,5 +947,75 @@ export function useAudit(limit = 50) {
     },
     getNextPageParam: (last) =>
       last.entries.length < limit ? null : (last.entries[last.entries.length - 1]?.id ?? null),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Integrations: AI assistant (MCP) access and personal access tokens (admin)
+// ---------------------------------------------------------------------------
+
+export function useMcpSettings() {
+  return useQuery({
+    queryKey: qk.mcpSettings,
+    queryFn: ({ signal }) => api('/integrations/mcp', { schema: McpSettingsResponse, signal }),
+  });
+}
+
+export function usePatchMcpSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: McpSettingsPatch) =>
+      api('/integrations/mcp', { method: 'PATCH', body, schema: McpSettingsResponse }),
+    onSuccess: (next) => qc.setQueryData(qk.mcpSettings, next),
+  });
+}
+
+export function useApiTokens() {
+  return useQuery({
+    queryKey: qk.apiTokens,
+    queryFn: async ({ signal }): Promise<ApiToken[]> =>
+      (await api('/integrations/tokens', { schema: ApiTokenListResponse, signal })).tokens,
+  });
+}
+
+export interface CreateApiTokenVars {
+  body: CreateApiTokenBodyInput;
+  /**
+   * Receives the one-time secret. It is handed straight to the caller's component state and is
+   * never the mutation's result, so it stays out of the react-query caches.
+   */
+  onSecret: (secret: string) => void;
+}
+
+/** Creates a token; the mutation result is the token metadata only (see `onSecret`). */
+export function useCreateApiToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ body, onSecret }: CreateApiTokenVars): Promise<ApiToken> => {
+      const { token, secret } = await api('/integrations/tokens', {
+        method: 'POST',
+        body,
+        schema: CreateApiTokenResponse,
+      });
+      onSecret(secret);
+      return token;
+    },
+    gcTime: 0,
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.apiTokens }),
+  });
+}
+
+/** Revokes a token; one that is already gone (404) counts as revoked. */
+export function useRevokeApiToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      try {
+        await api<unknown>(`/integrations/tokens/${id}`, { method: 'DELETE' });
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.apiTokens }),
   });
 }

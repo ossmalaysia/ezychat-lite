@@ -62,7 +62,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
             ip,
             meta: {
               reason: result.reason,
-              ...(result.tokenId ? { targetId: result.tokenId } : {}),
+              ...(result.tokenId ? { tokenId: result.tokenId } : {}),
             },
           });
         }

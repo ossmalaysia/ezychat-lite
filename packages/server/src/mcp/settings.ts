@@ -22,5 +22,11 @@ function publicUrl(ctx: AppContext): string | null {
 }
 
 export function mcpSettings(ctx: AppContext): McpSettingsResponse {
-  return { enabled: isMcpEnabled(ctx), endpointPath: MCP_PATH, publicUrl: publicUrl(ctx) };
+  return {
+    enabled: isMcpEnabled(ctx),
+    endpointPath: MCP_PATH,
+    publicUrl: publicUrl(ctx),
+    // config.port is the port actually listened on (a saved port change applies after a restart).
+    localUrl: `http://127.0.0.1:${ctx.config.port}`,
+  };
 }

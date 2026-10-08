@@ -41,6 +41,8 @@ export const McpSettingsResponse = z.object({
   endpointPath: z.string(),
   /** Public HTTPS base URL of the running tunnel, null when no tunnel is up. */
   publicUrl: z.string().nullable(),
+  /** Loopback base URL on the port this server listens on (works only on the server's computer). */
+  localUrl: z.string(),
 });
 export type McpSettingsResponse = z.infer<typeof McpSettingsResponse>;
 

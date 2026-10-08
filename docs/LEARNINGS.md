@@ -168,6 +168,9 @@ into AGENTS.md.
   handoff; an unelevated broker records results and relaunches.
 - Password generation requires Web Crypto. Redact credential fields from live logs (deep scrub of objects,
   arrays and Errors) and sanitise historical exports.
+- One-time secrets (new access tokens) never become a react-query query or mutation result: the
+  mutation hands them to the showing component's state via a callback and returns metadata only;
+  clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
 - Audit writes reachable without a session (failed token sign-ins) go through a per-IP-and-reason
   limiter, or anyone can flood `audit_log`.
@@ -254,6 +257,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Addresses the UI tells people to use (setup commands, URLs) come from the server's running config
+  (`ctx.config.port`, tunnel status), never from saved settings, which may apply only after a restart.
 - Admin links and fallback redirects use absolute `/admin/...` paths; test every section transition and
   malformed URLs.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog

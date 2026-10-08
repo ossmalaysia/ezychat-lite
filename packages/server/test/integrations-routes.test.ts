@@ -128,7 +128,12 @@ it('turns Claude access on and off (off by default) and audits it', async () => 
     url: '/api/integrations/mcp',
     headers: authHeaders(adminCookie),
   });
-  expect(get.json()).toEqual({ enabled: false, endpointPath: '/mcp', publicUrl: null });
+  expect(get.json()).toEqual({
+    enabled: false,
+    endpointPath: '/mcp',
+    publicUrl: null,
+    localUrl: `http://127.0.0.1:${t.ctx.config.port}`,
+  });
   const on = await t.app.inject({
     method: 'PATCH',
     url: '/api/integrations/mcp',

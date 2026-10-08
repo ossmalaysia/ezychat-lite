@@ -21,6 +21,9 @@ const SERVER_ACTIONS = [
   'ai.voice_model_download',
   'ai.voice_model_remove',
   'ai.voice_update',
+  'api_token.auth_failed',
+  'api_token.create',
+  'api_token.revoke',
   'auth.change_password',
   'auth.login',
   'auth.login_failed',
@@ -31,6 +34,8 @@ const SERVER_ACTIONS = [
   'cloudflare.create',
   'cloudflare.login',
   'logs.download',
+  'mcp.disable',
+  'mcp.enable',
   'quick_reply.create',
   'quick_reply.delete',
   'quick_reply.update',
@@ -74,6 +79,18 @@ describe('auditDetails', () => {
       'Member: Bob Agent · Role: Admin',
     );
     expect(auditDetails({ targetId: 9 }, t, names)).toBe('Member: User #9');
+  });
+
+  it('describes AI assistant tokens by name and prefix, never as a member', () => {
+    const created = auditDetails(
+      { tokenId: 2, name: 'Laptop', prefix: 'ezc_pat_froJ', expiresAt: Date.UTC(2027, 0, 7, 12) },
+      t,
+      names,
+    );
+    expect(created).not.toContain('Bob Agent');
+    expect(created).not.toContain('Member');
+    expect(created).toMatch(/^Name: Laptop · Token: ezc_pat_froJ… · Expires: .*2027/);
+    expect(auditDetails({ reason: 'revoked', tokenId: 2 }, t, names)).toBe('Reason: Token revoked');
   });
 
   it('summarises change flags and settings patches without raw JSON', () => {

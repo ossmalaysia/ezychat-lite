@@ -153,7 +153,7 @@ export function createApiTokenService(
         userId,
         action: 'api_token.create',
         ip,
-        meta: { targetId: id, name: token.name, prefix: token.prefix, expiresAt },
+        meta: { tokenId: id, name: token.name, prefix: token.prefix, expiresAt },
       });
       return { token, secret };
     },
@@ -170,7 +170,7 @@ export function createApiTokenService(
         userId: actorId,
         action: 'api_token.revoke',
         ip,
-        meta: { targetId: id, name: row.name, prefix: row.prefix },
+        meta: { tokenId: id, name: row.name, prefix: row.prefix },
       });
     },
 

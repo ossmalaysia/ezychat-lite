@@ -191,7 +191,12 @@
       "aiVoiceModelDownload": "Voice model download started",
       "aiVoiceModelCancel": "Voice model download cancelled",
       "aiVoiceModelRemove": "Voice model removed",
-      "customerProfileUpdate": "Customer details updated"
+      "customerProfileUpdate": "Customer details updated",
+      "apiTokenCreate": "Access token created",
+      "apiTokenRevoke": "Access token revoked",
+      "apiTokenAuthFailed": "AI assistant token rejected",
+      "mcpEnable": "AI assistant access turned on",
+      "mcpDisable": "AI assistant access turned off"
     },
     "fields": {
       "chat": "Chat",
@@ -228,11 +233,19 @@
       "token": "Token",
       "port": "Port",
       "lanEnabled": "LAN access",
-      "historyDays": "History days"
+      "historyDays": "History days",
+      "expires": "Expires"
     },
     "reasons": {
       "rateLimited": "Too many attempts",
-      "invalid": "Wrong username or password"
+      "invalid": "Wrong username or password",
+      "malformed": "No valid token",
+      "unknown": "Unknown token",
+      "revoked": "Token revoked",
+      "expired": "Token expired",
+      "userInactive": "Owner disabled",
+      "notAdmin": "Owner is not an admin",
+      "mustChangePassword": "Owner must change password"
     },
     "yes": "Yes",
     "no": "No",
@@ -254,6 +267,78 @@
       "tags": "tags"
     },
     "listSeparator": ", "
+  },
+  "integrations": {
+    "access": {
+      "label": "Let AI assistants read this inbox",
+      "description": "Connect any MCP-compatible AI assistant. It can read chats, notes and statistics to answer your questions. It can't send messages or change anything.",
+      "worksFromLabel": "Works from",
+      "worksFromLocal": "the computer running EzyChat Lite.",
+      "worksFromTunnel": "the computer running EzyChat Lite, and from anywhere through your tunnel:",
+      "privacyLabel": "Privacy",
+      "privacy": "Chats an assistant reads are sent to the company that runs it (for example Anthropic, OpenAI or Google), under the account you connect.",
+      "turnedOn": "AI assistant access turned on",
+      "turnedOff": "AI assistant access turned off"
+    },
+    "noTunnel": {
+      "title": "No tunnel is running",
+      "body": "Assistants on the computer running EzyChat Lite can connect now. To connect from anywhere else, start Cloudflare access first.",
+      "link": "Open Cloudflare settings"
+    },
+    "tokens": {
+      "title": "Access tokens",
+      "description": "Paste a token into your AI assistant to connect. Anyone with a token can read the inbox, so keep it private.",
+      "create": "Create token",
+      "empty": "No tokens yet. Create one for each assistant and computer you use.",
+      "created": "Created {{date}}",
+      "lastUsed": "Used {{when}}",
+      "neverUsed": "Never used",
+      "expires": "Expires {{date}}",
+      "neverExpires": "Never expires",
+      "expired": "Expired {{date}}",
+      "revoke": "Revoke",
+      "revokeLabel": "Revoke token {{name}}",
+      "revokeTitle": "Revoke “{{name}}”?",
+      "revokeBody": "Any assistant using this token stops working right away. This can't be undone.",
+      "revokeConfirm": "Revoke token",
+      "revoked": "Token revoked"
+    },
+    "create": {
+      "title": "Create access token",
+      "description": "One token per assistant and computer. You can revoke it any time.",
+      "name": "Name",
+      "nameHint": "So you recognise it later, e.g. which computer.",
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "Use 64 characters or fewer.",
+      "expiry": "Expires after",
+      "expiry30": "30 days",
+      "expiry90": "90 days",
+      "expiry365": "1 year",
+      "expiryNever": "Never",
+      "submit": "Create token"
+    },
+    "created": {
+      "title": "Copy your token now",
+      "description": "This is the only time it's shown. If you lose it, revoke it and create a new one.",
+      "secretLabel": "Your token",
+      "copyToken": "Copy token",
+      "connect": "Connect your assistant",
+      "clientClaude": "Claude Code",
+      "clientGemini": "Gemini CLI",
+      "clientOther": "Other",
+      "claudeHint": "Run this in a terminal:",
+      "geminiHint": "Add the mcpServers entry to ~/.gemini/settings.json (create the file if it doesn't exist):",
+      "copyCommand": "Copy command",
+      "copySettings": "Copy settings",
+      "serverUrl": "Server URL",
+      "header": "Authorization header",
+      "copyUrl": "Copy URL",
+      "copyHeader": "Copy header",
+      "otherHint": "Use these in any MCP app that accepts a server URL and a header (for example Codex CLI, Cursor or VS Code).",
+      "oauthHint": "Apps that only sign in with OAuth, such as ChatGPT and claude.ai connectors, are not supported yet.",
+      "localOnly": "This address works only on the computer running EzyChat Lite. Start a tunnel to connect from elsewhere.",
+      "askHint": "Then ask things like “Which chats are waiting for a reply?”"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -294,6 +379,7 @@
     "tabs": {
       "general": "General",
       "ai": "AI",
+      "integrations": "Integrations",
       "device": "Preferences",
       "maintenance": "Maintenance"
     },
