@@ -229,7 +229,7 @@ export function paint(text, colour) {
 const bold = (text, colour) => (colour ? `${ESC}[1m${text}${ESC}[22m` : text);
 
 const CHECKPOINTS = ['Design', 'Dev', 'Unit', 'Qual', 'E2E', 'DevB', 'Screen', 'Review'];
-const INDENT = '     ';
+const INDENT = '       ';
 const WIDTH = 80;
 
 /** The checkpoint marks of one feature, in CHECKPOINTS order. */
@@ -268,28 +268,64 @@ function blockers(f) {
   ].filter(Boolean);
 }
 
-/** "✓ ready to merge", "… waiting: …" or "✗ blocked: …". */
-function verdict(f) {
+/** A blocker the owner must act on (not one that is still running, not a draft). */
+const needsOwner = (reason) => !reason.running && reason.text !== 'draft';
+
+/** 'ready' to merge, 'needs' the owner, or still in 'progress'. */
+function groupOf(f) {
   const reasons = blockers(f);
-  const list = reasons.map((reason) => reason.text).join(', ');
-  if (reasons.some((reason) => !reason.running)) return `✗ blocked: ${list}`;
-  if (reasons.length) return `… waiting: ${list}`;
-  if (f.mergeState === 'CLEAN') return '✓ ready to merge';
-  return mergeText(MERGE_LONG, f.mergeState);
+  if (reasons.some(needsOwner)) return 'needs';
+  return !reasons.length && f.mergeState === 'CLEAN' ? 'ready' : 'progress';
+}
+
+/** The line under the checkpoints: what blocks or is still running; null when ready. */
+function statusLine(f) {
+  const reasons = blockers(f);
+  if (reasons.length) {
+    const mark = reasons.some(needsOwner) ? '✗' : '…';
+    return `${mark} ${reasons.map((reason) => reason.text).join(' · ')}`;
+  }
+  return f.mergeState === 'CLEAN' ? null : mergeText(MERGE_LONG, f.mergeState);
 }
 
 const fit = (text) =>
   [...text].length > WIDTH ? `${[...text].slice(0, WIDTH - 1).join('')}…` : text;
 
-/** One open feature in three short lines: name, checkpoints, verdict (each within 80 columns). */
+/** "feat(ai): edit with AI" → "Edit with AI": the commit prefix is for git, not the owner. */
+function plainTitle(title) {
+  const text = title.replace(/^\w+(\([^)]*\))?!?:\s*/, '');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** One open feature: its name, every checkpoint, and a status line unless it is ready. */
 export function overviewRows(f) {
   const marks = checkpointMarks(f);
   const checks = CHECKPOINTS.map((name, index) => `${name} ${marks[index]}`).join('  ');
+  const status = statusLine(f);
   return [
-    fit(`#${f.number}  ${f.title}`),
+    fit(`  #${f.number}  ${plainTitle(f.title)}`),
     fit(`${INDENT}${checks}`),
-    fit(`${INDENT}→ ${verdict(f)}`),
+    ...(status ? [fit(`${INDENT}${status}`)] : []),
   ];
+}
+
+const GROUPS = [
+  ['ready', 'READY TO MERGE', '  say "merge" to go'],
+  ['needs', 'NEEDS YOU', ''],
+  ['progress', 'IN PROGRESS', ''],
+];
+
+/** Open features grouped by what the owner has to do; empty groups are left out. */
+export function renderOverview(open) {
+  const lines = [];
+  for (const [key, heading, hint] of GROUPS) {
+    const members = open.filter((f) => groupOf(f) === key);
+    if (!members.length) continue;
+    if (lines.length) lines.push('');
+    lines.push(`${heading} (${members.length})${hint}`);
+    members.forEach((f) => lines.push(...overviewRows(f)));
+  }
+  return lines;
 }
 
 /* ----------------------------------------------------------------- live data (gh, git) */
@@ -437,26 +473,30 @@ function printSummary(list, colour, detailed) {
   const open = list.filter((f) => f.state !== 'MERGED');
   const merged = list.filter((f) => f.state === 'MERGED');
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  console.log(bold(`Build summary — ${stamp}`, colour));
+  console.log(bold(`Feature summary — ${stamp}`, colour));
   out();
   if (!list.length) out('No pull requests found.');
-  for (const feature of open) {
-    const [title, ...rest] = overviewRows(feature);
-    console.log(bold(title, colour));
-    rest.forEach((line) => out(line));
-    if (detailed)
+  // Group headings and feature names in bold; checkpoint and status lines get coloured marks.
+  for (const line of renderOverview(open)) {
+    if (/^(?:[A-Z]| {2}#)/.test(line)) console.log(bold(line, colour));
+    else out(line);
+  }
+  if (open.length) out();
+  if (detailed)
+    for (const feature of open) {
       renderFeature(feature)
         .split('\n')
-        .slice(1)
         .forEach((line) => out(line));
-    out();
-  }
+      out();
+    }
   if (merged.length) {
     console.log(bold('Recently merged', colour));
-    merged.forEach((feature) => out(`  ${renderMerged(feature)}`));
+    merged.forEach((feature) => out(fit(`  ${renderMerged(feature)}`)));
     out();
   }
-  out('✓ done  ✗ problem  … in progress  ◐ partly  · not yet  – not needed');
+  out('Unit = unit tests on Windows/macOS/Linux   Qual = SonarCloud quality gate');
+  out('E2E = Playwright   DevB = Dev Build checks   Screen = designer screen review');
+  out('✓ done  ✗ problem  … running  ◐ partly  · not yet  – not needed');
 }
 
 function main(args) {

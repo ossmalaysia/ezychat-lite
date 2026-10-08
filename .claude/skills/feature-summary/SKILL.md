@@ -1,9 +1,9 @@
 ---
-name: build-summary
-description: Show the owner a one-screen build summary per feature PR (design, dev, unit tests per OS, SonarCloud, e2e, Dev Build checks, screen review, open review comments, mergeable) and keep each feature's workbook up to date. Use when asked for a "build summary", "build status", "progress", "is it ready to merge" or "status of the PRs", and whenever an agent finishes a stage of a feature (design, dev, unit tests, e2e, Dev Build check, screen review).
+name: feature-summary
+description: Show the owner a one-screen summary of every feature PR (design, dev, unit tests per OS, SonarCloud, e2e, Dev Build checks, screen review, open review comments, ready to merge) and keep each feature's workbook up to date. Use for /feature-summary and whenever the owner asks in plain English, e.g. "feature summary", "build summary", "build status", "what's the progress", "what's ready to merge", "status of the PRs", "where are we", "did the tests pass"; also whenever an agent finishes a stage of a feature (design, dev, unit tests, e2e, Dev Build check, screen review).
 ---
 
-# Build summary and feature workbooks
+# Feature summary and feature workbooks
 
 ## Show the summary
 
@@ -12,9 +12,10 @@ node scripts/build-summary.mjs        # open PRs + the 3 most recently merged
 node scripts/build-summary.mjs 47     # one PR, with the detail of every stage
 ```
 
-Each open PR is three lines within 80 columns: `#N title`, the checkpoints
-(`Design Dev Unit Qual E2E DevB Screen Review`, each with a mark), and `→` the verdict with
-every blocker named (`✗ blocked: 1 open comment, merge conflicts`).
+Open PRs are grouped by what the owner has to do: **READY TO MERGE**, **NEEDS YOU**,
+**IN PROGRESS** (empty groups are left out). Each PR shows its plain name and every checkpoint
+(`Design Dev Unit Qual E2E DevB Screen Review`), even when all green, plus a line naming what
+blocks or is still running (`✗ 1 open comment · merge conflicts`). Every line fits 80 columns.
 
 Paste the output **as is** in a fenced code block, then at most three plain sentences: what is
 blocking, and the one next step (for example "say merge"). Do not re-type the view by hand.

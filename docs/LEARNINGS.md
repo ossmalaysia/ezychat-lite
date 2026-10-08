@@ -11,7 +11,8 @@ into AGENTS.md.
 ## Working method
 
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
-  become unreadable; put long names on their own lines and keep one short line per item.
+  become unreadable; put long names on their own lines and keep one short line per item. Lead with
+  the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
   log), never from an agent's memory of the session: record each stage when it finishes.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):

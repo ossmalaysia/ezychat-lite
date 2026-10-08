@@ -237,7 +237,7 @@ cover navigation from every admin section and recovery from malformed URLs.
 - **Feature workbook.** Every feature branch keeps `docs/workbooks/<branch>.md` (stages Design, Dev,
   Unit tests, E2E, Dev Build, Screen review + a log). Each agent records its stage as it finishes with
   `node scripts/build-summary.mjs record <stage> <status> "<detail>"` and commits the workbook with the
-  work; the owner's "build summary" (`node scripts/build-summary.mjs`, skill `build-summary`) reads it
+  work; the owner's feature summary (`/feature-summary` or plain English; `node scripts/build-summary.mjs`, skill `feature-summary`) reads it
   together with the live PR checks.
 - **One consolidated verification at the end** runs `npm run typecheck`, `npm test`, `npm run lint`,
   web build and `npm run e2e` once — nothing else runs e2e.

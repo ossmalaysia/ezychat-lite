@@ -9,6 +9,7 @@ import {
   parseWorkbook,
   renderFeature,
   renderMerged,
+  renderOverview,
   setStage,
   STAGES,
 } from './build-summary.mjs';
@@ -209,27 +210,40 @@ describe('display', () => {
     mergeState: 'BLOCKED',
   };
 
-  it('shows a feature as its name, a line of checkpoints and a verdict', () => {
+  const waiting = { ...ready, number: 49, ci: { ...ready.ci, unit: { ubuntu: 'running' } } };
+
+  it('shows a ready feature as its plain name and every checkpoint, even when all green', () => {
     expect(overviewRows(ready)).toEqual([
-      '#47  feat(ai): Edit with AI for the AI instructions and hand-off rules',
-      '     Design ✓  Dev ✓  Unit ✓  Qual ✓  E2E ✓  DevB ✓  Screen –  Review ✓',
-      '     → ✓ ready to merge',
+      '  #47  Edit with AI for the AI instructions and hand-off rules',
+      '       Design ✓  Dev ✓  Unit ✓  Qual ✓  E2E ✓  DevB ✓  Screen –  Review ✓',
     ]);
   });
 
-  it('says in words what blocks a feature', () => {
-    const [, checks, verdict] = overviewRows(running);
-    expect(checks).toBe('     Design ·  Dev ·  Unit …  Qual ·  E2E ·  DevB ·  Screen ·  Review ✗2');
-    expect(verdict).toBe('     → ✗ blocked: no workbook, unit tests running, 2 open comments');
-    const waiting = overviewRows({ ...ready, ci: { ...ready.ci, unit: { ubuntu: 'running' } } });
-    expect(waiting[2]).toBe('     → … waiting: unit tests running');
+  it('adds a line naming what blocks or what is still running', () => {
+    expect(overviewRows(running)).toEqual([
+      '  #48  Build summary',
+      '       Design ·  Dev ·  Unit …  Qual ·  E2E ·  DevB ·  Screen ·  Review ✗2',
+      '       ✗ no workbook · unit tests running · 2 open comments',
+    ]);
+    expect(overviewRows(waiting)[2]).toBe('       … unit tests running');
     const conflicts = overviewRows({ ...ready, mergeState: 'DIRTY', openComments: 1 });
-    expect(conflicts[2]).toBe('     → ✗ blocked: 1 open comment, merge conflicts');
+    expect(conflicts[2]).toBe('       ✗ 1 open comment · merge conflicts');
+  });
+
+  it('groups features by what the owner has to do, skipping empty groups', () => {
+    const lines = renderOverview([running, ready, waiting]);
+    expect(lines.filter((line) => /^[A-Z]/.test(line))).toEqual([
+      'READY TO MERGE (1)  say "merge" to go',
+      'NEEDS YOU (1)',
+      'IN PROGRESS (1)',
+    ]);
+    expect(lines.indexOf('  #47  Edit with AI for the AI instructions and hand-off rules')).toBe(1);
+    expect(renderOverview([ready]).join('\n')).not.toContain('NEEDS YOU');
   });
 
   it('keeps every line within 80 columns', () => {
     const long = { ...ready, title: `feat: ${'very long title '.repeat(10)}` };
-    for (const line of overviewRows(long)) expect([...line].length).toBeLessThanOrEqual(80);
+    for (const line of renderOverview([long])) expect([...line].length).toBeLessThanOrEqual(80);
     expect(overviewRows(long)[0]).toMatch(/…$/);
   });
 
