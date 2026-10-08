@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.26] - 2026-10-08
+
 ### Added
 
 - **Edit with AI** on the AI member page: describe a change to the AI instructions or the hand-off
