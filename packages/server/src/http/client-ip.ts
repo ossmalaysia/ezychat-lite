@@ -49,3 +49,11 @@ export function isHttps(req: FastifyRequest): boolean {
 export function isDirectLoopback(req: FastifyRequest): boolean {
   return isLoopback(peer(req)) && req.headers['cf-connecting-ip'] === undefined;
 }
+
+/**
+ * True for a direct loopback client or a request that arrived through the HTTPS tunnel; false for a
+ * LAN/plain-HTTP peer and for a loopback peer with a malformed CF-Connecting-IP.
+ */
+export function isLocalOrTunnel(req: FastifyRequest): boolean {
+  return isDirectLoopback(req) || isTrustedTunnelPeer(peer(req), req.headers['cf-connecting-ip']);
+}

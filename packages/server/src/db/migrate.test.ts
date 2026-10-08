@@ -23,8 +23,9 @@ const TABLES = [
   'jid_aliases',
   'customer_profiles',
   'customer_tags',
+  'api_tokens',
 ];
-const LATEST = 7;
+const LATEST = 8;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {

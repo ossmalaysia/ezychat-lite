@@ -25,7 +25,9 @@ into AGENTS.md.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
   the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
   data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
-  cost a fix-and-recapture round each. Add new check tooling only when a problem keeps recurring.
+  cost a fix-and-recapture round each. A hand-built HTML mockup drifts from the app (wrong nav labels,
+  section names): copy every existing label from `i18n/locales/en`. Add new check tooling only when a
+  problem keeps recurring.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
@@ -116,7 +118,8 @@ into AGENTS.md.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
   `String.raw`), never via Bash/Python heredocs (the Bash tool collapses `\\`); a scripted edit that
   must match a literal `\n` goes in a script file built with `chr(92)`. Then grep for U+0008 and broken literals. On Windows,
-  Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
+  Python writes need `PYTHONUTF8=1` and `newline='\n'` (text mode writes CRLF, like PowerShell
+  `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
@@ -166,6 +169,8 @@ into AGENTS.md.
 - Password generation requires Web Crypto. Redact credential fields from live logs (deep scrub of objects,
   arrays and Errors) and sanitise historical exports.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- Audit writes reachable without a session (failed token sign-ins) go through a per-IP-and-reason
+  limiter, or anyone can flood `audit_log`.
 - Every raw `node:http` handler parses the request target inside try/catch and answers 4xx; an uncaught
   throw ends the server process.
 - Document parsers run in a worker with time, memory and expansion limits.
@@ -195,6 +200,8 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
+  never one provider's name; state which clients a given auth method actually supports.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when
   the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`

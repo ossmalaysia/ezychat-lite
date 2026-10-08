@@ -172,6 +172,11 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 - Password generation requires cryptographic randomness. Redact credential fields from live logs
   and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).
+- AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
+  tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
+  an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.
+  MCP tools get only `InboxReadPort` (reads), return media metadata never links, and log tool name,
+  counts and token id, never arguments or message text.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
 ## UI rules (apps/web)

@@ -105,3 +105,12 @@ it('the live request log never contains search or tag terms', async () => {
   expect(out).toContain('/api/chats?status=open&q=[REDACTED]&tag=[REDACTED]');
   expect(out).not.toMatch(/Farah|VIP/);
 });
+
+it('redacts Claude access tokens anywhere in text but keeps the display prefix', () => {
+  const secret = `ezc_pat_${'Ab3_-'.repeat(8)}xyz`;
+  expect(redactSecretText(`pasted ${secret} by mistake`)).toBe(
+    'pasted ezc_pat_[REDACTED] by mistake',
+  );
+  expect(redactLogLine(JSON.stringify({ msg: `token=${secret}` }))).not.toContain(secret);
+  expect(redactSecretText('token ezc_pat_Ab3_ was revoked')).toBe('token ezc_pat_Ab3_ was revoked');
+});

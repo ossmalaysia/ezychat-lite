@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **AI assistant access (MCP, read-only):** Admin → Settings → Integrations lets an admin switch on
+  access and create personal access tokens (expire in 30, 90 or 365 days, or never; revocable). Any
+  MCP client that accepts a URL and an Authorization header (Claude Code, Gemini CLI, Codex CLI,
+  Cursor, VS Code…) then connects through the tunnel (`/mcp`) and can list and read chats, assignment
+  history, notes and messages, and get inbox statistics. It cannot send, assign or change anything.
+  Off by default; refused on the plain-HTTP LAN. ChatGPT and claude.ai connectors need OAuth sign-in,
+  which is not supported yet.
+
 ## [0.1.26] - 2026-10-08
 
 ### Added

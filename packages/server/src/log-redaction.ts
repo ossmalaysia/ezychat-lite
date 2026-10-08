@@ -39,6 +39,8 @@ const SECRET_FIELDS = [
 
 const OAUTH_URL =
   /(https?:\/\/(?:auth\.openai\.com\/oauth\/(?:authorize|token)|(?:localhost|127\.0\.0\.1):1455\/auth\/callback))\?[^\s"'<>]*/gi;
+// Personal access tokens (api-tokens/service.ts); the 12-character display prefix stays visible.
+const PAT = /\bezc_pat_[A-Za-z0-9_-]{8,}/g;
 const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 // A real token shape: 16+ token characters, or 8+ with a digit or token punctuation.
 const BEARER =
@@ -69,6 +71,7 @@ const SEARCH_PARAM = /(?<=[?&])(q|tag)=[^&#\s"']*/gi;
 export function redactSecretText(text: string): string {
   return text
     .replace(OAUTH_URL, '$1?[REDACTED]')
+    .replace(PAT, 'ezc_pat_[REDACTED]')
     .replace(JWT, '[REDACTED_JWT]')
     .replace(BEARER, 'Bearer [REDACTED]')
     .replace(JSON_TOKEN, '$1[REDACTED]')
