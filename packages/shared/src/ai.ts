@@ -69,6 +69,7 @@ export const DEFAULT_AI_INSTRUCTIONS = [
 ].join('\n');
 
 export const AI_HANDOFF_RULES_CHARACTERS = 4000;
+export const AI_INSTRUCTIONS_CHARACTERS = 8000;
 /**
  * Business hand-off rules (layer 2): cases this business wants a person to handle, on top of the
  * fixed system hand-offs (customer asks for a person, a request the AI cannot carry out, facts not
@@ -88,7 +89,7 @@ export const AiSettingsBody = z.object({
   enabled: z.boolean(),
   mode: z.enum(['api', 'chatgpt']),
   model: z.string().trim().max(128),
-  instructions: z.string().max(8000),
+  instructions: z.string().max(AI_INSTRUCTIONS_CHARACTERS),
   /** Optional in requests (older clients); the server always returns the effective rules. */
   handoffRules: z.string().max(AI_HANDOFF_RULES_CHARACTERS).optional(),
   apiKey: z.string().trim().min(10).max(512).optional(),
@@ -228,3 +229,34 @@ export const AiTryResult = z.object({
   error: z.string().nullable(),
 });
 export type AiTryResult = z.infer<typeof AiTryResult>;
+
+export const AI_EDIT_REQUEST_CHARACTERS = 500;
+/** The AI member texts "Edit with AI" can rewrite (one box at a time). */
+export const AiEditField = z.enum(['instructions', 'handoffRules']);
+export type AiEditField = z.infer<typeof AiEditField>;
+export const AI_EDIT_FIELD_CHARACTERS: Record<AiEditField, number> = {
+  instructions: AI_INSTRUCTIONS_CHARACTERS,
+  handoffRules: AI_HANDOFF_RULES_CHARACTERS,
+};
+/**
+ * Edit with AI: the admin's request applied to one box's current (possibly unsaved) text. The
+ * server returns a suggestion only; nothing is saved until the page's Save.
+ */
+export const AiEditBody = z
+  .object({
+    field: AiEditField,
+    current: z.string().max(AI_INSTRUCTIONS_CHARACTERS),
+    request: z.string().trim().min(1).max(AI_EDIT_REQUEST_CHARACTERS),
+  })
+  .refine((body) => body.current.length <= AI_EDIT_FIELD_CHARACTERS[body.field], {
+    path: ['current'],
+    message: 'Too long for this field',
+  });
+export type AiEditBody = z.infer<typeof AiEditBody>;
+export const AiEditResult = z.object({
+  ok: z.boolean(),
+  /** The full suggested text for the box (null when the edit failed). */
+  text: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type AiEditResult = z.infer<typeof AiEditResult>;
