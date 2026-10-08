@@ -84,7 +84,9 @@ only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bun
 which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
 built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
 (`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is
-longer than the prompt). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
+longer than the prompt). Rule for new data: push what is small and needed in most replies (customer
+details, current situation); add a tool only for data that is large or rarely needed (each call costs
+a model round trip). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
 the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
 (table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
