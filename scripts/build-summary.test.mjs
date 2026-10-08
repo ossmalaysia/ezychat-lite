@@ -4,6 +4,8 @@ import {
   devBuildSummary,
   overviewRows,
   paint,
+  prQuery,
+  resolveTool,
   parseWorkbook,
   renderFeature,
   renderMerged,
@@ -257,5 +259,38 @@ describe('display', () => {
     expect(paint('… CI', true)).toContain(`${ESC}[33m…`);
     expect(paint('· not yet', true)).toContain(`${ESC}[90m·`);
     expect(renderFeature(ready)).not.toContain(`${ESC}[`);
+  });
+});
+
+describe('review fixes', () => {
+  it('shows the workbook Dev status on the Dev row', () => {
+    const text = renderFeature({
+      number: 50,
+      title: 'feat: y',
+      branch: 'feat/y',
+      state: 'OPEN',
+      isDraft: false,
+      commits: 3,
+      ci: { unit: {}, quality: null },
+      workbook: { stages: { Dev: { status: 'doing', detail: 'web next', updated: '2026-10-08' } } },
+      devBuild: { pass: 0, fail: 0 },
+      openComments: 0,
+      mergeState: 'BLOCKED',
+    });
+    expect(text).toMatch(/Dev\s+… web next {2}\(2026-10-08\) · PR open, 3 commits$/m);
+  });
+
+  it('asks GitHub for a requested PR by number, not from the latest lists', () => {
+    expect(prQuery(42)).toContain('pullRequest(number: 42)');
+    expect(prQuery(42)).not.toContain('pullRequests(states');
+    expect(prQuery(null)).toContain('pullRequests(states: OPEN');
+  });
+
+  it('runs gh and git from absolute paths, never a PATH lookup', () => {
+    const exists = (path) => path === '/usr/bin/gh';
+    expect(resolveTool('gh', {}, exists, 'linux')).toBe('/usr/bin/gh');
+    expect(resolveTool('gh', { GH_PATH: '/opt/x/gh' }, () => true, 'linux')).toBe('/opt/x/gh');
+    expect(() => resolveTool('gh', { GH_PATH: 'gh' }, () => true, 'linux')).toThrow(/absolute/);
+    expect(() => resolveTool('git', {}, () => false, 'linux')).toThrow(/GIT_PATH/);
   });
 });
