@@ -1,13 +1,14 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_HANDOFF_RULES_CHARACTERS,
   AiMemberBody,
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
+  AiEditField,
   type AiMemberStatus,
   type AiSettings,
 } from '@wa-team-inbox/shared';
@@ -15,11 +16,12 @@ import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiContextPanel } from './AiContextPanel';
+import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, memberPill, type AiKnowledgeDraft } from './ai-status';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
@@ -72,6 +74,9 @@ function writeStoredDraft(key: string, draft: AiKnowledgeDraft | null) {
 const same = (a: AiKnowledgeDraft, b: AiKnowledgeDraft) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Members ▸ AI Sales Agent: set up, test and turn on the AI member (replaces the popup). */
+/** A title with Edit with AI beside it: one centred row (the card grid would put the title higher). */
+const EDIT_HEADER = 'flex flex-wrap items-center justify-between gap-2';
+
 export function AiMemberPage() {
   const query = useAiMember();
   if (!query.data)
@@ -92,6 +97,7 @@ function AiMemberEditor({
 }) {
   const { t } = useTranslation('admin');
   const reasonId = useId();
+  const editReasonId = useId();
   const action = useAiMemberAction();
   const local: LocalDefaults = {
     instructions: t('ai.defaults.instructions'),
@@ -108,6 +114,9 @@ function AiMemberEditor({
   );
   const [saved, setSaved] = useState<AiKnowledgeDraft>(() => draftFrom(status.settings, local));
   const [localError, setLocalError] = useState<string | null>(null);
+  // The field stays set while the dialog closes so its content doesn't vanish mid-animation.
+  const [editField, setEditField] = useState<AiEditField>('instructions');
+  const [editOpen, setEditOpen] = useState(false);
   const dirty = !same(draft, saved);
   const storeKey = draftKey(status);
   useEffect(() => {
@@ -176,6 +185,27 @@ function AiMemberEditor({
     Boolean(status.member) || Boolean(await save(false, t('ai.page.draftSaved')));
 
   const reason = !ready ? t('ai.page.reasonConnection') : t('ai.page.reasonKnowledge');
+  const editWithAi = (field: AiEditField) => (
+    // Centred on the title row; compact on desktop, a 44 px target on touch screens.
+    <CardAction className="self-center">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="pointer-coarse:min-h-11"
+        disabled={!ready || action.isPending}
+        title={ready ? undefined : t('ai.edit.unavailable')}
+        aria-describedby={ready ? undefined : editReasonId}
+        onClick={() => {
+          setEditField(field);
+          setEditOpen(true);
+        }}
+      >
+        <Sparkles aria-hidden />
+        {t('ai.edit.open')}
+      </Button>
+    </CardAction>
+  );
   return (
     <div className="flex flex-col gap-4 pb-4">
       <nav aria-label={t('ai.page.breadcrumb')} className="flex items-center gap-1 text-sm">
@@ -255,8 +285,9 @@ function AiMemberEditor({
       </Card>
 
       <Card className="gap-4">
-        <CardHeader>
+        <CardHeader className={EDIT_HEADER}>
           <CardTitle>{t('ai.page.stepInstructions')}</CardTitle>
+          {editWithAi(AiEditField.enum.instructions)}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {isDefaultInstructions(draft.instructions) && (
@@ -306,8 +337,9 @@ function AiMemberEditor({
       />
 
       <Card className="gap-4">
-        <CardHeader>
+        <CardHeader className={EDIT_HEADER}>
           <CardTitle>{t('ai.page.stepHandoff')}</CardTitle>
+          {editWithAi(AiEditField.enum.handoffRules)}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <Banner tone="info">{t('ai.page.handoffSystem')}</Banner>
@@ -375,6 +407,22 @@ function AiMemberEditor({
       {(localError || action.error) && (
         <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>
       )}
+
+      {!ready && (
+        <span id={editReasonId} className="sr-only">
+          {t('ai.edit.unavailable')}
+        </span>
+      )}
+      <AiEditDialog
+        field={editField}
+        current={draft[editField]}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onApply={(text) => {
+          setDraft((old) => ({ ...old, [editField]: text }));
+          toast.success(t('ai.edit.applied'));
+        }}
+      />
 
       <SaveBar dirty={dirty}>
         <Button

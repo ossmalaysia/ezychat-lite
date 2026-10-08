@@ -54,6 +54,23 @@ test('admin sets up the AI connection inline and builds the AI member page on de
       .getByLabel('AI instructions', { exact: true })
       .fill('Answer politely in the customer’s language.');
 
+    // Edit with AI opens a review dialog. Suggest is never pressed: it would call a model.
+    const instructionsCard = page.locator('[data-slot="card"]').filter({
+      has: page.locator('[data-slot="card-title"]', { hasText: /^AI instructions$/ }),
+    });
+    await instructionsCard.getByRole('button', { name: 'Edit with AI', exact: true }).click();
+    const editDialog = page.getByRole('dialog');
+    await expect(
+      editDialog.getByText('Edit AI instructions with AI', { exact: true }),
+    ).toBeVisible();
+    await expect(editDialog.getByRole('button', { name: 'Suggest', exact: true })).toBeDisabled();
+    await expectNoHorizontalScroll(page, `members/ai edit dialog ${tag}`);
+    await editDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByLabel('AI instructions', { exact: true })).toHaveValue(
+      'Answer politely in the customer’s language.',
+    );
+
     // Turn on is guarded until there is business context.
     const turnOn = page.getByRole('button', { name: 'Turn on', exact: true });
     await expect(turnOn).toBeDisabled();

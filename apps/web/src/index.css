@@ -43,6 +43,8 @@
   --success: #15803d;
   --warning: #92400e;
   --danger: #dc2626;
+  /* Modal backdrop: rgb, because oklab(0 0 0 / x) paints transparent in current Chrome. */
+  --overlay: rgb(0 0 0 / 0.5);
   --info: #0369a1;
   --unread: #0f766e;
 }
@@ -154,6 +156,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-overlay: var(--overlay);
   --color-info: var(--info);
   --color-unread: var(--unread);
 }

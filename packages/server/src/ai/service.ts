@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type {
   AiContextPatchBody,
+  AiEditBody,
+  AiEditResult,
   AiHandoffReason,
   AiDocumentView,
   AiMemberBody,
@@ -18,6 +20,7 @@ import {
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_ITEMS,
   AI_CONTEXT_PREVIEW_CHARACTERS,
+  AI_EDIT_FIELD_CHARACTERS,
   AiConnectionBody,
   AiContextTextBody,
   AiDecision,
@@ -41,6 +44,7 @@ const conversation = (history: Message[], aiUserId: number): AiConversationTurn[
   }));
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
+import { buildEditPrompt } from './edit-prompt.js';
 import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
@@ -105,6 +109,9 @@ export interface AiService {
   models(): Promise<AiModelList>;
   testConnection(): Promise<AiTestResult>;
   tryAnswer(body: AiTryBody): Promise<AiTryResult>;
+  /** Edit with AI: a suggested rewrite of one AI member text; nothing is saved. */
+  /** `signal`: the admin cancelled (closed the popup) — stop the AI call. */
+  editText(body: AiEditBody, signal?: AbortSignal): Promise<AiEditResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
   shutdown(): Promise<void>;
 }
@@ -1107,6 +1114,54 @@ export function createAiService(
           error: error instanceof Error ? error.message : 'The AI could not answer.',
         };
       }
+    },
+    async editText(body, signal) {
+      if (!ready() || !provider.rewrite)
+        return { ok: false, text: null, error: 'Connect the AI in Settings → AI first.' };
+      const started = Date.now();
+      let model: string | null = null;
+      let result: AiEditResult;
+      try {
+        const suggestion = await provider.rewrite(
+          settings(),
+          ctx.settings.getSecret(SECRET_KEY),
+          {
+            ...buildEditPrompt({
+              field: body.field,
+              current: body.current,
+              request: body.request,
+              businessKnowledge: relevantKnowledge(knowledgeSources(contextItems()), body.request),
+            }),
+            cacheId: installId(),
+          },
+          signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+            : AbortSignal.timeout(60_000),
+        );
+        model = suggestion.model;
+        const text = suggestion.text.trim();
+        result = !text
+          ? { ok: false, text: null, error: 'The AI returned an empty suggestion. Try again.' }
+          : text.length > AI_EDIT_FIELD_CHARACTERS[body.field]
+            ? {
+                ok: false,
+                text: null,
+                error: 'The suggestion is too long for this box. Try a smaller change.',
+              }
+            : { ok: true, text, error: null };
+      } catch (error) {
+        result = {
+          ok: false,
+          text: null,
+          error: error instanceof Error ? error.message : 'The AI could not suggest an edit.',
+        };
+      }
+      // Never the request, the current text or the suggestion: they can hold business details.
+      log.info(
+        { event: 'ai_edit', field: body.field, ok: result.ok, ms: Date.now() - started, model },
+        'AI edit',
+      );
+      return result;
     },
     canSend(jid, userId, quotedId) {
       return (

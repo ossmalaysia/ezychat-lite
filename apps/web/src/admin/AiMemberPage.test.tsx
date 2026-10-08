@@ -510,6 +510,95 @@ describe('AI member page', () => {
     expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
   });
 
+  describe('Edit with AI', () => {
+    const card = (title: string) =>
+      screen
+        .getByText(title, { selector: '[data-slot="card-title"]' })
+        .closest('[data-slot="card"]')!;
+
+    it('applies a suggestion to the hand-off rules box without saving', async () => {
+      const initial = status();
+      initial.settings.handoffRules = 'Hand off complaints.';
+      const { fetchMock } = setup(initial, (url, init) =>
+        url === '/api/ai/edit' && init?.method === 'POST'
+          ? json({
+              ok: true,
+              text: 'Hand off complaints.\nHand off refund requests.',
+              error: null,
+            })
+          : undefined,
+      );
+      const user = userEvent.setup();
+      await screen.findByText('Name & role');
+      await user.click(
+        within(card('Hand-off rules') as HTMLElement).getByRole('button', {
+          name: 'Edit with AI',
+        }),
+      );
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Edit hand-off rules with AI')).toBeTruthy();
+      await user.type(
+        within(dialog).getByLabelText('What should change?'),
+        'Hand refund requests to a person',
+      );
+      await user.click(within(dialog).getByRole('button', { name: 'Suggest' }));
+      await within(dialog).findByText('Suggested hand-off rules');
+      const sent = fetchMock.mock.calls.find((call) => call[0] === '/api/ai/edit');
+      expect(JSON.parse(String(sent![1]!.body))).toEqual({
+        field: 'handoffRules',
+        current: 'Hand off complaints.',
+        request: 'Hand refund requests to a person',
+      });
+      await user.click(within(dialog).getByRole('button', { name: 'Apply to hand-off rules' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toBe(
+        'Hand off complaints.\nHand off refund requests.',
+      );
+      expect(screen.getByText('Unsaved')).toBeTruthy();
+      expect(writes(fetchMock).map((call) => call[0])).toEqual(['/api/ai/edit']);
+    });
+
+    it('opens on the AI instructions card for that box', async () => {
+      setup();
+      const user = userEvent.setup();
+      await screen.findByText('Name & role');
+      // Compact next to the card title on desktop, a 44 px target on touch screens.
+      const open = within(card('AI instructions') as HTMLElement).getByRole('button', {
+        name: 'Edit with AI',
+      });
+      expect(open.className).toMatch(/(^|\s)h-8(\s|$)/);
+      expect(open.className).toMatch(/(^|\s)pointer-coarse:min-h-11(\s|$)/);
+      expect(open.parentElement!.className).toMatch(/(^|\s)self-center(\s|$)/);
+      expect(open.closest('[data-slot="card-header"]')!.className).toMatch(
+        /(^|\s)items-center(\s|$)/,
+      );
+      await user.click(open);
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Edit AI instructions with AI')).toBeTruthy();
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('is disabled with the reason while the AI is not connected', async () => {
+      const initial = status();
+      initial.hasApiKey = false;
+      setup(initial);
+      await screen.findByText('Name & role');
+      const buttons = screen.getAllByRole('button', { name: 'Edit with AI' });
+      expect(buttons).toHaveLength(2);
+      for (const button of buttons) {
+        expect((button as HTMLButtonElement).disabled).toBe(true);
+        expect(button.getAttribute('title')).toBe(
+          'Connect the AI in Settings → AI to use Edit with AI.',
+        );
+        const describedBy = button.getAttribute('aria-describedby') ?? '';
+        expect(document.getElementById(describedBy)?.textContent).toBe(
+          'Connect the AI in Settings → AI to use Edit with AI.',
+        );
+      }
+    });
+  });
+
   it('shows the never-edited defaults in the admin language (Malay)', async () => {
     await activateLocale('ms');
     try {

@@ -17,6 +17,9 @@ into AGENTS.md.
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
   log), never from an agent's memory of the session: record each stage when it finishes.
+- A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
+  (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
+  constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
@@ -99,6 +102,8 @@ into AGENTS.md.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
+- SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
+  `it.each` tables.
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
@@ -190,6 +195,8 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Any paid model call started from the UI is cancellable end to end: the page aborts its request when
+  the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`
   `reasoning.encrypted_content` (else `item_reference` to unkept reasoning ids → HTTP 404); lift the
   SDK's `system` message into `instructions` (cache layout; the ChatGPT route rejects `system`); set
@@ -260,6 +267,13 @@ into AGENTS.md.
   their own width (`@container`), not viewport breakpoints: the desktop inbox list is narrower than a
   phone. Truncation assertions target the element carrying `truncate`, and must
   fail without the fix (a check on its parent passed while the name showed one letter).
+- Modal backdrops use the `bg-overlay` token (`rgb(0 0 0 / 0.5)`), never `bg-black/50`: its
+  `oklab(0 0 0 / 0.5)` paints fully transparent in current Chrome, so dialogs stop dimming the page
+  (bottom drawers hid it because vaul adds its own backdrop). Guarded by `ui/overlay.test.ts`.
+- A before/after review of long text shows the changes with one line of context and folds the rest
+  ("⋯ 19 unchanged lines"); a full-text diff buries the change below the fold.
+- A multi-step task on a page (describe → review → apply) opens in a dialog (a full-height bottom sheet
+  at 360 px), not an inline panel that stretches the card; the page keeps its own Save.
 - In a crowded row decide which item gives up width: short, meaningless-when-cut chips (tags, counts) are
   `shrink-0` with a `max-w` cap; names and previews (`min-w-0 shrink` + `truncate`) give way first. Re-check
   rows with every badge present (assignee + tags + unread), not just the demo row that looked fine.

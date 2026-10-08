@@ -6,6 +6,7 @@ import {
   AiConnectionBody,
   AiContextPatchBody,
   AiContextTextBody,
+  AiEditBody,
   AiMemberBody,
   AiTryBody,
   VoiceSettingBody,
@@ -33,6 +34,7 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   const signInLimiter = new WindowLimiter({ windowMs: 60_000, max: 5 });
   const pasteLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
   const tryLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const editLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
   const limit = (limiter: WindowLimiter, req: FastifyRequest) => {
     const result = limiter.hit(String(req.user!.id));
     if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
@@ -67,6 +69,18 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.post('/ai/try', async (req) => {
     limit(tryLimiter, req);
     const result = await ai.tryAnswer(parse(AiTryBody, req.body));
+    recheck(req);
+    return result;
+  });
+  // Edit with AI: returns a suggestion for one box; the page saves it only on Save.
+  app.post('/ai/edit', async (req, reply) => {
+    limit(editLimiter, req);
+    // The admin closed the popup (the browser dropped the request): stop the AI call.
+    const cancel = new AbortController();
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableFinished) cancel.abort();
+    });
+    const result = await ai.editText(parse(AiEditBody, req.body), cancel.signal);
     recheck(req);
     return result;
   });

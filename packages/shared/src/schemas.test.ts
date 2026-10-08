@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AI_EDIT_REQUEST_CHARACTERS,
+  AI_HANDOFF_RULES_CHARACTERS,
+  AI_INSTRUCTIONS_CHARACTERS,
+  AiEditBody,
+  AiEditResult,
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_NAME_CHARACTERS,
   AiContextPatchBody,
@@ -201,6 +206,55 @@ describe('AI member knowledge', () => {
     });
     expect(parsed.knowledge).toEqual({ displayName: 'A', instructions: 'Be brief' });
     expect(AiTryBody.safeParse({ question: 'x', knowledge: { displayName: 'A' } }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('Edit with AI', () => {
+  it('takes the field, its current (unsaved) text and the request', () => {
+    expect(
+      AiEditBody.parse({
+        field: 'handoffRules',
+        current: '- Complaints',
+        request: '  Add refunds  ',
+      }),
+    ).toEqual({ field: 'handoffRules', current: '- Complaints', request: 'Add refunds' });
+    expect(AiEditBody.safeParse({ field: 'displayName', current: '', request: 'x' }).success).toBe(
+      false,
+    );
+    expect(
+      AiEditBody.safeParse({ field: 'instructions', current: '', request: '   ' }).success,
+    ).toBe(false);
+    expect(
+      AiEditBody.safeParse({
+        field: 'instructions',
+        current: '',
+        request: 'x'.repeat(AI_EDIT_REQUEST_CHARACTERS + 1),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('caps the current text at the limit of the field being edited', () => {
+    const rules = 'x'.repeat(AI_HANDOFF_RULES_CHARACTERS + 1);
+    expect(
+      AiEditBody.safeParse({ field: 'handoffRules', current: rules, request: 'x' }).success,
+    ).toBe(false);
+    expect(
+      AiEditBody.safeParse({ field: 'instructions', current: rules, request: 'x' }).success,
+    ).toBe(true);
+    expect(
+      AiEditBody.safeParse({
+        field: 'instructions',
+        current: 'x'.repeat(AI_INSTRUCTIONS_CHARACTERS + 1),
+        request: 'x',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('returns the suggested text or a readable error', () => {
+    expect(AiEditResult.parse({ ok: true, text: '- Refunds', error: null }).text).toBe('- Refunds');
+    expect(AiEditResult.parse({ ok: false, text: null, error: 'Connect the AI first.' }).ok).toBe(
       false,
     );
   });
