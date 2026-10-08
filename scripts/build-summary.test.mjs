@@ -209,37 +209,28 @@ describe('display', () => {
     mergeState: 'BLOCKED',
   };
 
-  it('draws every open feature as one row of a bordered table, one mark per stage', () => {
-    const lines = overviewRows([ready, running], 120);
-    const cells = (line) =>
-      line
-        .split('│')
-        .slice(1, -1)
-        .map((cell) => cell.trim());
-    expect(lines[0]).toMatch(/^┌─+┬.*┐$/);
-    expect(cells(lines[1])).toEqual([
-      'PR',
-      'Feature',
-      'Design',
-      'Dev',
-      'Unit',
-      'Qual',
-      'E2E',
-      'DevB',
-      'Screen',
-      'Review',
-      'Merge',
+  it('shows a feature as its name, a line of checkpoints and a verdict', () => {
+    expect(overviewRows(ready)).toEqual([
+      '#47  feat(ai): Edit with AI for the AI instructions and hand-off rules',
+      '     Design ✓  Dev ✓  Unit ✓  Qual ✓  E2E ✓  DevB ✓  Screen –  Review ✓',
+      '     → ✓ ready to merge',
     ]);
-    expect(lines[2]).toMatch(/^├─+┼.*┤$/);
-    const [first, second] = [cells(lines[3]), cells(lines[4])];
-    expect(first[0]).toBe('#47');
-    expect(first[1]).toMatch(/^feat\(ai\): Edit with AI.*…$/); // shortened to fit
-    expect(first.slice(2)).toEqual(['✓', '✓', '✓', '✓', '✓', '✓', '–', '✓', '✓ ready']);
-    expect(second.slice(2)).toEqual(['·', '·', '…', '·', '·', '·', '·', '✗ 2', '✗ blocked']);
-    expect(lines.at(-1)).toMatch(/^└─+┴.*┘$/);
-    // Every line has the same width and fits the terminal.
-    expect(new Set(lines.map((line) => [...line].length)).size).toBe(1);
-    expect([...lines[0]].length).toBeLessThanOrEqual(120);
+  });
+
+  it('says in words what blocks a feature', () => {
+    const [, checks, verdict] = overviewRows(running);
+    expect(checks).toBe('     Design ·  Dev ·  Unit …  Qual ·  E2E ·  DevB ·  Screen ·  Review ✗2');
+    expect(verdict).toBe('     → ✗ blocked: no workbook, unit tests running, 2 open comments');
+    const waiting = overviewRows({ ...ready, ci: { ...ready.ci, unit: { ubuntu: 'running' } } });
+    expect(waiting[2]).toBe('     → … waiting: unit tests running');
+    const conflicts = overviewRows({ ...ready, mergeState: 'DIRTY', openComments: 1 });
+    expect(conflicts[2]).toBe('     → ✗ blocked: 1 open comment, merge conflicts');
+  });
+
+  it('keeps every line within 80 columns', () => {
+    const long = { ...ready, title: `feat: ${'very long title '.repeat(10)}` };
+    for (const line of overviewRows(long)) expect([...line].length).toBeLessThanOrEqual(80);
+    expect(overviewRows(long)[0]).toMatch(/…$/);
   });
 
   it('collapses merged features to one line each', () => {

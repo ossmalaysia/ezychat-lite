@@ -163,15 +163,6 @@ const MERGE_LONG = {
   DIRTY: '✗ merge conflicts',
   DRAFT: '◐ draft',
 };
-const MERGE_SHORT = {
-  CLEAN: '✓ ready',
-  UNKNOWN: '· checking',
-  UNSTABLE: '◐ unstable',
-  BEHIND: '◐ behind',
-  BLOCKED: '✗ blocked',
-  DIRTY: '✗ conflicts',
-  DRAFT: '◐ draft',
-};
 const mergeText = (table, state) => table[state] ?? `· ${String(state).toLowerCase()}`;
 const reviewText = (open) => (open ? `✗ ${plural(open, 'open comment')}` : '✓ no open comments');
 
@@ -237,19 +228,12 @@ export function paint(text, colour) {
 }
 const bold = (text, colour) => (colour ? `${ESC}[1m${text}${ESC}[22m` : text);
 
-const COLUMNS = [
-  ['Design', 6],
-  ['Dev', 3],
-  ['Unit', 4],
-  ['Qual', 4],
-  ['E2E', 3],
-  ['DevB', 4],
-  ['Screen', 6],
-  ['Review', 6],
-];
+const CHECKPOINTS = ['Design', 'Dev', 'Unit', 'Qual', 'E2E', 'DevB', 'Screen', 'Review'];
+const INDENT = '     ';
+const WIDTH = 80;
 
-/** The overview marks of one feature, in COLUMNS order, then Merge. */
-function overviewMarks(f) {
+/** The checkpoint marks of one feature, in CHECKPOINTS order. */
+function checkpointMarks(f) {
   const stages = f.workbook?.stages ?? {};
   const mark = (entry) => (isSet(entry) ? MARK[entry.status] : '·');
   return [
@@ -260,37 +244,51 @@ function overviewMarks(f) {
     mark(stages.E2E),
     devBuildState(stages['Dev Build'], f.devBuild).mark,
     mark(stages['Screen review']),
-    f.openComments ? `✗ ${f.openComments}` : '✓',
-    mergeText(MERGE_SHORT, f.mergeState),
+    f.openComments ? `✗${f.openComments}` : '✓',
   ];
 }
 
-const centre = (text, width) => {
-  const left = Math.floor((width - [...text].length) / 2);
-  return `${' '.repeat(left)}${text}`.padEnd(width);
-};
-
-/** Open features as a bordered table that fits `width` columns (the feature title is shortened). */
-export function overviewRows(features, width = 120) {
-  const headers = ['PR', 'Feature', ...COLUMNS.map(([name]) => name), 'Merge'];
-  const fixed = [4, ...COLUMNS.map(([, size]) => size), 11];
-  const borders = 3 * headers.length + 1;
-  const titleWidth = Math.max(20, width - borders - fixed.reduce((sum, size) => sum + size, 0));
-  const widths = [fixed[0], titleWidth, ...fixed.slice(1)];
-  const short = (title) =>
-    [...title].length > titleWidth ? `${[...title].slice(0, titleWidth - 1).join('')}…` : title;
-  const cell = (text, index, count) =>
-    index > 1 && index < count - 1 ? centre(text, widths[index]) : text.padEnd(widths[index]);
-  const line = (cells) =>
-    `│ ${cells.map((text, index) => cell(text, index, cells.length)).join(' │ ')} │`;
-  const rule = (left, middle, right) =>
-    `${left}${widths.map((size) => '─'.repeat(size + 2)).join(middle)}${right}`;
+/** What stops a feature from merging, in checkpoint order: { text, running }. */
+function blockers(f) {
+  const stages = f.workbook?.stages ?? {};
+  const unit = unitMark(f.ci.unit);
+  const quality = f.ci.quality;
+  const failedStages = ['E2E', 'Dev Build'].filter((stage) => stages[stage]?.status === 'fail');
   return [
-    rule('┌', '┬', '┐'),
-    line(headers),
-    rule('├', '┼', '┤'),
-    ...features.map((f) => line([`#${f.number}`, short(f.title), ...overviewMarks(f)])),
-    rule('└', '┴', '┘'),
+    !f.workbook && { text: 'no workbook' },
+    unit === '✗' && { text: 'unit tests failing' },
+    unit === '…' && { text: 'unit tests running', running: true },
+    quality === 'fail' && { text: 'SonarCloud failing' },
+    quality === 'running' && { text: 'SonarCloud running', running: true },
+    ...failedStages.map((stage) => ({ text: `${stage} failing` })),
+    f.openComments > 0 && { text: plural(f.openComments, 'open comment') },
+    f.mergeState === 'DIRTY' && { text: 'merge conflicts' },
+    f.mergeState === 'BEHIND' && { text: 'behind main' },
+    f.isDraft && { text: 'draft' },
+  ].filter(Boolean);
+}
+
+/** "✓ ready to merge", "… waiting: …" or "✗ blocked: …". */
+function verdict(f) {
+  const reasons = blockers(f);
+  const list = reasons.map((reason) => reason.text).join(', ');
+  if (reasons.some((reason) => !reason.running)) return `✗ blocked: ${list}`;
+  if (reasons.length) return `… waiting: ${list}`;
+  if (f.mergeState === 'CLEAN') return '✓ ready to merge';
+  return mergeText(MERGE_LONG, f.mergeState);
+}
+
+const fit = (text) =>
+  [...text].length > WIDTH ? `${[...text].slice(0, WIDTH - 1).join('')}…` : text;
+
+/** One open feature in three short lines: name, checkpoints, verdict (each within 80 columns). */
+export function overviewRows(f) {
+  const marks = checkpointMarks(f);
+  const checks = CHECKPOINTS.map((name, index) => `${name} ${marks[index]}`).join('  ');
+  return [
+    fit(`#${f.number}  ${f.title}`),
+    fit(`${INDENT}${checks}`),
+    fit(`${INDENT}→ ${verdict(f)}`),
   ];
 }
 
@@ -434,7 +432,7 @@ function record(args) {
   console.log(`${path}: ${stage} → ${status} (${detail}). Commit it with the work.`);
 }
 
-function printSummary(list, colour, width) {
+function printSummary(list, colour, detailed) {
   const out = (text = '') => console.log(paint(text, colour));
   const open = list.filter((f) => f.state !== 'MERGED');
   const merged = list.filter((f) => f.state === 'MERGED');
@@ -442,14 +440,15 @@ function printSummary(list, colour, width) {
   console.log(bold(`Build summary — ${stamp}`, colour));
   out();
   if (!list.length) out('No pull requests found.');
-  if (open.length) {
-    overviewRows(open, width).forEach((line) => out(line));
-    out();
-  }
   for (const feature of open) {
-    const [title, ...details] = renderFeature(feature).split('\n');
+    const [title, ...rest] = overviewRows(feature);
     console.log(bold(title, colour));
-    details.forEach((line) => out(line));
+    rest.forEach((line) => out(line));
+    if (detailed)
+      renderFeature(feature)
+        .split('\n')
+        .slice(1)
+        .forEach((line) => out(line));
     out();
   }
   if (merged.length) {
@@ -465,9 +464,9 @@ function main(args) {
   // Colour only in a real terminal: piped or pasted output stays plain text.
   const colour =
     Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && !args.includes('--plain');
-  const width = Math.min(Math.max(process.stdout.columns || 120, 100), 160);
   const number = args.find((arg) => /^\d+$/.test(arg));
-  printSummary(features(number ? Number(number) : null), colour, width);
+  // One PR asked for by number also gets its full details.
+  printSummary(features(number ? Number(number) : null), colour, Boolean(number));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])

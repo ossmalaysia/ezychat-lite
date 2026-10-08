@@ -6,8 +6,8 @@ Branch: `chore/build-summary` · Every agent updates its stage with
 | Stage | Status | Detail | Updated |
 | --- | --- | --- | --- |
 | Design | done | owner asked for a one-screen build summary + per-feature workbook | 2026-10-08 |
-| Dev | done | table, colours; review fixes: Dev row from workbook, PR by number; gh/git by absolute path | 2026-10-08 |
-| Unit tests | pass | 16 build-summary tests | 2026-10-08 |
+| Dev | done | nested 3-line view per feature, 80 columns | 2026-10-08 |
+| Unit tests | pass | 18 passed | 2026-10-08 |
 | E2E | skip | tooling only, no app change | 2026-10-08 |
 | Dev Build | skip | no app change | 2026-10-08 |
 | Screen review | skip | console output only | 2026-10-08 |
@@ -24,3 +24,5 @@ Branch: `chore/build-summary` · Every agent updates its stage with
 - 2026-10-08 Unit tests: pass — 13 build-summary tests
 - 2026-10-08 Dev: done — table, colours; review fixes: Dev row from workbook, PR by number; gh/git by absolute path
 - 2026-10-08 Unit tests: pass — 16 build-summary tests
+- 2026-10-08 Dev: done — nested 3-line view per feature, 80 columns
+- 2026-10-08 Unit tests: pass — 18 passed

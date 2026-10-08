@@ -9,8 +9,12 @@ description: Show the owner a one-screen build summary per feature PR (design, d
 
 ```bash
 node scripts/build-summary.mjs        # open PRs + the 3 most recently merged
-node scripts/build-summary.mjs 47     # one PR
+node scripts/build-summary.mjs 47     # one PR, with the detail of every stage
 ```
+
+Each open PR is three lines within 80 columns: `#N title`, the checkpoints
+(`Design Dev Unit Qual E2E DevB Screen Review`, each with a mark), and `→` the verdict with
+every blocker named (`✗ blocked: 1 open comment, merge conflicts`).
 
 Paste the output **as is** in a fenced code block, then at most three plain sentences: what is
 blocking, and the one next step (for example "say merge"). Do not re-type the view by hand.
@@ -40,4 +44,4 @@ node scripts/build-summary.mjs record screen done "8 findings fixed, re-captured
 ## Marks
 
 `✓` done · `✗` problem · `…` in progress · `◐` partly · `·` not yet · `–` not needed.
-"Mergeable ✓" still needs the owner's go-ahead to merge.
+"→ ✓ ready to merge" still needs the owner's go-ahead to merge.
