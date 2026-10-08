@@ -10,6 +10,13 @@ into AGENTS.md.
 
 ## Working method
 
+- Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
+  become unreadable; put long names on their own lines and keep one short line per item. Lead with
+  the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
+- A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
+  on a feature branch it is not live in the owner's main checkout until merged — say so.
+- Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
+  log), never from an agent's memory of the session: record each stage when it finishes.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
@@ -93,6 +100,8 @@ into AGENTS.md.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
+- SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
+  `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
   `it.each` tables.
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
