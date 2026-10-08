@@ -77,7 +77,8 @@ name or number match.
 claims, answers, hands off or resolves a chat; `prompt.ts` builds the single prompt used by live replies
 and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (admin-only, Edit with AI:
 `ai/edit-prompt.ts` + `ai/agent/rewrite.ts`) only suggests a rewrite of one box — the page applies it to its
-draft and its Save persists it; log field/ok/ms only, never the texts; `resolution.ts` is the resolution guard;
+draft and its Save persists it; its log line holds field, ok, ms and model only — never the request,
+the current text or the suggestion; closing the popup aborts the request and the model call; `resolution.ts` is the resolution guard;
 `knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in

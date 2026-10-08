@@ -73,9 +73,14 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     return result;
   });
   // Edit with AI: returns a suggestion for one box; the page saves it only on Save.
-  app.post('/ai/edit', async (req) => {
+  app.post('/ai/edit', async (req, reply) => {
     limit(editLimiter, req);
-    const result = await ai.editText(parse(AiEditBody, req.body));
+    // The admin closed the popup (the browser dropped the request): stop the AI call.
+    const cancel = new AbortController();
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableFinished) cancel.abort();
+    });
+    const result = await ai.editText(parse(AiEditBody, req.body), cancel.signal);
     recheck(req);
     return result;
   });

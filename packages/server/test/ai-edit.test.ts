@@ -148,6 +148,26 @@ it('passes provider errors on', async () => {
   });
 });
 
+it('stops the AI call when the edit is cancelled (the admin closed the popup)', async () => {
+  let seen: AbortSignal | undefined;
+  vi.mocked(provider.rewrite!).mockImplementationOnce(
+    (_settings, _key, _prompt, signal) =>
+      new Promise((_resolve, reject) => {
+        seen = signal;
+        signal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')));
+      }),
+  );
+  const controller = new AbortController();
+  const pending = t.ctx.services.ai!.editText(
+    { field: 'instructions', current: CURRENT, request: REQUEST },
+    controller.signal,
+  );
+  await vi.waitFor(() => expect(seen).toBeDefined());
+  controller.abort();
+  expect(await pending).toMatchObject({ ok: false, text: null });
+  expect(seen!.aborted).toBe(true);
+});
+
 it('logs one line without the request, current text or suggestion', async () => {
   await edit(body);
   const lines = logLines.filter((line) => line.includes('"ai_edit"'));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AI_EDIT_REQUEST_CHARACTERS, type AiEditField } from '@wa-team-inbox/shared';
 import { useAiEdit } from '../api/ai';
@@ -49,9 +49,19 @@ export function AiEditDialog({
       : null;
   const markLabel = { same: '', del: t('ai.edit.removed'), add: t('ai.edit.added') };
 
+  // The request being written; cancelled on close, on a new request and on unmount, so a closed
+  // popup never keeps a paid model call running.
+  const running = useRef<AbortController | null>(null);
+  const stop = () => {
+    running.current?.abort();
+    running.current = null;
+  };
+  useEffect(() => stop, []);
+
   const close = (next: boolean) => {
     if (!next) {
       // A reopened dialog starts fresh.
+      stop();
       setRequest('');
       edit.reset();
     }
@@ -60,7 +70,10 @@ export function AiEditDialog({
   const suggest = () => {
     const text = request.trim();
     if (!text || edit.isPending) return;
-    edit.mutate({ field, current, request: text });
+    stop();
+    const controller = new AbortController();
+    running.current = controller;
+    edit.mutate({ body: { field, current, request: text }, signal: controller.signal });
   };
   const apply = () => {
     if (suggestion === null || !changed) return;

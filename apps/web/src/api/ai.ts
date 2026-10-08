@@ -65,10 +65,11 @@ export function useAiTry() {
 }
 
 /** Edit with AI: a suggested rewrite of one box; nothing is saved (the page's Save does that). */
+/** Edit with AI. Pass a signal so closing the popup stops the (paid) model call. */
 export function useAiEdit() {
   return useMutation({
-    mutationFn: (body: AiEditBody) =>
-      api('/ai/edit', { method: 'POST', body, schema: AiEditResult }),
+    mutationFn: ({ body, signal }: { body: AiEditBody; signal: AbortSignal }) =>
+      api('/ai/edit', { method: 'POST', body, schema: AiEditResult, signal }),
   });
 }
 

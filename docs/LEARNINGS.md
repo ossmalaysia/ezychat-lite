@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
+  (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
+  constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
@@ -90,6 +93,8 @@ into AGENTS.md.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
+- SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
+  `it.each` tables.
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
@@ -181,6 +186,8 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Any paid model call started from the UI is cancellable end to end: the page aborts its request when
+  the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`
   `reasoning.encrypted_content` (else `item_reference` to unkept reasoning ids → HTTP 404); lift the
   SDK's `system` message into `instructions` (cache layout; the ChatGPT route rejects `system`); set

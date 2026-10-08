@@ -1,100 +1,98 @@
 import { describe, expect, it } from 'vitest';
-import { collapseDiff, lineDiff } from './line-diff';
+import { collapseDiff, DIFF_MAX_LINE_PAIRS, lineDiff, type DiffLine } from './line-diff';
+
+/** `' a'` unchanged, `'-a'` removed, `'+a'` added. */
+const lines = (...spec: string[]): DiffLine[] =>
+  spec.map((s) => ({
+    type: s[0] === '-' ? 'del' : s[0] === '+' ? 'add' : 'same',
+    text: s.slice(1),
+  }));
 
 describe('lineDiff', () => {
-  it('marks identical text as unchanged lines', () => {
-    expect(lineDiff('a\nb', 'a\nb')).toEqual([
-      { type: 'same', text: 'a' },
-      { type: 'same', text: 'b' },
-    ]);
+  it.each([
+    ['identical text', 'a\nb', 'a\nb', lines(' a', ' b')],
+    ['a trailing empty line is ignored', 'a\nb\n', 'a\nb', lines(' a', ' b')],
+    ['pure additions', 'a', 'a\nb\nc', lines(' a', '+b', '+c')],
+    ['pure deletions', 'a\nb\nc', 'b', lines('-a', ' b', '-c')],
+    [
+      'a changed line: old, then new',
+      'one\ntwo\nthree',
+      'one\nTWO\nthree',
+      lines(' one', '-two', '+TWO', ' three'),
+    ],
+    [
+      'a changed block: all removals first',
+      'x\na\nb\ny',
+      'x\nc\nd\ny',
+      lines(' x', '-a', '-b', '+c', '+d', ' y'),
+    ],
+    ['empty before', '', 'a\nb', lines('+a', '+b')],
+    ['empty after', 'a', '', lines('-a')],
+    ['both empty', '', '', []],
+    ['blank lines inside the text', 'a\n\nb', 'a\n\nb\nc', lines(' a', ' ', ' b', '+c')],
+  ])('%s', (_name, before, after, expected) => {
+    expect(lineDiff(before, after)).toEqual(expected);
   });
 
-  it('ignores a trailing empty line', () => {
-    expect(lineDiff('a\nb\n', 'a\nb')).toEqual([
-      { type: 'same', text: 'a' },
-      { type: 'same', text: 'b' },
-    ]);
+  it('stays fast and small for line-dense text (thousands of blank lines)', () => {
+    // The worst valid input: an 8,000-character box that is almost all line breaks, changed at
+    // both ends so no shared start or end can be skipped.
+    const blank = '\n'.repeat(7997);
+    const started = performance.now();
+    const diff = lineDiff(`x${blank}y`, `X${blank}Y`);
+    expect(performance.now() - started).toBeLessThan(500);
+    // Too many line pairs to compare one by one: shown as the old block, then the new block.
+    expect(diff[0]).toEqual({ type: 'del', text: 'x' });
+    expect(diff.at(-1)).toEqual({ type: 'add', text: 'Y' });
+    expect(diff.findIndex((l) => l.type === 'add')).toBe(7998);
   });
 
-  it('lists pure additions', () => {
-    expect(lineDiff('a', 'a\nb\nc')).toEqual([
-      { type: 'same', text: 'a' },
-      { type: 'add', text: 'b' },
-      { type: 'add', text: 'c' },
-    ]);
+  it('compares a large changed middle as a removed block, then an added block (bounded memory)', () => {
+    // Every other line changes, so a full line-by-line comparison would interleave unchanged
+    // lines; past the size limit the middle is shown as one block out, one block in instead.
+    const n = DIFF_MAX_LINE_PAIRS / 1000 + 1;
+    expect(n).toBeGreaterThan(100);
+    const before = Array.from({ length: n }, (_, i) => `line ${i}`);
+    const after = before.map((line, i) => (i % 2 ? `${line} changed` : line));
+    const diff = lineDiff(
+      ['keep', ...before, 'end'].join('\n'),
+      ['keep', ...after, 'x', 'end'].join('\n'),
+    );
+    expect(diff[0]).toEqual({ type: 'same', text: 'keep' });
+    expect(diff.at(-1)).toEqual({ type: 'same', text: 'end' });
+    // The shared first lines stay unchanged; from the first change on: one block out, one in.
+    const types = diff.map((l) => l.type);
+    const changed = types.slice(types.indexOf('del'), types.lastIndexOf('add') + 1);
+    expect(changed).not.toContain('same');
+    expect(changed.indexOf('add')).toBeGreaterThan(changed.lastIndexOf('del'));
   });
 
-  it('lists pure deletions', () => {
-    expect(lineDiff('a\nb\nc', 'b')).toEqual([
-      { type: 'del', text: 'a' },
-      { type: 'same', text: 'b' },
-      { type: 'del', text: 'c' },
-    ]);
-  });
-
-  it('shows a changed line in the middle as a deletion before an addition', () => {
-    expect(lineDiff('one\ntwo\nthree', 'one\nTWO\nthree')).toEqual([
-      { type: 'same', text: 'one' },
-      { type: 'del', text: 'two' },
-      { type: 'add', text: 'TWO' },
-      { type: 'same', text: 'three' },
-    ]);
-  });
-
-  it('groups all deletions before additions in a changed block', () => {
-    expect(lineDiff('x\na\nb\ny', 'x\nc\nd\ny')).toEqual([
-      { type: 'same', text: 'x' },
-      { type: 'del', text: 'a' },
-      { type: 'del', text: 'b' },
-      { type: 'add', text: 'c' },
-      { type: 'add', text: 'd' },
-      { type: 'same', text: 'y' },
-    ]);
-  });
-
-  it('handles empty before and after', () => {
-    expect(lineDiff('', 'a\nb')).toEqual([
-      { type: 'add', text: 'a' },
-      { type: 'add', text: 'b' },
-    ]);
-    expect(lineDiff('a', '')).toEqual([{ type: 'del', text: 'a' }]);
-    expect(lineDiff('', '')).toEqual([]);
-  });
-
-  it('keeps blank lines inside the text', () => {
-    expect(lineDiff('a\n\nb', 'a\n\nb\nc')).toEqual([
-      { type: 'same', text: 'a' },
-      { type: 'same', text: '' },
-      { type: 'same', text: 'b' },
-      { type: 'add', text: 'c' },
-    ]);
+  it('still aligns unchanged lines when the change is small enough', () => {
+    expect(lineDiff('a\nb\nc\nd', 'a\nB\nc\nD')).toEqual(lines(' a', '-b', '+B', ' c', '-d', '+D'));
   });
 });
 
 describe('collapseDiff', () => {
-  const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join('\n');
+  const numbered = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join('\n');
 
   it('keeps one unchanged line around each change and folds the rest', () => {
-    const before = lines(10);
+    const before = numbered(10);
     const after = before.replace('line 5', 'line five');
     expect(collapseDiff(lineDiff(before, after))).toEqual([
       { type: 'skip', count: 3 },
-      { type: 'same', text: 'line 4' },
-      { type: 'del', text: 'line 5' },
-      { type: 'add', text: 'line five' },
-      { type: 'same', text: 'line 6' },
+      ...lines(' line 4', '-line 5', '+line five', ' line 6'),
       { type: 'skip', count: 4 },
     ]);
   });
 
   it('never folds a single line (showing it is as short as the fold note)', () => {
-    const before = lines(5);
+    const before = numbered(5);
     const after = before.replace('line 3', 'line three');
     expect(collapseDiff(lineDiff(before, after)).some((l) => l.type === 'skip')).toBe(false);
   });
 
   it('shows nearby changes in one block', () => {
-    const before = lines(6);
+    const before = numbered(6);
     const after = before.replace('line 2', 'two').replace('line 4', 'four');
     expect(collapseDiff(lineDiff(before, after)).map((l) => l.type)).toEqual([
       'same',

@@ -110,7 +110,8 @@ export interface AiService {
   testConnection(): Promise<AiTestResult>;
   tryAnswer(body: AiTryBody): Promise<AiTryResult>;
   /** Edit with AI: a suggested rewrite of one AI member text; nothing is saved. */
-  editText(body: AiEditBody): Promise<AiEditResult>;
+  /** `signal`: the admin cancelled (closed the popup) — stop the AI call. */
+  editText(body: AiEditBody, signal?: AbortSignal): Promise<AiEditResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
   shutdown(): Promise<void>;
 }
@@ -1114,7 +1115,7 @@ export function createAiService(
         };
       }
     },
-    async editText(body) {
+    async editText(body, signal) {
       if (!ready() || !provider.rewrite)
         return { ok: false, text: null, error: 'Connect the AI in Settings → AI first.' };
       const started = Date.now();
@@ -1133,7 +1134,9 @@ export function createAiService(
             }),
             cacheId: installId(),
           },
-          AbortSignal.timeout(60_000),
+          signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+            : AbortSignal.timeout(60_000),
         );
         model = suggestion.model;
         const text = suggestion.text.trim();

@@ -40,12 +40,45 @@ function linesOf(text: string): string[] {
 }
 
 /**
- * A line diff (longest common subsequence) of `before` → `after`. In each changed block the
- * removed lines come before the added ones, so a rewritten line reads "old, then new".
+ * Most line pairs compared one by one (the comparison table holds one number per pair, so this
+ * bounds it at ~8 MB). Larger changed middles show as one block out, then one block in.
+ */
+export const DIFF_MAX_LINE_PAIRS = 1_000_000;
+
+/**
+ * A line diff of `before` → `after`: shared first and last lines are kept as they are, and the
+ * changed middle is compared line by line (longest common subsequence) when small enough. In each
+ * changed block the removed lines come before the added ones, so a rewritten line reads "old, then
+ * new".
  */
 export function lineDiff(before: string, after: string): DiffLine[] {
-  const a = linesOf(before);
-  const b = linesOf(after);
+  const all = { a: linesOf(before), b: linesOf(after) };
+  let start = 0;
+  while (start < all.a.length && start < all.b.length && all.a[start] === all.b[start]) start++;
+  let end = 0;
+  while (
+    end < all.a.length - start &&
+    end < all.b.length - start &&
+    all.a[all.a.length - 1 - end] === all.b[all.b.length - 1 - end]
+  )
+    end++;
+  const same = (text: string): DiffLine => ({ type: 'same', text });
+  const head = all.a.slice(0, start).map(same);
+  const tail = all.a.slice(all.a.length - end).map(same);
+  const a = all.a.slice(start, all.a.length - end);
+  const b = all.b.slice(start, all.b.length - end);
+  if (a.length * b.length > DIFF_MAX_LINE_PAIRS)
+    return [
+      ...head,
+      ...a.map((text): DiffLine => ({ type: 'del', text })),
+      ...b.map((text): DiffLine => ({ type: 'add', text })),
+      ...tail,
+    ];
+  return [...head, ...middleDiff(a, b), ...tail];
+}
+
+/** Longest-common-subsequence diff of two (small) line lists. */
+function middleDiff(a: string[], b: string[]): DiffLine[] {
   // lcs[i][j] = length of the longest common subsequence of a[i:] and b[j:].
   const lcs = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
   for (let i = a.length - 1; i >= 0; i--) {

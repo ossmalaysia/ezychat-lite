@@ -206,6 +206,23 @@ describe('Edit with AI dialog', () => {
     ).toBe(true);
   });
 
+  it('Cancel while a suggestion is being written stops the request', async () => {
+    const { fetchMock, onApply, user } = setup({
+      // Never answers: the request is still running when the admin cancels.
+      respond: () => new Promise<Response>(() => {}) as unknown as Response,
+    });
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('What should change?'), 'Refunds');
+    await user.click(within(dialog).getByRole('button', { name: 'Suggest' }));
+    expect(await within(dialog).findByText('Writing a suggestion…')).toBeTruthy();
+    const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/edit')!;
+    const signal = call[1]!.signal!;
+    expect(signal.aborted).toBe(false);
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(signal.aborted).toBe(true);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it('shows a long text as its changes with one line around each, folding the rest', async () => {
     const long = Array.from({ length: 12 }, (_, i) => `Rule ${i + 1}.`).join('\n');
     const { user } = setup({
