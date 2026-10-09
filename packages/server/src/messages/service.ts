@@ -10,7 +10,13 @@ import type {
   MessageType,
   SendTextBody,
 } from '@wa-team-inbox/shared';
-import type { SendResult, WaIncomingMessage, WaMessageStatusUpdate } from '@wa-team-inbox/wa';
+import type {
+  SendResult,
+  WaIncomingMessage,
+  WaMessageStatusUpdate,
+  WaQuotedRef,
+  WaSendOptions,
+} from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
@@ -170,11 +176,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     inflight.set(job.chatJid, guard);
     const p = (async () => {
       if (job.kind === 'text') {
-        return ctx.wa.sendText(
-          job.targetJid,
-          job.text ?? '',
-          job.quotedId ? { quotedId: job.quotedId } : undefined,
-        );
+        return ctx.wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       return ctx.wa.sendMedia(
@@ -185,7 +187,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           fileName: job.fileName ?? 'file',
           ...(job.caption ? { caption: job.caption } : {}),
         },
-        job.quotedId ? { quotedId: job.quotedId } : undefined,
+        replyOptions(job.quotedId),
       );
     })();
     try {
@@ -326,6 +328,37 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const c = chats.get(jid);
     if (!c) throw errors.notFound('Chat');
     return c;
+  };
+
+  /**
+   * A reply may quote only a message of the same chat that WhatsApp knows: pending and failed
+   * messages still carry their `local-` id, which no phone could match.
+   */
+  const checkQuote = (jid: string, quotedId: string | undefined): string | null => {
+    if (!quotedId) return null;
+    const q = repo.get(quotedId);
+    if (!q || q.chat_jid !== jid || q.id.startsWith('local-')) {
+      throw errors.validation('The message you are replying to is not in this chat');
+    }
+    return q.id;
+  };
+
+  /** Saved copy of the quoted message, so the quote survives the adapter's small live cache. */
+  const quotedRef = (quotedId: string): WaQuotedRef | undefined => {
+    const q = repo.get(quotedId);
+    if (!q) return undefined;
+    return {
+      id: q.id,
+      fromMe: q.from_me === 1,
+      senderJid: q.sender_jid,
+      type: q.type,
+      text: q.body,
+    };
+  };
+  const replyOptions = (quotedId: string | undefined): WaSendOptions | undefined => {
+    if (!quotedId) return undefined;
+    const quoted = quotedRef(quotedId);
+    return quoted ? { quotedId, quoted } : { quotedId };
   };
 
   const isAiUser = (userId: number) =>
@@ -536,6 +569,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (existing) return present(existing);
       requireChat(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      const quotedId = checkQuote(jid, body.quotedId);
       const t = now();
       claimOnReply(jid, userId, t);
       return insertOutgoing({
@@ -551,7 +585,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: null,
         media_name: null,
         media_status: 'none',
-        quoted_id: body.quotedId ?? null,
+        quoted_id: quotedId,
         status: 'pending',
         error: null,
         timestamp: t,
@@ -567,6 +601,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       requireChat(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
+      const quotedId = checkQuote(jid, file.quotedId);
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
       const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
       const ext = sniffed?.ext ?? extFor(mimeType, file.fileName);
@@ -587,7 +622,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: mimeType,
         media_name: file.fileName.slice(0, 255) || null,
         media_status: 'ok',
-        quoted_id: file.quotedId ?? null,
+        quoted_id: quotedId,
         status: 'pending',
         error: null,
         timestamp: t,

@@ -8,6 +8,7 @@ import {
   type WaContactAlias,
   type WaIncomingMessage,
   type WaSendFile,
+  type WaSendOptions,
 } from '../types.js';
 
 const FAKE_ME = { jid: '60000000000@s.whatsapp.net', name: 'Fake' } as const;
@@ -17,6 +18,8 @@ export interface FakeSentRecord {
   text?: string;
   file?: WaSendFile;
   id: string;
+  /** Reply options as the real adapter would receive them. */
+  reply?: WaSendOptions;
 }
 
 /**
@@ -114,25 +117,17 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return { id, timestamp };
   }
 
-  async sendText(
-    chatJid: string,
-    text: string,
-    _opts?: { quotedId?: string },
-  ): Promise<SendResult> {
+  async sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
     const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
-    this.sent.push({ chatJid, text, id });
+    this.sent.push({ chatJid, text, id, ...(opts?.quotedId ? { reply: opts } : {}) });
     return this.afterSend(chatJid, id);
   }
 
-  async sendMedia(
-    chatJid: string,
-    file: WaSendFile,
-    _opts?: { quotedId?: string },
-  ): Promise<SendResult> {
+  async sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
     const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
-    this.sent.push({ chatJid, file, id });
+    this.sent.push({ chatJid, file, id, ...(opts?.quotedId ? { reply: opts } : {}) });
     this.media.set(id, file.buffer);
     return this.afterSend(chatJid, id);
   }
