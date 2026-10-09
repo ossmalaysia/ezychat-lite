@@ -84,3 +84,67 @@ export const McpGetStatsInput = z.strictObject({
   days: z.number().int().min(1).max(90).default(14).describe('Days of daily activity to include'),
 });
 export type McpGetStatsInput = z.infer<typeof McpGetStatsInput>;
+
+// AI Sales Agent setup tools (scope `ai:setup`).
+
+export const McpSetupTarget = z
+  .enum(['instructions', 'handoff_rules', 'context_text'])
+  .describe(
+    'instructions = AI instructions; handoff_rules = hand-off rules; context_text = a Business context text item',
+  );
+export type McpSetupTarget = z.infer<typeof McpSetupTarget>;
+
+export const McpGetAiAgentSetupInput = z.strictObject({});
+export type McpGetAiAgentSetupInput = z.infer<typeof McpGetAiAgentSetupInput>;
+
+export const McpGetAiContextItemInput = z.strictObject({
+  id: z.number().int().positive().describe('Business context item id from get_ai_agent_setup'),
+});
+export type McpGetAiContextItemInput = z.infer<typeof McpGetAiContextItemInput>;
+
+export const McpTryAiReplyInput = z.strictObject({
+  message: z.string().trim().min(1).max(500).describe('A customer message to test'),
+  instructions: z
+    .string()
+    .max(8000)
+    .optional()
+    .describe('Draft AI instructions to test instead of the saved ones'),
+  handoffRules: z
+    .string()
+    .max(4000)
+    .optional()
+    .describe('Draft hand-off rules to test instead of the saved ones'),
+});
+export type McpTryAiReplyInput = z.infer<typeof McpTryAiReplyInput>;
+
+export const McpUpdateAiSetupInput = z.strictObject({
+  target: McpSetupTarget,
+  itemId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('context_text only: the item to change; omit to add a new text item'),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .optional()
+    .describe('context_text only: item name (required when adding)'),
+  text: z.string().describe('The complete new text (not a diff)'),
+  reason: z
+    .string()
+    .trim()
+    .min(5)
+    .max(300)
+    .describe('Why this change is being made; stored in the audit log and version history'),
+});
+export type McpUpdateAiSetupInput = z.infer<typeof McpUpdateAiSetupInput>;
+
+export const McpGetAiSetupHistoryInput = z.strictObject({
+  target: McpSetupTarget,
+  itemId: z.number().int().positive().optional().describe('context_text only: the item'),
+  limit: z.number().int().min(1).max(50).default(10),
+});
+export type McpGetAiSetupHistoryInput = z.infer<typeof McpGetAiSetupHistoryInput>;

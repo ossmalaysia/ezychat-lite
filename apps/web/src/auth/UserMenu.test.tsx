@@ -50,7 +50,8 @@ it('renders menu labels in the active language', async () => {
   await user.click(screen.getByRole('button', { name: '账户菜单' }));
   expect(screen.getByRole('menuitem', { name: '退出登录' })).toBeTruthy();
   expect(screen.getByText(/客服/)).toBeTruthy();
-});
+  // Loading a locale lazily can exceed 5 s when the whole suite runs in parallel.
+}, 20_000);
 
 it('puts theme on one compact switch with Light, Dark and System', async () => {
   const user = userEvent.setup();

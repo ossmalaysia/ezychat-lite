@@ -24,8 +24,9 @@ const TABLES = [
   'customer_profiles',
   'customer_tags',
   'api_tokens',
+  'ai_setup_versions',
 ];
-const LATEST = 8;
+const LATEST = 9;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {

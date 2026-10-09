@@ -271,7 +271,7 @@
   "integrations": {
     "access": {
       "label": "Let AI assistants read this inbox",
-      "description": "Connect any MCP-compatible AI assistant. It can read chats, notes and statistics to answer your questions. It can't send messages or change anything.",
+      "description": "Connect any MCP-compatible AI assistant. It can read chats, notes and statistics, and read, test and change the AI Sales Agent's instructions, hand-off rules and business context. It can't send messages to customers. Every change is kept in the audit log.",
       "worksFromLabel": "Works from",
       "worksFromLocal": "the computer running EzyChat Lite.",
       "worksFromTunnel": "the computer running EzyChat Lite, and from anywhere through your tunnel:",

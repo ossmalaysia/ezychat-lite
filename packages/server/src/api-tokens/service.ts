@@ -20,8 +20,13 @@ const DISPLAY_CHARS = TOKEN_PREFIX.length + 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TOUCH_INTERVAL_MS = 60_000;
 
-/** v1 grants read access only; write scopes (drafts, sends) would be added here. */
-export type TokenScope = 'inbox:read';
+/**
+ * `inbox:read`: read chats, messages and stats. `ai:setup`: read, test and change the AI Sales
+ * Agent's instructions, hand-off rules and business context text. Every admin token gets both.
+ */
+export type TokenScope = 'inbox:read' | 'ai:setup';
+const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>(['inbox:read', 'ai:setup']);
+const NEW_TOKEN_SCOPES = 'inbox:read ai:setup';
 
 export interface ApiPrincipal {
   tokenId: number;
@@ -82,8 +87,8 @@ export function createApiTokenService(
   const auth = getAuth(ctx);
   const q = {
     insert: ctx.db.prepare(
-      `INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at, expires_at, scopes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
     byId: ctx.db.prepare('SELECT * FROM api_tokens WHERE id = ?'),
     byHash: ctx.db.prepare('SELECT * FROM api_tokens WHERE token_hash = ?'),
@@ -146,6 +151,7 @@ export function createApiTokenService(
           secret.slice(0, DISPLAY_CHARS),
           t,
           expiresAt,
+          NEW_TOKEN_SCOPES,
         ).lastInsertRowid,
       );
       const token = toApiToken(q.byId.get(id) as TokenRow);
@@ -185,7 +191,7 @@ export function createApiTokenService(
         q.touch.run(t, row.id);
       }
       const scopes = new Set(
-        row.scopes.split(' ').filter((s): s is TokenScope => s === 'inbox:read'),
+        row.scopes.split(' ').filter((s): s is TokenScope => KNOWN_SCOPES.has(s)),
       );
       return { ok: true, principal: { tokenId: row.id, user: result.user, scopes } };
     },

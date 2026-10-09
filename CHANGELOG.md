@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **AI assistants can review and refine the AI Sales Agent (MCP):** a connected assistant (Claude
+  Code, Claude Desktop, Gemini CLI…) can now read the Sales Agent's instructions, hand-off rules and
+  business context, see hand-off statistics per reason and per day (`get_stats`), test a customer
+  message against the saved or a draft setup (`try_ai_reply`, uses your AI connection), and change
+  the instructions, hand-off rules or business context text (`update_ai_setup`). Changes take effect
+  right away; every version is kept (`get_ai_setup_history`, including changes made in the app) and
+  every change is in the audit log with the token and the reason. Uploaded files, the AI connection
+  and turning the agent on or off stay app-only. Available to every admin token.
+
 ## [0.1.28] - 2026-10-09
 
 ### Added

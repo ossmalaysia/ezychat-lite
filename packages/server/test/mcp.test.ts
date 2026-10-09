@@ -190,12 +190,20 @@ describe('protocol and tools', () => {
     await client.connect(transport);
     const { tools } = await client.listTools();
     expect(tools.map((x) => x.name).sort()).toEqual([
+      'get_ai_agent_setup',
+      'get_ai_context_item',
+      'get_ai_setup_history',
       'get_chat',
       'get_messages',
       'get_stats',
       'list_chats',
+      'try_ai_reply',
+      'update_ai_setup',
     ]);
-    expect(tools.every((x) => x.annotations?.readOnlyHint === true)).toBe(true);
+    // Inbox tools stay read-only; only the AI setup change tool is marked as a write.
+    expect(tools.filter((x) => x.annotations?.readOnlyHint !== true).map((x) => x.name)).toEqual([
+      'update_ai_setup',
+    ]);
     const result = (await client.callTool({ name: 'list_chats', arguments: {} })) as {
       content: Array<{ text: string }>;
     };

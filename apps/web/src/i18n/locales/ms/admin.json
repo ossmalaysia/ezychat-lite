@@ -269,7 +269,7 @@
   "integrations": {
     "access": {
       "label": "Benarkan pembantu AI membaca peti masuk ini",
-      "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik untuk menjawab soalan anda. Ia tidak boleh menghantar mesej atau mengubah apa-apa.",
+      "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik, serta membaca, menguji dan mengubah arahan, peraturan serahan dan konteks perniagaan Ejen Jualan AI. Ia tidak boleh menghantar mesej kepada pelanggan. Setiap perubahan disimpan dalam log audit.",
       "worksFromLabel": "Berfungsi dari",
       "worksFromLocal": "komputer yang menjalankan EzyChat Lite.",
       "worksFromTunnel": "komputer yang menjalankan EzyChat Lite, dan dari mana-mana sahaja melalui terowong anda:",
