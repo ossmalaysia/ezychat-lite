@@ -38,19 +38,40 @@ export default async function auditRoutes(app: FastifyInstance, ctx: AppContext)
     const rows = (
       q.before !== undefined
         ? ctx.db
-            .prepare('SELECT id, user_id, action, ip, meta, at FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?')
+            .prepare(
+              'SELECT id, user_id, action, ip, meta, at FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?',
+            )
             .all(q.before, q.limit)
-        : ctx.db.prepare('SELECT id, user_id, action, ip, meta, at FROM audit_log ORDER BY id DESC LIMIT ?').all(q.limit)
+        : ctx.db
+            .prepare(
+              'SELECT id, user_id, action, ip, meta, at FROM audit_log ORDER BY id DESC LIMIT ?',
+            )
+            .all(q.limit)
     ) as AuditRow[];
+    // Revoked tokens are looked up too: the entry must still name the token that made the change.
+    const tokenById = ctx.db.prepare('SELECT name, prefix FROM api_tokens WHERE id = ?');
+    const tokens = new Map<number, { name: string; prefix: string } | null>();
+    const tokenOf = (meta: Record<string, unknown>) => {
+      if (meta.via !== 'mcp' || typeof meta.tokenId !== 'number') return null;
+      if (!tokens.has(meta.tokenId)) {
+        const row = tokenById.get(meta.tokenId) as { name: string; prefix: string } | undefined;
+        tokens.set(meta.tokenId, row ?? null);
+      }
+      return tokens.get(meta.tokenId)!;
+    };
     return {
-      entries: rows.map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        action: r.action,
-        ip: r.ip,
-        meta: parseMeta(r.meta),
-        at: r.at,
-      })),
+      entries: rows.map((r) => {
+        const meta = parseMeta(r.meta);
+        return {
+          id: r.id,
+          userId: r.user_id,
+          action: r.action,
+          ip: r.ip,
+          meta,
+          at: r.at,
+          apiToken: tokenOf(meta),
+        };
+      }),
     };
   });
 }

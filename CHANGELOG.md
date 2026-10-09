@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Audit log names the AI assistant:** a change an AI assistant made through an access token now
+  shows the token's name in the Who column, with its owner below, instead of only the owner's name.
+  Earlier entries and revoked tokens are named too.
+
 ## [0.1.29] - 2026-10-10
 
 ### Added

@@ -137,6 +137,8 @@ into AGENTS.md.
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
+  A browser that hit the broken build keeps a service worker serving `index.html` for the new assets
+  ("MIME type text/html"), even after the restart: unregister it and clear caches before re-checking.
   Finish browser checks before packaging.
 - Delete custom build output folders (`release-*`, `dist-*`) after use; ESLint ignores them, but they
   still waste time and can confuse other tools.
@@ -293,7 +295,7 @@ into AGENTS.md.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings
   along (hints, warnings) goes under the row (`PreferenceRow` `below`, `PushToggle` render prop), or it
   squeezes the description. A bare switch handed to a row keeps a 44 px target (padded `<Label
-  htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) needs a check with
+htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) needs a check with
   that bridge injected: the browser Dev Build never shows it.
 - In a direct chat, every place that names the customer (quotes, reply bar) uses the header name
   (`chatTitle`: profile → saved → WhatsApp name), never the message's `senderName`; groups name senders.

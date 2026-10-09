@@ -94,6 +94,32 @@ describe('settings', () => {
     expect(older.json().entries.every((e: { id: number }) => e.id < entries[0]!.id)).toBe(true);
   });
 
+  it('names the access token behind an AI assistant change, revoked tokens included', async () => {
+    t = await makeTestApp();
+    const admin = await createUserAndLogin(t, { role: 'admin' });
+    const tokenId = Number(
+      t.ctx.db
+        .prepare(
+          `INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at, revoked_at)
+           VALUES (?, 'Claude Desktop', 'hash', 'ezc_pat_ab12', 1, 2)`,
+        )
+        .run(admin.user.id).lastInsertRowid,
+    );
+    const insert = t.ctx.db.prepare(
+      "INSERT INTO audit_log (user_id, action, ip, meta, at) VALUES (?, 'ai.member_update', NULL, ?, 3)",
+    );
+    insert.run(admin.user.id, JSON.stringify({ via: 'mcp', tokenId, reason: 'narrow rule 4' }));
+    insert.run(admin.user.id, JSON.stringify({ instructionsChanged: true }));
+    const r = await t.app.inject({
+      method: 'GET',
+      url: '/api/audit?limit=2',
+      headers: authHeaders(admin.cookie),
+    });
+    const [app, mcp] = r.json().entries as Array<{ apiToken: unknown }>;
+    expect(app!.apiToken).toBeNull();
+    expect(mcp!.apiToken).toEqual({ name: 'Claude Desktop', prefix: 'ezc_pat_ab12' });
+  });
+
   it('audit is admin only', async () => {
     t = await makeTestApp();
     const agent = await createUserAndLogin(t, { role: 'agent' });

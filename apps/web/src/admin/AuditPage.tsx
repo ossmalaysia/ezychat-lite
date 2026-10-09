@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AuditEntry, User } from '@wa-team-inbox/shared';
 import { useAudit, useUsers } from '../api/queries';
@@ -25,10 +25,25 @@ export function AuditPage() {
   const [filter, setFilter] = useState<AuditFilter>('all');
   const byId = new Map<number, User>((users.data ?? []).map((u) => [u.id, u]));
   const userName = (id: number) => byId.get(id)?.displayName;
-  const who = (e: AuditEntry) =>
+  const person = (e: AuditEntry) =>
     e.userId == null
       ? t('audit.system')
       : (userName(e.userId) ?? t('audit.userNumber', { id: e.userId }));
+  // An AI assistant's change is shown under its access token's name, with the token's owner below.
+  const who = (e: AuditEntry) =>
+    e.meta.via === 'mcp' ? (
+      <span className="flex flex-col">
+        <span className="flex items-start gap-1.5 font-medium">
+          <KeyRound aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
+          <span className="break-words">{e.apiToken?.name ?? t('audit.aiAssistantToken')}</span>
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {t('audit.tokenOwner', { name: person(e) })}
+        </span>
+      </span>
+    ) : (
+      person(e)
+    );
   const details = (e: AuditEntry) => auditDetails(e.meta, t, userName);
 
   const loaded = audit.data?.pages.flatMap((p) => p.entries) ?? [];

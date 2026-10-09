@@ -146,6 +146,8 @@
     "empty": "No audit entries yet",
     "loadOlder": "Load older",
     "system": "System",
+    "aiAssistantToken": "AI assistant token",
+    "tokenOwner": "Owner: {{name}}",
     "userNumber": "User #{{id}}",
     "columns": {
       "time": "Time",

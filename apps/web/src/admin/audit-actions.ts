@@ -117,8 +117,11 @@ const FIELD_KEYS: Record<string, string> = {
   expiresAt: 'audit.fields.expires',
 };
 
-/** Internal ids that mean nothing to a reader (a token's name and prefix identify it). */
-const HIDDEN_FIELDS = new Set(['tokenId']);
+/**
+ * Internal ids that mean nothing to a reader (a token's name and prefix identify it), and `via`,
+ * which the Who column shows as the access token's name.
+ */
+const HIDDEN_FIELDS = new Set(['tokenId', 'via']);
 
 /** Known enum values → translation keys (`admin` namespace, or `common:` prefixed). */
 const VALUE_KEYS: Record<string, Record<string, string>> = {

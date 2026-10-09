@@ -5,6 +5,15 @@ import type { AuditEntry } from '@wa-team-inbox/shared';
 import { AuditPage } from './AuditPage';
 
 const entries: AuditEntry[] = [
+  {
+    id: 4,
+    at: 1_700_000_400_000,
+    userId: 1,
+    action: 'ai.member_update',
+    ip: null,
+    meta: { handoffRulesChanged: true, via: 'mcp', tokenId: 7, reason: 'narrow rule 4' },
+    apiToken: { name: 'Claude Desktop', prefix: 'ezc_pat_ab12' },
+  },
   { id: 3, at: 1_700_000_300_000, userId: 1, action: 'auth.login', ip: '127.0.0.1', meta: {} },
   {
     id: 2,
@@ -62,6 +71,13 @@ it('shows readable details with member names', () => {
   expect(
     within(table()).getByText('Username: bob · Reason: Wrong username or password'),
   ).toBeTruthy();
+});
+
+it('shows an AI assistant change under its access token name, with the owner below', () => {
+  render(<AuditPage />);
+  const row = within(table()).getByText('Claude Desktop').closest('tr')!;
+  expect(within(row).getByText('Owner: Alice Admin')).toBeTruthy();
+  expect(row.textContent).not.toContain('mcp');
 });
 
 it('hides routine sign-ins on request but keeps failed sign-ins', async () => {
