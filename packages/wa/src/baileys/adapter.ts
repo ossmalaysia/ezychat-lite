@@ -34,11 +34,13 @@ import {
   type WaContactAlias,
   type WaMessageStatusUpdate,
   type WaSendFile,
+  type WaSendOptions,
 } from '../types.js';
 import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
+import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
@@ -644,10 +646,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private async send(
     chatJid: string,
     content: AnyMessageContent,
-    quotedId?: string,
+    opts?: WaSendOptions,
   ): Promise<SendResult> {
     const sock = this.requireOpen();
-    const quoted = quotedId ? this.raw.get(quotedId) : undefined;
+    // The live cache is small and cleared on reconnect; rebuild older quotes from the saved copy.
+    // Either way the quote points at the chat the reply goes to (phone number or WhatsApp ID).
+    const cached = opts?.quotedId ? this.raw.get(opts.quotedId) : undefined;
+    const quoted = cached
+      ? quotedForChat(cached, chatJid)
+      : opts?.quotedId && opts.quoted
+        ? quotedFromRef(opts.quoted, chatJid)
+        : undefined;
     let res: WAMessage | undefined;
     try {
       res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
@@ -666,11 +675,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return { id, timestamp: toMs(res.messageTimestamp as number | null | undefined) };
   }
 
-  sendText(chatJid: string, text: string, opts?: { quotedId?: string }): Promise<SendResult> {
-    return this.send(chatJid, { text }, opts?.quotedId);
+  sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
+    return this.send(chatJid, { text }, opts);
   }
 
-  sendMedia(chatJid: string, file: WaSendFile, opts?: { quotedId?: string }): Promise<SendResult> {
+  sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
     const { buffer, mime, fileName, caption } = file;
     let content: AnyMessageContent;
     if (mime.startsWith('image/') && mime !== 'image/webp') {
@@ -684,7 +693,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     } else {
       content = { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
     }
-    return this.send(chatJid, content, opts?.quotedId);
+    return this.send(chatJid, content, opts);
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {

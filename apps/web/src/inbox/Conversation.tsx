@@ -42,6 +42,7 @@ import { CustomerPanel } from './CustomerPanel';
 import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
+import { quotedAuthor, quotedPreview } from './MessageBubble';
 import { NotesPanel } from './NotesPanel';
 import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
@@ -74,6 +75,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const wa = useWaStatus();
   const sendText = useSendText(jid);
   const sendMedia = useSendMedia(jid);
+  // The message a reply will quote; cleared after sending and when another chat opens.
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  useEffect(() => setReplyTo(null), [jid]);
   const retry = useRetryMessage();
   const markRead = useMarkRead(jid);
   const patch = usePatchChat(jid);
@@ -237,6 +241,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const waState = wa.data?.state;
   const blocked = waSendingBlocked(waState);
   const queued = waQueuesMessages(waState);
+  // Quotes in a direct chat name the customer like the header does (groups name each sender).
+  const contactName = chat.type === 'dm' ? chatTitle(chat, t) : undefined;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
@@ -283,6 +289,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onLoadOlder={loadOlder}
           onRetry={onRetry}
           retryingId={retryingId}
+          onReply={setReplyTo}
+          contactName={contactName}
         />
         <div className="safe-bottom border-t bg-surface">
           <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
@@ -312,10 +320,24 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               }
               confirmSend={confirmSend}
               onTyping={() => emitTyping(jid)}
-              onSend={(text) => sendText.mutate({ text, clientId: newClientId() })}
-              onAttach={(file, caption) =>
-                sendMedia.mutate({ file, caption, clientId: newClientId() })
+              replyTo={
+                replyTo
+                  ? {
+                      id: replyTo.id,
+                      author: quotedAuthor(replyTo, t, contactName),
+                      preview: quotedPreview(replyTo, t),
+                    }
+                  : null
               }
+              onCancelReply={() => setReplyTo(null)}
+              onSend={(text) => {
+                sendText.mutate({ text, clientId: newClientId(), quotedId: replyTo?.id });
+                setReplyTo(null);
+              }}
+              onAttach={(file, caption) => {
+                sendMedia.mutate({ file, caption, clientId: newClientId(), quotedId: replyTo?.id });
+                setReplyTo(null);
+              }}
             />
           </div>
         </div>

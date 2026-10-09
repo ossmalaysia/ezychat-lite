@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Reply to a message:** hover a message and click **Reply** (on a phone, swipe it right or press and
+  hold), type, and send. WhatsApp shows your reply quoting that message, just like replies customers
+  send. It works for text and attachments, for customer and team messages, and for older messages too.
+  Esc or ✕ cancels; switching chats clears it.
+
 ## [0.1.27] - 2026-10-09
 
 ### Added

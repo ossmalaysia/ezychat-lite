@@ -100,7 +100,9 @@
     "attach": "附加文件",
     "message": "消息",
     "send": "发送",
-    "quickReplies": "快捷回复"
+    "quickReplies": "快捷回复",
+    "replyingTo": "回复 {{name}}",
+    "cancelReply": "取消回复"
   },
   "quickReplies": {
     "title": "快捷回复",
@@ -236,7 +238,8 @@
       "failed": "无法转写这条语音消息",
       "too_long": "语音太长，无法转写",
       "unsupported": "无法转写这种音频格式"
-    }
+    },
+    "reply": "回复"
   },
   "media": {
     "types": {

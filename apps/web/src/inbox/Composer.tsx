@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquareText, Paperclip, SendHorizontal } from 'lucide-react';
+import { MessageSquareText, Paperclip, SendHorizontal, X } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -24,6 +24,9 @@ export interface ComposerProps {
   confirmSend?(): boolean | Promise<boolean>;
   disabled?: boolean;
   placeholder?: string;
+  /** The message being replied to: shown in a bar above the box until sent or cancelled. */
+  replyTo?: { id: string; author: string; preview: string } | null;
+  onCancelReply?(): void;
 }
 
 const TYPING_THROTTLE_MS = 2_000;
@@ -52,6 +55,8 @@ export function Composer({
   confirmSend,
   disabled = false,
   placeholder,
+  replyTo = null,
+  onCancelReply,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
   const [text, setText] = useState('');
@@ -76,6 +81,12 @@ export function Composer({
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
+
+  // Choosing Reply puts the cursor in the box, ready to type.
+  const replyId = replyTo?.id;
+  useEffect(() => {
+    if (replyId) areaRef.current?.focus();
+  }, [replyId]);
 
   // scrollHeight includes padding, but not borders. Include the borders so a
   // single line does not overflow by two pixels and show a native scrollbar.
@@ -220,6 +231,11 @@ export function Composer({
       setBrowseReplies(false);
       return;
     }
+    if (replyTo && e.key === 'Escape') {
+      e.preventDefault();
+      onCancelReply?.();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !coarsePointer) {
       e.preventDefault();
       void submit();
@@ -228,123 +244,154 @@ export function Composer({
 
   const canSend = text.trim().length > 0 && !disabled && !busy;
 
-  return (
-    <Popover
-      open={pickerOpen}
-      onOpenChange={(o) => {
-        if (!o) {
-          setPickerDismissed(true);
-          setBrowseReplies(false);
-        }
-      }}
+  const replyBar = replyTo && (
+    <div
+      className="mb-1.5 flex min-w-0 items-center gap-2 rounded-md border-l-4 border-primary bg-muted py-1 pl-2.5 pr-1"
+      data-testid="reply-bar"
     >
-      <PopoverAnchor asChild>
-        <div ref={rowRef} className="flex items-end gap-1.5">
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(e) => void onFile(e)}
-          />
+      <div className="min-w-0 flex-1 text-xs">
+        <p className="truncate font-semibold text-primary">
+          {t('composer.replyingTo', { name: replyTo.author })}
+        </p>
+        <p className="truncate text-muted-foreground">{replyTo.preview}</p>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t('composer.cancelReply')}
+        title={t('composer.cancelReply')}
+        onClick={() => {
+          onCancelReply?.();
+          areaRef.current?.focus();
+        }}
+        className="size-8 shrink-0 text-muted-foreground pointer-coarse:size-11"
+      >
+        <X aria-hidden="true" />
+      </Button>
+    </div>
+  );
+
+  return (
+    <>
+      {replyBar}
+      <Popover
+        open={pickerOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPickerDismissed(true);
+            setBrowseReplies(false);
+          }
+        }}
+      >
+        <PopoverAnchor asChild>
+          <div ref={rowRef} className="flex items-end gap-1.5">
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(e) => void onFile(e)}
+            />
+            <Button
+              variant="ghost"
+              size="icon-touch"
+              aria-label={t('composer.attach')}
+              title={t('composer.attach')}
+              disabled={disabled}
+              onClick={() => fileRef.current?.click()}
+              className="rounded-full text-muted-foreground"
+            >
+              <Paperclip className="size-5" aria-hidden="true" />
+            </Button>
+            <EmojiPicker
+              disabled={disabled}
+              onOpen={() => {
+                const el = areaRef.current;
+                emojiSelection.current = {
+                  start: el?.selectionStart ?? text.length,
+                  end: el?.selectionEnd ?? text.length,
+                };
+                setBrowseReplies(false);
+                setPickerDismissed(true);
+              }}
+              onPick={insertEmoji}
+            />
+            <Textarea
+              ref={areaRef}
+              aria-label={t('composer.message')}
+              aria-autocomplete="list"
+              aria-expanded={pickerOpen}
+              aria-controls={pickerOpen ? pickerId : undefined}
+              rows={1}
+              value={text}
+              disabled={disabled}
+              placeholder={placeholder ?? t('composer.placeholder')}
+              onChange={onChange}
+              onKeyDown={onKeyDown}
+              // Enter inserts a newline on touch keyboards, so label the key accordingly.
+              enterKeyHint={coarsePointer ? 'enter' : 'send'}
+              className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+            />
+            <Button
+              size="icon-touch"
+              aria-label={t('composer.send')}
+              title={t('composer.send')}
+              disabled={!canSend}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void submit()}
+              className="rounded-full"
+            >
+              <SendHorizontal className="size-5" aria-hidden="true" />
+            </Button>
+          </div>
+        </PopoverAnchor>
+        {quickReplies.length > 0 && (
           <Button
+            ref={repliesButtonRef}
             variant="ghost"
-            size="icon-touch"
-            aria-label={t('composer.attach')}
-            title={t('composer.attach')}
+            size="touch"
             disabled={disabled}
-            onClick={() => fileRef.current?.click()}
-            className="rounded-full text-muted-foreground"
-          >
-            <Paperclip className="size-5" aria-hidden="true" />
-          </Button>
-          <EmojiPicker
-            disabled={disabled}
-            onOpen={() => {
-              const el = areaRef.current;
-              emojiSelection.current = {
-                start: el?.selectionStart ?? text.length,
-                end: el?.selectionEnd ?? text.length,
-              };
-              setBrowseReplies(false);
-              setPickerDismissed(true);
-            }}
-            onPick={insertEmoji}
-          />
-          <Textarea
-            ref={areaRef}
-            aria-label={t('composer.message')}
-            aria-autocomplete="list"
             aria-expanded={pickerOpen}
             aria-controls={pickerOpen ? pickerId : undefined}
-            rows={1}
-            value={text}
-            disabled={disabled}
-            placeholder={placeholder ?? t('composer.placeholder')}
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-            // Enter inserts a newline on touch keyboards, so label the key accordingly.
-            enterKeyHint={coarsePointer ? 'enter' : 'send'}
-            className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
-          />
-          <Button
-            size="icon-touch"
-            aria-label={t('composer.send')}
-            title={t('composer.send')}
-            disabled={!canSend}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => void submit()}
-            className="rounded-full"
+            onClick={() => {
+              setBrowseReplies(!pickerOpen);
+              setPickerDismissed(pickerOpen);
+              areaRef.current?.focus();
+            }}
+            className="mt-1 text-muted-foreground"
           >
-            <SendHorizontal className="size-5" aria-hidden="true" />
+            <MessageSquareText aria-hidden="true" />
+            {t('composer.quickReplies')}
           </Button>
-        </div>
-      </PopoverAnchor>
-      {quickReplies.length > 0 && (
-        <Button
-          ref={repliesButtonRef}
-          variant="ghost"
-          size="touch"
-          disabled={disabled}
-          aria-expanded={pickerOpen}
-          aria-controls={pickerOpen ? pickerId : undefined}
-          onClick={() => {
-            setBrowseReplies(!pickerOpen);
-            setPickerDismissed(pickerOpen);
-            areaRef.current?.focus();
+        )}
+        <PopoverContent
+          id={pickerId}
+          side="top"
+          align="start"
+          sideOffset={8}
+          // Focus stays in the textarea; the Composer drives the highlighted row.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            if (
+              rowRef.current?.contains(e.target as Node) ||
+              repliesButtonRef.current?.contains(e.target as Node)
+            )
+              e.preventDefault();
           }}
-          className="mt-1 text-muted-foreground"
+          className="w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
         >
-          <MessageSquareText aria-hidden="true" />
-          {t('composer.quickReplies')}
-        </Button>
-      )}
-      <PopoverContent
-        id={pickerId}
-        side="top"
-        align="start"
-        sideOffset={8}
-        // Focus stays in the textarea; the Composer drives the highlighted row.
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-        onInteractOutside={(e) => {
-          if (
-            rowRef.current?.contains(e.target as Node) ||
-            repliesButtonRef.current?.contains(e.target as Node)
-          )
-            e.preventDefault();
-        }}
-        className="w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
-      >
-        <QuickReplyPicker
-          replies={quickReplies}
-          query={query ?? ''}
-          activeIndex={activeIndex}
-          onPick={insertReply}
-          onHover={setActiveIndex}
-        />
-      </PopoverContent>
-    </Popover>
+          <QuickReplyPicker
+            replies={quickReplies}
+            query={query ?? ''}
+            activeIndex={activeIndex}
+            onPick={insertReply}
+            onHover={setActiveIndex}
+          />
+        </PopoverContent>
+      </Popover>
+    </>
   );
 }

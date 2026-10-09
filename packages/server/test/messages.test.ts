@@ -135,6 +135,88 @@ describe('messages routes', () => {
     expect(t.wa.presences.some((p) => p.chatJid === JID && p.presence === 'composing')).toBe(true);
   });
 
+  it('a reply sends the quoted id plus a saved copy, so old quotes survive the adapter cache', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed(2);
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(cookie),
+      payload: { text: 'Yes we can', clientId: 'reply-1', quotedId: 'IN-1' },
+    });
+    expect(r.statusCode).toBe(201);
+    expect(MessageSchema.parse(r.json()).quotedId).toBe('IN-1');
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]).toMatchObject({
+      chatJid: JID,
+      text: 'Yes we can',
+      reply: {
+        quotedId: 'IN-1',
+        quoted: { id: 'IN-1', fromMe: false, senderJid: JID, type: 'text', text: 'm1' },
+      },
+    });
+  });
+
+  it('a media reply carries the quote too', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed(1);
+    const mp = multipart(
+      { clientId: 'reply-media', caption: 'menu', quotedId: 'IN-0' },
+      { name: 'p.png', mime: 'image/png', data: PNG },
+    );
+    const r = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/media`,
+      headers: { ...authHeaders(cookie), 'content-type': mp.contentType },
+      payload: mp.payload,
+    });
+    expect(r.statusCode).toBe(201);
+    await waitFor(() => t.wa.sent.length === 1);
+    expect(t.wa.sent[0]!.reply).toMatchObject({ quotedId: 'IN-0', quoted: { text: 'm0' } });
+  });
+
+  it('refuses to quote a message of another chat or one WhatsApp does not know yet', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed(1);
+    const other = '60188888888@s.whatsapp.net';
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'OTHER-1',
+        chatJid: other,
+        senderJid: other,
+        senderName: 'Other',
+        fromMe: false,
+        type: 'text',
+        body: 'secret',
+        quotedId: null,
+        timestamp: 1_700_000_100_000,
+        media: null,
+      },
+      'live',
+    );
+    t.wa.simulateStatus({ state: 'disconnected' });
+    const pending = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${enc(JID)}/messages`,
+      headers: authHeaders(cookie),
+      payload: { text: 'still pending', clientId: 'p-1' },
+    });
+    expect(pending.statusCode).toBe(201);
+    for (const quotedId of ['OTHER-1', 'local-p-1', 'NOPE']) {
+      const r = await t.app.inject({
+        method: 'POST',
+        url: `/api/chats/${enc(JID)}/messages`,
+        headers: authHeaders(cookie),
+        payload: { text: 'x', clientId: `bad-${quotedId}`, quotedId },
+      });
+      expect(r.statusCode).toBe(400);
+      expect(r.json().error.message).toMatch(/not in this chat/);
+    }
+    expect(
+      t.ctx.db.prepare("SELECT COUNT(*) AS n FROM messages WHERE client_id LIKE 'bad-%'").get(),
+    ).toEqual({ n: 0 });
+  });
+
   it('re-posting the same clientId does not create a duplicate', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();
@@ -616,9 +698,10 @@ describe('replies and receipts for one person with two addresses', () => {
     t.wa.failNextSend(new Error('nope'));
     getMessages(t.ctx).sendText(PN, { clientId: 'stale-2', text: 'hello' }, user.id);
     const row = () =>
-      t.ctx.db
-        .prepare('SELECT status, error FROM messages WHERE client_id = ?')
-        .get('stale-2') as { status: string; error: string };
+      t.ctx.db.prepare('SELECT status, error FROM messages WHERE client_id = ?').get('stale-2') as {
+        status: string;
+        error: string;
+      };
     await waitFor(() => row().status === 'failed');
     getChats(t.ctx).upsertContactAliases([{ jid: PN, alias: '987654321@lid' }]);
     const r = await t.app.inject({

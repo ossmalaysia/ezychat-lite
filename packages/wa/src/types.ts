@@ -58,6 +58,27 @@ export interface WaAdapterEvents {
   contactAliases: [WaContactAlias[]];
 }
 
+/**
+ * Saved copy of a quoted message (from the database). The adapter's live message cache is small and
+ * cleared on reconnect, so a reply to an older message rebuilds the quote from this instead.
+ */
+export interface WaQuotedRef {
+  id: string;
+  fromMe: boolean;
+  /** Group messages: who wrote it (needed so WhatsApp attributes the quote). */
+  senderJid: string | null;
+  type: MessageType;
+  /** Text or caption; null for media without a caption. */
+  text: string | null;
+}
+
+export interface WaSendOptions {
+  /** Reply to this WhatsApp message id. */
+  quotedId?: string;
+  /** Used when the quoted message is no longer in the adapter's live cache. */
+  quoted?: WaQuotedRef;
+}
+
 export interface SendResult {
   id: string;
   timestamp: number;
@@ -84,8 +105,8 @@ export interface WaAdapter {
   takeover(): Promise<void>;
   /** link by phone number: returns the 8-character pairing code to enter on the phone */
   requestPairingCode(phone: string): Promise<string>;
-  sendText(chatJid: string, text: string, opts?: { quotedId?: string }): Promise<SendResult>;
-  sendMedia(chatJid: string, file: WaSendFile, opts?: { quotedId?: string }): Promise<SendResult>;
+  sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult>;
+  sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult>;
   markRead(chatJid: string, messageIds: string[]): Promise<void>;
   sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
   /** re-download by id if still cached */

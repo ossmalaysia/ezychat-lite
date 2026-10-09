@@ -2,7 +2,7 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Check, CheckCheck, Clock, RotateCw } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, Reply, RotateCw } from 'lucide-react';
 import type { Message } from '@wa-team-inbox/shared';
 import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
+import { SWIPE_TRIGGER_PX, useSwipeReply } from './useSwipeReply';
 
 export interface MessageBubbleProps {
   message: Message;
@@ -25,9 +26,13 @@ export interface MessageBubbleProps {
   quoted: Message | null;
   onRetry?(m: Message): void;
   retrying?: boolean;
+  /** Start a reply that quotes this message (hover button, swipe right or long-press on touch). */
+  onReply?(m: Message): void;
   onMediaLoad?(): void;
   /** Team directory, for "Updated by" in a group sender's profile popover. */
   directory?: Directory;
+  /** Direct chats: the customer's name as the header shows it (used in quotes). */
+  contactName?: string;
 }
 
 /** Read-only profile of a group sender, from their direct chat, with a link to that chat. */
@@ -81,7 +86,16 @@ function linkify(text: string): React.ReactNode[] {
   );
 }
 
-function quotedPreview(q: Message, t: TFunction<'inbox'>): string {
+/**
+ * Who wrote a quoted message. In a direct chat the customer is named like the chat header
+ * (`contactName`), not by their WhatsApp profile name; groups name each sender.
+ */
+export function quotedAuthor(q: Message, t: TFunction<'inbox'>, contactName?: string): string {
+  if (q.fromMe) return t('message.you');
+  return contactName || q.senderName || t('message.contact');
+}
+
+export function quotedPreview(q: Message, t: TFunction<'inbox'>): string {
   if (q.body) return truncate(q.body, 140);
   switch (q.type) {
     case 'image':
@@ -150,8 +164,13 @@ export function MessageBubble({
   retrying,
   onMediaLoad,
   directory,
+  onReply,
+  contactName,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
+  // Pending and failed messages still have a local id that WhatsApp could not match.
+  const canReply = !!onReply && m.type !== 'system' && !m.id.startsWith('local-');
+  const swipe = useSwipeReply(canReply ? () => onReply!(m) : undefined);
   if (m.type === 'system') {
     return (
       <div className="flex justify-center px-3 py-1">
@@ -171,11 +190,44 @@ export function MessageBubble({
   // Group messages: the sender's own customer profile (from their direct chat), when set.
   const profile = !out ? (m.senderProfile ?? null) : null;
 
+  // Touch screens reply by swipe or long-press, so the button is visually hidden there but stays a
+  // real control for screen readers, switch access and keyboards (it shows when focused).
+  const replyButton = canReply && (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      aria-label={t('message.reply')}
+      title={t('message.reply')}
+      onClick={() => onReply!(m)}
+      className="size-8 shrink-0 rounded-full text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:not-focus-visible:sr-only"
+    >
+      <Reply aria-hidden="true" />
+    </Button>
+  );
+
   return (
-    <div className={cn('flex px-2 py-0.5 sm:px-4', out ? 'justify-end' : 'justify-start')}>
+    <div
+      className={cn(
+        'group relative flex items-center gap-1.5 px-2 py-0.5 sm:px-4',
+        out ? 'justify-end' : 'justify-start',
+      )}
+    >
+      {swipe.offset > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute left-3 grid size-8 place-items-center rounded-full bg-accent text-accent-foreground"
+          style={{ opacity: Math.min(1, swipe.offset / SWIPE_TRIGGER_PX) }}
+        >
+          <Reply className="size-4" />
+        </span>
+      )}
+      {out && replyButton}
       <div
+        {...swipe.handlers}
+        style={swipe.offset ? { transform: `translateX(${swipe.offset}px)` } : undefined}
         className={cn(
-          'relative min-w-0 max-w-[85%] rounded-2xl px-3 py-1.5 text-foreground shadow-sm sm:max-w-[70%]',
+          'relative min-w-0 max-w-[85%] touch-pan-y rounded-2xl px-3 py-1.5 text-foreground shadow-sm sm:max-w-[70%]',
           out
             ? 'rounded-br-md border border-primary/15 bg-outbound text-outbound-foreground'
             : 'rounded-bl-md border bg-surface',
@@ -214,9 +266,7 @@ export function MessageBubble({
           <div className="mb-1 rounded-md border-l-4 border-primary bg-muted/70 px-2 py-1 text-xs">
             {quoted ? (
               <>
-                <p className="font-semibold text-primary">
-                  {quoted.fromMe ? t('message.you') : (quoted.senderName ?? t('message.contact'))}
-                </p>
+                <p className="font-semibold text-primary">{quotedAuthor(quoted, t, contactName)}</p>
                 <p className="line-clamp-2 break-words text-muted-foreground">
                   {quotedPreview(quoted, t)}
                 </p>
@@ -261,6 +311,7 @@ export function MessageBubble({
           </div>
         )}
       </div>
+      {!out && replyButton}
     </div>
   );
 }
