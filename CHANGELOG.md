@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.28] - 2026-10-09
+
 ### Added
 
 - **Reply to a message:** hover a message and click **Reply** (on a phone, swipe it right or press and
