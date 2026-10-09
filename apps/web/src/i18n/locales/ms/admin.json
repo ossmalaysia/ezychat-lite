@@ -144,6 +144,8 @@
     "empty": "Belum ada entri audit",
     "loadOlder": "Muatkan yang lama",
     "system": "Sistem",
+    "aiAssistantToken": "Token pembantu AI",
+    "tokenOwner": "Pemilik: {{name}}",
     "userNumber": "Pengguna #{{id}}",
     "columns": {
       "time": "Masa",

@@ -144,5 +144,7 @@ export const AuditEntrySchema = z.object({
   ip: z.string().nullable(),
   meta: z.record(z.string(), z.unknown()),
   at: z.number(),
+  /** Set when an AI assistant made the change with an access token (userId is the token's owner). */
+  apiToken: z.object({ name: z.string(), prefix: z.string() }).nullable().optional(),
 });
 export type AuditEntry = z.infer<typeof AuditEntrySchema>;
