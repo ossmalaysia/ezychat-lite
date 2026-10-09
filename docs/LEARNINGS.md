@@ -184,6 +184,8 @@ into AGENTS.md.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
 - Audit writes reachable without a session (failed token sign-ins) go through a per-IP-and-reason
   limiter, or anyone can flood `audit_log`.
+- Access checks for an endpoint that must stay hidden or limited (off → 404, peer, token, rate limit)
+  run in Fastify `onRequest`, before body parsing; in the handler, a bad body answers 400/413 first.
 - Every raw `node:http` handler parses the request target inside try/catch and answers 4xx; an uncaught
   throw ends the server process.
 - Document parsers run in a worker with time, memory and expansion limits.
