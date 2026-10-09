@@ -333,7 +333,7 @@
     "unsupported": "Notifications aren't supported in this browser.",
     "label": "Notifications",
     "labelDevice": "Notifications on this device",
-    "desktopHint": "Alerts appear when this app is in the background. Keep it running in the tray and allow WA EzyChat Lite in your system notification settings.",
+    "desktopHint": "Alerts appear when this app is in the background. Keep it running in the tray and allow EzyChat Lite in your system notification settings.",
     "blocked": "Notifications are blocked. Allow them in the browser's site settings.",
     "errors": {
       "browserUnsupported": "This browser does not support push notifications.",

@@ -45,24 +45,31 @@ function PreferenceRow({
   hintId,
   hint,
   children,
+  below,
 }: {
   labelId: string;
   label: string;
   hintId: string;
   hint: string;
+  /** The control (switch, segmented control). Keep it small: long text belongs in `below`. */
   children: React.ReactNode;
+  /** Notes under the whole row (full width), e.g. a hint or a warning about the control. */
+  below?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <div className="min-w-0">
-        <h3 id={labelId} className="font-medium">
-          {label}
-        </h3>
-        <p id={hintId} className="mt-0.5 text-sm text-muted-foreground">
-          {hint}
-        </p>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <h3 id={labelId} className="font-medium">
+            {label}
+          </h3>
+          <p id={hintId} className="mt-0.5 text-sm text-muted-foreground">
+            {hint}
+          </p>
+        </div>
+        {children != null && <div className="shrink-0">{children}</div>}
       </div>
-      <div className="shrink-0">{children}</div>
+      {below}
     </div>
   );
 }
@@ -288,16 +295,21 @@ export function SettingsPage() {
                   }))}
                 />
               </PreferenceRow>
-              <PreferenceRow
-                labelId="settings-notifications-label"
-                label={t('settings.device.notifications')}
-                hintId="settings-notifications-desc"
-                hint={t('settings.device.notificationsHint')}
-              >
-                {/* The row already names the switch; keep PushToggle's own label for screen
-                    readers only so "Notifications" is not printed twice. */}
-                <PushToggle className="[&_label>span]:sr-only" />
-              </PreferenceRow>
+              {/* PushToggle hands over just its switch (named by the row) and its notes, which go
+                  under the row so a long desktop hint never squeezes the description. */}
+              <PushToggle labelledBy="settings-notifications-label">
+                {({ control, notes }) => (
+                  <PreferenceRow
+                    labelId="settings-notifications-label"
+                    label={t('settings.device.notifications')}
+                    hintId="settings-notifications-desc"
+                    hint={t('settings.device.notificationsHint')}
+                    below={notes}
+                  >
+                    {control}
+                  </PreferenceRow>
+                )}
+              </PushToggle>
             </CardContent>
           </Card>
 
