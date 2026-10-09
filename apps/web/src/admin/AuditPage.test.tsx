@@ -77,6 +77,7 @@ it('shows an AI assistant change under its access token name, with the owner bel
   render(<AuditPage />);
   const row = within(table()).getByText('Claude Desktop').closest('tr')!;
   expect(within(row).getByText('Owner: Alice Admin')).toBeTruthy();
+  expect(within(row).getByText('ezc_pat_ab12…')).toBeTruthy();
   expect(row.textContent).not.toContain('mcp');
 });
 

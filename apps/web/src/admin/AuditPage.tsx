@@ -37,8 +37,10 @@ export function AuditPage() {
           <KeyRound aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
           <span className="break-words">{e.apiToken?.name ?? t('audit.aiAssistantToken')}</span>
         </span>
+        {/* The prefix tells apart tokens given the same name, as the token list does. */}
         <span className="text-xs text-muted-foreground">
           {t('audit.tokenOwner', { name: person(e) })}
+          {e.apiToken && <span className="block font-mono">{e.apiToken.prefix}…</span>}
         </span>
       </span>
     ) : (
