@@ -47,3 +47,28 @@ it('keeps the compact label readable and its full device-specific accessible nam
   fireEvent.click(label);
   await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
 });
+
+it('hands a settings row just the switch, with the desktop hint as a separate note', async () => {
+  render(
+    <div>
+      <h3 id="row-label">Notifications</h3>
+      <PushToggle labelledBy="row-label">
+        {({ control, notes }) => (
+          <>
+            <div data-testid="control">{control}</div>
+            <div data-testid="notes">{notes}</div>
+          </>
+        )}
+      </PushToggle>
+    </div>,
+  );
+  const control = screen.getByTestId('control');
+  // The control slot holds only the switch, named by the row; no icon, label or long text.
+  expect(control.textContent).toBe('');
+  const toggle = screen.getByRole('switch', { name: 'Notifications' });
+  expect(control.contains(toggle)).toBe(true);
+  expect(screen.getByTestId('notes').textContent).toMatch(/allow EzyChat Lite in your system/);
+  expect(screen.queryByText(/WA EzyChat/)).toBeNull();
+  fireEvent.click(toggle);
+  await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
+});

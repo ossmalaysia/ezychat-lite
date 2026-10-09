@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings → Preferences (desktop app):** the Notifications description no longer squeezes into a
+  narrow column; the switch sits on the right like Appearance and the desktop note goes underneath. The
+  note now names the app correctly ("allow EzyChat Lite").
+
 ## [0.1.28] - 2026-10-09
 
 ### Added

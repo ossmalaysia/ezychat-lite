@@ -279,6 +279,10 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings
+  along (hints, warnings) goes under the row (`PreferenceRow` `below`, `PushToggle` render prop), or it
+  squeezes the description. Desktop-only text (`window.watiNotifications`) needs a check with that
+  bridge injected: the browser Dev Build never shows it.
 - In a direct chat, every place that names the customer (quotes, reply bar) uses the header name
   (`chatTitle`: profile → saved → WhatsApp name), never the message's `senderName`; groups name senders.
   Demo data (assigned chats, profile names) catches this; bare e2e fixtures do not.

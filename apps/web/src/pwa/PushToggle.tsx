@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Bell, BellOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -26,16 +27,29 @@ function initialStatus(): Status {
   return 'checking';
 }
 
+/** The two parts of the toggle for a settings row: the switch, and what goes under the row. */
+export interface PushToggleParts {
+  /** Just the switch (null when this device cannot turn notifications on). */
+  control: React.ReactNode;
+  /** Hints and problems, shown under the whole row. */
+  notes: React.ReactNode;
+}
+
 /**
  * Push-notification opt-in for the current device (place it in the user menu).
- * `compact` renders a single row suitable for menus / side bars.
+ * `compact` renders a single row suitable for menus / side bars. With `children`, it renders
+ * nothing itself and hands the switch and its notes to a settings row (`labelledBy` names it).
  */
 export function PushToggle({
   compact = false,
   className,
+  labelledBy,
+  children,
 }: {
   compact?: boolean;
   className?: string;
+  labelledBy?: string;
+  children?: (parts: PushToggleParts) => React.ReactNode;
 }) {
   const { t } = useTranslation('inbox');
   const id = useId();
@@ -56,12 +70,17 @@ export function PushToggle({
     };
   }, [status]);
 
-  if (status === 'install') return <InstallHint className={className} force />;
+  if (status === 'install') {
+    const hint = <InstallHint className={className} force />;
+    return children ? children({ control: null, notes: hint }) : hint;
+  }
 
   if (status === 'unsupported') {
-    return compact ? null : (
+    const note = (
       <p className={cn('text-sm text-muted-foreground', className)}>{t('push.unsupported')}</p>
     );
+    if (children) return children({ control: null, notes: note });
+    return compact ? null : note;
   }
 
   const toggle = async () => {
@@ -88,6 +107,44 @@ export function PushToggle({
   const disabled = busy || status === 'checking' || status === 'denied';
   const Icon = on ? Bell : BellOff;
 
+  const switchEl = (
+    <Switch
+      id={id}
+      className="shrink-0"
+      aria-label={compact ? t('push.labelDevice') : undefined}
+      aria-labelledby={labelledBy}
+      checked={on}
+      disabled={disabled}
+      aria-busy={busy || undefined}
+      onCheckedChange={() => void toggle()}
+      onClick={(e) => e.stopPropagation()}
+      // Inside a DropdownMenu, keep Space/Enter from being treated as menu typeahead/select.
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') e.stopPropagation();
+      }}
+    />
+  );
+  const hasNotes = (isDesktopNotifications() && !compact) || status === 'denied' || !!error;
+  const notes = hasNotes ? (
+    <div className="flex flex-col gap-1.5">
+      {isDesktopNotifications() && !compact && (
+        <p className="text-xs text-muted-foreground">{t('push.desktopHint')}</p>
+      )}
+      {status === 'denied' && (
+        <Banner tone="warning" className="text-xs">
+          {t('push.blocked')}
+        </Banner>
+      )}
+      {error && status !== 'denied' && (
+        <Banner tone="danger" className="text-xs">
+          {error}
+        </Banner>
+      )}
+    </div>
+  ) : null;
+
+  if (children) return children({ control: switchEl, notes });
+
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <div
@@ -103,34 +160,9 @@ export function PushToggle({
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="truncate">{compact ? t('push.label') : t('push.labelDevice')}</span>
         </Label>
-        <Switch
-          id={id}
-          className="shrink-0"
-          aria-label={compact ? t('push.labelDevice') : undefined}
-          checked={on}
-          disabled={disabled}
-          aria-busy={busy || undefined}
-          onCheckedChange={() => void toggle()}
-          onClick={(e) => e.stopPropagation()}
-          // Inside a DropdownMenu, keep Space/Enter from being treated as menu typeahead/select.
-          onKeyDown={(e) => {
-            if (e.key === ' ' || e.key === 'Enter') e.stopPropagation();
-          }}
-        />
+        {switchEl}
       </div>
-      {isDesktopNotifications() && !compact && (
-        <p className="text-xs text-muted-foreground">{t('push.desktopHint')}</p>
-      )}
-      {status === 'denied' && (
-        <Banner tone="warning" className="text-xs">
-          {t('push.blocked')}
-        </Banner>
-      )}
-      {error && status !== 'denied' && (
-        <Banner tone="danger" className="text-xs">
-          {error}
-        </Banner>
-      )}
+      {notes}
     </div>
   );
 }
