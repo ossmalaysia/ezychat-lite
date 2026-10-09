@@ -163,7 +163,9 @@ into AGENTS.md.
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
 - Windows background scripts: launch via a short-lived `powershell -Command Start-Process …`, wait for its
-  exit code, and test the real launcher end to end.
+  exit code, and test the real launcher end to end. Stopping a background shell task does not stop the
+  `node`/`tsx` server it started on Windows: stop the server by the PID listening on its port (after
+  checking its command line), and confirm a port is free before a re-run, or the re-run tests old code.
 
 ## Security
 

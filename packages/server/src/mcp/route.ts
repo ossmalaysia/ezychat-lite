@@ -73,8 +73,15 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
       return result.principal;
     };
 
+    // onRequest runs before body parsing: a disabled endpoint, a LAN peer or a bad token never
+    // reaches the parser, so they get 404/403/401 (not 400/413) and always pass the IP limiter.
+    const principals = new WeakMap<FastifyRequest, ApiPrincipal>();
+    scope.addHook('onRequest', async (req) => {
+      principals.set(req, authenticate(req));
+    });
+
     scope.post(MCP_PATH, async (req, reply) => {
-      const principal = authenticate(req);
+      const principal = principals.get(req)!;
       const server = createMcpServer({
         inbox,
         principal,
@@ -94,8 +101,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
     scope.route({
       method: ['GET', 'DELETE', 'PUT', 'PATCH'],
       url: MCP_PATH,
-      handler: async (req, reply) => {
-        authenticate(req);
+      handler: async (_req, reply) => {
         return reply
           .status(405)
           .header('allow', 'POST')

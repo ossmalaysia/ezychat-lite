@@ -314,3 +314,28 @@ it('refreshes the tag suggestions when a chat arrives with tags (a teammate adde
   await screen.findByText('Tags Hungry,VIP');
   qc.clear();
 });
+
+it('refreshes the AI assistant settings when the tunnel status changes (new tunnel URL)', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  qc.setQueryData(qk.mcpSettings, {
+    enabled: true,
+    endpointPath: '/mcp',
+    publicUrl: null,
+    localUrl: 'x',
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(socket.listeners.has('tunnel:status')).toBe(true));
+  expect(qc.getQueryState(qk.mcpSettings)?.isInvalidated).toBe(false);
+  act(() =>
+    socket.listeners.get('tunnel:status')!({ state: 'running', url: 'https://new.example' }),
+  );
+  expect(qc.getQueryState(qk.mcpSettings)?.isInvalidated).toBe(true);
+  qc.clear();
+});

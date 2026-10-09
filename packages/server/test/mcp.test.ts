@@ -99,6 +99,28 @@ describe('exposure', () => {
     setMcpEnabled(t.ctx, true);
   });
 
+  it('checks access before parsing the body (malformed or oversized bodies change nothing)', async () => {
+    const raw = (payload: string, token: string | null) =>
+      t.app.inject({
+        method: 'POST',
+        url: '/mcp',
+        remoteAddress: '127.0.0.1',
+        headers: {
+          host: 'localhost',
+          'content-type': 'application/json',
+          accept: ACCEPT,
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        payload,
+      });
+    setMcpEnabled(t.ctx, false);
+    expect((await raw('{not json', secret)).statusCode).toBe(404);
+    expect((await raw('x'.repeat(2 * 1024 * 1024), secret)).statusCode).toBe(404);
+    setMcpEnabled(t.ctx, true);
+    expect((await raw('{not json', null)).statusCode).toBe(401);
+    expect((await raw('{not json', secret)).statusCode).toBe(400);
+  });
+
   it('refuses LAN peers and loopback peers with a forged tunnel header', async () => {
     setMcpEnabled(t.ctx, true);
     expect((await post(initialize, { remoteAddress: '192.168.1.20' })).statusCode).toBe(403);
