@@ -163,7 +163,8 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs.
+  several times slower than local runs. So does any test that builds `makeTestApp()` inside itself, and
+  `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
 - Windows background scripts: launch via a short-lived `powershell -Command Start-Process …`, wait for its

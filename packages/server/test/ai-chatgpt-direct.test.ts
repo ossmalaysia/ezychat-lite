@@ -637,7 +637,8 @@ describe('ChatGPT agent turn', () => {
     ).rejects.toThrow('ChatGPT answer timed out.');
     expect(calls).toBe(2);
     await provider.shutdown();
-  });
+    // The 200 ms turn bound is what's tested; building the app takes seconds on the Windows runner.
+  }, 30_000);
 });
 
 describe('ChatGPT prompt cache key', () => {
