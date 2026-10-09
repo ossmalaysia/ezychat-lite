@@ -230,6 +230,9 @@ into AGENTS.md.
   audit row naming the token and its reason and a per-token rate limit: the assistant also reads
   customer text, so a crafted message could steer a change. When a feature makes a "read-only"
   promise untrue, fix every place that states it (app copy in all locales, public guides) with it.
+  A write tool validates with the app's own limits (service methods trust callers), and any tool
+  whose output an assistant must send back whole (replace-all text, restore) returns it in full via
+  pages (`offset` / `nextOffset` / `lastPage`, by code point), never silently truncated.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when

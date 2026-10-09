@@ -1,13 +1,24 @@
-import type {
-  AiDocumentView,
-  AiTryResult,
-  McpTryAiReplyInput,
-  McpUpdateAiSetupInput,
+import {
+  AI_HANDOFF_RULES_CHARACTERS,
+  AI_INSTRUCTIONS_CHARACTERS,
+  AiContextPatchBody,
+  AiContextTextBody,
+  codePointLength,
+  type AiDocumentView,
+  type AiTryResult,
+  type McpTryAiReplyInput,
+  type McpUpdateAiSetupInput,
 } from '@wa-team-inbox/shared';
+import type { z } from 'zod';
 import type { AppContext } from '../context.js';
 import type { ApiPrincipal } from '../api-tokens/index.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
-import { listSetupVersions, type SetupTarget, type SetupVersion } from '../ai/setup-versions.js';
+import {
+  getSetupVersion,
+  listSetupVersions,
+  type SetupTarget,
+  type SetupVersion,
+} from '../ai/setup-versions.js';
 import { localDate, localMidnight } from '../chats/stats.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 
@@ -56,6 +67,7 @@ export interface AiSetupPort {
   tryReply(input: McpTryAiReplyInput): Promise<AiTryResult>;
   update(input: McpUpdateAiSetupInput, principal: ApiPrincipal): { versionId: number | null };
   history(target: SetupTarget, itemId: number | null, limit: number): SetupVersion[];
+  version(id: number): SetupVersion | null;
   /** Throws when a token makes too many changes (20 an hour) or test replies (10 a minute). */
   allow(kind: 'update' | 'try', tokenId: number): void;
 }
@@ -169,6 +181,25 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
 
     update(input, principal) {
       const service = ai();
+      // Same limits as the app's forms: the service methods trust their callers.
+      const within = (max: number, label: string) => {
+        if (codePointLength(input.text) > max)
+          throw new AiSetupError(`${label} can be at most ${max.toLocaleString('en')} characters`);
+      };
+      const check = <T extends z.ZodTypeAny>(schema: T, value: unknown) => {
+        const parsed = schema.safeParse(value);
+        if (!parsed.success)
+          throw new AiSetupError(parsed.error.issues.map((i) => i.message).join('; '));
+      };
+      if (input.target === 'instructions') within(AI_INSTRUCTIONS_CHARACTERS, 'AI instructions');
+      if (input.target === 'handoff_rules') within(AI_HANDOFF_RULES_CHARACTERS, 'Hand-off rules');
+      if (input.target === 'context_text')
+        check(
+          input.itemId === undefined ? AiContextTextBody : AiContextPatchBody,
+          input.itemId === undefined
+            ? { name: input.name, text: input.text }
+            : { text: input.text, ...(input.name ? { name: input.name } : {}) },
+        );
       const actor = {
         userId: principal.user.id,
         ip: null,
@@ -215,6 +246,10 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
 
     history(target, itemId, limit) {
       return listSetupVersions(ctx.db, target, itemId, limit);
+    },
+
+    version(id) {
+      return getSetupVersion(ctx.db, id);
     },
 
     allow(kind, tokenId) {

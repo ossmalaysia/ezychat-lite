@@ -101,3 +101,8 @@ export function listSetupVersions(
       .all(target, itemId, limit) as Row[]
   ).map(toVersion);
 }
+
+export function getSetupVersion(db: DB, id: number): SetupVersion | null {
+  const row = db.prepare('SELECT * FROM ai_setup_versions WHERE id = ?').get(id) as Row | undefined;
+  return row ? toVersion(row) : null;
+}

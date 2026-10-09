@@ -2,19 +2,35 @@ import {
   McpGetAiAgentSetupInput,
   McpGetAiContextItemInput,
   McpGetAiSetupHistoryInput,
+  McpGetAiSetupVersionInput,
   McpTryAiReplyInput,
   McpUpdateAiSetupInput,
 } from '@wa-team-inbox/shared';
 import { ToolError, type ToolDef } from './tools.js';
 
-/** Business context text returned per call; longer items are cut and flagged `truncated`. */
-const MAX_ITEM_CHARS = 20_000;
-/** Text of one version in get_ai_setup_history. */
-const MAX_VERSION_CHARS = 8_000;
+/** Characters per page of a long text (a full item or version is read page by page). */
+const PAGE_CHARS = 20_000;
+/** Preview of each version in get_ai_setup_history; get_ai_setup_version returns the full text. */
+const PREVIEW_CHARS = 2_000;
 
 const iso = (t: number) => new Date(t).toISOString();
-const cut = (text: string, max: number) =>
-  text.length > max ? { text: text.slice(0, max), truncated: true } : { text, truncated: false };
+
+/**
+ * One page of a text, counted in characters (code points, so emoji and CJK never split). Every page
+ * says whether more follows, so an assistant never mistakes a part for the whole.
+ */
+export function page(text: string, offset: number, size = PAGE_CHARS) {
+  const chars = Array.from(text);
+  const end = Math.min(chars.length, offset + size);
+  return {
+    text: chars.slice(offset, end).join(''),
+    offset,
+    totalCharacters: chars.length,
+    nextOffset: end < chars.length ? end : null,
+    // True on the final page (and when the whole text fits in one): nothing left to fetch.
+    lastPage: end >= chars.length,
+  };
+}
 
 const getAiAgentSetup: ToolDef<typeof McpGetAiAgentSetupInput> = {
   name: 'get_ai_agent_setup',
@@ -39,22 +55,21 @@ const getAiContextItem: ToolDef<typeof McpGetAiContextItemInput> = {
   name: 'get_ai_context_item',
   title: 'Read a Business context item',
   description:
-    'The full text of one Business context item (what the AI answers from). Text items can be changed with update_ai_setup; uploaded files are read-only.',
+    'The text of one Business context item (what the AI answers from), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Text items can be changed with update_ai_setup (send the complete joined text); uploaded files are read-only and show a preview only.',
   scope: 'ai:setup',
   input: McpGetAiContextItemInput,
   run(args, { aiSetup }) {
     const item = aiSetup.contextItem(args.id);
-    const body = cut(item.text, MAX_ITEM_CHARS);
     return {
       result: {
         id: item.id,
         name: item.name,
         kind: item.kind,
         editable: item.kind === 'text',
-        characters: item.characters,
         updatedAt: iso(item.updatedAt),
-        text: body.text,
-        truncated: body.truncated || item.truncated,
+        ...page(item.text, args.offset),
+        // Files show a preview of their extracted text; text items are always whole.
+        ...(item.truncated ? { filePreviewOnly: true } : {}),
       },
       count: 1,
     };
@@ -107,7 +122,7 @@ const getAiSetupHistory: ToolDef<typeof McpGetAiSetupHistoryInput> = {
   name: 'get_ai_setup_history',
   title: 'AI setup version history',
   description:
-    'Saved versions of the AI instructions, hand-off rules or a Business context text item, newest first: who changed it (in the app or by an AI assistant over MCP), when, why, and the full text. To revert, send an older text back with update_ai_setup.',
+    'Saved versions of the AI instructions, hand-off rules or a Business context text item, newest first: who changed it (in the app or by an AI assistant over MCP), when, why, and a preview. Get the complete text of a version with get_ai_setup_version; to revert, send that complete text back with update_ai_setup.',
   scope: 'ai:setup',
   input: McpGetAiSetupHistoryInput,
   run(args, { aiSetup, inbox }) {
@@ -120,17 +135,17 @@ const getAiSetupHistory: ToolDef<typeof McpGetAiSetupHistoryInput> = {
     return {
       result: {
         versions: versions.map((v) => {
-          const body = cut(v.content, MAX_VERSION_CHARS);
+          const preview = page(v.content, 0, PREVIEW_CHARS);
           return {
             versionId: v.id,
             at: iso(v.createdAt),
-            changedIn:
-              v.via === 'mcp' ? 'AI assistant (MCP)' : v.via === 'app' ? 'app' : 'original text',
+            changedIn: changedIn(v.via),
             by: v.userId === null ? null : (names.get(v.userId) ?? `user ${v.userId}`),
             tokenId: v.tokenId,
             reason: v.reason,
-            text: body.text,
-            ...(body.truncated ? { truncated: true } : {}),
+            totalCharacters: preview.totalCharacters,
+            preview: preview.text,
+            ...(preview.lastPage ? {} : { previewOnly: true }),
           };
         }),
       },
@@ -139,10 +154,40 @@ const getAiSetupHistory: ToolDef<typeof McpGetAiSetupHistoryInput> = {
   },
 };
 
+const getAiSetupVersion: ToolDef<typeof McpGetAiSetupVersionInput> = {
+  name: 'get_ai_setup_version',
+  title: 'Read one saved version',
+  description:
+    'The complete text of one saved version (versionId from get_ai_setup_history), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Send the joined text to update_ai_setup to restore it.',
+  scope: 'ai:setup',
+  input: McpGetAiSetupVersionInput,
+  run(args, { aiSetup }) {
+    const version = aiSetup.version(args.versionId);
+    if (!version) throw new ToolError(`No saved version ${args.versionId}`);
+    return {
+      result: {
+        versionId: version.id,
+        target: version.target,
+        itemId: version.itemId,
+        at: iso(version.createdAt),
+        changedIn: changedIn(version.via),
+        reason: version.reason,
+        ...page(version.content, args.offset),
+      },
+      count: 1,
+    };
+  },
+};
+
+function changedIn(via: string): string {
+  return via === 'mcp' ? 'AI assistant (MCP)' : via === 'app' ? 'app' : 'original text';
+}
+
 export const AI_SETUP_TOOLS: readonly ToolDef[] = [
   getAiAgentSetup,
   getAiContextItem,
   tryAiReply,
   updateAiSetup,
   getAiSetupHistory,
+  getAiSetupVersion,
 ] as ToolDef[];

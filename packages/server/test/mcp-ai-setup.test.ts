@@ -114,6 +114,7 @@ describe('AI setup over MCP', () => {
       'get_ai_agent_setup',
       'get_ai_context_item',
       'get_ai_setup_history',
+      'get_ai_setup_version',
       'get_chat',
       'get_messages',
       'get_stats',
@@ -167,10 +168,10 @@ describe('AI setup over MCP', () => {
       by: 'Owner',
       tokenId,
       reason: 'Only hand off on explicit quotation requests',
-      text: rules,
+      preview: rules,
     });
     expect(history.versions[1]).toMatchObject({ changedIn: 'app', by: 'Owner' });
-    expect(history.versions[1].text).toContain('bulk or custom order');
+    expect(history.versions[1].preview).toContain('bulk or custom order');
     expect(history.versions[2]).toMatchObject({ changedIn: 'original text' });
 
     const row = t.ctx.db
@@ -200,7 +201,7 @@ describe('AI setup over MCP', () => {
       'app',
       'original text',
     ]);
-    expect(history.versions[0].text).toBe('Be warm.');
+    expect(history.versions[0].preview).toBe('Be warm.');
   });
 
   it('adds and edits Business context text, but never uploaded files', async () => {
@@ -226,7 +227,7 @@ describe('AI setup over MCP', () => {
     const history = (
       await call('get_ai_setup_history', { target: 'context_text', itemId: playbook.id })
     ).data();
-    expect(history.versions.map((v: { text: string }) => v.text)).toEqual([
+    expect(history.versions.map((v: { preview: string }) => v.preview)).toEqual([
       'Ask for company name, number of users and plan.',
       'Ask for company name and number of users before offering a quotation.',
     ]);
@@ -283,6 +284,73 @@ describe('AI setup over MCP', () => {
     });
     expect(blocked.isError).toBe(true);
     expect(blocked.text).toMatch(/Too many setup changes/);
+  });
+
+  it('refuses texts the app would refuse (too long, empty context)', async () => {
+    const long = await call('update_ai_setup', {
+      target: 'instructions',
+      text: 'x'.repeat(8001),
+      reason: 'too long on purpose',
+    });
+    expect(long.isError).toBe(true);
+    expect(long.text).toMatch(/at most 8,000 characters/);
+    const rules = await call('update_ai_setup', {
+      target: 'handoff_rules',
+      text: 'y'.repeat(4001),
+      reason: 'too long on purpose',
+    });
+    expect(rules.isError).toBe(true);
+    const setup = (await call('get_ai_agent_setup')).data();
+    const prices = setup.businessContext.find((d: { name: string }) => d.name === 'Prices');
+    const empty = await call('update_ai_setup', {
+      target: 'context_text',
+      itemId: prices.id,
+      text: '   ',
+      reason: 'empty on purpose',
+    });
+    expect(empty.isError).toBe(true);
+    expect(t.ctx.services.ai!.status().settings.instructions).toBe('Be concise.');
+    expect((await call('get_ai_context_item', { id: prices.id })).data().text).toContain('RM120');
+  });
+
+  it('pages long context items and versions so the complete text can be kept or restored', async () => {
+    // 45,000 characters with a 4-byte emoji at a page boundary: pages must join back exactly.
+    const long = 'a'.repeat(19_999) + '😀' + 'b'.repeat(25_000);
+    const added = await call('update_ai_setup', {
+      target: 'context_text',
+      name: 'Catalogue text',
+      text: long,
+      reason: 'large catalogue',
+    });
+    expect(added.isError).toBe(false);
+    const setup = (await call('get_ai_agent_setup')).data();
+    const item = setup.businessContext.find((d: { name: string }) => d.name === 'Catalogue text');
+    const read = async (tool: string, args: Record<string, unknown>) => {
+      let joined = '';
+      let offset: number | null = 0;
+      let pages = 0;
+      while (offset !== null) {
+        const pageData = (await call(tool, { ...args, offset })).data();
+        joined += pageData.text;
+        // lastPage and nextOffset agree on every page.
+        expect(pageData.lastPage).toBe(pageData.nextOffset === null);
+        offset = pageData.nextOffset;
+        pages++;
+      }
+      return { joined, pages };
+    };
+    const itemText = await read('get_ai_context_item', { id: item.id });
+    expect(itemText.pages).toBe(3);
+    expect(itemText.joined).toBe(long);
+
+    const history = (
+      await call('get_ai_setup_history', { target: 'context_text', itemId: item.id })
+    ).data();
+    expect(history.versions[0]).toMatchObject({ previewOnly: true, totalCharacters: 45_000 });
+    const version = await read('get_ai_setup_version', {
+      versionId: history.versions[0].versionId,
+    });
+    expect(version.joined).toBe(long);
   });
 
   it('get_stats reports AI hand-offs per reason', async () => {

@@ -99,6 +99,12 @@ export type McpGetAiAgentSetupInput = z.infer<typeof McpGetAiAgentSetupInput>;
 
 export const McpGetAiContextItemInput = z.strictObject({
   id: z.number().int().positive().describe('Business context item id from get_ai_agent_setup'),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe('Character offset for long items: pass nextOffset from the previous page'),
 });
 export type McpGetAiContextItemInput = z.infer<typeof McpGetAiContextItemInput>;
 
@@ -132,7 +138,12 @@ export const McpUpdateAiSetupInput = z.strictObject({
     .max(120)
     .optional()
     .describe('context_text only: item name (required when adding)'),
-  text: z.string().describe('The complete new text (not a diff)'),
+  text: z
+    .string()
+    .max(200_000)
+    .describe(
+      'The complete new text (not a diff). For a long item, read every page with get_ai_context_item first so nothing is lost.',
+    ),
   reason: z
     .string()
     .trim()
@@ -148,3 +159,14 @@ export const McpGetAiSetupHistoryInput = z.strictObject({
   limit: z.number().int().min(1).max(50).default(10),
 });
 export type McpGetAiSetupHistoryInput = z.infer<typeof McpGetAiSetupHistoryInput>;
+
+export const McpGetAiSetupVersionInput = z.strictObject({
+  versionId: z.number().int().positive().describe('versionId from get_ai_setup_history'),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe('Character offset for long texts: pass nextOffset from the previous page'),
+});
+export type McpGetAiSetupVersionInput = z.infer<typeof McpGetAiSetupVersionInput>;
