@@ -175,7 +175,11 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 - AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
   tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
   an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.
-  MCP tools get only `InboxReadPort` (reads), return media metadata never links, and log tool name,
+  Inbox tools get only `InboxReadPort` (reads) and return media metadata, never links. AI setup
+  tools (scope `ai:setup`, every admin token) go only through `AiSetupPort` (`mcp/ai-setup.ts`): they
+  may change the AI instructions, hand-off rules and Business context **text** items, never files,
+  the connection, key, model or on/off. Every change keeps a version (`ai_setup_versions`, app saves
+  too) and an audit row with token id and reason, and is rate-limited per token. Tools log tool name,
   counts and token id, never arguments or message text.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 

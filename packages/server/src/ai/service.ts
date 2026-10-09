@@ -31,6 +31,7 @@ import {
 } from '@wa-team-inbox/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
+import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
@@ -85,7 +86,24 @@ const DEFAULT_SETTINGS: AiSettings = {
   instructions: DEFAULT_AI_INSTRUCTIONS,
   handoffRules: DEFAULT_AI_HANDOFF_RULES,
 };
-type Actor = { userId: number; ip: string | null };
+type Actor = {
+  userId: number;
+  ip: string | null;
+  /** Changes from an AI assistant over MCP carry the token and the assistant's reason. */
+  via?: 'app' | 'mcp';
+  tokenId?: number;
+  reason?: string;
+};
+/** Who made a setup change, for the version history. */
+const versionSource = (actor: Actor): SetupChangeSource => ({
+  userId: actor.userId,
+  via: actor.via ?? 'app',
+  tokenId: actor.tokenId ?? null,
+  reason: actor.reason ?? null,
+});
+/** Extra audit fields for a change an AI assistant made over MCP. */
+const mcpAudit = (actor: Actor) =>
+  actor.via === 'mcp' ? { via: 'mcp', tokenId: actor.tokenId, reason: actor.reason } : {};
 interface State {
   paused: number;
   awaiting_confirmation: number;
@@ -879,14 +897,34 @@ export function createAiService(
           handoffRules,
         });
         // Record who changed the AI's behaviour, without copying the text into the audit log.
+        if (body.instructions !== before.instructions)
+          recordSetupVersion(
+            ctx.db,
+            'instructions',
+            null,
+            before.instructions,
+            body.instructions,
+            versionSource(actor),
+          );
+        if (handoffRules !== before.handoffRules)
+          recordSetupVersion(
+            ctx.db,
+            'handoff_rules',
+            null,
+            before.handoffRules ?? null,
+            handoffRules ?? '',
+            versionSource(actor),
+          );
         audit(ctx.db, {
-          ...actor,
+          userId: actor.userId,
+          ip: actor.ip,
           action: 'ai.member_update',
           meta: {
             enabled: body.enabled,
             role: 'sales',
             instructionsChanged: body.instructions !== before.instructions,
             handoffRulesChanged: handoffRules !== before.handoffRules,
+            ...mcpAudit(actor),
           },
         });
       })();
@@ -952,10 +990,21 @@ export function createAiService(
             "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
           )
           .run(name, size, text, now, now);
+        const documentId = Number(result.lastInsertRowid);
+        recordSetupVersion(
+          ctx.db,
+          'context_text',
+          documentId,
+          null,
+          text,
+          versionSource(actor),
+          now,
+        );
         audit(ctx.db, {
-          ...actor,
+          userId: actor.userId,
+          ip: actor.ip,
           action: 'ai.document_add',
-          meta: { documentId: Number(result.lastInsertRowid), kind: 'text', size },
+          meta: { documentId, kind: 'text', size, ...mcpAudit(actor) },
         });
       })();
       cancelAll();
@@ -979,14 +1028,18 @@ export function createAiService(
             'UPDATE ai_documents SET name = ?, text = ?, size = ?, updated_at = ? WHERE id = ?',
           )
           .run(name, text, size, Date.now(), id);
+        if (text !== row.text)
+          recordSetupVersion(ctx.db, 'context_text', id, row.text, text, versionSource(actor));
         audit(ctx.db, {
-          ...actor,
+          userId: actor.userId,
+          ip: actor.ip,
           action: 'ai.document_update',
           meta: {
             documentId: id,
             size,
             renamed: body.name !== undefined,
             edited: body.text !== undefined,
+            ...mcpAudit(actor),
           },
         });
       })();

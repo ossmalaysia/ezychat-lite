@@ -8,6 +8,7 @@ import { originHost } from '../http/origin.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { ErrorCode } from '@wa-team-inbox/shared';
 import { createInboxReadPort } from './inbox.js';
+import { createAiSetupPort } from './ai-setup.js';
 import { createMcpServer } from './server.js';
 import { MCP_PATH, isMcpEnabled } from './settings.js';
 import { handleMcpRequest } from './transport.js';
@@ -26,6 +27,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
   await app.register(async (scope) => {
     const tokens = getApiTokens(ctx);
     const inbox = createInboxReadPort(ctx);
+    const aiSetup = createAiSetupPort(ctx);
     const log = ctx.log.child({ mod: 'mcp' });
     const ipLimiter = new WindowLimiter({ windowMs: 60_000, max: 120 });
     const failureLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
@@ -84,6 +86,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
       const principal = principals.get(req)!;
       const server = createMcpServer({
         inbox,
+        aiSetup,
         principal,
         log,
         stillValid: () => tokens.stillValid(principal.tokenId),

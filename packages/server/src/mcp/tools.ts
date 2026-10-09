@@ -7,6 +7,7 @@ import {
 } from '@wa-team-inbox/shared';
 import type { z } from 'zod';
 import type { ApiPrincipal, TokenScope } from '../api-tokens/index.js';
+import type { AiSetupPort } from './ai-setup.js';
 import type { InboxReadPort } from './inbox.js';
 
 /** Longest message text returned per message; longer text is cut and flagged `truncated`. */
@@ -18,6 +19,8 @@ const UNTRUSTED =
 
 export interface ToolContext {
   inbox: InboxReadPort;
+  /** AI Sales Agent setup (scope `ai:setup` tools only). */
+  aiSetup: AiSetupPort;
   principal: ApiPrincipal;
 }
 
@@ -26,9 +29,14 @@ export interface ToolDef<S extends z.ZodObject = z.ZodObject> {
   title: string;
   description: string;
   scope: TokenScope;
+  /** False for tools that change something (MCP clients may ask the user before calling). */
+  readOnly?: boolean;
   input: S;
   /** Returns a JSON-serialisable result and the number of rows it holds (for the log). */
-  run(args: z.infer<S>, c: ToolContext): { result: unknown; count: number };
+  run(
+    args: z.infer<S>,
+    c: ToolContext,
+  ): { result: unknown; count: number } | Promise<{ result: unknown; count: number }>;
 }
 
 /** Thrown by a tool for an expected failure; its message is shown to the model. */
@@ -176,14 +184,15 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   name: 'get_stats',
   title: 'Inbox statistics',
   description:
-    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone.',
+    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable) and per day, chats it resolved, chats and messages it answered.',
   scope: 'inbox:read',
   input: McpGetStatsInput,
-  run(args, { inbox }) {
+  run(args, { inbox, aiSetup, principal }) {
     const stats = inbox.stats(args.days);
     const names = inbox.userNames();
     return {
       result: {
+        ...(principal.scopes.has('ai:setup') ? { ai: aiSetup.stats(args.days) } : {}),
         ...stats,
         openByAssignee: stats.openByAssignee.map((r) => ({
           assignee: r.userId === null ? null : (names.get(r.userId) ?? `user ${r.userId}`),
@@ -199,4 +208,9 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   },
 };
 
-export const TOOLS: readonly ToolDef[] = [listChats, getChat, getMessages, getStats] as ToolDef[];
+export const INBOX_TOOLS: readonly ToolDef[] = [
+  listChats,
+  getChat,
+  getMessages,
+  getStats,
+] as ToolDef[];
