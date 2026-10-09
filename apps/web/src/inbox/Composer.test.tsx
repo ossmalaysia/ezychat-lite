@@ -236,3 +236,39 @@ describe('Composer', () => {
     }
   });
 });
+
+describe('Composer reply bar', () => {
+  const replyTo = {
+    id: 'WA-1',
+    author: 'Koh',
+    preview: 'Noted. However, our company only prefer online transfer',
+  };
+
+  it('shows who is being replied to, focuses the box, and cancels with Esc or ✕', async () => {
+    const onCancelReply = vi.fn();
+    render(
+      <Composer
+        quickReplies={[]}
+        onSend={vi.fn()}
+        onAttach={vi.fn()}
+        replyTo={replyTo}
+        onCancelReply={onCancelReply}
+      />,
+    );
+    const bar = screen.getByTestId('reply-bar');
+    expect(bar.textContent).toContain('Replying to Koh');
+    expect(bar.textContent).toContain('online transfer');
+    const box = screen.getByRole('textbox', { name: 'Message' });
+    expect(document.activeElement).toBe(box);
+    const user = userEvent.setup();
+    await user.keyboard('{Escape}');
+    expect(onCancelReply).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Cancel reply' }));
+    expect(onCancelReply).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows no bar without a reply', () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    expect(screen.queryByTestId('reply-bar')).toBeNull();
+  });
+});

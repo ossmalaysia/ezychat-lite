@@ -197,6 +197,10 @@ into AGENTS.md.
 
 - Identity is pinned to `Browsers.ubuntu('Chrome')`; "Desktop" identities get 428 before any QR. Never
   change it without a live QR check.
+- Anything that needs the original `WAMessage` (a quote, media re-download) must not rely only on the
+  adapter's in-memory cache (2,000 entries, cleared on reconnect): pass a saved copy from the database
+  (`WaQuotedRef` → `quotedFromRef`; `key.remoteJid` = the chat the reply goes to), or the feature
+  silently degrades after a restart.
 - Any change under `packages/wa/src/baileys/**` needs a live smoke on a test number; otherwise say
   "untested against real WhatsApp". Fake-adapter tests prove nothing about linking.
 - Pairing codes work after the first QR offer; the following 515 "restart required" is normal.
@@ -269,6 +273,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- In a direct chat, every place that names the customer (quotes, reply bar) uses the header name
+  (`chatTitle`: profile → saved → WhatsApp name), never the message's `senderName`; groups name senders.
+  Demo data (assigned chats, profile names) catches this; bare e2e fixtures do not.
 - Addresses the UI tells people to use (setup commands, URLs) come from the server's running config
   (`ctx.config.port`, tunnel status), never from saved settings, which may apply only after a restart.
 - Admin links and fallback redirects use absolute `/admin/...` paths; test every section transition and

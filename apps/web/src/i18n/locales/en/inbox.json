@@ -102,7 +102,9 @@
     "attach": "Attach file",
     "message": "Message",
     "send": "Send",
-    "quickReplies": "Quick replies"
+    "quickReplies": "Quick replies",
+    "replyingTo": "Replying to {{name}}",
+    "cancelReply": "Cancel reply"
   },
   "quickReplies": {
     "title": "Quick replies",
@@ -238,7 +240,8 @@
       "failed": "Couldn’t transcribe this voice note",
       "too_long": "Too long to transcribe",
       "unsupported": "This audio format can’t be transcribed"
-    }
+    },
+    "reply": "Reply"
   },
   "media": {
     "types": {

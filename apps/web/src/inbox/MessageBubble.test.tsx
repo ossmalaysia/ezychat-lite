@@ -157,3 +157,65 @@ describe('MessageBubble sender profile', () => {
     expect(screen.queryByRole('button', { name: 'Farah 🌸' })).toBeNull();
   });
 });
+
+describe('MessageBubble reply', () => {
+  const sent: Message = { ...groupMessage, id: 'WA-1', chatJid: '6012@s.whatsapp.net' };
+
+  it('offers Reply on a delivered message and passes the message back', async () => {
+    const onReply = vi.fn();
+    render(
+      <MessageBubble
+        message={sent}
+        showSender={false}
+        outboundLabel={null}
+        quoted={null}
+        onReply={onReply}
+      />,
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Reply' }));
+    expect(onReply).toHaveBeenCalledWith(sent);
+  });
+
+  it('offers no Reply on a pending or failed message (WhatsApp cannot match its local id)', () => {
+    render(
+      <MessageBubble
+        message={{ ...sent, id: 'local-abc', fromMe: true, status: 'failed' }}
+        showSender={false}
+        outboundLabel={null}
+        quoted={null}
+        onReply={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull();
+  });
+});
+
+describe('MessageBubble quote author', () => {
+  const original: Message = { ...groupMessage, id: 'WA-9', senderName: 'Farah Catering Co' };
+  const reply: Message = {
+    ...groupMessage,
+    id: 'WA-10',
+    fromMe: true,
+    body: 'ok',
+    quotedId: 'WA-9',
+  };
+
+  it('names the customer of a direct chat like the header, not by their WhatsApp name', () => {
+    render(
+      <MessageBubble
+        message={reply}
+        showSender={false}
+        outboundLabel={null}
+        quoted={original}
+        contactName="Farah Aziz"
+      />,
+    );
+    expect(screen.getByText('Farah Aziz')).toBeTruthy();
+    expect(screen.queryByText('Farah Catering Co')).toBeNull();
+  });
+
+  it('keeps the sender name in group chats', () => {
+    render(<MessageBubble message={reply} showSender outboundLabel={null} quoted={original} />);
+    expect(screen.getByText('Farah Catering Co')).toBeTruthy();
+  });
+});

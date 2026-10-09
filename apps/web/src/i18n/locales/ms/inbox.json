@@ -100,7 +100,9 @@
     "attach": "Lampirkan fail",
     "message": "Mesej",
     "send": "Hantar",
-    "quickReplies": "Balasan pantas"
+    "quickReplies": "Balasan pantas",
+    "replyingTo": "Membalas {{name}}",
+    "cancelReply": "Batalkan balasan"
   },
   "quickReplies": {
     "title": "Balasan pantas",
@@ -236,7 +238,8 @@
       "failed": "Nota suara ini tidak dapat ditranskripsi",
       "too_long": "Terlalu panjang untuk ditranskripsi",
       "unsupported": "Format audio ini tidak dapat ditranskripsi"
-    }
+    },
+    "reply": "Balas"
   },
   "media": {
     "types": {

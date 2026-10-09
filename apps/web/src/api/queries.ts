@@ -540,6 +540,8 @@ export interface SendMediaInput {
   file: File;
   caption?: string;
   clientId: string;
+  /** Reply to this message (WhatsApp shows it as a quote). */
+  quotedId?: string;
 }
 
 export function useSendMedia(jid: string) {
@@ -549,6 +551,7 @@ export function useSendMedia(jid: string) {
       const form = new FormData();
       form.append('clientId', input.clientId);
       if (input.caption) form.append('caption', input.caption);
+      if (input.quotedId) form.append('quotedId', input.quotedId);
       form.append('file', input.file, input.file.name);
       return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
     },
@@ -566,6 +569,7 @@ export function useSendMedia(jid: string) {
         optimisticMessage(qc, jid, input.clientId, {
           type,
           body: input.caption ?? null,
+          quotedId: input.quotedId ?? null,
           mediaMime: mime || null,
           mediaName: input.file.name,
           mediaStatus: 'pending',

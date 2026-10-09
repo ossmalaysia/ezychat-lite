@@ -22,6 +22,9 @@ export interface MessageListProps {
   onLoadOlder(): void;
   onRetry(m: Message): void;
   retryingId: string | null;
+  onReply?(m: Message): void;
+  /** Direct chats: the customer's display name, for quotes. */
+  contactName?: string;
   footer?: React.ReactNode;
 }
 
@@ -49,6 +52,8 @@ export function MessageList({
   onLoadOlder,
   onRetry,
   retryingId,
+  onReply,
+  contactName,
   footer,
 }: MessageListProps) {
   const { t } = useTranslation('inbox');
@@ -195,6 +200,8 @@ export function MessageList({
                     retrying={retryingId === m.id}
                     onMediaLoad={onMediaLoad}
                     directory={directory}
+                    onReply={onReply}
+                    contactName={contactName}
                   />
                 );
               }
