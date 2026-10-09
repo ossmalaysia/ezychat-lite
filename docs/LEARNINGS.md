@@ -233,6 +233,9 @@ into AGENTS.md.
   A write tool validates with the app's own limits (service methods trust callers), and any tool
   whose output an assistant must send back whole (replace-all text, restore) returns it in full via
   pages (`offset` / `nextOffset` / `lastPage`, by code point), never silently truncated.
+- To compare hand-off rules (`try_ai_reply` with a draft), test with facts the business context
+  contains: an unknown item hands off as `missing_facts` before any rule is weighed, so both rule
+  sets look the same and the test proves nothing.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when
