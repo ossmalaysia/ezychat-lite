@@ -72,6 +72,10 @@ into AGENTS.md.
 
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
+- A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
+  on the same code, then `gh run rerun <id> --failed`; fix the flaky test in its own PR. A mac DMG job
+  failing with `hdiutil: couldn't eject … Resource busy` is a runner glitch: re-run that job, it adds
+  the missing installer to the draft release before you publish.
 - `/code-review` with no target reviews the session's checkout, not a feature worktree: pass the
   branch or path (e.g. `/code-review feat/x`) when the work lives in another worktree.
 - Never hard-reset a working tree with changes you didn't make; stash or use a worktree.
