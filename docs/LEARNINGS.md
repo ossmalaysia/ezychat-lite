@@ -19,7 +19,8 @@ into AGENTS.md.
   log), never from an agent's memory of the session: record each stage when it finishes.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
-  done without Claude Code ever connecting).
+  done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
+  list, a 401), never "nothing left to click": a list counted before it loads reads as success.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.

@@ -9,7 +9,7 @@ Branch: `feat/mcp-server` · Every agent updates its stage with
 | Dev | done | server + Settings → Integrations tab (workflow: build agent + e2e writer + reviewer); 6 review findings fixed (listening port, audit token rows, Gemini merge hint, wording, ms/zh text, tests) | 2026-10-08 |
 | Unit tests | pass | 1,749 passed, 1 skipped (full suite); typecheck, lint, web build green | 2026-10-08 |
 | E2E | pass | 51 passed (incl. new integrations spec: token on /mcp 200, revoked 401, 360 px) | 2026-10-08 |
-| Dev Build | todo | real MCP clients (Claude Code, Gemini CLI) through a real tunnel on a Dev Build | 2026-10-08 |
+| Dev Build | pass | Claude Code 2.1.295 on the server computer and through a Quick Tunnel; LAN 403, no token 401, revoke 401, audit rows; bundled server.cjs 10/10 (docs/dev-build-checks.md) | 2026-10-09 |
 | Screen review | done | states A-D vs approved mockup at 1280/360, light+dark, en+ms: no errors or overflow | 2026-10-08 |
 
 ## Log
@@ -23,3 +23,4 @@ Branch: `feat/mcp-server` · Every agent updates its stage with
 - 2026-10-08 E2E: pass — 51 passed (incl. new integrations spec: token on /mcp 200, revoked 401, 360 px)
 - 2026-10-08 Screen review: done — states A-D vs approved mockup at 1280/360, light+dark, en+ms: no errors or overflow
 - 2026-10-08 Dev Build: todo — real MCP clients (Claude Code, Gemini CLI) through a real tunnel on a Dev Build
+- 2026-10-09 Dev Build: pass — Claude Code 2.1.295 on the server computer and through a Quick Tunnel; LAN 403, no token 401, revoke 401, audit rows; bundled server.cjs 10/10 (docs/dev-build-checks.md)
