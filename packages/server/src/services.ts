@@ -14,6 +14,9 @@ initializers.push(initTunnel);
 import { initAuth } from './auth/index.js';
 initializers.unshift(initAuth); // auth first: other services/guards depend on it
 
+import { initApiTokens } from './api-tokens/index.js';
+initializers.push(initApiTokens);
+
 import { initAdmin } from './admin/index.js';
 initializers.push(initAdmin);
 

@@ -24,6 +24,7 @@ const ROUTES = [
   ['admin-tunnel', '/admin/tunnel'],
   ['admin-settings', '/admin/settings'],
   ['admin-settings-ai', '/admin/settings/ai'],
+  ['admin-settings-integrations', '/admin/settings/integrations'],
   ['admin-settings-device', '/admin/settings/device'],
   ['admin-settings-maintenance', '/admin/settings/maintenance'],
   ['admin-audit', '/admin/audit'],

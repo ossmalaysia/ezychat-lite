@@ -6,6 +6,7 @@ export * from './socket.js';
 export * from './ai.js';
 export * from './voice.js';
 export * from './customers.js';
+export * from './mcp.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,

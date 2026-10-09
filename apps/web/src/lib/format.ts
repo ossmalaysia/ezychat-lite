@@ -24,6 +24,11 @@ export function formatTime(ts: number): string {
   return format(new Date(ts), 'HH:mm');
 }
 
+/** Date only, always with the year: "9 Oct 2026". */
+export function formatDate(ts: number): string {
+  return dateFormat(ts, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function formatDateTime(ts: number): string {
   return `${dateFormat(ts, { day: 'numeric', month: 'short', year: 'numeric' })}, ${formatTime(ts)}`;
 }

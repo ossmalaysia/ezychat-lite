@@ -172,6 +172,11 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 - Password generation requires cryptographic randomness. Redact credential fields from live logs
   and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).
+- AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
+  tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
+  an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.
+  MCP tools get only `InboxReadPort` (reads), return media metadata never links, and log tool name,
+  counts and token id, never arguments or message text.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
 ## UI rules (apps/web)
@@ -218,6 +223,10 @@ cover navigation from every admin section and recovery from malformed URLs.
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
   `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
+- **Run the Dev Build check yourself before saying a feature works.** Unit tests, e2e and a screen
+  review are not enough: run the feature end to end in a Dev Build (and with the real outside client
+  where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
+  "built and tested, not yet checked in a Dev Build".
 - **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
   the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
   the approved mockup is the reference for the screen review below.

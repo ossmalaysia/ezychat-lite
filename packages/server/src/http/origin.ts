@@ -3,7 +3,7 @@ import { ErrorCode } from '@wa-team-inbox/shared';
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-function originHost(origin: string): string | null {
+export function originHost(origin: string): string | null {
   try {
     return new URL(origin).host.toLowerCase();
   } catch {

@@ -12,6 +12,7 @@ import { originHook } from './http/origin.js';
 import { registerSecurityHeaders } from './http/security-headers.js';
 import { registerApiCacheHeaders, staticCacheControl } from './http/cache.js';
 import { registerRoutes } from './routes/index.js';
+import { registerMcp } from './mcp/route.js';
 
 export const UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
 
@@ -31,6 +32,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   app.setErrorHandler(errorHandler);
 
   await registerRoutes(app, ctx);
+  await registerMcp(app, ctx);
 
   const webDist = ctx.config.webDistDir;
   const hasWeb = webDist !== null && existsSync(join(webDist, 'index.html'));
@@ -50,7 +52,14 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
 
   app.setNotFoundHandler(async (req, reply) => {
     const path = req.url.split('?')[0] ?? '/';
-    const isApi = path === '/api' || path.startsWith('/api/') || path.startsWith('/socket.io');
+    // /mcp and /.well-known/* (MCP clients probe OAuth discovery) must never get the SPA page.
+    const isApi =
+      path === '/api' ||
+      path.startsWith('/api/') ||
+      path.startsWith('/socket.io') ||
+      path === '/mcp' ||
+      path.startsWith('/mcp/') ||
+      path.startsWith('/.well-known/');
     if (!isApi && hasWeb && (req.method === 'GET' || req.method === 'HEAD')) {
       // static files (wildcard:false registers only files present at startup), else SPA fallback
       return reply.header('cache-control', 'no-cache').sendFile('index.html');

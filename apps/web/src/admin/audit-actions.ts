@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { formatDate } from '@/lib/format';
 
 /** Audit action → translation key in the `admin` namespace. */
 const LABEL_KEYS = {
@@ -39,6 +40,11 @@ const LABEL_KEYS = {
   'ai.voice_model_cancel': 'audit.actions.aiVoiceModelCancel',
   'ai.voice_model_remove': 'audit.actions.aiVoiceModelRemove',
   'customer.profile_update': 'audit.actions.customerProfileUpdate',
+  'api_token.create': 'audit.actions.apiTokenCreate',
+  'api_token.revoke': 'audit.actions.apiTokenRevoke',
+  'api_token.auth_failed': 'audit.actions.apiTokenAuthFailed',
+  'mcp.enable': 'audit.actions.mcpEnable',
+  'mcp.disable': 'audit.actions.mcpDisable',
 } as const;
 
 type KnownAction = keyof typeof LABEL_KEYS;
@@ -107,7 +113,12 @@ const FIELD_KEYS: Record<string, string> = {
   port: 'audit.fields.port',
   lanEnabled: 'audit.fields.lanEnabled',
   historyDays: 'audit.fields.historyDays',
+  prefix: 'audit.fields.token',
+  expiresAt: 'audit.fields.expires',
 };
+
+/** Internal ids that mean nothing to a reader (a token's name and prefix identify it). */
+const HIDDEN_FIELDS = new Set(['tokenId']);
 
 /** Known enum values → translation keys (`admin` namespace, or `common:` prefixed). */
 const VALUE_KEYS: Record<string, Record<string, string>> = {
@@ -121,7 +132,18 @@ const VALUE_KEYS: Record<string, Record<string, string>> = {
   kind: { file: 'ai.contextPanel.kindFile', text: 'ai.contextPanel.kindText' },
   transcription: { off: 'ai.voice.off', local: 'ai.voice.local', cloud: 'ai.voice.cloud' },
   role: { admin: 'common:roles.admin', agent: 'common:roles.agent', sales: 'ai.roleBadge' },
-  reason: { rate_limited: 'audit.reasons.rateLimited', invalid: 'audit.reasons.invalid' },
+  reason: {
+    rate_limited: 'audit.reasons.rateLimited',
+    invalid: 'audit.reasons.invalid',
+    // Failed AI assistant token sign-ins (api_token.auth_failed).
+    malformed: 'audit.reasons.malformed',
+    unknown: 'audit.reasons.unknown',
+    revoked: 'audit.reasons.revoked',
+    expired: 'audit.reasons.expired',
+    user_inactive: 'audit.reasons.userInactive',
+    not_admin: 'audit.reasons.notAdmin',
+    must_change_password: 'audit.reasons.mustChangePassword',
+  },
 };
 
 const JID_FIELDS = new Set(['chatJid', 'from', 'to']);
@@ -161,7 +183,9 @@ export function auditDetails(
     return /^\p{Lu}\p{Ll}/u.test(l) ? l.charAt(0).toLowerCase() + l.slice(1) : l;
   };
   const value = (key: string, v: unknown): string | null => {
-    if (v === null || v === undefined || v === '') return null;
+    if (v === null || v === undefined || v === '' || HIDDEN_FIELDS.has(key)) return null;
+    if (key === 'expiresAt' && typeof v === 'number') return formatDate(v);
+    if (key === 'prefix' && typeof v === 'string') return `${v}…`;
     if (JID_FIELDS.has(key) && typeof v === 'string')
       // An opaque WhatsApp ID (LID) means nothing to a reader and is never shown.
       return v.endsWith('@lid') ? null : chatLabel(v);

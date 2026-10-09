@@ -142,7 +142,11 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       qc.setQueryData(qk.wa, s);
       if (s.state === 'open') setAvatarRevision(Date.now());
     });
-    socket.on('tunnel:status', (s) => qc.setQueryData(qk.tunnel, s));
+    socket.on('tunnel:status', (s) => {
+      qc.setQueryData(qk.tunnel, s);
+      // Settings → Integrations shows the tunnel URL in its setup commands.
+      void qc.invalidateQueries({ queryKey: qk.mcpSettings });
+    });
     socket.on('typing', (p) => {
       setTyping((prev) => {
         const list = (prev[p.chatJid] ?? []).filter((t) => t.userId !== p.userId);

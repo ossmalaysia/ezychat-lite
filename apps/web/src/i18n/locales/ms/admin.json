@@ -189,7 +189,12 @@
       "aiVoiceModelDownload": "Muat turun model suara dimulakan",
       "aiVoiceModelCancel": "Muat turun model suara dibatalkan",
       "aiVoiceModelRemove": "Model suara dibuang",
-      "customerProfileUpdate": "Butiran pelanggan dikemas kini"
+      "customerProfileUpdate": "Butiran pelanggan dikemas kini",
+      "apiTokenCreate": "Token akses dicipta",
+      "apiTokenRevoke": "Token akses dibatalkan",
+      "apiTokenAuthFailed": "Token pembantu AI ditolak",
+      "mcpEnable": "Akses pembantu AI dihidupkan",
+      "mcpDisable": "Akses pembantu AI dimatikan"
     },
     "fields": {
       "chat": "Sembang",
@@ -226,11 +231,19 @@
       "token": "Token",
       "port": "Port",
       "lanEnabled": "Akses LAN",
-      "historyDays": "Hari sejarah"
+      "historyDays": "Hari sejarah",
+      "expires": "Tamat tempoh"
     },
     "reasons": {
       "rateLimited": "Terlalu banyak cubaan",
-      "invalid": "Nama pengguna atau kata laluan salah"
+      "invalid": "Nama pengguna atau kata laluan salah",
+      "malformed": "Tiada token yang sah",
+      "unknown": "Token tidak dikenali",
+      "revoked": "Token dibatalkan",
+      "expired": "Token tamat tempoh",
+      "userInactive": "Pemilik dinyahaktifkan",
+      "notAdmin": "Pemilik bukan pentadbir",
+      "mustChangePassword": "Pemilik perlu menukar kata laluan"
     },
     "yes": "Ya",
     "no": "Tidak",
@@ -252,6 +265,78 @@
       "tags": "tag"
     },
     "listSeparator": ", "
+  },
+  "integrations": {
+    "access": {
+      "label": "Benarkan pembantu AI membaca peti masuk ini",
+      "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik untuk menjawab soalan anda. Ia tidak boleh menghantar mesej atau mengubah apa-apa.",
+      "worksFromLabel": "Berfungsi dari",
+      "worksFromLocal": "komputer yang menjalankan EzyChat Lite.",
+      "worksFromTunnel": "komputer yang menjalankan EzyChat Lite, dan dari mana-mana sahaja melalui terowong anda:",
+      "privacyLabel": "Privasi",
+      "privacy": "Sembang yang dibaca oleh pembantu dihantar kepada syarikat yang mengendalikannya (contohnya Anthropic, OpenAI atau Google), di bawah akaun yang anda sambungkan.",
+      "turnedOn": "Akses pembantu AI dihidupkan",
+      "turnedOff": "Akses pembantu AI dimatikan"
+    },
+    "noTunnel": {
+      "title": "Tiada terowong yang berjalan",
+      "body": "Pembantu pada komputer yang menjalankan EzyChat Lite boleh menyambung sekarang. Untuk menyambung dari tempat lain, mulakan akses Cloudflare dahulu.",
+      "link": "Buka tetapan Cloudflare"
+    },
+    "tokens": {
+      "title": "Token akses",
+      "description": "Tampal token ke dalam pembantu AI anda untuk menyambung. Sesiapa yang ada token boleh membaca peti masuk, jadi rahsiakannya.",
+      "create": "Cipta token",
+      "empty": "Belum ada token. Cipta satu untuk setiap pembantu dan komputer yang anda gunakan.",
+      "created": "Dicipta {{date}}",
+      "lastUsed": "Digunakan {{when}}",
+      "neverUsed": "Belum digunakan",
+      "expires": "Tamat {{date}}",
+      "neverExpires": "Tiada tamat tempoh",
+      "expired": "Tamat tempoh {{date}}",
+      "revoke": "Batalkan",
+      "revokeLabel": "Batalkan token {{name}}",
+      "revokeTitle": "Batalkan “{{name}}”?",
+      "revokeBody": "Mana-mana pembantu yang menggunakan token ini akan berhenti berfungsi serta-merta. Tindakan ini tidak boleh dibuat asal.",
+      "revokeConfirm": "Batalkan token",
+      "revoked": "Token dibatalkan"
+    },
+    "create": {
+      "title": "Cipta token akses",
+      "description": "Satu token untuk setiap pembantu dan komputer. Anda boleh membatalkannya pada bila-bila masa.",
+      "name": "Nama",
+      "nameHint": "Supaya anda mengenalinya kemudian, cth. komputer yang mana.",
+      "nameRequired": "Masukkan nama.",
+      "nameTooLong": "Gunakan 64 aksara atau kurang.",
+      "expiry": "Tamat selepas",
+      "expiry30": "30 hari",
+      "expiry90": "90 hari",
+      "expiry365": "1 tahun",
+      "expiryNever": "Tidak pernah",
+      "submit": "Cipta token"
+    },
+    "created": {
+      "title": "Salin token anda sekarang",
+      "description": "Ini satu-satunya kali token ini ditunjukkan. Jika hilang, batalkannya dan cipta yang baharu.",
+      "secretLabel": "Token anda",
+      "copyToken": "Salin token",
+      "connect": "Sambungkan pembantu anda",
+      "clientClaude": "Claude Code",
+      "clientGemini": "Gemini CLI",
+      "clientOther": "Lain-lain",
+      "claudeHint": "Jalankan ini dalam terminal:",
+      "geminiHint": "Tambah entri mcpServers ke ~/.gemini/settings.json (cipta fail itu jika belum ada):",
+      "copyCommand": "Salin arahan",
+      "copySettings": "Salin tetapan",
+      "serverUrl": "URL pelayan",
+      "header": "Pengepala Authorization",
+      "copyUrl": "Salin URL",
+      "copyHeader": "Salin pengepala",
+      "otherHint": "Gunakan ini dalam mana-mana aplikasi MCP yang menerima URL pelayan dan pengepala (contohnya Codex CLI, Cursor atau VS Code).",
+      "oauthHint": "Aplikasi yang hanya log masuk dengan OAuth, seperti ChatGPT dan penyambung claude.ai, belum disokong.",
+      "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan EzyChat Lite. Mulakan terowong untuk menyambung dari tempat lain.",
+      "askHint": "Kemudian tanya soalan seperti “Sembang mana yang sedang menunggu balasan?”"
+    }
   },
   "settings": {
     "title": "Tetapan",
@@ -292,6 +377,7 @@
     "tabs": {
       "general": "Umum",
       "ai": "AI",
+      "integrations": "Integrasi",
       "device": "Keutamaan",
       "maintenance": "Penyelenggaraan"
     },

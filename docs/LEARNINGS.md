@@ -17,6 +17,10 @@ into AGENTS.md.
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
   log), never from an agent's memory of the session: record each stage when it finishes.
+- Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
+  with a test client missed whether a real client works end to end (MCP access was nearly reported
+  done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
+  list, a 401), never "nothing left to click": a list counted before it loads reads as success.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
@@ -25,7 +29,9 @@ into AGENTS.md.
 - Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
   the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
   data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
-  cost a fix-and-recapture round each. Add new check tooling only when a problem keeps recurring.
+  cost a fix-and-recapture round each. A hand-built HTML mockup drifts from the app (wrong nav labels,
+  section names): copy every existing label from `i18n/locales/en`. Add new check tooling only when a
+  problem keeps recurring.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
@@ -66,6 +72,8 @@ into AGENTS.md.
 
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
+- `/code-review` with no target reviews the session's checkout, not a feature worktree: pass the
+  branch or path (e.g. `/code-review feat/x`) when the work lives in another worktree.
 - Never hard-reset a working tree with changes you didn't make; stash or use a worktree.
 - Before removing a worktree, delete its `node_modules` junctions with `[IO.Directory]::Delete(path, $false)`
   (Git follows junctions); prefer `npm ci` in new worktrees.
@@ -116,7 +124,8 @@ into AGENTS.md.
 - Write files containing regex escapes, `\n`, `\b` or Windows paths with the Write/Edit tools (or
   `String.raw`), never via Bash/Python heredocs (the Bash tool collapses `\\`); a scripted edit that
   must match a literal `\n` goes in a script file built with `chr(92)`. Then grep for U+0008 and broken literals. On Windows,
-  Python writes need `PYTHONUTF8=1`. Unicode escapes can still land as the raw invisible character
+  Python writes need `PYTHONUTF8=1` and `newline='\n'` (text mode writes CRLF, like PowerShell
+  `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
@@ -143,7 +152,9 @@ into AGENTS.md.
   `--fake-wa`, check the transcript), not just server start-up.
 - GUI smoke tests use plain Electron with a temporary profile (packaged apps ignore entry arguments).
 - Playwright may lack Chromium: fall back to `channel: 'chrome'`. Run e2e alone (memory); browser test
-  sign-in honours `Retry-After` instead of weakening limits.
+  sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
+  `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
+  shots stretch fixed elements and hide the drawer's scrolling body.
 - Vitest: no globals (call `cleanup()` in `afterEach`, assert on `textContent`); native subprocess tests get
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
@@ -152,7 +163,9 @@ into AGENTS.md.
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
 - Windows background scripts: launch via a short-lived `powershell -Command Start-Process …`, wait for its
-  exit code, and test the real launcher end to end.
+  exit code, and test the real launcher end to end. Stopping a background shell task does not stop the
+  `node`/`tsx` server it started on Windows: stop the server by the PID listening on its port (after
+  checking its command line), and confirm a port is free before a re-run, or the re-run tests old code.
 
 ## Security
 
@@ -165,7 +178,14 @@ into AGENTS.md.
   handoff; an unelevated broker records results and relaunches.
 - Password generation requires Web Crypto. Redact credential fields from live logs (deep scrub of objects,
   arrays and Errors) and sanitise historical exports.
+- One-time secrets (new access tokens) never become a react-query query or mutation result: the
+  mutation hands them to the showing component's state via a callback and returns metadata only;
+  clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- Audit writes reachable without a session (failed token sign-ins) go through a per-IP-and-reason
+  limiter, or anyone can flood `audit_log`.
+- Access checks for an endpoint that must stay hidden or limited (off → 404, peer, token, rate limit)
+  run in Fastify `onRequest`, before body parsing; in the handler, a bad body answers 400/413 first.
 - Every raw `node:http` handler parses the request target inside try/catch and answers 4xx; an uncaught
   throw ends the server process.
 - Document parsers run in a worker with time, memory and expansion limits.
@@ -195,6 +215,8 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
+  never one provider's name; state which clients a given auth method actually supports.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when
   the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`
@@ -247,6 +269,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Addresses the UI tells people to use (setup commands, URLs) come from the server's running config
+  (`ctx.config.port`, tunnel status), never from saved settings, which may apply only after a restart.
 - Admin links and fallback redirects use absolute `/admin/...` paths; test every section transition and
   malformed URLs.
 - Every screen works at 360px: check dialog bounds and inner clipping (not just page overflow), cap dialog

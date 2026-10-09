@@ -22,12 +22,14 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { AiVoiceSection } from './AiVoiceSection';
+import { IntegrationsSection } from './IntegrationsSection';
 
-const TABS = ['general', 'ai', 'device', 'maintenance'] as const;
+const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
 const TAB_LABEL_KEY = {
   general: 'settings.tabs.general',
   ai: 'settings.tabs.ai',
+  integrations: 'settings.tabs.integrations',
   device: 'settings.tabs.device',
   maintenance: 'settings.tabs.maintenance',
 } as const satisfies Record<SettingsTab, string>;
@@ -256,6 +258,10 @@ export function SettingsPage() {
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
           <AiVoiceSection />
+        </TabsContent>
+
+        <TabsContent value="integrations" className="flex flex-col gap-4">
+          <IntegrationsSection />
         </TabsContent>
 
         <TabsContent value="device" className="flex flex-col gap-4">

@@ -189,7 +189,12 @@
       "aiVoiceModelDownload": "已开始下载语音模型",
       "aiVoiceModelCancel": "已取消下载语音模型",
       "aiVoiceModelRemove": "已删除语音模型",
-      "customerProfileUpdate": "已更新客户资料"
+      "customerProfileUpdate": "已更新客户资料",
+      "apiTokenCreate": "已创建访问令牌",
+      "apiTokenRevoke": "已撤销访问令牌",
+      "apiTokenAuthFailed": "AI 助手令牌被拒绝",
+      "mcpEnable": "已开启 AI 助手访问",
+      "mcpDisable": "已关闭 AI 助手访问"
     },
     "fields": {
       "chat": "对话",
@@ -226,11 +231,19 @@
       "token": "令牌",
       "port": "端口",
       "lanEnabled": "局域网访问",
-      "historyDays": "历史天数"
+      "historyDays": "历史天数",
+      "expires": "到期"
     },
     "reasons": {
       "rateLimited": "尝试次数过多",
-      "invalid": "用户名或密码错误"
+      "invalid": "用户名或密码错误",
+      "malformed": "无有效令牌",
+      "unknown": "未知令牌",
+      "revoked": "令牌已撤销",
+      "expired": "令牌已过期",
+      "userInactive": "所有者已停用",
+      "notAdmin": "所有者不是管理员",
+      "mustChangePassword": "所有者需要修改密码"
     },
     "yes": "是",
     "no": "否",
@@ -251,6 +264,78 @@
       "tags": "标签"
     },
     "listSeparator": "、"
+  },
+  "integrations": {
+    "access": {
+      "label": "允许 AI 助手读取此收件箱",
+      "description": "连接任何兼容 MCP 的 AI 助手。它可以读取聊天、备注和统计数据来回答您的问题，但不能发送消息或更改任何内容。",
+      "worksFromLabel": "可用于",
+      "worksFromLocal": "运行 EzyChat Lite 的电脑。",
+      "worksFromTunnel": "运行 EzyChat Lite 的电脑，也可以通过您的隧道从任何地方连接：",
+      "privacyLabel": "隐私",
+      "privacy": "助手读取的聊天内容会发送给运营该助手的公司（例如 Anthropic、OpenAI 或 Google），并归入您所连接的账户。",
+      "turnedOn": "已开启 AI 助手访问",
+      "turnedOff": "已关闭 AI 助手访问"
+    },
+    "noTunnel": {
+      "title": "隧道未运行",
+      "body": "运行 EzyChat Lite 的电脑上的助手现在就可以连接。如需从其他地方连接，请先启动 Cloudflare 访问。",
+      "link": "打开 Cloudflare 设置"
+    },
+    "tokens": {
+      "title": "访问令牌",
+      "description": "将令牌粘贴到您的 AI 助手中即可连接。任何持有令牌的人都能读取收件箱，请妥善保管。",
+      "create": "创建令牌",
+      "empty": "还没有令牌。请为您使用的每个助手和每台电脑各创建一个。",
+      "created": "创建于 {{date}}",
+      "lastUsed": "最近使用：{{when}}",
+      "neverUsed": "从未使用",
+      "expires": "{{date}} 到期",
+      "neverExpires": "永不过期",
+      "expired": "已于 {{date}} 过期",
+      "revoke": "撤销",
+      "revokeLabel": "撤销令牌 {{name}}",
+      "revokeTitle": "撤销“{{name}}”？",
+      "revokeBody": "使用此令牌的助手将立即停止工作。此操作无法撤消。",
+      "revokeConfirm": "撤销令牌",
+      "revoked": "令牌已撤销"
+    },
+    "create": {
+      "title": "创建访问令牌",
+      "description": "每个助手和每台电脑使用一个令牌。您可以随时撤销。",
+      "name": "名称",
+      "nameHint": "方便以后识别，例如是哪台电脑。",
+      "nameRequired": "请输入名称。",
+      "nameTooLong": "名称最多 64 个字符。",
+      "expiry": "有效期",
+      "expiry30": "30 天",
+      "expiry90": "90 天",
+      "expiry365": "1 年",
+      "expiryNever": "永久",
+      "submit": "创建令牌"
+    },
+    "created": {
+      "title": "立即复制您的令牌",
+      "description": "令牌只显示这一次。如果丢失，请撤销后重新创建。",
+      "secretLabel": "您的令牌",
+      "copyToken": "复制令牌",
+      "connect": "连接您的助手",
+      "clientClaude": "Claude Code",
+      "clientGemini": "Gemini CLI",
+      "clientOther": "其他",
+      "claudeHint": "在终端中运行：",
+      "geminiHint": "将 mcpServers 条目合并到 ~/.gemini/settings.json（如文件不存在请新建）：",
+      "copyCommand": "复制命令",
+      "copySettings": "复制配置",
+      "serverUrl": "服务器 URL",
+      "header": "Authorization 请求头",
+      "copyUrl": "复制 URL",
+      "copyHeader": "复制请求头",
+      "otherHint": "可在任何接受服务器 URL 和请求头的 MCP 应用中使用（例如 Codex CLI、Cursor 或 VS Code）。",
+      "oauthHint": "仅支持 OAuth 登录的应用（如 ChatGPT 和 claude.ai 连接器）暂不支持。",
+      "localOnly": "此地址仅在运行 EzyChat Lite 的电脑上有效。启动隧道后即可从其他地方连接。",
+      "askHint": "然后可以这样提问：“哪些聊天正在等待回复？”"
+    }
   },
   "settings": {
     "title": "设置",
@@ -291,6 +376,7 @@
     "tabs": {
       "general": "常规",
       "ai": "AI",
+      "integrations": "集成",
       "device": "偏好",
       "maintenance": "维护"
     },

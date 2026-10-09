@@ -16,6 +16,9 @@ vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
 vi.mock('./AiVoiceSection', () => ({ AiVoiceSection: () => <p>Voice messages card</p> }));
+vi.mock('./IntegrationsSection', () => ({
+  IntegrationsSection: () => <p>AI assistant access</p>,
+}));
 const setTheme = vi.hoisted(() => vi.fn());
 const changeLocale = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/theme', () => ({
@@ -142,7 +145,8 @@ it('keeps the switch keyboard accessible without submitting network settings', a
 
 it.each([
   ['general', 'Port', ['Inline AI connection', 'Resolve all card', 'Appearance']],
-  ['ai', 'Inline AI connection', ['Port', 'Resolve all card', 'Appearance']],
+  ['ai', 'Inline AI connection', ['Port', 'Resolve all card', 'Appearance', 'AI assistant access']],
+  ['integrations', 'AI assistant access', ['Port', 'Inline AI connection', 'Appearance']],
   ['device', 'Appearance', ['Port', 'Inline AI connection', 'Resolve all card']],
   ['maintenance', 'Resolve all card', ['Port', 'Inline AI connection', 'Appearance']],
 ])('renders only the %s section on its route', (tab, shown, hidden) => {
@@ -150,7 +154,13 @@ it.each([
   expect(screen.getAllByText(shown).length).toBeGreaterThan(0);
   for (const h of hidden) expect(screen.queryByText(h)).toBeNull();
   expect(screen.getByRole('tab', { selected: true }).textContent).toBe(
-    { general: 'General', ai: 'AI', device: 'Preferences', maintenance: 'Maintenance' }[tab],
+    {
+      general: 'General',
+      ai: 'AI',
+      integrations: 'Integrations',
+      device: 'Preferences',
+      maintenance: 'Maintenance',
+    }[tab],
   );
 });
 
