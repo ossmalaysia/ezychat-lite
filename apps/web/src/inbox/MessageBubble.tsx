@@ -190,6 +190,8 @@ export function MessageBubble({
   // Group messages: the sender's own customer profile (from their direct chat), when set.
   const profile = !out ? (m.senderProfile ?? null) : null;
 
+  // Touch screens reply by swipe or long-press, so the button is visually hidden there but stays a
+  // real control for screen readers, switch access and keyboards (it shows when focused).
   const replyButton = canReply && (
     <Button
       type="button"
@@ -198,7 +200,7 @@ export function MessageBubble({
       aria-label={t('message.reply')}
       title={t('message.reply')}
       onClick={() => onReply!(m)}
-      className="size-8 shrink-0 rounded-full text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+      className="size-8 shrink-0 rounded-full text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:not-focus-visible:sr-only"
     >
       <Reply aria-hidden="true" />
     </Button>

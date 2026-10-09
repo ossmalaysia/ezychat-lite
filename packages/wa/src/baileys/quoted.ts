@@ -11,6 +11,16 @@ const MEDIA_LABEL: Record<string, string> = {
 };
 
 /**
+ * A cached message re-pointed at the chat the reply goes to. One person can be reached by a phone
+ * number and a WhatsApp ID (LID); a message cached under the old address would otherwise make
+ * Baileys mark the quote as coming from another chat (`contextInfo.remoteJid`).
+ */
+export function quotedForChat(cached: WAMessage, chatJid: string): WAMessage {
+  if (cached.key.remoteJid === chatJid) return cached;
+  return { ...cached, key: { ...cached.key, remoteJid: chatJid } };
+}
+
+/**
  * A minimal WAMessage for Baileys' `quoted` option, rebuilt from the saved message when the live one
  * is no longer cached. Baileys reads `key.id` (stanzaId), `key.fromMe`, `key.remoteJid` (must be the
  * chat the reply goes to, or it adds a foreign remoteJid), `key.participant` (group sender) and the

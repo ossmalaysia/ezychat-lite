@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quotedFromRef } from './quoted.js';
+import { quotedForChat, quotedFromRef } from './quoted.js';
 
 const DM = '60123456789@s.whatsapp.net';
 const GROUP = '120363000000000000@g.us';
@@ -49,5 +49,28 @@ describe('quotedFromRef', () => {
       DM,
     );
     expect(captioned.message).toEqual({ conversation: 'menu 2026' });
+  });
+});
+
+describe('quotedForChat', () => {
+  const LID = '987654321@lid';
+
+  it('re-points a message cached under the phone number at the WhatsApp ID the reply goes to', () => {
+    const cached = {
+      key: { remoteJid: DM, id: 'OLD', fromMe: false },
+      message: { conversation: 'hi' },
+      messageTimestamp: 1,
+    };
+    const q = quotedForChat(cached, LID);
+    expect(q.key).toEqual({ remoteJid: LID, id: 'OLD', fromMe: false });
+    expect(q.message).toBe(cached.message);
+    expect(cached.key.remoteJid).toBe(DM); // the cache itself is not mutated
+  });
+
+  it('returns the cached message unchanged when it already belongs to the chat', () => {
+    const cached = {
+      key: { remoteJid: GROUP, id: 'G', fromMe: false, participant: '6011@s.whatsapp.net' },
+    };
+    expect(quotedForChat(cached, GROUP)).toBe(cached);
   });
 });

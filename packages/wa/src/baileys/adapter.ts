@@ -40,7 +40,7 @@ import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
-import { quotedFromRef } from './quoted.js';
+import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
@@ -650,10 +650,13 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   ): Promise<SendResult> {
     const sock = this.requireOpen();
     // The live cache is small and cleared on reconnect; rebuild older quotes from the saved copy.
-    const quoted = opts?.quotedId
-      ? (this.raw.get(opts.quotedId) ??
-        (opts.quoted ? quotedFromRef(opts.quoted, chatJid) : undefined))
-      : undefined;
+    // Either way the quote points at the chat the reply goes to (phone number or WhatsApp ID).
+    const cached = opts?.quotedId ? this.raw.get(opts.quotedId) : undefined;
+    const quoted = cached
+      ? quotedForChat(cached, chatJid)
+      : opts?.quotedId && opts.quoted
+        ? quotedFromRef(opts.quoted, chatJid)
+        : undefined;
     let res: WAMessage | undefined;
     try {
       res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
