@@ -143,7 +143,18 @@ export function PushToggle({
     </div>
   ) : null;
 
-  if (children) return children({ control: switchEl, notes });
+  if (children) {
+    // The padded label gives the bare switch a 44 px touch target (the row heading is not clickable).
+    const control = (
+      <Label
+        htmlFor={id}
+        className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"
+      >
+        {switchEl}
+      </Label>
+    );
+    return children({ control, notes });
+  }
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>

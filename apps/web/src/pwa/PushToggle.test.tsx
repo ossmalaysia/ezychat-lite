@@ -69,6 +69,10 @@ it('hands a settings row just the switch, with the desktop hint as a separate no
   expect(control.contains(toggle)).toBe(true);
   expect(screen.getByTestId('notes').textContent).toMatch(/allow EzyChat Lite in your system/);
   expect(screen.queryByText(/WA EzyChat/)).toBeNull();
-  fireEvent.click(toggle);
+  // A 44 px label around the switch is the touch target; tapping it toggles.
+  const target = toggle.closest('label')!;
+  expect(target.className).toMatch(/min-h-11/);
+  expect(target.className).toMatch(/min-w-11/);
+  fireEvent.click(target);
   await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
 });
