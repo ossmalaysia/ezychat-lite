@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.29] - 2026-10-10
+
 ### Added
 
 - **AI assistants can review and refine the AI Sales Agent (MCP):** a connected assistant (Claude
