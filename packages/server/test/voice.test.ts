@@ -13,6 +13,9 @@ import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 import { craftedNote } from './fixtures/ogg.js';
 
+/** vi.waitFor gives up after 1 s by default; a model download takes longer on the Windows CI runner. */
+const SLOW_RUNNER = { timeout: 15_000, interval: 50 };
+
 const TONE = readFileSync(join(import.meta.dirname, 'fixtures/tone-1s.ogg'));
 const TRANSCRIPT = 'Do you deliver to Penang tomorrow?';
 const jid = 'customer@s.whatsapp.net';
@@ -301,8 +304,9 @@ describe('voice settings routes', () => {
     });
     const started = await api('POST', '/api/ai/voice/download');
     expect(started.statusCode).toBe(200);
-    await vi.waitFor(async () =>
-      expect((await api('GET', '/api/ai/voice')).json().model.state).toBe('installed'),
+    await vi.waitFor(
+      async () => expect((await api('GET', '/api/ai/voice')).json().model.state).toBe('installed'),
+      SLOW_RUNNER,
     );
     expect((await api('GET', '/api/ai/voice')).json().transcription).toBe('local');
     const removed = await api('DELETE', '/api/ai/voice/model');
@@ -317,7 +321,7 @@ describe('voice settings routes', () => {
       { action: 'ai.voice_model_download' },
       { action: 'ai.voice_model_remove' },
     ]);
-  });
+  }, 30_000);
 
   it('rate-limits download starts', async () => {
     await voiceService({ model: { freeBytes: async () => 0 } });
@@ -326,12 +330,14 @@ describe('voice settings routes', () => {
       codes.push((await api('POST', '/api/ai/voice/download')).statusCode);
     expect(codes.slice(0, 5).every((code) => code === 200)).toBe(true);
     expect(codes[5]).toBe(429);
-    await vi.waitFor(async () =>
-      expect((await api('GET', '/api/ai/voice')).json().model).toMatchObject({
-        state: 'error',
-        error: 'disk_space',
-      }),
+    await vi.waitFor(
+      async () =>
+        expect((await api('GET', '/api/ai/voice')).json().model).toMatchObject({
+          state: 'error',
+          error: 'disk_space',
+        }),
+      SLOW_RUNNER,
     );
     expect((await api('POST', '/api/ai/voice/cancel')).statusCode).toBe(200);
-  });
+  }, 30_000);
 });

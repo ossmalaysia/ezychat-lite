@@ -72,6 +72,10 @@ into AGENTS.md.
 
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
+- A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
+  on the same code, then `gh run rerun <id> --failed`; fix the flaky test in its own PR. A mac DMG job
+  failing with `hdiutil: couldn't eject … Resource busy` is a runner glitch: re-run that job, it adds
+  the missing installer to the draft release before you publish.
 - `/code-review` with no target reviews the session's checkout, not a feature worktree: pass the
   branch or path (e.g. `/code-review feat/x`) when the work lives in another worktree.
 - Never hard-reset a working tree with changes you didn't make; stash or use a worktree.
@@ -159,7 +163,8 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs.
+  several times slower than local runs. So does any test that builds `makeTestApp()` inside itself, and
+  `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
 - Windows background scripts: launch via a short-lived `powershell -Command Start-Process …`, wait for its
