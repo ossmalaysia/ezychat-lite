@@ -240,6 +240,9 @@ into AGENTS.md.
   sets look the same and the test proves nothing.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
+- MCP analytics are aggregated on the server (`get_stats`, `get_activity`), never left to the model
+  paging through `get_messages`; define every derived metric in the tool description (e.g. "new
+  conversation = customer message after 12 h of silence") so the client cannot guess its meaning.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when
   the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`

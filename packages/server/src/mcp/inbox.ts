@@ -9,6 +9,7 @@ import type {
 import type { AppContext } from '../context.js';
 import { getAuth } from '../auth/guards.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
+import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { computeInboxStats, type InboxStats } from '../chats/stats.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 
@@ -25,14 +26,18 @@ export interface InboxReadPort {
     q: MessageListQuery,
   ): { messages: Message[]; nextBefore: string | null } | null;
   stats(days: number): InboxStats;
+  activity(days: number): InboxActivity;
   /** Display names of team members by id (including disabled ones and the AI member). */
   userNames(): Map<number, string>;
+  /** Ids of AI members (the AI Sales Agent). */
+  aiUserIds(): Set<number>;
 }
 
 export function createInboxReadPort(ctx: AppContext): InboxReadPort {
   const chats = getChats(ctx);
   const messages = getMessages(ctx);
   const auth = getAuth(ctx);
+  const timeZone = () => resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null));
   const existing = (jid: string): string | null => {
     const resolved = chats.resolveJid(jid);
     return chats.get(resolved) ? resolved : null;
@@ -52,12 +57,10 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
       const resolved = existing(jid);
       return resolved ? messages.list(resolved, q) : null;
     },
-    stats: (days) =>
-      computeInboxStats(ctx.db, {
-        days,
-        timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
-        now: Date.now(),
-      }),
+    stats: (days) => computeInboxStats(ctx.db, { days, timeZone: timeZone(), now: Date.now() }),
+    activity: (days) =>
+      computeInboxActivity(ctx.db, { days, timeZone: timeZone(), now: Date.now() }),
     userNames: () => new Map(auth.listUsers().map((u) => [u.id, u.displayName])),
+    aiUserIds: () => new Set(auth.listUsers().flatMap((u) => (u.kind === 'ai' ? [u.id] : []))),
   };
 }
