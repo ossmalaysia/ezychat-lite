@@ -32,12 +32,13 @@ function msg(
   t: number,
   from: 'customer' | number | 'phone',
   status: 'sent' | 'failed' = 'sent',
+  id = `m${++seq}`,
 ) {
   db.prepare(
     `INSERT INTO messages (id, chat_jid, from_me, sent_by_user_id, type, body, status, timestamp, created_at)
      VALUES (?, ?, ?, ?, 'text', 'x', ?, ?, ?)`,
   ).run(
-    `m${++seq}`,
+    id,
     chat,
     from === 'customer' ? 0 : 1,
     typeof from === 'number' ? from : null,
@@ -115,4 +116,23 @@ it('counts peak hours, waits and responders in the business time zone', () => {
     firstReplies: 1,
     firstReplyMinutes: { median: 30 },
   });
+});
+
+it('keeps a wait opened long before the period, and same-second replies in stored order', () => {
+  const A = 'a@s.whatsapp.net';
+  const B = 'b@s.whatsapp.net';
+  // A: unanswered since 26 h before the period, so the answered follow-up is not a new wait.
+  msg(A, at(5, '08:00'), 'customer');
+  msg(A, at(6, '10:00'), 'customer');
+  msg(A, at(6, '10:05'), 1);
+  // B: the phone replies in the same second; its WhatsApp id sorts before the customer's.
+  msg(B, at(6, '11:00'), 'customer', 'sent', 'ZZZ');
+  msg(B, at(6, '11:00'), 'phone', 'sent', 'AAA');
+
+  const a = computeInboxActivity(db, { days: 2, timeZone: TZ, now: at(7, '12:00') });
+
+  expect(a.firstReply).toMatchObject({ answered: 1, unanswered: 0, median: 0 });
+  expect(a.firstReply.byHour[10]).toEqual({ hour: 10, answered: 0, unanswered: 0, median: null });
+  // 10:00 still starts a new conversation: the chat was silent for 26 h.
+  expect(a.byHour[10]!.newConversations).toBe(1);
 });

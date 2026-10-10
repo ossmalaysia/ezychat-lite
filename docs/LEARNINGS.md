@@ -204,6 +204,8 @@ into AGENTS.md.
 
 - Identity is pinned to `Browsers.ubuntu('Chrome')`; "Desktop" identities get 428 before any QR. Never
   change it without a live QR check.
+- Message timestamps are whole seconds, so a quick reply can tie with the message it answers: logic
+  that needs cause-before-effect orders ties by `rowid` (stored order), never by the WhatsApp id.
 - Anything that needs the original `WAMessage` (a quote, media re-download) must not rely only on the
   adapter's in-memory cache (2,000 entries, cleared on reconnect): pass a saved copy from the database
   (`WaQuotedRef` → `quotedFromRef`; `key.remoteJid` = the chat the reply goes to), or the feature
@@ -240,6 +242,8 @@ into AGENTS.md.
   sets look the same and the test proves nothing.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
+- A new MCP tool must be added to every exact tool-name list in the tests (`mcp.test.ts` and
+  `mcp-ai-setup.test.ts`): grep `server/test` for an existing tool name before pushing.
 - MCP analytics are aggregated on the server (`get_stats`, `get_activity`), never left to the model
   paging through `get_messages`; define every derived metric in the tool description (e.g. "new
   conversation = customer message after 12 h of silence") so the client cannot guess its meaning.

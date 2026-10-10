@@ -84,17 +84,42 @@ export function computeInboxActivity(
   );
 
   // Direct chats only (group chatter is not customer demand); failed and unsent team messages
-  // never reached the customer. Messages up to one gap before `from` decide whether the first
-  // customer message in the period starts a conversation and whether a wait was already open.
+  // never reached the customer. WhatsApp timestamps are whole seconds, so a quick reply can tie
+  // with the customer message: ties keep the order messages were stored in (rowid), not the id.
+  const counted = `m.type != 'system' AND NOT (m.from_me = 1 AND m.status IN ('failed', 'pending'))`;
+  // Messages up to one gap before `from` decide whether the first customer message in the period
+  // starts a conversation.
+  const lookback = from - CONVERSATION_GAP_MS;
   const rows = db
     .prepare(
       `SELECT m.chat_jid, m.from_me, m.sent_by_user_id, m.timestamp FROM messages m
        JOIN chats c ON c.jid = m.chat_jid
-       WHERE c.type = 'dm' AND m.type != 'system' AND m.timestamp >= ? AND m.timestamp <= ?
-         AND NOT (m.from_me = 1 AND m.status IN ('failed', 'pending'))
-       ORDER BY m.chat_jid, m.timestamp, m.id`,
+       WHERE c.type = 'dm' AND ${counted} AND m.timestamp >= ? AND m.timestamp <= ?
+       ORDER BY m.chat_jid, m.timestamp, m.rowid`,
     )
-    .all(from - CONVERSATION_GAP_MS, opts.now) as Row[];
+    .all(lookback, opts.now) as Row[];
+  // A wait can be open for longer than the lookback: per chat, the first customer message after
+  // the last team reply before it (from the whole history).
+  const openWaits = new Map(
+    (
+      db
+        .prepare(
+          `WITH last_reply AS (
+             SELECT chat_jid, timestamp AS t, rowid AS r FROM (
+               SELECT m.chat_jid, m.timestamp, m.rowid, ROW_NUMBER() OVER (
+                 PARTITION BY m.chat_jid ORDER BY m.timestamp DESC, m.rowid DESC) AS n
+               FROM messages m WHERE m.from_me = 1 AND ${counted} AND m.timestamp < ?
+             ) WHERE n = 1
+           )
+           SELECT m.chat_jid AS chat, MIN(m.timestamp) AS since FROM messages m
+           LEFT JOIN last_reply lr ON lr.chat_jid = m.chat_jid
+           WHERE m.from_me = 0 AND ${counted} AND m.timestamp < ?
+             AND (lr.t IS NULL OR m.timestamp > lr.t OR (m.timestamp = lr.t AND m.rowid > lr.r))
+           GROUP BY m.chat_jid`,
+        )
+        .all(lookback, lookback) as Array<{ chat: string; since: number }>
+    ).map((w) => [w.chat, w.since]),
+  );
 
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: opts.timeZone,
@@ -145,7 +170,7 @@ export function computeInboxActivity(
       closeChat();
       chat = m.chat_jid;
       previousAt = null;
-      waitingSince = null;
+      waitingSince = openWaits.get(chat) ?? null;
     }
     const inPeriod = m.timestamp >= from;
     const at = inPeriod ? local(m.timestamp) : null;

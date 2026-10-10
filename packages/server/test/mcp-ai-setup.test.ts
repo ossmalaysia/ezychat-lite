@@ -111,6 +111,7 @@ describe('AI setup over MCP', () => {
   it('lists the setup tools; only update_ai_setup is marked as changing anything', async () => {
     const tools = await listTools();
     expect(tools.map((x) => x.name).sort()).toEqual([
+      'get_activity',
       'get_ai_agent_setup',
       'get_ai_context_item',
       'get_ai_setup_history',
