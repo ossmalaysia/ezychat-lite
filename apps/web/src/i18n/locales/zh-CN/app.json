@@ -17,7 +17,7 @@
   },
   "featureRequest": {
     "label": "建议新功能",
-    "opensGitHub": "（在新窗口中打开 GitHub）"
+    "opensWebsite": "（在新窗口中打开 ezychat.ai）"
   },
   "search": {
     "clear": "清除{{label}}"

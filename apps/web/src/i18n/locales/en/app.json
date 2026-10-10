@@ -17,7 +17,7 @@
   },
   "featureRequest": {
     "label": "Request a feature",
-    "opensGitHub": "(opens GitHub in a new window)"
+    "opensWebsite": "(opens ezychat.ai in a new window)"
   },
   "search": {
     "clear": "Clear {{label}}"

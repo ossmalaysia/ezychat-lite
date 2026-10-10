@@ -17,7 +17,7 @@
   },
   "featureRequest": {
     "label": "Cadangkan ciri",
-    "opensGitHub": "(membuka GitHub dalam tetingkap baharu)"
+    "opensWebsite": "(membuka ezychat.ai dalam tetingkap baharu)"
   },
   "search": {
     "clear": "Kosongkan {{label}}"
