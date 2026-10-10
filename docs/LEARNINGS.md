@@ -16,7 +16,9 @@ into AGENTS.md.
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
-  log), never from an agent's memory of the session: record each stage when it finishes.
+  log), never from an agent's memory of the session: record each stage when it finishes, mark
+  stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
+  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
