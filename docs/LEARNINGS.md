@@ -392,6 +392,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Date helpers that take `now` must compare against it, not the real clock.
 - Desktop main imports only types from `shared` and mirrors tiny runtime helpers with parity tests.
+- Links to ezychat.ai use the page for the app language (`/ms/…`, `/zh/…`) and merge only after
+  that page is live on the website; installed apps cannot be re-pointed.
 
 ## Cloudflare and sharing
 
