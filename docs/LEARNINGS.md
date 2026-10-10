@@ -21,6 +21,8 @@ into AGENTS.md.
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
   list, a 401), never "nothing left to click": a list counted before it loads reads as success.
+  Time-based features (peaks, waits, trends) need Dev Build data spread over days with a planted
+  pattern; the demo data is seeded within minutes, so it cannot show the feature working.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
