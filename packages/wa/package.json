@@ -18,7 +18,7 @@
   "dependencies": {
     "@wa-team-inbox/shared": "*",
     "baileys": "^7.0.0-rc14",
-    "pino": "^10.3.1",
+    "pino": "^10.4.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
