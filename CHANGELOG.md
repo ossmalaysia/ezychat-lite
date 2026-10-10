@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- "Request a feature" in the account menu now opens the feedback form on ezychat.ai in your language, with your EzyChat Lite version filled in, so you can send a feature request, bug report or question without a GitHub account.
+
 ## [0.1.30] - 2026-10-10
 
 ### Added

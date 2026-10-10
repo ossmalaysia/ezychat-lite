@@ -2,21 +2,22 @@ import { ExternalLink, Lightbulb } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { GITHUB_REPO_URL } from '@/lib/links';
+import { feedbackUrl } from '@/lib/links';
+import { useAppVersion } from '@/lib/version';
 
-/** Opens the repository's feature-request draft; nothing is submitted automatically. */
+/**
+ * Opens the feedback form on ezychat.ai in the app's language, with the app version filled in.
+ * No GitHub account needed; nothing is sent until the user submits the form.
+ */
 export function FeatureRequestAction({ placement = 'button' }: { placement?: 'button' | 'menu' }) {
-  const { t } = useTranslation('app');
+  const { t, i18n } = useTranslation('app');
+  const version = useAppVersion();
   const link = (
-    <a
-      href={`${GITHUB_REPO_URL}/issues/new?template=feature_request.yml`}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
+    <a href={feedbackUrl(i18n.language, version)} target="_blank" rel="noopener noreferrer">
       <Lightbulb aria-hidden="true" />
       {t('featureRequest.label')}
       <ExternalLink aria-hidden="true" className="ml-auto size-3.5" />
-      <span className="sr-only"> {t('featureRequest.opensGitHub')}</span>
+      <span className="sr-only"> {t('featureRequest.opensWebsite')}</span>
     </a>
   );
 

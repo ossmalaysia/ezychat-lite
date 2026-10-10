@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthShell } from '@/auth/AuthShell';
 import { UserMenu } from '@/auth/UserMenu';
+import { feedbackUrl } from '@/lib/links';
 
 const auth = vi.hoisted(() => ({
   user: { displayName: 'Support Agent', username: 'agent', role: 'member' },
@@ -42,8 +43,15 @@ it.each([false, true])('offers the request action to an account with admin=%s', 
   await user.click(screen.getByRole('button', { name: 'Account menu' }));
   const action = screen.getByRole('menuitem', { name: /Request a feature/ });
   expect(action.tagName).toBe('A');
-  expect(action.getAttribute('href')).toBe(
-    'https://github.com/ossmalaysia/ezychat-lite/issues/new?template=feature_request.yml',
-  );
+  expect(action.getAttribute('href')).toBe('https://ezychat.ai/feedback?v=0.1.3');
   expect(action.getAttribute('target')).toBe('_blank');
+});
+
+it.each([
+  ['en', '0.1.30', 'https://ezychat.ai/feedback?v=0.1.30'],
+  ['ms', '0.1.30', 'https://ezychat.ai/ms/feedback?v=0.1.30'],
+  ['zh-CN', '0.1.30', 'https://ezychat.ai/zh/feedback?v=0.1.30'],
+  ['fr', null, 'https://ezychat.ai/feedback'],
+])('builds the feedback link for locale %s and version %s', (locale, version, url) => {
+  expect(feedbackUrl(locale, version)).toBe(url);
 });
