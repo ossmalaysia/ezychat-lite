@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Peak times and who replies, for AI assistants (MCP):** a new read-only `get_activity` tool
+  gives customer messages, new conversations and team replies per hour and weekday (business time
+  zone), a weekday × hour heat map of new conversations, how long customers waited for a first
+  reply, and per team member, the AI Sales Agent and the phone: messages per hour and reply times.
+
 ### Fixed
 
 - **Audit log names the AI assistant:** a change an AI assistant made through an access token now

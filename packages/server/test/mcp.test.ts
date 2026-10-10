@@ -190,6 +190,7 @@ describe('protocol and tools', () => {
     await client.connect(transport);
     const { tools } = await client.listTools();
     expect(tools.map((x) => x.name).sort()).toEqual([
+      'get_activity',
       'get_ai_agent_setup',
       'get_ai_context_item',
       'get_ai_setup_history',
@@ -250,6 +251,25 @@ describe('protocol and tools', () => {
     expect(stats.openByAssignee).toEqual([{ assignee: null, count: 1 }]);
     expect(stats.daily).toHaveLength(3);
     expect(stats.daily[2].inbound).toBe(2);
+  });
+
+  it('get_activity reports peak hours and waits by name, never by user id', async () => {
+    setMcpEnabled(t.ctx, true);
+    const activity = data(await callTool('get_activity', { days: 3 }));
+    expect(activity.timeZone).toBe('Asia/Kuala_Lumpur');
+    expect(activity.byHour).toHaveLength(24);
+    expect(Object.keys(activity.newConversationsHeatmap)).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ]);
+    expect(activity.firstReply.unanswered).toBe(1);
+    expect(typeof activity.from).toBe('string');
+    for (const r of activity.responders) expect(r).not.toHaveProperty('userId');
   });
 
   it('a tool call fails when the token is revoked between authentication and the call', async () => {

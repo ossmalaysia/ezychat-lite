@@ -1,5 +1,6 @@
 import type { Chat, ChatEvent, Message, Note } from '@wa-team-inbox/shared';
 import {
+  McpGetActivityInput,
   McpGetChatInput,
   McpGetMessagesInput,
   McpGetStatsInput,
@@ -208,9 +209,37 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   },
 };
 
+const getActivity: ToolDef<typeof McpGetActivityInput> = {
+  name: 'get_activity',
+  title: 'Peak times and who replies',
+  description:
+    'When customers write and who answers, in the business time zone, for direct chats over the last `days` days. byHour / byWeekday: customer messages, new conversations (a customer message after 12 hours of silence in that chat) and team replies; newConversationsHeatmap: new conversations per weekday (Mon first) × hour 0-23, to find peak times. firstReply: how long customers waited for the first team reply (minutes, median and p90; a wait starts at the first customer message after the last team reply), overall and by the hour the customer wrote, plus waits still unanswered. responders: per team member, the AI Sales Agent (kind "ai") and "phone" (sent from the WhatsApp phone or another linked device): messages sent in total and per hour, chats, first replies and their wait times.',
+  scope: 'inbox:read',
+  input: McpGetActivityInput,
+  run(args, { inbox }) {
+    const activity = inbox.activity(args.days);
+    const names = inbox.userNames();
+    const ai = inbox.aiUserIds();
+    return {
+      result: {
+        ...activity,
+        from: iso(activity.from),
+        to: iso(activity.to),
+        responders: activity.responders.map(({ userId, ...r }) => ({
+          name: userId === null ? 'phone' : (names.get(userId) ?? `user ${userId}`),
+          kind: userId === null ? 'phone' : ai.has(userId) ? 'ai' : 'member',
+          ...r,
+        })),
+      },
+      count: activity.responders.length,
+    };
+  },
+};
+
 export const INBOX_TOOLS: readonly ToolDef[] = [
   listChats,
   getChat,
   getMessages,
   getStats,
+  getActivity,
 ] as ToolDef[];

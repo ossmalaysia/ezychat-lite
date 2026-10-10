@@ -85,6 +85,17 @@ export const McpGetStatsInput = z.strictObject({
 });
 export type McpGetStatsInput = z.infer<typeof McpGetStatsInput>;
 
+export const McpGetActivityInput = z.strictObject({
+  days: z
+    .number()
+    .int()
+    .min(1)
+    .max(90)
+    .default(28)
+    .describe('Days to cover, ending now (today counts as one day)'),
+});
+export type McpGetActivityInput = z.infer<typeof McpGetActivityInput>;
+
 // AI Sales Agent setup tools (scope `ai:setup`).
 
 export const McpSetupTarget = z

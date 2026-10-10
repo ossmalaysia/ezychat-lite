@@ -16,11 +16,15 @@ into AGENTS.md.
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
-  log), never from an agent's memory of the session: record each stage when it finishes.
+  log), never from an agent's memory of the session: record each stage when it finishes, mark
+  stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
+  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
   list, a 401), never "nothing left to click": a list counted before it loads reads as success.
+  Time-based features (peaks, waits, trends) need Dev Build data spread over days with a planted
+  pattern; the demo data is seeded within minutes, so it cannot show the feature working.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
@@ -204,6 +208,8 @@ into AGENTS.md.
 
 - Identity is pinned to `Browsers.ubuntu('Chrome')`; "Desktop" identities get 428 before any QR. Never
   change it without a live QR check.
+- Message timestamps are whole seconds, so a quick reply can tie with the message it answers: logic
+  that needs cause-before-effect orders ties by `rowid` (stored order), never by the WhatsApp id.
 - Anything that needs the original `WAMessage` (a quote, media re-download) must not rely only on the
   adapter's in-memory cache (2,000 entries, cleared on reconnect): pass a saved copy from the database
   (`WaQuotedRef` → `quotedFromRef`; `key.remoteJid` = the chat the reply goes to), or the feature
@@ -240,6 +246,11 @@ into AGENTS.md.
   sets look the same and the test proves nothing.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
+- A new MCP tool must be added to every exact tool-name list in the tests (`mcp.test.ts` and
+  `mcp-ai-setup.test.ts`): grep `server/test` for an existing tool name before pushing.
+- MCP analytics are aggregated on the server (`get_stats`, `get_activity`), never left to the model
+  paging through `get_messages`; define every derived metric in the tool description (e.g. "new
+  conversation = customer message after 12 h of silence") so the client cannot guess its meaning.
 - Any paid model call started from the UI is cancellable end to end: the page aborts its request when
   the user closes or replaces it, and the route aborts the provider call when the client disconnects.
 - AI SDK on the Responses API (`ai/agent/models.ts`): with `store:false` also `include`
