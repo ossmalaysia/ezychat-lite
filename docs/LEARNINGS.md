@@ -236,8 +236,7 @@ into AGENTS.md.
   (`jid_aliases`); duplicates merge only in the startup identity migration, reading
   `wa-auth/lid-mapping-*.json` offline. Never merge on a name or number match.
   Learn live phone/LID pairs (e.g. from group metadata) before looking up a person's chat, so a
-  recycled number never resolves to its old owner; key any new chat by the LID, and trust a chat
-  found via a number only while that number still routes to the same LID. A re-pointed number's
+  recycled number never resolves to its old owner; key any new chat by the LID, and trust anything found via a number (chat, About, photo) only while it still routes to the same LID. A re-pointed number's
   names, About and photo belong to the old owner: never copy them (guard centrally in `syncNames` via `movedAway`: never a source, never a destination), and key per-person caches by the LID (server caches and web query keys alike).
 - Anything that re-keys or deletes a chat moves every `chat_jid`-keyed table (check `ON DELETE CASCADE`)
   and in-memory per-chat state in the same transaction. Never run `VACUUM`/backups inside
