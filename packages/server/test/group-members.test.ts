@@ -253,6 +253,14 @@ describe('starting a direct chat with a member', () => {
     expect(aisyah).toMatchObject({ name: null, chatJid: AISYAH_LID, phone: '60137782210' });
   });
 
+  it('shows a hidden member’s number the team already knows, never as their name', async () => {
+    // As seen in a real hidden-number group: the team's own chat already knows this person's number.
+    getChats(t.ctx).upsertContactAliases([{ jid: '60112760440@s.whatsapp.net', alias: HIDDEN }]);
+    getChats(t.ctx).upsertFromWa({ jid: HIDDEN, type: 'dm', name: null });
+    const hidden = (await members()).members.find((m) => m.jid === HIDDEN);
+    expect(hidden).toMatchObject({ name: null, phone: '60112760440', chatJid: HIDDEN });
+  });
+
   it('starts a hidden-number member’s chat on their WhatsApp ID', async () => {
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(HIDDEN)}/chat`);
     expect(r.json()).toEqual({ chatJid: HIDDEN });

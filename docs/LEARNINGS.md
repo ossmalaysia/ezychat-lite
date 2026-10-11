@@ -248,7 +248,8 @@ into AGENTS.md.
 - Group members (`groupMetadata`) carry no names and may hide phone numbers (LID groups): names come
   from contacts and existing chats, never inferred. Read the list on demand with a server cache that
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
-  time, only when asked for.
+  time, only when asked for. A LID-only member may already have a chat whose fallback name is its
+  number: never show a number as a name. Most About reads come back empty (privacy), which is normal.
 
 ## AI sales agent
 

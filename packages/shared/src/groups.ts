@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const GroupMemberSchema = z.object({
   /** The member's address as the group lists it (phone-number JID or WhatsApp ID). */
   jid: z.string(),
-  /** Phone number digits (e.g. "60123456789"), or null when WhatsApp hides it. */
+  /** Phone number digits (e.g. "60123456789"): from the group, else from the team's own chat; null when unknown. */
   phone: z.string().nullable(),
   /** WhatsApp ID (`…@lid`), when known. */
   lid: z.string().nullable(),

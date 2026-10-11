@@ -739,10 +739,28 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   async getAbout(jid: string): Promise<string | null> {
     if (!this.sock || this._status.state !== 'open') return null;
+    const kind = jid.endsWith('@lid') ? 'lid' : 'pn';
     try {
-      return aboutFromStatusResult(await this.sock.fetchStatus(jid));
+      const list = await this.sock.fetchStatus(jid);
+      const about = aboutFromStatusResult(list);
+      // Shape only, never the text: tells "WhatsApp returned nothing" apart from a parsing problem.
+      const first = Array.isArray(list)
+        ? (list[0] as { status?: { status?: unknown } } | undefined)
+        : undefined;
+      const inner = first?.status?.status;
+      this.logger.info(
+        {
+          kind,
+          entries: Array.isArray(list) ? list.length : null,
+          // '' = hidden by the person's privacy settings (code 401), null = none set
+          status: inner === '' ? 'private' : inner === null ? 'none' : typeof inner,
+          found: about !== null,
+        },
+        'about read',
+      );
+      return about;
     } catch (err) {
-      this.logger.debug({ err, jid }, 'about unavailable');
+      this.logger.warn({ err, kind }, 'about unavailable');
       return null;
     }
   }

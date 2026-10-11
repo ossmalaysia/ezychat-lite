@@ -122,6 +122,9 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     return out;
   }
 
+  /** A member's direct chat; a chat shows its phone number as the name when it has no real name. */
+  type MemberChat = { jid: string; name: string; phone: string | null };
+
   /** Cache key for one person: the WhatsApp ID survives a phone number moving to someone else. */
   function identityKey(p: WaGroupParticipant): string {
     return `${p.lidJid ?? ''}|${p.phoneJid ?? p.jid}`;
@@ -134,10 +137,11 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
   function knownName(
     p: WaGroupParticipant,
     names: Map<string, string>,
-    chat: { jid: string; name: string } | null,
+    chat: MemberChat | null,
   ): string | null {
-    const phone = p.phoneJid ? jidUser(p.phoneJid) : null;
-    if (chat && !isFallbackName(chat.name, chat.jid) && chat.name !== phone) return chat.name;
+    const numbers = [p.phoneJid && jidUser(p.phoneJid), chat?.phone].filter(Boolean);
+    if (chat && !isFallbackName(chat.name, chat.jid) && !numbers.includes(chat.name))
+      return chat.name;
     const lidName = p.lidJid ? names.get(p.lidJid) : undefined;
     if (lidName) return lidName;
     if (p.phoneJid && !getAliases(ctx).movedAway(p.phoneJid)) return names.get(p.phoneJid) ?? null;
@@ -145,13 +149,13 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
   }
 
   /** The existing direct chat for a member (by phone number or WhatsApp ID), if any. */
-  function existingChat(p: WaGroupParticipant): { jid: string; name: string } | null {
+  function existingChat(p: WaGroupParticipant): MemberChat | null {
     const chats = getChats(ctx);
     const aliases = getAliases(ctx);
     for (const j of [p.lidJid, p.phoneJid]) {
       if (!j) continue;
       const chat = chats.get(aliases.route(j));
-      if (chat && chat.type === 'dm') return { jid: chat.jid, name: chat.name };
+      if (chat && chat.type === 'dm') return { jid: chat.jid, name: chat.name, phone: chat.phone };
     }
     return null;
   }
@@ -180,7 +184,8 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
         const known = knownName(p, names, chat);
         return {
           jid: p.jid,
-          phone: p.phoneJid ? jidUser(p.phoneJid) : null,
+          // A hidden number the team already knows from its own chat with this person.
+          phone: p.phoneJid ? jidUser(p.phoneJid) : (chat?.phone ?? null),
           lid: p.lidJid,
           name: known,
           username: p.username,
