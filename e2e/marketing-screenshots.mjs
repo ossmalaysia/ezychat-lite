@@ -23,6 +23,7 @@ const TEAM = [
   { username: 'meiling', displayName: 'Mei Ling', role: 'agent' },
 ];
 const jid = (n) => `6012${n}@s.whatsapp.net`;
+const GROUP = '120363025550001@g.us';
 
 async function session(username, password = PASSWORD) {
   const headers = { 'content-type': 'application/json', origin: BASE };
@@ -168,8 +169,33 @@ async function seed() {
     address: '',
     tags: ['Repeat'],
   });
+  // A customer community group for Group info: a few named regulars, the rest generated.
+  await owner.call('POST', '/dev/fake-group', {
+    groupJid: GROUP,
+    name: 'Kopi Apong Regulars ☕',
+    generated: 118,
+    members: [
+      {
+        phone: '60123110021',
+        name: 'Farah Aziz',
+        role: 'admin',
+        about: 'Farah Catering Co, Penang',
+      },
+      { phone: '60128814455', name: 'Daniel Lim', username: 'daniel.lim' },
+      { phone: '60126677889', name: 'Nurul Huda', about: 'Nasi lemak every Friday 🍛' },
+      { lid: '184392017734251', username: 'kopilover' },
+    ],
+  });
+  await say(owner, GROUP, 'Is the durian cendol back this weekend?', 'Farah Aziz');
+  await say(owner, GROUP, 'Yes please, save me two!', 'Nurul Huda');
   await pause(500);
   return owner;
+}
+
+/** Tap the group name in the chat header to open Group info. */
+async function openGroupInfo(page) {
+  await page.getByRole('button', { name: /Open group info/ }).click();
+  await page.getByRole('list', { name: 'Group members' }).waitFor();
 }
 
 const SHOTS = [
@@ -184,6 +210,13 @@ const SHOTS = [
     ['desktop', 'mobile'],
   ],
   ['chat', 'conversation-chinese', `/chats/${encodeURIComponent(jid('7020388'))}`, ['mobile']],
+  [
+    'chat',
+    'group-info',
+    `/chats/${encodeURIComponent(GROUP)}`,
+    ['desktop', 'mobile'],
+    openGroupInfo,
+  ],
   ['admin-members', 'members', '/admin/members', ['desktop', 'mobile']],
   ['ai-member', 'ai-member', '/admin/members/ai', ['desktop', 'mobile']],
   ['ai-settings', 'ai-connection', '/admin/settings/ai', ['desktop']],
@@ -214,11 +247,12 @@ for (const theme of ['light', 'dark']) {
     );
     await ctx.addInitScript(() => window.localStorage.setItem('wati.locale', 'en'));
     const page = await ctx.newPage();
-    for (const [module, file, path, vps] of SHOTS) {
+    for (const [module, file, path, vps, prepare] of SHOTS) {
       if (!vps.includes(vp) || (theme === 'dark' && !DARK.has(file))) continue;
       mkdirSync(join(OUT, module), { recursive: true });
       await page.goto(path);
       await page.waitForLoadState('networkidle').catch(() => {});
+      if (prepare) await prepare(page);
       await page.waitForTimeout(800);
       const name = `${file}-${vp}${theme === 'dark' ? '-dark' : ''}.png`;
       await page.screenshot({ path: join(OUT, module, name) });
