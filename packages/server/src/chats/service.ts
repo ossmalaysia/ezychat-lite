@@ -81,6 +81,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     const phone = stored.find((c) => c?.phone)?.phone || (phoneJid ? jidUser(phoneJid) : null);
     const renamed = new Set<string>();
     for (const [index, jid] of group.entries()) {
+      // Nor is a moved number a destination: its contact and chat stay the previous owner's.
+      if (aliases.movedAway(jid)) continue;
       repo.upsertContact({ jid, savedName, pushName });
       // Retain the phone-number search field on the opaque LID row as well.
       if (phone) ctx.db.prepare('UPDATE contacts SET phone = ? WHERE jid = ?').run(phone, jid);

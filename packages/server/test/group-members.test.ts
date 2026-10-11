@@ -300,6 +300,20 @@ describe('starting a direct chat with a member', () => {
     expect(row?.push_name ?? null).toBeNull();
   });
 
+  it('never writes the new owner’s name onto a recycled number’s old contact or chat', async () => {
+    const OLD_LID = '999888777666555@lid';
+    getChats(t.ctx).upsertContactAliases([{ jid: AISYAH, alias: OLD_LID, source: 'contacts' }]);
+    getChats(t.ctx).upsertContacts([{ jid: AISYAH, pushName: 'Previous owner', savedName: null }]);
+    getChats(t.ctx).upsertFromWa({ jid: AISYAH, type: 'dm', name: 'Previous owner' });
+    await members(); // the group moves the number to AISYAH_LID
+    getChats(t.ctx).upsertContacts([{ jid: AISYAH_LID, pushName: null, savedName: 'New owner' }]);
+    const pnRow = t.ctx.db
+      .prepare('SELECT push_name, saved_name FROM contacts WHERE jid = ?')
+      .get(AISYAH) as { push_name: string | null; saved_name: string | null };
+    expect(pnRow).toEqual({ push_name: 'Previous owner', saved_name: null });
+    expect(getChats(t.ctx).get(OLD_LID)?.name).toBe('Previous owner');
+  });
+
   it('never shows a member’s number as their name once their chat exists', async () => {
     await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
     const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
