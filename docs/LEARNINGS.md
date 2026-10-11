@@ -249,7 +249,7 @@ into AGENTS.md.
   from contacts and existing chats, never inferred. Read the list on demand with a server cache (an in-flight read that gets invalidated is discarded) that
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
   time, only when asked for. A LID-only member may already have a chat whose fallback name is its
-  number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is.
+  number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is. Baileys (rc14) resolves a timed-out query to `undefined` instead of throwing: treat a missing result as a failure.
 
 ## AI sales agent
 
