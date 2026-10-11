@@ -1,4 +1,5 @@
 import { useContext, useState } from 'react';
+import { UserRound } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { initials } from '../lib/format';
@@ -75,7 +76,7 @@ function ProfileImage({ name, src, seed }: { name: string; src?: string | null; 
       )}
       {(loaded !== src || failed === src || !src) && (
         <AvatarFallback className={cn('font-semibold', TINTS[hash(seed ?? name) % TINTS.length])}>
-          {initials(name)}
+          {initials(name) || <UserRound className="size-[55%]" aria-hidden="true" />}
         </AvatarFallback>
       )}
     </>

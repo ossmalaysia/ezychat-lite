@@ -6,6 +6,7 @@ import {
   type WaAdapter,
   type WaAdapterEvents,
   type WaContactAlias,
+  type WaGroupInfo,
   type WaIncomingMessage,
   type WaSendFile,
   type WaSendOptions,
@@ -35,6 +36,11 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private outCounter = 0;
   private nextSendError: Error | null = null;
   private readonly media = new Map<string, Buffer>();
+  private readonly groups = new Map<string, WaGroupInfo>();
+  private readonly abouts = new Map<string, string>();
+  /** Every getGroupInfo / getAbout call, for tests that check caching. */
+  readonly groupInfoCalls: string[] = [];
+  readonly aboutCalls: string[] = [];
 
   readonly sent: FakeSentRecord[] = [];
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
@@ -152,7 +158,44 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return [];
   }
 
+  async getGroupInfo(groupJid: string): Promise<WaGroupInfo> {
+    if (this._status.state !== 'open') throw new WaUnavailableError();
+    this.groupInfoCalls.push(groupJid);
+    const g = this.groups.get(groupJid);
+    const info = g ?? {
+      jid: groupJid,
+      name: null,
+      description: null,
+      createdAt: null,
+      ownerJid: null,
+      size: 0,
+      participants: [],
+    };
+    return structuredClone(info);
+  }
+
+  async getAbout(jid: string): Promise<string | null> {
+    if (this._status.state !== 'open') return null;
+    this.aboutCalls.push(jid);
+    return this.abouts.get(jid) ?? null;
+  }
+
   // ---- test helpers ----
+
+  /** What getGroupInfo returns for this group (members as WhatsApp lists them, no names). */
+  setGroupInfo(info: WaGroupInfo): void {
+    this.groups.set(info.jid, structuredClone(info));
+  }
+
+  /** What getAbout returns for this person. */
+  setAbout(jid: string, about: string): void {
+    this.abouts.set(jid, about);
+  }
+
+  /** Emit `groupChanged`, as WhatsApp does when members are added, removed, promoted or demoted. */
+  simulateGroupChanged(groupJid: string): void {
+    this.emitTyped('groupChanged', { groupJid });
+  }
 
   /** makes downloadMedia(messageId) return `buffer` */
   setMedia(messageId: string, buffer: Buffer): void {

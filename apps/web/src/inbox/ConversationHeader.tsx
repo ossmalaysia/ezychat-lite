@@ -29,6 +29,13 @@ export interface ConversationHeaderProps {
   showCustomer: boolean;
   customerOpen: boolean;
   onToggleCustomer(): void;
+  /**
+   * Clicking the chat's avatar and name opens its details, like WhatsApp: Group info for a group,
+   * Customer details for a direct chat.
+   */
+  onOpenInfo?(): void;
+  /** Group chats: WhatsApp's member count, shown under the name once known. */
+  memberCount?: number | null;
   busy?: boolean;
 }
 
@@ -46,13 +53,17 @@ export function ConversationHeader({
   showCustomer,
   customerOpen,
   onToggleCustomer,
+  onOpenInfo,
+  memberCount = null,
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
   const name = chatTitle(chat, t);
   const subtitle =
     chat.type === 'group'
-      ? t('chatListItem.group')
+      ? memberCount != null
+        ? t('header.groupMembers', { count: memberCount })
+        : t('chatListItem.group')
       : (formatPhone(chat) ?? t('header.phoneHidden'));
   const resolved = chat.status === 'resolved';
 
@@ -82,22 +93,39 @@ export function ConversationHeader({
       >
         <ArrowLeft className="size-5" aria-hidden="true" />
       </Button>
-      <ChatAvatar name={name} src={chat.avatarUrl} seed={chat.jid} size="md" />
-      <div className="min-w-0 flex-1">
-        <h2 className="flex items-center gap-1 text-base font-semibold text-foreground">
-          {chat.type === 'group' && <GroupIcon className="size-4 shrink-0 text-muted-foreground" />}
-          <span
-            title={name}
-            className="line-clamp-2 [overflow-wrap:anywhere] md:line-clamp-none md:truncate"
-          >
-            {name}
+      {/* The name stays the page heading; the visible identity is one button that opens details. */}
+      <h2 className="sr-only">{name}</h2>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onOpenInfo}
+        disabled={!onOpenInfo}
+        aria-label={
+          chat.type === 'group'
+            ? t('header.openGroupInfo', { name })
+            : t('header.openCustomer', { name })
+        }
+        className="h-auto min-w-0 flex-1 justify-start gap-2 rounded-lg px-1.5 py-1 text-left font-normal disabled:opacity-100"
+      >
+        <ChatAvatar name={name} src={chat.avatarUrl} seed={chat.jid} size="md" />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1 text-base font-semibold text-foreground">
+            {chat.type === 'group' && (
+              <GroupIcon className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span
+              title={name}
+              className="line-clamp-2 whitespace-normal [overflow-wrap:anywhere] md:line-clamp-none md:truncate"
+            >
+              {name}
+            </span>
           </span>
-        </h2>
-        <p className="truncate text-xs text-muted-foreground">
-          {subtitle}
-          {resolved && ` · ${t('header.resolved')}`}
-        </p>
-      </div>
+          <span className="block truncate text-xs text-muted-foreground tabular-nums">
+            {subtitle}
+            {resolved && ` · ${t('header.resolved')}`}
+          </span>
+        </span>
+      </Button>
       {/* One row from a 672px-wide header (Customer/Notes icon-only below 768px); narrower
           headers put the actions on their own row under the name, with Resolve on the right. */}
       <div className="flex w-full items-center gap-2 px-1 @2xl:w-auto @2xl:px-0">

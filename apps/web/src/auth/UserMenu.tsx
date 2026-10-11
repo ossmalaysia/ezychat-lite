@@ -123,7 +123,7 @@ export function UserMenu({
           >
             <Avatar className="size-8">
               <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                {initials(user.displayName)}
+                {initials(user.displayName) || '?'}
               </AvatarFallback>
             </Avatar>
           </Button>

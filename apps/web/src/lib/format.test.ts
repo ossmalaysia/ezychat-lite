@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { activateLocale } from '@/i18n';
-import { formatBytes, formatDay, formatListTime, formatRelative } from './format';
+import { formatBytes, formatDay, formatListTime, formatRelative, initials } from './format';
 
 const now = new Date(2026, 9, 4, 12, 0);
 const yesterday = new Date(2026, 9, 3, 9, 0).getTime();
@@ -44,5 +44,22 @@ describe('format (locale-aware)', () => {
       expect(formatRelative(Date.now() - 5 * 60_000)).toMatch(/分钟/);
       expect(formatRelative(Date.now())).toBe('刚刚');
     });
+  });
+});
+
+describe('initials', () => {
+  it('uses letters only, one character for Chinese, Japanese or Korean names', () => {
+    expect(initials('Nurul Aisyah binti Mohd')).toBe('NM');
+    expect(initials('(kingsly) Oyen Jarvis')).toBe('KJ');
+    expect(initials('~Acikwowo')).toBe('A');
+    expect(initials('DATUK DAVE TEOH ❤️🌞🌟✨')).toBe('DT');
+    expect(initials('陈伟明 Chen Wei Ming')).toBe('陈');
+    expect(initials('ñandú éclair')).toBe('ÑÉ');
+  });
+
+  it('is empty when there are no letters, so a person icon shows instead', () => {
+    expect(initials('+60 17-555 0192')).toBe('');
+    expect(initials('❤️🌞')).toBe('');
+    expect(initials('   ')).toBe('');
   });
 });

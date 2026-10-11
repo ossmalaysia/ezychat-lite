@@ -9,6 +9,7 @@ import {
   newClientId,
   qk,
   useChat,
+  useGroupMembers,
   useMarkRead,
   useMessages,
   useNotes,
@@ -44,6 +45,7 @@ import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
 import { NotesPanel } from './NotesPanel';
+import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
 import { TypingIndicator } from './TypingIndicator';
@@ -86,6 +88,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [notesOpen, setNotesOpen] = useState(false);
   // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
   const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
+  const [groupOpen, setGroupOpen] = useState(false);
   // Set by CustomerPanel while editing: switching panels or chats asks before losing changes.
   // It is the inbox page's navigation guard, so chat list links ask too.
   const customerGuard = useNavigationGuardRef();
@@ -95,6 +98,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const chat = chatQ.data?.chat;
+  // Group chats: the member count under the name (same cached list the Group info panel uses).
+  const groupMembers = useGroupMembers(jid, chat?.type === 'group');
   const events = chatQ.data?.events;
   const me = directory.me;
 
@@ -268,12 +273,23 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             leaveCustomer(() => {
               setNotesOpen((o) => !o);
               setCustomerOpen(false);
+              setGroupOpen(false);
             })
           }
           showCustomer={chat.type === 'dm'}
           customerOpen={customerOpen && chat.type === 'dm'}
           onToggleCustomer={() => {
             if (customerOpen) return leaveCustomer(() => setCustomerOpen(false));
+            setCustomerOpen(true);
+            setNotesOpen(false);
+          }}
+          memberCount={groupMembers.data?.group.size ?? null}
+          onOpenInfo={() => {
+            if (chat.type === 'group') {
+              setGroupOpen(true);
+              setNotesOpen(false);
+              return;
+            }
             setCustomerOpen(true);
             setNotesOpen(false);
           }}
@@ -350,6 +366,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         directory={directory}
         onClose={() => setNotesOpen(false)}
       />
+      {chat.type === 'group' && (
+        <GroupPanel jid={jid} open={groupOpen} onClose={() => setGroupOpen(false)} />
+      )}
       {chat.type === 'dm' && (
         <CustomerPanel
           jid={jid}

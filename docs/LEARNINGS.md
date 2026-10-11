@@ -178,6 +178,16 @@ into AGENTS.md.
   `node`/`tsx` server it started on Windows: stop the server by the PID listening on its port (after
   checking its command line), and confirm a port is free before a re-run, or the re-run tests old code.
 
+- Playwright `getByRole({ name })` matches substrings: when a new control's label contains an existing
+  one's ("Open customer details for …" vs "Customer details"), make the old locators `exact: true`.
+- Run Prettier on the files you changed only (`npx prettier --write <files>`): pointing it at a folder
+  reformats untouched files (shadcn primitives, tests).
+- Run the final verification in stages (typecheck, lint, tests per workspace, web build, e2e), not
+  one chained command: on this dev machine the chain can be stopped for low memory, losing every result.
+  Web tests time out under load: rerun failures alone and the web suite with `--maxWorkers=2`
+  before treating them as real.
+- After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
+  unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
 ## Security
 
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
@@ -231,6 +241,10 @@ into AGENTS.md.
 - Test copies of real data: `db.backup()` snapshot, minimal `wa-auth`, no `secret.key`, `--fake-wa` on
   loopback.
 
+- Group members (`groupMetadata`) carry no names and may hide phone numbers (LID groups): names come
+  from contacts and existing chats, never inferred. Read the list on demand with a server cache that
+  `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
+  time, only when asked for.
 ## AI sales agent
 
 - Anything an outside assistant can change that reaches customers (AI instructions, rules, context)
@@ -383,6 +397,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 - Update discovery lists releases and compares strict semver (the latest-release endpoint skips previews).
 - Brand assets: check exported icons on light and dark backgrounds at small sizes.
 
+- Avatar initials use letters only (`initials()`): a name without letters (number, WhatsApp ID, emoji)
+  shows a person icon, never `+`, `(` or `~`.
+- A chat's details open by tapping its header identity (avatar + name + subtitle are one `Button`; the
+  name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
 ## Internationalization
 
 - Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`, including prefilled editable

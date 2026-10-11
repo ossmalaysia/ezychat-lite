@@ -30,7 +30,7 @@ test('customer profile: edit in the chat, live name + tag in the inbox, filter b
   await expect(chatItem(inbox, jid)).toContainText('Farah 🌸');
 
   await page.goto(chatHref(jid));
-  await page.getByRole('button', { name: 'Customer details' }).click();
+  await page.getByRole('button', { name: 'Customer details', exact: true }).click();
   // Desktop: an aside next to the chat; phones: a sheet (dialog).
   const panel = page
     .getByRole('complementary', { name: 'Customer' })
@@ -39,7 +39,9 @@ test('customer profile: edit in the chat, live name + tag in the inbox, filter b
   // letter. (On phones the panel is a modal sheet over the header.)
   await expect(panel).toBeVisible();
   if (await page.getByRole('complementary', { name: 'Customer' }).isVisible()) {
-    const title = page.getByRole('heading', { level: 2 }).first().locator('span[title]');
+    const title = page
+      .getByRole('button', { name: /^Open customer details for/ })
+      .locator('span.line-clamp-2[title]');
     const clipped = await title.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
     expect(clipped, 'customer name is truncated in the chat header').toBe(false);
   }

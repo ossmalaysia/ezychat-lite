@@ -31,6 +31,9 @@ import {
   type CreateUserBody,
   type CustomerProfileBody,
   type CustomerProfileResponse,
+  type GroupInfoResponse,
+  type GroupMemberAboutResponse,
+  type StartMemberChatResponse,
   type CustomerTagsResponse,
   type CloudflareCreateBody,
   type LoginBody,
@@ -74,6 +77,8 @@ export const qk = {
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
   customerProfile: (jid: string) => ['customer-profile', jid] as const,
+  groupMembers: (jid: string) => ['group-members', jid] as const,
+  memberAbout: (groupJid: string, member: string) => ['member-about', groupJid, member] as const,
   customerTags: (q: string) => ['customer-tags', q] as const,
   quickReplies: ['quick-replies'] as const,
   users: ['users'] as const,
@@ -667,6 +672,46 @@ export function useAddNote(jid: string) {
 // ---------------------------------------------------------------------------
 // Customer profiles
 // ---------------------------------------------------------------------------
+
+/** Members of a group chat (read from WhatsApp by the server, cached there for a few minutes). */
+export function useGroupMembers(jid: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: qk.groupMembers(jid ?? ''),
+    queryFn: ({ signal }) => api<GroupInfoResponse>(`/chats/${enc(jid ?? '')}/members`, { signal }),
+    enabled: !!jid && enabled,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/** A member's WhatsApp About text, fetched only when their details are opened. */
+export function useMemberAbout(groupJid: string, member: string | null) {
+  return useQuery({
+    queryKey: qk.memberAbout(groupJid, member ?? ''),
+    queryFn: ({ signal }) =>
+      api<GroupMemberAboutResponse>(`/chats/${enc(groupJid)}/members/${enc(member ?? '')}/about`, {
+        signal,
+      }),
+    enabled: !!member,
+    staleTime: 30 * 60_000,
+    retry: false,
+  });
+}
+
+/** Open (or create) the direct chat with a group member. */
+export function useStartMemberChat(groupJid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (member: string) =>
+      api<StartMemberChatResponse>(`/chats/${enc(groupJid)}/members/${enc(member)}/chat`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.chatsAll });
+      void qc.invalidateQueries({ queryKey: qk.groupMembers(groupJid) });
+    },
+  });
+}
 
 export function useCustomerProfile(jid: string | null | undefined) {
   return useQuery({

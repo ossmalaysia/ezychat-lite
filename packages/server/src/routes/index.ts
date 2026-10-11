@@ -5,6 +5,7 @@ import setup from './setup.js';
 import auth from './auth.js';
 import users from './users.js';
 import chats from './chats.js';
+import groups from './groups.js';
 import messages from './messages.js';
 import notes from './notes.js';
 import customers from './customers.js';
@@ -29,6 +30,7 @@ export const routeModules: RouteModule[] = [
   auth,
   users,
   chats,
+  groups,
   messages,
   notes,
   customers,

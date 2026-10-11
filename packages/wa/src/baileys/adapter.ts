@@ -32,6 +32,7 @@ import {
   type WaContactInfo,
   type WaAliasSource,
   type WaContactAlias,
+  type WaGroupInfo,
   type WaMessageStatusUpdate,
   type WaSendFile,
   type WaSendOptions,
@@ -42,6 +43,7 @@ import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
+import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
 
@@ -359,7 +361,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     });
     sock.ev.on('chats.upsert', (cs) => alive() && this.emitChats(cs));
     sock.ev.on('groups.upsert', (gs) => alive() && this.emitGroups(gs));
-    sock.ev.on('groups.update', (gs) => alive() && this.emitGroups(gs));
+    sock.ev.on('groups.update', (gs) => {
+      if (!alive()) return;
+      this.emitGroups(gs);
+      for (const g of gs) if (g.id) this.emitTyped('groupChanged', { groupJid: g.id });
+    });
+    sock.ev.on('group-participants.update', ({ id }) => {
+      if (alive() && id) this.emitTyped('groupChanged', { groupJid: id });
+    });
   }
 
   private onConnectionUpdate(sock: WASocket, u: BaileysEventMap['connection.update']): void {
@@ -719,6 +728,21 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       return await this.download(raw);
     } catch (err) {
       this.logger.warn({ err, messageId }, 'media download failed');
+      return null;
+    }
+  }
+
+  async getGroupInfo(groupJid: string): Promise<WaGroupInfo> {
+    const sock = this.requireOpen();
+    return mapGroupMetadata(await sock.groupMetadata(groupJid));
+  }
+
+  async getAbout(jid: string): Promise<string | null> {
+    if (!this.sock || this._status.state !== 'open') return null;
+    try {
+      return aboutFromStatusResult(await this.sock.fetchStatus(jid));
+    } catch (err) {
+      this.logger.debug({ err, jid }, 'about unavailable');
       return null;
     }
   }
