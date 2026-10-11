@@ -139,7 +139,7 @@ export interface WaAdapter {
   sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
   /** re-download by id if still cached */
   downloadMedia(messageId: string): Promise<Buffer | null>;
-  /** URL */
+  /** Photo URL; null when there is none or it is private. Throws when it cannot be read. */
   getProfilePicture(jid: string): Promise<string | null>;
   /** Members and details of a group this number belongs to. Throws WaUnavailableError when offline. */
   getGroupInfo(groupJid: string): Promise<WaGroupInfo>;

@@ -767,7 +767,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   async getProfilePicture(jid: string): Promise<string | null> {
-    if (!this.sock || this._status.state !== 'open') return null;
+    // Offline is a failed lookup, never "no photo".
+    if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
     try {
       return (await this.sock.profilePictureUrl(jid, 'preview')) ?? null;
     } catch (err) {

@@ -172,5 +172,8 @@ describe('FakeWaAdapter groups', () => {
     await expect(wa.getAbout('60111@s.whatsapp.net')).rejects.toMatchObject({
       code: 'wa_unavailable',
     });
+    await expect(wa.getProfilePicture('60111@s.whatsapp.net')).rejects.toMatchObject({
+      code: 'wa_unavailable',
+    });
   });
 });

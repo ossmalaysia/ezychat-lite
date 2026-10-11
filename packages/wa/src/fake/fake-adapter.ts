@@ -151,6 +151,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   }
 
   async getProfilePicture(_jid: string): Promise<string | null> {
+    if (this._status.state !== 'open') throw new WaUnavailableError();
     return null;
   }
 
