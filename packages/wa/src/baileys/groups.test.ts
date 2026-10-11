@@ -23,7 +23,7 @@ describe('mapGroupMetadata', () => {
       name: 'SME Founders',
       description: 'Weekly meetup',
       createdAt: 1_710_200_000_000,
-      ownerJid: '60161112222@s.whatsapp.net',
+      ownerJid: '111222333444555@lid',
       size: 965,
     });
   });
@@ -86,6 +86,10 @@ describe('mapGroupMetadata', () => {
   });
 });
 
+it('falls back to the creator’s number only when WhatsApp gives no WhatsApp ID', () => {
+  expect(mapGroupMetadata(meta({ owner: undefined })).ownerJid).toBe('60161112222@s.whatsapp.net');
+});
+
 describe('aboutFromStatusResult', () => {
   it('returns the About text, or null when hidden or unset', () => {
     expect(
@@ -95,6 +99,9 @@ describe('aboutFromStatusResult', () => {
       aboutFromStatusResult([{ id: 'x', status: { status: '', setAt: new Date() } }]),
     ).toBeNull();
     expect(aboutFromStatusResult([{ id: 'x', status: { status: null } }])).toBeNull();
-    expect(aboutFromStatusResult(undefined)).toBeNull();
+  });
+
+  it('treats a missing result (a timed-out query) as a failure, not as no About', () => {
+    expect(() => aboutFromStatusResult(undefined)).toThrow();
   });
 });

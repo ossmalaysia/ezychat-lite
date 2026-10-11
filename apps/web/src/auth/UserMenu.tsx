@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bug, Info, KeyRound, LogOut, Monitor, Moon, Settings, Share2, Sun } from 'lucide-react';
+import {
+  Bug,
+  Info,
+  KeyRound,
+  LogOut,
+  Monitor,
+  Moon,
+  Settings,
+  Share2,
+  Sun,
+  UserRound,
+} from 'lucide-react';
 import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -123,7 +134,9 @@ export function UserMenu({
           >
             <Avatar className="size-8">
               <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                {initials(user.displayName) || '?'}
+                {initials(user.displayName) || (
+                  <UserRound className="size-[55%]" aria-hidden="true" />
+                )}
               </AvatarFallback>
             </Avatar>
           </Button>

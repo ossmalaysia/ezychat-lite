@@ -32,7 +32,8 @@ export function mapGroupMetadata(meta: GroupMetadata): WaGroupInfo {
     name: meta.subject || null,
     description: meta.desc || null,
     createdAt: Number.isFinite(created) && created > 0 ? created * 1000 : null,
-    ownerJid: normalizeContactJid(meta.ownerPn) ?? normalizeContactJid(meta.owner),
+    // The WhatsApp ID first: the creator's number may later belong to someone else.
+    ownerJid: normalizeContactJid(meta.owner) ?? normalizeContactJid(meta.ownerPn),
     size: Math.max(Number(meta.size) || 0, participants.length),
     participants,
   };
@@ -40,7 +41,8 @@ export function mapGroupMetadata(meta: GroupMetadata): WaGroupInfo {
 
 /** The About text from a Baileys `fetchStatus` result; null when hidden or unset. */
 export function aboutFromStatusResult(list: unknown): string | null {
-  if (!Array.isArray(list)) return null;
+  // A timed-out query resolves to undefined instead of throwing: a failure, never "no About".
+  if (!Array.isArray(list)) throw new Error('About query returned no result');
   const status = (list[0] as { status?: { status?: unknown } } | undefined)?.status?.status;
   return typeof status === 'string' && status.trim() ? status : null;
 }
