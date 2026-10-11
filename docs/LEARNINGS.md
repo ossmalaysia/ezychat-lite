@@ -188,6 +188,7 @@ into AGENTS.md.
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
   unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
+
 ## Security
 
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
@@ -248,6 +249,7 @@ into AGENTS.md.
   from contacts and existing chats, never inferred. Read the list on demand with a server cache that
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
   time, only when asked for.
+
 ## AI sales agent
 
 - Anything an outside assistant can change that reaches customers (AI instructions, rules, context)
@@ -406,6 +408,7 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   shows a person icon, never `+`, `(` or `~`.
 - A chat's details open by tapping its header identity (avatar + name + subtitle are one `Button`; the
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
+
 ## Internationalization
 
 - Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`, including prefilled editable
