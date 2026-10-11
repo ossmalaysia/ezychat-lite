@@ -8,6 +8,15 @@ import type { GroupInfoResponse, GroupMember } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
 import { useGroupMembers, useMemberAbout, useStartMemberChat } from '../api/queries';
 import { Banner } from '@/components/app';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -171,7 +180,12 @@ function MemberList({
             label: t('groupInfo.all'),
             n: q ? matches.length : group.size,
           },
-          { admins: true, on: adminsOnly, label: t('groupInfo.admins'), n: group.adminCount },
+          {
+            admins: true,
+            on: adminsOnly,
+            label: t('groupInfo.admins'),
+            n: q ? matches.filter((m) => m.role !== 'member').length : group.adminCount,
+          },
         ].map((c) => (
           <Button
             key={String(c.admins)}
@@ -336,7 +350,7 @@ function MemberDetail({
           </Button>
           <p className="text-xs text-muted-foreground">{t('groupInfo.hasChat')}</p>
         </>
-      ) : !confirming ? (
+      ) : (
         <>
           <Button
             type="button"
@@ -349,43 +363,36 @@ function MemberDetail({
             {t('groupInfo.message')}
           </Button>
           <p className="text-xs text-muted-foreground">{t('groupInfo.noChat')}</p>
+          <AlertDialog
+            open={confirming}
+            onOpenChange={(o) => !o && !start.isPending && setConfirming(false)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="[overflow-wrap:anywhere]">
+                  {t('groupInfo.confirmTitle', { name: label })}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-warning">
+                  {t('groupInfo.confirmWarn')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="min-h-11 sm:min-h-9" disabled={start.isPending}>
+                  {t('groupInfo.cancel')}
+                </AlertDialogCancel>
+                <Button
+                  type="button"
+                  className="min-h-11 sm:min-h-9"
+                  onClick={startChat}
+                  disabled={start.isPending}
+                >
+                  {start.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+                  {t('groupInfo.start')}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
-      ) : (
-        <div
-          role="alertdialog"
-          aria-labelledby="group-start-title"
-          aria-describedby="group-start-warn"
-          className="space-y-2.5 rounded-lg border border-warning/50 bg-note p-3"
-        >
-          <p id="group-start-title" className="text-sm font-semibold">
-            {t('groupInfo.confirmTitle', { name: label })}
-          </p>
-          <p id="group-start-warn" className="text-xs text-warning">
-            {t('groupInfo.confirmWarn')}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="flex-1"
-              onClick={() => setConfirming(false)}
-              disabled={start.isPending}
-            >
-              {t('groupInfo.cancel')}
-            </Button>
-            <Button
-              type="button"
-              size="touch"
-              className="flex-1"
-              onClick={startChat}
-              disabled={start.isPending}
-            >
-              {start.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-              {t('groupInfo.start')}
-            </Button>
-          </div>
-        </div>
       )}
     </div>
   );

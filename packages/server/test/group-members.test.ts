@@ -212,6 +212,16 @@ describe('starting a direct chat with a member', () => {
     expect(chats.filter((c) => c.type === 'dm').map((c) => c.jid)).toEqual([AISYAH_LID]);
   });
 
+  it('never offers a recycled number’s old chat for the member who has it now', async () => {
+    const OLD_LID = '999888777666555@lid';
+    getChats(t.ctx).upsertContactAliases([{ jid: AISYAH, alias: OLD_LID, source: 'contacts' }]);
+    getChats(t.ctx).upsertFromWa({ jid: OLD_LID, type: 'dm', name: 'Previous owner' });
+    const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
+    expect(aisyah?.chatJid).toBeNull();
+    const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/chat`);
+    expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+  });
+
   it('starts a hidden-number member’s chat on their WhatsApp ID', async () => {
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(HIDDEN)}/chat`);
     expect(r.json()).toEqual({ chatJid: HIDDEN });

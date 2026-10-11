@@ -61,7 +61,17 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     if (!entry || entry.until <= now()) {
       evictOldest(cache, MAX_CACHED_GROUPS);
       const t0 = now();
-      const info = ctx.wa.getGroupInfo(groupJid);
+      // The list is live WhatsApp evidence: learn its phone/WhatsApp ID pairs before anything looks
+      // up a member's chat, so a recycled number routes to its current owner, not the old chat.
+      const info = ctx.wa.getGroupInfo(groupJid).then((g) => {
+        const pairs = g.participants.flatMap((p) =>
+          p.phoneJid && p.lidJid
+            ? [{ jid: p.phoneJid, alias: p.lidJid, source: 'lid-mapping' as const }]
+            : [],
+        );
+        if (pairs.length) getChats(ctx).upsertContactAliases(pairs);
+        return g;
+      });
       entry = { at: t0, until: t0 + GROUP_INFO_TTL_MS, info };
       cache.set(groupJid, entry);
       info.then(
@@ -223,13 +233,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       }
       const existing = existingChat(p);
       if (existing) return existing.jid;
-      // Chats are keyed by the WhatsApp ID once known; record the pair WhatsApp gave us so the
-      // member's phone-number messages route into this chat.
-      if (p.phoneJid && p.lidJid) {
-        getChats(ctx).upsertContactAliases([
-          { jid: p.phoneJid, alias: p.lidJid, source: 'lid-mapping' },
-        ]);
-      }
+      // Chats are keyed by the WhatsApp ID once known (the pair was learned when the list was read).
       const target = p.lidJid ?? p.phoneJid ?? p.jid;
       const names = contactNames([p.phoneJid, p.lidJid].filter((j): j is string => !!j));
       const name =

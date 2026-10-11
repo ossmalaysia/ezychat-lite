@@ -64,7 +64,7 @@ test('group info: members from WhatsApp, search, details and starting a chat', a
   await panel.getByRole('searchbox', { name: 'Search members' }).fill(`18439201773${tag}`);
   await list.getByRole('button', { name: /Number hidden by WhatsApp/ }).click();
   await panel.getByRole('button', { name: 'Message' }).click();
-  const confirm = panel.getByRole('alertdialog');
+  const confirm = page.getByRole('alertdialog');
   await expect(confirm).toContainText('Unsolicited messages can get your WhatsApp number banned');
   await confirm.getByRole('button', { name: 'Start chat' }).click();
   await expect(page).toHaveURL(new RegExp(`/chats/18439201773${tag}51%40lid$`));

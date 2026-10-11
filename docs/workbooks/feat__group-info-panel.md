@@ -20,3 +20,4 @@ Branch: `feat/group-info-panel` · Every agent updates its stage with
 - 2026-10-11 Screen review: done — vs approved mockup at 1280/360, ms+dark; fixed initials ((J, ~, +), dropped duplicate Admin in details, header button replaced by tapping the name
 - 2026-10-11 Unit tests: pass — typecheck + lint green; shared 29, wa 84, server 881, desktop 310 (+1 skipped), web 494 (maxWorkers=2); web build green
 - 2026-10-11 E2E: pass — 55 passed, 6 skipped incl. new group-info.spec on desktop/mobile/iphone; customer-profile selectors made exact
+- 2026-10-12 Review fixes (Codex): new member chats keyed by LID; group list learns live phone/LID pairs first (recycled numbers); All/Admins chips count search matches; Message confirm now the AlertDialog primitive (inline confirm in mockup → modal). group-info e2e 4/4 pass

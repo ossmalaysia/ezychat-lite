@@ -234,7 +234,8 @@ into AGENTS.md.
 - One person can arrive as a phone-number JID and a LID: chats are keyed by the LID once known
   (`jid_aliases`); duplicates merge only in the startup identity migration, reading
   `wa-auth/lid-mapping-*.json` offline. Never merge on a name or number match.
-  Any code that creates a chat for a known phone/LID pair learns the pair first and keys the chat by the LID.
+  Learn live phone/LID pairs (e.g. from group metadata) before looking up a person's chat, so a
+  recycled number never resolves to its old owner; key any new chat by the LID.
 - Anything that re-keys or deletes a chat moves every `chat_jid`-keyed table (check `ON DELETE CASCADE`)
   and in-memory per-chat state in the same transaction. Never run `VACUUM`/backups inside
   `db.transaction`.
@@ -318,6 +319,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
+  `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings
   along (hints, warnings) goes under the row (`PreferenceRow` `below`, `PushToggle` render prop), or it
   squeezes the description. A bare switch handed to a row keeps a 44 px target (padded `<Label
