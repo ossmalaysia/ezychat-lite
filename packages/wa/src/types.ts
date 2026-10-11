@@ -43,6 +43,32 @@ export interface WaContactAlias {
   source?: WaAliasSource;
 }
 
+/** A member of a WhatsApp group, as WhatsApp lists it (names are not part of the list). */
+export interface WaGroupParticipant {
+  /** The member's address as the group lists it: a phone-number JID or a WhatsApp ID (LID). */
+  jid: string;
+  /** Phone-number JID when WhatsApp shares it (`…@s.whatsapp.net`), else null (number hidden). */
+  phoneJid: string | null;
+  /** WhatsApp ID (`…@lid`) when known, else null. */
+  lidJid: string | null;
+  /** WhatsApp username, only when WhatsApp sends it. */
+  username: string | null;
+  role: 'superadmin' | 'admin' | 'member';
+}
+
+export interface WaGroupInfo {
+  jid: string;
+  name: string | null;
+  description: string | null;
+  /** epoch ms, null when unknown */
+  createdAt: number | null;
+  /** Creator's phone-number JID or WhatsApp ID, when known. */
+  ownerJid: string | null;
+  /** Member count reported by WhatsApp (can exceed participants.length for very large groups). */
+  size: number;
+  participants: WaGroupParticipant[];
+}
+
 export interface WaMessageStatusUpdate {
   id: string;
   chatJid: string;
@@ -56,6 +82,8 @@ export interface WaAdapterEvents {
   chats: [WaChatInfo[]];
   contacts: [WaContactInfo[]];
   contactAliases: [WaContactAlias[]];
+  /** A group's members or settings changed; cached member lists for it are stale. */
+  groupChanged: [{ groupJid: string }];
 }
 
 /**
@@ -111,8 +139,12 @@ export interface WaAdapter {
   sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
   /** re-download by id if still cached */
   downloadMedia(messageId: string): Promise<Buffer | null>;
-  /** URL */
+  /** Photo URL; null when there is none or it is private. Throws when it cannot be read. */
   getProfilePicture(jid: string): Promise<string | null>;
+  /** Members and details of a group this number belongs to. Throws WaUnavailableError when offline. */
+  getGroupInfo(groupJid: string): Promise<WaGroupInfo>;
+  /** A person's WhatsApp "About" text; null when hidden or unset. Throws when it cannot be read. */
+  getAbout(jid: string): Promise<string | null>;
   /** Resolve existing local phone/LID mappings only; must not query WhatsApp. */
   getContactAliases(jids: string[]): Promise<WaContactAlias[]>;
 }

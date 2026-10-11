@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { FakeIncomingBody, type Message } from '@wa-team-inbox/shared';
+import { FakeGroupBody, FakeIncomingBody, type Message } from '@wa-team-inbox/shared';
+import type { WaGroupParticipant } from '@wa-team-inbox/wa';
 import type { FakeWaAdapter } from '@wa-team-inbox/wa';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { parse } from '../http/errors.js';
+import { getChats } from '../wa-bridge/index.js';
 
 const INGEST_WAIT_MS = 2000;
 
@@ -75,5 +77,64 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
       if (timer) clearTimeout(timer);
       if (onNew) ctx.bus.off('message:new', onNew);
     }
+  });
+
+  /**
+   * POST /api/dev/fake-group: a group with members for the Group info panel. Every 4th generated
+   * member has a known name, every 7th only a WhatsApp ID (number hidden), every 11th a username.
+   */
+  app.post('/dev/fake-group', { preHandler: requireUser(ctx) }, async (req) => {
+    const body = parse(FakeGroupBody, req.body ?? {});
+    const participants: WaGroupParticipant[] = [];
+    const contacts: Array<{ jid: string; pushName: string | null; savedName: null }> = [];
+    const me = ctx.wa.status.me?.jid.replace(/:\d+@/, '@');
+    if (me)
+      participants.push({
+        jid: me,
+        phoneJid: me,
+        lidJid: null,
+        username: null,
+        role: 'superadmin',
+      });
+    const add = (m: {
+      phone?: string;
+      lid?: string;
+      name?: string;
+      username?: string;
+      about?: string;
+      role: WaGroupParticipant['role'];
+    }) => {
+      const phoneJid = m.phone ? `${m.phone}@s.whatsapp.net` : null;
+      const lidJid = m.lid ? `${m.lid}@lid` : null;
+      const jid = lidJid ?? phoneJid;
+      if (!jid) return;
+      participants.push({ jid, phoneJid, lidJid, username: m.username ?? null, role: m.role });
+      if (m.name) contacts.push({ jid: phoneJid ?? jid, pushName: m.name, savedName: null });
+      if (m.about) wa.setAbout(phoneJid ?? jid, m.about);
+    };
+    for (const m of body.members) add(m);
+    for (let i = 1; i <= body.generated; i++) {
+      const hidden = i % 7 === 0;
+      add({
+        phone: hidden ? undefined : `6011${String(10_000_000 + i).slice(-8)}`,
+        lid: hidden ? `9${String(100_000_000_000_000 + i)}` : undefined,
+        name: i % 4 === 0 ? `Demo Member ${i}` : undefined,
+        username: i % 11 === 0 ? `demo.member.${i}` : undefined,
+        role: i <= 2 ? 'admin' : 'member',
+      });
+    }
+    wa.setGroupInfo({
+      jid: body.groupJid,
+      name: body.name,
+      description: null,
+      createdAt: Date.now() - 200 * 86_400_000,
+      ownerJid: participants[1]?.phoneJid ?? participants[1]?.jid ?? null,
+      size: participants.length,
+      participants,
+    });
+    getChats(ctx).upsertContacts(contacts);
+    getChats(ctx).upsertFromWa({ jid: body.groupJid, type: 'group', name: body.name });
+    wa.simulateGroupChanged(body.groupJid);
+    return { groupJid: body.groupJid, members: participants.length };
   });
 }

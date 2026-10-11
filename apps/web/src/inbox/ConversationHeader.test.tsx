@@ -20,7 +20,12 @@ const base: Chat = {
 
 function renderHeader(
   chat: Chat,
-  customer: { customerOpen?: boolean; onToggleCustomer?: () => void } = {},
+  customer: {
+    customerOpen?: boolean;
+    onToggleCustomer?: () => void;
+    onOpenInfo?: () => void;
+    memberCount?: number | null;
+  } = {},
 ) {
   return render(
     <ConversationHeader
@@ -35,6 +40,8 @@ function renderHeader(
       showCustomer={chat.type === 'dm'}
       customerOpen={customer.customerOpen ?? false}
       onToggleCustomer={customer.onToggleCustomer ?? vi.fn()}
+      onOpenInfo={customer.onOpenInfo ?? vi.fn()}
+      memberCount={customer.memberCount ?? null}
     />,
   );
 }
@@ -80,5 +87,26 @@ describe('ConversationHeader customer button', () => {
   it('has no customer button in a group', () => {
     renderHeader({ ...base, jid: '1203@g.us', type: 'group', name: 'Team' });
     expect(screen.queryByRole('button', { name: 'Customer details' })).toBeNull();
+  });
+});
+
+describe('ConversationHeader details', () => {
+  it('opens group info from the group name and shows the member count', () => {
+    const onOpenInfo = vi.fn();
+    renderHeader(
+      { ...base, jid: '1203@g.us', type: 'group', name: 'SME Founders' },
+      { onOpenInfo, memberCount: 965 },
+    );
+    expect(screen.getByText('Group · 965 members')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open group info for SME Founders' }));
+    expect(onOpenInfo).toHaveBeenCalledOnce();
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('SME Founders');
+  });
+
+  it('opens customer details from a direct chat’s name', () => {
+    const onOpenInfo = vi.fn();
+    renderHeader({ ...base, name: 'Farah', phone: '60123456789' }, { onOpenInfo });
+    fireEvent.click(screen.getByRole('button', { name: 'Open customer details for Farah' }));
+    expect(onOpenInfo).toHaveBeenCalledOnce();
   });
 });

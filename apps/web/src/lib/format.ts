@@ -65,13 +65,25 @@ export function formatBytes(n: number): string {
   return `${formatNumber(v, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[i]}`;
 }
 
-/** Up to two initials from a display name. */
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/**
+ * Up to two initials from a display name, letters only: "(kingsly) Oyen Jarvis" → "KJ",
+ * "陈伟明 Chen Wei Ming" → "陈". Empty when the name has no letters (a phone number, a WhatsApp
+ * ID, emoji only): callers show a person icon instead.
+ */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
-  return (first + last).toUpperCase() || '?';
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.match(/\p{L}/gu)?.join('') ?? '')
+    .filter(Boolean);
+  const first = words[0];
+  if (!first) return '';
+  const lead = [...first][0] ?? '';
+  if (CJK.test(lead)) return lead;
+  const last = words.length > 1 ? ([...words[words.length - 1]!][0] ?? '') : '';
+  return (lead + last).toUpperCase();
 }
 
 export function truncate(s: string, max: number): string {

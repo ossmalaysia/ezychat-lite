@@ -27,6 +27,7 @@ const LABEL_KEYS = {
   'settings.update': 'audit.actions.settingsUpdate',
   'chats.resolve_all': 'audit.actions.chatsResolveAll',
   'chat.merge': 'audit.actions.chatMerge',
+  'chat.start_from_group': 'audit.actions.chatStartFromGroup',
   'logs.download': 'audit.actions.logsDownload',
   'ai.connection_update': 'audit.actions.aiConnectionUpdate',
   'ai.member_update': 'audit.actions.aiMemberUpdate',
@@ -75,6 +76,7 @@ export function isSignInAction(action: string): boolean {
 /** Meta field → translation key (`admin` namespace) for its label. */
 const FIELD_KEYS: Record<string, string> = {
   chatJid: 'audit.fields.chat',
+  groupJid: 'audit.fields.group',
   from: 'audit.fields.from',
   to: 'audit.fields.to',
   targetId: 'audit.fields.member',
@@ -149,7 +151,7 @@ const VALUE_KEYS: Record<string, Record<string, string>> = {
   },
 };
 
-const JID_FIELDS = new Set(['chatJid', 'from', 'to']);
+const JID_FIELDS = new Set(['chatJid', 'groupJid', 'from', 'to']);
 const USER_FIELDS = new Set(['targetId', 'assignedTo']);
 const SUBJECT_FIELDS = new Set(['chatJid', 'from', 'to', 'targetId', 'documentId', 'shortcut']);
 /** Boolean flags that only say "this changed" (shown in the Changed list, never as Yes/No). */

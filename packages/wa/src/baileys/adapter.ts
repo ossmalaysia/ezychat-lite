@@ -32,6 +32,7 @@ import {
   type WaContactInfo,
   type WaAliasSource,
   type WaContactAlias,
+  type WaGroupInfo,
   type WaMessageStatusUpdate,
   type WaSendFile,
   type WaSendOptions,
@@ -42,6 +43,8 @@ import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
+import { profilePhoto } from './photos.js';
+import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
 
@@ -359,7 +362,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     });
     sock.ev.on('chats.upsert', (cs) => alive() && this.emitChats(cs));
     sock.ev.on('groups.upsert', (gs) => alive() && this.emitGroups(gs));
-    sock.ev.on('groups.update', (gs) => alive() && this.emitGroups(gs));
+    sock.ev.on('groups.update', (gs) => {
+      if (!alive()) return;
+      this.emitGroups(gs);
+      for (const g of gs) if (g.id) this.emitTyped('groupChanged', { groupJid: g.id });
+    });
+    sock.ev.on('group-participants.update', ({ id }) => {
+      if (alive() && id) this.emitTyped('groupChanged', { groupJid: id });
+    });
   }
 
   private onConnectionUpdate(sock: WASocket, u: BaileysEventMap['connection.update']): void {
@@ -723,12 +733,44 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     }
   }
 
-  async getProfilePicture(jid: string): Promise<string | null> {
-    if (!this.sock || this._status.state !== 'open') return null;
+  async getGroupInfo(groupJid: string): Promise<WaGroupInfo> {
+    const sock = this.requireOpen();
+    return mapGroupMetadata(await sock.groupMetadata(groupJid));
+  }
+
+  async getAbout(jid: string): Promise<string | null> {
+    if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
+    const kind = jid.endsWith('@lid') ? 'lid' : 'pn';
     try {
-      return (await this.sock.profilePictureUrl(jid, 'preview')) ?? null;
-    } catch {
-      return null;
+      const list = await this.sock.fetchStatus(jid);
+      const about = aboutFromStatusResult(list);
+      // Shape only, never the text: tells "WhatsApp returned nothing" apart from a parsing problem.
+      const first = Array.isArray(list)
+        ? (list[0] as { status?: { status?: unknown } } | undefined)
+        : undefined;
+      const inner = first?.status?.status;
+      this.logger.info(
+        {
+          kind,
+          entries: Array.isArray(list) ? list.length : null,
+          // '' = hidden by the person's privacy settings (code 401), null = none set
+          status: inner === '' ? 'private' : inner === null ? 'none' : typeof inner,
+          found: about !== null,
+        },
+        'about read',
+      );
+      return about;
+    } catch (err) {
+      // Thrown, not null: a failed lookup must never be remembered as "no About".
+      this.logger.warn({ err, kind }, 'about unavailable');
+      throw err;
     }
+  }
+
+  async getProfilePicture(jid: string): Promise<string | null> {
+    // Offline is a failed lookup, never "no photo".
+    if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
+    const sock = this.sock;
+    return profilePhoto(() => sock.profilePictureUrl(jid, 'preview'));
   }
 }

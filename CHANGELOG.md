@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Group info:** tap a group's name in the chat header to see its members as WhatsApp lists them: member count, admins, search by name, number or username, and an Admins filter. Open a member to see their number (when WhatsApp shares it), username and About text, then open your existing chat with them, or start one after a reminder not to message people who don't expect it. Names come from WhatsApp, so members who haven't messaged yet may show only a number; the list is view-only and can't be exported.
+
 ### Changed
+
+- Tapping a direct chat's name in the header opens the Customer panel.
+- Avatars use letters only for initials; numbers, WhatsApp IDs and emoji-only names show a person icon.
 
 - "Request a feature" in the account menu now opens the feedback form on ezychat.ai in your language, with your EzyChat Lite version filled in, so you can send a feature request, bug report or question without a GitHub account.
 

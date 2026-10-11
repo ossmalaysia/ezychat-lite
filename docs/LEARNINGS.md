@@ -178,6 +178,17 @@ into AGENTS.md.
   `node`/`tsx` server it started on Windows: stop the server by the PID listening on its port (after
   checking its command line), and confirm a port is free before a re-run, or the re-run tests old code.
 
+- Playwright `getByRole({ name })` matches substrings: when a new control's label contains an existing
+  one's ("Open customer details for …" vs "Customer details"), make the old locators `exact: true`.
+- Run Prettier on the files you changed only (`npx prettier --write <files>`): pointing it at a folder
+  reformats untouched files (shadcn primitives, tests).
+- Run the final verification in stages (typecheck, lint, tests per workspace, web build, e2e), not
+  one chained command: on this dev machine the chain can be stopped for low memory, losing every result.
+  Web tests time out under load: rerun failures alone and the web suite with `--maxWorkers=2`
+  before treating them as real.
+- After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
+  unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
+
 ## Security
 
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
@@ -224,12 +235,22 @@ into AGENTS.md.
 - One person can arrive as a phone-number JID and a LID: chats are keyed by the LID once known
   (`jid_aliases`); duplicates merge only in the startup identity migration, reading
   `wa-auth/lid-mapping-*.json` offline. Never merge on a name or number match.
+  Learn live phone/LID pairs (e.g. from group metadata) before looking up a person's chat, so a
+  recycled number never resolves to its old owner; key any new chat by the LID, and trust anything found via a number (shown number, chat, About, photo) only while it still routes to the
+  same LID, through one shared check rather than one fix per path. A re-pointed number's
+  names, About and photo belong to the old owner: never copy them (guard centrally in `syncNames` via `movedAway`: never a source, never a destination), and key per-person caches by the LID (server caches and web query keys alike).
 - Anything that re-keys or deletes a chat moves every `chat_jid`-keyed table (check `ON DELETE CASCADE`)
   and in-memory per-chat state in the same transaction. Never run `VACUUM`/backups inside
   `db.transaction`.
 - `FakeWaAdapter` ids carry a per-process prefix; when a dev test "does nothing", check de-duplication first.
 - Test copies of real data: `db.backup()` snapshot, minimal `wa-auth`, no `secret.key`, `--fake-wa` on
   loopback.
+
+- Group members (`groupMetadata`) carry no names and may hide phone numbers (LID groups): names come
+  from contacts and existing chats, never inferred. Read the list on demand with a server cache (an in-flight read that gets invalidated is discarded) that
+  `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
+  time, only when asked for. A LID-only member may already have a chat whose fallback name is its
+  number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is. Baileys (rc14) resolves a timed-out query to `undefined` instead of throwing: treat a missing result as a failure.
 
 ## AI sales agent
 
@@ -303,6 +324,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
+  `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings
   along (hints, warnings) goes under the row (`PreferenceRow` `below`, `PushToggle` render prop), or it
   squeezes the description. A bare switch handed to a row keeps a 44 px target (padded `<Label
@@ -382,6 +405,11 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   scripted step; regenerate service XML from code, never hand-patch it.
 - Update discovery lists releases and compares strict semver (the latest-release endpoint skips previews).
 - Brand assets: check exported icons on light and dark backgrounds at small sizes.
+
+- Avatar initials use letters only (`initials()`): a name without letters (number, WhatsApp ID, emoji)
+  shows a person icon, never `+`, `(` or `~`.
+- A chat's details open by tapping its header identity (avatar + name + subtitle are one `Button`; the
+  name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
 
 ## Internationalization
 

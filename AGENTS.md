@@ -121,6 +121,13 @@ outbound Message goes through the message service's `present()` (group `senderPr
 `customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
 never earlier in the prompt.
 
+**Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
+reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
+`groupChanged` event, names members from contacts and existing chats only (never inferred), and links
+existing direct chats via `AliasStore.route`. About (`getAbout`) and member photos are fetched per person
+on request; `POST …/members/:member/chat` creates an empty direct chat (audited) and never sends. Dev:
+`POST /api/dev/fake-group` (fake WA only) builds a group with generated members.
+
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.
 

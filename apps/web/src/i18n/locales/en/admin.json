@@ -181,6 +181,7 @@
       "settingsUpdate": "Settings updated",
       "chatsResolveAll": "All open chats resolved",
       "chatMerge": "Chats merged",
+      "chatStartFromGroup": "Chat started from a group",
       "logsDownload": "Logs downloaded",
       "aiConnectionUpdate": "AI connection changed",
       "aiMemberUpdate": "AI member changed",
@@ -202,6 +203,7 @@
     },
     "fields": {
       "chat": "Chat",
+      "group": "Group",
       "from": "From",
       "to": "To",
       "member": "Member",

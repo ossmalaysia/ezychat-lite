@@ -134,3 +134,46 @@ describe('FakeWaAdapter', () => {
     expect(batches).toEqual([[{ jid: '601@s.whatsapp.net', alias: '1@lid' }]]);
   });
 });
+
+describe('FakeWaAdapter groups', () => {
+  it('returns set group info and About text while connected, and records calls', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.connect();
+    wa.setGroupInfo({
+      jid: 'g1@g.us',
+      name: 'Group',
+      description: null,
+      createdAt: null,
+      ownerJid: null,
+      size: 2,
+      participants: [
+        {
+          jid: '60111@s.whatsapp.net',
+          phoneJid: '60111@s.whatsapp.net',
+          lidJid: null,
+          username: null,
+          role: 'admin',
+        },
+      ],
+    });
+    wa.setAbout('60111@s.whatsapp.net', 'Hello');
+    expect((await wa.getGroupInfo('g1@g.us')).participants).toHaveLength(1);
+    expect(await wa.getAbout('60111@s.whatsapp.net')).toBe('Hello');
+    expect(wa.groupInfoCalls).toEqual(['g1@g.us']);
+    const seen: string[] = [];
+    wa.on('groupChanged', ({ groupJid }) => seen.push(groupJid));
+    wa.simulateGroupChanged('g1@g.us');
+    expect(seen).toEqual(['g1@g.us']);
+  });
+
+  it('refuses group info while disconnected', async () => {
+    const wa = new FakeWaAdapter({ autoOpen: false });
+    await expect(wa.getGroupInfo('g1@g.us')).rejects.toMatchObject({ code: 'wa_unavailable' });
+    await expect(wa.getAbout('60111@s.whatsapp.net')).rejects.toMatchObject({
+      code: 'wa_unavailable',
+    });
+    await expect(wa.getProfilePicture('60111@s.whatsapp.net')).rejects.toMatchObject({
+      code: 'wa_unavailable',
+    });
+  });
+});

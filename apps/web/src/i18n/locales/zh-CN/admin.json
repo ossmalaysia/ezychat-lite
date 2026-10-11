@@ -179,6 +179,7 @@
       "settingsUpdate": "已更新设置",
       "chatsResolveAll": "已解决所有未结对话",
       "chatMerge": "已合并聊天",
+      "chatStartFromGroup": "从群组发起对话",
       "logsDownload": "已下载日志",
       "aiConnectionUpdate": "已更改 AI 连接",
       "aiMemberUpdate": "已更改 AI 成员",
@@ -200,6 +201,7 @@
     },
     "fields": {
       "chat": "对话",
+      "group": "群组",
       "from": "来自",
       "to": "到",
       "member": "成员",

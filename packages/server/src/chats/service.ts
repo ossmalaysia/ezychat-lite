@@ -70,15 +70,19 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
 
   const syncNames = (ids: Iterable<string>, t: number, incoming?: WaContactInfo): Set<string> => {
     const group = [...ids];
-    const stored = group.map((jid) => repo.getContact(jid));
+    // A moved number's stored names are its previous owner's: never read them for this person.
+    const stored = group.map((jid) => (aliases.movedAway(jid) ? undefined : repo.getContact(jid)));
+    // ...and neither are names arriving on the moved number itself.
+    const fresh = incoming && !aliases.movedAway(incoming.jid) ? incoming : undefined;
     const savedName =
-      incoming?.savedName?.trim() || stored.find((c) => c?.saved_name)?.saved_name || null;
-    const pushName =
-      incoming?.pushName?.trim() || stored.find((c) => c?.push_name)?.push_name || null;
+      fresh?.savedName?.trim() || stored.find((c) => c?.saved_name)?.saved_name || null;
+    const pushName = fresh?.pushName?.trim() || stored.find((c) => c?.push_name)?.push_name || null;
     const phoneJid = group.find((jid) => jid.endsWith('@s.whatsapp.net'));
     const phone = stored.find((c) => c?.phone)?.phone || (phoneJid ? jidUser(phoneJid) : null);
     const renamed = new Set<string>();
     for (const [index, jid] of group.entries()) {
+      // Nor is a moved number a destination: its contact and chat stay the previous owner's.
+      if (aliases.movedAway(jid)) continue;
       repo.upsertContact({ jid, savedName, pushName });
       // Retain the phone-number search field on the opaque LID row as well.
       if (phone) ctx.db.prepare('UPDATE contacts SET phone = ? WHERE jid = ?').run(phone, jid);
@@ -362,7 +366,9 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       const changed = ctx.db.transaction(() => {
         const out = new Set<string>();
         for (const o of outcomes) {
-          if (o.kind === 'ignored') continue;
+          // A re-pointed number's stored names belong to its previous owner: never copy them over,
+          // neither when it moves nor on any later sighting of the new pair.
+          if (o.kind === 'ignored' || o.kind === 'repointed' || aliases.movedAway(o.pn)) continue;
           for (const jid of syncNames(aliases.group(o.lid), now())) out.add(jid);
         }
         return out;

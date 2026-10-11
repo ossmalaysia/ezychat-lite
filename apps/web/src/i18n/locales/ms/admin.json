@@ -179,6 +179,7 @@
       "settingsUpdate": "Tetapan dikemas kini",
       "chatsResolveAll": "Semua sembang terbuka diselesaikan",
       "chatMerge": "Sembang digabungkan",
+      "chatStartFromGroup": "Sembang dimulakan daripada kumpulan",
       "logsDownload": "Log dimuat turun",
       "aiConnectionUpdate": "Sambungan AI diubah",
       "aiMemberUpdate": "Ahli AI diubah",
@@ -200,6 +201,7 @@
     },
     "fields": {
       "chat": "Sembang",
+      "group": "Kumpulan",
       "from": "Daripada",
       "to": "Kepada",
       "member": "Ahli",

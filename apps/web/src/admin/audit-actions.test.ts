@@ -8,6 +8,17 @@ it('labels startup chat merges in the audit log', () => {
   expect(auditActionLabel('chat.merge', t)).toBe('Chats merged');
 });
 
+it('reads a chat started from a group', () => {
+  expect(auditActionLabel('chat.start_from_group', t)).toBe('Chat started from a group');
+  expect(
+    auditDetails(
+      { groupJid: '120363000000000001@g.us', chatJid: '60123456789@s.whatsapp.net' },
+      t,
+      () => undefined,
+    ),
+  ).not.toMatch(/jid/i);
+});
+
 // Every action the server writes (packages/server/src/**: `action: '…'` and `record(req, '…')`).
 const SERVER_ACTIONS = [
   'ai.connection_update',
@@ -30,6 +41,7 @@ const SERVER_ACTIONS = [
   'auth.logout',
   'auth.reset_admin_cli',
   'chat.merge',
+  'chat.start_from_group',
   'chats.resolve_all',
   'cloudflare.create',
   'cloudflare.login',
