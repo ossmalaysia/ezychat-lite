@@ -258,7 +258,7 @@ function MemberDetail({
   onOpenChat(chatJid: string): void;
 }) {
   const { t } = useTranslation('inbox');
-  const about = useMemberAbout(groupJid, member.isMe ? null : member.jid);
+  const about = useMemberAbout(groupJid, member.isMe ? null : (member.lid ?? member.jid));
   const start = useStartMemberChat(groupJid);
   const [confirming, setConfirming] = useState(false);
   const label = memberLabel(member, t);
