@@ -334,6 +334,11 @@ describe('starting a direct chat with a member', () => {
     expect(aisyah?.chatJid).toBeNull();
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+    // Nor the other person's About: details are read by Aisyah's WhatsApp ID now.
+    t.wa.setAbout(AISYAH, 'someone else');
+    t.wa.setAbout(AISYAH_LID, 'Aisyah');
+    const about = await get(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/about`);
+    expect(about.json()).toEqual({ about: 'Aisyah' });
   });
 
   it('never shows a member’s number as their name once their chat exists', async () => {

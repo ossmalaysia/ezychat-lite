@@ -127,9 +127,20 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
   /** A member's direct chat; a chat shows its phone number as the name when it has no real name. */
   type MemberChat = { jid: string; name: string; phone: string | null };
 
+  /**
+   * Whose About and photo to fetch: the number (the path verified against real WhatsApp) while it
+   * still points at this member, else their WhatsApp ID, so a number that moved shows nobody else.
+   */
+  function detailJid(p: WaGroupParticipant): string {
+    const aliases = getAliases(ctx);
+    if (p.phoneJid && (!p.lidJid || aliases.route(p.phoneJid) === aliases.route(p.lidJid)))
+      return p.phoneJid;
+    return p.lidJid ?? p.jid;
+  }
+
   /** Cache key for one person: the WhatsApp ID survives a phone number moving to someone else. */
   function identityKey(p: WaGroupParticipant): string {
-    return `${p.lidJid ?? ''}|${p.phoneJid ?? p.jid}`;
+    return `${p.lidJid ?? ''}|${detailJid(p)}`;
   }
 
   /**
@@ -239,7 +250,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
 
     async about(groupJid, memberJid) {
       const p = await member(groupJid, memberJid);
-      const jid = p.phoneJid ?? p.lidJid ?? p.jid;
+      const jid = detailJid(p);
       const key = identityKey(p);
       // Offline reads come back empty: never cache that as "no About".
       if (ctx.wa.status.state !== 'open') throw errors.waUnavailable();
@@ -259,7 +270,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
 
     async photoTarget(groupJid, memberJid) {
       const p = await member(groupJid, memberJid);
-      return { jid: p.phoneJid ?? p.lidJid ?? p.jid, key: identityKey(p) };
+      return { jid: detailJid(p), key: identityKey(p) };
     },
 
     async startChat(groupJid, memberJid, actor) {
