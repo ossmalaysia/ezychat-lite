@@ -222,6 +222,29 @@ describe('GroupPanel', () => {
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
+  it('starts a chat by the member’s WhatsApp ID, never their reusable number', async () => {
+    const calls = mockApi(
+      info([
+        member({
+          jid: '60175550192@s.whatsapp.net',
+          phone: '60175550192',
+          lid: '311000000000001@lid',
+          name: 'Farid',
+        }),
+      ]),
+    );
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Farid/ }));
+    await user.click(screen.getByRole('button', { name: 'Message' }));
+    await user.click(screen.getByRole('button', { name: 'Start chat' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST')?.url).toBe(
+        `${BASE}/${encodeURIComponent('311000000000001@lid')}/chat`,
+      ),
+    );
+  });
+
   it('offers no chat actions on the linked number itself', async () => {
     mockApi(info());
     renderPanel();

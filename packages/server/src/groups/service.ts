@@ -236,6 +236,8 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       const p = await member(groupJid, memberJid);
       const jid = p.phoneJid ?? p.lidJid ?? p.jid;
       const key = identityKey(p);
+      // Offline reads come back empty: never cache that as "no About".
+      if (ctx.wa.status.state !== 'open') throw errors.waUnavailable();
       let entry = abouts.get(key);
       if (!entry || entry.until <= now()) {
         evictOldest(abouts, MAX_CACHED_ABOUTS);

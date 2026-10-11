@@ -287,7 +287,8 @@ function MemberDetail({
     ]);
 
   function startChat() {
-    start.mutate(member.jid, {
+    // The WhatsApp ID: a stale list must never start a chat with a recycled number's new owner.
+    start.mutate(member.lid ?? member.jid, {
       onSuccess: ({ chatJid }) => onOpenChat(chatJid),
       onError: (err) =>
         toast.error(err instanceof Error ? errorMessage(err) : t('groupInfo.startFailed')),

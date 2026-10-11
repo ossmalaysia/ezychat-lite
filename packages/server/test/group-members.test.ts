@@ -177,6 +177,18 @@ describe('group members', () => {
     expect(r.json()).toEqual({ about: 'new owner' });
   });
 
+  it('never caches an About read while WhatsApp is offline', async () => {
+    t.wa.setAbout(DAVID, 'Hello');
+    await members();
+    await t.wa.disconnect();
+    expect((await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/about`)).statusCode).toBe(
+      503,
+    );
+    await t.wa.connect();
+    const r = await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/about`);
+    expect(r.json()).toEqual({ about: 'Hello' });
+  });
+
   it('serves member photos only for members (204 when WhatsApp has none)', async () => {
     expect((await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/avatar`)).statusCode).toBe(
       204,
@@ -245,6 +257,13 @@ describe('starting a direct chat with a member', () => {
     expect(copied?.push_name ?? null).toBeNull();
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+    // A later read of the same group must not bring the old name back either.
+    t.wa.simulateGroupChanged(GROUP);
+    const again = (await members()).members.find((m) => m.jid === AISYAH_LID);
+    expect(again?.name).toBeNull();
+    const row = t.ctx.db.prepare('SELECT push_name FROM contacts WHERE jid = ?').get(AISYAH_LID) as
+      { push_name: string | null } | undefined;
+    expect(row?.push_name ?? null).toBeNull();
   });
 
   it('never shows a member’s number as their name once their chat exists', async () => {
