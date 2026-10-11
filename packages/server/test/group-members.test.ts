@@ -198,6 +198,23 @@ describe('group members', () => {
     expect(getAliases(t.ctx).resolve(AISYAH)).toBe(AISYAH_LID);
   });
 
+  it('answers from the newer read when an invalidated read fails late', async () => {
+    const groups = t.ctx.services.groups!;
+    const real = t.wa.getGroupInfo.bind(t.wa);
+    let calls = 0;
+    t.wa.getGroupInfo = async (jid: string) => {
+      if (calls++ === 0) {
+        await new Promise((r) => setTimeout(r, 20));
+        throw new Error('timed out');
+      }
+      return real(jid);
+    };
+    const stale = groups.info(GROUP);
+    t.wa.simulateGroupChanged(GROUP);
+    const fresh = await groups.info(GROUP);
+    expect((await stale).members).toHaveLength(fresh.members.length);
+  });
+
   it('never caches an About read while WhatsApp is offline', async () => {
     t.wa.setAbout(DAVID, 'Hello');
     await members();

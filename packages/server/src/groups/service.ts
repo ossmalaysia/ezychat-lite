@@ -83,7 +83,8 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
         return g;
       },
       (err: unknown) => {
-        if (current()) cache.delete(groupJid);
+        if (!current()) return raw(groupJid); // a newer read answers instead
+        cache.delete(groupJid);
         log.warn({ err, groupJid }, 'group members unavailable');
         throw err;
       },

@@ -770,8 +770,12 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     if (!this.sock || this._status.state !== 'open') return null;
     try {
       return (await this.sock.profilePictureUrl(jid, 'preview')) ?? null;
-    } catch {
-      return null;
+    } catch (err) {
+      // 404 = no photo, 401 = hidden by privacy: a real answer. Anything else is a failed lookup,
+      // thrown so it is never remembered as "no photo".
+      const code = (err as { data?: unknown }).data;
+      if (code === 404 || code === 401) return null;
+      throw err;
     }
   }
 }

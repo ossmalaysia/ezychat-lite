@@ -36,7 +36,9 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
     reply.header('cache-control', 'private, max-age=300');
     if (ctx.wa.status.state !== 'open')
       return reply.header('cache-control', 'no-store').code(204).send();
-    const url = await profileImage(jid);
+    const url = await profileImage(jid).catch(() => undefined);
+    // A failed lookup must not be cached by the browser either.
+    if (url === undefined) return reply.header('cache-control', 'no-store').code(204).send();
     return url ? reply.redirect(url) : reply.code(204).send();
   });
 
