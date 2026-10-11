@@ -276,11 +276,26 @@ function MemberDetail({
     t('groupInfo.role'),
     member.role === 'member' ? t('groupInfo.member') : t('groupInfo.admin'),
   ]);
-  if (!member.isMe && (about.isPending || about.data?.about))
+  // Empty (private or unset) hides the row; a failed read says so and offers a retry.
+  if (!member.isMe && (about.isPending || about.isError || about.data?.about))
     rows.push([
       t('groupInfo.about'),
       about.isPending ? (
         <span className="text-muted-foreground">{t('groupInfo.aboutLoading')}</span>
+      ) : about.isError ? (
+        <span className="inline-flex flex-wrap items-baseline justify-end gap-x-2 text-muted-foreground">
+          {t('groupInfo.aboutFailed')}
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            onClick={() => void about.refetch()}
+            disabled={about.isFetching}
+          >
+            {t('groupInfo.retry')}
+          </Button>
+        </span>
       ) : (
         <span className="whitespace-pre-wrap">{about.data?.about}</span>
       ),

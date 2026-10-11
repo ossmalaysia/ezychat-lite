@@ -58,13 +58,22 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
   }
 
   function raw(groupJid: string): Promise<WaGroupInfo> {
-    let entry = cache.get(groupJid);
-    if (!entry || entry.until <= now()) {
-      evictOldest(cache, MAX_CACHED_GROUPS);
-      const t0 = now();
-      // The list is live WhatsApp evidence: learn its phone/WhatsApp ID pairs before anything looks
-      // up a member's chat, so a recycled number routes to its current owner, not the old chat.
-      const info = ctx.wa.getGroupInfo(groupJid).then((g) => {
+    const cached = cache.get(groupJid);
+    if (cached && cached.until > now()) return cached.info;
+    evictOldest(cache, MAX_CACHED_GROUPS);
+    const t0 = now();
+    const entry = { at: t0, until: t0 + GROUP_INFO_TTL_MS } as Cached; // info is set just below
+    const current = () => cache.get(groupJid) === entry;
+    entry.info = ctx.wa.getGroupInfo(groupJid).then(
+      (g) => {
+        // Invalidated while in flight: a newer read is authoritative, never this one.
+        if (!current()) return raw(groupJid);
+        log.info(
+          { groupJid, size: g.size, listed: g.participants.length, ms: now() - t0 },
+          'group members read',
+        );
+        // The list is live WhatsApp evidence: learn its phone/WhatsApp ID pairs before anything
+        // looks up a member's chat, so a recycled number routes to its current owner.
         const pairs = g.participants.flatMap((p) =>
           p.phoneJid && p.lidJid
             ? [{ jid: p.phoneJid, alias: p.lidJid, source: 'lid-mapping' as const }]
@@ -72,21 +81,14 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
         );
         if (pairs.length) getChats(ctx).upsertContactAliases(pairs);
         return g;
-      });
-      entry = { at: t0, until: t0 + GROUP_INFO_TTL_MS, info };
-      cache.set(groupJid, entry);
-      info.then(
-        (g) =>
-          log.info(
-            { groupJid, size: g.size, listed: g.participants.length, ms: now() - t0 },
-            'group members read',
-          ),
-        (err: unknown) => {
-          cache.delete(groupJid);
-          log.warn({ err, groupJid }, 'group members unavailable');
-        },
-      );
-    }
+      },
+      (err: unknown) => {
+        if (current()) cache.delete(groupJid);
+        log.warn({ err, groupJid }, 'group members unavailable');
+        throw err;
+      },
+    );
+    cache.set(groupJid, entry);
     return entry.info;
   }
 

@@ -4,6 +4,7 @@ import type { WaGroupInfo } from '@wa-team-inbox/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
+import { getAliases } from '../src/chats/aliases.js';
 
 let t: TestApp;
 let cookie: string;
@@ -177,6 +178,26 @@ describe('group members', () => {
     expect(r.json()).toEqual({ about: 'new owner' });
   });
 
+  it('ignores a group read that was invalidated while in flight', async () => {
+    const OLD_LID = '999888777666555@lid';
+    const pair = (lid: string) => ({
+      jid: lid,
+      phoneJid: AISYAH,
+      lidJid: lid,
+      username: null,
+      role: 'member' as const,
+    });
+    const groups = t.ctx.services.groups!;
+    t.wa.setGroupInfo(group({ participants: [pair(OLD_LID)] }));
+    const stale = groups.info(GROUP); // reads the old list
+    t.wa.simulateGroupChanged(GROUP);
+    t.wa.setGroupInfo(group({ participants: [pair(AISYAH_LID)] }));
+    const fresh = await groups.info(GROUP);
+    expect((await stale).members.map((m) => m.jid)).toEqual([AISYAH_LID]);
+    expect(fresh.members.map((m) => m.jid)).toEqual([AISYAH_LID]);
+    expect(getAliases(t.ctx).resolve(AISYAH)).toBe(AISYAH_LID);
+  });
+
   it('never caches an About read while WhatsApp is offline', async () => {
     t.wa.setAbout(DAVID, 'Hello');
     await members();
@@ -268,8 +289,9 @@ describe('starting a direct chat with a member', () => {
     expect(copied?.push_name ?? null).toBeNull();
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
-    // Nor may a later contacts sync for the new owner, or a later read of the same group.
+    // Nor may a later contacts sync (for either address), or a later read of the same group.
     getChats(t.ctx).upsertContacts([{ jid: AISYAH_LID, pushName: null, savedName: null }]);
+    getChats(t.ctx).upsertContacts([{ jid: AISYAH, pushName: null, savedName: 'Previous owner' }]);
     t.wa.simulateGroupChanged(GROUP);
     const again = (await members()).members.find((m) => m.jid === AISYAH_LID);
     expect(again?.name).toBeNull();

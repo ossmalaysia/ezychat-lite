@@ -25,3 +25,4 @@ Branch: `feat/group-info-panel` · Every agent updates its stage with
 - 2026-10-12 Real WhatsApp: pass — owner's phone, 965-member LID group: all listed (0.5–0.8 s), 534 numbers/431 hidden+usernames, photos OK, About mostly private/empty (logged shape). Fixed number-as-name for 11 hidden members (team-known number now shown)
 - 2026-10-12 Review fixes (Codex round 5): start chat posts the LID; moved numbers never re-sync old names on later reads; About not cached while offline (503); audit label + Group field in en/ms/zh-CN
 - 2026-10-12 Review fixes (Codex round 6): moved-number names guarded centrally in syncNames (contacts sync too); getAbout throws on failure/offline and failures are never cached
+- 2026-10-12 Review fixes (Codex round 7): incoming names on moved numbers ignored; invalidated in-flight group reads discarded; About failure shows Couldn't load + Try again

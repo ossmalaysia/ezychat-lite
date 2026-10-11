@@ -199,6 +199,30 @@ describe('GroupPanel', () => {
     expect(screen.getByTestId('where').textContent).toBe('/chats/60162214433%40s.whatsapp.net');
   });
 
+  it('says when an About could not be read and lets you retry', async () => {
+    mockApi(info());
+    const ok = globalThis.fetch;
+    let failed = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('/about') && !failed) {
+          failed = true;
+          return json({ error: { code: 'wa_unavailable', message: 'unavailable' } }, 503);
+        }
+        if (url.endsWith('/about')) return json({ about: 'Back online' });
+        return ok(url, init);
+      }),
+    );
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Oyen Jarvis/ }));
+    const details = screen.getByRole('region', { name: 'WhatsApp details' });
+    expect(await within(details).findByText('Couldn’t load')).toBeTruthy();
+    await user.click(within(details).getByRole('button', { name: 'Try again' }));
+    expect(await within(details).findByText('Back online')).toBeTruthy();
+  });
+
   it('asks before starting a chat with a member who has none, then opens it', async () => {
     const calls = mockApi(info());
     renderPanel();

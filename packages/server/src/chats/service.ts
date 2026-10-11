@@ -72,10 +72,11 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     const group = [...ids];
     // A moved number's stored names are its previous owner's: never read them for this person.
     const stored = group.map((jid) => (aliases.movedAway(jid) ? undefined : repo.getContact(jid)));
+    // ...and neither are names arriving on the moved number itself.
+    const fresh = incoming && !aliases.movedAway(incoming.jid) ? incoming : undefined;
     const savedName =
-      incoming?.savedName?.trim() || stored.find((c) => c?.saved_name)?.saved_name || null;
-    const pushName =
-      incoming?.pushName?.trim() || stored.find((c) => c?.push_name)?.push_name || null;
+      fresh?.savedName?.trim() || stored.find((c) => c?.saved_name)?.saved_name || null;
+    const pushName = fresh?.pushName?.trim() || stored.find((c) => c?.push_name)?.push_name || null;
     const phoneJid = group.find((jid) => jid.endsWith('@s.whatsapp.net'));
     const phone = stored.find((c) => c?.phone)?.phone || (phoneJid ? jidUser(phoneJid) : null);
     const renamed = new Set<string>();

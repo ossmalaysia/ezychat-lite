@@ -432,6 +432,7 @@
     "username": "Nama pengguna",
     "about": "Perihal",
     "aboutLoading": "Memuatkan…",
+    "aboutFailed": "Tidak dapat dimuatkan",
     "role": "Peranan",
     "openChat": "Buka perbualan",
     "hasChat": "Anda sudah ada perbualan terus dengan ahli ini.",

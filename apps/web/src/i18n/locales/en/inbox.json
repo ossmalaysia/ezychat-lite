@@ -435,6 +435,7 @@
     "username": "Username",
     "about": "About",
     "aboutLoading": "Loading…",
+    "aboutFailed": "Couldn’t load",
     "role": "Role",
     "openChat": "Open chat",
     "hasChat": "You already have a direct chat with this member.",

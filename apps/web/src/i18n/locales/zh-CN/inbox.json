@@ -432,6 +432,7 @@
     "username": "用户名",
     "about": "个人简介",
     "aboutLoading": "正在加载…",
+    "aboutFailed": "无法加载",
     "role": "角色",
     "openChat": "打开对话",
     "hasChat": "您已与此成员有直接对话。",
