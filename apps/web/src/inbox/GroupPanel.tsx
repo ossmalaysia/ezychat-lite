@@ -115,12 +115,13 @@ function MemberList({
   const [limit, setLimit] = useState(MEMBER_PAGE);
   const q = useDeferredValue(query.trim().toLowerCase());
   const index = useMemo(() => data.members.map((m) => [m, searchable(m)] as const), [data.members]);
+  const matches = useMemo(
+    () => index.filter(([, text]) => !q || text.includes(q)).map(([m]) => m),
+    [index, q],
+  );
   const shown = useMemo(
-    () =>
-      index
-        .filter(([m, text]) => (!adminsOnly || m.role !== 'member') && (!q || text.includes(q)))
-        .map(([m]) => m),
-    [index, adminsOnly, q],
+    () => (adminsOnly ? matches.filter((m) => m.role !== 'member') : matches),
+    [matches, adminsOnly],
   );
   const { group } = data;
   const creator = group.createdBy
@@ -168,7 +169,7 @@ function MemberList({
             admins: false,
             on: !adminsOnly,
             label: t('groupInfo.all'),
-            n: q ? shown.length : group.size,
+            n: q ? matches.length : group.size,
           },
           { admins: true, on: adminsOnly, label: t('groupInfo.admins'), n: group.adminCount },
         ].map((c) => (

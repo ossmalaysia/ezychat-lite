@@ -190,6 +190,28 @@ describe('starting a direct chat with a member', () => {
     expect(again).toEqual(first);
   });
 
+  it('keys a new chat by the WhatsApp ID and routes the member’s number into it', async () => {
+    const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
+    expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'gm-3',
+        chatJid: AISYAH,
+        senderJid: AISYAH,
+        senderName: 'Nurul Aisyah',
+        fromMe: false,
+        type: 'text',
+        body: 'hi',
+        quotedId: null,
+        timestamp: Date.now(),
+        media: null,
+      },
+      'live',
+    );
+    const chats = ChatListResponse.parse((await get('/api/chats')).json()).chats;
+    expect(chats.filter((c) => c.type === 'dm').map((c) => c.jid)).toEqual([AISYAH_LID]);
+  });
+
   it('starts a hidden-number member’s chat on their WhatsApp ID', async () => {
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(HIDDEN)}/chat`);
     expect(r.json()).toEqual({ chatJid: HIDDEN });

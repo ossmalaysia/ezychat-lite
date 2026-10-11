@@ -234,6 +234,7 @@ into AGENTS.md.
 - One person can arrive as a phone-number JID and a LID: chats are keyed by the LID once known
   (`jid_aliases`); duplicates merge only in the startup identity migration, reading
   `wa-auth/lid-mapping-*.json` offline. Never merge on a name or number match.
+  Any code that creates a chat for a known phone/LID pair learns the pair first and keys the chat by the LID.
 - Anything that re-keys or deletes a chat moves every `chat_jid`-keyed table (check `ON DELETE CASCADE`)
   and in-memory per-chat state in the same transaction. Never run `VACUUM`/backups inside
   `db.transaction`.

@@ -223,7 +223,14 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       }
       const existing = existingChat(p);
       if (existing) return existing.jid;
-      const target = p.phoneJid ?? p.lidJid ?? p.jid;
+      // Chats are keyed by the WhatsApp ID once known; record the pair WhatsApp gave us so the
+      // member's phone-number messages route into this chat.
+      if (p.phoneJid && p.lidJid) {
+        getChats(ctx).upsertContactAliases([
+          { jid: p.phoneJid, alias: p.lidJid, source: 'lid-mapping' },
+        ]);
+      }
+      const target = p.lidJid ?? p.phoneJid ?? p.jid;
       const names = contactNames([p.phoneJid, p.lidJid].filter((j): j is string => !!j));
       const name =
         (p.phoneJid && names.get(p.phoneJid)) || (p.lidJid && names.get(p.lidJid)) || null;

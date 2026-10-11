@@ -164,6 +164,9 @@ describe('GroupPanel', () => {
     expect(screen.getByRole('button', { name: 'Admins · 2' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
+    // With a search and the Admins filter, All still counts every match it would show.
+    await user.type(screen.getByRole('searchbox', { name: 'Search members' }), '601');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All · 3' })).toBeTruthy());
   });
 
   it('shows large groups a page at a time', { timeout: 20_000 }, async () => {
