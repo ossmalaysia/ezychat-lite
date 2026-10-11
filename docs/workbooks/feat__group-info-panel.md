@@ -27,3 +27,4 @@ Branch: `feat/group-info-panel` · Every agent updates its stage with
 - 2026-10-12 Review fixes (Codex round 6): moved-number names guarded centrally in syncNames (contacts sync too); getAbout throws on failure/offline and failures are never cached
 - 2026-10-12 Review fixes (Codex round 7): incoming names on moved numbers ignored; invalidated in-flight group reads discarded; About failure shows Couldn't load + Try again
 - 2026-10-12 Review fix (Codex round 8): moved numbers are never a name-sync destination either
+- 2026-10-12 Review fix (Codex round 9): a chat found via a phone number is used only while that number still points at the member's LID

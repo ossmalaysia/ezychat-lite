@@ -314,6 +314,28 @@ describe('starting a direct chat with a member', () => {
     expect(getChats(t.ctx).get(OLD_LID)?.name).toBe('Previous owner');
   });
 
+  it('never shows another person’s chat when a newer read moved the number away', async () => {
+    const OTHER_GROUP = '120363000000000002@g.us';
+    const NEW_LID = '777666555444333@lid';
+    const pair = (lid: string) => ({
+      jid: lid,
+      phoneJid: AISYAH,
+      lidJid: lid,
+      username: null,
+      role: 'member' as const,
+    });
+    t.wa.setGroupInfo(group({ participants: [pair(AISYAH_LID)] }));
+    await members(); // group A cached: the number is Aisyah's
+    getChats(t.ctx).upsertFromWa({ jid: OTHER_GROUP, type: 'group', name: 'Other' });
+    t.wa.setGroupInfo(group({ jid: OTHER_GROUP, participants: [pair(NEW_LID)] }));
+    await get(`/api/chats/${enc(OTHER_GROUP)}/members`); // the number now belongs to NEW_LID
+    getChats(t.ctx).upsertFromWa({ jid: NEW_LID, type: 'dm', name: 'Someone else' });
+    const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
+    expect(aisyah?.chatJid).toBeNull();
+    const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
+    expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+  });
+
   it('never shows a member’s number as their name once their chat exists', async () => {
     await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
     const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);

@@ -156,6 +156,9 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     const aliases = getAliases(ctx);
     for (const j of [p.lidJid, p.phoneJid]) {
       if (!j) continue;
+      // The number may since belong to someone else (a newer read of another group): only trust a
+      // chat found through it while it still points at this member's WhatsApp ID.
+      if (j === p.phoneJid && p.lidJid && aliases.route(j) !== aliases.route(p.lidJid)) continue;
       const chat = chats.get(aliases.route(j));
       if (chat && chat.type === 'dm') return { jid: chat.jid, name: chat.name, phone: chat.phone };
     }
