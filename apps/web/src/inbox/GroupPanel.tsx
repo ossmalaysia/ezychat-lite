@@ -81,7 +81,7 @@ function MemberRow({
       >
         <ChatAvatar
           name={member.isMe ? label : (member.name ?? '')}
-          src={`/api/chats/${encodeJid(groupJid)}/members/${encodeJid(member.jid)}/avatar`}
+          src={`/api/chats/${encodeJid(groupJid)}/members/${encodeJid(member.lid ?? member.jid)}/avatar`}
           seed={member.jid}
           size="sm"
         />
@@ -309,7 +309,7 @@ function MemberDetail({
       <div className="flex items-center gap-3">
         <ChatAvatar
           name={member.isMe ? label : (member.name ?? '')}
-          src={`/api/chats/${encodeJid(groupJid)}/members/${encodeJid(member.jid)}/avatar`}
+          src={`/api/chats/${encodeJid(groupJid)}/members/${encodeJid(member.lid ?? member.jid)}/avatar`}
           seed={member.jid}
           size="lg"
         />

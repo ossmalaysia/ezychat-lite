@@ -20,7 +20,8 @@ export interface GroupService {
   /** A member's WhatsApp About text (fetched on demand, cached). */
   about(groupJid: string, memberJid: string): Promise<string | null>;
   /** The JID to ask WhatsApp for a member's photo, after checking they are in the group. */
-  photoJid(groupJid: string, memberJid: string): Promise<string>;
+  /** Whose photo to fetch, and a cache key that changes when the number moves to another person. */
+  photoTarget(groupJid: string, memberJid: string): Promise<{ jid: string; key: string }>;
   /** The direct chat with a member: the existing one, or a new empty chat. */
   startChat(
     groupJid: string,
@@ -121,6 +122,28 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     return out;
   }
 
+  /** Cache key for one person: the WhatsApp ID survives a phone number moving to someone else. */
+  function identityKey(p: WaGroupParticipant): string {
+    return `${p.lidJid ?? ''}|${p.phoneJid ?? p.jid}`;
+  }
+
+  /**
+   * The name we know for a member: a real chat name, then contact names (WhatsApp ID first). A number
+   * shown as a chat name is not a name, and a re-pointed number's contact name is the old owner's.
+   */
+  function knownName(
+    p: WaGroupParticipant,
+    names: Map<string, string>,
+    chat: { jid: string; name: string } | null,
+  ): string | null {
+    const phone = p.phoneJid ? jidUser(p.phoneJid) : null;
+    if (chat && !isFallbackName(chat.name, chat.jid) && chat.name !== phone) return chat.name;
+    const lidName = p.lidJid ? names.get(p.lidJid) : undefined;
+    if (lidName) return lidName;
+    if (p.phoneJid && !getAliases(ctx).movedAway(p.phoneJid)) return names.get(p.phoneJid) ?? null;
+    return null;
+  }
+
   /** The existing direct chat for a member (by phone number or WhatsApp ID), if any. */
   function existingChat(p: WaGroupParticipant): { jid: string; name: string } | null {
     const chats = getChats(ctx);
@@ -154,11 +177,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       const mine = myJids();
       const members: GroupMember[] = g.participants.map((p) => {
         const chat = existingChat(p);
-        const known =
-          (chat && !isFallbackName(chat.name, chat.jid) ? chat.name : null) ??
-          (p.phoneJid ? names.get(p.phoneJid) : undefined) ??
-          (p.lidJid ? names.get(p.lidJid) : undefined) ??
-          null;
+        const known = knownName(p, names, chat);
         return {
           jid: p.jid,
           phone: p.phoneJid ? jidUser(p.phoneJid) : null,
@@ -211,18 +230,19 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     async about(groupJid, memberJid) {
       const p = await member(groupJid, memberJid);
       const jid = p.phoneJid ?? p.lidJid ?? p.jid;
-      let entry = abouts.get(jid);
+      const key = identityKey(p);
+      let entry = abouts.get(key);
       if (!entry || entry.until <= now()) {
         evictOldest(abouts, MAX_CACHED_ABOUTS);
         entry = { until: now() + ABOUT_TTL_MS, about: ctx.wa.getAbout(jid) };
-        abouts.set(jid, entry);
+        abouts.set(key, entry);
       }
       return entry.about;
     },
 
-    async photoJid(groupJid, memberJid) {
+    async photoTarget(groupJid, memberJid) {
       const p = await member(groupJid, memberJid);
-      return p.phoneJid ?? p.lidJid ?? p.jid;
+      return { jid: p.phoneJid ?? p.lidJid ?? p.jid, key: identityKey(p) };
     },
 
     async startChat(groupJid, memberJid, actor) {
@@ -236,8 +256,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       // Chats are keyed by the WhatsApp ID once known (the pair was learned when the list was read).
       const target = p.lidJid ?? p.phoneJid ?? p.jid;
       const names = contactNames([p.phoneJid, p.lidJid].filter((j): j is string => !!j));
-      const name =
-        (p.phoneJid && names.get(p.phoneJid)) || (p.lidJid && names.get(p.lidJid)) || null;
+      const name = knownName(p, names, null);
       const chat = getChats(ctx).upsertFromWa({ jid: target, type: 'dm', name });
       audit(ctx.db, {
         userId: actor.userId,

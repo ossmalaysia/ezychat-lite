@@ -158,6 +158,25 @@ describe('group members', () => {
     expect(outsider.statusCode).toBe(404);
   });
 
+  it('does not reuse a recycled number’s cached About for its new owner', async () => {
+    const OLD_LID = '999888777666555@lid';
+    const pair = (lid: string) => ({
+      jid: lid,
+      phoneJid: AISYAH,
+      lidJid: lid,
+      username: null,
+      role: 'member' as const,
+    });
+    t.wa.setGroupInfo(group({ participants: [pair(OLD_LID)] }));
+    t.wa.setAbout(AISYAH, 'old owner');
+    await get(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/about`);
+    t.wa.setGroupInfo(group({ participants: [pair(AISYAH_LID)] }));
+    t.wa.simulateGroupChanged(GROUP);
+    t.wa.setAbout(AISYAH, 'new owner');
+    const r = await get(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/about`);
+    expect(r.json()).toEqual({ about: 'new owner' });
+  });
+
   it('serves member photos only for members (204 when WhatsApp has none)', async () => {
     expect((await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/avatar`)).statusCode).toBe(
       204,
@@ -215,11 +234,23 @@ describe('starting a direct chat with a member', () => {
   it('never offers a recycled number’s old chat for the member who has it now', async () => {
     const OLD_LID = '999888777666555@lid';
     getChats(t.ctx).upsertContactAliases([{ jid: AISYAH, alias: OLD_LID, source: 'contacts' }]);
+    getChats(t.ctx).upsertContacts([{ jid: AISYAH, pushName: 'Previous owner', savedName: null }]);
     getChats(t.ctx).upsertFromWa({ jid: OLD_LID, type: 'dm', name: 'Previous owner' });
     const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
-    expect(aisyah?.chatJid).toBeNull();
+    // Neither the old chat nor the old owner's name carries over to the number's new owner.
+    expect(aisyah).toMatchObject({ chatJid: null, name: null });
+    const copied = t.ctx.db
+      .prepare('SELECT push_name FROM contacts WHERE jid = ?')
+      .get(AISYAH_LID) as { push_name: string | null } | undefined;
+    expect(copied?.push_name ?? null).toBeNull();
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
+  });
+
+  it('never shows a member’s number as their name once their chat exists', async () => {
+    await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
+    const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
+    expect(aisyah).toMatchObject({ name: null, chatJid: AISYAH_LID, phone: '60137782210' });
   });
 
   it('starts a hidden-number member’s chat on their WhatsApp ID', async () => {

@@ -9,12 +9,12 @@ export function createProfileImages(
   ctx: AppContext,
   log: Logger,
   opts: { ttlMs?: number; max?: number } = {},
-): (jid: string) => Promise<string | null> {
+): (jid: string, key?: string) => Promise<string | null> {
   const ttl = opts.ttlMs ?? 5 * 60_000;
   const max = opts.max ?? 500;
   const cache = new Map<string, { until: number; url: Promise<string | null> }>();
-  return (jid) => {
-    let entry = cache.get(jid);
+  return (jid, key = jid) => {
+    let entry = cache.get(key);
     if (!entry || entry.until <= Date.now()) {
       if (cache.size >= max) cache.delete(cache.keys().next().value!);
       entry = {
@@ -41,7 +41,7 @@ export function createProfileImages(
             return null;
           }),
       };
-      cache.set(jid, entry);
+      cache.set(key, entry);
     }
     return entry.url;
   };

@@ -362,7 +362,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       const changed = ctx.db.transaction(() => {
         const out = new Set<string>();
         for (const o of outcomes) {
-          if (o.kind === 'ignored') continue;
+          // A re-pointed number's stored names belong to its previous owner: never copy them over.
+          if (o.kind === 'ignored' || o.kind === 'repointed') continue;
           for (const jid of syncNames(aliases.group(o.lid), now())) out.add(jid);
         }
         return out;

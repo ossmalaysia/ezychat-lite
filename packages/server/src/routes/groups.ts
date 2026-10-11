@@ -37,7 +37,8 @@ export default async function groupRoutes(app: FastifyInstance, ctx: AppContext)
     const groupJid = chatJidParam(ctx, req.params);
     if (ctx.wa.status.state !== 'open')
       return reply.header('cache-control', 'no-store').code(204).send();
-    const url = await photo(await groups.photoJid(groupJid, member));
+    const target = await groups.photoTarget(groupJid, member);
+    const url = await photo(target.jid, target.key);
     reply.header('cache-control', 'private, max-age=300');
     return url ? reply.redirect(url) : reply.code(204).send();
   });
