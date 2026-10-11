@@ -738,7 +738,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   async getAbout(jid: string): Promise<string | null> {
-    if (!this.sock || this._status.state !== 'open') return null;
+    if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
     const kind = jid.endsWith('@lid') ? 'lid' : 'pn';
     try {
       const list = await this.sock.fetchStatus(jid);
@@ -760,8 +760,9 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       );
       return about;
     } catch (err) {
+      // Thrown, not null: a failed lookup must never be remembered as "no About".
       this.logger.warn({ err, kind }, 'about unavailable');
-      return null;
+      throw err;
     }
   }
 

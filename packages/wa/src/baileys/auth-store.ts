@@ -23,9 +23,11 @@ export function createAuthStore(dir: string): AuthStore {
     },
     async backup() {
       const target = `${dir}.bak-${Date.now()}`;
-      await cp(dir, target, { recursive: true, force: true }).catch((err: NodeJS.ErrnoException) => {
-        if (err.code !== 'ENOENT') throw err;
-      });
+      await cp(dir, target, { recursive: true, force: true }).catch(
+        (err: NodeJS.ErrnoException) => {
+          if (err.code !== 'ENOENT') throw err;
+        },
+      );
       return target;
     },
   };

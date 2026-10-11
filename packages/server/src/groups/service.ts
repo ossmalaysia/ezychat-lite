@@ -241,7 +241,12 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       let entry = abouts.get(key);
       if (!entry || entry.until <= now()) {
         evictOldest(abouts, MAX_CACHED_ABOUTS);
-        entry = { until: now() + ABOUT_TTL_MS, about: ctx.wa.getAbout(jid) };
+        // A failed lookup is dropped from the cache and answered as "unavailable", never as empty.
+        const about = ctx.wa.getAbout(jid).catch(() => {
+          if (abouts.get(key)?.about === about) abouts.delete(key);
+          throw errors.waUnavailable('WhatsApp could not read this About right now');
+        });
+        entry = { until: now() + ABOUT_TTL_MS, about };
         abouts.set(key, entry);
       }
       return entry.about;

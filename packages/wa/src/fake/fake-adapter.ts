@@ -175,10 +175,14 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   }
 
   async getAbout(jid: string): Promise<string | null> {
-    if (this._status.state !== 'open') return null;
+    if (this._status.state !== 'open') throw new WaUnavailableError();
     this.aboutCalls.push(jid);
+    if (this.aboutFails) throw new Error('About lookup failed');
     return this.abouts.get(jid) ?? null;
   }
+
+  /** Make the next getAbout calls fail, as a WhatsApp request error would. */
+  aboutFails = false;
 
   // ---- test helpers ----
 

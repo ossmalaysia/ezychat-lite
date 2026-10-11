@@ -143,7 +143,7 @@ export interface WaAdapter {
   getProfilePicture(jid: string): Promise<string | null>;
   /** Members and details of a group this number belongs to. Throws WaUnavailableError when offline. */
   getGroupInfo(groupJid: string): Promise<WaGroupInfo>;
-  /** A person's WhatsApp "About" text; null when hidden, unset or WhatsApp is not connected. */
+  /** A person's WhatsApp "About" text; null when hidden or unset. Throws when it cannot be read. */
   getAbout(jid: string): Promise<string | null>;
   /** Resolve existing local phone/LID mappings only; must not query WhatsApp. */
   getContactAliases(jids: string[]): Promise<WaContactAlias[]>;

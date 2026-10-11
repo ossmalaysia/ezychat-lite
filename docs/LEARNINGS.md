@@ -237,7 +237,7 @@ into AGENTS.md.
   `wa-auth/lid-mapping-*.json` offline. Never merge on a name or number match.
   Learn live phone/LID pairs (e.g. from group metadata) before looking up a person's chat, so a
   recycled number never resolves to its old owner; key any new chat by the LID. A re-pointed number's
-  names, About and photo belong to the old owner: never copy them (`movedAway` stays true on later sightings), and key per-person caches by the LID (server caches and web query keys alike).
+  names, About and photo belong to the old owner: never copy them (guard centrally in `syncNames` via `movedAway`, so every sync path is covered), and key per-person caches by the LID (server caches and web query keys alike).
 - Anything that re-keys or deletes a chat moves every `chat_jid`-keyed table (check `ON DELETE CASCADE`)
   and in-memory per-chat state in the same transaction. Never run `VACUUM`/backups inside
   `db.transaction`.
@@ -249,7 +249,7 @@ into AGENTS.md.
   from contacts and existing chats, never inferred. Read the list on demand with a server cache that
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
   time, only when asked for. A LID-only member may already have a chat whose fallback name is its
-  number: never show a number as a name. Most About reads come back empty (privacy), which is normal.
+  number: never show a number as a name. Most About reads come back empty (privacy), which is normal; a failed read throws and is never cached.
 
 ## AI sales agent
 

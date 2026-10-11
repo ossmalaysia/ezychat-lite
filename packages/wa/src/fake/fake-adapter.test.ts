@@ -169,6 +169,8 @@ describe('FakeWaAdapter groups', () => {
   it('refuses group info while disconnected', async () => {
     const wa = new FakeWaAdapter({ autoOpen: false });
     await expect(wa.getGroupInfo('g1@g.us')).rejects.toMatchObject({ code: 'wa_unavailable' });
-    expect(await wa.getAbout('60111@s.whatsapp.net')).toBeNull();
+    await expect(wa.getAbout('60111@s.whatsapp.net')).rejects.toMatchObject({
+      code: 'wa_unavailable',
+    });
   });
 });

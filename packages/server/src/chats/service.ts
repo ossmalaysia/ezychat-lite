@@ -70,7 +70,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
 
   const syncNames = (ids: Iterable<string>, t: number, incoming?: WaContactInfo): Set<string> => {
     const group = [...ids];
-    const stored = group.map((jid) => repo.getContact(jid));
+    // A moved number's stored names are its previous owner's: never read them for this person.
+    const stored = group.map((jid) => (aliases.movedAway(jid) ? undefined : repo.getContact(jid)));
     const savedName =
       incoming?.savedName?.trim() || stored.find((c) => c?.saved_name)?.saved_name || null;
     const pushName =

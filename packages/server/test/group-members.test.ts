@@ -189,6 +189,17 @@ describe('group members', () => {
     expect(r.json()).toEqual({ about: 'Hello' });
   });
 
+  it('never caches a failed About lookup as empty', async () => {
+    t.wa.setAbout(DAVID, 'Hello');
+    t.wa.aboutFails = true;
+    expect((await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/about`)).statusCode).toBe(
+      503,
+    );
+    t.wa.aboutFails = false;
+    const r = await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/about`);
+    expect(r.json()).toEqual({ about: 'Hello' });
+  });
+
   it('serves member photos only for members (204 when WhatsApp has none)', async () => {
     expect((await get(`/api/chats/${enc(GROUP)}/members/${enc(DAVID)}/avatar`)).statusCode).toBe(
       204,
@@ -257,7 +268,8 @@ describe('starting a direct chat with a member', () => {
     expect(copied?.push_name ?? null).toBeNull();
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
-    // A later read of the same group must not bring the old name back either.
+    // Nor may a later contacts sync for the new owner, or a later read of the same group.
+    getChats(t.ctx).upsertContacts([{ jid: AISYAH_LID, pushName: null, savedName: null }]);
     t.wa.simulateGroupChanged(GROUP);
     const again = (await members()).members.find((m) => m.jid === AISYAH_LID);
     expect(again?.name).toBeNull();
