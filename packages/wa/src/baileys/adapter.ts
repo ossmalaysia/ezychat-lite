@@ -43,6 +43,7 @@ import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
+import { profilePhoto } from './photos.js';
 import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
@@ -769,14 +770,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   async getProfilePicture(jid: string): Promise<string | null> {
     // Offline is a failed lookup, never "no photo".
     if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
-    try {
-      return (await this.sock.profilePictureUrl(jid, 'preview')) ?? null;
-    } catch (err) {
-      // 404 = no photo, 401 = hidden by privacy: a real answer. Anything else is a failed lookup,
-      // thrown so it is never remembered as "no photo".
-      const code = (err as { data?: unknown }).data;
-      if (code === 404 || code === 401) return null;
-      throw err;
-    }
+    const sock = this.sock;
+    return profilePhoto(() => sock.profilePictureUrl(jid, 'preview'));
   }
 }
