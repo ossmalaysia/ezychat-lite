@@ -33,3 +33,4 @@ Branch: `feat/group-info-panel` · Every agent updates its stage with
 - 2026-10-12 Screenshots refreshed (marketing script on fresh fake-WA data): new chat/group-info desktop+mobile; script seeds a Kopi Apong Regulars group
 - 2026-10-12 Review fixes (Codex round 12): group creator kept by LID; a timed-out About query is a failure; account avatar uses the person icon
 - 2026-10-12 Review fix (Codex round 13): an offline photo lookup throws instead of returning no photo
+- 2026-10-12 Review fix (Codex round 14): a member's number is shown only while it still points at their LID

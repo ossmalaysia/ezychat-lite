@@ -133,10 +133,14 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
    * still points at this member, else their WhatsApp ID, so a number that moved shows nobody else.
    */
   function detailJid(p: WaGroupParticipant): string {
+    return ownPhone(p) ?? p.lidJid ?? p.jid;
+  }
+
+  /** The member's number from the group, unless it has since moved to another WhatsApp ID. */
+  function ownPhone(p: WaGroupParticipant): string | null {
+    if (!p.phoneJid) return null;
     const aliases = getAliases(ctx);
-    if (p.phoneJid && (!p.lidJid || aliases.route(p.phoneJid) === aliases.route(p.lidJid)))
-      return p.phoneJid;
-    return p.lidJid ?? p.jid;
+    return !p.lidJid || aliases.route(p.phoneJid) === aliases.route(p.lidJid) ? p.phoneJid : null;
   }
 
   /** Cache key for one person: the WhatsApp ID survives a phone number moving to someone else. */
@@ -170,7 +174,7 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       if (!j) continue;
       // The number may since belong to someone else (a newer read of another group): only trust a
       // chat found through it while it still points at this member's WhatsApp ID.
-      if (j === p.phoneJid && p.lidJid && aliases.route(j) !== aliases.route(p.lidJid)) continue;
+      if (j === p.phoneJid && !ownPhone(p)) continue;
       const chat = chats.get(aliases.route(j));
       if (chat && chat.type === 'dm') return { jid: chat.jid, name: chat.name, phone: chat.phone };
     }
@@ -199,10 +203,11 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       const members: GroupMember[] = g.participants.map((p) => {
         const chat = existingChat(p);
         const known = knownName(p, names, chat);
+        const own = ownPhone(p);
         return {
           jid: p.jid,
           // A hidden number the team already knows from its own chat with this person.
-          phone: p.phoneJid ? jidUser(p.phoneJid) : (chat?.phone ?? null),
+          phone: own ? jidUser(own) : (chat?.phone ?? null),
           lid: p.lidJid,
           name: known,
           username: p.username,

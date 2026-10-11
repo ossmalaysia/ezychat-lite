@@ -348,7 +348,8 @@ describe('starting a direct chat with a member', () => {
     await get(`/api/chats/${enc(OTHER_GROUP)}/members`); // the number now belongs to NEW_LID
     getChats(t.ctx).upsertFromWa({ jid: NEW_LID, type: 'dm', name: 'Someone else' });
     const aisyah = (await members()).members.find((m) => m.jid === AISYAH_LID);
-    expect(aisyah?.chatJid).toBeNull();
+    // Neither their chat nor their number is shown as Aisyah's.
+    expect(aisyah).toMatchObject({ chatJid: null, phone: null });
     const r = await post(`/api/chats/${enc(GROUP)}/members/${enc(AISYAH_LID)}/chat`);
     expect(r.json()).toEqual({ chatJid: AISYAH_LID });
     // Nor the other person's About: details are read by Aisyah's WhatsApp ID now.
