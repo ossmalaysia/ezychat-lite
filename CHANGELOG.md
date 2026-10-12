@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.32] - 2026-10-12
+
 ### Added
 
 - **Voice notes:** with the message box empty, tap the mic to record a voice note. Delete it, listen back with Review, or send it straight away; it arrives in WhatsApp as a real voice note (up to 5 minutes). Works in the desktop app, on this computer's browser and through your remote access link (https); on a plain LAN link (http) the mic is greyed out with the reason, and a blocked microphone shows how to allow it.
