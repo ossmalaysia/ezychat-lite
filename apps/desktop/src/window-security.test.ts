@@ -23,6 +23,18 @@ describe('inbox document trust', () => {
 });
 
 describe('inbox permissions', () => {
+  it('allows the microphone, never the camera, only in the inbox main frame', () => {
+    expect(inboxPermissionAllowed('media', base, base, true, base, ['audio'])).toBe(true);
+    expect(inboxPermissionAllowed('media', base, base, true, base, ['video'])).toBe(false);
+    expect(inboxPermissionAllowed('media', base, base, true, base, ['audio', 'video'])).toBe(false);
+    expect(inboxPermissionAllowed('media', base, base, true, base, ['unknown'])).toBe(false);
+    expect(inboxPermissionAllowed('media', base, base, true, base)).toBe(false);
+    expect(inboxPermissionAllowed('media', base, base, false, base, ['audio'])).toBe(false);
+    expect(
+      inboxPermissionAllowed('media', base, 'https://evil.example/', true, base, ['audio']),
+    ).toBe(false);
+  });
+
   it.each(['notifications', 'clipboard-sanitized-write', 'fullscreen'])(
     'allows %s only in the inbox main frame',
     (permission) => {
@@ -38,7 +50,6 @@ describe('inbox permissions', () => {
   );
 
   it.each([
-    'media',
     'display-capture',
     'geolocation',
     'clipboard-read',

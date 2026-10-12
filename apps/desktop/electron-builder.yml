@@ -85,6 +85,9 @@ mac:
   hardenedRuntime: false
   gatekeeperAssess: false
   identity: null
+  # macOS asks before the microphone is used for a voice note; without this text it refuses.
+  extendInfo:
+    NSMicrophoneUsageDescription: EzyChat Lite uses the microphone only while you record a voice note.
   target:
     - target: dmg
       arch: [x64, arm64]

@@ -698,6 +698,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       content = { sticker: buffer, mimetype: mime };
     } else if (mime.startsWith('video/')) {
       content = { video: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
+    } else if (file.voiceNote) {
+      // Seconds and waveform are given, so Baileys needs neither music-metadata nor audio-decode.
+      // Baileys copies `waveform` into the audio message but leaves it out of its content type.
+      const voice: AnyMessageContent & { waveform: Uint8Array } = {
+        audio: buffer,
+        mimetype: 'audio/ogg; codecs=opus',
+        ptt: true,
+        seconds: file.voiceNote.seconds,
+        waveform: file.voiceNote.waveform,
+      };
+      content = voice;
     } else if (mime.startsWith('audio/')) {
       content = { audio: buffer, mimetype: mime };
     } else {

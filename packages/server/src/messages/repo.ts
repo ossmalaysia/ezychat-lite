@@ -32,6 +32,8 @@ export interface MessageRow {
   transcript?: string | null;
   transcript_lang?: string | null;
   transcript_status?: TranscriptStatus | null;
+  /** 1 = sent as a WhatsApp voice note (010); optional so inserts need not name it. */
+  voice_note?: number;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -57,6 +59,7 @@ export function rowToMessage(r: MessageRow): Message {
     error: r.error,
     timestamp: r.timestamp,
     clientId: r.client_id,
+    ...(r.voice_note === 1 ? { voiceNote: true } : {}),
     // Only voice notes that went through transcription carry these fields.
     ...(r.transcript_status
       ? {
@@ -74,6 +77,7 @@ export function previewOf(m: {
   body: string | null;
   media_name?: string | null;
   mediaName?: string | null;
+  voice_note?: number;
 }): string {
   const name = m.media_name ?? m.mediaName ?? null;
   const label = (l: string) => (m.body ? `${l} ${truncate(m.body, 100)}` : l);
@@ -83,7 +87,7 @@ export function previewOf(m: {
     case 'video':
       return label('[Video]');
     case 'audio':
-      return '[Audio]';
+      return m.voice_note === 1 ? '[Voice note]' : '[Audio]';
     case 'document':
       return name ? `[Document] ${truncate(name, 100)}` : '[Document]';
     case 'sticker':
@@ -133,12 +137,12 @@ export class MessageRepo {
       .prepare(
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
-           wa_remote_jid)
+           wa_remote_jid, voice_note)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
-           @wa_remote_jid)`,
+           @wa_remote_jid, @voice_note)`,
       )
-      .run(r);
+      .run({ ...r, voice_note: r.voice_note ?? 0 });
     return info.changes > 0;
   }
 

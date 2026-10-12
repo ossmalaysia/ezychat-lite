@@ -163,7 +163,8 @@ into AGENTS.md.
   end to end in a `--dir` packaged build (e.g. voice: copy the model in, simulate a voice note on
   `--fake-wa`, check the transcript), not just server start-up.
 - GUI smoke tests use plain Electron with a temporary profile (packaged apps ignore entry arguments).
-- Playwright may lack Chromium: fall back to `channel: 'chrome'`. Run e2e alone (memory); browser test
+- Playwright may lack Chromium: fall back to `channel: 'chrome'` (scripts too). A fake microphone:
+  `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`. Run e2e alone (memory); browser test
   sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
   `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
   shots stretch fixed elements and hide the drawer's scrolling body.
@@ -219,6 +220,9 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A voice note is Ogg/Opus sent with `ptt: true`; pass `seconds` and `waveform` (64 bytes, 0–100)
+  yourself or Baileys needs optional music-metadata/audio-decode (`waveform` is missing from its types
+  but is sent). Browsers record WebM or MP4, never Ogg: encode Ogg/Opus with a WebAssembly encoder.
 - Identity is pinned to `Browsers.ubuntu('Chrome')`; "Desktop" identities get 428 before any QR. Never
   change it without a live QR check.
 - Message timestamps are whole seconds, so a quick reply can tie with the message it answers: logic
@@ -326,6 +330,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The microphone needs a secure page (https, localhost, the desktop app): a LAN `http://` link has
+  none, so say why instead of failing. Create the `AudioContext` before any `await` in the tap
+  handler (Safari records silence otherwise); WebAssembly needs CSP `'wasm-unsafe-eval'`.
 - Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
   `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings

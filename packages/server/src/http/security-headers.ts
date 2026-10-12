@@ -6,7 +6,9 @@ export const CSP = [
   "media-src 'self' blob:",
   "connect-src 'self' ws: wss:",
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self'",
+  // 'wasm-unsafe-eval' lets the voice note recorder compile its bundled Opus encoder (WebAssembly).
+  // It allows WebAssembly compilation only; JavaScript eval and inline scripts stay blocked.
+  "script-src 'self' 'wasm-unsafe-eval'",
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",

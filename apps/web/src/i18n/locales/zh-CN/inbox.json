@@ -106,7 +106,26 @@
     "send": "发送",
     "quickReplies": "快捷回复",
     "replyingTo": "回复 {{name}}",
-    "cancelReply": "取消回复"
+    "cancelReply": "取消回复",
+    "voice": {
+      "record": "录制语音消息",
+      "delete": "删除录音",
+      "review": "试听",
+      "send": "发送语音消息",
+      "play": "播放",
+      "pause": "暂停",
+      "recordingTime": "正在录音，{{time}}",
+      "maxLength": "最长 {{time}}",
+      "insecure": "语音消息需要安全链接。请在桌面应用中录制，或用远程访问链接（https）打开收件箱。",
+      "insecureShort": "语音消息需要安全链接",
+      "blockedTitle": "麦克风已被阻止。",
+      "blockedBody": "请在浏览器设置中允许此网站使用麦克风（地址栏旁的图标），然后重试。",
+      "noMicrophone": "未找到麦克风。请连接麦克风后重试。",
+      "failed": "无法开始录音。请重试。",
+      "tryAgain": "重试",
+      "cancel": "取消",
+      "previewUnavailable": "此浏览器无法回放，但你仍然可以发送。"
+    }
   },
   "quickReplies": {
     "title": "快捷回复",
@@ -228,6 +247,7 @@
     "contact": "联系人",
     "quotedMessage": "引用的消息",
     "notSent": "未发送",
+    "voiceNote": "语音消息",
     "quote": {
       "image": "[图片]",
       "video": "[视频]",

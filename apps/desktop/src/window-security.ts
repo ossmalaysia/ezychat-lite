@@ -16,18 +16,21 @@ export function isInboxUrl(value: string, base: string | null): boolean {
   }
 }
 
-/** Both permission requests and synchronous checks use the requesting frame, not just its parent. */
+/**
+ * Both permission requests and synchronous checks use the requesting frame, not just its parent.
+ * `media` (voice notes) is the microphone only: any camera or unknown media type is refused.
+ */
 export function inboxPermissionAllowed(
   permission: string,
   currentUrl: string,
   requestingUrl: string,
   isMainFrame: boolean,
   base: string | null,
+  mediaTypes: readonly string[] = [],
 ): boolean {
-  return (
-    isMainFrame &&
-    isInboxUrl(currentUrl, base) &&
-    isInboxUrl(requestingUrl, base) &&
-    ['notifications', 'clipboard-sanitized-write', 'fullscreen'].includes(permission)
-  );
+  if (!isMainFrame || !isInboxUrl(currentUrl, base) || !isInboxUrl(requestingUrl, base))
+    return false;
+  if (permission === 'media')
+    return mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio');
+  return ['notifications', 'clipboard-sanitized-write', 'fullscreen'].includes(permission);
 }

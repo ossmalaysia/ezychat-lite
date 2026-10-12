@@ -26,6 +26,7 @@ import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
+import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
 
 export interface MediaFile {
   path: string;
@@ -43,7 +44,13 @@ export interface MessageService {
   sendText(jid: string, body: SendTextBody, userId: number): Message;
   sendMedia(
     jid: string,
-    file: { buffer: Buffer; fileName: string; caption?: string; quotedId?: string },
+    file: {
+      buffer: Buffer;
+      fileName: string;
+      caption?: string;
+      quotedId?: string;
+      voiceNote?: boolean;
+    },
     userId: number,
     clientId: string,
   ): Promise<Message>;
@@ -179,6 +186,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         return ctx.wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
+      const seconds = job.voiceNote ? voiceNoteSeconds(buffer) : null;
       return ctx.wa.sendMedia(
         job.targetJid,
         {
@@ -186,6 +194,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           mime: job.mime ?? 'application/octet-stream',
           fileName: job.fileName ?? 'file',
           ...(job.caption ? { caption: job.caption } : {}),
+          // Checked on upload; a file that no longer parses goes out as a plain audio file.
+          ...(seconds !== null
+            ? { voiceNote: { seconds, waveform: voiceNoteWaveform(buffer) } }
+            : {}),
         },
         replyOptions(job.quotedId),
       );
@@ -310,6 +322,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         mime: r.media_mime ?? 'application/octet-stream',
         fileName: r.media_name ?? 'file',
         ...(r.body ? { caption: r.body } : {}),
+        ...(r.voice_note === 1 ? { voiceNote: true } : {}),
       };
     }
     return { ...base, kind: 'text', text: r.body ?? '' };
@@ -603,8 +616,15 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (!file.buffer.length) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
-      const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
-      const ext = sniffed?.ext ?? extFor(mimeType, file.fileName);
+      // A voice note must really be Ogg/Opus within the recorder's length: never trust the label.
+      if (file.voiceNote && voiceNoteSeconds(file.buffer) === null)
+        throw errors.validation(
+          `A voice note must be Ogg/Opus audio of at most ${VOICE_NOTE_MAX_SECONDS / 60} minutes`,
+        );
+      const mimeType = file.voiceNote
+        ? 'audio/ogg; codecs=opus'
+        : (sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream'));
+      const ext = file.voiceNote ? 'ogg' : (sniffed?.ext ?? extFor(mimeType, file.fileName));
       const id = `local-${clientId}`;
       const rel = media.save(jid, id, file.buffer, ext);
       const t = now();
@@ -620,7 +640,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         body: file.caption?.trim() ? file.caption : null,
         media_path: rel,
         media_mime: mimeType,
-        media_name: file.fileName.slice(0, 255) || null,
+        media_name: file.voiceNote ? null : file.fileName.slice(0, 255) || null,
         media_status: 'ok',
         quoted_id: quotedId,
         status: 'pending',
@@ -629,6 +649,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         created_at: t,
         client_id: clientId,
         wa_remote_jid: replyTarget(jid),
+        voice_note: file.voiceNote ? 1 : 0,
       });
     },
 

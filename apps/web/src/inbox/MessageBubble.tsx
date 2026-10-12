@@ -2,7 +2,7 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Check, CheckCheck, Clock, Reply, RotateCw } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, Mic, Reply, RotateCw } from 'lucide-react';
 import type { Message } from '@wa-team-inbox/shared';
 import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
@@ -288,6 +288,12 @@ export function MessageBubble({
           </p>
         )}
         <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+          {m.voiceNote && (
+            <span className="flex items-center gap-0.5">
+              <Mic className="size-3" aria-hidden="true" />
+              {t('message.voiceNote')} ·
+            </span>
+          )}
           <time dateTime={new Date(m.timestamp).toISOString()} title={formatDateTime(m.timestamp)}>
             {formatTime(m.timestamp)}
           </time>

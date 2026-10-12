@@ -65,6 +65,10 @@ rejected in service mode.
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
 3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`).
+Voice notes: the composer records Ogg/Opus in the browser (`lib/voice-recorder.ts`, opus-recorder's
+WebAssembly encoder); `POST /chats/:jid/media` with `voiceNote=1` checks it is Ogg/Opus of at most 5 min
+(`messages/voice-note.ts`, length counted from Opus packets) and sends it with `ptt: true`, length and a
+waveform built from packet sizes (`messages.voice_note`; nothing is decoded on the request thread).
 One person can arrive under a phone-number JID and a LID: chats are keyed by the LID once known
 (`chats/aliases.ts`, table `jid_aliases`). Existing duplicates are merged only by the startup identity
 migration (`chats/identity-migration.ts`, run by `initMessaging` before the message service, AI, HTTP
@@ -179,6 +183,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 - Password generation requires cryptographic randomness. Redact credential fields from live logs
   and historical support exports; never export unexamined non-JSON records.
 - Push endpoints are restricted to known push-service hosts (SSRF guard).
+- CSP `script-src` is `'self' 'wasm-unsafe-eval'` only (WebAssembly for the voice note encoder; never
+  `'unsafe-eval'` or inline scripts). The desktop window grants `media` only for audio from the inbox
+  main frame (`inboxPermissionAllowed`), never the camera.
 - AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
   tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
   an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.

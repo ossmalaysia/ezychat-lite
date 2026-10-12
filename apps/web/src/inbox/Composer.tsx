@@ -1,13 +1,15 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquareText, Paperclip, SendHorizontal, X } from 'lucide-react';
+import { Lock, MessageSquareText, Mic, Paperclip, SendHorizontal, X } from 'lucide-react';
 import type { QuickReply } from '@wa-team-inbox/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 import { EmojiPicker } from './EmojiPicker';
+import { VoiceNoteBar, useVoiceNote } from './VoiceNote';
+import { voiceSupport } from '@/lib/voice-recorder';
 import './composer.css';
 
 export interface ComposerProps {
@@ -15,6 +17,8 @@ export interface ComposerProps {
   onSend(text: string): void;
   /** Attach button: file + caption (current text, if any). */
   onAttach(file: File, caption?: string): void;
+  /** Mic button (shown while the box is empty): a recorded Ogg/Opus voice note. */
+  onVoiceNote?(file: File): void;
   /** Called while typing; throttled to once per 2s. */
   onTyping?(): void;
   /**
@@ -51,6 +55,7 @@ export function Composer({
   quickReplies,
   onSend,
   onAttach,
+  onVoiceNote,
   onTyping,
   confirmSend,
   disabled = false,
@@ -73,6 +78,12 @@ export function Composer({
   const pendingCaret = useRef<number | null>(null);
   const pickerId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
+  const [voiceSupported] = useState(voiceSupport);
+  const voice = useVoiceNote(async (file) => {
+    if (!onVoiceNote || disabled) return;
+    if (!(await confirmed())) return;
+    onVoiceNote(file);
+  });
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -243,6 +254,9 @@ export function Composer({
   }
 
   const canSend = text.trim().length > 0 && !disabled && !busy;
+  // An empty box offers the mic instead of Send, as WhatsApp does.
+  const offerVoice = !!onVoiceNote && voiceSupported !== 'unsupported' && !text.trim();
+  const voiceInsecure = offerVoice && voiceSupported === 'insecure';
 
   const replyBar = replyTo && (
     <div
@@ -272,9 +286,27 @@ export function Composer({
     </div>
   );
 
+  if (voice.phase !== 'idle') {
+    return (
+      <>
+        {replyBar}
+        <VoiceNoteBar voice={voice} />
+      </>
+    );
+  }
+
   return (
     <>
       {replyBar}
+      {voiceInsecure && (
+        <p
+          role="note"
+          className="mb-1.5 flex items-start gap-2 rounded-lg border border-note-border bg-note px-3 py-2 text-xs text-note-foreground"
+        >
+          <Lock className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+          {t('composer.voice.insecure')}
+        </p>
+      )}
       <Popover
         open={pickerOpen}
         onOpenChange={(o) => {
@@ -334,17 +366,32 @@ export function Composer({
               enterKeyHint={coarsePointer ? 'enter' : 'send'}
               className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
             />
-            <Button
-              size="icon-touch"
-              aria-label={t('composer.send')}
-              title={t('composer.send')}
-              disabled={!canSend}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void submit()}
-              className="rounded-full"
-            >
-              <SendHorizontal className="size-5" aria-hidden="true" />
-            </Button>
+            {offerVoice ? (
+              <Button
+                size="icon-touch"
+                aria-label={t('composer.voice.record')}
+                title={
+                  voiceInsecure ? t('composer.voice.insecureShort') : t('composer.voice.record')
+                }
+                disabled={disabled || voiceInsecure}
+                onClick={() => void voice.start()}
+                className="rounded-full"
+              >
+                <Mic className="size-5" aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button
+                size="icon-touch"
+                aria-label={t('composer.send')}
+                title={t('composer.send')}
+                disabled={!canSend}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void submit()}
+                className="rounded-full"
+              >
+                <SendHorizontal className="size-5" aria-hidden="true" />
+              </Button>
+            )}
           </div>
         </PopoverAnchor>
         {quickReplies.length > 0 && (

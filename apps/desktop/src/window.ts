@@ -134,7 +134,8 @@ export function createMainWindow(o: {
   win.webContents.on('will-frame-navigate', (event) => {
     if (!isInboxUrl(event.url, o.baseUrl())) event.preventDefault();
   });
-  // No inbox feature needs a webview, camera, microphone, location or screen capture.
+  // No inbox feature needs a webview, camera, location or screen capture; voice notes need the
+  // microphone (audio only, see inboxPermissionAllowed).
   win.webContents.on('will-attach-webview', (event) => event.preventDefault());
   const session = win.webContents.session;
   session.setPermissionRequestHandler((wc, permission, cb, details) => {
@@ -147,6 +148,7 @@ export function createMainWindow(o: {
           details.requestingUrl,
           details.isMainFrame,
           o.baseUrl(),
+          'mediaTypes' in details ? (details.mediaTypes ?? []) : [],
         ),
     );
   });
@@ -160,6 +162,7 @@ export function createMainWindow(o: {
         requestingOrigin,
         details.isMainFrame,
         o.baseUrl(),
+        details.mediaType ? [details.mediaType] : [],
       ),
   );
   return win;

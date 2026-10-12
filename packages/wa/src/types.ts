@@ -117,6 +117,8 @@ export interface WaSendFile {
   mime: string;
   fileName: string;
   caption?: string;
+  /** Send OGG/Opus audio as a voice note (push-to-talk), with its length and 64-bar waveform (0–100). */
+  voiceNote?: { seconds: number; waveform: Uint8Array };
 }
 
 export interface WaAdapter {

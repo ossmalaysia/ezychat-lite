@@ -354,6 +354,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                 sendMedia.mutate({ file, caption, clientId: newClientId(), quotedId: replyTo?.id });
                 setReplyTo(null);
               }}
+              onVoiceNote={(file) => {
+                sendMedia.mutate({
+                  file,
+                  voiceNote: true,
+                  clientId: newClientId(),
+                  quotedId: replyTo?.id,
+                });
+                setReplyTo(null);
+              }}
             />
           </div>
         </div>

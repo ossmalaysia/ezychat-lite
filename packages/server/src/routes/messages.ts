@@ -12,6 +12,8 @@ const MediaFields = z.object({
   clientId: z.string().min(1).max(64),
   caption: z.string().max(4096).optional(),
   quotedId: z.string().max(256).optional(),
+  /** "1": send the Ogg/Opus file as a WhatsApp voice note (no caption). */
+  voiceNote: z.literal('1').optional(),
 });
 
 export default async function messagesRoutes(app: FastifyInstance, ctx: AppContext) {
@@ -51,9 +53,16 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
     }
     if (!file) throw errors.validation('file is required');
     const f = parse(MediaFields, fields);
+    if (f.voiceNote && f.caption) throw errors.validation('A voice note has no caption');
     const msg = await messages.sendMedia(
       jid,
-      { buffer: file.buffer, fileName: file.fileName, ...(f.caption ? { caption: f.caption } : {}), ...(f.quotedId ? { quotedId: f.quotedId } : {}) },
+      {
+        buffer: file.buffer,
+        fileName: file.fileName,
+        ...(f.caption ? { caption: f.caption } : {}),
+        ...(f.quotedId ? { quotedId: f.quotedId } : {}),
+        ...(f.voiceNote ? { voiceNote: true } : {}),
+      },
       req.user!.id,
       f.clientId,
     );

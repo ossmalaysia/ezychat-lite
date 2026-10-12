@@ -547,6 +547,8 @@ export interface SendMediaInput {
   clientId: string;
   /** Reply to this message (WhatsApp shows it as a quote). */
   quotedId?: string;
+  /** A recorded Ogg/Opus voice note: sent as a WhatsApp voice note, never with a caption. */
+  voiceNote?: boolean;
 }
 
 export function useSendMedia(jid: string) {
@@ -557,6 +559,7 @@ export function useSendMedia(jid: string) {
       form.append('clientId', input.clientId);
       if (input.caption) form.append('caption', input.caption);
       if (input.quotedId) form.append('quotedId', input.quotedId);
+      if (input.voiceNote) form.append('voiceNote', '1');
       form.append('file', input.file, input.file.name);
       return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
     },
@@ -578,6 +581,7 @@ export function useSendMedia(jid: string) {
           mediaMime: mime || null,
           mediaName: input.file.name,
           mediaStatus: 'pending',
+          ...(input.voiceNote ? { voiceNote: true, mediaName: null } : {}),
         }),
       );
     },
