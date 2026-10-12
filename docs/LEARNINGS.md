@@ -104,7 +104,8 @@ into AGENTS.md.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
   Codex review lands minutes after each push: check threads before calling a PR ready.
   A clean Codex pass arrives as an issue comment ("Didn't find any major issues"), not a review or
-  reaction: watch PR comments too.
+  reaction: watch PR comments too. Its summary comment is edited in place and says "Running" until
+  done: wait for its status, not for the comment to exist.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
