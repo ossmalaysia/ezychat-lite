@@ -57,7 +57,15 @@ export default defineConfig({
       name: 'desktop-chromium',
       testMatch: /.*\.spec\.ts/,
       dependencies: ['setup'],
-      use: { ...devices['Desktop Chrome'], ...chromiumEngine, storageState: ADMIN_STATE },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...chromiumEngine,
+        storageState: ADMIN_STATE,
+        // A fake microphone (a test tone) with the permission prompt accepted: voice-note.spec.
+        launchOptions: {
+          args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+        },
+      },
     },
     {
       name: 'mobile',

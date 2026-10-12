@@ -354,6 +354,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                 sendMedia.mutate({ file, caption, clientId: newClientId(), quotedId: replyTo?.id });
                 setReplyTo(null);
               }}
+              onVoiceNote={async (file, clientId) => {
+                await sendMedia.mutateAsync({
+                  file,
+                  voiceNote: true,
+                  clientId,
+                  quotedId: replyTo?.id,
+                });
+                setReplyTo(null);
+              }}
             />
           </div>
         </div>

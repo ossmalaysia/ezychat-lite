@@ -106,7 +106,28 @@
     "send": "Hantar",
     "quickReplies": "Balasan pantas",
     "replyingTo": "Membalas {{name}}",
-    "cancelReply": "Batalkan balasan"
+    "cancelReply": "Batalkan balasan",
+    "voice": {
+      "record": "Rakam nota suara",
+      "delete": "Padam rakaman",
+      "review": "Semak",
+      "send": "Hantar nota suara",
+      "sendFailed": "Tidak dapat dihantar. Cuba lagi.",
+      "play": "Main",
+      "pause": "Jeda",
+      "recordingTime": "Merakam, {{time}}",
+      "maxLength": "Maks {{time}}",
+      "insecure": "Nota suara memerlukan pautan selamat. Rakam daripada aplikasi desktop, atau buka peti masuk dengan pautan akses jauh anda (https).",
+      "insecureShort": "Nota suara memerlukan pautan selamat",
+      "blockedTitle": "Mikrofon disekat.",
+      "blockedBody": "Benarkan mikrofon untuk laman ini dalam tetapan pelayar anda (ikon di sebelah alamat), kemudian cuba lagi.",
+      "noMicrophone": "Tiada mikrofon ditemui. Sambungkan satu, kemudian cuba lagi.",
+      "failed": "Tidak dapat mula merakam. Cuba lagi.",
+      "lost": "Rakaman tidak dapat disimpan. Sila rakam semula.",
+      "tryAgain": "Cuba lagi",
+      "cancel": "Batal",
+      "previewUnavailable": "Pelayar ini tidak dapat memainkannya semula, tetapi anda masih boleh menghantarnya."
+    }
   },
   "quickReplies": {
     "title": "Balasan pantas",
@@ -228,6 +249,7 @@
     "contact": "Kenalan",
     "quotedMessage": "Mesej dipetik",
     "notSent": "Tidak dihantar",
+    "voiceNote": "Nota suara",
     "quote": {
       "image": "[Imej]",
       "video": "[Video]",

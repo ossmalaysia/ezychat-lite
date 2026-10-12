@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { MessageListQuery, SendTextBody } from '@wa-team-inbox/shared';
+import { MessageListQuery, SendMediaFields, SendTextBody } from '@wa-team-inbox/shared';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
@@ -8,11 +8,6 @@ import { getChats, getMessages } from '../wa-bridge/index.js';
 import { chatJidParam } from './chats.js';
 
 const IdParams = z.object({ id: z.string().min(1).max(256) });
-const MediaFields = z.object({
-  clientId: z.string().min(1).max(64),
-  caption: z.string().max(4096).optional(),
-  quotedId: z.string().max(256).optional(),
-});
 
 export default async function messagesRoutes(app: FastifyInstance, ctx: AppContext) {
   const messages = getMessages(ctx);
@@ -50,10 +45,17 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
       }
     }
     if (!file) throw errors.validation('file is required');
-    const f = parse(MediaFields, fields);
+    const f = parse(SendMediaFields, fields);
+    if (f.voiceNote && f.caption) throw errors.validation('A voice note has no caption');
     const msg = await messages.sendMedia(
       jid,
-      { buffer: file.buffer, fileName: file.fileName, ...(f.caption ? { caption: f.caption } : {}), ...(f.quotedId ? { quotedId: f.quotedId } : {}) },
+      {
+        buffer: file.buffer,
+        fileName: file.fileName,
+        ...(f.caption ? { caption: f.caption } : {}),
+        ...(f.quotedId ? { quotedId: f.quotedId } : {}),
+        ...(f.voiceNote ? { voiceNote: true } : {}),
+      },
       req.user!.id,
       f.clientId,
     );

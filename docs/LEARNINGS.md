@@ -104,7 +104,8 @@ into AGENTS.md.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
   Codex review lands minutes after each push: check threads before calling a PR ready.
   A clean Codex pass arrives as an issue comment ("Didn't find any major issues"), not a review or
-  reaction: watch PR comments too.
+  reaction: watch PR comments too. Its summary comment is edited in place and says "Running" until
+  done: wait for its status, not for the comment to exist.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
@@ -127,6 +128,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
+  packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
+  and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
 - Teammate-written data keyed by `chat_jid` never `ON DELETE CASCADE` from `chats` (like `notes`): an app
   rollback runs an older `mergeChat` that deletes chat rows without moving new tables.
 - Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
@@ -163,7 +167,8 @@ into AGENTS.md.
   end to end in a `--dir` packaged build (e.g. voice: copy the model in, simulate a voice note on
   `--fake-wa`, check the transcript), not just server start-up.
 - GUI smoke tests use plain Electron with a temporary profile (packaged apps ignore entry arguments).
-- Playwright may lack Chromium: fall back to `channel: 'chrome'`. Run e2e alone (memory); browser test
+- Playwright may lack Chromium: fall back to `channel: 'chrome'` (scripts too). A fake microphone:
+  `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`. Run e2e alone (memory); browser test
   sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
   `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
   shots stretch fixed elements and hide the drawer's scrolling body.
@@ -193,6 +198,8 @@ into AGENTS.md.
 
 ## Security
 
+- Code that walks an uploaded file (Ogg pages, packets) keeps fixed memory: aggregate into a bounded
+  result as you go, never collect one entry per item, and cap the upload size for that file kind.
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
   a synchronous commit.
 - Privileged desktop IPC is bound to the registered window, exact main frame and bundled URL.
@@ -219,6 +226,9 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A voice note is Ogg/Opus sent with `ptt: true`; pass `seconds` and `waveform` (64 bytes, 0–100)
+  yourself or Baileys needs optional music-metadata/audio-decode (`waveform` is missing from its types
+  but is sent). Browsers record WebM or MP4, never Ogg: encode Ogg/Opus with a WebAssembly encoder.
 - Identity is pinned to `Browsers.ubuntu('Chrome')`; "Desktop" identities get 428 before any QR. Never
   change it without a live QR check.
 - Message timestamps are whole seconds, so a quick reply can tie with the message it answers: logic
@@ -326,6 +336,13 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The microphone needs a secure page (https, localhost, the desktop app): a LAN `http://` link has
+  none, so say why instead of failing. Create the `AudioContext` before any `await` in the tap
+  handler (Safari records silence otherwise); WebAssembly needs CSP `'wasm-unsafe-eval'`.
+- Async start and stop (microphone, encoder) must be cancellable: number each attempt and drop what
+  resolves after Delete or unmount; give stop a failure path and a timeout that always closes the
+  microphone. Keep a recording until its upload succeeds, and give it one clientId for every attempt
+  (the server dedups by clientId, so a retry never sends twice).
 - Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
   `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings

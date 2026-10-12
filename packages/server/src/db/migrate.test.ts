@@ -26,7 +26,7 @@ const TABLES = [
   'api_tokens',
   'ai_setup_versions',
 ];
-const LATEST = 9;
+const LATEST = 10;
 
 describe('migrate', () => {
   it('creates all tables and sets user_version to the latest migration', () => {

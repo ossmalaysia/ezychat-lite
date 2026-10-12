@@ -259,3 +259,15 @@ describe('Edit with AI', () => {
     );
   });
 });
+
+describe('SendMediaFields', () => {
+  it('accepts the multipart text fields and only "1" as the voice note flag', async () => {
+    const { SendMediaFields } = await import('./api.js');
+    expect(SendMediaFields.parse({ clientId: 'c1', voiceNote: '1' })).toEqual({
+      clientId: 'c1',
+      voiceNote: '1',
+    });
+    expect(SendMediaFields.safeParse({ clientId: 'c1', voiceNote: 'true' }).success).toBe(false);
+    expect(SendMediaFields.safeParse({ caption: 'hi' }).success).toBe(false);
+  });
+});

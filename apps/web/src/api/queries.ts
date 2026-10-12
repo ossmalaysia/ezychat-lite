@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import {
   type Locale,
+  type SendMediaFields,
   type ApiToken,
   type CreateApiTokenBodyInput,
   type McpSettingsPatch,
@@ -245,6 +246,22 @@ export function patchMessageInCache(
       ),
     };
   });
+}
+
+/** Remove a message (by id or `local-<clientId>`) from a chat's messages cache. */
+export function removeMessageFromCache(qc: QueryClient, chatJid: string, clientId: string): void {
+  const localId = `local-${clientId}`;
+  qc.setQueryData<MessagesData>(qk.messages(chatJid), (old) =>
+    old
+      ? {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            messages: p.messages.filter((x) => x.id !== localId && x.clientId !== clientId),
+          })),
+        }
+      : old,
+  );
 }
 
 /** Replace a chat in every cached chat list and in its detail entry. */
@@ -547,16 +564,22 @@ export interface SendMediaInput {
   clientId: string;
   /** Reply to this message (WhatsApp shows it as a quote). */
   quotedId?: string;
+  /** A recorded Ogg/Opus voice note: sent as a WhatsApp voice note, never with a caption. */
+  voiceNote?: boolean;
 }
 
 export function useSendMedia(jid: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SendMediaInput) => {
+      const fields: SendMediaFields = {
+        clientId: input.clientId,
+        ...(input.caption ? { caption: input.caption } : {}),
+        ...(input.quotedId ? { quotedId: input.quotedId } : {}),
+        ...(input.voiceNote ? { voiceNote: '1' as const } : {}),
+      };
       const form = new FormData();
-      form.append('clientId', input.clientId);
-      if (input.caption) form.append('caption', input.caption);
-      if (input.quotedId) form.append('quotedId', input.quotedId);
+      for (const [key, value] of Object.entries(fields)) form.append(key, value);
       form.append('file', input.file, input.file.name);
       return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
     },
@@ -578,6 +601,7 @@ export function useSendMedia(jid: string) {
           mediaMime: mime || null,
           mediaName: input.file.name,
           mediaStatus: 'pending',
+          ...(input.voiceNote ? { voiceNote: true, mediaName: null } : {}),
         }),
       );
     },
@@ -586,6 +610,12 @@ export function useSendMedia(jid: string) {
       void qc.invalidateQueries({ queryKey: qk.chatsAll });
     },
     onError: (e, input) => {
+      // A voice note that did not upload stays in the composer's Review to send again (same
+      // clientId, so a retry never duplicates it): drop its bubble instead of a dead Retry.
+      if (input.voiceNote) {
+        removeMessageFromCache(qc, jid, input.clientId);
+        return;
+      }
       patchMessageInCache(
         qc,
         jid,

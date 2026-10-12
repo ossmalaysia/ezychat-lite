@@ -72,6 +72,8 @@ export const MessageSchema = z.object({
   error: z.string().nullable(),
   timestamp: z.number(),
   clientId: z.string().nullable(),
+  /** A WhatsApp voice note recorded in the inbox (audio sent as a voice note, not as a file). */
+  voiceNote: z.boolean().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
   transcript: z.string().nullable().optional(),
   /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */

@@ -16,6 +16,8 @@ export interface SendJob {
   mime?: string;
   fileName?: string;
   caption?: string;
+  /** media jobs: send the Ogg/Opus file as a WhatsApp voice note */
+  voiceNote?: boolean;
 }
 
 export interface SendQueueDeps {

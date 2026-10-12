@@ -108,7 +108,28 @@
     "send": "Send",
     "quickReplies": "Quick replies",
     "replyingTo": "Replying to {{name}}",
-    "cancelReply": "Cancel reply"
+    "cancelReply": "Cancel reply",
+    "voice": {
+      "record": "Record a voice note",
+      "delete": "Delete recording",
+      "review": "Review",
+      "send": "Send voice note",
+      "sendFailed": "Couldn’t send. Try again.",
+      "play": "Play",
+      "pause": "Pause",
+      "recordingTime": "Recording, {{time}}",
+      "maxLength": "Max {{time}}",
+      "insecure": "Voice notes need a secure link. Record from the desktop app, or open the inbox with your remote access link (https).",
+      "insecureShort": "Voice notes need a secure link",
+      "blockedTitle": "Microphone is blocked.",
+      "blockedBody": "Allow the microphone for this site in your browser settings (the icon next to the address), then try again.",
+      "noMicrophone": "No microphone found. Connect one, then try again.",
+      "failed": "Couldn’t start recording. Try again.",
+      "lost": "The recording couldn’t be saved. Please record it again.",
+      "tryAgain": "Try again",
+      "cancel": "Cancel",
+      "previewUnavailable": "This browser can’t play it back, but you can still send it."
+    }
   },
   "quickReplies": {
     "title": "Quick replies",
@@ -230,6 +251,7 @@
     "contact": "Contact",
     "quotedMessage": "Quoted message",
     "notSent": "Not sent",
+    "voiceNote": "Voice note",
     "quote": {
       "image": "[Image]",
       "video": "[Video]",

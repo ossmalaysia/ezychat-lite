@@ -29,6 +29,9 @@ describe('app', () => {
   it('sets security headers', async () => {
     const r = await t.app.inject({ method: 'GET', url: '/api/health' });
     expect(r.headers['content-security-policy']).toContain("default-src 'self'");
+    // WebAssembly (the voice note encoder) only: never JavaScript eval or inline scripts.
+    const scripts = /script-src ([^;]*)/.exec(String(r.headers['content-security-policy']))?.[1];
+    expect(scripts).toBe("'self' 'wasm-unsafe-eval'");
     expect(r.headers['x-frame-options']).toBe('DENY');
     expect(r.headers['x-content-type-options']).toBe('nosniff');
     expect(r.headers['referrer-policy']).toBe('same-origin');
