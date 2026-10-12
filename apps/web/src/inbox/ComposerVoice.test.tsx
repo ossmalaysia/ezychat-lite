@@ -135,12 +135,42 @@ describe('Composer voice notes', () => {
     expect(screen.queryByRole('button', { name: 'Record a voice note' })).toBeNull();
   });
 
-  it('keeps the recording unsent when the send confirmation is declined', async () => {
+  it('keeps the recording in Review when the send confirmation is declined', async () => {
     vi.mocked(startVoiceRecording).mockResolvedValue(recording());
-    const { onVoiceNote } = renderComposer({ confirmSend: () => false });
+    let allow = false;
+    const { onVoiceNote } = renderComposer({ confirmSend: () => allow });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Record a voice note' }));
     await user.click(await screen.findByRole('button', { name: 'Send voice note' }));
+    const review = await screen.findByTestId('voice-review');
     expect(onVoiceNote).not.toHaveBeenCalled();
+    allow = true;
+    await user.click(within(review).getByRole('button', { name: 'Send voice note' }));
+    expect(onVoiceNote).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches the microphone off when Delete is pressed while it is still starting', async () => {
+    const rec = recording();
+    let resolveStart: (r: typeof rec) => void = () => {};
+    vi.mocked(startVoiceRecording).mockReturnValue(new Promise((r) => (resolveStart = r)));
+    renderComposer();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Record a voice note' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete recording' }));
+    await act(async () => resolveStart(rec));
+    expect(rec.cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Record a voice note' })).toBeTruthy();
+  });
+
+  it('switches the microphone off when the chat closes while it is still starting', async () => {
+    const rec = recording();
+    let resolveStart: (r: typeof rec) => void = () => {};
+    vi.mocked(startVoiceRecording).mockReturnValue(new Promise((r) => (resolveStart = r)));
+    renderComposer();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Record a voice note' }));
+    cleanup();
+    await act(async () => resolveStart(rec));
+    expect(rec.cancel).toHaveBeenCalled();
   });
 });

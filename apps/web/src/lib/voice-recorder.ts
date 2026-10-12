@@ -103,7 +103,8 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
       async stop() {
         if (done) throw new Error('Recording already ended');
         done = true;
-        recorder.stop();
+        // Our own `data` promise carries the result; a rejected stop just leaves it pending.
+        void Promise.resolve(recorder.stop()).catch(() => {});
         try {
           return await data;
         } finally {
@@ -113,7 +114,7 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
       cancel() {
         if (done) return;
         done = true;
-        recorder.stop();
+        void Promise.resolve(recorder.stop()).catch(() => {});
         close();
       },
     };

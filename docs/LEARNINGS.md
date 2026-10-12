@@ -333,6 +333,8 @@ into AGENTS.md.
 - The microphone needs a secure page (https, localhost, the desktop app): a LAN `http://` link has
   none, so say why instead of failing. Create the `AudioContext` before any `await` in the tap
   handler (Safari records silence otherwise); WebAssembly needs CSP `'wasm-unsafe-eval'`.
+- An async start (microphone, encoder) must be cancellable: number each attempt, and when Delete or
+  unmount moved on, stop whatever resolves late. Keep a recording until its send is accepted.
 - Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
   `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings

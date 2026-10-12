@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MicOff, Pause, Play, SendHorizontal, Square, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,8 +26,7 @@ function toBars(levels: number[], n: number): number[] {
   return Array.from({ length: n }, (_, i) => {
     const start = Math.floor((i * levels.length) / n);
     const end = Math.max(start + 1, Math.floor(((i + 1) * levels.length) / n));
-    const slice = levels.slice(start, end);
-    return Math.max(...slice);
+    return Math.max(...levels.slice(start, end));
   });
 }
 
@@ -38,28 +37,27 @@ interface Review {
   bars: number[];
 }
 
-/** Record → (review) → send a voice note. `send` gets the Ogg/Opus file. */
-export function useVoiceNote(send: (file: File) => void | Promise<void>) {
+/**
+ * Record → (review) → send a voice note. `send` gets the Ogg/Opus file and resolves `true` once it
+ * accepted it; until then (a declined confirmation, a disabled composer) the recording is kept.
+ */
+export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
   const [phase, setPhase] = useState<VoicePhase>('idle');
   const [seconds, setSeconds] = useState(0);
   const [live, setLive] = useState<number[]>([]);
   const [review, setReview] = useState<Review | null>(null);
+  const [sending, setSending] = useState(false);
   const recording = useRef<VoiceRecording | null>(null);
   const levels = useRef<number[]>([]);
   const started = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Bumped by Delete and unmount: a start still waiting for the microphone is then abandoned. */
+  const attempt = useRef(0);
 
   const stopTimer = () => {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
   };
-
-  const clearReview = useCallback(() => {
-    setReview((r) => {
-      if (r) URL.revokeObjectURL(r.url);
-      return null;
-    });
-  }, []);
 
   const finish = useCallback(async (): Promise<Review | null> => {
     const rec = recording.current;
@@ -77,31 +75,43 @@ export function useVoiceNote(send: (file: File) => void | Promise<void>) {
     };
   }, []);
 
-  const toReview = useCallback(async () => {
-    const r = await finish();
-    if (!r) return;
+  const showReview = useCallback((r: Review) => {
     setReview(r);
     setPhase('review');
-  }, [finish]);
+  }, []);
+
+  const toReview = useCallback(async () => {
+    const r = await finish();
+    if (r) showReview(r);
+  }, [finish, showReview]);
 
   // Called from the mic button's click: the browser only starts audio from a user action.
   const start = useCallback(async () => {
+    const mine = ++attempt.current;
     setPhase('starting');
+    let rec: VoiceRecording;
     try {
-      recording.current = await startVoiceRecording();
+      rec = await startVoiceRecording();
     } catch (err) {
-      setPhase(err instanceof VoiceStartFailure ? err.reason : 'failed');
+      if (mine === attempt.current)
+        setPhase(err instanceof VoiceStartFailure ? err.reason : 'failed');
       return;
     }
+    // Deleted, or the chat closed, while the microphone was starting: switch it straight off.
+    if (mine !== attempt.current) {
+      rec.cancel();
+      return;
+    }
+    recording.current = rec;
     levels.current = [];
     started.current = Date.now();
     setSeconds(0);
     setLive([]);
     setPhase('recording');
     timer.current = setInterval(() => {
-      const rec = recording.current;
-      if (!rec) return;
-      levels.current.push(rec.level());
+      const current = recording.current;
+      if (!current) return;
+      levels.current.push(current.level());
       setLive(levels.current.slice(-LIVE_BARS));
       const elapsed = (Date.now() - started.current) / 1000;
       setSeconds(Math.floor(elapsed));
@@ -110,30 +120,43 @@ export function useVoiceNote(send: (file: File) => void | Promise<void>) {
   }, [toReview]);
 
   const discard = useCallback(() => {
+    attempt.current++;
     stopTimer();
     recording.current?.cancel();
     recording.current = null;
-    clearReview();
+    setReview(null);
     setPhase('idle');
-  }, [clearReview]);
+  }, []);
 
   const deliver = useCallback(
-    async (r: Review | null) => {
-      if (!r) return;
+    async (r: Review) => {
+      setSending(true);
+      try {
+        if (!(await send(new File([r.blob], 'voice-note.ogg', { type: 'audio/ogg' })))) return;
+      } finally {
+        setSending(false);
+      }
+      setReview(null);
       setPhase('idle');
-      clearReview();
-      URL.revokeObjectURL(r.url);
-      await send(new File([r.blob], 'voice-note.ogg', { type: 'audio/ogg' }));
     },
-    [clearReview, send],
+    [send],
   );
 
-  const sendNow = useCallback(async () => deliver(await finish()), [deliver, finish]);
-  const sendReviewed = useCallback(() => deliver(review), [deliver, review]);
+  // Send straight from recording: the note stays in Review if the send is not accepted.
+  const sendNow = useCallback(async () => {
+    const r = await finish();
+    if (!r) return;
+    showReview(r);
+    await deliver(r);
+  }, [deliver, finish, showReview]);
+  const sendReviewed = useCallback(async () => {
+    if (review) await deliver(review);
+  }, [deliver, review]);
 
   // Leaving the chat mid-recording stops the microphone and drops the recording.
   useEffect(
     () => () => {
+      attempt.current++;
       stopTimer();
       recording.current?.cancel();
     },
@@ -152,6 +175,7 @@ export function useVoiceNote(send: (file: File) => void | Promise<void>) {
     // Newest level on the right; empty slots on the left until the bar fills.
     liveBars: [...Array.from({ length: LIVE_BARS - live.length }, () => 0), ...live],
     review,
+    sending,
     start,
     toReview,
     sendNow,
@@ -167,11 +191,7 @@ function Bars({
   values,
   className,
   played,
-}: {
-  values: number[];
-  className: string;
-  played?: number;
-}) {
+}: Readonly<{ values: number[]; className: string; played?: number }>) {
   return (
     <span
       className="flex h-8 min-w-0 flex-1 items-center justify-between gap-px overflow-hidden"
@@ -179,6 +199,7 @@ function Bars({
     >
       {values.map((v, i) => (
         <span
+          // Fixed-length, positional bars: the index is the identity. NOSONAR
           key={i}
           className={cn(
             'w-[3px] shrink-0 rounded-full',
@@ -191,123 +212,127 @@ function Bars({
   );
 }
 
-/** The composer row while a voice note is being recorded, reviewed, or could not start. */
-export function VoiceNoteBar({ voice }: { voice: VoiceNoteState }) {
+function StartProblem({ voice }: Readonly<{ voice: VoiceNoteState }>) {
   const { t } = useTranslation('inbox');
-  const audio = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [playAt, setPlayAt] = useState(0);
-  const canPreview =
-    typeof document !== 'undefined' &&
-    document.createElement('audio').canPlayType('audio/ogg; codecs=opus') !== '';
-
-  if (voice.phase === 'blocked' || voice.phase === 'no-microphone' || voice.phase === 'failed') {
-    return (
-      <div
-        role="alert"
-        className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm"
-      >
-        <MicOff className="size-5 shrink-0 text-destructive" aria-hidden="true" />
-        <p className="min-w-0 flex-1 basis-60">
-          {voice.phase === 'blocked' ? (
-            <>
-              <strong>{t('composer.voice.blockedTitle')}</strong> {t('composer.voice.blockedBody')}
-            </>
-          ) : voice.phase === 'no-microphone' ? (
-            t('composer.voice.noMicrophone')
-          ) : (
-            t('composer.voice.failed')
-          )}
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="touch" onClick={voice.dismiss}>
-            {t('composer.voice.cancel')}
-          </Button>
-          <Button size="touch" onClick={() => void voice.start()}>
-            {t('composer.voice.tryAgain')}
-          </Button>
-        </div>
-      </div>
+  let message: ReactNode = t('composer.voice.failed');
+  if (voice.phase === 'blocked')
+    message = (
+      <>
+        <strong>{t('composer.voice.blockedTitle')}</strong> {t('composer.voice.blockedBody')}
+      </>
     );
-  }
+  else if (voice.phase === 'no-microphone') message = t('composer.voice.noMicrophone');
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm"
+    >
+      <MicOff className="size-5 shrink-0 text-destructive" aria-hidden="true" />
+      <p className="min-w-0 flex-1 basis-60">{message}</p>
+      <div className="flex gap-2">
+        <Button variant="outline" size="touch" onClick={voice.dismiss}>
+          {t('composer.voice.cancel')}
+        </Button>
+        <Button size="touch" onClick={() => void voice.start()}>
+          {t('composer.voice.tryAgain')}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-  const deleteButton = (
+function DeleteButton({ onClick }: Readonly<{ onClick(): void }>) {
+  const { t } = useTranslation('inbox');
+  return (
     <Button
       variant="ghost"
       size="icon-touch"
       aria-label={t('composer.voice.delete')}
       title={t('composer.voice.delete')}
-      onClick={voice.discard}
+      onClick={onClick}
       className="rounded-full text-destructive hover:text-destructive"
     >
       <Trash2 className="size-5" aria-hidden="true" />
     </Button>
   );
-  const sendButton = (onClick: () => void) => (
+}
+
+function SendButton({ onClick, disabled }: Readonly<{ onClick(): void; disabled?: boolean }>) {
+  const { t } = useTranslation('inbox');
+  return (
     <Button
       size="icon-touch"
       aria-label={t('composer.voice.send')}
       title={t('composer.voice.send')}
+      disabled={disabled}
       onClick={onClick}
       className="rounded-full"
     >
       <SendHorizontal className="size-5" aria-hidden="true" />
     </Button>
   );
+}
 
-  if (voice.phase === 'review' && voice.review) {
-    const r = voice.review;
-    return (
-      <div className="flex items-center gap-1.5" data-testid="voice-review">
-        {deleteButton}
-        <div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-muted py-1 pr-3.5 pl-1">
-          <Button
-            size="icon"
-            aria-label={playing ? t('composer.voice.pause') : t('composer.voice.play')}
-            title={canPreview ? undefined : t('composer.voice.previewUnavailable')}
-            disabled={!canPreview}
-            onClick={() => {
-              const el = audio.current;
-              if (!el) return;
-              if (el.paused) void el.play();
-              else el.pause();
-            }}
-            className="size-9 shrink-0 rounded-full"
-          >
-            {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-          </Button>
-          <Bars
-            values={r.bars}
-            className="bg-muted-foreground/50"
-            played={playing ? playAt / r.seconds : undefined}
-          />
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {playing
-              ? `${formatClock(playAt)} / ${formatClock(r.seconds)}`
-              : formatClock(r.seconds)}
-          </span>
-          <audio
-            ref={audio}
-            src={r.url}
-            preload="auto"
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => {
-              setPlaying(false);
-              setPlayAt(0);
-            }}
-            onTimeUpdate={(e) => setPlayAt(e.currentTarget.currentTime)}
-          />
-        </div>
-        {sendButton(() => void voice.sendReviewed())}
+function ReviewBar({ voice, review }: Readonly<{ voice: VoiceNoteState; review: Review }>) {
+  const { t } = useTranslation('inbox');
+  const audio = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [playAt, setPlayAt] = useState(0);
+  const [canPreview] = useState(
+    () => document.createElement('audio').canPlayType('audio/ogg; codecs=opus') !== '',
+  );
+  const clock = playing
+    ? `${formatClock(playAt)} / ${formatClock(review.seconds)}`
+    : formatClock(review.seconds);
+  return (
+    <div className="flex items-center gap-1.5" data-testid="voice-review">
+      <DeleteButton onClick={voice.discard} />
+      <div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-muted py-1 pr-3.5 pl-1">
+        <Button
+          size="icon"
+          aria-label={playing ? t('composer.voice.pause') : t('composer.voice.play')}
+          title={canPreview ? undefined : t('composer.voice.previewUnavailable')}
+          disabled={!canPreview}
+          onClick={() => {
+            const el = audio.current;
+            if (!el) return;
+            if (el.paused) void el.play().catch(() => setPlaying(false));
+            else el.pause();
+          }}
+          className="size-9 shrink-0 rounded-full"
+        >
+          {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+        </Button>
+        <Bars
+          values={review.bars}
+          className="bg-muted-foreground/50"
+          played={playing ? playAt / review.seconds : undefined}
+        />
+        <span className="text-xs text-muted-foreground tabular-nums">{clock}</span>
+        {/* The user's own recording, played back before sending: there is nothing to caption. */}
+        <audio
+          ref={audio}
+          src={review.url}
+          preload="auto"
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            setPlayAt(0);
+          }}
+          onTimeUpdate={(e) => setPlayAt(e.currentTarget.currentTime)}
+        />
       </div>
-    );
-  }
+      <SendButton disabled={voice.sending} onClick={() => void voice.sendReviewed()} />
+    </div>
+  );
+}
 
-  // starting / recording
+function RecordingBar({ voice }: Readonly<{ voice: VoiceNoteState }>) {
+  const { t } = useTranslation('inbox');
   return (
     <div className="flex items-center gap-1.5" data-testid="voice-recording">
-      {deleteButton}
+      <DeleteButton onClick={voice.discard} />
       <span
         className="size-2.5 shrink-0 animate-pulse rounded-full bg-destructive motion-reduce:animate-none"
         aria-hidden="true"
@@ -333,7 +358,16 @@ export function VoiceNoteBar({ voice }: { voice: VoiceNoteState }) {
         <Square className="size-3.5 fill-current" aria-hidden="true" />
         {t('composer.voice.review')}
       </Button>
-      {sendButton(() => void voice.sendNow())}
+      <SendButton disabled={voice.sending} onClick={() => void voice.sendNow()} />
     </div>
   );
+}
+
+/** The composer row while a voice note is being recorded, reviewed, or could not start. */
+export function VoiceNoteBar({ voice }: Readonly<{ voice: VoiceNoteState }>) {
+  if (voice.phase === 'blocked' || voice.phase === 'no-microphone' || voice.phase === 'failed')
+    return <StartProblem voice={voice} />;
+  if (voice.phase === 'review' && voice.review)
+    return <ReviewBar voice={voice} review={voice.review} />;
+  return <RecordingBar voice={voice} />;
 }

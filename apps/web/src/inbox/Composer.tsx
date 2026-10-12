@@ -80,9 +80,9 @@ export function Composer({
   const [coarsePointer] = useState(isCoarsePointer);
   const [voiceSupported] = useState(voiceSupport);
   const voice = useVoiceNote(async (file) => {
-    if (!onVoiceNote || disabled) return;
-    if (!(await confirmed())) return;
+    if (!onVoiceNote || disabled || !(await confirmed())) return false;
     onVoiceNote(file);
+    return true;
   });
 
   const query = browseReplies ? '' : slashQuery(text);
