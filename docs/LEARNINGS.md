@@ -127,6 +127,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
+  packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
+  and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
 - Teammate-written data keyed by `chat_jid` never `ON DELETE CASCADE` from `chats` (like `notes`): an app
   rollback runs an older `mergeChat` that deletes chat rows without moving new tables.
 - Several tables carry SQLite `CHECK` lists (e.g. `chat_events.type`): adding a value needs a table rebuild
