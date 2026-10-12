@@ -286,7 +286,12 @@ Conventional Commits; LF line endings; Prettier formatting; add user-visible cha
 `CHANGELOG.md` under `[Unreleased]`. When a UI change ships, refresh that module's shots in
 `docs/screenshots/` (demo data only). Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
-This is currently a solo-maintainer repository, so second-person approval is not required.
+**Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
+enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
+passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
+then leave the PR open until the owner requests the merge.
+This is currently a solo-maintainer repository, so a second maintainer's approval is not required;
+the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
 approval when another maintainer can review changes.
 Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
