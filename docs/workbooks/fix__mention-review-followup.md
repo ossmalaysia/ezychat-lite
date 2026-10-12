@@ -9,7 +9,7 @@ Branch: `fix/mention-review-followup` · Every agent updates its stage with
 | Dev | done | Split mention planning, candidate matching, unambiguous-name selection and substitution into focused helpers | 2026-10-12 |
 | Unit tests | pass | 16 mention regression tests passed; server typecheck and targeted ESLint passed | 2026-10-12 |
 | E2E | pass | Focused mention tests: setup plus desktop, mobile and iPhone passed (4/4) | 2026-10-12 |
-| Dev Build | pass | Fake-WA fresh-temp-data check passed old/live tags, late names, captions, quotes, inbox/notifications, reload, raw data and structured logs; real WhatsApp untested | 2026-10-12 |
+| Dev Build | pass | Fake-WA regression checks passed; owner linked a real phone and confirmed mention names are fixed; logs show successful connection/history sync after normal 515 pairing restart; agent sent no messages | 2026-10-12 |
 | Screen review | pass | Recaptured 1280px/360px light/dark; inspected desktop-light and mobile-dark screenshots; no overflow or page errors | 2026-10-12 |
 
 ## Log
@@ -21,3 +21,4 @@ Branch: `fix/mention-review-followup` · Every agent updates its stage with
 - 2026-10-12 E2E: pass — Focused mention tests: setup plus desktop, mobile and iPhone passed (4/4)
 - 2026-10-12 Dev Build: pass — Fake-WA fresh-temp-data check passed old/live tags, late names, captions, quotes, inbox/notifications, reload, raw data and structured logs; real WhatsApp untested
 - 2026-10-12 Screen review: pass — Recaptured 1280px/360px light/dark; inspected desktop-light and mobile-dark screenshots; no overflow or page errors
+- 2026-10-12 Dev Build: pass — Fake-WA regression checks passed; owner linked a real phone and confirmed mention names are fixed; logs show successful connection/history sync after normal 515 pairing restart; agent sent no messages
