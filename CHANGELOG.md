@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.33] - 2026-10-13
+
 ### Fixed
 
 - Group @mentions show known contact names instead of WhatsApp ID (LID) digits in messages, inbox previews and notifications, including older messages when the identity is unambiguous. Mention metadata is retained across restarts; unknown tags, emails and URLs stay unchanged.
