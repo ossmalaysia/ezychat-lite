@@ -4,7 +4,8 @@ import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from './aliases.js';
-import { ChatRepo, chatTypeOf, jidUser, rowToChat } from './repo.js';
+import { ChatRepo, chatTypeOf, jidUser, type ChatRow } from './repo.js';
+import { createChatPresenter } from '../messages/mentions.js';
 
 export interface ChatService {
   list(q: ChatListQuery, userId: number): { chats: Chat[]; nextCursor: string | null };
@@ -61,9 +62,11 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
   const now = deps?.now ?? Date.now;
   const aliases = getAliases(ctx);
   const log = ctx.log.child({ mod: 'contacts' });
+  const presentAll = createChatPresenter(ctx, ctx.log.child({ mod: 'messages' }));
+  const present = (row: ChatRow): Chat => presentAll([row])[0]!;
 
   const emitChat = (jid: string): Chat => {
-    const chat = rowToChat(repo.get(jid)!);
+    const chat = present(repo.get(jid)!);
     ctx.bus.emit('chat:updated', chat);
     return chat;
   };
@@ -143,14 +146,14 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       const page = more ? rows.slice(0, q.limit) : rows;
       const last = page[page.length - 1];
       return {
-        chats: page.map(rowToChat),
+        chats: presentAll(page),
         nextCursor: more && last ? encodeCursor(last.last_message_at, last.jid) : null,
       };
     },
 
     get(jid) {
       const r = repo.get(jid) ?? repo.get(aliases.route(jid));
-      return r ? rowToChat(r) : null;
+      return r ? present(r) : null;
     },
 
     resolveJid(jid) {
@@ -223,7 +226,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         repo.setName(jid, best, t);
         return emitChat(jid);
       }
-      return rowToChat(existing);
+      return present(existing);
     },
 
     patch(jid, body, actorId, eventDetail = {}) {
@@ -289,7 +292,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
           );
         }
       }
-      if (!events.length) return rowToChat(cur);
+      if (!events.length) return present(cur);
       fields.updated_at = t;
       repo.update(jid, fields);
       for (const e of events) ctx.bus.emit('chat:event', e);

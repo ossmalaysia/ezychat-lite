@@ -26,6 +26,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     const body = parse(FakeIncomingBody, req.body ?? {});
     const waitIngest = Boolean(ctx.services.messages);
     let expectId: string | null = null;
+    const earlyMessages = new Map<string, string>();
     let ingestedChatJid: string | null = null;
     let onNew: ((m: Message) => void) | null = null;
     let done: () => void = () => undefined;
@@ -36,15 +37,12 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     if (waitIngest) {
       timer = setTimeout(done, INGEST_WAIT_MS);
       onNew = (m: Message) => {
-        // The bridge may emit synchronously inside simulateIncoming (before expectId is known), so also
-        // match on content. A known phone number is stored in its WhatsApp ID chat.
+        // Presentation may replace mentions with names; match the generated id, never display text.
+        // The bridge can emit synchronously before simulateIncoming returns that id.
         const routed = ctx.services.aliases?.route(body.chatJid) ?? body.chatJid;
-        const match =
-          expectId !== null
-            ? m.id === expectId
-            : (m.chatJid === routed || m.chatJid === body.chatJid) &&
-              (m.body ?? '') === body.text &&
-              !m.fromMe;
+        if (expectId === null && (m.chatJid === routed || m.chatJid === body.chatJid) && !m.fromMe)
+          earlyMessages.set(m.id, m.chatJid);
+        const match = m.id === expectId;
         if (match) {
           ingestedChatJid = m.chatJid;
           done();
@@ -60,6 +58,8 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         ...(body.chatJidAlt ? { chatJidAlt: body.chatJidAlt } : {}),
         body: body.text,
         senderName: body.senderName ?? null,
+        ...(body.senderJid ? { senderJid: body.senderJid } : {}),
+        ...(body.mentionedJids !== undefined ? { mentionedJids: body.mentionedJids } : {}),
         type: body.type ?? 'text',
         // A simulated voice note or photo: the fake adapter serves these bytes as the download.
         media: body.media
@@ -71,6 +71,10 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
           : null,
       });
       expectId = msg.id;
+      if (earlyMessages.has(expectId)) {
+        ingestedChatJid = earlyMessages.get(expectId)!;
+        done();
+      }
       await ingested;
       return { id: msg.id, chatJid: ingestedChatJid ?? msg.chatJid, timestamp: msg.timestamp };
     } finally {

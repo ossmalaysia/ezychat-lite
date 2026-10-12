@@ -10,10 +10,14 @@ export interface WaIncomingMessage {
    */
   chatJidAlt?: string | null;
   senderJid: string | null;
+  /** Group sender's explicitly associated alternate phone/LID address. */
+  senderJidAlt?: string | null;
   senderName: string | null;
   fromMe: boolean;
   type: MessageType;
   body: string | null;
+  /** Explicit mentions from contextInfo; absent only for older adapters/imports. */
+  mentionedJids?: string[];
   quotedId: string | null;
   /** epoch ms */
   timestamp: number;
