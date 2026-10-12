@@ -226,7 +226,7 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
-- Keep mention JIDs separate from the original body and resolve names when presenting messages; sender names alone do not name tags. Legacy numeric tags must be unambiguous across phone/LID identities, and recycled phone contacts must never supply another person's name.
+- Keep mention JIDs separate from the original body and resolve names at every presentation path, including inbox/notification previews before truncation; sender names alone do not name tags. Legacy numeric tags must be unambiguous across phone/LID identities, and recycled phone contacts must never supply another person's name.
 
 - A voice note is Ogg/Opus sent with `ptt: true`; pass `seconds` and `waveform` (64 bytes, 0–100)
   yourself or Baileys needs optional music-metadata/audio-decode (`waveform` is missing from its types

@@ -1,5 +1,6 @@
 import {
   chatHref,
+  chatItem,
   expect,
   expectNoHorizontalScroll,
   inboxHeading,
@@ -57,6 +58,7 @@ test('group mentions name known people in old messages, new text, captions and q
     mentionedJids: [jay, kevin],
   });
   await expect(bubble(live.id)).toContainText('Please check @Jay Low and @kevintho123');
+  await expect(chatItem(page, groupJid)).toContainText('Please check @Jay Low and @kevintho123');
   await page.reload();
   await expect(bubble(live.id)).toContainText('Please check @Jay Low and @kevintho123');
   const reply = await page.request.post(`/api/chats/${encodeURIComponent(groupJid)}/messages`, {

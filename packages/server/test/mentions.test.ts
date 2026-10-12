@@ -115,6 +115,48 @@ describe('group mention names', () => {
     expect(MessageListResponse.parse(r.json()).messages[0]?.body).toBe('Hi @Jay Low');
   });
 
+  it('refreshes the latest chat preview when a mention name is learned after ingestion', async () => {
+    const { cookie, user } = await createUserAndLogin(t);
+    const body = `Morning @${JAY.split('@')[0]}`;
+    await incoming('preview', body, { mentionedJids: [JAY] });
+    expect(getChats(t.ctx).get(GROUP)?.lastMessagePreview).toBe(body);
+    getChats(t.ctx).upsertContacts([{ jid: JAY, pushName: 'Jay Low', savedName: null }]);
+    expect(getChats(t.ctx).get(GROUP)?.lastMessagePreview).toBe('Morning @Jay Low');
+    expect(
+      getChats(t.ctx)
+        .list({ limit: 50, assigned: 'any' }, user.id)
+        .chats.find((c) => c.jid === GROUP)?.lastMessagePreview,
+    ).toBe('Morning @Jay Low');
+    const r = await t.app.inject({ method: 'GET', url: '/api/chats', headers: { cookie } });
+    expect(r.json().chats.find((c: { jid: string }) => c.jid === GROUP).lastMessagePreview).toBe(
+      'Morning @Jay Low',
+    );
+  });
+
+  it('names mentions in live chat events and the preview used for push notifications', async () => {
+    getChats(t.ctx).upsertContacts([{ jid: JAY, pushName: 'Jay Low', savedName: null }]);
+    const previews: Array<string | null> = [];
+    t.ctx.bus.on('inbound:notify', ({ chat }) => previews.push(chat.lastMessagePreview));
+    t.ctx.bus.on('chat:updated', (chat) => previews.push(chat.lastMessagePreview));
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'live-preview',
+        chatJid: GROUP,
+        senderJid: '111@lid',
+        senderName: 'Alex Goh',
+        fromMe: false,
+        type: 'image',
+        body: `For @${JAY.split('@')[0]}`,
+        mentionedJids: [JAY],
+        quotedId: null,
+        timestamp: Date.now(),
+        media: null,
+      },
+      'live',
+    );
+    expect(previews).toEqual(['[Image] For @Jay Low', '[Image] For @Jay Low']);
+  });
+
   it.each([
     ['explicit empty metadata', GROUP, []],
     ['a different explicit mention', GROUP, [KEVIN]],

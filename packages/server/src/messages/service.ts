@@ -20,7 +20,7 @@ import type {
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
-import { ChatRepo, rowToChat } from '../chats/repo.js';
+import { ChatRepo } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
@@ -136,9 +136,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
   const emitChat = (jid: string) => {
-    const r = chats.get(jid);
-    if (r) ctx.bus.emit('chat:updated', rowToChat(r));
-    return r ? rowToChat(r) : null;
+    const chat = ctx.services.chats?.get(jid) ?? null;
+    if (chat) ctx.bus.emit('chat:updated', chat);
+    return chat;
   };
 
   const emitStatus = (r: MessageRow, newId?: string) => {
@@ -558,7 +558,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (source === 'live') {
         // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
-          chat: rowToChat(chats.get(chatJid)!),
+          chat: ctx.services.chats!.get(chatJid)!,
           message: present(row),
         });
       }

@@ -3,9 +3,8 @@ import type { Message } from '@wa-team-inbox/shared';
 import { normalizeContactJid } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
 import { getAliases } from '../chats/aliases.js';
-import { isFallbackName } from '../chats/service.js';
-import { jidUser } from '../chats/repo.js';
-import type { MessageRow } from './repo.js';
+import { jidUser, rowToChat, type ChatRow } from '../chats/repo.js';
+import { previewOf, rowToMessage, type MessageRow } from './repo.js';
 
 // Whole numeric tags only. Emails, usernames and URLs are ordinary text.
 const TAG = /(?<![\p{L}\p{N}_@])@(\d+)(?![\p{L}\p{N}_])/gu;
@@ -113,8 +112,10 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
       if (aliases.movedAway(jid)) return { identity: jid, known: true, name: null };
       const group = aliases.group(jid).filter((id) => !aliases.movedAway(id));
       const records = group.flatMap((id) => (known.get(id) ? [known.get(id)!] : []));
-      const meaningful = (name: string | null, id: string) =>
-        name?.trim() && !isFallbackName(name.trim(), id) ? name.trim() : null;
+      const meaningful = (name: string | null, id: string) => {
+        const trimmed = name?.trim();
+        return trimmed && trimmed !== id && trimmed !== jidUser(id) ? trimmed : null;
+      };
       const best = (field: keyof Omit<KnownIdentity, 'jid'>) =>
         records.map((row) => meaningful(row[field], row.jid)).find(Boolean);
       return {
@@ -168,5 +169,40 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
       'message mention presentation',
     );
     return out;
+  };
+}
+
+/** Rebuild mention previews at read time, so newly learned names do not leave stale numeric tags. */
+export function createChatPresenter(ctx: AppContext, log: Pick<Logger, 'debug'>) {
+  const withMentionNames = createMentionPresenter(ctx, log);
+  const latest = ctx.db.prepare(`
+    SELECT m.* FROM json_each(?) ids JOIN messages m ON m.rowid = (
+      SELECT rowid FROM messages WHERE chat_jid = ids.value
+      ORDER BY timestamp DESC, rowid DESC LIMIT 1
+    )
+  `);
+  return (rows: ChatRow[]) => {
+    const chats = rows.map((row) => rowToChat(row));
+    const jids = rows
+      .filter((row) => row.last_message_preview?.includes('@'))
+      .map((row) => row.jid);
+    if (!jids.length) return chats;
+    const messages: MessageRow[] = [];
+    for (let i = 0; i < jids.length; i += 500) {
+      messages.push(...(latest.all(JSON.stringify(jids.slice(i, i + 500))) as MessageRow[]));
+    }
+    const presented = withMentionNames(
+      messages,
+      messages.map((row) => rowToMessage(row)),
+    );
+    const previews = new Map(
+      presented.map((message, index) => [
+        message.chatJid,
+        previewOf({ ...messages[index]!, body: message.body }),
+      ]),
+    );
+    return chats.map((chat) =>
+      previews.has(chat.jid) ? { ...chat, lastMessagePreview: previews.get(chat.jid)! } : chat,
+    );
   };
 }
