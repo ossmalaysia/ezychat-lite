@@ -2,7 +2,7 @@ import type { Logger } from 'pino';
 import type { Message } from '@wa-team-inbox/shared';
 import { normalizeContactJid } from '@wa-team-inbox/wa';
 import type { AppContext } from '../context.js';
-import { getAliases } from '../chats/aliases.js';
+import { getAliases, type AliasStore } from '../chats/aliases.js';
 import { jidUser, rowToChat, type ChatRow } from '../chats/repo.js';
 import { previewOf, rowToMessage, type MessageRow } from './repo.js';
 
@@ -47,6 +47,97 @@ interface KnownIdentity {
   profile_name: string | null;
 }
 
+interface MentionPlan {
+  index: number;
+  legacy: boolean;
+  byToken: Map<string, Set<string>>;
+}
+
+interface MentionName {
+  identity: string;
+  known: boolean;
+  name: string | null;
+}
+
+function planMentions(
+  row: MessageRow,
+  index: number,
+  aliases: AliasStore,
+  wanted: Set<string>,
+): MentionPlan | null {
+  if (!row.body || row.type === 'system') return null;
+  const legacy = row.mentioned_jids == null;
+  if (legacy && !row.chat_jid.endsWith('@g.us')) return null;
+  const tags = tokens(row.body);
+  if (!tags.length) return null;
+  const byToken = new Map<string, Set<string>>();
+  const add = (token: string, jid: string) => {
+    const candidates = byToken.get(token) ?? new Set<string>();
+    candidates.add(jid);
+    byToken.set(token, candidates);
+    for (const id of aliases.group(jid)) {
+      if (!aliases.movedAway(id)) wanted.add(id);
+    }
+  };
+  if (legacy) {
+    for (const tag of tags) {
+      add(tag, `${tag}@lid`);
+      add(tag, `${tag}@s.whatsapp.net`);
+    }
+  } else {
+    addStoredCandidates(row.mentioned_jids!, tags, aliases, add);
+  }
+  return { index, legacy, byToken };
+}
+
+function addStoredCandidates(
+  metadata: string,
+  tags: string[],
+  aliases: AliasStore,
+  add: (token: string, jid: string) => void,
+) {
+  for (const jid of storedMentions(metadata)) {
+    if (aliases.movedAway(jid)) continue;
+    // The body may use the person's phone digits while metadata uses their LID or vice versa.
+    for (const id of aliases.group(jid)) {
+      if (!aliases.movedAway(id) && tags.includes(jidUser(id))) add(jidUser(id), jid);
+    }
+  }
+}
+
+function replacementsFor(plan: MentionPlan, nameFor: (jid: string) => MentionName) {
+  const replacements = new Map<string, string>();
+  for (const [token, candidates] of plan.byToken) {
+    const choices = new Map<string, string | null>();
+    for (const jid of candidates) {
+      const result = nameFor(jid);
+      if (!plan.legacy || result.known) choices.set(result.identity, result.name);
+    }
+    if (choices.size === 1) {
+      const name = [...choices.values()][0];
+      if (name) replacements.set(token, name);
+    }
+  }
+  return replacements;
+}
+
+function replaceMentions(body: string, replacements: Map<string, string>) {
+  let count = 0;
+  const presented = textParts(body)
+    .map((part, index) =>
+      index % 2
+        ? part
+        : part.replace(TAG, (tag, token: string) => {
+            const name = replacements.get(token);
+            if (!name) return tag;
+            count++;
+            return `@${name}`;
+          }),
+    )
+    .join('');
+  return { body: presented, count };
+}
+
 /**
  * Name mentions only in presentation. The original body remains in SQLite for sends and quotes.
  * New messages use explicit WhatsApp metadata. Old group messages can use an exact known identity
@@ -66,35 +157,8 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
     const aliases = getAliases(ctx);
     const wanted = new Set<string>();
     const plans = rows.flatMap((row, index) => {
-      if (!row.body || row.type === 'system') return [];
-      const legacy = row.mentioned_jids == null;
-      if (legacy && !row.chat_jid.endsWith('@g.us')) return [];
-      const tags = tokens(row.body);
-      if (!tags.length) return [];
-      const byToken = new Map<string, Set<string>>();
-      const add = (token: string, jid: string) => {
-        const candidates = byToken.get(token) ?? new Set<string>();
-        candidates.add(jid);
-        byToken.set(token, candidates);
-        for (const id of aliases.group(jid)) {
-          if (!aliases.movedAway(id)) wanted.add(id);
-        }
-      };
-      if (legacy) {
-        for (const tag of tags) {
-          add(tag, `${tag}@lid`);
-          add(tag, `${tag}@s.whatsapp.net`);
-        }
-      } else {
-        for (const jid of storedMentions(row.mentioned_jids!)) {
-          if (aliases.movedAway(jid)) continue;
-          // The body may use the person's phone digits while metadata uses their LID or vice versa.
-          for (const id of aliases.group(jid)) {
-            if (!aliases.movedAway(id) && tags.includes(jidUser(id))) add(jidUser(id), jid);
-          }
-        }
-      }
-      return [{ index, legacy, byToken }];
+      const plan = planMentions(row, index, aliases, wanted);
+      return plan ? [plan] : [];
     });
     if (!plans.length) return messages;
 
@@ -106,7 +170,7 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
       }
     }
 
-    const nameFor = (jid: string): { identity: string; known: boolean; name: string | null } => {
+    const nameFor = (jid: string): MentionName => {
       const identity = aliases.resolve(jid);
       // Stored phone contact/chat names may belong to the previous owner of a recycled number.
       if (aliases.movedAway(jid)) return { identity: jid, known: true, name: null };
@@ -133,31 +197,10 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
     let resolvedMentionCount = 0;
     const out = [...messages];
     for (const plan of plans) {
-      const replacements = new Map<string, string>();
-      for (const [token, candidates] of plan.byToken) {
-        const choices = new Map<string, string | null>();
-        for (const jid of candidates) {
-          const result = nameFor(jid);
-          if (!plan.legacy || result.known) choices.set(result.identity, result.name);
-        }
-        if (choices.size === 1) {
-          const name = [...choices.values()][0];
-          if (name) replacements.set(token, name);
-        }
-      }
+      const replacements = replacementsFor(plan, nameFor);
       const message = messages[plan.index]!;
-      const body = textParts(message.body!)
-        .map((part, index) =>
-          index % 2
-            ? part
-            : part.replace(TAG, (tag, token: string) => {
-                const name = replacements.get(token);
-                if (!name) return tag;
-                resolvedMentionCount++;
-                return `@${name}`;
-              }),
-        )
-        .join('');
+      const { body, count } = replaceMentions(message.body!, replacements);
+      resolvedMentionCount += count;
       if (body !== message.body) out[plan.index] = { ...message, body };
     }
     log.debug(
