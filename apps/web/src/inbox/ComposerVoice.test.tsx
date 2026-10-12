@@ -163,6 +163,24 @@ describe('Composer voice notes', () => {
     expect(screen.getByRole('button', { name: 'Record a voice note' })).toBeTruthy();
   });
 
+  it('keeps a voice note whose upload failed, and resends it with the same id', async () => {
+    vi.mocked(startVoiceRecording).mockResolvedValue(recording());
+    const onVoiceNote = vi
+      .fn<(file: File, clientId: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce();
+    renderComposer({ onVoiceNote });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Record a voice note' }));
+    await user.click(await screen.findByRole('button', { name: 'Send voice note' }));
+    const review = await screen.findByTestId('voice-review');
+    expect(within(review).getByRole('alert').textContent).toBe('Couldn’t send. Try again.');
+    await user.click(within(review).getByRole('button', { name: 'Send voice note' }));
+    expect(onVoiceNote).toHaveBeenCalledTimes(2);
+    expect(onVoiceNote.mock.calls[1]![1]).toBe(onVoiceNote.mock.calls[0]![1]);
+    expect(screen.queryByTestId('voice-review')).toBeNull();
+  });
+
   it('never brings back a recording deleted while it was still finishing', async () => {
     const rec = recording();
     let finishStop: (b: Blob) => void = () => {};

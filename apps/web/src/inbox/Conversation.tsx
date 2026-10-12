@@ -354,11 +354,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                 sendMedia.mutate({ file, caption, clientId: newClientId(), quotedId: replyTo?.id });
                 setReplyTo(null);
               }}
-              onVoiceNote={(file) => {
-                sendMedia.mutate({
+              onVoiceNote={async (file, clientId) => {
+                await sendMedia.mutateAsync({
                   file,
                   voiceNote: true,
-                  clientId: newClientId(),
+                  clientId,
                   quotedId: replyTo?.id,
                 });
                 setReplyTo(null);

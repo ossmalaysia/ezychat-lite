@@ -25,3 +25,4 @@ Branch: `feat/voice-note-recording` · Every agent updates its stage with
 - 2026-10-12 Packaged --dir smoke: pass — packaged server + web, Chrome fake mic: CSP wasm-unsafe-eval, encoder worker 200, voice note stored (audio/ogg; codecs=opus) and delivered, no errors. Review fixes (Codex round 3): shared SendMediaFields schema; sync throw from recorder.stop still closes the mic
 - 2026-10-12 Review fix (Codex round 4): waveform built in fixed memory (64 buckets, empty packets skipped); voice notes capped at 4 MiB
 - 2026-10-12 Real WhatsApp: pass — owner recorded with a real mic in Chrome and sent 2 voice notes: delivered as voice notes (audio/ogg; codecs=opus), no errors; owner approved
+- 2026-10-12 Review fix (Codex round 5): a voice note stays in Review until its upload succeeds ('Couldn't send. Try again.'), with one clientId per recording so retries never duplicate; its failed bubble is dropped

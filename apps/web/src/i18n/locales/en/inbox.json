@@ -114,6 +114,7 @@
       "delete": "Delete recording",
       "review": "Review",
       "send": "Send voice note",
+      "sendFailed": "Couldn’t send. Try again.",
       "play": "Play",
       "pause": "Pause",
       "recordingTime": "Recording, {{time}}",

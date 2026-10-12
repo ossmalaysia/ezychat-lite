@@ -248,6 +248,22 @@ export function patchMessageInCache(
   });
 }
 
+/** Remove a message (by id or `local-<clientId>`) from a chat's messages cache. */
+export function removeMessageFromCache(qc: QueryClient, chatJid: string, clientId: string): void {
+  const localId = `local-${clientId}`;
+  qc.setQueryData<MessagesData>(qk.messages(chatJid), (old) =>
+    old
+      ? {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            messages: p.messages.filter((x) => x.id !== localId && x.clientId !== clientId),
+          })),
+        }
+      : old,
+  );
+}
+
 /** Replace a chat in every cached chat list and in its detail entry. */
 export function upsertChatInCache(qc: QueryClient, chat: Chat): void {
   qc.setQueryData<ChatDetailResponse>(qk.chat(chat.jid), (old) => (old ? { ...old, chat } : old));
@@ -594,6 +610,12 @@ export function useSendMedia(jid: string) {
       void qc.invalidateQueries({ queryKey: qk.chatsAll });
     },
     onError: (e, input) => {
+      // A voice note that did not upload stays in the composer's Review to send again (same
+      // clientId, so a retry never duplicates it): drop its bubble instead of a dead Retry.
+      if (input.voiceNote) {
+        removeMessageFromCache(qc, jid, input.clientId);
+        return;
+      }
       patchMessageInCache(
         qc,
         jid,

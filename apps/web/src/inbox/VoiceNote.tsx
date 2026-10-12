@@ -10,6 +10,7 @@ import {
   type VoiceRecording,
   type VoiceStartError,
 } from '@/lib/voice-recorder';
+import { newClientId } from '../api/queries';
 
 /** `lost`: the recording could not be finished (the encoder failed), so there is nothing to send. */
 export type VoicePhase = 'idle' | 'starting' | 'recording' | 'review' | 'lost' | VoiceStartError;
@@ -32,6 +33,8 @@ function toBars(levels: number[], n: number): number[] {
 }
 
 interface Review {
+  /** One id per recording: every send attempt of it uses this clientId, so retries never duplicate. */
+  clientId: string;
   blob: Blob;
   url: string;
   seconds: number;
@@ -42,12 +45,13 @@ interface Review {
  * Record → (review) → send a voice note. `send` gets the Ogg/Opus file and resolves `true` once it
  * accepted it; until then (a declined confirmation, a disabled composer) the recording is kept.
  */
-export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
+export function useVoiceNote(send: (file: File, clientId: string) => boolean | Promise<boolean>) {
   const [phase, setPhase] = useState<VoicePhase>('idle');
   const [seconds, setSeconds] = useState(0);
   const [live, setLive] = useState<number[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [sending, setSending] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
   const recording = useRef<VoiceRecording | null>(null);
   const levels = useRef<number[]>([]);
   const started = useRef(0);
@@ -78,6 +82,7 @@ export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
     // Whole seconds, rounded down like the audio player that plays it back.
     const secs = Math.max(1, Math.floor((Date.now() - started.current) / 1000));
     return {
+      clientId: newClientId(),
       blob,
       url: URL.createObjectURL(blob),
       seconds: secs,
@@ -135,14 +140,21 @@ export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
     recording.current?.cancel();
     recording.current = null;
     setReview(null);
+    setSendFailed(false);
     setPhase('idle');
   }, []);
 
   const deliver = useCallback(
     async (r: Review) => {
       setSending(true);
+      setSendFailed(false);
       try {
-        if (!(await send(new File([r.blob], 'voice-note.ogg', { type: 'audio/ogg' })))) return;
+        const file = new File([r.blob], 'voice-note.ogg', { type: 'audio/ogg' });
+        if (!(await send(file, r.clientId))) return;
+      } catch {
+        // Upload failed: keep it in Review to send again.
+        setSendFailed(true);
+        return;
       } finally {
         setSending(false);
       }
@@ -186,6 +198,7 @@ export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
     liveBars: [...Array.from({ length: LIVE_BARS - live.length }, () => 0), ...live],
     review,
     sending,
+    sendFailed,
     start,
     toReview,
     sendNow,
@@ -320,6 +333,11 @@ function ReviewBar({ voice, review }: Readonly<{ voice: VoiceNoteState; review: 
           played={playing ? playAt / review.seconds : undefined}
         />
         <span className="text-xs text-muted-foreground tabular-nums">{clock}</span>
+        {voice.sendFailed && (
+          <span role="alert" className="shrink-0 text-xs font-medium text-destructive">
+            {t('composer.voice.sendFailed')}
+          </span>
+        )}
         {/* The user's own recording, played back before sending: there is nothing to caption. */}
         <audio
           ref={audio}

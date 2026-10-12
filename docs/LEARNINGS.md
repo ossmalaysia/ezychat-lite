@@ -341,7 +341,8 @@ into AGENTS.md.
   handler (Safari records silence otherwise); WebAssembly needs CSP `'wasm-unsafe-eval'`.
 - Async start and stop (microphone, encoder) must be cancellable: number each attempt and drop what
   resolves after Delete or unmount; give stop a failure path and a timeout that always closes the
-  microphone. Keep a recording until its send is accepted.
+  microphone. Keep a recording until its upload succeeds, and give it one clientId for every attempt
+  (the server dedups by clientId, so a retry never sends twice).
 - Confirmations use the `AlertDialog` primitive (focus trap, Escape, portal), never an inline
   `role="alertdialog"` div; e2e locates it on `page`, not inside the panel.
 - A settings row's control slot (`shrink-0`) holds only the control; any text a reused component brings

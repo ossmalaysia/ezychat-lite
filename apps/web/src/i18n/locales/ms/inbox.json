@@ -112,6 +112,7 @@
       "delete": "Padam rakaman",
       "review": "Semak",
       "send": "Hantar nota suara",
+      "sendFailed": "Tidak dapat dihantar. Cuba lagi.",
       "play": "Main",
       "pause": "Jeda",
       "recordingTime": "Merakam, {{time}}",

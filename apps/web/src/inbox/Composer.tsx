@@ -17,8 +17,11 @@ export interface ComposerProps {
   onSend(text: string): void;
   /** Attach button: file + caption (current text, if any). */
   onAttach(file: File, caption?: string): void;
-  /** Mic button (shown while the box is empty): a recorded Ogg/Opus voice note. */
-  onVoiceNote?(file: File): void;
+  /**
+   * Mic button (shown while the box is empty): a recorded Ogg/Opus voice note with the clientId it
+   * keeps across retries. Resolve once it is uploaded; reject to keep it in Review.
+   */
+  onVoiceNote?(file: File, clientId: string): void | Promise<void>;
   /** Called while typing; throttled to once per 2s. */
   onTyping?(): void;
   /**
@@ -79,9 +82,9 @@ export function Composer({
   const pickerId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
   const [voiceSupported] = useState(voiceSupport);
-  const voice = useVoiceNote(async (file) => {
+  const voice = useVoiceNote(async (file, clientId) => {
     if (!onVoiceNote || disabled || !(await confirmed())) return false;
-    onVoiceNote(file);
+    await onVoiceNote(file, clientId);
     return true;
   });
 
