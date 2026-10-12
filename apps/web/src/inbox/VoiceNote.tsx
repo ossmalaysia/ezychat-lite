@@ -11,7 +11,8 @@ import {
   type VoiceStartError,
 } from '@/lib/voice-recorder';
 
-export type VoicePhase = 'idle' | 'starting' | 'recording' | 'review' | VoiceStartError;
+/** `lost`: the recording could not be finished (the encoder failed), so there is nothing to send. */
+export type VoicePhase = 'idle' | 'starting' | 'recording' | 'review' | 'lost' | VoiceStartError;
 
 const LIVE_BARS = 48;
 const REVIEW_BARS = 48;
@@ -64,7 +65,16 @@ export function useVoiceNote(send: (file: File) => boolean | Promise<boolean>) {
     recording.current = null;
     stopTimer();
     if (!rec) return null;
-    const blob = await rec.stop();
+    const mine = attempt.current;
+    let blob: Blob;
+    try {
+      blob = await rec.stop();
+    } catch {
+      if (mine === attempt.current) setPhase('lost');
+      return null;
+    }
+    // Deleted, or the chat closed, while the encoder was finishing: drop it.
+    if (mine !== attempt.current) return null;
     // Whole seconds, rounded down like the audio player that plays it back.
     const secs = Math.max(1, Math.floor((Date.now() - started.current) / 1000));
     return {
@@ -215,7 +225,8 @@ function Bars({
 function StartProblem({ voice }: Readonly<{ voice: VoiceNoteState }>) {
   const { t } = useTranslation('inbox');
   let message: ReactNode = t('composer.voice.failed');
-  if (voice.phase === 'blocked')
+  if (voice.phase === 'lost') message = t('composer.voice.lost');
+  else if (voice.phase === 'blocked')
     message = (
       <>
         <strong>{t('composer.voice.blockedTitle')}</strong> {t('composer.voice.blockedBody')}
@@ -365,7 +376,7 @@ function RecordingBar({ voice }: Readonly<{ voice: VoiceNoteState }>) {
 
 /** The composer row while a voice note is being recorded, reviewed, or could not start. */
 export function VoiceNoteBar({ voice }: Readonly<{ voice: VoiceNoteState }>) {
-  if (voice.phase === 'blocked' || voice.phase === 'no-microphone' || voice.phase === 'failed')
+  if (['blocked', 'no-microphone', 'failed', 'lost'].includes(voice.phase))
     return <StartProblem voice={voice} />;
   if (voice.phase === 'review' && voice.review)
     return <ReviewBar voice={voice} review={voice.review} />;

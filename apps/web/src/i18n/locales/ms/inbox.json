@@ -122,6 +122,7 @@
       "blockedBody": "Benarkan mikrofon untuk laman ini dalam tetapan pelayar anda (ikon di sebelah alamat), kemudian cuba lagi.",
       "noMicrophone": "Tiada mikrofon ditemui. Sambungkan satu, kemudian cuba lagi.",
       "failed": "Tidak dapat mula merakam. Cuba lagi.",
+      "lost": "Rakaman tidak dapat disimpan. Sila rakam semula.",
       "tryAgain": "Cuba lagi",
       "cancel": "Batal",
       "previewUnavailable": "Pelayar ini tidak dapat memainkannya semula, tetapi anda masih boleh menghantarnya."

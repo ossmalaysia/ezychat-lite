@@ -163,6 +163,33 @@ describe('Composer voice notes', () => {
     expect(screen.getByRole('button', { name: 'Record a voice note' })).toBeTruthy();
   });
 
+  it('never brings back a recording deleted while it was still finishing', async () => {
+    const rec = recording();
+    let finishStop: (b: Blob) => void = () => {};
+    rec.stop.mockReturnValue(new Promise<Blob>((r) => (finishStop = r)));
+    vi.mocked(startVoiceRecording).mockResolvedValue(rec);
+    renderComposer();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Record a voice note' }));
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(screen.getByRole('button', { name: 'Delete recording' }));
+    await act(async () => finishStop(new Blob(['x'], { type: 'audio/ogg' })));
+    expect(screen.queryByTestId('voice-review')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Record a voice note' })).toBeTruthy();
+  });
+
+  it('says so when a recording could not be finished, instead of waiting forever', async () => {
+    const rec = recording();
+    rec.stop.mockRejectedValue(new Error('encoder failed'));
+    vi.mocked(startVoiceRecording).mockResolvedValue(rec);
+    const { onVoiceNote } = renderComposer();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Record a voice note' }));
+    await user.click(await screen.findByRole('button', { name: 'Send voice note' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('couldn’t be saved');
+    expect(onVoiceNote).not.toHaveBeenCalled();
+  });
+
   it('switches the microphone off when the chat closes while it is still starting', async () => {
     const rec = recording();
     let resolveStart: (r: typeof rec) => void = () => {};

@@ -124,6 +124,7 @@
       "blockedBody": "Allow the microphone for this site in your browser settings (the icon next to the address), then try again.",
       "noMicrophone": "No microphone found. Connect one, then try again.",
       "failed": "Couldn’t start recording. Try again.",
+      "lost": "The recording couldn’t be saved. Please record it again.",
       "tryAgain": "Try again",
       "cancel": "Cancel",
       "previewUnavailable": "This browser can’t play it back, but you can still send it."

@@ -6,6 +6,8 @@
 
 /** Longest recording; the server refuses longer voice notes. */
 export const VOICE_NOTE_MAX_SECONDS = 300;
+/** How long the encoder may take to hand over the file after Stop. */
+const STOP_TIMEOUT_MS = 10_000;
 
 export type VoiceSupport = 'ok' | 'insecure' | 'unsupported';
 
@@ -87,7 +89,11 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
       streamPages: false,
     });
     let resolveData: (blob: Blob) => void = () => {};
-    const data = new Promise<Blob>((resolve) => (resolveData = resolve));
+    let rejectData: (err: Error) => void = () => {};
+    const data = new Promise<Blob>((resolve, reject) => {
+      resolveData = resolve;
+      rejectData = reject;
+    });
     recorder.ondataavailable = (bytes: Uint8Array<ArrayBuffer>) =>
       resolveData(new Blob([bytes], { type: 'audio/ogg; codecs=opus' }));
     await recorder.start();
@@ -103,11 +109,18 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
       async stop() {
         if (done) throw new Error('Recording already ended');
         done = true;
-        // Our own `data` promise carries the result; a rejected stop just leaves it pending.
-        void Promise.resolve(recorder.stop()).catch(() => {});
+        // A failed or silent encoder must never leave the microphone on or the composer waiting.
+        Promise.resolve(recorder.stop()).catch((err: unknown) =>
+          rejectData(err instanceof Error ? err : new Error('Recording failed to stop')),
+        );
+        const timeout = setTimeout(
+          () => rejectData(new Error('Recording did not finish')),
+          STOP_TIMEOUT_MS,
+        );
         try {
           return await data;
         } finally {
+          clearTimeout(timeout);
           close();
         }
       },

@@ -21,3 +21,4 @@ Branch: `feat/voice-note-recording` · Every agent updates its stage with
 - 2026-10-12 Unit tests: pass — typecheck + lint green; shared 29, wa 88, server 900, desktop 310 (+1 skipped), web 506 (maxWorkers=2); web build green
 - 2026-10-12 E2E: pass — 56 passed, 8 skipped incl. new voice-note.spec (desktop Chromium fake microphone: record, review, send; server got an Ogg/Opus voice note)
 - 2026-10-12 Review fixes (Codex + SonarCloud): a start abandoned by Delete/unmount switches the mic off when it resolves; a declined send confirmation keeps the recording in Review; recorder stop promises handled; voice bar split into smaller components. ComposerVoice 11 pass, voice e2e pass
+- 2026-10-12 Review fixes (Codex round 2): a finish invalidated by Delete/unmount is dropped; encoder stop failure or 10 s timeout closes the mic and shows 'couldn't be saved'. ComposerVoice 13 pass
