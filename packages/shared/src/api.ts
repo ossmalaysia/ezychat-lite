@@ -96,6 +96,16 @@ export const SendTextBody = z.object({
 });
 export type SendTextBody = z.infer<typeof SendTextBody>;
 
+/** POST /chats/:jid/media: the text fields of the multipart form (the file goes in `file`). */
+export const SendMediaFields = z.object({
+  clientId: z.string().min(1).max(64),
+  caption: z.string().max(4096).optional(),
+  quotedId: z.string().max(256).optional(),
+  /** "1": send the Ogg/Opus file as a WhatsApp voice note (never with a caption). */
+  voiceNote: z.literal('1').optional(),
+});
+export type SendMediaFields = z.infer<typeof SendMediaFields>;
+
 export const NoteBody = z.object({ body: z.string().min(1).max(8192) });
 export type NoteBody = z.infer<typeof NoteBody>;
 

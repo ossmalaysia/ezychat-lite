@@ -97,6 +97,14 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
     recorder.ondataavailable = (bytes: Uint8Array<ArrayBuffer>) =>
       resolveData(new Blob([bytes], { type: 'audio/ogg; codecs=opus' }));
     await recorder.start();
+    // A synchronous throw from the encoder becomes a rejection, so cleanup below always runs.
+    const stopRecorder = (): Promise<void> => {
+      try {
+        return Promise.resolve(recorder.stop());
+      } catch (err) {
+        return Promise.reject(err instanceof Error ? err : new Error('Recording failed to stop'));
+      }
+    };
     const samples = new Uint8Array(analyser.fftSize);
     let done = false;
     return {
@@ -110,7 +118,7 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
         if (done) throw new Error('Recording already ended');
         done = true;
         // A failed or silent encoder must never leave the microphone on or the composer waiting.
-        Promise.resolve(recorder.stop()).catch((err: unknown) =>
+        stopRecorder().catch((err: unknown) =>
           rejectData(err instanceof Error ? err : new Error('Recording failed to stop')),
         );
         const timeout = setTimeout(
@@ -127,7 +135,7 @@ export async function startVoiceRecording(): Promise<VoiceRecording> {
       cancel() {
         if (done) return;
         done = true;
-        void Promise.resolve(recorder.stop()).catch(() => {});
+        void stopRecorder().catch(() => {});
         close();
       },
     };

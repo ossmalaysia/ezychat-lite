@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import {
   type Locale,
+  type SendMediaFields,
   type ApiToken,
   type CreateApiTokenBodyInput,
   type McpSettingsPatch,
@@ -555,11 +556,14 @@ export function useSendMedia(jid: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SendMediaInput) => {
+      const fields: SendMediaFields = {
+        clientId: input.clientId,
+        ...(input.caption ? { caption: input.caption } : {}),
+        ...(input.quotedId ? { quotedId: input.quotedId } : {}),
+        ...(input.voiceNote ? { voiceNote: '1' as const } : {}),
+      };
       const form = new FormData();
-      form.append('clientId', input.clientId);
-      if (input.caption) form.append('caption', input.caption);
-      if (input.quotedId) form.append('quotedId', input.quotedId);
-      if (input.voiceNote) form.append('voiceNote', '1');
+      for (const [key, value] of Object.entries(fields)) form.append(key, value);
       form.append('file', input.file, input.file.name);
       return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
     },
