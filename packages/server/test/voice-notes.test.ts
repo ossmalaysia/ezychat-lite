@@ -5,7 +5,11 @@ import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { craftedNote } from './fixtures/ogg.js';
 import { getMessages } from '../src/wa-bridge/index.js';
-import { voiceNoteSeconds, voiceNoteWaveform } from '../src/messages/voice-note.js';
+import {
+  VOICE_NOTE_MAX_BYTES,
+  voiceNoteSeconds,
+  voiceNoteWaveform,
+} from '../src/messages/voice-note.js';
 
 const TONE = readFileSync(new URL('./fixtures/tone-1s.ogg', import.meta.url));
 const PNG = Buffer.from(
@@ -75,6 +79,19 @@ describe('voice note helpers', () => {
     const bars = voiceNoteWaveform(TONE);
     expect(bars).toHaveLength(64);
     expect(Math.max(...bars)).toBeLessThanOrEqual(100);
+  });
+
+  it('keeps memory fixed: empty packets padding a note change nothing', () => {
+    // One Ogg page of 255 zero-length packets; a crafted note can repeat it millions of times.
+    const empty = Buffer.alloc(27 + 255);
+    empty.write('OggS', 0, 'latin1');
+    empty[26] = 255;
+    const padded = Buffer.concat([TONE, ...Array.from({ length: 2000 }, () => empty)]);
+    expect(voiceNoteWaveform(padded)).toEqual(voiceNoteWaveform(TONE));
+  });
+
+  it('refuses a "voice note" far larger than any recording', () => {
+    expect(voiceNoteSeconds(Buffer.concat([TONE, Buffer.alloc(VOICE_NOTE_MAX_BYTES)]))).toBeNull();
   });
 
   it('refuses anything that is not Ogg/Opus, and notes over five minutes', () => {

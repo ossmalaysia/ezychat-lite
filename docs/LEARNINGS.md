@@ -197,6 +197,8 @@ into AGENTS.md.
 
 ## Security
 
+- Code that walks an uploaded file (Ogg pages, packets) keeps fixed memory: aggregate into a bounded
+  result as you go, never collect one entry per item, and cap the upload size for that file kind.
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
   a synchronous commit.
 - Privileged desktop IPC is bound to the registered window, exact main frame and bundled URL.
