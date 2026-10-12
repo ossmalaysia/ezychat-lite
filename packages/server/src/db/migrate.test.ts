@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { migrate, migrationsDir } from './migrate.js';
 import { openDb } from './index.js';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -26,9 +26,30 @@ const TABLES = [
   'api_tokens',
   'ai_setup_versions',
 ];
-const LATEST = 10;
+const LATEST = 11;
 
 describe('migrate', () => {
+  it('preserves old message text and marks its mention metadata as unknown on upgrade', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 10)
+        .sort()) {
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      }
+      db.pragma('user_version = 10');
+      db.prepare(
+        "INSERT INTO messages (id, chat_jid, type, body, timestamp, created_at) VALUES ('old', '1203@g.us', 'text', 'Hi @123', 1, 1)",
+      ).run();
+      migrate(db);
+      expect(
+        db.prepare("SELECT body, mentioned_jids FROM messages WHERE id = 'old'").get(),
+      ).toEqual({ body: 'Hi @123', mentioned_jids: null });
+      expect(() => migrate(db)).not.toThrow();
+    } finally {
+      db.close();
+    }
+  });
   it('creates all tables and sets user_version to the latest migration', () => {
     const db = new Database(':memory:');
     migrate(db);
@@ -41,6 +62,7 @@ describe('migrate', () => {
       (c) => c.name,
     );
     expect(cols).toContain('client_id');
+    expect(cols).toContain('mentioned_jids');
     expect(cols).toEqual(
       expect.arrayContaining(['transcript', 'transcript_lang', 'transcript_status']),
     );

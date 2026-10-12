@@ -219,6 +219,9 @@ export const FakeIncomingBody = z.object({
   chatJidAlt: z.string().max(256).optional(),
   text: z.string(),
   senderName: z.string().optional(),
+  /** fake WA only: group sender and explicit WhatsApp mentions. */
+  senderJid: z.string().max(256).optional(),
+  mentionedJids: z.array(z.string().max(256)).max(1024).optional(),
   type: MessageType.optional(),
   /** fake WA only: attached media (e.g. a voice note), base64; served by the fake adapter's download. */
   media: z

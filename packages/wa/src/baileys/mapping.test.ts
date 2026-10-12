@@ -51,6 +51,52 @@ describe('mapWAMessage', () => {
     expect(m?.quotedId).toBe('Q1');
   });
 
+  it.each(['extendedTextMessage', 'imageMessage', 'videoMessage', 'documentMessage'])(
+    'preserves normalized mentions from %s context, including wrapped history',
+    (type) => {
+      const m = mapWAMessage(
+        base({
+          message: {
+            ephemeralMessage: {
+              message: {
+                [type]: {
+                  text: 'Hi @123',
+                  caption: 'Hi @123',
+                  contextInfo: {
+                    stanzaId: 'Q1',
+                    mentionedJid: ['123:4@lid', '60111@c.us', '123@lid', 'status@broadcast'],
+                  },
+                },
+              },
+            },
+          },
+        }),
+      );
+      expect(m?.mentionedJids).toEqual(['123@lid', '60111@s.whatsapp.net']);
+      expect(m?.quotedId).toBe('Q1');
+    },
+  );
+
+  it('distinguishes a message without mentions from an old import without metadata', () => {
+    expect(mapWAMessage(base({ message: { conversation: 'Hi @123' } }))?.mentionedJids).toEqual([]);
+  });
+
+  it('preserves explicit alternate group sender identities with normalized device suffixes', () => {
+    expect(
+      mapWAMessage(
+        base({
+          key: {
+            remoteJid: '1203@g.us',
+            participant: '123:4@lid',
+            participantAlt: '60111:9@s.whatsapp.net',
+            id: 'G',
+          },
+          message: { conversation: 'Ok' },
+        }),
+      ),
+    ).toMatchObject({ senderJid: '123@lid', senderJidAlt: '60111@s.whatsapp.net' });
+  });
+
   it('maps image with caption and media download', () => {
     const m = mapWAMessage(
       base({ message: { imageMessage: { caption: 'look', mimetype: 'image/jpeg' } } }),

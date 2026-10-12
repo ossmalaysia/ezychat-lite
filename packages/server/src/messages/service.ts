@@ -26,6 +26,7 @@ import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
+import { createMentionPresenter } from './mentions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
 
 export interface MediaFile {
@@ -116,6 +117,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const media = new MediaStore(join(ctx.config.dataDir, 'media'));
   const now = deps?.now ?? Date.now;
   const log = ctx.log.child({ mod: 'messages' });
+  const withMentionNames = createMentionPresenter(ctx, log);
 
   /** WA statuses that arrived before the local row was renamed to the WA id. */
   const earlyStatus = new Map<string, WaMessageStatusUpdate['status']>();
@@ -125,7 +127,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
   /** Rows → Messages, with each inbound group sender's customer profile (one batched lookup). */
   const presentAll = (rows: MessageRow[]): Message[] => {
-    const list = rows.map(rowToMessage);
+    const list = withMentionNames(
+      rows,
+      rows.map((row) => rowToMessage(row)),
+    );
     return ctx.services.customers?.withSenderProfiles(list) ?? list;
   };
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
@@ -465,6 +470,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (repo.exists(m.id)) return null;
       const isGroup = m.chatJid.endsWith('@g.us');
       const aliases = getAliases(ctx);
+      if (isGroup && m.senderJid && m.senderJidAlt) {
+        aliases.learn(
+          { jid: m.senderJid, alias: m.senderJidAlt },
+          source === 'history' ? 'history' : 'message',
+        );
+      }
       if (!isGroup && m.chatJidAlt) {
         // Persist the pair; routing never merges (a second chat waits for the next start).
         aliases.learn(
@@ -497,6 +508,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         sent_by_user_id: null,
         type: m.type,
         body: m.body,
+        mentioned_jids: m.mentionedJids === undefined ? null : JSON.stringify(m.mentionedJids),
         media_path: null,
         media_mime: m.media?.mime ?? null,
         media_name: m.media?.fileName ?? null,

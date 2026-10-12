@@ -16,6 +16,8 @@ export interface MessageRow {
   sent_by_user_id: number | null;
   type: MessageType;
   body: string | null;
+  /** JSON mention JIDs; NULL = older message without preserved metadata. */
+  mentioned_jids?: string | null;
   media_path: string | null;
   media_mime: string | null;
   media_name: string | null;
@@ -137,12 +139,16 @@ export class MessageRepo {
       .prepare(
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
-           wa_remote_jid, voice_note)
+           wa_remote_jid, voice_note, mentioned_jids)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
-           @wa_remote_jid, @voice_note)`,
+           @wa_remote_jid, @voice_note, @mentioned_jids)`,
       )
-      .run({ ...r, voice_note: r.voice_note ?? 0 });
+      .run({
+        ...r,
+        voice_note: r.voice_note ?? 0,
+        mentioned_jids: r.mentioned_jids === undefined ? '[]' : r.mentioned_jids,
+      });
     return info.changes > 0;
   }
 

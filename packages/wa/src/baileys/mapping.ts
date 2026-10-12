@@ -53,7 +53,9 @@ export function mapWAMessage(
 
   const fromMe = !!key.fromMe;
   const isGroup = jidType(chatJid) === 'group';
-  const senderJid = fromMe ? null : isGroup ? (key.participant ?? null) : chatJid;
+  const senderJid = fromMe ? null : isGroup ? normalizeContactJid(key.participant) : chatJid;
+  const senderJidAlt =
+    !fromMe && isGroup ? normalizeContactJid((key as WAMessage['key']).participantAlt) : null;
   const senderName = fromMe ? null : (msg.pushName ?? null);
   const timestamp = toMs(msg.messageTimestamp as number | LongLike | null | undefined);
 
@@ -121,10 +123,19 @@ export function mapWAMessage(
     chatJid,
     chatJidAlt,
     senderJid,
+    senderJidAlt,
     senderName,
     fromMe,
     type,
     body,
+    mentionedJids: [
+      ...new Set(
+        (ctx?.contextInfo?.mentionedJid ?? []).flatMap((jid) => {
+          const normalized = normalizeContactJid(jid);
+          return normalized ? [normalized] : [];
+        }),
+      ),
+    ],
     quotedId,
     timestamp,
     media: media ? { ...media, download: () => download(raw) } : null,
