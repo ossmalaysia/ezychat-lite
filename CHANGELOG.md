@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reopening the inbox PWA or restoring its network connection promptly reconnects a dropped live connection without waiting for the next retry timer. The reconnect warning remains visible until the connection is restored.
+
 ## [0.1.33] - 2026-10-13
 
 ### Fixed

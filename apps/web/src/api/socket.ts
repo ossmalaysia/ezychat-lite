@@ -29,6 +29,7 @@ import {
 } from './queries';
 import { voiceStatusKey } from './voice';
 import { ProfileImageContext } from '../inbox/ProfileImageContext';
+import { registerResumeReconnect } from './resume-reconnect';
 import { clearDesktopNotifications, showDesktopNotification } from '../pwa/desktop-notifications';
 
 export interface TypingEntry {
@@ -165,7 +166,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       qc.setQueryData(qk.me, null); // RequireAuth redirects to /login
     });
 
+    const removeResumeListeners = registerResumeReconnect(socket);
     return () => {
+      removeResumeListeners();
       clearTimeout(chatRefreshTimer);
       socket.removeAllListeners();
       socket.disconnect();

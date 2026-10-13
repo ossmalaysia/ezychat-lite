@@ -7,13 +7,25 @@ import type * as Queries from './queries';
 
 const socket = vi.hoisted(() => {
   const listeners = new Map<string, (...args: unknown[]) => void>();
+  const callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
   return {
     listeners,
-    on: vi.fn((event: string, callback: (...args: unknown[]) => void) =>
-      listeners.set(event, callback),
-    ),
+    callbacks,
+    on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+      const handlers = callbacks.get(event) ?? new Set();
+      handlers.add(callback);
+      callbacks.set(event, handlers);
+      listeners.set(event, (...args) => handlers.forEach((handler) => handler(...args)));
+    }),
+    off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+      callbacks.get(event)?.delete(callback);
+      if (!callbacks.get(event)?.size) listeners.delete(event);
+    }),
     disconnect: vi.fn(),
-    removeAllListeners: vi.fn(() => listeners.clear()),
+    removeAllListeners: vi.fn(() => {
+      listeners.clear();
+      callbacks.clear();
+    }),
     emit: vi.fn(),
   };
 });
@@ -35,6 +47,7 @@ vi.mock('./queries', async (importOriginal) => {
 afterEach(() => {
   cleanup();
   socket.listeners.clear();
+  socket.callbacks.clear();
 });
 
 it('restores profile requests when WhatsApp opens after the inbox, and after a later reconnect', async () => {
