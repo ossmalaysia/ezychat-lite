@@ -5,12 +5,12 @@ Branch: `docs/customer-enrichment-design` · Every agent updates its stage with
 
 | Stage | Status | Detail | Updated |
 | --- | --- | --- | --- |
-| Design | doing | Complete feature HTML reference drafted; owner confirmation pending | 2026-10-13 |
-| Dev | done | UI mock rules and existing-feature references documented; Settings and Audit mock only, no production enrichment service | 2026-10-13 |
-| Unit tests | skip | Documentation and standalone HTML only; no production package changes | 2026-10-13 |
-| E2E | skip | App e2e does not exercise standalone design mock; interactive browser check recorded separately | 2026-10-13 |
-| Dev Build | skip | Enrichment service is not implemented; this is a design reference | 2026-10-13 |
-| Screen review | doing | Settings and Audit desktop/mobile browser verification in progress | 2026-10-13 |
+| Design | doing | Full app reference and separate enrichment proposal ready for owner confirmation; latestConfirmed remains null | 2026-10-13 |
+| Dev | done | Full source-based app baseline and cumulative enrichment prototype committed in feature folders; production enrichment not implemented | 2026-10-13 |
+| Unit tests | skip | No production unit-test changes; both mock TypeScript configurations and frozen-source checks passed | 2026-10-13 |
+| E2E | skip | No production code changed; interactive browser checks cover prototype flows | 2026-10-13 |
+| Dev Build | skip | Prototype runner verified with isolated fake data; production service remains a design proposal | 2026-10-13 |
+| Screen review | pass | All 11 baseline admin routes render at 1280/360px; customer/group panels and enrichment save/add/replace/audit/source flows verified | 2026-10-13 |
 
 ## Log
 
@@ -20,3 +20,10 @@ Branch: `docs/customer-enrichment-design` · Every agent updates its stage with
 - 2026-10-13 E2E: skip — App e2e does not exercise standalone design mock; interactive browser check recorded separately
 - 2026-10-13 Dev Build: skip — Enrichment service is not implemented; this is a design reference
 - 2026-10-13 Screen review: doing — Settings and Audit desktop/mobile browser verification in progress
+- 2026-10-13 Dev: done — Full source-based app baseline and cumulative enrichment prototype committed in feature folders; production enrichment not implemented
+- 2026-10-13 Unit tests: pass — Both mock TypeScript configurations and frozen source checks pass; production unit tests do not apply
+- 2026-10-13 E2E: skip — No production code changed; interactive browser checks cover prototype flows
+- 2026-10-13 Screen review: pass — All 11 baseline admin routes render at 1280/360px; customer/group panels and enrichment save/add/replace/audit/source flows verified
+- 2026-10-13 Design: doing — Full app reference and separate enrichment proposal ready for owner confirmation; latestConfirmed remains null
+- 2026-10-13 Dev Build: skip — Prototype runner verified with isolated fake data; production service remains a design proposal
+- 2026-10-13 Unit tests: skip — No production unit-test changes; both mock TypeScript configurations and frozen-source checks passed

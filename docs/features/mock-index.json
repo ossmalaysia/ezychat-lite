@@ -8,6 +8,18 @@
   "latestConfirmed": null,
   "proposals": [
     {
+      "feature": "customer-enrichment",
+      "creationOrder": 1,
+      "createdAt": "2026-10-14",
+      "design": "docs/features/customer-enrichment/design.md",
+      "mock": "docs/features/customer-enrichment/mock/index.html",
+      "status": "unconfirmed",
+      "baselineFeature": "app-baseline",
+      "baselineGitRevision": "7d7e4fb4af1c3e64408aa1319f8f843289b5b7a8",
+      "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
+      "coverage": "Full app clone; only enrichment Settings and Audit UI added; deterministic demo extraction"
+    },
+    {
       "feature": "app-baseline",
       "creationOrder": 2,
       "createdAt": "2026-10-14",
