@@ -416,6 +416,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   overwrite edits.
 - Resynchronise active queries on every socket connection; route related live events through one refresh
   scheduler; memoise list rows and coalesce pagination.
+- On PWA resume, reconnect only a visible, online, active session with no live or opening transport; Socket.IO's `connect()` alone does not bypass pending backoff. Use public lifecycle methods, remove listeners on session cleanup, and retain the stale-inbox warning until connected.
+- Browser resume tests install fake timers before Socket.IO captures them and count attempts before restoring the network; native `online` events can reconnect before synthetic foreground events.
 - Gate avatar/photo requests on WhatsApp readiness and reset failures per connection generation.
 - One theme source (`data-theme`) drives both tokens and dark variants.
 - Durable notices (updates) render declaratively; transient toasts can hide the only action.
