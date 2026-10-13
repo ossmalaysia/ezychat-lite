@@ -36,6 +36,16 @@ into AGENTS.md.
   mock as the implementation reference. Inspect related existing features and record their source
   screens/components and reused behaviours in `design.md`; copy actual labels from `i18n/locales/en`
   so the mock stays grounded in the app. Images and ignored scratch files alone are not a durable reference.
+- Feature mocks evolve cumulatively: clone the latest owner-confirmed interactive app mock from
+  `docs/features/mock-index.json`, preserve existing flows, record the source revision, and advance
+  the baseline only after the owner confirms the complete enhancement; an unconfirmed demo is not
+  a baseline for the next feature.
+- Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
+  deltas so redesigned existing screens cannot silently become the next reference. Normalize text
+  hashes to LF so Git checkout line endings do not look like UI drift.
+- Keep only the five newest feature mock folders in the working tree; prune older clean, committed
+  folders in the next feature change and retain exact revision/path references so confirmed
+  baselines can be recovered from git history without inventing approval.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.

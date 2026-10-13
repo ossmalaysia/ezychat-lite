@@ -252,6 +252,26 @@ cover navigation from every admin section and recovery from malformed URLs.
   folder or only in an ignored scratch directory. Keep its scope, screen/state checklist and confirmation record in
   `docs/features/<feature>/design.md`; link these from the feature workbook. Do this proactively,
   before implementation, rather than adding screens only when the owner asks where they are.
+  Mocks are cumulative interactive app references, not disconnected feature demos. For every
+  enhancement, clone the latest owner-confirmed mock from `docs/features/mock-index.json` into
+  the new feature folder, preserve its existing app flows, and add the enhancement there. Record
+  the source feature/path and exact git revision in `design.md`; never replace the last confirmed
+  baseline with an unconfirmed proposal. If no confirmed baseline exists, bootstrap it from the
+  current app's actual frontend source, not a hand-recreated shell, and record coverage gaps
+  before asking for confirmation. Freeze source hashes; in enhancements list the intentional
+  changed/added files and verify that the rest of the reference has not drifted.
+  After the owner confirms a complete mock, record the confirmation and update the index so the
+  next agent clones that revision. The interactive scope includes the app context, navigation,
+  feature entry points and end-to-end simulated feature behaviour; a screenshot or isolated
+  popup is not a complete reference. Keep mock data and effects separate from the real app.
+  **Retention: keep only the five most recently created feature folders** under `docs/features/`.
+  Record creation order/date in the mock index; when adding a sixth, remove the oldest committed
+  feature folder and update the index in the same reviewable change. Verify the target belongs to
+  `docs/features/` and has no unrelated uncommitted work before cleanup. Older references remain
+  available in git history; record each baseline's exact revision/path before removing its folder.
+  If the latest confirmed baseline was pruned, recover that revision from git into the new feature
+  mock rather than starting over or treating an unconfirmed proposal as approved. The root index
+  and workflow README are not feature folders. Cleanup never authorizes automatic merging.
   Inspect related existing features first and record the source screens/components and behaviours
   being reused in `design.md`. Ground the mock in the current app, its real routes, navigation,
   configuration, save/error patterns, permissions and translations; extend existing flows rather
