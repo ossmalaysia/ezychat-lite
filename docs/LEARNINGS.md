@@ -30,12 +30,12 @@ into AGENTS.md.
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
-- Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
-  the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
-  data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
-  cost a fix-and-recapture round each. A hand-built HTML mockup drifts from the app (wrong nav labels,
-  section names): copy every existing label from `i18n/locales/en`. Add new check tooling only when a
-  problem keeps recurring.
+- Before production UI work, commit a complete interactive HTML mock in `docs/features/<feature>/mock/`
+  and a screen/state checklist plus owner confirmation in `design.md`; include Settings and entry
+  points, not only the final screen. Verify 1280/360 px with worst-case demo data and use the confirmed
+  mock as the implementation reference. Inspect related existing features and record their source
+  screens/components and reused behaviours in `design.md`; copy actual labels from `i18n/locales/en`
+  so the mock stays grounded in the app. Images and ignored scratch files alone are not a durable reference.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.

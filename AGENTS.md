@@ -245,9 +245,26 @@ cover navigation from every admin section and recovery from malformed URLs.
   review are not enough: run the feature end to end in a Dev Build (and with the real outside client
   where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
   "built and tested, not yet checked in a Dev Build".
-- **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
-  the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
-  the approved mockup is the reference for the screen review below.
+- **Complete feature HTML mock before production UI code.** Every feature that requires UI keeps a
+  reviewable, interactive HTML mock at `docs/features/<feature>/mock/index.html`, with local assets
+  and run instructions, inside the current project repository. Commit this feature folder as the
+  durable reference for the next agent; do not leave the canonical mock in an external prototype
+  folder or only in an ignored scratch directory. Keep its scope, screen/state checklist and confirmation record in
+  `docs/features/<feature>/design.md`; link these from the feature workbook. Do this proactively,
+  before implementation, rather than adding screens only when the owner asks where they are.
+  Inspect related existing features first and record the source screens/components and behaviours
+  being reused in `design.md`. Ground the mock in the current app, its real routes, navigation,
+  configuration, save/error patterns, permissions and translations; extend existing flows rather
+  than inventing a disconnected screen or redesigning unrelated features.
+  Cover the whole feature journey: entry points, Settings/configuration, primary screens, dialogs,
+  audit/history where relevant, and the important enabled/disabled, unavailable, empty, error and
+  long-content states. Use demo data, the existing design system and actual navigation labels;
+  verify desktop 1280 px and mobile 360 px. Show the runnable mock and screenshots to the owner
+  and record their confirmation before production UI implementation. The confirmed HTML mock is
+  the implementation and screen-review reference; material scope/UI changes update that mock
+  and need confirmation again. Generated images may supplement it, but never replace the HTML
+  reference. Keep the mock and confirmation record with the feature in git, not only in ignored
+  scratch folders or chat attachments.
 - **Screen review for every UI change.** Before a feature that changes screens is done:
   1. Capture each affected screen at desktop 1280 px and mobile 360 px, in light and dark where relevant,
      and in every state: empty, filled, editing, error and long text.
