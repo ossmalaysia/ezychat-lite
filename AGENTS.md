@@ -149,7 +149,8 @@ on request; `POST …/members/:member/chat` creates an empty direct chat (audite
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.
 
-**Editions and extensions** (design: `docs/superpowers/specs/2026-10-15-open-core-editions-design.md`).
+**Editions and extensions** (design: `docs/superpowers/specs/2026-10-15-open-core-editions-design.md`;
+engineer guide with examples: `docs/editions-engineer-guide.md`).
 Lite is the open core; other editions add features through extension points and never patch core code.
 _Server_: `runCli(argv, env, { edition, extensions })` (`run-cli.ts`; Lite's `cli.ts` passes no product, i.e.
 edition `lite` with no extensions) takes `ServerExtension`s (`extensions.ts`): a name (`/api/ext/<name>` prefix,
