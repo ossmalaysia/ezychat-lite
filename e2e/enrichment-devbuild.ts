@@ -2,7 +2,7 @@
 // Without --mock-ai, normal provider sign-in and owner's agreement are required for model calls.
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { FakeWaAdapter } from '@wa-team-inbox/wa';
 import { ENRICHMENT_FIELDS, type EnrichmentExtraction } from '@wa-team-inbox/shared';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
@@ -15,7 +15,16 @@ if (!process.argv.includes('--fake-wa')) throw new Error('--fake-wa required');
 const portIndex = process.argv.indexOf('--port');
 const port = portIndex < 0 ? 7490 : Number(process.argv[portIndex + 1]);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid port');
-const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-enrichment-devbuild-'));
+const dataIndex = process.argv.indexOf('--data');
+const dataDir =
+  dataIndex < 0
+    ? await mkdtemp(join(tmpdir(), 'ezychat-enrichment-devbuild-'))
+    : resolve(process.argv[dataIndex + 1] ?? '');
+if (
+  dirname(dataDir) !== resolve(tmpdir()) ||
+  !basename(dataDir).startsWith('ezychat-enrichment-devbuild-')
+)
+  throw new Error('Only the runner temporary data directory may be reused');
 const logger = await createLogger({ dataDir, stdout: false });
 const { version } = JSON.parse(
   await readFile(new URL('../package.json', import.meta.url), 'utf8'),

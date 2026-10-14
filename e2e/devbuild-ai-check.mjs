@@ -100,7 +100,9 @@ if (command === 'enrichment') {
   assert.equal(status.connected, true);
   await call('PUT', '/ai/enrichment', { enabled: true });
   try {
-    const jay = '60129910001@s.whatsapp.net';
+    const prefix = `601299${Date.now().toString().slice(-4)}`;
+    const demoJid = (suffix) => `${prefix}${suffix}@s.whatsapp.net`;
+    const jay = demoJid('01');
     await scenario(
       'English four-field add',
       jay,
@@ -124,7 +126,7 @@ if (command === 'enrichment') {
     );
     await scenario(
       'Third-party and quoted details skipped',
-      '60129910002@s.whatsapp.net',
+      demoJid('02'),
       [
         'My colleague Farah Aziz works at Kopi Apong. Her email is farah@example.com and her address is 12 Jalan Lama. She wrote: "My name is Farah Aziz."',
       ],
@@ -132,7 +134,7 @@ if (command === 'enrichment') {
     );
     await scenario(
       'Negated and hypothetical details skipped',
-      '60129910003@s.whatsapp.net',
+      demoJid('03'),
       [
         'My name is not Amir. amir@example.com is not my email. If I worked at Example Company, I might use that address.',
       ],
@@ -140,7 +142,7 @@ if (command === 'enrichment') {
     );
     await scenario(
       'Malay self-report',
-      '60129910004@s.whatsapp.net',
+      demoJid('04'),
       [
         'Nama saya Aminah Yusof. Syarikat saya Aminah Bakes. E-mel saya aminah@example.com. Alamat saya 5 Jalan Melati, Penang.',
       ],
@@ -153,7 +155,7 @@ if (command === 'enrichment') {
     );
     await scenario(
       'Chinese self-report',
-      '60129910005@s.whatsapp.net',
+      demoJid('05'),
       [
         '我的名字是林美玲。我的公司是美玲烘焙。我的邮箱是meiling@example.com。我的地址是槟城花园路8号。',
       ],
@@ -166,12 +168,14 @@ if (command === 'enrichment') {
     );
     await scenario(
       'Split introduction burst',
-      '60129910006@s.whatsapp.net',
+      demoJid('06'),
       ['My name is Ravi Kumar.', 'My company is Ravi Supplies. My email is ravi@example.com.'],
       { name: 'Ravi Kumar', company: 'Ravi Supplies', email: 'ravi@example.com' },
     );
     const audit = await call('GET', '/audit');
-    const changed = audit.entries.filter((row) => row.action === 'customer.enrichment_update');
+    const changed = audit.entries.filter(
+      (row) => row.action === 'customer.enrichment_update' && row.meta.chatJid?.startsWith(prefix),
+    );
     assert.equal(changed.length, 5);
     const correction = changed.find(
       (row) => row.meta.chatJid === jay && row.meta.enrichment.fields.length === 1,
