@@ -351,6 +351,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Audit detail controls sit with the action or in their own layout slot, never inline with the
+  summary sentence; compact links preserve list density while retaining 44px touch targets.
+
 - The microphone needs a secure page (https, localhost, the desktop app): a LAN `http://` link has
   none, so say why instead of failing. Create the `AudioContext` before any `await` in the tap
   handler (Safari records silence otherwise); WebAssembly needs CSP `'wasm-unsafe-eval'`.

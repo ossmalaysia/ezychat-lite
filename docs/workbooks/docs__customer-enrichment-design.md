@@ -10,7 +10,7 @@ Branch: `docs/customer-enrichment-design` · Every agent updates its stage with
 | Unit tests | skip | No production unit-test changes; both mock TypeScript configurations and frozen-source checks passed | 2026-10-13 |
 | E2E | skip | No production code changed; interactive browser checks cover prototype flows | 2026-10-13 |
 | Dev Build | skip | Prototype runner verified with isolated fake data; production service remains a design proposal | 2026-10-13 |
-| Screen review | pass | All 11 baseline admin routes render at 1280/360px; customer/group panels and enrichment save/add/replace/audit/source flows verified | 2026-10-13 |
+| Screen review | pass | Owner placement feedback applied: score link on separate line within Details; Action stays single label. Rechecked 1280/360 light/dark screenshots, mobile drawer, no overflow, mock TypeScript and frozen-source checks; production and confirmation pending | 2026-10-14 |
 
 ## Log
 
@@ -27,3 +27,5 @@ Branch: `docs/customer-enrichment-design` · Every agent updates its stage with
 - 2026-10-13 Design: doing — Full app reference and separate enrichment proposal ready for owner confirmation; latestConfirmed remains null
 - 2026-10-13 Dev Build: skip — Prototype runner verified with isolated fake data; production service remains a design proposal
 - 2026-10-13 Unit tests: skip — No production unit-test changes; both mock TypeScript configurations and frozen-source checks passed
+- 2026-10-14 Screen review: pass — Owner Audit-row feedback addressed in mock: System actor, score link under action, uninterrupted Details, 1280/360 light/dark captures; score popup works, touch target 44px, TypeScript and frozen-source checks pass; confirmation pending
+- 2026-10-14 Screen review: pass — Owner placement feedback applied: score link on separate line within Details; Action stays single label. Rechecked 1280/360 light/dark screenshots, mobile drawer, no overflow, mock TypeScript and frozen-source checks; production and confirmation pending

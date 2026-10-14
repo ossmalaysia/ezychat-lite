@@ -44,8 +44,6 @@ export function AuditPage() {
           {e.apiToken && <span className="block font-mono">{e.apiToken.prefix}…</span>}
         </span>
       </span>
-    ) : e.action === 'customer.enrichment_update' ? (
-      t('mockEnrichment.title')
     ) : (
       person(e)
     );
@@ -89,7 +87,7 @@ export function AuditPage() {
       hideOnMobileFor: (e) => details(e) === '',
       cell: (e) =>
         e.action === 'customer.enrichment_update' ? (
-          <div>
+          <div className="flex flex-col items-start">
             <span className="break-words text-muted-foreground">{details(e)}</span>
             <EnrichmentAuditScore entry={e} />
           </div>
@@ -101,6 +99,7 @@ export function AuditPage() {
       key: 'ip',
       header: t('audit.columns.ip'),
       className: 'md:w-32',
+      hideOnMobileFor: (e) => e.action === 'customer.enrichment_update' && e.ip == null,
       cell: (e) => <span className="font-mono text-xs text-muted-foreground">{e.ip ?? ''}</span>,
     },
   ];

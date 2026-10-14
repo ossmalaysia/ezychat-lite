@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { AuditEntry } from '@wa-team-inbox/shared';
@@ -29,12 +30,16 @@ export function EnrichmentAuditScore({ entry }: { entry: AuditEntry }) {
   return (
     <>
       <Button
-        variant="outline"
+        variant="link"
         size="touch"
-        className="mt-2 text-primary"
+        className="gap-1 px-0 underline has-[>svg]:px-0 md:pointer-fine:min-h-8"
+        aria-label={`${t('mockEnrichment.details')}: ${t('mockEnrichment.average', { score: Math.round(record.average) })}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen(true)}
       >
         {t('mockEnrichment.average', { score: Math.round(record.average) })}
+        <ChevronRight aria-hidden className="size-3.5" />
       </Button>
       <ResponsiveDialog
         open={open}

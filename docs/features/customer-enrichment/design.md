@@ -1,6 +1,6 @@
 # Customer enrichment design
 
-Status: full interactive app proposal; owner confirmation pending. Production enrichment is not implemented.
+Status: owner-confirmed interactive app reference (2026-10-14); production implementation in progress.
 
 ## Reference and provenance
 
@@ -14,7 +14,7 @@ Status: full interactive app proposal; owner confirmation pending. Production en
   components, translations, settings, customer panel and group flows are included.
 
 Intentional changes: append a **Proposed feature** enrichment card after the existing AI connection
-and Voice messages cards; add enrichment-only actor/action labels and an average-score button to
+and Voice messages cards; use the existing System actor label and add an enrichment action with an average-score link to
 Audit, with the existing responsive dialog/drawer for details. Legacy Audit rows retain their
 original rendering. The browser title identifies the proposal. Six original files change, two
 components are added; the other 163 original runtime frontend files retain their hashes.
@@ -83,9 +83,30 @@ connection still need explicit scenario verification before production implement
 AI/Cloudflare/push side effects are simulated. Real WhatsApp, voice-model downloads and model calls
 are not exercised. All writes use fresh temporary demo data; no production app files were changed.
 
+## Audit row refinement (2026-10-14)
+
+Owner feedback: the enrichment Audit row looked awkward, with an oversized score button interrupting
+the Details sentence and the feature name repeated in Who and Action.
+
+- Who uses the existing **System** label; Action remains **Customer enriched**.
+- Following the owner's placement feedback, the underlined **Avg 98/100** link sits on a separate
+  line below the summary in **Details**, with a chevron. Action stays a single label. Other actions
+  keep their existing presentation.
+- The link has a descriptive accessible name, dialog semantics and a 44px touch target; only fine
+  desktop pointers get the compact 32px target. The mobile system event omits its empty IP row.
+- Verified at 1280px and 360px in light and dark; score dialog/drawer opens and closes, and the
+  mobile document has no horizontal overflow. TypeScript and the 163 frozen-source checks pass.
+- Before: [desktop](mock/screenshots/audit-before-desktop.png).
+  After: [desktop dark](mock/screenshots/audit-desktop-dark.png),
+  [mobile dark](mock/screenshots/audit-mobile-dark.png),
+  [desktop light](mock/screenshots/audit-desktop-light.png),
+  [mobile light](mock/screenshots/audit-mobile-light.png).
+- Scope: mock-only refinement; production implementation and complete-mock confirmation remain pending.
+
 ## Confirmation
 
-- Owner confirmation: pending.
-- Confirmed enhancement revision: pending.
+- Owner confirmation: 2026-10-14, “ok implement it”, followed by “continue”. Includes the score link
+  below the summary inside Audit Details. Production removes the mock-only proposal badge and demo controls.
+- Confirmed enhancement revision: recorded in `docs/features/mock-index.json` after committing this reference.
 - Confirm the complete reference before production UI implementation or advancing `latestConfirmed`.
 - A request to create/commit/show the mock does not authorize merging.
