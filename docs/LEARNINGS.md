@@ -70,13 +70,13 @@ into AGENTS.md.
 ## Multi-agent process
 
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
-- Small changes are done directly. Subagents only for large independent work, at most 2 in parallel on
-  Windows, with disjoint file ownership and a time budget; only the orchestrator commits; agents don't
-  `npm install` unless they own that package.json.
+- Small changes are done directly. Large multi-part work runs through the Workflow tool with as many
+  parallel agents as the work allows, with disjoint file ownership and a time budget; only the
+  orchestrator commits; agents don't `npm install` unless they own that package.json.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
-- Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
+- Tools that fan out per file (e.g. graphify) must be batched, not one agent per file.
 - Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
   be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
 - Run Prettier on the files you changed, never on a whole folder: parts of the tree are not
@@ -146,6 +146,20 @@ into AGENTS.md.
   write `UPDATE` statements with an explicit `WHERE`.
 
 ## Build, tooling and Windows
+
+- Never use the `development` export condition for monorepo-only `src/` entries of published packages:
+  Vite/Vitest enable it by default and would resolve consumers to unshipped source. Use `ezychat-source`.
+- tsx ignores tsconfig `customConditions`; pass Node `--conditions=ezychat-source` (`.npmrc`
+  node-options does it for npm scripts and npx). Each core package keeps its own `vitest.config.ts`
+  reusing the root `sourceResolve`, or `npm test -w` resolves `@ezychat/*` to a missing or stale `dist/`.
+- Vite library mode inlines CSS assets as base64 and our CSP has no `font-src data:`: extract fonts
+  back to files. tsc keeps `@/` aliases and side-effect CSS imports in `.d.ts`: rewrite or strip them.
+- Test unpublished `@ezychat/*` versions with `npm install --no-save <tgz>` of a tarball carrying the
+  pinned version; never commit a `file:` dependency.
+- Extension tables must not store `chat_jid` until a merge hook exists: `mergeChat` moves core tables only.
+- A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
+- Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
+  regexes from template literals with `String.raw`.
 
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
@@ -457,6 +471,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 - Renames keep data folders, profile, service ID and app ID; plan install-path renames as a one-time
   scripted step; regenerate service XML from code, never hand-patch it.
 - Update discovery lists releases and compares strict semver (the latest-release endpoint skips previews).
+- Before moving upgrade-contract strings (service/updater scripts, paths) behind config, capture the
+  generated output with fixed inputs and require it byte-identical after; check a test product's
+  output contains no leftover Lite literals.
 - Brand assets: check exported icons on light and dark backgrounds at small sizes.
 
 - Avatar initials use letters only (`initials()`): a name without letters (number, WhatsApp ID, emoji)
@@ -471,6 +488,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
+- Extension keys (`ext.<name>.*`) are not in the typed core catalogs: read them with
+  `useExtensionTranslation()`; never cast `t`. Core catalogs keep the `ext` key reserved.
 - Date helpers that take `now` must compare against it, not the real clock.
 - Desktop main imports only types from `shared` and mirrors tiny runtime helpers with parity tests.
 - Links to ezychat.ai use the page for the app language (`/ms/…`, `/zh/…`) and merge only after
