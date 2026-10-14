@@ -125,6 +125,16 @@ outbound Message goes through the message service's `present()` (group `senderPr
 `customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
 never earlier in the prompt.
 
+**Customer enrichment.** `customers/enrichment.ts` uses the shared AI connection independently of
+Sales Agent ownership. It is off by default and processes only live direct-chat text, with bounded
+bursts and concurrency. `ai/agent/extract-customer.ts` is one structured call without tools/retries.
+Accepted values require explicit self-ownership, an exact quote in a new message, profile syntax,
+current evidence and per-field thresholds (add 90, replace 95). Cancel on staff edits, newer live
+arrivals, setting/connection changes and shutdown; compare the profile again immediately before the
+atomic profile/audit commit, and ensure the JID still routes to that same chat after an alias change.
+Audit stores scores, field names and message references, never values
+or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links

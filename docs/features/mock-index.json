@@ -5,7 +5,13 @@
     "orderBy": "creationOrder",
     "olderReferences": "git-history"
   },
-  "latestConfirmed": null,
+  "latestConfirmed": {
+    "feature": "customer-enrichment",
+    "gitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
+    "mock": "docs/features/customer-enrichment/mock/index.html",
+    "design": "docs/features/customer-enrichment/design.md",
+    "confirmedAt": "2026-10-14"
+  },
   "proposals": [
     {
       "feature": "customer-enrichment",
@@ -13,7 +19,7 @@
       "createdAt": "2026-10-14",
       "design": "docs/features/customer-enrichment/design.md",
       "mock": "docs/features/customer-enrichment/mock/index.html",
-      "status": "unconfirmed",
+      "status": "confirmed",
       "baselineFeature": "app-baseline",
       "baselineGitRevision": "7d7e4fb4af1c3e64408aa1319f8f843289b5b7a8",
       "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",

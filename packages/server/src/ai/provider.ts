@@ -1,5 +1,6 @@
 import type { LanguageModel } from 'ai';
-import type { AiDecision, AiSettings } from '@wa-team-inbox/shared';
+import type { AiDecision, AiSettings, EnrichmentExtraction } from '@wa-team-inbox/shared';
+import { runCustomerExtraction } from './agent/extract-customer.js';
 import { agentFailure, openAiKeyModel } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
@@ -7,6 +8,17 @@ import { promptCacheKey } from './prompt.js';
 import type { AiPrompt, AiRewritePrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
+
+export function extractCustomerOpenAi(
+  settings: AiSettings,
+  apiKey: string | null,
+  prompt: AiRewritePrompt,
+  signal: AbortSignal,
+): Promise<EnrichmentExtraction> {
+  return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, _id, bounded) =>
+    runCustomerExtraction({ model, prompt, signal: bounded }),
+  );
+}
 
 const aborted = () => new DOMException('AI reply cancelled', 'AbortError');
 

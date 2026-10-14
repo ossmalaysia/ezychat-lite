@@ -6,6 +6,8 @@ import { authHeaders } from './auth-helpers.js';
 const ROUTES = [
   { method: 'GET', url: '/api/ai' },
   { method: 'PUT', url: '/api/ai' },
+  { method: 'GET', url: '/api/ai/enrichment' },
+  { method: 'PUT', url: '/api/ai/enrichment' },
   { method: 'PATCH', url: '/api/ai/connection' },
   { method: 'POST', url: '/api/ai/documents' },
   { method: 'POST', url: '/api/ai/documents/text' },

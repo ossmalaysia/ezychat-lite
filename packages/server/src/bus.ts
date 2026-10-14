@@ -18,6 +18,8 @@ export interface BusEvents {
   'message:updated': [Message];
   /** Voice model download/install state (admins only). */
   'voice:status': [VoiceStatus];
+  /** Invalidate background work when the shared AI connection changes or becomes unavailable. */
+  'ai:connection-changed': [];
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];

@@ -43,6 +43,8 @@ const SERVER_ACTIONS = [
   'chat.merge',
   'chat.start_from_group',
   'chats.resolve_all',
+  'customer.enrichment_settings',
+  'customer.enrichment_update',
   'cloudflare.create',
   'cloudflare.login',
   'logs.download',

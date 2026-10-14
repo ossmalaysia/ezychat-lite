@@ -1,6 +1,6 @@
 # Customer enrichment design
 
-Status: owner-confirmed interactive app reference (2026-10-14); production implementation in progress.
+Status: owner-confirmed reference (2026-10-14); implemented and checked in an isolated real-model Dev Build.
 
 ## Reference and provenance
 
@@ -8,8 +8,8 @@ Status: owner-confirmed interactive app reference (2026-10-14); production imple
 - Cloned **the entire existing-app reference**, `docs/features/app-baseline/mock/`, at Git revision
   `7d7e4fb4af1c3e64408aa1319f8f843289b5b7a8`.
 - Original app: EzyChat Lite 0.1.34, `643a724b756a127361ea8ac61037f8dd87c628ff`.
-- No confirmed cumulative reference existed. This is a bootstrap proposal from the actual app;
-  neither this proposal nor the baseline has owner confirmation yet. [Mock index](../mock-index.json).
+- No confirmed cumulative reference existed at bootstrap. This reference was subsequently confirmed
+  by the owner at revision `8716cb73ab86186aaacf202bcbbf00e256f52ecb`. [Mock index](../mock-index.json).
 - The former handcrafted Settings/Audit mock is superseded. The complete current app shell, routes,
   components, translations, settings, customer panel and group flows are included.
 
@@ -35,7 +35,7 @@ The runner adds deterministic demo endpoints, isolated from production applicati
 - Audit shows only the rounded arithmetic mean of **fields actually changed**. Unchanged or skipped
   fields do not dilute the average; no change means no enrichment audit event.
 - Clicking the average opens all field totals, score criteria, add/replace outcomes, thresholds,
-  decision reasons, source-message references and scoring-policy version. Source conversation opens
+  decision reasons and scoring-policy version. Source-message references remain in audit metadata; source conversation opens
   the existing chat and Customer panel. The average never determines whether an individual field writes.
 - Audit metadata/logs exclude raw customer values. Save scores, field names and source references;
   conversation access follows existing permissions. No new provenance layout in the Customer panel.
@@ -54,7 +54,7 @@ The runner adds deterministic demo endpoints, isolated from production applicati
 | [ResponsiveDialog](../../../apps/web/src/components/app/index.tsx)             | Existing desktop dialog, mobile drawer, scrolling and close controls                        |
 | [design-system.md](../../design-system.md)                                     | Actual Calm Desk tokens, primitives, Inter, themes and touch targets                        |
 
-## Interactive verification
+## Original mock verification (before implementation)
 
 | Surface/state         | Result                                                                                                                       |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -101,12 +101,44 @@ the Details sentence and the feature name repeated in Who and Action.
   [mobile dark](mock/screenshots/audit-mobile-dark.png),
   [desktop light](mock/screenshots/audit-desktop-light.png),
   [mobile light](mock/screenshots/audit-mobile-light.png).
-- Scope: mock-only refinement; production implementation and complete-mock confirmation remain pending.
+- This refinement was confirmed with the complete reference before production implementation.
 
 ## Confirmation
 
 - Owner confirmation: 2026-10-14, “ok implement it”, followed by “continue”. Includes the score link
   below the summary inside Audit Details. Production removes the mock-only proposal badge and demo controls.
 - Confirmed enhancement revision: recorded in `docs/features/mock-index.json` after committing this reference.
-- Confirm the complete reference before production UI implementation or advancing `latestConfirmed`.
+- Confirmation recorded before production UI implementation and advancing `latestConfirmed`.
 - A request to create/commit/show the mock does not authorize merging.
+
+## Production implementation and review
+
+- Shared extraction schemas and both existing providers implement the same structured extraction turn.
+  Settings saves through admin-only `GET/PUT /api/ai/enrichment`; enrichment is off by default.
+- The worker only receives new direct-chat text, keeps bounded bursts, and cancels work on new
+  messages, staff edits, connection changes and disabling. It rechecks identity routing, freshness,
+  quoted evidence, syntax, score thresholds and the complete profile snapshot before committing.
+  Profile and privacy-preserving audit metadata commit in one transaction.
+- Production uses the confirmed Settings draft/Save flow and Audit Details placement. Source opens
+  the existing conversation and Customer panel. Mock proposal controls are absent.
+- Final production review covers 11 states, 1280px/360px, light/dark: off, editing, enabled,
+  rules, paused, error, Audit, replacement, source customer, added fields and long policy text.
+  All 44 captures pass without page errors or horizontal overflow. Paused/error/long-policy cases
+  use explicit screen fixtures; normal audit rows come from actual mock-AI Dev Build transactions.
+- Review against Calm Desk and the confirmed mock checked hierarchy, labels, contrast, 44px touch
+  targets, dialog focus/close behaviour and scrolling. Findings fixed: stable card heading while
+  loading, stale polling errors visible, an unambiguous field count and wrapping long policy text.
+  Final captures replace the earlier captures; affected unit tests and all three e2e viewports pass.
+- The complete screen smoke passed 33/33 screens in Malay. After owner sign-in and explicit
+  “run the checks” agreement, seven real ChatGPT scenarios passed: English/Malay/Chinese details,
+  correction, split messages, and rejection of third-party/quoted/negated/hypothetical details.
+  Five audit events were created, assignments stayed unchanged, and no outbound messages were sent.
+  This small check is not broad multilingual evaluation or score calibration. Real API-key model
+  behaviour is covered by mocked contract tests only; real WhatsApp was not exercised.
+
+Production evidence: [desktop Audit](../../screenshots/customer-enrichment/audit-desktop-dark.png),
+[mobile score details](../../screenshots/customer-enrichment/score-added-mobile-dark.png),
+[mobile error](../../screenshots/customer-enrichment/settings-error-mobile-light.png),
+[long policy](../../screenshots/customer-enrichment/score-long-mobile-light.png).
+See [feature workbook](../../workbooks/feat__customer-enrichment.md) and
+[Dev Build checks](../../dev-build-checks.md).

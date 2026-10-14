@@ -1,10 +1,37 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import type { AuditEntry } from '@wa-team-inbox/shared';
 import { AuditPage } from './AuditPage';
 
 const entries: AuditEntry[] = [
+  {
+    id: 5,
+    at: 1_700_000_500_000,
+    userId: null,
+    action: 'customer.enrichment_update',
+    ip: null,
+    meta: {
+      chatJid: '60129900001@s.whatsapp.net',
+      changed: ['email'],
+      enrichment: {
+        average: 100,
+        messageId: 'source-1',
+        policy: 'evidence-v1',
+        fields: [
+          {
+            field: 'email',
+            score: 100,
+            points: { ownership: 30, clarity: 25, context: 20, validation: 15, freshness: 10 },
+            operation: 'replaced',
+            threshold: 95,
+            reason: 'correction',
+          },
+        ],
+      },
+    },
+  },
   {
     id: 4,
     at: 1_700_000_400_000,
@@ -71,6 +98,26 @@ it('shows readable details with member names', () => {
   expect(
     within(table()).getByText('Username: bob · Reason: Wrong username or password'),
   ).toBeTruthy();
+});
+
+it('places the enrichment score in Details and opens the field breakdown', async () => {
+  render(
+    <MemoryRouter>
+      <AuditPage />
+    </MemoryRouter>,
+  );
+  const row = within(table()).getByText('Customer enriched').closest('tr')!;
+  const cells = within(row).getAllByRole('cell');
+  const score = within(cells[3]!).getByRole('button', { name: 'Enrichment details: Avg 100/100' });
+  expect(cells[2]!.textContent).toBe('Customer enriched');
+  expect(cells[1]!.textContent).toBe('System');
+  expect(cells[3]!.textContent).not.toContain('evidence-v1');
+  await userEvent.setup().click(score);
+  expect(screen.getByText('Replaced')).toBeTruthy();
+  expect(screen.getByText('Threshold 95')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'View source conversation' }).getAttribute('href')).toBe(
+    '/chats/60129900001%40s.whatsapp.net?customer=1',
+  );
 });
 
 it('shows an AI assistant change under its access token name, with the owner below', () => {

@@ -281,6 +281,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Profile extraction retains a bounded new-message batch during bursts, but drops cancelled batches
+  after off/connection changes. Bind each field to a source and recheck staff edits and identity routing
+  at the atomic save/audit; latest-only work loses split details and revived work ignores human decisions.
+
 - Anything an outside assistant can change that reaches customers (AI instructions, rules, context)
   is versioned on every save, app saves included, with a baseline of the replaced text, plus an
   audit row naming the token and its reason and a per-token rate limit: the assistant also reads

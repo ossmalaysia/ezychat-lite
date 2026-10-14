@@ -18,7 +18,8 @@ import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';
 import type { AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
-import { generateOpenAi, rewriteOpenAi } from './provider.js';
+import { extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
+import { runCustomerExtraction } from './agent/extract-customer.js';
 import { agentFailure, chatGptModel } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
@@ -508,6 +509,18 @@ export class DirectChatGptProvider implements AiProvider {
       const turn = await runAgentTurn({ model, prompt, tools: prompt.tools, signal: turnSignal });
       return turn.decision;
     });
+  }
+
+  async extractCustomer(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    signal: AbortSignal,
+  ) {
+    if (settings.mode === 'api') return extractCustomerOpenAi(settings, apiKey, prompt, signal);
+    return this.turn(settings, prompt.cacheId, signal, async (model, bounded) =>
+      runCustomerExtraction({ model, prompt, signal: bounded }),
+    );
   }
 
   /** Edit with AI: one tool-free call with the saved (or Auto) model. */

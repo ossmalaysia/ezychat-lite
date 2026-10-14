@@ -12,6 +12,7 @@ import type {
   AiTryBody,
   AiTryResult,
   AiSettings,
+  EnrichmentExtraction,
   Chat,
   ChatEvent,
   Message,
@@ -61,7 +62,7 @@ import {
   type AiKnowledge,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
-import type { AiPromptImage, AiProvider } from './provider-types.js';
+import type { AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 import { AI_PROVIDER_KEY, AI_SECRET_KEY } from './settings-keys.js';
@@ -113,6 +114,9 @@ interface State {
 }
 
 export interface AiService {
+  /** Shared connection, independent of the Sales Agent's on/off and ownership. */
+  connectionReady(): boolean;
+  extractCustomer(prompt: AiRewritePrompt, signal: AbortSignal): Promise<EnrichmentExtraction>;
   status(): AiMemberStatus;
   saveMember(body: AiMemberBody, actor: Actor): AiMemberStatus;
   saveConnection(body: AiConnectionBody, actor: Actor): AiMemberStatus;
@@ -388,7 +392,10 @@ export function createAiService(
     }
   };
   provider.onProblem?.(() => {
-    if (!closed) releaseForConnection();
+    if (!closed) {
+      ctx.bus.emit('ai:connection-changed');
+      releaseForConnection();
+    }
   });
   const eligible = (jid: string): boolean => {
     const user = member();
@@ -840,6 +847,16 @@ export function createAiService(
     .on('user:disabled', onDisabled);
 
   const service: AiService = {
+    connectionReady: () => !closed && ready() && !!provider.extractCustomer,
+    async extractCustomer(prompt, signal) {
+      if (!service.connectionReady()) throw errors.conflict('AI connection unavailable');
+      return provider.extractCustomer!(
+        settings(),
+        ctx.settings.getSecret(SECRET_KEY),
+        { ...prompt, cacheId: installId() },
+        AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+      );
+    },
     status() {
       const current = settings();
       const documents = ctx.db
@@ -953,6 +970,7 @@ export function createAiService(
           meta: { mode: body.mode, model: body.model },
         });
       })();
+      ctx.bus.emit('ai:connection-changed');
       // A changed connection does not continue an old provider's conversations silently.
       releaseOwned();
       refreshPending();
@@ -1090,6 +1108,7 @@ export function createAiService(
     },
     async logout() {
       cancelAll();
+      ctx.bus.emit('ai:connection-changed');
       await provider.logout();
       releaseOwned();
     },
@@ -1227,6 +1246,7 @@ export function createAiService(
     },
     async shutdown() {
       closed = true;
+      ctx.bus.emit('ai:connection-changed');
       clearInterval(drainTimer);
       cancelAll();
       ctx.bus

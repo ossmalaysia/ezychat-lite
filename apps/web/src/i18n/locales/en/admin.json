@@ -807,5 +807,45 @@
       "unchanged_one": "{{count}} unchanged line",
       "unchanged_other": "{{count}} unchanged lines"
     }
+  },
+  "enrichment": {
+    "title": "Customer enrichment",
+    "description": "Automatically save clear customer details from new direct-chat messages.",
+    "enable": "Automatically update customer details",
+    "independent": "Uses the shared AI connection, including chats handled by staff. Sales Agent replies can stay off.",
+    "paused": "Enrichment is paused until the AI connection is restored.",
+    "thresholds": "Fill empty fields at 90/100 or higher. Replace existing values at 95/100 or higher with clear current evidence. Ambiguous details are skipped.",
+    "rules": "View scoring rules",
+    "weights": "Ownership 30 · Statement clarity 25 · Context 20 · Validation 15 · Current evidence 10. Decisions are made per field; the average is only an audit summary.",
+    "audit": "View audit",
+    "average": "Avg {{score}}/100",
+    "details": "Enrichment details",
+    "meaning": "Evidence scores explain the decision; they are not probabilities.",
+    "close": "Close",
+    "savedFields": "Fields included in average: {{count}}",
+    "added": "Added",
+    "replaced": "Replaced",
+    "threshold": "Threshold {{score}}",
+    "source": "View source conversation",
+    "policy": "Exact average {{average}} · Scoring policy {{policy}}",
+    "action": "Customer enriched",
+    "settingsAction": "Customer enrichment changed",
+    "fields": {
+      "name": "Name",
+      "company": "Company",
+      "email": "Email",
+      "address": "Address"
+    },
+    "criteria": {
+      "ownership": "Ownership",
+      "clarity": "Statement clarity",
+      "context": "Context",
+      "validation": "Validation",
+      "freshness": "Current evidence"
+    },
+    "reasons": {
+      "self_reported": "Customer explicitly provided their current details.",
+      "correction": "Customer explicitly corrected their saved details."
+    }
   }
 }

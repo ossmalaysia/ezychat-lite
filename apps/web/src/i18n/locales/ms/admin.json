@@ -799,5 +799,45 @@
       "applied": "Digunakan. Tekan Simpan untuk menyimpannya.",
       "unchanged_other": "{{count}} baris tidak berubah"
     }
+  },
+  "enrichment": {
+    "title": "Pelengkapan maklumat pelanggan",
+    "description": "Simpan maklumat pelanggan yang jelas secara automatik daripada mesej baharu dalam sembang langsung.",
+    "enable": "Kemas kini maklumat pelanggan secara automatik",
+    "independent": "Menggunakan sambungan AI bersama, termasuk sembang yang dikendalikan kakitangan. Balasan Ejen Jualan boleh kekal dimatikan.",
+    "paused": "Pelengkapan dijeda sehingga sambungan AI dipulihkan.",
+    "thresholds": "Isi medan kosong pada 90/100 atau lebih. Ganti nilai sedia ada pada 95/100 atau lebih dengan bukti semasa yang jelas. Maklumat yang kabur diabaikan.",
+    "rules": "Lihat peraturan pemarkahan",
+    "weights": "Pemilikan 30 · Kejelasan pernyataan 25 · Konteks 20 · Pengesahan 15 · Bukti semasa 10. Keputusan dibuat bagi setiap medan; purata hanya ringkasan audit.",
+    "audit": "Lihat audit",
+    "average": "Purata {{score}}/100",
+    "details": "Butiran pelengkapan",
+    "meaning": "Skor bukti menerangkan keputusan; bukan kebarangkalian.",
+    "close": "Tutup",
+    "savedFields": "Medan dalam purata: {{count}}",
+    "added": "Ditambah",
+    "replaced": "Diganti",
+    "threshold": "Ambang {{score}}",
+    "source": "Lihat perbualan sumber",
+    "policy": "Purata tepat {{average}} · Dasar pemarkahan {{policy}}",
+    "action": "Maklumat pelanggan dilengkapkan",
+    "settingsAction": "Pelengkapan maklumat pelanggan diubah",
+    "fields": {
+      "name": "Nama",
+      "company": "Syarikat",
+      "email": "E-mel",
+      "address": "Alamat"
+    },
+    "criteria": {
+      "ownership": "Pemilikan",
+      "clarity": "Kejelasan pernyataan",
+      "context": "Konteks",
+      "validation": "Pengesahan",
+      "freshness": "Bukti semasa"
+    },
+    "reasons": {
+      "self_reported": "Pelanggan memberikan maklumat semasa mereka secara jelas.",
+      "correction": "Pelanggan membetulkan maklumat tersimpan mereka secara jelas."
+    }
   }
 }

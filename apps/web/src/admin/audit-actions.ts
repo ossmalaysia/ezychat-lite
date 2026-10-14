@@ -41,6 +41,8 @@ const LABEL_KEYS = {
   'ai.voice_model_cancel': 'audit.actions.aiVoiceModelCancel',
   'ai.voice_model_remove': 'audit.actions.aiVoiceModelRemove',
   'customer.profile_update': 'audit.actions.customerProfileUpdate',
+  'customer.enrichment_update': 'enrichment.action',
+  'customer.enrichment_settings': 'enrichment.settingsAction',
   'api_token.create': 'audit.actions.apiTokenCreate',
   'api_token.revoke': 'audit.actions.apiTokenRevoke',
   'api_token.auth_failed': 'audit.actions.apiTokenAuthFailed',
@@ -123,7 +125,7 @@ const FIELD_KEYS: Record<string, string> = {
  * Internal ids that mean nothing to a reader (a token's name and prefix identify it), and `via`,
  * which the Who column shows as the access token's name.
  */
-const HIDDEN_FIELDS = new Set(['tokenId', 'via']);
+const HIDDEN_FIELDS = new Set(['tokenId', 'via', 'enrichment']);
 
 /** Known enum values → translation keys (`admin` namespace, or `common:` prefixed). */
 const VALUE_KEYS: Record<string, Record<string, string>> = {
