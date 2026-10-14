@@ -22,6 +22,7 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { AiVoiceSection } from './AiVoiceSection';
+import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
@@ -265,6 +266,7 @@ export function SettingsPage() {
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
           <AiVoiceSection />
+          <CustomerEnrichmentSection />
         </TabsContent>
 
         <TabsContent value="integrations" className="flex flex-col gap-4">

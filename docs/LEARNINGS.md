@@ -30,12 +30,22 @@ into AGENTS.md.
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
-- Propose UI changes with a realistic mockup before building: open the Dev Build in Playwright, edit
-  the DOM to show the idea, screenshot desktop + mobile, and label it MOCKUP. Fill it with worst-case
-  data (long names, assignee + tags + unread together, Chinese text) — layout bugs found after coding
-  cost a fix-and-recapture round each. A hand-built HTML mockup drifts from the app (wrong nav labels,
-  section names): copy every existing label from `i18n/locales/en`. Add new check tooling only when a
-  problem keeps recurring.
+- Before production UI work, commit a complete interactive HTML mock in `docs/features/<feature>/mock/`
+  and a screen/state checklist plus owner confirmation in `design.md`; include Settings and entry
+  points, not only the final screen. Verify 1280/360 px with worst-case demo data and use the confirmed
+  mock as the implementation reference. Inspect related existing features and record their source
+  screens/components and reused behaviours in `design.md`; copy actual labels from `i18n/locales/en`
+  so the mock stays grounded in the app. Images and ignored scratch files alone are not a durable reference.
+- Feature mocks evolve cumulatively: clone the latest owner-confirmed interactive app mock from
+  `docs/features/mock-index.json`, preserve existing flows, record the source revision, and advance
+  the baseline only after the owner confirms the complete enhancement; an unconfirmed demo is not
+  a baseline for the next feature.
+- Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
+  deltas so redesigned existing screens cannot silently become the next reference. Normalize text
+  hashes to LF so Git checkout line endings do not look like UI drift.
+- Keep only the five newest feature mock folders in the working tree; prune older clean, committed
+  folders in the next feature change and retain exact revision/path references so confirmed
+  baselines can be recovered from git history without inventing approval.
 - Debug from evidence: read the server log (whole files, merged across rotations and sorted by time) and
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
@@ -73,6 +83,10 @@ into AGENTS.md.
   its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
 
 ## Git, GitHub and CI
+
+- Exclude frozen feature-mock source copies from application static analysis; otherwise cumulative
+  references inflate duplication and re-report old application findings as new code. Keep production,
+  tests and tooling in scope and fix their findings before releasing.
 
 - Merge only on the owner's explicit request for that PR; never enable auto-merge. A green quality
   gate can still have open Sonar findings: inspect review comments and findings on the final commit
@@ -271,6 +285,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Profile extraction retains a bounded new-message batch during bursts, but drops cancelled batches
+  after off/connection changes. Bind each field to a source and recheck staff edits and identity routing
+  at the atomic save/audit; latest-only work loses split details and revived work ignores human decisions.
+
 - Anything an outside assistant can change that reaches customers (AI instructions, rules, context)
   is versioned on every save, app saves included, with a baseline of the replaced text, plus an
   audit row naming the token and its reason and a per-token rate limit: the assistant also reads
@@ -340,6 +358,9 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Audit detail controls sit with the action or in their own layout slot, never inline with the
+  summary sentence; compact links preserve list density while retaining 44px touch targets.
 
 - The microphone needs a secure page (https, localhost, the desktop app): a LAN `http://` link has
   none, so say why instead of failing. Create the `AudioContext` before any `await` in the tap

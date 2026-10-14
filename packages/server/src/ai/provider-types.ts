@@ -4,6 +4,7 @@ import type {
   AiDecision,
   AiModelList,
   AiSettings,
+  EnrichmentExtraction,
   AiTestResult,
 } from '@wa-team-inbox/shared';
 
@@ -46,6 +47,12 @@ export function userMessageContent(text: string, images: readonly AiPromptImage[
   ];
 }
 export interface AiProvider {
+  extractCustomer?(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    signal: AbortSignal,
+  ): Promise<EnrichmentExtraction>;
   generate(
     settings: AiSettings,
     apiKey: string | null,

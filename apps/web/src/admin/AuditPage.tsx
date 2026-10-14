@@ -14,8 +14,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { ErrorState, ListSkeleton, Pending } from './adminUi';
 import { auditActionLabel, auditDetails, isSignInAction } from './audit-actions';
+import { EnrichmentAuditScore } from './EnrichmentAuditScore';
 
 type AuditFilter = 'all' | 'changes';
+
+function auditDetailsCell(entry: AuditEntry, summary: string) {
+  if (entry.action !== 'customer.enrichment_update')
+    return <span className="break-words text-muted-foreground">{summary}</span>;
+  return (
+    <div className="flex flex-col items-start">
+      <span className="break-words text-muted-foreground">{summary}</span>
+      <EnrichmentAuditScore entry={entry} />
+    </div>
+  );
+}
 
 export function AuditPage() {
   const audit = useAudit();
@@ -75,12 +87,13 @@ export function AuditPage() {
       key: 'details',
       header: t('audit.columns.details'),
       hideOnMobileFor: (e) => details(e) === '',
-      cell: (e) => <span className="break-words text-muted-foreground">{details(e)}</span>,
+      cell: (e) => auditDetailsCell(e, details(e)),
     },
     {
       key: 'ip',
       header: t('audit.columns.ip'),
       className: 'md:w-32',
+      hideOnMobileFor: (e) => e.action === 'customer.enrichment_update' && e.ip == null,
       cell: (e) => <span className="font-mono text-xs text-muted-foreground">{e.ip ?? ''}</span>,
     },
   ];

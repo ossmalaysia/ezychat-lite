@@ -125,6 +125,16 @@ outbound Message goes through the message service's `present()` (group `senderPr
 `customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
 never earlier in the prompt.
 
+**Customer enrichment.** `customers/enrichment.ts` uses the shared AI connection independently of
+Sales Agent ownership. It is off by default and processes only live direct-chat text, with bounded
+bursts and concurrency. `ai/agent/extract-customer.ts` is one structured call without tools/retries.
+Accepted values require explicit self-ownership, an exact quote in a new message, profile syntax,
+current evidence and per-field thresholds (add 90, replace 95). Cancel on staff edits, newer live
+arrivals, setting/connection changes and shutdown; compare the profile again immediately before the
+atomic profile/audit commit, and ensure the JID still routes to that same chat after an alias change.
+Audit stores scores, field names and message references, never values
+or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links
@@ -245,9 +255,46 @@ cover navigation from every admin section and recovery from malformed URLs.
   review are not enough: run the feature end to end in a Dev Build (and with the real outside client
   where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
   "built and tested, not yet checked in a Dev Build".
-- **Mockup before code for every UI change.** Show a static mockup (Dev Build DOM edit or HTML with
-  the design tokens) at 360 px and 1280 px with worst-case data, get the owner's approval, then code;
-  the approved mockup is the reference for the screen review below.
+- **Complete feature HTML mock before production UI code.** Every feature that requires UI keeps a
+  reviewable, interactive HTML mock at `docs/features/<feature>/mock/index.html`, with local assets
+  and run instructions, inside the current project repository. Commit this feature folder as the
+  durable reference for the next agent; do not leave the canonical mock in an external prototype
+  folder or only in an ignored scratch directory. Keep its scope, screen/state checklist and confirmation record in
+  `docs/features/<feature>/design.md`; link these from the feature workbook. Do this proactively,
+  before implementation, rather than adding screens only when the owner asks where they are.
+  Mocks are cumulative interactive app references, not disconnected feature demos. For every
+  enhancement, clone the latest owner-confirmed mock from `docs/features/mock-index.json` into
+  the new feature folder, preserve its existing app flows, and add the enhancement there. Record
+  the source feature/path and exact git revision in `design.md`; never replace the last confirmed
+  baseline with an unconfirmed proposal. If no confirmed baseline exists, bootstrap it from the
+  current app's actual frontend source, not a hand-recreated shell, and record coverage gaps
+  before asking for confirmation. Freeze source hashes; in enhancements list the intentional
+  changed/added files and verify that the rest of the reference has not drifted.
+  After the owner confirms a complete mock, record the confirmation and update the index so the
+  next agent clones that revision. The interactive scope includes the app context, navigation,
+  feature entry points and end-to-end simulated feature behaviour; a screenshot or isolated
+  popup is not a complete reference. Keep mock data and effects separate from the real app.
+  **Retention: keep only the five most recently created feature folders** under `docs/features/`.
+  Record creation order/date in the mock index; when adding a sixth, remove the oldest committed
+  feature folder and update the index in the same reviewable change. Verify the target belongs to
+  `docs/features/` and has no unrelated uncommitted work before cleanup. Older references remain
+  available in git history; record each baseline's exact revision/path before removing its folder.
+  If the latest confirmed baseline was pruned, recover that revision from git into the new feature
+  mock rather than starting over or treating an unconfirmed proposal as approved. The root index
+  and workflow README are not feature folders. Cleanup never authorizes automatic merging.
+  Inspect related existing features first and record the source screens/components and behaviours
+  being reused in `design.md`. Ground the mock in the current app, its real routes, navigation,
+  configuration, save/error patterns, permissions and translations; extend existing flows rather
+  than inventing a disconnected screen or redesigning unrelated features.
+  Cover the whole feature journey: entry points, Settings/configuration, primary screens, dialogs,
+  audit/history where relevant, and the important enabled/disabled, unavailable, empty, error and
+  long-content states. Use demo data, the existing design system and actual navigation labels;
+  verify desktop 1280 px and mobile 360 px. Show the runnable mock and screenshots to the owner
+  and record their confirmation before production UI implementation. The confirmed HTML mock is
+  the implementation and screen-review reference; material scope/UI changes update that mock
+  and need confirmation again. Generated images may supplement it, but never replace the HTML
+  reference. Keep the mock and confirmation record with the feature in git, not only in ignored
+  scratch folders or chat attachments.
 - **Screen review for every UI change.** Before a feature that changes screens is done:
   1. Capture each affected screen at desktop 1280 px and mobile 360 px, in light and dark where relevant,
      and in every state: empty, filled, editing, error and long text.

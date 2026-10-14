@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "retention": {
+    "maxFeatureFolders": 5,
+    "orderBy": "creationOrder",
+    "olderReferences": "git-history"
+  },
+  "latestConfirmed": {
+    "feature": "customer-enrichment",
+    "gitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
+    "mock": "docs/features/customer-enrichment/mock/index.html",
+    "design": "docs/features/customer-enrichment/design.md",
+    "confirmedAt": "2026-10-14"
+  },
+  "proposals": [
+    {
+      "feature": "customer-enrichment",
+      "creationOrder": 1,
+      "createdAt": "2026-10-14",
+      "design": "docs/features/customer-enrichment/design.md",
+      "mock": "docs/features/customer-enrichment/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "app-baseline",
+      "baselineGitRevision": "7d7e4fb4af1c3e64408aa1319f8f843289b5b7a8",
+      "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
+      "coverage": "Full app clone; only enrichment Settings and Audit UI added; deterministic demo extraction"
+    },
+    {
+      "feature": "app-baseline",
+      "creationOrder": 2,
+      "createdAt": "2026-10-14",
+      "design": "docs/features/app-baseline/design.md",
+      "mock": "docs/features/app-baseline/mock/index.html",
+      "status": "unconfirmed",
+      "baselineFeature": null,
+      "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
+      "coverage": "Full existing frontend: 169 original runtime files, all routes; provider side effects simulated"
+    }
+  ]
+}

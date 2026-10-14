@@ -1,0 +1,121 @@
+import { z } from 'zod';
+import type { FastifyInstance } from 'fastify';
+import type { AppContext } from '../../../../packages/server/src/context.js';
+import { requireAdmin } from '../../../../packages/server/src/auth/guards.js';
+import { audit } from '../../../../packages/server/src/db/audit.js';
+import { CustomerRepo } from '../../../../packages/server/src/customers/repo.js';
+import { CustomerProfileBody } from '@wa-team-inbox/shared';
+
+const DEMO_JID = '60129900001@s.whatsapp.net';
+const INTRODUCTION =
+  'My name is Jay Low. My company is Anchor Sprint. Please replace my email with jay@example.com.';
+
+/** Deterministic prototype fixtures, not a production extraction/scoring implementation. */
+export function registerProposal(app: FastifyInstance, ctx: AppContext): void {
+  let enabled = false;
+  const setting = () => ({
+    enabled,
+    connected: ctx.services.ai?.status().connection.state === 'connected',
+  });
+  app.get('/api/mock/enrichment', { preHandler: requireAdmin(ctx) }, setting);
+  app.put('/api/mock/enrichment', { preHandler: requireAdmin(ctx) }, async (request) => {
+    enabled = z.object({ enabled: z.boolean() }).parse(request.body).enabled;
+    return setting();
+  });
+  const repo = new CustomerRepo(ctx.db);
+  ctx.bus.on('message:received', ({ chat, message }) => {
+    if (
+      !enabled ||
+      !setting().connected ||
+      message.fromMe ||
+      chat.type !== 'dm' ||
+      chat.jid !== DEMO_JID ||
+      message.body !== INTRODUCTION
+    )
+      return;
+    const before = repo.get(chat.jid);
+    const next = CustomerProfileBody.parse({
+      name: 'Jay Low',
+      company: 'Anchor Sprint',
+      email: 'jay@example.com',
+      otherPhone: before?.otherPhone ?? '',
+      address: before?.address ?? '',
+      tags: before?.tags ?? [],
+    });
+    const candidates = [
+      {
+        field: 'name',
+        score: 100,
+        points: [30, 25, 20, 15, 10],
+        reason: 'Customer explicitly introduced themselves.',
+      },
+      {
+        field: 'company',
+        score: 95,
+        points: [25, 25, 20, 15, 10],
+        reason: 'Demo fixture: company ownership supported by conversation context.',
+      },
+      {
+        field: 'email',
+        score: 100,
+        points: [30, 25, 20, 15, 10],
+        reason: 'Customer explicitly requested a new email.',
+      },
+    ] as const;
+    const fields = candidates
+      .filter((candidate) => before?.[candidate.field] !== next[candidate.field])
+      .map((candidate) => ({
+        ...candidate,
+        operation: before?.[candidate.field] ? 'replaced' : 'added',
+        threshold: before?.[candidate.field] ? 95 : 90,
+      }));
+    if (!fields.length) return;
+    ctx.db.transaction(() => {
+      repo.save(
+        chat.jid,
+        {
+          name: next.name,
+          company: next.company,
+          email: next.email,
+          otherPhone: next.otherPhone || null,
+          address: next.address || null,
+        },
+        next.tags,
+        null,
+        Date.now(),
+      );
+      audit(ctx.db, {
+        userId: null,
+        action: 'customer.enrichment_update',
+        ip: null,
+        meta: {
+          chatJid: chat.jid,
+          changed: fields.map((field) => field.field),
+          enrichment: {
+            fields,
+            average: fields.reduce((sum, field) => sum + field.score, 0) / fields.length,
+            messageId: message.id,
+            policy: 'demo-v1',
+          },
+        },
+      });
+    })();
+    const updated = ctx.services.chats!.get(chat.jid);
+    if (updated) ctx.bus.emit('chat:updated', updated);
+  });
+  app.post('/api/mock/enrichment/preview', { preHandler: requireAdmin(ctx) }, async (request) => {
+    if (!enabled) return { delivered: false };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/dev/fake-incoming',
+      headers: {
+        host: request.headers.host ?? '',
+        origin: request.headers.origin ?? '',
+        cookie: request.headers.cookie ?? '',
+      },
+      payload: { chatJid: DEMO_JID, senderName: 'Jay (WhatsApp)', text: INTRODUCTION },
+    });
+    if (response.statusCode >= 400) throw new Error(`Demo message failed: ${response.statusCode}`);
+    return { delivered: true, chatJid: DEMO_JID };
+  });
+}

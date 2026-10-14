@@ -798,5 +798,45 @@
       "applied": "已应用。请按“保存”保留修改。",
       "unchanged_other": "{{count}} 行未更改"
     }
+  },
+  "enrichment": {
+    "title": "客户资料补全",
+    "description": "从新的私聊消息中自动保存明确的客户资料。",
+    "enable": "自动更新客户资料",
+    "independent": "使用共享的 AI 连接，包括由员工处理的对话。销售助手回复可以保持关闭。",
+    "paused": "资料补全已暂停，等待 AI 连接恢复。",
+    "thresholds": "达到 90/100 才填写空白字段。达到 95/100 且有明确的当前证据才替换已有值。含糊的资料会被跳过。",
+    "rules": "查看评分规则",
+    "weights": "归属 30 · 陈述清晰度 25 · 上下文 20 · 验证 15 · 当前证据 10。每个字段单独决定；平均分仅用于审核摘要。",
+    "audit": "查看审核记录",
+    "average": "平均 {{score}}/100",
+    "details": "资料补全详情",
+    "meaning": "证据评分解释决策依据，不代表概率。",
+    "close": "关闭",
+    "savedFields": "参与平均分计算的字段：{{count}}",
+    "added": "已添加",
+    "replaced": "已替换",
+    "threshold": "门槛 {{score}}",
+    "source": "查看来源对话",
+    "policy": "精确平均分 {{average}} · 评分规则 {{policy}}",
+    "action": "客户资料已补全",
+    "settingsAction": "客户资料补全设置已更改",
+    "fields": {
+      "name": "姓名",
+      "company": "公司",
+      "email": "电子邮箱",
+      "address": "地址"
+    },
+    "criteria": {
+      "ownership": "归属",
+      "clarity": "陈述清晰度",
+      "context": "上下文",
+      "validation": "验证",
+      "freshness": "当前证据"
+    },
+    "reasons": {
+      "self_reported": "客户明确提供了自己的当前资料。",
+      "correction": "客户明确更正了已保存的资料。"
+    }
   }
 }

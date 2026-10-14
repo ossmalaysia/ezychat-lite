@@ -10,6 +10,7 @@ import {
   AiMemberBody,
   AiTryBody,
   VoiceSettingBody,
+  EnrichmentSettingBody,
 } from '@wa-team-inbox/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
@@ -40,6 +41,10 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
   };
   app.get('/ai', async () => ai.status());
+  app.get('/ai/enrichment', async () => ctx.services.enrichment!.status());
+  app.put('/ai/enrichment', async (req) =>
+    ctx.services.enrichment!.setEnabled(parse(EnrichmentSettingBody, req.body).enabled, actor(req)),
+  );
   app.put('/ai', async (req) => ai.saveMember(parse(AiMemberBody, req.body), actor(req)));
   app.patch('/ai/connection', async (req) =>
     ai.saveConnection(parse(AiConnectionBody, req.body), actor(req)),

@@ -16,6 +16,9 @@ vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
 vi.mock('./AiVoiceSection', () => ({ AiVoiceSection: () => <p>Voice messages card</p> }));
+vi.mock('./CustomerEnrichmentSection', () => ({
+  CustomerEnrichmentSection: () => <p>Customer enrichment card</p>,
+}));
 vi.mock('./IntegrationsSection', () => ({
   IntegrationsSection: () => <p>AI assistant access</p>,
 }));
