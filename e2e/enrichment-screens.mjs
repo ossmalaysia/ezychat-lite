@@ -1,14 +1,15 @@
 // Production UI state captures against enrichment-devbuild.ts --fake-wa --mock-ai.
-// Usage: node e2e/enrichment-screens.mjs <port> [outDir]
+// Usage: node e2e/enrichment-screens.mjs <port>
 /* global window, document */
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const port = Number(process.argv[2] ?? 7490);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid port');
 const base = `http://127.0.0.1:${port}`;
-const out = process.argv[3] ?? 'docs/screenshots/customer-enrichment';
+const out = fileURLToPath(new URL('../docs/screenshots/customer-enrichment/', import.meta.url));
 const health = await fetch(base + '/api/health');
 if (health.headers.get('x-enrichment-devbuild') !== 'mock-ai')
   throw new Error('Use the isolated mock-AI Dev Build runner');

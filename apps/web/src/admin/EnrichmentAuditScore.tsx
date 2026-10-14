@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 const criteria = ['ownership', 'clarity', 'context', 'validation', 'freshness'] as const;
-export function EnrichmentAuditScore({ entry }: { entry: AuditEntry }) {
+export function EnrichmentAuditScore({ entry }: Readonly<{ entry: AuditEntry }>) {
   const { t } = useTranslation('admin');
   const [open, setOpen] = useState(false);
   const parsed = EnrichmentAudit.safeParse(entry.meta.enrichment);

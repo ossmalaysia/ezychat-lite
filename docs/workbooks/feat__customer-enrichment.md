@@ -10,7 +10,7 @@ Design: [confirmed mock](../features/customer-enrichment/mock/index.html),
 | Stage | Status | Detail | Updated |
 | --- | --- | --- | --- |
 | Design | done | Owner approved complete customer enrichment mock and Audit Details placement; production implementation authorized | 2026-10-14 |
-| Dev | done | Production shared-provider extraction, guarded customer/audit transaction, bounded live bursts, Settings card and approved Audit Details score implemented; verification in progress | 2026-10-14 |
+| Dev | doing | Release review: fixed static-analysis scope for frozen references, screenshot output path and production function structure; affected unit/type/lint checks pass; final Dev Build rerun pending | 2026-10-14 |
 | Unit tests | pass | Full suite initially 1939 passed, 1 failed, 1 skipped; missing new-route coverage entry fixed and 90 affected tests passed; final 53 affected tests pass, server/web/e2e typechecks pass; lint passes excluding unrelated ignored scratch file | 2026-10-14 |
 | E2E | pass | Full verification 65 passed, 8 skipped; final affected enrichment rerun 4 passed across desktop/mobile/iPhone and setup; no real providers | 2026-10-14 |
 | Dev Build | pass | Owner signed in and explicitly authorized calls; seven real ChatGPT scenarios passed including Malay/Chinese, correction, rejection and burst; five audit events, unchanged assignment and zero outbound messages. Isolated temp fake-WA data; real API-key calls and broad score calibration remain untested | 2026-10-14 |
@@ -27,3 +27,4 @@ Design: [confirmed mock](../features/customer-enrichment/mock/index.html),
 - 2026-10-14 E2E: pass — Full verification 65 passed, 8 skipped; final affected enrichment rerun 4 passed across desktop/mobile/iPhone and setup; no real providers
 - 2026-10-14 Unit tests: pass — Full suite initially 1939 passed, 1 failed, 1 skipped; missing new-route coverage entry fixed and 90 affected tests passed; final 53 affected tests pass, server/web/e2e typechecks pass; lint passes excluding unrelated ignored scratch file
 - 2026-10-14 Dev Build: pass — Owner signed in and explicitly authorized calls; seven real ChatGPT scenarios passed including Malay/Chinese, correction, rejection and burst; five audit events, unchanged assignment and zero outbound messages. Isolated temp fake-WA data; real API-key calls and broad score calibration remain untested
+- 2026-10-14 Dev: doing — Release review: fixed static-analysis scope for frozen references, screenshot output path and production function structure; affected unit/type/lint checks pass; final Dev Build rerun pending

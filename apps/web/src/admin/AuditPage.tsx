@@ -18,6 +18,17 @@ import { EnrichmentAuditScore } from './EnrichmentAuditScore';
 
 type AuditFilter = 'all' | 'changes';
 
+function auditDetailsCell(entry: AuditEntry, summary: string) {
+  if (entry.action !== 'customer.enrichment_update')
+    return <span className="break-words text-muted-foreground">{summary}</span>;
+  return (
+    <div className="flex flex-col items-start">
+      <span className="break-words text-muted-foreground">{summary}</span>
+      <EnrichmentAuditScore entry={entry} />
+    </div>
+  );
+}
+
 export function AuditPage() {
   const audit = useAudit();
   const users = useUsers();
@@ -76,15 +87,7 @@ export function AuditPage() {
       key: 'details',
       header: t('audit.columns.details'),
       hideOnMobileFor: (e) => details(e) === '',
-      cell: (e) =>
-        e.action === 'customer.enrichment_update' ? (
-          <div className="flex flex-col items-start">
-            <span className="break-words text-muted-foreground">{details(e)}</span>
-            <EnrichmentAuditScore entry={e} />
-          </div>
-        ) : (
-          <span className="break-words text-muted-foreground">{details(e)}</span>
-        ),
+      cell: (e) => auditDetailsCell(e, details(e)),
     },
     {
       key: 'ip',

@@ -56,6 +56,58 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
     pending.clear();
     for (const item of active.values()) item.cancel.abort();
   };
+  const canCommit = (message: Message, cancel: AbortController, before: string) =>
+    !cancel.signal.aborted &&
+    ready() &&
+    fresh(message) &&
+    profileKey(message.chatJid) === before &&
+    stillRoutedHere(message.chatJid) &&
+    chats.get(message.chatJid)?.type === 'dm';
+
+  function proposalSource(proposal: EnrichmentExtraction['fields'][number], batch: Message[]) {
+    if (
+      proposal.ownership !== 'self' ||
+      !proposal.current ||
+      !['explicit', 'correction'].includes(proposal.statement)
+    )
+      return null;
+    const value = proposal.value.trim();
+    if (proposal.field === 'name' && /^[+\d\s()-]+$/.test(value)) return null;
+    const evidence = normalized(proposal.evidence);
+    const source = batch.findLast((m) => normalized(m.body ?? '').includes(evidence));
+    if (!value || !source || !fresh(source) || !evidence.includes(normalized(value))) return null;
+    return { source, value };
+  }
+
+  function acceptedProposal(
+    proposal: EnrichmentExtraction['fields'][number],
+    batch: Message[],
+    profile: ReturnType<CustomerRepo['get']>,
+  ) {
+    const quoted = proposalSource(proposal, batch);
+    if (!quoted) return null;
+    const { value, source } = quoted;
+    const parsed = CustomerProfileBody.shape[proposal.field].safeParse(value);
+    if (!parsed.success || !parsed.data || profile?.[proposal.field] === parsed.data) return null;
+    const operation = profile?.[proposal.field] ? 'replaced' : 'added';
+    const threshold =
+      operation === 'added' ? ENRICHMENT_ADD_THRESHOLD : ENRICHMENT_REPLACE_THRESHOLD;
+    const points = proposal.points;
+    const score = Object.values(points).reduce((sum, p) => sum + p, 0);
+    if (score < threshold) return null;
+    return {
+      value: parsed.data,
+      audit: {
+        field: proposal.field,
+        score,
+        points,
+        operation,
+        threshold,
+        messageId: source.id,
+        reason: proposal.statement === 'correction' ? 'correction' : 'self_reported',
+      } satisfies EnrichmentAudit['fields'][number],
+    };
+  }
 
   async function extract(batch: Message[], cancel: AbortController, before: string) {
     const message = batch.at(-1)!;
@@ -82,46 +134,13 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
       for (const proposal of result.fields) {
         if (seen.has(proposal.field) || duplicates.has(proposal.field)) continue;
         seen.add(proposal.field);
-        if (
-          proposal.ownership !== 'self' ||
-          !proposal.current ||
-          !['explicit', 'correction'].includes(proposal.statement)
-        )
-          continue;
-        const value = proposal.value.trim();
-        if (proposal.field === 'name' && /^[+\d\s()-]+$/.test(value)) continue;
-        const evidence = normalized(proposal.evidence);
-        const source = batch.findLast((m) => normalized(m.body ?? '').includes(evidence));
-        if (!value || !source || !fresh(source) || !evidence.includes(normalized(value))) continue;
-        const parsed = CustomerProfileBody.shape[proposal.field].safeParse(value);
-        if (!parsed.success || !parsed.data || profile?.[proposal.field] === parsed.data) continue;
-        const operation = profile?.[proposal.field] ? 'replaced' : 'added';
-        const threshold =
-          operation === 'added' ? ENRICHMENT_ADD_THRESHOLD : ENRICHMENT_REPLACE_THRESHOLD;
-        const points = proposal.points;
-        const score = Object.values(points).reduce((sum, p) => sum + p, 0);
-        if (score < threshold) continue;
-        updates[proposal.field] = parsed.data;
-        fields.push({
-          field: proposal.field,
-          score,
-          points,
-          operation,
-          threshold,
-          messageId: source.id,
-          reason: proposal.statement === 'correction' ? 'correction' : 'self_reported',
-        });
+        const accepted = acceptedProposal(proposal, batch, profile);
+        if (!accepted) continue;
+        updates[proposal.field] = accepted.value;
+        fields.push(accepted.audit);
       }
       // All async work is over. Recheck and commit synchronously: staff edits and newer messages win.
-      if (
-        cancel.signal.aborted ||
-        !ready() ||
-        !fresh(message) ||
-        profileKey(jid) !== before ||
-        !stillRoutedHere(jid) ||
-        chats.get(jid)?.type !== 'dm'
-      )
-        return;
+      if (!canCommit(message, cancel, before)) return;
       if (fields.length) {
         ctx.db.transaction(() => {
           const current = repo.get(jid);
@@ -250,7 +269,7 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
         .off('message:received', onReceived)
         .off('chat:updated', onChat)
         .off('ai:connection-changed', invalidate);
-      await Promise.allSettled([...running]);
+      await Promise.allSettled(running);
     },
   };
 }

@@ -84,6 +84,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Exclude frozen feature-mock source copies from application static analysis; otherwise cumulative
+  references inflate duplication and re-report old application findings as new code. Keep production,
+  tests and tooling in scope and fix their findings before releasing.
+
 - Merge only on the owner's explicit request for that PR; never enable auto-merge. A green quality
   gate can still have open Sonar findings: inspect review comments and findings on the final commit
   before reporting readiness, and leave the PR open until the owner requests merging.
