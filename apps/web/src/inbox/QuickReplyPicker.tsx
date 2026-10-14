@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquareText } from 'lucide-react';
-import type { QuickReply } from '@wa-team-inbox/shared';
+import type { QuickReply } from '@ezychat/shared';
 import { Command, CommandItem, CommandList } from '@/components/ui/command';
 import { truncate } from '../lib/format';
 

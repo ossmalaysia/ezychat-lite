@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { HealthResponse } from '@wa-team-inbox/shared';
+import type { HealthResponse } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 
 export default async function (app: FastifyInstance, ctx: AppContext) {

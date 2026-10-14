@@ -21,7 +21,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e/tsconfig.json",
-    "dev": "concurrently -k -n server,web -c green,cyan \"npm run dev -w @wa-team-inbox/server\" \"npm run dev -w @wa-team-inbox/web\"",
+    "dev": "concurrently -k -n server,web -c green,cyan \"npm run dev -w @ezychat/server\" \"npm run dev -w @ezychat/web\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test",

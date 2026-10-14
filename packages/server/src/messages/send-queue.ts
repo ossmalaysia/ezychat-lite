@@ -1,4 +1,4 @@
-import type { SendResult } from '@wa-team-inbox/wa';
+import type { SendResult } from '@ezychat/wa';
 
 export interface SendJob {
   /** row id of the pending message (`local-<clientId>`) */

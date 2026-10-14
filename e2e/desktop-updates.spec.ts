@@ -1,5 +1,5 @@
 import { test, expect } from './helpers';
-import type { DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdateState } from '@ezychat/shared';
 
 test('phones and browsers have no host update workflow', async ({ page }) => {
   await page.goto('/');

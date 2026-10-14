@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { QuickReplySchema } from '@wa-team-inbox/shared';
+import { QuickReplySchema } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 

@@ -2,7 +2,7 @@ import type {
   DesktopRelease,
   DesktopUpdateState,
   DesktopUpdateTransfer,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { DownloadedRelease } from './download.js';
 
 interface ReleaseChecker {

@@ -11,7 +11,7 @@ import {
   AiEditField,
   type AiMemberStatus,
   type AiSettings,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';

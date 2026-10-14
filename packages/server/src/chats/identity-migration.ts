@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readStoredLidMappings, type WaContactAlias } from '@wa-team-inbox/wa';
+import { readStoredLidMappings, type WaContactAlias } from '@ezychat/wa';
 import { runBackupSync } from '../backup/backup.js';
 import type { AppContext } from '../context.js';
 import type { DB } from '../db/index.js';

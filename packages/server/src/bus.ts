@@ -9,7 +9,7 @@ import type {
   TunnelStatus,
   VoiceStatus,
   WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 
 export interface BusEvents {
   'message:new': [Message];

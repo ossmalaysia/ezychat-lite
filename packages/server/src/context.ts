@@ -1,4 +1,4 @@
-import type { WaAdapter } from '@wa-team-inbox/wa';
+import type { WaAdapter } from '@ezychat/wa';
 import type { Logger } from 'pino';
 import type { Bus } from './bus.js';
 import type { ServerConfig } from './config.js';

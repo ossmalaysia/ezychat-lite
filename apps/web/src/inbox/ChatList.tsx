@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { useChats, type ChatFilters } from '../api/queries';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

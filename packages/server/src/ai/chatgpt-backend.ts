@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { arch, platform, release } from 'node:os';
-import { CHATGPT_FALLBACK_MODELS } from '@wa-team-inbox/shared';
+import { CHATGPT_FALLBACK_MODELS } from '@ezychat/shared';
 import { CHATGPT_OAUTH } from './chatgpt-oauth.js';
 import { userMessageContent, type AiPromptImage } from './provider-types.js';
 

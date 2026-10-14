@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
-import type { ChatEvent, Note } from '@wa-team-inbox/shared';
+import type { ChatEvent, Note } from '@ezychat/shared';
 import { i18n } from '@/i18n';
 import { formatTime } from '../lib/format';
 import { handoffReasonLabel, isHandoffReason } from '../lib/ai-handoff';

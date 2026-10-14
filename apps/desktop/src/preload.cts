@@ -1,7 +1,7 @@
 // Preload for the local status window. CommonJS (.cts → .cjs) because sandboxed preloads
 // cannot be ES modules. Channel names mirror ipc.ts CHANNELS.
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopUpdatesBridge, DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdatesBridge, DesktopUpdateState } from '@ezychat/shared';
 
 const updates: DesktopUpdatesBridge = {
   getState: () => ipcRenderer.invoke('wati:updates-state'),

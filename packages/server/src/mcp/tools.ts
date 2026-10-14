@@ -1,11 +1,11 @@
-import type { Chat, ChatEvent, Message, Note } from '@wa-team-inbox/shared';
+import type { Chat, ChatEvent, Message, Note } from '@ezychat/shared';
 import {
   McpGetActivityInput,
   McpGetChatInput,
   McpGetMessagesInput,
   McpGetStatsInput,
   McpListChatsInput,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { z } from 'zod';
 import type { ApiPrincipal, TokenScope } from '../api-tokens/index.js';
 import type { AiSetupPort } from './ai-setup.js';

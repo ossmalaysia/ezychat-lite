@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { CloudflareCreateBody, type TunnelStatus } from '@wa-team-inbox/shared';
+import { CloudflareCreateBody, type TunnelStatus } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import {
   useCloudflareAccountAction,

@@ -3,7 +3,7 @@ import type React from 'react';
 import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
-import type { QuickReply } from '@wa-team-inbox/shared';
+import type { QuickReply } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { useDeleteQuickReply, useQuickReplies, useSaveQuickReply } from '../api/queries';
 import { Banner, EmptyState, PageHeader, ResponsiveDialog } from '@/components/app';

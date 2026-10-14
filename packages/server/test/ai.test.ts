@@ -4,7 +4,7 @@ import {
   DEFAULT_AI_INSTRUCTIONS,
   type AiConnection,
   type AiMemberBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import { VOICE_RETRY_REPLY } from '../src/ai/prompt.js';
 import type { AiProvider } from '../src/ai/provider-types.js';

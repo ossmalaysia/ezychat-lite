@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:net';
 import type { EventEmitter } from 'node:events';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FakeWaAdapter } from '@wa-team-inbox/wa';
+import { FakeWaAdapter } from '@ezychat/wa';
 import { acquireLock } from './lock.js';
 import { startServer } from './main.js';
 

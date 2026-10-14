@@ -14,15 +14,15 @@ Thanks for your interest in contributing!
 | Command                                         | What it does                                                   |
 | ----------------------------------------------- | -------------------------------------------------------------- |
 | `npm test`                                      | Run all Vitest projects                                        |
-| `npm test -w @wa-team-inbox/server`             | Run one workspace's tests                                      |
+| `npm test -w @ezychat/server`                   | Run one workspace's tests                                      |
 | `npx vitest run path/to/file.test.ts -t "name"` | Run a single test                                              |
 | `npm run lint`                                  | ESLint                                                         |
 | `npm run typecheck`                             | `tsc --noEmit` in every workspace                              |
 | `npm run format`                                | Prettier                                                       |
 | `npm run e2e`                                   | Playwright end-to-end tests (fake WhatsApp, fresh `.e2e-data`) |
-| `npm run build -w @wa-team-inbox/web`           | Build the web app                                              |
-| `npm start -w @wa-team-inbox/desktop`           | Build and launch the Electron app                              |
-| `npm run dist -w @wa-team-inbox/desktop`        | Build an installer for the current OS                          |
+| `npm run build -w @ezychat/web`                 | Build the web app                                              |
+| `npm start -w @ezychat/desktop`                 | Build and launch the Electron app                              |
+| `npm run dist -w @ezychat/desktop`              | Build an installer for the current OS                          |
 
 Read [docs/architecture.md](docs/architecture.md) before larger changes, and
 [docs/design-system.md](docs/design-system.md) before UI work. Releases are checked against
@@ -31,7 +31,7 @@ Read [docs/architecture.md](docs/architecture.md) before larger changes, and
 ## Conventions
 
 - TypeScript strict, ESM everywhere.
-- REST and socket payloads are defined once in `@wa-team-inbox/shared` (zod).
+- REST and socket payloads are defined once in `@ezychat/shared` (zod).
 - Only `packages/wa/src/baileys/**` may import `baileys`.
 - Never commit WhatsApp auth/session data, databases, `data/` dirs, or secrets.
 - Web UI must be mobile responsive (usable at 360px wide, no horizontal scroll).

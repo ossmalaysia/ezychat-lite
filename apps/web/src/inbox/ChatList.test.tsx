@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import type { ChatsData } from '../api/queries';
 import type * as QueriesModule from '../api/queries';
 import type * as ChatListItemModule from './ChatListItem';

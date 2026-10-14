@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import { WhatsAppPage } from './WhatsAppPage';
 
 const hooks = vi.hoisted(() => ({ wa: {} as WaStatus }));

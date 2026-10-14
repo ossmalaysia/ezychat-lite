@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdateState } from '@ezychat/shared';
 import { ManagedUpdates } from './controller.js';
 
 function fixture() {

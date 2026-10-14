@@ -13,7 +13,7 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react';
-import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
+import { isLocale, SUPPORTED_LOCALES } from '@ezychat/shared';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';

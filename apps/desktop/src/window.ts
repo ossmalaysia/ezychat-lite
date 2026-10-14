@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import { t } from './i18n.js';
 import { registerInboxNotifications } from './notifications.js';
 import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';

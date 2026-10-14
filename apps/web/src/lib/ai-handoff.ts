@@ -1,4 +1,4 @@
-import { AiHandoffReason } from '@wa-team-inbox/shared';
+import { AiHandoffReason } from '@ezychat/shared';
 import { i18n } from '@/i18n';
 
 /** Short, localized reason why the AI handed a chat to the team (chat events and Try it). */

@@ -1,6 +1,6 @@
 import { Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
+import { isLocale, SUPPORTED_LOCALES } from '@ezychat/shared';
 import {
   Select,
   SelectContent,

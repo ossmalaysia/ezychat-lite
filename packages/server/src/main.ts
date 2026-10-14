@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { join } from 'node:path';
-import { FakeWaAdapter, type WaAdapter, type WaAdapterOptions } from '@wa-team-inbox/wa';
+import { FakeWaAdapter, type WaAdapter, type WaAdapterOptions } from '@ezychat/wa';
 import type { Logger } from 'pino';
 import { buildApp } from './app.js';
 import { Bus } from './bus.js';
@@ -20,10 +20,10 @@ import { isTransientNetworkError } from './transient-error.js';
 
 /** Loads the Baileys adapter lazily (keeps baileys out of tests / --fake-wa runs). */
 async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
-  const mod = (await import('@wa-team-inbox/wa')) as Record<string, unknown>;
+  const mod = (await import('@ezychat/wa')) as Record<string, unknown>;
   const create = mod.createBaileysAdapter as ((o: WaAdapterOptions) => WaAdapter) | undefined;
   if (typeof create !== 'function')
-    throw new Error('createBaileysAdapter is not available in @wa-team-inbox/wa');
+    throw new Error('createBaileysAdapter is not available in @ezychat/wa');
   return create(opts);
 }
 

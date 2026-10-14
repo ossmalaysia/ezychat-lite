@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { UserSchema } from '@wa-team-inbox/shared';
+import { UserSchema } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin, sessionCookieFrom } from './auth-helpers.js';
 

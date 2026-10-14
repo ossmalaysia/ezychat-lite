@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { ApiErrorSchema } from '@wa-team-inbox/shared';
+import { ApiErrorSchema } from '@ezychat/shared';
 import { i18n } from '@/i18n';
 import type enErrors from '@/i18n/locales/en/errors.json';
 

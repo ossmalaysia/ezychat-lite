@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { HealthResponse } from '@wa-team-inbox/shared';
+import { HealthResponse } from '@ezychat/shared';
 import { requireUser, type ServerExtension } from '../src/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 

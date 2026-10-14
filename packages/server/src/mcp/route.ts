@@ -6,7 +6,7 @@ import { clientIp, isLocalOrTunnel } from '../http/client-ip.js';
 import { HttpError, errors } from '../http/errors.js';
 import { originHost } from '../http/origin.js';
 import { WindowLimiter } from '../http/window-limiter.js';
-import { ErrorCode } from '@wa-team-inbox/shared';
+import { ErrorCode } from '@ezychat/shared';
 import { createInboxReadPort } from './inbox.js';
 import { createAiSetupPort } from './ai-setup.js';
 import { createMcpServer } from './server.js';

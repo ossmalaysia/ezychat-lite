@@ -1,6 +1,6 @@
 // IPC between the status window (preload bridge) and the main process.
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';

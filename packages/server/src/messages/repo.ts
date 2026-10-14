@@ -4,7 +4,7 @@ import type {
   MessageStatus,
   MessageType,
   TranscriptStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 
 export interface MessageRow {

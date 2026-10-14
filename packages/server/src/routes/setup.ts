@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { SetupAdminBody } from '@wa-team-inbox/shared';
+import { SetupAdminBody } from '@ezychat/shared';
 import { getAuth, setSessionCookie } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';

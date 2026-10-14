@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Note } from '@wa-team-inbox/shared';
+import type { Note } from '@ezychat/shared';
 import { useAddNote } from '../api/queries';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';

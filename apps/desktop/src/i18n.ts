@@ -2,12 +2,12 @@
 // machine, so it follows the OS language rather than a web user's language setting. Log messages
 // stay English.
 //
-// Only *types* come from @wa-team-inbox/shared: the main process is compiled by tsc and run by
+// Only *types* come from @ezychat/shared: the main process is compiled by tsc and run by
 // Electron as plain JS, and the shared package ships TypeScript source (plus zod), which cannot be
 // loaded at runtime from dist/ or the packaged app. The tiny runtime pieces below mirror
 // packages/shared/src/i18n; i18n.test.ts checks that they behave exactly like the shared ones.
 // No electron import here, so the catalogs stay unit-testable.
-import type { Catalog, CatalogKey, Locale, Translator } from '@wa-team-inbox/shared';
+import type { Catalog, CatalogKey, Locale, Translator } from '@ezychat/shared';
 // Catalogs live in ./locales/*.json (tsc copies them to dist/ next to this file).
 import en from './locales/en.json' with { type: 'json' };
 import msCatalog from './locales/ms.json' with { type: 'json' };
@@ -21,7 +21,7 @@ const zhCN: DesktopCatalog = zhCNCatalog;
 
 export const desktopCatalogs: Record<Locale, Catalog> = { en, ms, 'zh-CN': zhCN };
 
-/** Mirrors SUPPORTED_LOCALES (code + Intl tag) from @wa-team-inbox/shared; checked by i18n.test.ts. */
+/** Mirrors SUPPORTED_LOCALES (code + Intl tag) from @ezychat/shared; checked by i18n.test.ts. */
 export const DESKTOP_LOCALES = [
   { code: 'en', intlTag: 'en-GB' },
   { code: 'ms', intlTag: 'ms-MY' },

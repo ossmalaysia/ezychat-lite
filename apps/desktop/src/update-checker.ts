@@ -2,7 +2,7 @@ import type {
   DesktopRelease,
   DesktopUpdateState,
 } from '../../../packages/shared/src/desktop-updates.js';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import { t, type DesktopCatalog } from './i18n.js';
 import { activeProduct, type Product } from './product.js';
 import { MAX_UPDATE_BYTES } from './updater/download.js';

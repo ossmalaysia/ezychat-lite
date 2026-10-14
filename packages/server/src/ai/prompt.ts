@@ -4,7 +4,7 @@ import {
   DEFAULT_AI_INSTRUCTIONS,
   type AiSettings,
   type CustomerProfile,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { KnowledgeSource } from './knowledge.js';
 import type { AiPrompt, AiPromptImage } from './provider-types.js';
 

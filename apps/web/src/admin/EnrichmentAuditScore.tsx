@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { EnrichmentAudit, ENRICHMENT_WEIGHTS, type AuditEntry } from '@wa-team-inbox/shared';
+import { EnrichmentAudit, ENRICHMENT_WEIGHTS, type AuditEntry } from '@ezychat/shared';
 import { ResponsiveDialog } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

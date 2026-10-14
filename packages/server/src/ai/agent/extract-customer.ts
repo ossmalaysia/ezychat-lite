@@ -1,5 +1,5 @@
 import { generateText, Output, type LanguageModel } from 'ai';
-import { EnrichmentExtraction } from '@wa-team-inbox/shared';
+import { EnrichmentExtraction } from '@ezychat/shared';
 import type { AiRewritePrompt } from '../provider-types.js';
 
 /** One bounded, tool-free extraction call. The customer service guards every proposed write. */

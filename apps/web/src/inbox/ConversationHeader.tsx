@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import {
   Select,

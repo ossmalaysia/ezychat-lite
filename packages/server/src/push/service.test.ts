@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Chat, Message } from '@wa-team-inbox/shared';
+import type { Chat, Message } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from '../../test/helpers.js';
 import { createPushService, type PushSender } from './service.js';
 import type { RealtimeService } from '../realtime/socket.js';

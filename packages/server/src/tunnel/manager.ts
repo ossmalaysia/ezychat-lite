@@ -1,5 +1,5 @@
 import type { ChildProcess, spawn as spawnFn } from 'node:child_process';
-import type { TunnelMode, TunnelStartBody, TunnelStatus } from '@wa-team-inbox/shared';
+import type { TunnelMode, TunnelStartBody, TunnelStatus } from '@ezychat/shared';
 import type { Logger } from 'pino';
 import type { Bus } from '../bus.js';
 import type { SettingsStore } from '../db/settings.js';

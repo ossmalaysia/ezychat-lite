@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { LOCALE_CODES, type Locale } from '@wa-team-inbox/shared';
+import { LOCALE_CODES, type Locale } from '@ezychat/shared';
 
 /**
  * Web extension API: lets another product build (e.g. Enterprise) add UI without forking Lite.

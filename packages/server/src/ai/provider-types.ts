@@ -6,7 +6,7 @@ import type {
   AiSettings,
   EnrichmentExtraction,
   AiTestResult,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 
 export interface AiPrompt {
   instructions: string;

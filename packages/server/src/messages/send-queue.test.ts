@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { SendResult } from '@wa-team-inbox/wa';
+import type { SendResult } from '@ezychat/wa';
 import { SendQueue, UNAVAILABLE_RETRY_MS, type SendJob } from './send-queue.js';
 
 const flush = async (n = 20) => {

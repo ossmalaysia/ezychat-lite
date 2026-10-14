@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Check, CheckCheck, Clock, Mic, Reply, RotateCw } from 'lucide-react';
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

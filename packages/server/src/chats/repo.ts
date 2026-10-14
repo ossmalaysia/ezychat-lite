@@ -5,8 +5,8 @@ import type {
   ChatStatus,
   ChatType,
   Note,
-} from '@wa-team-inbox/shared';
-import { customerTagKey } from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
+import { customerTagKey } from '@ezychat/shared';
 import {
   PROFILE_JOIN,
   PROFILE_NAME_COLUMN,

@@ -1,6 +1,6 @@
 import type { Logger } from 'pino';
-import type { Message } from '@wa-team-inbox/shared';
-import { normalizeContactJid } from '@wa-team-inbox/wa';
+import type { Message } from '@ezychat/shared';
+import { normalizeContactJid } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { getAliases, type AliasStore } from '../chats/aliases.js';
 import { jidUser, rowToChat, type ChatRow } from '../chats/repo.js';

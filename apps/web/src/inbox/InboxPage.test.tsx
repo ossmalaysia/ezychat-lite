@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Chat, Message, User } from '@wa-team-inbox/shared';
+import type { Chat, Message, User } from '@ezychat/shared';
 import { InboxPage } from './InboxPage';
 
 const me: User = {

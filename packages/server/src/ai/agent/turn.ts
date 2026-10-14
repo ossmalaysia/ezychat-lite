@@ -1,6 +1,6 @@
 import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@wa-team-inbox/shared';
+import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@ezychat/shared';
 import { AI_IMAGE_DETAIL, type AiPrompt } from '../provider-types.js';
 
 /** At most this many model calls per customer turn (tool calls + the final decision). */

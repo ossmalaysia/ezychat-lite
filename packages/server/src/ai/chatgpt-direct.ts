@@ -13,7 +13,7 @@ import {
   type AiModelList,
   type AiSettings,
   type AiTestResult,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';

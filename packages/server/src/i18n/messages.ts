@@ -1,4 +1,4 @@
-import { createTranslator, type Catalog, type Locale } from '@wa-team-inbox/shared';
+import { createTranslator, type Catalog, type Locale } from '@ezychat/shared';
 
 // Server-generated text shown to people (push notifications). API error messages stay English;
 // the web app translates them by error code.

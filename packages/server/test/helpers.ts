@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FakeWaAdapter } from '@wa-team-inbox/wa';
+import { FakeWaAdapter } from '@ezychat/wa';
 import { buildApp } from '../src/app.js';
 import type { ServerConfig } from '../src/config.js';
 import type { AppContext } from '../src/context.js';

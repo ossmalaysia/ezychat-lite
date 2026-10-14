@@ -5,7 +5,7 @@ import type {
   Message,
   MessageListQuery,
   Note,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { getAuth } from '../auth/guards.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';

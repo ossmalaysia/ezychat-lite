@@ -7,7 +7,7 @@ import {
   type VoiceModelError,
   type VoiceStatus,
   type VoiceTranscription,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { useVoiceAction, useVoiceStatus } from '../api/voice';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';

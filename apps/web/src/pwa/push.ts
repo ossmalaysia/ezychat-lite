@@ -1,6 +1,6 @@
 // Web Push helpers (browser side). Server routes: GET /api/push/vapid-key,
 // POST /api/push/subscribe (PushSubscribeBody), DELETE /api/push/subscribe ({ endpoint }).
-import type { PushSubscribeBody } from '@wa-team-inbox/shared';
+import type { PushSubscribeBody } from '@ezychat/shared';
 import { api } from '../api/client';
 import { reportClientError } from '@/lib/error-reporter';
 import { i18n } from '@/i18n';

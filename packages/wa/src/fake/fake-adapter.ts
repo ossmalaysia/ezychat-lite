@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import {
   WaUnavailableError,
   type SendResult,

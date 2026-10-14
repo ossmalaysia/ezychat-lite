@@ -1,11 +1,11 @@
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import type {
   WaChatInfo,
   WaContactInfo,
   WaContactAlias,
   WaIncomingMessage,
   WaMessageStatusUpdate,
-} from '@wa-team-inbox/wa';
+} from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 
 /**

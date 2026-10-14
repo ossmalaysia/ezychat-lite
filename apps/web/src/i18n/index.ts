@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { DEFAULT_LOCALE, type Locale } from '@wa-team-inbox/shared';
+import { DEFAULT_LOCALE, type Locale } from '@ezychat/shared';
 import { loadDateLocale } from './date-locale';
 import { enResources, NAMESPACES, type Namespace } from './resources';
 

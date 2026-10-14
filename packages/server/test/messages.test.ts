@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MessageListResponse, MessageSchema } from '@wa-team-inbox/shared';
-import { FAKE_RUN } from '@wa-team-inbox/wa';
+import { MessageListResponse, MessageSchema } from '@ezychat/shared';
+import { FAKE_RUN } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';

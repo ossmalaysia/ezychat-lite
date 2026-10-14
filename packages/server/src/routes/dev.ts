@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { FakeGroupBody, FakeIncomingBody, type Message } from '@wa-team-inbox/shared';
-import type { WaGroupParticipant } from '@wa-team-inbox/wa';
-import type { FakeWaAdapter } from '@wa-team-inbox/wa';
+import { FakeGroupBody, FakeIncomingBody, type Message } from '@ezychat/shared';
+import type { WaGroupParticipant } from '@ezychat/wa';
+import type { FakeWaAdapter } from '@ezychat/wa';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { parse } from '../http/errors.js';

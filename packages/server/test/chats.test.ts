@@ -4,7 +4,7 @@ import {
   ChatListResponse,
   ChatSchema,
   NoteSchema,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';

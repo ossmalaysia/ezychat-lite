@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { CreateUserBody, PatchUserBody } from '@wa-team-inbox/shared';
+import { CreateUserBody, PatchUserBody } from '@ezychat/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';

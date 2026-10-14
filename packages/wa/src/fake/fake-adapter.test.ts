@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import { FakeWaAdapter, WaUnavailableError } from '../index.js';
 import type { WaContactAlias, WaIncomingMessage, WaMessageStatusUpdate } from '../index.js';
 

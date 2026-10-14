@@ -12,7 +12,7 @@ import type {
   User,
   VoiceStatus,
   WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { contextHostPolicy, hostAllowed } from '../http/host.js';

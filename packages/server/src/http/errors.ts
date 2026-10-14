@@ -1,6 +1,6 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError, type z } from 'zod';
-import { ErrorCode } from '@wa-team-inbox/shared';
+import { ErrorCode } from '@ezychat/shared';
 
 export class HttpError extends Error {
   constructor(

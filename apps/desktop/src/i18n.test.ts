@@ -5,7 +5,7 @@ import {
   LOCALE_CODES,
   resolveLocale,
   SUPPORTED_LOCALES,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import {
   DESKTOP_LOCALES,
   desktopCatalogs,
