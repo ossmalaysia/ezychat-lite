@@ -4,12 +4,11 @@ import type {
 } from '../../../packages/shared/src/desktop-updates.js';
 import type { Locale } from '@wa-team-inbox/shared';
 import { t, type DesktopCatalog } from './i18n.js';
+import { activeProduct, type Product } from './product.js';
 import { MAX_UPDATE_BYTES } from './updater/download.js';
 
-const REPOSITORY = 'ossmalaysia/ezychat-lite';
-// Historical releases can retain their original URLs after GitHub renames the repository.
-const RELEASE_REPOSITORIES = [REPOSITORY, 'ossmalaysia/wa-team-inbox'];
-const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases`;
+// Releases come from product.releaseRepository. Historical releases can retain their original URLs
+// after GitHub renames the repository, so assets may also live under product.releaseRepositories.
 const INTERVAL_MS = 12 * 60 * 60 * 1000;
 const COOLDOWN_MS = 60_000;
 const TIMEOUT_MS = 15_000;
@@ -62,13 +61,18 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function installerNames(version: string, platform: NodeJS.Platform, arch: string): string[] {
+function installerNames(
+  version: string,
+  platform: NodeJS.Platform,
+  arch: string,
+  product: Product,
+): string[] {
   let suffix: string;
   if (platform === 'win32' && arch === 'x64') suffix = 'win-x64.exe';
   else if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64'))
     suffix = `mac-${arch}.dmg`;
   else return [];
-  return ['EzyChat-Lite', 'WA-Team-Inbox'].map((name) => `${name}-${version}-${suffix}`);
+  return product.artifactPrefixes.map((name) => `${name}-${version}-${suffix}`);
 }
 
 function parseRelease(
@@ -76,7 +80,10 @@ function parseRelease(
   allowPreview: boolean,
   platform: NodeJS.Platform,
   arch: string,
+  product: Product,
 ): { version: Version; release: DesktopRelease } | null {
+  const REPOSITORY = product.releaseRepository;
+  const RELEASE_REPOSITORIES = product.releaseRepositories;
   const item = record(value);
   if (!item || item.draft !== false || typeof item.prerelease !== 'boolean') return null;
   if (typeof item.tag_name !== 'string' || item.tag_name.length > 200) return null;
@@ -96,7 +103,7 @@ function parseRelease(
   )
     return null;
   let installer: Record<string, unknown> | null = null;
-  for (const name of installerNames(versionString, platform, arch)) {
+  for (const name of installerNames(versionString, platform, arch, product)) {
     installer = Array.isArray(item.assets)
       ? (item.assets
           .map(record)
@@ -201,6 +208,8 @@ export interface GitHubUpdateCheckerOptions {
   log?: (fields: Record<string, unknown>) => void;
   /** language of the user-facing error messages (default English) */
   locale?: Locale;
+  /** release feed and installer names; the active product when omitted */
+  product?: Product;
 }
 
 /** Checks public release metadata only; downloading/installing is an explicit host action. */
@@ -213,8 +222,10 @@ export class GitHubUpdateChecker {
   private nextCheckAt = 0;
   private readonly fetch: typeof globalThis.fetch;
   private readonly now: () => number;
+  private readonly product: Product;
 
   constructor(private readonly options: GitHubUpdateCheckerOptions) {
+    this.product = options.product ?? activeProduct();
     this.fetch = options.fetch ?? globalThis.fetch;
     this.now = options.now ?? Date.now;
     this.state = {
@@ -298,15 +309,18 @@ export class GitHubUpdateChecker {
       let newest: { version: Version; release: DesktopRelease } | null = null;
       let complete = false;
       for (let page = 1; page <= MAX_PAGES; page++) {
-        const response = await this.fetch(`${RELEASES_API}?per_page=100&page=${page}`, {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'EzyChat-Lite-Update-Checker',
+        const response = await this.fetch(
+          `https://api.github.com/repos/${this.product.releaseRepository}/releases?per_page=100&page=${page}`,
+          {
+            headers: {
+              Accept: 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': `${this.product.artifactPrefixes[0]}-Update-Checker`,
+            },
+            signal: controller.signal,
+            redirect: 'error',
           },
-          signal: controller.signal,
-          redirect: 'error',
-        });
+        );
         pages++;
         if (generation !== this.generation || !this.options.isHost()) return this.getState();
         if (controller.signal.aborted) {
@@ -338,6 +352,7 @@ export class GitHubUpdateChecker {
             allowPreview,
             this.options.platform,
             this.options.arch,
+            this.product,
           );
           if (candidate && (!newest || compareVersions(candidate.version, newest.version) > 0)) {
             newest = candidate;

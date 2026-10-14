@@ -1,4 +1,5 @@
-// Detects a running WA Team Inbox server on a local port. Pure (no electron import).
+// Detects a running server of this product on a local port. Pure (no electron import).
+import { activeProduct, type Product } from './product.js';
 
 export type ServerMode = 'standalone' | 'service' | 'dev';
 export interface ProbeResult {
@@ -10,11 +11,16 @@ type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<Respo
 
 const MODES: readonly string[] = ['standalone', 'service', 'dev'];
 
-/** GET http://127.0.0.1:<port>/api/health with a timeout; null unless it is a WA Team Inbox server. */
+/**
+ * GET http://127.0.0.1:<port>/api/health with a timeout; null unless it is this product's server:
+ * `app` must be `product.healthApp` and `edition` (`lite` when absent, as before editions existed)
+ * must be `product.edition`, so one edition never adopts the other's server.
+ */
 export async function probeServer(
   port: number,
   fetchImpl: FetchLike = fetch,
   timeoutMs = 1500,
+  product: Product = activeProduct(),
 ): Promise<ProbeResult | null> {
   const ctrl = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -28,10 +34,19 @@ export async function probeServer(
     try {
       const res = await fetchImpl(`http://127.0.0.1:${port}/api/health`, { signal: ctrl.signal });
       if (!res.ok) return null;
-      const body = (await res.json()) as { app?: unknown; version?: unknown; mode?: unknown } | null;
-      if (!body || body.app !== 'wa-team-inbox') return null;
+      const body = (await res.json()) as {
+        app?: unknown;
+        edition?: unknown;
+        version?: unknown;
+        mode?: unknown;
+      } | null;
+      if (!body || body.app !== product.healthApp) return null;
+      if ((body.edition ?? 'lite') !== product.edition) return null;
       if (typeof body.mode !== 'string' || !MODES.includes(body.mode)) return null;
-      return { mode: body.mode as ServerMode, version: typeof body.version === 'string' ? body.version : 'unknown' };
+      return {
+        mode: body.mode as ServerMode,
+        version: typeof body.version === 'string' ? body.version : 'unknown',
+      };
     } catch {
       return null;
     }
@@ -46,7 +61,12 @@ export async function probeServer(
 /** Polls probeServer until it answers or the deadline passes. */
 export async function waitForServer(
   port: number,
-  opts: { timeoutMs?: number; intervalMs?: number; fetchImpl?: FetchLike; isCancelled?: () => boolean } = {},
+  opts: {
+    timeoutMs?: number;
+    intervalMs?: number;
+    fetchImpl?: FetchLike;
+    isCancelled?: () => boolean;
+  } = {},
 ): Promise<ProbeResult | null> {
   const deadline = Date.now() + (opts.timeoutMs ?? 30_000);
   while (Date.now() < deadline) {

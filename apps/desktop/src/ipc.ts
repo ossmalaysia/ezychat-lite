@@ -16,6 +16,8 @@ export interface DesktopStatus {
   port: number;
   url: string;
   dataDir: string;
+  /** product name shown in the status page heading (active product) */
+  productName: string;
   /** desktop app version (app.getVersion()) */
   version: string;
   /** version reported by the server's GET /api/health; null when it is not answering */

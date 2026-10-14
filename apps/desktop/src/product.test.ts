@@ -1,0 +1,209 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  LITE_PRODUCT,
+  activeProduct,
+  defineProduct,
+  escapeRegExp,
+  resetActiveProductForTests,
+  setActiveProduct,
+  type Product,
+} from './product.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const desktop = join(here, '..');
+
+afterEach(() => resetActiveProductForTests());
+
+describe('LITE_PRODUCT upgrade contracts', () => {
+  it('pins every installer identity value to what shipped (never change these)', () => {
+    expect({ ...LITE_PRODUCT }).toEqual({
+      edition: 'lite',
+      productName: 'EzyChat Lite',
+      appUserModelId: 'org.ossmalaysia.wateaminbox',
+      appDirName: 'wa-team-inbox',
+      profileDirName: 'WA Team Inbox',
+      serviceId: 'wa-team-inbox',
+      serviceName: 'EzyChat Lite Server',
+      launchdLabel: 'org.ossmalaysia.wateaminbox.server',
+      healthApp: 'wa-team-inbox',
+      releaseRepository: 'ossmalaysia/ezychat-lite',
+      releaseRepositories: ['ossmalaysia/ezychat-lite', 'ossmalaysia/wa-team-inbox'],
+      artifactPrefixes: ['EzyChat-Lite', 'WA-Team-Inbox'],
+      executableNames: ['EzyChat Lite', 'WA Team Inbox'],
+    });
+  });
+
+  it('is frozen and passes its own validation', () => {
+    expect(Object.isFrozen(LITE_PRODUCT)).toBe(true);
+    expect(Object.isFrozen(LITE_PRODUCT.releaseRepositories)).toBe(true);
+    expect({ ...defineProduct(LITE_PRODUCT) }).toEqual({ ...LITE_PRODUCT });
+  });
+
+  it('is the active product unless an edition entry selects another', () => {
+    expect(activeProduct()).toBe(LITE_PRODUCT);
+  });
+
+  it('matches electron-builder.yml (appId, productName, artifact and executable names)', () => {
+    const yml = readFileSync(join(desktop, 'electron-builder.yml'), 'utf8');
+    const value = (key: string) => yml.match(new RegExp(`^\\s*${key}: (.+)$`, 'm'))?.[1]?.trim();
+    expect(value('appId')).toBe(LITE_PRODUCT.appUserModelId);
+    expect(value('productName')).toBe(LITE_PRODUCT.productName);
+    expect(value('artifactName')).toBe(
+      `${LITE_PRODUCT.artifactPrefixes[0]}-\${version}-\${os}-\${arch}.\${ext}`,
+    );
+    expect(value('executableName')).toBe(LITE_PRODUCT.executableNames[0]);
+    expect(value('shortcutName')).toBe(LITE_PRODUCT.productName);
+  });
+
+  it('matches package.json productName (Electron app name)', () => {
+    const pkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8')) as {
+      productName: string;
+    };
+    expect(pkg.productName).toBe(LITE_PRODUCT.productName);
+  });
+});
+
+const enterprise: Product = {
+  edition: 'enterprise',
+  productName: 'EzyChat Enterprise',
+  appUserModelId: 'com.example.ezychat.enterprise',
+  appDirName: 'ezychat-enterprise',
+  profileDirName: 'EzyChat Enterprise',
+  serviceId: 'ezychat-enterprise',
+  serviceName: 'EzyChat Enterprise Server',
+  launchdLabel: 'com.example.ezychat.enterprise.server',
+  healthApp: 'wa-team-inbox',
+  releaseRepository: 'example/ezychat-enterprise-releases',
+  releaseRepositories: ['example/ezychat-enterprise-releases'],
+  artifactPrefixes: ['EzyChat-Enterprise'],
+  executableNames: ['EzyChat Enterprise'],
+};
+
+describe('defineProduct', () => {
+  it('accepts a complete product and freezes it', () => {
+    const p = defineProduct(enterprise);
+    expect({ ...p }).toEqual(enterprise);
+    expect(Object.isFrozen(p)).toBe(true);
+    expect(Object.isFrozen(p.executableNames)).toBe(true);
+  });
+
+  it.each([
+    ['edition', ''],
+    ['edition', 'Enterprise!'],
+    ['productName', ''],
+    ['productName', "Ezy'Chat"],
+    ['productName', ' padded '],
+    ['appUserModelId', ''],
+    ['appUserModelId', 'nodots'],
+    ['appUserModelId', 'com..example'],
+    ['appDirName', ''],
+    ['appDirName', '../escape'],
+    ['appDirName', 'Has Space'],
+    ['profileDirName', ''],
+    ['profileDirName', 'a/b'],
+    ['serviceId', ''],
+    ['serviceId', 'svc;rm'],
+    ['serviceName', ''],
+    ['launchdLabel', ''],
+    ['launchdLabel', 'label with space'],
+    ['healthApp', ''],
+    ['releaseRepository', ''],
+    ['releaseRepository', 'no-slash'],
+  ] as const)('rejects %s = %j', (field, value) => {
+    expect(() => defineProduct({ ...enterprise, [field]: value })).toThrow(
+      new RegExp(`product ${field}`),
+    );
+  });
+
+  it('rejects missing fields', () => {
+    const { serviceId: _omit, ...rest } = enterprise;
+    expect(() => defineProduct(rest as Product)).toThrow(/serviceId/);
+  });
+
+  it('requires the lists to start with the current value and have no duplicates', () => {
+    expect(() => defineProduct({ ...enterprise, releaseRepositories: ['other/repo'] })).toThrow(
+      /releaseRepositories/,
+    );
+    expect(() => defineProduct({ ...enterprise, executableNames: [] })).toThrow(/executableNames/);
+    expect(() => defineProduct({ ...enterprise, executableNames: ['Something Else'] })).toThrow(
+      /executableNames/,
+    );
+    expect(() =>
+      defineProduct({
+        ...enterprise,
+        artifactPrefixes: ['EzyChat-Enterprise', 'EzyChat-Enterprise'],
+      }),
+    ).toThrow(/duplicate/);
+    expect(() => defineProduct({ ...enterprise, artifactPrefixes: ['bad name'] })).toThrow(
+      /artifactPrefixes/,
+    );
+  });
+});
+
+describe('setActiveProduct', () => {
+  it('switches the product before anything reads it', () => {
+    setActiveProduct(enterprise);
+    expect(activeProduct().serviceId).toBe('ezychat-enterprise');
+  });
+
+  it('refuses a late switch once the product has been read', () => {
+    activeProduct();
+    expect(() => setActiveProduct(enterprise)).toThrow(/already in use/);
+    expect(activeProduct()).toBe(LITE_PRODUCT);
+  });
+
+  it('validates the product it is given', () => {
+    expect(() => setActiveProduct({ ...enterprise, serviceId: '' })).toThrow(/serviceId/);
+  });
+});
+
+describe('escapeRegExp', () => {
+  it('matches the value literally', () => {
+    const value = 'A.B (x)|y';
+    expect(new RegExp(`^${escapeRegExp(value)}$`).test(value)).toBe(true);
+    expect(new RegExp(`^${escapeRegExp(value)}$`).test('AxB (x)|y')).toBe(false);
+  });
+});
+
+describe('another edition flows through the identity consumers', () => {
+  it('uses its own folders, profile and installer names', async () => {
+    const { machineDataDir, serviceRunDir, preserveInstalledProfile } = await import('./paths.js');
+    const { updateInstallEligibility } = await import('./updater/install.js');
+    setActiveProduct(enterprise);
+    expect(machineDataDir('win32', {})).toBe('C:\\ProgramData\\ezychat-enterprise');
+    expect(serviceRunDir('darwin', {})).toBe(
+      '/Library/Application Support/ezychat-enterprise-runtime',
+    );
+    const set: string[] = [];
+    preserveInstalledProfile(
+      { isPackaged: true, getPath: () => '/home', setPath: (_n, p) => set.push(p) },
+      () => {},
+    );
+    expect(set[0]).toBe(join('/home', 'EzyChat Enterprise'));
+    const context = {
+      platform: 'win32' as const,
+      appBundle: null,
+      userDataDir: 'C:\\Users\\a\\AppData\\Roaming\\EzyChat Enterprise',
+      machineDataDir: 'C:\\ProgramData\\ezychat-enterprise',
+      serviceRunDir: 'C:\\ProgramData\\ezychat-enterprise\\run',
+      serviceInstalled: false,
+      oldPid: 1,
+    };
+    const env = { ProgramFiles: 'C:\\Program Files' };
+    expect(
+      updateInstallEligibility(
+        { ...context, execPath: 'C:\\Program Files\\EzyChat Enterprise\\EzyChat Enterprise.exe' },
+        env,
+      ).eligible,
+    ).toBe(true);
+    const lite = updateInstallEligibility(
+      { ...context, execPath: 'C:\\Program Files\\EzyChat Lite\\EzyChat Lite.exe' },
+      env,
+    );
+    expect(lite.eligible).toBe(false);
+    expect(lite.reason).toContain('EzyChat Enterprise');
+  });
+});

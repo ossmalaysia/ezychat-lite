@@ -1,8 +1,8 @@
 // Path helpers for the desktop shell. Pure: must not import 'electron' (unit tested under Node).
 import { join } from 'node:path';
+import { activeProduct, type Product } from './product.js';
 
 export const DEFAULT_PORT = 7420;
-export const APP_DIR_NAME = 'wa-team-inbox';
 
 /** Keep installed profiles (accounts, sessions and chats) across the product rename. */
 export function preserveInstalledProfile(
@@ -12,9 +12,10 @@ export function preserveInstalledProfile(
     setPath(name: 'userData' | 'sessionData', path: string): void;
   },
   ensureDirectory: (path: string) => void,
+  product: Product = activeProduct(),
 ): void {
   if (!app.isPackaged) return;
-  const profile = join(app.getPath('appData'), 'WA Team Inbox');
+  const profile = join(app.getPath('appData'), product.profileDirName);
   ensureDirectory(profile);
   app.setPath('userData', profile);
   app.setPath('sessionData', profile);
@@ -29,10 +30,12 @@ export function userDataDir(app: { getPath(name: 'userData'): string }): string 
 export function machineDataDir(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
+  product: Product = activeProduct(),
 ): string {
-  if (platform === 'win32') return `${env.ProgramData ?? 'C:\\ProgramData'}\\${APP_DIR_NAME}`;
-  if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}`;
-  return `/var/lib/${APP_DIR_NAME}`;
+  const dir = product.appDirName;
+  if (platform === 'win32') return `${env.ProgramData ?? 'C:\\ProgramData'}\\${dir}`;
+  if (platform === 'darwin') return `/Library/Application Support/${dir}`;
+  return `/var/lib/${dir}`;
 }
 
 /**
@@ -133,20 +136,22 @@ export function standalonePortFile(userDataPath: string): string {
 export function servicePortFile(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
+  product: Product = activeProduct(),
 ): string {
-  if (platform === 'win32') return `${serviceRunDir(platform, env)}\\port.json`;
-  return `${serviceRunDir(platform, env)}/port.json`;
+  if (platform === 'win32') return `${serviceRunDir(platform, env, product)}\\port.json`;
+  return `${serviceRunDir(platform, env, product)}/port.json`;
 }
 
 /** Machine-wide folder readable by local users (port file). Admin/root-owned, not user-writable. */
 export function serviceRunDir(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
+  product: Product = activeProduct(),
 ): string {
   // inside the locked-down data dir; the install script grants Users read on this sub-folder only
-  if (platform === 'win32') return `${machineDataDir(platform, env)}\\run`;
-  if (platform === 'darwin') return `/Library/Application Support/${APP_DIR_NAME}-runtime`;
-  return `/var/lib/${APP_DIR_NAME}-run`;
+  if (platform === 'win32') return `${machineDataDir(platform, env, product)}\\run`;
+  if (platform === 'darwin') return `/Library/Application Support/${product.appDirName}-runtime`;
+  return `/var/lib/${product.appDirName}-run`;
 }
 
 /**

@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { APP_USER_MODEL_ID, appUserModelId } from './app-identity.js';
+import { appUserModelId } from './app-identity.js';
+import { LITE_PRODUCT } from './product.js';
+
+const APP_USER_MODEL_ID = LITE_PRODUCT.appUserModelId;
 
 const here = dirname(fileURLToPath(import.meta.url));
 

@@ -66,6 +66,7 @@ import {
   messagePage,
 } from './window.js';
 import { appUserModelId } from './app-identity.js';
+import { activeProduct } from './product.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -476,7 +477,7 @@ async function main(): Promise<void> {
     log(`[desktop] ${title}: ${msg}`);
     void dialog.showMessageBox({
       type: 'error',
-      title: 'EzyChat Lite',
+      title: activeProduct().productName,
       message: title,
       detail: msg,
     });
@@ -610,6 +611,7 @@ async function main(): Promise<void> {
         url,
         dataDir:
           mode === 'client' && lastServiceState !== 'not-installed' ? machineDataDir() : dataDir,
+        productName: activeProduct().productName,
         version,
         serverVersion: health?.version ?? null,
         serverMode: health?.mode ?? null,

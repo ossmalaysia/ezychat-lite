@@ -151,7 +151,8 @@
       : s.serverState;
     $('url').textContent = s.url;
     $('data').textContent = s.dataDir;
-    $('title').textContent = s.version ? 'EzyChat Lite v' + s.version : 'EzyChat Lite';
+    var name = s.productName || 'EzyChat Lite';
+    $('title').textContent = s.version ? name + ' v' + s.version : name;
     $('version').textContent = s.version;
     $('server-version').textContent = s.serverVersion || tr('notAnswering');
     $('server-mode').textContent = s.serverMode

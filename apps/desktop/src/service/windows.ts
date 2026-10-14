@@ -1,4 +1,5 @@
 // Windows service (WinSW) builders. Pure string builders — no electron import (unit tested).
+import { activeProduct } from '../product.js';
 import { dataMoveCommands } from './data-move.js';
 
 export interface WinswOptions {
@@ -56,7 +57,7 @@ export function winswXml(o: WinswOptions): string {
     '<service>',
     `  <id>${xmlEscape(o.id)}</id>`,
     `  <name>${xmlEscape(o.name)}</name>`,
-    `  <description>${xmlEscape(o.name)} - shared team inbox server (EzyChat Lite)</description>`,
+    `  <description>${xmlEscape(o.name)} - shared team inbox server (${xmlEscape(activeProduct().productName)})</description>`,
     `  <executable>${xmlEscape(o.exe)}</executable>`,
     `  <arguments>${xmlEscape(o.args.map(quoteWinArg).join(' '))}</arguments>`,
     env,
@@ -154,7 +155,7 @@ const PS_HELPERS = [
 ];
 
 /** A SYSTEM service must never execute an app from a user's writable unpacked/custom folder. */
-const PS_RUNTIME_HELPERS = [
+const psRuntimeHelpers = (productName: string): string[] => [
   `$runtimeOwners = @('${SID_SYSTEM}', '${SID_ADMINS}', 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')`,
   `$runtimeSidType = [System.Security.Principal.SecurityIdentifier]`,
   `$runtimeWriteRights = [System.Security.AccessControl.FileSystemRights]'Write, Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership'`,
@@ -163,7 +164,7 @@ const PS_RUNTIME_HELPERS = [
   `  $runtimeDir = [System.IO.Path]::GetDirectoryName($runtimePath)`,
   `  $programRoots = @([Environment]::GetFolderPath('ProgramFiles'), [Environment]::GetFolderPath('ProgramFilesX86')) | Where-Object { $_ }`,
   `  $programRoot = $programRoots | Where-Object { $runtimeDir.StartsWith($_.TrimEnd('\\') + '\\', [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1`,
-  `  if (-not $programRoot) { throw 'Background service requires an installed app in Program Files. Install EzyChat Lite with its installer; unpacked and user-folder builds can run in standalone mode.' }`,
+  `  if (-not $programRoot) { throw 'Background service requires an installed app in Program Files. Install ${productName} with its installer; unpacked and user-folder builds can run in standalone mode.' }`,
   `  $items = @(Get-Item -LiteralPath $runtimePath -Force) + @(Get-ChildItem -LiteralPath $runtimeDir -Force -Recurse)`,
   `  $ancestor = $runtimeDir`,
   `  while ($ancestor) {`,
@@ -174,10 +175,10 @@ const PS_RUNTIME_HELPERS = [
   `  foreach ($item in $items) {`,
   `    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Background service cannot execute an app containing filesystem links.' }`,
   `    $acl = Get-Acl -LiteralPath $item.FullName`,
-  `    if ($runtimeOwners -notcontains $acl.GetOwner($runtimeSidType).Value) { throw 'Background service requires an administrator-owned installation. Reinstall EzyChat Lite in Program Files.' }`,
+  `    if ($runtimeOwners -notcontains $acl.GetOwner($runtimeSidType).Value) { throw 'Background service requires an administrator-owned installation. Reinstall ${productName} in Program Files.' }`,
   `    foreach ($ace in $acl.GetAccessRules($true, $true, $runtimeSidType)) {`,
   `      if ($ace.AccessControlType -ne 'Allow' -or ($ace.PropagationFlags -band [System.Security.AccessControl.PropagationFlags]::InheritOnly)) { continue }`,
-  `      if (($runtimeOwners -notcontains $ace.IdentityReference.Value) -and ($ace.FileSystemRights -band $runtimeWriteRights)) { throw 'Background service cannot execute files writable by ordinary users. Reinstall EzyChat Lite in Program Files.' }`,
+  `      if (($runtimeOwners -notcontains $ace.IdentityReference.Value) -and ($ace.FileSystemRights -band $runtimeWriteRights)) { throw 'Background service cannot execute files writable by ordinary users. Reinstall ${productName} in Program Files.' }`,
   `    }`,
   `  }`,
   `}`,
@@ -185,7 +186,12 @@ const PS_RUNTIME_HELPERS = [
 
 /** Shared with the updater: service wrappers and replacement runtimes need identical guards. */
 export const windowsServiceSecurityHelpers: readonly string[] = PS_HELPERS;
-export const windowsRuntimeSecurityHelpers: readonly string[] = PS_RUNTIME_HELPERS;
+/** Runtime checks; error messages name the given product (the active one by default). */
+export function windowsRuntimeSecurityHelpers(
+  productName: string = activeProduct().productName,
+): readonly string[] {
+  return psRuntimeHelpers(productName);
+}
 
 /**
  * PowerShell script (run elevated): secure the machine data dir, copy WinSW + xml into a fresh
@@ -198,7 +204,7 @@ export function windowsInstallScript(o: WindowsInstallOptions): string {
   const lines = [
     ...PS_HEADER,
     ...PS_HELPERS,
-    ...PS_RUNTIME_HELPERS,
+    ...windowsRuntimeSecurityHelpers(),
     `Assert-ProtectedRuntime ${psQuote(o.exe)}`,
     // 1. C:\ProgramData lets standard users create sub-folders: a folder that already exists
     //    must be ours (SYSTEM/Administrators-owned, not a link) — otherwise move it aside.
@@ -299,7 +305,7 @@ export function windowsControlScript(o: {
       `Assert-Locked ${psQuote(o.serviceDir)} -Recurse`,
       ...(o.action === 'start'
         ? [
-            ...PS_RUNTIME_HELPERS,
+            ...windowsRuntimeSecurityHelpers(),
             `$serviceConfig = New-Object System.Xml.XmlDocument`,
             `$serviceConfig.XmlResolver = $null`,
             `$serviceConfig.Load(${psQuote(`${o.serviceDir}\\${o.id}.xml`)})`,
@@ -321,7 +327,7 @@ export function windowsResetAdminScript(o: {
   return (
     [
       ...PS_HEADER,
-      ...PS_RUNTIME_HELPERS,
+      ...windowsRuntimeSecurityHelpers(),
       `Assert-ProtectedRuntime ${psQuote(o.exe)}`,
       `$env:ELECTRON_RUN_AS_NODE = '1'`,
       `& ${psQuote(o.exe)} ${psQuote(o.entry)} --data ${psQuote(o.dataDir)} --reset-admin`,
