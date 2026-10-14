@@ -16,6 +16,7 @@ export default tseslint.config(
       '**/release-*/**',
       '**/coverage/**',
       'playwright-report/**',
+      '.playwright-mcp/**',
       'test-results/**',
       'resources/**',
       'data/**',

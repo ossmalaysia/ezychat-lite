@@ -44,8 +44,9 @@ Enterprise pins exact versions (`"@ezychat/server": "0.1.36"`), installs with `n
 
 What this needs in Lite (the price of npm over a submodule):
 - Every package builds to `dist/` (JS + `.d.ts`) and its `exports` point there; today they point to
-  `src/*.ts`, which only works inside this monorepo. Inside the Lite workspace a `development`
-  export condition keeps pointing to `src` so `npm run dev` and Vitest are unchanged.
+  `src/*.ts`, which only works inside this monorepo. Inside the Lite workspace an `ezychat-source`
+  export condition keeps pointing to `src` so `npm run dev` and Vitest are unchanged (not `development`:
+  Vite and Vitest enable that one by default, which would break Enterprise because tarballs ship no `src`).
 - `@ezychat/web` becomes a Vite **library** build with its CSS precompiled (Enterprise must not depend on
   Tailwind scanning `node_modules`); Lite's own `index.html` entry imports that library.
 - Workspace scope rename `@wa-team-inbox/*` → `@ezychat/*` (one mechanical PR; folders, data paths and
@@ -64,7 +65,7 @@ Local development across both repos: in Enterprise, `npm install ../whatsapp-man
 | 1 | Lite | **Server extension API**: `ServerExtension` (init, routes, migrations), `edition` in `/api/health`, public `index.ts` exports | No |
 | 2 | Lite | **Web extension API**: `createInboxApp({ extensions })` with routes, admin nav items, Settings sections, i18n catalogs; `main.tsx` becomes a thin Lite entry | Mock needed only if visible change |
 | 3 | Lite | **Product config for desktop**: appId, productName, data dir, service ID, health `app`, update feed, icons in one `product` object; Lite values unchanged and pinned by tests | No (identity tests) |
-| 3b | Lite | **Publishable packages**: `@ezychat/*` rename, `dist` builds + `development` condition, web library build, `npm pack` contract tests, publish job on release tag (dry-run until the npm org exists) | No |
+| 3b | Lite | **Publishable packages**: `@ezychat/*` rename, `dist` builds + `ezychat-source` condition, web library build, `npm pack` contract tests, publish job on release tag (dry-run until the npm org exists) | No |
 | 4 | Enterprise | **Scaffold**: `@ezychat/*` dependencies pinned, `ent-server` + `ent-web` "hello" extension, Enterprise CLI entry + server bundle, desktop app using Phase 3 config, CI on Windows + macOS, Dependabot (npm, grouped `@ezychat/*`) | Smoke only |
 | 5 | Enterprise | **Release channel**: signed installers; private repo releases are not downloadable without a token, so publish installers + update manifest to a public bucket (Cloudflare R2) or a public `ezychat-enterprise-releases` repo | No |
 | 6 | Enterprise | **Licensing** (separate brainstorm): offline-verifiable signed licence key, grace period, what happens when it expires | Yes (mock first) |
