@@ -24,6 +24,7 @@ import { AiConnectionSection } from './AiConnectionSection';
 import { AiVoiceSection } from './AiVoiceSection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
+import { ExtensionBoundary, useExtensionTranslation, useWebExtensions } from '../extensions';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -72,6 +73,25 @@ function PreferenceRow({
       </div>
       {below}
     </div>
+  );
+}
+
+/** Settings sections contributed by extensions (none in Lite), each behind its own boundary. */
+function ExtensionSettingsSections() {
+  const extensions = useWebExtensions();
+  const t = useExtensionTranslation();
+  return extensions.flatMap((ext) =>
+    (ext.settingsSections ?? []).map((section) => {
+      const headingId = `settings-ext-${ext.name}-${section.id}`;
+      return (
+        <section key={headingId} aria-labelledby={headingId} className="flex flex-col gap-3">
+          <h2 id={headingId} className="text-base font-semibold">
+            {t(section.titleKey)}
+          </h2>
+          <ExtensionBoundary>{section.element}</ExtensionBoundary>
+        </section>
+      );
+    }),
   );
 }
 
@@ -271,6 +291,7 @@ export function SettingsPage() {
 
         <TabsContent value="integrations" className="flex flex-col gap-4">
           <IntegrationsSection />
+          <ExtensionSettingsSections />
         </TabsContent>
 
         <TabsContent value="device" className="flex flex-col gap-4">
