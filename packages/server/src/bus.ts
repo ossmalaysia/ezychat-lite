@@ -20,6 +20,8 @@ export interface BusEvents {
   'voice:status': [VoiceStatus];
   /** Invalidate background work when the shared AI connection changes or becomes unavailable. */
   'ai:connection-changed': [];
+  /** Committed Sales Agent handover, delivered through the existing notification channels. */
+  'ai:handoff': [Chat];
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];

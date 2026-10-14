@@ -10,6 +10,13 @@ import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
 import { buildApp } from '../packages/server/src/app.js';
 import { attachRealtime } from '../packages/server/src/realtime/index.js';
+import { createPushService } from '../packages/server/src/push/service.js';
+import { requireAdmin } from '../packages/server/src/auth/guards.js';
+import type { NotificationPayload } from '@wa-team-inbox/shared';
+
+const handoffCheck = process.argv.includes('--handoff-check');
+if (handoffCheck && !process.argv.includes('--mock-ai'))
+  throw new Error('--mock-ai required for handoff check');
 
 if (!process.argv.includes('--fake-wa')) throw new Error('--fake-wa required');
 const portIndex = process.argv.indexOf('--port');
@@ -47,6 +54,12 @@ if (process.argv.includes('--mock-ai')) {
   ctx.services.ai = createAiService(ctx, {
     provider: {
       generate: async () => {
+        if (handoffCheck)
+          return {
+            reply: 'A teammate will help you.',
+            action: 'handoff' as const,
+            handoffReason: 'asked_for_human' as const,
+          };
         throw new Error('Sales Agent calls disabled in enrichment check');
       },
       extractCustomer: async (_settings, _key, prompt, signal) => {
@@ -89,8 +102,44 @@ if (process.argv.includes('--mock-ai')) {
   };
 }
 const app = await buildApp(ctx);
+const handoffDeliveries: { userId: number; payload: NotificationPayload }[] = [];
+if (handoffCheck) {
+  for (const [username, displayName, role] of [
+    ['aisyah', 'Aisyah', 'admin'],
+    ['mei', 'Mei', 'agent'],
+    ['farah', 'Farah', 'agent'],
+  ] as const)
+    ctx.services.auth!.createUser({
+      username,
+      displayName,
+      role,
+      password: 'demo-pass-123',
+      mustChangePassword: false,
+    });
+  ctx.services.push!.shutdown();
+  ctx.services.push = createPushService(ctx, {
+    sender: (_sub, payload) => {
+      handoffDeliveries.push({
+        userId: Number(_sub.endpoint.split('/').at(-1)),
+        payload: JSON.parse(payload),
+      });
+      return Promise.resolve();
+    },
+  });
+  for (const { id } of ctx.db.prepare("SELECT id FROM users WHERE kind = 'human'").all() as {
+    id: number;
+  }[])
+    ctx.services.push.subscribe(id, {
+      endpoint: `https://fcm.googleapis.com/fcm/send/${id}`,
+      keys: { p256dh: 'demo', auth: 'demo' },
+    });
+  app.get('/api/dev/handoff-deliveries', { preHandler: requireAdmin(ctx) }, () => ({
+    deliveries: handoffDeliveries,
+  }));
+}
 app.addHook('onSend', (_request, reply, payload, done) => {
   reply.header('x-enrichment-devbuild', process.argv.includes('--mock-ai') ? 'mock-ai' : 'real-ai');
+  if (handoffCheck) reply.header('x-handoff-devbuild', 'mock-only');
   done(null, payload);
 });
 const realtime = attachRealtime(app.server, ctx);

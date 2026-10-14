@@ -215,6 +215,10 @@ into AGENTS.md.
 
 ## Security
 
+- Treat an AI handover as its own committed notification event: the last inbound message may have
+  belonged to the AI. Route to the new human assignee or active human team, and cover connected,
+  offline, disabled and AI recipients separately.
+
 - Code that walks an uploaded file (Ogg pages, packets) keeps fixed memory: aggregate into a bounded
   result as you go, never collect one entry per item, and cap the upload size for that file kind.
 - Recheck credentials, sessions, disabled state and roles after any async hash/verify, immediately before
