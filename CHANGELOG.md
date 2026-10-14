@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.35] - 2026-10-14
+
 ### Added
 
 - **Customer enrichment:** an optional background AI service fills clear names, companies, emails and addresses from new direct-chat text messages, independently of Sales Agent replies. Settings → AI controls it; Audit shows the average evidence score in Details with a per-field breakdown and source conversation. Staff edits, ambiguous evidence and unavailable connections prevent stale updates.
