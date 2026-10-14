@@ -6,6 +6,7 @@ import { FakeWaAdapter } from '@wa-team-inbox/wa';
 import { buildApp } from '../src/app.js';
 import type { ServerConfig } from '../src/config.js';
 import type { AppContext } from '../src/context.js';
+import type { ServerExtension } from '../src/extensions.js';
 import { silentLogger } from '../src/logger.js';
 import { createContext, runInitializers, shutdownServices } from '../src/main.js';
 import { attachRealtime, type RealtimeService } from '../src/realtime/index.js';
@@ -30,6 +31,10 @@ export async function makeTestApp(opts?: {
   listen?: boolean;
   /** Runs after service initializers and before routes are built (routes capture services). */
   beforeBuild?: (ctx: AppContext) => void | Promise<void>;
+  /** Extensions as another product build would pass them (Lite: none). */
+  extensions?: readonly ServerExtension[];
+  /** Edition reported by /api/health (default 'lite'). */
+  edition?: string;
 }): Promise<TestApp> {
   const dataDir = mkdtempSync(join(tmpdir(), 'wati-test-'));
   const config: ServerConfig = {
@@ -43,7 +48,18 @@ export async function makeTestApp(opts?: {
     ...opts?.config,
   };
   const wa = opts?.wa ?? new FakeWaAdapter();
-  const ctx = await createContext(config, { wa, log: silentLogger() });
+  let ctx: AppContext;
+  try {
+    ctx = await createContext(config, {
+      wa,
+      log: silentLogger(),
+      extensions: opts?.extensions,
+      edition: opts?.edition,
+    });
+  } catch (err) {
+    rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    throw err;
+  }
   await runInitializers(ctx);
   await opts?.beforeBuild?.(ctx);
   const app = await buildApp(ctx);

@@ -111,6 +111,8 @@ beforeEach(() => {
     bus: new Bus(),
     wa: new FakeWaAdapter(),
     services: {},
+    edition: 'lite',
+    extensions: [],
   };
   children = [];
   spawnCalls = [];

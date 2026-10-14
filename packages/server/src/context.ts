@@ -5,6 +5,7 @@ import type { ServerConfig } from './config.js';
 import type { SecretBox } from './crypto/secret.js';
 import type { DB } from './db/index.js';
 import type { SettingsStore } from './db/settings.js';
+import type { ServerExtension } from './extensions.js';
 
 /**
  * Service registry. Later tasks attach their services via module augmentation, e.g.
@@ -24,4 +25,8 @@ export interface AppContext {
   settings: SettingsStore;
   wa: WaAdapter;
   services: Services;
+  /** Product edition reported by /api/health ('lite' unless another build passes one). */
+  edition: string;
+  /** Extensions added by another product build; empty in Lite. */
+  extensions: readonly ServerExtension[];
 }

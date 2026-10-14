@@ -9,6 +9,8 @@ import type { AppContext } from './context.js';
 import { SecretBox } from './crypto/secret.js';
 import { openDb } from './db/index.js';
 import { SettingsStore } from './db/settings.js';
+import { migrateExtension } from './db/extension-migrate.js';
+import { validateEdition, validateExtensions, type ServerExtension } from './extensions.js';
 import { acquireLock } from './lock.js';
 import { createLogger } from './logger.js';
 import { initializers } from './services.js';
@@ -28,10 +30,32 @@ async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
 /** Builds the AppContext (db, secrets, settings, bus, wa) without listening. Shared by startServer and tests. */
 export async function createContext(
   cfg: ServerConfig,
-  deps: { wa?: WaAdapter; log: Logger },
+  deps: {
+    wa?: WaAdapter;
+    log: Logger;
+    /** Extensions added by another product build (Lite passes none). */
+    extensions?: readonly ServerExtension[];
+    /** Edition reported by /api/health; default 'lite'. */
+    edition?: string;
+  },
 ): Promise<AppContext> {
   const { log } = deps;
+  const extensions = deps.extensions ?? [];
+  const edition = deps.edition ?? 'lite';
+  validateExtensions(extensions);
+  validateEdition(edition);
   const db = openDb(join(cfg.dataDir, 'app.db'));
+  try {
+    for (const ext of extensions) {
+      if (!ext.migrationsDir) continue;
+      const applied = migrateExtension(db, ext.name, ext.migrationsDir);
+      if (applied.length)
+        log.info({ extension: ext.name, applied }, 'extension migrations applied');
+    }
+  } catch (err) {
+    db.close();
+    throw err;
+  }
   const secret = SecretBox.loadOrCreate(join(cfg.dataDir, 'secret.key'));
   const settings = new SettingsStore(db, secret);
   const bus = new Bus((err, ev) => log.error({ err, event: ev }, 'bus listener failed'));
@@ -46,12 +70,13 @@ export async function createContext(
           historyDays,
           logger: log.child({ mod: 'wa' }),
         }));
-  return { config: cfg, db, bus, log, secret, settings, wa, services: {} };
+  return { config: cfg, db, bus, log, secret, settings, wa, services: {}, edition, extensions };
 }
 
-/** Runs the initializers registered in services.ts, in order. */
+/** Runs the initializers registered in services.ts, in order, then each extension's init. */
 export async function runInitializers(ctx: AppContext): Promise<void> {
   for (const init of initializers) await init(ctx);
+  for (const ext of ctx.extensions) await ext.init?.(ctx);
 }
 
 /** Calls shutdown()/close() on every registered service that has one (best effort). */
@@ -69,7 +94,7 @@ export async function shutdownServices(ctx: AppContext): Promise<void> {
 
 export async function startServer(
   cfg: ServerConfig,
-  deps?: { wa?: WaAdapter },
+  deps?: { wa?: WaAdapter; extensions?: readonly ServerExtension[]; edition?: string },
 ): Promise<{ app: FastifyInstance; ctx: AppContext; close(): Promise<void> }> {
   const lock = acquireLock(cfg.dataDir);
   const logger = await createLogger({ dataDir: cfg.dataDir });
@@ -99,7 +124,12 @@ export async function startServer(
 
   let ctx: AppContext;
   try {
-    ctx = await createContext(cfg, { wa: deps?.wa, log });
+    ctx = await createContext(cfg, {
+      wa: deps?.wa,
+      log,
+      extensions: deps?.extensions,
+      edition: deps?.edition,
+    });
   } catch (err) {
     removeErrorHandlers();
     lock.release();
@@ -136,7 +166,15 @@ export async function startServer(
     throw err;
   }
   log.info(
-    { port: cfg.port, host: cfg.host, mode: cfg.mode, version: cfg.version, fakeWa: cfg.fakeWa },
+    {
+      port: cfg.port,
+      host: cfg.host,
+      mode: cfg.mode,
+      version: cfg.version,
+      fakeWa: cfg.fakeWa,
+      edition: ctx.edition,
+      extensions: ctx.extensions.map((e) => e.name),
+    },
     'server listening',
   );
   const realtime = attachRealtime(app.server, ctx);

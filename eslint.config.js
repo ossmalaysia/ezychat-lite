@@ -37,6 +37,14 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/consistent-type-imports': 'warn',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['@ezychat-enterprise/*'], message: 'Lite never imports Enterprise code.' },
+          ],
+        },
+      ],
     },
   },
   {
