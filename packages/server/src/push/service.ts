@@ -197,12 +197,10 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       rt.io.to(userIds.map((id) => `user:${id}`)).emit('notification:new', payload);
   }
 
-  const recipients = (chat: Chat): number[] =>
-    chat.assignedTo != null
-      ? q.activeUser.get(chat.assignedTo)
-        ? [chat.assignedTo]
-        : []
-      : ids(q.activeUsers.all());
+  const recipients = (chat: Chat): number[] => {
+    if (chat.assignedTo == null) return ids(q.activeUsers.all());
+    return q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
+  };
 
   const service: PushService = {
     publicKey: () => vapid.publicKey,

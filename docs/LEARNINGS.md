@@ -58,6 +58,8 @@ into AGENTS.md.
 - Reshape existing data once at startup, before any service runs; runtime code only routes and resolves.
 - Evals and tests must assert the business outcome (chat handed to the team, order not lost), not only the
   agent's words.
+- When fixing await-in-loop findings, preserve dependent scenario order with explicit awaited calls
+  and keep polling deadline-bounded; parallel execution can invalidate assignment checks.
 - Mocks cannot prove provider-side behaviour (prompt caching, headers): confirm with one live call on a
   Dev Build (never customer data), then pin the stable value in a unit test.
 - A feature that reacts to inbound media must ship with a way to simulate that media on `--fake-wa`

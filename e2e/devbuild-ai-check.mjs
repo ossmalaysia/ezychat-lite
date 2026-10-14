@@ -93,29 +93,24 @@ if (command === 'handoff') {
     });
     await call('PUT', '/ai', { ...settings, enabled: true });
     const prefix = `601298${Date.now().toString().slice(-4)}`;
-    for (const [suffix, mode] of [
-      ['01', 'assigned'],
-      ['02', 'unassigned'],
-    ]) {
+    const waitForHandoff = async (jid, deadline) => {
+      const result = await (
+        await fetch(`${BASE}/api/chats/${encodeURIComponent(jid)}`, { headers: { cookie } })
+      ).json();
+      if (result.events?.some((event) => event.payload.handoff === 'asked_for_human'))
+        return result;
+      assert.ok(Date.now() < deadline, 'Handoff did not complete');
+      await new Promise((done) => setTimeout(done, 250));
+      return waitForHandoff(jid, deadline);
+    };
+    const checkHandoff = async (suffix, mode) => {
       const jid = `${prefix}${suffix}@s.whatsapp.net`;
       await call('POST', '/dev/fake-incoming', {
         chatJid: jid,
         senderName: 'Jay Demo',
         text: 'Could a person help me?',
       });
-      let result;
-      const deadline = Date.now() + 20_000;
-      while (Date.now() < deadline) {
-        result = await (
-          await fetch(`${BASE}/api/chats/${encodeURIComponent(jid)}`, { headers: { cookie } })
-        ).json();
-        if (result.events?.some((event) => event.payload.handoff === 'asked_for_human')) break;
-        await new Promise((done) => setTimeout(done, 250));
-      }
-      assert.ok(
-        result.events.some((event) => event.payload.handoff === 'asked_for_human'),
-        'Handoff did not complete',
-      );
+      const result = await waitForHandoff(jid, Date.now() + 20_000);
       await new Promise((done) => setTimeout(done, 250));
       const alertsFor = (alerts) =>
         alerts.filter((p) => p.tag === jid && p.title === 'Chat handed over');
@@ -134,7 +129,10 @@ if (command === 'handoff') {
         mode === 'assigned' ? [] : [3],
       );
       console.log(`PASS ${mode}: targeted connected-client notifications and offline push routing`);
-    }
+    };
+    // The first chat must occupy Mei before the second checks the unassigned team path.
+    await checkHandoff('01', 'assigned');
+    await checkHandoff('02', 'unassigned');
   } finally {
     await call('PUT', '/ai', { displayName: 'Sales Agent', enabled: false, instructions: '' });
     for (const client of clients) client.disconnect();

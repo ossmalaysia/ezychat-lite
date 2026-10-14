@@ -4,7 +4,11 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { FakeWaAdapter } from '@wa-team-inbox/wa';
-import { ENRICHMENT_FIELDS, type EnrichmentExtraction } from '@wa-team-inbox/shared';
+import {
+  ENRICHMENT_FIELDS,
+  type EnrichmentExtraction,
+  type NotificationPayload,
+} from '@wa-team-inbox/shared';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
@@ -12,7 +16,6 @@ import { buildApp } from '../packages/server/src/app.js';
 import { attachRealtime } from '../packages/server/src/realtime/index.js';
 import { createPushService } from '../packages/server/src/push/service.js';
 import { requireAdmin } from '../packages/server/src/auth/guards.js';
-import type { NotificationPayload } from '@wa-team-inbox/shared';
 
 const handoffCheck = process.argv.includes('--handoff-check');
 if (handoffCheck && !process.argv.includes('--mock-ai'))
