@@ -9,7 +9,8 @@ export const sourceResolve = {
 };
 
 // Root config: every workspace is a Vitest project. A workspace may add its own
-// vitest.config.ts (e.g. apps/web uses jsdom); the core packages inherit this file.
+// vitest.config.ts (e.g. apps/web uses jsdom); the core packages inherit this file here, and their
+// own vitest.config.ts reuses `sourceResolve` for `npm test -w @ezychat/<pkg>` runs.
 export default defineConfig({
   ...sourceResolve,
   test: {
