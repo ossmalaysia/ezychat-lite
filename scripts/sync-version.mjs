@@ -21,23 +21,39 @@ for (const ws of rootPkg.workspaces ?? []) {
   const raw = readFileSync(file, 'utf8');
   const pkg = JSON.parse(raw);
   const rel = relative(root, file).replaceAll('\\', '/');
-  if (pkg.version === version) {
+  // Published @ezychat/* packages depend on each other at exactly the release version.
+  const internal = Object.entries({
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+    ...pkg.peerDependencies,
+  })
+    .filter(([name, range]) => name.startsWith('@ezychat/') && range !== version)
+    .map(([name]) => name);
+  if (pkg.version === version && internal.length === 0) {
     console.log(`  ${rel}: ${version} (ok)`);
     continue;
   }
   mismatches++;
   if (check) {
-    console.log(`  ${rel}: ${pkg.version} != ${version}`);
+    console.log(
+      `  ${rel}: ${pkg.version} != ${version}${internal.length ? ` (${internal.join(', ')})` : ''}`,
+    );
     continue;
   }
-  // Replace only the top-level "version" value to keep the file's formatting intact.
-  const next = raw.replace(/^(\s*"version"\s*:\s*)"[^"]*"/m, `$1${JSON.stringify(version)}`);
+  // Replace only the top-level "version" value and @ezychat/* ranges to keep the formatting intact.
+  const next = raw
+    .replace(/^(\s*"version"\s*:\s*)"[^"]*"/m, `$1${JSON.stringify(version)}`)
+    .replace(/("@ezychat\/[a-z0-9-]+"\s*:\s*)"[^"]*"/g, `$1${JSON.stringify(version)}`);
   writeFileSync(file, next);
-  console.log(`  ${rel}: ${pkg.version} -> ${version}`);
+  console.log(
+    `  ${rel}: ${pkg.version} -> ${version}${internal.length ? ` (${internal.join(', ')})` : ''}`,
+  );
 }
 
 if (check && mismatches > 0) {
-  console.error(`${mismatches} workspace(s) out of sync with root version ${version}; run npm run version:sync`);
+  console.error(
+    `${mismatches} workspace(s) out of sync with root version ${version}; run npm run version:sync`,
+  );
   process.exit(1);
 }
 console.log(check ? `all workspaces at ${version}` : `synced workspaces to ${version}`);

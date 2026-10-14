@@ -1,17 +1,38 @@
 {
   "name": "@ezychat/shared",
   "version": "0.1.35",
-  "private": true,
   "type": "module",
+  "description": "EzyChat core: zod schemas, shared types and i18n catalogs.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossmalaysia/ezychat-lite.git",
+    "directory": "packages/shared"
+  },
+  "homepage": "https://ezychat.ai/",
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
+      "ezychat-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/build-package.mjs",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },

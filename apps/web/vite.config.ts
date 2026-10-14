@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defaultClientConditions, defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -14,7 +14,11 @@ const SERVER = process.env.WATI_DEV_SERVER ?? 'http://127.0.0.1:7420';
 
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(ROOT_PKG.version) },
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    // @ezychat/shared resolves to its TypeScript source inside the monorepo (no build needed).
+    conditions: ['ezychat-source', ...defaultClientConditions],
+  },
   plugins: [
     react(),
     tailwindcss(),
