@@ -58,6 +58,8 @@ into AGENTS.md.
 - Reshape existing data once at startup, before any service runs; runtime code only routes and resolves.
 - Evals and tests must assert the business outcome (chat handed to the team, order not lost), not only the
   agent's words.
+- When fixing await-in-loop findings, preserve dependent scenario order with explicit awaited calls
+  and keep polling deadline-bounded; parallel execution can invalidate assignment checks.
 - Mocks cannot prove provider-side behaviour (prompt caching, headers): confirm with one live call on a
   Dev Build (never customer data), then pin the stable value in a unit test.
 - A feature that reacts to inbound media must ship with a way to simulate that media on `--fake-wa`
@@ -214,6 +216,10 @@ into AGENTS.md.
   unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
 
 ## Security
+
+- Treat an AI handover as its own committed notification event: the last inbound message may have
+  belonged to the AI. Route to the new human assignee or active human team, and cover connected,
+  offline, disabled and AI recipients separately.
 
 - Code that walks an uploaded file (Ogg pages, packets) keeps fixed memory: aggregate into a bounded
   result as you go, never collect one entry per item, and cap the upload size for that file kind.

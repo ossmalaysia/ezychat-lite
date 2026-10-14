@@ -6,15 +6,26 @@
 //       a message from a fresh number (no earlier hand-off); `profile` saves demo details right away
 //   node e2e/devbuild-ai-check.mjs <port> long <digits>
 //   node e2e/devbuild-ai-check.mjs <port> enrichment <runner-temp-data-dir>
+//   node e2e/devbuild-ai-check.mjs <port> handoff (isolated --mock-ai --handoff-check runner only)
 //       a 24-message chat whose first message holds an order number, then an unassigned question
 //       about it: the AI must read older messages to answer
 // The owner signs in to the AI and turns the AI member on in between; `send`/`new` make real model
 // calls. Record every run in docs/dev-build-checks.md.
 const [port, command = 'prep', ...rest] = process.argv.slice(2);
-if (!/^\d+$/.test(port ?? '') || !['prep', 'send', 'new', 'long', 'enrichment'].includes(command))
-  throw new Error('Usage: node e2e/devbuild-ai-check.mjs <port> prep|send|new|long|enrichment …');
+if (
+  !/^\d+$/.test(port ?? '') ||
+  !['prep', 'send', 'new', 'long', 'enrichment', 'handoff'].includes(command)
+)
+  throw new Error(
+    'Usage: node e2e/devbuild-ai-check.mjs <port> prep|send|new|long|enrichment|handoff …',
+  );
 const BASE = `http://127.0.0.1:${port}`;
 const FARAH = '60123110021@s.whatsapp.net';
+if (
+  command === 'handoff' &&
+  (await fetch(`${BASE}/api/health`)).headers.get('x-handoff-devbuild') !== 'mock-only'
+)
+  throw new Error('Use the isolated --mock-ai --handoff-check runner before signing in');
 
 const login = await fetch(`${BASE}/api/auth/login`, {
   method: 'POST',
@@ -38,7 +49,95 @@ async function call(method, path, body) {
   return res.json();
 }
 
-if (command === 'enrichment') {
+if (command === 'handoff') {
+  const { default: assert } = await import('node:assert/strict');
+  const { io } = await import('socket.io-client');
+  assert.equal((await fetch(`${BASE}/api/health`)).headers.get('x-handoff-devbuild'), 'mock-only');
+  const clients = [];
+  const connect = async (sessionCookie) => {
+    const client = io(BASE, {
+      transports: ['websocket'],
+      extraHeaders: { Cookie: sessionCookie, Origin: BASE },
+    });
+    clients.push(client);
+    const alerts = [];
+    client.on('notification:new', (payload) => alerts.push(payload));
+    await new Promise((done, fail) => {
+      client.once('connect', done);
+      client.once('connect_error', fail);
+    });
+    return alerts;
+  };
+  try {
+    const adminAlerts = await connect(cookie);
+    const meiLogin = await fetch(`${BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: BASE },
+      body: JSON.stringify({ username: 'mei', password: 'demo-pass-123' }),
+    });
+    assert.equal(meiLogin.status, 200);
+    const meiCookie = meiLogin.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    const meiAlerts = await connect(meiCookie);
+    const settings = {
+      displayName: 'Sales Agent',
+      enabled: false,
+      instructions: 'Hand over when a customer asks for a person.',
+    };
+    await call('PUT', '/ai', settings);
+    await call('POST', '/ai/documents/text', {
+      name: 'Demo shop',
+      text: 'The fictional demo shop opens at 9am.',
+    });
+    await call('PUT', '/ai', { ...settings, enabled: true });
+    const prefix = `601298${Date.now().toString().slice(-4)}`;
+    const waitForHandoff = async (jid, deadline) => {
+      const result = await (
+        await fetch(`${BASE}/api/chats/${encodeURIComponent(jid)}`, { headers: { cookie } })
+      ).json();
+      if (result.events?.some((event) => event.payload.handoff === 'asked_for_human'))
+        return result;
+      assert.ok(Date.now() < deadline, 'Handoff did not complete');
+      await new Promise((done) => setTimeout(done, 250));
+      return waitForHandoff(jid, deadline);
+    };
+    const checkHandoff = async (suffix, mode) => {
+      const jid = `${prefix}${suffix}@s.whatsapp.net`;
+      await call('POST', '/dev/fake-incoming', {
+        chatJid: jid,
+        senderName: 'Jay Demo',
+        text: 'Could a person help me?',
+      });
+      const result = await waitForHandoff(jid, Date.now() + 20_000);
+      await new Promise((done) => setTimeout(done, 250));
+      const alertsFor = (alerts) =>
+        alerts.filter((p) => p.tag === jid && p.title === 'Chat handed over');
+      const pushes = (await call('GET', '/dev/handoff-deliveries')).deliveries.filter(
+        (item) => item.payload.tag === jid && item.payload.title === 'Chat handed over',
+      );
+      assert.equal(result.chat.assignedTo, mode === 'assigned' ? 2 : null);
+      assert.equal(alertsFor(meiAlerts).length, 1, `${mode}: teammate notification missing`);
+      assert.equal(
+        alertsFor(adminAlerts).length,
+        mode === 'assigned' ? 0 : 1,
+        `${mode}: admin targeting`,
+      );
+      assert.deepEqual(
+        pushes.map((item) => item.userId),
+        mode === 'assigned' ? [] : [3],
+      );
+      console.log(`PASS ${mode}: targeted connected-client notifications and offline push routing`);
+    };
+    // The first chat must occupy Mei before the second checks the unassigned team path.
+    await checkHandoff('01', 'assigned');
+    await checkHandoff('02', 'unassigned');
+  } finally {
+    await call('PUT', '/ai', { displayName: 'Sales Agent', enabled: false, instructions: '' });
+    for (const client of clients) client.disconnect();
+  }
+} else if (command === 'enrichment') {
   // Owner sign-in AND explicit agreement are required before invoking this command.
   const { default: assert } = await import('node:assert/strict');
   const { readdir, readFile } = await import('node:fs/promises');

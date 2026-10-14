@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, Message } from '@wa-team-inbox/shared';
 import { makeTestApp, type TestApp } from '../../test/helpers.js';
 import { createPushService, type PushSender } from './service.js';
+import type { RealtimeService } from '../realtime/socket.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -38,6 +39,7 @@ const chat = (assignedTo: number | null): Chat => ({
 const message = { id: 'm1', chatJid: JID, body: 'hello there' } as Message;
 
 function setup(online: Set<number>, fail?: (endpoint: string) => number | null) {
+  t.ctx.services.push!.shutdown();
   const sent: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
   const sender: PushSender = async (sub, payload) => {
     const code = fail?.(sub.endpoint) ?? null;
@@ -45,7 +47,19 @@ function setup(online: Set<number>, fail?: (endpoint: string) => number | null) 
     sent.push({ endpoint: sub.endpoint, payload: JSON.parse(payload) as Record<string, unknown> });
   };
   const push = createPushService(t.ctx, { sender, isOnline: (id) => online.has(id) });
+  t.ctx.services.push = push;
   return { push, sent };
+}
+
+function connectedNotifications() {
+  const emit = vi.fn();
+  const to = vi.fn(() => ({ emit }));
+  t.ctx.services.realtime = {
+    io: { to },
+    close: vi.fn(),
+    isOnline: () => true,
+  } as unknown as RealtimeService;
+  return { to, emit };
 }
 
 const sub = (n: string) => ({
@@ -212,6 +226,93 @@ describe('PushService', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(sent.length).toBe(2);
     push.shutdown();
+  });
+});
+
+describe('AI handover notifications', () => {
+  it.each([true, false])('targets only the assignee; online=%s', async (online) => {
+    const assigned = mkUser('assigned');
+    const other = mkUser('other', 'admin');
+    const { push, sent } = setup(new Set(online ? [assigned.id] : []));
+    const live = connectedNotifications();
+    push.subscribe(assigned.id, sub('assigned'));
+    push.subscribe(other.id, sub('other'));
+    await push.notifyHandoff(chat(assigned.id));
+    expect(live.to).toHaveBeenCalledExactlyOnceWith([`user:${assigned.id}`]);
+    expect(live.emit).toHaveBeenCalledExactlyOnceWith('notification:new', {
+      title: 'Chat handed over',
+      body: 'Alice needs a teammate.',
+      url: `/chats/${encodeURIComponent(JID)}`,
+      tag: JID,
+    });
+    expect(sent.map((item) => item.endpoint)).toEqual(
+      online ? [] : ['https://push.example/assigned'],
+    );
+  });
+
+  it('unassigned notifies active humans, pushes only to offline users, and excludes disabled and AI users', async () => {
+    const admin = mkUser('admin', 'admin');
+    const online = mkUser('online');
+    const offline = mkUser('offline');
+    const disabled = mkUser('disabled');
+    const ai = mkUser('robot');
+    t.ctx.db.prepare('UPDATE users SET disabled_at = ? WHERE id = ?').run(Date.now(), disabled.id);
+    t.ctx.db.prepare("UPDATE users SET kind = 'ai' WHERE id = ?").run(ai.id);
+    const { push, sent } = setup(new Set([admin.id, online.id]));
+    const live = connectedNotifications();
+    for (const user of [admin, online, offline, disabled, ai])
+      push.subscribe(user.id, sub(user.username));
+    await push.notifyHandoff(chat(null));
+    expect(live.to).toHaveBeenCalledExactlyOnceWith([
+      `user:${admin.id}`,
+      `user:${online.id}`,
+      `user:${offline.id}`,
+    ]);
+    expect(sent.map((item) => item.endpoint)).toEqual(['https://push.example/offline']);
+  });
+
+  it.each(['disabled', 'ai', 'missing'] as const)(
+    'does not broadcast when the assignee is %s',
+    async (kind) => {
+      const assigned = mkUser('assigned');
+      const other = mkUser('other');
+      if (kind === 'disabled')
+        t.ctx.db
+          .prepare('UPDATE users SET disabled_at = ? WHERE id = ?')
+          .run(Date.now(), assigned.id);
+      if (kind === 'ai')
+        t.ctx.db.prepare("UPDATE users SET kind = 'ai' WHERE id = ?").run(assigned.id);
+      const { push, sent } = setup(new Set());
+      const live = connectedNotifications();
+      for (const user of [assigned, other]) push.subscribe(user.id, sub(user.username));
+      await push.notifyHandoff(chat(kind === 'missing' ? 99999 : assigned.id));
+      expect(live.to).not.toHaveBeenCalled();
+      expect(sent).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['en', 'Chat handed over', 'Alice needs a teammate.'],
+    ['ms', 'Sembang diserahkan', 'Alice memerlukan bantuan ahli pasukan.'],
+    ['zh-CN', '会话已转交', 'Alice需要团队成员协助。'],
+  ] as const)('uses the recipient language: %s', async (locale, title, body) => {
+    const user = mkUser('localized');
+    t.ctx.services.auth!.setLocale(user.id, locale);
+    const { push, sent } = setup(new Set());
+    push.subscribe(user.id, sub('localized'));
+    await push.notifyHandoff(chat(user.id));
+    expect(sent[0]?.payload).toMatchObject({ title, body });
+  });
+
+  it('routes a handover once and stops listening after shutdown', async () => {
+    const user = mkUser('recipient');
+    const { push, sent } = setup(new Set());
+    push.subscribe(user.id, sub('recipient'));
+    t.ctx.bus.emit('ai:handoff', chat(user.id));
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    push.shutdown();
+    expect(t.ctx.bus.emit('ai:handoff', chat(user.id))).toBe(false);
+    expect(sent).toHaveLength(1);
   });
 });
 

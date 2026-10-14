@@ -112,8 +112,10 @@ that need no model call (Try it with empty context hands off locally).
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and
-`push/service.ts` sends web push for `inbound:notify` to the assignee (or every active user if
-unassigned), skipping users who are online.
+`push/service.ts` sends notifications for `inbound:notify` and committed `ai:handoff` events to the
+human assignee (or every active human user if unassigned). Connected recipients receive
+`notification:new`; offline recipients receive web push. Handover is distinct from the earlier inbound
+message, which may have arrived while the AI owned the chat.
 
 **Customer profiles.** `packages/server/src/customers/`: one profile per direct chat
 (`customer_profiles`, `customer_tags`), edited by any teammate, audited by changed field names only.

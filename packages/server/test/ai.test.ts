@@ -16,6 +16,7 @@ import { createMessageService } from '../src/messages/service.js';
 import { pdfFixture } from './ai-fixtures.js';
 import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
+import { createPushService } from '../src/push/service.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -166,9 +167,9 @@ it('offers older messages as a tool only when the chat is longer than the prompt
   await vi.advanceTimersByTimeAsync(1000);
   await incoming('ask', 'What was my order number?', 'live', other);
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
-  const call = vi.mocked(provider.generate).mock.calls.find(([, , p]) =>
-    p.input.includes('What was my order number?'),
-  )!;
+  const call = vi
+    .mocked(provider.generate)
+    .mock.calls.find(([, , p]) => p.input.includes('What was my order number?'))!;
   const tools = call[2].tools ?? {};
   expect(Object.keys(tools)).toEqual(['get_older_messages']);
   expect(call[2].input).not.toContain('4521');
@@ -432,6 +433,80 @@ it('returns an unanswered chat to unassigned if no human is available and never 
   await incoming('followup');
   await vi.advanceTimersByTimeAsync(15_000);
   expect(provider.generate).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['assigned', false],
+  ['unassigned', false],
+  ['unassigned', true],
+] as const)(
+  'notifies the team when the AI hands off: %s, provider failed=%s',
+  async (mode, failed) => {
+    human('handoff-offline');
+    const online = human('handoff-online');
+    if (mode === 'unassigned') {
+      getChats(t.ctx).upsertFromWa({
+        jid: 'occupied@s.whatsapp.net',
+        type: 'dm',
+        name: 'Occupied',
+      });
+      getChats(t.ctx).patch('occupied@s.whatsapp.net', { assignedTo: online.id }, actor.userId);
+    }
+    const notified: string[] = [];
+    t.ctx.services.push!.shutdown();
+    t.ctx.services.push = createPushService(t.ctx, {
+      sender: async (_subscription, payload) => {
+        notified.push(payload);
+      },
+      isOnline: () => false,
+    });
+    const push = t.ctx.services.push;
+    for (const id of [actor.userId, online.id])
+      push.subscribe(id, {
+        endpoint: `https://fcm.googleapis.com/fcm/send/${id}`,
+        keys: { p256dh: 'demo', auth: 'demo' },
+      });
+    vi.mocked(provider.generate).mockResolvedValue({
+      reply: 'A teammate will help.',
+      action: 'handoff',
+      handoffReason: 'asked_for_human',
+    });
+    if (failed)
+      vi.mocked(provider.generate).mockRejectedValue(new Error('private provider failure'));
+    clock();
+    await incoming();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(mode === 'assigned' ? online.id : null);
+    const handoffs = notified
+      .map((raw) => JSON.parse(raw))
+      .filter((payload) => payload.title === 'Chat handed over');
+    expect(handoffs).toHaveLength(mode === 'assigned' ? 1 : 2);
+    expect(handoffs.every((payload) => !payload.body.includes('private provider failure'))).toBe(
+      true,
+    );
+    await incoming('after-handover');
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(
+      notified
+        .map((raw) => JSON.parse(raw))
+        .filter((payload) => payload.title === 'Chat handed over'),
+    ).toHaveLength(handoffs.length);
+  },
+);
+
+it('does not send handover notifications for normal AI answers or resolution', async () => {
+  const handover = vi.fn();
+  t.ctx.bus.on('ai:handoff', handover);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(handover).not.toHaveBeenCalled();
+  vi.mocked(provider.generate).mockResolvedValue({ reply: 'Thank you!', action: 'resolve' });
+  await incoming('confirmation', 'Yes, thank you!');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
+  expect(handover).not.toHaveBeenCalled();
 });
 
 it('requires an actual customer confirmation after asking before resolving, releases AI, and allows future incoming messages to reopen', async () => {

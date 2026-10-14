@@ -533,6 +533,12 @@ export function createAiService(
       ip: null,
       meta: { chatJid: jid, assignedTo: idle?.id ?? null, reason },
     });
+    log.info(
+      { event: 'ai_handoff', assignedTo: idle?.id ?? null, reason },
+      'AI handed chat to team',
+    );
+    const handedOver = chats.get(jid);
+    if (handedOver) ctx.bus.emit('ai:handoff', handedOver);
   }
 
   async function respond(jid: string) {

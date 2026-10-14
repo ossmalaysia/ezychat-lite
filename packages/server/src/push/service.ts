@@ -17,6 +17,7 @@ export interface PushService {
   subscribe(userId: number, sub: PushSubscribeBody): void;
   unsubscribe(userId: number, endpoint: string): void;
   notifyInbound(chat: Chat, message: Message): Promise<void>;
+  notifyHandoff(chat: Chat): Promise<void>;
   /** `text` is rendered in each admin's preferred language. */
   notifyAdmins(text: LocalizedText): Promise<void>;
   /** detaches bus listeners */
@@ -136,7 +137,9 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     delById: db.prepare('DELETE FROM push_subscriptions WHERE id = ?'),
     activeUsers: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND kind = 'human'"),
     activeAdmins: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND role = 'admin'"),
-    activeUser: db.prepare('SELECT id FROM users WHERE id = ? AND disabled_at IS NULL'),
+    activeUser: db.prepare(
+      "SELECT id FROM users WHERE id = ? AND disabled_at IS NULL AND kind = 'human'",
+    ),
     subsFor: db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?'),
     localeOf: db.prepare('SELECT locale FROM users WHERE id = ?'),
   };
@@ -194,6 +197,11 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       rt.io.to(userIds.map((id) => `user:${id}`)).emit('notification:new', payload);
   }
 
+  const recipients = (chat: Chat): number[] => {
+    if (chat.assignedTo == null) return ids(q.activeUsers.all());
+    return q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
+  };
+
   const service: PushService = {
     publicKey: () => vapid.publicKey,
 
@@ -206,10 +214,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     },
 
     async notifyInbound(chat, message) {
-      let targets: number[];
-      if (chat.assignedTo != null)
-        targets = q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
-      else targets = ids(q.activeUsers.all());
+      const targets = recipients(chat);
       if (!targets.length) return;
       const jobs: Array<Promise<void>> = [];
       for (const [locale, group] of byLocale(targets)) {
@@ -217,6 +222,37 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
         const payload: NotificationPayload = {
           title: (chat.name || t(locale, 'push.unknownContact')).slice(0, 200),
           body: preview.slice(0, 1000),
+          url: `/chats/${encodeURIComponent(chat.jid)}`,
+          tag: chat.jid,
+        };
+        notifyConnected(group, payload);
+        jobs.push(
+          sendTo(
+            group.filter((id) => !isOnline(id)),
+            payload,
+          ),
+        );
+      }
+      await Promise.all(jobs);
+    },
+
+    async notifyHandoff(chat) {
+      const targets = recipients(chat);
+      log.info(
+        {
+          event: 'ai_handoff_notification',
+          assigned: chat.assignedTo != null,
+          recipients: targets.length,
+        },
+        'Dispatching AI handover notification',
+      );
+      const jobs: Promise<void>[] = [];
+      for (const [locale, group] of byLocale(targets)) {
+        const payload: NotificationPayload = {
+          title: t(locale, 'push.aiHandoff.title'),
+          body: t(locale, 'push.aiHandoff.body', {
+            name: chat.name || t(locale, 'push.unknownContact'),
+          }).slice(0, 1000),
           url: `/chats/${encodeURIComponent(chat.jid)}`,
           tag: chat.jid,
         };
@@ -251,6 +287,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
 
     shutdown() {
       ctx.bus.off('inbound:notify', onInbound);
+      ctx.bus.off('ai:handoff', onHandoff);
       ctx.bus.off('wa:status', onWaStatus);
     },
   };
@@ -259,6 +296,9 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     service
       .notifyInbound(chat, message)
       .catch((err: unknown) => log.warn({ err }, 'notifyInbound failed'));
+  };
+  const onHandoff = (chat: Chat) => {
+    service.notifyHandoff(chat).catch((err: unknown) => log.warn({ err }, 'notifyHandoff failed'));
   };
   let lastAlertState: WaStatus['state'] | null = null;
   const onWaStatus = (s: WaStatus) => {
@@ -273,6 +313,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       .catch((err: unknown) => log.warn({ err }, 'notifyAdmins failed'));
   };
   ctx.bus.on('inbound:notify', onInbound);
+  ctx.bus.on('ai:handoff', onHandoff);
   ctx.bus.on('wa:status', onWaStatus);
 
   return service;

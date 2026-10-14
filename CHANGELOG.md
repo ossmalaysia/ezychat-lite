@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sales Agent handovers now notify the assigned teammate, or the active human team when no teammate is available. Existing desktop notification settings and offline push delivery are respected; the alert opens the handed-over conversation.
+
 ## [0.1.35] - 2026-10-14
 
 ### Added
