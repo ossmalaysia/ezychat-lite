@@ -23,6 +23,12 @@ Thanks for your interest in contributing!
 | `npm run build -w @ezychat/web`                 | Build the web app                                              |
 | `npm start -w @ezychat/desktop`                 | Build and launch the Electron app                              |
 | `npm run dist -w @ezychat/desktop`              | Build an installer for the current OS                          |
+| `npm run pack:core`                             | Build the published `@ezychat/*` packages into `.core-packs/`  |
+
+Inside this repository `@ezychat/*` imports resolve to TypeScript source through the
+`ezychat-source` export condition (`.npmrc` passes it to Node for npm scripts and `npx`; Vite,
+Vitest, `tsc` and the desktop bundle set it in their configs). Published packages resolve to their
+`dist/` builds. Run a server entry outside npm with `node --conditions=ezychat-source --import tsx …`.
 
 Read [docs/architecture.md](docs/architecture.md) before larger changes, and
 [docs/design-system.md](docs/design-system.md) before UI work. Releases are checked against

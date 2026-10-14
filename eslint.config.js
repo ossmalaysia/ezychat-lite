@@ -10,6 +10,7 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/dist/**',
       '**/dist-*/**',
+      '.core-packs/**',
       '**/out/**',
       '**/release/**',
       '**/release-*/**',

@@ -9,3 +9,5 @@ package-lock.json
 docs/superpowers
 # Machine-written by scripts/build-summary.mjs record
 docs/workbooks
+dist-lib
+.core-packs
