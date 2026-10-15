@@ -127,7 +127,9 @@ into AGENTS.md.
   (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
 - Publish `@ezychat/*` with npm trusted publishing (GitHub OIDC, `id-token: write`), not an `NPM_TOKEN`:
   2FA-bypass tokens lost account/package management in July 2026 and lose direct publishing around
-  January 2027.
+  January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
+  then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
+  variable `NPM_TRUSTED_PUBLISHING=true`.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
