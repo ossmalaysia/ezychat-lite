@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **First-time setup is simpler.** Enter your business name, your name (the username is filled in for you) and one password, link WhatsApp, then set up the AI assistant: describe your business, sign in with ChatGPT (recommended) or use an OpenAI API key, and turn it on. You can skip the AI step. The last screen links to Add teammates and Phone access.
+- New installs suggest **Sign in with ChatGPT** for the AI connection. The app says plainly that this sign-in is unofficial and can stop working; an OpenAI API key is the alternative.
+- Admins see a short **Getting started** card on the empty inbox (AI assistant, Teammates, Phone access). Finished items disappear, and the card can be hidden in that browser.
+- The **Sales Agent** page lets you connect the AI right on the page. AI instructions and hand-off rules are under a closed **Advanced** section.
+- **Settings → AI** lists Sign in with ChatGPT first, tests an OpenAI API key before saving it, and shows a "Set up the Sales Agent" link once the connection works. A key that OpenAI rejects is not saved; for other test failures you can choose **Save anyway**. Voice messages and Customer enrichment are under "More AI features".
+- The admin menu item **Cloudflare** is now **Phone access** (same page).
+
+### Fixed
+
+- **Settings → AI:** clicking the "Recommended" badge on the ChatGPT option now selects it.
+
 ## [0.1.36] - 2026-10-15
 
 ### Fixed

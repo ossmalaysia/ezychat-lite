@@ -13,11 +13,15 @@ test('admin sets up the AI connection inline and builds the AI member page on de
   ]) {
     const tag = String(viewport.width);
     await page.setViewportSize(viewport);
+    // Save tests a new key first; answer that check here so OpenAI is never contacted.
+    await page.route('**/api/ai/connection/test', (route) =>
+      route.fulfill({ json: { ok: true, error: null } }),
+    );
 
-    // Settings → AI is an inline section: switch, key, model, one Save.
+    // Settings → AI is an inline section: switch, key, model, one Save. ChatGPT is listed first.
     await page.goto('/admin/settings/ai');
     await expect(page.getByText('Connection mode', { exact: true })).toBeVisible();
-    await expect(page.getByRole('radio', { name: /ChatGPT/ })).toBeVisible();
+    await expect(page.getByRole('radio').first()).toHaveAccessibleName(/ChatGPT/);
     await page.getByText('API key', { exact: true }).first().click();
     // On the second viewport the key is already saved: replacing it reopens the field.
     const replace = page.getByRole('button', { name: 'Replace key' });
@@ -32,6 +36,11 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     // The saved key is never shown again: the field becomes a 'saved' note with Replace.
     await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Replace key' })).toBeVisible();
+    // A saved connection points to the Sales Agent.
+    await expect(page.getByRole('link', { name: 'Set up the Sales Agent' })).toHaveAttribute(
+      'href',
+      '/admin/members/ai',
+    );
     await expectNoHorizontalScroll(page, `settings/ai ${tag}`);
 
     // Members lists the AI member (or offers to add it) and opens the page, not a popup.
@@ -48,8 +57,11 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     await expect(page).toHaveURL(/\/admin\/members\/ai$/);
     await expect(page.getByRole('heading', { name: /\S/ }).first()).toBeVisible();
 
-    // Name and instructions.
+    // Name and instructions (instructions live in the closed Advanced section).
     await page.getByLabel('AI member name', { exact: true }).fill('Sales Agent');
+    const advanced = page.getByText('Advanced: instructions and hand-off rules', { exact: true });
+    await expect(page.getByLabel('AI instructions', { exact: true })).toBeHidden();
+    await advanced.click();
     await page
       .getByLabel('AI instructions', { exact: true })
       .fill('Answer politely in the customer’s language.');

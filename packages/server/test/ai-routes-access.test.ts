@@ -9,6 +9,7 @@ const ROUTES = [
   { method: 'GET', url: '/api/ai/enrichment' },
   { method: 'PUT', url: '/api/ai/enrichment' },
   { method: 'PATCH', url: '/api/ai/connection' },
+  { method: 'POST', url: '/api/ai/connection/test' },
   { method: 'POST', url: '/api/ai/documents' },
   { method: 'POST', url: '/api/ai/documents/text' },
   { method: 'GET', url: '/api/ai/documents/1' },

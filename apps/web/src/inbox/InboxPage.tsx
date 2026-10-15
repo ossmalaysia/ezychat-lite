@@ -12,6 +12,7 @@ import { decodeJid } from '../lib/jid';
 import { ChatFilters } from './ChatFilters';
 import { ChatList } from './ChatList';
 import { Conversation } from './Conversation';
+import { GettingStartedCard } from './GettingStartedCard';
 import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
@@ -119,6 +120,7 @@ export function InboxPage() {
                 illustration="/illustrations/empty-inbox.png"
                 title={t('page.selectTitle')}
                 description={t('page.selectDescription')}
+                action={<GettingStartedCard className="mt-2" />}
               />
             )}
           </main>
