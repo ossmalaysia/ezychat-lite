@@ -1,0 +1,63 @@
+# TEMPORARY diagnostic for "EzyChat Lite is damaged and can't be opened" on Apple Silicon.
+# Compares the released v0.1.35 arm64 app with a build from this branch. Delete before merging.
+name: mac signature diagnostic
+
+on:
+  push:
+    branches: [fix/mac-arm-damaged]
+
+permissions:
+  contents: read
+
+jobs:
+  released:
+    name: Released v0.1.35 arm64
+    runs-on: macos-15
+    steps:
+      - name: Download and check the released DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.1.35 --repo "$GITHUB_REPOSITORY" --pattern '*arm64.dmg' --dir dl
+          dmg="$(ls dl/*.dmg)"
+          hdiutil attach "$dmg" -nobrowse -mountpoint /Volumes/ezc
+          app="$(ls -d /Volumes/ezc/*.app)"
+          echo "::group::codesign -dv"
+          codesign -dv --verbose=4 "$app" 2>&1 || true
+          echo "::endgroup::"
+          echo "::group::codesign --verify --deep --strict"
+          codesign --verify --deep --strict --verbose=2 "$app" 2>&1 && echo "SIGNATURE VALID" || echo "SIGNATURE INVALID"
+          echo "::endgroup::"
+          echo "::group::spctl (Gatekeeper assessment)"
+          spctl --assess --type execute -vv "$app" 2>&1 || true
+          echo "::endgroup::"
+
+  fixed:
+    name: This branch arm64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/fetch-cloudflared.mjs
+      - run: npm run build -w @wa-team-inbox/web
+      - run: node scripts/bundle-server.mjs
+      - run: npm run build -w @wa-team-inbox/desktop
+      - name: Package
+        working-directory: apps/desktop
+        run: npx electron-builder --config electron-builder.yml --mac dmg:arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Check the signature of the packaged app and the DMG copy
+        run: |
+          app="$(ls -d apps/desktop/release/mac-arm64/*.app)"
+          codesign -dv --verbose=4 "$app" 2>&1 || true
+          codesign --verify --deep --strict --verbose=2 "$app"
+          dmg="$(ls apps/desktop/release/*-arm64.dmg)"
+          hdiutil attach "$dmg" -nobrowse -mountpoint /Volumes/ezc
+          codesign --verify --deep --strict --verbose=2 /Volumes/ezc/*.app
+          echo "SIGNATURE VALID"
+          spctl --assess --type execute -vv /Volumes/ezc/*.app 2>&1 || true
