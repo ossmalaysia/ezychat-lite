@@ -100,6 +100,9 @@ into AGENTS.md.
   as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
 - Private repositories (e.g. `anchorsprint/ezychat-enterprise`) run CI only on the org's self-hosted
   runners (`[self-hosted, Linux, ARM64]`), never GitHub-hosted machines.
+- Hotfixes for the released version go in a separate worktree from `origin/main` with its own
+  `npm install` (`git worktree add ../wm-hotfix -b fix/<bug> origin/main`): `main` uses `@wa-team-inbox/*`
+  workspace names until the `@ezychat/*` rename merges, so one `node_modules` cannot serve both branches.
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
