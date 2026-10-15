@@ -6,13 +6,26 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "customer-enrichment",
-    "gitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
-    "mock": "docs/features/customer-enrichment/mock/index.html",
-    "design": "docs/features/customer-enrichment/design.md",
-    "confirmedAt": "2026-10-14"
+    "feature": "simple-first-setup",
+    "gitRevision": "90a95dab5e992e2ea5d2daf773d613356b02f146",
+    "mock": "docs/features/simple-first-setup/mock/index.html",
+    "design": "docs/features/simple-first-setup/design.md",
+    "confirmedAt": "2026-10-15",
+    "confirmation": "Owner, 2026-10-15: \"look good, use workflow with multi agent to implement it\". Open questions answered with the mock defaults: business name required; AI on by default once connected; username visible and prefilled; Getting started card hides when done or dismissed; menu label Phone access."
   },
   "proposals": [
+    {
+      "feature": "simple-first-setup",
+      "creationOrder": 3,
+      "createdAt": "2026-10-15",
+      "design": "docs/features/simple-first-setup/design.md",
+      "mock": "docs/features/simple-first-setup/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "customer-enrichment",
+      "baselineGitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
+      "baselineAppRevision": "2ce7018",
+      "coverage": "Full app clone of the confirmed enrichment reference; 4-step setup wizard (account, WhatsApp, AI assistant, ready), Getting started card, inline AI connect and Advanced section on the Sales Agent page, Settings → AI reorder/Test key/More AI features, Phone access label; ChatGPT sign-in, key test and WhatsApp linking simulated; fresh-install runner mode"
+    },
     {
       "feature": "customer-enrichment",
       "creationOrder": 1,

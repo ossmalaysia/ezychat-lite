@@ -65,7 +65,7 @@ import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import type { AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
-import { AI_PROVIDER_KEY, AI_SECRET_KEY } from './settings-keys.js';
+import { AI_PROVIDER_KEY, AI_SECRET_KEY, aiProviderSettings } from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 
 export const AI_FALLBACK_MS = 10_000;
@@ -82,7 +82,7 @@ export const MIGRATED_CONTEXT_NAME = 'Business context';
 const DEFAULT_SETTINGS: AiSettings = {
   displayName: 'Sales Agent',
   enabled: false,
-  mode: 'api',
+  mode: 'chatgpt',
   model: '',
   instructions: DEFAULT_AI_INSTRUCTIONS,
   handoffRules: DEFAULT_AI_HANDOFF_RULES,
@@ -218,10 +218,8 @@ export function createAiService(
         typeof stored?.instructions === 'string' ? stored.instructions : DEFAULT_AI_INSTRUCTIONS,
       handoffRules:
         typeof stored?.handoffRules === 'string' ? stored.handoffRules : DEFAULT_AI_HANDOFF_RULES,
-      ...ctx.settings.get<Pick<AiSettings, 'mode' | 'model'>>(PROVIDER_KEY, {
-        mode: 'api',
-        model: '',
-      }),
+      // Never saved → ChatGPT sign-in (nothing signs in until an admin does).
+      ...aiProviderSettings(ctx.settings),
       displayName: user?.displayName ?? DEFAULT_SETTINGS.displayName,
       enabled: !!user && !user.disabled,
     };

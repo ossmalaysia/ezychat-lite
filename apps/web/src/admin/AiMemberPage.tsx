@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
+import { CheckCircle2, ChevronRight, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_HANDOFF_RULES_CHARACTERS,
@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiContextPanel } from './AiContextPanel';
+import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, memberPill, type AiKnowledgeDraft } from './ai-status';
@@ -185,6 +186,8 @@ function AiMemberEditor({
     Boolean(status.member) || Boolean(await save(false, t('ai.page.draftSaved')));
 
   const reason = !ready ? t('ai.page.reasonConnection') : t('ai.page.reasonKnowledge');
+  const customised =
+    !isDefaultInstructions(draft.instructions) || !isDefaultRules(draft.handoffRules);
   const editWithAi = (field: AiEditField) => (
     // Centred on the title row; compact on desktop, a 44 px target on touch screens.
     <CardAction className="self-center">
@@ -264,6 +267,17 @@ function AiMemberEditor({
         }
       />
 
+      {!ready && (
+        <Card className="gap-4 border-primary/40">
+          <CardHeader>
+            <CardTitle>{t('ai.connect.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AiQuickConnect status={status} />
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="gap-4">
         <CardHeader>
           <CardTitle>{t('ai.page.stepName')}</CardTitle>
@@ -284,96 +298,11 @@ function AiMemberEditor({
         </CardContent>
       </Card>
 
-      <Card className="gap-4">
-        <CardHeader className={EDIT_HEADER}>
-          <CardTitle>{t('ai.page.stepInstructions')}</CardTitle>
-          {editWithAi(AiEditField.enum.instructions)}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {isDefaultInstructions(draft.instructions) && (
-            <p className="inline-flex items-start gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-              {t('ai.page.usingRecommended')}
-            </p>
-          )}
-          <Field
-            label={t('ai.instructions')}
-            labelClassName="sr-only"
-            hint={t('ai.instructionsHint')}
-          >
-            {(p) => (
-              <Textarea
-                {...p}
-                value={draft.instructions}
-                maxLength={8000}
-                // Fixed, modest height: the long default scrolls inside the box (drag to enlarge)
-                // so Business context, Hand-off rules and Try it stay close.
-                className="field-sizing-fixed h-48 max-h-[70dvh] resize-y overflow-y-auto text-base leading-6 md:h-56 md:text-sm"
-                placeholder={t('ai.page.instructionsPlaceholder')}
-                disabled={action.isPending}
-                onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
-              />
-            )}
-          </Field>
-          {!isDefaultInstructions(draft.instructions) && (
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="self-start"
-              disabled={action.isPending}
-              onClick={() => setDraft((old) => ({ ...old, instructions: local.instructions }))}
-            >
-              {t('ai.page.useDefaultInstructions')}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
       <AiContextPanel
         documents={status.documents}
         ensureMember={ensureMember}
         disabled={action.isPending}
       />
-
-      <Card className="gap-4">
-        <CardHeader className={EDIT_HEADER}>
-          <CardTitle>{t('ai.page.stepHandoff')}</CardTitle>
-          {editWithAi(AiEditField.enum.handoffRules)}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <Banner tone="info">{t('ai.page.handoffSystem')}</Banner>
-          <Field
-            label={t('ai.page.handoffLabel')}
-            labelClassName="sr-only"
-            hint={t('ai.page.handoffHint')}
-          >
-            {(p) => (
-              <Textarea
-                {...p}
-                value={draft.handoffRules}
-                maxLength={AI_HANDOFF_RULES_CHARACTERS}
-                className="field-sizing-fixed h-40 resize-y overflow-y-auto text-base leading-6 md:text-sm"
-                placeholder={t('ai.page.handoffPlaceholder')}
-                disabled={action.isPending}
-                onChange={(e) => setDraft((old) => ({ ...old, handoffRules: e.target.value }))}
-              />
-            )}
-          </Field>
-          {!isDefaultRules(draft.handoffRules) && (
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="self-start"
-              disabled={action.isPending}
-              onClick={() => setDraft((old) => ({ ...old, handoffRules: local.handoffRules }))}
-            >
-              {t('ai.page.useDefaultHandoff')}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="gap-4">
         <CardHeader>
@@ -383,6 +312,103 @@ function AiMemberEditor({
           <AiTryIt draft={draft} />
         </CardContent>
       </Card>
+
+      {/* Most inboxes keep the recommended instructions and hand-off rules: tucked away, closed. */}
+      <details className="group rounded-lg border bg-card">
+        <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+          <SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden />
+          <span className="font-medium">{t('ai.page.advanced')}</span>
+          <span className="text-sm text-muted-foreground">
+            {customised ? t('ai.page.advancedCustomised') : t('ai.page.advancedRecommended')}
+          </span>
+        </summary>
+        <div className="flex flex-col gap-4 border-t p-4">
+          <Card className="gap-4">
+            <CardHeader className={EDIT_HEADER}>
+              <CardTitle>{t('ai.page.stepInstructions')}</CardTitle>
+              {editWithAi(AiEditField.enum.instructions)}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {isDefaultInstructions(draft.instructions) && (
+                <p className="inline-flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                  {t('ai.page.usingRecommended')}
+                </p>
+              )}
+              <Field
+                label={t('ai.instructions')}
+                labelClassName="sr-only"
+                hint={t('ai.instructionsHint')}
+              >
+                {(p) => (
+                  <Textarea
+                    {...p}
+                    value={draft.instructions}
+                    maxLength={8000}
+                    // Fixed, modest height: the long default scrolls inside the box (drag to enlarge)
+                    // so Business context, Hand-off rules and Try it stay close.
+                    className="field-sizing-fixed h-48 max-h-[70dvh] resize-y overflow-y-auto text-base leading-6 md:h-56 md:text-sm"
+                    placeholder={t('ai.page.instructionsPlaceholder')}
+                    disabled={action.isPending}
+                    onChange={(e) => setDraft((old) => ({ ...old, instructions: e.target.value }))}
+                  />
+                )}
+              </Field>
+              {!isDefaultInstructions(draft.instructions) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="touch"
+                  className="self-start"
+                  disabled={action.isPending}
+                  onClick={() => setDraft((old) => ({ ...old, instructions: local.instructions }))}
+                >
+                  {t('ai.page.useDefaultInstructions')}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4">
+            <CardHeader className={EDIT_HEADER}>
+              <CardTitle>{t('ai.page.stepHandoff')}</CardTitle>
+              {editWithAi(AiEditField.enum.handoffRules)}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Banner tone="info">{t('ai.page.handoffSystem')}</Banner>
+              <Field
+                label={t('ai.page.handoffLabel')}
+                labelClassName="sr-only"
+                hint={t('ai.page.handoffHint')}
+              >
+                {(p) => (
+                  <Textarea
+                    {...p}
+                    value={draft.handoffRules}
+                    maxLength={AI_HANDOFF_RULES_CHARACTERS}
+                    className="field-sizing-fixed h-40 resize-y overflow-y-auto text-base leading-6 md:text-sm"
+                    placeholder={t('ai.page.handoffPlaceholder')}
+                    disabled={action.isPending}
+                    onChange={(e) => setDraft((old) => ({ ...old, handoffRules: e.target.value }))}
+                  />
+                )}
+              </Field>
+              {!isDefaultRules(draft.handoffRules) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="touch"
+                  className="self-start"
+                  disabled={action.isPending}
+                  onClick={() => setDraft((old) => ({ ...old, handoffRules: local.handoffRules }))}
+                >
+                  {t('ai.page.useDefaultHandoff')}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </details>
 
       <details className="rounded-lg border bg-card px-4">
         <summary className="flex min-h-11 cursor-pointer items-center font-medium">

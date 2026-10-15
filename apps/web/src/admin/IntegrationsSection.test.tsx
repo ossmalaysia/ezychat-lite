@@ -135,7 +135,7 @@ describe('Settings → Integrations', () => {
   it('warns when no tunnel runs and links to the Cloudflare page', async () => {
     setup();
     expect(await screen.findByText('No tunnel is running')).toBeTruthy();
-    const link = screen.getByRole('link', { name: 'Open Cloudflare settings' });
+    const link = screen.getByRole('link', { name: 'Open Phone access' });
     expect(link.getAttribute('href')).toBe('/admin/tunnel');
     expect(await screen.findByText(/No tokens yet/)).toBeTruthy();
   });

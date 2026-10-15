@@ -83,6 +83,8 @@ into AGENTS.md.
   Prettier-clean on `main`, so a folder run rewrites files another agent or nobody owns.
 - Workflow/subagents start in the session's primary checkout: when work lives in another worktree, give
   its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
+- A parallel agent can test against a sibling component another agent has not written yet with
+  `vi.mock('<path>', () => ({ … }))` (a factory), so its tests run before the real file lands.
 
 ## Git, GitHub and CI
 
@@ -151,6 +153,8 @@ into AGENTS.md.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
+- Moving UI into a collapsed section (`<details>`, Advanced, "More …"): grep `e2e/` and unit tests for its
+  labels and open the section first in each; agents that own the page miss specs owned by other features.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
@@ -176,7 +180,9 @@ into AGENTS.md.
 - A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
 - Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
   regexes from template literals with `String.raw`.
-
+- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo. Put
+  `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
+  missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
   and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
@@ -251,6 +257,8 @@ into AGENTS.md.
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
   unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
+- nvm4w switches Node machine-wide: check `node -v` (22+) before tests or a server start when
+  `better-sqlite3` suddenly fails to load; never switch it back from inside one agent's run.
 
 ## Security
 
@@ -392,6 +400,11 @@ into AGENTS.md.
   `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
   bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- A route that calls an outside service takes its client from an optional `ctx.services.<name>` slot
+  (e.g. `aiKeyTest`), set in `makeTestApp`'s `beforeBuild`, so tests never reach the network.
+- An API key test treats only a 401 as a bad key: a 403 (restricted key, region block), 429 or
+  network failure must still let the admin save. e2e that save a key answer
+  `POST /api/ai/connection/test` with `page.route`.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.
@@ -401,6 +414,9 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
+  rewrites frozen baseline files and breaks `snapshot.mjs --check`.
 
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.
@@ -508,6 +524,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   shows a person icon, never `+`, `(` or `~`.
 - A chat's details open by tapping its header identity (avatar + name + subtitle are one `Button`; the
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
+- Badges inside a `SegmentedControl` option label get `pointer-events-none`, so a click anywhere on
+  the option selects it.
 
 ## Internationalization
 
@@ -536,3 +554,6 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   and Socket.IO.
 - Restoration and setup share one tracked operation gate; shutdown waits for it.
 - Share only the public project URL; treat a cross-realm `AbortError` from native share as a quiet cancel.
+- "Phone access is set up" = tunnel running OR a named tunnel saved (`hasTunnelToken` /
+  `namedTunnelHostname`); the tunnel status mode returns to `off` when stopped, so it cannot say
+  whether a tunnel is configured.

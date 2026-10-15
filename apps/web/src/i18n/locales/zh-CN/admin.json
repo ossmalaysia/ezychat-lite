@@ -6,7 +6,7 @@
     "members": "成员",
     "quickReplies": "快捷回复",
     "whatsapp": "WhatsApp",
-    "tunnel": "Cloudflare",
+    "tunnel": "手机访问",
     "settings": "设置",
     "audit": "审计日志"
   },
@@ -283,8 +283,8 @@
     },
     "noTunnel": {
       "title": "隧道未运行",
-      "body": "运行 {{product}} 的电脑上的助手现在就可以连接。如需从其他地方连接，请先启动 Cloudflare 访问。",
-      "link": "打开 Cloudflare 设置"
+      "body": "运行 {{product}} 的电脑上的助手现在就可以连接。如需从其他地方连接，请先开启手机访问。",
+      "link": "打开手机访问"
     },
     "tokens": {
       "title": "访问令牌",
@@ -456,7 +456,7 @@
     }
   },
   "tunnel": {
-    "title": "Cloudflare 访问",
+    "title": "手机访问",
     "description": "为团队提供一个链接，随时随地用手机打开收件箱。",
     "state": {
       "stopped": "已停止",
@@ -599,8 +599,6 @@
       "error": "错误",
       "expired": "已过期"
     },
-    "experimental": "实验性",
-    "directLoginHint": "直接使用您的 ChatGPT 账户登录。这是非官方连接，可能随时停止工作。请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
     "signedInAs": "已登录：{{email}}",
     "signedIn": "已登录 ChatGPT",
     "signInSavesMode": "登录时也会将 ChatGPT 保存为连接方式。",
@@ -637,7 +635,7 @@
       },
       "turnOn": "开启",
       "turnOff": "关闭",
-      "reasonConnection": "请先在 设置 → AI 中连接 AI。",
+      "reasonConnection": "请先在下方连接 AI。",
       "reasonKnowledge": "请先添加业务背景。",
       "turnedOn": "AI 成员已开启。",
       "turnedOff": "AI 成员已关闭。",
@@ -659,7 +657,10 @@
       "openSettings": "设置 → AI",
       "save": "保存",
       "description": "设置、测试并开启回复客户对话的 AI 助手。",
-      "usingRecommended": "正在使用推荐的指令。可按您的语气进行编辑。"
+      "usingRecommended": "正在使用推荐的指令。可按您的语气进行编辑。",
+      "advanced": "高级：指令和转接规则",
+      "advancedRecommended": "使用推荐设置",
+      "advancedCustomised": "已自定义"
     },
     "try": {
       "label": "客户问题",
@@ -767,7 +768,7 @@
     "modelAdvanced": "高级：选择模型",
     "edit": {
       "open": "用 AI 修改",
-      "unavailable": "请先在 设置 → AI 中连接 AI，才能使用“用 AI 修改”。",
+      "unavailable": "请先在上方连接 AI，才能使用“用 AI 修改”。",
       "title": {
         "instructions": "用 AI 修改 AI 指令",
         "handoffRules": "用 AI 修改转交规则"
@@ -797,6 +798,34 @@
       "applyNote": "应用只会填入文本框；请在页面上按“保存”才会保留。",
       "applied": "已应用。请按“保存”保留修改。",
       "unchanged_other": "{{count}} 行未更改"
+    },
+    "keyOk": "密钥有效。",
+    "connectionReady": "AI 连接已就绪。",
+    "setupAgent": "设置销售代理",
+    "moreFeatures": "更多 AI 功能",
+    "moreFeaturesHint": "语音消息和客户资料补全",
+    "remoteSignInHint": "请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
+    "connect": {
+      "title": "连接 AI",
+      "chatgpt": "使用 ChatGPT 登录",
+      "recommended": "推荐",
+      "note": "使用您的 ChatGPT 账户。此连接为非官方连接，可能会停止工作；您可以随时改用 API 密钥。",
+      "signingIn": "正在登录… 请在 ChatGPT 窗口中完成。",
+      "cancel": "取消",
+      "connectedChatgpt": "已连接 ChatGPT",
+      "connectedAs": "已登录为 {{email}}",
+      "connectedKey": "OpenAI API 密钥已检查并保存",
+      "useKey": "改用 OpenAI API 密钥",
+      "useChatgpt": "改用 ChatGPT 登录",
+      "keyLabel": "OpenAI API 密钥",
+      "keyHint": "以 sk- 开头。可在 platform.openai.com → API keys 创建。",
+      "testKey": "测试密钥",
+      "keyFailedFallback": "此密钥无效。请检查是否完整复制。",
+      "keyInvalid": "OpenAI 不接受此密钥。请检查是否完整复制。",
+      "keyUnreachable": "无法连接 OpenAI 检查密钥。请检查网络连接后重试。",
+      "keyRateLimited": "OpenAI 繁忙或此密钥已达到用量限制。请稍等一分钟后重试。",
+      "keyForbidden": "OpenAI 不允许此密钥列出模型。受限密钥或地区限制可能导致此情况；此密钥仍可能用于回复。",
+      "saveAnyway": "仍然保存"
     }
   },
   "enrichment": {

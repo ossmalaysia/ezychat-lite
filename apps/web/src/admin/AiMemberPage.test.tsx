@@ -151,10 +151,53 @@ describe('AI member page', () => {
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs connection')).toBeTruthy();
-    expect(screen.getByText('Connect the AI in Settings → AI first.')).toBeTruthy();
+    expect(screen.getByText('Connect the AI below first.')).toBeTruthy();
   });
 
-  it('shows Name & role, AI instructions, the Business context panel, then Try it', async () => {
+  it('offers to connect the AI right on the page when nothing is connected', async () => {
+    const initial = withContext();
+    initial.hasApiKey = false;
+    setup(initial);
+    expect(await screen.findByText('Connect the AI')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Use an OpenAI API key instead' })).toBeTruthy();
+    const titles = [...document.querySelectorAll('[data-slot="card-title"]')].map(
+      (title) => title.textContent,
+    );
+    expect(titles[0]).toBe('Connect the AI');
+  });
+
+  it('hides the connect card once the AI connection works', async () => {
+    setup(withContext());
+    await screen.findByText('Name & role');
+    expect(screen.queryByText('Connect the AI')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sign in with ChatGPT' })).toBeNull();
+  });
+
+  it('keeps instructions and hand-off rules in a closed Advanced section', async () => {
+    const initial = status();
+    initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
+    setup(initial);
+    const summary = await screen.findByText('Advanced: instructions and hand-off rules');
+    const details = summary.closest('details')!;
+    expect(details.open).toBe(false);
+    expect(within(details).getByText('Using recommended settings')).toBeTruthy();
+    expect(within(details).getByLabelText('AI instructions')).toBeTruthy();
+    expect(within(details).getByLabelText('Hand-off rules')).toBeTruthy();
+    const user = userEvent.setup();
+    await user.click(summary);
+    expect(details.open).toBe(true);
+  });
+
+  it('says Customised when the instructions differ from the recommended ones', async () => {
+    const initial = status();
+    initial.settings.instructions = 'Only answer in haiku.';
+    setup(initial);
+    const summary = await screen.findByText('Advanced: instructions and hand-off rules');
+    expect(within(summary.closest('details')!).getByText('Customised')).toBeTruthy();
+  });
+
+  it('shows Name & role, the Business context panel, Try it, then the advanced boxes', async () => {
     setup();
     await screen.findByText('Name & role');
     // Plain section titles: the page is not a wizard, so no step numbers.
@@ -163,10 +206,10 @@ describe('AI member page', () => {
     );
     expect(titles).toEqual([
       'Name & role',
-      'AI instructions',
       'Business context',
-      'Hand-off rules',
       'Try it',
+      'AI instructions',
+      'Hand-off rules',
     ]);
     expect(
       screen.getByText('Set up, test and turn on the AI assistant that answers customer chats.'),
@@ -589,11 +632,11 @@ describe('AI member page', () => {
       for (const button of buttons) {
         expect((button as HTMLButtonElement).disabled).toBe(true);
         expect(button.getAttribute('title')).toBe(
-          'Connect the AI in Settings → AI to use Edit with AI.',
+          'Connect the AI above to use Edit with AI.',
         );
         const describedBy = button.getAttribute('aria-describedby') ?? '';
         expect(document.getElementById(describedBy)?.textContent).toBe(
-          'Connect the AI in Settings → AI to use Edit with AI.',
+          'Connect the AI above to use Edit with AI.',
         );
       }
     });

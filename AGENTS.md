@@ -88,7 +88,11 @@ the current text or the suggestion; closing the popup aborts the request and the
 `knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
-`docs/ai-chatgpt-protocol.md`). Both modes run one agent turn on the Vercel AI SDK
+`docs/ai-chatgpt-protocol.md`). A data dir with no saved connection defaults to ChatGPT mode
+(`ai/settings-keys.ts`; an older save without a mode or a stored key stays API key); the default never signs
+in, and the AI member stays off until an admin turns it on. `POST /api/ai/connection/test` (admin-only,
+rate-limited, `ai/key-test.ts`) checks a key with `GET /v1/models` and never stores or logs it; only
+`invalid_key` (401) blocks saving. Both modes run one agent turn on the Vercel AI SDK
 (`ai/agent/turn.ts`: tools, structured decision, ≤ 4 steps, no retries; models in `ai/agent/models.ts`,
 which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
 built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
@@ -107,7 +111,9 @@ customer details that changed meanwhile is dropped and regenerated. `prompt_cach
 and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
 questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
 Order and delivery questions keep the chat with the AI. Web: `admin/AiConnectionSection.tsx` (Settings → AI),
-`admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai`). **Tests and e2e never call OpenAI or
+`admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai`), `admin/AiQuickConnect.tsx` (connect
+card shared by the Sales Agent page and the setup wizard's AI assistant step: Account → WhatsApp → AI
+assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests and e2e never call OpenAI or
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 

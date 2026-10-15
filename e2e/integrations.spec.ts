@@ -47,9 +47,9 @@ test('admin turns on AI assistant access, creates a token, uses it on /mcp and r
     if ((await access.getAttribute('aria-checked')) !== 'true') await access.click();
     await expect(access).toHaveAttribute('aria-checked', 'true');
 
-    // No tunnel runs under e2e: the page points to the Cloudflare settings.
+    // No tunnel runs under e2e: the page points to Phone access.
     await expect(page.getByText('No tunnel is running', { exact: false })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open Cloudflare settings' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Open Phone access' })).toHaveAttribute(
       'href',
       '/admin/tunnel',
     );

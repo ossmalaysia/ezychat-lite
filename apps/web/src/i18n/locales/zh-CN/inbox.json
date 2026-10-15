@@ -466,5 +466,17 @@
     "start": "开始对话",
     "startFailed": "无法开始对话",
     "listLabel": "群组成员"
+  },
+  "gettingStarted": {
+    "title": "入门",
+    "ai": "AI 助手",
+    "aiHint": "回答常见问题，并把对话转交给您的团队。",
+    "teammates": "团队成员",
+    "teammatesHint": "与团队共享收件箱。",
+    "phone": "手机访问",
+    "phoneHint": "在此 Wi-Fi 之外的手机上打开收件箱。",
+    "setUp": "设置",
+    "add": "添加",
+    "hide": "隐藏入门指南"
   }
 }

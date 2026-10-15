@@ -466,5 +466,17 @@
     "start": "Mulakan perbualan",
     "startFailed": "Tidak dapat memulakan perbualan",
     "listLabel": "Ahli kumpulan"
+  },
+  "gettingStarted": {
+    "title": "Bermula",
+    "ai": "Pembantu AI",
+    "aiHint": "Menjawab soalan biasa dan menyerahkan sembang kepada pasukan anda.",
+    "teammates": "Rakan sepasukan",
+    "teammatesHint": "Kongsi peti masuk dengan pasukan anda.",
+    "phone": "Akses telefon",
+    "phoneHint": "Buka peti masuk pada telefon di luar Wi-Fi ini.",
+    "setUp": "Sediakan",
+    "add": "Tambah",
+    "hide": "Sembunyikan panduan bermula"
   }
 }
