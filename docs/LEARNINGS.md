@@ -93,6 +93,11 @@ into AGENTS.md.
 - Merge only on the owner's explicit request for that PR; never enable auto-merge. A green quality
   gate can still have open Sonar findings: inspect review comments and findings on the final commit
   before reporting readiness, and leave the PR open until the owner requests merging.
+- CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
+  package mid-suite and starves slow Windows runners into timeouts. A test that is ~0.4 s on `main` and
+  times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
+- Private repositories (e.g. `anchorsprint/ezychat-enterprise`) run CI only on the org's self-hosted
+  runners (`[self-hosted, Linux, ARM64]`), never GitHub-hosted machines.
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run

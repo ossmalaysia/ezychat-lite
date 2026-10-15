@@ -120,7 +120,7 @@ Release flow:
    (dry run until the `NPM_TOKEN` secret exists). `scripts/pack-contract.test.mjs` pins what each
    tarball contains.
 2. Dependabot opens one grouped `ezychat-core` PR in Enterprise bumping every pin together.
-3. Enterprise CI (Windows + macOS) runs lint, typecheck, tests and builds → merge → Enterprise release.
+3. Enterprise CI (Anchor Sprint self-hosted Linux ARM64 runners only; private code never runs on GitHub-hosted machines) runs lint, typecheck, tests and builds → merge → Enterprise release.
 
 ## 7. Daily development
 

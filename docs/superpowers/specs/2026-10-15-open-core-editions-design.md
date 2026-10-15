@@ -66,7 +66,7 @@ Local development across both repos: in Enterprise, `npm install ../whatsapp-man
 | 2 | Lite | **Web extension API**: `createInboxApp({ extensions })` with routes, admin nav items, Settings sections, i18n catalogs; `main.tsx` becomes a thin Lite entry | Mock needed only if visible change |
 | 3 | Lite | **Product config for desktop**: appId, productName, data dir, service ID, health `app`, update feed, icons in one `product` object; Lite values unchanged and pinned by tests | No (identity tests) |
 | 3b | Lite | **Publishable packages**: `@ezychat/*` rename, `dist` builds + `ezychat-source` condition, web library build, `npm pack` contract tests, publish job on release tag (dry-run until the npm org exists) | No |
-| 4 | Enterprise | **Scaffold**: `@ezychat/*` dependencies pinned, `ent-server` + `ent-web` "hello" extension, Enterprise CLI entry + server bundle, desktop app using Phase 3 config, CI on Windows + macOS, Dependabot (npm, grouped `@ezychat/*`) | Smoke only |
+| 4 | Enterprise | **Scaffold**: `@ezychat/*` dependencies pinned, `ent-server` + `ent-web` "hello" extension, Enterprise CLI entry + server bundle, desktop app using Phase 3 config, CI on self-hosted runners only (private repo), Dependabot (npm, grouped `@ezychat/*`) | Smoke only |
 | 5 | Enterprise | **Release channel**: signed installers; private repo releases are not downloadable without a token, so publish installers + update manifest to a public bucket (Cloudflare R2) or a public `ezychat-enterprise-releases` repo | No |
 | 6 | Enterprise | **Licensing** (separate brainstorm): offline-verifiable signed licence key, grace period, what happens when it expires | Yes (mock first) |
 | 7 | Enterprise | First real paid feature, built on phases 1–6 | Per feature |
