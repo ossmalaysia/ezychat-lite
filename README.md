@@ -79,12 +79,47 @@ Download the latest installer from the
 | macOS (Apple Silicon) | `EzyChat-Lite-<version>-mac-arm64.dmg` |
 | macOS (Intel)         | `EzyChat-Lite-<version>-mac-x64.dmg`   |
 
-The builds are **not code-signed** yet, so your OS will warn you the first time:
+The builds are **not yet signed with a publisher certificate**, so your computer warns you the first
+time you open EzyChat Lite. This is expected; the steps below get you past it once.
 
-- **Windows SmartScreen** ("Windows protected your PC"): click **More info**, then **Run anyway**.
-- **macOS Gatekeeper** ("cannot be opened because the developer cannot be verified"): open the dmg,
-  drag the app to Applications, then **right-click (or Control-click) the app → Open → Open**.
-  On recent macOS versions you may instead need **System Settings → Privacy & Security → Open Anyway**.
+**Windows** ("Windows protected your PC"): click **More info**, then **Run anyway**.
+
+### macOS: first launch
+
+macOS shows **"EzyChat Lite" Not Opened — Apple could not verify "EzyChat Lite" is free of malware…**
+for any app that is not notarized by Apple. It is not a virus warning. Allow it once:
+
+1. Open the `.dmg` and drag **EzyChat Lite** into **Applications** (replace the old copy when updating).
+2. Open **EzyChat Lite** from Applications. When the warning appears, click **Done**
+   (not _Move to Trash_).
+3. Open **System Settings → Privacy & Security** and scroll to the **Security** section at the bottom.
+4. Next to _"EzyChat Lite" was blocked to protect your Mac_, click **Open Anyway**, then confirm with
+   your password or Touch ID.
+5. Click **Open Anyway** (or **Open**) in the last dialog. EzyChat Lite starts.
+
+macOS remembers this until the next update, which needs the same steps once.
+
+**The Open Anyway button is missing?** It appears only for about an hour after a blocked attempt.
+Repeat step 2, then go back to Privacy & Security.
+
+**Prefer Terminal?** This does the same in one step (use the exact path of the app):
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/EzyChat Lite.app"
+```
+
+**Permissions EzyChat Lite may ask for later** (change them any time in System Settings):
+
+| Prompt                              | When                                                  | Choose                                    |
+| ----------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| Notifications                       | the first new-message alert                           | **Allow**, for new-message alerts         |
+| Microphone                          | the first voice note you record                       | **OK** (used only while recording)        |
+| Accept incoming network connections | phones on your Wi-Fi/LAN, if the macOS firewall is on | **Allow**, or phones cannot reach the app |
+
+**"EzyChat Lite is damaged and can't be opened"** came from version 0.1.35 on Apple Silicon. Install
+0.1.36 or later.
+
+Once EzyChat Lite is signed and notarized with an Apple Developer ID, these steps go away.
 
 Only download installers from this repository's Releases page.
 
