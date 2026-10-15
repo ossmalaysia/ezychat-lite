@@ -1,18 +1,29 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Check, CircleCheck, Globe, Inbox, UserPlus } from 'lucide-react';
-import { Trans, useTranslation } from 'react-i18next';
+import {
+  ArrowRight,
+  Check,
+  CircleCheck,
+  CircleDashed,
+  Inbox,
+  Smartphone,
+  Users,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { ApiError, errorMessage } from '../api/client';
-import { useSetupAdmin, useSetupStatus } from '../api/queries';
+import { useSetupAdmin, useSetupStatus, useWaStatus } from '../api/queries';
 import { AuthShell, ButtonSpinner, Field, FullPageLoader } from '../auth/AuthShell';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { WaLinkStep } from './WaLinkStep';
+import { AiAssistantStep } from './AiAssistantStep';
+import { usernameFrom } from './username';
 
-type Step = 'admin' | 'whatsapp' | 'done';
+/** Account → WhatsApp → AI assistant (skippable) → Ready. */
+type Step = 'account' | 'whatsapp' | 'ai' | 'ready';
 
-const STEPS: Step[] = ['admin', 'whatsapp', 'done'];
+const STEPS: Step[] = ['account', 'whatsapp', 'ai', 'ready'];
 
 function StepIndicator({ current }: { current: Step }) {
   const { t } = useTranslation('auth');
@@ -52,13 +63,35 @@ function StepIndicator({ current }: { current: Step }) {
   );
 }
 
-function AdminStep({ onDone }: { onDone: () => void }) {
+function CurrentStepLabel({ current }: { current: Step }) {
+  const { t } = useTranslation('auth');
+  return (
+    <p className="-mt-3 mb-5 text-center text-sm font-medium sm:hidden">
+      {t('setup.stepOf', {
+        n: STEPS.indexOf(current) + 1,
+        total: STEPS.length,
+        name: t(`setup.steps.${current}`),
+      })}
+    </p>
+  );
+}
+
+function AccountStep({
+  businessName,
+  onBusinessName,
+  onDone,
+}: {
+  businessName: string;
+  onBusinessName: (value: string) => void;
+  onDone: () => void;
+}) {
   const { t } = useTranslation('auth');
   const create = useSetupAdmin();
-  const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  // Filled in from "Your name" until the owner edits it.
+  const [typedUsername, setTypedUsername] = useState<string | null>(null);
+  const username = typedUsername ?? usernameFrom(displayName);
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
 
   const usernameError =
     username.length > 0 && !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)
@@ -66,14 +99,12 @@ function AdminStep({ onDone }: { onDone: () => void }) {
       : undefined;
   const passwordError =
     password.length > 0 && password.length < 8 ? t('setup.admin.minLength') : undefined;
-  const confirmError =
-    confirm.length > 0 && confirm !== password ? t('setup.admin.mismatch') : undefined;
   const valid =
+    businessName.trim().length > 0 &&
     !usernameError &&
     username.length >= 3 &&
     displayName.trim().length > 0 &&
-    password.length >= 8 &&
-    password === confirm;
+    password.length >= 8;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -85,12 +116,28 @@ function AdminStep({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <p className="text-sm text-muted-foreground">{t('setup.admin.intro')}</p>
+      <p className="text-sm text-muted-foreground">{t('setup.admin.introShort')}</p>
       {create.error && (
         <Banner tone="danger" title={forbidden ? t('setup.admin.forbiddenTitle') : undefined}>
           {forbidden ? t('setup.admin.forbiddenBody') : errorMessage(create.error)}
         </Banner>
       )}
+      <Field
+        label={t('setup.admin.businessName')}
+        autoComplete="organization"
+        value={businessName}
+        maxLength={80}
+        onChange={(e) => onBusinessName(e.target.value)}
+        hint={t('setup.admin.businessNameHint')}
+      />
+      <Field
+        label={t('setup.admin.yourName')}
+        autoComplete="name"
+        value={displayName}
+        maxLength={64}
+        onChange={(e) => setDisplayName(e.target.value)}
+        hint={t('setup.admin.displayNameHint')}
+      />
       <Field
         label={t('setup.admin.username')}
         autoComplete="username"
@@ -98,15 +145,9 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         autoCorrect="off"
         spellCheck={false}
         value={username}
-        onChange={(e) => setUsername(e.target.value)}
+        onChange={(e) => setTypedUsername(e.target.value)}
         error={usernameError}
-      />
-      <Field
-        label={t('setup.admin.displayName')}
-        autoComplete="name"
-        value={displayName}
-        onChange={(e) => setDisplayName(e.target.value)}
-        hint={t('setup.admin.displayNameHint')}
+        hint={t('setup.admin.usernameAutoHint')}
       />
       <Field
         label={t('setup.admin.passLabel')}
@@ -117,14 +158,6 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         error={passwordError}
         hint={t('setup.admin.minLength')}
       />
-      <Field
-        label={t('setup.admin.confirm')}
-        type="password"
-        autoComplete="new-password"
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-        error={confirmError}
-      />
       <Button
         type="submit"
         size="touch"
@@ -132,61 +165,85 @@ function AdminStep({ onDone }: { onDone: () => void }) {
         aria-busy={create.isPending || undefined}
         disabled={create.isPending || !valid}
       >
-        {create.isPending ? <ButtonSpinner /> : <UserPlus aria-hidden="true" />}
-        {t('setup.admin.submit')}
+        {create.isPending && <ButtonSpinner />}
+        {t('setup.admin.submitContinue')}
+        {!create.isPending && <ArrowRight aria-hidden="true" />}
       </Button>
     </form>
   );
 }
 
-function DoneStep() {
+function SummaryRow({ done, children }: { done: boolean; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-sm">
+      {done ? (
+        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+      ) : (
+        <CircleDashed className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
+      <span className={cn('min-w-0', !done && 'text-muted-foreground')}>{children}</span>
+    </li>
+  );
+}
+
+function ReadyStep({ aiOn }: { aiOn: boolean }) {
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
+  const wa = useWaStatus();
+  const linked = wa.data?.state === 'open';
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div
         role="status"
-        className="flex items-start gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm"
+        className="flex flex-col gap-3 rounded-lg border border-success/30 bg-success/10 px-3 py-3"
       >
-        <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-        <div className="min-w-0">
-          <p className="font-medium">{t('setup.done.title')}</p>
-          <p className="text-muted-foreground">{t('setup.done.body')}</p>
+        <h2 className="text-base font-semibold">{t('setup.ready.title')}</h2>
+        <ul className="flex flex-col gap-2">
+          <SummaryRow done={linked}>
+            {linked ? t('setup.ready.waLinked') : t('setup.ready.waNotLinked')}
+          </SummaryRow>
+          <SummaryRow done={aiOn}>
+            {aiOn ? t('setup.ready.aiOn') : t('setup.ready.aiOff')}
+          </SummaryRow>
+        </ul>
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">{t('setup.ready.later')}</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild variant="outline" size="touch" className="w-full sm:flex-1">
+            <Link to="/admin/members">
+              <Users aria-hidden="true" />
+              {t('setup.ready.addTeammates')}
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="touch"
+            className="h-auto w-full py-2 whitespace-normal sm:flex-1"
+          >
+            <Link to="/admin/tunnel">
+              <Smartphone aria-hidden="true" />
+              {t('setup.ready.phoneAccess')}
+            </Link>
+          </Button>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">
-        <Trans
-          t={t}
-          i18nKey="setup.done.remoteHint"
-          components={{ b: <strong className="text-foreground" /> }}
-        />
-      </p>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button
-          size="touch"
-          className="w-full sm:flex-1"
-          onClick={() => navigate('/', { replace: true })}
-        >
-          <Inbox aria-hidden="true" />
-          {t('setup.done.goInbox')}
-        </Button>
-        <Button asChild variant="outline" size="touch" className="w-full sm:flex-1">
-          <Link to="/admin/tunnel">
-            <Globe aria-hidden="true" />
-            {t('setup.done.remoteAccess')}
-          </Link>
-        </Button>
-      </div>
+      <Button size="touch" className="w-full" onClick={() => navigate('/', { replace: true })}>
+        <Inbox aria-hidden="true" />
+        {t('setup.ready.goInbox')}
+      </Button>
     </div>
   );
 }
 
-/** First-run wizard: create admin → link WhatsApp → optional remote access. */
+/** First-run wizard: account → link WhatsApp → AI assistant (skippable) → ready. */
 export function SetupWizard() {
   const { t } = useTranslation('auth');
   const status = useSetupStatus();
-  const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('admin');
+  const [step, setStep] = useState<Step>('account');
+  const [businessName, setBusinessName] = useState('');
+  const [aiOn, setAiOn] = useState(false);
   // Once needsSetup=true has been seen this visit we're mid-wizard: creating the admin flips
   // needsSetup to false *before* the step advances, which must not bounce us to the inbox.
   const [wizardStarted, setWizardStarted] = useState(false);
@@ -194,30 +251,43 @@ export function SetupWizard() {
 
   if (status.isPending) return <FullPageLoader />;
   // Setup already finished (and we're not mid-wizard) → leave.
-  if (!wizardStarted && step === 'admin' && status.data && !status.data.needsSetup)
+  if (!wizardStarted && step === 'account' && status.data && !status.data.needsSetup)
     return <Navigate to="/" replace />;
 
   return (
     <AuthShell
       title={t('setup.title')}
       subtitle={t('setup.subtitle')}
-      illustration={step === 'admin' ? '/illustrations/welcome.png' : undefined}
+      illustration={step === 'account' ? '/illustrations/welcome.png' : undefined}
       wide
     >
       <StepIndicator current={step} />
-      {status.error && step === 'admin' && (
+      <CurrentStepLabel current={step} />
+      {status.error && step === 'account' && (
         <Banner tone="danger" className="mb-4">
           {errorMessage(status.error)}
         </Banner>
       )}
-      {step === 'admin' && <AdminStep onDone={() => setStep('whatsapp')} />}
-      {step === 'whatsapp' && (
-        <WaLinkStep
-          onContinue={() => setStep('done')}
-          onSkip={() => navigate('/', { replace: true })}
+      {step === 'account' && (
+        <AccountStep
+          businessName={businessName}
+          onBusinessName={setBusinessName}
+          onDone={() => setStep('whatsapp')}
         />
       )}
-      {step === 'done' && <DoneStep />}
+      {step === 'whatsapp' && (
+        <WaLinkStep onContinue={() => setStep('ai')} onSkip={() => setStep('ai')} />
+      )}
+      {step === 'ai' && (
+        <AiAssistantStep
+          businessName={businessName.trim()}
+          onDone={(on) => {
+            setAiOn(on);
+            setStep('ready');
+          }}
+        />
+      )}
+      {step === 'ready' && <ReadyStep aiOn={aiOn} />}
     </AuthShell>
   );
 }
