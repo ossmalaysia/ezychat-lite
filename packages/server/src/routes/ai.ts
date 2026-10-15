@@ -7,6 +7,8 @@ import {
   AiContextPatchBody,
   AiContextTextBody,
   AiEditBody,
+  AiKeyTestBody,
+  type AiKeyTestResponse,
   AiMemberBody,
   AiTryBody,
   VoiceSettingBody,
@@ -19,6 +21,7 @@ import { HttpError, errors, parse } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { AI_UPLOAD_BYTES } from '../ai/knowledge.js';
 import { extractKnowledgeIsolated } from '../ai/knowledge-worker.js';
+import { createAiKeyTester } from '../ai/key-test.js';
 
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
 
@@ -36,6 +39,8 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   const pasteLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
   const tryLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
   const editLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const keyTestLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
+  const keyTest = ctx.services.aiKeyTest ?? createAiKeyTester({ log: ctx.log });
   const limit = (limiter: WindowLimiter, req: FastifyRequest) => {
     const result = limiter.hit(String(req.user!.id));
     if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
@@ -49,6 +54,14 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.patch('/ai/connection', async (req) =>
     ai.saveConnection(parse(AiConnectionBody, req.body), actor(req)),
   );
+  // Checks a key before the page saves it; the key is neither stored nor logged here.
+  app.post('/ai/connection/test', async (req): Promise<AiKeyTestResponse> => {
+    limit(keyTestLimiter, req);
+    const { apiKey } = parse(AiKeyTestBody, req.body);
+    const result = await keyTest(apiKey);
+    recheck(req);
+    return result;
+  });
   app.post('/ai/documents', async (req) => {
     const file = await req.file({ limits: { fileSize: AI_UPLOAD_BYTES, files: 1 } });
     if (!file) throw errors.validation('Choose a business document');

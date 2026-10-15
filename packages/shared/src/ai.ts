@@ -210,6 +210,17 @@ export type AiDecision = z.infer<typeof AiDecision>;
 export const AiCallbackBody = z.object({ url: z.string().trim().min(1).max(4096) });
 export type AiCallbackBody = z.infer<typeof AiCallbackBody>;
 
+/** Check an OpenAI API key before saving it; the server never stores or logs the key. */
+export const AiKeyTestBody = z.object({ apiKey: z.string().trim().min(1).max(400) });
+export type AiKeyTestBody = z.infer<typeof AiKeyTestBody>;
+export const AiKeyTestError = z.enum(['invalid_key', 'unreachable', 'rate_limited']);
+export type AiKeyTestError = z.infer<typeof AiKeyTestError>;
+export const AiKeyTestResponse = z.object({
+  ok: z.boolean(),
+  error: AiKeyTestError.nullable(),
+});
+export type AiKeyTestResponse = z.infer<typeof AiKeyTestResponse>;
+
 export const AI_TRY_QUESTION_CHARACTERS = 500;
 /**
  * Try it: a test question answered with the page's current (possibly unsaved) name and
