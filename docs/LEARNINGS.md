@@ -121,6 +121,9 @@ into AGENTS.md.
   (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
   conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
+- Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
+  `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
+  version up on the registry (404).
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
   `###` headings: two branches adding the same section merge cleanly into two copies.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
