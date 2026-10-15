@@ -149,6 +149,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo. Put
+  `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
+  missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
   and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
