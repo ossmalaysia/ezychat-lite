@@ -180,6 +180,8 @@ into AGENTS.md.
   first with a CommonJS file inside `"type": "module"` (simple-yenc) bundles with no exports.
   Resolve such packages to their ESM build in `bundle-server.mjs` and smoke each bundled
   worker with plain node and one real job.
+- macOS without a Developer ID: sign ad-hoc (`identity: '-'`), never `identity: null`; an unsealed bundle
+  opens as "damaged" on Apple Silicon. Release CI runs `codesign --verify --deep --strict` on every `.app`.
 - Packaging: asar-unpack native loaders with their `.node`; pin esbuild's `ws` build; mac builds need an
   explicit `--mac dmg:<arch>` and a native-runner smoke; smoke packaged servers with
   `ELECTRON_RUN_AS_NODE=1` on a temp data dir. A feature that adds a native module or worker is smoked
