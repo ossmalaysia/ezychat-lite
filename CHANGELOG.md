@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **macOS (Apple Silicon):** EzyChat Lite no longer opens as "damaged and can't be opened". The app is now signed (ad-hoc), so macOS shows the usual unidentified-developer prompt instead (System Settings → Privacy & Security → Open Anyway).
 - Sales Agent handovers now notify the assigned teammate, or the active human team when no teammate is available. Existing desktop notification settings and offline push delivery are respected; the alert opens the handed-over conversation.
 
 ## [0.1.35] - 2026-10-14
