@@ -6,7 +6,7 @@
     "members": "Ahli",
     "quickReplies": "Balasan pantas",
     "whatsapp": "WhatsApp",
-    "tunnel": "Cloudflare",
+    "tunnel": "Akses telefon",
     "settings": "Tetapan",
     "audit": "Audit"
   },
@@ -284,8 +284,8 @@
     },
     "noTunnel": {
       "title": "Tiada terowong yang berjalan",
-      "body": "Pembantu pada komputer yang menjalankan EzyChat Lite boleh menyambung sekarang. Untuk menyambung dari tempat lain, mulakan akses Cloudflare dahulu.",
-      "link": "Buka tetapan Cloudflare"
+      "body": "Pembantu pada komputer yang menjalankan EzyChat Lite boleh menyambung sekarang. Untuk menyambung dari tempat lain, hidupkan Akses telefon dahulu.",
+      "link": "Buka Akses telefon"
     },
     "tokens": {
       "title": "Token akses",
@@ -457,7 +457,7 @@
     }
   },
   "tunnel": {
-    "title": "Akses Cloudflare",
+    "title": "Akses telefon",
     "description": "Beri pasukan anda pautan untuk membuka peti masuk dari telefon di mana-mana sahaja.",
     "state": {
       "stopped": "Dihentikan",
@@ -600,8 +600,6 @@
       "error": "ralat",
       "expired": "tamat tempoh"
     },
-    "experimental": "Percubaan",
-    "directLoginHint": "Log masuk terus dengan akaun ChatGPT anda. Ini ialah sambungan tidak rasmi yang mungkin berhenti berfungsi pada bila-bila masa. Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
     "signedInAs": "Log masuk sebagai {{email}}",
     "signedIn": "Log masuk ke ChatGPT",
     "signInSavesMode": "Log masuk juga menyimpan ChatGPT sebagai mod sambungan.",
@@ -638,7 +636,7 @@
       },
       "turnOn": "Hidupkan",
       "turnOff": "Matikan",
-      "reasonConnection": "Sambungkan AI dalam Tetapan → AI dahulu.",
+      "reasonConnection": "Sambungkan AI di bawah dahulu.",
       "reasonKnowledge": "Tambah konteks perniagaan dahulu.",
       "turnedOn": "Ahli AI dihidupkan.",
       "turnedOff": "Ahli AI dimatikan.",
@@ -660,7 +658,10 @@
       "openSettings": "Tetapan → AI",
       "save": "Simpan",
       "description": "Sediakan, uji dan hidupkan pembantu AI yang menjawab sembang pelanggan.",
-      "usingRecommended": "Menggunakan arahan yang disyorkan. Suntingnya mengikut gaya anda."
+      "usingRecommended": "Menggunakan arahan yang disyorkan. Suntingnya mengikut gaya anda.",
+      "advanced": "Lanjutan: arahan dan peraturan serahan",
+      "advancedRecommended": "Menggunakan tetapan yang disyorkan",
+      "advancedCustomised": "Diubah suai"
     },
     "try": {
       "label": "Soalan pelanggan",
@@ -798,6 +799,32 @@
       "applyNote": "Menggunakan cadangan hanya mengisi kotak; tekan Simpan pada halaman untuk menyimpannya.",
       "applied": "Digunakan. Tekan Simpan untuk menyimpannya.",
       "unchanged_other": "{{count}} baris tidak berubah"
+    },
+    "keyOk": "Kunci berfungsi.",
+    "connectionReady": "Sambungan AI sudah sedia.",
+    "setupAgent": "Sediakan Ejen Jualan",
+    "moreFeatures": "Lagi ciri AI",
+    "moreFeaturesHint": "Mesej suara dan Pengayaan pelanggan",
+    "remoteSignInHint": "Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
+    "connect": {
+      "title": "Sambungkan AI",
+      "chatgpt": "Log masuk dengan ChatGPT",
+      "recommended": "Disyorkan",
+      "note": "Menggunakan akaun ChatGPT anda. Sambungan ini tidak rasmi dan mungkin berhenti berfungsi; anda boleh bertukar kepada kunci API pada bila-bila masa.",
+      "signingIn": "Sedang log masuk… selesaikan dalam tetingkap ChatGPT.",
+      "cancel": "Batal",
+      "connectedChatgpt": "Disambungkan ke ChatGPT",
+      "connectedAs": "Log masuk sebagai {{email}}",
+      "connectedKey": "Kunci API OpenAI telah disemak dan disimpan",
+      "useKey": "Guna kunci API OpenAI",
+      "useChatgpt": "Guna Log masuk dengan ChatGPT",
+      "keyLabel": "Kunci API OpenAI",
+      "keyHint": "Bermula dengan sk-. Cipta satu di platform.openai.com → API keys.",
+      "testKey": "Uji kunci",
+      "keyFailedFallback": "Kunci ini tidak berfungsi. Pastikan anda menyalin semuanya.",
+      "keyInvalid": "OpenAI tidak menerima kunci ini. Pastikan anda menyalin semuanya.",
+      "keyUnreachable": "Tidak dapat menghubungi OpenAI untuk menyemak kunci. Semak sambungan internet dan cuba lagi.",
+      "keyRateLimited": "OpenAI sibuk atau kunci ini telah mencapai hadnya. Tunggu seminit dan cuba lagi."
     }
   },
   "enrichment": {

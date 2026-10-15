@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SettingsPatchBody } from '@wa-team-inbox/shared';
 import { errorMessage } from '../api/client';
@@ -265,8 +266,21 @@ export function SettingsPage() {
 
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
-          <AiVoiceSection />
-          <CustomerEnrichmentSection />
+          {/* Optional features collapsed under one heading, closed by default. */}
+          <details className="group rounded-lg border bg-card">
+            <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+              <ChevronRight
+                className="size-4 text-muted-foreground transition-transform group-open:rotate-90"
+                aria-hidden
+              />
+              <span className="font-medium">{t('ai.moreFeatures')}</span>
+              <span className="text-sm text-muted-foreground">{t('ai.moreFeaturesHint')}</span>
+            </summary>
+            <div className="flex flex-col gap-6 border-t p-4">
+              <AiVoiceSection />
+              <CustomerEnrichmentSection />
+            </div>
+          </details>
         </TabsContent>
 
         <TabsContent value="integrations" className="flex flex-col gap-4">

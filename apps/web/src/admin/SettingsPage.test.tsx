@@ -78,6 +78,18 @@ it('shows the AI connection inline on the AI tab (no popup)', () => {
   expect(patch.mutate).not.toHaveBeenCalled();
 });
 
+it('keeps Voice messages and Customer enrichment under a closed More AI features section', async () => {
+  renderAt('/admin/settings/ai');
+  const summary = screen.getByText('More AI features');
+  const details = summary.closest('details')!;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain('Voice messages card');
+  expect(details.textContent).toContain('Customer enrichment card');
+  expect(details.contains(screen.getByText('Inline AI connection'))).toBe(false);
+  await userEvent.setup().click(summary);
+  expect(details.open).toBe(true);
+});
+
 it('preserves edited fields through a background refresh while updating untouched defaults', async () => {
   const view = renderAt();
   const user = userEvent.setup();
