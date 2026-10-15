@@ -160,6 +160,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Never start a Dev Build on port 7420 on the dev machine: the installed EzyChat Lite service listens
+  there, so test traffic could reach real data. Use 749x ports and check `/api/health` reports `mode: dev`.
+  Playwright MCP screenshots save only under `.playwright-mcp/` (gitignored).
 - Never use the `development` export condition for monorepo-only `src/` entries of published packages:
   Vite/Vitest enable it by default and would resolve consumers to unshipped source. Use `ezychat-source`.
 - tsx ignores tsconfig `customConditions`; pass Node `--conditions=ezychat-source` (`.npmrc`
