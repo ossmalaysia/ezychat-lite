@@ -454,7 +454,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
-- `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check.
+- `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check. It
+  creates the first admin itself, so run it on a fresh server, not one seeded by `marketing-screenshots.mjs`.
 - The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
   widens grid dialogs: long-form editors use `field-sizing-fixed` with a fixed height, wide dialogs use
   `ResponsiveDialog size="wide"`; test with a document of long lines, not short fixtures.
@@ -493,6 +494,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
+- Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
+  `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
 - Extension keys (`ext.<name>.*`) are not in the typed core catalogs: read them with
   `useExtensionTranslation()`; never cast `t`. Core catalogs keep the `ext` key reserved.
 - Date helpers that take `now` must compare against it, not the real clock.
