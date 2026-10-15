@@ -26,13 +26,13 @@ Design record: `docs/superpowers/specs/2026-10-15-open-core-editions-design.md`.
 
 ## 2. Where does my feature go?
 
-| The feature… | Goes in | How |
-|---|---|---|
-| is free for everyone | Lite | Normal Lite PR |
-| is free, but with a bigger limit in Enterprise | Lite | Core feature; the limit comes from the edition (extension `init` can set it) |
-| is paid, and its code must stay private | Enterprise | `ServerExtension` + `WebExtension` |
-| needs a hook Lite does not have yet | Lite first, then Enterprise | Lite PR adding the extension point (with tests) → Lite release → Enterprise uses it |
-| was paid and becomes free | Lite | Move the code into Lite, release, then delete it from Enterprise |
+| The feature…                                   | Goes in                     | How                                                                                 |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| is free for everyone                           | Lite                        | Normal Lite PR                                                                      |
+| is free, but with a bigger limit in Enterprise | Lite                        | Core feature; the limit comes from the edition (extension `init` can set it)        |
+| is paid, and its code must stay private        | Enterprise                  | `ServerExtension` + `WebExtension`                                                  |
+| needs a hook Lite does not have yet            | Lite first, then Enterprise | Lite PR adding the extension point (with tests) → Lite release → Enterprise uses it |
+| was paid and becomes free                      | Lite                        | Move the code into Lite, release, then delete it from Enterprise                    |
 
 ## 3. Server extensions (`@ezychat/server`)
 
@@ -40,19 +40,24 @@ Design record: `docs/superpowers/specs/2026-10-15-open-core-editions-design.md`.
 import { requireAdmin, type ServerExtension } from '@ezychat/server';
 
 export const reports: ServerExtension = {
-  name: 'reports',                        // /^[a-z][a-z0-9-]{1,31}$/, not 'lite' or 'core'
-  migrationsDir: reportsMigrationsDir(),  // NNN_*.sql, tables named ent_*
-  init(ctx) {                             // runs after every core service is ready
-    ctx.bus.on('message:new', (m) => { /* … */ });
+  name: 'reports', // /^[a-z][a-z0-9-]{1,31}$/, not 'lite' or 'core'
+  migrationsDir: reportsMigrationsDir(), // NNN_*.sql, tables named ent_*
+  init(ctx) {
+    // runs after every core service is ready
+    ctx.bus.on('message:new', (m) => {
+      /* … */
+    });
   },
-  async routes(api, ctx) {                // mounted at /api/ext/reports/…
-    api.addHook('preHandler', requireAdmin(ctx));   // routes are PUBLIC unless you add a guard
-    api.get('/summary', async () => ({ /* … */ }));
+  async routes(api, ctx) {
+    // mounted at /api/ext/reports/…
+    api.addHook('preHandler', requireAdmin(ctx)); // routes are PUBLIC unless you add a guard
+    api.get('/summary', async () => ({/* … */}));
   },
 };
 ```
 
 What the core guarantees:
+
 - Routes live only under `/api/ext/<name>/…`, so they can never replace a core route. The global
   Host allowlist and Origin check still apply.
 - Extension migrations run on their own track (table `extension_migrations`), one transaction per
@@ -73,7 +78,9 @@ export const reportsWeb: WebExtension = {
   name: 'reports',
   routes: [{ path: 'summary', admin: true, element: <SummaryPage /> }], // → /admin/ext/reports/summary
   adminNav: [{ path: 'summary', labelKey: 'ext.reports.nav' }],
-  settingsSections: [{ id: 'reports', titleKey: 'ext.reports.settings', element: <ReportsSettings /> }],
+  settingsSections: [
+    { id: 'reports', titleKey: 'ext.reports.settings', element: <ReportsSettings /> },
+  ],
   catalogs: {
     en: { 'ext.reports.nav': 'Reports', 'ext.reports.settings': 'Reports' },
     ms: { 'ext.reports.nav': 'Laporan', 'ext.reports.settings': 'Laporan' },
@@ -108,17 +115,18 @@ the app layout), so the Enterprise repo builds the server and web app but not ye
 
 ## 6. Packages and the core update flow
 
-| Package | Built output | Inside the Lite repo |
-|---|---|---|
-| `@ezychat/shared`, `@ezychat/wa`, `@ezychat/server` | `dist/` (JS + `.d.ts`; server ships its SQL migrations) | resolved to `src/` |
-| `@ezychat/web` | `dist-lib/` (ESM + types + one precompiled CSS) | resolved to `src/` |
-| `@ezychat/desktop` | private, not published | — |
+| Package                                             | Built output                                            | Inside the Lite repo |
+| --------------------------------------------------- | ------------------------------------------------------- | -------------------- |
+| `@ezychat/shared`, `@ezychat/wa`, `@ezychat/server` | `dist/` (JS + `.d.ts`; server ships its SQL migrations) | resolved to `src/`   |
+| `@ezychat/web`                                      | `dist-lib/` (ESM + types + one precompiled CSS)         | resolved to `src/`   |
+| `@ezychat/desktop`                                  | private, not published                                  | —                    |
 
 Inside Lite, imports resolve to source through the **`ezychat-source`** export condition (not
 `development`: Vite and Vitest enable that by default, which would break Enterprise because the
 tarballs ship no `src/`). A plain `node`/`tsx` run outside npm needs `--conditions=ezychat-source`.
 
 Release flow:
+
 1. Lite release tag `v0.1.36` → `.github/workflows/publish-packages.yml` publishes `@ezychat/*@0.1.36`
    (dry run until the `NPM_TOKEN` secret exists). `scripts/pack-contract.test.mjs` pins what each
    tarball contains.
@@ -127,13 +135,13 @@ Release flow:
 
 ## 7. Daily development
 
-| Task | Command |
-|---|---|
-| Build the publishable core | `npm run build:core` (Lite) |
-| Make local tarballs | `npm run pack:core` (Lite → `.core-packs/`) |
+| Task                                        | Command                                                                                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Build the publishable core                  | `npm run build:core` (Lite)                                                              |
+| Make local tarballs                         | `npm run pack:core` (Lite → `.core-packs/`)                                              |
 | Use an unreleased core change in Enterprise | `node scripts/use-local-core.mjs` (Enterprise; packs Lite and installs with `--no-save`) |
-| Run the Enterprise server | `npm run dev:server` (port 7434, fake WhatsApp, `./data/dev`) |
-| Run the Enterprise web app | `npm run dev:web` (Vite 5174, proxies `/api` to 7434) |
+| Run the Enterprise server                   | `npm run dev:server` (port 7434, fake WhatsApp, `./data/dev`)                            |
+| Run the Enterprise web app                  | `npm run dev:web` (Vite 5174, proxies `/api` to 7434)                                    |
 
 Never commit tarballs, `file:` dependencies, or a lockfile that points to local paths.
 
@@ -150,14 +158,14 @@ Never commit tarballs, `file:` dependencies, or a lockfile that points to local 
 
 ## 9. Status and next phases
 
-| Phase | Status |
-|---|---|
-| 1 Server extension API | Done |
-| 2 Web extension API | Done |
-| 3 Desktop product config | Done |
-| 3b Publishable `@ezychat/*` packages + publish job | Done (publishing waits for the npm org `ezychat` and `NPM_TOKEN`) |
+| Phase                                                                             | Status                                                                |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1 Server extension API                                                            | Done                                                                  |
+| 2 Web extension API                                                               | Done                                                                  |
+| 3 Desktop product config                                                          | Done                                                                  |
+| 3b Publishable `@ezychat/*` packages + publish job                                | Done (publishing waits for the npm org `ezychat` and `NPM_TOKEN`)     |
 | 4 Enterprise scaffold (`enterprise-hello` server + web extension, CI, Dependabot) | Done, except the desktop installer (needs a publishable desktop main) |
-| 4b Publish the desktop main process (`start(options)` with asset folders) | Next |
-| 5 Enterprise release channel (signing, public installer bucket, update feed) | Needs owner decisions |
-| 6 Licensing | Needs design + mock confirmation |
-| 7 First paid feature | Owner picks |
+| 4b Publish the desktop main process (`start(options)` with asset folders)         | Next                                                                  |
+| 5 Enterprise release channel (signing, public installer bucket, update feed)      | Needs owner decisions                                                 |
+| 6 Licensing                                                                       | Needs design + mock confirmation                                      |
+| 7 First paid feature                                                              | Owner picks                                                           |
