@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.37] - 2026-10-16
+
 ### Changed
 
 - **First-time setup is simpler.** Enter your business name, your name (the username is filled in for you) and one password, link WhatsApp, then set up the AI assistant: describe your business, sign in with ChatGPT (recommended) or use an OpenAI API key, and turn it on. You can skip the AI step. The last screen links to Add teammates and Phone access.
