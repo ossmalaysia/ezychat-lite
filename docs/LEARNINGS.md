@@ -96,6 +96,8 @@ into AGENTS.md.
 - CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
   package mid-suite and starves slow Windows runners into timeouts. A test that is ~0.4 s on `main` and
   times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
+- Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
+  as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
 - Private repositories (e.g. `anchorsprint/ezychat-enterprise`) run CI only on the org's self-hosted
   runners (`[self-hosted, Linux, ARM64]`), never GitHub-hosted machines.
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
@@ -454,6 +456,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
+- Playwright `page.clock.pauseAt(new Date())` is flaky under load (page clock runs ahead: "Cannot
+  fast-forward to the past"); pause at the page's own `Date.now()` plus a few ms.
+- Never pipe a step into `tail`/`head` inside an `&&` chain: the pipe hides its exit code and the chain
+  carries on (`build-summary.mjs record` stage keys are `design|dev|unit|e2e|devbuild|screen`).
 - `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check. It
   creates the first admin itself, so run it on a fresh server, not one seeded by `marketing-screenshots.mjs`.
 - The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
