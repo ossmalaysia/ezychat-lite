@@ -367,6 +367,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
+  rewrites frozen baseline files and breaks `snapshot.mjs --check`.
+
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.
 

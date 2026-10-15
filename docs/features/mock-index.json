@@ -14,6 +14,18 @@
   },
   "proposals": [
     {
+      "feature": "simple-first-setup",
+      "creationOrder": 3,
+      "createdAt": "2026-10-15",
+      "design": "docs/features/simple-first-setup/design.md",
+      "mock": "docs/features/simple-first-setup/mock/index.html",
+      "status": "unconfirmed",
+      "baselineFeature": "customer-enrichment",
+      "baselineGitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
+      "baselineAppRevision": "2ce7018",
+      "coverage": "Full app clone of the confirmed enrichment reference; 4-step setup wizard (account, WhatsApp, AI assistant, ready), Getting started card, inline AI connect and Advanced section on the Sales Agent page, Settings → AI reorder/Test key/More AI features, Phone access label; ChatGPT sign-in, key test and WhatsApp linking simulated; fresh-install runner mode"
+    },
+    {
       "feature": "customer-enrichment",
       "creationOrder": 1,
       "createdAt": "2026-10-14",
