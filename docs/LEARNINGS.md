@@ -211,7 +211,8 @@ into AGENTS.md.
   opens as "damaged" on Apple Silicon. Release CI runs `codesign --verify --deep --strict` on every `.app`.
   A correctly ad-hoc-signed app still shows "Not Opened … could not verify … free of malware" (expected,
   not a bug): users click Done, then System Settings → Privacy & Security → Open Anyway. Only a Developer
-  ID + notarization removes that prompt.
+  ID + notarization removes that prompt. Gatekeeper checks only downloaded (quarantined) apps: a local
+  build never shows the prompt, so test macOS releases from the downloaded DMG.
 - Packaging: asar-unpack native loaders with their `.node`; pin esbuild's `ws` build; mac builds need an
   explicit `--mac dmg:<arch>` and a native-runner smoke; smoke packaged servers with
   `ELECTRON_RUN_AS_NODE=1` on a temp data dir. A feature that adds a native module or worker is smoked
