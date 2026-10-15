@@ -123,6 +123,8 @@ into AGENTS.md.
   (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
   conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
+- After merging `main` into the rename branch, `git grep -l "@wa-team-inbox/" -- apps packages e2e scripts`
+  (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
