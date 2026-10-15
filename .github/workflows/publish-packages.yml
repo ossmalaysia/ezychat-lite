@@ -1,8 +1,10 @@
 name: Publish core packages
 
 # Publishes the core as @ezychat/{shared,wa,server,web} to npm on each Lite release tag, at the
-# same version as the app (EzyChat Enterprise pins these exact versions). Without the NPM_TOKEN
-# secret (npm organisation not created yet) every publish runs with --dry-run.
+# same version as the app (EzyChat Enterprise pins these exact versions). Authentication is npm
+# trusted publishing (GitHub OIDC), never a stored token. Until the repository variable
+# NPM_TRUSTED_PUBLISHING is "true" (set after the first manual publish and the trusted-publisher
+# setup on npmjs.com for each package), every publish runs with --dry-run.
 
 on:
   push:
@@ -16,7 +18,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # npm trusted publishing (OIDC) and provenance
 
 concurrency:
   group: publish-packages-${{ inputs.ref || github.ref }}
@@ -50,19 +52,21 @@ jobs:
       - run: npm run build:core
       - name: Package contract
         run: ./node_modules/.bin/vitest run scripts/pack-contract.test.mjs
+      # Trusted publishing needs npm 11.5.1 or later (Node 22 ships npm 10).
+      - run: npm install -g npm@11.5.1 --ignore-scripts
       - name: Publish (dependencies first)
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUSTED: ${{ vars.NPM_TRUSTED_PUBLISHING }}
         run: |
           version="$(node -p "require('./package.json').version")"
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::warning::NPM_TOKEN is not set: dry run only"
+          if [ "$TRUSTED" != "true" ]; then
+            echo "::warning::NPM_TRUSTED_PUBLISHING is not \"true\": dry run only"
             mode="--dry-run"
           else
             mode="--provenance"
           fi
           for pkg in @ezychat/shared @ezychat/wa @ezychat/server @ezychat/web; do
-            if [ -n "$NODE_AUTH_TOKEN" ] && npm view "$pkg@$version" version >/dev/null 2>&1; then
+            if [ "$TRUSTED" = "true" ] && npm view "$pkg@$version" version >/dev/null 2>&1; then
               echo "$pkg@$version is already published; skipping"
               continue
             fi

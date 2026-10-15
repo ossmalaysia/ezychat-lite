@@ -80,6 +80,8 @@ Phases 1–3 are useful to Lite alone (cleaner boundaries) and change no Lite be
 
 ## Owner actions needed
 
-- Create the npm organisation `ezychat` (free for public packages) and an automation token, saved as
-  the `NPM_TOKEN` secret in `ossmalaysia/ezychat-lite`. Until then the publish job runs `--dry-run`.
+- The npm organisation `ezychat` exists (free plan, owner `jazztong`). For the first release with the open
+  core (0.1.38): publish the four `@ezychat/*` packages once by hand with 2FA, add a trusted publisher
+  (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) to each package on npmjs.com, then set the repo
+  variable `NPM_TRUSTED_PUBLISHING=true`. Until then the publish job runs `--dry-run`. No `NPM_TOKEN`.
 - Any Enterprise feature work before phase 4 exists.

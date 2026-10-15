@@ -181,7 +181,7 @@ precompiled CSS with font files); inside the monorepo imports resolve to `src/` 
 `ezychat-source` export condition (tsconfig `customConditions`, Vite/Vitest `resolve.conditions`, esbuild,
 `.npmrc` node-options, each package's `vitest.config.ts`); a plain `node`/`tsx` run outside npm needs
 `--conditions=ezychat-source`. `scripts/pack-contract.test.mjs` pins the tarball contents and
-`.github/workflows/publish-packages.yml` publishes on `v*` tags (dry run without `NPM_TOKEN`). Enterprise
+`.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`). Enterprise
 (`anchorsprint/ezychat-enterprise`) consumes pinned published `@ezychat/*` versions, never a
 git submodule or a committed `file:` dependency; until they are on npm it installs `npm run pack:core`
 tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. Lite never imports Enterprise

@@ -128,7 +128,7 @@ tarballs ship no `src/`). A plain `node`/`tsx` run outside npm needs `--conditio
 Release flow:
 
 1. Lite release tag `v0.1.37` → `.github/workflows/publish-packages.yml` publishes `@ezychat/*@0.1.37`
-   (dry run until the `NPM_TOKEN` secret exists). `scripts/pack-contract.test.mjs` pins what each
+   (npm trusted publishing, no token; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`). `scripts/pack-contract.test.mjs` pins what each
    tarball contains.
 2. Dependabot opens one grouped `ezychat-core` PR in Enterprise bumping every pin together.
 3. Enterprise CI (Anchor Sprint self-hosted Linux ARM64 runners only; private code never runs on GitHub-hosted machines) runs lint, typecheck, tests and builds → merge → Enterprise release.
@@ -158,14 +158,14 @@ Never commit tarballs, `file:` dependencies, or a lockfile that points to local 
 
 ## 9. Status and next phases
 
-| Phase                                                                             | Status                                                                |
-| --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1 Server extension API                                                            | Done                                                                  |
-| 2 Web extension API                                                               | Done                                                                  |
-| 3 Desktop product config                                                          | Done                                                                  |
-| 3b Publishable `@ezychat/*` packages + publish job                                | Done (publishing waits for the npm org `ezychat` and `NPM_TOKEN`)     |
-| 4 Enterprise scaffold (`enterprise-hello` server + web extension, CI, Dependabot) | Done, except the desktop installer (needs a publishable desktop main) |
-| 4b Publish the desktop main process (`start(options)` with asset folders)         | Next                                                                  |
-| 5 Enterprise release channel (signing, public installer bucket, update feed)      | Needs owner decisions                                                 |
-| 6 Licensing                                                                       | Needs design + mock confirmation                                      |
-| 7 First paid feature                                                              | Owner picks                                                           |
+| Phase                                                                             | Status                                                                                |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1 Server extension API                                                            | Done                                                                                  |
+| 2 Web extension API                                                               | Done                                                                                  |
+| 3 Desktop product config                                                          | Done                                                                                  |
+| 3b Publishable `@ezychat/*` packages + publish job                                | Done (npm org `ezychat` created; first manual publish and trusted publishing pending) |
+| 4 Enterprise scaffold (`enterprise-hello` server + web extension, CI, Dependabot) | Done, except the desktop installer (needs a publishable desktop main)                 |
+| 4b Publish the desktop main process (`start(options)` with asset folders)         | Next                                                                                  |
+| 5 Enterprise release channel (signing, public installer bucket, update feed)      | Needs owner decisions                                                                 |
+| 6 Licensing                                                                       | Needs design + mock confirmation                                                      |
+| 7 First paid feature                                                              | Owner picks                                                                           |
