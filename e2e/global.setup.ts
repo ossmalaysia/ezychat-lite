@@ -8,16 +8,20 @@ setup('first-run setup wizard creates the admin', async ({ page }) => {
   await expect(page).toHaveURL(/\/setup$/);
   await expect(page.getByRole('heading', { name: 'Welcome to EzyChat Lite' })).toBeVisible();
 
+  await page.getByLabel('Business name').fill('E2E Shop');
+  await page.getByLabel('Your name').fill(ADMIN.displayName);
+  // Username is filled in from "Your name"; the specs sign in with a fixed one.
   await page.getByLabel('Username').fill(ADMIN.username);
-  await page.getByLabel('Display name').fill(ADMIN.displayName);
   await page.getByLabel('Password', { exact: true }).fill(ADMIN.password);
-  await page.getByLabel('Confirm password').fill(ADMIN.password);
-  await page.getByRole('button', { name: 'Create admin' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
 
   // Fake WhatsApp is already "open", so the link step shows linked and Continue is enabled.
   await expect(page.getByText('WhatsApp linked')).toBeVisible();
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByText("You're all set")).toBeVisible();
+  // The AI assistant step is skippable; e2e never connects a real AI.
+  await expect(page.getByRole('heading', { name: 'AI assistant', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+  await expect(page.getByText('Your inbox is ready')).toBeVisible();
   await page.getByRole('button', { name: 'Go to inbox' }).click();
   await expect(inboxHeading(page)).toBeVisible();
 
