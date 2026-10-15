@@ -768,7 +768,7 @@
     "modelAdvanced": "高级：选择模型",
     "edit": {
       "open": "用 AI 修改",
-      "unavailable": "请先在 设置 → AI 中连接 AI，才能使用“用 AI 修改”。",
+      "unavailable": "请先在上方连接 AI，才能使用“用 AI 修改”。",
       "title": {
         "instructions": "用 AI 修改 AI 指令",
         "handoffRules": "用 AI 修改转交规则"

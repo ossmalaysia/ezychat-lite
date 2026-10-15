@@ -632,11 +632,11 @@ describe('AI member page', () => {
       for (const button of buttons) {
         expect((button as HTMLButtonElement).disabled).toBe(true);
         expect(button.getAttribute('title')).toBe(
-          'Connect the AI in Settings → AI to use Edit with AI.',
+          'Connect the AI above to use Edit with AI.',
         );
         const describedBy = button.getAttribute('aria-describedby') ?? '';
         expect(document.getElementById(describedBy)?.textContent).toBe(
-          'Connect the AI in Settings → AI to use Edit with AI.',
+          'Connect the AI above to use Edit with AI.',
         );
       }
     });

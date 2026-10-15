@@ -769,7 +769,7 @@
     "modelAdvanced": "Lanjutan: pilih model",
     "edit": {
       "open": "Sunting dengan AI",
-      "unavailable": "Sambungkan AI dalam Tetapan → AI untuk menggunakan Sunting dengan AI.",
+      "unavailable": "Sambungkan AI di atas untuk menggunakan Sunting dengan AI.",
       "title": {
         "instructions": "Sunting arahan AI dengan AI",
         "handoffRules": "Sunting peraturan serahan dengan AI"

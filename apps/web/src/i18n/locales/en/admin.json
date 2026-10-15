@@ -776,7 +776,7 @@
     "modelAdvanced": "Advanced: choose a model",
     "edit": {
       "open": "Edit with AI",
-      "unavailable": "Connect the AI in Settings → AI to use Edit with AI.",
+      "unavailable": "Connect the AI above to use Edit with AI.",
       "title": {
         "instructions": "Edit AI instructions with AI",
         "handoffRules": "Edit hand-off rules with AI"
