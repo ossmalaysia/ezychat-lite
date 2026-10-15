@@ -1,6 +1,6 @@
 # Simple first-time setup design
 
-Status: **proposal, awaiting owner confirmation.** Not approved for production UI work.
+Status: owner-confirmed reference (2026-10-15, mock revision 90a95da); production implementation in progress.
 
 ## Reference and provenance
 
@@ -150,3 +150,10 @@ deterministic answers), `proposal.ts` (demo scan, pairing auto-link, key test), 
 ## Confirmation
 
 Pending. A request to create, commit or show this mock is not confirmation and never authorises merging.
+
+## Owner confirmation
+
+Confirmed 2026-10-15 at mock revision `90a95dab5e992e2ea5d2daf773d613356b02f146`: "look good, use workflow
+with multi agent to implement it". The open questions above take the mock's answers: business name
+required; the AI turns on by default once connected; username visible and prefilled from your name;
+the Getting started card hides when everything is done or when dismissed; the menu label is "Phone access".
