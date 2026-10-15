@@ -362,7 +362,8 @@ cover navigation from every admin section and recovery from malformed URLs.
 
 `docs/LEARNINGS.md` is a compact, topic-grouped list of rules. Before finishing a run that changed code,
 add any real, re-usable lesson as one short rule bullet in the matching section, or sharpen an existing
-bullet; no dated stories or filler (history stays in git). If a lesson changes how agents must work,
+bullet; no dated stories or filler (history stays in git). Lessons specific to EzyChat Enterprise go to that
+repo's own `docs/LEARNINGS.md`. If a lesson changes how agents must work,
 update the rule in this file. (Claude Code prompts for this with a Stop hook; other agents must do it
 themselves.)
 
