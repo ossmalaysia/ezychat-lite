@@ -83,6 +83,8 @@ into AGENTS.md.
   Prettier-clean on `main`, so a folder run rewrites files another agent or nobody owns.
 - Workflow/subagents start in the session's primary checkout: when work lives in another worktree, give
   its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
+- A parallel agent can test against a sibling component another agent has not written yet with
+  `vi.mock('<path>', () => ({ … }))` (a factory), so its tests run before the real file lands.
 
 ## Git, GitHub and CI
 
@@ -216,6 +218,8 @@ into AGENTS.md.
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
   unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
+- nvm4w switches Node machine-wide: check `node -v` (22+) before tests or a server start when
+  `better-sqlite3` suddenly fails to load; never switch it back from inside one agent's run.
 
 ## Security
 
@@ -357,6 +361,11 @@ into AGENTS.md.
   `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
   bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
 - Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- A route that calls an outside service takes its client from an optional `ctx.services.<name>` slot
+  (e.g. `aiKeyTest`), set in `makeTestApp`'s `beforeBuild`, so tests never reach the network.
+- An API key test treats only a 401 as a bad key: a 403 (restricted key, region block), 429 or
+  network failure must still let the admin save. e2e that save a key answer
+  `POST /api/ai/connection/test` with `page.route`.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.
@@ -468,6 +477,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   shows a person icon, never `+`, `(` or `~`.
 - A chat's details open by tapping its header identity (avatar + name + subtitle are one `Button`; the
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
+- Badges inside a `SegmentedControl` option label get `pointer-events-none`, so a click anywhere on
+  the option selects it.
 
 ## Internationalization
 
@@ -492,3 +503,6 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   and Socket.IO.
 - Restoration and setup share one tracked operation gate; shutdown waits for it.
 - Share only the public project URL; treat a cross-realm `AbortError` from native share as a quiet cancel.
+- "Phone access is set up" = tunnel running OR a named tunnel saved (`hasTunnelToken` /
+  `namedTunnelHostname`); the tunnel status mode returns to `off` when stopped, so it cannot say
+  whether a tunnel is configured.

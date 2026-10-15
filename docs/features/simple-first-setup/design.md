@@ -157,3 +157,46 @@ Confirmed 2026-10-15 at mock revision `90a95dab5e992e2ea5d2daf773d613356b02f146`
 with multi agent to implement it". The open questions above take the mock's answers: business name
 required; the AI turns on by default once connected; username visible and prefilled from your name;
 the Getting started card hides when everything is done or when dismissed; the menu label is "Phone access".
+
+## Implementation
+
+Built on `feat/simple-first-setup` from the confirmed mock (`90a95da`), calling the real APIs.
+
+**Production files**
+
+- Server: `packages/shared/src/ai.ts` (`AiKeyTestBody`, `AiKeyTestResponse`, `AiKeyTestError`),
+  `packages/server/src/ai/key-test.ts`, `routes/ai.ts`, `ai/settings-keys.ts` (default mode), `ai/service.ts`.
+- Setup: `apps/web/src/setup/SetupWizard.tsx`, `AiAssistantStep.tsx`, `username.ts`, `agent-name.ts`.
+- Admin: `apps/web/src/admin/AiQuickConnect.tsx` (shared by the wizard and the Sales Agent page),
+  `use-chatgpt-sign-in.ts`, `AiMemberPage.tsx` (inline connect, closed Advanced section),
+  `AiConnectionSection.tsx` (ChatGPT first, Test key, Set up the Sales Agent link, More AI features),
+  `SettingsPage.tsx`; nav label "Phone access" (route `/admin/tunnel` unchanged).
+- Inbox: `apps/web/src/inbox/GettingStartedCard.tsx` (admins only), `InboxPage.tsx`, `ChatList.tsx`.
+- i18n: `mockSetup.connect.*` became `ai.connect.*` (admin), `mockSetup.started.*` became `gettingStarted.*`
+  (inbox); `setup.ai.*` stays in auth. en, ms and zh-CN.
+
+**Key test endpoint.** `POST /api/ai/connection/test` (admin, Origin check, 10 per minute per admin)
+calls OpenAI `GET /v1/models` with an 8 s timeout and returns `{ ok, error }`: 401 → `invalid_key`,
+403 → `forbidden`, 429 → `rate_limited`, anything else or a network failure → `unreachable`. It never
+stores the key and logs only the result, status and duration. Only `invalid_key` blocks saving; after the
+other errors the page offers **Save anyway**. Tests replace the client through `ctx.services.aiKeyTest`.
+
+**Default mode.** A data dir with no saved connection defaults to ChatGPT mode. An older save without a
+mode, or a stored API key, stays in API-key mode. The default never signs in or calls ChatGPT, and the AI
+member stays off until an admin turns it on (the wizard turns it on only after a working connection).
+
+**Differences from the mock**
+
+- No "Proposed feature" badges, `/api/mock/*` calls, demo-scan button or fake delays.
+- The business name is not stored on its own; the wizard uses it for the Sales Agent name and the
+  Business context template.
+- `AiQuickConnect` always opens on the ChatGPT option (the owner's main connection), even when the saved
+  mode is `api` without a key.
+- **Save anyway** after a key-test failure other than `invalid_key` is an addition beyond the mock; it
+  needs a screen-review capture and the owner's confirmation.
+- When Your name gives fewer than 3 usable characters (for example a Chinese-only name), the username
+  is prefilled with `admin` instead of staying empty.
+
+**Pending with the main agent:** e2e, the Dev Build check (real ChatGPT sign-in, a real key test against
+`/v1/models`, the wizard end to end, the Getting started card) and the final screen review at
+1280/360 px, light and dark.
