@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.36] - 2026-10-15
+
 ### Fixed
 
 - **macOS (Apple Silicon):** EzyChat Lite no longer opens as "damaged and can't be opened". The app is now signed (ad-hoc), so macOS shows the usual unidentified-developer prompt instead (System Settings → Privacy & Security → Open Anyway).
