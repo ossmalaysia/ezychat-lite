@@ -125,6 +125,9 @@ into AGENTS.md.
   conflict markers first.
 - After merging `main` into the rename branch, `git grep -l "@wa-team-inbox/" -- apps packages e2e scripts`
   (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
+- Publish `@ezychat/*` with npm trusted publishing (GitHub OIDC, `id-token: write`), not an `NPM_TOKEN`:
+  2FA-bypass tokens lost account/package management in July 2026 and lose direct publishing around
+  January 2027.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
