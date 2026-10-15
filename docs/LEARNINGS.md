@@ -140,6 +140,8 @@ into AGENTS.md.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
+- Moving UI into a collapsed section (`<details>`, Advanced, "More …"): grep `e2e/` and unit tests for its
+  labels and open the section first in each; agents that own the page miss specs owned by other features.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
