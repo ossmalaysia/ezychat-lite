@@ -422,6 +422,30 @@ describe('Settings → AI connection (inline)', () => {
     await screen.findByText(/OpenAI is busy or this key has reached its limit/);
   });
 
+  it('saves a restricted key anyway, but offers no Save anyway for a rejected key', async () => {
+    let error = 'invalid_key';
+    const { fetchMock } = setup({ ...status(), hasApiKey: false }, (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: false, error })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('OpenAI API key');
+    await user.type(input, 'sk-restricted-123');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText(/OpenAI did not accept this key/);
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+
+    error = 'forbidden';
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/OpenAI did not let this key list models/);
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: '', apiKey: 'sk-restricted-123' }),
+    );
+  });
+
   it('links to the Sales Agent once the connection is ready', async () => {
     setup();
     const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });

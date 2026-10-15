@@ -823,7 +823,9 @@
       "keyFailedFallback": "此密钥无效。请检查是否完整复制。",
       "keyInvalid": "OpenAI 不接受此密钥。请检查是否完整复制。",
       "keyUnreachable": "无法连接 OpenAI 检查密钥。请检查网络连接后重试。",
-      "keyRateLimited": "OpenAI 繁忙或此密钥已达到用量限制。请稍等一分钟后重试。"
+      "keyRateLimited": "OpenAI 繁忙或此密钥已达到用量限制。请稍等一分钟后重试。",
+      "keyForbidden": "OpenAI 不允许此密钥列出模型。受限密钥或地区限制可能导致此情况；此密钥仍可能用于回复。",
+      "saveAnyway": "仍然保存"
     }
   },
   "enrichment": {

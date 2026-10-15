@@ -31,7 +31,7 @@ describe('createAiKeyTester', () => {
 
   it.each([
     [401, 'invalid_key'],
-    [403, 'invalid_key'],
+    [403, 'forbidden'],
     [429, 'rate_limited'],
     [500, 'unreachable'],
     [503, 'unreachable'],
@@ -144,6 +144,7 @@ describe('POST /api/ai/connection/test', () => {
 
   it.each([
     [401, 'invalid_key'],
+    [403, 'forbidden'],
     [429, 'rate_limited'],
     [502, 'unreachable'],
   ] as const)('returns %s results as data', async (code, error) => {

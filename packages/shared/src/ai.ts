@@ -213,7 +213,12 @@ export type AiCallbackBody = z.infer<typeof AiCallbackBody>;
 /** Check an OpenAI API key before saving it; the server never stores or logs the key. */
 export const AiKeyTestBody = z.object({ apiKey: z.string().trim().min(1).max(400) });
 export type AiKeyTestBody = z.infer<typeof AiKeyTestBody>;
-export const AiKeyTestError = z.enum(['invalid_key', 'unreachable', 'rate_limited']);
+/**
+ * invalid_key: OpenAI rejected the key (401), never saved. The others may still answer customers
+ * (a restricted key without the Models permission, a region block, a passing rate limit or outage),
+ * so the admin may save the key anyway.
+ */
+export const AiKeyTestError = z.enum(['invalid_key', 'forbidden', 'unreachable', 'rate_limited']);
 export type AiKeyTestError = z.infer<typeof AiKeyTestError>;
 export const AiKeyTestResponse = z.object({
   ok: z.boolean(),

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,14 @@ export function useTestApiKey() {
   });
 }
 
+/**
+ * Only a key OpenAI rejected outright (401) is refused. Any other failed test may be a key that still
+ * answers customers (no Models permission, a region block, a passing limit), so it can be saved anyway.
+ */
+export function keyTestBlocks(error: AiKeyTestError | null | undefined): boolean {
+  return error === 'invalid_key';
+}
+
 /** The message for a failed key test (`ok: false`). */
 export function keyTestMessage(
   t: TFunction<'admin'>,
@@ -34,6 +42,8 @@ export function keyTestMessage(
   switch (error) {
     case 'invalid_key':
       return t('ai.connect.keyInvalid');
+    case 'forbidden':
+      return t('ai.connect.keyForbidden');
     case 'unreachable':
       return t('ai.connect.keyUnreachable');
     case 'rate_limited':
@@ -58,8 +68,17 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
   const [useKey, setUseKey] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [pasted, setPasted] = useState('');
+  const keyInputRef = useRef<HTMLInputElement>(null);
   const conn = status.connection;
   const savedChatgpt = status.settings.mode === 'chatgpt';
+
+  const keyFailed = Boolean(testKey.data && !testKey.data.ok);
+  const canSaveAnyway = keyFailed && !keyTestBlocks(testKey.data?.error);
+
+  // A failed test moves focus back to the key, so screen readers read its error.
+  useEffect(() => {
+    if (keyFailed) keyInputRef.current?.focus();
+  }, [keyFailed]);
 
   if (connectionReady(status))
     return (
@@ -95,6 +114,19 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
     action.mutate({ kind: 'callback', url }, { onSuccess: () => setPasted('') });
   };
 
+  const saveKey = async (key: string) => {
+    await action.mutateAsync({
+      kind: 'connection',
+      settings: {
+        mode: 'api',
+        model: status.settings.mode === 'api' ? status.settings.model : '',
+        apiKey: key,
+      },
+    });
+    setApiKey('');
+    testKey.reset();
+  };
+
   /** Test the key, and save it straight away when it works (no separate Save click). */
   const checkAndSave = async () => {
     const key = apiKey.trim();
@@ -103,21 +135,23 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
     try {
       const result = await testKey.mutateAsync(key);
       if (!result.ok) return;
-      await action.mutateAsync({
-        kind: 'connection',
-        settings: {
-          mode: 'api',
-          model: status.settings.mode === 'api' ? status.settings.model : '',
-          apiKey: key,
-        },
-      });
-      setApiKey('');
+      await saveKey(key);
     } catch {
       /* shown below */
     }
   };
 
-  const keyFailed = testKey.data && !testKey.data.ok;
+  /** After a test that failed for a reason other than a rejected key. */
+  const saveAnyway = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    action.reset();
+    try {
+      await saveKey(key);
+    } catch {
+      /* shown below */
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -233,6 +267,7 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
             {(p) => (
               <Input
                 {...p}
+                ref={keyInputRef}
                 type="password"
                 value={apiKey}
                 autoComplete="off"
@@ -263,6 +298,18 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
               {testKey.isPending || action.isPending ? <Pending show /> : <KeyRound aria-hidden />}
               {t('ai.connect.testKey')}
             </Button>
+            {canSaveAnyway && (
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="w-full sm:w-auto"
+                disabled={action.isPending}
+                onClick={() => void saveAnyway()}
+              >
+                {t('ai.connect.saveAnyway')}
+              </Button>
+            )}
           </div>
           <Button
             type="button"

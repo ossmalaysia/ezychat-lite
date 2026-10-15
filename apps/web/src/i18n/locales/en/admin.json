@@ -832,7 +832,9 @@
       "keyFailedFallback": "This key did not work. Check that you copied all of it.",
       "keyInvalid": "OpenAI did not accept this key. Check that you copied all of it.",
       "keyUnreachable": "Could not reach OpenAI to check the key. Check the internet connection and try again.",
-      "keyRateLimited": "OpenAI is busy or this key has reached its limit. Wait a minute and try again."
+      "keyRateLimited": "OpenAI is busy or this key has reached its limit. Wait a minute and try again.",
+      "keyForbidden": "OpenAI did not let this key list models. A restricted key or a region limit can cause this; the key may still work for replies.",
+      "saveAnyway": "Save anyway"
     }
   },
   "enrichment": {

@@ -151,23 +151,41 @@ describe('AiQuickConnect', () => {
     expect(await screen.findByText('OpenAI API key checked and saved')).toBeTruthy();
   });
 
+  it('refuses a key OpenAI rejects, with no Save anyway, and moves focus back to the key', async () => {
+    const { fetchMock } = setup(status(), { ok: false, error: 'invalid_key' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use an OpenAI API key instead' }));
+    await user.type(screen.getByLabelText('OpenAI API key'), 'sk-wrong-key');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    expect(
+      await screen.findByText('OpenAI did not accept this key. Check that you copied all of it.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+    expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(0);
+    // Screen readers read the error through the focused field's description.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText('OpenAI API key')),
+    );
+  });
+
   it.each([
-    ['invalid_key', 'OpenAI did not accept this key. Check that you copied all of it.'],
-    [
-      'unreachable',
-      'Could not reach OpenAI to check the key. Check the internet connection and try again.',
-    ],
-    [
-      'rate_limited',
-      'OpenAI is busy or this key has reached its limit. Wait a minute and try again.',
-    ],
-  ])('never saves a key whose test fails (%s)', async (error, message) => {
+    ['forbidden', /OpenAI did not let this key list models/],
+    ['unreachable', /Could not reach OpenAI to check the key/],
+    ['rate_limited', /OpenAI is busy or this key has reached its limit/],
+  ])('lets the admin save anyway after a %s test', async (error, message) => {
     const { fetchMock } = setup(status(), { ok: false, error });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Use an OpenAI API key instead' }));
-    await user.type(screen.getByLabelText('OpenAI API key'), 'sk-wrong-key{Enter}');
+    await user.type(screen.getByLabelText('OpenAI API key'), 'sk-restricted-key{Enter}');
     expect(await screen.findByText(message)).toBeTruthy();
     expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() => expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(1));
+    expect(JSON.parse(String(calls(fetchMock, '/api/ai/connection')[0]![1]!.body))).toEqual({
+      mode: 'api',
+      model: '',
+      apiKey: 'sk-restricted-key',
+    });
   });
 
   it('shows the connected state with the ChatGPT account', () => {

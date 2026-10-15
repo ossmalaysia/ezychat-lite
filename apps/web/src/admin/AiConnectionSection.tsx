@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { connectionReady, officialLoginUrl } from './ai-status';
-import { keyTestMessage, useTestApiKey } from './AiQuickConnect';
+import { keyTestBlocks, keyTestMessage, useTestApiKey } from './AiQuickConnect';
 import { useChatgptSignIn } from './use-chatgpt-sign-in';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { cn } from '@/lib/utils';
@@ -87,7 +87,8 @@ function ConnectionForm({
   const action = useAiMemberAction();
   const test = useAiTest();
   const chatgpt = useChatgptSignIn(action);
-  // A new API key is tested before it is saved; a failing key is never stored.
+  // A new API key is tested before it is saved. A key OpenAI rejects is never stored; after any other
+  // failure (restricted key, region, limit, outage) the admin may save it anyway.
   const testKey = useTestApiKey();
   const [testedKey, setTestedKey] = useState<string | null>(null);
   const runKeyTest = async (key: string) => {
@@ -132,9 +133,13 @@ function ConnectionForm({
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    await commit(false);
+  };
+
+  const commit = async (skipKeyTest: boolean) => {
     setLocalError(null);
     const key = apiKey.trim();
-    if (draft.mode === 'api' && key && testedKey !== key) {
+    if (draft.mode === 'api' && key && testedKey !== key && !skipKeyTest) {
       try {
         if (!(await runKeyTest(key))) return;
       } catch {
@@ -267,6 +272,17 @@ function ConnectionForm({
                     <Pending show={testKey.isPending} />
                     {t('ai.connect.testKey')}
                   </Button>
+                  {testKey.data && !testKey.data.ok && !keyTestBlocks(testKey.data.error) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="touch"
+                      disabled={!apiKey.trim() || action.isPending}
+                      onClick={() => void commit(true)}
+                    >
+                      {t('ai.connect.saveAnyway')}
+                    </Button>
+                  )}
                   {testKey.data?.ok && testedKey === apiKey.trim() && (
                     <p role="status" className="inline-flex items-center gap-1.5 text-sm">
                       <CheckCircle2 className="size-4 text-success" aria-hidden />

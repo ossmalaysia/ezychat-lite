@@ -37,7 +37,9 @@ export function createAiKeyTester(opts: {
       // The body is not needed; release the connection.
       await response.body?.cancel().catch(() => undefined);
       if (response.ok) result = { ok: true, error: null };
-      else if (status === 401 || status === 403) result = { ok: false, error: 'invalid_key' };
+      else if (status === 401) result = { ok: false, error: 'invalid_key' };
+      // A restricted key without the Models permission, or a blocked region: the key itself is real.
+      else if (status === 403) result = { ok: false, error: 'forbidden' };
       else if (status === 429) result = { ok: false, error: 'rate_limited' };
       else result = { ok: false, error: 'unreachable' };
     } catch {

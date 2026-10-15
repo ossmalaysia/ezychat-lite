@@ -824,7 +824,9 @@
       "keyFailedFallback": "Kunci ini tidak berfungsi. Pastikan anda menyalin semuanya.",
       "keyInvalid": "OpenAI tidak menerima kunci ini. Pastikan anda menyalin semuanya.",
       "keyUnreachable": "Tidak dapat menghubungi OpenAI untuk menyemak kunci. Semak sambungan internet dan cuba lagi.",
-      "keyRateLimited": "OpenAI sibuk atau kunci ini telah mencapai hadnya. Tunggu seminit dan cuba lagi."
+      "keyRateLimited": "OpenAI sibuk atau kunci ini telah mencapai hadnya. Tunggu seminit dan cuba lagi.",
+      "keyForbidden": "OpenAI tidak membenarkan kunci ini menyenaraikan model. Kunci terhad atau had wilayah boleh menyebabkan ini; kunci mungkin masih berfungsi untuk balasan.",
+      "saveAnyway": "Simpan juga"
     }
   },
   "enrichment": {
