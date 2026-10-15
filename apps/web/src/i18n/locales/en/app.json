@@ -1,6 +1,6 @@
 {
   "about": {
-    "title": "About EzyChat Lite",
+    "title": "About {{product}}",
     "description": "One WhatsApp number, one shared inbox for your whole team — served from your own computer.",
     "version": "Version {{version}}",
     "versionUnknown": "Version unknown",
@@ -49,10 +49,10 @@
     "checking": "Checking…",
     "check": "Check for updates",
     "lastChecked": "Last checked {{time}}",
-    "dialogTitle": "Update EzyChat Lite",
+    "dialogTitle": "Update {{product}}",
     "notice": {
       "label": "App update available",
-      "title": "EzyChat Lite {{version}} is available",
+      "title": "{{product}} {{version}} is available",
       "preview": "A new preview release is ready on GitHub.",
       "release": "A new release is ready on GitHub.",
       "dismiss": "Dismiss update suggestion",

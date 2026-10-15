@@ -15,6 +15,7 @@ import {
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { installGlobalErrorReporting } from '@/lib/error-reporter';
+import { setProductName } from '@/i18n';
 import { localeStore } from '@/i18n/locale-store';
 import { LocaleSync } from '@/i18n/LocaleSync';
 import './index.css';
@@ -24,6 +25,8 @@ export interface CreateInboxAppOptions {
   extensions?: readonly WebExtension[];
   /** Element to render into; defaults to `#root`. */
   root?: HTMLElement;
+  /** Product name shown wherever the UI names the app; defaults to "EzyChat Lite". */
+  productName?: string;
 }
 
 function createQueryClient(): QueryClient {
@@ -47,8 +50,10 @@ function createQueryClient(): QueryClient {
 export async function createInboxApp({
   extensions = [],
   root = document.getElementById('root') ?? undefined,
+  productName,
 }: CreateInboxAppOptions = {}): Promise<void> {
   validateWebExtensions(extensions);
+  if (productName !== undefined) setProductName(productName);
   if (!root) throw new Error('#root missing');
 
   // Uncaught errors / unhandled rejections → server log (structured `mod: "web"` entries).

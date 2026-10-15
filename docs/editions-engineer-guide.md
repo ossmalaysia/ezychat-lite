@@ -80,13 +80,16 @@ export const reportsWeb: WebExtension = {
     'zh-CN': { 'ext.reports.nav': '报告', 'ext.reports.settings': '报告' },
   },
 };
-// Enterprise web entry: createInboxApp({ extensions: [reportsWeb] })
+// Enterprise web entry: createInboxApp({ extensions: [reportsWeb], productName: 'EzyChat Enterprise' })
 ```
 
 - User routes mount at `/ext/<name>/…`, admin routes at `/admin/ext/<name>/…` inside the admin shell
   and guard. Every element is wrapped in an `ErrorBoundary`.
 - Settings sections appear under Settings → Integrations, below the core sections.
 - Translation keys must start with `ext.<name>.`; read them with `useExtensionTranslation()`.
+- `productName` replaces "EzyChat Lite" everywhere the UI names the app: core catalog strings use
+  `{{product}}`, never the literal name (a test enforces it). Only the share-the-app texts keep
+  "EzyChat Lite", because they promote the free app.
 - Build UI only from the exported shadcn/app components, with token colour classes. The core CSS
   (`@ezychat/web/style.css`) contains only the Tailwind classes Lite uses, so extensions that need
   other utilities run their own Tailwind build.

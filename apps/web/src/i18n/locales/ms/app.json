@@ -1,6 +1,6 @@
 {
   "about": {
-    "title": "Perihal EzyChat Lite",
+    "title": "Perihal {{product}}",
     "description": "Satu nombor WhatsApp, satu peti masuk dikongsi untuk seluruh pasukan anda — dijalankan dari komputer anda sendiri.",
     "version": "Versi {{version}}",
     "versionUnknown": "Versi tidak diketahui",
@@ -49,10 +49,10 @@
     "checking": "Menyemak…",
     "check": "Semak kemas kini",
     "lastChecked": "Disemak terakhir {{time}}",
-    "dialogTitle": "Kemas kini EzyChat Lite",
+    "dialogTitle": "Kemas kini {{product}}",
     "notice": {
       "label": "Kemas kini aplikasi tersedia",
-      "title": "EzyChat Lite {{version}} tersedia",
+      "title": "{{product}} {{version}} tersedia",
       "preview": "Keluaran pratonton baharu sedia di GitHub.",
       "release": "Keluaran baharu sedia di GitHub.",
       "dismiss": "Tolak cadangan kemas kini",

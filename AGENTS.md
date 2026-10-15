@@ -158,7 +158,8 @@ edition `lite` with no extensions) takes `ServerExtension`s (`extensions.ts`): a
 (never touches the core `user_version`), `init(ctx)` after every core initializer, and `routes` mounted
 after core routes (add `requireUser`/`requireAdmin` yourself; Host/Origin checks still apply).
 `/api/health` reports `edition`; its `app` value stays `wa-team-inbox`. _Web_:
-`createInboxApp({ extensions })` (`apps/web/src/create-app.tsx`; Lite's `main.tsx` passes `[]`) takes
+`createInboxApp({ extensions, productName })` (`apps/web/src/create-app.tsx`; Lite's `main.tsx` passes `[]`;
+catalog strings name the app only through `{{product}}`, default "EzyChat Lite", except the share-the-app texts) takes
 `WebExtension`s (`src/extensions/types.ts`, `validateWebExtensions`): routes only at `/ext/<name>/…`
 (signed-in) or `/admin/ext/<name>/…` (admin shell and guard), admin nav links (absolute paths),
 Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with

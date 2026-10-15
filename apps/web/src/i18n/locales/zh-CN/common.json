@@ -1,5 +1,5 @@
 {
-  "appName": "EzyChat Lite",
+  "appName": "{{product}}",
   "devBuild": "开发版本",
   "actions": {
     "save": "保存",

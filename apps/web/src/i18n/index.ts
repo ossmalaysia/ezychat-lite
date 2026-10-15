@@ -25,6 +25,20 @@ async function loadCatalogs(locale: Locale): Promise<void> {
   loaded.add(locale);
 }
 
+/** Product name used by catalog strings through `{{product}}`; another edition replaces it. */
+export const DEFAULT_PRODUCT_NAME = 'EzyChat Lite';
+const defaultVariables: { product: string } = { product: DEFAULT_PRODUCT_NAME };
+
+/**
+ * Sets the product name every `{{product}}` in the catalogs shows (e.g. "EzyChat Enterprise").
+ * i18next reads default variables on each translation, so this also applies after init.
+ */
+export function setProductName(name: string): void {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 60) throw new Error('productName must be 1–60 characters');
+  defaultVariables.product = trimmed;
+}
+
 let initialized: Promise<unknown> | null = null;
 
 /** Initializes i18next once with the English catalogs bundled. */
@@ -37,7 +51,7 @@ export function initI18n(): Promise<unknown> {
     ns: [...NAMESPACES],
     defaultNS: 'common',
     resources: { en: enResources },
-    interpolation: { escapeValue: false }, // React already escapes
+    interpolation: { escapeValue: false, defaultVariables }, // React already escapes
     returnNull: false,
     react: { useSuspense: false },
   });
