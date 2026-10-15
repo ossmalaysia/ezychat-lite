@@ -127,7 +127,7 @@ tarballs ship no `src/`). A plain `node`/`tsx` run outside npm needs `--conditio
 
 Release flow:
 
-1. Lite release tag `v0.1.36` → `.github/workflows/publish-packages.yml` publishes `@ezychat/*@0.1.36`
+1. Lite release tag `v0.1.37` → `.github/workflows/publish-packages.yml` publishes `@ezychat/*@0.1.37`
    (dry run until the `NPM_TOKEN` secret exists). `scripts/pack-contract.test.mjs` pins what each
    tarball contains.
 2. Dependabot opens one grouped `ezychat-core` PR in Enterprise bumping every pin together.

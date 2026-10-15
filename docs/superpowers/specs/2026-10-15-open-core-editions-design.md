@@ -39,7 +39,7 @@ to the public npm registry under the `@ezychat` scope, same version as the Lite 
 | `@ezychat/web` | `apps/web` | `createInboxApp({ extensions })`, compiled CSS, service worker source |
 | `@ezychat/desktop` | `apps/desktop` | Electron main/preload built JS, `defineProduct()` |
 
-Enterprise pins exact versions (`"@ezychat/server": "0.1.36"`), installs with `npm ci`, and Dependabot
+Enterprise pins exact versions (`"@ezychat/server": "0.1.37"`), installs with `npm ci`, and Dependabot
 (`npm` ecosystem) opens one grouped "bump core" PR per Lite release.
 
 What this needs in Lite (the price of npm over a submodule):
