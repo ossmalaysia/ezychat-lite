@@ -7,8 +7,21 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const pkgDir = resolve(process.argv[2] ?? process.cwd());
+// Only the three core packages of this repository can be built; anything else is refused.
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGES = ['shared', 'wa', 'server'].map((name) => join(repoRoot, 'packages', name));
+// Windows paths are case-insensitive (the drive letter's case differs between cwd and the script URL).
+const samePath = (a, b) =>
+  process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+const pkgDir = PACKAGES.find((dir) => samePath(dir, resolve(process.argv[2] ?? process.cwd())));
+if (!pkgDir) {
+  console.error(
+    `build-package: expected one of ${PACKAGES.map((d) => relative(repoRoot, d)).join(', ')}`,
+  );
+  process.exit(2);
+}
 const srcDir = join(pkgDir, 'src');
 const distDir = join(pkgDir, 'dist');
 

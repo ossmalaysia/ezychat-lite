@@ -35,7 +35,8 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      # No install scripts: publishing needs only tsc, Vite and Vitest, never native addons.
+      - run: npm ci --ignore-scripts
       - name: Check the tag matches every package version
         env:
           TAG: ${{ inputs.ref || github.ref_name }}
@@ -48,7 +49,7 @@ jobs:
           node scripts/sync-version.mjs --check
       - run: npm run build:core
       - name: Package contract
-        run: npx vitest run scripts/pack-contract.test.mjs
+        run: ./node_modules/.bin/vitest run scripts/pack-contract.test.mjs
       - name: Publish (dependencies first)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

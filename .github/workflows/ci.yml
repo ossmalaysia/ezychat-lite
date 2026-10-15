@@ -30,5 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # Build the publishable core first, so the pack contract test never builds during the suite.
+      - run: npm run build:core
       - run: npm test
       - run: npm run build -w @ezychat/web
