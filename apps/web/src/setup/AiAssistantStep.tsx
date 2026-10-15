@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AiQuickConnect } from '@/admin/AiQuickConnect';
 import { connectionReady } from '../admin/ai-status';
 import { ButtonSpinner } from '../auth/AuthShell';
+import { agentNameFor } from './agent-name';
 
 /**
  * Setup step 3 (skippable): describe the business, connect the AI, optionally turn it on.
@@ -55,7 +56,7 @@ export function AiAssistantStep({
     }
     const enable = ready && turnOn;
     const member = AiMemberBody.safeParse({
-      displayName: t('setup.ai.agentName', { business: name }).slice(0, 64),
+      displayName: agentNameFor(name, (business) => t('setup.ai.agentName', { business })),
       enabled: false,
       instructions: DEFAULT_AI_INSTRUCTIONS,
       handoffRules: DEFAULT_AI_HANDOFF_RULES,

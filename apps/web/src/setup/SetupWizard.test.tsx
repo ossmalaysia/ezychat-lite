@@ -11,6 +11,7 @@ import {
 } from '@wa-team-inbox/shared';
 import { SetupWizard } from './SetupWizard';
 import { AiAssistantStep } from './AiAssistantStep';
+import { agentNameFor } from './agent-name';
 import { usernameFrom } from './username';
 
 // The connect card is its own component (tested with the admin pages); here it only has to render.
@@ -112,8 +113,45 @@ describe('usernameFrom', () => {
     expect(usernameFrom('Aisyah Rahman')).toBe('aisyah.rahman');
     expect(usernameFrom('  José   Ñúñez ')).toBe('jose.nunez');
     expect(usernameFrom("O'Brien & Co.")).toBe('obrien.co');
-    expect(usernameFrom('李明')).toBe('');
     expect(usernameFrom('a'.repeat(40))).toHaveLength(32);
+  });
+
+  it('never ends with a dot after cutting a long name', () => {
+    const name = usernameFrom('Nurul Aisyah binti Abdul Rahman Al-Haddad Muhammad Iskandar');
+    expect(name).toBe('nurul.aisyah.binti.abdul.rahman');
+    expect(name).toMatch(/^[a-z0-9_.-]{3,32}$/);
+  });
+
+  it('picks admin when the name gives too few letters (e.g. Chinese) and stays empty without a name', () => {
+    expect(usernameFrom('陈伟')).toBe('admin');
+    expect(usernameFrom('Jo')).toBe('admin');
+    expect(usernameFrom('   ')).toBe('');
+  });
+});
+
+describe('agentNameFor', () => {
+  const en = (business: string) => `${business} AI`;
+  const ms = (business: string) => `AI ${business}`;
+
+  it('keeps a short name whole', () => {
+    expect(agentNameFor('Kedai Aisyah', en)).toBe('Kedai Aisyah AI');
+  });
+
+  it('shortens a long business at a word and keeps the AI part, within 64 characters', () => {
+    const long =
+      'Kedai Runcit dan Kopitiam Keluarga Sri Bintang Sentosa Enterprise Sdn Bhd (Cawangan Seksyen 13)';
+    const name = agentNameFor(long, en);
+    expect(name).toBe('Kedai Runcit dan Kopitiam Keluarga Sri Bintang Sentosa AI');
+    expect(name.length).toBeLessThanOrEqual(64);
+    const malay = agentNameFor(long, ms);
+    expect(malay.startsWith('AI Kedai Runcit')).toBe(true);
+    expect(malay.length).toBeLessThanOrEqual(64);
+    expect(malay.endsWith(' ')).toBe(false);
+  });
+
+  it('cuts a name without spaces (CJK) to fit', () => {
+    const name = agentNameFor('茶'.repeat(80), en);
+    expect(name).toBe(`${'茶'.repeat(61)} AI`);
   });
 });
 
@@ -159,6 +197,24 @@ describe('SetupWizard account step', () => {
     await user.clear(username);
     await user.type(username, 'no spaces');
     expect(screen.getByText(/3–32|3-32/)).toBeTruthy();
+
+    // A cleared username explains why Continue is off.
+    await user.clear(username);
+    expect(screen.getByText(/3–32|3-32/)).toBeTruthy();
+  });
+
+  it('picks a username for a name in Chinese and says so', async () => {
+    stubServer();
+    renderWizard();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Business name'), '茶餐厅');
+    await user.type(screen.getByLabelText('Your name'), '陈伟');
+    await user.type(screen.getByLabelText('Password'), 'longpassword');
+    expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('admin');
+    expect(screen.getByText(/we picked one/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
   it('rejects a short password', async () => {

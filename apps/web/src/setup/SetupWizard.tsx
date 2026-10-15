@@ -18,7 +18,7 @@ import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { WaLinkStep } from './WaLinkStep';
 import { AiAssistantStep } from './AiAssistantStep';
-import { usernameFrom } from './username';
+import { usernameFrom, usernameFromName } from './username';
 
 /** Account → WhatsApp → AI assistant (skippable) → Ready. */
 type Step = 'account' | 'whatsapp' | 'ai' | 'ready';
@@ -93,8 +93,9 @@ function AccountStep({
   const username = typedUsername ?? usernameFrom(displayName);
   const [password, setPassword] = useState('');
 
+  // A cleared field explains itself; the prefilled one is always valid once a name is typed.
   const usernameError =
-    username.length > 0 && !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)
+    (username.length > 0 || typedUsername !== null) && !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)
       ? t('setup.admin.usernameRule')
       : undefined;
   const passwordError =
@@ -147,7 +148,13 @@ function AccountStep({
         value={username}
         onChange={(e) => setTypedUsername(e.target.value)}
         error={usernameError}
-        hint={t('setup.admin.usernameAutoHint')}
+        hint={
+          typedUsername === null &&
+          displayName.trim() !== '' &&
+          usernameFromName(displayName).length < 3
+            ? t('setup.admin.usernamePickedHint')
+            : t('setup.admin.usernameAutoHint')
+        }
       />
       <Field
         label={t('setup.admin.passLabel')}
