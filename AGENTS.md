@@ -384,4 +384,5 @@ lockfile, and verify that `/api/health` and the UI identify the deployed version
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`
 (`sc qc wa-team-inbox`, `/api/health`); otherwise build with `-- --config.directories.output=<new folder>`.
-GitHub Actions in this org must be pinned to full commit SHAs.
+GitHub Actions in this org must be pinned to full commit SHAs. Private repositories (e.g. the Enterprise repo)
+run CI only on the org's self-hosted runners (`runs-on: [self-hosted, Linux, ARM64]`), never GitHub-hosted ones.
