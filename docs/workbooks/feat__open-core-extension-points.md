@@ -9,7 +9,7 @@ Branch: `feat/open-core-extension-points` · Every agent updates its stage with
 | Dev | done | Server ServerExtension + runCli, web WebExtension/createInboxApp, desktop product.ts identity, @ezychat/* rename, dist builds + ezychat-source condition, web library, pack:core, publish workflow, per-package vitest configs | 2026-10-14 |
 | Unit tests | done | Each agent ran vitest on its touched files + workspace typecheck + eslint; pack contract test; desktop byte-identity check of generated service/updater scripts | 2026-10-14 |
 | E2E | pass | After merging 0.1.37: 64 passed, 8 skipped, 1 known flake (pwa-resume clock, fixed in #88; 5/5 alone); unit 2146 passed | 2026-10-15 |
-| Dev Build | pass | After merging 0.1.37: Lite fresh install 33/33 screens + new wizard, packaged --dir smoke, Enterprise on the merged core (wizard and sidebar say EzyChat Enterprise, hello extension, status 401/200) | 2026-10-15 |
+| Dev Build | pass | Existing-user update 0.1.37 -> #87 (packaged, same data folder): data, settings, AI api-key mode, sessions and app identity unchanged; no errors | 2026-10-16 |
 | Screen review | pass | Lite screens unchanged (smoke 33/33); Enterprise sidebar name fixed and rechecked at 1280/360 px | 2026-10-15 |
 
 ## Log
@@ -26,3 +26,4 @@ Branch: `feat/open-core-extension-points` · Every agent updates its stage with
 - 2026-10-15 Screen review: pass — Lite screens unchanged (smoke 33/33); Enterprise sidebar name fixed and rechecked at 1280/360 px
 - 2026-10-15 Dev Build: pass — After merging 0.1.37: Lite fresh install 33/33 screens + new wizard, packaged --dir smoke, Enterprise on the merged core (wizard and sidebar say EzyChat Enterprise, hello extension, status 401/200)
 - 2026-10-15 E2E: pass — After merging 0.1.37: 64 passed, 8 skipped, 1 known flake (pwa-resume clock, fixed in #88; 5/5 alone); unit 2146 passed
+- 2026-10-16 Dev Build: pass — Existing-user update 0.1.37 -> #87 (packaged, same data folder): data, settings, AI api-key mode, sessions and app identity unchanged; no errors
