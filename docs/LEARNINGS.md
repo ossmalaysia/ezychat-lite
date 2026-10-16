@@ -349,7 +349,9 @@ into AGENTS.md.
 
 - ChatGPT sign-in needs loopback port 1455 (fixed by the OAuth client). Any program can hold it, including a
   Docker container that publishes 1455: find it with `Get-NetTCPConnection -LocalPort 1455` and
-  `docker ps --filter publish=1455`. Error copy must name the port, not guess Codex/OpenClaw.
+  `docker ps --filter publish=1455`. Error copy must name the port, not guess Codex/OpenClaw. The port is
+  not configurable (OpenAI accepts only `http://localhost:1455/auth/callback`); when it is busy, continue in
+  paste mode (the admin pastes the final address; PKCE makes the code useless to the port holder).
 - Profile extraction retains a bounded new-message batch during bursts, but drops cancelled batches
   after off/connection changes. Bind each field to a source and recheck staff edits and identity routing
   at the atomic save/audit; latest-only work loses split details and revived work ignores human decisions.
