@@ -175,6 +175,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Pass Windows paths (`D:/dev/...`) to Node and other native tools from Git Bash: a POSIX path like
+  `/d/dev/...` inside a script string becomes `D:\d\dev\...` and fails with ENOENT.
 - Never start a Dev Build on port 7420 on the dev machine: the installed EzyChat Lite service listens
   there, so test traffic could reach real data. Use 749x ports and check `/api/health` reports `mode: dev`.
   Playwright MCP screenshots save only under `.playwright-mcp/` (gitignored).
