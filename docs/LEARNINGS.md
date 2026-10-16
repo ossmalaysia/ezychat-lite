@@ -347,6 +347,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Rank new AI features from the real inbox, not guesses: MCP `get_stats` hand-off reasons (missing facts =
+  look-up connectors, needs action = action connectors), then a read-only subagent classifies recent chats and
+  reports only counts and paraphrased situations, never names, numbers, emails or verbatim personal data.
 - For AI connectors to outside systems, use the AI SDK MCP client (`createMCPClient` from `@ai-sdk/mcp`:
   HTTP transport, OAuth `authProvider` or headers, redirects refused by default) and pass `client.tools()`
   to the agent turn; do not hand-build HTTP tools. Allow only admin-enabled look-up tools.
