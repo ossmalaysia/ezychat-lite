@@ -352,6 +352,8 @@ into AGENTS.md.
   `docker ps --filter publish=1455`. Error copy must name the port, not guess Codex/OpenClaw. The port is
   not configurable (OpenAI accepts only `http://localhost:1455/auth/callback`); when it is busy, continue in
   paste mode (the admin pastes the final address; PKCE makes the code useless to the port holder).
+  Docker holds a published port for as long as the container runs, even if the app inside listens only
+  during sign-in: never publish 1455 permanently; use paste mode in containers.
 - Profile extraction retains a bounded new-message batch during bursts, but drops cancelled batches
   after off/connection changes. Bind each field to a source and recheck staff edits and identity routing
   at the atomic save/audit; latest-only work loses split details and revived work ignores human decisions.
