@@ -347,6 +347,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- For AI connectors to outside systems, use the AI SDK MCP client (`createMCPClient` from `@ai-sdk/mcp`:
+  HTTP transport, OAuth `authProvider` or headers, redirects refused by default) and pass `client.tools()`
+  to the agent turn; do not hand-build HTTP tools. Allow only admin-enabled look-up tools.
 - ChatGPT sign-in needs loopback port 1455 (fixed by the OAuth client). Any program can hold it, including a
   Docker container that publishes 1455: find it with `Get-NetTCPConnection -LocalPort 1455` and
   `docker ps --filter publish=1455`. Error copy must name the port, not guess Codex/OpenClaw. The port is
