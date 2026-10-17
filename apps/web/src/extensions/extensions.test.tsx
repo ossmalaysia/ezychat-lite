@@ -239,6 +239,17 @@ describe('agent sub-pages and nav badges', () => {
     badge = { count: 120, labelKey: 'ext.connectors.attention' };
     renderApp('/admin/members', [agents]);
     expect(screen.getAllByTestId('nav-badge')[0]?.textContent).toContain('99+');
+    expect(screen.getAllByTestId('nav-badge')[0]?.firstElementChild?.className).toContain(
+      'bg-primary',
+    );
+    cleanup();
+    // A count of things to fix uses the warning tone, never the brand colour.
+    badge = { count: 1, attention: true };
+    renderApp('/admin/members', [agents]);
+    const pill = screen.getAllByTestId('nav-badge')[0]?.firstElementChild;
+    expect(pill?.textContent).toBe('1');
+    expect(pill?.className).toContain('bg-warning/15');
+    expect(pill?.className).not.toContain('bg-primary');
     cleanup();
     badge = { attention: true };
     renderApp('/admin/members', [agents]);

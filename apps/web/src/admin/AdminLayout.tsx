@@ -111,7 +111,15 @@ function NavBadgeContent({ useBadge }: { useBadge: NonNullable<ExtensionNavLink[
       {count ? (
         <span
           aria-hidden={label ? true : undefined}
-          className="min-w-5 rounded-full bg-primary px-1.5 text-center text-xs leading-5 font-semibold text-primary-foreground"
+          data-tone={badge.attention ? 'attention' : 'count'}
+          className={cn(
+            'min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-semibold',
+            // Something to fix uses the warning tone (like the extensions' problem badges);
+            // a plain count keeps the brand colour.
+            badge.attention
+              ? 'border border-warning/40 bg-warning/15 text-foreground'
+              : 'bg-primary text-primary-foreground',
+          )}
         >
           {count > 99 ? '99+' : count}
         </span>
