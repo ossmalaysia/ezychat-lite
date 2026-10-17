@@ -441,6 +441,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
+  protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put
+  errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
 
