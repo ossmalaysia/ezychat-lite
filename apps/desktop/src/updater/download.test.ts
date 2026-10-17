@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopRelease } from '../../../../packages/shared/src/desktop-updates.js';
+import { LITE_PRODUCT, resetActiveProductForTests, setActiveProduct } from '../product.js';
 import { downloadRelease, MAX_UPDATE_BYTES, verifyDownloadedRelease } from './download.js';
 
 const payload = Buffer.from('installer-binary-fixture');
@@ -267,5 +268,77 @@ describe('verified release downloads', () => {
     ).rejects.toThrow('Cancelled by host');
     expect(fetch).not.toHaveBeenCalled();
     expect(await readdir(directory)).toEqual([]);
+  });
+});
+
+describe('URL feed downloads (private editions)', () => {
+  const name = 'EzyChat-Enterprise-0.2.0-win-x64.exe';
+  const urlRelease: DesktopRelease = {
+    ...release,
+    name: 'EzyChat Enterprise 0.2.0',
+    releaseUrl: '',
+    downloadUrl: `https://downloads.example.com/enterprise/${name}`,
+    assetName: name,
+  };
+  beforeEach(() => {
+    resetActiveProductForTests();
+    setActiveProduct({
+      ...LITE_PRODUCT,
+      edition: 'enterprise',
+      productName: 'EzyChat Enterprise',
+      releaseRepository: 'example/ezychat-enterprise',
+      releaseRepositories: ['example/ezychat-enterprise'],
+      artifactPrefixes: ['EzyChat-Enterprise'],
+      executableNames: ['EzyChat Enterprise'],
+      updateFeed: { kind: 'url', url: 'https://updates.example.com/enterprise/latest.json' },
+    });
+  });
+  afterEach(() => resetActiveProductForTests());
+
+  it('downloads from the manifest https address (and CDN redirects) and verifies the digest', async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://cdn.example.net/signed/installer?sig=1' },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(payload));
+    const artifact = await downloadRelease(urlRelease, { directory, fetch });
+    expect(await readFile(artifact.filePath)).toEqual(payload);
+    expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+      urlRelease.downloadUrl,
+      'https://cdn.example.net/signed/installer?sig=1',
+    ]);
+  });
+
+  it('still requires the trusted SHA-256 and size, and https addresses only', async () => {
+    const fetch = fetcher();
+    await expect(
+      downloadRelease({ ...urlRelease, assetSha256: null }, { directory, fetch }),
+    ).rejects.toThrow(/SHA-256/);
+    await expect(
+      downloadRelease({ ...urlRelease, assetSize: null }, { directory, fetch }),
+    ).rejects.toThrow(/size/);
+    await expect(
+      downloadRelease(
+        { ...urlRelease, downloadUrl: urlRelease.downloadUrl!.replace('https:', 'http:') },
+        { directory, fetch },
+      ),
+    ).rejects.toThrow(/secure/);
+    expect(fetch).not.toHaveBeenCalled();
+    const redirectToHttp = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(
+        new Response(null, { status: 302, headers: { location: 'http://cdn.example.net/x' } }),
+      );
+    await expect(downloadRelease(urlRelease, { directory, fetch: redirectToHttp })).rejects.toThrow(
+      /untrusted/,
+    );
+    const tampered = fetcher(Buffer.from('installer-binary-fixturX'));
+    await expect(downloadRelease(urlRelease, { directory, fetch: tampered })).rejects.toThrow(
+      /SHA-256/,
+    );
   });
 });

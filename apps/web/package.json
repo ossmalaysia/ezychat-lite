@@ -18,6 +18,10 @@
     },
     "./style.css": "./dist-lib/ezychat-web.css",
     "./sw.ts": "./dist-lib/sw.ts",
+    "./public/*": {
+      "ezychat-source": "./public/*",
+      "default": "./dist-lib/public/*"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist-lib/types/index.d.ts",

@@ -279,6 +279,11 @@ into AGENTS.md.
 
 ## Security
 
+- Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
+  prefix: `/%61pi/...` routes like `/api/...`.
+- Edition cards in privileged windows are plain data; the main process opens link/email buttons from its
+  own copy of the card, never from an address the page sends back.
+
 - Treat an AI handover as its own committed notification event: the last inbound message may have
   belonged to the AI. Route to the new human assignee or active human team, and cover connected,
   offline, disabled and AI recipients separately.

@@ -1,5 +1,6 @@
 import type { WaAdapter } from '@ezychat/wa';
 import type { Logger } from 'pino';
+import type { AccessGate } from './access/gate.js';
 import type { Bus } from './bus.js';
 import type { ServerConfig } from './config.js';
 import type { SecretBox } from './crypto/secret.js';
@@ -29,4 +30,6 @@ export interface AppContext {
   edition: string;
   /** Extensions added by another product build; empty in Lite. */
   extensions: readonly ServerExtension[];
+  /** Access gate: editions may close it (Lite never does); core services honour it. */
+  access: AccessGate;
 }

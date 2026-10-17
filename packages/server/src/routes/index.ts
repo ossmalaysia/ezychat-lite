@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
 import health from './health.js';
+import access from './access.js';
 import setup from './setup.js';
 import auth from './auth.js';
 import users from './users.js';
@@ -26,6 +27,7 @@ export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<voi
 
 export const routeModules: RouteModule[] = [
   health,
+  access,
   setup,
   auth,
   users,

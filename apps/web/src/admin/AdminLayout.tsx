@@ -1,3 +1,4 @@
+import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
@@ -343,6 +344,7 @@ export function AdminLayout() {
       </aside>
 
       <main className="safe-bottom min-w-0 flex-1">
+        <ExtensionBannerSlot />
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />

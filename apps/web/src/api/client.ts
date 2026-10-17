@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import { ApiErrorSchema } from '@ezychat/shared';
+import { accessGateCode, dispatchAccessClosed } from '@/access/events';
 import { i18n } from '@/i18n';
 import type enErrors from '@/i18n/locales/en/errors.json';
 
@@ -64,6 +65,13 @@ export async function api<T = unknown>(path: string, init: ApiInit<T> = {}): Pro
   }
 
   if (!res.ok) {
+    // The edition closed the access gate: the AccessGate swaps the app for the lock screen.
+    // No unauthorized event, so no sign-in redirect loop.
+    const gateCode = accessGateCode(res.status, data);
+    if (gateCode) {
+      dispatchAccessClosed(gateCode);
+      throw new ApiError(403, gateCode, 'The app is not available right now.');
+    }
     if (res.status === 401 && typeof window !== 'undefined') {
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }

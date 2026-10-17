@@ -28,6 +28,7 @@ import {
   useWaStatus,
 } from './queries';
 import { voiceStatusKey } from './voice';
+import { dispatchAccessRecheck } from '../access/events';
 import { ProfileImageContext } from '../inbox/ProfileImageContext';
 import { registerResumeReconnect } from './resume-reconnect';
 import { clearDesktopNotifications, showDesktopNotification } from '../pwa/desktop-notifications';
@@ -99,8 +100,16 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Events can arrive between the initial API load and joining socket rooms, too.
       void qc.invalidateQueries();
     });
-    socket.on('disconnect', () => setConnected(false));
-    socket.on('connect_error', () => setConnected(false));
+    // A refused or server-closed connection may mean the access gate closed: ask the gate to
+    // re-read GET /api/access (it throttles these checks).
+    socket.on('disconnect', (reason) => {
+      setConnected(false);
+      if (reason === 'io server disconnect') dispatchAccessRecheck();
+    });
+    socket.on('connect_error', () => {
+      setConnected(false);
+      dispatchAccessRecheck();
+    });
     socket.on('notification:new', (notification) => void showDesktopNotification(notification));
 
     socket.on('message:new', (m) => {

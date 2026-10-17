@@ -60,6 +60,8 @@ export class TunnelManager implements TunnelService {
   private attempts = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private token: string | null = null;
+  /** access gate closed: nothing launches until resume() */
+  private paused = false;
   private readonly now: () => number;
 
   constructor(private readonly deps: TunnelManagerDeps) {
@@ -133,6 +135,26 @@ export class TunnelManager implements TunnelService {
     await this.killChild();
   }
 
+  /**
+   * The access gate closed: stop cloudflared but keep the persisted mode, so resume() restarts the
+   * same tunnel. While paused, start/restore/backoff restarts launch nothing.
+   */
+  async pause(): Promise<void> {
+    this.paused = true;
+    await this.killChild();
+    this.url = null;
+    this.runningAt = 0;
+    this.registered = false;
+    if (this.state !== 'stopped') this.setState('stopped');
+  }
+
+  /** The access gate opened again: resume the persisted tunnel mode (no-op when not paused). */
+  async resume(): Promise<void> {
+    if (!this.paused) return;
+    this.paused = false;
+    await this.restore();
+  }
+
   // ---- internals ----
 
   private launch(): void {
@@ -140,6 +162,10 @@ export class TunnelManager implements TunnelService {
     this.url = null;
     this.runningAt = 0;
     this.registered = false;
+    if (this.paused) {
+      if (this.state !== 'stopped') this.setState('stopped');
+      return;
+    }
     const bin = this.deps.binPath();
     if (!bin) {
       this.lastError = 'cloudflared not found';

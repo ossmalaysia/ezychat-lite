@@ -38,6 +38,10 @@ export interface BusEvents {
   'inbound:notify': [{ chat: Chat; message: Message }];
   /** Live WhatsApp receipt, before media downloads; automation must react to arrival order. */
   'message:received': [{ chat: Chat; message: Message }];
+  /** The access gate closed (an edition turned the app off); paused services stop their work. */
+  'access:closed': [{ code: string }];
+  /** The access gate opened again; paused services resume. */
+  'access:opened': [Record<string, never>];
 }
 
 type Listener<K extends keyof BusEvents> = (...args: BusEvents[K]) => void;

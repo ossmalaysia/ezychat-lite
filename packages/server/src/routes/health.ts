@@ -8,5 +8,6 @@ export default async function (app: FastifyInstance, ctx: AppContext) {
     edition: ctx.edition,
     version: ctx.config.version,
     mode: ctx.config.mode,
+    access: ctx.access.state().open ? 'open' : 'closed',
   }));
 }

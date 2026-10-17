@@ -14,7 +14,13 @@ vi.mock('electron', () => ({
     removeHandler: (channel: string) => mock.handlers.delete(channel),
   },
 }));
-import { broadcastStatusChanged, CHANNELS, registerIpc, type DesktopController } from './ipc.js';
+import {
+  broadcastSectionsChanged,
+  broadcastStatusChanged,
+  CHANNELS,
+  registerIpc,
+  type DesktopController,
+} from './ipc.js';
 
 function fixture() {
   const file = 'C:\\app\\src\\renderer\\status.html';
@@ -32,6 +38,8 @@ function fixture() {
       'openMain',
       'openLogsFolder',
       'setKeepInTray',
+      'getSections',
+      'runSectionAction',
     ].map((name) => [name, vi.fn(async () => undefined)]),
   ) as unknown as DesktopController;
   let current: typeof win | null = win;
@@ -102,7 +110,9 @@ describe('privileged status IPC', () => {
 
   it('rejects renderer arguments for every privileged handler and cleans up on shutdown', async () => {
     const { invoke, event, ipc } = fixture();
-    for (const channel of Object.values(CHANNELS).filter((value) => value !== CHANNELS.changed)) {
+    for (const channel of Object.values(CHANNELS).filter(
+      (value) => value !== CHANNELS.changed && value !== CHANNELS.sectionsChanged,
+    )) {
       await expect(invoke(channel, event, 'attacker data')).rejects.toThrow('Invalid');
     }
     ipc.dispose();
@@ -134,6 +144,47 @@ describe('privileged status IPC', () => {
     win.isDestroyed.mockReturnValue(true);
     broadcastStatusChanged(win as unknown as BrowserWindow, file);
     broadcastStatusChanged(null, file);
+    expect(win.webContents.send).not.toHaveBeenCalled();
+  });
+
+  it('runs edition section actions only for the status main frame, with one checked request', async () => {
+    const { invoke, event, controller, mainFrame } = fixture();
+    const request = { sectionId: 'licence', buttonId: 'send', values: { email: 'a@b.c' } };
+    await invoke(CHANNELS.sectionAction, event, request);
+    expect(controller.runSectionAction).toHaveBeenCalledWith(request);
+    for (const sender of [
+      { ...event, sender: {} },
+      { ...event, senderFrame: { url: mainFrame.url } },
+      { ...event, senderFrame: null },
+    ]) {
+      await expect(
+        invoke(CHANNELS.sectionAction, sender as IpcMainInvokeEvent, request),
+      ).rejects.toThrow('Forbidden');
+    }
+    const original = mainFrame.url;
+    mainFrame.url = 'file:///tmp/status.html';
+    await expect(invoke(CHANNELS.sectionAction, event, request)).rejects.toThrow('Forbidden');
+    mainFrame.url = original;
+    for (const args of [
+      [],
+      [request, request],
+      [{ ...request, href: 'file:///x' }],
+      [{ ...request, values: { email: 1 } }],
+    ]) {
+      await expect(invoke(CHANNELS.sectionAction, event, ...args)).rejects.toThrow('Invalid');
+    }
+    expect(controller.runSectionAction).toHaveBeenCalledOnce();
+  });
+
+  it('sends section models only to the exact current status page', () => {
+    const { file, win, mainFrame } = fixture();
+    const views = [{ provider: 'licensing', model: { id: 'licence', title: 'Licence' } }];
+    broadcastSectionsChanged(win as unknown as BrowserWindow, file, views);
+    expect(win.webContents.send).toHaveBeenCalledWith(CHANNELS.sectionsChanged, views);
+    win.webContents.send.mockClear();
+    mainFrame.url = 'https://example.com/';
+    broadcastSectionsChanged(win as unknown as BrowserWindow, file, views);
+    broadcastSectionsChanged(null, file, views);
     expect(win.webContents.send).not.toHaveBeenCalled();
   });
 });

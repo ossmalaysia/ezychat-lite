@@ -207,6 +207,20 @@ it('drops a reply written with details a teammate corrected meanwhile, and answe
   expect(t.wa.sent).toHaveLength(1);
 });
 
+it('does no work while the access gate is closed and picks the chat up again when it opens', async () => {
+  clock();
+  t.ctx.access.close({ code: 'license_required' });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 5000);
+  expect(provider.generate).not.toHaveBeenCalled();
+  expect(t.wa.sent).toHaveLength(0);
+  expect(t.ctx.services.ai!.connectionReady()).toBe(false);
+  t.ctx.access.open();
+  await vi.advanceTimersByTimeAsync(1500);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent[0]?.text).toContain('9am');
+});
+
 it('batches customer messages and ignores imported history, groups, and chats already assigned to a human', async () => {
   clock();
   await incoming('history', 'Old question', 'history', 'old@s.whatsapp.net');

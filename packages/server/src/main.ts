@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { join } from 'node:path';
 import { FakeWaAdapter, type WaAdapter, type WaAdapterOptions } from '@ezychat/wa';
 import type { Logger } from 'pino';
+import { createAccessGate } from './access/gate.js';
 import { buildApp } from './app.js';
 import { Bus } from './bus.js';
 import type { ServerConfig } from './config.js';
@@ -70,7 +71,20 @@ export async function createContext(
           historyDays,
           logger: log.child({ mod: 'wa' }),
         }));
-  return { config: cfg, db, bus, log, secret, settings, wa, services: {}, edition, extensions };
+  const access = createAccessGate({ db, bus, log });
+  return {
+    config: cfg,
+    db,
+    bus,
+    log,
+    secret,
+    settings,
+    wa,
+    services: {},
+    edition,
+    extensions,
+    access,
+  };
 }
 
 /** Runs the initializers registered in services.ts, in order, then each extension's init. */

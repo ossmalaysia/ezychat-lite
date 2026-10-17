@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ApiError } from './api/client';
 import { RealtimeProvider } from './api/socket';
 import { App } from './App';
+import { AccessGate } from './access/AccessGate';
 import { AuthProvider } from './auth/AuthProvider';
 import {
   registerExtensionCatalogs,
@@ -15,6 +16,8 @@ import {
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { installGlobalErrorReporting } from '@/lib/error-reporter';
+import { AppLinksProvider } from '@/lib/app-links';
+import { resolveAppLinks, type AppLinks } from '@/lib/links';
 import { setProductName } from '@/i18n';
 import { localeStore } from '@/i18n/locale-store';
 import { LocaleSync } from '@/i18n/LocaleSync';
@@ -27,6 +30,11 @@ export interface CreateInboxAppOptions {
   root?: HTMLElement;
   /** Product name shown wherever the UI names the app; defaults to "EzyChat Lite". */
   productName?: string;
+  /**
+   * Outside links (About, Report an issue, release notes, feedback, support email). Missing
+   * entries keep Lite's links; an explicit `null` hides that link.
+   */
+  links?: Partial<AppLinks>;
 }
 
 function createQueryClient(): QueryClient {
@@ -51,8 +59,10 @@ export async function createInboxApp({
   extensions = [],
   root = document.getElementById('root') ?? undefined,
   productName,
+  links,
 }: CreateInboxAppOptions = {}): Promise<void> {
   validateWebExtensions(extensions);
+  const appLinks = resolveAppLinks(links);
   if (productName !== undefined) setProductName(productName);
   if (!root) throw new Error('#root missing');
 
@@ -66,15 +76,20 @@ export async function createInboxApp({
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <WebExtensionsProvider extensions={extensions}>
-              <AuthProvider>
-                <LocaleSync />
-                <RealtimeProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <App />
-                    <Toaster position="top-center" closeButton richColors={false} />
-                  </TooltipProvider>
-                </RealtimeProvider>
-              </AuthProvider>
+              <AppLinksProvider links={appLinks}>
+                <TooltipProvider delayDuration={300}>
+                  {/* While the access gate is closed nothing below it runs: no session, no socket. */}
+                  <AccessGate>
+                    <AuthProvider>
+                      <LocaleSync />
+                      <RealtimeProvider>
+                        <App />
+                      </RealtimeProvider>
+                    </AuthProvider>
+                  </AccessGate>
+                  <Toaster position="top-center" closeButton richColors={false} />
+                </TooltipProvider>
+              </AppLinksProvider>
             </WebExtensionsProvider>
           </BrowserRouter>
         </QueryClientProvider>

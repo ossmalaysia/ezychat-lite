@@ -4,10 +4,21 @@
 //   ezychat-web.css        the precompiled Tailwind/theme CSS
 //   types/                 .d.ts from tsconfig.lib.json, with the `@/` alias rewritten to relative paths
 //   sw.ts                  the service worker source, for the consumer's vite-plugin-pwa (injectManifest)
+//   public/                the app's public files (brand icons, favicon, share card, illustrations) that
+//                          the UI loads from the site root; editions copy them into their web build
+//                          (exported as "@ezychat/web/public/*")
 // Requires @ezychat/shared to be built first (its dist .d.ts back the web declarations).
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,4 +80,5 @@ const css = readFileSync(cssFile, 'utf8').replace(
 writeFileSync(cssFile, css);
 if (/url\(\s*['"]?data:font\//.test(css)) throw new Error('ezychat-web.css still inlines a font');
 copyFileSync(join(webDir, 'src', 'sw.ts'), join(outDir, 'sw.ts'));
+cpSync(join(webDir, 'public'), join(outDir, 'public'), { recursive: true });
 console.log(`built ${relative(root, outDir)} (${fonts} font file(s))`);

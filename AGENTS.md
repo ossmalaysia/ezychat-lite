@@ -169,7 +169,7 @@ and `dispose` runs in `finally`. Core tool names are reserved and the first exte
 A tool that throws (`ToolHandoverError` or any other error) aborts the turn and hands over with
 `lookup_failed`. Every call emits `ai:tool_call` {agent, chatJid, tool, source, title, ok, ms} and logs
 tool/source/ok/ms only. Each successful live look-up stores an `ai_tool_used` chat event
-{title, sourceLabel} (the "AI looked up …" line). `tryAgentReply` and `tunnelPublicUrls` are public.
+{title, sourceLabel} (the "AI looked up …" line). `tryAgentReply` and `tunnelPublicUrls` are public. `ctx.access` (`access/gate.ts`, `http/access.ts`) lets an edition close an access gate with a code: every `/api` and `/mcp` call then answers 403 `{ error: code }` except `GET /api/health`, `GET /api/access` and host-only routes; sessions are deleted, Socket.IO refuses, the AI member, enrichment, send queue (no expiry while closed), tunnel and push pause, and WhatsApp keeps storing messages. Lite never closes it. Routes under `/api/ext/<name>/host/` are host-only (direct loopback peer + loopback Host + no `CF-Connecting-IP`, no session, open while closed).
 `/api/health` reports `edition`; its `app` value stays `wa-team-inbox`. _Web_:
 `createInboxApp({ extensions, productName })` (`apps/web/src/create-app.tsx`; Lite's `main.tsx` passes `[]`;
 catalog strings name the app only through `{{product}}`, default "EzyChat Lite", except the share-the-app texts) takes
@@ -178,11 +178,11 @@ catalog strings name the app only through `{{product}}`, default "EzyChat Lite",
 Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with
 `useExtensionTranslation`), `agentSections` (rows under Business context on the agent page), route
 `section` (an agent sub-page marks a core admin item active and names it in the phone header) and
-adminNav `useBadge` (a count, or an attention dot in the warning tone); every extension element is
+adminNav `useBadge` (a count, or an attention dot in the warning tone); `banners` (one slim bar slot, first non-null wins), `lockScreen` (full page while the gate is closed; core `PausedScreen` otherwise), `createInboxApp({ links })` + `useAppLinks()` (About/issue/source/release/feedback/support links; `null` hides one) and brand files exported as `@ezychat/web/public/*`; every extension element is
 wrapped in an `ErrorBoundary`. _Desktop_:
 identity lives in `apps/desktop/src/product.ts`; `LITE_PRODUCT` holds the upgrade-contract values
 (app ID, data/profile folders, service ID, launchd label, health `app`, update feed, installer and exe
-names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. Code reads
+names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. `defineProduct` also takes `statusSections` (declarative cards in the desktop status window, actions handled in main, only `https:`/`mailto:` opened) and `updateFeed: { kind: 'url' }` (JSON manifest, for private editions). Code reads
 `activeProduct()`, never literals; another edition calls `setActiveProduct(defineProduct({…}))` and then
 dynamic-imports main. The desktop adopts a running server only when health `app` and `edition ?? 'lite'`
 match. _Packages_: shared/wa/server export `dist/` (`scripts/build-package.mjs`), `@ezychat/web` exports
@@ -258,6 +258,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   the connection, key, model or on/off. Every change keeps a version (`ai_setup_versions`, app saves
   too) and an audit row with token id and reason, and is rate-limited per token. Tools log tool name,
   counts and token id, never arguments or message text.
+- Host-only extension routes (`/api/ext/<name>/host/…`) answer only a direct loopback peer with a
+  loopback `Host` and no `CF-Connecting-IP`; the access gate allowlist matches the decoded path and the
+  matched route, never a raw prefix alone.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
 ## UI rules (apps/web)

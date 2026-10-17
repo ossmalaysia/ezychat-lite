@@ -186,3 +186,43 @@ describe('SendQueue', () => {
     q.stop();
   });
 });
+
+describe('SendQueue while the access gate is closed', () => {
+  it('sends nothing and expires nothing while paused; resumes with a fresh expiry window', async () => {
+    let clock = 1_000_000;
+    let paused = true;
+    const sent: string[] = [];
+    const failed: string[] = [];
+    const q = new SendQueue({
+      send: async (j): Promise<SendResult> => {
+        sent.push(j.localId);
+        return { id: `WA-${j.localId}`, timestamp: clock };
+      },
+      onSent: () => undefined,
+      onFailed: (j) => failed.push(j.localId),
+      isConnected: () => true,
+      isPaused: () => paused,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      spacingMs: 1000,
+      maxAgeMs: 600_000,
+    });
+    q.enqueue(job('p1', 'A', clock));
+    await flush();
+    expect(sent).toEqual([]);
+    // Closed far longer than the 10 min expiry: the job must still be pending, not 'expired'.
+    clock += 3_600_000;
+    q.onConnected();
+    await flush();
+    expect(sent).toEqual([]);
+    expect(failed).toEqual([]);
+    paused = false;
+    q.onResumed();
+    await flush();
+    expect(sent).toEqual(['p1']);
+    expect(failed).toEqual([]);
+    q.stop();
+  });
+});

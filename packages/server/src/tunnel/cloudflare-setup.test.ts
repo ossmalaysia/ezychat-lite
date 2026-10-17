@@ -113,6 +113,7 @@ beforeEach(() => {
     services: {},
     edition: 'lite',
     extensions: [],
+    access: { close() {}, open() {}, state: () => ({ open: true }) },
   };
   children = [];
   spawnCalls = [];

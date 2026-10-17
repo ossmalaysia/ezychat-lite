@@ -4,7 +4,8 @@
     "description": "One WhatsApp number, one shared inbox for your whole team — served from your own computer.",
     "version": "Version {{version}}",
     "versionUnknown": "Version unknown",
-    "github": "View on GitHub"
+    "github": "View on GitHub",
+    "website": "Visit the website"
   },
   "credits": {
     "builtBy": "Built by <a>Anchor Sprint</a>",
@@ -13,7 +14,8 @@
     "reportIssue": "Report an issue",
     "customFeatures": "Custom features",
     "customFeature": "Need a custom feature? <a>Contact Anchor Sprint</a>",
-    "helpFeedback": "Help & feedback"
+    "helpFeedback": "Help & feedback",
+    "emailSupport": "Email support"
   },
   "featureRequest": {
     "label": "Request a feature",
@@ -56,8 +58,15 @@
       "preview": "A new preview release is ready on GitHub.",
       "release": "A new release is ready on GitHub.",
       "dismiss": "Dismiss update suggestion",
-      "review": "Review update"
-    }
+      "review": "Review update",
+      "previewFeed": "A new preview release is ready.",
+      "releaseFeed": "A new release is ready."
+    },
+    "checkingFeed": "Checking for updates…",
+    "automaticFeed": "This computer checks for new releases automatically.",
+    "noInstallerFeed": "A compatible installer is not available for this computer yet. See the release notes for details.",
+    "unverifiedFeed": "This release cannot be verified for installation here. Contact support for a manual installer.",
+    "releaseNotes": "Release notes"
   },
   "share": {
     "title": "Share this app",

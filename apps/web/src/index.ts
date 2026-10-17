@@ -17,11 +17,19 @@ export {
   type WebExtensionAgent,
   type WebExtensionAgentSection,
   type WebExtensionCatalogs,
+  type WebExtensionLockScreenProps,
   type WebExtensionNavBadge,
   type WebExtensionNavItem,
   type WebExtensionRoute,
   type WebExtensionSettingsSection,
 } from './extensions';
+
+// Outside links (createInboxApp({ links })), the access lock screen and the slim banner bar.
+export { useAppLinks } from '@/lib/app-links';
+export { LITE_APP_LINKS, type AppLinks } from '@/lib/links';
+export { PausedScreen } from './access/AccessGate';
+export { SlimBanner } from './access/BannerSlot';
+export { AppMark, AuthShell } from './auth/AuthShell';
 
 // Hooks and helpers an extension page needs (same instances as the core app).
 export { useTranslation, Trans } from 'react-i18next';

@@ -12,6 +12,14 @@
 //   setActiveProduct(defineProduct({ ... }));
 //   await import('./main.js');
 
+import { checkStatusSections, type StatusSectionProvider } from './status-sections.js';
+
+export type {
+  StatusSectionContext,
+  StatusSectionModel,
+  StatusSectionProvider,
+} from './status-sections.js';
+
 export interface Product {
   /** Matches `edition` in /api/health (`lite` when the server omits it). */
   edition: string;
@@ -31,7 +39,10 @@ export interface Product {
   launchdLabel: string;
   /** `app` value in /api/health that identifies this product's server. */
   healthApp: string;
-  /** GitHub repository (owner/name) whose releases feed in-app updates. */
+  /**
+   * GitHub repository (owner/name) whose releases feed in-app updates when updateFeed is omitted.
+   * With a 'url' feed it is not contacted (it still names the edition's release source).
+   */
   releaseRepository: string;
   /** Repositories a release asset may be downloaded from: releaseRepository first, then legacy ones. */
   releaseRepositories: readonly string[];
@@ -39,6 +50,20 @@ export interface Product {
   artifactPrefixes: readonly string[];
   /** Program names accepted by the updater (`<name>.exe`, `<name>.app`): productName first, then legacy. */
   executableNames: readonly string[];
+  /**
+   * Where in-app updates come from. Omitted: the GitHub releases of releaseRepository (Lite).
+   * A private edition uses { kind: 'url' }: an https JSON manifest (see update-checker.ts).
+   */
+  updateFeed?: UpdateFeed;
+  /** Edition cards on the Status & Service page, above App updates (see status-sections.ts). */
+  statusSections?: readonly StatusSectionProvider[];
+}
+
+export type UpdateFeed = { kind: 'github'; repo: string } | { kind: 'url'; url: string };
+
+/** The effective update feed: updateFeed, else the GitHub releases of releaseRepository. */
+export function updateFeedOf(p: Product): UpdateFeed {
+  return p.updateFeed ?? { kind: 'github', repo: p.releaseRepository };
 }
 
 /** EzyChat Lite. Upgrade contracts: never change these values (see AGENTS.md). */
@@ -57,6 +82,27 @@ export const LITE_PRODUCT: Product = Object.freeze({
   artifactPrefixes: Object.freeze(['EzyChat-Lite', 'WA-Team-Inbox']),
   executableNames: Object.freeze(['EzyChat Lite', 'WA Team Inbox']),
 });
+
+function checkFeed(value: unknown, releaseRepository: string): UpdateFeed {
+  const feed = value as UpdateFeed | null;
+  if (feed && typeof feed === 'object' && feed.kind === 'github') {
+    const repo = check('updateFeed.repo', feed.repo, REPOSITORY);
+    if (repo !== releaseRepository)
+      throw new Error('Invalid product updateFeed: repo must equal releaseRepository');
+    return Object.freeze({ kind: 'github', repo });
+  }
+  if (feed && typeof feed === 'object' && feed.kind === 'url' && typeof feed.url === 'string') {
+    let url: URL | null;
+    try {
+      url = new URL(feed.url);
+    } catch {
+      url = null;
+    }
+    if (url && url.protocol === 'https:' && !url.username && !url.password && !url.hash)
+      return Object.freeze({ kind: 'url', url: url.href });
+  }
+  throw new Error(`Invalid product updateFeed: ${JSON.stringify(value)}`);
+}
 
 // Values end up inside PowerShell/bash single-quoted strings, regexes, XML, plists and file names,
 // so each field accepts only characters that need no quoting anywhere.
@@ -120,6 +166,13 @@ export function defineProduct(p: Product): Product {
       String(artifactPrefixes[0] ?? ''),
     ),
     executableNames: checkList('executableNames', p.executableNames, DISPLAY_NAME, productName),
+    // Optional fields are added only when given, so a definition without them round-trips unchanged.
+    ...(p.updateFeed !== undefined
+      ? { updateFeed: checkFeed(p.updateFeed, releaseRepository) }
+      : {}),
+    ...(p.statusSections !== undefined
+      ? { statusSections: checkStatusSections(p.statusSections) }
+      : {}),
   });
 }
 

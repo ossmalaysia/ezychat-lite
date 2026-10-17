@@ -56,6 +56,15 @@ export function initTunnel(ctx: AppContext): void {
     binPath: () => resolveCloudflaredPath(process.env, resourcesDir()),
   });
   ctx.services.cloudflareSetup = setup;
+  // Access gate: an edition turning the app off also takes it off the internet (mode is kept).
+  const log = ctx.log.child({ mod: 'tunnel' });
+  ctx.bus.on('access:closed', () => {
+    manager.pause().catch((err: unknown) => log.warn({ err }, 'tunnel pause failed'));
+  });
+  ctx.bus.on('access:opened', () => {
+    manager.resume().catch((err: unknown) => log.warn({ err }, 'tunnel resume failed'));
+  });
+  if (!ctx.access.state().open) void manager.pause();
   // No-op when the persisted mode is 'off' (e.g. fresh test data dirs). Never block startup on cloudflared.
   setup.restore().catch(() => ctx.log.warn({ mod: 'tunnel' }, 'Tunnel restore failed'));
 }

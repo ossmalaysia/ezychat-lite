@@ -3,7 +3,8 @@ import { ChevronDown, ExternalLink, LifeBuoy } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
+import { useAppLinks } from '@/lib/app-links';
+import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, reportIssueHref } from '@/lib/links';
 
 function CreditLink({
   href,
@@ -44,6 +45,9 @@ export function AppCredits({
   const { t } = useTranslation('app');
   const [open, setOpen] = React.useState(false);
   const linksId = React.useId();
+  const links = useAppLinks();
+  const reportHref = reportIssueHref(links);
+  const reportLabel = links.reportIssue ? t('credits.reportIssue') : t('credits.emailSupport');
   if (variant === 'sidebar') {
     // One quiet "Help & feedback" row instead of three always-visible links (version inside).
     return (
@@ -78,7 +82,7 @@ export function AppCredits({
             </span>
           )}
           {[
-            { href: GITHUB_ISSUES_URL, label: t('credits.reportIssue') },
+            ...(reportHref ? [{ href: reportHref, label: reportLabel }] : []),
             { href: CUSTOM_FEATURE_URL, label: t('credits.customFeatures') },
           ].map(({ href, label }) => (
             <Button
@@ -121,7 +125,7 @@ export function AppCredits({
           components={{ a: <CreditLink href={ANCHOR_SPRINT_URL} /> }}
         />
       </span>
-      <CreditLink href={GITHUB_ISSUES_URL}>{t('credits.reportIssue')}</CreditLink>
+      {reportHref && <CreditLink href={reportHref}>{reportLabel}</CreditLink>}
       <span className="inline-flex flex-wrap items-center justify-center gap-1">
         <Trans
           t={t}

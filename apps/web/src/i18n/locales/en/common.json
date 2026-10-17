@@ -57,12 +57,21 @@
     "share": "Share this app",
     "reportIssue": "Report an issue",
     "about": "About {{appName}}",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "emailSupport": "Email support"
   },
   "errorBoundary": {
     "title": "Something went wrong",
     "body": "This part of the app hit an unexpected error. The error has been reported.",
     "reload": "Reload page",
     "goHome": "Go to inbox"
+  },
+  "access": {
+    "pausedTitle": "{{product}} is paused",
+    "pausedBody": "The team inbox is not available right now. Your WhatsApp number stays linked and new messages are still received. Ask the person who looks after this app to check it.",
+    "autoCheck": "This page checks again every minute and opens the inbox when it is available.",
+    "code": "Reason: {{code}}",
+    "checkAgain": "Check again",
+    "checking": "Checking…"
   }
 }

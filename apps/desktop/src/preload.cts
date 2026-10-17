@@ -28,6 +28,18 @@ contextBridge.exposeInMainWorld('wati', {
   openMain: () => ipcRenderer.invoke('wati:open-main'),
   openLogs: () => ipcRenderer.invoke('wati:open-logs'),
   setKeepInTray: (keep: boolean) => ipcRenderer.invoke('wati:set-keep-in-tray', keep),
+  // Edition sections (status-sections.ts): the page sends only ids and field values.
+  getSections: () => ipcRenderer.invoke('wati:sections'),
+  sectionAction: (request: {
+    sectionId: string;
+    buttonId: string;
+    values: Record<string, string>;
+  }) => ipcRenderer.invoke('wati:section-action', request),
+  onSectionsChanged: (cb: (views: unknown) => void) => {
+    const listener = (_event: unknown, views: unknown) => cb(views);
+    ipcRenderer.on('wati:sections-changed', listener);
+    return () => ipcRenderer.removeListener('wati:sections-changed', listener);
+  },
   onStatusChanged: (cb: () => void) => {
     const listener = () => cb();
     ipcRenderer.on('wati:status-changed', listener);

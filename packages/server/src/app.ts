@@ -9,6 +9,7 @@ import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
 import { contextHostPolicy, createHostHook } from './http/host.js';
 import { originHook } from './http/origin.js';
+import { createAccessHook, hostOnlyHook } from './http/access.js';
 import { registerSecurityHeaders } from './http/security-headers.js';
 import { registerApiCacheHeaders, staticCacheControl } from './http/cache.js';
 import { registerRoutes } from './routes/index.js';
@@ -29,6 +30,8 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   registerApiCacheHeaders(app);
   app.addHook('onRequest', createHostHook(contextHostPolicy(ctx)));
   app.addHook('onRequest', originHook);
+  app.addHook('onRequest', hostOnlyHook);
+  app.addHook('onRequest', createAccessHook(ctx.access));
   app.setErrorHandler(errorHandler);
 
   await registerRoutes(app, ctx);

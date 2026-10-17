@@ -57,12 +57,21 @@
     "share": "分享此应用",
     "reportIssue": "报告问题",
     "about": "关于 {{appName}}",
-    "signOut": "退出登录"
+    "signOut": "退出登录",
+    "emailSupport": "发送邮件给支持团队"
   },
   "errorBoundary": {
     "title": "出了点问题",
     "body": "应用的这一部分发生了意外错误，错误已上报。",
     "reload": "重新加载页面",
     "goHome": "前往收件箱"
+  },
+  "access": {
+    "pausedTitle": "{{product}} 已暂停",
+    "pausedBody": "团队收件箱目前无法使用。您的 WhatsApp 号码仍保持关联，新消息也照常接收。请联系负责此应用的人员进行检查。",
+    "autoCheck": "此页面每分钟会重新检查一次，收件箱可用时会自动打开。",
+    "code": "原因：{{code}}",
+    "checkAgain": "重新检查",
+    "checking": "正在检查…"
   }
 }

@@ -125,6 +125,70 @@ What the core guarantees:
 Known gap: when two chats of one person are merged, rows in `ent_*` tables keyed by `chat_jid` are
 **not** moved. Do not store `chat_jid` in an Enterprise table until Lite adds an `onChatMerged` hook.
 
+### Access gate (`ctx.access`)
+
+The core owns one switch an edition can use to turn the whole app off and on again (for example,
+licensing). Lite never closes it.
+
+```ts
+import type { ServerExtension } from '@ezychat/server';
+
+export const licensing: ServerExtension = {
+  name: 'licensing',
+  init(ctx) {
+    const check = () => {
+      if (leaseIsValid()) ctx.access.open();
+      else ctx.access.close({ code: 'license_required', reason: 'lease expired' });
+    };
+    check();
+    setInterval(check, 60_000).unref();
+  },
+};
+```
+
+- `close({ code, reason? })`: `code` is a stable machine code (`ACCESS_CODE_PATTERN`,
+  `/^[a-z][a-z0-9_]{0,63}$/`, e.g. `license_required`); a bad code throws. `reason` is never logged
+  or returned. Closing with the same code again does nothing. `open()` is a no-op while open.
+  `state()` returns `{ open: true }` or `{ open: false, code }`.
+- Bus events: `access:closed` `{ code }` and `access:opened` `{}`. Logs (`mod: "access"`) carry the
+  code and the number of deleted sessions only.
+- While closed:
+  - every `/api` and `/mcp` request answers **403 `{ "error": "<code>" }`** (a plain string, unlike
+    ordinary errors) except `GET /api/health`, `GET /api/access` and host-only routes (below). The
+    check uses the raw path, its decoded form and the matched route, so `/%61pi/…` cannot slip past.
+    Static web assets and the SPA page are still served, so the web lock screen can load;
+  - Socket.IO refuses new connections with `Error(code)`; connected clients get `access:closed`
+    `{ code }` and are disconnected;
+  - every session is deleted at close: after `open()` everyone signs in again;
+  - the AI member stops (in-flight replies are cancelled, nothing is claimed), customer enrichment
+    stops, push and in-app notifications are not sent, and the tunnel stops (its saved mode is kept);
+  - the send queue sends nothing and **no job expires**; on open each waiting job gets the full
+    10-minute window again;
+  - WhatsApp stays connected and incoming messages are still stored.
+- On `open()`: the tunnel restarts in its saved mode, the AI member picks up chats whose reply is
+  due (within 10 min), and the send queue resumes.
+- `GET /api/access` (public, `accessStatusSchema` in `@ezychat/shared`) returns `{ open, code? }`;
+  `/api/health` adds `access: 'open' | 'closed'` (missing on older servers: treat as open).
+
+### Host-only routes (`/api/ext/<name>/host/…`)
+
+By core convention any extension route under `/api/ext/<name>/host/` is **host-only**: it answers
+only a direct loopback client (socket peer `127.0.0.1`/`::1`) with a loopback `Host` and no
+`CF-Connecting-IP` header, the same rule as first-admin setup. Anything else (the tunnel, LAN
+peers, LAN IP or machine-name `Host`) gets 403 before your handler runs. These routes need no
+session and keep working while the access gate is closed, so the desktop app on the same computer
+can, for example, show and change licence state while the app is locked. They are still public to
+every program on that computer: never return secrets, and validate input as usual. The Origin check
+for mutating requests still applies (send no Origin, or one equal to `Host`).
+
+```ts
+async routes(api, ctx) {
+  api.get('/host/status', async () => licenceStatus()); // this computer only, no sign-in
+  api.post('/host/activate', async (req) => activate(ActivateBody.parse(req.body)));
+  api.get('/plan', { preHandler: requireAdmin(ctx) }, async () => plan()); // gated like core routes
+}
+```
+
 ## 4. Web extensions (`@ezychat/web`)
 
 ```tsx
@@ -163,6 +227,17 @@ export const reportsWeb: WebExtension = {
 - Build UI only from the exported shadcn/app components, with token colour classes. The core CSS
   (`@ezychat/web/style.css`) contains only the Tailwind classes Lite uses, so extensions that need
   other utilities run their own Tailwind build.
+- `banners: ComponentType[]` render in one slim bar slot at the top of the signed-in shell (inbox
+  and admin); each returns `null` when it has nothing to say, and the first non-null one wins.
+- `lockScreen: ComponentType<{ code; recheck }>` is shown full page, without sign-in, while the
+  server's access gate is closed (`GET /api/access`, or any 403 with the gate code). Return the core
+  `PausedScreen` for codes you do not own. The core re-checks every 60 s and reloads once open.
+- `createInboxApp({ links })` replaces the About, report-issue, source-code, release-notes,
+  feedback and support links (`useAppLinks()`); `null` hides one. Lite's defaults point to GitHub,
+  so an edition passes its own.
+- Brand files (`icon-192.png`, `favicon.ico`, `apple-touch-icon.png`, `share-app.svg`, …) ship as
+  `@ezychat/web/public/*` (`dist-lib/public`); an edition copies them into its web build so the
+  EzyChat logo shows.
 
 ## 5. Desktop identity (`apps/desktop/src/product.ts`)
 
@@ -172,6 +247,16 @@ feed, installer names) comes from a `Product`. Lite's values are upgrade contrac
 `com.anchorsprint.ezychat.enterprise`, data folder `ezychat-enterprise`, service `ezychat-enterprise`),
 so both editions can be installed on one PC. The desktop app only adopts a running server whose
 health `app` **and** `edition` match its own.
+
+`defineProduct({ statusSections, updateFeed })` adds the rest an edition needs on the desktop:
+
+- `statusSections: StatusSectionProvider[]` add cards to the desktop status window above App updates.
+  A provider returns a plain data model (title, badge, notice, steps, rows, fields, buttons,
+  details) and handles button actions in the main process; the window never runs edition HTML or
+  script. Link and email buttons open only `https:`/`mailto:` addresses from the main process's own
+  copy of the model. Talk to the server through `/api/ext/<name>/host/*` routes.
+- `updateFeed: { kind: 'url', url }` reads a JSON manifest (`{ version, notesUrl?, assets: [{ name,
+url, sha256, size }] }`) instead of GitHub releases, for editions whose repository is private.
 
 Not done yet: the Electron main process is not published as a library (it finds its assets through
 the app layout), so the Enterprise repo builds the server and web app but not yet a desktop installer.

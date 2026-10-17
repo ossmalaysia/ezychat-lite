@@ -25,6 +25,11 @@ export interface SendQueueDeps {
   onSent(job: SendJob, r: SendResult): void;
   onFailed(job: SendJob, err: Error): void;
   isConnected(): boolean;
+  /**
+   * True while the access gate is closed: nothing is sent and nothing expires (call onResumed()
+   * when it opens; each waiting job then gets the full maxAgeMs again).
+   */
+  isPaused?: () => boolean;
   presence?: (job: SendJob) => Promise<void>;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
@@ -58,6 +63,8 @@ export class SendQueue {
   private readonly lastSentAt = new Map<string, number>();
   private connWaiters: Array<() => void> = [];
   private stopped = false;
+  /** epoch ms of the last onResumed(); expiry counts from here at the earliest */
+  private resumedAt = 0;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly maxAgeMs: number;
@@ -86,6 +93,12 @@ export class SendQueue {
     const w = this.connWaiters;
     this.connWaiters = [];
     for (const fn of w) fn();
+  }
+
+  /** Call when the access gate opens: wakes paused chats; time spent closed never counts toward expiry. */
+  onResumed(): void {
+    this.resumedAt = this.now();
+    this.onConnected();
   }
 
   /** Re-enqueue persisted pending jobs (startup). */
@@ -131,6 +144,17 @@ export class SendQueue {
     });
   }
 
+  /** Waits for onConnected()/onResumed()/stop() with no timeout (paused jobs never expire). */
+  private waitWake(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        this.connWaiters = this.connWaiters.filter((f) => f !== finish);
+        resolve();
+      };
+      this.connWaiters.push(finish);
+    });
+  }
+
   private safe(fn: () => void): void {
     try {
       fn();
@@ -149,7 +173,12 @@ export class SendQueue {
         return;
       }
 
-      const age = this.now() - job.createdAt;
+      if (this.deps.isPaused?.()) {
+        await this.waitWake();
+        continue; // re-check pause / expiry / connection
+      }
+
+      const age = this.now() - Math.max(job.createdAt, this.resumedAt);
       if (age > this.maxAgeMs) {
         q.shift();
         this.safe(() => this.deps.onFailed(job, new Error('expired')));
@@ -172,6 +201,7 @@ export class SendQueue {
 
       if (this.deps.presence) await this.deps.presence(job).catch(() => undefined);
       if (this.stopped) return;
+      if (this.deps.isPaused?.()) continue; // closed during presence: wait, still pending
 
       try {
         const r = await this.deps.send(job);

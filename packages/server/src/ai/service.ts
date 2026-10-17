@@ -321,6 +321,8 @@ export function createAiService(
     )
       throw errors.validation('Business context can contain up to 20 items and 500,000 characters');
   };
+  /** False while an edition has closed the access gate: the AI member does no work then. */
+  const gateOpen = () => ctx.access.state().open;
   const ready = () =>
     settings().mode === 'api'
       ? !!ctx.settings.getSecret(SECRET_KEY)
@@ -402,6 +404,7 @@ export function createAiService(
     const s = state(jid);
     return (
       !closed &&
+      gateOpen() &&
       !!user &&
       !user.disabled &&
       ready() &&
@@ -450,7 +453,7 @@ export function createAiService(
   }
 
   function drainPending() {
-    if (closed || !settings().enabled || !ready()) return;
+    if (closed || !gateOpen() || !settings().enabled || !ready()) return;
     const pending = ctx.db
       .prepare(
         `SELECT chat_jid AS jid, due_at AS dueAt FROM ai_chat_state
@@ -881,7 +884,12 @@ export function createAiService(
       releaseOwned();
     }
   };
+  // Access gate closed: stop in-flight work; on open, persisted due times are picked up again.
+  const onAccessClosed = () => cancelAll();
+  const onAccessOpened = () => drainPending();
   ctx.bus
+    .on('access:closed', onAccessClosed)
+    .on('access:opened', onAccessOpened)
     .on('message:received', onReceived)
     .on('message:new', onMessage)
     .on('chat:updated', onChat)
@@ -889,7 +897,7 @@ export function createAiService(
     .on('user:disabled', onDisabled);
 
   const service: AiService = {
-    connectionReady: () => !closed && ready() && !!provider.extractCustomer,
+    connectionReady: () => !closed && gateOpen() && ready() && !!provider.extractCustomer,
     async extractCustomer(prompt, signal) {
       if (!service.connectionReady()) throw errors.conflict('AI connection unavailable');
       return provider.extractCustomer!(
@@ -1323,6 +1331,8 @@ export function createAiService(
       clearInterval(drainTimer);
       cancelAll();
       ctx.bus
+        .off('access:closed', onAccessClosed)
+        .off('access:opened', onAccessOpened)
         .off('message:received', onReceived)
         .off('message:new', onMessage)
         .off('chat:updated', onChat)

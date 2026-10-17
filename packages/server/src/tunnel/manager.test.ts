@@ -307,6 +307,23 @@ describe('TunnelManager', () => {
     expect(settings.get('tunnel_mode', 'off')).toBe('quick');
   });
 
+  it('pause (access gate closed) stops cloudflared, keeps the mode and launches nothing until resume', async () => {
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    const child = children[0]!;
+    await m.pause();
+    expect(child.killed).toBe(true);
+    expect(m.status()).toMatchObject({ state: 'stopped', url: null });
+    expect(settings.get('tunnel_mode', 'off')).toBe('quick');
+    await m.restore();
+    await flush();
+    expect(calls.length).toBe(1); // paused: restore and backoff restarts spawn nothing
+    await m.resume();
+    expect(calls.length).toBe(2);
+    expect(m.status().mode).toBe('quick');
+    await m.shutdown();
+  });
+
   it('restore with mode off does nothing', async () => {
     const m = makeManager();
     await m.restore();

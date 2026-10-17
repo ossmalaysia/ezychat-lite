@@ -13,6 +13,11 @@ import { LOCALE_CODES, type Locale } from '@ezychat/shared';
  * - An admin route may declare the core admin `section` it belongs to (e.g. `members` for an
  *   agent sub-page): that nav item is highlighted and the phone header shows its label.
  * - An admin nav item may show a small badge (a count or "needs attention") from `useBadge`.
+ * - `banners` render in one slim bar at the top of the signed-in shell (inbox and admin); the
+ *   first banner that renders something wins, the others stay hidden.
+ * - `lockScreen` replaces the core "paused" screen while the server's access gate is closed
+ *   (GET /api/access, or any API call answering 403 with the gate code). It is shown without
+ *   sign-in; `recheck()` reads the gate again and the app reloads once it is open.
  * - `catalogs` add translation keys to the `common` namespace; every key must start with
  *   `ext.<name>.`. A key missing in one language falls back to English like core keys.
  *
@@ -87,6 +92,14 @@ export interface WebExtensionSettingsSection {
   element: ReactNode;
 }
 
+/** Props of an extension's lock screen. */
+export interface WebExtensionLockScreenProps {
+  /** The gate code from the server, e.g. `license_required`. */
+  code: string;
+  /** Read GET /api/access again now (the app reloads when access is open). */
+  recheck: () => void;
+}
+
 export type WebExtensionCatalogs = Partial<Record<Locale, Record<string, string>>>;
 
 export interface WebExtension {
@@ -96,6 +109,10 @@ export interface WebExtension {
   adminNav?: WebExtensionNavItem[];
   settingsSections?: WebExtensionSettingsSection[];
   agentSections?: WebExtensionAgentSection[];
+  /** Slim one-line bars for the top of the signed-in shell; the first non-empty one is shown. */
+  banners?: ComponentType[];
+  /** Full-page screen while access is closed; the first extension that has one wins. */
+  lockScreen?: ComponentType<WebExtensionLockScreenProps>;
   catalogs?: WebExtensionCatalogs;
 }
 
@@ -104,6 +121,14 @@ const RESERVED_NAMES = new Set(['lite', 'core']);
 const SECTION_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 /** One route segment: a name, a `:param` or a final `*` splat. No `..`, no leading slash. */
 const SEGMENT_PATTERN = /^(?:[A-Za-z0-9_-]+|:[A-Za-z][A-Za-z0-9_]*|\*)$/;
+
+/** A React component: a function, or an object made by `memo`/`forwardRef`/`lazy`. */
+function isComponent(value: unknown): boolean {
+  return (
+    typeof value === 'function' ||
+    (typeof value === 'object' && value !== null && '$$typeof' in value)
+  );
+}
 
 export class WebExtensionError extends Error {
   override name = 'WebExtensionError';
@@ -213,6 +238,16 @@ export function validateWebExtensions(
       sectionIds.add(section.id);
       key(section.titleKey, 'settings titleKey');
     }
+
+    if (ext.banners !== undefined) {
+      if (!Array.isArray(ext.banners))
+        throw new WebExtensionError(`Web extension "${name}": banners must be a list`);
+      for (const banner of ext.banners)
+        if (!isComponent(banner))
+          throw new WebExtensionError(`Web extension "${name}": every banner must be a component`);
+    }
+    if (ext.lockScreen !== undefined && !isComponent(ext.lockScreen))
+      throw new WebExtensionError(`Web extension "${name}": lockScreen must be a component`);
 
     for (const [locale, catalog] of Object.entries(ext.catalogs ?? {})) {
       if (!(LOCALE_CODES as readonly string[]).includes(locale))
