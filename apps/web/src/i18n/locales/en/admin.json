@@ -680,6 +680,9 @@
         "handoff": "Would hand off"
       },
       "handoffReason": "Reason: {{reason}}",
+      "lookups": "What the AI looked up",
+      "lookedUp": "AI looked up {{title}} · {{source}}",
+      "lookupFailed": "Could not look up {{title}} · {{source}}",
       "noKnowledge": "No matching business knowledge was found, so the AI would hand this chat to a human without calling the model.",
       "model": "Model: {{model}}",
       "failed": "Could not answer: {{error}}"

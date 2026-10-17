@@ -675,6 +675,9 @@
         "handoff": "将转交人工"
       },
       "handoffReason": "原因：{{reason}}",
+      "lookups": "AI 查询的内容",
+      "lookedUp": "AI 查询了 {{title}} · {{source}}",
+      "lookupFailed": "无法查询 {{title}} · {{source}}",
       "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
       "failed": "无法回答：{{error}}"

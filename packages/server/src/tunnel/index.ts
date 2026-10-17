@@ -23,6 +23,22 @@ function resourcesDir(): string | undefined {
   return process.env.WATI_RESOURCES_DIR ?? (process as { resourcesPath?: string }).resourcesPath;
 }
 
+/**
+ * Phone access (tunnel) public addresses while the tunnel is running, e.g. for OAuth redirect
+ * addresses. Read-only; empty when the tunnel is off, starting or failed. A Quick Tunnel address
+ * changes on every start: listen to the `tunnel:status` bus event to follow it.
+ */
+export function tunnelPublicUrls(ctx: AppContext): string[] {
+  const status = ctx.services.tunnel?.status();
+  if (!status || status.state !== 'running' || !status.url) return [];
+  try {
+    const url = new URL(status.url);
+    return url.protocol === 'https:' ? [url.origin] : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Service initializer: creates the tunnel manager and resumes the previously persisted tunnel mode. */
 export function initTunnel(ctx: AppContext): void {
   const manager = new TunnelManager({

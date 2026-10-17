@@ -5,6 +5,7 @@
 export { createInboxApp, type CreateInboxAppOptions } from './create-app';
 export {
   EXTENSION_NAME_PATTERN,
+  WEB_EXTENSION_ADMIN_SECTIONS,
   WebExtensionError,
   extensionKeyPrefix,
   extensionPath,
@@ -12,7 +13,11 @@ export {
   validateWebExtensions,
   type ExtensionTranslate,
   type WebExtension,
+  type WebExtensionAdminSection,
+  type WebExtensionAgent,
+  type WebExtensionAgentSection,
   type WebExtensionCatalogs,
+  type WebExtensionNavBadge,
   type WebExtensionNavItem,
   type WebExtensionRoute,
   type WebExtensionSettingsSection,

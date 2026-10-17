@@ -221,11 +221,13 @@
       "needs_action": "pelanggan mahu sesuatu dilakukan (pesanan, tempahan, bayaran…)",
       "unsupported_message": "mesej yang tidak dapat dibaca oleh AI",
       "ai_unavailable": "AI tidak tersedia",
+      "lookup_failed": "carian dalam sistem yang disambungkan gagal",
       "business_rule": "sepadan dengan peraturan serahan anda"
     },
     "resolved": "{{actor}} menyelesaikan sembang ini",
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",
     "reopened": "{{actor}} membuka semula sembang ini",
+    "aiToolUsed": "AI menyemak {{title}} · {{source}}",
     "internalNote": "Nota dalaman"
   },
   "messageList": {

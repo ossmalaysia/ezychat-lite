@@ -221,11 +221,13 @@
       "needs_action": "客户需要办理事项（下单、预订、付款等）",
       "unsupported_message": "AI 无法读取的消息",
       "ai_unavailable": "AI 暂不可用",
+      "lookup_failed": "在已连接系统中的查询失败",
       "business_rule": "符合您的转交规则"
     },
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",
     "reopened": "{{actor}} 重新打开了此聊天",
+    "aiToolUsed": "AI 查询了 {{title}} · {{source}}",
     "internalNote": "内部备注"
   },
   "messageList": {

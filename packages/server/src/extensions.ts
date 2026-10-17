@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from './context.js';
+import type { AgentToolsInput, AgentToolsResult } from './ai/agent/extension-tools.js';
 
 /** Lowercase id used for the route prefix (/api/ext/<name>) and the migration track. */
 export const EXTENSION_NAME = /^[a-z][a-z0-9-]{1,31}$/;
@@ -17,6 +18,13 @@ export interface ServerExtension {
   init?(ctx: AppContext): void | Promise<void>;
   /** Mounted at /api/ext/<name> after core routes; add requireUser/requireAdmin yourself. */
   routes?(api: FastifyInstance, ctx: AppContext): Promise<void>;
+  /**
+   * Extra read tools for one AI turn (live reply or Try it), merged with the core tools within
+   * the same step limit and abort/timeout. Return null to add none. A tool that throws (e.g.
+   * `ToolHandoverError`) ends the turn with a hand-over (reason `lookup_failed`). `dispose` runs
+   * when the turn ends. Calls are announced on the bus as `ai:tool_call` (no input or output).
+   */
+  agentTools?(ctx: AppContext, input: AgentToolsInput): Promise<AgentToolsResult | null>;
 }
 
 export function validateExtensions(list: readonly ServerExtension[]): void {

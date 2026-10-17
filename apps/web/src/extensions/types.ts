@@ -8,6 +8,11 @@ import { LOCALE_CODES, type Locale } from '@ezychat/shared';
  *   `/admin/ext/<name>/<path>` inside the admin shell. They can never replace a core route.
  * - `adminNav` links point at the extension's admin routes (`/admin/ext/<name>/<path>`).
  * - `settingsSections` render in Settings → Integrations, below the core sections.
+ * - `agentSections` render as rows on an AI agent's page (`/admin/members/ai` for the Sales
+ *   Agent), right under Business context.
+ * - An admin route may declare the core admin `section` it belongs to (e.g. `members` for an
+ *   agent sub-page): that nav item is highlighted and the phone header shows its label.
+ * - An admin nav item may show a small badge (a count or "needs attention") from `useBadge`.
  * - `catalogs` add translation keys to the `common` namespace; every key must start with
  *   `ext.<name>.`. A key missing in one language falls back to English like core keys.
  *
@@ -19,6 +24,35 @@ export interface WebExtensionRoute {
   element: ReactNode;
   /** Mount in the admin shell (admins only) instead of the signed-in user area. */
   admin?: boolean;
+  /**
+   * Admin routes only: the core admin section this page sits under (e.g. `members` for
+   * `/admin/ext/<name>/agents/ai`). Highlights that nav item and names it in the phone header.
+   * The page still renders its own breadcrumb.
+   */
+  section?: WebExtensionAdminSection;
+}
+
+/** Core admin sections an extension admin route may sit under (the `ADMIN_NAV` paths). */
+export const WEB_EXTENSION_ADMIN_SECTIONS = [
+  'members',
+  'quick-replies',
+  'whatsapp',
+  'tunnel',
+  'settings',
+  'audit',
+] as const;
+export type WebExtensionAdminSection = (typeof WEB_EXTENSION_ADMIN_SECTIONS)[number];
+
+/** A small badge on an admin nav link: a count, or a dot that asks for attention. */
+export interface WebExtensionNavBadge {
+  /** Shown when above 0 (99+ above 99). */
+  count?: number;
+  /** A dot when there is no count, e.g. a connector that needs signing in again. */
+  attention?: boolean;
+  /** Translation key (`ext.<name>.…`) read by screen readers, e.g. "2 need attention". */
+  labelKey?: string;
+  /** Values for `labelKey`'s placeholders. */
+  labelValues?: Record<string, string | number>;
 }
 
 export interface WebExtensionNavItem {
@@ -27,6 +61,22 @@ export interface WebExtensionNavItem {
   /** Translation key (`ext.<name>.…`) of the link label. */
   labelKey: string;
   icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  /**
+   * React hook (called on every admin render, so keep it cheap: read a cached query) returning
+   * the badge to show, or null for none. Errors in it hide the badge, never the nav.
+   */
+  useBadge?: () => WebExtensionNavBadge | null;
+}
+
+/** The AI agents whose page can hold extension rows. Only the Sales Agent exists today. */
+export type WebExtensionAgent = 'sales';
+
+export interface WebExtensionAgentSection {
+  agent: WebExtensionAgent;
+  /** Unique within the extension; lowercase letters, digits and dashes. */
+  id: string;
+  /** One compact row (e.g. "Connectors · 2 connected · Manage ›"); details on its own page. */
+  element: ReactNode;
 }
 
 export interface WebExtensionSettingsSection {
@@ -45,6 +95,7 @@ export interface WebExtension {
   routes?: WebExtensionRoute[];
   adminNav?: WebExtensionNavItem[];
   settingsSections?: WebExtensionSettingsSection[];
+  agentSections?: WebExtensionAgentSection[];
   catalogs?: WebExtensionCatalogs;
 }
 
@@ -107,6 +158,14 @@ export function validateWebExtensions(
         throw new WebExtensionError(
           `Web extension "${name}": invalid route path ${JSON.stringify(route.path)}`,
         );
+      if (
+        route.section !== undefined &&
+        (!route.admin ||
+          !(WEB_EXTENSION_ADMIN_SECTIONS as readonly string[]).includes(route.section))
+      )
+        throw new WebExtensionError(
+          `Web extension "${name}": route "${route.path}" has an invalid section ${JSON.stringify(route.section)}`,
+        );
       const bucket = route.admin ? seen.admin : seen.user;
       if (bucket.has(route.path))
         throw new WebExtensionError(`Web extension "${name}": duplicate route "${route.path}"`);
@@ -119,6 +178,26 @@ export function validateWebExtensions(
           `Web extension "${name}": admin nav path ${JSON.stringify(item.path)} has no admin route`,
         );
       key(item.labelKey, 'nav labelKey');
+      if (item.useBadge !== undefined && typeof item.useBadge !== 'function')
+        throw new WebExtensionError(`Web extension "${name}": nav useBadge must be a function`);
+    }
+
+    const agentIds = new Set<string>();
+    for (const section of ext.agentSections ?? []) {
+      if (section.agent !== 'sales')
+        throw new WebExtensionError(
+          `Web extension "${name}": unknown agent ${JSON.stringify(section.agent)}`,
+        );
+      if (typeof section.id !== 'string' || !SECTION_ID_PATTERN.test(section.id))
+        throw new WebExtensionError(
+          `Web extension "${name}": invalid agent section id ${JSON.stringify(section.id)}`,
+        );
+      const id = `${section.agent}:${section.id}`;
+      if (agentIds.has(id))
+        throw new WebExtensionError(
+          `Web extension "${name}": duplicate agent section "${section.id}"`,
+        );
+      agentIds.add(id);
     }
 
     const sectionIds = new Set<string>();

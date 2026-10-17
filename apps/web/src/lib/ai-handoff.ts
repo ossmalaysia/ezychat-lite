@@ -18,6 +18,8 @@ export function handoffReasonLabel(reason: AiHandoffReason): string {
       return i18n.t('inbox:events.handoffReason.unsupported_message');
     case 'ai_unavailable':
       return i18n.t('inbox:events.handoffReason.ai_unavailable');
+    case 'lookup_failed':
+      return i18n.t('inbox:events.handoffReason.lookup_failed');
   }
 }
 

@@ -185,7 +185,7 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   name: 'get_stats',
   title: 'Inbox statistics',
   description:
-    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable) and per day, chats it resolved, chats and messages it answered.',
+    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered.',
   scope: 'inbox:read',
   input: McpGetStatsInput,
   run(args, { inbox, aiSetup, principal }) {

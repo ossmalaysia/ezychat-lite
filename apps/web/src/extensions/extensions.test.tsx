@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from '../App';
+import { ADMIN_NAV } from '../admin/AdminLayout';
 import { i18n } from '@/i18n';
 import {
   registerExtensionCatalogs,
   validateWebExtensions,
+  WEB_EXTENSION_ADMIN_SECTIONS,
   WebExtensionError,
   WebExtensionsProvider,
   type WebExtension,
@@ -192,6 +194,80 @@ describe('extension routes', () => {
   });
 });
 
+describe('agent sub-pages and nav badges', () => {
+  let badge: { count?: number; attention?: boolean; labelKey?: string } | null = null;
+  const agents: WebExtension = {
+    name: 'connectors',
+    routes: [
+      { path: 'manage', admin: true, element: <h1>Connectors list</h1> },
+      { path: 'agents/:agent', admin: true, section: 'members', element: <h1>Agent tools</h1> },
+    ],
+    adminNav: [
+      {
+        path: 'manage',
+        labelKey: 'ext.connectors.nav',
+        useBadge: () => badge,
+      },
+    ],
+    catalogs: {
+      en: { 'ext.connectors.nav': 'Connectors', 'ext.connectors.attention': '{{n}} need sign-in' },
+    },
+  };
+  beforeEach(async () => {
+    badge = null;
+    await registerExtensionCatalogs([agents]);
+  });
+
+  it('marks Members active and names it in the phone header on an agent sub-page', () => {
+    renderApp('/admin/ext/connectors/agents/ai', [agents]);
+    expect(screen.getByRole('heading', { name: 'Agent tools' })).toBeTruthy();
+    for (const link of screen.getAllByRole('link', { name: 'Members' }))
+      expect(link.className).toContain('bg-primary/10');
+    for (const link of screen.getAllByRole('link', { name: 'Connectors' }))
+      expect(link.className).not.toContain('bg-primary/10');
+    expect(screen.getByText('Admin · Members')).toBeTruthy();
+  });
+
+  it('keeps an extension page without a section under its own nav item', () => {
+    renderApp('/admin/ext/connectors/manage', [agents]);
+    for (const link of screen.getAllByRole('link', { name: 'Members' }))
+      expect(link.className).not.toContain('bg-primary/10');
+    expect(screen.getByText('Admin · Connectors')).toBeTruthy();
+  });
+
+  it('shows a count or an attention dot from the extension badge hook', () => {
+    badge = { count: 120, labelKey: 'ext.connectors.attention' };
+    renderApp('/admin/members', [agents]);
+    expect(screen.getAllByTestId('nav-badge')[0]?.textContent).toContain('99+');
+    cleanup();
+    badge = { attention: true };
+    renderApp('/admin/members', [agents]);
+    expect(screen.getAllByTestId('nav-badge').length).toBeGreaterThan(0);
+    cleanup();
+    badge = { count: 0 };
+    renderApp('/admin/members', [agents]);
+    expect(screen.queryByTestId('nav-badge')).toBeNull();
+  });
+
+  it('hides a badge whose hook throws and keeps the nav', () => {
+    const broken: WebExtension = {
+      ...agents,
+      adminNav: [
+        {
+          path: 'manage',
+          labelKey: 'ext.connectors.nav',
+          useBadge: () => {
+            throw new Error('badge exploded');
+          },
+        },
+      ],
+    };
+    renderApp('/admin/members', [broken]);
+    expect(screen.getAllByRole('link', { name: 'Connectors' }).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('error-boundary')).toBeNull();
+  });
+});
+
 describe('extension settings sections', () => {
   it('renders sections in Settings → Integrations, each behind its own boundary', () => {
     renderApp('/admin/settings/integrations');
@@ -251,6 +327,36 @@ describe('validateWebExtensions', () => {
       { name: 'demo', settingsSections: [{ id: 'A b', titleKey: 'ext.demo.t', element: null }] },
     ],
     [
+      'section on a user route',
+      { name: 'demo', routes: [{ path: 'x', element: null, section: 'members' }] },
+    ],
+    [
+      'unknown section',
+      { name: 'demo', routes: [{ path: 'x', element: null, admin: true, section: 'inbox' }] },
+    ],
+    [
+      'unknown agent',
+      { name: 'demo', agentSections: [{ agent: 'support', id: 'row', element: null }] },
+    ],
+    [
+      'duplicate agent section',
+      {
+        name: 'demo',
+        agentSections: [
+          { agent: 'sales', id: 'row', element: null },
+          { agent: 'sales', id: 'row', element: null },
+        ],
+      },
+    ],
+    [
+      'badge that is not a hook',
+      {
+        name: 'demo',
+        routes: [{ path: 'y', element: null, admin: true }],
+        adminNav: [{ path: 'y', labelKey: 'ext.demo.y', useBadge: 3 }],
+      },
+    ],
+    [
       'duplicate route',
       {
         name: 'demo',
@@ -262,6 +368,10 @@ describe('validateWebExtensions', () => {
     ],
   ])('rejects %s', (_label, ext) => {
     expect(() => validateWebExtensions([ext as WebExtension])).toThrow(WebExtensionError);
+  });
+
+  it('lists exactly the core admin sections as allowed sections', () => {
+    expect([...WEB_EXTENSION_ADMIN_SECTIONS]).toEqual(ADMIN_NAV.map((n) => n.to));
   });
 
   it('rejects duplicate names', () => {

@@ -676,6 +676,9 @@
         "handoff": "Akan diserahkan kepada manusia"
       },
       "handoffReason": "Sebab: {{reason}}",
+      "lookups": "Perkara yang disemak oleh AI",
+      "lookedUp": "AI menyemak {{title}} · {{source}}",
+      "lookupFailed": "Tidak dapat menyemak {{title}} · {{source}}",
       "noKnowledge": "Tiada pengetahuan perniagaan yang sepadan ditemui, jadi AI akan menyerahkan perbualan ini kepada manusia tanpa memanggil model.",
       "model": "Model: {{model}}",
       "failed": "Tidak dapat menjawab: {{error}}"

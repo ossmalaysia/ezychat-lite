@@ -13,7 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
@@ -33,12 +33,14 @@ import { cn } from '@/lib/utils';
 import { useAppVersion } from '@/lib/version';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
+import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import {
   extensionPath,
   extensionRoutes,
   useExtensionTranslation,
   useWebExtensions,
   type WebExtension,
+  type WebExtensionAdminSection,
   type WebExtensionNavItem,
 } from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
@@ -65,6 +67,7 @@ interface ExtensionNavLink {
   /** Translation key in the `common` namespace (extension catalogs live there). */
   labelKey: string;
   icon: NonNullable<WebExtensionNavItem['icon']>;
+  useBadge?: WebExtensionNavItem['useBadge'];
 }
 
 /** Admin nav links contributed by extensions, always absolute `/admin/ext/<name>/...` paths. */
@@ -75,7 +78,58 @@ function extensionNavLinks(extensions: readonly WebExtension[]): ExtensionNavLin
       href: extensionPath(ext.name, item.path, true),
       labelKey: item.labelKey,
       icon: item.icon ?? Puzzle,
+      useBadge: item.useBadge,
     })),
+  );
+}
+
+/** The core section an extension admin route declares for this path (e.g. `members`). */
+export function extensionSectionOf(
+  extensions: readonly WebExtension[],
+  pathname: string,
+): WebExtensionAdminSection | undefined {
+  for (const ext of extensions)
+    for (const route of ext.routes ?? [])
+      if (
+        route.admin &&
+        route.section &&
+        matchPath({ path: extensionPath(ext.name, route.path, true), end: true }, pathname)
+      )
+        return route.section;
+  return undefined;
+}
+
+function NavBadgeContent({ useBadge }: { useBadge: NonNullable<ExtensionNavLink['useBadge']> }) {
+  const tExt = useExtensionTranslation();
+  const badge = useBadge();
+  if (!badge) return null;
+  const count = typeof badge.count === 'number' && badge.count > 0 ? badge.count : 0;
+  if (!count && !badge.attention) return null;
+  const label = badge.labelKey ? tExt(badge.labelKey, badge.labelValues) : undefined;
+  return (
+    <span className="ml-auto flex shrink-0 items-center" data-testid="nav-badge">
+      {count ? (
+        <span
+          aria-hidden={label ? true : undefined}
+          className="min-w-5 rounded-full bg-primary px-1.5 text-center text-xs leading-5 font-semibold text-primary-foreground"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      ) : (
+        <span aria-hidden className="size-2 rounded-full bg-destructive" />
+      )}
+      {label && <span className="sr-only">{label}</span>}
+    </span>
+  );
+}
+
+/** An extension's nav badge; a crash in its hook hides the badge, never the nav. */
+function NavBadge({ useBadge }: { useBadge?: ExtensionNavLink['useBadge'] }) {
+  if (!useBadge) return null;
+  return (
+    <ErrorBoundary fallback={null}>
+      <NavBadgeContent useBadge={useBadge} />
+    </ErrorBoundary>
   );
 }
 
@@ -99,13 +153,20 @@ function UnknownAdminRoute() {
 function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const { t } = useTranslation('admin');
   const tExt = useExtensionTranslation();
-  const extensionLinks = extensionNavLinks(useWebExtensions());
+  const extensions = useWebExtensions();
+  const extensionLinks = extensionNavLinks(extensions);
+  // An extension page under a core section (e.g. an agent's sub-page) keeps that item active.
+  const section = extensionSectionOf(extensions, useLocation().pathname);
   return (
     <nav aria-label={t('nav.label')} className={className}>
       <ul className="flex flex-col gap-1">
         {ADMIN_NAV.map((n) => (
           <li key={n.to}>
-            <NavLink to={`/admin/${n.to}`} onClick={onNavigate} className={navLinkClass}>
+            <NavLink
+              to={`/admin/${n.to}`}
+              onClick={onNavigate}
+              className={({ isActive }) => navLinkClass({ isActive: isActive || section === n.to })}
+            >
               <n.icon className="size-4 shrink-0" aria-hidden />
               {t(n.labelKey)}
             </NavLink>
@@ -116,6 +177,7 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
             <NavLink to={n.href} onClick={onNavigate} className={navLinkClass}>
               <n.icon className="size-4 shrink-0" aria-hidden />
               {tExt(n.labelKey)}
+              <NavBadge useBadge={n.useBadge} />
             </NavLink>
           </li>
         ))}
@@ -213,7 +275,10 @@ export function AdminLayout() {
     );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
-  const coreCurrent = ADMIN_NAV.find((n) => location.pathname.includes(`/admin/${n.to}`));
+  const section = extensionSectionOf(extensions, location.pathname);
+  const coreCurrent = ADMIN_NAV.find(
+    (n) => location.pathname.includes(`/admin/${n.to}`) || section === n.to,
+  );
   const extensionCurrent = coreCurrent
     ? undefined
     : extensionNavLinks(extensions).find(

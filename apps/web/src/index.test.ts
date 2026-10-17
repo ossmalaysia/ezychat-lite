@@ -8,6 +8,7 @@ describe('public web entry', () => {
     for (const name of [
       'createInboxApp',
       'validateWebExtensions',
+      'WEB_EXTENSION_ADMIN_SECTIONS',
       'useExtensionTranslation',
       'useTranslation',
       'useAuth',

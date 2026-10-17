@@ -10,6 +10,7 @@ import type {
   VoiceStatus,
   WaStatus,
 } from '@ezychat/shared';
+import type { AiToolCallEvent } from './ai/agent/extension-tools.js';
 
 export interface BusEvents {
   'message:new': [Message];
@@ -22,6 +23,8 @@ export interface BusEvents {
   'ai:connection-changed': [];
   /** Committed Sales Agent handover, delivered through the existing notification channels. */
   'ai:handoff': [Chat];
+  /** One finished extension tool call of the AI (live or Try it); never its input or output. */
+  'ai:tool_call': [AiToolCallEvent];
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];

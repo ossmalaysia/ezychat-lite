@@ -37,6 +37,7 @@ import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
+import { extensionAgentTools, type AgentToolInfo } from './agent/extension-tools.js';
 
 /** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
 const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
@@ -617,6 +618,9 @@ export function createAiService(
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
       const toolCalls: string[] = [];
+      /** Successful extension look-ups ("AI looked up …" lines) and whether one failed. */
+      let lookups: AgentToolInfo[] = [];
+      let lookupFailed = false;
       const started = Date.now();
       /** Page `n` of this chat's messages older than the prompt's, oldest first. */
       const olderMessages = (n: number) => {
@@ -635,22 +639,46 @@ export function createAiService(
         facts: string,
         awaitingConfirmation: boolean,
         batchImages: AiPromptImage[],
-      ): Promise<AiDecision> =>
-        AiDecision.parse(
-          await provider.generate(
-            current,
-            ctx.settings.getSecret(SECRET_KEY),
-            {
-              ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
-              tools: chatTools({
-                knowledge: knowledgeSources(contextItems()),
-                olderMessages: olderBefore ? olderMessages : undefined,
-                onCall: (name) => toolCalls.push(name),
-              }),
+      ): Promise<AiDecision> => {
+        // A failed extension look-up ends the turn at once; the catch below hands over.
+        const lookupAbort = new AbortController();
+        const signal = AbortSignal.any([controller.signal, lookupAbort.signal]);
+        const extension = await extensionAgentTools(
+          ctx,
+          log,
+          { agent: 'sales', chatJid: jid, signal },
+          {
+            onFailure: () => {
+              lookupFailed = true;
+              lookupAbort.abort();
             },
-            controller.signal,
-          ),
+            onCall: (name) => toolCalls.push(name),
+          },
         );
+        try {
+          return AiDecision.parse(
+            await provider.generate(
+              current,
+              ctx.settings.getSecret(SECRET_KEY),
+              {
+                ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+                tools: {
+                  ...chatTools({
+                    knowledge: knowledgeSources(contextItems()),
+                    olderMessages: olderBefore ? olderMessages : undefined,
+                    onCall: (name) => toolCalls.push(name),
+                  }),
+                  ...extension.tools,
+                },
+              },
+              signal,
+            ),
+          );
+        } finally {
+          lookups = extension.used();
+          await extension.dispose();
+        }
+      };
       try {
         // Text, images (with or without a caption) and voice notes can be handled; video,
         // documents, stickers and the like go to the team.
@@ -699,28 +727,36 @@ export function createAiService(
           decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
       } catch (error) {
         if (controller.signal.aborted) return;
-        if (!ready()) {
+        if (lookupFailed) {
+          log.warn({ jid, reason: 'lookup_failed' }, 'AI look-up failed');
+          decision = {
+            action: 'handoff' as const,
+            reply: HANDOFF_REPLY,
+            handoffReason: 'lookup_failed',
+          };
+        } else if (!ready()) {
           log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
           releaseForConnection();
           return;
+        } else {
+          // Error type and HTTP status only: messages and bodies can carry customer text.
+          const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
+          log.warn(
+            {
+              jid,
+              reason: 'provider_failed',
+              errName: typeof failure?.name === 'string' ? failure.name : null,
+              status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
+              finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
+            },
+            'AI answer unavailable',
+          );
+          decision = {
+            action: 'handoff' as const,
+            reply: HANDOFF_REPLY,
+            handoffReason: 'ai_unavailable',
+          };
         }
-        // Error type and HTTP status only: messages and bodies can carry customer text.
-        const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
-        log.warn(
-          {
-            jid,
-            reason: 'provider_failed',
-            errName: typeof failure?.name === 'string' ? failure.name : null,
-            status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
-            finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
-          },
-          'AI answer unavailable',
-        );
-        decision = {
-          action: 'handoff' as const,
-          reply: HANDOFF_REPLY,
-          handoffReason: 'ai_unavailable',
-        };
       }
       if (!owned()) return;
       // A teammate corrected the customer's details while the model was writing: never send
@@ -758,6 +794,8 @@ export function createAiService(
       // Consecutive resolution questions: a new question or objection restarts the count at 1.
       const nextAsked =
         decision.action !== 'ask_resolution' ? 0 : objectsToResolution(batchText) ? 1 : asked + 1;
+      // "AI looked up …" lines sit just above the reply they informed (title and source only).
+      if (lookups.length) chats.addAiToolUsed(jid, user.id, lookups);
       await sendReply(jid, user.id, customerId, decision.reply, controller.signal);
       if (!owned()) return;
       ctx.db
@@ -1149,11 +1187,25 @@ export function createAiService(
           error: null,
         };
       let model: string | null = null;
+      // Extension look-ups run in Try it too (no chat); a failed one ends it with a hand-over.
+      const lookupAbort = new AbortController();
+      const signal = AbortSignal.any([AbortSignal.timeout(60_000), lookupAbort.signal]);
+      let extension: Awaited<ReturnType<typeof extensionAgentTools>> | null = null;
+      const lookups = () => {
+        const calls = extension?.calls() ?? [];
+        return calls.length ? { lookups: calls } : {};
+      };
       try {
         model =
           current.mode === 'api'
             ? current.model || OPENAI_DEFAULT_MODEL
             : ((await provider.resolveModel?.(current.model)) ?? current.model);
+        extension = await extensionAgentTools(
+          ctx,
+          log,
+          { agent: 'sales', chatJid: null, signal },
+          { onFailure: () => lookupAbort.abort() },
+        );
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
@@ -1166,9 +1218,12 @@ export function createAiService(
               [{ speaker: 'customer', text: body.question }],
               false,
             ),
-            tools: chatTools({ knowledge: knowledgeSources(contextItems()) }),
+            tools: {
+              ...chatTools({ knowledge: knowledgeSources(contextItems()) }),
+              ...extension.tools,
+            },
           },
-          AbortSignal.timeout(60_000),
+          signal,
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.
         const guarded = guardResolution(decision, 0, body.question);
@@ -1179,8 +1234,19 @@ export function createAiService(
           handoffReason: guarded.handoffReason ?? null,
           model,
           error: null,
+          ...lookups(),
         };
       } catch (error) {
+        if (extension?.failed())
+          return {
+            ok: true,
+            reply: HANDOFF_REPLY,
+            action: 'handoff',
+            handoffReason: 'lookup_failed',
+            model,
+            error: null,
+            ...lookups(),
+          };
         log.warn({ event: 'ai_try_failed' }, 'AI Try it answer failed');
         return {
           ok: false,
@@ -1188,7 +1254,10 @@ export function createAiService(
           action: null,
           model,
           error: error instanceof Error ? error.message : 'The AI could not answer.',
+          ...lookups(),
         };
+      } finally {
+        await extension?.dispose();
       }
     },
     async editText(body, signal) {
