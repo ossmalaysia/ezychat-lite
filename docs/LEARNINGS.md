@@ -425,7 +425,9 @@ into AGENTS.md.
 - The AI is notified before live media downloads (300 ms debounce once it owns a chat): wait for a
   `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
   bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
-- Routes capture `ctx.services.ai` at registration: test HTTP behaviour against the real service.
+- Fastify routes capture `ctx.services.*` when the app is built. Replace a service in a route test
+  inside `makeTestApp`'s `beforeBuild`, never afterwards, or the route keeps the real service (that
+  once sent a real OpenAI request with a placeholder key).
 - A route that calls an outside service takes its client from an optional `ctx.services.<name>` slot
   (e.g. `aiKeyTest`), set in `makeTestApp`'s `beforeBuild`, so tests never reach the network.
 - An API key test treats only a 401 as a bad key: a 403 (restricted key, region block), 429 or

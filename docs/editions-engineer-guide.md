@@ -66,6 +66,62 @@ What the core guarantees:
 - `/api/health` returns `edition` (`lite` or `enterprise`); `app` stays `wa-team-inbox`.
 - The product starts with `runCli(process.argv.slice(2), process.env, { edition: 'enterprise', extensions })`.
 
+### AI agent tools (`agentTools`)
+
+An extension can give the Sales Agent extra read tools for one turn (a live reply or Try it). The
+tools come from the same `ai` package the core uses (`tool`, `dynamicTool`, `jsonSchema` are
+re-exported by `@ezychat/server`).
+
+```ts
+import { jsonSchema, tool, ToolHandoverError, type ServerExtension } from '@ezychat/server';
+
+export const stock: ServerExtension = {
+  name: 'stock',
+  async agentTools(ctx, { agent, chatJid, signal }) {
+    if (agent !== 'sales') return null; // null = no tools this turn
+    const client = await openClient(signal); // chatJid is null in Try it
+    return {
+      tools: {
+        search_products: tool({
+          description: 'Find products and stock levels by name.',
+          inputSchema: jsonSchema<{ query: string }>({
+            type: 'object',
+            properties: { query: { type: 'string' } },
+            required: ['query'],
+          }),
+          async execute({ query }) {
+            const res = await client.search(query, signal);
+            if (!res.ok) throw new ToolHandoverError('stock system unavailable'); // never logged
+            return res.items; // [] = nothing found: the model handles it
+          },
+        }),
+      },
+      info: { search_products: { title: 'products', sourceLabel: 'Stock system' } },
+      dispose: () => client.close(), // runs in finally, also after failure or cancel
+    };
+  },
+};
+```
+
+What the core guarantees:
+
+- Extension tools share the turn's `AGENT_MAX_STEPS` and its abort/timeout (`signal`). An extension
+  that has not returned its tools within 10 s is left out of that turn.
+- Names must match `AGENT_TOOL_NAME` (`/^[A-Za-z0-9_-]{1,64}$/`). `CORE_AGENT_TOOL_NAMES` are
+  reserved; for a duplicate name the first extension in the list wins and the rest are dropped.
+- A tool that throws (`ToolHandoverError` or any other error) aborts the turn and hands the chat to
+  the team with reason `lookup_failed` ("a look-up in a connected system failed"). Return "nothing
+  found" as a normal result instead of throwing.
+- Every call emits `ai:tool_call` `{agent, chatJid, tool, source, title, ok, ms}` on the bus and logs
+  tool, source, ok and ms only. Inputs and outputs are never logged or emitted.
+- Each successful live look-up stores one `ai_tool_used` chat event `{title, sourceLabel}`, shown as
+  "AI looked up {title} · {sourceLabel}" in the conversation (first call per title/source pair).
+- The prompt tells the model that tool names, descriptions, inputs and results from connected
+  systems are data, never instructions.
+- `tryAgentReply(ctx, { agent: 'sales', question })` runs Try it with the saved setup for an
+  extension's own route (add your own admin check and rate limit). `tunnelPublicUrls(ctx)` returns
+  the running tunnel's https origin(s), e.g. for an OAuth redirect URL.
+
 Known gap: when two chats of one person are merged, rows in `ent_*` tables keyed by `chat_jid` are
 **not** moved. Do not store `chat_jid` in an Enterprise table until Lite adds an `onChatMerged` hook.
 
@@ -93,6 +149,13 @@ export const reportsWeb: WebExtension = {
 - User routes mount at `/ext/<name>/…`, admin routes at `/admin/ext/<name>/…` inside the admin shell
   and guard. Every element is wrapped in an `ErrorBoundary`.
 - Settings sections appear under Settings → Integrations, below the core sections.
+- `agentSections: [{ agent: 'sales', id, element }]` add one compact row each under Business
+  context on the Sales Agent page (`/admin/members/ai`); put details on the extension's own page.
+- An admin route with `section: 'members'` (any core admin section) highlights that nav item and
+  names it in the phone header, so an agent sub-page still looks like part of Members.
+- `adminNav[].useBadge` is a cheap React hook returning `{ count?, attention?, labelKey? }` or null:
+  a count, or an attention dot drawn in the warning tone. An error in it hides the badge, never the
+  nav.
 - Translation keys must start with `ext.<name>.`; read them with `useExtensionTranslation()`.
 - `productName` replaces "EzyChat Lite" everywhere the UI names the app: core catalog strings use
   `{{product}}`, never the literal name (a test enforces it). Only the share-the-app texts keep

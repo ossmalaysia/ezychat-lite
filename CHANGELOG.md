@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Extensions can give the AI Sales Agent extra look-up tools. A failed look-up hands the chat to the team (reason: a look-up in a connected system failed), and the conversation shows "AI looked up …" lines.
+
 ## [0.1.37] - 2026-10-16
 
 ### Changed

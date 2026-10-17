@@ -163,13 +163,23 @@ edition `lite` with no extensions) takes `ServerExtension`s (`extensions.ts`): a
 `lite`/`core` reserved), an optional `migrationsDir` tracked per extension in `extension_migrations`
 (never touches the core `user_version`), `init(ctx)` after every core initializer, and `routes` mounted
 after core routes (add `requireUser`/`requireAdmin` yourself; Host/Origin checks still apply).
+`agentTools(ctx, { agent: 'sales', chatJid | null, signal })` (`ai/agent/extension-tools.ts`) adds AI SDK
+tools to one Sales Agent turn (live and Try it). They share `AGENT_MAX_STEPS` and the turn's abort/timeout,
+and `dispose` runs in `finally`. Core tool names are reserved and the first extension wins a duplicate name.
+A tool that throws (`ToolHandoverError` or any other error) aborts the turn and hands over with
+`lookup_failed`. Every call emits `ai:tool_call` {agent, chatJid, tool, source, title, ok, ms} and logs
+tool/source/ok/ms only. Each successful live look-up stores an `ai_tool_used` chat event
+{title, sourceLabel} (the "AI looked up …" line). `tryAgentReply` and `tunnelPublicUrls` are public.
 `/api/health` reports `edition`; its `app` value stays `wa-team-inbox`. _Web_:
 `createInboxApp({ extensions, productName })` (`apps/web/src/create-app.tsx`; Lite's `main.tsx` passes `[]`;
 catalog strings name the app only through `{{product}}`, default "EzyChat Lite", except the share-the-app texts) takes
 `WebExtension`s (`src/extensions/types.ts`, `validateWebExtensions`): routes only at `/ext/<name>/…`
 (signed-in) or `/admin/ext/<name>/…` (admin shell and guard), admin nav links (absolute paths),
 Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with
-`useExtensionTranslation`); every extension element is wrapped in an `ErrorBoundary`. _Desktop_:
+`useExtensionTranslation`), `agentSections` (rows under Business context on the agent page), route
+`section` (an agent sub-page marks a core admin item active and names it in the phone header) and
+adminNav `useBadge` (a count, or an attention dot in the warning tone); every extension element is
+wrapped in an `ErrorBoundary`. _Desktop_:
 identity lives in `apps/desktop/src/product.ts`; `LITE_PRODUCT` holds the upgrade-contract values
 (app ID, data/profile folders, service ID, launchd label, health `app`, update feed, installer and exe
 names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. Code reads
