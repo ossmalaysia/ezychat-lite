@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import {
   createApiTokenService,
   parseBearer,

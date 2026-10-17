@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { APP_NAME, appTitle } from './app-title.js';
+import { appTitle } from './app-title.js';
+import { LITE_PRODUCT, defineProduct } from './product.js';
+
+const APP_NAME = 'EzyChat Lite';
 
 describe('appTitle', () => {
   it('appends the version', () => {
@@ -17,5 +20,13 @@ describe('appTitle', () => {
     expect(appTitle('0.1.20', { devBuild: true })).toBe('EzyChat Lite v0.1.20 · Dev Build');
     expect(appTitle(null, { devBuild: true })).toBe('EzyChat Lite · Dev Build');
     expect(appTitle('0.1.20', { devBuild: false })).toBe('EzyChat Lite v0.1.20');
+  });
+  it("uses another edition's product name", () => {
+    const other = defineProduct({
+      ...LITE_PRODUCT,
+      productName: 'EzyChat Enterprise',
+      executableNames: ['EzyChat Enterprise'],
+    });
+    expect(appTitle('1.0.0', {}, other)).toBe('EzyChat Enterprise v1.0.0');
   });
 });

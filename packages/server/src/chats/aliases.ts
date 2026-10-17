@@ -1,5 +1,5 @@
 import type { Logger } from 'pino';
-import { contactAliasPair, normalizeContactJid, type WaAliasSource } from '@wa-team-inbox/wa';
+import { contactAliasPair, normalizeContactJid, type WaAliasSource } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import type { DB } from '../db/index.js';
 

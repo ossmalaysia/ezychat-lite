@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ClientErrorBody } from '@wa-team-inbox/shared';
+import { ClientErrorBody } from '@ezychat/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';

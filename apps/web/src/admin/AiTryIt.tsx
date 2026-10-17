@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
-import { AI_TRY_QUESTION_CHARACTERS } from '@wa-team-inbox/shared';
+import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
 import { useAiTry } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';

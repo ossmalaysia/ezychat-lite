@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Message, VoiceStatus } from '@wa-team-inbox/shared';
+import type { Message, VoiceStatus } from '@ezychat/shared';
 import { AI_SECRET_KEY } from '../src/ai/settings-keys.js';
 import { CustomerRepo } from '../src/customers/repo.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';

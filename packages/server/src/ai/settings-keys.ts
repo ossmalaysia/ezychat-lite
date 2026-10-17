@@ -1,4 +1,4 @@
-import type { AiSettings } from '@wa-team-inbox/shared';
+import type { AiSettings } from '@ezychat/shared';
 import type { SettingsStore } from '../db/settings.js';
 
 /** Inbox AI connection (`{ mode, model }`), shared by every AI member. */

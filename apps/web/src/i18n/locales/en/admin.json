@@ -277,8 +277,8 @@
       "label": "Let AI assistants read this inbox",
       "description": "Connect any MCP-compatible AI assistant. It can read chats, notes and statistics, and read, test and change the AI Sales Agent's instructions, hand-off rules and business context. It can't send messages to customers. Every change is kept in the audit log.",
       "worksFromLabel": "Works from",
-      "worksFromLocal": "the computer running EzyChat Lite.",
-      "worksFromTunnel": "the computer running EzyChat Lite, and from anywhere through your tunnel:",
+      "worksFromLocal": "the computer running {{product}}.",
+      "worksFromTunnel": "the computer running {{product}}, and from anywhere through your tunnel:",
       "privacyLabel": "Privacy",
       "privacy": "Chats an assistant reads are sent to the company that runs it (for example Anthropic, OpenAI or Google), under the account you connect.",
       "turnedOn": "AI assistant access turned on",
@@ -286,7 +286,7 @@
     },
     "noTunnel": {
       "title": "No tunnel is running",
-      "body": "Assistants on the computer running EzyChat Lite can connect now. To connect from anywhere else, turn on Phone access first.",
+      "body": "Assistants on the computer running {{product}} can connect now. To connect from anywhere else, turn on Phone access first.",
       "link": "Open Phone access"
     },
     "tokens": {
@@ -340,7 +340,7 @@
       "copyHeader": "Copy header",
       "otherHint": "Use these in any MCP app that accepts a server URL and a header (for example Codex CLI, Cursor or VS Code).",
       "oauthHint": "Apps that only sign in with OAuth, such as ChatGPT and claude.ai connectors, are not supported yet.",
-      "localOnly": "This address works only on the computer running EzyChat Lite. Start a tunnel to connect from elsewhere.",
+      "localOnly": "This address works only on the computer running {{product}}. Start a tunnel to connect from elsewhere.",
       "askHint": "Then ask things like “Which chats are waiting for a reply?”"
     }
   },

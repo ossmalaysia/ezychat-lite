@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { DEFAULT_LOCALE, isLocale, resolveLocale, type Locale } from '@wa-team-inbox/shared';
+import { DEFAULT_LOCALE, isLocale, resolveLocale, type Locale } from '@ezychat/shared';
 import { activateLocale } from './index';
 
 export const LOCALE_STORAGE_KEY = 'wati.locale';

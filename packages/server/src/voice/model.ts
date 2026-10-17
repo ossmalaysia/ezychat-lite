@@ -3,7 +3,7 @@ import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { mkdir, open, rename, rm, statfs, unlink, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from 'pino';
-import type { VoiceModelError, VoiceModelStatus } from '@wa-team-inbox/shared';
+import type { VoiceModelError, VoiceModelStatus } from '@ezychat/shared';
 
 /** One pinned model file of the GitHub release `models-whisper-small-v1`. */
 export interface VoiceModelFile {

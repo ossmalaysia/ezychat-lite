@@ -6,7 +6,7 @@ This file is the single source of truth; `CLAUDE.md` imports it. Edit rules **he
 EzyChat Lite: an Electron desktop app (macOS/Windows) that links one WhatsApp number through
 Baileys and serves a shared team-inbox PWA locally, over LAN, or through a Cloudflare tunnel.
 npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, all named
-`@wa-team-inbox/*`. Node 22+, TypeScript strict, ESM. Main dev machine is Windows 11.
+`@ezychat/*`. Node 22+, TypeScript strict, ESM. Main dev machine is Windows 11.
 
 ## Before you start (required)
 
@@ -22,15 +22,17 @@ npm run dev                                   # server (tsx watch, --fake-wa, da
 npm test                                      # every Vitest project (packages/*, apps/*)
 npx vitest run packages/server/test/auth.test.ts                       # one file
 npx vitest run packages/server/test/auth.test.ts -t "lock the account"  # one test by name
-npm test -w @wa-team-inbox/server             # one workspace
+npm test -w @ezychat/server                   # one workspace
 npm run lint                                  # ESLint
 npm run typecheck                             # tsc --noEmit in each workspace + e2e/
 npm run e2e                                   # Playwright: builds web, starts server --fake-wa on :7499 with .e2e-data
 node e2e/screens.smoke.mjs <url> <outDir>     # every screen (desktop+mobile): page errors, blank, overflow, screenshots
 node e2e/electron-screens.smoke.mjs <url> <outDir>  # same, inside a real Electron window
 node e2e/marketing-screenshots.mjs <port> docs/screenshots  # demo-data screenshot library (docs/screenshots/README.md)
-npm start -w @wa-team-inbox/desktop           # build web + bundle server + tsc + launch Electron
-npm run dist -w @wa-team-inbox/desktop        # fetch cloudflared/WinSW, build, electron-builder (host OS only)
+npm start -w @ezychat/desktop                 # build web + bundle server + tsc + launch Electron
+npm run dist -w @ezychat/desktop              # fetch cloudflared/WinSW, build, electron-builder (host OS only)
+npm run build:core                            # dist builds of shared/wa/server + the web library (apps/web/dist-lib)
+npm run pack:core                             # @ezychat/* tarballs in .core-packs/ for local Enterprise development
 npx tsx packages/server/src/cli.ts --data ./data/x --reset-admin       # print a new password for the first admin
 npm run version:sync                          # copy root package.json version into every workspace
 ```
@@ -153,6 +155,38 @@ on request; `POST …/members/:member/chat` creates an empty direct chat (audite
 **Contract.** zod schemas in `packages/shared` define every REST body/response and socket payload.
 Change the schema first; server and web both import it.
 
+**Editions and extensions** (design: `docs/superpowers/specs/2026-10-15-open-core-editions-design.md`;
+engineer guide with examples: `docs/editions-engineer-guide.md`).
+Lite is the open core; other editions add features through extension points and never patch core code.
+_Server_: `runCli(argv, env, { edition, extensions })` (`run-cli.ts`; Lite's `cli.ts` passes no product, i.e.
+edition `lite` with no extensions) takes `ServerExtension`s (`extensions.ts`): a name (`/api/ext/<name>` prefix,
+`lite`/`core` reserved), an optional `migrationsDir` tracked per extension in `extension_migrations`
+(never touches the core `user_version`), `init(ctx)` after every core initializer, and `routes` mounted
+after core routes (add `requireUser`/`requireAdmin` yourself; Host/Origin checks still apply).
+`/api/health` reports `edition`; its `app` value stays `wa-team-inbox`. _Web_:
+`createInboxApp({ extensions, productName })` (`apps/web/src/create-app.tsx`; Lite's `main.tsx` passes `[]`;
+catalog strings name the app only through `{{product}}`, default "EzyChat Lite", except the share-the-app texts) takes
+`WebExtension`s (`src/extensions/types.ts`, `validateWebExtensions`): routes only at `/ext/<name>/…`
+(signed-in) or `/admin/ext/<name>/…` (admin shell and guard), admin nav links (absolute paths),
+Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with
+`useExtensionTranslation`); every extension element is wrapped in an `ErrorBoundary`. _Desktop_:
+identity lives in `apps/desktop/src/product.ts`; `LITE_PRODUCT` holds the upgrade-contract values
+(app ID, data/profile folders, service ID, launchd label, health `app`, update feed, installer and exe
+names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. Code reads
+`activeProduct()`, never literals; another edition calls `setActiveProduct(defineProduct({…}))` and then
+dynamic-imports main. The desktop adopts a running server only when health `app` and `edition ?? 'lite'`
+match. _Packages_: shared/wa/server export `dist/` (`scripts/build-package.mjs`), `@ezychat/web` exports
+`dist-lib/` (`vite.lib.config.ts` + `scripts/build-web-lib.mjs`: ESM, dependencies external, one
+precompiled CSS with font files); inside the monorepo imports resolve to `src/` through the
+`ezychat-source` export condition (tsconfig `customConditions`, Vite/Vitest `resolve.conditions`, esbuild,
+`.npmrc` node-options, each package's `vitest.config.ts`); a plain `node`/`tsx` run outside npm needs
+`--conditions=ezychat-source`. `scripts/pack-contract.test.mjs` pins the tarball contents and
+`.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`). Enterprise
+(`anchorsprint/ezychat-enterprise`) consumes pinned published `@ezychat/*` versions, never a
+git submodule or a committed `file:` dependency; until they are on npm it installs `npm run pack:core`
+tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. Lite never imports Enterprise
+code. Only each package's `index` exports are public API; anything else is internal and may change.
+
 **Send queue** (`messages/send-queue.ts`): FIFO per chat, chats in parallel, ≥1s between sends in a
 chat, `composing` presence before each send. Jobs wait while disconnected and fail as `expired` after
 10 min; `wa_unavailable` errors keep the job pending. Pending jobs are persisted and restored on start.
@@ -164,7 +198,8 @@ daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`
 plus a lock file. Tests never download the real model or call OpenAI. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
 The Windows program is `EzyChat Lite.exe` in `Program Files\EzyChat Lite` since 0.1.17 (the updater
 still accepts the legacy `WA Team Inbox.exe`). The data folders, desktop profile, service ID and app ID
-are intentional upgrade contracts; do not rename them when changing visible branding. Internal workspaces remain `@wa-team-inbox/*`.
+are intentional upgrade contracts; do not rename them when changing visible branding. Workspaces are published to npm as `@ezychat/*`
+(shared, wa, server, web); `@ezychat/desktop` stays private.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
 `web`, …). Browser errors (window errors, unhandled rejections, React error boundaries) are POSTed to
@@ -317,7 +352,9 @@ cover navigation from every admin section and recovery from malformed URLs.
 ## Multi-agent rules (orchestrators)
 
 - **Small changes are done directly, not in a subagent** (startup costs 20–40 min; tests compete for CPU).
-  Use subagents only for large, independent work, at most 2 in parallel on Windows.
+  Use subagents only for large, independent work. Use the Workflow tool for large multi-part work
+  with as many parallel agents as the work allows; agents never run e2e or the full suite; the main
+  agent runs the consolidated verification once at the end.
 - Subagents get disjoint file-ownership lists; only the orchestrator commits.
 - **Feature workbook.** Every feature branch keeps `docs/workbooks/<branch>.md` (stages Design, Dev,
   Unit tests, E2E, Dev Build, Screen review + a log). Each agent records its stage as it finishes with
@@ -331,7 +368,8 @@ cover navigation from every admin section and recovery from malformed URLs.
 
 `docs/LEARNINGS.md` is a compact, topic-grouped list of rules. Before finishing a run that changed code,
 add any real, re-usable lesson as one short rule bullet in the matching section, or sharpen an existing
-bullet; no dated stories or filler (history stays in git). If a lesson changes how agents must work,
+bullet; no dated stories or filler (history stays in git). Lessons specific to EzyChat Enterprise go to that
+repo's own `docs/LEARNINGS.md`. If a lesson changes how agents must work,
 update the rule in this file. (Claude Code prompts for this with a Stop hook; other agents must do it
 themselves.)
 
@@ -354,4 +392,5 @@ lockfile, and verify that `/api/health` and the UI identify the deployed version
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`
 (`sc qc wa-team-inbox`, `/api/health`); otherwise build with `-- --config.directories.output=<new folder>`.
-GitHub Actions in this org must be pinned to full commit SHAs.
+GitHub Actions in this org must be pinned to full commit SHAs. Private repositories (e.g. the Enterprise repo)
+run CI only on the org's self-hosted runners (`runs-on: [self-hosted, Linux, ARM64]`), never GitHub-hosted ones.

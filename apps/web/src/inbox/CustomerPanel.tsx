@@ -11,7 +11,7 @@ import {
   normalizeTag,
   type CustomerProfile,
   type CustomerProfileResponse,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { useCustomerProfile, useCustomerTags, useSaveCustomerProfile } from '../api/queries';
 import {

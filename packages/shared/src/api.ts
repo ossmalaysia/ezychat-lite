@@ -208,6 +208,8 @@ export type PushSubscribeBody = z.infer<typeof PushSubscribeBody>;
 
 export const HealthResponse = z.object({
   app: z.literal('wa-team-inbox'),
+  /** Product edition ('lite', 'enterprise', ...). Older servers omit it: treat missing as 'lite'. */
+  edition: z.string().optional(),
   version: z.string(),
   mode: z.enum(['standalone', 'service', 'dev']),
 });

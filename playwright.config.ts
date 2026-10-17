@@ -84,7 +84,7 @@ export default defineConfig({
     // The data dir is wiped here (not in globalSetup): Playwright starts the webServer
     // before globalSetup runs, so deleting it there would pull the DB out from under the server.
     command:
-      'node e2e/clean-data.mjs && npm run build -w @wa-team-inbox/web && npx tsx packages/server/src/cli.ts --data .e2e-data --port 7499 --fake-wa --mode dev --web-dist apps/web/dist',
+      'node e2e/clean-data.mjs && npm run build -w @ezychat/web && npx tsx packages/server/src/cli.ts --data .e2e-data --port 7499 --fake-wa --mode dev --web-dist apps/web/dist',
     url: `${BASE_URL}/api/health`,
     reuseExistingServer: false,
     timeout: 240_000,

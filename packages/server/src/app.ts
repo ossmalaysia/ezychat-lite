@@ -4,7 +4,7 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { ErrorCode } from '@wa-team-inbox/shared';
+import { ErrorCode } from '@ezychat/shared';
 import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
 import { contextHostPolicy, createHostHook } from './http/host.js';

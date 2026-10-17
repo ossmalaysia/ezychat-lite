@@ -1,7 +1,7 @@
 // Marketing screenshot library: seeds a fresh fake-WhatsApp server with demo data (the fictional
 // "Kopi Apong" coffee shop) and saves screenshots per module into docs/screenshots/<module>/.
 // Usage (fresh data dir, never the real app data):
-//   npm run build -w @wa-team-inbox/web
+//   npm run build -w @ezychat/web
 //   npx tsx packages/server/src/cli.ts --data <tmp> --port 7477 --fake-wa --mode standalone --web-dist apps/web/dist
 //   node e2e/marketing-screenshots.mjs 7477 docs/screenshots
 // `--mode standalone` keeps the "Dev Build" badge out of the shots. Nothing is sent to real WhatsApp.

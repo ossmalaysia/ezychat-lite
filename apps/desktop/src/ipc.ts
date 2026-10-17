@@ -1,6 +1,6 @@
 // IPC between the status window (preload bridge) and the main process.
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';
@@ -16,6 +16,8 @@ export interface DesktopStatus {
   port: number;
   url: string;
   dataDir: string;
+  /** product name shown in the status page heading (active product) */
+  productName: string;
   /** desktop app version (app.getVersion()) */
   version: string;
   /** version reported by the server's GET /api/health; null when it is not answering */

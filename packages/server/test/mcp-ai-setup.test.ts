@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { createAiService } from '../src/ai/service.js';
 import { audit } from '../src/db/audit.js';

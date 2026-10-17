@@ -7,7 +7,7 @@ import {
   type NotificationPayload,
   type PushSubscribeBody,
   type WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { t } from '../i18n/messages.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';

@@ -90,5 +90,38 @@ describe('status page', () => {
     await flush();
     expect(getStatus.mock.calls.length).toBeGreaterThan(1);
     expect(state()).toContain('1.2.3');
+    // the heading names the product: Lite falls back to its name when the field is missing
+    expect(document.getElementById('title')!.textContent).toBe('EzyChat Lite v1.0.0');
+  });
+
+  it("names another edition's product in the heading", async () => {
+    document.documentElement.innerHTML = html.replace(/<script[\s\S]*?<\/script>/g, '');
+    const noop = () => {};
+    Object.assign(window, {
+      wati: {
+        getStatus: async () => ({ ...status, productName: 'EzyChat Enterprise' }),
+        onStatusChanged: noop,
+        openMain: noop,
+        openLogs: noop,
+        resetAdmin: noop,
+        enableService: noop,
+        disableService: noop,
+        startService: noop,
+        stopService: noop,
+        setKeepInTray: async () => {},
+      },
+      watiUpdates: {
+        getState: async () => updateState,
+        check: async () => updateState,
+        onChanged: noop,
+        openDownload: noop,
+        openRelease: noop,
+      },
+    });
+    vi.spyOn(window, 'setInterval').mockImplementation((() => 0) as typeof window.setInterval);
+    new window.Function(script)();
+    await flush();
+    await flush();
+    expect(document.getElementById('title')!.textContent).toBe('EzyChat Enterprise v1.0.0');
   });
 });

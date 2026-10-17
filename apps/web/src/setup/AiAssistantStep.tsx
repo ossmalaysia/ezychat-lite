@@ -5,7 +5,7 @@ import {
   AiMemberBody,
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';

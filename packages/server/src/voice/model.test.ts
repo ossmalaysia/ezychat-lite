@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VoiceModelStatus } from '@wa-team-inbox/shared';
+import type { VoiceModelStatus } from '@ezychat/shared';
 import {
   VOICE_MODEL_FILES,
   VoiceModelManager,

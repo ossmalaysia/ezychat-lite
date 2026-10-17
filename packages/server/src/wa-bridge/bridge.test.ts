@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { Message } from '@wa-team-inbox/shared';
-import type { WaIncomingMessage } from '@wa-team-inbox/wa';
+import type { Message } from '@ezychat/shared';
+import type { WaIncomingMessage } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from '../../test/helpers.js';
 import { createUserAndLogin } from '../../test/auth-helpers.js';
 import { getAliases } from '../chats/aliases.js';

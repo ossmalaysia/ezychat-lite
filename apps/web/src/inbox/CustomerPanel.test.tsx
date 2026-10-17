@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { CustomerProfileResponse } from '@wa-team-inbox/shared';
+import type { CustomerProfileResponse } from '@ezychat/shared';
 import { CustomerDetails, CustomerPanel } from './CustomerPanel';
 import { buildDirectory } from './useDirectory';
 

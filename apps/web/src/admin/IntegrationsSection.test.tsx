@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { ApiToken, McpSettingsResponse } from '@wa-team-inbox/shared';
+import type { ApiToken, McpSettingsResponse } from '@ezychat/shared';
 import { IntegrationsSection } from './IntegrationsSection';
 
 const SECRET = 'ezc_pat_froJ8vQm2kT0bXcY_7dPzLwq4Hn-ReA9uS1fGvK3iM5';

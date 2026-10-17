@@ -10,7 +10,7 @@ import {
   type AiMemberBody,
   type AiMemberStatus,
   type User,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
 import { activateLocale } from '../i18n';
 import msAdmin from '../i18n/locales/ms/admin.json';

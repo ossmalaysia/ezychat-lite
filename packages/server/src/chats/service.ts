@@ -1,5 +1,5 @@
-import type { Chat, ChatEvent, ChatListQuery, ChatPatchBody, Note } from '@wa-team-inbox/shared';
-import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@wa-team-inbox/wa';
+import type { Chat, ChatEvent, ChatListQuery, ChatPatchBody, Note } from '@ezychat/shared';
+import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';

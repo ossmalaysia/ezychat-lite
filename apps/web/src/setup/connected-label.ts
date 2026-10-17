@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import { formatJid } from '../lib/jid';
 
 /**

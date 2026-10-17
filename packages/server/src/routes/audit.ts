@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { AuditEntry } from '@wa-team-inbox/shared';
+import type { AuditEntry } from '@ezychat/shared';
 import { requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { parse } from '../http/errors.js';

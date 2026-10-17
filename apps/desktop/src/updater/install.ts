@@ -5,6 +5,7 @@ import { lstat, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import { exec as sudoExec } from 'sudo-prompt';
+import { activeProduct, escapeRegExp } from '../product.js';
 import { shQuote } from '../service/macos.js';
 import {
   psQuote,
@@ -72,13 +73,13 @@ export interface PrepareUpdateInstallOptions {
   dependencies?: InstallDependencies;
 }
 
-const SERVICE_ID = 'wa-team-inbox';
-const MAC_LABEL = 'org.ossmalaysia.wateaminbox.server';
 const resultMessage = 'Update installed. Your conversations, accounts and settings are preserved.';
 
 /** Advisory UI eligibility. Elevated helper independently enforces ownership/ACLs and service identity. */
 /** Current and legacy program names (lower case); the Mac checks accept both bundle names too. */
-const WINDOWS_EXECUTABLES = ['ezychat lite.exe', 'wa team inbox.exe'];
+const windowsExecutables = (): string[] =>
+  activeProduct().executableNames.map((name) => `${name}.exe`.toLowerCase());
+const macAppBundles = (): string[] => activeProduct().executableNames.map((name) => `${name}.app`);
 
 export function updateInstallEligibility(
   context: InstallContext,
@@ -91,22 +92,21 @@ export function updateInstallEligibility(
       env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)',
     ];
     if (
-      !WINDOWS_EXECUTABLES.includes(win32.basename(context.execPath).toLowerCase()) ||
+      !windowsExecutables().includes(win32.basename(context.execPath).toLowerCase()) ||
       !roots.some((root) => directory.startsWith(win32.resolve(root).toLowerCase() + '\\'))
     )
       return {
         eligible: false,
-        reason:
-          'Install EzyChat Lite in Program Files to use automatic updates. Unpacked builds can download the installer.',
+        reason: `Install ${activeProduct().productName} in Program Files to use automatic updates. Unpacked builds can download the installer.`,
       };
   } else if (
     !context.appBundle ||
     posix.dirname(context.appBundle) !== '/Applications' ||
-    !['EzyChat Lite.app', 'WA Team Inbox.app'].includes(posix.basename(context.appBundle))
+    !macAppBundles().includes(posix.basename(context.appBundle))
   )
     return {
       eligible: false,
-      reason: 'Move EzyChat Lite to Applications before installing updates.',
+      reason: `Move ${activeProduct().productName} to Applications before installing updates.`,
     };
   return { eligible: true, reason: null };
 }
@@ -131,12 +131,9 @@ function validatePlan(plan: InstallPlan): void {
   if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u.test(artifact.version))
     throw new Error('Invalid update version');
   const suffix = context.platform === 'win32' ? 'win-x64.exe' : 'mac-(?:x64|arm64)\\.dmg';
+  const prefixes = activeProduct().artifactPrefixes.map(escapeRegExp).join('|');
   const version = artifact.version.replace(/[.]/g, '\\.');
-  if (
-    !new RegExp(`^(?:EzyChat-Lite|WA-Team-Inbox)-${version}-${suffix}$`, 'u').test(
-      artifact.assetName,
-    )
-  )
+  if (!new RegExp(`^(?:${prefixes})-${version}-${suffix}$`, 'u').test(artifact.assetName))
     throw new Error('Wrong installer for this computer');
   if (!Number.isSafeInteger(context.oldPid) || context.oldPid < 1)
     throw new Error('Invalid application process');
@@ -144,21 +141,22 @@ function validatePlan(plan: InstallPlan): void {
   if (path.basename(plan.stageDir) !== plan.nonce) throw new Error('Invalid updater staging path');
   if (
     context.platform === 'win32' &&
-    !WINDOWS_EXECUTABLES.includes(win32.basename(context.execPath).toLowerCase())
+    !windowsExecutables().includes(win32.basename(context.execPath).toLowerCase())
   )
     throw new Error('Unrecognized application executable');
   if (context.platform === 'darwin') {
     if (
       !context.appBundle ||
-      !['EzyChat Lite.app', 'WA Team Inbox.app'].includes(posix.basename(context.appBundle)) ||
+      !macAppBundles().includes(posix.basename(context.appBundle)) ||
       posix.dirname(context.appBundle) !== '/Applications'
     )
       throw new Error('Install the app in Applications first');
     if (!context.execPath.startsWith(`${context.appBundle}/Contents/MacOS/`))
       throw new Error('Invalid application bundle');
     if (
-      context.serviceRunDir !== '/Library/Application Support/wa-team-inbox-runtime' ||
-      context.machineDataDir !== '/Library/Application Support/wa-team-inbox'
+      context.serviceRunDir !==
+        `/Library/Application Support/${activeProduct().appDirName}-runtime` ||
+      context.machineDataDir !== `/Library/Application Support/${activeProduct().appDirName}`
     )
       throw new Error('Unrecognized service paths');
   }
@@ -201,8 +199,11 @@ export async function prepareUpdateInstall(
   const stageRoot =
     deps.stageRoot ??
     (context.platform === 'win32'
-      ? win32.join(process.env.ProgramData ?? 'C:\\ProgramData', 'wa-team-inbox-updates')
-      : '/Library/Application Support/wa-team-inbox-updates');
+      ? win32.join(
+          process.env.ProgramData ?? 'C:\\ProgramData',
+          `${activeProduct().appDirName}-updates`,
+        )
+      : `/Library/Application Support/${activeProduct().appDirName}-updates`);
   const plan: InstallPlan = {
     context,
     artifact,
@@ -365,10 +366,13 @@ async function launchElevated(plan: InstallPlan, script: string): Promise<void> 
     const encoded = Buffer.from(script, 'utf8').toString('base64');
     const bootstrap = buildMacHelperBootstrap(plan, encoded);
     await new Promise<void>((resolve, reject) =>
-      sudoExec(`/bin/bash -c ${shQuote(bootstrap)}`, { name: 'EzyChat Lite' }, (error) =>
-        error
-          ? reject(new Error('Administrator approval was cancelled or could not start.'))
-          : resolve(),
+      sudoExec(
+        `/bin/bash -c ${shQuote(bootstrap)}`,
+        { name: activeProduct().productName },
+        (error) =>
+          error
+            ? reject(new Error('Administrator approval was cancelled or could not start.'))
+            : resolve(),
       ),
     );
   }
@@ -378,6 +382,8 @@ async function launchElevated(plan: InstallPlan, script: string): Promise<void> 
 
 export function buildWindowsInstallScript(plan: InstallPlan): string {
   validatePlan(plan);
+  const product = activeProduct();
+  const SERVICE_ID = product.serviceId;
   const { artifact: a, context: c } = plan;
   const installDir = win32.dirname(c.execPath);
   const stageRoot = win32.dirname(plan.stageDir);
@@ -390,7 +396,7 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       "$ErrorActionPreference = 'Stop'",
       "$ProgressPreference = 'SilentlyContinue'",
       ...windowsServiceSecurityHelpers,
-      ...windowsRuntimeSecurityHelpers,
+      ...windowsRuntimeSecurityHelpers(),
       `$stage = ${psQuote(plan.stageDir)}`,
       `$stageRoot = ${psQuote(stageRoot)}`,
       `$installDir = ${psQuote(installDir)}`,
@@ -432,7 +438,7 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `      $port = (Get-Content -LiteralPath ${psQuote(win32.join(c.serviceRunDir, 'port.json'))} -Raw | ConvertFrom-Json).port`,
       `      if ($port -ge 1 -and $port -le 65535) {`,
       `        $health = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $port + '/api/health') -TimeoutSec 2`,
-      `        if ($health.app -eq 'wa-team-inbox' -and $health.version -eq $expectedVersion -and $health.mode -eq 'service') { return }`,
+      `        if ($health.app -eq '${product.healthApp}' -and $health.version -eq $expectedVersion -and $health.mode -eq 'service') { return }`,
       `      }`,
       `    } catch { }`,
       `    Start-Sleep -Milliseconds 500`,
@@ -440,9 +446,9 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `  throw 'The replacement service did not become healthy'`,
       `}`,
       `try {`,
-      `  $expectedStageRoot = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'wa-team-inbox-updates'`,
+      `  $expectedStageRoot = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) '${product.appDirName}-updates'`,
       `  if (-not $stageRoot.Equals($expectedStageRoot, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($stage) -ne $nonce) { throw 'Unsafe updater staging path' }`,
-      `  if (-not ${psQuote(c.machineDataDir)}.Equals((Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) '${SERVICE_ID}'), [StringComparison]::OrdinalIgnoreCase) -or -not ${psQuote(c.serviceRunDir)}.Equals((Join-Path ${psQuote(c.machineDataDir)} 'run'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe service data paths' }`,
+      `  if (-not ${psQuote(c.machineDataDir)}.Equals((Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) '${product.appDirName}'), [StringComparison]::OrdinalIgnoreCase) -or -not ${psQuote(c.serviceRunDir)}.Equals((Join-Path ${psQuote(c.machineDataDir)} 'run'), [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe service data paths' }`,
       `  if (Test-Path -LiteralPath $stageRoot) { Assert-Locked $stageRoot -readers @('S-1-5-32-545') } else {`,
       `    New-Item -ItemType Directory -Path $stageRoot | Out-Null`,
       `    icacls $stageRoot /setowner '*S-1-5-32-544' /Q | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'Cannot secure update staging' }`,
@@ -552,7 +558,7 @@ function macStageGuards(plan: InstallPlan): string[] {
     `stage=${shQuote(plan.stageDir)}`,
     `stage_root=${shQuote(posix.dirname(plan.stageDir))}`,
     `nonce=${shQuote(plan.nonce)}`,
-    `if [ "$stage_root" != '/Library/Application Support/wa-team-inbox-updates' ] || [ "$(basename "$stage")" != "$nonce" ]; then echo 'Unsafe update stage' >&2; exit 12; fi`,
+    `if [ "$stage_root" != '/Library/Application Support/${activeProduct().appDirName}-updates' ] || [ "$(basename "$stage")" != "$nonce" ]; then echo 'Unsafe update stage' >&2; exit 12; fi`,
     `if [ -L "$stage_root" ]; then echo 'Updater staging cannot be a link' >&2; exit 12; fi`,
     `if [ -e "$stage_root" ]; then`,
     `  if [ "$(stat -f %u "$stage_root")" != 0 ] || [ -n "$(find "$stage_root" -maxdepth 0 \\( -perm -020 -o -perm -002 \\) -print)" ]; then echo 'Updater staging is not protected' >&2; exit 12; fi`,
@@ -578,6 +584,13 @@ function buildMacHelperBootstrap(plan: InstallPlan, scriptBase64: string): strin
 
 export function buildMacInstallScript(plan: InstallPlan): string {
   validatePlan(plan);
+  const product = activeProduct();
+  const MAC_LABEL = product.launchdLabel;
+  const names = product.executableNames;
+  const quotedNames = names.map((name) => `'${name}'`).join('|');
+  const quotedBundles = names.map((name) => `'${name}.app'`).join('|');
+  const runtimeBundles = names.map((name) => `"$runtime_root/${name}.app"`).join('|');
+  const namePattern = names.map(escapeRegExp).join('|');
   const { context: c, artifact: a } = plan;
   const app = c.appBundle!;
   const plist = `/Library/LaunchDaemons/${MAC_LABEL}.plist`;
@@ -627,7 +640,7 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `  [ "$(/usr/libexec/PlistBuddy -c 'Print :Label' "$plist")" = '${MAC_LABEL}' ] || return 1`,
       `  local exe=$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$plist")`,
       `  runtime=$(dirname "$(dirname "$(dirname "$exe")")")`,
-      `  case "$runtime" in "$runtime_root/EzyChat Lite.app"|"$runtime_root/WA Team Inbox.app") ;; *) echo 'Foreign service runtime' >&2; return 1;; esac`,
+      `  case "$runtime" in ${runtimeBundles}) ;; *) echo 'Foreign service runtime' >&2; return 1;; esac`,
       `  assert_protected "$runtime"`,
       `}`,
       `start_service() {`,
@@ -639,7 +652,7 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `    case "$port" in ''|*[!0-9]*) ;; *)`,
       `      if [ "$port" -ge 1 ] && [ "$port" -le 65535 ] && /usr/bin/curl --silent --fail --max-time 2 "http://127.0.0.1:$port/api/health" > "$stage/health.json"; then`,
       `        actual=$(/usr/bin/plutil -extract version raw -o - "$stage/health.json" 2>/dev/null || true)`,
-      `        if [ "$actual" = "$expected" ] && [ "$(/usr/bin/plutil -extract app raw -o - "$stage/health.json")" = 'wa-team-inbox' ] && [ "$(/usr/bin/plutil -extract mode raw -o - "$stage/health.json")" = 'service' ]; then return 0; fi`,
+      `        if [ "$actual" = "$expected" ] && [ "$(/usr/bin/plutil -extract app raw -o - "$stage/health.json")" = '${product.healthApp}' ] && [ "$(/usr/bin/plutil -extract mode raw -o - "$stage/health.json")" = 'service' ]; then return 0; fi`,
       `      fi;;`,
       `    esac`,
       `    sleep 0.5`,
@@ -682,11 +695,11 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `while IFS= read -r candidate; do candidates+=("$candidate"); done < <(find "$mount" -maxdepth 1 -type d -name '*.app' -print)`,
       `if [ "\${#candidates[@]}" != 1 ]; then echo 'The image must contain exactly one app' >&2; false; fi`,
       `candidate="\${candidates[0]}"`,
-      `case "$(basename "$candidate")" in 'EzyChat Lite.app'|'WA Team Inbox.app') ;; *) echo 'Unrecognized update app' >&2; false;; esac`,
-      `if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$candidate/Contents/Info.plist")" != 'org.ossmalaysia.wateaminbox' ] || [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$candidate/Contents/Info.plist")" != "$version" ]; then echo 'Wrong update identity or version' >&2; false; fi`,
+      `case "$(basename "$candidate")" in ${quotedBundles}) ;; *) echo 'Unrecognized update app' >&2; false;; esac`,
+      `if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$candidate/Contents/Info.plist")" != '${product.appUserModelId}' ] || [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$candidate/Contents/Info.plist")" != "$version" ]; then echo 'Wrong update identity or version' >&2; false; fi`,
       `ditto --noacl "$candidate" "$new_main"; validate_links "$new_main"; protect_tree "$new_main"; assert_protected "$new_main"`,
       `new_executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$new_main/Contents/Info.plist")`,
-      `case "$new_executable" in 'EzyChat Lite'|'WA Team Inbox') ;; *) echo 'Unrecognized update executable' >&2; false;; esac`,
+      `case "$new_executable" in ${quotedNames}) ;; *) echo 'Unrecognized update executable' >&2; false;; esac`,
       `if [ ! -f "$new_main/Contents/MacOS/$new_executable" ] || [ -L "$new_main/Contents/MacOS/$new_executable" ]; then false; fi`,
       `hdiutil detach "$mount" -quiet; mounted=0`,
       `ditto --noacl "$app" "$backup_main"; validate_links "$backup_main"; protect_tree "$backup_main"; ready_backup=1`,
@@ -708,7 +721,7 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `while [ "$(date +%s)" -lt "$deadline" ]; do`,
       `  if [ -f "$control" ] && [ "$(cat "$control")" = "cancel:$nonce" ]; then false; fi`,
       `  current_started=$(/bin/ps -p ${c.oldPid} -o lstart= 2>/dev/null || true)`,
-      `  remaining=$(/usr/bin/pgrep -f '^/Library/Application Support/wa-team-inbox-runtime/(EzyChat Lite|WA Team Inbox)\\.app/Contents/MacOS/(EzyChat Lite|WA Team Inbox)( |$)' || true)`,
+      `  remaining=$(/usr/bin/pgrep -f '^/Library/Application Support/${product.appDirName}-runtime/(${namePattern})\\.app/Contents/MacOS/(${namePattern})( |$)' || true)`,
       `  if [ "$current_started" != "$old_started" ] && [ -z "$remaining" ]; then break; fi`,
       `  sleep 0.5`,
       `done`,

@@ -1,4 +1,4 @@
-import { AI_CONTEXT_CHARACTERS, codePointLength } from '@wa-team-inbox/shared';
+import { AI_CONTEXT_CHARACTERS, codePointLength } from '@ezychat/shared';
 
 export interface MigratedAiKnowledge {
   instructions: string;

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { VoiceStatus, type VoiceTranscription } from '@wa-team-inbox/shared';
+import { VoiceStatus, type VoiceTranscription } from '@ezychat/shared';
 import { api } from './client';
 
 export const voiceStatusKey = ['ai-voice'] as const;

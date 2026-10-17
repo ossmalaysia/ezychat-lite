@@ -9,7 +9,7 @@ import {
   type Chat,
   type Message,
   type EnrichmentStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';

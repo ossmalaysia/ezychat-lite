@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AiConnectionBody, type AiMemberStatus } from '@wa-team-inbox/shared';
+import { AiConnectionBody, type AiMemberStatus } from '@ezychat/shared';
 import type { useAiMemberAction } from '../api/ai';
 import { officialLoginUrl } from './ai-status';
 

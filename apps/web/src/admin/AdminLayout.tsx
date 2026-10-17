@@ -5,6 +5,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Puzzle,
   ScrollText,
   Settings,
   Smartphone,
@@ -32,6 +33,14 @@ import { cn } from '@/lib/utils';
 import { useAppVersion } from '@/lib/version';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
+import {
+  extensionPath,
+  extensionRoutes,
+  useExtensionTranslation,
+  useWebExtensions,
+  type WebExtension,
+  type WebExtensionNavItem,
+} from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
@@ -50,6 +59,35 @@ export const ADMIN_NAV = [
   { to: 'audit', labelKey: 'nav.audit', icon: ScrollText },
 ] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
 
+interface ExtensionNavLink {
+  key: string;
+  href: string;
+  /** Translation key in the `common` namespace (extension catalogs live there). */
+  labelKey: string;
+  icon: NonNullable<WebExtensionNavItem['icon']>;
+}
+
+/** Admin nav links contributed by extensions, always absolute `/admin/ext/<name>/...` paths. */
+function extensionNavLinks(extensions: readonly WebExtension[]): ExtensionNavLink[] {
+  return extensions.flatMap((ext) =>
+    (ext.adminNav ?? []).map((item) => ({
+      key: `${ext.name}:${item.path}`,
+      href: extensionPath(ext.name, item.path, true),
+      labelKey: item.labelKey,
+      icon: item.icon ?? Puzzle,
+    })),
+  );
+}
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
+    'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+    isActive
+      ? 'bg-primary/10 text-primary'
+      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+  );
+
 function UnknownAdminRoute() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -60,26 +98,24 @@ function UnknownAdminRoute() {
 
 function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const { t } = useTranslation('admin');
+  const tExt = useExtensionTranslation();
+  const extensionLinks = extensionNavLinks(useWebExtensions());
   return (
     <nav aria-label={t('nav.label')} className={className}>
       <ul className="flex flex-col gap-1">
         {ADMIN_NAV.map((n) => (
           <li key={n.to}>
-            <NavLink
-              to={`/admin/${n.to}`}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
-                  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                )
-              }
-            >
+            <NavLink to={`/admin/${n.to}`} onClick={onNavigate} className={navLinkClass}>
               <n.icon className="size-4 shrink-0" aria-hidden />
               {t(n.labelKey)}
+            </NavLink>
+          </li>
+        ))}
+        {extensionLinks.map((n) => (
+          <li key={n.key}>
+            <NavLink to={n.href} onClick={onNavigate} className={navLinkClass}>
+              <n.icon className="size-4 shrink-0" aria-hidden />
+              {tExt(n.labelKey)}
             </NavLink>
           </li>
         ))}
@@ -162,6 +198,8 @@ export function AdminLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const version = useAppVersion();
   const { t } = useTranslation(['admin', 'common']);
+  const extensions = useWebExtensions();
+  const tExt = useExtensionTranslation();
 
   if (isLoading)
     return (
@@ -175,7 +213,17 @@ export function AdminLayout() {
     );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
-  const current = ADMIN_NAV.find((n) => location.pathname.includes(`/admin/${n.to}`));
+  const coreCurrent = ADMIN_NAV.find((n) => location.pathname.includes(`/admin/${n.to}`));
+  const extensionCurrent = coreCurrent
+    ? undefined
+    : extensionNavLinks(extensions).find(
+        (n) => location.pathname === n.href || location.pathname.startsWith(`${n.href}/`),
+      );
+  const currentLabel = coreCurrent
+    ? t(coreCurrent.labelKey)
+    : extensionCurrent
+      ? tExt(extensionCurrent.labelKey)
+      : undefined;
 
   return (
     <div className="safe-x flex min-h-dvh flex-col bg-background text-foreground md:flex-row">
@@ -189,7 +237,7 @@ export function AdminLayout() {
             </Link>
           </Button>
           <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
-            {current ? t('titleWithSection', { section: t(current.labelKey) }) : t('title')}
+            {currentLabel ? t('titleWithSection', { section: currentLabel }) : t('title')}
           </p>
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -232,6 +280,7 @@ export function AdminLayout() {
             <Route path="tunnel" element={<TunnelPage />} />
             <Route path="settings/*" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />
+            {extensionRoutes(extensions, true)}
             <Route path="*" element={<UnknownAdminRoute />} />
           </Routes>
         </div>

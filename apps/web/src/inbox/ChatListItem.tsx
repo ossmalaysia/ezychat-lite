@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserRound, Users } from 'lucide-react';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatListTime } from '../lib/format';

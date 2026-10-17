@@ -359,7 +359,7 @@
     "unsupported": "Notifications aren't supported in this browser.",
     "label": "Notifications",
     "labelDevice": "Notifications on this device",
-    "desktopHint": "Alerts appear when this app is in the background. Keep it running in the tray and allow EzyChat Lite in your system notification settings.",
+    "desktopHint": "Alerts appear when this app is in the background. Keep it running in the tray and allow {{product}} in your system notification settings.",
     "blocked": "Notifications are blocked. Allow them in the browser's site settings.",
     "errors": {
       "browserUnsupported": "This browser does not support push notifications.",
@@ -371,7 +371,7 @@
   },
   "installHint": {
     "title": "Add to Home Screen to receive notifications",
-    "body": "Tap the Share button <share/> in Safari, choose <strong>Add to Home Screen</strong>, then open EzyChat Lite from your home screen and turn on notifications.",
+    "body": "Tap the Share button <share/> in Safari, choose <strong>Add to Home Screen</strong>, then open {{product}} from your home screen and turn on notifications.",
     "share": "Share"
   },
   "customer": {

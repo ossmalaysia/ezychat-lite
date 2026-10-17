@@ -16,6 +16,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "sourceMap": true,
+    // Inside this monorepo @ezychat/* packages resolve to their TypeScript source; published
+    // builds (tsconfig.build.json) and consumers resolve to dist.
+    "customConditions": ["ezychat-source"],
     "types": ["node"]
   }
 }

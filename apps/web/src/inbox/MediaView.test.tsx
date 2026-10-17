@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 import { MediaView } from './MediaView';
 
 const base: Message = {

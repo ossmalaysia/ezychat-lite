@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import { useSetMyLocale } from '@/api/queries';
 import { useAuth } from '@/auth/AuthProvider';
 import { localeStore, useLocale } from './locale-store';

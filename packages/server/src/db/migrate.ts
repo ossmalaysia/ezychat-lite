@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import type { DB } from './index.js';
 
 /**
- * Locate the migrations directory. In source (tsx/vitest) it sits next to this file.
- * In a tsc build (dist/db/migrate.js) .sql files are not copied, so fall back to
- * ../../src/db/migrations. WATI_MIGRATIONS_DIR overrides both (used by bundled builds).
+ * Locate the migrations directory. In source (tsx/vitest) it sits next to this file; the
+ * published package build (scripts/build-package.mjs) copies it to dist/db/migrations and the
+ * desktop bundle next to server.cjs. A bare tsc output falls back to ../../src/db/migrations.
+ * WATI_MIGRATIONS_DIR overrides all of them.
  */
 export function migrationsDir(): string {
   const env = process.env.WATI_MIGRATIONS_DIR;

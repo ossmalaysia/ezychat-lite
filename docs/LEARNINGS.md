@@ -70,13 +70,13 @@ into AGENTS.md.
 ## Multi-agent process
 
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
-- Small changes are done directly. Subagents only for large independent work, at most 2 in parallel on
-  Windows, with disjoint file ownership and a time budget; only the orchestrator commits; agents don't
-  `npm install` unless they own that package.json.
+- Small changes are done directly. Large multi-part work runs through the Workflow tool with as many
+  parallel agents as the work allows, with disjoint file ownership and a time budget; only the
+  orchestrator commits; agents don't `npm install` unless they own that package.json.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
-- Tools that fan out per file (e.g. graphify) must be batched to respect the 2-agent limit.
+- Tools that fan out per file (e.g. graphify) must be batched, not one agent per file.
 - Research on another repo starts with `git fetch` and searches `origin/<default>` (a local checkout can
   be hundreds of commits behind); never report "X does not exist" without naming the ref searched.
 - Run Prettier on the files you changed, never on a whole folder: parts of the tree are not
@@ -95,6 +95,16 @@ into AGENTS.md.
 - Merge only on the owner's explicit request for that PR; never enable auto-merge. A green quality
   gate can still have open Sonar findings: inspect review comments and findings on the final commit
   before reporting readiness, and leave the PR open until the owner requests merging.
+- CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
+  package mid-suite and starves slow Windows runners into timeouts. A test that is ~0.4 s on `main` and
+  times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
+- Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
+  as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
+- Private repositories (e.g. `anchorsprint/ezychat-enterprise`) run CI only on the org's self-hosted
+  runners (`[self-hosted, Linux, ARM64]`), never GitHub-hosted machines.
+- Hotfixes for the released version go in a separate worktree from `origin/main` with its own
+  `npm install` (`git worktree add ../wm-hotfix -b fix/<bug> origin/main`): `main` uses `@wa-team-inbox/*`
+  workspace names until the `@ezychat/*` rename merges, so one `node_modules` cannot serve both branches.
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
   plugin-injected CLAUDE.md block out of commits.
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
@@ -113,6 +123,16 @@ into AGENTS.md.
   (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
   conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
+- After merging `main` into the rename branch, `git grep -l "@wa-team-inbox/" -- apps packages e2e scripts`
+  (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
+- Publish `@ezychat/*` with npm trusted publishing (GitHub OIDC, `id-token: write`), not an `NPM_TOKEN`:
+  2FA-bypass tokens lost account/package management in July 2026 and lose direct publishing around
+  January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
+  then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
+  variable `NPM_TRUSTED_PUBLISHING=true`.
+- Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
+  `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
+  version up on the registry (404).
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
   `###` headings: two branches adding the same section merge cleanly into two copies.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
@@ -135,6 +155,10 @@ into AGENTS.md.
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
+- Before releasing a structural change (renames, packaging, identity), prove the existing-user update:
+  seed a temp data dir with the released packaged server, start the new packaged server on the same dir,
+  diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
+  cookie, and compare identity strings across all `dist/**` files in both `app.asar`s (e.g. `dist/service/`).
 - A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
   plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest`.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
@@ -151,6 +175,24 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Pass Windows paths (`D:/dev/...`) to Node and other native tools from Git Bash: a POSIX path like
+  `/d/dev/...` inside a script string becomes `D:\d\dev\...` and fails with ENOENT.
+- Never start a Dev Build on port 7420 on the dev machine: the installed EzyChat Lite service listens
+  there, so test traffic could reach real data. Use 749x ports and check `/api/health` reports `mode: dev`.
+  Playwright MCP screenshots save only under `.playwright-mcp/` (gitignored).
+- Never use the `development` export condition for monorepo-only `src/` entries of published packages:
+  Vite/Vitest enable it by default and would resolve consumers to unshipped source. Use `ezychat-source`.
+- tsx ignores tsconfig `customConditions`; pass Node `--conditions=ezychat-source` (`.npmrc`
+  node-options does it for npm scripts and npx). Each core package keeps its own `vitest.config.ts`
+  reusing the root `sourceResolve`, or `npm test -w` resolves `@ezychat/*` to a missing or stale `dist/`.
+- Vite library mode inlines CSS assets as base64 and our CSP has no `font-src data:`: extract fonts
+  back to files. tsc keeps `@/` aliases and side-effect CSS imports in `.d.ts`: rewrite or strip them.
+- Test unpublished `@ezychat/*` versions with `npm install --no-save <tgz>` of a tarball carrying the
+  pinned version; never commit a `file:` dependency.
+- Extension tables must not store `chat_jid` until a merge hook exists: `mergeChat` moves core tables only.
+- A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
+- Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
+  regexes from template literals with `String.raw`.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo. Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
@@ -189,6 +231,11 @@ into AGENTS.md.
   worker with plain node and one real job.
 - macOS without a Developer ID: sign ad-hoc (`identity: '-'`), never `identity: null`; an unsealed bundle
   opens as "damaged" on Apple Silicon. Release CI runs `codesign --verify --deep --strict` on every `.app`.
+  A correctly ad-hoc-signed app still shows "Not Opened … could not verify … free of malware" (expected,
+  not a bug): users click Done, then System Settings → Privacy & Security → Open Anyway. Only a Developer
+  ID + notarization removes that prompt. Gatekeeper checks only downloaded (quarantined) apps: a local
+  build never shows the prompt, so test macOS releases from the downloaded DMG. Homebrew is no way around
+  it: 5.0 removed `--no-quarantine` and disables casks that fail Gatekeeper (from September 2026).
 - Packaging: asar-unpack native loaders with their `.node`; pin esbuild's `ws` build; mac builds need an
   explicit `--mac dmg:<arch>` and a native-runner smoke; smoke packaged servers with
   `ELECTRON_RUN_AS_NODE=1` on a temp data dir. A feature that adds a native module or worker is smoked
@@ -302,6 +349,19 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Rank new AI features from the real inbox, not guesses: MCP `get_stats` hand-off reasons (missing facts =
+  look-up connectors, needs action = action connectors), then a read-only subagent classifies recent chats and
+  reports only counts and paraphrased situations, never names, numbers, emails or verbatim personal data.
+- For AI connectors to outside systems, use the AI SDK MCP client (`createMCPClient` from `@ai-sdk/mcp`:
+  HTTP transport, OAuth `authProvider` or headers, redirects refused by default) and pass `client.tools()`
+  to the agent turn; do not hand-build HTTP tools. Allow only admin-enabled look-up tools.
+- ChatGPT sign-in needs loopback port 1455 (fixed by the OAuth client). Any program can hold it, including a
+  Docker container that publishes 1455: find it with `Get-NetTCPConnection -LocalPort 1455` and
+  `docker ps --filter publish=1455`. Error copy must name the port, not guess Codex/OpenClaw. The port is
+  not configurable (OpenAI accepts only `http://localhost:1455/auth/callback`); when it is busy, continue in
+  paste mode (the admin pastes the final address; PKCE makes the code useless to the port holder).
+  Docker holds a published port for as long as the container runs, even if the app inside listens only
+  during sign-in: never publish 1455 permanently; use paste mode in containers.
 - Profile extraction retains a bounded new-message batch during bursts, but drops cancelled batches
   after off/connection changes. Bind each field to a source and recheck staff edits and identity routing
   at the atomic save/audit; latest-only work loses split details and revived work ignores human decisions.
@@ -381,6 +441,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
+  protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put
+  errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
 
@@ -454,7 +517,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
-- `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check.
+- Playwright `page.clock.pauseAt(new Date())` is flaky under load (page clock runs ahead: "Cannot
+  fast-forward to the past"); pause at the page's own `Date.now()` plus a few ms.
+- Never pipe a step into `tail`/`head` inside an `&&` chain: the pipe hides its exit code and the chain
+  carries on (`build-summary.mjs record` stage keys are `design|dev|unit|e2e|devbuild|screen`).
+- `node e2e/screens.smoke.mjs <url> <outDir>` is the fastest "does every screen render?" check. It
+  creates the first admin itself, so run it on a fresh server, not one seeded by `marketing-screenshots.mjs`.
 - The shadcn `Textarea` uses `field-sizing-content`, which also grows its width with long lines and
   widens grid dialogs: long-form editors use `field-sizing-fixed` with a fixed height, wide dialogs use
   `ResponsiveDialog size="wide"`; test with a document of long lines, not short fixtures.
@@ -476,6 +544,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 - Renames keep data folders, profile, service ID and app ID; plan install-path renames as a one-time
   scripted step; regenerate service XML from code, never hand-patch it.
 - Update discovery lists releases and compares strict semver (the latest-release endpoint skips previews).
+- Before moving upgrade-contract strings (service/updater scripts, paths) behind config, capture the
+  generated output with fixed inputs and require it byte-identical after; check a test product's
+  output contains no leftover Lite literals.
 - Brand assets: check exported icons on light and dark backgrounds at small sizes.
 
 - Avatar initials use letters only (`initials()`): a name without letters (number, WhatsApp ID, emoji)
@@ -492,6 +563,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
+- Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
+  `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
+- Extension keys (`ext.<name>.*`) are not in the typed core catalogs: read them with
+  `useExtensionTranslation()`; never cast `t`. Core catalogs keep the `ext` key reserved.
 - Date helpers that take `now` must compare against it, not the real clock.
 - Desktop main imports only types from `shared` and mirrors tiny runtime helpers with parity tests.
 - Links to ezychat.ai use the page for the app language (`/ms/…`, `/zh/…`) and merge only after

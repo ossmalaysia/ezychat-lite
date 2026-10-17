@@ -1,5 +1,5 @@
 import type { LanguageModel } from 'ai';
-import type { AiDecision, AiSettings, EnrichmentExtraction } from '@wa-team-inbox/shared';
+import type { AiDecision, AiSettings, EnrichmentExtraction } from '@ezychat/shared';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { agentFailure, openAiKeyModel } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';

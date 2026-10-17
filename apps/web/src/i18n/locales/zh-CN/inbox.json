@@ -356,7 +356,7 @@
     "unsupported": "此浏览器不支持通知。",
     "label": "通知",
     "labelDevice": "此设备上的通知",
-    "desktopHint": "应用在后台时会显示提醒。请让它在系统托盘中保持运行，并在系统通知设置中允许 EzyChat Lite。",
+    "desktopHint": "应用在后台时会显示提醒。请让它在系统托盘中保持运行，并在系统通知设置中允许 {{product}}。",
     "blocked": "通知已被阻止。请在浏览器的网站设置中允许通知。",
     "errors": {
       "browserUnsupported": "此浏览器不支持推送通知。",
@@ -368,7 +368,7 @@
   },
   "installHint": {
     "title": "添加到主屏幕以接收通知",
-    "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 EzyChat Lite 并开启通知。",
+    "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 {{product}} 并开启通知。",
     "share": "分享"
   },
   "customer": {

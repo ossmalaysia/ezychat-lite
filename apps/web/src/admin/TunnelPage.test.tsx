@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Settings, TunnelStatus } from '@wa-team-inbox/shared';
+import type { Settings, TunnelStatus } from '@ezychat/shared';
 import { TunnelPage } from './TunnelPage';
 
 const hooks = vi.hoisted(() => ({

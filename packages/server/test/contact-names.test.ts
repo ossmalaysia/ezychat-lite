@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WaContactAlias } from '@wa-team-inbox/wa';
+import type { WaContactAlias } from '@ezychat/wa';
 import { getAliases } from '../src/chats/aliases.js';
 import { ChatRepo } from '../src/chats/repo.js';
 import { createChatService } from '../src/chats/service.js';

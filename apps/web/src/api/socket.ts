@@ -16,7 +16,7 @@ import type {
   ClientToServerEvents,
   Note,
   ServerToClientEvents,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import {
   dropPushSubscription,
   patchMessageInCache,

@@ -1,6 +1,6 @@
 import { createServer } from 'node:net';
 import { request } from 'node:http';
-import type { AiSettings } from '@wa-team-inbox/shared';
+import type { AiSettings } from '@ezychat/shared';
 import type { AppContext } from '../src/context.js';
 import { CHATGPT_TOKENS_SECRET } from '../src/ai/chatgpt-direct.js';
 import type { ChatGptTokens } from '../src/ai/chatgpt-oauth.js';

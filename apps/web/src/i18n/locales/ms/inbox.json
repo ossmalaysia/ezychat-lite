@@ -356,7 +356,7 @@
     "unsupported": "Pemberitahuan tidak disokong dalam pelayar ini.",
     "label": "Pemberitahuan",
     "labelDevice": "Pemberitahuan pada peranti ini",
-    "desktopHint": "Makluman dipaparkan apabila aplikasi ini di latar belakang. Biarkan ia berjalan dalam dulang sistem dan benarkan EzyChat Lite dalam tetapan pemberitahuan sistem anda.",
+    "desktopHint": "Makluman dipaparkan apabila aplikasi ini di latar belakang. Biarkan ia berjalan dalam dulang sistem dan benarkan {{product}} dalam tetapan pemberitahuan sistem anda.",
     "blocked": "Pemberitahuan disekat. Benarkan dalam tetapan laman pelayar.",
     "errors": {
       "browserUnsupported": "Pelayar ini tidak menyokong pemberitahuan tolak.",
@@ -368,7 +368,7 @@
   },
   "installHint": {
     "title": "Tambah ke Skrin Utama untuk menerima pemberitahuan",
-    "body": "Ketik butang Kongsi <share/> dalam Safari, pilih <strong>Tambah ke Skrin Utama</strong>, kemudian buka EzyChat Lite dari skrin utama dan hidupkan pemberitahuan.",
+    "body": "Ketik butang Kongsi <share/> dalam Safari, pilih <strong>Tambah ke Skrin Utama</strong>, kemudian buka {{product}} dari skrin utama dan hidupkan pemberitahuan.",
     "share": "Kongsi"
   },
   "customer": {

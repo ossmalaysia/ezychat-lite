@@ -275,8 +275,8 @@
       "label": "Benarkan pembantu AI membaca peti masuk ini",
       "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik, serta membaca, menguji dan mengubah arahan, peraturan serahan dan konteks perniagaan Ejen Jualan AI. Ia tidak boleh menghantar mesej kepada pelanggan. Setiap perubahan disimpan dalam log audit.",
       "worksFromLabel": "Berfungsi dari",
-      "worksFromLocal": "komputer yang menjalankan EzyChat Lite.",
-      "worksFromTunnel": "komputer yang menjalankan EzyChat Lite, dan dari mana-mana sahaja melalui terowong anda:",
+      "worksFromLocal": "komputer yang menjalankan {{product}}.",
+      "worksFromTunnel": "komputer yang menjalankan {{product}}, dan dari mana-mana sahaja melalui terowong anda:",
       "privacyLabel": "Privasi",
       "privacy": "Sembang yang dibaca oleh pembantu dihantar kepada syarikat yang mengendalikannya (contohnya Anthropic, OpenAI atau Google), di bawah akaun yang anda sambungkan.",
       "turnedOn": "Akses pembantu AI dihidupkan",
@@ -284,7 +284,7 @@
     },
     "noTunnel": {
       "title": "Tiada terowong yang berjalan",
-      "body": "Pembantu pada komputer yang menjalankan EzyChat Lite boleh menyambung sekarang. Untuk menyambung dari tempat lain, hidupkan Akses telefon dahulu.",
+      "body": "Pembantu pada komputer yang menjalankan {{product}} boleh menyambung sekarang. Untuk menyambung dari tempat lain, hidupkan Akses telefon dahulu.",
       "link": "Buka Akses telefon"
     },
     "tokens": {
@@ -338,7 +338,7 @@
       "copyHeader": "Salin pengepala",
       "otherHint": "Gunakan ini dalam mana-mana aplikasi MCP yang menerima URL pelayan dan pengepala (contohnya Codex CLI, Cursor atau VS Code).",
       "oauthHint": "Aplikasi yang hanya log masuk dengan OAuth, seperti ChatGPT dan penyambung claude.ai, belum disokong.",
-      "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan EzyChat Lite. Mulakan terowong untuk menyambung dari tempat lain.",
+      "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan {{product}}. Mulakan terowong untuk menyambung dari tempat lain.",
       "askHint": "Kemudian tanya soalan seperti “Sembang mana yang sedang menunggu balasan?”"
     }
   },

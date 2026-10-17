@@ -1,6 +1,6 @@
 import { ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { pathToFileURL } from 'node:url';
-import type { DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdateState } from '@ezychat/shared';
 import type { DesktopMode } from './ipc.js';
 import type { ServiceState } from './service/index.js';
 

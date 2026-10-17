@@ -3,10 +3,10 @@ import { constants } from 'node:fs';
 import { chmod, lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import type { DesktopRelease } from '../../../../packages/shared/src/desktop-updates.js';
+import { activeProduct } from '../product.js';
 
 export const MAX_UPDATE_BYTES = 1024 * 1024 * 1024;
 const TIMEOUT_MS = 10 * 60 * 1000;
-const REPOSITORIES = ['ossmalaysia/ezychat-lite', 'ossmalaysia/wa-team-inbox'];
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 export interface DownloadedRelease {
@@ -38,9 +38,14 @@ interface DownloadSpec {
   size: number;
   tag: string;
   url: string;
+  /** product.releaseRepositories: the only GitHub repositories the installer may come from */
+  repositories: readonly string[];
+  userAgent: string;
 }
 
 function specFor(release: DesktopRelease): DownloadSpec {
+  const product = activeProduct();
+  const REPOSITORIES = product.releaseRepositories;
   const { version, assetName, downloadUrl, assetSize, assetSha256 } = release;
   if (!assetSha256 || !/^[a-fA-F0-9]{64}$/.test(assetSha256)) {
     throw new Error(
@@ -63,7 +68,7 @@ function specFor(release: DesktopRelease): DownloadSpec {
   ) {
     throw new Error('Invalid update version.');
   }
-  const names = ['EzyChat-Lite', 'WA-Team-Inbox'].flatMap((prefix) =>
+  const names = product.artifactPrefixes.flatMap((prefix) =>
     ['win-x64.exe', 'mac-x64.dmg', 'mac-arm64.dmg'].map(
       (suffix) => `${prefix}-${version}-${suffix}`,
     ),
@@ -90,6 +95,8 @@ function specFor(release: DesktopRelease): DownloadSpec {
     tag,
     size: assetSize,
     sha256: assetSha256.toLowerCase(),
+    repositories: REPOSITORIES,
+    userAgent: `${product.artifactPrefixes[0]}-Updater`,
   };
 }
 
@@ -101,7 +108,7 @@ function permittedUrl(value: string, spec: DownloadSpec): boolean {
     if (url.hostname === 'github.com') {
       return (
         !url.search &&
-        REPOSITORIES.some(
+        spec.repositories.some(
           (repo) => url.pathname === `/${repo}/releases/download/${spec.tag}/${spec.assetName}`,
         )
       );
@@ -310,7 +317,7 @@ async function performDownload(
           redirect: 'manual',
           credentials: 'omit',
           signal,
-          headers: { Accept: 'application/octet-stream', 'User-Agent': 'EzyChat-Lite-Updater' },
+          headers: { Accept: 'application/octet-stream', 'User-Agent': spec.userAgent },
         }),
         signal,
       );

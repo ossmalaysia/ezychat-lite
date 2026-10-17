@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import { useUserDirectory, useUsers, type DirectoryUser } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { i18n } from '@/i18n';

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { NoteBody } from '@wa-team-inbox/shared';
+import { NoteBody } from '@ezychat/shared';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';

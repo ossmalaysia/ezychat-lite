@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { ChatListItem } from './ChatListItem';
 
 const lidChat: Chat = {

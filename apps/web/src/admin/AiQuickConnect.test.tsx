@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { AiMemberStatus } from '@wa-team-inbox/shared';
+import type { AiMemberStatus } from '@ezychat/shared';
 import { AiQuickConnect } from './AiQuickConnect';
 import '../i18n';
 

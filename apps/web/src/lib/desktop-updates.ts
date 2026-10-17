@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DesktopUpdatesBridge, DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdatesBridge, DesktopUpdateState } from '@ezychat/shared';
 
 declare global {
   interface Window {

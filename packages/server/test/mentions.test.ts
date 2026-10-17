@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { WaIncomingMessage } from '@wa-team-inbox/wa';
+import type { WaIncomingMessage } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { createMessageService } from '../src/messages/service.js';
 import { createUserAndLogin, authHeaders } from './auth-helpers.js';
-import { MessageListResponse, type Message } from '@wa-team-inbox/shared';
+import { MessageListResponse, type Message } from '@ezychat/shared';
 
 const GROUP = '120363000000001@g.us';
 const JAY = '269088374935676@lid';

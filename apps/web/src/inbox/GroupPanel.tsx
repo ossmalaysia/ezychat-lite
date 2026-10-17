@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, MessageSquare, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import type { GroupInfoResponse, GroupMember } from '@wa-team-inbox/shared';
+import type { GroupInfoResponse, GroupMember } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { useGroupMembers, useMemberAbout, useStartMemberChat } from '../api/queries';
 import { Banner } from '@/components/app';

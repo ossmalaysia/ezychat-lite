@@ -1,4 +1,4 @@
-import type { McpSettingsResponse } from '@wa-team-inbox/shared';
+import type { McpSettingsResponse } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 
 export const MCP_ENABLED_SETTING = 'mcp_enabled';

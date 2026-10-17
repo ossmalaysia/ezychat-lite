@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AI_EDIT_REQUEST_CHARACTERS, type AiEditField } from '@wa-team-inbox/shared';
+import { AI_EDIT_REQUEST_CHARACTERS, type AiEditField } from '@ezychat/shared';
 import { useAiEdit } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog } from '@/components/app';

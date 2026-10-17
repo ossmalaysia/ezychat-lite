@@ -4,7 +4,7 @@ import type {
   CreateApiTokenResponse,
   Role,
   User,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { getAuth } from '../auth/guards.js';
 import { randomToken, sha256 } from '../crypto/secret.js';

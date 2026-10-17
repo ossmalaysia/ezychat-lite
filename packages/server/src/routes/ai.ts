@@ -13,7 +13,7 @@ import {
   AiTryBody,
   VoiceSettingBody,
   EnrichmentSettingBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { getAuth, requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';

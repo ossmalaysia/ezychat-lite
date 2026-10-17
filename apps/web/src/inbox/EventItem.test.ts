@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ChatEvent } from '@wa-team-inbox/shared';
+import type { ChatEvent } from '@ezychat/shared';
 import { describeEvent } from './EventItem';
 import type { Directory } from './useDirectory';
 

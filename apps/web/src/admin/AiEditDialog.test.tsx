@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { AiEditField, AiEditResult } from '@wa-team-inbox/shared';
+import type { AiEditField, AiEditResult } from '@ezychat/shared';
 import { AiEditDialog } from './AiEditDialog';
 
 function json(data: unknown, code = 200) {

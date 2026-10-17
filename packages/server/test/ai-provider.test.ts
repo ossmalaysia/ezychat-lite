@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AiSettings } from '@wa-team-inbox/shared';
+import type { AiSettings } from '@ezychat/shared';
 import { generateOpenAi } from '../src/ai/provider.js';
 
 const settings: AiSettings = {

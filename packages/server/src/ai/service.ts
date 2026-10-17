@@ -16,7 +16,7 @@ import type {
   Chat,
   ChatEvent,
   Message,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import {
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_ITEMS,
@@ -29,7 +29,7 @@ import {
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';

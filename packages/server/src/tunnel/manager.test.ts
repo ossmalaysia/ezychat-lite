@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import type { spawn as spawnFn } from 'node:child_process';
-import type { TunnelStatus } from '@wa-team-inbox/shared';
+import type { TunnelStatus } from '@ezychat/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../bus.js';
 import { SecretBox } from '../crypto/secret.js';

@@ -1,4 +1,4 @@
-import type { AiDecision } from '@wa-team-inbox/shared';
+import type { AiDecision } from '@ezychat/shared';
 
 /** Exact short confirmations (kept for callers and as one confirmation signal). */
 export function isResolutionConfirmation(text: string): boolean {

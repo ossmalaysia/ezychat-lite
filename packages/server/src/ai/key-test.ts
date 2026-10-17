@@ -1,4 +1,4 @@
-import type { AiKeyTestResponse } from '@wa-team-inbox/shared';
+import type { AiKeyTestResponse } from '@ezychat/shared';
 import type { Logger } from 'pino';
 
 /** Lists models with the key: the cheapest call that proves the key works (no tokens used). */

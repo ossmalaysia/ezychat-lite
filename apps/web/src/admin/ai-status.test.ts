@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AiDocument, AiMemberStatus } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberStatus } from '@ezychat/shared';
 import { connectionReady, hasKnowledge, memberPill, officialLoginUrl } from './ai-status';
 
 function status(): AiMemberStatus {

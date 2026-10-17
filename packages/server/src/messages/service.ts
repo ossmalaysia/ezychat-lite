@@ -9,14 +9,14 @@ import type {
   MessageStatus,
   MessageType,
   SendTextBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type {
   SendResult,
   WaIncomingMessage,
   WaMessageStatusUpdate,
   WaQuotedRef,
   WaSendOptions,
-} from '@wa-team-inbox/wa';
+} from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';

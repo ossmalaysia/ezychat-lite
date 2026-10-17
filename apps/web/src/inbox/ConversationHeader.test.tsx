@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { ConversationHeader } from './ConversationHeader';
 import { buildDirectory } from './useDirectory';
 
