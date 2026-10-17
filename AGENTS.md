@@ -363,8 +363,9 @@ cover navigation from every admin section and recovery from malformed URLs.
 
 - **Small changes are done directly, not in a subagent** (startup costs 20–40 min; tests compete for CPU).
   Use subagents only for large, independent work. Use the Workflow tool for large multi-part work
-  with as many parallel agents as the work allows; agents never run e2e or the full suite; the main
-  agent runs the consolidated verification once at the end.
+  with as many parallel agents as the work allows; agents never run e2e, the full suite, a UI/UX screen
+  review or a full screenshot run (`screens.smoke`, mock walkthroughs); the main agent runs the
+  consolidated verification and the screen review once, after all dev agents are done.
 - Subagents get disjoint file-ownership lists; only the orchestrator commits.
 - **Feature workbook.** Every feature branch keeps `docs/workbooks/<branch>.md` (stages Design, Dev,
   Unit tests, E2E, Dev Build, Screen review + a log). Each agent records its stage as it finishes with

@@ -85,6 +85,10 @@ into AGENTS.md.
   its absolute path and require `cd <worktree> && …` for every command, plus disjoint file ownership.
 - A parallel agent can test against a sibling component another agent has not written yet with
   `vi.mock('<path>', () => ({ … }))` (a factory), so its tests run before the real file lands.
+- Never ask each agent for its own UX review or full screenshot run: parallel Chrome runs of 100+ shots
+  took 40–60 min per agent on a low-memory PC. Agents build; the main agent reviews and captures once.
+- Agents that don't commit can't know the confirmed mock's git revision: after committing, the
+  orchestrator replaces their placeholder in `mock-index.json` / `design.md` with the SHA (grep for it).
 
 ## Git, GitHub and CI
 
