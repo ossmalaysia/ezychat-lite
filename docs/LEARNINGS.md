@@ -94,6 +94,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Merge a stack in a squash-only repo by retargeting the top PR to `main` and squash-merging it once, then
+  close the lower PRs as included. Retargeting does not start CI and `strict` needs an up-to-date branch:
+  run `gh pr update-branch` and wait for the required `Test (…)` jobs, never for "any green check".
+
 - CI runs only on pull requests to `main`: a stacked PR shows only SonarCloud. Run the consolidated
   checks locally on the top branch and say so in the PR; real CI runs after the base merges and the
   stack is retargeted.
@@ -143,6 +147,20 @@ into AGENTS.md.
   January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
   then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
   variable `NPM_TRUSTED_PUBLISHING=true`.
+  The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
+  stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
+  server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
+  With a security key, the owner runs `--auth-type=web` in their own terminal (Enter opens the browser, touch
+  the key); from an agent shell it still fails with `EOTP`. With an authenticator app, show a 6-digit example
+  (`--otp=482917`), not a word placeholder, which npm rejects with E400.
+  Ask first whether the npm account has 2FA: publishing needs a code, so set up an authenticator app (and
+  keep the recovery codes) before the publish session.
+  A new package answers 404 for some minutes after `+ @scope/pkg@x` ("being processed"): trust the `+` line and
+  poll the registry before calling it failed.
+  The trusted-publisher form only allows `npm stage publish` unless **Allow npm publish** is ticked (staged = each
+  version waits for the owner's approval); saving it asks for the owner's 2FA (security key) per package.
+  A new trusted publisher stays "Pending validation" until one OIDC publish happens before its deadline
+  (about two days): plan the next release tag inside that window, or the connection must be set up again.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
@@ -189,6 +207,13 @@ into AGENTS.md.
   write `UPDATE` statements with an explicit `WHERE`.
 
 ## Build, tooling and Windows
+
+- Put Markdown syntax examples in CHANGELOG/docs inside backticks: Prettier rewrites a bare `**name**` or `*x*`
+  as emphasis (`_name_`), which turns the sentence into nonsense.
+
+- Owner-run PowerShell scripts: Windows PowerShell 5 with `$ErrorActionPreference = 'Stop'` stops on any native
+  stderr line (e.g. npm's normal E404 for a new package). Use `Continue` and check `$LASTEXITCODE`; test the
+  read-only parts yourself before handing the script over.
 
 - Stopping a background server task can leave its node child running: before a restart on the same
   `--data`, stop the process whose command line names that folder. Exit 3 can also be Windows PID reuse
@@ -372,6 +397,9 @@ into AGENTS.md.
   number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is. Baileys (rc14) resolves a timed-out query to `undefined` instead of throwing: treat a missing result as a failure.
 
 ## AI sales agent
+
+- Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
+  customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 
 - A prompt change made for an edition (e.g. look-up wording) also changes every Lite reply: rerun the full
   Lite suite and a real-model `e2e/devbuild-ai-check.mjs` run on Lite before merge.
