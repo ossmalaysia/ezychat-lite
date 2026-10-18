@@ -2,7 +2,7 @@ import { ExternalLink, Lightbulb } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { feedbackUrl } from '@/lib/links';
+import { useAppLinks } from '@/lib/app-links';
 import { useAppVersion } from '@/lib/version';
 
 /**
@@ -12,8 +12,9 @@ import { useAppVersion } from '@/lib/version';
 export function FeatureRequestAction({ placement = 'button' }: { placement?: 'button' | 'menu' }) {
   const { t, i18n } = useTranslation('app');
   const version = useAppVersion();
+  const { feedback } = useAppLinks();
   const link = (
-    <a href={feedbackUrl(i18n.language, version)} target="_blank" rel="noopener noreferrer">
+    <a href={feedback(i18n.language, version)} target="_blank" rel="noopener noreferrer">
       <Lightbulb aria-hidden="true" />
       {t('featureRequest.label')}
       <ExternalLink aria-hidden="true" className="ml-auto size-3.5" />

@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { ErrorCode } from '@wa-team-inbox/shared';
+import { ErrorCode } from '@ezychat/shared';
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 

@@ -4,7 +4,7 @@ import {
   customerTagKey,
   normalizeTag,
   type CustomerProfile,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 
 export const PROFILE_FIELDS = ['name', 'company', 'email', 'otherPhone', 'address'] as const;

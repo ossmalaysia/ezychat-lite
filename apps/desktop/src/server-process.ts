@@ -6,6 +6,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { utilityProcess, type UtilityProcess } from 'electron';
 import { probeServer } from './detect.js';
+import { activeProduct } from './product.js';
 import { SHUTDOWN_MESSAGE } from './server-host.cjs';
 import { isRestartableExit, parsePortFile } from './startup.js';
 
@@ -168,7 +169,7 @@ export class StandaloneServer extends EventEmitter {
       const p = utilityProcess.fork(o.host, [o.entry, ...args], {
         env: env as Record<string, string>,
         stdio: 'pipe',
-        serviceName: 'EzyChat Lite Server',
+        serviceName: activeProduct().serviceName,
       });
       this.child = { kind: 'utility', p };
     }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import { useWaStatus } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { Banner } from '@/components/app';

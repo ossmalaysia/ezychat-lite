@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { SettingsPatchBody } from '@wa-team-inbox/shared';
+import { SettingsPatchBody } from '@ezychat/shared';
 import { requireAdmin } from '../auth/guards.js';
 import { createSettingsService, type SettingsService } from '../admin/settings-service.js';
 import { zipLogs } from '../admin/logs.js';

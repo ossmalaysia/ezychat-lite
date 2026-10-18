@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import type { spawn as spawnFn } from 'node:child_process';
-import type { TunnelStatus } from '@wa-team-inbox/shared';
+import type { TunnelStatus } from '@ezychat/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../bus.js';
 import { SecretBox } from '../crypto/secret.js';
@@ -305,6 +305,23 @@ describe('TunnelManager', () => {
     await m.shutdown();
     // shutdown keeps the persisted mode for the next server start
     expect(settings.get('tunnel_mode', 'off')).toBe('quick');
+  });
+
+  it('pause (access gate closed) stops cloudflared, keeps the mode and launches nothing until resume', async () => {
+    const m = makeManager();
+    await m.start({ mode: 'quick' }, 1);
+    const child = children[0]!;
+    await m.pause();
+    expect(child.killed).toBe(true);
+    expect(m.status()).toMatchObject({ state: 'stopped', url: null });
+    expect(settings.get('tunnel_mode', 'off')).toBe('quick');
+    await m.restore();
+    await flush();
+    expect(calls.length).toBe(1); // paused: restore and backoff restarts spawn nothing
+    await m.resume();
+    expect(calls.length).toBe(2);
+    expect(m.status().mode).toBe('quick');
+    await m.shutdown();
   });
 
   it('restore with mode off does nothing', async () => {

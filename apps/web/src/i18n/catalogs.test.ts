@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogProblems, LOCALE_CODES, type Catalog } from '@wa-team-inbox/shared';
+import { catalogProblems, LOCALE_CODES, type Catalog } from '@ezychat/shared';
 import { NAMESPACES } from './resources';
 
 const files = import.meta.glob<Catalog>('./locales/*/*.json', { eager: true, import: 'default' });

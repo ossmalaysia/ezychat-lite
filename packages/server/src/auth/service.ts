@@ -4,7 +4,7 @@ import {
   type PatchUserBody,
   type Role,
   type User,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { randomToken, sha256 } from '../crypto/secret.js';
 import { errors } from '../http/errors.js';

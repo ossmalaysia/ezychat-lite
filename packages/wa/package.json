@@ -1,22 +1,43 @@
 {
-  "name": "@wa-team-inbox/wa",
+  "name": "@ezychat/wa",
   "version": "0.1.37",
-  "private": true,
   "type": "module",
+  "description": "EzyChat core: WhatsApp adapter interface, Baileys adapter and fake adapter.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossmalaysia/ezychat-lite.git",
+    "directory": "packages/wa"
+  },
+  "homepage": "https://ezychat.ai/",
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
+      "ezychat-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/build-package.mjs",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wa-team-inbox/shared": "*",
+    "@ezychat/shared": "0.1.37",
     "baileys": "^7.0.0-rc14",
     "pino": "^10.3.1",
     "qrcode": "^1.5.4"

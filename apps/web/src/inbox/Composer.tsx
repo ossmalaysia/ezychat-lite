@@ -2,7 +2,7 @@ import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock, MessageSquareText, Mic, Paperclip, SendHorizontal, X } from 'lucide-react';
-import type { QuickReply } from '@wa-team-inbox/shared';
+import type { QuickReply } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';

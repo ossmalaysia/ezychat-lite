@@ -5,7 +5,7 @@ import {
   McpGetAiSetupVersionInput,
   McpTryAiReplyInput,
   McpUpdateAiSetupInput,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { ToolError, type ToolDef } from './tools.js';
 
 /** Characters per page of a long text (a full item or version is read page by page). */

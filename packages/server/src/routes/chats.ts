@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ChatListQuery, ChatPatchBody, ResolveAllChatsBody } from '@wa-team-inbox/shared';
+import { ChatListQuery, ChatPatchBody, ResolveAllChatsBody } from '@ezychat/shared';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import { clientIp } from '../http/client-ip.js';
 import type { AppContext } from '../context.js';

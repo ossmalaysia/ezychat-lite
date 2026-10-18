@@ -8,9 +8,11 @@ import { SetupWizard } from './setup/SetupWizard';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import { DesktopUpdateNotice } from '@/components/app/DesktopUpdates';
 import { DevBuildBadge } from '@/components/app/DevBuildBadge';
+import { extensionRoutes, useWebExtensions } from './extensions';
 
 export function App() {
   const { pathname } = useLocation();
+  const extensions = useWebExtensions();
   // A render crash shows an error panel (and is logged server-side) instead of a blank screen;
   // navigating to another route clears it.
   return (
@@ -31,6 +33,7 @@ export function App() {
         <Route element={<RequireAuth />}>
           <Route path="/" element={<InboxPage />} />
           <Route path="/chats/:jid" element={<InboxPage />} />
+          {extensionRoutes(extensions, false)}
         </Route>
         <Route
           path="/admin/*"

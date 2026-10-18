@@ -1,3 +1,4 @@
+import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
@@ -5,6 +6,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Puzzle,
   ScrollText,
   Settings,
   Smartphone,
@@ -12,7 +14,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
@@ -32,6 +34,16 @@ import { cn } from '@/lib/utils';
 import { useAppVersion } from '@/lib/version';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
+import { ErrorBoundary } from '@/components/app/ErrorBoundary';
+import {
+  extensionPath,
+  extensionRoutes,
+  useExtensionTranslation,
+  useWebExtensions,
+  type WebExtension,
+  type WebExtensionAdminSection,
+  type WebExtensionNavItem,
+} from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
 import { MembersPage } from './MembersPage';
@@ -50,6 +62,95 @@ export const ADMIN_NAV = [
   { to: 'audit', labelKey: 'nav.audit', icon: ScrollText },
 ] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
 
+interface ExtensionNavLink {
+  key: string;
+  href: string;
+  /** Translation key in the `common` namespace (extension catalogs live there). */
+  labelKey: string;
+  icon: NonNullable<WebExtensionNavItem['icon']>;
+  useBadge?: WebExtensionNavItem['useBadge'];
+}
+
+/** Admin nav links contributed by extensions, always absolute `/admin/ext/<name>/...` paths. */
+function extensionNavLinks(extensions: readonly WebExtension[]): ExtensionNavLink[] {
+  return extensions.flatMap((ext) =>
+    (ext.adminNav ?? []).map((item) => ({
+      key: `${ext.name}:${item.path}`,
+      href: extensionPath(ext.name, item.path, true),
+      labelKey: item.labelKey,
+      icon: item.icon ?? Puzzle,
+      useBadge: item.useBadge,
+    })),
+  );
+}
+
+/** The core section an extension admin route declares for this path (e.g. `members`). */
+export function extensionSectionOf(
+  extensions: readonly WebExtension[],
+  pathname: string,
+): WebExtensionAdminSection | undefined {
+  for (const ext of extensions)
+    for (const route of ext.routes ?? [])
+      if (
+        route.admin &&
+        route.section &&
+        matchPath({ path: extensionPath(ext.name, route.path, true), end: true }, pathname)
+      )
+        return route.section;
+  return undefined;
+}
+
+function NavBadgeContent({ useBadge }: { useBadge: NonNullable<ExtensionNavLink['useBadge']> }) {
+  const tExt = useExtensionTranslation();
+  const badge = useBadge();
+  if (!badge) return null;
+  const count = typeof badge.count === 'number' && badge.count > 0 ? badge.count : 0;
+  if (!count && !badge.attention) return null;
+  const label = badge.labelKey ? tExt(badge.labelKey, badge.labelValues) : undefined;
+  return (
+    <span className="ml-auto flex shrink-0 items-center" data-testid="nav-badge">
+      {count ? (
+        <span
+          aria-hidden={label ? true : undefined}
+          data-tone={badge.attention ? 'attention' : 'count'}
+          className={cn(
+            'min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-semibold',
+            // Something to fix uses the warning tone (like the extensions' problem badges);
+            // a plain count keeps the brand colour.
+            badge.attention
+              ? 'border border-warning/40 bg-warning/15 text-foreground'
+              : 'bg-primary text-primary-foreground',
+          )}
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      ) : (
+        <span aria-hidden className="size-2 rounded-full bg-destructive" />
+      )}
+      {label && <span className="sr-only">{label}</span>}
+    </span>
+  );
+}
+
+/** An extension's nav badge; a crash in its hook hides the badge, never the nav. */
+function NavBadge({ useBadge }: { useBadge?: ExtensionNavLink['useBadge'] }) {
+  if (!useBadge) return null;
+  return (
+    <ErrorBoundary fallback={null}>
+      <NavBadgeContent useBadge={useBadge} />
+    </ErrorBoundary>
+  );
+}
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
+    'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+    isActive
+      ? 'bg-primary/10 text-primary'
+      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+  );
+
 function UnknownAdminRoute() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -60,6 +161,11 @@ function UnknownAdminRoute() {
 
 function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const { t } = useTranslation('admin');
+  const tExt = useExtensionTranslation();
+  const extensions = useWebExtensions();
+  const extensionLinks = extensionNavLinks(extensions);
+  // An extension page under a core section (e.g. an agent's sub-page) keeps that item active.
+  const section = extensionSectionOf(extensions, useLocation().pathname);
   return (
     <nav aria-label={t('nav.label')} className={className}>
       <ul className="flex flex-col gap-1">
@@ -68,18 +174,19 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
             <NavLink
               to={`/admin/${n.to}`}
               onClick={onNavigate}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
-                  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                )
-              }
+              className={({ isActive }) => navLinkClass({ isActive: isActive || section === n.to })}
             >
               <n.icon className="size-4 shrink-0" aria-hidden />
               {t(n.labelKey)}
+            </NavLink>
+          </li>
+        ))}
+        {extensionLinks.map((n) => (
+          <li key={n.key}>
+            <NavLink to={n.href} onClick={onNavigate} className={navLinkClass}>
+              <n.icon className="size-4 shrink-0" aria-hidden />
+              {tExt(n.labelKey)}
+              <NavBadge useBadge={n.useBadge} />
             </NavLink>
           </li>
         ))}
@@ -162,6 +269,8 @@ export function AdminLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const version = useAppVersion();
   const { t } = useTranslation(['admin', 'common']);
+  const extensions = useWebExtensions();
+  const tExt = useExtensionTranslation();
 
   if (isLoading)
     return (
@@ -175,7 +284,20 @@ export function AdminLayout() {
     );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
-  const current = ADMIN_NAV.find((n) => location.pathname.includes(`/admin/${n.to}`));
+  const section = extensionSectionOf(extensions, location.pathname);
+  const coreCurrent = ADMIN_NAV.find(
+    (n) => location.pathname.includes(`/admin/${n.to}`) || section === n.to,
+  );
+  const extensionCurrent = coreCurrent
+    ? undefined
+    : extensionNavLinks(extensions).find(
+        (n) => location.pathname === n.href || location.pathname.startsWith(`${n.href}/`),
+      );
+  const currentLabel = coreCurrent
+    ? t(coreCurrent.labelKey)
+    : extensionCurrent
+      ? tExt(extensionCurrent.labelKey)
+      : undefined;
 
   return (
     <div className="safe-x flex min-h-dvh flex-col bg-background text-foreground md:flex-row">
@@ -189,7 +311,7 @@ export function AdminLayout() {
             </Link>
           </Button>
           <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
-            {current ? t('titleWithSection', { section: t(current.labelKey) }) : t('title')}
+            {currentLabel ? t('titleWithSection', { section: currentLabel }) : t('title')}
           </p>
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -222,6 +344,7 @@ export function AdminLayout() {
       </aside>
 
       <main className="safe-bottom min-w-0 flex-1">
+        <ExtensionBannerSlot />
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
@@ -232,6 +355,7 @@ export function AdminLayout() {
             <Route path="tunnel" element={<TunnelPage />} />
             <Route path="settings/*" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />
+            {extensionRoutes(extensions, true)}
             <Route path="*" element={<UnknownAdminRoute />} />
           </Routes>
         </div>

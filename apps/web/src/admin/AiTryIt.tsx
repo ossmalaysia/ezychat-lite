@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
-import { AI_TRY_QUESTION_CHARACTERS } from '@wa-team-inbox/shared';
+import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
 import { useAiTry } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
@@ -89,6 +89,21 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
                   })}
                 </p>
               )}
+              {ask.data.lookups?.length ? (
+                <ul
+                  aria-label={t('ai.try.lookups')}
+                  className="mb-2 flex flex-col gap-1 text-xs text-muted-foreground"
+                >
+                  {ask.data.lookups.map((lookup, index) => (
+                    <li key={index} className="break-words [overflow-wrap:anywhere]">
+                      {t(lookup.ok ? 'ai.try.lookedUp' : 'ai.try.lookupFailed', {
+                        title: lookup.title,
+                        source: lookup.sourceLabel,
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
               {ask.data.action === 'handoff' && !ask.data.model && (
                 <p className="mt-2 text-xs text-muted-foreground">{t('ai.try.noKnowledge')}</p>

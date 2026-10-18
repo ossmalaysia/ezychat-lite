@@ -1,5 +1,5 @@
 /// <reference types="vite-plugin-pwa/vanillajs" />
-// Loaded by main.tsx (via import.meta.glob). Registers the service worker built from src/sw.ts.
+// Loaded by create-app.tsx (via import.meta.glob). Registers the service worker built from src/sw.ts.
 import { registerSW as register } from 'virtual:pwa-register';
 
 let registered = false;

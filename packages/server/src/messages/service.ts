@@ -9,14 +9,14 @@ import type {
   MessageStatus,
   MessageType,
   SendTextBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type {
   SendResult,
   WaIncomingMessage,
   WaMessageStatusUpdate,
   WaQuotedRef,
   WaSendOptions,
-} from '@wa-team-inbox/wa';
+} from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
@@ -263,6 +263,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     onSent,
     onFailed,
     isConnected: () => ctx.wa.status.state === 'open',
+    // Access gate closed: nothing is sent and nothing expires; jobs stay pending.
+    isPaused: () => !ctx.access.state().open,
     presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),
     now,
     ...(deps?.queue ?? {}),
@@ -763,9 +765,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     },
 
     shutdown() {
+      ctx.bus.off('access:opened', onAccessOpened);
       queue.stop();
     },
   };
+
+  // Access gate opened again: paused chats resume, with the full expiry window from now.
+  function onAccessOpened(): void {
+    queue.onResumed();
+  }
+  ctx.bus.on('access:opened', onAccessOpened);
 
   // restore persisted pending sends (expired ones fail immediately when processed)
   const pending = repo.pendingLocal();

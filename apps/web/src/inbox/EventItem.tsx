@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
-import type { ChatEvent, Note } from '@wa-team-inbox/shared';
+import { AiToolUsedPayload, type ChatEvent, type Note } from '@ezychat/shared';
 import { i18n } from '@/i18n';
 import { formatTime } from '../lib/format';
 import { handoffReasonLabel, isHandoffReason } from '../lib/ai-handoff';
@@ -50,16 +50,28 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       return e.actorId == null
         ? i18n.t('inbox:events.reopenedByMessage')
         : i18n.t('inbox:events.reopened', { actor });
+    case 'ai_tool_used': {
+      // Title and source come from the extension; anything else in the payload is ignored.
+      const used = AiToolUsedPayload.safeParse(e.payload);
+      return used.success
+        ? i18n.t('inbox:events.aiToolUsed', {
+            title: used.data.title,
+            source: used.data.sourceLabel,
+          })
+        : '';
+    }
   }
 }
 
 /** Centered chip for assignment / status events. */
 export function EventItem({ event, directory }: { event: ChatEvent; directory: Directory }) {
   useTranslation(); // re-render on language change
+  const text = describeEvent(event, directory);
+  if (!text) return null;
   return (
     <div className="flex justify-center px-3 py-1">
       <span className="max-w-[90%] rounded-full bg-muted px-3 py-1 text-center text-xs text-muted-foreground">
-        {describeEvent(event, directory)} · {formatTime(event.at)}
+        {text} · {formatTime(event.at)}
       </span>
     </div>
   );

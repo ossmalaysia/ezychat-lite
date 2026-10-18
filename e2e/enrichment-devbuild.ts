@@ -3,12 +3,12 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { FakeWaAdapter } from '@wa-team-inbox/wa';
+import { FakeWaAdapter } from '@ezychat/wa';
 import {
   ENRICHMENT_FIELDS,
   type EnrichmentExtraction,
   type NotificationPayload,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';

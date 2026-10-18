@@ -7,7 +7,7 @@ import {
   CUSTOMER_TAG_MAX_CHARS,
   customerTagKey,
   normalizeTag,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

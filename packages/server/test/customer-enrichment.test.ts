@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { pino } from 'pino';
-import type { EnrichmentExtraction } from '@wa-team-inbox/shared';
-import type { WaIncomingMessage } from '@wa-team-inbox/wa';
+import type { EnrichmentExtraction } from '@ezychat/shared';
+import type { WaIncomingMessage } from '@ezychat/wa';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { createAiService } from '../src/ai/service.js';
 import { CustomerRepo } from '../src/customers/repo.js';

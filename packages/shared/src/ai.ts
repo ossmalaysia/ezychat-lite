@@ -189,11 +189,15 @@ export const AI_MODEL_HANDOFF_REASONS = [
   'needs_action',
   'business_rule',
 ] as const;
-/** Model reasons plus the server's own: a message the AI cannot read, or the AI being unavailable. */
+/**
+ * Model reasons plus the server's own: a message the AI cannot read, the AI being unavailable, or
+ * a look-up an extension tool could not complete (`lookup_failed`).
+ */
 export const AiHandoffReason = z.enum([
   ...AI_MODEL_HANDOFF_REASONS,
   'unsupported_message',
   'ai_unavailable',
+  'lookup_failed',
 ]);
 export type AiHandoffReason = z.infer<typeof AiHandoffReason>;
 
@@ -236,6 +240,21 @@ export const AiTryBody = z.object({
   knowledge: AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true }),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
+/** Shown text of one look-up an extension tool made ("AI looked up {{title}} · {{source}}"). */
+export const AI_TOOL_LABEL_CHARACTERS = 120;
+export const AiToolUsedPayload = z.object({
+  title: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
+  sourceLabel: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
+});
+export type AiToolUsedPayload = z.infer<typeof AiToolUsedPayload>;
+/** One extension tool call of a Try it answer: names and timing only, never input or output. */
+export const AiTryLookup = AiToolUsedPayload.extend({
+  tool: z.string(),
+  source: z.string(),
+  ok: z.boolean(),
+  ms: z.number().int().nonnegative(),
+});
+export type AiTryLookup = z.infer<typeof AiTryLookup>;
 export const AiTryResult = z.object({
   ok: z.boolean(),
   reply: z.string().nullable(),
@@ -243,6 +262,8 @@ export const AiTryResult = z.object({
   handoffReason: AiHandoffReason.nullable().optional(),
   model: z.string().nullable(),
   error: z.string().nullable(),
+  /** Extension look-ups in call order; absent when no extension tool was called. */
+  lookups: z.array(AiTryLookup).optional(),
 });
 export type AiTryResult = z.infer<typeof AiTryResult>;
 

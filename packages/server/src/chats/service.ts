@@ -1,5 +1,12 @@
-import type { Chat, ChatEvent, ChatListQuery, ChatPatchBody, Note } from '@wa-team-inbox/shared';
-import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@wa-team-inbox/wa';
+import type {
+  AiToolUsedPayload,
+  Chat,
+  ChatEvent,
+  ChatListQuery,
+  ChatPatchBody,
+  Note,
+} from '@ezychat/shared';
+import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
@@ -15,6 +22,11 @@ export interface ChatService {
   openCount(): number;
   resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
+  /**
+   * "AI looked up …" lines: one `ai_tool_used` event per look-up (title and source label only,
+   * never the tool's input or output), emitted on the bus for every teammate.
+   */
+  addAiToolUsed(jid: string, actorId: number, lookups: readonly AiToolUsedPayload[]): ChatEvent[];
   upsertFromWa(info: WaChatInfo): Chat;
   /** actorId null = system */
   /** `eventDetail` is merged into the assignment event's payload (e.g. `{ handoff: reason }`). */
@@ -202,6 +214,23 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
 
     events(jid) {
       return repo.events(jid);
+    },
+    addAiToolUsed(jid, actorId, lookups) {
+      if (!lookups.length) return [];
+      const at = now();
+      const events = ctx.db.transaction(() =>
+        lookups.map((lookup) =>
+          repo.insertEvent({
+            chatJid: jid,
+            type: 'ai_tool_used',
+            actorId,
+            payload: { title: lookup.title, sourceLabel: lookup.sourceLabel },
+            at,
+          }),
+        ),
+      )();
+      for (const event of events) ctx.bus.emit('chat:event', event);
+      return events;
     },
 
     upsertFromWa(info) {

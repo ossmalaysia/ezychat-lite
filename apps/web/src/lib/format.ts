@@ -1,5 +1,5 @@
 import { format, formatDistanceToNowStrict, isSameDay, isSameYear, subDays } from 'date-fns';
-import { intlTag, isLocale } from '@wa-team-inbox/shared';
+import { intlTag, isLocale } from '@ezychat/shared';
 import { dateLocale } from '@/i18n/date-locale';
 import { i18n } from '@/i18n';
 

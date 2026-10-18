@@ -2,7 +2,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
-import type { DesktopUpdatesBridge, DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdatesBridge, DesktopUpdateState } from '@ezychat/shared';
 import { DesktopUpdateNotice, DesktopUpdatePanel } from './DesktopUpdates';
 
 const auth = vi.hoisted(() => ({ user: { id: 1 } as { id: number } | null }));

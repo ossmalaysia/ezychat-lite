@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { EnrichmentStatus } from '@wa-team-inbox/shared';
+import { EnrichmentStatus } from '@ezychat/shared';
 import { api } from './client';
 
 const key = ['customer-enrichment'] as const;

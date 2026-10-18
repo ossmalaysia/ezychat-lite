@@ -1,10 +1,11 @@
 {
   "about": {
-    "title": "关于 EzyChat Lite",
+    "title": "关于 {{product}}",
     "description": "一个 WhatsApp 号码，全队共用一个收件箱，在您自己的电脑上运行。",
     "version": "版本 {{version}}",
     "versionUnknown": "版本未知",
-    "github": "在 GitHub 上查看"
+    "github": "在 GitHub 上查看",
+    "website": "访问网站"
   },
   "credits": {
     "builtBy": "由 <a>Anchor Sprint</a> 开发",
@@ -13,7 +14,8 @@
     "reportIssue": "报告问题",
     "customFeatures": "定制功能",
     "customFeature": "需要定制功能？<a>联系 Anchor Sprint</a>",
-    "helpFeedback": "帮助与反馈"
+    "helpFeedback": "帮助与反馈",
+    "emailSupport": "发送邮件给支持团队"
   },
   "featureRequest": {
     "label": "建议新功能",
@@ -49,15 +51,22 @@
     "checking": "正在检查…",
     "check": "检查更新",
     "lastChecked": "上次检查：{{time}}",
-    "dialogTitle": "更新 EzyChat Lite",
+    "dialogTitle": "更新 {{product}}",
     "notice": {
       "label": "有可用的应用更新",
-      "title": "EzyChat Lite {{version}} 已可用",
+      "title": "{{product}} {{version}} 已可用",
       "preview": "GitHub 上有新的预览版。",
       "release": "GitHub 上有新版本。",
       "dismiss": "忽略更新提示",
-      "review": "查看更新"
-    }
+      "review": "查看更新",
+      "previewFeed": "新的预览版已就绪。",
+      "releaseFeed": "新版本已就绪。"
+    },
+    "checkingFeed": "正在检查更新…",
+    "automaticFeed": "这台电脑会自动检查新版本。",
+    "noInstallerFeed": "暂时没有适用于这台电脑的安装程序。详情请查看发布说明。",
+    "unverifiedFeed": "此版本无法在这里验证安装。请联系支持团队获取手动安装程序。",
+    "releaseNotes": "发布说明"
   },
   "share": {
     "title": "分享此应用",

@@ -1,4 +1,4 @@
-import type { AiEditField } from '@wa-team-inbox/shared';
+import type { AiEditField } from '@ezychat/shared';
 
 /** Business knowledge sent with an edit request: enough to check facts, small enough to stay quick. */
 export const AI_EDIT_KNOWLEDGE_CHARACTERS = 8000;

@@ -1,4 +1,4 @@
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { createAliasStore } from '../chats/aliases.js';
 import { runIdentityMigration } from '../chats/identity-migration.js';

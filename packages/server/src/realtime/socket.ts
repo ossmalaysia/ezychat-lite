@@ -12,7 +12,7 @@ import type {
   User,
   VoiceStatus,
   WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { contextHostPolicy, hostAllowed } from '../http/host.js';
@@ -108,6 +108,12 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const lastTyping = new Map<string, number>();
 
   io.use((socket, next) => {
+    // Access gate closed by an edition: refuse with its code before looking at the session.
+    const gate = ctx.access.state();
+    if (!gate.open) {
+      next(new Error(gate.code));
+      return;
+    }
     const auth = ctx.services.auth;
     const token = readCookie(socket.request.headers.cookie, SESSION_COOKIE);
     const user = auth && token ? auth.resolveSession(token) : null;
@@ -195,7 +201,16 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     }
   };
 
+  // Access gate closed: tell every client the code, then drop it (sessions are already deleted).
+  const onAccessClosed = ({ code }: { code: string }) => {
+    for (const s of io.of('/').sockets.values()) {
+      s.emit('access:closed', { code });
+      s.disconnect(true);
+    }
+  };
+
   const { bus } = ctx;
+  bus.on('access:closed', onAccessClosed);
   bus.on('message:new', onMessageNew);
   bus.on('message:status', onMessageStatus);
   bus.on('message:updated', onMessageUpdated);
@@ -216,6 +231,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     close() {
       if (closed) return;
       closed = true;
+      bus.off('access:closed', onAccessClosed);
       bus.off('message:new', onMessageNew);
       bus.off('message:status', onMessageStatus);
       bus.off('message:updated', onMessageUpdated);

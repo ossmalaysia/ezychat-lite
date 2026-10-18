@@ -1,5 +1,5 @@
-import type { GroupInfoResponse, GroupMember } from '@wa-team-inbox/shared';
-import { normalizeContactJid, type WaGroupInfo, type WaGroupParticipant } from '@wa-team-inbox/wa';
+import type { GroupInfoResponse, GroupMember } from '@ezychat/shared';
+import { normalizeContactJid, type WaGroupInfo, type WaGroupParticipant } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';

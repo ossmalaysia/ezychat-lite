@@ -14,7 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
-import { intlTag, isLocale, type Role, type User } from '@wa-team-inbox/shared';
+import { intlTag, isLocale, type Role, type User } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import {
   useCreateUser,

@@ -4,7 +4,7 @@ import {
   DEFAULT_AI_INSTRUCTIONS,
   type AiConnection,
   type AiMemberBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import { VOICE_RETRY_REPLY } from '../src/ai/prompt.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
@@ -205,6 +205,20 @@ it('drops a reply written with details a teammate corrected meanwhile, and answe
   });
   expect(t.wa.sent.map((m) => m.text)).not.toContain('Hi Priya Nair, we open at 9am.');
   expect(t.wa.sent).toHaveLength(1);
+});
+
+it('does no work while the access gate is closed and picks the chat up again when it opens', async () => {
+  clock();
+  t.ctx.access.close({ code: 'license_required' });
+  await incoming();
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 5000);
+  expect(provider.generate).not.toHaveBeenCalled();
+  expect(t.wa.sent).toHaveLength(0);
+  expect(t.ctx.services.ai!.connectionReady()).toBe(false);
+  t.ctx.access.open();
+  await vi.advanceTimersByTimeAsync(1500);
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  expect(t.wa.sent[0]?.text).toContain('9am');
 });
 
 it('batches customer messages and ignores imported history, groups, and chats already assigned to a human', async () => {

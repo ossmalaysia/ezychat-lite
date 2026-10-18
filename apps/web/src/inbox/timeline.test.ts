@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ChatEvent, Message, Note } from '@wa-team-inbox/shared';
+import type { ChatEvent, Message, Note } from '@ezychat/shared';
 import { buildTimeline } from './timeline';
 
 function msg(id: string, timestamp: number, extra: Partial<Message> = {}): Message {

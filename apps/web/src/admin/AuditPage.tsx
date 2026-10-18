@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { Download, KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { AuditEntry, User } from '@wa-team-inbox/shared';
+import type { AuditEntry, User } from '@ezychat/shared';
 import { useAudit, useUsers } from '../api/queries';
 import { formatDateTime } from '../lib/format';
 import {

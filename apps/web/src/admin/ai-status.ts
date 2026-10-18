@@ -1,4 +1,4 @@
-import type { AiDocument, AiMemberStatus, AiSettings } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberStatus, AiSettings } from '@ezychat/shared';
 
 /** Only the official ChatGPT sign-in hosts may be opened from the app. */
 export function officialLoginUrl(raw: string | null): string | null {

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { CloudflareCreateBody, TunnelStartBody, type TunnelStatus } from '@wa-team-inbox/shared';
+import { CloudflareCreateBody, TunnelStartBody, type TunnelStatus } from '@ezychat/shared';
 import { requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';

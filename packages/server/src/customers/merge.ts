@@ -1,4 +1,4 @@
-import { customerTagKey } from '@wa-team-inbox/shared';
+import { customerTagKey } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 import { CustomerRepo, PROFILE_FIELDS, type ProfileFields } from './repo.js';
 

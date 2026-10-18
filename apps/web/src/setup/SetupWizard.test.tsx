@@ -8,7 +8,7 @@ import {
   DEFAULT_AI_INSTRUCTIONS,
   type AiMemberBody,
   type AiMemberStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { SetupWizard } from './SetupWizard';
 import { AiAssistantStep } from './AiAssistantStep';
 import { agentNameFor } from './agent-name';

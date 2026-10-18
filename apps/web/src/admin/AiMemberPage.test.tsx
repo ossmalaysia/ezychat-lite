@@ -10,8 +10,9 @@ import {
   type AiMemberBody,
   type AiMemberStatus,
   type User,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
+import { validateWebExtensions, WebExtensionsProvider, type WebExtension } from '../extensions';
 import { activateLocale } from '../i18n';
 import msAdmin from '../i18n/locales/ms/admin.json';
 
@@ -70,6 +71,7 @@ function setup(
     init: RequestInit | undefined,
     current: AiMemberStatus,
   ) => Response | undefined,
+  extensions: readonly WebExtension[] = [],
 ) {
   let current = initial;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -105,14 +107,16 @@ function setup(
   });
   render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/admin/members/ai']}>
-        <Routes>
-          <Route path="/admin/members/ai" element={<AiMemberPage />} />
-          <Route path="/admin/settings/ai" element={<h1>Settings AI</h1>} />
-          <Route path="/admin/members" element={<h1>Members list</h1>} />
-        </Routes>
-        <Location />
-      </MemoryRouter>
+      <WebExtensionsProvider extensions={validateWebExtensions(extensions)}>
+        <MemoryRouter initialEntries={['/admin/members/ai']}>
+          <Routes>
+            <Route path="/admin/members/ai" element={<AiMemberPage />} />
+            <Route path="/admin/settings/ai" element={<h1>Settings AI</h1>} />
+            <Route path="/admin/members" element={<h1>Members list</h1>} />
+          </Routes>
+          <Location />
+        </MemoryRouter>
+      </WebExtensionsProvider>
     </QueryClientProvider>,
   );
   return { fetchMock };
@@ -144,6 +148,72 @@ afterEach(() => {
 });
 
 describe('AI member page', () => {
+  it('renders extension agent rows right under Business context, each behind a boundary', async () => {
+    function Boom(): never {
+      throw new Error('row exploded');
+    }
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    setup(status(), undefined, [
+      {
+        name: 'connectors',
+        agentSections: [
+          { agent: 'sales', id: 'row', element: <p>Connectors row</p> },
+          { agent: 'sales', id: 'broken', element: <Boom /> },
+        ],
+      },
+    ]);
+    const row = await screen.findByText('Connectors row');
+    const sections = screen.getByTestId('agent-extension-sections');
+    expect(sections.contains(row)).toBe(true);
+    expect(within(sections).getByTestId('error-boundary')).toBeTruthy();
+    // Placed after the Business context panel and before Try it.
+    const headings = screen
+      .getAllByText(/^(Business context|Try it)$/)
+      .filter((el) => el.closest('[data-slot="card-title"], h2, h3'));
+    const context = headings.find((el) => el.textContent === 'Business context')!;
+    const tryIt = headings.find((el) => el.textContent === 'Try it')!;
+    expect(
+      context.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(sections.compareDocumentPosition(tryIt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('adds no extension rows in Lite', async () => {
+    setup();
+    await screen.findByText('Business context');
+    expect(screen.queryByTestId('agent-extension-sections')).toBeNull();
+  });
+
+  it('shows the look-ups and a failed look-up hand-over in Try it', async () => {
+    setup(status(), (url, init) =>
+      url === '/api/ai/try' && init?.method === 'POST'
+        ? json({
+            ok: true,
+            reply: 'A human agent will help with your question.',
+            action: 'handoff',
+            handoffReason: 'lookup_failed',
+            model: 'gpt-6.1-sol',
+            error: null,
+            lookups: [
+              {
+                tool: 'get_order_status',
+                source: 'connectors',
+                title: 'Get order status',
+                sourceLabel: 'Demo catalogue',
+                ok: false,
+                ms: 12,
+              },
+            ],
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Customer question'), 'Where is my order?');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('Reason: a look-up in a connected system failed')).toBeTruthy();
+    expect(screen.getByText('Could not look up Get order status · Demo catalogue')).toBeTruthy();
+  });
+
   it('keeps Turn on disabled with the reason until the connection works', async () => {
     const initial = withContext();
     initial.hasApiKey = false;
@@ -631,9 +701,7 @@ describe('AI member page', () => {
       expect(buttons).toHaveLength(2);
       for (const button of buttons) {
         expect((button as HTMLButtonElement).disabled).toBe(true);
-        expect(button.getAttribute('title')).toBe(
-          'Connect the AI above to use Edit with AI.',
-        );
+        expect(button.getAttribute('title')).toBe('Connect the AI above to use Edit with AI.');
         const describedBy = button.getAttribute('aria-describedby') ?? '';
         expect(document.getElementById(describedBy)?.textContent).toBe(
           'Connect the AI above to use Edit with AI.',

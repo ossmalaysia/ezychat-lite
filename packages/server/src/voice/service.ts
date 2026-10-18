@@ -6,7 +6,7 @@ import {
   type TranscriptStatus,
   type VoiceModelStatus,
   type VoiceStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';

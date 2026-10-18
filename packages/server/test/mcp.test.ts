@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import { setMcpEnabled } from '../src/mcp/settings.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 

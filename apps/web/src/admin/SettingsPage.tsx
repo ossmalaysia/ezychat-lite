@@ -3,7 +3,7 @@ import type React from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SettingsPatchBody } from '@wa-team-inbox/shared';
+import type { SettingsPatchBody } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { usePatchSettings, useSettings } from '../api/queries';
 import { PushToggle } from '../pwa/PushToggle';
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
+import { isLocale, SUPPORTED_LOCALES } from '@ezychat/shared';
 import { useChangeLocale } from '@/i18n/use-change-locale';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ import { AiConnectionSection } from './AiConnectionSection';
 import { AiVoiceSection } from './AiVoiceSection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
+import { ExtensionBoundary, useExtensionTranslation, useWebExtensions } from '../extensions';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -73,6 +74,25 @@ function PreferenceRow({
       </div>
       {below}
     </div>
+  );
+}
+
+/** Settings sections contributed by extensions (none in Lite), each behind its own boundary. */
+function ExtensionSettingsSections() {
+  const extensions = useWebExtensions();
+  const t = useExtensionTranslation();
+  return extensions.flatMap((ext) =>
+    (ext.settingsSections ?? []).map((section) => {
+      const headingId = `settings-ext-${ext.name}-${section.id}`;
+      return (
+        <section key={headingId} aria-labelledby={headingId} className="flex flex-col gap-3">
+          <h2 id={headingId} className="text-base font-semibold">
+            {t(section.titleKey)}
+          </h2>
+          <ExtensionBoundary>{section.element}</ExtensionBoundary>
+        </section>
+      );
+    }),
   );
 }
 
@@ -285,6 +305,7 @@ export function SettingsPage() {
 
         <TabsContent value="integrations" className="flex flex-col gap-4">
           <IntegrationsSection />
+          <ExtensionSettingsSections />
         </TabsContent>
 
         <TabsContent value="device" className="flex flex-col gap-4">

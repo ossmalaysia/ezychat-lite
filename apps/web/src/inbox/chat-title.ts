@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 import { formatPhone } from '../lib/jid';
 
 /** Chat title: its name, else +phone, else a translated placeholder. Never WhatsApp ID digits. */

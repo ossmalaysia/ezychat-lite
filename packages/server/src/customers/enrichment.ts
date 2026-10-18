@@ -9,7 +9,7 @@ import {
   type Chat,
   type Message,
   type EnrichmentStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
@@ -45,7 +45,9 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
   const running = new Set<Promise<void>>();
   let closed = false;
   const enabled = () => ctx.settings.get<boolean>(ENRICHMENT_SETTING, false) === true;
-  const ready = () => !closed && enabled() && !!ctx.services.ai?.connectionReady();
+  // Paused while an edition has closed the access gate (nothing queued is replayed on reopen).
+  const ready = () =>
+    !closed && ctx.access.state().open && enabled() && !!ctx.services.ai?.connectionReady();
   const profileKey = (jid: string) => JSON.stringify(repo.get(jid));
   const stillRoutedHere = (jid: string) => (ctx.services.aliases?.route(jid) ?? jid) === jid;
   const fresh = (message: Message) => {
@@ -244,7 +246,8 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
   ctx.bus
     .on('message:received', onReceived)
     .on('chat:updated', onChat)
-    .on('ai:connection-changed', invalidate);
+    .on('ai:connection-changed', invalidate)
+    .on('access:closed', invalidate);
   return {
     status: () => ({ enabled: enabled(), connected: !!ctx.services.ai?.connectionReady() }),
     setEnabled(value, actor) {
@@ -268,7 +271,8 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
       ctx.bus
         .off('message:received', onReceived)
         .off('chat:updated', onChat)
-        .off('ai:connection-changed', invalidate);
+        .off('ai:connection-changed', invalidate)
+        .off('access:closed', invalidate);
       await Promise.allSettled(running);
     },
   };

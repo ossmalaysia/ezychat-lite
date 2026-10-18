@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- An AI member with look-up tools from an edition can answer and be turned on without Business context; it calls the look-ups before handing over.
+- Editions can pause the app (access gate), show a slim bar and a lock screen, add cards to the desktop window, replace the app's links and use the EzyChat logo files. Lite itself does not use these. The desktop update texts now say "the update server" instead of GitHub.
+- Extensions can give the AI Sales Agent extra look-up tools. A failed look-up hands the chat to the team (reason: a look-up in a connected system failed), and the conversation shows "AI looked up …" lines.
+
 ## [0.1.37] - 2026-10-16
 
 ### Changed

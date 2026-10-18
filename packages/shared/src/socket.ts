@@ -42,6 +42,8 @@ export interface ServerToClientEvents {
   'wa:status': (s: WaStatus) => void;
   'tunnel:status': (s: TunnelStatus) => void;
   'session:revoked': () => void;
+  /** The access gate closed (an edition turned the app off); the socket is disconnected next. */
+  'access:closed': (p: { code: string }) => void;
 }
 
 export interface ClientToServerEvents {

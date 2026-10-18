@@ -1,10 +1,11 @@
 {
   "about": {
-    "title": "Perihal EzyChat Lite",
+    "title": "Perihal {{product}}",
     "description": "Satu nombor WhatsApp, satu peti masuk dikongsi untuk seluruh pasukan anda — dijalankan dari komputer anda sendiri.",
     "version": "Versi {{version}}",
     "versionUnknown": "Versi tidak diketahui",
-    "github": "Lihat di GitHub"
+    "github": "Lihat di GitHub",
+    "website": "Lawati laman web"
   },
   "credits": {
     "builtBy": "Dibina oleh <a>Anchor Sprint</a>",
@@ -13,7 +14,8 @@
     "reportIssue": "Laporkan masalah",
     "customFeatures": "Ciri tersuai",
     "customFeature": "Perlukan ciri tersuai? <a>Hubungi Anchor Sprint</a>",
-    "helpFeedback": "Bantuan & maklum balas"
+    "helpFeedback": "Bantuan & maklum balas",
+    "emailSupport": "E-mel sokongan"
   },
   "featureRequest": {
     "label": "Cadangkan ciri",
@@ -49,15 +51,22 @@
     "checking": "Menyemak…",
     "check": "Semak kemas kini",
     "lastChecked": "Disemak terakhir {{time}}",
-    "dialogTitle": "Kemas kini EzyChat Lite",
+    "dialogTitle": "Kemas kini {{product}}",
     "notice": {
       "label": "Kemas kini aplikasi tersedia",
-      "title": "EzyChat Lite {{version}} tersedia",
+      "title": "{{product}} {{version}} tersedia",
       "preview": "Keluaran pratonton baharu sedia di GitHub.",
       "release": "Keluaran baharu sedia di GitHub.",
       "dismiss": "Tolak cadangan kemas kini",
-      "review": "Semak kemas kini"
-    }
+      "review": "Semak kemas kini",
+      "previewFeed": "Keluaran pratonton baharu sudah sedia.",
+      "releaseFeed": "Keluaran baharu sudah sedia."
+    },
+    "checkingFeed": "Menyemak kemas kini…",
+    "automaticFeed": "Komputer ini menyemak keluaran baharu secara automatik.",
+    "noInstallerFeed": "Pemasang yang serasi belum tersedia untuk komputer ini. Lihat nota keluaran untuk butiran.",
+    "unverifiedFeed": "Keluaran ini tidak dapat disahkan untuk pemasangan di sini. Hubungi sokongan untuk pemasang manual.",
+    "releaseNotes": "Nota keluaran"
   },
   "share": {
     "title": "Kongsi aplikasi ini",

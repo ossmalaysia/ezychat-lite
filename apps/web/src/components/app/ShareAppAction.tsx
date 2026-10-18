@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   copyShareText,
   downloadShareCard,
-  SHARE_APP_URL,
   shareApp,
   shareAppMessage,
-  SOCIAL_SHARE_LINKS,
+  socialShareLinks,
 } from '@/lib/share-app';
+import { useAppLinks } from '@/lib/app-links';
+import { shareAppUrl } from '@/lib/links';
 import { ResponsiveDialog } from './index';
 
 // Platform names are brands and stay untranslated.
@@ -40,6 +41,9 @@ export function ShareAppAction({
 }) {
   const { t } = useTranslation(['app', 'common']);
   const id = useId();
+  // Lite shares its public project page; another product shares its website.
+  const shareUrl = shareAppUrl(useAppLinks());
+  const socialLinks = socialShareLinks(shareUrl);
   // The suggested caption follows the UI language until the user edits it.
   const [edited, setEdited] = useState<string | null>(null);
   const caption = edited ?? t('share.caption');
@@ -59,7 +63,7 @@ export function ShareAppAction({
     setFeedback(null);
     setBusy(true);
     try {
-      const result = await shareApp(caption);
+      const result = await shareApp(caption, shareUrl);
       if (result === 'copied') setFeedback('messageCopied');
     } catch {
       setFeedback('shareUnavailable');
@@ -107,7 +111,7 @@ export function ShareAppAction({
             variant="outline"
             size="touch"
             className="w-full"
-            onClick={() => void copy(shareAppMessage(caption), 'messageCopied')}
+            onClick={() => void copy(shareAppMessage(caption, shareUrl), 'messageCopied')}
           >
             <Copy aria-hidden="true" /> {t('share.copyMessage')}
           </Button>
@@ -117,15 +121,11 @@ export function ShareAppAction({
           <Input
             id={`${id}-url`}
             readOnly
-            value={SHARE_APP_URL}
+            value={shareUrl}
             onFocus={(event) => event.currentTarget.select()}
           />
           <p className="text-sm text-muted-foreground">{t('share.privacy')}</p>
-          <Button
-            variant="ghost"
-            size="touch"
-            onClick={() => void copy(SHARE_APP_URL, 'linkCopied')}
-          >
+          <Button variant="ghost" size="touch" onClick={() => void copy(shareUrl, 'linkCopied')}>
             <Copy aria-hidden="true" /> {t('share.copyLink')}
           </Button>
         </div>
@@ -135,7 +135,7 @@ export function ShareAppAction({
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {SOCIAL_PLATFORMS.map((platform) => (
               <Button key={platform.id} asChild variant="outline" size="touch">
-                <a href={SOCIAL_SHARE_LINKS[platform.id]} target="_blank" rel="noopener noreferrer">
+                <a href={socialLinks[platform.id]} target="_blank" rel="noopener noreferrer">
                   {platform.name} <ExternalLink aria-hidden="true" />
                   <span className="sr-only"> {t('share.opensNewWindow')}</span>
                 </a>

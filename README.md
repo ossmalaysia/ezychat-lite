@@ -125,8 +125,8 @@ Only download installers from this repository's Releases page.
 
 Earlier releases used the **WA Team Inbox** name and `WA-Team-Inbox-…` filenames.
 The rebrand keeps the existing data folders and service identity so upgrading preserves your
-linked number, team accounts and conversation history. Internal npm workspace names remain
-`@wa-team-inbox/*` for compatibility, and the Windows executable retains its legacy filename
+linked number, team accounts and conversation history. The npm workspaces are published as
+`@ezychat/*`, and the Windows executable retains its legacy filename
 so installed background services can still start it.
 
 ## Quick start
@@ -180,17 +180,17 @@ npm test           # Vitest, all workspaces
 npm run lint
 npm run typecheck
 npm run e2e        # Playwright (desktop, Pixel 7 and iPhone 14 viewports)
-npm start -w @wa-team-inbox/desktop   # run the Electron app
-npm run dist -w @wa-team-inbox/desktop  # build an installer for the current OS
+npm start -w @ezychat/desktop   # run the Electron app
+npm run dist -w @ezychat/desktop  # build an installer for the current OS
 ```
 
-| Path              | Package                  | What                                                 |
-| ----------------- | ------------------------ | ---------------------------------------------------- |
-| `packages/shared` | `@wa-team-inbox/shared`  | zod schemas and types for REST and socket payloads   |
-| `packages/wa`     | `@wa-team-inbox/wa`      | `WaAdapter` interface, Baileys adapter, fake adapter |
-| `packages/server` | `@wa-team-inbox/server`  | Fastify + Socket.IO + SQLite server (owns all state) |
-| `apps/web`        | `@wa-team-inbox/web`     | React PWA (Vite, Tailwind, shadcn/ui)                |
-| `apps/desktop`    | `@wa-team-inbox/desktop` | Electron shell, tray, service manager, packaging     |
+| Path              | Package            | What                                                 |
+| ----------------- | ------------------ | ---------------------------------------------------- |
+| `packages/shared` | `@ezychat/shared`  | zod schemas and types for REST and socket payloads   |
+| `packages/wa`     | `@ezychat/wa`      | `WaAdapter` interface, Baileys adapter, fake adapter |
+| `packages/server` | `@ezychat/server`  | Fastify + Socket.IO + SQLite server (owns all state) |
+| `apps/web`        | `@ezychat/web`     | React PWA (Vite, Tailwind, shadcn/ui)                |
+| `apps/desktop`    | `@ezychat/desktop` | Electron shell, tray, service manager, packaging     |
 
 Read [docs/architecture.md](docs/architecture.md) for how the pieces fit together and
 [docs/design-system.md](docs/design-system.md) before touching the UI. Release testing with a real

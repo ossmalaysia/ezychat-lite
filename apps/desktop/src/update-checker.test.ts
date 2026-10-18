@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GitHubUpdateChecker, type GitHubUpdateCheckerOptions } from './update-checker.js';
+import { defineProduct, LITE_PRODUCT, updateFeedOf } from './product.js';
+import {
+  GitHubUpdateChecker,
+  parseUrlFeed,
+  type GitHubUpdateCheckerOptions,
+} from './update-checker.js';
 
 const REPO = 'https://github.com/ossmalaysia/ezychat-lite';
 
@@ -419,5 +424,122 @@ describe('GitHubUpdateChecker', () => {
     const state = await check.check();
     state.release!.downloadUrl = 'https://evil.example';
     expect(check.getState().release?.downloadUrl).toContain('https://github.com/ossmalaysia/');
+  });
+});
+
+const urlProduct = defineProduct({
+  ...LITE_PRODUCT,
+  edition: 'enterprise',
+  productName: 'EzyChat Enterprise',
+  releaseRepository: 'example/ezychat-enterprise',
+  releaseRepositories: ['example/ezychat-enterprise'],
+  artifactPrefixes: ['EzyChat-Enterprise'],
+  executableNames: ['EzyChat Enterprise'],
+  updateFeed: { kind: 'url', url: 'https://updates.example.com/enterprise/latest.json' },
+});
+
+function manifest(version: string, overrides: Record<string, unknown> = {}) {
+  return {
+    version,
+    notesUrl: 'https://ezychat.ai/releases',
+    assets: ['win-x64.exe', 'mac-x64.dmg', 'mac-arm64.dmg'].map((suffix) => ({
+      name: `EzyChat-Enterprise-${version}-${suffix}`,
+      url: `https://downloads.example.com/EzyChat-Enterprise-${version}-${suffix}`,
+      sha256: 'B'.repeat(64),
+      size: 4096,
+    })),
+    ...overrides,
+  };
+}
+
+describe('URL update feed', () => {
+  const options = {
+    allowPreview: false,
+    platform: 'win32' as const,
+    arch: 'x64',
+    product: urlProduct,
+  };
+
+  it('parses the manifest installer with its trusted digest and size', () => {
+    expect(parseUrlFeed(manifest('1.2.0'), options)).toMatchObject({
+      release: {
+        version: '1.2.0',
+        name: 'EzyChat Enterprise 1.2.0',
+        releaseUrl: 'https://ezychat.ai/releases',
+        downloadUrl: 'https://downloads.example.com/EzyChat-Enterprise-1.2.0-win-x64.exe',
+        assetName: 'EzyChat-Enterprise-1.2.0-win-x64.exe',
+        assetSize: 4096,
+        assetSha256: 'b'.repeat(64),
+        prerelease: false,
+      },
+    });
+    const mac = parseUrlFeed(manifest('1.2.0'), { ...options, platform: 'darwin', arch: 'arm64' });
+    expect(mac).toMatchObject({ release: { assetName: 'EzyChat-Enterprise-1.2.0-mac-arm64.dmg' } });
+  });
+
+  it('shows a release without trusted metadata but never trusts unsafe values', () => {
+    const item = manifest('1.2.0');
+    item.assets = item.assets.map((asset) => ({ ...asset, sha256: 'nope', size: 0 }));
+    expect(parseUrlFeed(item, options)).toMatchObject({
+      release: { assetSha256: null, assetSize: null, downloadUrl: expect.any(String) },
+    });
+    const insecure = manifest('1.2.0');
+    insecure.assets = insecure.assets.map((asset) => ({
+      ...asset,
+      url: asset.url.replace('https:', 'http:'),
+    }));
+    expect(parseUrlFeed(insecure, options)).toMatchObject({
+      release: { downloadUrl: null, assetName: null },
+    });
+  });
+
+  it('rejects malformed manifests and skips previews unless allowed', () => {
+    expect(parseUrlFeed(null, options)).toBe('invalid');
+    expect(parseUrlFeed({ version: 'one', assets: [] }, options)).toBe('invalid');
+    expect(parseUrlFeed({ version: '1.0.0' }, options)).toBe('invalid');
+    expect(parseUrlFeed(manifest('1.0.0', { notesUrl: 'javascript:alert(1)' }), options)).toBe(
+      'invalid',
+    );
+    expect(parseUrlFeed(manifest('1.3.0-beta.1'), options)).toBeNull();
+    expect(
+      parseUrlFeed(manifest('1.3.0-beta.1'), { ...options, allowPreview: true }),
+    ).toMatchObject({ release: { prerelease: true } });
+  });
+
+  it('fetches only the manifest URL and detects a newer version', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(manifest('1.2.0')));
+    const state = await checker(fetcher, { currentVersion: '1.1.0', product: urlProduct }).check();
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][0]).toBe('https://updates.example.com/enterprise/latest.json');
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ redirect: 'error', credentials: 'omit' });
+    expect(state).toMatchObject({ status: 'available', release: { version: '1.2.0' } });
+  });
+
+  it('reports current when the manifest is not newer, and an error when it is malformed', async () => {
+    const same = await checker(vi.fn().mockResolvedValue(response(manifest('1.2.0'))), {
+      currentVersion: '1.2.0',
+      product: urlProduct,
+    }).check();
+    expect(same).toMatchObject({ status: 'current', release: null });
+    const older = await checker(vi.fn().mockResolvedValue(response(manifest('1.1.9'))), {
+      currentVersion: '1.2.0',
+      product: urlProduct,
+    }).check();
+    expect(older).toMatchObject({ status: 'current', release: null });
+    const broken = await checker(vi.fn().mockResolvedValue(response({ assets: 'x' })), {
+      currentVersion: '1.2.0',
+      product: urlProduct,
+    }).check();
+    expect(broken.status).toBe('error');
+  });
+
+  it('keeps Lite on the GitHub releases feed', () => {
+    expect(updateFeedOf(LITE_PRODUCT)).toEqual({
+      kind: 'github',
+      repo: LITE_PRODUCT.releaseRepository,
+    });
+    expect(() =>
+      defineProduct({ ...LITE_PRODUCT, updateFeed: { kind: 'url', url: 'http://example.com/x' } }),
+    ).toThrow(/updateFeed/);
   });
 });

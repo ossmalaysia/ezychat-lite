@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ApiToken } from '@wa-team-inbox/shared';
+import type { ApiToken } from '@ezychat/shared';
 import {
   useApiTokens,
   useMcpSettings,

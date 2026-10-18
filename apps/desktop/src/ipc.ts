@@ -1,10 +1,16 @@
 // IPC between the status window (preload bridge) and the main process.
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import type { ServerMode } from './detect.js';
 import type { ServerState } from './server-process.js';
 import type { ServiceState } from './service/index.js';
 import { pathToFileURL } from 'node:url';
+import {
+  parseActionRequest,
+  type SectionActionRequest,
+  type StatusSectionResult,
+  type StatusSectionView,
+} from './status-sections.js';
 
 export type DesktopMode = 'starting' | 'standalone' | 'client' | 'error';
 
@@ -16,6 +22,8 @@ export interface DesktopStatus {
   port: number;
   url: string;
   dataDir: string;
+  /** product name shown in the status page heading (active product) */
+  productName: string;
   /** desktop app version (app.getVersion()) */
   version: string;
   /** version reported by the server's GET /api/health; null when it is not answering */
@@ -43,6 +51,10 @@ export interface DesktopController {
   openMain(): void;
   openLogsFolder(): void;
   setKeepInTray(keep: boolean): Promise<void> | void;
+  /** Edition sections currently shown above App updates (status-sections.ts); none in Lite. */
+  getSections?(): StatusSectionView[];
+  /** Runs one section button; the request is already shape-checked by parseActionRequest. */
+  runSectionAction?(request: SectionActionRequest): Promise<StatusSectionResult>;
 }
 
 export const CHANNELS = {
@@ -55,8 +67,14 @@ export const CHANNELS = {
   openMain: 'wati:open-main',
   openLogs: 'wati:open-logs',
   setKeepInTray: 'wati:set-keep-in-tray',
+  sections: 'wati:sections',
+  sectionAction: 'wati:section-action',
   changed: 'wati:status-changed',
+  sectionsChanged: 'wati:sections-changed',
 } as const;
+
+/** Channels the main process sends on; they have no invoke handler. */
+const PUSH_CHANNELS: ReadonlySet<string> = new Set([CHANNELS.changed, CHANNELS.sectionsChanged]);
 
 /** A file URL alone is not authority: bind every operation to our current status main frame. */
 function trusted(e: IpcMainInvokeEvent, win: BrowserWindow | null, statusUrl: string): boolean {
@@ -90,6 +108,15 @@ export function registerIpc(
   handle(CHANNELS.resetAdmin, () => ctrl.resetAdmin());
   handle(CHANNELS.openMain, () => ctrl.openMain());
   handle(CHANNELS.openLogs, () => ctrl.openLogsFolder());
+  handle(CHANNELS.sections, () => ctrl.getSections?.() ?? []);
+  // Edition section buttons: one plain object { sectionId, buttonId, values }. The main process
+  // resolves the button from its own model, so a renderer can never name an address to open.
+  ipcMain.handle(CHANNELS.sectionAction, async (e, ...args: unknown[]) => {
+    if (!trusted(e, statusWindow(), statusUrl)) throw new Error('Forbidden status request');
+    if (args.length !== 1) throw new Error('Invalid status request');
+    const request = parseActionRequest(args[0]);
+    return ctrl.runSectionAction ? ctrl.runSectionAction(request) : { ok: false };
+  });
   // The only handler that takes input: exactly one boolean, same trust check as every other control.
   ipcMain.handle(CHANNELS.setKeepInTray, async (e, ...args: unknown[]) => {
     if (!trusted(e, statusWindow(), statusUrl)) throw new Error('Forbidden status request');
@@ -100,7 +127,7 @@ export function registerIpc(
   return {
     dispose() {
       for (const channel of Object.values(CHANNELS)) {
-        if (channel !== CHANNELS.changed) ipcMain.removeHandler(channel);
+        if (!PUSH_CHANNELS.has(channel)) ipcMain.removeHandler(channel);
       }
     },
   };
@@ -110,4 +137,14 @@ export function registerIpc(
 export function broadcastStatusChanged(win: BrowserWindow | null, statusFile: string): void {
   if (win && !win.isDestroyed() && win.webContents.mainFrame.url === pathToFileURL(statusFile).href)
     win.webContents.send(CHANNELS.changed);
+}
+
+/** Sends the current edition sections to the exact current status page only. */
+export function broadcastSectionsChanged(
+  win: BrowserWindow | null,
+  statusFile: string,
+  views: StatusSectionView[],
+): void {
+  if (win && !win.isDestroyed() && win.webContents.mainFrame.url === pathToFileURL(statusFile).href)
+    win.webContents.send(CHANNELS.sectionsChanged, views);
 }

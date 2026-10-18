@@ -26,9 +26,49 @@ const TABLES = [
   'api_tokens',
   'ai_setup_versions',
 ];
-const LATEST = 11;
+const LATEST = 12;
 
 describe('migrate', () => {
+  it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 11)
+        .sort()) {
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      }
+      db.pragma('user_version = 11');
+      db.prepare(
+        "INSERT INTO chat_events (id, chat_jid, type, payload, at) VALUES (7, 'a@s.whatsapp.net', 'resolved', '{\"x\":1}', 5)",
+      ).run();
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO chat_events (chat_jid, type, payload, at) VALUES ('a@s.whatsapp.net', 'ai_tool_used', '{}', 6)",
+          )
+          .run(),
+      ).toThrow();
+      migrate(db);
+      expect(db.prepare('SELECT id, type, payload FROM chat_events').all()).toEqual([
+        { id: 7, type: 'resolved', payload: '{"x":1}' },
+      ]);
+      db.prepare(
+        "INSERT INTO chat_events (chat_jid, type, payload, at) VALUES ('a@s.whatsapp.net', 'ai_tool_used', '{}', 6)",
+      ).run();
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO chat_events (chat_jid, type, payload, at) VALUES ('a@s.whatsapp.net', 'other', '{}', 6)",
+          )
+          .run(),
+      ).toThrow();
+      expect(
+        db.prepare("SELECT name FROM sqlite_master WHERE name = 'idx_chat_events_chat'").get(),
+      ).toEqual({ name: 'idx_chat_events_chat' });
+    } finally {
+      db.close();
+    }
+  });
   it('preserves old message text and marks its mention metadata as unknown on upgrade', () => {
     const db = new Database(':memory:');
     try {

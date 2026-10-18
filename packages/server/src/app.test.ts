@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { makeTestApp } from '../test/helpers.js';
-import { HealthResponse } from '@wa-team-inbox/shared';
+import { HealthResponse } from '@ezychat/shared';
 import { audit } from './db/audit.js';
 
 let t: Awaited<ReturnType<typeof makeTestApp>>;

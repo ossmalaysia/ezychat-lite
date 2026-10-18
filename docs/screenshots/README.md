@@ -24,7 +24,7 @@ density. Dark variants exist for the inbox and conversation only.
 Run this whenever a UI change affects a module, on a **fresh** data folder:
 
 ```bash
-npm run build -w @wa-team-inbox/web
+npm run build -w @ezychat/web
 npx tsx packages/server/src/cli.ts --data <new temp dir> --port 7477 --fake-wa --mode standalone --web-dist apps/web/dist
 node e2e/marketing-screenshots.mjs 7477 docs/screenshots
 ```

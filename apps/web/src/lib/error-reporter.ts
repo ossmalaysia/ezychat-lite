@@ -1,4 +1,4 @@
-import type { ClientErrorBody } from '@wa-team-inbox/shared';
+import type { ClientErrorBody } from '@ezychat/shared';
 
 /**
  * Sends browser-side errors to POST /api/client-errors so they land in the server log as structured

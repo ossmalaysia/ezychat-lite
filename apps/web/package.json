@@ -1,20 +1,50 @@
 {
-  "name": "@wa-team-inbox/web",
+  "name": "@ezychat/web",
   "version": "0.1.37",
-  "private": true,
   "type": "module",
+  "description": "EzyChat core: the team inbox web app (React) as a library, with createInboxApp and its extension API.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossmalaysia/ezychat-lite.git",
+    "directory": "apps/web"
+  },
+  "homepage": "https://ezychat.ai/",
+  "exports": {
+    ".": {
+      "ezychat-source": "./src/index.ts",
+      "types": "./dist-lib/types/index.d.ts",
+      "default": "./dist-lib/index.js"
+    },
+    "./style.css": "./dist-lib/ezychat-web.css",
+    "./sw.ts": "./dist-lib/sw.ts",
+    "./public/*": {
+      "ezychat-source": "./public/*",
+      "default": "./dist-lib/public/*"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist-lib/types/index.d.ts",
+  "files": [
+    "dist-lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && node ../../scripts/precompress-web.mjs",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:lib": "node ../../scripts/build-web-lib.mjs"
   },
   "dependencies": {
+    "@ezychat/shared": "0.1.37",
     "@fontsource-variable/inter": "^5.3.0",
     "@tanstack/react-query": "^5.104.0",
-    "@wa-team-inbox/shared": "*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -42,8 +72,6 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^30.1.1",
     "tailwindcss": "^4.3.3",

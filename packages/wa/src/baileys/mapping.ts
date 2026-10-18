@@ -1,5 +1,5 @@
 import { downloadMediaMessage, normalizeMessageContent, type proto, type WAMessage } from 'baileys';
-import type { MessageType } from '@wa-team-inbox/shared';
+import type { MessageType } from '@ezychat/shared';
 import type { WaIncomingMessage } from '../types.js';
 import { normalizeContactJid } from './contact-aliases.js';
 

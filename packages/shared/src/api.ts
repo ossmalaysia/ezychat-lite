@@ -208,10 +208,25 @@ export type PushSubscribeBody = z.infer<typeof PushSubscribeBody>;
 
 export const HealthResponse = z.object({
   app: z.literal('wa-team-inbox'),
+  /** Product edition ('lite', 'enterprise', ...). Older servers omit it: treat missing as 'lite'. */
+  edition: z.string().optional(),
   version: z.string(),
   mode: z.enum(['standalone', 'service', 'dev']),
+  /** Access gate state (editions may close it). Older servers omit it: treat missing as 'open'. */
+  access: z.enum(['open', 'closed']).optional(),
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
+
+/**
+ * GET /api/access (public, no sign-in): whether the app is usable. While an edition has closed the
+ * access gate, `code` is its stable reason (e.g. 'license_required') and every other /api call answers
+ * 403 with that code. Holds no data beyond the state.
+ */
+export const accessStatusSchema = z.object({
+  open: z.boolean(),
+  code: z.string().min(1).max(64).optional(),
+});
+export type AccessStatus = z.infer<typeof accessStatusSchema>;
 
 export const FakeIncomingBody = z.object({
   chatJid: z.string(),

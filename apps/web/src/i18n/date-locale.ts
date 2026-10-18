@@ -1,6 +1,6 @@
 import type { Locale as DateFnsLocale } from 'date-fns';
 import { enGB } from 'date-fns/locale/en-GB';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 
 /**
  * date-fns locale per UI language. English stays bundled (en-GB keeps the existing

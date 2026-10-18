@@ -1,7 +1,7 @@
 // Keep the remote inbox bridge separate from the privileged local status window.
 // Sandboxed preloads must be CommonJS and cannot import local modules.
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopUpdatesBridge, DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdatesBridge, DesktopUpdateState } from '@ezychat/shared';
 
 const updates: DesktopUpdatesBridge = {
   getState: () => ipcRenderer.invoke('wati:updates-state'),

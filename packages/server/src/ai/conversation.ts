@@ -1,4 +1,4 @@
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 
 /** How long an answer waits for the voice notes of its batch to be transcribed. */
 export const AI_VOICE_WAIT_MS = 30_000;

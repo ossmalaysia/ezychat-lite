@@ -5,13 +5,18 @@ export const SHARE_APP_URL = GITHUB_REPO_URL;
 export const SHARE_APP_CAPTION =
   "I'm using EzyChat Lite — a free WhatsApp team inbox that runs on my own computer. One number, a shared inbox for my team, and I own my data.";
 
-export const SOCIAL_SHARE_LINKS = {
-  linkedin: `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: SHARE_APP_URL })}`,
-  facebook: `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: SHARE_APP_URL })}`,
-};
+/** Social share pages for a link (another product shares its own website). */
+export function socialShareLinks(url: string): { linkedin: string; facebook: string } {
+  return {
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url })}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: url })}`,
+  };
+}
 
-export function shareAppMessage(caption: string): string {
-  return [caption.trim(), SHARE_APP_URL].filter(Boolean).join('\n\n');
+export const SOCIAL_SHARE_LINKS = socialShareLinks(SHARE_APP_URL);
+
+export function shareAppMessage(caption: string, url: string = SHARE_APP_URL): string {
+  return [caption.trim(), url].filter(Boolean).join('\n\n');
 }
 
 export async function copyShareText(text: string): Promise<void> {
@@ -20,10 +25,13 @@ export async function copyShareText(text: string): Promise<void> {
 }
 
 /** Native share failures fall back to copying. Closing the share sheet is quiet. */
-export async function shareApp(caption: string): Promise<'shared' | 'cancelled' | 'copied'> {
+export async function shareApp(
+  caption: string,
+  url: string = SHARE_APP_URL,
+): Promise<'shared' | 'cancelled' | 'copied'> {
   if (typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title: 'EzyChat Lite', text: caption.trim(), url: SHARE_APP_URL });
+      await navigator.share({ title: 'EzyChat Lite', text: caption.trim(), url });
       return 'shared';
     } catch (error) {
       if (
@@ -36,7 +44,7 @@ export async function shareApp(caption: string): Promise<'shared' | 'cancelled' 
       }
     }
   }
-  await copyShareText(shareAppMessage(caption));
+  await copyShareText(shareAppMessage(caption, url));
   return 'copied';
 }
 

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { MessageListQuery, SendMediaFields, SendTextBody } from '@wa-team-inbox/shared';
+import { MessageListQuery, SendMediaFields, SendTextBody } from '@ezychat/shared';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';

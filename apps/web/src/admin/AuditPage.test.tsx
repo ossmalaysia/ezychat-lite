@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import type { AuditEntry } from '@wa-team-inbox/shared';
+import type { AuditEntry } from '@ezychat/shared';
 import { AuditPage } from './AuditPage';
 
 const entries: AuditEntry[] = [

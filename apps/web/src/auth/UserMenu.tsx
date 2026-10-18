@@ -13,7 +13,7 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react';
-import { isLocale, SUPPORTED_LOCALES } from '@wa-team-inbox/shared';
+import { isLocale, SUPPORTED_LOCALES } from '@ezychat/shared';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,8 @@ import {
 import { AboutDialog } from '@/components/app';
 import { FeatureRequestAction } from '@/components/app/FeatureRequestAction';
 import { ShareAppAction } from '@/components/app/ShareAppAction';
-import { GITHUB_ISSUES_URL } from '@/lib/links';
+import { useAppLinks } from '@/lib/app-links';
+import { reportIssueHref } from '@/lib/links';
 import { initials } from '@/lib/format';
 import { useAppVersion } from '@/lib/version';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
@@ -120,6 +121,8 @@ export function UserMenu({
   const { locale, changeLocale } = useChangeLocale();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const links = useAppLinks();
+  const reportHref = reportIssueHref(links);
   if (!user) return null;
 
   return (
@@ -202,12 +205,14 @@ export function UserMenu({
             {t('account.share')}
           </DropdownMenuItem>
           <FeatureRequestAction placement="menu" />
-          <DropdownMenuItem asChild className="min-h-11">
-            <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener noreferrer">
-              <Bug aria-hidden="true" />
-              {t('account.reportIssue')}
-            </a>
-          </DropdownMenuItem>
+          {reportHref && (
+            <DropdownMenuItem asChild className="min-h-11">
+              <a href={reportHref} target="_blank" rel="noopener noreferrer">
+                <Bug aria-hidden="true" />
+                {links.reportIssue ? t('account.reportIssue') : t('account.emailSupport')}
+              </a>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem className="min-h-11" onSelect={() => setAboutOpen(true)}>
             <Info aria-hidden="true" />
             {t('account.about', { appName: t('appName') })}

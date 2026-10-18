@@ -50,15 +50,15 @@
     "restarting": "Restarting to install the update…"
   },
   "check": {
-    "tooMuch": "GitHub returned too much update information. Try again later.",
-    "noInfo": "GitHub returned no update information.",
-    "invalid": "GitHub returned invalid update information. Try again later.",
+    "tooMuch": "The update server returned too much update information. Try again later.",
+    "noInfo": "The update server returned no update information.",
+    "invalid": "The update server returned invalid update information. Try again later.",
     "invalidVersion": "This build has an invalid version. Check the project releases.",
     "timeout": "The update check timed out. Please try again later.",
-    "rateLimited": "GitHub is limiting update checks. Please try again later.",
-    "http": "GitHub could not check for updates. Please try again later.",
+    "rateLimited": "The update server is limiting update checks. Please try again later.",
+    "http": "The update server could not check for updates. Please try again later.",
     "pagination": "The release history is too large to confirm the latest version. Check the project releases.",
-    "network": "Could not reach GitHub. Check your internet connection and try again."
+    "network": "Could not reach the update server. Check your internet connection and try again."
   },
   "reset": {
     "busyConfirm": "Confirming password reset…",
@@ -137,6 +137,11 @@
     "stop": "Stop",
     "removeService": "Remove service",
     "recentLog": "Recent log",
+    "section": {
+      "details": "Details",
+      "working": "Working…",
+      "actionFailed": "That did not work. Try again."
+    },
     "notAnswering": "not answering",
     "modeLabel": {
       "starting": "Starting…",
@@ -168,7 +173,7 @@
     },
     "updates": {
       "installed": "Installed: v{{version}}.",
-      "checking": "Checking GitHub for updates…",
+      "checking": "Checking for updates…",
       "available": "v{{version}} is available.",
       "availablePreview": "v{{version}} is available (preview).",
       "current": "You are up to date — v{{version}}.",
@@ -177,7 +182,7 @@
       "ready": "v{{version}} is downloaded and verified. Ready to update.",
       "installing": "Preparing to restart and update… Approve the system prompt to continue.",
       "lastChecked": "Last checked: {{time}}",
-      "autoCheck": "Checks GitHub automatically while this app is running.",
+      "autoCheck": "Checks for updates automatically while this app is running.",
       "noInstaller": "This release has no installer for this computer. Open release details for available downloads.",
       "managedHelp": "Download first, then choose Restart and update when your team can briefly pause work. The app and any installed service restart automatically. Your accounts, chats and settings are preserved.",
       "unverifiable": "This release cannot be verified for installation here. Open release details for a manual installer.",

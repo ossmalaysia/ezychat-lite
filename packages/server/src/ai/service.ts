@@ -16,7 +16,7 @@ import type {
   Chat,
   ChatEvent,
   Message,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import {
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_ITEMS,
@@ -29,7 +29,7 @@ import {
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';
@@ -37,6 +37,11 @@ import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
+import {
+  extensionAgentTools,
+  extensionLookupsAvailable,
+  type AgentToolInfo,
+} from './agent/extension-tools.js';
 
 /** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
 const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
@@ -320,6 +325,8 @@ export function createAiService(
     )
       throw errors.validation('Business context can contain up to 20 items and 500,000 characters');
   };
+  /** False while an edition has closed the access gate: the AI member does no work then. */
+  const gateOpen = () => ctx.access.state().open;
   const ready = () =>
     settings().mode === 'api'
       ? !!ctx.settings.getSecret(SECRET_KEY)
@@ -401,6 +408,7 @@ export function createAiService(
     const s = state(jid);
     return (
       !closed &&
+      gateOpen() &&
       !!user &&
       !user.disabled &&
       ready() &&
@@ -449,7 +457,7 @@ export function createAiService(
   }
 
   function drainPending() {
-    if (closed || !settings().enabled || !ready()) return;
+    if (closed || !gateOpen() || !settings().enabled || !ready()) return;
     const pending = ctx.db
       .prepare(
         `SELECT chat_jid AS jid, due_at AS dueAt FROM ai_chat_state
@@ -617,6 +625,9 @@ export function createAiService(
       let decision: AiDecision;
       let images: AiPromptImage[] = [];
       const toolCalls: string[] = [];
+      /** Successful extension look-ups ("AI looked up …" lines) and whether one failed. */
+      let lookups: AgentToolInfo[] = [];
+      let lookupFailed = false;
       const started = Date.now();
       /** Page `n` of this chat's messages older than the prompt's, oldest first. */
       const olderMessages = (n: number) => {
@@ -635,22 +646,48 @@ export function createAiService(
         facts: string,
         awaitingConfirmation: boolean,
         batchImages: AiPromptImage[],
-      ): Promise<AiDecision> =>
-        AiDecision.parse(
-          await provider.generate(
-            current,
-            ctx.settings.getSecret(SECRET_KEY),
-            {
-              ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
-              tools: chatTools({
-                knowledge: knowledgeSources(contextItems()),
-                olderMessages: olderBefore ? olderMessages : undefined,
-                onCall: (name) => toolCalls.push(name),
-              }),
+      ): Promise<AiDecision> => {
+        // A failed extension look-up ends the turn at once; the catch below hands over.
+        const lookupAbort = new AbortController();
+        const signal = AbortSignal.any([controller.signal, lookupAbort.signal]);
+        const extension = await extensionAgentTools(
+          ctx,
+          log,
+          { agent: 'sales', chatJid: jid, signal },
+          {
+            onFailure: () => {
+              lookupFailed = true;
+              lookupAbort.abort();
             },
-            controller.signal,
-          ),
+            onCall: (name) => toolCalls.push(name),
+          },
         );
+        try {
+          return AiDecision.parse(
+            await provider.generate(
+              current,
+              ctx.settings.getSecret(SECRET_KEY),
+              {
+                ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+                tools: {
+                  ...chatTools({
+                    knowledge: knowledgeSources(contextItems()),
+                    olderMessages: olderBefore ? olderMessages : undefined,
+                    onCall: (name) => toolCalls.push(name),
+                  }),
+                  ...extension.tools,
+                },
+                onTiming: (timing) =>
+                  log.info({ event: 'ai_turn', source: 'live', ...timing }, 'AI turn timing'),
+              },
+              signal,
+            ),
+          );
+        } finally {
+          lookups = extension.used();
+          await extension.dispose();
+        }
+      };
       try {
         // Text, images (with or without a caption) and voice notes can be handled; video,
         // documents, stickers and the like go to the team.
@@ -677,12 +714,14 @@ export function createAiService(
                   .slice(index + 1, customerIndex)
                   .some((reply) => reply.fromMe && reply.sentByUserId === user.id),
             );
+        // Facts come from the Business context or from extension look-ups the agent may call.
+        const hasFacts = !!knowledge.trim() || extensionLookupsAvailable(ctx, 'sales');
         decision =
-          !readable || !understood || !knowledge.trim() || voiceRepeat
+          !readable || !understood || !hasFacts || voiceRepeat
             ? {
                 action: 'handoff' as const,
                 reply: HANDOFF_REPLY,
-                handoffReason: knowledge.trim() ? 'unsupported_message' : 'missing_facts',
+                handoffReason: hasFacts ? 'unsupported_message' : 'missing_facts',
               }
             : await decide(conversation(history, user.id), knowledge, awaiting, images);
         // The first voice note the AI could not listen to always gets the "please type it" answer
@@ -699,28 +738,36 @@ export function createAiService(
           decision = { action: 'answer', reply: VOICE_RETRY_REPLY, handoffReason: null };
       } catch (error) {
         if (controller.signal.aborted) return;
-        if (!ready()) {
+        if (lookupFailed) {
+          log.warn({ jid, reason: 'lookup_failed' }, 'AI look-up failed');
+          decision = {
+            action: 'handoff' as const,
+            reply: HANDOFF_REPLY,
+            handoffReason: 'lookup_failed',
+          };
+        } else if (!ready()) {
           log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
           releaseForConnection();
           return;
+        } else {
+          // Error type and HTTP status only: messages and bodies can carry customer text.
+          const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
+          log.warn(
+            {
+              jid,
+              reason: 'provider_failed',
+              errName: typeof failure?.name === 'string' ? failure.name : null,
+              status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
+              finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
+            },
+            'AI answer unavailable',
+          );
+          decision = {
+            action: 'handoff' as const,
+            reply: HANDOFF_REPLY,
+            handoffReason: 'ai_unavailable',
+          };
         }
-        // Error type and HTTP status only: messages and bodies can carry customer text.
-        const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
-        log.warn(
-          {
-            jid,
-            reason: 'provider_failed',
-            errName: typeof failure?.name === 'string' ? failure.name : null,
-            status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
-            finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
-          },
-          'AI answer unavailable',
-        );
-        decision = {
-          action: 'handoff' as const,
-          reply: HANDOFF_REPLY,
-          handoffReason: 'ai_unavailable',
-        };
       }
       if (!owned()) return;
       // A teammate corrected the customer's details while the model was writing: never send
@@ -758,6 +805,8 @@ export function createAiService(
       // Consecutive resolution questions: a new question or objection restarts the count at 1.
       const nextAsked =
         decision.action !== 'ask_resolution' ? 0 : objectsToResolution(batchText) ? 1 : asked + 1;
+      // "AI looked up …" lines sit just above the reply they informed (title and source only).
+      if (lookups.length) chats.addAiToolUsed(jid, user.id, lookups);
       await sendReply(jid, user.id, customerId, decision.reply, controller.signal);
       if (!owned()) return;
       ctx.db
@@ -843,7 +892,12 @@ export function createAiService(
       releaseOwned();
     }
   };
+  // Access gate closed: stop in-flight work; on open, persisted due times are picked up again.
+  const onAccessClosed = () => cancelAll();
+  const onAccessOpened = () => drainPending();
   ctx.bus
+    .on('access:closed', onAccessClosed)
+    .on('access:opened', onAccessOpened)
     .on('message:received', onReceived)
     .on('message:new', onMessage)
     .on('chat:updated', onChat)
@@ -851,7 +905,7 @@ export function createAiService(
     .on('user:disabled', onDisabled);
 
   const service: AiService = {
-    connectionReady: () => !closed && ready() && !!provider.extractCustomer,
+    connectionReady: () => !closed && gateOpen() && ready() && !!provider.extractCustomer,
     async extractCustomer(prompt, signal) {
       if (!service.connectionReady()) throw errors.conflict('AI connection unavailable');
       return provider.extractCustomer!(
@@ -888,8 +942,9 @@ export function createAiService(
       const hasContext = !!ctx.db
         .prepare('SELECT 1 FROM ai_documents WHERE length(trim(text)) > 0 LIMIT 1')
         .get();
-      // The AI answers only from business facts, so instructions alone cannot turn it on.
-      if (body.enabled && !hasContext)
+      // The AI answers only from business facts (Business context or extension look-ups), so
+      // instructions alone cannot turn it on.
+      if (body.enabled && !hasContext && !extensionLookupsAvailable(ctx, 'sales'))
         throw errors.validation('Add business context before turning on the AI member');
       cancelAll();
       ctx.db.transaction(() => {
@@ -1138,8 +1193,9 @@ export function createAiService(
         };
       // The draft name and instructions, with the saved Business context items.
       const knowledge = relevantKnowledge(knowledgeSources(contextItems()), body.question);
-      // Same rule as live replies: with no relevant knowledge the AI hands the chat to a human.
-      if (!knowledge.trim())
+      // Same rule as live replies: with no relevant knowledge and no extension look-ups the AI hands
+      // the chat to a human.
+      if (!knowledge.trim() && !extensionLookupsAvailable(ctx, 'sales'))
         return {
           ok: true,
           reply: HANDOFF_REPLY,
@@ -1149,11 +1205,25 @@ export function createAiService(
           error: null,
         };
       let model: string | null = null;
+      // Extension look-ups run in Try it too (no chat); a failed one ends it with a hand-over.
+      const lookupAbort = new AbortController();
+      const signal = AbortSignal.any([AbortSignal.timeout(60_000), lookupAbort.signal]);
+      let extension: Awaited<ReturnType<typeof extensionAgentTools>> | null = null;
+      const lookups = () => {
+        const calls = extension?.calls() ?? [];
+        return calls.length ? { lookups: calls } : {};
+      };
       try {
         model =
           current.mode === 'api'
             ? current.model || OPENAI_DEFAULT_MODEL
             : ((await provider.resolveModel?.(current.model)) ?? current.model);
+        extension = await extensionAgentTools(
+          ctx,
+          log,
+          { agent: 'sales', chatJid: null, signal },
+          { onFailure: () => lookupAbort.abort() },
+        );
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
           ctx.settings.getSecret(SECRET_KEY),
@@ -1166,9 +1236,14 @@ export function createAiService(
               [{ speaker: 'customer', text: body.question }],
               false,
             ),
-            tools: chatTools({ knowledge: knowledgeSources(contextItems()) }),
+            tools: {
+              ...chatTools({ knowledge: knowledgeSources(contextItems()) }),
+              ...extension.tools,
+            },
+            onTiming: (timing) =>
+              log.info({ event: 'ai_turn', source: 'try', ...timing }, 'AI turn timing'),
           },
-          AbortSignal.timeout(60_000),
+          signal,
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.
         const guarded = guardResolution(decision, 0, body.question);
@@ -1179,8 +1254,19 @@ export function createAiService(
           handoffReason: guarded.handoffReason ?? null,
           model,
           error: null,
+          ...lookups(),
         };
       } catch (error) {
+        if (extension?.failed())
+          return {
+            ok: true,
+            reply: HANDOFF_REPLY,
+            action: 'handoff',
+            handoffReason: 'lookup_failed',
+            model,
+            error: null,
+            ...lookups(),
+          };
         log.warn({ event: 'ai_try_failed' }, 'AI Try it answer failed');
         return {
           ok: false,
@@ -1188,7 +1274,10 @@ export function createAiService(
           action: null,
           model,
           error: error instanceof Error ? error.message : 'The AI could not answer.',
+          ...lookups(),
         };
+      } finally {
+        await extension?.dispose();
       }
     },
     async editText(body, signal) {
@@ -1254,6 +1343,8 @@ export function createAiService(
       clearInterval(drainTimer);
       cancelAll();
       ctx.bus
+        .off('access:closed', onAccessClosed)
+        .off('access:opened', onAccessOpened)
         .off('message:received', onReceived)
         .off('message:new', onMessage)
         .off('chat:updated', onChat)

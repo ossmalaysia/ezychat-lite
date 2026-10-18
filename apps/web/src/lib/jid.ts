@@ -1,5 +1,5 @@
 /** Helpers for WhatsApp JIDs (e.g. `60123456789@s.whatsapp.net`, `12345-678@g.us`). */
-import type { Chat } from '@wa-team-inbox/shared';
+import type { Chat } from '@ezychat/shared';
 
 export function isGroupJid(jid: string): boolean {
   return jid.endsWith('@g.us');

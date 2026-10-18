@@ -9,6 +9,8 @@ interface Props {
   children: ReactNode;
   /** Changing this (e.g. the route path) clears the error so navigating away recovers. */
   resetKey?: string;
+  /** Rendered instead of the error panel (null hides the crashed part, e.g. a nav badge). */
+  fallback?: ReactNode;
 }
 interface State {
   error: Error | null;
@@ -41,6 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
   override render(): ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
+    if (this.props.fallback !== undefined) return this.props.fallback;
     return <ErrorFallback error={error} />;
   }
 }

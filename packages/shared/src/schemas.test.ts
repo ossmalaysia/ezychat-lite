@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  accessStatusSchema,
   AI_EDIT_REQUEST_CHARACTERS,
   AI_HANDOFF_RULES_CHARACTERS,
   AI_INSTRUCTIONS_CHARACTERS,
@@ -285,5 +286,19 @@ describe('SendMediaFields', () => {
     });
     expect(SendMediaFields.safeParse({ clientId: 'c1', voiceNote: 'true' }).success).toBe(false);
     expect(SendMediaFields.safeParse({ caption: 'hi' }).success).toBe(false);
+  });
+});
+
+describe('accessStatusSchema', () => {
+  it('accepts open, and closed with a code; older health responses without access still parse', () => {
+    expect(accessStatusSchema.parse({ open: true })).toEqual({ open: true });
+    expect(accessStatusSchema.parse({ open: false, code: 'license_required' })).toEqual({
+      open: false,
+      code: 'license_required',
+    });
+    expect(accessStatusSchema.safeParse({ open: false, code: '' }).success).toBe(false);
+    expect(
+      HealthResponse.parse({ app: 'wa-team-inbox', version: '1', mode: 'dev' }).access,
+    ).toBeUndefined();
   });
 });

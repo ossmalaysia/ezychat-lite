@@ -12,7 +12,7 @@ import {
   type AiContextTextBody,
   type AiEditBody,
   type AiTryBody,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { api, ApiError } from './client';
 import { qk } from './queries';
 import { voiceStatusKey } from './voice';

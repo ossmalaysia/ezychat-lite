@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { CloudflareSetupStatus, TunnelStatus } from '@wa-team-inbox/shared';
+import type { CloudflareSetupStatus, TunnelStatus } from '@ezychat/shared';
 import type * as ApiClient from '../api/client';
 import { api } from '../api/client';
 import { CloudflareSetup } from './CloudflareSetup';

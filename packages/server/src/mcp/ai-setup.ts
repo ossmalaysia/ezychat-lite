@@ -8,7 +8,7 @@ import {
   type AiTryResult,
   type McpTryAiReplyInput,
   type McpUpdateAiSetupInput,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { z } from 'zod';
 import type { AppContext } from '../context.js';
 import type { ApiPrincipal } from '../api-tokens/index.js';

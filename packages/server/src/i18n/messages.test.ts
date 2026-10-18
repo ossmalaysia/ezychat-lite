@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogProblems, LOCALE_CODES } from '@wa-team-inbox/shared';
+import { catalogProblems, LOCALE_CODES } from '@ezychat/shared';
 import { serverCatalogs, t } from './messages.js';
 
 describe('server catalogs', () => {
