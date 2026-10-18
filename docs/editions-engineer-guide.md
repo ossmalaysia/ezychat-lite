@@ -170,6 +170,13 @@ export const licensing: ServerExtension = {
 - `GET /api/access` (public, `accessStatusSchema` in `@ezychat/shared`) returns `{ open, code? }`;
   `/api/health` adds `access: 'open' | 'closed'` (missing on older servers: treat as open).
 
+### Look-ups without Business context (`hasAgentLookups`)
+
+An extension that implements `agentTools` should also implement `hasAgentLookups(ctx, { agent })`: a cheap,
+synchronous check (no network) that returns true when it would offer at least one look-up now. The core then
+does not hand over (or refuse to turn the agent on) only because the Business context is empty, and the
+prompt treats look-up results as facts. A throwing check counts as false.
+
 ### Host-only routes (`/api/ext/<name>/host/…`)
 
 By core convention any extension route under `/api/ext/<name>/host/` is **host-only**: it answers

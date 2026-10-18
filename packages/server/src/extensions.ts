@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from './context.js';
-import type { AgentToolsInput, AgentToolsResult } from './ai/agent/extension-tools.js';
+import type { AgentKind, AgentToolsInput, AgentToolsResult } from './ai/agent/extension-tools.js';
 
 /** Lowercase id used for the route prefix (/api/ext/<name>) and the migration track. */
 export const EXTENSION_NAME = /^[a-z][a-z0-9-]{1,31}$/;
@@ -25,6 +25,12 @@ export interface ServerExtension {
    * when the turn ends. Calls are announced on the bus as `ai:tool_call` (no input or output).
    */
   agentTools?(ctx: AppContext, input: AgentToolsInput): Promise<AgentToolsResult | null>;
+  /**
+   * Cheap and synchronous (no network): true when `agentTools` would offer this agent at least one
+   * look-up right now. The core then treats look-ups as a fact source and does not hand over (or
+   * refuse to turn the agent on) only because the Business context is empty.
+   */
+  hasAgentLookups?(ctx: AppContext, input: { agent: AgentKind }): boolean;
 }
 
 export function validateExtensions(list: readonly ServerExtension[]): void {

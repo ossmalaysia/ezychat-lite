@@ -117,6 +117,25 @@ async function setup(
 }
 
 /**
+ * True when any extension says it would offer this agent a look-up now (`hasAgentLookups`). Cheap
+ * and synchronous; an extension that throws counts as "no look-ups" and is logged by name only.
+ */
+export function extensionLookupsAvailable(ctx: AppContext, agent: AgentKind): boolean {
+  for (const ext of ctx.extensions) {
+    if (!ext.hasAgentLookups) continue;
+    try {
+      if (ext.hasAgentLookups(ctx, { agent })) return true;
+    } catch (error) {
+      ctx.log.warn(
+        { mod: 'ai', event: 'ai_lookups_check_failed', source: ext.name, err: errName(error) },
+        'Extension look-up check failed',
+      );
+    }
+  }
+  return false;
+}
+
+/**
  * Collects every extension's tools for one Sales Agent turn and wraps each so that a call emits
  * `ai:tool_call` and logs (tool, source, ok, ms only), and a thrown error marks the turn failed
  * and calls `onFailure` (the caller aborts the turn and hands over).

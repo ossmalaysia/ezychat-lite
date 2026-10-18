@@ -37,7 +37,11 @@ import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
-import { extensionAgentTools, type AgentToolInfo } from './agent/extension-tools.js';
+import {
+  extensionAgentTools,
+  extensionLookupsAvailable,
+  type AgentToolInfo,
+} from './agent/extension-tools.js';
 
 /** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
 const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
@@ -708,12 +712,14 @@ export function createAiService(
                   .slice(index + 1, customerIndex)
                   .some((reply) => reply.fromMe && reply.sentByUserId === user.id),
             );
+        // Facts come from the Business context or from extension look-ups the agent may call.
+        const hasFacts = !!knowledge.trim() || extensionLookupsAvailable(ctx, 'sales');
         decision =
-          !readable || !understood || !knowledge.trim() || voiceRepeat
+          !readable || !understood || !hasFacts || voiceRepeat
             ? {
                 action: 'handoff' as const,
                 reply: HANDOFF_REPLY,
-                handoffReason: knowledge.trim() ? 'unsupported_message' : 'missing_facts',
+                handoffReason: hasFacts ? 'unsupported_message' : 'missing_facts',
               }
             : await decide(conversation(history, user.id), knowledge, awaiting, images);
         // The first voice note the AI could not listen to always gets the "please type it" answer
@@ -934,8 +940,9 @@ export function createAiService(
       const hasContext = !!ctx.db
         .prepare('SELECT 1 FROM ai_documents WHERE length(trim(text)) > 0 LIMIT 1')
         .get();
-      // The AI answers only from business facts, so instructions alone cannot turn it on.
-      if (body.enabled && !hasContext)
+      // The AI answers only from business facts (Business context or extension look-ups), so
+      // instructions alone cannot turn it on.
+      if (body.enabled && !hasContext && !extensionLookupsAvailable(ctx, 'sales'))
         throw errors.validation('Add business context before turning on the AI member');
       cancelAll();
       ctx.db.transaction(() => {
@@ -1184,8 +1191,9 @@ export function createAiService(
         };
       // The draft name and instructions, with the saved Business context items.
       const knowledge = relevantKnowledge(knowledgeSources(contextItems()), body.question);
-      // Same rule as live replies: with no relevant knowledge the AI hands the chat to a human.
-      if (!knowledge.trim())
+      // Same rule as live replies: with no relevant knowledge and no extension look-ups the AI hands
+      // the chat to a human.
+      if (!knowledge.trim() && !extensionLookupsAvailable(ctx, 'sales'))
         return {
           ok: true,
           reply: HANDOFF_REPLY,

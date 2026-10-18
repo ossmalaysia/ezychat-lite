@@ -165,7 +165,7 @@ edition `lite` with no extensions) takes `ServerExtension`s (`extensions.ts`): a
 after core routes (add `requireUser`/`requireAdmin` yourself; Host/Origin checks still apply).
 `agentTools(ctx, { agent: 'sales', chatJid | null, signal })` (`ai/agent/extension-tools.ts`) adds AI SDK
 tools to one Sales Agent turn (live and Try it). They share `AGENT_MAX_STEPS` and the turn's abort/timeout,
-and `dispose` runs in `finally`. Core tool names are reserved and the first extension wins a duplicate name.
+and `dispose` runs in `finally`. `hasAgentLookups(ctx, { agent })` (sync, no network) tells the core that look-ups are available: the empty-Business-context hand-over (live, Try it) and the "add business context before turning on" check then let the agent run, and the prompt counts look-up results as facts. Core tool names are reserved and the first extension wins a duplicate name.
 A tool that throws (`ToolHandoverError` or any other error) aborts the turn and hands over with
 `lookup_failed`. Every call emits `ai:tool_call` {agent, chatJid, tool, source, title, ok, ms} and logs
 tool/source/ok/ms only. Each successful live look-up stores an `ai_tool_used` chat event

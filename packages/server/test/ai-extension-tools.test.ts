@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type { AiMemberBody } from '@ezychat/shared';
 import { tool, type ToolSet } from 'ai';
@@ -14,6 +14,7 @@ import {
   type ServerExtension,
 } from '../src/index.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
+import { extensionLookupsAvailable } from '../src/ai/agent/extension-tools.js';
 import { createMessageService } from '../src/messages/service.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
@@ -65,7 +66,7 @@ function callingModel(): AiProvider['generate'] {
   };
 }
 
-async function setUp(extensions: ServerExtension[]) {
+async function setUp(extensions: ServerExtension[], { context = true } = {}) {
   inputs = [];
   disposed = 0;
   extraTools = {};
@@ -102,8 +103,10 @@ async function setUp(extensions: ServerExtension[]) {
   cookie = `sid=${auth.createSession(admin.id, { ip: '127.0.0.1', userAgent: 'test' })}`;
   t.ctx.services.ai!.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
-  t.ctx.services.ai!.addText({ name: 'Business context', text: 'Orders ship in 2 days.' }, actor);
-  t.ctx.services.ai!.saveMember(body, actor);
+  if (context)
+    t.ctx.services.ai!.addText({ name: 'Business context', text: 'Orders ship in 2 days.' }, actor);
+  if (context || extensionLookupsAvailable(t.ctx, 'sales'))
+    t.ctx.services.ai!.saveMember(body, actor);
 }
 
 async function incoming(id = 'in-1', text = 'Where is order A-1001?') {
@@ -347,4 +350,46 @@ it('tunnelPublicUrls lists the running Phone access address only', async () => {
   expect(tunnelPublicUrls(t.ctx)).toEqual([]);
   spy.mockReturnValue({ ...status, url: 'http://abc.example' });
   expect(tunnelPublicUrls(t.ctx)).toEqual([]);
+});
+
+describe('look-ups count as a fact source when the Business context is empty', () => {
+  const withLookups = (available: () => boolean): ServerExtension => ({
+    ...orders,
+    hasAgentLookups: () => available(),
+  });
+  it('turns the agent on, answers live and in Try it through the look-up', async () => {
+    // setUp turns the agent on: saveMember accepts it without Business context.
+    await setUp([withLookups(() => true)], { context: false });
+    const res = await ask('Where is order A-1001?');
+    expect(res.json()).toMatchObject({ ok: true, action: 'answer' });
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    await answerLive();
+    expect(provider.generate).toHaveBeenCalledTimes(2);
+    expect(t.wa.sent[0]?.text).toContain('shipped');
+  });
+
+  it('still hands over at once (no model call) when no extension offers a look-up', async () => {
+    await setUp([withLookups(() => false)], { context: false });
+    const res = await ask('Where is order A-1001?');
+    expect(res.json()).toMatchObject({
+      ok: true,
+      action: 'handoff',
+      handoffReason: 'missing_facts',
+    });
+    expect(provider.generate).not.toHaveBeenCalled();
+  });
+
+  it('treats a throwing look-up check as no look-ups', async () => {
+    await setUp(
+      [
+        withLookups(() => {
+          throw new Error('boom');
+        }),
+      ],
+      { context: false },
+    );
+    expect(extensionLookupsAvailable(t.ctx, 'sales')).toBe(false);
+    const res = await ask('Where is order A-1001?');
+    expect(res.json()).toMatchObject({ action: 'handoff', handoffReason: 'missing_facts' });
+  });
 });
