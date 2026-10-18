@@ -147,6 +147,9 @@ into AGENTS.md.
   January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
   then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
   variable `NPM_TRUSTED_PUBLISHING=true`.
+  The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
+  stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
+  server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
