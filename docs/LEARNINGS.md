@@ -202,7 +202,8 @@ into AGENTS.md.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
-  `it.each` tables.
+  `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
+  fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
