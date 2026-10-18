@@ -94,6 +94,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Auto mode blocks `gh repo create` (new upload) without the owner's direct instruction: before an
+  unattended run, ask the owner to create any new repo or say "create it".
+
 - Exclude frozen feature-mock source copies from application static analysis; otherwise cumulative
   references inflate duplication and re-report old application findings as new code. Keep production,
   tests and tooling in scope and fix their findings before releasing.
