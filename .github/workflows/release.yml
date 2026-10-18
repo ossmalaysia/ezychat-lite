@@ -42,8 +42,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node scripts/fetch-cloudflared.mjs
-      - run: node scripts/fetch-winsw.mjs
+      - run: node apps/desktop/scripts/fetch-cloudflared.mjs
+      - run: node apps/desktop/scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
       - run: npm run build -w @ezychat/web
       - run: node scripts/bundle-server.mjs

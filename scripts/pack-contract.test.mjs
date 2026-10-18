@@ -1,6 +1,7 @@
 // npm pack contract for the published @ezychat/* core packages: each tarball ships its build
 // (dist, migrations, CSS) and never source, tests, local data or secrets. Packages that have not
-// been built yet are built first (scripts/build-package.mjs, scripts/build-web-lib.mjs).
+// been built yet are built first (scripts/build-package.mjs, scripts/build-web-lib.mjs,
+// apps/desktop/scripts/build.mjs).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -59,6 +60,29 @@ const PACKAGES = [
       'dist-lib/public/share-app.svg',
     ],
   },
+  {
+    name: '@ezychat/desktop',
+    dir: 'apps/desktop',
+    built: 'dist/index.js',
+    build: ['node', 'apps/desktop/scripts/build.mjs'],
+    required: [
+      'dist/index.js',
+      'dist/index.d.ts',
+      'dist/main.js',
+      'dist/server-host.cjs',
+      'dist/preload.cjs',
+      'dist/inbox-preload.cjs',
+      'dist/renderer/status.html',
+      'dist/renderer/status.js',
+      'dist/renderer/status.css',
+      'dist/locales/en.json',
+      'scripts/fetch-common.mjs',
+      'scripts/fetch-cloudflared.mjs',
+      'scripts/fetch-winsw.mjs',
+    ],
+    // The server bundle belongs to each edition's app, not to the shell package.
+    forbidden: [/^dist\/server\//, /^dist\/package\.json$/],
+  },
 ];
 
 /** Paths that must never be published. */
@@ -108,7 +132,8 @@ describe.each(PACKAGES)('npm pack $name', (pkg) => {
   });
 
   it('ships no source, tests, local data or secrets', () => {
-    const leaked = files.filter((f) => FORBIDDEN.some((re) => re.test(f)));
+    const forbidden = [...FORBIDDEN, ...(pkg.forbidden ?? [])];
+    const leaked = files.filter((f) => forbidden.some((re) => re.test(f)));
     expect(leaked).toEqual([]);
   });
 
@@ -120,6 +145,8 @@ describe.each(PACKAGES)('npm pack $name', (pkg) => {
     const entry = manifest.exports['.'];
     expect(Object.keys(entry)[0]).toBe('ezychat-source');
     for (const target of [entry.types, entry.default])
+      expect(files).toContain(target.replace(/^\.\//, ''));
+    for (const target of Object.values(manifest.bin ?? {}))
       expect(files).toContain(target.replace(/^\.\//, ''));
   });
 

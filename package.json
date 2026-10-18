@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:core": "npm run build -w @ezychat/shared -w @ezychat/wa -w @ezychat/server && npm run build:lib -w @ezychat/web",
+    "build:core": "npm run build -w @ezychat/shared -w @ezychat/wa -w @ezychat/server && npm run build:lib -w @ezychat/web && npm run build -w @ezychat/desktop",
     "pack:core": "node scripts/pack-core.mjs",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",

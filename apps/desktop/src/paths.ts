@@ -119,9 +119,18 @@ export function mergeDesktopConfig(raw: string | null, patch: Partial<DesktopCon
   return JSON.stringify({ ...(current ?? parseDesktopConfig(null)), ...patch }, null, 2);
 }
 
-/** Server launcher (compiled from src/server-host.cts) that wraps the bundled server entry. */
-export function serverHost(appPath: string): string {
-  return join(appPath, 'dist', 'server-host.cjs');
+/**
+ * Server launcher (compiled from src/server-host.cts) that wraps the bundled server entry. It ships with
+ * the desktop package, so it is found from the package folder (`<compiled main>/..`): for Lite that is the
+ * app path; for another edition it is node_modules/@ezychat/desktop.
+ */
+export function serverHost(packageDir: string): string {
+  return join(packageDir, 'dist', 'server-host.cjs');
+}
+
+/** Status window page (src/renderer, copied to dist/renderer by the build); ships with the package. */
+export function statusPage(packageDir: string): string {
+  return join(packageDir, 'dist', 'renderer', 'status.html');
 }
 
 /** Port file the standalone server's host writes (user data). */

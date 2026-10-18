@@ -3,13 +3,25 @@
 // verifies its SHA-256. <platform>-<arch> uses Node's names (win32-x64, darwin-x64,
 // darwin-arm64, linux-x64) so the server's resolver and electron-builder's ${arch} agree.
 //
-// Usage: node scripts/fetch-cloudflared.mjs [--target win32-x64] [--target ...] [--current] [--force]
-//   default targets: win32-x64, darwin-x64, darwin-arm64
+// Usage: node apps/desktop/scripts/fetch-cloudflared.mjs [--target win32-x64] [--target ...] [--current]
+//          [--force] [--out <resources dir>]
+//   default targets: win32-x64, darwin-x64, darwin-arm64; default --out: the repository's resources/.
+//   Published as the `ezychat-fetch-cloudflared` bin of @ezychat/desktop.
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
+import { DEFAULT_RESOURCES, download } from './fetch-common.mjs';
 
 export const CLOUDFLARED_VERSION = '2026.9.3';
 
@@ -44,22 +56,6 @@ const TARGETS = {
 };
 const DEFAULT_TARGETS = ['win32-x64', 'darwin-x64', 'darwin-arm64'];
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-async function download(url) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'wa-team-inbox-build' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return Buffer.from(await res.arrayBuffer());
-    } catch (err) {
-      if (attempt >= 3) throw err;
-      console.warn(`  download failed (${err.message}); retrying…`);
-      await new Promise((r) => setTimeout(r, 2000 * attempt));
-    }
-  }
-}
-
 /** Extracts one regular file (by basename) from an uncompressed ustar/GNU tar buffer. */
 export function extractFromTar(tar, wantedBase) {
   let off = 0;
@@ -80,42 +76,53 @@ export function extractFromTar(tar, wantedBase) {
     } else {
       const full = longName ?? name;
       longName = null;
-      if ((type === '0' || type === '\0') && full.split('/').pop() === wantedBase) return Buffer.from(data);
+      if ((type === '0' || type === '\0') && full.split('/').pop() === wantedBase)
+        return Buffer.from(data);
     }
     off = dataStart + Math.ceil(size / 512) * 512;
   }
   throw new Error(`${wantedBase} not found in archive`);
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const targets = [];
   let force = false;
+  let resources = DEFAULT_RESOURCES;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--force') force = true;
+    else if (a === '--out') resources = resolve(argv[++i] ?? '');
+    else if (a.startsWith('--out=')) resources = resolve(a.slice('--out='.length));
     else if (a === '--current') targets.push(`${process.platform}-${process.arch}`);
     else if (a === '--target') targets.push(argv[++i]);
     else if (a.startsWith('--target=')) targets.push(a.slice('--target='.length));
     else if (a === '--all') targets.push(...Object.keys(TARGETS));
     else throw new Error(`unknown argument ${a}`);
   }
-  return { targets: targets.length ? [...new Set(targets)] : DEFAULT_TARGETS, force };
+  return { targets: targets.length ? [...new Set(targets)] : DEFAULT_TARGETS, force, resources };
 }
 
-async function fetchTarget(target, force) {
+async function fetchTarget(target, force, resources) {
   const t = TARGETS[target];
-  if (!t) throw new Error(`unsupported target ${target} (known: ${Object.keys(TARGETS).join(', ')})`);
-  const dir = join(root, 'resources', 'cloudflared', target);
+  if (!t)
+    throw new Error(`unsupported target ${target} (known: ${Object.keys(TARGETS).join(', ')})`);
+  const dir = join(resources, 'cloudflared', target);
   const out = join(dir, t.bin);
   const stamp = join(dir, 'cloudflared.version');
-  if (!force && existsSync(out) && existsSync(stamp) && readFileSync(stamp, 'utf8').trim() === CLOUDFLARED_VERSION) {
+  if (
+    !force &&
+    existsSync(out) &&
+    existsSync(stamp) &&
+    readFileSync(stamp, 'utf8').trim() === CLOUDFLARED_VERSION
+  ) {
     console.log(`cloudflared ${CLOUDFLARED_VERSION} ${target}: up to date`);
     return;
   }
   console.log(`cloudflared ${CLOUDFLARED_VERSION} ${target}: downloading ${t.asset}`);
   const buf = await download(`${BASE}/${t.asset}`);
   const digest = createHash('sha256').update(buf).digest('hex');
-  if (digest !== t.sha256) throw new Error(`checksum mismatch for ${t.asset}: got ${digest}, expected ${t.sha256}`);
+  if (digest !== t.sha256)
+    throw new Error(`checksum mismatch for ${t.asset}: got ${digest}, expected ${t.sha256}`);
   const bin = t.archive ? extractFromTar(gunzipSync(buf), 'cloudflared') : buf;
   mkdirSync(dir, { recursive: true });
   const tmp = `${out}.download`;
@@ -127,11 +134,14 @@ async function fetchTarget(target, force) {
   console.log(`  -> ${out} (${(bin.length / 1024 / 1024).toFixed(1)} MB)`);
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+// Real paths: an npm bin is a symlink (node_modules/.bin/ezychat-fetch-cloudflared) on macOS/Linux.
+const isMain =
+  process.argv[1] &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(resolve(process.argv[1]));
 if (isMain) {
-  const { targets, force } = parseArgs(process.argv.slice(2));
   try {
-    for (const target of targets) await fetchTarget(target, force);
+    const { targets, force, resources } = parseArgs(process.argv.slice(2));
+    for (const target of targets) await fetchTarget(target, force, resources);
   } catch (err) {
     console.error(`fetch-cloudflared: ${err.message}`);
     process.exit(1);

@@ -265,8 +265,34 @@ health `app` **and** `edition` match its own.
 - `updateFeed: { kind: 'url', url }` reads a JSON manifest (`{ version, notesUrl?, assets: [{ name,
 url, sha256, size }] }`) instead of GitHub releases, for editions whose repository is private.
 
-Not done yet: the Electron main process is not published as a library (it finds its assets through
-the app layout), so the Enterprise repo builds the server and web app but not yet a desktop installer.
+### Starting the desktop shell (`@ezychat/desktop`)
+
+The shell (window, tray, status window, OS service, updater) is published as `@ezychat/desktop`. An
+edition's Electron main file sets its product and starts it:
+
+```ts
+import { defineProduct, startDesktop } from '@ezychat/desktop';
+
+await startDesktop(
+  defineProduct({ edition: 'enterprise', productName: 'EzyChat Enterprise' /* … */ }),
+);
+```
+
+The package ships the main process, the server host (`dist/server-host.cjs`), the preloads and the status
+page (`dist/renderer/`), and finds them in its own folder. The edition's app provides the rest, in the same
+layout as Lite (the updater and the OS service rely on it):
+
+| Path in the app                                  | What                                                | Made by                                                                                    |
+| ------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `dist/server/server.cjs` (+ workers, migrations) | the edition's server bundle                         | the edition's bundle script                                                                |
+| `dist/package.json`                              | `{ "version" }`, read by the server and the updater | the edition's bundle script                                                                |
+| `resources/web`                                  | the edition's web build                             | electron-builder `extraResources`                                                          |
+| `resources/app-icon.png`, `resources/tray/`      | window and tray icons                               | electron-builder `extraResources`                                                          |
+| `resources/cloudflared/`, `resources/winsw/`     | pinned binaries                                     | `npx ezychat-fetch-cloudflared --out resources`, `npx ezychat-fetch-winsw --out resources` |
+
+In `electron-builder.yml`, unpack what the OS service runs: `**/node_modules/@ezychat/desktop/dist/server-host.cjs`,
+`dist/server/**`, `dist/package.json` and the native packages (copy Lite's `asarUnpack` list). Keep
+`npmRebuild: false`: the native modules are Node-API prebuilds.
 
 ## 6. Packages and the core update flow
 
@@ -274,7 +300,7 @@ the app layout), so the Enterprise repo builds the server and web app but not ye
 | --------------------------------------------------- | ------------------------------------------------------- | -------------------- |
 | `@ezychat/shared`, `@ezychat/wa`, `@ezychat/server` | `dist/` (JS + `.d.ts`; server ships its SQL migrations) | resolved to `src/`   |
 | `@ezychat/web`                                      | `dist-lib/` (ESM + types + one precompiled CSS)         | resolved to `src/`   |
-| `@ezychat/desktop`                                  | private, not published                                  | —                    |
+| `@ezychat/desktop`                                  | `dist/` (main process JS + `.d.ts`, `renderer/`) + bins | resolved to `src/`   |
 
 Inside Lite, imports resolve to source through the **`ezychat-source`** export condition (not
 `development`: Vite and Vitest enable that by default, which would break Enterprise because the
@@ -284,7 +310,9 @@ Release flow:
 
 1. Lite release tag `v0.1.37` → `.github/workflows/publish-packages.yml` publishes `@ezychat/*@0.1.37`
    (npm trusted publishing, no token; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`). `scripts/pack-contract.test.mjs` pins what each
-   tarball contains.
+   tarball contains. A package that is not on npm yet (first `@ezychat/desktop` release) is skipped with a
+   warning: the owner publishes its first version by hand (`npm publish -w @ezychat/desktop --access public`,
+   security key) and then adds the trusted publisher for it on npmjs.com.
 2. Dependabot opens one grouped `ezychat-core` PR in Enterprise bumping every pin together.
 3. Enterprise CI (Anchor Sprint self-hosted Linux ARM64 runners only; private code never runs on GitHub-hosted machines) runs lint, typecheck, tests and builds → merge → Enterprise release.
 
@@ -308,19 +336,19 @@ Never commit tarballs, `file:` dependencies, or a lockfile that points to local 
 3. A missing hook is a Lite PR with tests, released before Enterprise uses it.
 4. Never change Lite's upgrade contracts (data folders, profile, service ID, app ID, health `app`).
 5. Enterprise tables are `ent_*` and use the extension migration track.
-6. Keep `npm run pack:core` working: Enterprise depends on it until the packages are on npm.
+6. Keep `npm run pack:core` working: Enterprise uses it to try an unreleased core change.
 7. Both repos: feature branches and PRs; merge only when the owner asks.
 
 ## 9. Status and next phases
 
-| Phase                                                                             | Status                                                                                |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 1 Server extension API                                                            | Done                                                                                  |
-| 2 Web extension API                                                               | Done                                                                                  |
-| 3 Desktop product config                                                          | Done                                                                                  |
-| 3b Publishable `@ezychat/*` packages + publish job                                | Done (npm org `ezychat` created; first manual publish and trusted publishing pending) |
-| 4 Enterprise scaffold (`enterprise-hello` server + web extension, CI, Dependabot) | Done, except the desktop installer (needs a publishable desktop main)                 |
-| 4b Publish the desktop main process (`start(options)` with asset folders)         | Next                                                                                  |
-| 5 Enterprise release channel (signing, public installer bucket, update feed)      | Needs owner decisions                                                                 |
-| 6 Licensing                                                                       | Needs design + mock confirmation                                                      |
-| 7 First paid feature                                                              | Owner picks                                                                           |
+| Phase                                                                             | Status                                                    |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1 Server extension API                                                            | Done                                                      |
+| 2 Web extension API                                                               | Done                                                      |
+| 3 Desktop product config                                                          | Done                                                      |
+| 3b Publishable `@ezychat/*` packages + publish job                                | Done (published with npm trusted publishing since 0.1.39) |
+| 4 Enterprise scaffold (`enterprise-hello` server + web extension, CI, Dependabot) | Done, except the desktop installer                        |
+| 4b Publish the desktop shell (`@ezychat/desktop`, `startDesktop(product)`)        | Built; first publish by hand with the next Lite release   |
+| 5 Enterprise release channel (signing, public installer bucket, update feed)      | Needs owner decisions                                     |
+| 6 Licensing                                                                       | Needs design + mock confirmation                          |
+| 7 First paid feature                                                              | Owner picks                                               |

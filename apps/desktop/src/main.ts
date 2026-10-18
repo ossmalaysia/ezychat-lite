@@ -38,6 +38,7 @@ import {
   servicePortFile,
   serviceRunDir,
   standalonePortFile,
+  statusPage,
   trayIconFile,
   userDataDir,
   webDistDir,
@@ -71,6 +72,9 @@ import { activeProduct } from './product.js';
 import { isAllowedExternalHref, StatusSectionsHost } from './status-sections.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+// The desktop package folder: files the shell ships itself (server host, status page) are found here,
+// so they work both as the Lite app (= the app path) and from node_modules/@ezychat/desktop.
+const packageDir = dirname(here);
 
 // Electron's default profile follows productName; pin the installed profile before its lock.
 preserveInstalledProfile(app, (path) => mkdirSync(path, { recursive: true }));
@@ -182,7 +186,7 @@ async function main(): Promise<void> {
     return img;
   })();
 
-  const host = serverHost(appPath);
+  const host = serverHost(packageDir);
   // macOS: <X>.app/Contents/MacOS/<X> → <X>.app (only meaningful when packaged)
   const appBundle =
     process.platform === 'darwin' && isPackaged
@@ -211,7 +215,7 @@ async function main(): Promise<void> {
   let mainWindow: BrowserWindow | null = null;
   let statusWindow: BrowserWindow | null = null;
   let lastServiceState: ServiceState = 'not-installed';
-  const statusFile = join(appPath, 'src', 'renderer', 'status.html');
+  const statusFile = statusPage(packageDir);
   const ownsHost = () => !quitting && isUpdateHost(mode, lastServiceState);
   let updateChanged = () => {};
   const checker = new GitHubUpdateChecker({

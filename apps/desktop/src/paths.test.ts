@@ -142,9 +142,13 @@ describe('parseDesktopConfig', () => {
 });
 
 describe('service host + port files', () => {
-  it('server host sits next to main.js in dist', async () => {
-    const { serverHost } = await import('./paths.js');
+  it('server host and status page ship in the package dist folder', async () => {
+    const { serverHost, statusPage } = await import('./paths.js');
     expect(serverHost(join('A', 'app'))).toBe(join('A', 'app', 'dist', 'server-host.cjs'));
+    // Another edition: the package folder inside its node_modules, not its own app path.
+    const pkg = join('E', 'app.asar', 'node_modules', '@ezychat', 'desktop');
+    expect(serverHost(pkg)).toBe(join(pkg, 'dist', 'server-host.cjs'));
+    expect(statusPage(pkg)).toBe(join(pkg, 'dist', 'renderer', 'status.html'));
   });
   it('windows service port file is in a run sub-folder of the machine data dir', async () => {
     const { servicePortFile, serviceRunDir } = await import('./paths.js');
