@@ -229,6 +229,12 @@ into AGENTS.md.
 - tsx ignores tsconfig `customConditions`; pass Node `--conditions=ezychat-source` (`.npmrc`
   node-options does it for npm scripts and npx). Each core package keeps its own `vitest.config.ts`
   reusing the root `sourceResolve`, or `npm test -w` resolves `@ezychat/*` to a missing or stale `dist/`.
+- A file a published package ships (desktop server host, preloads, status page) is found from the package
+  folder (`dirname` of the compiled module), never `app.getAppPath()`: inside another edition that is the
+  edition's app, not `node_modules/@ezychat/<pkg>`. Pick paths that are identical for Lite so its layout stays.
+- A build that writes into a `dist/` it never cleans ships deleted modules in `npm pack`: clean it first,
+  keeping only what another script owns (desktop: `dist/server/`, `dist/package.json`). An `.mjs` bin must
+  compare `realpathSync` paths to detect "run directly": npm links bins as symlinks on macOS/Linux.
 - Vite library mode inlines CSS assets as base64 and our CSP has no `font-src data:`: extract fonts
   back to files. tsc keeps `@/` aliases and side-effect CSS imports in `.d.ts`: rewrite or strip them.
 - Test unpublished `@ezychat/*` versions with `npm install --no-save <tgz>` of a tarball carrying the
@@ -639,7 +645,7 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 ## Cloudflare and sharing
 
 - Anchor Sprint Workers deploy with Workers Builds, not Actions: `main` runs `wrangler d1 migrations apply
-  DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
+DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
   Worker tag and a build token: upload a placeholder Worker first and reuse the account's build token.
   Put secrets with `wrangler secret put` from a file, never in a tool call.
 - After a preview `wrangler versions upload`, `wrangler secret put` fails (latest version not deployed): use

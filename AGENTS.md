@@ -183,17 +183,22 @@ wrapped in an `ErrorBoundary`. _Desktop_:
 identity lives in `apps/desktop/src/product.ts`; `LITE_PRODUCT` holds the upgrade-contract values
 (app ID, data/profile folders, service ID, launchd label, health `app`, update feed, installer and exe
 names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. `defineProduct` also takes `statusSections` (declarative cards in the desktop status window, actions handled in main, only `https:`/`mailto:` opened) and `updateFeed: { kind: 'url' }` (JSON manifest, for private editions). Code reads
-`activeProduct()`, never literals; another edition calls `setActiveProduct(defineProduct({…}))` and then
-dynamic-imports main. The desktop adopts a running server only when health `app` and `edition ?? 'lite'`
+`activeProduct()`, never literals; another edition calls `startDesktop(defineProduct({…}))` from
+`@ezychat/desktop` (`src/index.ts`; sets the product, then dynamic-imports main; Lite's Electron entry stays
+`dist/main.js`). Files the shell ships (server host, preloads, status page in `dist/renderer`) are found from
+the package folder (`dirname(<compiled main>)`), never `app.getAppPath()`; the edition's app provides the
+layout (`dist/server/server.cjs`, `dist/package.json`, `resources/{web,tray,cloudflared,winsw}`,
+`resources/app-icon.png`). `apps/desktop/scripts/build.mjs` builds it (tsc + renderer copy; keeps the server
+bundle); the cloudflared/WinSW fetch scripts live in `apps/desktop/scripts/` (`--out <resources>`, also bins). The desktop adopts a running server only when health `app` and `edition ?? 'lite'`
 match. _Packages_: shared/wa/server export `dist/` (`scripts/build-package.mjs`), `@ezychat/web` exports
 `dist-lib/` (`vite.lib.config.ts` + `scripts/build-web-lib.mjs`: ESM, dependencies external, one
 precompiled CSS with font files); inside the monorepo imports resolve to `src/` through the
 `ezychat-source` export condition (tsconfig `customConditions`, Vite/Vitest `resolve.conditions`, esbuild,
 `.npmrc` node-options, each package's `vitest.config.ts`); a plain `node`/`tsx` run outside npm needs
 `--conditions=ezychat-source`. `scripts/pack-contract.test.mjs` pins the tarball contents and
-`.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`). Enterprise
+`.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`; a package not yet on npm is skipped with a warning: its first version is published by hand). Enterprise
 (`anchorsprint/ezychat-enterprise`) consumes pinned published `@ezychat/*` versions, never a
-git submodule or a committed `file:` dependency; until they are on npm it installs `npm run pack:core`
+git submodule or a committed `file:` dependency; to try an unreleased core it installs `npm run pack:core`
 tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. Lite never imports Enterprise
 code. Only each package's `index` exports are public API; anything else is internal and may change.
 
@@ -209,7 +214,7 @@ plus a lock file. Tests never download the real model or call OpenAI. Live app d
 The Windows program is `EzyChat Lite.exe` in `Program Files\EzyChat Lite` since 0.1.17 (the updater
 still accepts the legacy `WA Team Inbox.exe`). The data folders, desktop profile, service ID and app ID
 are intentional upgrade contracts; do not rename them when changing visible branding. Workspaces are published to npm as `@ezychat/*`
-(shared, wa, server, web); `@ezychat/desktop` stays private.
+(shared, wa, server, web, desktop); the desktop package ships the shell, never the server bundle.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
 `web`, …). Browser errors (window errors, unhandled rejections, React error boundaries) are POSTed to

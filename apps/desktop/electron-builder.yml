@@ -1,7 +1,8 @@
 # electron-builder config for EzyChat Lite (run from apps/desktop: `npm run dist`).
 # Prerequisites (done by the dist script): web build (apps/web/dist), server bundle
-# (dist/server/server.cjs via scripts/bundle-server.mjs), tsc (dist/main.js),
-# cloudflared (scripts/fetch-cloudflared.mjs) and WinSW (scripts/fetch-winsw.mjs).
+# (dist/server/server.cjs via scripts/bundle-server.mjs), the shell build (dist/main.js and
+# dist/renderer via apps/desktop/scripts/build.mjs), cloudflared (apps/desktop/scripts/fetch-cloudflared.mjs)
+# and WinSW (apps/desktop/scripts/fetch-winsw.mjs).
 appId: org.ossmalaysia.wateaminbox
 productName: EzyChat Lite
 copyright: Copyright © OSS Malaysia and contributors
@@ -15,7 +16,9 @@ files:
   - package.json
   - dist/**/*
   - '!dist/**/*.map'
-  - src/renderer/**/*
+  # type declarations are for the npm package only
+  - '!dist/**/*.d.ts'
+  - '!dist/**/*.d.cts'
   # better-sqlite3 ships prebuilt binaries; its C sources are only needed to compile from source
   - '!**/node_modules/better-sqlite3/{deps,src}/**'
   - '!**/node_modules/better-sqlite3/binding.gyp'

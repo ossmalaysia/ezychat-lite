@@ -2,16 +2,50 @@
   "name": "@ezychat/desktop",
   "productName": "EzyChat Lite",
   "version": "0.1.39",
-  "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "EzyChat Lite desktop app",
+  "description": "EzyChat core: the Electron desktop shell (window, tray, status window, OS service, updater).",
   "author": "OSS Malaysia and contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossmalaysia/ezychat-lite.git",
+    "directory": "apps/desktop"
+  },
+  "homepage": "https://ezychat.ai/",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "dist/main.js",
+  "exports": {
+    ".": {
+      "ezychat-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ezychat-fetch-cloudflared": "scripts/fetch-cloudflared.mjs",
+    "ezychat-fetch-winsw": "scripts/fetch-winsw.mjs"
+  },
+  "files": [
+    "dist",
+    "!dist/server",
+    "!dist/package.json",
+    "!dist/**/*.test.*",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo",
+    "scripts/fetch-cloudflared.mjs",
+    "scripts/fetch-winsw.mjs"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -p .",
-    "start": "npm run build -w @ezychat/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron .",
-    "dist": "node ../../scripts/fetch-cloudflared.mjs && node ../../scripts/fetch-winsw.mjs && npm run build -w @ezychat/web && node ../../scripts/bundle-server.mjs && tsc -p . && electron-builder --config electron-builder.yml",
+    "build": "node scripts/build.mjs",
+    "start": "npm run build -w @ezychat/web && node ../../scripts/bundle-server.mjs && node scripts/build.mjs && electron .",
+    "dist": "node scripts/fetch-cloudflared.mjs && node scripts/fetch-winsw.mjs && npm run build -w @ezychat/web && node ../../scripts/bundle-server.mjs && node scripts/build.mjs && electron-builder --config electron-builder.yml",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "bundle:server": "node ../../scripts/bundle-server.mjs"
@@ -21,6 +55,9 @@
     "better-sqlite3": "^13.0.3",
     "sherpa-onnx-node": "1.13.8",
     "sudo-prompt": "^9.2.1"
+  },
+  "peerDependencies": {
+    "electron": ">=44"
   },
   "devDependencies": {
     "electron": "44.7.2",

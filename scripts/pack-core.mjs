@@ -13,7 +13,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, '.core-packs');
 
 /** Dependencies first (the publish workflow uses the same order). */
-const CORE_PACKAGES = ['@ezychat/shared', '@ezychat/wa', '@ezychat/server', '@ezychat/web'];
+const CORE_PACKAGES = [
+  '@ezychat/shared',
+  '@ezychat/wa',
+  '@ezychat/server',
+  '@ezychat/web',
+  '@ezychat/desktop',
+];
 
 function npm(args) {
   // npm is a .cmd shim on Windows, so run it through the shell (the arguments are fixed literals).

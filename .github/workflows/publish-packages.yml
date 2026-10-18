@@ -1,6 +1,6 @@
 name: Publish core packages
 
-# Publishes the core as @ezychat/{shared,wa,server,web} to npm on each Lite release tag, at the
+# Publishes the core as @ezychat/{shared,wa,server,web,desktop} to npm on each Lite release tag, at the
 # same version as the app (EzyChat Enterprise pins these exact versions). Authentication is npm
 # trusted publishing (GitHub OIDC), never a stored token. Until the repository variable
 # NPM_TRUSTED_PUBLISHING is "true" (set after the first manual publish and the trusted-publisher
@@ -65,9 +65,15 @@ jobs:
           else
             mode="--provenance"
           fi
-          for pkg in @ezychat/shared @ezychat/wa @ezychat/server @ezychat/web; do
+          for pkg in @ezychat/shared @ezychat/wa @ezychat/server @ezychat/web @ezychat/desktop; do
             if [ "$TRUSTED" = "true" ] && npm view "$pkg@$version" version >/dev/null 2>&1; then
               echo "$pkg@$version is already published; skipping"
+              continue
+            fi
+            # Trusted publishing cannot create a package: the first version of a new package is
+            # published by hand (docs/editions-engineer-guide.md), then trusted publishing is set up.
+            if [ "$TRUSTED" = "true" ] && ! npm view "$pkg" name >/dev/null 2>&1; then
+              echo "::warning::$pkg is not on npm yet: publish $version by hand, then add trusted publishing"
               continue
             fi
             npm publish -w "$pkg" --access public --ignore-scripts $mode
