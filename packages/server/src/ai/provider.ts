@@ -60,7 +60,13 @@ export function generateOpenAi(
   signal: AbortSignal,
 ): Promise<AiDecision> {
   return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, _id, bounded) => {
-    const turn = await runAgentTurn({ model, prompt, tools: prompt.tools, signal: bounded });
+    const turn = await runAgentTurn({
+      model,
+      prompt,
+      tools: prompt.tools,
+      signal: bounded,
+      onTiming: prompt.onTiming,
+    });
     return turn.decision;
   });
 }

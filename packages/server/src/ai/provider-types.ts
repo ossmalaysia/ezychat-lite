@@ -26,6 +26,14 @@ export interface AiPrompt {
    * answers in one call, as before.
    */
   tools?: ToolSet;
+  /** Called once per agent turn with its timing (no text), for the turn log line. */
+  onTiming?: (timing: AgentTurnTiming) => void;
+}
+/** How long one agent turn took: total and each model step (a step includes its tool calls). */
+export interface AgentTurnTiming {
+  ms: number;
+  stepMs: number[];
+  steps: number;
 }
 export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
 export interface AiPromptImage {

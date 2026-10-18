@@ -506,7 +506,13 @@ export class DirectChatGptProvider implements AiProvider {
   ): Promise<AiDecision> {
     if (settings.mode === 'api') return generateOpenAi(settings, apiKey, prompt, signal);
     return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal) => {
-      const turn = await runAgentTurn({ model, prompt, tools: prompt.tools, signal: turnSignal });
+      const turn = await runAgentTurn({
+        model,
+        prompt,
+        tools: prompt.tools,
+        signal: turnSignal,
+        onTiming: prompt.onTiming,
+      });
       return turn.decision;
     });
   }

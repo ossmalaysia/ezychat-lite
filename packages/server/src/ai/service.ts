@@ -677,6 +677,8 @@ export function createAiService(
                   }),
                   ...extension.tools,
                 },
+                onTiming: (timing) =>
+                  log.info({ event: 'ai_turn', source: 'live', ...timing }, 'AI turn timing'),
               },
               signal,
             ),
@@ -1238,6 +1240,8 @@ export function createAiService(
               ...chatTools({ knowledge: knowledgeSources(contextItems()) }),
               ...extension.tools,
             },
+            onTiming: (timing) =>
+              log.info({ event: 'ai_turn', source: 'try', ...timing }, 'AI turn timing'),
           },
           signal,
         );

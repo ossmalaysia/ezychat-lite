@@ -1,7 +1,7 @@
 import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@ezychat/shared';
-import { AI_IMAGE_DETAIL, type AiPrompt } from '../provider-types.js';
+import { AI_IMAGE_DETAIL, type AgentTurnTiming, type AiPrompt } from '../provider-types.js';
 
 /** At most this many model calls per customer turn (tool calls + the final decision). */
 export const AGENT_MAX_STEPS = 4;
@@ -19,6 +19,8 @@ export interface AgentTurn {
   /** Read tools already bound to this chat by the server (see `agent/tools.ts`); none is fine. */
   tools?: ToolSet;
   signal: AbortSignal;
+  /** Receives the turn's timing once it has a decision (never called for a failed turn). */
+  onTiming?: (timing: AgentTurnTiming) => void;
 }
 
 export interface AgentTurnResult {
@@ -34,6 +36,9 @@ export interface AgentTurnResult {
  */
 export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
   turn.signal.throwIfAborted();
+  const started = Date.now();
+  let last = started;
+  const stepMs: number[] = [];
   const result = await generateText({
     model: turn.model,
     instructions: turn.prompt.instructions,
@@ -59,10 +64,21 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
     // hands the chat to the team instead.
     maxRetries: 0,
     maxOutputTokens: 2000,
+    onStepFinish: () => {
+      const now = Date.now();
+      stepMs.push(now - last);
+      last = now;
+    },
   });
   turn.signal.throwIfAborted();
+  const decision = AiDecision.parse(result.output);
+  try {
+    turn.onTiming?.({ ms: Date.now() - started, stepMs, steps: result.steps.length });
+  } catch {
+    // Timing is only for the log; it never changes the reply.
+  }
   return {
-    decision: AiDecision.parse(result.output),
+    decision,
     toolCalls: result.steps.flatMap((step) => step.toolCalls.map((call) => call.toolName)),
     steps: result.steps.length,
   };
