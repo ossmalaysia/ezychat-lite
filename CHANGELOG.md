@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.39] - 2026-10-19
+
 ### Fixed
 
-- AI replies use WhatsApp formatting: bold text no longer shows extra asterisks (for example **name** became _name_ with visible stars).
+- AI replies use WhatsApp formatting: bold text (such as a product name) no longer shows an extra star at each end.
 
 ## [0.1.38] - 2026-10-18
 
