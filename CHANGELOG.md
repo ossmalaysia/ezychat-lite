@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.40] - 2026-10-19
+
 ### Added
 
 - The desktop shell is published as `@ezychat/desktop` (`startDesktop(product)`), so other editions can
