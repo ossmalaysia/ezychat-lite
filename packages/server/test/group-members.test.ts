@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ChatListResponse, GroupInfoResponse } from '@wa-team-inbox/shared';
-import type { WaGroupInfo } from '@wa-team-inbox/wa';
+import { ChatListResponse, GroupInfoResponse } from '@ezychat/shared';
+import type { WaGroupInfo } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';

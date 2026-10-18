@@ -48,7 +48,13 @@ describe('runAgentTurn', () => {
         answer({ reply: 'Delivery is RM15.', action: 'answer', handoffReason: null }),
       ],
     });
-    const result = await runAgentTurn(turn(model));
+    const timings: { ms: number; stepMs: number[]; steps: number }[] = [];
+    const result = await runAgentTurn({ ...turn(model), onTiming: (t) => timings.push(t) });
+    // One timing per turn: total and one entry per model step (no text).
+    expect(timings).toHaveLength(1);
+    expect(timings[0]!.steps).toBe(2);
+    expect(timings[0]!.stepMs).toHaveLength(2);
+    expect(timings[0]!.ms).toBeGreaterThanOrEqual(0);
     expect(result.decision).toEqual({
       reply: 'Delivery is RM15.',
       action: 'answer',

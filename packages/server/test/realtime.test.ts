@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { request as httpRequest } from 'node:http';
 import { io as ioClient, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents, WaStatus } from '@wa-team-inbox/shared';
+import type { ClientToServerEvents, ServerToClientEvents, WaStatus } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 

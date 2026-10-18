@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { WaIncomingMessage } from '@wa-team-inbox/wa';
+import type { WaIncomingMessage } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 

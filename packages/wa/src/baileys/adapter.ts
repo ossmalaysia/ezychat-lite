@@ -21,7 +21,7 @@ import {
   type WASocket,
 } from 'baileys';
 import { pino, type Logger } from 'pino';
-import type { WaStatus } from '@wa-team-inbox/shared';
+import type { WaStatus } from '@ezychat/shared';
 import {
   WaUnavailableError,
   type SendResult,

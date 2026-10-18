@@ -52,7 +52,7 @@ import {
   type TunnelStatus,
   type User,
   type WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { ApiError, api } from './client';
 import { unsubscribePush } from '../pwa/push';
 

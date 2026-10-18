@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { OpenChatCountResponse, ResolveAllChatsResponse } from '@wa-team-inbox/shared';
+import { OpenChatCountResponse, ResolveAllChatsResponse } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';

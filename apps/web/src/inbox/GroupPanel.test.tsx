@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { GroupInfoResponse, GroupMember } from '@wa-team-inbox/shared';
+import type { GroupInfoResponse, GroupMember } from '@ezychat/shared';
 import { GroupPanel, MEMBER_PAGE } from './GroupPanel';
 
 const GROUP = '120363000000000001@g.us';

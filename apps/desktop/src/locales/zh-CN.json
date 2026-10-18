@@ -50,15 +50,15 @@
     "restarting": "正在重启以安装更新…"
   },
   "check": {
-    "tooMuch": "GitHub 返回的更新信息过多。请稍后再试。",
-    "noInfo": "GitHub 没有返回更新信息。",
-    "invalid": "GitHub 返回的更新信息无效。请稍后再试。",
+    "tooMuch": "更新服务器返回的更新信息过多。请稍后再试。",
+    "noInfo": "更新服务器没有返回更新信息。",
+    "invalid": "更新服务器返回的更新信息无效。请稍后再试。",
     "invalidVersion": "此版本的版本号无效。请查看项目的发布页面。",
     "timeout": "检查更新超时。请稍后再试。",
-    "rateLimited": "GitHub 正在限制更新检查。请稍后再试。",
-    "http": "GitHub 无法检查更新。请稍后再试。",
+    "rateLimited": "更新服务器正在限制更新检查。请稍后再试。",
+    "http": "更新服务器无法检查更新。请稍后再试。",
     "pagination": "发布历史过多，无法确认最新版本。请查看项目的发布页面。",
-    "network": "无法连接 GitHub。请检查网络连接后重试。"
+    "network": "无法连接更新服务器。请检查网络连接后重试。"
   },
   "reset": {
     "busyConfirm": "正在确认重置密码…",
@@ -137,6 +137,11 @@
     "stop": "停止",
     "removeService": "移除服务",
     "recentLog": "最近日志",
+    "section": {
+      "details": "详细信息",
+      "working": "正在处理…",
+      "actionFailed": "操作未成功，请重试。"
+    },
     "notAnswering": "没有响应",
     "modeLabel": {
       "starting": "正在启动…",
@@ -168,7 +173,7 @@
     },
     "updates": {
       "installed": "已安装：v{{version}}。",
-      "checking": "正在从 GitHub 检查更新…",
+      "checking": "正在检查更新…",
       "available": "v{{version}} 现已推出。",
       "availablePreview": "v{{version}} 现已推出（预览版）。",
       "current": "已是最新版本 — v{{version}}。",
@@ -177,7 +182,7 @@
       "ready": "v{{version}} 已下载并通过验证，可以更新。",
       "installing": "正在准备重启并更新… 请批准系统提示以继续。",
       "lastChecked": "上次检查：{{time}}",
-      "autoCheck": "此应用运行时会自动从 GitHub 检查更新。",
+      "autoCheck": "此应用运行时会自动检查更新。",
       "noInstaller": "此版本没有适用于这台电脑的安装程序。请打开发布详情查看可用的下载。",
       "managedHelp": "请先下载，然后在团队可以短暂暂停工作时选择“重启并更新”。应用及已安装的服务会自动重启。你的账号、聊天和设置都会保留。",
       "unverifiable": "此版本无法在这里通过安装验证。请打开发布详情获取手动安装程序。",

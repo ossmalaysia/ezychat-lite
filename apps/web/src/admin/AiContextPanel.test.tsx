@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { AiDocument, AiMemberStatus } from '@wa-team-inbox/shared';
+import type { AiDocument, AiMemberStatus } from '@ezychat/shared';
 import { useAiMember } from '../api/ai';
 import { AiContextPanel } from './AiContextPanel';
 

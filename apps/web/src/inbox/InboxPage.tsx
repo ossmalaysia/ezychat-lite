@@ -1,3 +1,4 @@
+import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Settings } from 'lucide-react';
@@ -68,6 +69,7 @@ export function InboxPage() {
     <NavigationGuardProvider>
       <div className="safe-x flex h-dvh flex-col overflow-hidden bg-background">
         <div className="safe-top bg-surface" />
+        <ExtensionBannerSlot />
         <WaBanner />
         <ReconnectBanner />
         <div className="flex min-h-0 flex-1">

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, ExternalLink, RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthProvider';
+import { useAppLinks } from '@/lib/app-links';
 import { useDesktopUpdates } from '@/lib/desktop-updates';
+import { isLiteReleaseNotes } from '@/lib/links';
 import { formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +13,11 @@ import { Banner, ResponsiveDialog } from './index';
 export function DesktopUpdatePanel() {
   const { t } = useTranslation('app');
   const { state, error, check, open, install, cancelDownload } = useDesktopUpdates();
+  const links = useAppLinks();
   if (!state?.isHost) return null;
+  // Lite's releases live on GitHub (opened through the desktop bridge); another product's
+  // release notes are a plain link, and its texts never mention GitHub.
+  const github = isLiteReleaseNotes(links);
   const checking = state.status === 'checking';
   const release = state.release;
   const transfer = state.transfer;
@@ -20,6 +26,7 @@ export function DesktopUpdatePanel() {
   const ready = transfer?.status === 'ready';
   const managed = state.canInstall !== false && !!window.watiUpdates?.installUpdate;
   const verifiedMetadata = !!release?.assetSha256 && !!release.assetSize;
+  const notesUrl = release && links.releaseNotes ? links.releaseNotes(release.version) : null;
   const percentage = transfer?.totalBytes
     ? Math.min(100, Math.max(0, Math.round((transfer.downloadedBytes / transfer.totalBytes) * 100)))
     : 0;
@@ -36,14 +43,14 @@ export function DesktopUpdatePanel() {
       </div>
       <p role="status" className="text-sm text-muted-foreground">
         {checking
-          ? t('updates.checkingGitHub')
+          ? t(github ? 'updates.checkingGitHub' : 'updates.checkingFeed')
           : state.status === 'current'
             ? t('updates.current')
             : release
               ? t('updates.available', { version: release.version })
               : state.status === 'error'
                 ? t('updates.checkFailed')
-                : t('updates.automatic')}
+                : t(github ? 'updates.automatic' : 'updates.automaticFeed')}
       </p>
       {(error || transfer?.error || state.error) && (
         <Banner tone="warning">{error ?? transfer?.error ?? state.error}</Banner>
@@ -98,7 +105,7 @@ export function DesktopUpdatePanel() {
               ? t('updates.howManaged')
               : release.downloadUrl
                 ? t('updates.howManual')
-                : t('updates.noInstaller')}
+                : t(github ? 'updates.noInstaller' : 'updates.noInstallerFeed')}
           </p>
           <p className="text-xs text-muted-foreground">
             {managed ? t('updates.interrupt') : t('updates.interruptManual')}
@@ -107,7 +114,9 @@ export function DesktopUpdatePanel() {
             <p className="text-sm text-muted-foreground">{state.installUnavailableReason}</p>
           )}
           {managed && !verifiedMetadata && release.downloadUrl && (
-            <Banner tone="info">{t('updates.unverified')}</Banner>
+            <Banner tone="info">
+              {t(github ? 'updates.unverified' : 'updates.unverifiedFeed')}
+            </Banner>
           )}
           <div className="flex flex-wrap gap-2">
             {ready && managed ? (
@@ -130,14 +139,24 @@ export function DesktopUpdatePanel() {
                 {t('updates.cancelDownload')}
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="touch"
-              disabled={installing}
-              onClick={() => void open('release')}
-            >
-              {t('updates.releaseOnGitHub')} <ExternalLink aria-hidden />
-            </Button>
+            {github ? (
+              <Button
+                variant="outline"
+                size="touch"
+                disabled={installing}
+                onClick={() => void open('release')}
+              >
+                {t('updates.releaseOnGitHub')} <ExternalLink aria-hidden />
+              </Button>
+            ) : (
+              notesUrl && (
+                <Button asChild variant="outline" size="touch">
+                  <a href={notesUrl} target="_blank" rel="noopener noreferrer">
+                    {t('updates.releaseNotes')} <ExternalLink aria-hidden />
+                  </a>
+                </Button>
+              )
+            )}
           </div>
         </>
       )}
@@ -164,6 +183,7 @@ export function DesktopUpdateNotice() {
   const { t } = useTranslation('app');
   const { user } = useAuth();
   const { state } = useDesktopUpdates();
+  const github = isLiteReleaseNotes(useAppLinks());
   const shown = useRef<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -203,8 +223,8 @@ export function DesktopUpdateNotice() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {state.release?.prerelease
-                  ? t('updates.notice.preview')
-                  : t('updates.notice.release')}
+                  ? t(github ? 'updates.notice.preview' : 'updates.notice.previewFeed')
+                  : t(github ? 'updates.notice.release' : 'updates.notice.releaseFeed')}
               </p>
             </div>
             <Button

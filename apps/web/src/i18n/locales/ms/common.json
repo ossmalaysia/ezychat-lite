@@ -1,5 +1,5 @@
 {
-  "appName": "EzyChat Lite",
+  "appName": "{{product}}",
   "devBuild": "Binaan Dev",
   "actions": {
     "save": "Simpan",
@@ -57,12 +57,21 @@
     "share": "Kongsi aplikasi ini",
     "reportIssue": "Laporkan masalah",
     "about": "Perihal {{appName}}",
-    "signOut": "Log keluar"
+    "signOut": "Log keluar",
+    "emailSupport": "E-mel sokongan"
   },
   "errorBoundary": {
     "title": "Berlaku ralat",
     "body": "Bahagian aplikasi ini mengalami ralat yang tidak dijangka. Ralat telah dilaporkan.",
     "reload": "Muat semula halaman",
     "goHome": "Pergi ke peti masuk"
+  },
+  "access": {
+    "pausedTitle": "{{product}} dijeda",
+    "pausedBody": "Peti masuk pasukan tidak tersedia buat masa ini. Nombor WhatsApp anda kekal dipautkan dan mesej baharu masih diterima. Minta orang yang menguruskan aplikasi ini untuk menyemaknya.",
+    "autoCheck": "Halaman ini menyemak semula setiap minit dan membuka peti masuk apabila ia tersedia.",
+    "code": "Sebab: {{code}}",
+    "checkAgain": "Semak semula",
+    "checking": "Menyemak…"
   }
 }

@@ -2,14 +2,13 @@ import type {
   DesktopRelease,
   DesktopUpdateState,
 } from '../../../packages/shared/src/desktop-updates.js';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import { t, type DesktopCatalog } from './i18n.js';
+import { activeProduct, updateFeedOf, type Product } from './product.js';
 import { MAX_UPDATE_BYTES } from './updater/download.js';
 
-const REPOSITORY = 'ossmalaysia/ezychat-lite';
-// Historical releases can retain their original URLs after GitHub renames the repository.
-const RELEASE_REPOSITORIES = [REPOSITORY, 'ossmalaysia/wa-team-inbox'];
-const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases`;
+// Releases come from product.releaseRepository. Historical releases can retain their original URLs
+// after GitHub renames the repository, so assets may also live under product.releaseRepositories.
 const INTERVAL_MS = 12 * 60 * 60 * 1000;
 const COOLDOWN_MS = 60_000;
 const TIMEOUT_MS = 15_000;
@@ -62,13 +61,18 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function installerNames(version: string, platform: NodeJS.Platform, arch: string): string[] {
+function installerNames(
+  version: string,
+  platform: NodeJS.Platform,
+  arch: string,
+  product: Product,
+): string[] {
   let suffix: string;
   if (platform === 'win32' && arch === 'x64') suffix = 'win-x64.exe';
   else if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64'))
     suffix = `mac-${arch}.dmg`;
   else return [];
-  return ['EzyChat-Lite', 'WA-Team-Inbox'].map((name) => `${name}-${version}-${suffix}`);
+  return product.artifactPrefixes.map((name) => `${name}-${version}-${suffix}`);
 }
 
 function parseRelease(
@@ -76,7 +80,10 @@ function parseRelease(
   allowPreview: boolean,
   platform: NodeJS.Platform,
   arch: string,
+  product: Product,
 ): { version: Version; release: DesktopRelease } | null {
+  const REPOSITORY = product.releaseRepository;
+  const RELEASE_REPOSITORIES = product.releaseRepositories;
   const item = record(value);
   if (!item || item.draft !== false || typeof item.prerelease !== 'boolean') return null;
   if (typeof item.tag_name !== 'string' || item.tag_name.length > 200) return null;
@@ -96,7 +103,7 @@ function parseRelease(
   )
     return null;
   let installer: Record<string, unknown> | null = null;
-  for (const name of installerNames(versionString, platform, arch)) {
+  for (const name of installerNames(versionString, platform, arch, product)) {
     installer = Array.isArray(item.assets)
       ? (item.assets
           .map(record)
@@ -138,6 +145,78 @@ function parseRelease(
       assetSha256:
         typeof installer?.digest === 'string' && /^sha256:[a-fA-F0-9]{64}$/.test(installer.digest)
           ? installer.digest.slice('sha256:'.length).toLowerCase()
+          : null,
+    },
+  };
+}
+
+function httpsUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2_000) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.hash && !url.port
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A private edition's update manifest (updateFeed { kind: 'url' }):
+ *   { version, notesUrl?, assets: [{ name, url, sha256, size }] }
+ * The installer for this computer is the asset named `<artifactPrefix>-<version>-<os>-<arch>.<ext>`.
+ * Its https URL, SHA-256 and size come from this manifest only; without a valid digest and size
+ * the release is shown but cannot be installed in-app. Returns null when the manifest offers
+ * nothing for this channel and 'invalid' when it is malformed.
+ */
+export function parseUrlFeed(
+  value: unknown,
+  options: { allowPreview: boolean; platform: NodeJS.Platform; arch: string; product: Product },
+): { version: Version; release: DesktopRelease } | null | 'invalid' {
+  const item = record(value);
+  if (!item || typeof item.version !== 'string' || item.version.length > 100) return 'invalid';
+  if (!Array.isArray(item.assets) || item.assets.length > 50) return 'invalid';
+  const versionString = item.version.startsWith('v') ? item.version.slice(1) : item.version;
+  const version = parseVersion(versionString);
+  if (!version) return 'invalid';
+  if (!options.allowPreview && version.prerelease.length) return null;
+  const notesUrl = item.notesUrl === undefined ? null : httpsUrl(item.notesUrl);
+  if (item.notesUrl !== undefined && !notesUrl) return 'invalid';
+  const names = installerNames(versionString, options.platform, options.arch, options.product);
+  let installer: Record<string, unknown> | null = null;
+  for (const name of names) {
+    installer =
+      item.assets.map(record).find((asset) => asset?.name === name && httpsUrl(asset.url)) ?? null;
+    if (installer) break;
+  }
+  const size = installer?.size;
+  const sha256 = installer?.sha256;
+  return {
+    version,
+    release: {
+      version: versionString,
+      name: `${options.product.productName} ${versionString}`,
+      notes: '',
+      publishedAt:
+        typeof item.publishedAt === 'string' && Number.isFinite(Date.parse(item.publishedAt))
+          ? new Date(item.publishedAt).toISOString()
+          : '',
+      prerelease: version.prerelease.length > 0,
+      // No release page: "Release details" opens notesUrl only when the manifest gives one.
+      releaseUrl: notesUrl ?? '',
+      downloadUrl: installer ? httpsUrl(installer.url) : null,
+      assetName: installer ? (installer.name as string) : null,
+      assetSize:
+        typeof size === 'number' &&
+        Number.isSafeInteger(size) &&
+        size > 0 &&
+        size <= MAX_UPDATE_BYTES
+          ? size
+          : null,
+      assetSha256:
+        typeof sha256 === 'string' && /^[a-fA-F0-9]{64}$/.test(sha256)
+          ? sha256.toLowerCase()
           : null,
     },
   };
@@ -201,6 +280,8 @@ export interface GitHubUpdateCheckerOptions {
   log?: (fields: Record<string, unknown>) => void;
   /** language of the user-facing error messages (default English) */
   locale?: Locale;
+  /** release feed and installer names; the active product when omitted */
+  product?: Product;
 }
 
 /** Checks public release metadata only; downloading/installing is an explicit host action. */
@@ -213,8 +294,10 @@ export class GitHubUpdateChecker {
   private nextCheckAt = 0;
   private readonly fetch: typeof globalThis.fetch;
   private readonly now: () => number;
+  private readonly product: Product;
 
   constructor(private readonly options: GitHubUpdateCheckerOptions) {
+    this.product = options.product ?? activeProduct();
     this.fetch = options.fetch ?? globalThis.fetch;
     this.now = options.now ?? Date.now;
     this.state = {
@@ -297,16 +380,49 @@ export class GitHubUpdateChecker {
       const allowPreview = current.core[0] === 0n || current.prerelease.length > 0;
       let newest: { version: Version; release: DesktopRelease } | null = null;
       let complete = false;
-      for (let page = 1; page <= MAX_PAGES; page++) {
-        const response = await this.fetch(`${RELEASES_API}?per_page=100&page=${page}`, {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'EzyChat-Lite-Update-Checker',
-          },
+      const feed = updateFeedOf(this.product);
+      const userAgent = `${this.product.artifactPrefixes[0]}-Update-Checker`;
+      if (feed.kind === 'url') {
+        // One https manifest, fetched without credentials or redirects (see parseUrlFeed).
+        const response = await this.fetch(feed.url, {
+          headers: { Accept: 'application/json', 'User-Agent': userAgent },
           signal: controller.signal,
           redirect: 'error',
+          credentials: 'omit',
         });
+        pages++;
+        if (generation !== this.generation || !this.options.isHost()) return this.getState();
+        if (controller.signal.aborted) throw new CheckError(msg('timeout'), 'timeout');
+        if (response.status === 429) {
+          throw new CheckError(msg('rateLimited'), 'rate_limit', this.now() + 15 * 60_000);
+        }
+        if (!response.ok) throw new CheckError(msg('http'), 'http');
+        const json = await readJson(response, msg);
+        if (generation !== this.generation || !this.options.isHost()) return this.getState();
+        if (controller.signal.aborted) throw new CheckError(msg('timeout'), 'timeout');
+        const parsed = parseUrlFeed(json, {
+          allowPreview,
+          platform: this.options.platform,
+          arch: this.options.arch,
+          product: this.product,
+        });
+        if (parsed === 'invalid') throw new CheckError(msg('invalid'), 'response');
+        newest = parsed;
+        complete = true;
+      }
+      for (let page = 1; !complete && page <= MAX_PAGES; page++) {
+        const response = await this.fetch(
+          `https://api.github.com/repos/${this.product.releaseRepository}/releases?per_page=100&page=${page}`,
+          {
+            headers: {
+              Accept: 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': userAgent,
+            },
+            signal: controller.signal,
+            redirect: 'error',
+          },
+        );
         pages++;
         if (generation !== this.generation || !this.options.isHost()) return this.getState();
         if (controller.signal.aborted) {
@@ -338,6 +454,7 @@ export class GitHubUpdateChecker {
             allowPreview,
             this.options.platform,
             this.options.arch,
+            this.product,
           );
           if (candidate && (!newest || compareVersions(candidate.version, newest.version) > 0)) {
             newest = candidate;

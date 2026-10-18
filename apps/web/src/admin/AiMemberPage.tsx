@@ -11,7 +11,7 @@ import {
   AiEditField,
   type AiMemberStatus,
   type AiSettings,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { useAiMember, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, PageHeader, StatusDot } from '@/components/app';
@@ -26,6 +26,7 @@ import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, memberPill, type AiKnowledgeDraft } from './ai-status';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
+import { ExtensionBoundary, useWebExtensions } from '../extensions';
 
 const PILL_TONE = {
   on: 'success',
@@ -304,6 +305,8 @@ function AiMemberEditor({
         disabled={action.isPending}
       />
 
+      <AgentExtensionSections agent="sales" />
+
       <Card className="gap-4">
         <CardHeader>
           <CardTitle>{t('ai.page.stepTry')}</CardTitle>
@@ -460,6 +463,25 @@ function AiMemberEditor({
           {t('ai.page.save')}
         </Button>
       </SaveBar>
+    </div>
+  );
+}
+
+/** Extension rows for one agent (e.g. Connectors), right under Business context. */
+function AgentExtensionSections({ agent }: { agent: 'sales' }) {
+  const sections = useWebExtensions().flatMap((ext) =>
+    (ext.agentSections ?? [])
+      .filter((section) => section.agent === agent)
+      .map((section) => ({ key: `${ext.name}:${section.id}`, element: section.element })),
+  );
+  if (!sections.length) return null;
+  return (
+    <div className="flex flex-col gap-3" data-testid="agent-extension-sections">
+      {sections.map((section) => (
+        <div key={section.key} data-extension-section={section.key}>
+          <ExtensionBoundary>{section.element}</ExtensionBoundary>
+        </div>
+      ))}
     </div>
   );
 }

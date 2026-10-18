@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { ErrorCode } from '@wa-team-inbox/shared';
+import { ErrorCode } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { isTrustedTunnelPeer } from './client-ip.js';
 

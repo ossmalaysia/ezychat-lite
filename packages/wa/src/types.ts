@@ -1,5 +1,5 @@
 import type { Logger } from 'pino';
-import type { MessageType, WaStatus } from '@wa-team-inbox/shared';
+import type { MessageType, WaStatus } from '@ezychat/shared';
 
 export interface WaIncomingMessage {
   id: string;

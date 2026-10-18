@@ -114,7 +114,7 @@ it.each(['cancelled', 'copied'])(
     actions.shareApp.mockResolvedValue(result);
     render(<ShareAppAction open onOpenChange={vi.fn()} />);
     await userEvent.setup().click(screen.getByRole('button', { name: 'More sharing options' }));
-    expect(actions.shareApp).toHaveBeenCalledWith(SHARE_APP_CAPTION);
+    expect(actions.shareApp).toHaveBeenCalledWith(SHARE_APP_CAPTION, SHARE_APP_URL);
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'More sharing options' }).hasAttribute('disabled'),

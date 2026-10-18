@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
-import type { TunnelMode, TunnelState, TunnelStartBody } from '@wa-team-inbox/shared';
+import type { TunnelMode, TunnelState, TunnelStartBody } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { useSettings, useStartTunnel, useStopTunnel, useTunnel } from '../api/queries';
 import { Banner, PageHeader, StatusDot, stateTone } from '@/components/app';

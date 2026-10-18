@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { CreateApiTokenBody, McpSettingsPatch } from '@wa-team-inbox/shared';
+import { CreateApiTokenBody, McpSettingsPatch } from '@ezychat/shared';
 import { getApiTokens } from '../api-tokens/index.js';
 import { requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';

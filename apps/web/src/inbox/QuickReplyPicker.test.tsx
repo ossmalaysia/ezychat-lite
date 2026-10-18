@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { QuickReply } from '@wa-team-inbox/shared';
+import type { QuickReply } from '@ezychat/shared';
 import { Composer } from './Composer';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { QuickReplyBody, type QuickReply } from '@wa-team-inbox/shared';
+import { QuickReplyBody, type QuickReply } from '@ezychat/shared';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';

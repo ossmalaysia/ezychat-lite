@@ -1,4 +1,4 @@
-import type { Settings, SettingsPatchBody } from '@wa-team-inbox/shared';
+import type { Settings, SettingsPatchBody } from '@ezychat/shared';
 import { DEFAULT_PORT } from '../config.js';
 import type { AppContext } from '../context.js';
 import { TUNNEL_HOSTNAME_KEY, TUNNEL_TOKEN_KEY } from '../tunnel/manager.js';

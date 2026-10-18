@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LanguageSelect } from '@/i18n/LanguageSelect';
-import { GITHUB_ISSUES_URL } from '@/lib/links';
+import { useAppLinks } from '@/lib/app-links';
+import { reportIssueHref } from '@/lib/links';
 import { useAppVersion } from '@/lib/version';
 
 /** Official EzyChat brand mark, shared by desktop and installed PWA. */
@@ -29,6 +30,7 @@ export function AuthShell({
   children,
   wide = false,
   illustration,
+  languageSelect = true,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -36,17 +38,23 @@ export function AuthShell({
   wide?: boolean;
   /** Optional decorative illustration shown above the title. */
   illustration?: string;
+  /** Show the language menu (it needs the signed-in user's context; the lock screen has none). */
+  languageSelect?: boolean;
 }) {
   const { t } = useTranslation(['common', 'app']);
   const version = useAppVersion();
+  const links = useAppLinks();
+  const reportHref = reportIssueHref(links);
   return (
     <div className="safe-x safe-top safe-bottom relative min-h-dvh bg-background text-foreground">
       <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:justify-center">
         <div className={cn('w-full min-w-0', wide ? 'max-w-xl' : 'max-w-sm')}>
           {/* Top-right of the page on wider screens; above the card on phones. */}
-          <div className="mb-2 flex justify-end sm:absolute sm:top-4 sm:right-4 sm:mb-0">
-            <LanguageSelect />
-          </div>
+          {languageSelect && (
+            <div className="mb-2 flex justify-end sm:absolute sm:top-4 sm:right-4 sm:mb-0">
+              <LanguageSelect />
+            </div>
+          )}
           <div className="mb-4 flex items-center justify-center gap-2">
             <AppMark className="size-8 rounded-lg" />
             <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
@@ -74,15 +82,17 @@ export function AuthShell({
           {/* Only what someone stuck at sign-in needs: the version and a way to report it. */}
           <footer className="mt-4 flex items-center justify-center gap-x-3 text-sm text-muted-foreground">
             {version && <span>{t('app:credits.versionShort', { version })}</span>}
-            <a
-              href={GITHUB_ISSUES_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-1 rounded-sm px-1 py-2 underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              {t('app:credits.reportIssue')}
-              <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
-            </a>
+            {reportHref && (
+              <a
+                href={reportHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center gap-1 rounded-sm px-1 py-2 underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {links.reportIssue ? t('app:credits.reportIssue') : t('app:credits.emailSupport')}
+                <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+              </a>
+            )}
           </footer>
         </div>
       </main>

@@ -1,12 +1,12 @@
 import { ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { GITHUB_REPO_URL } from '@/lib/links';
+import { useAppLinks } from '@/lib/app-links';
 import { ResponsiveDialog } from './index';
 import { AppCredits } from './AppCredits';
 import { DesktopUpdatePanel } from './DesktopUpdates';
 
-/** "About EzyChat Lite": icon, name, description, version, repo link and credits. */
+/** "About <product>": icon, name, description, version, repo (or website) link and credits. */
 export function AboutDialog({
   open,
   onOpenChange,
@@ -17,6 +17,11 @@ export function AboutDialog({
   version?: string;
 }) {
   const { t } = useTranslation(['app', 'common']);
+  const links = useAppLinks();
+  // Lite links its public source code; another product links its website instead.
+  const projectLink = links.sourceCode
+    ? { href: links.sourceCode, label: t('about.github') }
+    : { href: links.website, label: t('about.website') };
   return (
     <ResponsiveDialog
       open={open}
@@ -39,8 +44,8 @@ export function AboutDialog({
         </div>
         <DesktopUpdatePanel />
         <Button asChild variant="outline" size="touch">
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-            {t('about.github')}
+          <a href={projectLink.href} target="_blank" rel="noopener noreferrer">
+            {projectLink.label}
             <ExternalLink aria-hidden="true" />
           </a>
         </Button>

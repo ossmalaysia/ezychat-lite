@@ -1,4 +1,4 @@
-import type { CustomerProfile, Message } from '@wa-team-inbox/shared';
+import type { CustomerProfile, Message } from '@ezychat/shared';
 import type { AiRewritePrompt } from '../ai/provider-types.js';
 
 export const ENRICHMENT_INSTRUCTIONS = `Extract customer profile facts from the current batch of new direct-chat text messages.

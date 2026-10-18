@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 import { ApiError } from '../api/client';
 import {
   flattenMessages,

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ChatListResponse, MessageSchema } from '@wa-team-inbox/shared';
+import { ChatListResponse, MessageSchema } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { craftedNote } from './fixtures/ogg.js';

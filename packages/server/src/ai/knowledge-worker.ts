@@ -16,7 +16,7 @@ export function extractKnowledgeIsolated(name: string, buffer: Buffer): Promise<
       workerData: { name, buffer },
       resourceLimits: { maxOldGenerationSizeMb: 128, maxYoungGenerationSizeMb: 32 },
       // Source dev/tests register TypeScript explicitly; packaged workers are plain CommonJS.
-      execArgv: compiled ? [] : ['--import', 'tsx'],
+      execArgv: compiled ? [] : ['--conditions=ezychat-source', '--import', 'tsx'],
       stdout: true,
       stderr: true,
     });

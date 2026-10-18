@@ -9,7 +9,7 @@ import {
   AiContextTextBody,
   codePointLength,
   type AiDocument,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { BatchDeleteError, useAiDocument, useAiMemberAction } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog } from '@/components/app';

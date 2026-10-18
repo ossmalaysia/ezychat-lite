@@ -1,4 +1,4 @@
-import { AiHandoffReason } from '@wa-team-inbox/shared';
+import { AiHandoffReason } from '@ezychat/shared';
 import { i18n } from '@/i18n';
 
 /** Short, localized reason why the AI handed a chat to the team (chat events and Try it). */
@@ -18,6 +18,8 @@ export function handoffReasonLabel(reason: AiHandoffReason): string {
       return i18n.t('inbox:events.handoffReason.unsupported_message');
     case 'ai_unavailable':
       return i18n.t('inbox:events.handoffReason.ai_unavailable');
+    case 'lookup_failed':
+      return i18n.t('inbox:events.handoffReason.lookup_failed');
   }
 }
 

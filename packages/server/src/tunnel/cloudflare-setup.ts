@@ -9,7 +9,7 @@ import {
   type CloudflareSetupStatus,
   type TunnelStatus,
   type TunnelMode,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import {

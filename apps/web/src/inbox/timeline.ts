@@ -1,4 +1,4 @@
-import type { ChatEvent, Message, Note } from '@wa-team-inbox/shared';
+import type { ChatEvent, Message, Note } from '@ezychat/shared';
 
 export type TimelineItem =
   | { kind: 'day'; key: string; /** Local midnight (epoch ms) of that day. */ date: number }

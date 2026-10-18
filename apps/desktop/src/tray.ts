@@ -1,6 +1,6 @@
 // System tray icon + menu.
 import { app, Menu, Tray, type NativeImage } from 'electron';
-import type { Locale } from '@wa-team-inbox/shared';
+import type { Locale } from '@ezychat/shared';
 import { appTitle } from './app-title.js';
 import { t } from './i18n.js';
 

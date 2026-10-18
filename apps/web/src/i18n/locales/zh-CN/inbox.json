@@ -221,11 +221,13 @@
       "needs_action": "客户需要办理事项（下单、预订、付款等）",
       "unsupported_message": "AI 无法读取的消息",
       "ai_unavailable": "AI 暂不可用",
+      "lookup_failed": "在已连接系统中的查询失败",
       "business_rule": "符合您的转交规则"
     },
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",
     "reopened": "{{actor}} 重新打开了此聊天",
+    "aiToolUsed": "AI 查询了 {{title}} · {{source}}",
     "internalNote": "内部备注"
   },
   "messageList": {
@@ -356,7 +358,7 @@
     "unsupported": "此浏览器不支持通知。",
     "label": "通知",
     "labelDevice": "此设备上的通知",
-    "desktopHint": "应用在后台时会显示提醒。请让它在系统托盘中保持运行，并在系统通知设置中允许 EzyChat Lite。",
+    "desktopHint": "应用在后台时会显示提醒。请让它在系统托盘中保持运行，并在系统通知设置中允许 {{product}}。",
     "blocked": "通知已被阻止。请在浏览器的网站设置中允许通知。",
     "errors": {
       "browserUnsupported": "此浏览器不支持推送通知。",
@@ -368,7 +370,7 @@
   },
   "installHint": {
     "title": "添加到主屏幕以接收通知",
-    "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 EzyChat Lite 并开启通知。",
+    "body": "在 Safari 中点按分享按钮 <share/>，选择<strong>添加到主屏幕</strong>，然后从主屏幕打开 {{product}} 并开启通知。",
     "share": "分享"
   },
   "customer": {

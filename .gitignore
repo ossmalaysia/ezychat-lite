@@ -39,3 +39,7 @@ graphify-out/
 
 # e2e auth state
 e2e/.auth/
+
+# published package builds (npm run pack:core)
+dist-lib/
+.core-packs/

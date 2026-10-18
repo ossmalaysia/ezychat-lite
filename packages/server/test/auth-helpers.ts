@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import type { Role, User } from '@wa-team-inbox/shared';
+import type { Role, User } from '@ezychat/shared';
 import type { AppContext } from '../src/context.js';
 import '../src/auth/index.js';
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import type { WaState } from '@wa-team-inbox/shared';
+import type { WaState } from '@ezychat/shared';
 import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
 import { PhoneLink } from '../wa/PhoneLink';
 import { Banner, EmptyState, PageHeader, StatusDot, stateTone } from '@/components/app';

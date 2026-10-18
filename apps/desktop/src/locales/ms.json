@@ -50,15 +50,15 @@
     "restarting": "Memulakan semula untuk memasang kemas kini…"
   },
   "check": {
-    "tooMuch": "GitHub memulangkan maklumat kemas kini yang terlalu banyak. Cuba lagi kemudian.",
-    "noInfo": "GitHub tidak memulangkan maklumat kemas kini.",
-    "invalid": "GitHub memulangkan maklumat kemas kini yang tidak sah. Cuba lagi kemudian.",
+    "tooMuch": "Pelayan kemas kini memulangkan maklumat kemas kini yang terlalu banyak. Cuba lagi kemudian.",
+    "noInfo": "Pelayan kemas kini tidak memulangkan maklumat kemas kini.",
+    "invalid": "Pelayan kemas kini memulangkan maklumat kemas kini yang tidak sah. Cuba lagi kemudian.",
     "invalidVersion": "Binaan ini mempunyai versi yang tidak sah. Semak keluaran projek.",
     "timeout": "Semakan kemas kini tamat masa. Sila cuba lagi kemudian.",
-    "rateLimited": "GitHub sedang mengehadkan semakan kemas kini. Sila cuba lagi kemudian.",
-    "http": "GitHub tidak dapat menyemak kemas kini. Sila cuba lagi kemudian.",
+    "rateLimited": "Pelayan kemas kini sedang mengehadkan semakan kemas kini. Sila cuba lagi kemudian.",
+    "http": "Pelayan kemas kini tidak dapat menyemak kemas kini. Sila cuba lagi kemudian.",
     "pagination": "Sejarah keluaran terlalu besar untuk mengesahkan versi terkini. Semak keluaran projek.",
-    "network": "GitHub tidak dapat dihubungi. Semak sambungan internet anda dan cuba lagi."
+    "network": "Pelayan kemas kini tidak dapat dihubungi. Semak sambungan internet anda dan cuba lagi."
   },
   "reset": {
     "busyConfirm": "Mengesahkan set semula kata laluan…",
@@ -137,6 +137,11 @@
     "stop": "Henti",
     "removeService": "Buang perkhidmatan",
     "recentLog": "Log terkini",
+    "section": {
+      "details": "Butiran",
+      "working": "Sedang diproses…",
+      "actionFailed": "Tindakan itu tidak berjaya. Cuba lagi."
+    },
     "notAnswering": "tidak memberikan respons",
     "modeLabel": {
       "starting": "Memulakan…",
@@ -168,7 +173,7 @@
     },
     "updates": {
       "installed": "Dipasang: v{{version}}.",
-      "checking": "Menyemak kemas kini di GitHub…",
+      "checking": "Menyemak kemas kini…",
       "available": "v{{version}} kini tersedia.",
       "availablePreview": "v{{version}} kini tersedia (pratonton).",
       "current": "Aplikasi anda terkini — v{{version}}.",
@@ -177,7 +182,7 @@
       "ready": "v{{version}} telah dimuat turun dan disahkan. Sedia untuk dikemas kini.",
       "installing": "Bersedia untuk dimulakan semula dan dikemas kini… Luluskan gesaan sistem untuk meneruskan.",
       "lastChecked": "Semakan terakhir: {{time}}",
-      "autoCheck": "Menyemak GitHub secara automatik semasa aplikasi ini berjalan.",
+      "autoCheck": "Menyemak kemas kini secara automatik semasa aplikasi ini berjalan.",
       "noInstaller": "Keluaran ini tiada pemasang untuk komputer ini. Buka butiran keluaran untuk muat turun yang tersedia.",
       "managedHelp": "Muat turun dahulu, kemudian pilih Mulakan semula dan kemas kini apabila pasukan anda boleh berhenti seketika. Aplikasi dan sebarang perkhidmatan yang dipasang akan dimulakan semula secara automatik. Akaun, sembang dan tetapan anda dikekalkan.",
       "unverifiable": "Keluaran ini tidak dapat disahkan untuk dipasang di sini. Buka butiran keluaran untuk pemasang manual.",

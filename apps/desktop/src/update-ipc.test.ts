@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
-import type { DesktopUpdateState } from '@wa-team-inbox/shared';
+import type { DesktopUpdateState } from '@ezychat/shared';
 import { pathToFileURL } from 'node:url';
 
 const mock = vi.hoisted(() => ({

@@ -10,11 +10,13 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/dist/**',
       '**/dist-*/**',
+      '.core-packs/**',
       '**/out/**',
       '**/release/**',
       '**/release-*/**',
       '**/coverage/**',
       'playwright-report/**',
+      '.playwright-mcp/**',
       'test-results/**',
       'resources/**',
       'data/**',
@@ -37,6 +39,14 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/consistent-type-imports': 'warn',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['@ezychat-enterprise/*'], message: 'Lite never imports Enterprise code.' },
+          ],
+        },
+      ],
     },
   },
   {

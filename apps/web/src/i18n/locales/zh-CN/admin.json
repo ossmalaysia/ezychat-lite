@@ -274,8 +274,8 @@
       "label": "允许 AI 助手读取此收件箱",
       "description": "连接任何兼容 MCP 的 AI 助手。它可以读取聊天、备注和统计数据，并可以读取、测试和更改 AI 销售助理的指令、转交规则和业务背景，但不能向客户发送消息。每次更改都会记录在审计日志中。",
       "worksFromLabel": "可用于",
-      "worksFromLocal": "运行 EzyChat Lite 的电脑。",
-      "worksFromTunnel": "运行 EzyChat Lite 的电脑，也可以通过您的隧道从任何地方连接：",
+      "worksFromLocal": "运行 {{product}} 的电脑。",
+      "worksFromTunnel": "运行 {{product}} 的电脑，也可以通过您的隧道从任何地方连接：",
       "privacyLabel": "隐私",
       "privacy": "助手读取的聊天内容会发送给运营该助手的公司（例如 Anthropic、OpenAI 或 Google），并归入您所连接的账户。",
       "turnedOn": "已开启 AI 助手访问",
@@ -283,7 +283,7 @@
     },
     "noTunnel": {
       "title": "隧道未运行",
-      "body": "运行 EzyChat Lite 的电脑上的助手现在就可以连接。如需从其他地方连接，请先开启手机访问。",
+      "body": "运行 {{product}} 的电脑上的助手现在就可以连接。如需从其他地方连接，请先开启手机访问。",
       "link": "打开手机访问"
     },
     "tokens": {
@@ -337,7 +337,7 @@
       "copyHeader": "复制请求头",
       "otherHint": "可在任何接受服务器 URL 和请求头的 MCP 应用中使用（例如 Codex CLI、Cursor 或 VS Code）。",
       "oauthHint": "仅支持 OAuth 登录的应用（如 ChatGPT 和 claude.ai 连接器）暂不支持。",
-      "localOnly": "此地址仅在运行 EzyChat Lite 的电脑上有效。启动隧道后即可从其他地方连接。",
+      "localOnly": "此地址仅在运行 {{product}} 的电脑上有效。启动隧道后即可从其他地方连接。",
       "askHint": "然后可以这样提问：“哪些聊天正在等待回复？”"
     }
   },
@@ -675,6 +675,9 @@
         "handoff": "将转交人工"
       },
       "handoffReason": "原因：{{reason}}",
+      "lookups": "AI 查询的内容",
+      "lookedUp": "AI 查询了 {{title}} · {{source}}",
+      "lookupFailed": "无法查询 {{title}} · {{source}}",
       "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
       "failed": "无法回答：{{error}}"

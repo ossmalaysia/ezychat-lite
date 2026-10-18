@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import type React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import { UNAUTHORIZED_EVENT } from '../api/client';
 import { qk, useLogout, useMe } from '../api/queries';
 

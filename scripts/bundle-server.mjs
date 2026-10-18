@@ -41,6 +41,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'apps', 'desktop', 'dist', 'server');
 const entry = join(root, 'packages', 'server', 'src', 'cli.ts');
 
+// The core packages are bundled from their TypeScript source (the "ezychat-source" export
+// condition), so the desktop build never depends on a stale packages/*/dist.
+const conditions = ['ezychat-source', 'node', 'import', 'require', 'default'];
+
 const external = [
   // native addons — must be resolved from node_modules at runtime
   'better-sqlite3',
@@ -81,7 +85,7 @@ const result = await build({
   logLevel: 'warning',
   metafile: true,
   mainFields: ['module', 'main'],
-  conditions: ['node', 'import', 'require', 'default'],
+  conditions,
   // ESM sources use import.meta.url (e.g. migrations lookup); map it to this file's URL.
   define: { 'import.meta.url': '__wati_import_meta_url' },
   banner: {
@@ -99,7 +103,7 @@ await build({
   format: 'cjs',
   external,
   mainFields: ['module', 'main'],
-  conditions: ['node', 'import', 'require', 'default'],
+  conditions,
   logLevel: 'warning',
   legalComments: 'linked',
 });
@@ -116,7 +120,7 @@ await build({
   external,
   plugins: [simpleYencEsm],
   mainFields: ['module', 'main'],
-  conditions: ['node', 'import', 'require', 'default'],
+  conditions,
   logLevel: 'warning',
   legalComments: 'linked',
   define: { 'import.meta.url': '__wati_import_meta_url' },

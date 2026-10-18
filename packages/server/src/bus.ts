@@ -9,7 +9,8 @@ import type {
   TunnelStatus,
   VoiceStatus,
   WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
+import type { AiToolCallEvent } from './ai/agent/extension-tools.js';
 
 export interface BusEvents {
   'message:new': [Message];
@@ -22,6 +23,8 @@ export interface BusEvents {
   'ai:connection-changed': [];
   /** Committed Sales Agent handover, delivered through the existing notification channels. */
   'ai:handoff': [Chat];
+  /** One finished extension tool call of the AI (live or Try it); never its input or output. */
+  'ai:tool_call': [AiToolCallEvent];
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];
@@ -35,6 +38,10 @@ export interface BusEvents {
   'inbound:notify': [{ chat: Chat; message: Message }];
   /** Live WhatsApp receipt, before media downloads; automation must react to arrival order. */
   'message:received': [{ chat: Chat; message: Message }];
+  /** The access gate closed (an edition turned the app off); paused services stop their work. */
+  'access:closed': [{ code: string }];
+  /** The access gate opened again; paused services resume. */
+  'access:opened': [Record<string, never>];
 }
 
 type Listener<K extends keyof BusEvents> = (...args: BusEvents[K]) => void;

@@ -45,9 +45,9 @@ jobs:
       - run: node scripts/fetch-cloudflared.mjs
       - run: node scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
-      - run: npm run build -w @wa-team-inbox/web
+      - run: npm run build -w @ezychat/web
       - run: node scripts/bundle-server.mjs
-      - run: npm run build -w @wa-team-inbox/desktop
+      - run: npm run build -w @ezychat/desktop
       - name: Package native architecture
         working-directory: apps/desktop
         run: npx electron-builder --config electron-builder.yml --${{ matrix.platform }} ${{ matrix.target }}:${{ matrix.arch }} --publish never

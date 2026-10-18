@@ -7,7 +7,7 @@ import {
   type NotificationPayload,
   type PushSubscribeBody,
   type WaStatus,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { t } from '../i18n/messages.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';
@@ -159,7 +159,11 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     return groups;
   }
 
+  /** Push is paused while an edition has closed the access gate (nothing is queued for later). */
+  const paused = () => !ctx.access.state().open;
+
   async function sendTo(userIds: number[], payload: NotificationPayload): Promise<void> {
+    if (paused()) return;
     const json = JSON.stringify(payload);
     const jobs: Array<Promise<void>> = [];
     for (const uid of userIds) {
@@ -193,6 +197,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     // Hidden desktop windows remain connected; browser push skips online users.
     // Send only to the same eligible recipients, never the public "all" room.
     const rt = ctx.services.realtime;
+    if (paused()) return;
     if (rt && userIds.length)
       rt.io.to(userIds.map((id) => `user:${id}`)).emit('notification:new', payload);
   }

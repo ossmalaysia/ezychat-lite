@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, ExternalLink, KeyRound, Loader2, Sparkles } from 'lucide-react';
-import { AiKeyTestResponse, type AiKeyTestError, type AiMemberStatus } from '@wa-team-inbox/shared';
+import { AiKeyTestResponse, type AiKeyTestError, type AiMemberStatus } from '@ezychat/shared';
 import { useAiMemberAction } from '../api/ai';
 import { api, errorMessage } from '../api/client';
 import { Banner } from '@/components/app';

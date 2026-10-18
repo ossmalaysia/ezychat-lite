@@ -18,6 +18,7 @@ import { appTitle } from './app-title.js';
 import { probeServer } from './detect.js';
 import { desktopIntlTag, desktopLocale, statusStrings, t } from './i18n.js';
 import {
+  broadcastSectionsChanged,
   broadcastStatusChanged,
   registerIpc,
   type DesktopController,
@@ -66,6 +67,8 @@ import {
   messagePage,
 } from './window.js';
 import { appUserModelId } from './app-identity.js';
+import { activeProduct } from './product.js';
+import { isAllowedExternalHref, StatusSectionsHost } from './status-sections.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -476,7 +479,7 @@ async function main(): Promise<void> {
     log(`[desktop] ${title}: ${msg}`);
     void dialog.showMessageBox({
       type: 'error',
-      title: 'EzyChat Lite',
+      title: activeProduct().productName,
       message: title,
       detail: msg,
     });
@@ -610,6 +613,7 @@ async function main(): Promise<void> {
         url,
         dataDir:
           mode === 'client' && lastServiceState !== 'not-installed' ? machineDataDir() : dataDir,
+        productName: activeProduct().productName,
         version,
         serverVersion: health?.version ?? null,
         serverMode: health?.mode ?? null,
@@ -712,6 +716,28 @@ async function main(): Promise<void> {
     },
   };
 
+  // Edition sections on the Status & Service page (none in Lite). serverUrl is the loopback inbox
+  // server while one answers; providers poll it themselves.
+  const sections = new StatusSectionsHost({
+    providers: activeProduct().statusSections ?? [],
+    context: () => ({
+      serverUrl:
+        mode === 'client' || (mode === 'standalone' && server.state === 'running') ? url : null,
+    }),
+    onChanged: (views) => broadcastSectionsChanged(statusWindow, statusFile, views),
+    openExternal: async (href) => {
+      // Second check at the boundary: only https: and mailto: ever reach the OS.
+      if (isAllowedExternalHref(href)) await shell.openExternal(href);
+    },
+    log: (fields) => log(JSON.stringify(fields)),
+  });
+  controller.getSections = () => sections.views();
+  controller.runSectionAction = (request) => sections.runAction(request);
+  sections.start();
+  server.on('state', () => {
+    if (server.state === 'running') void sections.refreshAll();
+  });
+
   const statusIpc = registerIpc(controller, () => statusWindow, statusFile);
   const updateIpc = registerUpdateIpc(updates, {
     main: () => mainWindow,
@@ -764,6 +790,7 @@ async function main(): Promise<void> {
   app.on('before-quit', (e) => {
     quitting = true;
     updates.stop();
+    sections.stop();
     updateIpc.dispose();
     statusIpc.dispose();
     if (finalStopDone || server.state === 'stopped') return;

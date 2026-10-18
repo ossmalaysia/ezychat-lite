@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ChatEvent } from '@wa-team-inbox/shared';
+import type { ChatEvent } from '@ezychat/shared';
 import { describeEvent } from './EventItem';
 import type { Directory } from './useDirectory';
 
@@ -61,5 +61,18 @@ describe('describeEvent', () => {
     expect(describeEvent(event('unassigned', 2, { previous: 2, handoff: 'other' }), dir)).toBe(
       'Jee Fong unassigned this chat',
     );
+  });
+
+  it('describes an AI look-up by title and source only, and a failed look-up hand-over', () => {
+    expect(
+      describeEvent(
+        event('ai_tool_used', 3, { title: 'Get order status', sourceLabel: 'Demo catalogue' }),
+        dir,
+      ),
+    ).toBe('AI looked up Get order status · Demo catalogue');
+    expect(describeEvent(event('ai_tool_used', 3, { title: '' }), dir)).toBe('');
+    expect(
+      describeEvent(event('unassigned', 2, { previous: 2, handoff: 'lookup_failed' }), dir),
+    ).toBe('Jee Fong handed this chat to the team: a look-up in a connected system failed');
   });
 });

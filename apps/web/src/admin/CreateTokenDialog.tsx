@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ApiTokenExpiry } from '@wa-team-inbox/shared';
+import type { ApiTokenExpiry } from '@ezychat/shared';
 import { useCreateApiToken } from '../api/queries';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog, SegmentedControl } from '@/components/app';

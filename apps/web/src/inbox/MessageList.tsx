@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 import { ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';

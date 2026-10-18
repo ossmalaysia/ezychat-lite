@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
-import type { User } from '@wa-team-inbox/shared';
+import type { User } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
 import type { AuthService } from './service.js';

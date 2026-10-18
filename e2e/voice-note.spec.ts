@@ -1,4 +1,4 @@
-import { MessageListResponse } from '@wa-team-inbox/shared';
+import { MessageListResponse } from '@ezychat/shared';
 import { chatHref, customerJid, expect, fakeIncoming, test } from './helpers';
 
 // Chromium's fake microphone (a test tone) is set up for the desktop project only.

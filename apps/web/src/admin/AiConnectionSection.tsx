@@ -9,7 +9,7 @@ import {
   CHATGPT_FALLBACK_MODELS,
   type AiMemberStatus,
   type AiSettings,
-} from '@wa-team-inbox/shared';
+} from '@ezychat/shared';
 import { useAiMember, useAiMemberAction, useAiModels, useAiTest } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, SegmentedControl } from '@/components/app';

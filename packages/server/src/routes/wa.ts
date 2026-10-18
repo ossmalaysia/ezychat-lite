@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { PairingCodeBody, type PairingCodeResponse, type WaStatus } from '@wa-team-inbox/shared';
-import { WaUnavailableError } from '@wa-team-inbox/wa';
+import { PairingCodeBody, type PairingCodeResponse, type WaStatus } from '@ezychat/shared';
+import { WaUnavailableError } from '@ezychat/wa';
 import { errors, parse } from '../http/errors.js';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';

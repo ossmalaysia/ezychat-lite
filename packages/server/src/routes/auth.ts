@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ChangePasswordBody, ErrorCode, LoginBody, PatchMeBody } from '@wa-team-inbox/shared';
+import { ChangePasswordBody, ErrorCode, LoginBody, PatchMeBody } from '@ezychat/shared';
 import {
   clearSessionCookie,
   getAuth,

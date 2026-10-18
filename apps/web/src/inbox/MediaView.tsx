@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Message } from '@wa-team-inbox/shared';
+import type { Message } from '@ezychat/shared';
 import { api } from '../api/client';
 import { upsertMessageInCache } from '../api/queries';
 import { Button } from '@/components/ui/button';

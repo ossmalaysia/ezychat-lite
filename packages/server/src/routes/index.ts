@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
 import health from './health.js';
+import access from './access.js';
 import setup from './setup.js';
 import auth from './auth.js';
 import users from './users.js';
@@ -26,6 +27,7 @@ export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<voi
 
 export const routeModules: RouteModule[] = [
   health,
+  access,
   setup,
   auth,
   users,
@@ -48,7 +50,11 @@ export const routeModules: RouteModule[] = [
   integrations,
 ];
 
-/** Registers every route module under /api, each in its own encapsulated scope (hooks stay local). */
+/**
+ * Registers every route module under /api, each in its own encapsulated scope (hooks stay local),
+ * then each extension's routes under /api/ext/<name> (so they cannot shadow a core path and
+ * inherit the global Host/Origin hooks).
+ */
 export async function registerRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   await app.register(
     async (api) => {
@@ -58,4 +64,9 @@ export async function registerRoutes(app: FastifyInstance, ctx: AppContext): Pro
     },
     { prefix: '/api' },
   );
+  for (const ext of ctx.extensions) {
+    const routes = ext.routes;
+    if (!routes) continue;
+    await app.register(async (scope) => routes(scope, ctx), { prefix: `/api/ext/${ext.name}` });
+  }
 }

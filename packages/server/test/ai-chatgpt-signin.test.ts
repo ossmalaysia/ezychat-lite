@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AiConnection } from '@wa-team-inbox/shared';
+import type { AiConnection } from '@ezychat/shared';
 import { CHATGPT_OAUTH, parseCallbackUrl } from '../src/ai/chatgpt-oauth.js';
 import { CHATGPT_TOKENS_SECRET, DirectChatGptProvider } from '../src/ai/chatgpt-direct.js';
 import { createAiService } from '../src/ai/service.js';

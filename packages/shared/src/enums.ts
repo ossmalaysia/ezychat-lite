@@ -9,7 +9,15 @@ export type ChatType = z.infer<typeof ChatType>;
 export const ChatStatus = z.enum(['open', 'resolved']);
 export type ChatStatus = z.infer<typeof ChatStatus>;
 
-export const MessageType = z.enum(['text', 'image', 'video', 'audio', 'document', 'sticker', 'system']);
+export const MessageType = z.enum([
+  'text',
+  'image',
+  'video',
+  'audio',
+  'document',
+  'sticker',
+  'system',
+]);
 export type MessageType = z.infer<typeof MessageType>;
 
 export const MessageStatus = z.enum(['pending', 'sent', 'delivered', 'read', 'failed']);
@@ -33,7 +41,15 @@ export const TranscriptStatus = z.enum([
 ]);
 export type TranscriptStatus = z.infer<typeof TranscriptStatus>;
 
-export const WaState = z.enum(['disconnected', 'connecting', 'qr', 'open', 'logged_out', 'replaced', 'blocked']);
+export const WaState = z.enum([
+  'disconnected',
+  'connecting',
+  'qr',
+  'open',
+  'logged_out',
+  'replaced',
+  'blocked',
+]);
 export type WaState = z.infer<typeof WaState>;
 
 export const TunnelMode = z.enum(['off', 'quick', 'named']);
@@ -42,5 +58,12 @@ export type TunnelMode = z.infer<typeof TunnelMode>;
 export const TunnelState = z.enum(['stopped', 'starting', 'running', 'error']);
 export type TunnelState = z.infer<typeof TunnelState>;
 
-export const ChatEventType = z.enum(['assigned', 'unassigned', 'resolved', 'reopened']);
+/** `ai_tool_used`: the AI looked something up with an extension tool (payload `AiToolUsedPayload`). */
+export const ChatEventType = z.enum([
+  'assigned',
+  'unassigned',
+  'resolved',
+  'reopened',
+  'ai_tool_used',
+]);
 export type ChatEventType = z.infer<typeof ChatEventType>;

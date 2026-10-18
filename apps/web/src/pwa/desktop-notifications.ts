@@ -1,4 +1,4 @@
-import { NotificationPayload } from '@wa-team-inbox/shared';
+import { NotificationPayload } from '@ezychat/shared';
 import { reportClientError } from '@/lib/error-reporter';
 import { i18n } from '@/i18n';
 

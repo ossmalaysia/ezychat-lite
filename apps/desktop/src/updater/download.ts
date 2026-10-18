@@ -3,10 +3,10 @@ import { constants } from 'node:fs';
 import { chmod, lstat, mkdir, open, rename, unlink, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import type { DesktopRelease } from '../../../../packages/shared/src/desktop-updates.js';
+import { activeProduct, updateFeedOf } from '../product.js';
 
 export const MAX_UPDATE_BYTES = 1024 * 1024 * 1024;
 const TIMEOUT_MS = 10 * 60 * 1000;
-const REPOSITORIES = ['ossmalaysia/ezychat-lite', 'ossmalaysia/wa-team-inbox'];
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 export interface DownloadedRelease {
@@ -38,13 +38,29 @@ interface DownloadSpec {
   size: number;
   tag: string;
   url: string;
+  /** product.releaseRepositories: the only GitHub repositories the installer may come from */
+  repositories: readonly string[];
+  userAgent: string;
+  /** 'url': a private edition's manifest feed; any https address, the digest is the trust anchor */
+  feed?: 'github' | 'url';
+}
+
+function httpsAddress(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.port && !url.username && !url.password && !url.hash;
+  } catch {
+    return false;
+  }
 }
 
 function specFor(release: DesktopRelease): DownloadSpec {
+  const product = activeProduct();
+  const REPOSITORIES = product.releaseRepositories;
   const { version, assetName, downloadUrl, assetSize, assetSha256 } = release;
   if (!assetSha256 || !/^[a-fA-F0-9]{64}$/.test(assetSha256)) {
     throw new Error(
-      'This release has no trusted SHA-256 digest. Open its GitHub release for a manual update.',
+      'This release has no trusted SHA-256 digest. Open its release page for a manual update.',
     );
   }
   if (
@@ -63,13 +79,31 @@ function specFor(release: DesktopRelease): DownloadSpec {
   ) {
     throw new Error('Invalid update version.');
   }
-  const names = ['EzyChat-Lite', 'WA-Team-Inbox'].flatMap((prefix) =>
+  const names = product.artifactPrefixes.flatMap((prefix) =>
     ['win-x64.exe', 'mac-x64.dmg', 'mac-arm64.dmg'].map(
       (suffix) => `${prefix}-${version}-${suffix}`,
     ),
   );
   if (!assetName || !names.includes(assetName) || !downloadUrl)
     throw new Error('Invalid update installer.');
+  const feed = updateFeedOf(product);
+  if (feed.kind === 'url') {
+    // A private edition's manifest names the installer by its https URL; the trusted digest and
+    // size above (from that fixed-address manifest) are what make the download verifiable.
+    if (!httpsAddress(downloadUrl) || basename(new URL(downloadUrl).pathname) === '')
+      throw new Error('The update installer address is not a secure web address.');
+    return {
+      version,
+      assetName,
+      url: downloadUrl,
+      tag: '',
+      size: assetSize,
+      sha256: assetSha256.toLowerCase(),
+      repositories: [],
+      userAgent: `${product.artifactPrefixes[0]}-Updater`,
+      feed: 'url',
+    };
+  }
   const tag = [version, `v${version}`].find((candidate) =>
     REPOSITORIES.some(
       (repo) => release.releaseUrl === `https://github.com/${repo}/releases/tag/${candidate}`,
@@ -90,10 +124,15 @@ function specFor(release: DesktopRelease): DownloadSpec {
     tag,
     size: assetSize,
     sha256: assetSha256.toLowerCase(),
+    repositories: REPOSITORIES,
+    userAgent: `${product.artifactPrefixes[0]}-Updater`,
   };
 }
 
 function permittedUrl(value: string, spec: DownloadSpec): boolean {
+  // URL feed: the installer (and any CDN redirect) only needs to be https; the SHA-256 and size
+  // from the manifest are verified before the file is used.
+  if (spec.feed === 'url') return httpsAddress(value);
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash)
@@ -101,7 +140,7 @@ function permittedUrl(value: string, spec: DownloadSpec): boolean {
     if (url.hostname === 'github.com') {
       return (
         !url.search &&
-        REPOSITORIES.some(
+        spec.repositories.some(
           (repo) => url.pathname === `/${repo}/releases/download/${spec.tag}/${spec.assetName}`,
         )
       );
@@ -304,13 +343,13 @@ async function performDownload(
     for (let redirects = 0; redirects <= 5; redirects++) {
       signal.throwIfAborted();
       if (!permittedUrl(url, spec))
-        throw new Error('GitHub redirected the update to an untrusted address.');
+        throw new Error('The update download was redirected to an untrusted address.');
       response = await abortable(
         fetch(url, {
           redirect: 'manual',
           credentials: 'omit',
           signal,
-          headers: { Accept: 'application/octet-stream', 'User-Agent': 'EzyChat-Lite-Updater' },
+          headers: { Accept: 'application/octet-stream', 'User-Agent': spec.userAgent },
         }),
         signal,
       );
@@ -320,16 +359,16 @@ async function performDownload(
       const target = response.headers.get('location');
       if (response.body) await abortable(response.body.cancel(), signal);
       if (!target || redirects === 5)
-        throw new Error('GitHub returned too many or invalid download redirects.');
+        throw new Error('The update download returned too many or invalid redirects.');
       url = new URL(target, url).href;
       response = null;
     }
     if (!response || response.status !== 200 || !response.body)
-      throw new Error('GitHub could not download the update. Try again.');
+      throw new Error('The update could not be downloaded. Try again.');
     const length = response.headers.get('content-length');
     if (length !== null && Number(length) !== spec.size) {
       await abortable(response.body.cancel(), signal);
-      throw new Error('The installer size does not match the GitHub release.');
+      throw new Error('The installer size does not match the release.');
     }
     file = await open(partial, 'wx', 0o600);
     reader = response.body.getReader();

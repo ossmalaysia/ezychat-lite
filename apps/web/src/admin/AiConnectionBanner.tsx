@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AiMemberStatus } from '@wa-team-inbox/shared';
+import type { AiMemberStatus } from '@ezychat/shared';
 import { Banner } from '@/components/app';
 
 /** The one banner for a ChatGPT connection that expired or stopped working. */

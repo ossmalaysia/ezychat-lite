@@ -1,6 +1,5 @@
 // Product name + version strings for the tray, window titles and status page. Pure (no electron).
-
-export const APP_NAME = 'EzyChat Lite';
+import { activeProduct, type Product } from './product.js';
 
 /** Marks local, unpackaged builds so a test instance is never mistaken for the installed app. */
 export const DEV_BUILD_LABEL = 'Dev Build';
@@ -9,8 +8,10 @@ export const DEV_BUILD_LABEL = 'Dev Build';
 export function appTitle(
   version: string | null | undefined,
   options: { devBuild?: boolean } = {},
+  product: Product = activeProduct(),
 ): string {
+  const name = product.productName;
   const v = (version ?? '').trim().replace(/^v/i, '');
-  const title = v ? `${APP_NAME} v${v}` : APP_NAME;
+  const title = v ? `${name} v${v}` : name;
   return options.devBuild ? `${title} · ${DEV_BUILD_LABEL}` : title;
 }

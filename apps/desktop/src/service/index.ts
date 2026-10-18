@@ -6,6 +6,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { join, posix } from 'node:path';
 import { exec as sudoExec } from 'sudo-prompt';
 import { servicePortFile, serviceRunDir } from '../paths.js';
+import { activeProduct, type Product } from '../product.js';
 import {
   macControlScript,
   macInstallScript,
@@ -30,10 +31,6 @@ export type { ServiceState };
 export { DataMoveError, dataMoveCommands } from './data-move.js';
 
 const BOM = '\uFEFF';
-
-export const SERVICE_ID = 'wa-team-inbox';
-export const SERVICE_NAME = 'EzyChat Lite Server';
-export const LAUNCHD_LABEL = 'org.ossmalaysia.wateaminbox.server';
 
 export interface ServiceManager {
   status(): Promise<ServiceState>;
@@ -62,6 +59,8 @@ export interface ServiceDeps {
   port: number;
   version: string;
   log?: (s: string) => void;
+  /** Installer identity (service id, launchd label, names); the active product when omitted. */
+  product?: Product;
 }
 
 interface ExecResult {
@@ -86,8 +85,8 @@ function run(file: string, args: string[]): Promise<ExecResult> {
 }
 
 /** Root-owned copy of the app bundle the macOS daemon runs from. */
-export function macRuntimeBundle(appBundle: string): string {
-  return posix.join(serviceRunDir('darwin'), posix.basename(appBundle));
+export function macRuntimeBundle(appBundle: string, product: Product = activeProduct()): string {
+  return posix.join(serviceRunDir('darwin', process.env, product), posix.basename(appBundle));
 }
 
 /**
@@ -104,7 +103,7 @@ export function serviceCommand(
     ELECTRON_RUN_AS_NODE: '1',
     WATI_VERSION: d.version,
     WATI_CLOUDFLARED_DIR: d.cloudflaredDir,
-    WATI_PORT_FILE: servicePortFile(platform),
+    WATI_PORT_FILE: servicePortFile(platform, process.env, d.product ?? activeProduct()),
   };
   if (d.cloudflaredBinary && exists(d.cloudflaredBinary))
     env.WATI_CLOUDFLARED = d.cloudflaredBinary;
@@ -125,7 +124,11 @@ export function serviceCommand(
     env,
   };
   return platform === 'darwin' && d.appBundle
-    ? remapRuntimePaths(cmd, d.appBundle, macRuntimeBundle(d.appBundle))
+    ? remapRuntimePaths(
+        cmd,
+        d.appBundle,
+        macRuntimeBundle(d.appBundle, d.product ?? activeProduct()),
+      )
     : cmd;
 }
 
@@ -178,13 +181,13 @@ async function runElevatedWindows(script: string): Promise<string> {
 }
 
 /** Runs a bash script as root via the macOS admin prompt (sudo-prompt). */
-async function runElevatedMac(script: string): Promise<string> {
+async function runElevatedMac(script: string, name: string): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'wati-svc-'));
   const file = join(dir, 'task.sh');
   writeFileSync(file, script, { encoding: 'utf8', mode: 0o700 });
   try {
     return await new Promise<string>((resolve, reject) => {
-      sudoExec(`/bin/bash ${shQuote(file)}`, { name: 'EzyChat Lite' }, (err, stdout, stderr) => {
+      sudoExec(`/bin/bash ${shQuote(file)}`, { name }, (err, stdout, stderr) => {
         if (err) reject(new Error(String(stderr ?? '').trim() || err.message));
         else resolve(String(stdout ?? '').trim());
       });
@@ -196,6 +199,11 @@ async function runElevatedMac(script: string): Promise<string> {
 
 export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDeps): ServiceManager {
   const log = deps.log ?? (() => {});
+  const product = deps.product ?? activeProduct();
+  const SERVICE_ID = product.serviceId;
+  const SERVICE_NAME = product.serviceName;
+  const LAUNCHD_LABEL = product.launchdLabel;
+  const runElevated = (script: string) => runElevatedMac(script, product.productName);
   if (platform === 'win32') {
     const serviceDir = `${deps.machineDataDir}\\service`;
     return {
@@ -215,7 +223,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
           winswSource: deps.winswExe,
           serviceDir,
           dataDir: deps.machineDataDir,
-          runDir: serviceRunDir('win32'),
+          runDir: serviceRunDir('win32', process.env, product),
           moveFrom: deps.userDataDir,
           exists: existsSync,
         });
@@ -228,7 +236,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
               id: SERVICE_ID,
               serviceDir,
               dataDir: deps.machineDataDir,
-              runDir: serviceRunDir('win32'),
+              runDir: serviceRunDir('win32', process.env, product),
               moveTo: deps.userDataDir,
             }),
           ),
@@ -264,7 +272,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
     const requirePackagedRuntime = () => {
       if (!deps.appBundle)
         throw new Error(
-          'Background service requires the installed EzyChat Lite app. Development builds can run in standalone mode.',
+          `Background service requires the installed ${product.productName} app. Development builds can run in standalone mode.`,
         );
     };
     return {
@@ -289,36 +297,36 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
           moveFrom: deps.userDataDir,
           exists: existsSync,
           runtime: deps.appBundle
-            ? { from: deps.appBundle, to: macRuntimeBundle(deps.appBundle) }
+            ? { from: deps.appBundle, to: macRuntimeBundle(deps.appBundle, product) }
             : undefined,
         });
-        log(await runElevatedMac(script));
+        log(await runElevated(script));
       },
       async uninstall() {
         log(
-          await runElevatedMac(
+          await runElevated(
             macUninstallScript({
               label: LAUNCHD_LABEL,
               dataDir: deps.machineDataDir,
               moveTo: deps.userDataDir,
               owner: userInfo().username,
-              runtimeDir: serviceRunDir('darwin'),
+              runtimeDir: serviceRunDir('darwin', process.env, product),
             }),
           ),
         );
       },
       async start() {
-        log(await runElevatedMac(macControlScript({ label: LAUNCHD_LABEL, action: 'start' })));
+        log(await runElevated(macControlScript({ label: LAUNCHD_LABEL, action: 'start' })));
       },
       async stop() {
-        log(await runElevatedMac(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
+        log(await runElevated(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
       },
       async resetAdmin() {
         requirePackagedRuntime();
         // run the root-owned runtime copy (not the user-writable bundle) when there is one
         const cmd = serviceCommand(deps, 'darwin');
         const entry = cmd.args[1] ?? deps.serverEntry;
-        return runElevatedMac(
+        return runElevated(
           macResetAdminScript({ exe: cmd.exe, entry, dataDir: deps.machineDataDir }),
         );
       },

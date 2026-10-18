@@ -1,6 +1,6 @@
 # Manual test checklist
 
-Run before every release, on a **packaged build** (`npm run dist -w @wa-team-inbox/desktop`), with a
+Run before every release, on a **packaged build** (`npm run dist -w @ezychat/desktop`), with a
 real WhatsApp number you can afford to lose. Automated tests use the fake adapter; this checklist covers
 what only a real number, real phones and a real OS can prove.
 

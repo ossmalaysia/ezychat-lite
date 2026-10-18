@@ -1,4 +1,4 @@
-import type { CloudflareSetupStatus, TunnelStatus } from '@wa-team-inbox/shared';
+import type { CloudflareSetupStatus, TunnelStatus } from '@ezychat/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CloudflareSetupService } from '../src/tunnel/cloudflare-setup.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
