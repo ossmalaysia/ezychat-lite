@@ -200,6 +200,10 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Owner-run PowerShell scripts: Windows PowerShell 5 with `$ErrorActionPreference = 'Stop'` stops on any native
+  stderr line (e.g. npm's normal E404 for a new package). Use `Continue` and check `$LASTEXITCODE`; test the
+  read-only parts yourself before handing the script over.
+
 - Stopping a background server task can leave its node child running: before a restart on the same
   `--data`, stop the process whose command line names that folder. Exit 3 can also be Windows PID reuse
   (the lock's pid now belongs to another program); start again once the old server is gone.
