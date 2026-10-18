@@ -39,7 +39,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.86",
+    "@ai-sdk/openai": "4.0.94",
     "@ezychat/shared": "0.1.39",
     "@ezychat/wa": "0.1.39",
     "@fastify/cookie": "^11.1.2",
