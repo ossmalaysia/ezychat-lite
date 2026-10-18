@@ -2,6 +2,7 @@ import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } f
 import { z } from 'zod';
 import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@ezychat/shared';
 import { AI_IMAGE_DETAIL, type AgentTurnTiming, type AiPrompt } from '../provider-types.js';
+import { toWhatsAppText } from '../whatsapp-format.js';
 
 /** At most this many model calls per customer turn (tool calls + the final decision). */
 export const AGENT_MAX_STEPS = 4;
@@ -71,7 +72,9 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
     },
   });
   turn.signal.throwIfAborted();
-  const decision = AiDecision.parse(result.output);
+  // Replies go to WhatsApp: Markdown the model wrote anyway (e.g. **bold**) becomes WhatsApp format.
+  const parsed = AiDecision.parse(result.output);
+  const decision = { ...parsed, reply: toWhatsAppText(parsed.reply) };
   try {
     turn.onTiming?.({ ms: Date.now() - started, stepMs, steps: result.steps.length });
   } catch {

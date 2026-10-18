@@ -186,6 +186,8 @@ into AGENTS.md.
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
 - Dependency PRs: check peer and engine ranges and SHA pins; merge only with fresh checks against `main`.
+  With many open Dependabot PRs and strict up-to-date `main`, merge their branches into one `chore/deps-*` branch,
+  keep exact pins exact, run the full suite + e2e once and merge that PR: one CI round instead of one per PR.
 - Before releasing a structural change (renames, packaging, identity), prove the existing-user update:
   seed a temp data dir with the released packaged server, start the new packaged server on the same dir,
   diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
