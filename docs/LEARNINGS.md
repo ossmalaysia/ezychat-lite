@@ -367,8 +367,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
-- Local short-cuts that hand over before the model runs (empty Business context) also skip extension
-  tools: any such rule must check whether `agentTools` offers look-ups first, or connector-only agents never answer.
+- The empty-Business-context rule lives in three places (live reply, `tryAnswer`, `saveMember`) and the
+  prompt says "only the supplied business facts": all four must count extension look-ups as a fact source,
+  or connector-only agents hand over without calling a tool.
 
 - Rank new AI features from the real inbox, not guesses: MCP `get_stats` hand-off reasons (missing facts =
   look-up connectors, needs action = action connectors), then a read-only subagent classifies recent chats and
