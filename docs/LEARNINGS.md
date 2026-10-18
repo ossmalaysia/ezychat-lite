@@ -206,6 +206,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Put Markdown syntax examples in CHANGELOG/docs inside backticks: Prettier rewrites a bare `**name**` or `*x*`
+  as emphasis (`_name_`), which turns the sentence into nonsense.
+
 - Owner-run PowerShell scripts: Windows PowerShell 5 with `$ErrorActionPreference = 'Stop'` stops on any native
   stderr line (e.g. npm's normal E404 for a new package). Use `Continue` and check `$LASTEXITCODE`; test the
   read-only parts yourself before handing the script over.
