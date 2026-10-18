@@ -371,6 +371,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Logs have per-tool ms but no per-turn or per-model-call ms, so "Try it is slow" cannot be measured: a
+  look-up turn makes two model calls; add turn and model ms (no text) before tuning speed.
+
 - The empty-Business-context rule lives in three places (live reply, `tryAnswer`, `saveMember`) and the
   prompt says "only the supplied business facts": all four must count extension look-ups as a fact source,
   or connector-only agents hand over without calling a tool.
