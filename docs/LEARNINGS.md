@@ -594,6 +594,11 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Cloudflare and sharing
 
+- Anchor Sprint Workers deploy with Workers Builds, not Actions: `main` runs `wrangler d1 migrations apply
+  DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
+  Worker tag and a build token: upload a placeholder Worker first and reuse the account's build token.
+  Put secrets with `wrangler secret put` from a file, never in a tool call.
+
 - App-managed cloudflared ignores user config (`--config=`) and logs in with a private child home;
   credentials stay encrypted.
 - A Quick Tunnel is Running only after URL assignment and edge registration.
