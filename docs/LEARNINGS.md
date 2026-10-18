@@ -375,6 +375,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
+  customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
+
 - A prompt change made for an edition (e.g. look-up wording) also changes every Lite reply: rerun the full
   Lite suite and a real-model `e2e/devbuild-ai-check.mjs` run on Lite before merge.
 
