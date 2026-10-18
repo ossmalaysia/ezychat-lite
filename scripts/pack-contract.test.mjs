@@ -76,6 +76,7 @@ const PACKAGES = [
       'dist/renderer/status.js',
       'dist/renderer/status.css',
       'dist/locales/en.json',
+      'scripts/fetch-common.mjs',
       'scripts/fetch-cloudflared.mjs',
       'scripts/fetch-winsw.mjs',
     ],

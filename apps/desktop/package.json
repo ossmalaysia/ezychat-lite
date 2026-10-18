@@ -36,6 +36,7 @@
     "!dist/**/*.test.*",
     "!dist/**/*.map",
     "!dist/**/*.tsbuildinfo",
+    "scripts/fetch-common.mjs",
     "scripts/fetch-cloudflared.mjs",
     "scripts/fetch-winsw.mjs"
   ],

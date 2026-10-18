@@ -14,24 +14,16 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_RESOURCES, download } from './fetch-common.mjs';
 
 export const WINSW_VERSION = '2.12.0';
 const URL_X64 = `https://github.com/winsw/winsw/releases/download/v${WINSW_VERSION}/WinSW-x64.exe`;
 const SHA256_X64 = '05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da';
 
-// This file is apps/desktop/scripts/; another edition runs it from node_modules and passes --out.
-const defaultResources = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  '..',
-  'resources',
-);
-
 /** Reads --force and --out from the arguments; anything else is refused. */
 export function parseArgs(argv) {
   let force = false;
-  let resources = defaultResources;
+  let resources = DEFAULT_RESOURCES;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--force') force = true;
@@ -40,23 +32,6 @@ export function parseArgs(argv) {
     else throw new Error(`unknown argument ${a}`);
   }
   return { force, out: join(resources, 'winsw', 'WinSW-x64.exe') };
-}
-
-async function download(url) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const res = await fetch(url, {
-        redirect: 'follow',
-        headers: { 'user-agent': 'wa-team-inbox-build' },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return Buffer.from(await res.arrayBuffer());
-    } catch (err) {
-      if (attempt >= 3) throw err;
-      console.warn(`  download failed (${err.message}); retrying…`);
-      await new Promise((r) => setTimeout(r, 2000 * attempt));
-    }
-  }
 }
 
 const sha = (b) => createHash('sha256').update(b).digest('hex');

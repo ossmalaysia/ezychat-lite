@@ -18,9 +18,10 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
+import { DEFAULT_RESOURCES, download } from './fetch-common.mjs';
 
 export const CLOUDFLARED_VERSION = '2026.9.3';
 
@@ -55,33 +56,6 @@ const TARGETS = {
 };
 const DEFAULT_TARGETS = ['win32-x64', 'darwin-x64', 'darwin-arm64'];
 
-// Default output: the Lite repository's resources/ (this file is apps/desktop/scripts/). Another edition
-// runs it from node_modules/@ezychat/desktop and passes --out <its resources folder>.
-const defaultResources = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  '..',
-  'resources',
-);
-
-async function download(url) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const res = await fetch(url, {
-        redirect: 'follow',
-        headers: { 'user-agent': 'wa-team-inbox-build' },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return Buffer.from(await res.arrayBuffer());
-    } catch (err) {
-      if (attempt >= 3) throw err;
-      console.warn(`  download failed (${err.message}); retrying…`);
-      await new Promise((r) => setTimeout(r, 2000 * attempt));
-    }
-  }
-}
-
 /** Extracts one regular file (by basename) from an uncompressed ustar/GNU tar buffer. */
 export function extractFromTar(tar, wantedBase) {
   let off = 0;
@@ -113,7 +87,7 @@ export function extractFromTar(tar, wantedBase) {
 export function parseArgs(argv) {
   const targets = [];
   let force = false;
-  let resources = defaultResources;
+  let resources = DEFAULT_RESOURCES;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--force') force = true;
