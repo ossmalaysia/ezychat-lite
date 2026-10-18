@@ -118,7 +118,7 @@ describe('Settings → AI connection (inline)', () => {
     expect(screen.queryByRole('button', { name: 'Replace key' })).toBeNull();
   });
 
-  it('switches with the segmented control, labels ChatGPT experimental and offers Auto first', async () => {
+  it('switches with the segmented control, lists ChatGPT first as recommended and offers Auto first', async () => {
     const initial = status();
     initial.settings.model = 'gpt-4.1-mini';
     const { fetchMock } = setup(initial, (url) =>
@@ -133,8 +133,13 @@ describe('Settings → AI connection (inline)', () => {
         : undefined,
     );
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('radio', { name: /ChatGPT/ }));
-    expect(screen.getByText('Experimental')).toBeTruthy();
+    const radios = await screen.findAllByRole('radio');
+    expect(radios.map((radio) => radio.closest('label')?.textContent)).toEqual([
+      'ChatGPTRecommended',
+      'API key',
+    ]);
+    await user.click(screen.getByRole('radio', { name: /ChatGPT/ }));
+    expect(screen.getByText('Recommended')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Model' }).textContent).toContain(
       'Auto (recommended)',
     );
@@ -360,4 +365,97 @@ describe('Settings → AI connection (inline)', () => {
       expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: 'gpt-4.1-mini' }),
     );
   }, 20_000);
+
+  it('selects ChatGPT when the Recommended badge on its option is clicked', async () => {
+    setup();
+    const user = userEvent.setup();
+    const chatgpt = await screen.findByRole('radio', { name: /ChatGPT/ });
+    expect(chatgpt.getAttribute('aria-checked')).toBe('false');
+    await user.click(screen.getByText('Recommended'));
+    expect(chatgpt.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('tests a new API key before saving it and never saves a failing key', async () => {
+    let verdict: { ok: boolean; error: string | null } = { ok: false, error: 'invalid_key' };
+    const { fetchMock } = setup({ ...status(), hasApiKey: false }, (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST' ? json(verdict) : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('OpenAI API key'), 'sk-wrong-key-123');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText('OpenAI did not accept this key. Check that you copied all of it.');
+    const testCall = fetchMock.mock.calls.find((call) => call[0] === '/api/ai/connection/test');
+    expect(JSON.parse(String(testCall![1]!.body))).toEqual({ apiKey: 'sk-wrong-key-123' });
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+
+    verdict = { ok: true, error: null };
+    const input = screen.getByLabelText('OpenAI API key');
+    await user.clear(input);
+    await user.type(input, 'sk-good-key-123');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText('Key works.');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: '', apiKey: 'sk-good-key-123' }),
+    );
+    // The key tested with Test key is not tested a second time on Save.
+    expect(
+      fetchMock.mock.calls.filter((call) => call[0] === '/api/ai/connection/test'),
+    ).toHaveLength(2);
+  });
+
+  it('explains an unreachable or rate-limited key check', async () => {
+    let error = 'unreachable';
+    setup({ ...status(), hasApiKey: false }, (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: false, error })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('OpenAI API key');
+    await user.type(input, 'sk-some-key-123');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/Could not reach OpenAI to check the key/);
+    error = 'rate_limited';
+    await user.type(input, '4');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/OpenAI is busy or this key has reached its limit/);
+  });
+
+  it('saves a restricted key anyway, but offers no Save anyway for a rejected key', async () => {
+    let error = 'invalid_key';
+    const { fetchMock } = setup({ ...status(), hasApiKey: false }, (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: false, error })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText('OpenAI API key');
+    await user.type(input, 'sk-restricted-123');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText(/OpenAI did not accept this key/);
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+
+    error = 'forbidden';
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/OpenAI did not let this key list models/);
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: '', apiKey: 'sk-restricted-123' }),
+    );
+  });
+
+  it('links to the Sales Agent once the connection is ready', async () => {
+    setup();
+    const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });
+    expect(link.getAttribute('href')).toBe('/admin/members/ai');
+    expect(screen.getByText('The AI connection is ready.')).toBeTruthy();
+  });
+
+  it('hides the Sales Agent link while nothing is connected', async () => {
+    setup({ ...status(), hasApiKey: false });
+    await screen.findByLabelText('OpenAI API key');
+    expect(screen.queryByRole('link', { name: 'Set up the Sales Agent' })).toBeNull();
+  });
 });

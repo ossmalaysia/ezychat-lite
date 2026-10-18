@@ -469,5 +469,17 @@
     "start": "Start chat",
     "startFailed": "Couldn’t start the chat",
     "listLabel": "Group members"
+  },
+  "gettingStarted": {
+    "title": "Getting started",
+    "ai": "AI assistant",
+    "aiHint": "Answers common questions and hands chats to your team.",
+    "teammates": "Teammates",
+    "teammatesHint": "Share the inbox with your team.",
+    "phone": "Phone access",
+    "phoneHint": "Open the inbox on phones outside this Wi-Fi.",
+    "setUp": "Set up",
+    "add": "Add",
+    "hide": "Hide getting started"
   }
 }

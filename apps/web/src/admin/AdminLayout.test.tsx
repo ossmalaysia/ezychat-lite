@@ -21,7 +21,7 @@ vi.mock('./AiMemberPage', () => ({ AiMemberPage: () => <h1>AI member page</h1> }
 vi.mock('./MembersPage', () => ({ MembersPage: () => <h1>Members</h1> }));
 vi.mock('./QuickRepliesPage', () => ({ QuickRepliesPage: () => <h1>Quick replies</h1> }));
 vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
-vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Cloudflare</h1> }));
+vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Phone access</h1> }));
 vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
 
@@ -76,6 +76,13 @@ describe('AdminLayout routing', () => {
     setup(path);
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
     expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+  });
+
+  it('labels the tunnel section Phone access and keeps its /admin/tunnel route', () => {
+    setup('/admin/members');
+    const link = screen.getByRole('link', { name: 'Phone access' });
+    expect(link.getAttribute('href')).toBe('/admin/tunnel');
+    expect(screen.queryByRole('link', { name: 'Cloudflare' })).toBeNull();
   });
 
   it('opens the AI member page under an active Members section', () => {

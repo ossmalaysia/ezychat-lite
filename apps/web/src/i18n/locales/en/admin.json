@@ -6,7 +6,7 @@
     "members": "Members",
     "quickReplies": "Quick replies",
     "whatsapp": "WhatsApp",
-    "tunnel": "Cloudflare",
+    "tunnel": "Phone access",
     "settings": "Settings",
     "audit": "Audit"
   },
@@ -286,8 +286,8 @@
     },
     "noTunnel": {
       "title": "No tunnel is running",
-      "body": "Assistants on the computer running EzyChat Lite can connect now. To connect from anywhere else, start Cloudflare access first.",
-      "link": "Open Cloudflare settings"
+      "body": "Assistants on the computer running EzyChat Lite can connect now. To connect from anywhere else, turn on Phone access first.",
+      "link": "Open Phone access"
     },
     "tokens": {
       "title": "Access tokens",
@@ -461,7 +461,7 @@
     }
   },
   "tunnel": {
-    "title": "Cloudflare access",
+    "title": "Phone access",
     "description": "Give your team a link to open the inbox from phones anywhere.",
     "state": {
       "stopped": "Stopped",
@@ -604,8 +604,6 @@
       "error": "error",
       "expired": "expired"
     },
-    "experimental": "Experimental",
-    "directLoginHint": "Signs in with your ChatGPT account directly. This is an unofficial connection that may stop working at any time. Sign in from a browser on the computer running the inbox; from another computer, paste the final address when asked.",
     "signedInAs": "Signed in as {{email}}",
     "signedIn": "Signed in to ChatGPT",
     "signInSavesMode": "Signing in also saves ChatGPT as the connection mode.",
@@ -642,7 +640,7 @@
       },
       "turnOn": "Turn on",
       "turnOff": "Turn off",
-      "reasonConnection": "Connect the AI in Settings → AI first.",
+      "reasonConnection": "Connect the AI below first.",
       "reasonKnowledge": "Add business context first.",
       "turnedOn": "AI member turned on.",
       "turnedOff": "AI member turned off.",
@@ -664,7 +662,10 @@
       "openSettings": "Settings → AI",
       "save": "Save",
       "description": "Set up, test and turn on the AI assistant that answers customer chats.",
-      "usingRecommended": "Using the recommended instructions. Edit them to match your tone."
+      "usingRecommended": "Using the recommended instructions. Edit them to match your tone.",
+      "advanced": "Advanced: instructions and hand-off rules",
+      "advancedRecommended": "Using recommended settings",
+      "advancedCustomised": "Customised"
     },
     "try": {
       "label": "Customer question",
@@ -775,7 +776,7 @@
     "modelAdvanced": "Advanced: choose a model",
     "edit": {
       "open": "Edit with AI",
-      "unavailable": "Connect the AI in Settings → AI to use Edit with AI.",
+      "unavailable": "Connect the AI above to use Edit with AI.",
       "title": {
         "instructions": "Edit AI instructions with AI",
         "handoffRules": "Edit hand-off rules with AI"
@@ -806,6 +807,34 @@
       "applied": "Applied. Press Save to keep it.",
       "unchanged_one": "{{count}} unchanged line",
       "unchanged_other": "{{count}} unchanged lines"
+    },
+    "keyOk": "Key works.",
+    "connectionReady": "The AI connection is ready.",
+    "setupAgent": "Set up the Sales Agent",
+    "moreFeatures": "More AI features",
+    "moreFeaturesHint": "Voice messages and Customer enrichment",
+    "remoteSignInHint": "Sign in from a browser on the computer running the inbox; from another computer, paste the final address when asked.",
+    "connect": {
+      "title": "Connect the AI",
+      "chatgpt": "Sign in with ChatGPT",
+      "recommended": "Recommended",
+      "note": "Uses your ChatGPT account. This connection is unofficial and could stop working; you can switch to an API key at any time.",
+      "signingIn": "Signing in… finish in the ChatGPT window.",
+      "cancel": "Cancel",
+      "connectedChatgpt": "Connected to ChatGPT",
+      "connectedAs": "Signed in as {{email}}",
+      "connectedKey": "OpenAI API key checked and saved",
+      "useKey": "Use an OpenAI API key instead",
+      "useChatgpt": "Use Sign in with ChatGPT instead",
+      "keyLabel": "OpenAI API key",
+      "keyHint": "Starts with sk-. Create one at platform.openai.com → API keys.",
+      "testKey": "Test key",
+      "keyFailedFallback": "This key did not work. Check that you copied all of it.",
+      "keyInvalid": "OpenAI did not accept this key. Check that you copied all of it.",
+      "keyUnreachable": "Could not reach OpenAI to check the key. Check the internet connection and try again.",
+      "keyRateLimited": "OpenAI is busy or this key has reached its limit. Wait a minute and try again.",
+      "keyForbidden": "OpenAI did not let this key list models. A restricted key or a region limit can cause this; the key may still work for replies.",
+      "saveAnyway": "Save anyway"
     }
   },
   "enrichment": {

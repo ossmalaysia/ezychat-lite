@@ -11,6 +11,8 @@ import {
   AiContextTextBody,
   AiDocument,
   AiDocumentView,
+  AiKeyTestBody,
+  AiKeyTestResponse,
   AiMemberBody,
   codePointLength,
   AiTryBody,
@@ -29,6 +31,20 @@ import {
   SetupAdminBody,
   type Message,
 } from './index.js';
+
+describe('AI key test', () => {
+  it('trims the key and bounds its length', () => {
+    expect(AiKeyTestBody.parse({ apiKey: '  sk-test  ' })).toEqual({ apiKey: 'sk-test' });
+    expect(AiKeyTestBody.safeParse({ apiKey: '   ' }).success).toBe(false);
+    expect(AiKeyTestBody.safeParse({ apiKey: 'k'.repeat(401) }).success).toBe(false);
+    expect(AiKeyTestBody.safeParse({ apiKey: 'k'.repeat(400) }).success).toBe(true);
+  });
+  it('accepts only the known results', () => {
+    expect(AiKeyTestResponse.parse({ ok: true, error: null })).toEqual({ ok: true, error: null });
+    expect(AiKeyTestResponse.safeParse({ ok: false, error: 'invalid_key' }).success).toBe(true);
+    expect(AiKeyTestResponse.safeParse({ ok: false, error: 'boom' }).success).toBe(false);
+  });
+});
 
 describe('shared schemas', () => {
   it('normalises a Cloudflare address while rejecting unsafe DNS labels and names', () => {
