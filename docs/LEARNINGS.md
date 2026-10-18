@@ -155,6 +155,8 @@ into AGENTS.md.
   (`--otp=482917`), not a word placeholder, which npm rejects with E400.
   Ask first whether the npm account has 2FA: publishing needs a code, so set up an authenticator app (and
   keep the recovery codes) before the publish session.
+  A new package answers 404 for some minutes after `+ @scope/pkg@x` ("being processed"): trust the `+` line and
+  poll the registry before calling it failed.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
