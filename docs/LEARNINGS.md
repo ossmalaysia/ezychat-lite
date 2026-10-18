@@ -371,6 +371,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A prompt change made for an edition (e.g. look-up wording) also changes every Lite reply: rerun the full
+  Lite suite and a real-model `e2e/devbuild-ai-check.mjs` run on Lite before merge.
+
 - Measure AI speed from the `ai_turn` log line (source live/try, `ms`, `stepMs` per model step, `steps`)
   and `ai_tool_call` ms, never by feel: a look-up turn is two model steps, and the tool itself is usually ms.
 
