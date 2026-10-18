@@ -66,6 +66,16 @@ describe('runAgentTurn', () => {
     expect(second).toContain('Delivery costs RM15');
   });
 
+  it('turns Markdown in the reply into WhatsApp format', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        answer({ reply: 'The **Kaya jam** is RM14.50.', action: 'answer', handoffReason: null }),
+      ],
+    });
+    const result = await runAgentTurn({ ...turn(model), tools: undefined });
+    expect(result.decision.reply).toBe('The *Kaya jam* is RM14.50.');
+  });
+
   it('answers in one call when no tools are offered', async () => {
     const model = new MockLanguageModelV4({
       doGenerate: [answer({ reply: 'Hi', action: 'answer', handoffReason: null })],
