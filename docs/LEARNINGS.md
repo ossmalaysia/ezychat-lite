@@ -598,6 +598,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
   Worker tag and a build token: upload a placeholder Worker first and reuse the account's build token.
   Put secrets with `wrangler secret put` from a file, never in a tool call.
+- After a preview `wrangler versions upload`, `wrangler secret put` fails (latest version not deployed): use
+  `wrangler versions secret put`, then check the latest version's bindings through the API.
 
 - App-managed cloudflared ignores user config (`--config=`) and logs in with a private child home;
   credentials stay encrypted.
