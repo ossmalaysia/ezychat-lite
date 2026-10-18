@@ -46,6 +46,8 @@ test('customer enrichment draft, save and Audit Details score', async ({ page })
     }),
   );
   await page.goto('/admin/settings/ai');
+  // Voice messages and Customer enrichment are folded under "More AI features".
+  await page.getByText('More AI features', { exact: true }).click();
   const card = page
     .locator('[data-slot="card"]')
     .filter({ has: page.getByText('Customer enrichment', { exact: true }) });

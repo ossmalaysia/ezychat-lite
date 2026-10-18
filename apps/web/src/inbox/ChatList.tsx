@@ -6,6 +6,7 @@ import { useChats, type ChatFilters } from '../api/queries';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Banner, EmptyState } from '@/components/app';
+import { GettingStartedCard } from './GettingStartedCard';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
 
@@ -146,7 +147,10 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
             <Button variant="outline" size="touch" onClick={onResetFilters}>
               {t('chatList.showAllOpen')}
             </Button>
-          ) : undefined
+          ) : (
+            // On phones the chat list is the whole screen, so the checklist shows here.
+            <GettingStartedCard className="mt-2 md:hidden" />
+          )
         }
       />
     );

@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ExternalLink, KeyRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, ChevronRight, ExternalLink, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AiConnectionBody,
@@ -25,7 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AiConnectionBanner } from './AiConnectionBanner';
-import { officialLoginUrl } from './ai-status';
+import { connectionReady, officialLoginUrl } from './ai-status';
+import { keyTestBlocks, keyTestMessage, useTestApiKey } from './AiQuickConnect';
+import { useChatgptSignIn } from './use-chatgpt-sign-in';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { cn } from '@/lib/utils';
 
@@ -73,7 +76,6 @@ function ConnectionForm({
   const [drafts, setDrafts] = useState<ModeDrafts>(() => draftsFrom(status.settings));
   const draft: ConnectionDraft = { mode: drafts.mode, model: drafts[drafts.mode] };
   const setModel = (model: string) => setDrafts((old) => ({ ...old, [old.mode]: model }));
-  const [popupBlocked, setPopupBlocked] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [replacingKey, setReplacingKey] = useState(false);
   const apiModelId = useId();
@@ -84,6 +86,16 @@ function ConnectionForm({
   const [localError, setLocalError] = useState<string | null>(null);
   const action = useAiMemberAction();
   const test = useAiTest();
+  const chatgpt = useChatgptSignIn(action);
+  // A new API key is tested before it is saved. A key OpenAI rejects is never stored; after any other
+  // failure (restricted key, region, limit, outage) the admin may save it anyway.
+  const testKey = useTestApiKey();
+  const [testedKey, setTestedKey] = useState<string | null>(null);
+  const runKeyTest = async (key: string) => {
+    const result = await testKey.mutateAsync(key);
+    if (result.ok) setTestedKey(key);
+    return result.ok;
+  };
   const saved = status.settings;
   const conn = status.connection;
   const savedChatgpt = saved.mode === 'chatgpt';
@@ -110,28 +122,7 @@ function ConnectionForm({
   const signIn = async () => {
     setLocalError(null);
     test.reset();
-    setPopupBlocked(false);
-    // Open the tab synchronously so the browser treats it as user-initiated.
-    const tab = window.open('about:blank', '_blank');
-    try {
-      if (!savedChatgpt) {
-        const parsed = AiConnectionBody.safeParse({ mode: 'chatgpt', model: draft.model });
-        await action.mutateAsync({
-          kind: 'connection',
-          settings: parsed.success ? parsed.data : { mode: 'chatgpt', model: '' },
-        });
-      }
-      const next = await action.mutateAsync({ kind: 'login' });
-      const url = officialLoginUrl(next.connection.loginUrl);
-      if (tab && url) {
-        tab.opener = null;
-        tab.location.href = url;
-      } else tab?.close();
-      setPopupBlocked(!tab);
-    } catch {
-      // The mutation error is shown below the form.
-      tab?.close();
-    }
+    await chatgpt.signIn(status, draft.model);
   };
 
   const finishPasted = () => {
@@ -140,9 +131,21 @@ function ConnectionForm({
     action.mutate({ kind: 'callback', url }, { onSuccess: () => setPasted('') });
   };
 
-  const save = (event: React.FormEvent) => {
+  const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    await commit(false);
+  };
+
+  const commit = async (skipKeyTest: boolean) => {
     setLocalError(null);
+    const key = apiKey.trim();
+    if (draft.mode === 'api' && key && testedKey !== key && !skipKeyTest) {
+      try {
+        if (!(await runKeyTest(key))) return;
+      } catch {
+        return; // shown from testKey.error
+      }
+    }
     const parsed = AiConnectionBody.safeParse({
       ...draft,
       ...(draft.mode === 'api' && apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
@@ -164,6 +167,8 @@ function ConnectionForm({
           setDrafts(draftsFrom(next.settings));
           setApiKey('');
           setReplacingKey(false);
+          setTestedKey(null);
+          testKey.reset();
           toast.success(t('ai.connectionSaved'));
         },
       },
@@ -177,7 +182,7 @@ function ConnectionForm({
         <CardDescription>{t('ai.settingsDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={save} className="flex flex-col gap-5">
+        <form onSubmit={(e) => void save(e)} className="flex flex-col gap-5">
           <AiConnectionBanner status={status} />
           <div className="flex flex-col gap-2">
             <Label id={modeLabelId}>{t('ai.connectionMode')}</Label>
@@ -186,23 +191,24 @@ function ConnectionForm({
               value={draft.mode}
               onValueChange={(mode) => setDrafts((old) => ({ ...old, mode }))}
               options={[
-                { value: 'api', label: t('ai.modeApi') },
                 {
                   value: 'chatgpt',
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       {t('ai.modeChatgpt')}
                       {/* Inherit the segment's token colour: primary-foreground when selected,
-                          muted-foreground otherwise, so the badge never clashes with the fill. */}
+                          muted-foreground otherwise, so the badge never clashes with the fill.
+                          pointer-events-none: a click on the badge must select the option. */}
                       <Badge
                         variant="outline"
-                        className="border-current/40 bg-transparent px-1.5 text-xs font-normal text-inherit"
+                        className="pointer-events-none border-current/40 bg-transparent px-1.5 text-xs font-normal text-inherit"
                       >
-                        {t('ai.experimental')}
+                        {t('ai.connect.recommended')}
                       </Badge>
                     </span>
                   ),
                 },
+                { value: 'api', label: t('ai.modeApi') },
               ]}
             />
           </div>
@@ -234,6 +240,11 @@ function ConnectionForm({
                 <Field
                   label={t('ai.apiKey')}
                   hint={status.hasApiKey ? t('ai.keepKeyHint') : t('ai.apiKeyHint')}
+                  error={
+                    testKey.data && !testKey.data.ok
+                      ? keyTestMessage(t, testKey.data.error)
+                      : undefined
+                  }
                 >
                   {(p) => (
                     <Input
@@ -241,12 +252,45 @@ function ConnectionForm({
                       type="password"
                       value={apiKey}
                       autoComplete="new-password"
-                      disabled={action.isPending}
-                      onChange={(e) => setApiKey(e.target.value)}
+                      disabled={action.isPending || testKey.isPending}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
+                        testKey.reset();
+                      }}
                       placeholder={t('ai.enterKey')}
                     />
                   )}
                 </Field>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    disabled={!apiKey.trim() || testKey.isPending || action.isPending}
+                    onClick={() => void runKeyTest(apiKey.trim()).catch(() => undefined)}
+                  >
+                    <Pending show={testKey.isPending} />
+                    {t('ai.connect.testKey')}
+                  </Button>
+                  {testKey.data && !testKey.data.ok && !keyTestBlocks(testKey.data.error) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="touch"
+                      disabled={!apiKey.trim() || action.isPending}
+                      onClick={() => void commit(true)}
+                    >
+                      {t('ai.connect.saveAnyway')}
+                    </Button>
+                  )}
+                  {testKey.data?.ok && testedKey === apiKey.trim() && (
+                    <p role="status" className="inline-flex items-center gap-1.5 text-sm">
+                      <CheckCircle2 className="size-4 text-success" aria-hidden />
+                      {t('ai.keyOk')}
+                    </p>
+                  )}
+                </div>
+                {testKey.error && <Banner tone="danger">{errorMessage(testKey.error)}</Banner>}
                 {status.hasApiKey && (
                   <Button
                     type="button"
@@ -257,6 +301,7 @@ function ConnectionForm({
                     onClick={() => {
                       setApiKey('');
                       setReplacingKey(false);
+                      testKey.reset();
                     }}
                   >
                     {t('ai.keepKey')}
@@ -266,7 +311,8 @@ function ConnectionForm({
             )
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-sm text-muted-foreground">{t('ai.directLoginHint')}</p>
+              <p className="text-sm text-muted-foreground">{t('ai.connect.note')}</p>
+              <p className="text-sm text-muted-foreground">{t('ai.remoteSignInHint')}</p>
               <p role="status" className="text-sm">
                 {savedChatgpt && conn.state === 'connected'
                   ? conn.email
@@ -319,7 +365,7 @@ function ConnectionForm({
                     </a>
                   </Button>
                 )}
-                {savedChatgpt && loginUrl && popupBlocked && (
+                {savedChatgpt && loginUrl && chatgpt.popupBlocked && (
                   <p className="self-center text-sm text-muted-foreground">
                     {t('ai.popupBlocked')}
                   </p>
@@ -455,6 +501,20 @@ function ConnectionForm({
               </div>
             )}
 
+          {connectionReady(status) && !dirty && (
+            <div className="flex flex-col gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <p role="status" className="inline-flex items-start gap-2 text-sm">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                {t('ai.connectionReady')}
+              </p>
+              <Button asChild size="touch" variant="outline" className="sm:shrink-0">
+                <Link to="/admin/members/ai">
+                  {t('ai.setupAgent')}
+                  <ArrowRight aria-hidden />
+                </Link>
+              </Button>
+            </div>
+          )}
           {Boolean(refreshError) && (
             <Banner tone="danger">
               {t('ai.refreshError', { error: errorMessage(refreshError) })}
@@ -464,8 +524,12 @@ function ConnectionForm({
             <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>
           )}
           <SaveBar dirty={dirty} inset="card">
-            <Button type="submit" size="touch" disabled={action.isPending || !dirty}>
-              <Pending show={action.isPending} />
+            <Button
+              type="submit"
+              size="touch"
+              disabled={action.isPending || testKey.isPending || !dirty}
+            >
+              <Pending show={action.isPending || testKey.isPending} />
               {t('ai.saveConnection')}
             </Button>
           </SaveBar>
