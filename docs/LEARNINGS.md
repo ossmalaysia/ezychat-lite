@@ -94,6 +94,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- CI runs only on pull requests to `main`: a stacked PR shows only SonarCloud. Run the consolidated
+  checks locally on the top branch and say so in the PR; real CI runs after the base merges and the
+  stack is retargeted.
+
 - Auto mode blocks `gh repo create` (new upload) without the owner's direct instruction: before an
   unattended run, ask the owner to create any new repo or say "create it".
 
