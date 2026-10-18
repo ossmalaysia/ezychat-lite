@@ -1,4 +1,13 @@
+import type { Page } from '@playwright/test';
 import { chatItem, customerJid, expect, fakeIncoming, inboxHeading, test } from './helpers';
+
+/**
+ * Freezes the page clock at the page's own "now". Under load the page clock runs ahead of this
+ * process's `new Date()`, and pausing in the past throws "Cannot fast-forward to the past".
+ */
+async function pauseClockNow(page: Page): Promise<void> {
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 50);
+}
 
 declare global {
   interface Window {
@@ -34,7 +43,7 @@ test('resuming reconnects before the retry timer and restores missed inbox messa
   await expect(inboxHeading(page)).toBeVisible();
   await authenticated;
   await page.waitForLoadState('networkidle');
-  await page.clock.pauseAt(new Date());
+  await pauseClockNow(page);
   const warning = page.getByText('Reconnecting to server…', { exact: true });
   const jid = customerJid(info, 81);
   try {
@@ -60,7 +69,7 @@ test('resuming reconnects before the retry timer and restores missed inbox messa
     await expect(chatItem(page, jid)).toContainText('Arrived while the PWA slept');
 
     await page.waitForLoadState('networkidle');
-    await page.clock.pauseAt(new Date());
+    await pauseClockNow(page);
     const lateDropAttempts = await page.evaluate(async () => {
       const before = window.pwaReconnectAttempts;
       document.dispatchEvent(new Event('visibilitychange'));
