@@ -152,6 +152,8 @@ into AGENTS.md.
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
   `--auth-type=web` does not avoid `EOTP` on an authenticator-app account; show the owner a 6-digit example
   (`--otp=482917`), not a word placeholder, which npm rejects with E400.
+  Ask first whether the npm account has 2FA: publishing needs a code, so set up an authenticator app (and
+  keep the recovery codes) before the publish session.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
