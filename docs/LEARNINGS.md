@@ -159,6 +159,8 @@ into AGENTS.md.
   poll the registry before calling it failed.
   The trusted-publisher form only allows `npm stage publish` unless **Allow npm publish** is ticked (staged = each
   version waits for the owner's approval); saving it asks for the owner's 2FA (security key) per package.
+  A new trusted publisher stays "Pending validation" until one OIDC publish happens before its deadline
+  (about two days): plan the next release tag inside that window, or the connection must be set up again.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
