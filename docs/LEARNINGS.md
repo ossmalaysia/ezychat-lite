@@ -94,6 +94,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Merge a stack in a squash-only repo by retargeting the top PR to `main` and squash-merging it once, then
+  close the lower PRs as included. Retargeting does not start CI and `strict` needs an up-to-date branch:
+  run `gh pr update-branch` and wait for the required `Test (…)` jobs, never for "any green check".
+
 - CI runs only on pull requests to `main`: a stacked PR shows only SonarCloud. Run the consolidated
   checks locally on the top branch and say so in the PR; real CI runs after the base merges and the
   stack is retargeted.
