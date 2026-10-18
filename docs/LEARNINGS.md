@@ -188,6 +188,10 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Stopping a background server task can leave its node child running: before a restart on the same
+  `--data`, stop the process whose command line names that folder. Exit 3 can also be Windows PID reuse
+  (the lock's pid now belongs to another program); start again once the old server is gone.
+
 - Pass Windows paths (`D:/dev/...`) to Node and other native tools from Git Bash: a POSIX path like
   `/d/dev/...` inside a script string becomes `D:\d\dev\...` and fails with ENOENT.
 - Never start a Dev Build on port 7420 on the dev machine: the installed EzyChat Lite service listens
