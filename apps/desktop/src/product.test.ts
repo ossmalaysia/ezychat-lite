@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { t } from './i18n.js';
 import {
   LITE_PRODUCT,
   activeProduct,
@@ -174,8 +175,7 @@ describe('defaultPort', () => {
 });
 
 describe('desktop texts name the active edition', () => {
-  it('fills {{product}} in every catalog with the productName', async () => {
-    const { t } = await import('./i18n.js');
+  it('fills {{product}} in every catalog with the productName', () => {
     setActiveProduct(enterprise);
     expect(t('en', 'page.startingTitle')).toBe('Starting EzyChat Enterprise…');
     expect(t('ms', 'page.startingTitle')).toBe('Memulakan EzyChat Enterprise…');
@@ -183,8 +183,7 @@ describe('desktop texts name the active edition', () => {
     expect(t('en', 'status.documentTitle')).toBe('EzyChat Enterprise — Status & Service');
   });
 
-  it('names Lite when no edition is set', async () => {
-    const { t } = await import('./i18n.js');
+  it('names Lite when no edition is set', () => {
     expect(t('en', 'page.startingTitle')).toBe('Starting EzyChat Lite…');
   });
 });

@@ -20,6 +20,8 @@ npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, al
 npm install                                   # all workspaces
 npm run dev                                   # server (tsx watch, --fake-wa, data in ./data/dev, port 7420) + Vite web
 npm test                                      # every Vitest project (packages/*, apps/*)
+npm run test:coverage                         # same with coverage (totals vs the floors in vitest.config.ts)
+npm run coverage:changed                      # after test:coverage: ≥ 90 % of the lines this branch changed are covered
 npx vitest run packages/server/test/auth.test.ts                       # one file
 npx vitest run packages/server/test/auth.test.ts -t "lock the account"  # one test by name
 npm test -w @ezychat/server                   # one workspace
@@ -310,6 +312,12 @@ cover navigation from every admin section and recovery from malformed URLs.
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
+- **Good to go needs coverage** (owner rule): a change is ready only when its tests cover at least 90 %
+  of the executable lines it adds or changes (`npm run test:coverage` then `npm run coverage:changed`;
+  CI enforces both on every PR) and the totals stay above the floors in `vitest.config.ts`. The target
+  for every total is 90 %: raise a floor in the same PR that lifts a total past it, never lower one.
+  Coverage counts only real assertions on behaviour; a test that only runs code to raise the number is
+  not allowed.
 - **Contracts are tested against the real server, never only against a fake `fetch`** (owner rule):
   `packages/server/test/web-client-contract.test.ts` checks every `api()`/`fetch('/api…')` call in
   `apps/web/src` (method + path, read with the TypeScript checker) against the real route table; keep

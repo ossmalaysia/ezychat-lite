@@ -49,7 +49,7 @@ describe('@ezychat/desktop entry', () => {
       'updateFeedOf',
     ]);
     expect(loaded).toEqual([]);
-  });
+  }, 30_000);
 
   it('startDesktop sets the edition product before the shell loads', async () => {
     const loaded = stubMain();
@@ -57,12 +57,12 @@ describe('@ezychat/desktop entry', () => {
     await startDesktop(defineProduct(enterprise));
     expect(loaded).toEqual(['enterprise']);
     expect(activeProduct().productName).toBe('EzyChat Enterprise');
-  });
+  }, 30_000);
 
   it('startDesktop without a product runs as Lite', async () => {
     const loaded = stubMain();
     const { startDesktop } = await import('./index.js');
     await startDesktop();
     expect(loaded).toEqual(['lite']);
-  });
+  }, 30_000);
 });

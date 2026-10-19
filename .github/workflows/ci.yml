@@ -23,6 +23,8 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the changed-lines coverage gate diffs against the base branch
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -32,7 +34,16 @@ jobs:
       - run: npm run typecheck
       # Build the publishable core first, so the pack contract test never builds during the suite.
       - run: npm run build:core
-      - run: npm test
+      - if: matrix.os != 'ubuntu-latest'
+        run: npm test
+      # Coverage once (ubuntu): totals must stay above the floors in vitest.config.ts, and a PR must cover
+      # at least 90 % of the executable lines it adds or changes (AGENTS.md, good to go).
+      - if: matrix.os == 'ubuntu-latest'
+        run: npm run test:coverage
+      - if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        run: npm run coverage:changed
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
       - run: npm run build -w @ezychat/web
       # Desktop-only rules run only in the real Electron window, never in browser e2e: click every external
       # link on every screen there (e2e/electron-links.smoke.mjs). Windows runners have a desktop for it.
