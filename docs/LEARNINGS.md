@@ -216,6 +216,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `codex exec -i <image>` takes several values, so a prompt after it is read as a second image ("No prompt
+  provided"): send the prompt on stdin (`codex exec -i icon.png < PROMPT.md`).
 - Put Markdown syntax examples in CHANGELOG/docs inside backticks: Prettier rewrites a bare `**name**` or `*x*`
   as emphasis (`_name_`), which turns the sentence into nonsense.
 
