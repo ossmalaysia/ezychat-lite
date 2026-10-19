@@ -117,7 +117,8 @@ describe('startup identity migration', () => {
     expect(jids(app)).toEqual([LID]);
     expect(premerge()).toEqual([]);
     expect(merges(app)).toEqual({ n: 1 });
-  });
+    // Two full server starts (migrations + backup each): 5.8 s on the Windows CI runner.
+  }, 20_000);
 
   it('re-keys a phone-number-only chat to its WhatsApp ID; the phone number still finds it', async () => {
     seed(`
