@@ -411,6 +411,10 @@ into AGENTS.md.
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
   class and status for the log, or every cause looks like the same plain `Error`.
+- Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
+  admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
+  between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for the
+  `AI answer unavailable` line (errName, status, finishReason; no message text) from an admin shell.
 - Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
   customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 
