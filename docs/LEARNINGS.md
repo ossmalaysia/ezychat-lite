@@ -151,7 +151,9 @@ into AGENTS.md.
   publishes (workflow is the bare file name, no environment), meanwhile publish that version by hand, then
   rerun `publish-packages` for the next tag (published packages are skipped). A manual publish that answers
   `PUT 404` without the security-key step means the saved npm token is invalid: check `npm whoami` first and
-  give the owner `npm login --auth-type=web` before the publish.
+  give the owner `npm login --auth-type=web` before the publish. An unfixed trusted publisher fails again on
+  every release and leaves the core half published (Enterprise needs all pins equal): before tagging, ask
+  the owner whether it is fixed and have the manual publish folder ready at the new tag.
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
