@@ -165,19 +165,62 @@ export function chatGptModel(options: {
 }
 
 /**
+ * Why an agent turn failed, for the log: `provider` = the model service answered with an error
+ * status, `invalid` = the answer was malformed or missing, `timeout` = the turn ran out of time,
+ * `other` = anything else (network, unexpected). The message stays a fixed, user-facing text.
+ */
+export type AgentFailureKind = 'provider' | 'invalid' | 'timeout' | 'other';
+
+/** A failed agent turn: a fixed message plus log-safe facts (never upstream text). */
+export class AgentTurnFailure extends Error {
+  override readonly name = 'AgentTurnFailure';
+  constructor(
+    message: string,
+    readonly kind: AgentFailureKind,
+    /** The original error's class name (e.g. AI_NoObjectGeneratedError, TypeError). */
+    readonly causeName: string | null = null,
+    /** HTTP status when the model service answered with an error. */
+    readonly status: number | null = null,
+  ) {
+    super(message);
+  }
+}
+
+/** The class name of an error (bounded), for the log. */
+export const errorNameOf = (error: unknown): string | null => {
+  const name = (error as { name?: unknown } | null)?.name;
+  return typeof name === 'string' ? name.slice(0, 80) : null;
+};
+
+/**
+ * The model answered, but not in the decision format (bad JSON, wrong fields, or our schema check,
+ * e.g. an empty reply). Worth asking once more; a missing decision (step limit) is not.
+ */
+export function isMalformedAnswer(error: unknown): boolean {
+  const name = errorNameOf(error);
+  return name !== null && /NoObjectGenerated|TypeValidation|JSONParse|ZodError/.test(name);
+}
+
+/** A malformed or missing decision (the AI SDK's output errors, or our schema check). */
+export function isInvalidAnswer(error: unknown): boolean {
+  if (APICallError.isInstance(error)) return (error.statusCode ?? 0) < 400;
+  const name = errorNameOf(error);
+  return (
+    name !== null &&
+    /NoObjectGenerated|NoOutputGenerated|TypeValidation|JSONParse|ZodError/.test(name)
+  );
+}
+
+/**
  * The error a failed agent turn reports: our adapters' fixed messages pass through; a malformed or
  * missing decision becomes `invalid`; anything else the generic message. Never upstream text.
  */
-export function agentFailure(error: unknown, invalid: string, generic: string): Error {
+export function agentFailure(error: unknown, invalid: string, generic: string): AgentTurnFailure {
+  const causeName = errorNameOf(error);
   // Only our adapters answer with an error status; anything else (e.g. an unreadable success
   // response) means the answer itself was unusable.
-  if (APICallError.isInstance(error))
-    return new Error((error.statusCode ?? 0) >= 400 ? error.message : invalid);
-  const name = (error as { name?: unknown } | null)?.name;
-  if (
-    typeof name === 'string' &&
-    /NoObjectGenerated|NoOutputGenerated|TypeValidation|JSONParse|ZodError/.test(name)
-  )
-    return new Error(invalid);
-  return new Error(generic);
+  if (APICallError.isInstance(error) && (error.statusCode ?? 0) >= 400)
+    return new AgentTurnFailure(error.message, 'provider', causeName, error.statusCode ?? null);
+  if (isInvalidAnswer(error)) return new AgentTurnFailure(invalid, 'invalid', causeName);
+  return new AgentTurnFailure(generic, 'other', causeName);
 }

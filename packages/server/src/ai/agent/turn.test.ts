@@ -100,10 +100,47 @@ describe('runAgentTurn', () => {
     await expect(runAgentTurn(turn(model, controller.signal))).rejects.toThrow();
   });
 
-  it('rejects an answer outside the decision format', async () => {
-    const model = new MockLanguageModelV4({
-      doGenerate: [answer({ reply: 'Hi', action: 'refund_everything', handoffReason: null })],
-    });
+  it('rejects an answer outside the decision format, after asking once more', async () => {
+    const bad = answer({ reply: 'Hi', action: 'refund_everything', handoffReason: null });
+    const model = new MockLanguageModelV4({ doGenerate: [bad, bad] });
     await expect(runAgentTurn(turn(model))).rejects.toThrow();
+    expect(model.doGenerateCalls).toHaveLength(2);
+  });
+
+  it('accepts no_reply with an empty reply (nothing to say after "ok, thanks")', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [answer({ reply: '', action: 'no_reply', handoffReason: null })],
+    });
+    const result = await runAgentTurn(turn(model));
+    expect(result.decision).toEqual({ reply: '', action: 'no_reply', handoffReason: null });
+    expect(result.retries).toBe(0);
+  });
+
+  it('asks once more when the reply is empty with another action, and uses the second answer', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        answer({ reply: '', action: 'answer', handoffReason: null }),
+        answer({ reply: '', action: 'no_reply', handoffReason: null }),
+      ],
+    });
+    const timings: { retries: number }[] = [];
+    const result = await runAgentTurn({ ...turn(model), onTiming: (t) => timings.push(t) });
+    expect(result.decision.action).toBe('no_reply');
+    expect(result.retries).toBe(1);
+    expect(timings[0]!.retries).toBe(1);
+    expect(model.doGenerateCalls).toHaveLength(2);
+  });
+
+  it('never asks again after a service error or at the step limit', async () => {
+    const failing = new MockLanguageModelV4({
+      doGenerate: () => Promise.reject(Object.assign(new Error('boom'), { name: 'TypeError' })),
+    });
+    await expect(runAgentTurn(turn(failing))).rejects.toThrow('boom');
+    expect(failing.doGenerateCalls).toHaveLength(1);
+    const looping = new MockLanguageModelV4({
+      doGenerate: () => Promise.resolve(toolCall('again')),
+    });
+    await expect(runAgentTurn(turn(looping))).rejects.toThrow();
+    expect(looping.doGenerateCalls.length).toBeLessThanOrEqual(4);
   });
 });

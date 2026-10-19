@@ -20,7 +20,7 @@ import type { LanguageModel } from 'ai';
 import type { AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
-import { agentFailure, chatGptModel } from './agent/models.js';
+import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
@@ -571,7 +571,8 @@ export class DirectChatGptProvider implements AiProvider {
       );
     } catch (error) {
       if (signal.aborted) throw aborted();
-      if (turnSignal.aborted) throw new Error('ChatGPT answer timed out.', { cause: error });
+      if (turnSignal.aborted)
+        throw new AgentTurnFailure('ChatGPT answer timed out.', 'timeout', errorNameOf(error));
       throw agentFailure(error, 'ChatGPT returned an invalid answer.', 'ChatGPT could not answer.');
     }
   }

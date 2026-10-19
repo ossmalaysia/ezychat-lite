@@ -34,6 +34,8 @@ export interface AgentTurnTiming {
   ms: number;
   stepMs: number[];
   steps: number;
+  /** 1 when a malformed first answer was asked again (that attempt's steps are not counted). */
+  retries: number;
 }
 export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
 export interface AiPromptImage {

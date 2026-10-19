@@ -1,8 +1,9 @@
 import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { AI_MODEL_HANDOFF_REASONS, AiDecision } from '@ezychat/shared';
+import { AI_MODEL_HANDOFF_REASONS, AiDecision, AiDecisionAction } from '@ezychat/shared';
 import { AI_IMAGE_DETAIL, type AgentTurnTiming, type AiPrompt } from '../provider-types.js';
 import { toWhatsAppText } from '../whatsapp-format.js';
+import { isMalformedAnswer } from './models.js';
 
 /** At most this many model calls per customer turn (tool calls + the final decision). */
 export const AGENT_MAX_STEPS = 4;
@@ -10,7 +11,7 @@ export const AGENT_MAX_STEPS = 4;
 /** The structured decision, strict-schema friendly (every field present; null when unused). */
 const DecisionOutput = z.object({
   reply: z.string(),
-  action: AiDecision.shape.action,
+  action: AiDecisionAction,
   handoffReason: z.enum(AI_MODEL_HANDOFF_REASONS).nullable(),
 });
 
@@ -29,13 +30,26 @@ export interface AgentTurnResult {
   /** Tool names in call order, for the decision log (never their inputs or outputs). */
   toolCalls: string[];
   steps: number;
+  /** 1 when the first answer was malformed and the turn was asked once more, else 0. */
+  retries: number;
 }
 
 /**
  * One customer turn on the AI SDK agent loop: the model may call read tools, then must return the
  * decision. The server still decides what happens with it (model proposes, code decides).
+ * A malformed or missing decision is asked for once more within the same time bound; a service
+ * error (HTTP status), a timeout or an abort is never retried (it hands the chat to the team).
  */
 export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
+  try {
+    return await attemptTurn(turn, 0);
+  } catch (error) {
+    if (turn.signal.aborted || !isMalformedAnswer(error)) throw error;
+    return attemptTurn(turn, 1);
+  }
+}
+
+async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnResult> {
   turn.signal.throwIfAborted();
   const started = Date.now();
   let last = started;
@@ -61,8 +75,8 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
     stopWhen: stepCountIs(AGENT_MAX_STEPS),
     output: Output.object({ schema: DecisionOutput }),
     abortSignal: turn.signal,
-    // Never retry silently: a retry costs the business's usage and delays the reply; the service
-    // hands the chat to the team instead.
+    // No transport retries: a failed call costs the business's usage and delays the reply; the
+    // service hands the chat to the team instead (only a malformed answer is asked again, above).
     maxRetries: 0,
     maxOutputTokens: 2000,
     onStepFinish: () => {
@@ -76,7 +90,7 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
   const parsed = AiDecision.parse(result.output);
   const decision = { ...parsed, reply: toWhatsAppText(parsed.reply) };
   try {
-    turn.onTiming?.({ ms: Date.now() - started, stepMs, steps: result.steps.length });
+    turn.onTiming?.({ ms: Date.now() - started, stepMs, steps: result.steps.length, retries });
   } catch {
     // Timing is only for the log; it never changes the reply.
   }
@@ -84,5 +98,6 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
     decision,
     toolCalls: result.steps.flatMap((step) => step.toolCalls.map((call) => call.toolName)),
     steps: result.steps.length,
+    retries,
   };
 }

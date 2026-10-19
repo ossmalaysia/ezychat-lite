@@ -141,14 +141,15 @@ describe('OpenAI Responses provider', () => {
       expect(json).not.toHaveBeenCalled();
     },
   );
-  it('rejects invalid decisions and incomplete responses', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(responseJson('{"reply":"invented","action":"delete_files"}')),
-    );
+  it('rejects invalid decisions (after asking once more) and incomplete responses', async () => {
+    const invalid = vi
+      .fn()
+      .mockImplementation(async () => responseJson('{"reply":"invented","action":"delete_files"}'));
+    vi.stubGlobal('fetch', invalid);
     await expect(
       generateOpenAi(settings, 'key', prompt, new AbortController().signal),
     ).rejects.toThrow('invalid answer');
+    expect(invalid).toHaveBeenCalledTimes(2);
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'incomplete', output: [] }))),

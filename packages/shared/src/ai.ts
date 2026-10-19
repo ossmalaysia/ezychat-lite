@@ -201,13 +201,32 @@ export const AiHandoffReason = z.enum([
 ]);
 export type AiHandoffReason = z.infer<typeof AiHandoffReason>;
 
+/**
+ * What the AI does with a customer turn. `no_reply`: nothing to say (e.g. a bare "ok" / "thanks"
+ * after the details are collected): the AI keeps the chat and sends nothing.
+ */
+export const AiDecisionAction = z.enum([
+  'answer',
+  'ask_resolution',
+  'resolve',
+  'handoff',
+  'no_reply',
+]);
+export type AiDecisionAction = z.infer<typeof AiDecisionAction>;
+
 /** Structured decisions are checked by the server before sending or changing ownership. */
-export const AiDecision = z.object({
-  reply: z.string().trim().min(1).max(4096),
-  action: z.enum(['answer', 'ask_resolution', 'resolve', 'handoff']),
-  /** Set with `handoff`; missing or null otherwise (an answer without it still parses). */
-  handoffReason: AiHandoffReason.nullable().optional(),
-});
+export const AiDecision = z
+  .object({
+    /** Empty only with `no_reply` (which never sends anything). */
+    reply: z.string().trim().max(4096),
+    action: AiDecisionAction,
+    /** Set with `handoff`; missing or null otherwise (an answer without it still parses). */
+    handoffReason: AiHandoffReason.nullable().optional(),
+  })
+  .refine((d) => d.action === 'no_reply' || d.reply.length > 0, {
+    message: 'A reply is required unless the action is no_reply',
+    path: ['reply'],
+  });
 export type AiDecision = z.infer<typeof AiDecision>;
 
 /** Paste-the-callback fallback for admins who cannot reach the server's localhost callback. */
@@ -258,7 +277,7 @@ export type AiTryLookup = z.infer<typeof AiTryLookup>;
 export const AiTryResult = z.object({
   ok: z.boolean(),
   reply: z.string().nullable(),
-  action: AiDecision.shape.action.nullable(),
+  action: AiDecisionAction.nullable(),
   handoffReason: AiHandoffReason.nullable().optional(),
   model: z.string().nullable(),
   error: z.string().nullable(),
