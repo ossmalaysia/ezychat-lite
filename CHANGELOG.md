@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.43] - 2026-10-20
+
 ### Fixed
 
 - Desktop app: email links (for example "Email support") and web links in the app window open your mail app or browser again; before, a click did nothing.
