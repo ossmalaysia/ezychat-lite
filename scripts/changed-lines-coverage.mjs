@@ -52,6 +52,19 @@ export function changedCoverage(changed, coverage) {
   return { covered, uncovered };
 }
 
+/** Source files the coverage gate must see (the vitest.config.ts include list, minus tests). Pure (tested). */
+export function isSourceFile(path) {
+  return (
+    /^(packages|apps)\/[^/]+\/src\/.+\.(ts|tsx|cts)$/.test(path) &&
+    !/\.test\.|\.d\.ts$|\/test\/|\/locales\//.test(path)
+  );
+}
+
+/** Changed source files with no entry in the report: they must not pass unmeasured. Pure (tested). */
+export function missingSourceFiles(changed, coverage) {
+  return [...changed.keys()].filter((f) => isSourceFile(f) && !coverage[f]);
+}
+
 function arg(name, fallback) {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] : fallback;
@@ -70,11 +83,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const coverage = Object.fromEntries(
     Object.entries(raw).map(([abs, v]) => [relative(root, abs).replaceAll('\\', '/'), v]),
   );
+  // An empty report (wrong include, a filtered run) would pass every change: refuse it.
+  if (Object.keys(coverage).length === 0) {
+    console.error(`${reportPath} has no files: run the full npm run test:coverage`);
+    process.exit(2);
+  }
   const diff = execFileSync('git', ['diff', '--unified=0', '--no-color', `${base}...HEAD`], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
-  const { covered, uncovered } = changedCoverage(changedLines(diff), coverage);
+  const changed = changedLines(diff);
+  const missing = missingSourceFiles(changed, coverage);
+  if (missing.length) {
+    console.log(
+      'Changed source files missing from the coverage report:\n  ' + missing.join('\n  '),
+    );
+    process.exit(1);
+  }
+  const { covered, uncovered } = changedCoverage(changed, coverage);
   const total = covered.length + uncovered.length;
   if (total === 0) {
     console.log('changed-lines coverage: no changed executable lines');

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { changedCoverage, changedLines } from './changed-lines-coverage.mjs';
+import {
+  changedCoverage,
+  changedLines,
+  isSourceFile,
+  missingSourceFiles,
+} from './changed-lines-coverage.mjs';
 
 const diff = [
   'diff --git a/packages/x/src/a.ts b/packages/x/src/a.ts',
@@ -49,5 +54,29 @@ describe('changed-lines coverage', () => {
 
   it('ignores files outside the coverage report (docs, tests, configs)', () => {
     expect(changedCoverage(changedLines(diff), {})).toEqual({ covered: [], uncovered: [] });
+  });
+
+  it('knows which files are source the gate must measure', () => {
+    expect(isSourceFile('packages/server/src/mcp/send.ts')).toBe(true);
+    expect(isSourceFile('apps/web/src/admin/Page.tsx')).toBe(true);
+    expect(isSourceFile('apps/desktop/src/inbox-preload.cts')).toBe(true);
+    for (const f of [
+      'packages/server/test/mcp.test.ts',
+      'apps/web/src/admin/Page.test.tsx',
+      'packages/shared/src/types.d.ts',
+      'apps/desktop/src/locales/en.json',
+      'docs/x.md',
+      'scripts/a.mjs',
+    ])
+      expect(isSourceFile(f), f).toBe(false);
+  });
+
+  it('a changed source file missing from the report fails instead of passing unmeasured', () => {
+    expect(missingSourceFiles(changedLines(diff), {})).toEqual(['packages/x/src/a.ts']);
+    expect(
+      missingSourceFiles(changedLines(diff), {
+        'packages/x/src/a.ts': { statementMap: {}, s: {} },
+      }),
+    ).toEqual([]);
   });
 });
