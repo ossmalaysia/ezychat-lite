@@ -12,8 +12,14 @@ import { INBOX_TOOLS, ToolError, type ToolDef } from './tools.js';
 
 const TOOLS: readonly ToolDef[] = [...INBOX_TOOLS, ...SEND_TOOLS, ...AI_SETUP_TOOLS];
 
-const INSTRUCTIONS =
-  'Access to an EzyChat Lite WhatsApp team inbox. Inbox tools are read-only: get_stats for an ' +
+/** Server name shown by MCP clients: the edition's product (EzyChat Lite, EzyChat Enterprise, ...). */
+export function productTitle(edition: string): string {
+  return `EzyChat ${edition.charAt(0).toUpperCase()}${edition.slice(1)}`;
+}
+
+const instructions = (title: string) =>
+  `Access to an ${title} WhatsApp team inbox.` +
+  ' Read the inbox with get_stats for an ' +
   'overview, list_chats to find chats, then get_chat and get_messages. AI Sales Agent tools ' +
   '(get_ai_agent_setup, try_ai_reply, update_ai_setup, get_ai_setup_history) let the admin ' +
   'review and refine its instructions, hand-off rules and business context: change them only ' +
@@ -31,6 +37,8 @@ export interface McpServerDeps {
   /** Re-checks the token right before a tool runs (revoked/demoted mid-request). */
   stillValid: () => boolean;
   version: string;
+  /** Product edition ('lite' unless another build passes one). */
+  edition: string;
 }
 
 const textResult = (text: string, isError = false): CallToolResult => ({
@@ -82,8 +90,8 @@ async function runTool(tool: ToolDef, args: unknown, deps: McpServerDeps): Promi
 /** A fresh server per request (stateless): only the tools the token's scopes allow are listed. */
 export function createMcpServer(deps: McpServerDeps): McpServer {
   const server = new McpServer(
-    { name: 'ezychat-lite', title: 'EzyChat Lite', version: deps.version },
-    { instructions: INSTRUCTIONS },
+    { name: `ezychat-${deps.edition}`, title: productTitle(deps.edition), version: deps.version },
+    { instructions: instructions(productTitle(deps.edition)) },
   );
   for (const tool of TOOLS) {
     if (!deps.principal.scopes.has(tool.scope)) continue;

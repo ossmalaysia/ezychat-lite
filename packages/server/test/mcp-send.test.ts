@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { User } from '@ezychat/shared';
 import { setMcpEnabled } from '../src/mcp/settings.js';
 import { sendClientId } from '../src/mcp/send.js';
+import { productTitle } from '../src/mcp/server.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
 const LID = '9001@lid';
@@ -252,5 +253,43 @@ describe('limits', () => {
       requestId: requestId(),
     });
     expect(other.isError).toBeUndefined();
+  });
+});
+
+describe('editions', () => {
+  it('a closed access gate (e.g. an Enterprise licence lock) refuses /mcp and sends nothing', async () => {
+    const before = count('SELECT COUNT(*) AS n FROM messages');
+    t.ctx.access.close({ code: 'license_locked' });
+    try {
+      const res = await post(
+        rpc('tools/call', {
+          name: 'send_message',
+          arguments: { jid: LID, text: 'while locked', requestId: requestId() },
+        }),
+        sender,
+      );
+      expect(res.statusCode).toBe(403);
+      expect(count('SELECT COUNT(*) AS n FROM messages')).toBe(before);
+    } finally {
+      t.ctx.access.open();
+    }
+  });
+});
+
+describe('server identity', () => {
+  it('names the edition to MCP clients (EzyChat Lite here, EzyChat Enterprise there)', async () => {
+    const res = await post(
+      rpc('initialize', {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1' },
+      }),
+      sender,
+    );
+    expect(res.json().result.serverInfo).toMatchObject({
+      name: 'ezychat-lite',
+      title: 'EzyChat Lite',
+    });
+    expect(productTitle('enterprise')).toBe('EzyChat Enterprise');
   });
 });

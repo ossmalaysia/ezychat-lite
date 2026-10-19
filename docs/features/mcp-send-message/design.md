@@ -43,22 +43,36 @@ message not in this chat; rate limit reached (with the wait); token without `inb
    "Can send WhatsApp messages" (off), with the warning "The assistant can reply to customers in existing
    chats, as you. Your assistant asks you before each message."
 2. Token list: a "Can send" badge on tokens with the scope.
-3. Chat timeline: "Sent by <admin> via AI assistant (<token name>)" under such a message.
+3. Chat timeline: "Sent by <admin> via AI assistant (<token name>)" under such a message (needs a new
+   chat event; built with the UI, the audit row already records token and message).
 4. Connect steps (`TokenConnectSteps`): one line that names the new tool when the scope is on.
 
-Mock: `docs/features/mcp-send-message/mock/` (cloned from the latest confirmed mock, see below).
+### Mock
+
+- Runnable mock: `docs/features/mcp-send-message/mock/` (README: run, walkthrough, checks).
+- Source: the latest owner-confirmed reference **simple-first-setup** at git revision
+  `90a95dab5e992e2ea5d2daf773d613356b02f146`, cloned whole and rebuilt against today's packages
+  (mechanical `@wa-team-inbox/*` → `@ezychat/*` rename, 3 type drift fixes, runner resolve fix;
+  listed in `reference.json` → `baselineDriftFixes`).
+- This proposal changes 9 files: `CreateTokenDialog.tsx`, `IntegrationsSection.tsx`,
+  `MessageBubble.tsx` and the `admin`/`inbox` catalogs in en, ms and zh-CN.
+- Screenshots (1280 px and 360 px): `mock/screenshots/01-token-list`, `02-create-dialog`,
+  `03-create-dialog-can-send`, `04-chat-via-assistant`. No page errors, no horizontal scroll.
+- Also proposed: the Integrations texts that today say assistants "can't send messages to customers"
+  now say they send only with a token that allows it.
+- **Confirmation: pending** (owner). Production UI starts only after it.
 
 ## Plan
 
-| #   | Step                                                                                                                                       | Tests                                   | State              |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- | ------------------ |
-| 1   | Shared: `inbox:send` scope, `McpSendMessageInput`, `CreateApiTokenBody.canSend` (default false), token view `canSend`                      | schema tests                            | todo               |
-| 2   | Server: scope stored per token; `InboxSendPort` (send via message service, idempotent per token+requestId, rate limits, chat event, audit) | unit + real-server tests                | todo               |
-| 3   | MCP tool `send_message` with annotations; listed only for tokens with the scope                                                            | MCP tests through the real `/mcp` route | todo               |
-| 4   | Enterprise check: tool works on the Enterprise server and is refused while the licence gate is closed                                      | Enterprise test                         | todo               |
-| 5   | HTML mock of the UI (dialog checkbox, badge, timeline line)                                                                                | mock walkthrough 1280/360               | todo               |
-| 6   | UI implementation after confirmation, i18n en/ms/zh-CN, e2e, screen review                                                                 | e2e + screens.smoke                     | after confirmation |
-| 7   | Docs: AGENTS.md security invariant, `docs/ai-assistant-access`                                                                             | —                                       | todo               |
+| #   | Step                                                                                                                                              | Tests                                             | State                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------- |
+| 1   | Shared: `inbox:send` scope, `McpSendMessageInput`, `CreateApiTokenBody.canSend` (default false), token view `canSend`                             | schema + route tests                              | done                  |
+| 2   | Server: scope stored per token; `InboxSendPort` (send via message service, idempotent per token + requestId, limits, audit)                       | port tests (`mcp-send-port.test.ts`)              | done                  |
+| 3   | MCP tool `send_message` with annotations; listed only for tokens with the scope; server names the edition                                         | real `/mcp` route tests (`mcp-send.test.ts`)      | done                  |
+| 4   | Editions: refused while the access gate is closed (Enterprise licence lock); Enterprise end-to-end check after the core release                   | core test done; Enterprise test after the release | core done             |
+| 5   | HTML mock of the UI (dialog checkbox, badge, timeline line, updated texts)                                                                        | `send-shots.mjs` at 1280/360 px                   | done, waits for owner |
+| 6   | UI implementation after confirmation (incl. the "via AI assistant" timeline line, which needs a chat event), i18n en/ms/zh-CN, e2e, screen review | e2e + screens.smoke                               | after confirmation    |
+| 7   | Docs: AGENTS.md security invariant, CHANGELOG                                                                                                     | —                                                 | done                  |
 
 ## Out of scope (later)
 

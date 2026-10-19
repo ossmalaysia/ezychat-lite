@@ -530,6 +530,15 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Feature mocks rot with the code: the confirmed reference stopped compiling after the `@ezychat/*`
+  rename. Clone it, fix only mechanically (renames, type drift), record the fixes in
+  `reference.json` → `baselineDriftFixes` and refreeze the hashes so `snapshot.mjs --check` stays
+  meaningful. A runner that replaces Vite's `resolve` with only an alias drops the `ezychat-source`
+  condition and serves stale `dist/` packages (a new field never reached the page): spread the web
+  config's `resolve`.
+- An outgoing message's id is `local-<clientId>` until WhatsApp accepts it, then the WhatsApp id: an
+  API or tool that returns it must say so, and tests must find the row by `client_id`.
+
 - Electron fires `will-frame-navigate` before `will-navigate`; `preventDefault()` in the first cancels the
   second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle
   external links where you block. Browser e2e never runs the desktop window's rules: prove such a change

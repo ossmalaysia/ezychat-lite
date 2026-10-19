@@ -96,6 +96,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         log,
         stillValid: () => tokens.stillValid(principal.tokenId),
         version: ctx.config.version,
+        edition: ctx.edition,
       });
       const res = await handleMcpRequest(req, server);
       return reply

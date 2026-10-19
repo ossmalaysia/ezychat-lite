@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "mcp-send-message",
+      "creationOrder": 4,
+      "createdAt": "2026-10-20",
+      "design": "docs/features/mcp-send-message/design.md",
+      "mock": "docs/features/mcp-send-message/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "simple-first-setup",
+      "baselineGitRevision": "90a95dab5e992e2ea5d2daf773d613356b02f146",
+      "baselineAppRevision": "e43b0de",
+      "coverage": "Full app clone of the confirmed simple-first-setup reference (rebuilt against @ezychat/* packages: mechanical import rename and 3 type drift fixes); adds the Create token \"Can send WhatsApp messages\" checkbox with its warning, the \"Can send\" token badge, the \"via AI assistant\" line on replies sent through the assistant, and updated Integrations texts; the demo reply is sent through the real send port"
+    },
+    {
       "feature": "simple-first-setup",
       "creationOrder": 3,
       "createdAt": "2026-10-15",
