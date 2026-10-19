@@ -405,6 +405,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Every behaviour the admin instructions may ask for needs a decision the schema accepts: "do not reply to
+  ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
+  the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
+  class and status for the log, or every cause looks like the same plain `Error`.
 - Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
   customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 

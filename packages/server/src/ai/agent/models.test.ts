@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BackendError, collectResponse, parseSse } from '../chatgpt-backend.js';
 import { AI_FULL_CONTEXT_CHARACTERS } from '../knowledge.js';
-import { chatGptModel, codexRequestBody } from './models.js';
+import { APICallError } from 'ai';
+import { AgentTurnFailure, agentFailure, chatGptModel, codexRequestBody } from './models.js';
 import { chatTools } from './tools.js';
 import { runAgentTurn } from './turn.js';
 
@@ -129,4 +130,47 @@ describe('ChatGPT sign-in model (AI SDK)', () => {
     });
     await expect(run).rejects.toThrow('ChatGPT usage limit reached. Try again later.');
   });
+});
+
+describe('agentFailure', () => {
+  const apiError = (status: number) =>
+    new APICallError({
+      message: 'ChatGPT usage limit reached. Try again later.',
+      url: 'https://chatgpt.com/backend-api/codex/responses',
+      requestBodyValues: {},
+      statusCode: status,
+    });
+  const named = (name: string) =>
+    Object.assign(new Error('upstream text with customer words'), { name });
+
+  it.each([
+    [
+      'a service error',
+      apiError(429),
+      'provider',
+      'ChatGPT usage limit reached. Try again later.',
+      429,
+    ],
+    ['our schema check (empty reply)', named('ZodError'), 'invalid', 'invalid', null],
+    ['a malformed decision', named('AI_NoObjectGeneratedError'), 'invalid', 'invalid', null],
+    [
+      'no decision at the step limit',
+      named('AI_NoOutputGeneratedError'),
+      'invalid',
+      'invalid',
+      null,
+    ],
+    ['anything else', named('TypeError'), 'other', 'generic', null],
+  ])(
+    'keeps the kind, class and status of %s, with a fixed message',
+    (_label, error, kind, message, status) => {
+      const failure = agentFailure(error, 'invalid', 'generic');
+      expect(failure).toBeInstanceOf(AgentTurnFailure);
+      expect(failure.kind).toBe(kind);
+      expect(failure.message).toBe(message);
+      expect(failure.status).toBe(status);
+      expect(failure.causeName).toBe((error as Error).name);
+      expect(failure.message).not.toContain('customer words');
+    },
+  );
 });

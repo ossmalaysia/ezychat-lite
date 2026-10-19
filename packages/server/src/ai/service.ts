@@ -36,6 +36,7 @@ import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js'
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
+import { AgentTurnFailure } from './agent/models.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
 import {
   extensionAgentTools,
@@ -750,14 +751,20 @@ export function createAiService(
           releaseForConnection();
           return;
         } else {
-          // Error type and HTTP status only: messages and bodies can carry customer text.
+          // Failure kind, error class and HTTP status only: messages and bodies can carry customer
+          // text. The providers wrap failures in AgentTurnFailure, which keeps these facts.
+          const turnFailure = error instanceof AgentTurnFailure ? error : null;
           const failure = error as { name?: unknown; statusCode?: unknown; finishReason?: unknown };
           log.warn(
             {
               jid,
               reason: 'provider_failed',
-              errName: typeof failure?.name === 'string' ? failure.name : null,
-              status: typeof failure?.statusCode === 'number' ? failure.statusCode : null,
+              kind: turnFailure?.kind ?? 'other',
+              errName:
+                turnFailure?.causeName ?? (typeof failure?.name === 'string' ? failure.name : null),
+              status:
+                turnFailure?.status ??
+                (typeof failure?.statusCode === 'number' ? failure.statusCode : null),
               finishReason: typeof failure?.finishReason === 'string' ? failure.finishReason : null,
             },
             'AI answer unavailable',
@@ -802,6 +809,16 @@ export function createAiService(
         },
         'AI decision',
       );
+      // Nothing to say (e.g. a bare "ok" / "thanks"): the AI keeps the chat and sends nothing; the
+      // batch counts as handled so it is not answered again.
+      if (decision.action === 'no_reply') {
+        ctx.db
+          .prepare(
+            'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ?',
+          )
+          .run(customerId, jid);
+        return;
+      }
       // Consecutive resolution questions: a new question or objection restarts the count at 1.
       const nextAsked =
         decision.action !== 'ask_resolution' ? 0 : objectsToResolution(batchText) ? 1 : asked + 1;

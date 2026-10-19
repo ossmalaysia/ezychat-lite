@@ -672,12 +672,14 @@
         "answer": "回答",
         "ask_resolution": "已询问是否解决",
         "resolve": "将标记为已解决",
-        "handoff": "将转交人工"
+        "handoff": "将转交人工",
+        "no_reply": "不会回复"
       },
       "handoffReason": "原因：{{reason}}",
       "lookups": "AI 查询的内容",
       "lookedUp": "AI 查询了 {{title}} · {{source}}",
       "lookupFailed": "无法查询 {{title}} · {{source}}",
+      "noReply": "AI 不会发送任何内容，并继续负责此聊天。",
       "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
       "failed": "无法回答：{{error}}"

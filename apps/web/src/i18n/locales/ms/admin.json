@@ -673,12 +673,14 @@
         "answer": "Jawapan",
         "ask_resolution": "Bertanya sama ada selesai",
         "resolve": "Akan diselesaikan",
-        "handoff": "Akan diserahkan kepada manusia"
+        "handoff": "Akan diserahkan kepada manusia",
+        "no_reply": "Tidak akan membalas"
       },
       "handoffReason": "Sebab: {{reason}}",
       "lookups": "Perkara yang disemak oleh AI",
       "lookedUp": "AI menyemak {{title}} · {{source}}",
       "lookupFailed": "Tidak dapat menyemak {{title}} · {{source}}",
+      "noReply": "AI tidak akan menghantar apa-apa dan kekal mengendalikan perbualan ini.",
       "noKnowledge": "Tiada pengetahuan perniagaan yang sepadan ditemui, jadi AI akan menyerahkan perbualan ini kepada manusia tanpa memanggil model.",
       "model": "Model: {{model}}",
       "failed": "Tidak dapat menjawab: {{error}}"

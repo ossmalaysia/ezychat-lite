@@ -677,12 +677,14 @@
         "answer": "Answer",
         "ask_resolution": "Asked if resolved",
         "resolve": "Would resolve",
-        "handoff": "Would hand off"
+        "handoff": "Would hand off",
+        "no_reply": "Would not reply"
       },
       "handoffReason": "Reason: {{reason}}",
       "lookups": "What the AI looked up",
       "lookedUp": "AI looked up {{title}} · {{source}}",
       "lookupFailed": "Could not look up {{title}} · {{source}}",
+      "noReply": "The AI would send nothing and keep the chat.",
       "noKnowledge": "No matching business knowledge was found, so the AI would hand this chat to a human without calling the model.",
       "model": "Model: {{model}}",
       "failed": "Could not answer: {{error}}"

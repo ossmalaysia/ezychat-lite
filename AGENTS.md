@@ -93,7 +93,7 @@ only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bun
 in, and the AI member stays off until an admin turns it on. `POST /api/ai/connection/test` (admin-only,
 rate-limited, `ai/key-test.ts`) checks a key with `GET /v1/models` and never stores or logs it; only
 `invalid_key` (401) blocks saving. Both modes run one agent turn on the Vercel AI SDK
-(`ai/agent/turn.ts`: tools, structured decision, ≤ 4 steps, no retries; models in `ai/agent/models.ts`,
+(`ai/agent/turn.ts`: tools, structured decision with actions answer / ask_resolution / resolve / handoff / `no_reply` (empty reply, nothing sent, the AI keeps the chat), ≤ 4 steps, no transport retries but a malformed decision is asked once more; failures are `AgentTurnFailure` with `kind`, `causeName`, `status` for the `AI answer unavailable` log line; models in `ai/agent/models.ts`,
 which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
 built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
 (`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is

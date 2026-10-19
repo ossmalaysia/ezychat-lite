@@ -18,10 +18,13 @@ import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
 import { createPushService } from '../src/push/service.js';
 import { readFileSync } from 'node:fs';
+import { pino } from 'pino';
+import { AgentTurnFailure } from '../src/ai/agent/models.js';
 import { join } from 'node:path';
 
 let t: TestApp;
 let provider: AiProvider;
+let aiLogs: string[] = [];
 let actor: { userId: number; ip: null };
 let cookie: string;
 const jid = 'customer@s.whatsapp.net';
@@ -59,6 +62,12 @@ beforeEach(async () => {
     logout: vi.fn(),
     shutdown: vi.fn(),
   };
+  // The AI service's own log lines (mod ai), for tests that check what is logged.
+  aiLogs = [];
+  const capture = pino({ level: 'debug' }, { write: (line: string) => aiLogs.push(line) });
+  const child = t.ctx.log.child.bind(t.ctx.log);
+  vi.spyOn(t.ctx.log, 'child').mockImplementation(((bindings: Record<string, unknown>) =>
+    bindings.mod === 'ai' ? capture.child(bindings) : child(bindings)) as never);
   t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: (id) => id % 2 === 0 });
   t.ctx.services.ai.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   // Context items belong to the member: save it as a draft, add the business facts, turn on.
@@ -521,6 +530,40 @@ it('does not send handover notifications for normal AI answers or resolution', a
   await vi.advanceTimersByTimeAsync(1200);
   expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
   expect(handover).not.toHaveBeenCalled();
+});
+
+it('sends nothing for no_reply, keeps the chat, and answers the next real question', async () => {
+  const handover = vi.fn();
+  t.ctx.bus.on('ai:handoff', handover);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  const ai = t.ctx.services.ai!.status().member!;
+  expect(t.wa.sent).toHaveLength(1);
+  vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+  await incoming('thanks', 'okay thanks, will check on our end');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(t.wa.sent).toHaveLength(1);
+  expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: ai.id });
+  expect(handover).not.toHaveBeenCalled();
+  // The "thanks" batch counts as handled: only the new question is answered next.
+  await incoming('next', 'What is delivery?');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(t.wa.sent).toHaveLength(2);
+});
+
+it('logs the failure kind, error class and status when the model fails, then hands over', async () => {
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  vi.mocked(provider.generate).mockRejectedValueOnce(
+    new AgentTurnFailure('ChatGPT returned an invalid answer.', 'invalid', 'ZodError'),
+  );
+  await incoming('thanks', 'okay thanks');
+  await vi.advanceTimersByTimeAsync(1200);
+  const line = aiLogs.map((l) => JSON.parse(l)).find((l) => l.msg === 'AI answer unavailable');
+  expect(line).toMatchObject({ kind: 'invalid', errName: 'ZodError', status: null });
+  expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
 });
 
 it('requires an actual customer confirmation after asking before resolving, releases AI, and allows future incoming messages to reopen', async () => {

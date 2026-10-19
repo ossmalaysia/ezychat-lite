@@ -1,7 +1,7 @@
 import type { LanguageModel } from 'ai';
 import type { AiDecision, AiSettings, EnrichmentExtraction } from '@ezychat/shared';
 import { runCustomerExtraction } from './agent/extract-customer.js';
-import { agentFailure, openAiKeyModel } from './agent/models.js';
+import { AgentTurnFailure, agentFailure, errorNameOf, openAiKeyModel } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import { promptCacheKey } from './prompt.js';
@@ -43,7 +43,8 @@ async function withOpenAiKey<T>(
     return await run(model, modelId, bounded);
   } catch (error) {
     if (signal.aborted) throw aborted();
-    if (bounded.aborted) throw new Error('OpenAI answer timed out.', { cause: error });
+    if (bounded.aborted)
+      throw new AgentTurnFailure('OpenAI answer timed out.', 'timeout', errorNameOf(error));
     throw agentFailure(
       error,
       'The AI returned an invalid answer.',

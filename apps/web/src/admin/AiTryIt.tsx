@@ -24,6 +24,7 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
     ask_resolution: t('ai.try.decision.ask_resolution'),
     resolve: t('ai.try.decision.resolve'),
     handoff: t('ai.try.decision.handoff'),
+    no_reply: t('ai.try.decision.no_reply'),
   };
   const submit = () => {
     const text = question.trim();
@@ -104,7 +105,11 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
                   ))}
                 </ul>
               ) : null}
-              <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
+              {ask.data.action === 'no_reply' ? (
+                <p className="text-muted-foreground">{t('ai.try.noReply')}</p>
+              ) : (
+                <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
+              )}
               {ask.data.action === 'handoff' && !ask.data.model && (
                 <p className="mt-2 text-xs text-muted-foreground">{t('ai.try.noKnowledge')}</p>
               )}

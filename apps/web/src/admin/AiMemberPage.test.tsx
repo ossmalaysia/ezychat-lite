@@ -214,6 +214,26 @@ describe('AI member page', () => {
     expect(screen.getByText('Could not look up Get order status · Demo catalogue')).toBeTruthy();
   });
 
+  it('says plainly in Try it when the AI would not reply', async () => {
+    setup(status(), (url, init) =>
+      url === '/api/ai/try' && init?.method === 'POST'
+        ? json({
+            ok: true,
+            reply: '',
+            action: 'no_reply',
+            handoffReason: null,
+            model: 'gpt-6.1-sol',
+            error: null,
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Customer question'), 'ok thanks');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('Would not reply')).toBeTruthy();
+    expect(screen.getByText('The AI would send nothing and keep the chat.')).toBeTruthy();
+  });
+
   it('keeps Turn on disabled with the reason until the connection works', async () => {
     const initial = withContext();
     initial.hasApiKey = false;
