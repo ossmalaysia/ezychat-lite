@@ -9,6 +9,7 @@ import { WindowLimiter } from '../http/window-limiter.js';
 import { ErrorCode } from '@ezychat/shared';
 import { createInboxReadPort } from './inbox.js';
 import { createAiSetupPort } from './ai-setup.js';
+import { createInboxSendPort } from './send.js';
 import { createMcpServer } from './server.js';
 import { MCP_PATH, isMcpEnabled } from './settings.js';
 import { handleMcpRequest } from './transport.js';
@@ -19,7 +20,8 @@ const unauthorized = () =>
   });
 
 /**
- * POST /mcp: read-only MCP (Streamable HTTP, stateless JSON) for the owner's AI assistant. Outside /api,
+ * POST /mcp: MCP (Streamable HTTP, stateless JSON) for the owner's AI assistant: reads, AI setup and,
+ * only for a token with scope `inbox:send`, text replies into existing chats. Outside /api,
  * so the cookie CSRF hook does not apply; it accepts only a personal access token, never a cookie.
  * Order: off → 404 (invisible), LAN peer → 403, Origin check, IP limit, token, token limit.
  */
@@ -28,6 +30,8 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
     const tokens = getApiTokens(ctx);
     const inbox = createInboxReadPort(ctx);
     const aiSetup = createAiSetupPort(ctx);
+    // One per server: its per-token send limits must outlive each stateless request.
+    const send = createInboxSendPort(ctx);
     const log = ctx.log.child({ mod: 'mcp' });
     const ipLimiter = new WindowLimiter({ windowMs: 60_000, max: 120 });
     const failureLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
@@ -87,6 +91,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
       const server = createMcpServer({
         inbox,
         aiSetup,
+        send,
         principal,
         log,
         stillValid: () => tokens.stillValid(principal.tokenId),

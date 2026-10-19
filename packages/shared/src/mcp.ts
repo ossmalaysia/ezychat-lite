@@ -18,12 +18,16 @@ export const ApiTokenSchema = z.object({
   createdAt: z.number(),
   lastUsedAt: z.number().nullable(),
   expiresAt: z.number().nullable(),
+  /** Scope `inbox:send`: the token's AI assistant may send text replies into existing chats. */
+  canSend: z.boolean(),
 });
 export type ApiToken = z.infer<typeof ApiTokenSchema>;
 
 export const CreateApiTokenBody = z.strictObject({
   name: z.string().trim().min(1).max(64),
   expiresInDays: ApiTokenExpiry.default(90),
+  /** Grant scope `inbox:send` (off unless the admin ticks it; existing tokens never gain it). */
+  canSend: z.boolean().default(false),
 });
 export type CreateApiTokenBody = z.infer<typeof CreateApiTokenBody>;
 export type CreateApiTokenBodyInput = z.input<typeof CreateApiTokenBody>;
@@ -95,6 +99,38 @@ export const McpGetActivityInput = z.strictObject({
     .describe('Days to cover, ending now (today counts as one day)'),
 });
 export type McpGetActivityInput = z.infer<typeof McpGetActivityInput>;
+
+// Send tool (scope `inbox:send`).
+
+/** Longest text the send tool accepts (WhatsApp allows more; replies this long are a model error). */
+export const MCP_SEND_MAX_TEXT = 4096;
+
+export const McpSendMessageInput = z.strictObject({
+  jid: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Chat id from list_chats or get_chat; only existing chats can receive a message'),
+  text: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MCP_SEND_MAX_TEXT)
+    .describe('The exact text to send, as the user approved it'),
+  requestId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{8,64}$/)
+    .describe(
+      'A unique id you choose for this message (8-64 letters, digits, _ or -); repeat it on a retry so the message is never sent twice',
+    ),
+  quotedMessageId: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe('Message id from get_messages to reply to (must be in the same chat)'),
+});
+export type McpSendMessageInput = z.infer<typeof McpSendMessageInput>;
 
 // AI Sales Agent setup tools (scope `ai:setup`).
 

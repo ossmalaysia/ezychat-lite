@@ -10,6 +10,7 @@ import type { z } from 'zod';
 import type { ApiPrincipal, TokenScope } from '../api-tokens/index.js';
 import type { AiSetupPort } from './ai-setup.js';
 import type { InboxReadPort } from './inbox.js';
+import type { InboxSendPort } from './send.js';
 
 /** Longest message text returned per message; longer text is cut and flagged `truncated`. */
 export const MAX_TEXT_CHARS = 4000;
@@ -22,6 +23,8 @@ export interface ToolContext {
   inbox: InboxReadPort;
   /** AI Sales Agent setup (scope `ai:setup` tools only). */
   aiSetup: AiSetupPort;
+  /** Text replies into existing chats (scope `inbox:send` tools only). */
+  send: InboxSendPort;
   principal: ApiPrincipal;
 }
 
@@ -32,6 +35,8 @@ export interface ToolDef<S extends z.ZodObject = z.ZodObject> {
   scope: TokenScope;
   /** False for tools that change something (MCP clients may ask the user before calling). */
   readOnly?: boolean;
+  /** True for tools that reach people outside the app (a WhatsApp message to a customer). */
+  openWorld?: boolean;
   input: S;
   /** Returns a JSON-serialisable result and the number of rows it holds (for the log). */
   run(

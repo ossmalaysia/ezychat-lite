@@ -43,6 +43,8 @@ export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
   ingest(m: WaIncomingMessage, source: 'live' | 'history'): Promise<Message | null>;
   sendText(jid: string, body: SendTextBody, userId: number): Message;
+  /** The message sent earlier with this clientId (send idempotency), or null. */
+  byClientId(clientId: string): Message | null;
   sendMedia(
     jid: string,
     file: {
@@ -589,6 +591,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const chat = emitChat(chatJid);
       if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
       return msg;
+    },
+
+    byClientId(clientId) {
+      const row = repo.byClientId(clientId);
+      return row ? present(row) : null;
     },
 
     sendText(jid, body, userId) {
