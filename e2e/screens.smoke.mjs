@@ -6,30 +6,15 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  SCREEN_ROUTES as ROUTES,
+  SMOKE_ADMIN as ADMIN,
+  SMOKE_CHAT as CHAT,
+} from './screen-routes.mjs';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:7499';
 const OUT = process.argv[3] ?? 'test-results/screens';
 mkdirSync(OUT, { recursive: true });
-
-const ADMIN = { username: 'smoke', displayName: 'Smoke Admin', password: 'smoke-pass-123' };
-const CHAT = '60123456789@s.whatsapp.net';
-const ROUTES = [
-  ['inbox', '/'],
-  ['conversation', `/chats/${encodeURIComponent(CHAT)}`],
-  ['conversation-customer', `/chats/${encodeURIComponent(CHAT)}?customer=1`],
-  ['admin-members', '/admin/members'],
-  ['admin-members-ai', '/admin/members/ai'],
-  ['admin-quick-replies', '/admin/quick-replies'],
-  ['admin-whatsapp', '/admin/whatsapp'],
-  ['admin-tunnel', '/admin/tunnel'],
-  ['admin-settings', '/admin/settings'],
-  ['admin-settings-ai', '/admin/settings/ai'],
-  ['admin-settings-integrations', '/admin/settings/integrations'],
-  ['admin-settings-device', '/admin/settings/device'],
-  ['admin-settings-maintenance', '/admin/settings/maintenance'],
-  ['admin-audit', '/admin/audit'],
-  ['change-password', '/change-password'],
-];
 const LOCALE = process.env.SMOKE_LOCALE ?? 'en';
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, height: 844 } };
 
