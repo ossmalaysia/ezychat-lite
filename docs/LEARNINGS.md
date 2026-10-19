@@ -94,6 +94,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A CI job that fails in `npm ci` with `node-gyp` building `better-sqlite3` (no Python/compiler on the
+  runner) means its prebuilt binary download failed, not that the change broke it: check the step
+  (install, before any test), then `gh run rerun <id> --failed` before investigating the code.
+
 - Merge a stack in a squash-only repo by retargeting the top PR to `main` and squash-merging it once, then
   close the lower PRs as included. Retargeting does not start CI and `strict` needs an up-to-date branch:
   run `gh pr update-branch` and wait for the required `Test (…)` jobs, never for "any green check".
