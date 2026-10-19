@@ -34,3 +34,9 @@ jobs:
       - run: npm run build:core
       - run: npm test
       - run: npm run build -w @ezychat/web
+      # Desktop-only rules run only in the real Electron window, never in browser e2e: click every external
+      # link on every screen there (e2e/electron-links.smoke.mjs). Windows runners have a desktop for it.
+      - if: matrix.os == 'windows-latest'
+        run: npm run build -w @ezychat/desktop
+      - if: matrix.os == 'windows-latest'
+        run: npm run e2e:electron-links

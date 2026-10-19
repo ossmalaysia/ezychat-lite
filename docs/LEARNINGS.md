@@ -530,6 +530,11 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Electron fires `will-frame-navigate` before `will-navigate`; `preventDefault()` in the first cancels the
+  second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle
+  external links where you block. Browser e2e never runs the desktop window's rules: prove such a change
+  with a harness that loads the REAL `createMainWindow` (`npm run e2e:electron-links`) and fails without it.
+
 - Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
   protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put
   errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.

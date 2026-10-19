@@ -17,6 +17,20 @@ export function isInboxUrl(value: string, base: string | null): boolean {
 }
 
 /**
+ * The link a blocked navigation should open in the OS instead: an https: or mailto: link clicked in the main
+ * frame. Electron fires `will-frame-navigate` before `will-navigate`, and blocking it there cancels
+ * `will-navigate`, so the main window opens external links from this check (null: block silently).
+ */
+export function externalLinkToOpen(
+  url: string,
+  isMainFrame: boolean,
+  base: string | null,
+): string | null {
+  if (!isMainFrame || isInboxUrl(url, base)) return null;
+  return /^https:\/\//i.test(url) || /^mailto:/i.test(url) ? url : null;
+}
+
+/**
  * Both permission requests and synchronous checks use the requesting frame, not just its parent.
  * `media` (voice notes) is the microphone only: any camera or unknown media type is refused.
  */

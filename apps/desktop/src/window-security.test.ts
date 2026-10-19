@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';
+import { externalLinkToOpen, inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 
 const base = 'http://127.0.0.1:7420';
+
+describe('external links clicked in the main window', () => {
+  it('opens mailto: and https: links from the main frame in the OS', () => {
+    const mail = 'mailto:sales@anchorsprint.com?subject=Activate%20EzyChat';
+    expect(externalLinkToOpen(mail, true, base)).toBe(mail);
+    expect(externalLinkToOpen('https://ezychat.ai/help', true, base)).toBe(
+      'https://ezychat.ai/help',
+    );
+  });
+
+  it('never opens inbox pages, frames or other schemes', () => {
+    expect(externalLinkToOpen(base + '/chats', true, base)).toBeNull();
+    expect(externalLinkToOpen('mailto:x@example.com', false, base)).toBeNull();
+    for (const url of [
+      'http://evil.example/',
+      'file:///C:/x.exe',
+      'javascript:alert(1)',
+      'ms-settings:',
+    ])
+      expect(externalLinkToOpen(url, true, base)).toBeNull();
+  });
+});
 
 describe('inbox document trust', () => {
   it('accepts only the configured loopback origin', () => {
