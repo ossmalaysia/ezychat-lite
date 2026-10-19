@@ -91,7 +91,10 @@ function desktopConfigFile(): string {
 
 function readDesktopConfig(): DesktopConfig {
   const file = desktopConfigFile();
-  const cfg = parseDesktopConfig(existsSync(file) ? readFileSync(file, 'utf8') : null);
+  const cfg = parseDesktopConfig(
+    existsSync(file) ? readFileSync(file, 'utf8') : null,
+    activeProduct().defaultPort,
+  );
   if (!existsSync(file)) {
     try {
       mkdirSync(dirname(file), { recursive: true });

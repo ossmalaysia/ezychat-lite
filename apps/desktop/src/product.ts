@@ -57,6 +57,11 @@ export interface Product {
   updateFeed?: UpdateFeed;
   /** Edition cards on the Status & Service page, above App updates (see status-sections.ts). */
   statusSections?: readonly StatusSectionProvider[];
+  /**
+   * Port of a new install (desktop.json keeps the chosen one). Omitted: 7420 (Lite). An edition that can be
+   * installed next to Lite needs its own, or its server cannot start while Lite runs.
+   */
+  defaultPort?: number;
 }
 
 export type UpdateFeed = { kind: 'github'; repo: string } | { kind: 'url'; url: string };
@@ -134,6 +139,12 @@ function checkList(
   return Object.freeze(list);
 }
 
+function checkPort(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1024 || value > 65535)
+    throw new Error('Invalid product defaultPort: expected an integer from 1024 to 65535');
+  return value;
+}
+
 /** Validates a product definition and returns a frozen copy. Throws on empty or malformed ids. */
 export function defineProduct(p: Product): Product {
   if (!p || typeof p !== 'object') throw new Error('Invalid product: expected an object');
@@ -173,6 +184,7 @@ export function defineProduct(p: Product): Product {
     ...(p.statusSections !== undefined
       ? { statusSections: checkStatusSections(p.statusSections) }
       : {}),
+    ...(p.defaultPort !== undefined ? { defaultPort: checkPort(p.defaultPort) } : {}),
   });
 }
 

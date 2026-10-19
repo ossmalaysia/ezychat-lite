@@ -12,6 +12,7 @@ import type { Catalog, CatalogKey, Locale, Translator } from '@ezychat/shared';
 import en from './locales/en.json' with { type: 'json' };
 import msCatalog from './locales/ms.json' with { type: 'json' };
 import zhCNCatalog from './locales/zh-CN.json' with { type: 'json' };
+import { activeProduct } from './product.js';
 
 export type DesktopCatalog = typeof en;
 export type DesktopKey = CatalogKey<DesktopCatalog>;
@@ -80,12 +81,15 @@ function interpolate(text: string, vars?: Record<string, string | number>): stri
   );
 }
 
-/** Same behaviour as shared `createTranslator(en, desktopCatalogs)`: falls back to English, then the key. */
+/**
+ * Same behaviour as shared `createTranslator(en, desktopCatalogs)`: falls back to English, then the key.
+ * Catalogs name the app only through `{{product}}`: the active edition's productName.
+ */
 export const t: Translator<DesktopCatalog> = (locale, key, vars) =>
-  interpolate(
-    lookup(desktopCatalogs[locale ?? DEFAULT_LOCALE], key) ?? lookup(en, key) ?? key,
-    vars,
-  );
+  interpolate(lookup(desktopCatalogs[locale ?? DEFAULT_LOCALE], key) ?? lookup(en, key) ?? key, {
+    product: activeProduct().productName,
+    ...vars,
+  });
 
 /** The status window's strings, flattened (`updates.installed` → text) for the status payload. */
 export function statusStrings(locale: Locale): Record<string, string> {

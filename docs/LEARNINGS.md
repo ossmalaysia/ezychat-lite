@@ -649,6 +649,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
+- Shared shell code serves every edition: no product name or edition-wide constant (name, port, folder) in
+  catalogs or code; use `{{product}}` and a `Product` field. Check an edition's first installer on a PC that
+  also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.

@@ -85,9 +85,15 @@ export interface DesktopConfig {
   keepInTray: boolean;
 }
 
-/** Parses userData/desktop.json contents (null when missing). Each invalid field falls back to its default. */
-export function parseDesktopConfig(raw: string | null): DesktopConfig {
-  const def: DesktopConfig = { port: DEFAULT_PORT, keepInTray: true };
+/**
+ * Parses userData/desktop.json contents (null when missing). Each invalid field falls back to its default;
+ * `defaultPort` is the product's (an edition installed next to Lite needs its own).
+ */
+export function parseDesktopConfig(
+  raw: string | null,
+  defaultPort: number = DEFAULT_PORT,
+): DesktopConfig {
+  const def: DesktopConfig = { port: defaultPort, keepInTray: true };
   if (!raw) return def;
   try {
     const v = JSON.parse(raw) as { port?: unknown; keepInTray?: unknown };

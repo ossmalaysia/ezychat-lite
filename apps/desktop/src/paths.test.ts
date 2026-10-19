@@ -122,6 +122,11 @@ describe('parseDesktopConfig', () => {
     expect(parseDesktopConfig('not json')).toEqual({ port: 7420, keepInTray: true });
     expect(parseDesktopConfig('{"port":"abc"}')).toEqual({ port: 7420, keepInTray: true });
   });
+  it("uses the product's default port for a new or broken file, never over a saved port", () => {
+    expect(parseDesktopConfig(null, 7440)).toEqual({ port: 7440, keepInTray: true });
+    expect(parseDesktopConfig('{"port":"abc"}', 7440)).toEqual({ port: 7440, keepInTray: true });
+    expect(parseDesktopConfig('{"port":7500}', 7440)).toEqual({ port: 7500, keepInTray: true });
+  });
   it('reads a valid port', () => {
     expect(parseDesktopConfig('{"port":7500}')).toEqual({ port: 7500, keepInTray: true });
   });
