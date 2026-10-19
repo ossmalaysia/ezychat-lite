@@ -146,7 +146,9 @@ into AGENTS.md.
   2FA-bypass tokens lost account/package management in July 2026 and lose direct publishing around
   January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
   then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
-  variable `NPM_TRUSTED_PUBLISHING=true`.
+  variable `NPM_TRUSTED_PUBLISHING=true`. An OIDC publish answering `PUT 404` for a package that exists means
+  its trusted publisher is missing or mistyped: have the owner check it on the package's access page before
+  the next tag, then rerun `publish-packages` for that tag (published packages are skipped).
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
