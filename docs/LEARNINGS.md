@@ -534,6 +534,10 @@ into AGENTS.md.
   second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle
   external links where you block. Browser e2e never runs the desktop window's rules: prove such a change
   with a harness that loads the REAL `createMainWindow` (`npm run e2e:electron-links`) and fails without it.
+- A test whose fake answers every request proves nothing about the contract: two obvious bugs (a GET to a
+  POST route, a link swallowed by the window) passed every unit test. Test a client against the real
+  route table or the real server (`web-client-contract.test.ts`, `makeTestApp`), and check that the new
+  test fails when the bug is put back before you trust it.
 
 - Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
   protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put

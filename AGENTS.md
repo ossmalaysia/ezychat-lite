@@ -310,6 +310,11 @@ cover navigation from every admin section and recovery from malformed URLs.
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.
+- **Contracts are tested against the real server, never only against a fake `fetch`** (owner rule):
+  `packages/server/test/web-client-contract.test.ts` checks every `api()`/`fetch('/api…')` call in
+  `apps/web/src` (method + path, read with the TypeScript checker) against the real route table; keep
+  paths literal, constant or a string-literal union so it can read them. A new kind of client (desktop
+  section, edition package) gets the same test or an end-to-end test against `makeTestApp`.
 - **Every change that touches a screen gets one round of the mock e2e before it is reported done**
   (owner rule): `apps/web`, the desktop shell (`apps/desktop`: windows, tray, dialogs, status page) or a
   web/desktop contract. One round = `npm run e2e` (browser, fake WhatsApp, mock AI) and, on Windows,
