@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.41] - 2026-10-19
+
 ### Fixed
 
 - The AI Sales Agent no longer hands a chat to the team when the customer only says "ok" or "thanks": it now stays silent and keeps the chat. A malformed AI answer is asked for once more before a hand-over, and the log names the kind of failure.
