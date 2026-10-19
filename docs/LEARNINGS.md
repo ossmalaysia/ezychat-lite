@@ -146,7 +146,12 @@ into AGENTS.md.
   2FA-bypass tokens lost account/package management in July 2026 and lose direct publishing around
   January 2027. OIDC cannot make a package's first publish: publish each new package once by hand with 2FA,
   then add its trusted publisher (`ossmalaysia/ezychat-lite`, `publish-packages.yml`) and set the repo
-  variable `NPM_TRUSTED_PUBLISHING=true`.
+  variable `NPM_TRUSTED_PUBLISHING=true`. An OIDC publish answering `PUT 404` for a package that exists means
+  its trusted publisher is missing or mistyped: have the owner compare it field by field with a package that
+  publishes (workflow is the bare file name, no environment), meanwhile publish that version by hand, then
+  rerun `publish-packages` for the next tag (published packages are skipped). A manual publish that answers
+  `PUT 404` without the security-key step means the saved npm token is invalid: check `npm whoami` first and
+  give the owner `npm login --auth-type=web` before the publish.
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
@@ -193,7 +198,9 @@ into AGENTS.md.
   diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
   cookie, and compare identity strings across all `dist/**` files in both `app.asar`s (e.g. `dist/service/`).
 - A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
-  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest`.
+  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
+  flags in one call: without `--prerelease=false` GitHub answers 422 "Latest release cannot be draft or
+  prerelease" and the release stays a pre-release that the updater ignores.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).
@@ -409,6 +416,11 @@ into AGENTS.md.
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
   class and status for the log, or every cause looks like the same plain `Error`.
+- Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
+  admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
+  between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
+  Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
+  line (errName, status, finishReason; no message text).
 - Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
   customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 
