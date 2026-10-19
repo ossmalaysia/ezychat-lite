@@ -182,7 +182,9 @@ adminNav `useBadge` (a count, or an attention dot in the warning tone); `banners
 wrapped in an `ErrorBoundary`. _Desktop_:
 identity lives in `apps/desktop/src/product.ts`; `LITE_PRODUCT` holds the upgrade-contract values
 (app ID, data/profile folders, service ID, launchd label, health `app`, update feed, installer and exe
-names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. `defineProduct` also takes `statusSections` (declarative cards in the desktop status window, actions handled in main, only `https:`/`mailto:` opened) and `updateFeed: { kind: 'url' }` (JSON manifest, for private editions). Code reads
+names), pinned by `product.test.ts` against `electron-builder.yml`/`package.json`. `defineProduct` also takes `statusSections` (declarative cards in the desktop status window, actions handled in main, only `https:`/`mailto:` opened) and `updateFeed: { kind: 'url' }` (JSON manifest, for private editions) and `defaultPort` (a new install's
+port; an edition installed next to Lite needs its own, Lite keeps 7420). Desktop catalogs name the app only
+through `{{product}}` (`t()` fills in the active productName). Code reads
 `activeProduct()`, never literals; another edition calls `startDesktop(defineProduct({…}))` from
 `@ezychat/desktop` (`src/index.ts`; sets the product, then dynamic-imports main; Lite's Electron entry stays
 `dist/main.js`). Files the shell ships (server host, preloads, status page in `dist/renderer`) are found from

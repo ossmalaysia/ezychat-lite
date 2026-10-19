@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Desktop shell for other editions: the start page, tray, dialogs and Status & Service window now show the edition's own name instead of "EzyChat Lite", and an edition can use its own default port (`defaultPort`), so it starts on a computer where EzyChat Lite already runs.
+
 ## [0.1.41] - 2026-10-19
 
 ### Fixed

@@ -160,6 +160,35 @@ describe('setActiveProduct', () => {
   });
 });
 
+describe('defaultPort', () => {
+  it('is optional (Lite keeps 7420) and kept when valid', () => {
+    expect(LITE_PRODUCT.defaultPort).toBeUndefined();
+    expect(defineProduct({ ...enterprise, defaultPort: 7440 }).defaultPort).toBe(7440);
+  });
+
+  it.each([80, 70000, 7440.5, '7440'])('refuses %s', (port) => {
+    expect(() => defineProduct({ ...enterprise, defaultPort: port as number })).toThrow(
+      /defaultPort/,
+    );
+  });
+});
+
+describe('desktop texts name the active edition', () => {
+  it('fills {{product}} in every catalog with the productName', async () => {
+    const { t } = await import('./i18n.js');
+    setActiveProduct(enterprise);
+    expect(t('en', 'page.startingTitle')).toBe('Starting EzyChat Enterprise…');
+    expect(t('ms', 'page.startingTitle')).toBe('Memulakan EzyChat Enterprise…');
+    expect(t('zh-CN', 'page.startingTitle')).toBe('正在启动 EzyChat Enterprise…');
+    expect(t('en', 'status.documentTitle')).toBe('EzyChat Enterprise — Status & Service');
+  });
+
+  it('names Lite when no edition is set', async () => {
+    const { t } = await import('./i18n.js');
+    expect(t('en', 'page.startingTitle')).toBe('Starting EzyChat Lite…');
+  });
+});
+
 describe('escapeRegExp', () => {
   it('matches the value literally', () => {
     const value = 'A.B (x)|y';

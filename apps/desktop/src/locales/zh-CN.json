@@ -22,15 +22,15 @@
     "statusTitle": "{{title}} — 状态与服务"
   },
   "page": {
-    "startingTitle": "正在启动 EzyChat Lite…",
+    "startingTitle": "正在启动 {{product}}…",
     "startingBody": "正在启动本地服务器。",
     "notStartedTitle": "服务器未能启动",
     "notStartedBody": "端口 {{port}} 可能已被其他程序占用。请从系统托盘打开“状态与服务…”查看日志。",
     "serviceNotAnsweringTitle": "后台服务没有响应",
     "serviceNotRunningTitle": "后台服务未运行",
-    "serviceDownBody": "EzyChat Lite 以后台服务的方式在此电脑上运行。请从系统托盘打开“状态与服务…”来启动服务或查看日志。",
+    "serviceDownBody": "{{product}} 以后台服务的方式在此电脑上运行。请从系统托盘打开“状态与服务…”来启动服务或查看日志。",
     "connectingTitle": "正在连接后台服务…",
-    "connectingBody": "正在等待 EzyChat Lite 服务启动。",
+    "connectingBody": "正在等待 {{product}} 服务启动。",
     "serviceStoppedTitle": "服务已停止",
     "serviceStoppedBody": "请在“状态与服务…”中重新启动服务。"
   },
@@ -79,7 +79,7 @@
     "enableBusyConfirm": "正在确认安装服务…",
     "enableFailed": "无法启用后台服务",
     "enableTitle": "作为后台服务运行",
-    "enableMessage": "要将 EzyChat Lite 作为后台服务运行吗？",
+    "enableMessage": "要将 {{product}} 作为后台服务运行吗？",
     "enableDetail": "服务器将在电脑开机时启动，即使没有人登录。你的数据将移至全机共用的文件夹：\n{{folder}}\n\n系统会要求你提供管理员权限。",
     "enableButton": "启用服务",
     "installing": "正在安装服务…",
@@ -104,7 +104,7 @@
     "trayPrefFailed": "无法保存托盘设置。"
   },
   "status": {
-    "documentTitle": "EzyChat Lite — 状态与服务",
+    "documentTitle": "{{product}} — 状态与服务",
     "updatesTitle": "应用更新",
     "checkingInitial": "正在检查更新…",
     "downloadAria": "更新下载",
@@ -128,7 +128,7 @@
     "openLogs": "打开日志文件夹",
     "resetAdmin": "重置管理员密码…",
     "desktopApp": "桌面应用",
-    "keepInTray": "将 EzyChat Lite 保留在系统托盘",
+    "keepInTray": "将 {{product}} 保留在系统托盘",
     "backgroundService": "后台服务",
     "serviceStatus": "状态：",
     "serviceNote": "作为服务运行时，服务器会随电脑启动，即使没有人登录，也会保持 WhatsApp 连接和隧道运行。需要管理员权限。",
@@ -167,7 +167,7 @@
       "running": "运行中"
     },
     "trayNote": {
-      "keep": "关闭窗口后，EzyChat Lite 会保留在系统托盘，方便快速访问和接收桌面通知。请从托盘菜单退出。",
+      "keep": "关闭窗口后，{{product}} 会保留在系统托盘，方便快速访问和接收桌面通知。请从托盘菜单退出。",
       "quit": "关闭窗口会退出应用。后台服务会继续运行收件箱。",
       "host": "此应用正在运行服务器，因此在收件箱运行期间会一直保留在系统托盘。"
     },

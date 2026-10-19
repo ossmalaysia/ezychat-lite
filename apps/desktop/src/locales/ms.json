@@ -22,15 +22,15 @@
     "statusTitle": "{{title}} — Status & Perkhidmatan"
   },
   "page": {
-    "startingTitle": "Memulakan EzyChat Lite…",
+    "startingTitle": "Memulakan {{product}}…",
     "startingBody": "Memulakan pelayan tempatan.",
     "notStartedTitle": "Pelayan tidak dapat dimulakan",
     "notStartedBody": "Port {{port}} mungkin sedang digunakan oleh program lain. Buka \"Status & Perkhidmatan…\" dari dulang sistem untuk melihat log.",
     "serviceNotAnsweringTitle": "Perkhidmatan latar belakang tidak memberikan respons",
     "serviceNotRunningTitle": "Perkhidmatan latar belakang tidak berjalan",
-    "serviceDownBody": "EzyChat Lite berjalan sebagai perkhidmatan latar belakang pada komputer ini. Buka \"Status & Perkhidmatan…\" dari dulang sistem untuk memulakannya atau melihat lognya.",
+    "serviceDownBody": "{{product}} berjalan sebagai perkhidmatan latar belakang pada komputer ini. Buka \"Status & Perkhidmatan…\" dari dulang sistem untuk memulakannya atau melihat lognya.",
     "connectingTitle": "Menyambung ke perkhidmatan latar belakang…",
-    "connectingBody": "Menunggu perkhidmatan EzyChat Lite dimulakan.",
+    "connectingBody": "Menunggu perkhidmatan {{product}} dimulakan.",
     "serviceStoppedTitle": "Perkhidmatan dihentikan",
     "serviceStoppedBody": "Mulakan semula perkhidmatan melalui \"Status & Perkhidmatan…\"."
   },
@@ -79,7 +79,7 @@
     "enableBusyConfirm": "Mengesahkan pemasangan perkhidmatan…",
     "enableFailed": "Perkhidmatan latar belakang tidak dapat didayakan",
     "enableTitle": "Jalankan sebagai perkhidmatan latar belakang",
-    "enableMessage": "Jalankan EzyChat Lite sebagai perkhidmatan latar belakang?",
+    "enableMessage": "Jalankan {{product}} sebagai perkhidmatan latar belakang?",
     "enableDetail": "Pelayan akan bermula apabila komputer ini dihidupkan, walaupun tiada sesiapa log masuk. Data anda akan dipindahkan ke folder seluruh mesin:\n{{folder}}\n\nAnda akan diminta kebenaran pentadbir.",
     "enableButton": "Dayakan perkhidmatan",
     "installing": "Memasang perkhidmatan…",
@@ -104,7 +104,7 @@
     "trayPrefFailed": "Tetapan dulang sistem tidak dapat disimpan."
   },
   "status": {
-    "documentTitle": "EzyChat Lite — Status & Perkhidmatan",
+    "documentTitle": "{{product}} — Status & Perkhidmatan",
     "updatesTitle": "Kemas kini aplikasi",
     "checkingInitial": "Menyemak kemas kini…",
     "downloadAria": "Muat turun kemas kini",
@@ -128,7 +128,7 @@
     "openLogs": "Buka folder log",
     "resetAdmin": "Set semula kata laluan pentadbir…",
     "desktopApp": "Aplikasi desktop",
-    "keepInTray": "Kekalkan EzyChat Lite dalam dulang sistem",
+    "keepInTray": "Kekalkan {{product}} dalam dulang sistem",
     "backgroundService": "Perkhidmatan latar belakang",
     "serviceStatus": "Status:",
     "serviceNote": "Sebagai perkhidmatan, pelayan bermula bersama komputer, walaupun tiada sesiapa log masuk, dan memastikan sambungan WhatsApp serta terowong terus berjalan. Memerlukan kebenaran pentadbir.",
@@ -167,7 +167,7 @@
       "running": "Berjalan"
     },
     "trayNote": {
-      "keep": "Menutup tetingkap akan mengekalkan EzyChat Lite dalam dulang sistem untuk akses pantas dan pemberitahuan desktop. Keluar melalui menu dulang sistem.",
+      "keep": "Menutup tetingkap akan mengekalkan {{product}} dalam dulang sistem untuk akses pantas dan pemberitahuan desktop. Keluar melalui menu dulang sistem.",
       "quit": "Menutup tetingkap akan menutup aplikasi. Perkhidmatan latar belakang memastikan peti masuk terus berjalan.",
       "host": "Aplikasi ini menjadi hos pelayan, jadi ia sentiasa kekal dalam dulang sistem semasa peti masuk berjalan."
     },

@@ -22,15 +22,15 @@
     "statusTitle": "{{title}} — Status & Service"
   },
   "page": {
-    "startingTitle": "Starting EzyChat Lite…",
+    "startingTitle": "Starting {{product}}…",
     "startingBody": "Starting the local server.",
     "notStartedTitle": "The server did not start",
     "notStartedBody": "Port {{port}} may be in use by another program. Open \"Status & Service…\" from the tray for logs.",
     "serviceNotAnsweringTitle": "The background service is not answering",
     "serviceNotRunningTitle": "The background service is not running",
-    "serviceDownBody": "EzyChat Lite runs as a background service on this computer. Open \"Status & Service…\" from the tray to start it or to see its logs.",
+    "serviceDownBody": "{{product}} runs as a background service on this computer. Open \"Status & Service…\" from the tray to start it or to see its logs.",
     "connectingTitle": "Connecting to the background service…",
-    "connectingBody": "Waiting for the EzyChat Lite service to start.",
+    "connectingBody": "Waiting for the {{product}} service to start.",
     "serviceStoppedTitle": "Service stopped",
     "serviceStoppedBody": "Start the service again from \"Status & Service…\"."
   },
@@ -79,7 +79,7 @@
     "enableBusyConfirm": "Confirming service installation…",
     "enableFailed": "Could not enable the background service",
     "enableTitle": "Run as background service",
-    "enableMessage": "Run EzyChat Lite as a background service?",
+    "enableMessage": "Run {{product}} as a background service?",
     "enableDetail": "The server will start when this computer boots, even when nobody is signed in. Your data moves to a machine-wide folder:\n{{folder}}\n\nYou will be asked for administrator permission.",
     "enableButton": "Enable service",
     "installing": "Installing service…",
@@ -104,7 +104,7 @@
     "trayPrefFailed": "Could not save the tray preference."
   },
   "status": {
-    "documentTitle": "EzyChat Lite — Status & Service",
+    "documentTitle": "{{product}} — Status & Service",
     "updatesTitle": "App updates",
     "checkingInitial": "Checking for updates…",
     "downloadAria": "Update download",
@@ -128,7 +128,7 @@
     "openLogs": "Open logs folder",
     "resetAdmin": "Reset admin password…",
     "desktopApp": "Desktop app",
-    "keepInTray": "Keep EzyChat Lite in the system tray",
+    "keepInTray": "Keep {{product}} in the system tray",
     "backgroundService": "Background service",
     "serviceStatus": "Status:",
     "serviceNote": "As a service the server starts with the computer, even when nobody is signed in, and keeps the WhatsApp connection and tunnel running. Requires administrator permission.",
@@ -167,7 +167,7 @@
       "running": "Running"
     },
     "trayNote": {
-      "keep": "Closing the window keeps EzyChat Lite in the tray for quick access and desktop notifications. Quit from the tray menu.",
+      "keep": "Closing the window keeps {{product}} in the tray for quick access and desktop notifications. Quit from the tray menu.",
       "quit": "Closing the window quits the app. The background service keeps the inbox running.",
       "host": "This app is hosting the server, so it always stays in the tray while the inbox runs."
     },
