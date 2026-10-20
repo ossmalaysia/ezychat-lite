@@ -156,7 +156,17 @@ into AGENTS.md.
   publishes (workflow is the bare file name, no environment), meanwhile publish that version by hand, then
   rerun `publish-packages` for the next tag (published packages are skipped). A manual publish that answers
   `PUT 404` without the security-key step means the saved npm token is invalid: check `npm whoami` first and
-  give the owner `npm login --auth-type=web` before the publish.
+  give the owner `npm login --auth-type=web` before the publish. An unfixed trusted publisher fails again on
+  every release and leaves the core half published (Enterprise needs all pins equal): before tagging, ask
+  the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
+  with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
+  (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
+  answer from a cached 404. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
+  publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
+  "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
+  ticked) from a package that publishes. Then `gh run rerun <publish run> --failed` on the existing tag
+  publishes only the missing package and turns the publisher from "Pending validation" to "Valid" (one
+  publish is due before the shown deadline); no new tag or manual publish.
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
