@@ -611,6 +611,10 @@ into AGENTS.md.
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it.
+- A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
+  first multi-inbox mock showed only the new Business API type and dropped the QR-linked phone, and the
+  owner caught it. List the replaced screen's flows in `design.md` and show each in the new screen. When
+  the mock's own localStorage seed changes, bump its storage key so open browsers get the new seed.
 
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.
