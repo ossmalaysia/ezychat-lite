@@ -39,6 +39,17 @@ export const CreateApiTokenBody = z
     path: ['canMessageNewNumbers'],
   });
 export type CreateApiTokenBody = z.infer<typeof CreateApiTokenBody>;
+
+/** Change what an existing token may do (only its owner, in Settings; never through a token). */
+export const UpdateApiTokenBody = z
+  .strictObject({ canSend: z.boolean(), canMessageNewNumbers: z.boolean() })
+  .refine((b) => b.canSend || !b.canMessageNewNumbers, {
+    message: 'Messaging new numbers needs "Can send WhatsApp messages"',
+    path: ['canMessageNewNumbers'],
+  });
+export type UpdateApiTokenBody = z.infer<typeof UpdateApiTokenBody>;
+export const UpdateApiTokenResponse = z.object({ token: ApiTokenSchema });
+export type UpdateApiTokenResponse = z.infer<typeof UpdateApiTokenResponse>;
 export type CreateApiTokenBodyInput = z.input<typeof CreateApiTokenBody>;
 
 /** The secret is returned only here, once. */

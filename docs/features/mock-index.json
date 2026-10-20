@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "token-permissions",
+      "creationOrder": 5,
+      "createdAt": "2026-10-20",
+      "design": "docs/features/token-permissions/design.md",
+      "mock": "docs/features/token-permissions/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "mcp-send-message",
+      "baselineGitRevision": "b3a5479b92cc4b519b141ebb013758c13bcea67c",
+      "baselineAppRevision": "1b09ea1",
+      "coverage": "Full app clone of the confirmed mcp-send-message reference; adds a Permissions button on your own tokens and a Permissions dialog (can send, new numbers, warnings) that saves through the real PATCH route; phone layout puts the token actions under the details"
+    },
+    {
       "feature": "mcp-send-message",
       "creationOrder": 4,
       "createdAt": "2026-10-20",

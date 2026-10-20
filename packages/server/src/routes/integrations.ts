@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { CreateApiTokenBody, McpSettingsPatch } from '@ezychat/shared';
+import { CreateApiTokenBody, McpSettingsPatch, UpdateApiTokenBody } from '@ezychat/shared';
 import { getApiTokens } from '../api-tokens/index.js';
 import { requireAdmin } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
@@ -40,6 +40,13 @@ export default async function integrationsRoutes(app: FastifyInstance, ctx: AppC
     const body = parse(CreateApiTokenBody, req.body);
     reply.header('cache-control', 'no-store').status(201);
     return tokens.create(req.user!.id, body, clientIp(req));
+  });
+  app.patch('/integrations/tokens/:id', async (req) => {
+    const limited = createLimiter.hit(String(req.user!.id));
+    if (!limited.allowed) throw errors.rateLimited(limited.retryAfterSec);
+    const { id } = parse(IdParams, req.params);
+    const body = parse(UpdateApiTokenBody, req.body);
+    return { token: tokens.updatePermissions(id, req.user!.id, body, clientIp(req)) };
   });
   app.delete('/integrations/tokens/:id', async (req, reply) => {
     const { id } = parse(IdParams, req.params);

@@ -8,6 +8,7 @@ const ROUTES = [
   { method: 'PATCH', url: '/api/integrations/mcp' },
   { method: 'GET', url: '/api/integrations/tokens' },
   { method: 'POST', url: '/api/integrations/tokens' },
+  { method: 'PATCH', url: '/api/integrations/tokens/1' },
   { method: 'DELETE', url: '/api/integrations/tokens/1' },
 ] as const;
 
