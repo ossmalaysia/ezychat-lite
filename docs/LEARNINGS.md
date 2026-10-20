@@ -156,7 +156,10 @@ into AGENTS.md.
   the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
-  answer from a cached 404.
+  answer from a cached 404. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
+  publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
+  "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
+  ticked) from a package that publishes.
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
