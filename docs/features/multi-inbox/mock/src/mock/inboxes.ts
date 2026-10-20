@@ -4,19 +4,22 @@
 // inbox they cannot open).
 import { useSyncExternalStore } from 'react';
 
-export type InboxStatus = 'connected' | 'webhook_waiting' | 'token_invalid';
+export type InboxStatus =
+  'connected' | 'webhook_waiting' | 'token_invalid' | 'waiting_scan' | 'phone_offline';
+
+/** linked_phone = the WhatsApp app on a phone (QR scan, as today); business_api = Meta Cloud API. */
+export type InboxType = 'linked_phone' | 'business_api';
 
 export interface MockInbox {
   id: string;
   name: string;
   /** Display number, e.g. +60 12-345 6789. */
   number: string;
-  /** Only the WhatsApp Business API in this proposal; the linked phone comes later. */
-  type: 'business_api';
+  type: InboxType;
   status: InboxStatus;
-  /** Meta ids the admin pasted (shown, never secret). */
-  phoneNumberId: string;
-  businessAccountId: string;
+  /** Business API only: the Meta ids the admin pasted (shown, never secret). */
+  phoneNumberId?: string;
+  businessAccountId?: string;
   /** Short colour token for the inbox chip (design-system tone, never a hex value). */
   tone: 'primary' | 'info' | 'warning' | 'success';
 }
@@ -36,7 +39,7 @@ interface State {
   inboxFilter: string;
 }
 
-const KEY = 'mock.multiInbox.v1';
+const KEY = 'mock.multiInbox.v2';
 
 const SEED: State = {
   inboxes: [
@@ -44,10 +47,9 @@ const SEED: State = {
       id: 'main',
       name: 'Kopi Apong',
       number: '+60 12-345 6789',
-      type: 'business_api',
+      // The number the app links today keeps working as the first inbox.
+      type: 'linked_phone',
       status: 'connected',
-      phoneNumberId: '109876543210001',
-      businessAccountId: '201234567890123',
       tone: 'primary',
     },
     {
@@ -71,7 +73,8 @@ const SEED: State = {
   },
   // Seeded users: 1 Aisyah (admin), 2 Daniel, 3 Mei Ling.
   access: { 2: ['main'], 3: ['catering'] },
-  windowClosed: ['60125550142@s.whatsapp.net'],
+  // Nurul Huda writes to Catering (Business API) and her last message is older than 24 hours.
+  windowClosed: ['60126677889@s.whatsapp.net'],
   inboxFilter: 'all',
 };
 
@@ -127,13 +130,14 @@ export function canOpen(access: InboxAccess, inboxId: string | undefined): boole
 }
 
 export function addInbox(inbox: Omit<MockInbox, 'id' | 'tone' | 'status'>): MockInbox {
+  const waiting: InboxStatus = inbox.type === 'linked_phone' ? 'waiting_scan' : 'webhook_waiting';
   const tones: MockInbox['tone'][] = ['primary', 'warning', 'info', 'success'];
   const created: MockInbox = {
     ...inbox,
     id: `inbox-${Date.now().toString(36)}`,
     tone: tones[state.inboxes.length % tones.length]!,
-    // Meta has not called the webhook yet: the admin still has to paste the callback URL.
-    status: 'webhook_waiting',
+    // A new linked phone waits for its QR scan; a new Business API inbox waits for Meta's first call.
+    status: waiting,
   };
   save({ ...state, inboxes: [...state.inboxes, created] });
   return created;
@@ -160,8 +164,9 @@ export function setInboxFilter(inboxFilter: string) {
   save({ ...state, inboxFilter });
 }
 
+/** The 24-hour rule exists only for Business API inboxes; a linked phone replies freely. */
 export function isWindowClosed(s: State, jid: string): boolean {
-  return s.windowClosed.includes(jid);
+  return inboxOfChat(s, jid)?.type === 'business_api' && s.windowClosed.includes(jid);
 }
 
 /** A template message opens the 24-hour window again only once the customer replies; the mock

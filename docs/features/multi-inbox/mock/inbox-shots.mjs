@@ -1,6 +1,6 @@
 // Screenshots of the proposed multi-inbox UI in the running seeded mock (run.ts --fake-wa), at desktop
 // 1280 px and mobile 360 px: the admin's unified list with the inbox filter, an agent's list (one inbox),
-// the Inboxes page, Add inbox with the webhook values, the closed 24-hour window and the template dialog,
+// the Inboxes page, Add inbox (type choice, Business API webhook values, linked-phone QR), the closed 24-hour window and the template dialog,
 // Members with inbox access, and an agent who opens a chat of another inbox. Reports page errors and
 // horizontal overflow. Run it once on a freshly started mock (it saves an inbox).
 // Usage: node docs/features/multi-inbox/mock/inbox-shots.mjs [baseUrl]
@@ -47,7 +47,7 @@ for (const [vp, size] of [
   await admin.page.getByTestId('inbox-filter').waitFor();
   await admin.shot('01', 'admin-unified-list', vp);
 
-  await admin.page.goto(`/chats/${jid('5550142')}`);
+  await admin.page.goto(`/chats/${jid('6677889')}`);
   await admin.page.getByTestId('window-closed').waitFor();
   await admin.shot('02', 'window-closed', vp);
   await admin.page.getByRole('button', { name: 'Send template' }).click();
@@ -59,9 +59,12 @@ for (const [vp, size] of [
   await admin.page.getByTestId('inbox-card').first().waitFor();
   await admin.shot('04', 'inboxes-page', vp);
 
+  await admin.page.getByRole('button', { name: 'Add inbox' }).first().click();
+  await admin.page.getByTestId('inbox-type-choice').waitFor();
+  await admin.shot('05', 'add-inbox-type', vp);
+  const dialog = admin.page.getByRole('dialog');
   if (vp === 'desktop') {
-    await admin.page.getByRole('button', { name: 'Add inbox' }).first().click();
-    const dialog = admin.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: /WhatsApp Business API/ }).click();
     await dialog.getByLabel('Inbox name').fill('Delivery');
     await dialog.getByLabel('WhatsApp number').fill('+60 11-2233 4455');
     await dialog.getByLabel('Phone number ID').fill('109876543210003');
@@ -71,21 +74,23 @@ for (const [vp, size] of [
     await dialog.getByRole('button', { name: 'Save' }).click();
     await admin.page.getByTestId('inbox-webhook').waitFor();
     await admin.page.getByTestId('inbox-webhook').scrollIntoViewIfNeeded();
-    await admin.shot('05', 'add-inbox-webhook', vp);
-    await admin.page.keyboard.press('Escape');
+    await admin.shot('06', 'add-business-api-webhook', vp);
   } else {
-    await admin.page.getByRole('button', { name: 'Add inbox' }).first().click();
-    await admin.page.getByRole('dialog').getByLabel('Inbox name').waitFor();
-    await admin.shot('05', 'add-inbox-form', vp);
-    await admin.page.keyboard.press('Escape');
+    await dialog.getByRole('button', { name: /WhatsApp app/ }).click();
+    await dialog.getByLabel('Inbox name').fill('Delivery');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await admin.page.getByTestId('inbox-qr').waitFor();
+    await admin.page.getByTestId('inbox-qr').scrollIntoViewIfNeeded();
+    await admin.shot('06', 'add-linked-phone-qr', vp);
   }
+  await admin.page.keyboard.press('Escape');
 
   await admin.page.goto('/admin/members');
   await admin.page.locator('[data-testid="inbox-access"]:visible').first().waitFor();
-  await admin.shot('06', 'members-access', vp);
+  await admin.shot('07', 'members-access', vp);
   await admin.page.getByRole('button', { name: 'Inboxes for Daniel' }).click();
   await admin.page.getByRole('dialog').getByRole('checkbox').first().waitFor();
-  await admin.shot('07', 'members-access-dialog', vp);
+  await admin.shot('08', 'members-access-dialog', vp);
   await admin.page.keyboard.press('Escape');
   await admin.ctx.close();
 
@@ -93,10 +98,10 @@ for (const [vp, size] of [
   const agent = await session(vp, size, 'meiling');
   await agent.page.goto('/');
   await agent.page.getByText('Farah', { exact: false }).first().waitFor();
-  await agent.shot('08', 'agent-one-inbox', vp);
+  await agent.shot('09', 'agent-one-inbox', vp);
   await agent.page.goto(`/chats/${jid('8814455')}`);
   await agent.page.getByText('You cannot open this chat').waitFor();
-  await agent.shot('09', 'agent-no-access', vp);
+  await agent.shot('10', 'agent-no-access', vp);
   await agent.ctx.close();
 }
 await browser.close();

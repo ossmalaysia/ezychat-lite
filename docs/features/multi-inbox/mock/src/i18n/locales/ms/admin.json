@@ -905,20 +905,21 @@
   },
   "mockInbox": {
     "title": "Inboxes",
-    "description": "One inbox for each WhatsApp number. Each number connects through the official WhatsApp Business API, so there is no risk of a ban for an unofficial client.",
+    "description": "One inbox for each WhatsApp number. Connect a number with the WhatsApp app on a phone (scan a QR code), or with the official WhatsApp Business API.",
     "add": "Add inbox",
     "webhookNeedsDomainTitle": "Meta needs a fixed public address",
     "webhookNeedsDomain": "Meta sends new messages to this computer through Phone access. Use your own domain there: the quick tunnel address changes, and Meta then stops delivering messages.",
     "emptyTitle": "No inbox yet",
-    "emptyBody": "Add your first WhatsApp Business API number. You need its ids, an access token and the app secret from Meta.",
-    "typeBusinessApi": "WhatsApp Business API",
+    "emptyBody": "Add your first WhatsApp number: scan a QR code with the WhatsApp app, or connect a WhatsApp Business API number.",
     "edit": "Edit",
     "remove": "Remove",
     "status": "Status",
     "state": {
       "connected": "Connected",
       "webhook_waiting": "Waiting for Meta",
-      "token_invalid": "Access token not accepted"
+      "token_invalid": "Access token not accepted",
+      "waiting_scan": "Waiting for the QR scan",
+      "phone_offline": "Phone offline"
     },
     "whoCanOpen": "Who can open it",
     "admin": "admin",
@@ -936,9 +937,12 @@
     "saved": "Inbox saved",
     "created": "Inbox added. Now paste the webhook values into Meta.",
     "testOk": "Meta reached EzyChat. The inbox is connected.",
-    "addTitle": "Add a WhatsApp Business API inbox",
+    "addTitle": "Add an inbox",
     "editTitle": "Inbox “{{name}}”",
-    "dialogDescription": "Copy these values from your app in Meta for Developers → WhatsApp → API setup.",
+    "dialogDescription": {
+      "linked_phone": "Give the inbox a name, save, then scan the QR code with the phone that has this number.",
+      "business_api": "Copy these values from your app in Meta for Developers → WhatsApp → API setup."
+    },
     "save": "Save",
     "name": "Inbox name",
     "nameHint": "What your team sees on each chat, e.g. Sales or Catering.",
@@ -965,6 +969,26 @@
     "membersAccessTitle": "Inboxes for {{name}}",
     "membersAccessDescription": "This agent sees only the chats of the inboxes you tick, and only those notifications.",
     "membersAccessSave": "Save",
-    "membersAccessSaved": "Inbox access saved"
+    "membersAccessSaved": "Inbox access saved",
+    "type": {
+      "linked_phone": "WhatsApp app (linked phone)",
+      "business_api": "WhatsApp Business API (official)"
+    },
+    "typeHint": {
+      "linked_phone": "Scan a QR code with WhatsApp or WhatsApp Business on the phone, as today. Quick to set up and free. Not official: WhatsApp can ban a number that sends many messages to people who did not ask for them.",
+      "business_api": "Meta's official API, so no ban risk for an unofficial client. Needs a Meta app, an access token and a fixed public address (Phone access with your domain). Replies are free for 24 hours after the customer writes; after that only approved templates, which Meta charges."
+    },
+    "chooseType": "How does this number connect?",
+    "linkedPhoneNote": "Linked to the WhatsApp app on a phone. Keep that phone charged and online.",
+    "scanTitle": "Scan the QR code",
+    "scanBody": "Open Edit and scan the QR code with the phone that has this number.",
+    "scanSteps": "On the phone: WhatsApp → Settings → Linked devices → Link a device, then point the camera at this code.",
+    "simulateScan": "Simulate the scan (mock)",
+    "scanning": "Linking…",
+    "scanOk": "The phone is linked. The inbox is connected.",
+    "linkedAs": "Linked to {{number}}",
+    "numberAfterScan": "Shown after the scan",
+    "createdPhone": "Inbox added. Now scan the QR code with the phone.",
+    "removeBodyPhone": "EzyChat unlinks this phone and stops receiving and sending for the number. Its chats stay, read only, for admins."
   }
 }

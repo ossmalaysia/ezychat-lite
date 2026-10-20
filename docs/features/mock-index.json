@@ -24,7 +24,7 @@
       "baselineFeature": "token-permissions",
       "baselineGitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
       "baselineAppRevision": "89ccabe",
-      "coverage": "Full app clone of the confirmed token-permissions reference; adds inboxes (one per WhatsApp Business API number): Admin → Inboxes with add/edit/remove and the webhook values for Meta, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, closed 24-hour window with a template dialog, and the no-access state for agents; English only; mock state in localStorage"
+      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number) of two types: WhatsApp app (linked phone, QR scan) and WhatsApp Business API; Admin → Inboxes with type choice, QR step, Meta values and webhook values, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, closed 24-hour window with a template dialog (Business API only), agent no-access state; English only; mock state in localStorage"
     },
     {
       "feature": "token-permissions",
