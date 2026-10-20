@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { resolveTool } from './build-summary.mjs';
 
 /** Added/changed line numbers per file from `git diff --unified=0` output. Pure (tested). */
 export function changedLines(diff) {
@@ -88,10 +89,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error(`${reportPath} has no files: run the full npm run test:coverage`);
     process.exit(2);
   }
-  const diff = execFileSync('git', ['diff', '--unified=0', '--no-color', `${base}...HEAD`], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  // git from its usual install path (or GIT_PATH), never a PATH lookup.
+  const diff = execFileSync(
+    resolveTool('git'),
+    ['diff', '--unified=0', '--no-color', `${base}...HEAD`],
+    {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
   const changed = changedLines(diff);
   const missing = missingSourceFiles(changed, coverage);
   if (missing.length) {
