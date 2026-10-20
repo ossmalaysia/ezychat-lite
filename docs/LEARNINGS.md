@@ -575,7 +575,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
-- `ResponsiveTable` renders the desktop table and the phone rows at once (one is hidden): a Playwright
+- `ResponsiveTable` renders the desktop table and the phone rows at once (one is hidden), and on phones an
+  open conversation hides the chat list but keeps it in the page: a Playwright
   `getByTestId(...).first()` can pick the hidden copy and time out. Wait on
   `locator('[data-testid="…"]:visible')` (`getByRole` already skips hidden elements).
 - The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
