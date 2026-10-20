@@ -75,6 +75,8 @@ into AGENTS.md.
 - Small changes are done directly. Large multi-part work runs through the Workflow tool with as many
   parallel agents as the work allows, with disjoint file ownership and a time budget; only the
   orchestrator commits; agents don't `npm install` unless they own that package.json.
+  A hub file two agents of one wave both need (e.g. `apps/web/src/api/queries.ts`) stays with one owner;
+  the other puts its new code in a new file that imports from the hub.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
