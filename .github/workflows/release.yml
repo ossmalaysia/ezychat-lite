@@ -19,8 +19,9 @@ jobs:
   package:
     name: Package (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    # The Azure federated credential trusts only this environment (subject
-    # repo:ossmalaysia/ezychat-lite:environment:release); its rules allow v* tags and main.
+    # The Azure federated credential (github-ezychat-lite-release on the app ezychat-ci-signing) trusts
+    # only this environment: subject repo:ossmalaysia@325334523/ezychat-lite@1400498086:environment:release
+    # (the repository uses GitHub's immutable-ID subjects). Its rules allow v* tags and main.
     environment: release
     strategy:
       fail-fast: false
