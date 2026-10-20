@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- When the owner confirms a mock but leaves its open questions unanswered, do not block: write the default
+  for each in `design.md` as "my call", build to it, and keep each easy to change; list them in the report.
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
   become unreadable; put long names on their own lines and keep one short line per item. Lead with
   the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
