@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "mcp-send-message",
-    "gitRevision": "b3a5479b92cc4b519b141ebb013758c13bcea67c",
-    "mock": "docs/features/mcp-send-message/mock/index.html",
-    "design": "docs/features/mcp-send-message/design.md",
+    "feature": "token-permissions",
+    "gitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
+    "mock": "docs/features/token-permissions/mock/index.html",
+    "design": "docs/features/token-permissions/design.md",
     "confirmedAt": "2026-10-20",
-    "confirmation": "Owner, 2026-10-20: \"mock ok, continue build the real screens\" (after the new-number option: \"yes ok with new number feature, it is up to them to use, but we will show warning in whatsapp and LLM\")."
+    "confirmation": "Owner, 2026-10-20: \"finish the token permission first\" (after the mock at http://127.0.0.1:7487 was offered for review)."
   },
   "proposals": [
     {
@@ -20,7 +20,7 @@
       "createdAt": "2026-10-20",
       "design": "docs/features/token-permissions/design.md",
       "mock": "docs/features/token-permissions/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "mcp-send-message",
       "baselineGitRevision": "b3a5479b92cc4b519b141ebb013758c13bcea67c",
       "baselineAppRevision": "1b09ea1",

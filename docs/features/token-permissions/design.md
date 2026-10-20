@@ -1,7 +1,7 @@
 # Change what an access token may do
 
 Owner request (2026-10-20): "it is troublesome to reissue access token, please allow to update access
-token permission like allow send msg". Status: **server done; the UI waits for the mock confirmation**
+token permission like allow send msg". Status: **mock confirmed; production UI in progress**
 (AGENTS.md: mock first).
 
 ## Goal
@@ -43,7 +43,7 @@ Settings, audited; never through a token".
   and adds `src/admin/TokenPermissionsDialog.tsx`; `snapshot.mjs --check` verifies the rest.
 - Screenshots (1280 px and 360 px): `mock/screenshots/01-token-list`, `02-permissions-dialog`,
   `03-permissions-new-numbers`, `04-saved` (desktop). No page errors, no horizontal scroll.
-- **Confirmation: pending** (owner). Production UI starts only after it.
+- **Confirmation: confirmed** — Owner, 2026-10-20: "finish the token permission first" (after the mock at http://127.0.0.1:7487 was offered for review). Confirmed mock at git revision `58346c1f0ba43e07575e35e4bf4e1dc44083c5c5`.
 
 ## Plan
 

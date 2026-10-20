@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "1b09ea1",
   "appVersionAtProposal": "0.1.44",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "token-permissions",
   "createdAt": "2026-10-20",
   "baselineFeature": "mcp-send-message",

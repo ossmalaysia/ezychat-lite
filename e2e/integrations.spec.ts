@@ -203,3 +203,73 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
     await api.dispose();
   }
 });
+
+test('the owner lets an existing token send, and the same token gets send_message at once', async ({
+  page,
+  baseURL,
+}, info) => {
+  test.skip(
+    info.project.name !== 'desktop-chromium',
+    'the AI assistant access switch is inbox-wide: one project drives it',
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const api = await playwrightRequest.newContext({ baseURL });
+  const tools = async (secret: string) => {
+    const res = await api.post('/mcp', {
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `Bearer ${secret}`,
+      },
+      data: { jsonrpc: '2.0', id: 3, method: 'tools/list' },
+    });
+    expect(res.status()).toBe(200);
+    return ((await res.json()).result.tools as Array<{ name: string }>).map((x) => x.name);
+  };
+  try {
+    await page.goto('/admin/settings/integrations');
+    const access = page.getByRole('switch', { name: 'Let AI assistants read this inbox' });
+    if ((await access.getAttribute('aria-checked')) !== 'true') await access.click();
+    await expect(access).toHaveAttribute('aria-checked', 'true');
+
+    const name = `Reports ${String(Date.now()).slice(-6)}`;
+    await page.getByRole('button', { name: 'Create token', exact: true }).click();
+    const create = page.getByRole('dialog', { name: 'Create access token' });
+    await create.getByLabel('Name', { exact: true }).fill(name);
+    await create.getByRole('button', { name: 'Create token', exact: true }).click();
+    const created = page.getByRole('dialog', { name: 'Copy your token now' });
+    const secret = (await created.getByTestId('api-token-secret').innerText()).trim();
+    await created.getByRole('button', { name: 'Done', exact: true }).click();
+    expect(await tools(secret)).not.toContain('send_message');
+
+    const row = page.getByTestId('api-token-row').filter({ hasText: name });
+    await row.getByRole('button', { name: `Change what token ${name} may do` }).click();
+    const dialog = page.getByRole('dialog', { name: `Permissions of “${name}”` });
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await dialog.getByRole('checkbox', { name: 'Can send WhatsApp messages' }).click();
+    await expect(dialog.getByText(/Replies go straight to your customers/)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(row.getByText('Can send', { exact: true })).toBeVisible();
+    expect(await tools(secret)).toContain('send_message');
+
+    // Phone width: the token name keeps the full row, the actions sit under the details.
+    await page.setViewportSize({ width: 360, height: 780 });
+    await expect(
+      row.getByRole('button', { name: `Change what token ${name} may do` }),
+    ).toBeVisible();
+    await expectNoHorizontalScroll(page, 'token permissions 360');
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await row.getByRole('button', { name: `Revoke token ${name}` }).click();
+    await page
+      .getByRole('alertdialog', { name: `Revoke “${name}”?` })
+      .getByRole('button', { name: 'Revoke token', exact: true })
+      .click();
+    await expect(row).toHaveCount(0);
+    await access.click();
+    await expect(access).toHaveAttribute('aria-checked', 'false');
+  } finally {
+    await api.dispose();
+  }
+});

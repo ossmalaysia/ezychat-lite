@@ -7,6 +7,7 @@ import type { ApiToken } from '@ezychat/shared';
 import {
   useApiTokens,
   useMcpSettings,
+  useMe,
   usePatchMcpSettings,
   useRevokeApiToken,
 } from '../api/queries';
@@ -20,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { formatDate, formatRelative } from '@/lib/format';
 import { ConfirmDialog, ErrorState, ListSkeleton } from './adminUi';
 import { CreateTokenDialog } from './CreateTokenDialog';
+import { TokenPermissionsDialog } from './TokenPermissionsDialog';
 
 /** "Used 5 minutes ago" for recent use, a plain date after that. */
 const RELATIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -161,7 +163,9 @@ function TokenList() {
   const { t } = useTranslation('admin');
   const tokens = useApiTokens();
   const revoke = useRevokeApiToken();
+  const me = useMe();
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
+  const [editing, setEditing] = useState<ApiToken | null>(null);
 
   if (!tokens.data)
     return tokens.isError ? (
@@ -186,6 +190,7 @@ function TokenList() {
             key={token.id}
             token={token}
             now={now}
+            onEdit={token.userId === me.data?.id ? () => setEditing(token) : undefined}
             onRevoke={() => {
               revoke.reset();
               setRevoking(token);
@@ -213,6 +218,7 @@ function TokenList() {
       >
         {t('integrations.tokens.revokeBody')}
       </ConfirmDialog>
+      <TokenPermissionsDialog token={editing} onClose={() => setEditing(null)} />
     </>
   );
 }
@@ -220,10 +226,13 @@ function TokenList() {
 function TokenRow({
   token,
   now,
+  onEdit,
   onRevoke,
 }: {
   token: ApiToken;
   now: number;
+  /** Only on the signed-in admin's own tokens (a token acts as its owner). */
+  onEdit?: () => void;
   onRevoke: () => void;
 }) {
   const { t } = useTranslation('admin');
@@ -242,19 +251,35 @@ function TokenRow({
       data-testid="api-token-row"
       className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0"
     >
-      <p className="pt-2.5 leading-snug font-medium [overflow-wrap:anywhere] md:pt-1.5">
+      <p className="col-span-2 pt-2.5 leading-snug font-medium [overflow-wrap:anywhere] sm:col-span-1 md:pt-1.5">
         {token.name}
       </p>
-      <Button
-        type="button"
-        variant="ghost"
-        size="touch"
-        className="px-2 text-danger hover:bg-danger/10 hover:text-danger md:min-h-8"
-        aria-label={t('integrations.tokens.revokeLabel', { name: token.name })}
-        onClick={onRevoke}
-      >
-        {t('integrations.tokens.revoke')}
-      </Button>
+      {/* Phones: the actions get their own row under the details, so the name keeps the full width. */}
+      <div className="order-last col-span-2 -mx-2 flex items-center justify-end gap-1 sm:order-none sm:col-span-1 sm:mx-0">
+        {/* Change what the token may do, without a new token. */}
+        {onEdit && !expired && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="touch"
+            className="px-2 md:min-h-8"
+            aria-label={t('integrations.permissions.editLabel', { name: token.name })}
+            onClick={onEdit}
+          >
+            {t('integrations.permissions.edit')}
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="touch"
+          className="px-2 text-danger hover:bg-danger/10 hover:text-danger md:min-h-8"
+          aria-label={t('integrations.tokens.revokeLabel', { name: token.name })}
+          onClick={onRevoke}
+        >
+          {t('integrations.tokens.revoke')}
+        </Button>
+      </div>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground tabular-nums">
         <code className="rounded bg-muted px-1.5 font-mono text-xs text-foreground">
           {token.prefix}…

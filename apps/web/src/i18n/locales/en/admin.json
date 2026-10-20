@@ -351,6 +351,15 @@
       "oauthHint": "Apps that only sign in with OAuth, such as ChatGPT and claude.ai connectors, are not supported yet.",
       "localOnly": "This address works only on the computer running {{product}}. Start a tunnel to connect from elsewhere.",
       "askHint": "Then ask things like “Which chats are waiting for a reply?”"
+    },
+    "permissions": {
+      "edit": "Permissions",
+      "editLabel": "Change what token {{name}} may do",
+      "title": "Permissions of “{{name}}”",
+      "description": "Choose what the AI assistant with this token may do. You keep the same token: no need to connect again.",
+      "takesEffect": "The change applies on the assistant’s next request. Reading the inbox and the AI setup tools stay on.",
+      "save": "Save",
+      "saved": "Permissions saved"
     }
   },
   "settings": {
