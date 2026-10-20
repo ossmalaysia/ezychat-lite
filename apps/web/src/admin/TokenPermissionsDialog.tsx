@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import type { ApiToken } from '@ezychat/shared';
@@ -6,9 +6,8 @@ import { errorMessage } from '../api/client';
 import { useUpdateApiToken } from '../api/queries';
 import { Banner, ResponsiveDialog } from '@/components/app';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Pending } from './adminUi';
+import { SendPermissionFields, type SendPermissions } from './SendPermissionFields';
 
 /**
  * The owner of a token changes whether its AI assistant may send, and message new numbers, without a
@@ -17,19 +16,16 @@ import { Pending } from './adminUi';
 export function TokenPermissionsDialog({
   token,
   onClose,
-}: {
+}: Readonly<{
   token: ApiToken | null;
   onClose: () => void;
-}) {
+}>) {
   const { t } = useTranslation(['admin', 'common']);
-  const canSendId = useId();
-  const canNewId = useId();
-  const [canSend, setCanSend] = useState(false);
-  const [canNew, setCanNew] = useState(false);
+  const [perms, setPerms] = useState<SendPermissions>({ canSend: false, canNew: false });
   useEffect(() => {
-    setCanSend(token?.canSend ?? false);
-    setCanNew(token?.canMessageNewNumbers ?? false);
+    setPerms({ canSend: token?.canSend ?? false, canNew: token?.canMessageNewNumbers ?? false });
   }, [token]);
+  const { canSend, canNew } = perms;
   const save = useUpdateApiToken();
   const close = () => {
     save.reset();
@@ -85,47 +81,7 @@ export function TokenPermissionsDialog({
       }
     >
       <div className="flex flex-col gap-2 pb-1">
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id={canSendId}
-            checked={canSend}
-            disabled={save.isPending}
-            onCheckedChange={(v) => {
-              setCanSend(v === true);
-              if (v !== true) setCanNew(false);
-            }}
-            className="mt-0.5"
-          />
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={canSendId}>{t('integrations.create.canSend')}</Label>
-            <p className="text-sm text-muted-foreground">{t('integrations.create.canSendHint')}</p>
-          </div>
-        </div>
-        {canSend && <Banner tone="warning">{t('integrations.create.canSendWarning')}</Banner>}
-        {canSend && (
-          <div className="ml-7 flex flex-col gap-2">
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id={canNewId}
-                checked={canNew}
-                disabled={save.isPending}
-                onCheckedChange={(v) => setCanNew(v === true)}
-                className="mt-0.5"
-              />
-              <div className="flex flex-col gap-1">
-                <Label htmlFor={canNewId}>{t('integrations.create.canNew')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('integrations.create.canNewHint')}
-                </p>
-              </div>
-            </div>
-            {canNew && (
-              <Banner tone="danger" title={t('integrations.create.canNewWarningTitle')}>
-                {t('integrations.create.canNewWarning')}
-              </Banner>
-            )}
-          </div>
-        )}
+        <SendPermissionFields value={perms} onChange={setPerms} disabled={save.isPending} />
         <p className="text-sm text-muted-foreground">{t('integrations.permissions.takesEffect')}</p>
         {save.error != null && <Banner tone="danger">{errorMessage(save.error)}</Banner>}
       </div>

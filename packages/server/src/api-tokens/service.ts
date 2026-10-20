@@ -220,7 +220,8 @@ export function createApiTokenService(
 
     updatePermissions(id, actorId, body, ip) {
       const row = q.byId.get(id) as TokenRow | undefined;
-      if (!row || row.revoked_at !== null) throw errors.notFound('Token');
+      // Unknown and revoked tokens alike: a revoked row has a non-null revoked_at.
+      if (row?.revoked_at !== null) throw errors.notFound('Token');
       // A token acts as its owner: only the owner may let it send in their name.
       if (row.user_id !== actorId)
         throw errors.forbidden('Only the owner of a token can change what it may do');

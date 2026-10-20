@@ -6,10 +6,10 @@ import { useCreateApiToken } from '../api/queries';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog, SegmentedControl } from '@/components/app';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CopyButton, Field, Pending } from './adminUi';
+import { SendPermissionFields, type SendPermissions } from './SendPermissionFields';
 import { TokenConnectSteps } from './TokenConnectSteps';
 
 const EXPIRY_OPTIONS = ['30', '90', '365', 'never'] as const;
@@ -52,10 +52,7 @@ export function CreateTokenDialog({
   const create = useCreateApiToken();
   const [name, setName] = useState('');
   const [expiry, setExpiry] = useState<ExpiryOption>('90');
-  const [canSend, setCanSend] = useState(false);
-  const canSendId = useId();
-  const [canNew, setCanNew] = useState(false);
-  const canNewId = useId();
+  const [perms, setPerms] = useState<SendPermissions>({ canSend: false, canNew: false });
   const [submitted, setSubmitted] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
 
@@ -72,8 +69,7 @@ export function CreateTokenDialog({
     setSecret(null);
     setName('');
     setExpiry('90');
-    setCanSend(false);
-    setCanNew(false);
+    setPerms({ canSend: false, canNew: false });
     setSubmitted(false);
     create.reset();
     onOpenChange(false);
@@ -87,8 +83,8 @@ export function CreateTokenDialog({
       body: {
         name: trimmed,
         expiresInDays: EXPIRY_DAYS[expiry],
-        canSend,
-        canMessageNewNumbers: canSend && canNew,
+        canSend: perms.canSend,
+        canMessageNewNumbers: perms.canSend && perms.canNew,
       },
       onSecret: setSecret,
     });
@@ -197,52 +193,7 @@ export function CreateTokenDialog({
             }))}
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id={canSendId}
-              checked={canSend}
-              disabled={create.isPending}
-              onCheckedChange={(v) => {
-                setCanSend(v === true);
-                if (v !== true) setCanNew(false);
-              }}
-              className="mt-0.5"
-            />
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={canSendId}>{t('integrations.create.canSend')}</Label>
-              <p className="text-sm text-muted-foreground">
-                {t('integrations.create.canSendHint')}
-              </p>
-            </div>
-          </div>
-          {canSend && <Banner tone="warning">{t('integrations.create.canSendWarning')}</Banner>}
-          {/* Messaging new numbers: only under "Can send", off by default. */}
-          {canSend && (
-            <div className="ml-7 flex flex-col gap-2">
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id={canNewId}
-                  checked={canNew}
-                  disabled={create.isPending}
-                  onCheckedChange={(v) => setCanNew(v === true)}
-                  className="mt-0.5"
-                />
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={canNewId}>{t('integrations.create.canNew')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('integrations.create.canNewHint')}
-                  </p>
-                </div>
-              </div>
-              {canNew && (
-                <Banner tone="danger" title={t('integrations.create.canNewWarningTitle')}>
-                  {t('integrations.create.canNewWarning')}
-                </Banner>
-              )}
-            </div>
-          )}
-        </div>
+        <SendPermissionFields value={perms} onChange={setPerms} disabled={create.isPending} />
         {create.error != null && <Banner tone="danger">{errorMessage(create.error)}</Banner>}
       </form>
     </ResponsiveDialog>

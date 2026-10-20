@@ -1,4 +1,9 @@
-import { request as playwrightRequest, type APIRequestContext } from '@playwright/test';
+import {
+  request as playwrightRequest,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 import { expect, expectNoHorizontalScroll, test } from './helpers';
 
 const MCP_INITIALIZE = {
@@ -12,28 +17,54 @@ const MCP_INITIALIZE = {
   },
 };
 
-/** POST an MCP initialize request with a bearer token, without any browser cookies or Origin. */
-async function postInitialize(api: APIRequestContext, secret: string): Promise<number> {
-  const res = await api.post('/mcp', {
+const DESKTOP = 'desktop-chromium';
+const ONE_PROJECT = 'the AI assistant access switch is inbox-wide: one project drives it';
+
+/** POST one MCP JSON-RPC request with a bearer token, without any browser cookies or Origin. */
+function mcpPost(api: APIRequestContext, secret: string, data: unknown) {
+  return api.post('/mcp', {
     headers: {
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
       authorization: `Bearer ${secret}`,
     },
-    data: MCP_INITIALIZE,
+    data,
   });
-  return res.status();
 }
 
-// The AI-assistant access switch is inbox-wide, so only one project drives it.
+async function postInitialize(api: APIRequestContext, secret: string): Promise<number> {
+  return (await mcpPost(api, secret, MCP_INITIALIZE)).status();
+}
+
+/** Open Settings → Integrations with AI assistant access on; returns the switch. */
+async function accessOn(page: Page) {
+  await page.goto('/admin/settings/integrations');
+  const access = page.getByRole('switch', { name: 'Let AI assistants read this inbox' });
+  if ((await access.getAttribute('aria-checked')) !== 'true') await access.click();
+  await expect(access).toHaveAttribute('aria-checked', 'true');
+  return access;
+}
+
+/** Revoke the token through its confirm dialog, then turn the inbox-wide switch off again. */
+async function revokeAndTurnOff(page: Page, name: string, access: Locator) {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/admin/settings/integrations');
+  const row = page.getByTestId('api-token-row').filter({ hasText: name });
+  await row.getByRole('button', { name: `Revoke token ${name}` }).click();
+  await page
+    .getByRole('alertdialog', { name: `Revoke “${name}”?` })
+    .getByRole('button', { name: 'Revoke token', exact: true })
+    .click();
+  await expect(row).toHaveCount(0);
+  await access.click();
+  await expect(access).toHaveAttribute('aria-checked', 'false');
+}
+
 test('admin turns on AI assistant access, creates a token, uses it on /mcp and revokes it', async ({
   page,
   baseURL,
 }, info) => {
-  test.skip(
-    info.project.name !== 'desktop-chromium',
-    'the AI assistant access switch is inbox-wide: one project drives it',
-  );
+  test.skip(info.project.name !== DESKTOP, ONE_PROJECT);
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // A clean context: no admin session cookie, so only the bearer token can authorize /mcp.
@@ -122,17 +153,11 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
   page,
   baseURL,
 }, info) => {
-  test.skip(
-    info.project.name !== 'desktop-chromium',
-    'the AI assistant access switch is inbox-wide: one project drives it',
-  );
+  test.skip(info.project.name !== DESKTOP, ONE_PROJECT);
   await page.setViewportSize({ width: 1280, height: 900 });
   const api = await playwrightRequest.newContext({ baseURL });
   try {
-    await page.goto('/admin/settings/integrations');
-    const access = page.getByRole('switch', { name: 'Let AI assistants read this inbox' });
-    if ((await access.getAttribute('aria-checked')) !== 'true') await access.click();
-    await expect(access).toHaveAttribute('aria-checked', 'true');
+    const access = await accessOn(page);
 
     const name = `Follow-ups ${String(Date.now()).slice(-6)}`;
     await page.getByRole('button', { name: 'Create token', exact: true }).click();
@@ -155,23 +180,16 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
 
     // The assistant messages a number that is not in the inbox (fake WhatsApp knows every number).
     const phone = `6019${String(Date.now()).slice(-7)}`;
-    const res = await api.post('/mcp', {
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-        authorization: `Bearer ${secret}`,
-      },
-      data: {
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'tools/call',
-        params: {
-          name: 'send_to_new_number',
-          arguments: {
-            phone: `+${phone}`,
-            text: 'Thank you for visiting our booth. Here is the menu you asked for.',
-            requestId: `e2e-new-${phone}`,
-          },
+    const res = await mcpPost(api, secret, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'send_to_new_number',
+        arguments: {
+          phone: `+${phone}`,
+          text: 'Thank you for visiting our booth. Here is the menu you asked for.',
+          requestId: `e2e-new-${phone}`,
         },
       },
     });
@@ -188,17 +206,7 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
     await expect(page.getByText('An AI assistant started this chat')).toBeVisible();
     await expectNoHorizontalScroll(page, 'chat started by assistant 360');
 
-    // Clean up: revoke the token and turn the inbox-wide switch off again.
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/admin/settings/integrations');
-    await row.getByRole('button', { name: `Revoke token ${name}` }).click();
-    await page
-      .getByRole('alertdialog', { name: `Revoke “${name}”?` })
-      .getByRole('button', { name: 'Revoke token', exact: true })
-      .click();
-    await expect(row).toHaveCount(0);
-    await access.click();
-    await expect(access).toHaveAttribute('aria-checked', 'false');
+    await revokeAndTurnOff(page, name, access);
   } finally {
     await api.dispose();
   }
@@ -208,29 +216,16 @@ test('the owner lets an existing token send, and the same token gets send_messag
   page,
   baseURL,
 }, info) => {
-  test.skip(
-    info.project.name !== 'desktop-chromium',
-    'the AI assistant access switch is inbox-wide: one project drives it',
-  );
+  test.skip(info.project.name !== DESKTOP, ONE_PROJECT);
   await page.setViewportSize({ width: 1280, height: 900 });
   const api = await playwrightRequest.newContext({ baseURL });
   const tools = async (secret: string) => {
-    const res = await api.post('/mcp', {
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-        authorization: `Bearer ${secret}`,
-      },
-      data: { jsonrpc: '2.0', id: 3, method: 'tools/list' },
-    });
+    const res = await mcpPost(api, secret, { jsonrpc: '2.0', id: 3, method: 'tools/list' });
     expect(res.status()).toBe(200);
     return ((await res.json()).result.tools as Array<{ name: string }>).map((x) => x.name);
   };
   try {
-    await page.goto('/admin/settings/integrations');
-    const access = page.getByRole('switch', { name: 'Let AI assistants read this inbox' });
-    if ((await access.getAttribute('aria-checked')) !== 'true') await access.click();
-    await expect(access).toHaveAttribute('aria-checked', 'true');
+    const access = await accessOn(page);
 
     const name = `Reports ${String(Date.now()).slice(-6)}`;
     await page.getByRole('button', { name: 'Create token', exact: true }).click();
@@ -260,15 +255,7 @@ test('the owner lets an existing token send, and the same token gets send_messag
     ).toBeVisible();
     await expectNoHorizontalScroll(page, 'token permissions 360');
 
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await row.getByRole('button', { name: `Revoke token ${name}` }).click();
-    await page
-      .getByRole('alertdialog', { name: `Revoke “${name}”?` })
-      .getByRole('button', { name: 'Revoke token', exact: true })
-      .click();
-    await expect(row).toHaveCount(0);
-    await access.click();
-    await expect(access).toHaveAttribute('aria-checked', 'false');
+    await revokeAndTurnOff(page, name, access);
   } finally {
     await api.dispose();
   }
