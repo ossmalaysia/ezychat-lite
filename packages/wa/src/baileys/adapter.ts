@@ -390,7 +390,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         qr: null,
         lastError: null,
         me: user
-          ? { jid: jidNormalizedUser(user.id), name: user.name ?? user.notify ?? null }
+          ? {
+              jid: jidNormalizedUser(user.id),
+              name: user.name ?? user.notify ?? null,
+              lid: user.lid ? jidNormalizedUser(user.lid) : null,
+            }
           : null,
       });
     }

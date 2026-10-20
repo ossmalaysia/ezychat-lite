@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type React from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import type {
   ChatDetailResponse,
@@ -47,6 +47,21 @@ export interface RealtimeValue {
 
 const TYPING_TTL_MS = 5_000;
 const TYPING_EMIT_THROTTLE_MS = 2_000;
+
+/**
+ * When a load of `queryKey` is running, load it again after it ends: that load was answered before
+ * the event that called this, so its result would hide the event's change. (React Query reuses a
+ * running first load instead of restarting it, so invalidating right away is not enough.)
+ */
+export function reloadAfterRunningLoad(qc: QueryClient, queryKey: QueryKey): void {
+  const query = qc.getQueryCache().find({ queryKey, exact: true });
+  if (!query || query.state.fetchStatus === 'idle') return;
+  const unsubscribe = qc.getQueryCache().subscribe((event) => {
+    if (event.query !== query || query.state.fetchStatus !== 'idle') return;
+    unsubscribe();
+    void qc.invalidateQueries({ queryKey, exact: true });
+  });
+}
 
 const RealtimeContext = createContext<RealtimeValue>({
   connected: false,
@@ -114,6 +129,11 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     socket.on('message:new', (m) => {
       upsertMessageInCache(qc, m);
+      // A load of this chat that is still running was answered before this message existed: its
+      // result would replace the cache without it (or the cache was empty and the event dropped).
+      // Load again after it.
+      // Load again once it ends (invalidating now would only reuse a first load still in flight).
+      reloadAfterRunningLoad(qc, qk.messages(m.chatJid));
       refreshChats();
     });
     // A transcript arrived for a voice note: update it in place (no chat list refresh needed).

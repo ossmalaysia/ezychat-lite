@@ -116,7 +116,14 @@ export type QuickReply = z.infer<typeof QuickReplySchema>;
 
 export const WaStatusSchema = z.object({
   state: WaState,
-  me: z.object({ jid: z.string(), name: z.string().nullable() }).nullable(),
+  me: z
+    .object({
+      jid: z.string(),
+      name: z.string().nullable(),
+      /** The account's own LID: WhatsApp shows it instead of the number in groups (and in mentions). */
+      lid: z.string().nullable().optional(),
+    })
+    .nullable(),
   qr: z.string().nullable(),
   lastError: z.string().nullable(),
 });

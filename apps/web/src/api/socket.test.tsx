@@ -352,3 +352,42 @@ it('refreshes the AI assistant settings when the tunnel status changes (new tunn
   expect(qc.getQueryState(qk.mcpSettings)?.isInvalidated).toBe(true);
   qc.clear();
 });
+
+it('keeps a message that arrives while its chat is still loading (the load started before it existed)', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const jid = 'group@g.us';
+  const reply = { id: 'reply', chatJid: jid, clientId: null, timestamp: 2, body: 'Review noted' };
+  const page = (messages: unknown[]) => ({
+    pages: [{ messages, nextBefore: null }],
+    pageParams: [null],
+  });
+  // The first load answers with the state from before the reply; a later load includes it.
+  let releaseFirst!: () => void;
+  const first = new Promise<void>((r) => (releaseFirst = r));
+  const load = vi
+    .fn()
+    .mockImplementationOnce(async () => {
+      await first;
+      return page([]);
+    })
+    .mockImplementation(async () => page([reply]));
+  function Messages() {
+    const { data } = useQuery({ queryKey: ['messages', jid], queryFn: load });
+    const list = (data?.pages[0]?.messages ?? []) as Array<{ body: string }>;
+    return <span>{list.length ? list.map((m) => m.body).join(',') : 'no messages'}</span>;
+  }
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <Messages />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+  // The live event comes while that first load is still running ...
+  act(() => socket.listeners.get('message:new')!(reply));
+  // ... and the old answer arrives afterwards. The reply must still show.
+  await act(async () => releaseFirst());
+  await screen.findByText('Review noted');
+  qc.clear();
+});
