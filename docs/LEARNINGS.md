@@ -159,7 +159,9 @@ into AGENTS.md.
   answer from a cached 404. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
   publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
   "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
-  ticked) from a package that publishes.
+  ticked) from a package that publishes. Then `gh run rerun <publish run> --failed` on the existing tag
+  publishes only the missing package and turns the publisher from "Pending validation" to "Valid" (one
+  publish is due before the shown deadline); no new tag or manual publish.
   The owner does that first publish in a normal terminal: `npm login` dies in Claude Code's `!` shell (no
   stdin), and each `npm publish -w @ezychat/<pkg> --otp=<code>` needs a fresh authenticator code (shared, wa,
   server, web in that order, from a clean checkout of the release tag after `npm ci && npm run build:core`).
