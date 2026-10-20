@@ -5,7 +5,7 @@ Branch: `feat/multi-inbox` · Every agent updates its stage with
 
 | Stage | Status | Detail | Updated |
 | --- | --- | --- | --- |
-| Design | doing | Mock round 2: inbox types WhatsApp app (linked phone) and Business API; linked phone first; 5 open questions; waits for the owner | 2026-10-20 |
+| Design | doing | Mock round 3: linked phone inboxes only (Business API later); 4 open questions; waits for the owner | 2026-10-20 |
 | Dev | todo |  |  |
 | Unit tests | todo |  |  |
 | E2E | todo |  |  |
@@ -16,3 +16,4 @@ Branch: `feat/multi-inbox` · Every agent updates its stage with
 
 - 2026-10-20 Design: doing — Mock and screen review at docs/features/multi-inbox (inboxes, access, unified list, 24-hour window); 5 open questions; waits for the owner
 - 2026-10-20 Design: doing — Mock round 2: inbox types WhatsApp app (linked phone) and Business API; linked phone first; 5 open questions; waits for the owner
+- 2026-10-20 Design: doing — Mock round 3: linked phone inboxes only (Business API later); 4 open questions; waits for the owner

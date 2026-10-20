@@ -4,22 +4,19 @@
 // inbox they cannot open).
 import { useSyncExternalStore } from 'react';
 
-export type InboxStatus =
-  'connected' | 'webhook_waiting' | 'token_invalid' | 'waiting_scan' | 'phone_offline';
-
-/** linked_phone = the WhatsApp app on a phone (QR scan, as today); business_api = Meta Cloud API. */
-export type InboxType = 'linked_phone' | 'business_api';
+export type InboxStatus = 'connected' | 'waiting_scan' | 'phone_offline';
 
 export interface MockInbox {
   id: string;
   name: string;
-  /** Display number, e.g. +60 12-345 6789. */
+  /** Display number, e.g. +60 12-345 6789 (known after the QR scan). */
   number: string;
-  type: InboxType;
+  /**
+   * Every inbox is a WhatsApp app on a phone (QR scan, as the app works today). The WhatsApp Business API
+   * comes later as a second type (design.md, "Later").
+   */
+  type: 'linked_phone';
   status: InboxStatus;
-  /** Business API only: the Meta ids the admin pasted (shown, never secret). */
-  phoneNumberId?: string;
-  businessAccountId?: string;
   /** Short colour token for the inbox chip (design-system tone, never a hex value). */
   tone: 'primary' | 'info' | 'warning' | 'success';
 }
@@ -33,13 +30,12 @@ interface State {
   chatInbox: Record<string, string>;
   /** user id → access. Admins are not listed: they always see all inboxes. */
   access: Record<number, InboxAccess>;
-  /** Chats whose 24-hour customer-service window is closed (Business API rule). */
-  windowClosed: string[];
   /** The chat list's inbox filter: 'all' or one inbox id (kept per browser, like the other filters). */
   inboxFilter: string;
 }
 
-const KEY = 'mock.multiInbox.v2';
+// Bump the key whenever the seed changes, so open browsers load the new demo data.
+const KEY = 'mock.multiInbox.v3';
 
 const SEED: State = {
   inboxes: [
@@ -56,10 +52,8 @@ const SEED: State = {
       id: 'catering',
       name: 'Catering',
       number: '+60 13-777 0000',
-      type: 'business_api',
+      type: 'linked_phone',
       status: 'connected',
-      phoneNumberId: '109876543210002',
-      businessAccountId: '201234567890123',
       tone: 'warning',
     },
   ],
@@ -73,8 +67,6 @@ const SEED: State = {
   },
   // Seeded users: 1 Aisyah (admin), 2 Daniel, 3 Mei Ling.
   access: { 2: ['main'], 3: ['catering'] },
-  // Nurul Huda writes to Catering (Business API) and her last message is older than 24 hours.
-  windowClosed: ['60126677889@s.whatsapp.net'],
   inboxFilter: 'all',
 };
 
@@ -129,15 +121,16 @@ export function canOpen(access: InboxAccess, inboxId: string | undefined): boole
   return access === 'all' || (!!inboxId && access.includes(inboxId));
 }
 
-export function addInbox(inbox: Omit<MockInbox, 'id' | 'tone' | 'status'>): MockInbox {
-  const waiting: InboxStatus = inbox.type === 'linked_phone' ? 'waiting_scan' : 'webhook_waiting';
+/** A new inbox waits for its QR scan; WhatsApp tells the number after the scan. */
+export function addInbox(name: string): MockInbox {
   const tones: MockInbox['tone'][] = ['primary', 'warning', 'info', 'success'];
   const created: MockInbox = {
-    ...inbox,
     id: `inbox-${Date.now().toString(36)}`,
+    name,
+    number: '',
+    type: 'linked_phone',
     tone: tones[state.inboxes.length % tones.length]!,
-    // A new linked phone waits for its QR scan; a new Business API inbox waits for Meta's first call.
-    status: waiting,
+    status: 'waiting_scan',
   };
   save({ ...state, inboxes: [...state.inboxes, created] });
   return created;
@@ -163,30 +156,3 @@ export function resetMockInboxes() {
 export function setInboxFilter(inboxFilter: string) {
   save({ ...state, inboxFilter });
 }
-
-/** The 24-hour rule exists only for Business API inboxes; a linked phone replies freely. */
-export function isWindowClosed(s: State, jid: string): boolean {
-  return inboxOfChat(s, jid)?.type === 'business_api' && s.windowClosed.includes(jid);
-}
-
-/** A template message opens the 24-hour window again only once the customer replies; the mock
- * simulates the reply so the rest of the flow can be tried. */
-export function reopenWindow(jid: string) {
-  save({ ...state, windowClosed: state.windowClosed.filter((j) => j !== jid) });
-}
-
-/** Approved templates the mock offers (production reads them from Meta). */
-export const MOCK_TEMPLATES = [
-  {
-    name: 'order_follow_up',
-    language: 'en',
-    body: 'Hi {{1}}, thank you for your order at {{2}}. Reply to this message if you need anything else.',
-    params: ['Customer name', 'Shop name'],
-  },
-  {
-    name: 'catering_quote',
-    language: 'en',
-    body: 'Hi {{1}}, here is your catering quote: {{2}}. Reply YES to confirm.',
-    params: ['Customer name', 'Quote link'],
-  },
-] as const;

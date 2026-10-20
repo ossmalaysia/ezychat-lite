@@ -53,7 +53,6 @@
     "src/admin/InboxesPage.tsx",
     "src/admin/TokenPermissionsDialog.tsx",
     "src/inbox/InboxChip.tsx",
-    "src/inbox/WindowClosedBar.tsx",
     "src/inbox/useVisibleInboxes.ts",
     "src/mock/inboxes.ts"
   ],
@@ -61,7 +60,6 @@
     "src/admin/InboxesPage.tsx",
     "src/admin/InboxAccess.tsx",
     "src/inbox/InboxChip.tsx",
-    "src/inbox/WindowClosedBar.tsx",
     "src/inbox/useVisibleInboxes.ts",
     "src/mock/inboxes.ts"
   ],

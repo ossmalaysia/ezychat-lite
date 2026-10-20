@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { BadgeCheck, Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
+import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { useUsers } from '../api/queries';
@@ -10,35 +10,26 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { ConfirmDialog, CopyButton, Field } from './adminUi';
+import { ConfirmDialog, Field } from './adminUi';
 import {
   addInbox,
   removeInbox,
   updateInbox,
   useMockInboxes,
   type InboxStatus,
-  type InboxType,
   type MockInbox,
 } from '../mock/inboxes';
 import { InboxChip } from '../inbox/InboxChip';
 
 const STATUS_TONE: Record<InboxStatus, StatusTone> = {
   connected: 'success',
-  webhook_waiting: 'warning',
-  token_invalid: 'danger',
   waiting_scan: 'warning',
   phone_offline: 'danger',
 };
 
-/** The public address Meta calls (the mock shows the shop's Phone access domain). */
-const callbackUrl = (id: string) =>
-  `https://inbox.kopiapong.example/api/ext/whatsapp-cloud/webhook/${id}`;
-const verifyTokenFor = (id: string) => `ezc_verify_${id.replaceAll('-', '').slice(-10)}7f3k`;
-
 /**
- * Proposed (multi-inbox): one inbox per WhatsApp number. Each inbox is either the WhatsApp app on a
- * phone (QR scan, as the app works today) or the official WhatsApp Business API. Admin only.
+ * Proposed (multi-inbox): one inbox per WhatsApp number, each linked with the WhatsApp app on a phone
+ * (QR scan, as the app works today). Admin only; agents never see this page.
  */
 export function InboxesPage() {
   const { t } = useTranslation('admin');
@@ -54,7 +45,6 @@ export function InboxesPage() {
       const a = state.access[u.id];
       return Array.isArray(a) && a.includes(inbox.id);
     });
-  const hasBusinessApi = state.inboxes.some((i) => i.type === 'business_api');
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,12 +64,6 @@ export function InboxesPage() {
         }
       />
 
-      {hasBusinessApi && (
-        <Banner tone="info" title={t('mockInbox.webhookNeedsDomainTitle')}>
-          {t('mockInbox.webhookNeedsDomain')}
-        </Banner>
-      )}
-
       {state.inboxes.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
@@ -97,16 +81,12 @@ export function InboxesPage() {
               <CardTitle className="flex flex-wrap items-center gap-2">
                 <InboxChip inbox={inbox} />
                 <span className="text-base font-normal text-muted-foreground tabular-nums">
-                  {inbox.number}
+                  {inbox.number || t('mockInbox.numberAfterScan')}
                 </span>
               </CardTitle>
               <CardDescription className="flex items-center gap-1.5">
-                {inbox.type === 'linked_phone' ? (
-                  <Smartphone className="size-4" aria-hidden />
-                ) : (
-                  <BadgeCheck className="size-4" aria-hidden />
-                )}
-                {t(`mockInbox.type.${inbox.type}`)}
+                <Smartphone className="size-4" aria-hidden />
+                {t('mockInbox.typeLinkedPhone')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-1">
@@ -151,22 +131,14 @@ export function InboxesPage() {
                 ))}
               </dd>
             </dl>
-            {inbox.type === 'linked_phone' && (
-              <p className="text-sm text-muted-foreground">{t('mockInbox.linkedPhoneNote')}</p>
-            )}
             {inbox.status === 'waiting_scan' && (
               <Banner tone="warning" title={t('mockInbox.scanTitle')}>
                 {t('mockInbox.scanBody')}
               </Banner>
             )}
-            {inbox.status === 'webhook_waiting' && (
-              <Banner tone="warning" title={t('mockInbox.waitingTitle')}>
-                {t('mockInbox.waitingBody')}
-              </Banner>
-            )}
-            {inbox.status === 'token_invalid' && (
-              <Banner tone="danger" title={t('mockInbox.tokenInvalidTitle')}>
-                {t('mockInbox.tokenInvalidBody')}
+            {inbox.status === 'phone_offline' && (
+              <Banner tone="danger" title={t('mockInbox.offlineTitle')}>
+                {t('mockInbox.offlineBody')}
               </Banner>
             )}
             <p className="text-sm text-muted-foreground">{t('mockInbox.accessHint')}</p>
@@ -187,15 +159,13 @@ export function InboxesPage() {
         }}
         onClose={() => setRemoving(null)}
       >
-        {removing?.type === 'linked_phone'
-          ? t('mockInbox.removeBodyPhone')
-          : t('mockInbox.removeBody')}
+        {t('mockInbox.removeBodyPhone')}
       </ConfirmDialog>
     </div>
   );
 }
 
-/** Add an inbox (choose the type first) or edit one. */
+/** Add an inbox (name, then the QR code) or edit one (rename, link the phone again). */
 function InboxDialog({
   inbox,
   onClose,
@@ -203,95 +173,64 @@ function InboxDialog({
   const { t } = useTranslation(['admin', 'common']);
   const isNew = inbox === 'new';
   const current = inbox !== null && inbox !== 'new' ? inbox : null;
-  const [type, setType] = useState<InboxType | null>(null);
   const [name, setName] = useState('');
-  const [number, setNumber] = useState('');
-  const [phoneNumberId, setPhoneNumberId] = useState('');
-  const [businessAccountId, setBusinessAccountId] = useState('');
-  const [token, setToken] = useState('');
-  const [secret, setSecret] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState<MockInbox | null>(null);
+  const [relink, setRelink] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setType(current?.type ?? null);
     setName(current?.name ?? '');
-    setNumber(current?.number ?? '');
-    setPhoneNumberId(current?.phoneNumberId ?? '');
-    setBusinessAccountId(current?.businessAccountId ?? '');
-    setToken('');
-    setSecret('');
     setSubmitted(false);
     setSaved(current);
+    setRelink(false);
   }, [inbox]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const required = (v: string) =>
-    submitted && v.trim() === '' ? t('mockInbox.required') : undefined;
-  const digits = (v: string) =>
-    submitted && !/^\d{10,20}$/.test(v.trim()) ? t('mockInbox.digitsOnly') : undefined;
-  const secretError = (v: string) => (isNew ? required(v) : undefined);
-  const api = type === 'business_api';
+  const nameError = submitted && name.trim() === '' ? t('mockInbox.required') : undefined;
 
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitted(true);
-    if (!type || !name.trim()) return;
-    if (
-      api &&
-      (!number.trim() ||
-        !/^\d{10,20}$/.test(phoneNumberId.trim()) ||
-        !/^\d{10,20}$/.test(businessAccountId.trim()) ||
-        (isNew && (!token.trim() || !secret.trim())))
-    )
-      return;
-    const values = api
-      ? {
-          name: name.trim(),
-          number: number.trim(),
-          type,
-          phoneNumberId: phoneNumberId.trim(),
-          businessAccountId: businessAccountId.trim(),
-        }
-      : // A linked phone learns its number from WhatsApp after the scan.
-        { name: name.trim(), number: current?.number ?? t('mockInbox.numberAfterScan'), type };
+    if (!name.trim()) return;
     if (current) {
-      updateInbox(current.id, values);
-      setSaved({ ...current, ...values });
+      updateInbox(current.id, { name: name.trim() });
+      setSaved({ ...current, name: name.trim() });
       toast.success(t('mockInbox.saved'));
     } else {
-      setSaved(addInbox(values));
-      toast.success(api ? t('mockInbox.created') : t('mockInbox.createdPhone'));
+      setSaved(addInbox(name.trim()));
+      toast.success(t('mockInbox.createdPhone'));
     }
   };
 
-  /** Mock: Meta's verification call (Business API) or the phone's scan (linked phone) after a moment. */
+  /** Mock: the phone scans the code after a moment, and WhatsApp tells the number. */
   const simulate = () => {
     if (!saved) return;
     setBusy(true);
     setTimeout(() => {
-      const patch: Partial<MockInbox> =
-        saved.type === 'linked_phone'
-          ? { status: 'connected', number: '+60 11-2233 4455' }
-          : { status: 'connected' };
+      const patch: Partial<MockInbox> = {
+        status: 'connected',
+        number: saved.number || '+60 11-2233 4455',
+      };
       updateInbox(saved.id, patch);
       setSaved({ ...saved, ...patch });
+      setRelink(false);
       setBusy(false);
-      toast.success(saved.type === 'linked_phone' ? t('mockInbox.scanOk') : t('mockInbox.testOk'));
+      toast.success(t('mockInbox.scanOk'));
     }, 900);
   };
 
+  const showQr = !!saved && (saved.status !== 'connected' || relink);
   const formId = 'mock-inbox-form';
-  const title =
-    isNew && !saved
-      ? t('mockInbox.addTitle')
-      : t('mockInbox.editTitle', { name: saved?.name ?? name });
   return (
     <ResponsiveDialog
       open={inbox !== null}
       onOpenChange={(next) => !next && onClose()}
-      title={title}
-      description={type ? t(`mockInbox.dialogDescription.${type}`) : t('mockInbox.chooseType')}
+      title={
+        isNew && !saved
+          ? t('mockInbox.addTitle')
+          : t('mockInbox.editTitle', { name: saved?.name ?? name })
+      }
+      description={t('mockInbox.dialogDescription')}
       size="medium"
       footer={
         <>
@@ -304,8 +243,8 @@ function InboxDialog({
           >
             {saved && isNew ? t('common:actions.done') : t('common:actions.cancel')}
           </Button>
-          {/* After a new inbox is saved only Done remains: the next step is in Meta or on the phone. */}
-          {type && !(saved && isNew) && (
+          {/* After a new inbox is saved only Done remains: the next step is on the phone. */}
+          {!(saved && isNew) && (
             <Button type="submit" form={formId} size="touch" className="sm:min-h-9">
               {t('mockInbox.save')}
             </Button>
@@ -313,145 +252,15 @@ function InboxDialog({
         </>
       }
     >
-      {!type ? (
-        <TypeChoice onPick={setType} />
-      ) : (
-        <form id={formId} onSubmit={save} noValidate className="flex min-w-0 flex-col gap-5 pb-1">
-          <Field label={t('mockInbox.name')} hint={t('mockInbox.nameHint')} error={required(name)}>
-            {(p) => (
-              <Input {...p} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-            )}
-          </Field>
-          {api && (
-            <>
-              <Field
-                label={t('mockInbox.number')}
-                hint={t('mockInbox.numberHint')}
-                error={required(number)}
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    value={number}
-                    inputMode="tel"
-                    onChange={(e) => setNumber(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t('mockInbox.phoneNumberId')}
-                hint={t('mockInbox.phoneNumberIdHint')}
-                error={digits(phoneNumberId)}
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    value={phoneNumberId}
-                    inputMode="numeric"
-                    onChange={(e) => setPhoneNumberId(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t('mockInbox.businessAccountId')}
-                hint={t('mockInbox.businessAccountIdHint')}
-                error={digits(businessAccountId)}
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    value={businessAccountId}
-                    inputMode="numeric"
-                    onChange={(e) => setBusinessAccountId(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t('mockInbox.accessToken')}
-                hint={isNew ? t('mockInbox.accessTokenHint') : t('mockInbox.keepSecretHint')}
-                error={secretError(token)}
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    autoComplete="off"
-                    value={token}
-                    placeholder={isNew ? '' : '••••••••'}
-                    onChange={(e) => setToken(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t('mockInbox.appSecret')}
-                hint={isNew ? t('mockInbox.appSecretHint') : t('mockInbox.keepSecretHint')}
-                error={secretError(secret)}
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="password"
-                    autoComplete="off"
-                    value={secret}
-                    placeholder={isNew ? '' : '••••••••'}
-                    onChange={(e) => setSecret(e.target.value)}
-                  />
-                )}
-              </Field>
-            </>
+      <form id={formId} onSubmit={save} noValidate className="flex min-w-0 flex-col gap-5 pb-1">
+        <Field label={t('mockInbox.name')} hint={t('mockInbox.nameHint')} error={nameError}>
+          {(p) => (
+            <Input {...p} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
           )}
+        </Field>
 
-          {saved && saved.type === 'business_api' && (
-            <div
-              className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/40 p-4"
-              data-testid="inbox-webhook"
-            >
-              <p className="font-medium">{t('mockInbox.webhookTitle')}</p>
-              <p className="text-sm text-muted-foreground">{t('mockInbox.webhookSteps')}</p>
-              <WebhookValue label={t('mockInbox.callbackUrl')} value={callbackUrl(saved.id)} />
-              <WebhookValue label={t('mockInbox.verifyToken')} value={verifyTokenFor(saved.id)} />
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="touch"
-                  className="md:min-h-9"
-                  disabled={busy}
-                  onClick={simulate}
-                >
-                  {busy ? t('mockInbox.testing') : t('mockInbox.test')}
-                </Button>
-                <StatusDot
-                  tone={STATUS_TONE[saved.status]}
-                  label={<span className="text-sm">{t(`mockInbox.state.${saved.status}`)}</span>}
-                />
-              </div>
-            </div>
-          )}
-
-          {saved && saved.type === 'linked_phone' && saved.status !== 'connected' && (
-            <div
-              className="flex min-w-0 flex-col items-center gap-3 rounded-lg border bg-muted/40 p-4 text-center"
-              data-testid="inbox-qr"
-            >
-              <p className="font-medium">{t('mockInbox.scanTitle')}</p>
-              <p className="text-sm text-muted-foreground">{t('mockInbox.scanSteps')}</p>
-              <div className="rounded-lg bg-white p-3">
-                <QRCodeSVG value={`mock-link-${saved.id}`} size={176} />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="touch"
-                className="md:min-h-9"
-                disabled={busy}
-                onClick={simulate}
-              >
-                {busy ? t('mockInbox.scanning') : t('mockInbox.simulateScan')}
-              </Button>
-            </div>
-          )}
-          {saved && saved.type === 'linked_phone' && saved.status === 'connected' && (
+        {saved && saved.status === 'connected' && !relink && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusDot
               tone="success"
               label={
@@ -460,53 +269,41 @@ function InboxDialog({
                 </span>
               }
             />
-          )}
-        </form>
-      )}
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="md:min-h-9"
+              onClick={() => setRelink(true)}
+            >
+              {t('mockInbox.relink')}
+            </Button>
+          </div>
+        )}
+
+        {showQr && (
+          <div
+            className="flex min-w-0 flex-col items-center gap-3 rounded-lg border bg-muted/40 p-4 text-center"
+            data-testid="inbox-qr"
+          >
+            <p className="font-medium">{t('mockInbox.scanTitle')}</p>
+            <p className="text-sm text-muted-foreground">{t('mockInbox.scanSteps')}</p>
+            <div className="rounded-lg bg-white p-3">
+              <QRCodeSVG value={`mock-link-${saved.id}`} size={176} />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="md:min-h-9"
+              disabled={busy}
+              onClick={simulate}
+            >
+              {busy ? t('mockInbox.scanning') : t('mockInbox.simulateScan')}
+            </Button>
+          </div>
+        )}
+      </form>
     </ResponsiveDialog>
-  );
-}
-
-/** First step of Add inbox: how this number connects. */
-function TypeChoice({ onPick }: Readonly<{ onPick: (type: InboxType) => void }>) {
-  const { t } = useTranslation('admin');
-  const options: { type: InboxType; icon: typeof Smartphone }[] = [
-    { type: 'linked_phone', icon: Smartphone },
-    { type: 'business_api', icon: BadgeCheck },
-  ];
-  return (
-    <div className="flex flex-col gap-3 pb-1" data-testid="inbox-type-choice">
-      {options.map(({ type, icon: Icon }) => (
-        <Button
-          key={type}
-          type="button"
-          variant="outline"
-          onClick={() => onPick(type)}
-          className={cn('h-auto items-start justify-start gap-3 p-4 text-left whitespace-normal')}
-        >
-          <Icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
-          <span className="flex min-w-0 flex-col gap-1">
-            <span className="font-medium">{t(`mockInbox.type.${type}`)}</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              {t(`mockInbox.typeHint.${type}`)}
-            </span>
-          </span>
-        </Button>
-      ))}
-    </div>
-  );
-}
-
-function WebhookValue({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="min-w-0 flex-1 rounded-md border bg-background px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">
-          {value}
-        </code>
-        <CopyButton text={value} className="self-start sm:self-auto" />
-      </div>
-    </div>
   );
 }

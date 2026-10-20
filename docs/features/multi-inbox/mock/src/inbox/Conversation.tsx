@@ -26,8 +26,7 @@ import { i18n } from '@/i18n';
 import { toast } from 'sonner';
 import { Banner, EmptyState } from '@/components/app';
 import { useAuth } from '../auth/AuthProvider';
-import { accessOf, canOpen, inboxOfChat, isWindowClosed, useMockInboxes } from '../mock/inboxes';
-import { WindowClosedBar } from './WindowClosedBar';
+import { accessOf, canOpen, inboxOfChat, useMockInboxes } from '../mock/inboxes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,7 +77,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const notesQ = useNotes(jid);
   const quickReplies = useQuickReplies();
   const wa = useWaStatus();
-  // Proposed (multi-inbox): inbox access and the Business API reply window (mock store).
+  // Proposed (multi-inbox): inbox access (mock store).
   const mockInboxes = useMockInboxes();
   const { user: signedIn } = useAuth();
   const sendText = useSendText(jid);
@@ -266,7 +265,6 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       />
     );
   }
-  const windowClosed = chat.type === 'dm' && isWindowClosed(mockInboxes, chat.jid);
 
   const waState = wa.data?.state;
   const blocked = waSendingBlocked(waState);
@@ -359,62 +357,54 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               {blocked ? t('conversation.sendingBlocked') : t('conversation.reconnecting')}
             </p>
           )}
-          {windowClosed ? (
-            <WindowClosedBar
-              jid={jid}
-              inboxName={chatInbox?.name ?? ''}
-              customerName={chatTitle(chat, t)}
+          <div className="px-2 py-2 sm:px-3">
+            <Composer
+              key={jid}
+              quickReplies={quickReplies.data ?? []}
+              disabled={blocked}
+              placeholder={
+                blocked
+                  ? t('conversation.placeholderBlocked')
+                  : wideComposer
+                    ? t('conversation.placeholder')
+                    : t('composer.placeholder')
+              }
+              confirmSend={confirmSend}
+              onTyping={() => emitTyping(jid)}
+              replyTo={
+                replyTo
+                  ? {
+                      id: replyTo.id,
+                      author: quotedAuthor(replyTo, t, contactName),
+                      preview: quotedPreview(replyTo, t),
+                    }
+                  : null
+              }
+              onCancelReply={() => setReplyTo(null)}
+              onSend={(text) => {
+                sendText.mutate({ text, clientId: newClientId(), quotedId: replyTo?.id });
+                setReplyTo(null);
+              }}
+              onAttach={(file, caption) => {
+                sendMedia.mutate({
+                  file,
+                  caption,
+                  clientId: newClientId(),
+                  quotedId: replyTo?.id,
+                });
+                setReplyTo(null);
+              }}
+              onVoiceNote={async (file, clientId) => {
+                await sendMedia.mutateAsync({
+                  file,
+                  voiceNote: true,
+                  clientId,
+                  quotedId: replyTo?.id,
+                });
+                setReplyTo(null);
+              }}
             />
-          ) : (
-            <div className="px-2 py-2 sm:px-3">
-              <Composer
-                key={jid}
-                quickReplies={quickReplies.data ?? []}
-                disabled={blocked}
-                placeholder={
-                  blocked
-                    ? t('conversation.placeholderBlocked')
-                    : wideComposer
-                      ? t('conversation.placeholder')
-                      : t('composer.placeholder')
-                }
-                confirmSend={confirmSend}
-                onTyping={() => emitTyping(jid)}
-                replyTo={
-                  replyTo
-                    ? {
-                        id: replyTo.id,
-                        author: quotedAuthor(replyTo, t, contactName),
-                        preview: quotedPreview(replyTo, t),
-                      }
-                    : null
-                }
-                onCancelReply={() => setReplyTo(null)}
-                onSend={(text) => {
-                  sendText.mutate({ text, clientId: newClientId(), quotedId: replyTo?.id });
-                  setReplyTo(null);
-                }}
-                onAttach={(file, caption) => {
-                  sendMedia.mutate({
-                    file,
-                    caption,
-                    clientId: newClientId(),
-                    quotedId: replyTo?.id,
-                  });
-                  setReplyTo(null);
-                }}
-                onVoiceNote={async (file, clientId) => {
-                  await sendMedia.mutateAsync({
-                    file,
-                    voiceNote: true,
-                    clientId,
-                    quotedId: replyTo?.id,
-                  });
-                  setReplyTo(null);
-                }}
-              />
-            </div>
-          )}
+          </div>
         </div>
       </section>
       <NotesPanel

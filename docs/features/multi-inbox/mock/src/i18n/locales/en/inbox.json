@@ -479,16 +479,6 @@
     "filterLabel": "Inbox",
     "allInboxes": "All inboxes ({{count}})",
     "noAccessTitle": "You cannot open this chat",
-    "noAccessBody": "It belongs to an inbox that you do not have access to. Ask an admin if you need it.",
-    "windowClosedTitle": "The 24-hour reply window is closed.",
-    "windowClosedBody": "The customer wrote more than 24 hours ago, so {{inbox}} can only send an approved template until they reply.",
-    "sendTemplate": "Send template",
-    "templateSent": "Template sent. You can type freely again when the customer replies.",
-    "templateTitle": "Send a template message",
-    "templateDescription": "Meta approved these templates for this number. Fill in the blanks, then send.",
-    "templateList": "Templates",
-    "templatePreview": "Preview",
-    "templateSend": "Send template",
-    "templateCost": "Meta charges for each conversation that a template starts."
+    "noAccessBody": "It belongs to an inbox that you do not have access to. Ask an admin if you need it."
   }
 }
