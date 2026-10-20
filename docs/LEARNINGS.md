@@ -216,6 +216,8 @@ into AGENTS.md.
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
   fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
+  A new test file that copies another file's request helpers fails it too: import them from a shared
+  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
