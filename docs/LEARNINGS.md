@@ -372,6 +372,11 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
+  groups WhatsApp shows it only by its LID. Anything that names people (mentions, member lists) must
+  also check `status.me.jid` and `status.me.lid` (from `sock.user.lid`) and name it from `status.me.name`;
+  a tag of the owner otherwise shows as a bare number.
+
 - Keep mention JIDs separate from the original body and resolve names at every presentation path, including inbox/notification previews before truncation; sender names alone do not name tags. Legacy numeric tags must be unambiguous across phone/LID identities, and recycled phone contacts must never supply another person's name.
 
 - A voice note is Ogg/Opus sent with `ptt: true`; pass `seconds` and `waveform` (64 bytes, 0–100)
@@ -529,6 +534,12 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- A socket event that arrives while its list is still loading is lost: the load's older answer replaces the
+  patched cache, and React Query reuses a running first load instead of restarting it on
+  `invalidateQueries`. Wait for the running load to end, then reload (`reloadAfterRunningLoad`). An e2e
+  test that fails only in the full run is usually such a race: read its failure screenshot, never just
+  rerun it.
 
 - Electron fires `will-frame-navigate` before `will-navigate`; `preventDefault()` in the first cancels the
   second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle

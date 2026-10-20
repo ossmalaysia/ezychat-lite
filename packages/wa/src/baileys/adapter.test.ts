@@ -82,6 +82,26 @@ describe('requestPairingCode', () => {
   });
 });
 
+describe('linked account identity', () => {
+  it('reports the account LID from the session (groups and mentions show it instead of the number)', () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    const open = (user: Record<string, string>) =>
+      (
+        a as unknown as {
+          onConnectionUpdate(sock: unknown, u: { connection: string }): void;
+        }
+      ).onConnectionUpdate({ user }, { connection: 'open' });
+    open({ id: '60123456789:12@s.whatsapp.net', lid: '81071886581878:12@lid', notify: 'Kopi' });
+    expect(a.status.me).toEqual({
+      jid: '60123456789@s.whatsapp.net',
+      name: 'Kopi',
+      lid: '81071886581878@lid',
+    });
+    open({ id: '60123456789:12@s.whatsapp.net' });
+    expect(a.status.me).toEqual({ jid: '60123456789@s.whatsapp.net', name: null, lid: null });
+  });
+});
+
 describe('createBaileysAdapter (offline smoke)', () => {
   it('starts disconnected and refuses to send without connecting', async () => {
     const a = createBaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
