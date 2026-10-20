@@ -25,6 +25,7 @@ const TEAM = [
 const jid = (n) => `6012${n}@s.whatsapp.net`;
 const GROUP = '120363025550001@g.us';
 const NEW_NUMBER = '60134455667';
+const NEW_NUMBER_JID = NEW_NUMBER + '@s.whatsapp.net';
 
 async function session(username, password = PASSWORD) {
   const headers = { 'content-type': 'application/json', origin: BASE };
@@ -312,7 +313,7 @@ const SHOTS = [
   [
     'ai-assistant',
     'chat-started-by-assistant',
-    `/chats/${encodeURIComponent(`${NEW_NUMBER}@s.whatsapp.net`)}`,
+    `/chats/${encodeURIComponent(NEW_NUMBER_JID)}`,
     ['desktop', 'mobile'],
   ],
 ];

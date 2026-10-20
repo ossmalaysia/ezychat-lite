@@ -183,10 +183,10 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return this.abouts.get(jid) ?? null;
   }
 
-  async checkNumber(phone: string): Promise<string | null> {
-    if (this._status.state !== 'open') throw new WaUnavailableError();
-    if (!/^\d{6,15}$/.test(phone) || this.notOnWhatsApp.has(phone)) return null;
-    return `${phone}@s.whatsapp.net`;
+  checkNumber(phone: string): Promise<string | null> {
+    if (this._status.state !== 'open') return Promise.reject(new WaUnavailableError());
+    if (!/^\d{6,15}$/.test(phone) || this.notOnWhatsApp.has(phone)) return Promise.resolve(null);
+    return Promise.resolve(`${phone}@s.whatsapp.net`);
   }
 
   /** checkNumber answers null for this number (every other valid number has an account). */

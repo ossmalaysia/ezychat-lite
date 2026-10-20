@@ -30,7 +30,10 @@ test('admin turns on AI assistant access, creates a token, uses it on /mcp and r
   page,
   baseURL,
 }, info) => {
-  test.skip(info.project.name !== 'desktop-chromium');
+  test.skip(
+    info.project.name !== 'desktop-chromium',
+    'the AI assistant access switch is inbox-wide: one project drives it',
+  );
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // A clean context: no admin session cookie, so only the bearer token can authorize /mcp.
@@ -119,7 +122,10 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
   page,
   baseURL,
 }, info) => {
-  test.skip(info.project.name !== 'desktop-chromium');
+  test.skip(
+    info.project.name !== 'desktop-chromium',
+    'the AI assistant access switch is inbox-wide: one project drives it',
+  );
   await page.setViewportSize({ width: 1280, height: 900 });
   const api = await playwrightRequest.newContext({ baseURL });
   try {

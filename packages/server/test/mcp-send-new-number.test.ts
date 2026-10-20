@@ -6,9 +6,9 @@ import type { ApiPrincipal } from '../src/api-tokens/index.js';
 import { setMcpEnabled } from '../src/mcp/settings.js';
 import { createInboxSendPort, NEW_NUMBER_WARNING, SEND_LIMITS } from '../src/mcp/send.js';
 import { makeTestApp, type TestApp } from './helpers.js';
+import { data, mcpClient, rpc, waitFor } from './mcp-helpers.js';
 
 const EXISTING = '60123456789@s.whatsapp.net';
-const ACCEPT = 'application/json, text/event-stream';
 
 let t: TestApp;
 let admin: User;
@@ -17,45 +17,11 @@ let newNumbers: string;
 let newNumbersId: number;
 let adminCookie: string;
 
-const rpc = (method: string, params?: unknown) => ({ jsonrpc: '2.0', id: 1, method, params });
-
-function post(body: unknown, token: string) {
-  return t.app.inject({
-    method: 'POST',
-    url: '/mcp',
-    remoteAddress: '127.0.0.1',
-    headers: {
-      host: 'localhost',
-      'content-type': 'application/json',
-      accept: ACCEPT,
-      authorization: `Bearer ${token}`,
-    },
-    payload: JSON.stringify(body),
-  });
-}
-
-type ToolResult = { content: Array<{ text: string }>; isError?: boolean };
-async function call(
-  name: string,
-  args: Record<string, unknown>,
-  token = newNumbers,
-): Promise<ToolResult> {
-  const res = await post(rpc('tools/call', { name, arguments: args }), token);
-  expect(res.statusCode).toBe(200);
-  return res.json().result as ToolResult;
-}
-const data = (r: ToolResult) => JSON.parse(r.content[0]!.text);
-const count = (sql: string, ...params: unknown[]) =>
-  (t.ctx.db.prepare(sql).get(...params) as { n: number }).n;
+const mcp = mcpClient(() => t);
+const { post, count } = mcp;
+const call = (name: string, args: Record<string, unknown>, token = newNumbers) =>
+  mcp.call(name, args, token);
 const chatCount = (jid: string) => count('SELECT COUNT(*) AS n FROM chats WHERE jid = ?', jid);
-
-async function waitFor(fn: () => boolean) {
-  const start = Date.now();
-  while (!fn()) {
-    if (Date.now() - start > 3000) throw new Error('waitFor timeout');
-    await new Promise((r) => setTimeout(r, 10));
-  }
-}
 
 let n = 0;
 const requestId = () => `req-new-${++n}-abcdef`;

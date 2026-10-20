@@ -10,9 +10,12 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const CUSTOMER = '60198887766@s.whatsapp.net';
 let cookie = '';
 let failed = 0;
+/** Server text in a detail stays on one line, so it can never fake a PASS/FAIL line. */
+const oneLine = (value) => String(value).replace(/[\r\n]+/g, ' ');
 const check = (ok, step, detail = '') => {
   if (!ok) failed++;
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? `  (${detail})` : ''}`);
+  const extra = detail ? '  (' + oneLine(detail) + ')' : '';
+  console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + extra);
 };
 
 async function api(method, path, body) {
@@ -156,6 +159,7 @@ check(
   'send_to_new_number listed with the ban warning first',
 );
 const NEW_PHONE = '60197776655';
+const NEW_JID = NEW_PHONE + '@s.whatsapp.net';
 const started = await outClient.callTool({
   name: 'send_to_new_number',
   arguments: {
@@ -168,7 +172,7 @@ const startedResult = JSON.parse(started.content[0].text);
 check(
   !started.isError &&
     startedResult.newChat === true &&
-    startedResult.chatJid === `${NEW_PHONE}@s.whatsapp.net` &&
+    startedResult.chatJid === NEW_JID &&
     /WhatsApp can ban/.test(startedResult.warning),
   'send_to_new_number starts the chat and returns the warning',
   JSON.stringify({ newChat: startedResult.newChat, chatJid: startedResult.chatJid }),
@@ -192,9 +196,7 @@ const bad = await outClient.callTool({
 check(bad.isError === true, 'a bad number is refused', bad.content[0].text);
 await outClient.close();
 await new Promise((res) => setTimeout(res, 1500));
-const newMsgs = (
-  await api('GET', `/chats/${encodeURIComponent(`${NEW_PHONE}@s.whatsapp.net`)}/messages`)
-).json.messages;
+const newMsgs = (await api('GET', `/chats/${encodeURIComponent(NEW_JID)}/messages`)).json.messages;
 check(
   newMsgs.length === 1 && newMsgs[0].fromMe && newMsgs[0].viaAssistant === true,
   'the new chat holds one message marked "via AI assistant"',

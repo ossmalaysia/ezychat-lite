@@ -6,10 +6,10 @@ import { setMcpEnabled } from '../src/mcp/settings.js';
 import { sendClientId } from '../src/mcp/send.js';
 import { productTitle } from '../src/mcp/server.js';
 import { makeTestApp, type TestApp } from './helpers.js';
+import { data, mcpClient, rpc, waitFor, type ToolResult } from './mcp-helpers.js';
 
 const LID = '9001@lid';
 const PN = '60123456789@s.whatsapp.net';
-const ACCEPT = 'application/json, text/event-stream';
 
 let t: TestApp;
 let admin: User;
@@ -18,44 +18,10 @@ let sender: string;
 let senderId: number;
 let adminCookie: string;
 
-const rpc = (method: string, params?: unknown) => ({ jsonrpc: '2.0', id: 1, method, params });
-
-function post(body: unknown, token: string) {
-  return t.app.inject({
-    method: 'POST',
-    url: '/mcp',
-    remoteAddress: '127.0.0.1',
-    headers: {
-      host: 'localhost',
-      'content-type': 'application/json',
-      accept: ACCEPT,
-      authorization: `Bearer ${token}`,
-    },
-    payload: JSON.stringify(body),
-  });
-}
-
-type ToolResult = { content: Array<{ text: string }>; isError?: boolean };
-async function call(
-  name: string,
-  args: Record<string, unknown>,
-  token = sender,
-): Promise<ToolResult> {
-  const res = await post(rpc('tools/call', { name, arguments: args }), token);
-  expect(res.statusCode).toBe(200);
-  return res.json().result as ToolResult;
-}
-const data = (r: ToolResult) => JSON.parse(r.content[0]!.text);
-const count = (sql: string, ...params: unknown[]) =>
-  (t.ctx.db.prepare(sql).get(...params) as { n: number }).n;
-
-async function waitFor(fn: () => boolean) {
-  const start = Date.now();
-  while (!fn()) {
-    if (Date.now() - start > 3000) throw new Error('waitFor timeout');
-    await new Promise((r) => setTimeout(r, 10));
-  }
-}
+const mcp = mcpClient(() => t);
+const { post, count } = mcp;
+const call = (name: string, args: Record<string, unknown>, token = sender) =>
+  mcp.call(name, args, token);
 
 let n = 0;
 const requestId = () => `req-test-${++n}-abcdef`;
