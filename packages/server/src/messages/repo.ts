@@ -36,6 +36,8 @@ export interface MessageRow {
   transcript_status?: TranscriptStatus | null;
   /** 1 = sent as a WhatsApp voice note (010); optional so inserts need not name it. */
   voice_note?: number;
+  /** Access token whose AI assistant sent it through MCP (013); optional so inserts need not name it. */
+  sent_via_token_id?: number | null;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -62,6 +64,7 @@ export function rowToMessage(r: MessageRow): Message {
     timestamp: r.timestamp,
     clientId: r.client_id,
     ...(r.voice_note === 1 ? { voiceNote: true } : {}),
+    ...(r.sent_via_token_id != null ? { viaAssistant: true } : {}),
     // Only voice notes that went through transcription carry these fields.
     ...(r.transcript_status
       ? {
@@ -139,14 +142,15 @@ export class MessageRepo {
       .prepare(
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
-           wa_remote_jid, voice_note, mentioned_jids)
+           wa_remote_jid, voice_note, mentioned_jids, sent_via_token_id)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
-           @wa_remote_jid, @voice_note, @mentioned_jids)`,
+           @wa_remote_jid, @voice_note, @mentioned_jids, @sent_via_token_id)`,
       )
       .run({
         ...r,
         voice_note: r.voice_note ?? 0,
+        sent_via_token_id: r.sent_via_token_id ?? null,
         mentioned_jids: r.mentioned_jids === undefined ? '[]' : r.mentioned_jids,
       });
     return info.changes > 0;

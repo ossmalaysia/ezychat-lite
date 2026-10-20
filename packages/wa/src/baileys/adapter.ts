@@ -43,6 +43,7 @@ import { Lru } from './lru.js';
 import { jidType, mapWAMessage, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
+import { checkedNumberJid } from './number-check.js';
 import { profilePhoto } from './photos.js';
 import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
 
@@ -751,6 +752,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   async getGroupInfo(groupJid: string): Promise<WaGroupInfo> {
     const sock = this.requireOpen();
     return mapGroupMetadata(await sock.groupMetadata(groupJid));
+  }
+
+  async checkNumber(phone: string): Promise<string | null> {
+    const sock = this.requireOpen();
+    const jid = await checkedNumberJid(phone, (j) => sock.onWhatsApp(j));
+    // Result only, never the number: whether WhatsApp knows it.
+    this.logger.info({ found: jid !== null }, 'number check');
+    return jid;
   }
 
   async getAbout(jid: string): Promise<string | null> {

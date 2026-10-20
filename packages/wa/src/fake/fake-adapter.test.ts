@@ -176,4 +176,15 @@ describe('FakeWaAdapter groups', () => {
       code: 'wa_unavailable',
     });
   });
+
+  it('checks numbers: every valid number has WhatsApp unless a test says otherwise', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.connect();
+    wa.setNotOnWhatsApp('60111000003');
+    expect(await wa.checkNumber('60128887777')).toBe('60128887777@s.whatsapp.net');
+    expect(await wa.checkNumber('60111000003')).toBeNull();
+    expect(await wa.checkNumber('12ab')).toBeNull();
+    await wa.disconnect();
+    await expect(wa.checkNumber('60128887777')).rejects.toMatchObject({ code: 'wa_unavailable' });
+  });
 });

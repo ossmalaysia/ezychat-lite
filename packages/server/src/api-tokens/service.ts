@@ -23,10 +23,28 @@ const TOUCH_INTERVAL_MS = 60_000;
 /**
  * `inbox:read`: read chats, messages and stats. `ai:setup`: read, test and change the AI Sales
  * Agent's instructions, hand-off rules and business context text. Every admin token gets both.
+ * `inbox:send`: send text replies into existing chats; only when the admin ticks it at creation
+ * (a token never gains it later). `inbox:send_new`: also start a chat with a number that is not in the
+ * inbox; only together with `inbox:send`, also ticked at creation.
  */
-export type TokenScope = 'inbox:read' | 'ai:setup';
-const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>(['inbox:read', 'ai:setup']);
+export type TokenScope = 'inbox:read' | 'ai:setup' | 'inbox:send' | 'inbox:send_new';
+const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>([
+  'inbox:read',
+  'ai:setup',
+  'inbox:send',
+  'inbox:send_new',
+]);
 const NEW_TOKEN_SCOPES = 'inbox:read ai:setup';
+const SEND_SCOPE: TokenScope = 'inbox:send';
+const SEND_NEW_SCOPE: TokenScope = 'inbox:send_new';
+
+/** The scope string stored for a new token. */
+function newTokenScopes(body: { canSend?: boolean; canMessageNewNumbers?: boolean }): string {
+  if (body.canSend !== true) return NEW_TOKEN_SCOPES;
+  return body.canMessageNewNumbers === true
+    ? `${NEW_TOKEN_SCOPES} ${SEND_SCOPE} ${SEND_NEW_SCOPE}`
+    : `${NEW_TOKEN_SCOPES} ${SEND_SCOPE}`;
+}
 
 export interface ApiPrincipal {
   tokenId: number;
@@ -48,7 +66,14 @@ export type ResolveResult =
 
 export interface ApiTokenService {
   /** Issues a token for an admin; the secret is in the response only. */
-  create(userId: number, body: CreateApiTokenBody, ip: string): CreateApiTokenResponse;
+  create(
+    userId: number,
+    body: Pick<CreateApiTokenBody, 'name' | 'expiresInDays'> & {
+      canSend?: boolean;
+      canMessageNewNumbers?: boolean;
+    },
+    ip: string,
+  ): CreateApiTokenResponse;
   /** Tokens that are not revoked (expired ones included, so the admin can see them). */
   list(): ApiToken[];
   revoke(id: number, actorId: number, ip: string): void;
@@ -113,6 +138,8 @@ export function createApiTokenService(
     createdAt: r.created_at,
     lastUsedAt: r.last_used_at,
     expiresAt: r.expires_at,
+    canSend: r.scopes.split(' ').includes(SEND_SCOPE),
+    canMessageNewNumbers: r.scopes.split(' ').includes(SEND_NEW_SCOPE),
   });
 
   /** The token's owner when the token can be used right now, else why it cannot. */
@@ -151,7 +178,7 @@ export function createApiTokenService(
           secret.slice(0, DISPLAY_CHARS),
           t,
           expiresAt,
-          NEW_TOKEN_SCOPES,
+          newTokenScopes(body),
         ).lastInsertRowid,
       );
       const token = toApiToken(q.byId.get(id) as TokenRow);
@@ -159,7 +186,14 @@ export function createApiTokenService(
         userId,
         action: 'api_token.create',
         ip,
-        meta: { tokenId: id, name: token.name, prefix: token.prefix, expiresAt },
+        meta: {
+          tokenId: id,
+          name: token.name,
+          prefix: token.prefix,
+          expiresAt,
+          canSend: token.canSend,
+          canMessageNewNumbers: token.canMessageNewNumbers,
+        },
       });
       return { token, secret };
     },

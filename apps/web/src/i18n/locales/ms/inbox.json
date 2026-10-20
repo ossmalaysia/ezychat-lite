@@ -97,7 +97,9 @@
     "someoneElse": "orang lain",
     "confirmTitle": "Ditugaskan kepada {{name}}",
     "confirmBody": "Sembang ini ditugaskan kepada <strong>{{name}}</strong> — balas juga? Anda tidak akan ditanya lagi untuk sembang ini dalam sesi ini.",
-    "replyAnyway": "Balas juga"
+    "replyAnyway": "Balas juga",
+    "startedByAssistantTitle": "Pembantu AI memulakan sembang ini",
+    "startedByAssistantBody": "Pelanggan ini belum menulis kepada anda. WhatsApp boleh menyekat nombor anda jika orang melaporkan mesej yang tidak dijangka."
   },
   "composer": {
     "placeholder": "Taip mesej",
@@ -267,7 +269,8 @@
       "too_long": "Terlalu panjang untuk ditranskripsi",
       "unsupported": "Format audio ini tidak dapat ditranskripsi"
     },
-    "reply": "Balas"
+    "reply": "Balas",
+    "viaAssistant": "melalui pembantu AI"
   },
   "media": {
     "types": {

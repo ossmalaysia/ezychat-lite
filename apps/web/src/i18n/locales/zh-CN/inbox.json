@@ -97,7 +97,9 @@
     "someoneElse": "其他人",
     "confirmTitle": "已指派给 {{name}}",
     "confirmBody": "此聊天已指派给 <strong>{{name}}</strong>，仍要回复吗？本次会话中不会再就此聊天询问你。",
-    "replyAnyway": "仍然回复"
+    "replyAnyway": "仍然回复",
+    "startedByAssistantTitle": "此对话由 AI 助手发起",
+    "startedByAssistantBody": "该客户尚未给您发过消息。如果有人举报意外收到的消息，WhatsApp 可能会封禁您的号码。"
   },
   "composer": {
     "placeholder": "输入消息",
@@ -267,7 +269,8 @@
       "too_long": "语音太长，无法转写",
       "unsupported": "无法转写这种音频格式"
     },
-    "reply": "回复"
+    "reply": "回复",
+    "viaAssistant": "通过 AI 助手"
   },
   "media": {
     "types": {

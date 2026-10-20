@@ -38,6 +38,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private readonly media = new Map<string, Buffer>();
   private readonly groups = new Map<string, WaGroupInfo>();
   private readonly abouts = new Map<string, string>();
+  private readonly notOnWhatsApp = new Set<string>();
   /** Every getGroupInfo / getAbout call, for tests that check caching. */
   readonly groupInfoCalls: string[] = [];
   readonly aboutCalls: string[] = [];
@@ -180,6 +181,17 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.aboutCalls.push(jid);
     if (this.aboutFails) throw new Error('About lookup failed');
     return this.abouts.get(jid) ?? null;
+  }
+
+  checkNumber(phone: string): Promise<string | null> {
+    if (this._status.state !== 'open') return Promise.reject(new WaUnavailableError());
+    if (!/^\d{6,15}$/.test(phone) || this.notOnWhatsApp.has(phone)) return Promise.resolve(null);
+    return Promise.resolve(`${phone}@s.whatsapp.net`);
+  }
+
+  /** checkNumber answers null for this number (every other valid number has an account). */
+  setNotOnWhatsApp(phone: string): void {
+    this.notOnWhatsApp.add(phone);
   }
 
   /** Make the next getAbout calls fail, as a WhatsApp request error would. */

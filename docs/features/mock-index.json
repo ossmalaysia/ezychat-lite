@@ -6,14 +6,26 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "simple-first-setup",
-    "gitRevision": "90a95dab5e992e2ea5d2daf773d613356b02f146",
-    "mock": "docs/features/simple-first-setup/mock/index.html",
-    "design": "docs/features/simple-first-setup/design.md",
-    "confirmedAt": "2026-10-15",
-    "confirmation": "Owner, 2026-10-15: \"look good, use workflow with multi agent to implement it\". Open questions answered with the mock defaults: business name required; AI on by default once connected; username visible and prefilled; Getting started card hides when done or dismissed; menu label Phone access."
+    "feature": "mcp-send-message",
+    "gitRevision": "b3a5479b92cc4b519b141ebb013758c13bcea67c",
+    "mock": "docs/features/mcp-send-message/mock/index.html",
+    "design": "docs/features/mcp-send-message/design.md",
+    "confirmedAt": "2026-10-20",
+    "confirmation": "Owner, 2026-10-20: \"mock ok, continue build the real screens\" (after the new-number option: \"yes ok with new number feature, it is up to them to use, but we will show warning in whatsapp and LLM\")."
   },
   "proposals": [
+    {
+      "feature": "mcp-send-message",
+      "creationOrder": 4,
+      "createdAt": "2026-10-20",
+      "design": "docs/features/mcp-send-message/design.md",
+      "mock": "docs/features/mcp-send-message/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "simple-first-setup",
+      "baselineGitRevision": "90a95dab5e992e2ea5d2daf773d613356b02f146",
+      "baselineAppRevision": "e43b0de",
+      "coverage": "Full app clone of the confirmed simple-first-setup reference (rebuilt against @ezychat/* packages: mechanical import rename and 3 type drift fixes); adds the Create token \"Can send WhatsApp messages\" checkbox with its warning, the \"Can send\" token badge, the \"via AI assistant\" line on replies sent through the assistant, and updated Integrations texts; the demo reply is sent through the real send port; the \"Can also message new numbers\" option with its ban warning, the \"New numbers\" token badge and the warning above a chat an AI assistant started"
+    },
     {
       "feature": "simple-first-setup",
       "creationOrder": 3,
