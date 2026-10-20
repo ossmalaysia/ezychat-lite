@@ -147,6 +147,10 @@ into AGENTS.md.
   environment whose rules allow only `v*` tags and `main`. Read the subject format first
   (`gh api repos/<repo>/actions/oidc/customization/sub`): with `use_immutable_subject` it is
   `repo:<owner>@<owner id>/<repo>@<repo id>:environment:release`, not `repo:<owner>/<repo>:…`.
+- The `ossmalaysia` organization allows only GitHub-owned actions plus pinned SHAs
+  (`gh api orgs/ossmalaysia/actions/permissions/selected-actions`): a workflow with any other action
+  fails as `startup_failure` before a job runs. Add the exact pinned SHA (with the owner's approval)
+  before merging the workflow, not after the release tag.
 - A CI job that fails in `npm ci` with `node-gyp` building `better-sqlite3` (no Python/compiler on the
   runner) means its prebuilt binary download failed, not that the change broke it: check the step
   (install, before any test), then `gh run rerun <id> --failed` before investigating the code.
