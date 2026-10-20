@@ -568,6 +568,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
+  read `<userData>/updates/downloads/` (a growing `<uuid>.part`, then `<sha256>-<installer>` of the
+  manifest size) and the installed exe's version before blaming the network or the feed.
 - Feature mocks rot with the code: the confirmed reference stopped compiling after the `@ezychat/*`
   rename. Clone it, fix only mechanically (renames, type drift), record the fixes in
   `reference.json` → `baselineDriftFixes` and refreeze the hashes so `snapshot.mjs --check` stays
