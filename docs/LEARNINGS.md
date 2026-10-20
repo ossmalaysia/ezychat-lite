@@ -228,7 +228,9 @@ into AGENTS.md.
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
   fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
   A new test file that copies another file's request helpers fails it too: import them from a shared
-  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls).
+  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls). The same for a new dialog
+  that repeats another dialog's fields (easy when porting a mock): extract one fields component
+  (`admin/SendPermissionFields.tsx`).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
