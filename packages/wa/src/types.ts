@@ -151,6 +151,11 @@ export interface WaAdapter {
   getGroupInfo(groupJid: string): Promise<WaGroupInfo>;
   /** A person's WhatsApp "About" text; null when hidden or unset. Throws when it cannot be read. */
   getAbout(jid: string): Promise<string | null>;
+  /**
+   * Ask WhatsApp whether a phone number (digits with country code, no `+`) has an account: its phone
+   * JID, or null when it has none. Throws WaUnavailableError when offline.
+   */
+  checkNumber(phone: string): Promise<string | null>;
   /** Resolve existing local phone/LID mappings only; must not query WhatsApp. */
   getContactAliases(jids: string[]): Promise<WaContactAlias[]>;
 }

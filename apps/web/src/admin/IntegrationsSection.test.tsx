@@ -23,6 +23,7 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     lastUsedAt: null,
     expiresAt: Date.now() + 80 * DAY,
     canSend: false,
+    canMessageNewNumbers: false,
     ...over,
   };
 }

@@ -749,6 +749,15 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return mapGroupMetadata(await sock.groupMetadata(groupJid));
   }
 
+  async checkNumber(phone: string): Promise<string | null> {
+    const sock = this.requireOpen();
+    if (!/^\d{6,15}$/.test(phone)) return null;
+    const [hit] = (await sock.onWhatsApp(`${phone}@s.whatsapp.net`)) ?? [];
+    // Result only, never the number: whether WhatsApp knows it.
+    this.logger.info({ found: !!hit?.exists }, 'number check');
+    return hit?.exists ? jidNormalizedUser(hit.jid) : null;
+  }
+
   async getAbout(jid: string): Promise<string | null> {
     if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
     const kind = jid.endsWith('@lid') ? 'lid' : 'pn';

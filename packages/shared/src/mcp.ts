@@ -20,15 +20,24 @@ export const ApiTokenSchema = z.object({
   expiresAt: z.number().nullable(),
   /** Scope `inbox:send`: the token's AI assistant may send text replies into existing chats. */
   canSend: z.boolean(),
+  /** Scope `inbox:send_new`: the assistant may also start a chat with a number not in the inbox. */
+  canMessageNewNumbers: z.boolean(),
 });
 export type ApiToken = z.infer<typeof ApiTokenSchema>;
 
-export const CreateApiTokenBody = z.strictObject({
-  name: z.string().trim().min(1).max(64),
-  expiresInDays: ApiTokenExpiry.default(90),
-  /** Grant scope `inbox:send` (off unless the admin ticks it; existing tokens never gain it). */
-  canSend: z.boolean().default(false),
-});
+export const CreateApiTokenBody = z
+  .strictObject({
+    name: z.string().trim().min(1).max(64),
+    expiresInDays: ApiTokenExpiry.default(90),
+    /** Grant scope `inbox:send` (off unless the admin ticks it; existing tokens never gain it). */
+    canSend: z.boolean().default(false),
+    /** Grant scope `inbox:send_new` too (needs canSend; off unless the admin ticks it). */
+    canMessageNewNumbers: z.boolean().default(false),
+  })
+  .refine((b) => b.canSend || !b.canMessageNewNumbers, {
+    message: 'Messaging new numbers needs "Can send WhatsApp messages"',
+    path: ['canMessageNewNumbers'],
+  });
 export type CreateApiTokenBody = z.infer<typeof CreateApiTokenBody>;
 export type CreateApiTokenBodyInput = z.input<typeof CreateApiTokenBody>;
 
@@ -131,6 +140,26 @@ export const McpSendMessageInput = z.strictObject({
     .describe('Message id from get_messages to reply to (must be in the same chat)'),
 });
 export type McpSendMessageInput = z.infer<typeof McpSendMessageInput>;
+
+/** Digits of a phone number with its country code, or null (spaces, dashes, brackets and a leading + allowed). */
+export function normalizeNewChatPhone(raw: string): string | null {
+  const digits = raw
+    .trim()
+    .replace(/^\+/, '')
+    .replace(/[\s()-]/g, '');
+  return /^[1-9]\d{6,14}$/.test(digits) ? digits : null;
+}
+
+export const McpSendToNewNumberInput = z.strictObject({
+  phone: z
+    .string()
+    .min(7)
+    .max(32)
+    .describe('Full phone number with country code, for example 60123456789 or +60 12-345 6789'),
+  text: McpSendMessageInput.shape.text,
+  requestId: McpSendMessageInput.shape.requestId,
+});
+export type McpSendToNewNumberInput = z.infer<typeof McpSendToNewNumberInput>;
 
 // AI Sales Agent setup tools (scope `ai:setup`).
 
