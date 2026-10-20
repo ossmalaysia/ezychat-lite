@@ -12,11 +12,17 @@ on:
 
 permissions:
   contents: write
+  # GitHub OIDC for the Azure sign-in of Windows signing (no stored secret in this public repository).
+  id-token: write
 
 jobs:
   package:
     name: Package (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
+    # The Azure federated credential (github-ezychat-lite-release on the app ezychat-ci-signing) trusts
+    # only this environment: subject repo:ossmalaysia@325334523/ezychat-lite@1400498086:environment:release
+    # (the repository uses GitHub's immutable-ID subjects). Its rules allow v* tags and main.
+    environment: release
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +54,24 @@ jobs:
       - run: npm run build -w @ezychat/web
       - run: node scripts/bundle-server.mjs
       - run: npm run build -w @ezychat/desktop
+      # Windows signing with Azure Artifact Signing (Anchor Sprint Pte. Ltd.) when the repository
+      # variables exist; without them the installer stays unsigned (forks, first setup).
+      - name: Azure sign-in for Windows signing (GitHub OIDC)
+        if: runner.os == 'Windows' && vars.AZURE_SIGN_ACCOUNT != ''
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Prepare Windows signing tools
+        if: runner.os == 'Windows' && vars.AZURE_SIGN_ACCOUNT != ''
+        run: node scripts/azure-sign.mjs --github-env
+        env:
+          AZURE_SIGN_ENDPOINT: ${{ vars.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ vars.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ vars.AZURE_SIGN_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ vars.AZURE_SIGN_PUBLISHER }}
+          AZURE_SIGN_LOGIN: azure-cli
       - name: Package native architecture
         working-directory: apps/desktop
         run: npx electron-builder --config electron-builder.yml --${{ matrix.platform }} ${{ matrix.target }}:${{ matrix.arch }} --publish never
@@ -61,6 +85,21 @@ jobs:
           apps=(apps/desktop/release/mac*/*.app)
           [ ${#apps[@]} -gt 0 ] || { echo "::error::no packaged .app found"; exit 1; }
           for app in "${apps[@]}"; do codesign --verify --deep --strict --verbose=2 "$app"; done
+      - name: Verify the Windows installer signature
+        if: runner.os == 'Windows' && vars.AZURE_SIGN_ACCOUNT != ''
+        shell: pwsh
+        # Never publish an installer that is unsigned or signed by anyone else.
+        run: |
+          $files = Get-ChildItem apps/desktop/release/*.exe, apps/desktop/release/win-unpacked/*.exe
+          if (-not $files) { Write-Error 'no installer found'; exit 1 }
+          foreach ($f in $files) {
+            $s = Get-AuthenticodeSignature $f.FullName
+            $cn = $s.SignerCertificate.Subject
+            Write-Output "$($f.Name): $($s.Status) $cn"
+            if ($s.Status -ne 'Valid' -or $cn -notlike "CN=$env:PUBLISHER,*") { exit 1 }
+          }
+        env:
+          PUBLISHER: ${{ vars.AZURE_SIGN_PUBLISHER }}
       - name: Smoke packaged server with isolated test data
         run: node scripts/smoke-packaged.mjs
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
