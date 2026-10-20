@@ -74,6 +74,8 @@ export const MessageSchema = z.object({
   clientId: z.string().nullable(),
   /** A WhatsApp voice note recorded in the inbox (audio sent as a voice note, not as a file). */
   voiceNote: z.boolean().optional(),
+  /** Sent by the token owner's AI assistant through MCP (shown as "via AI assistant"). */
+  viaAssistant: z.boolean().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
   transcript: z.string().nullable().optional(),
   /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */

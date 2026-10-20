@@ -24,7 +24,7 @@ import {
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
-import { EmptyState } from '@/components/app';
+import { Banner, EmptyState } from '@/components/app';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +48,7 @@ import { NotesPanel } from './NotesPanel';
 import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
+import { assistantStartedChat } from './assistant-started';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
@@ -248,6 +249,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const queued = waQueuesMessages(waState);
   // Quotes in a direct chat name the customer like the header does (groups name each sender).
   const contactName = chat.type === 'dm' ? chatTitle(chat, t) : undefined;
+  const startedByAssistant = assistantStartedChat(chat, messages, !!hasNextPage);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
@@ -294,6 +296,17 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setNotesOpen(false);
           }}
         />
+        {startedByAssistant && (
+          <Banner
+            tone="warning"
+            title={t('conversation.startedByAssistantTitle')}
+            className="mx-3 mt-3 md:mx-4"
+          >
+            <span data-testid="started-by-assistant">
+              {t('conversation.startedByAssistantBody')}
+            </span>
+          </Banner>
+        )}
         <MessageList
           items={items}
           messagesById={messagesById}

@@ -162,6 +162,27 @@ describe('sending', () => {
     await waitFor(() => t.wa.sent.some((m) => m.text === 'Yes, 3 left in stock.'));
   });
 
+  it('marks assistant messages "via AI assistant" for the inbox; a reply typed in the inbox is not', async () => {
+    const text = 'Your parcel ships tomorrow.';
+    await call('send_message', { jid: PN, text, requestId: requestId() });
+    const typed = await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${encodeURIComponent(LID)}/messages`,
+      remoteAddress: '127.0.0.1',
+      headers: { host: 'localhost', origin: 'http://localhost', cookie: adminCookie },
+      payload: { text: 'Typed by a person', clientId: 'typed-in-the-inbox-1' },
+    });
+    expect(typed.statusCode).toBeLessThan(300);
+    const list = await t.app.inject({
+      method: 'GET',
+      url: `/api/chats/${encodeURIComponent(LID)}/messages`,
+      headers: { host: 'localhost', cookie: adminCookie },
+    });
+    const messages = list.json().messages as Array<{ body: string; viaAssistant?: boolean }>;
+    expect(messages.find((m) => m.body === text)?.viaAssistant).toBe(true);
+    expect(messages.find((m) => m.body === 'Typed by a person')?.viaAssistant).toBeUndefined();
+  });
+
   it('a repeated requestId sends nothing again; reusing it for other text is refused', async () => {
     const id = requestId();
     const first = data(

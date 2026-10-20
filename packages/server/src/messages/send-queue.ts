@@ -217,7 +217,9 @@ export class SendQueue {
         }
         q.shift();
         this.lastSentAt.set(chatJid, this.now());
-        this.safe(() => this.deps.onFailed(job, err instanceof Error ? err : new Error(String(err))));
+        this.safe(() =>
+          this.deps.onFailed(job, err instanceof Error ? err : new Error(String(err))),
+        );
       }
     }
   }

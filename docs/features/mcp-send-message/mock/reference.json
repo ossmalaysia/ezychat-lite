@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "2ce7018",
   "appVersionAtProposal": "0.1.36",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "mcp-send-message",
   "createdAt": "2026-10-20",
   "baselineFeature": "simple-first-setup",

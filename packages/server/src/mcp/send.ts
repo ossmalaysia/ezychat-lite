@@ -169,6 +169,7 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
         chatJid,
         { text: input.text, clientId, quotedId: input.quotedMessageId },
         principal.user.id,
+        { viaTokenId: principal.tokenId },
       );
       if (before) {
         if (msg.chatJid !== chatJid || msg.body !== input.text)

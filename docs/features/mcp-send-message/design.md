@@ -78,7 +78,7 @@ message; token without `inbox:send_new`.
   `06-chat-started-by-assistant`. No page errors, no horizontal scroll.
 - Also proposed: the Integrations texts that today say assistants "can't send messages to customers"
   now say they send only with a token that allows it.
-- **Confirmation: pending** (owner). Production UI starts only after it.
+- **Confirmation: confirmed** — Owner, 2026-10-20: "mock ok, continue build the real screens" (after the new-number option: "yes ok with new number feature, it is up to them to use, but we will show warning in whatsapp and LLM"). Confirmed mock at git revision `b3a5479b92cc4b519b141ebb013758c13bcea67c`.
 
 ## Plan
 

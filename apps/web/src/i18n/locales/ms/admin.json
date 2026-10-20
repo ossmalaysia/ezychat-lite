@@ -273,7 +273,7 @@
   "integrations": {
     "access": {
       "label": "Benarkan pembantu AI membaca peti masuk ini",
-      "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik, serta membaca, menguji dan mengubah arahan, peraturan serahan dan konteks perniagaan Ejen Jualan AI. Ia tidak boleh menghantar mesej kepada pelanggan. Setiap perubahan disimpan dalam log audit.",
+      "description": "Sambungkan mana-mana pembantu AI yang serasi dengan MCP. Ia boleh membaca sembang, nota dan statistik, serta membaca, menguji dan menukar arahan, peraturan serahan dan konteks perniagaan Ejen Jualan AI. Ia menghantar balasan kepada pelanggan hanya dengan token yang membenarkannya. Setiap perubahan disimpan dalam log audit.",
       "worksFromLabel": "Berfungsi dari",
       "worksFromLocal": "komputer yang menjalankan {{product}}.",
       "worksFromTunnel": "komputer yang menjalankan {{product}}, dan dari mana-mana sahaja melalui terowong anda:",
@@ -289,7 +289,7 @@
     },
     "tokens": {
       "title": "Token akses",
-      "description": "Tampal token ke dalam pembantu AI anda untuk menyambung. Sesiapa yang ada token boleh membaca peti masuk, jadi rahsiakannya.",
+      "description": "Tampal token ke dalam pembantu AI anda untuk menyambung. Sesiapa yang mempunyai token boleh membaca peti masuk (dan menghantar balasan, jika token membenarkannya), jadi rahsiakannya.",
       "create": "Cipta token",
       "empty": "Belum ada token. Cipta satu untuk setiap pembantu dan komputer yang anda gunakan.",
       "created": "Dicipta {{date}}",
@@ -303,7 +303,9 @@
       "revokeTitle": "Batalkan “{{name}}”?",
       "revokeBody": "Mana-mana pembantu yang menggunakan token ini akan berhenti berfungsi serta-merta. Tindakan ini tidak boleh dibuat asal.",
       "revokeConfirm": "Batalkan token",
-      "revoked": "Token dibatalkan"
+      "revoked": "Token dibatalkan",
+      "canSendBadge": "Boleh menghantar",
+      "canNewBadge": "Nombor baharu"
     },
     "create": {
       "title": "Cipta token akses",
@@ -317,7 +319,14 @@
       "expiry90": "90 hari",
       "expiry365": "1 tahun",
       "expiryNever": "Tidak pernah",
-      "submit": "Cipta token"
+      "submit": "Cipta token",
+      "canSend": "Boleh menghantar mesej WhatsApp",
+      "canSendHint": "Pembantu AI anda boleh membalas dalam sembang sedia ada, sebagai anda.",
+      "canSendWarning": "Balasan terus sampai kepada pelanggan anda. Kebanyakan pembantu AI bertanya kepada anda sebelum setiap mesej; semak setiap satu sebelum anda meluluskannya.",
+      "canNew": "Juga boleh menghantar mesej kepada nombor baharu",
+      "canNewHint": "Pembantu boleh memulakan sembang dengan nombor yang tiada dalam peti masuk. WhatsApp menyemak nombor itu dahulu. Sehingga 20 nombor baharu sehari.",
+      "canNewWarningTitle": "Risiko disekat oleh WhatsApp",
+      "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini."
     },
     "created": {
       "title": "Salin token anda sekarang",

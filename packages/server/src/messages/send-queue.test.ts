@@ -10,7 +10,14 @@ function job(localId: string, chatJid: string, createdAt: number): SendJob {
   return { localId, chatJid, targetJid: chatJid, createdAt, kind: 'text', text: localId };
 }
 
-function makeQueue(opts: { connected?: boolean; now?: () => number; sleep?: (ms: number) => Promise<void>; failIds?: string[] } = {}) {
+function makeQueue(
+  opts: {
+    connected?: boolean;
+    now?: () => number;
+    sleep?: (ms: number) => Promise<void>;
+    failIds?: string[];
+  } = {},
+) {
   let connected = opts.connected ?? true;
   const sent: Array<{ id: string; at: number; target: string; chat: string }> = [];
   const ok: string[] = [];
@@ -79,7 +86,10 @@ describe('SendQueue', () => {
   });
 
   it('waits while disconnected, then flushes on onConnected', async () => {
-    const { q, sent, ok, setConnected } = makeQueue({ connected: false, sleep: () => new Promise(() => undefined) });
+    const { q, sent, ok, setConnected } = makeQueue({
+      connected: false,
+      sleep: () => new Promise(() => undefined),
+    });
     q.enqueue(job('x1', 'X', Date.now()));
     await flush();
     expect(sent).toEqual([]);
@@ -146,7 +156,8 @@ describe('SendQueue', () => {
     const q = new SendQueue({
       send: async (j): Promise<SendResult> => {
         attempts += 1;
-        if (attempts === 1) throw Object.assign(new Error('Connection Closed'), { code: 'wa_unavailable' });
+        if (attempts === 1)
+          throw Object.assign(new Error('Connection Closed'), { code: 'wa_unavailable' });
         sent.push(j.localId);
         return { id: 'WA-1', timestamp: clock };
       },
