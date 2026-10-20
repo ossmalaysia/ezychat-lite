@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AI assistant access: a new tool lets your AI assistant send a text reply into an existing chat, as you, when its access token was created with "Can send WhatsApp messages". Tick it in Settings → Integrations → Create token; tokens made before never get this right. Replies the assistant sent show "via AI assistant" in the chat.
+- AI assistant access: a token created with "Can send" and "Can also message new numbers" may also start a chat with a number that is not in the inbox, after WhatsApp confirms the number (up to 20 new numbers a day). WhatsApp can ban a number that messages people who did not ask for it: the assistant gets this warning with the tool and with every result. The inbox shows a warning above a chat the assistant started until the customer writes back.
+- The AI assistant connection now names the edition you run (for example EzyChat Enterprise).
+
+### Fixed
+
+- Group chats: when someone tags your own WhatsApp account, the message shows your account's name instead of a long number.
+- A message that arrived while a chat was still opening could stay hidden until you refreshed; it now shows.
+
+## [0.1.43] - 2026-10-20
+
+### Fixed
+
+- Desktop app: email links (for example "Email support") and web links in the app window open your mail app or browser again; before, a click did nothing.
+
 ## [0.1.42] - 2026-10-20
 
 ### Fixed

@@ -26,7 +26,7 @@ const TABLES = [
   'api_tokens',
   'ai_setup_versions',
 ];
-const LATEST = 12;
+const LATEST = 13;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {

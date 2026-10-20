@@ -272,7 +272,7 @@
   "integrations": {
     "access": {
       "label": "允许 AI 助手读取此收件箱",
-      "description": "连接任何兼容 MCP 的 AI 助手。它可以读取聊天、备注和统计数据，并可以读取、测试和更改 AI 销售助理的指令、转交规则和业务背景，但不能向客户发送消息。每次更改都会记录在审计日志中。",
+      "description": "连接任何兼容 MCP 的 AI 助手。它可以读取对话、备注和统计数据，并可读取、测试和修改 AI 销售助理的指令、转交规则和业务资料。只有在令牌允许时，它才能向客户发送回复。每项更改都会记录在审计日志中。",
       "worksFromLabel": "可用于",
       "worksFromLocal": "运行 {{product}} 的电脑。",
       "worksFromTunnel": "运行 {{product}} 的电脑，也可以通过您的隧道从任何地方连接：",
@@ -288,7 +288,7 @@
     },
     "tokens": {
       "title": "访问令牌",
-      "description": "将令牌粘贴到您的 AI 助手中即可连接。任何持有令牌的人都能读取收件箱，请妥善保管。",
+      "description": "将令牌粘贴到您的 AI 助手中即可连接。任何持有令牌的人都可以读取收件箱（如果令牌允许，还可以发送回复），因此请妥善保管。",
       "create": "创建令牌",
       "empty": "还没有令牌。请为您使用的每个助手和每台电脑各创建一个。",
       "created": "创建于 {{date}}",
@@ -302,7 +302,9 @@
       "revokeTitle": "撤销“{{name}}”？",
       "revokeBody": "使用此令牌的助手将立即停止工作。此操作无法撤消。",
       "revokeConfirm": "撤销令牌",
-      "revoked": "令牌已撤销"
+      "revoked": "令牌已撤销",
+      "canSendBadge": "可发送",
+      "canNewBadge": "新号码"
     },
     "create": {
       "title": "创建访问令牌",
@@ -316,7 +318,14 @@
       "expiry90": "90 天",
       "expiry365": "1 年",
       "expiryNever": "永久",
-      "submit": "创建令牌"
+      "submit": "创建令牌",
+      "canSend": "可以发送 WhatsApp 消息",
+      "canSendHint": "您的 AI 助手可以以您的身份在现有对话中回复。",
+      "canSendWarning": "回复会直接发送给您的客户。大多数 AI 助手会在每条消息前征求您的同意；请在批准前检查每条消息。",
+      "canNew": "也可以向新号码发送消息",
+      "canNewHint": "助手可以与收件箱中没有的号码开始对话。WhatsApp 会先检查该号码。每天最多 20 个新号码。",
+      "canNewWarningTitle": "WhatsApp 封号风险",
+      "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。"
     },
     "created": {
       "title": "立即复制您的令牌",

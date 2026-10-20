@@ -6,7 +6,7 @@ import { app, BrowserWindow, shell, type NativeImage, type Session } from 'elect
 import type { Locale } from '@ezychat/shared';
 import { t } from './i18n.js';
 import { registerInboxNotifications } from './notifications.js';
-import { inboxPermissionAllowed, isInboxUrl } from './window-security.js';
+import { externalLinkToOpen, inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 import { activeProduct } from './product.js';
 
 const SAFE_PREFS = {
@@ -133,7 +133,13 @@ export function createMainWindow(o: {
     if (!isInboxUrl(url, o.baseUrl())) event.preventDefault();
   });
   win.webContents.on('will-frame-navigate', (event) => {
-    if (!isInboxUrl(event.url, o.baseUrl())) event.preventDefault();
+    const base = o.baseUrl();
+    if (isInboxUrl(event.url, base)) return;
+    event.preventDefault();
+    // Blocking here cancels will-navigate, so an external link clicked in the main frame (e.g. a
+    // mailto: "Email to activate" button) is opened from here.
+    const external = externalLinkToOpen(event.url, event.isMainFrame, base);
+    if (external) void shell.openExternal(external);
   });
   // No inbox feature needs a webview, camera, location or screen capture; voice notes need the
   // microphone (audio only, see inboxPermissionAllowed).

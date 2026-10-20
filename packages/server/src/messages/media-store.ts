@@ -21,7 +21,11 @@ export class MediaStore {
 
   save(chatJid: string, msgId: string, buf: Buffer, ext: string): string {
     const dir = sanitizeSegment(chatJid);
-    const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toLowerCase() || 'bin';
+    const cleanExt =
+      ext
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(0, 10)
+        .toLowerCase() || 'bin';
     const rel = `${dir}/${sanitizeSegment(msgId)}.${cleanExt}`;
     mkdirSync(join(this.root, dir), { recursive: true });
     writeFileSync(join(this.root, rel), buf);
@@ -31,7 +35,8 @@ export class MediaStore {
   /** Absolute path of a stored relative path; throws if it escapes the root. */
   abs(rel: string): string {
     const p = resolve(this.root, rel);
-    if (p !== this.root && !p.startsWith(this.root + sep)) throw new Error('media path escapes store root');
+    if (p !== this.root && !p.startsWith(this.root + sep))
+      throw new Error('media path escapes store root');
     return p;
   }
 }

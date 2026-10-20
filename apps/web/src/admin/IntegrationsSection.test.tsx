@@ -22,6 +22,8 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     createdAt: Date.now() - 10 * DAY,
     lastUsedAt: null,
     expiresAt: Date.now() + 80 * DAY,
+    canSend: false,
+    canMessageNewNumbers: false,
     ...over,
   };
 }
@@ -175,6 +177,8 @@ describe('Settings → Integrations', () => {
     expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
       name: 'Gemini CLI – office laptop',
       expiresInDays: 365,
+      canSend: false,
+      canMessageNewNumbers: false,
     });
     expect(within(created).getByTestId('api-token-secret').textContent).toBe(SECRET);
     const command = within(created).getByTestId('mcp-snippet-claude').textContent;
@@ -240,6 +244,83 @@ describe('Settings → Integrations', () => {
       `Authorization: Bearer ${SECRET}`,
     );
     expect(within(created).getByText(/not supported yet/)).toBeTruthy();
+  });
+
+  it('offers "Can send" off by default and "new numbers" only under it, each with its warning', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
+    const canSend = within(dialog).getByRole('checkbox', { name: 'Can send WhatsApp messages' });
+    expect(canSend.getAttribute('aria-checked')).toBe('false');
+    expect(
+      within(dialog).queryByRole('checkbox', { name: 'Can also message new numbers' }),
+    ).toBeNull();
+
+    await user.click(canSend);
+    expect(within(dialog).getByText(/Replies go straight to your customers/)).toBeTruthy();
+    const canNew = within(dialog).getByRole('checkbox', { name: 'Can also message new numbers' });
+    expect(within(dialog).queryByText('Risk of a WhatsApp ban')).toBeNull();
+    await user.click(canNew);
+    expect(within(dialog).getByText('Risk of a WhatsApp ban')).toBeTruthy();
+
+    // Turning "Can send" off clears and hides the new-number option.
+    await user.click(canSend);
+    expect(
+      within(dialog).queryByRole('checkbox', { name: 'Can also message new numbers' }),
+    ).toBeNull();
+    await user.click(canSend);
+    expect(
+      within(dialog)
+        .getByRole('checkbox', { name: 'Can also message new numbers' })
+        .getAttribute('aria-checked'),
+    ).toBe('false');
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Can also message new numbers' }),
+    );
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Claude – event follow-ups');
+    await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
+    const created = await screen.findByRole('dialog', { name: 'Copy your token now' });
+    expect(JSON.parse(String((calls(fetchMock, 'POST')[0]![1] as RequestInit).body))).toEqual({
+      name: 'Claude – event follow-ups',
+      expiresInDays: 90,
+      canSend: true,
+      canMessageNewNumbers: true,
+    });
+
+    // The next token starts with both options off again.
+    await user.click(within(created).getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByRole('button', { name: 'Create token' }));
+    const again = await screen.findByRole('dialog', { name: 'Create access token' });
+    expect(
+      within(again)
+        .getByRole('checkbox', { name: 'Can send WhatsApp messages' })
+        .getAttribute('aria-checked'),
+    ).toBe('false');
+    expect(
+      within(again).queryByRole('checkbox', { name: 'Can also message new numbers' }),
+    ).toBeNull();
+  });
+
+  it('shows "Can send" and "New numbers" badges only on tokens that have them', async () => {
+    setup({
+      tokens: [
+        token({ id: 1, name: 'Reports only' }),
+        token({ id: 2, name: 'Replies', canSend: true }),
+        token({ id: 3, name: 'Follow-ups', canSend: true, canMessageNewNumbers: true }),
+      ],
+    });
+    const rows = await screen.findAllByTestId('api-token-row');
+    const badges = rows.map((r) => [
+      within(r).queryByText('Can send') !== null,
+      within(r).queryByText('New numbers') !== null,
+    ]);
+    expect(badges).toEqual([
+      [false, false],
+      [true, false],
+      [true, true],
+    ]);
   });
 
   it('marks expired tokens and lists the rest', async () => {

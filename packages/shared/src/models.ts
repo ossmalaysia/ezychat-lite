@@ -74,6 +74,8 @@ export const MessageSchema = z.object({
   clientId: z.string().nullable(),
   /** A WhatsApp voice note recorded in the inbox (audio sent as a voice note, not as a file). */
   voiceNote: z.boolean().optional(),
+  /** Sent by the token owner's AI assistant through MCP (shown as "via AI assistant"). */
+  viaAssistant: z.boolean().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
   transcript: z.string().nullable().optional(),
   /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */
@@ -114,7 +116,14 @@ export type QuickReply = z.infer<typeof QuickReplySchema>;
 
 export const WaStatusSchema = z.object({
   state: WaState,
-  me: z.object({ jid: z.string(), name: z.string().nullable() }).nullable(),
+  me: z
+    .object({
+      jid: z.string(),
+      name: z.string().nullable(),
+      /** The account's own LID: WhatsApp shows it instead of the number in groups (and in mentions). */
+      lid: z.string().nullable().optional(),
+    })
+    .nullable(),
   qr: z.string().nullable(),
   lastError: z.string().nullable(),
 });
