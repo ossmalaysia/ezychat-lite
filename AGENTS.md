@@ -267,8 +267,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   may change the AI instructions, hand-off rules and Business context **text** items, never files,
   the connection, key, model or on/off. Every change keeps a version (`ai_setup_versions`, app saves
   too) and an audit row with token id and reason, and is rate-limited per token. The send tool
-  (`send_message`, scope `inbox:send`) exists only for a token created with `canSend` (default off; a
-  token never gains a scope later) and goes only through `InboxSendPort` (`mcp/send.ts`), which rechecks
+  (`send_message`, scope `inbox:send`) exists only for a token with `canSend` (default off; set at
+  creation or later only by the token's owner in Settings, `PATCH /api/integrations/tokens/:id`, audit
+  `api_token.update` with before/after, never through a token) and goes only through `InboxSendPort` (`mcp/send.ts`), which rechecks
   the scope: text into an **existing** chat, as the token owner, through the
   normal message service; idempotent per token + `requestId`; 10 a minute and 100 a day per token;
   audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_to_new_number` (scope

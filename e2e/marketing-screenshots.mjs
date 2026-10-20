@@ -253,6 +253,15 @@ async function openNewNumbersDialog(page) {
   await dialog.getByText('Risk of a WhatsApp ban').scrollIntoViewIfNeeded();
 }
 
+/** Open Permissions of the token that may reply, with "new numbers" ticked (ban warning). */
+async function openPermissionsDialog(page) {
+  const row = page.getByTestId('api-token-row').filter({ hasText: 'Claude – office laptop' });
+  await row.getByRole('button', { name: /Change what token/ }).click();
+  const dialog = page.getByRole('dialog', { name: /Permissions of/ });
+  await dialog.getByRole('checkbox', { name: 'Can also message new numbers' }).click();
+  await dialog.getByText('Risk of a WhatsApp ban').scrollIntoViewIfNeeded();
+}
+
 /** Scroll the token list into view. */
 async function showTokens(page) {
   await page.getByTestId('api-token-row').first().scrollIntoViewIfNeeded();
@@ -303,6 +312,13 @@ const SHOTS = [
     '/admin/settings/integrations',
     ['desktop', 'mobile'],
     openNewNumbersDialog,
+  ],
+  [
+    'ai-assistant',
+    'token-permissions',
+    '/admin/settings/integrations',
+    ['desktop', 'mobile'],
+    openPermissionsDialog,
   ],
   [
     'ai-assistant',

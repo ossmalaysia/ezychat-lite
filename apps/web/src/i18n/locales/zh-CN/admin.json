@@ -348,6 +348,15 @@
       "oauthHint": "仅支持 OAuth 登录的应用（如 ChatGPT 和 claude.ai 连接器）暂不支持。",
       "localOnly": "此地址仅在运行 {{product}} 的电脑上有效。启动隧道后即可从其他地方连接。",
       "askHint": "然后可以这样提问：“哪些聊天正在等待回复？”"
+    },
+    "permissions": {
+      "edit": "权限",
+      "editLabel": "更改令牌 {{name}} 的权限",
+      "title": "“{{name}}”的权限",
+      "description": "选择使用此令牌的 AI 助手可以做什么。令牌保持不变：无需重新连接。",
+      "takesEffect": "更改会在助手的下一次请求时生效。读取收件箱和 AI 设置工具保持开启。",
+      "save": "保存",
+      "saved": "权限已保存"
     }
   },
   "settings": {

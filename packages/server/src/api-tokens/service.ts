@@ -24,8 +24,9 @@ const TOUCH_INTERVAL_MS = 60_000;
  * `inbox:read`: read chats, messages and stats. `ai:setup`: read, test and change the AI Sales
  * Agent's instructions, hand-off rules and business context text. Every admin token gets both.
  * `inbox:send`: send text replies into existing chats; only when the admin ticks it at creation
- * (a token never gains it later). `inbox:send_new`: also start a chat with a number that is not in the
- * inbox; only together with `inbox:send`, also ticked at creation.
+ * or later by the token's owner in Settings (`updatePermissions`, audited; never through a token).
+ * `inbox:send_new`: also start a chat with a number that is not in the inbox; only together with
+ * `inbox:send`.
  */
 export type TokenScope = 'inbox:read' | 'ai:setup' | 'inbox:send' | 'inbox:send_new';
 const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>([
@@ -38,13 +39,18 @@ const NEW_TOKEN_SCOPES = 'inbox:read ai:setup';
 const SEND_SCOPE: TokenScope = 'inbox:send';
 const SEND_NEW_SCOPE: TokenScope = 'inbox:send_new';
 
-/** The scope string stored for a new token. */
-function newTokenScopes(body: { canSend?: boolean; canMessageNewNumbers?: boolean }): string {
-  if (body.canSend !== true) return NEW_TOKEN_SCOPES;
+/** `base` plus the send scopes the body grants (`inbox:send_new` only together with `inbox:send`). */
+function withSendScopes(
+  base: string,
+  body: { canSend?: boolean; canMessageNewNumbers?: boolean },
+): string {
+  if (body.canSend !== true) return base;
   return body.canMessageNewNumbers === true
-    ? `${NEW_TOKEN_SCOPES} ${SEND_SCOPE} ${SEND_NEW_SCOPE}`
-    : `${NEW_TOKEN_SCOPES} ${SEND_SCOPE}`;
+    ? `${base} ${SEND_SCOPE} ${SEND_NEW_SCOPE}`
+    : `${base} ${SEND_SCOPE}`;
 }
+const newTokenScopes = (body: { canSend?: boolean; canMessageNewNumbers?: boolean }) =>
+  withSendScopes(NEW_TOKEN_SCOPES, body);
 
 export interface ApiPrincipal {
   tokenId: number;
@@ -77,6 +83,13 @@ export interface ApiTokenService {
   /** Tokens that are not revoked (expired ones included, so the admin can see them). */
   list(): ApiToken[];
   revoke(id: number, actorId: number, ip: string): void;
+  /** Its owner changes whether a token may send (and message new numbers); takes effect on the next call. */
+  updatePermissions(
+    id: number,
+    actorId: number,
+    body: { canSend: boolean; canMessageNewNumbers: boolean },
+    ip: string,
+  ): ApiToken;
   /** Checks a bearer secret and its owner as they are now (role, disabled, password change). */
   resolve(secret: string): ResolveResult;
   /** Re-checks a resolved token mid-request (it may have been revoked or its owner demoted). */
@@ -127,6 +140,9 @@ export function createApiTokenService(
       'UPDATE api_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL',
     ),
     touch: ctx.db.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?'),
+    setScopes: ctx.db.prepare(
+      'UPDATE api_tokens SET scopes = ? WHERE id = ? AND revoked_at IS NULL',
+    ),
   };
 
   const toApiToken = (r: TokenRow): ApiToken => ({
@@ -200,6 +216,37 @@ export function createApiTokenService(
 
     list() {
       return (q.active.all() as TokenRow[]).map(toApiToken);
+    },
+
+    updatePermissions(id, actorId, body, ip) {
+      const row = q.byId.get(id) as TokenRow | undefined;
+      // Unknown and revoked tokens alike: a revoked row has a non-null revoked_at.
+      if (row?.revoked_at !== null) throw errors.notFound('Token');
+      // A token acts as its owner: only the owner may let it send in their name.
+      if (row.user_id !== actorId)
+        throw errors.forbidden('Only the owner of a token can change what it may do');
+      if (row.expires_at !== null && row.expires_at <= now())
+        throw errors.validation('This token has expired; create a new one');
+      const before = toApiToken(row);
+      const base = row.scopes
+        .split(' ')
+        .filter((s) => s !== SEND_SCOPE && s !== SEND_NEW_SCOPE)
+        .join(' ');
+      q.setScopes.run(withSendScopes(base, body), id);
+      const token = toApiToken(q.byId.get(id) as TokenRow);
+      audit(ctx.db, {
+        userId: actorId,
+        action: 'api_token.update',
+        ip,
+        meta: {
+          tokenId: id,
+          name: row.name,
+          prefix: row.prefix,
+          before: { canSend: before.canSend, canMessageNewNumbers: before.canMessageNewNumbers },
+          after: { canSend: token.canSend, canMessageNewNumbers: token.canMessageNewNumbers },
+        },
+      });
+      return token;
     },
 
     revoke(id, actorId, ip) {

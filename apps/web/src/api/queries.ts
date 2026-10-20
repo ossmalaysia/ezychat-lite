@@ -14,6 +14,8 @@ import {
   type McpSettingsPatch,
   ApiTokenListResponse,
   CreateApiTokenResponse,
+  UpdateApiTokenResponse,
+  type UpdateApiTokenBody,
   McpSettingsResponse,
   type PatchMeBody,
   MeResponse,
@@ -1080,6 +1082,22 @@ export function useCreateApiToken() {
       return token;
     },
     gcTime: 0,
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.apiTokens }),
+  });
+}
+
+/** Changes whether a token may send (and message new numbers); only its owner may. */
+export function useUpdateApiToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: UpdateApiTokenBody }) =>
+      (
+        await api(`/integrations/tokens/${id}`, {
+          method: 'PATCH',
+          body,
+          schema: UpdateApiTokenResponse,
+        })
+      ).token,
     onSettled: () => qc.invalidateQueries({ queryKey: qk.apiTokens }),
   });
 }

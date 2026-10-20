@@ -349,6 +349,15 @@
       "oauthHint": "Aplikasi yang hanya log masuk dengan OAuth, seperti ChatGPT dan penyambung claude.ai, belum disokong.",
       "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan {{product}}. Mulakan terowong untuk menyambung dari tempat lain.",
       "askHint": "Kemudian tanya soalan seperti “Sembang mana yang sedang menunggu balasan?”"
+    },
+    "permissions": {
+      "edit": "Kebenaran",
+      "editLabel": "Tukar perkara yang boleh dilakukan oleh token {{name}}",
+      "title": "Kebenaran “{{name}}”",
+      "description": "Pilih perkara yang boleh dilakukan oleh pembantu AI dengan token ini. Anda kekalkan token yang sama: tidak perlu menyambung semula.",
+      "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya oleh pembantu. Membaca peti masuk dan alat persediaan AI kekal hidup.",
+      "save": "Simpan",
+      "saved": "Kebenaran disimpan"
     }
   },
   "settings": {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AI assistant access: change what an existing access token may do (send WhatsApp messages, message new numbers) under Permissions in Settings → Integrations, without a new token or reconnecting. Only the token's owner can change it; every change is in the audit log.
+
 ## [0.1.44] - 2026-10-20
 
 ### Added

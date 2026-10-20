@@ -11,6 +11,17 @@ const DAY = 24 * 60 * 60 * 1000;
 /** The port the server listens on differs from the saved port setting (7420) on purpose. */
 const LOCAL = 'http://127.0.0.1:7433';
 const SERVER_ERROR = { error: { code: 'internal', message: 'Internal server error' } };
+/** The signed-in admin: owns tokens with userId 1. */
+const ME = {
+  id: 1,
+  username: 'owner',
+  displayName: 'Owner',
+  role: 'admin',
+  mustChangePassword: false,
+  disabled: false,
+  createdAt: 0,
+  locale: null,
+};
 
 function token(over: Partial<ApiToken> = {}): ApiToken {
   return {
@@ -42,7 +53,7 @@ function setup({
 }: {
   mcp?: McpSettingsResponse;
   tokens?: ApiToken[];
-  fail?: { patch?: boolean; post?: boolean; revokeGone?: boolean };
+  fail?: { patch?: boolean; post?: boolean; revokeGone?: boolean; permissions?: boolean };
 } = {}) {
   let settings = mcp;
   let list = tokens;
@@ -55,6 +66,18 @@ function setup({
     }
     if (url === '/api/integrations/mcp') return json(settings);
     if (url === '/api/settings') return json({ port: 7420, lanEnabled: false, historyDays: 3 });
+    if (url === '/api/me') return json(ME);
+    const update = /^\/api\/integrations\/tokens\/(\d+)$/.exec(url);
+    if (update && method === 'PATCH') {
+      if (fail.permissions)
+        return json(
+          { error: { code: 'forbidden', message: 'Only the owner of a token can change it' } },
+          403,
+        );
+      const body = JSON.parse(String(init!.body));
+      list = list.map((t) => (t.id === Number(update[1]) ? { ...t, ...body } : t));
+      return json({ token: list.find((t) => t.id === Number(update[1])) });
+    }
     if (url === '/api/integrations/tokens' && method === 'POST') {
       if (fail.post) return json(SERVER_ERROR, 500);
       const body = JSON.parse(String(init!.body));
@@ -321,6 +344,76 @@ describe('Settings → Integrations', () => {
       [true, false],
       [true, true],
     ]);
+  });
+
+  it('offers Permissions only on your own tokens that have not expired', async () => {
+    setup({
+      tokens: [
+        token({ id: 1, name: 'Mine' }),
+        token({ id: 2, name: 'Theirs', userId: 2, userName: 'Siti' }),
+        token({ id: 3, name: 'Old', expiresAt: Date.now() - DAY }),
+      ],
+    });
+    const rows = await screen.findAllByTestId('api-token-row');
+    await waitFor(() =>
+      expect(
+        within(rows[0]!).getByRole('button', { name: 'Change what token Mine may do' }),
+      ).toBeTruthy(),
+    );
+    expect(within(rows[1]!).queryByRole('button', { name: /Change what token/ })).toBeNull();
+    expect(within(rows[2]!).queryByRole('button', { name: /Change what token/ })).toBeNull();
+  });
+
+  it('changes a token’s permissions: current state, warnings, Save only after a change', async () => {
+    const { fetchMock } = setup({ tokens: [token({ id: 1, name: 'Mine', canSend: true })] });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Change what token Mine may do' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Permissions of “Mine”' });
+    expect(
+      within(dialog)
+        .getByRole('checkbox', { name: 'Can send WhatsApp messages' })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    const save = within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Can also message new numbers' }),
+    );
+    expect(within(dialog).getByText('Risk of a WhatsApp ban')).toBeTruthy();
+    expect(save.disabled).toBe(false);
+    await user.click(save);
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const [patch] = calls(fetchMock, 'PATCH').filter((c) => String(c[0]).includes('/tokens/'));
+    expect(String(patch![0])).toBe('/api/integrations/tokens/1');
+    expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({
+      canSend: true,
+      canMessageNewNumbers: true,
+    });
+    const row = await screen.findByTestId('api-token-row');
+    expect(await within(row).findByText('New numbers')).toBeTruthy();
+  });
+
+  it('turning sending off also turns new numbers off, and an error keeps the dialog open', async () => {
+    const { fetchMock } = setup({
+      tokens: [token({ id: 1, name: 'Mine', canSend: true, canMessageNewNumbers: true })],
+      fail: { permissions: true },
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Change what token Mine may do' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Permissions of “Mine”' });
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Can send WhatsApp messages' }));
+    expect(
+      within(dialog).queryByRole('checkbox', { name: 'Can also message new numbers' }),
+    ).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await within(dialog).findByText('You do not have permission to do that.')).toBeTruthy();
+    const [patch] = calls(fetchMock, 'PATCH').filter((c) => String(c[0]).includes('/tokens/'));
+    expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({
+      canSend: false,
+      canMessageNewNumbers: false,
+    });
   });
 
   it('marks expired tokens and lists the rest', async () => {

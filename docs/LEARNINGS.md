@@ -228,7 +228,9 @@ into AGENTS.md.
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
   fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
   A new test file that copies another file's request helpers fails it too: import them from a shared
-  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls).
+  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls). The same for a new dialog
+  that repeats another dialog's fields (easy when porting a mock): extract one fields component
+  (`admin/SendPermissionFields.tsx`).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
@@ -502,6 +504,8 @@ into AGENTS.md.
   never one provider's name; state which clients a given auth method actually supports.
 - A new MCP tool must be added to every exact tool-name list in the tests (`mcp.test.ts` and
   `mcp-ai-setup.test.ts`): grep `server/test` for an existing tool name before pushing.
+- The server applies a token's scope change on the next call, but MCP clients cache `tools/list` until
+  they refresh or reconnect: tell the owner to refresh the connection (same token) after a change.
 - MCP analytics are aggregated on the server (`get_stats`, `get_activity`), never left to the model
   paging through `get_messages`; define every derived metric in the tool description (e.g. "new
   conversation = customer message after 12 h of silence") so the client cannot guess its meaning.
@@ -564,6 +568,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
+  read `<userData>/updates/downloads/` (a growing `<uuid>.part`, then `<sha256>-<installer>` of the
+  manifest size) and the installed exe's version before blaming the network or the feed.
 - Feature mocks rot with the code: the confirmed reference stopped compiling after the `@ezychat/*`
   rename. Clone it, fix only mechanically (renames, type drift), record the fixes in
   `reference.json` → `baselineDriftFixes` and refreeze the hashes so `snapshot.mjs --check` stays
@@ -592,6 +599,8 @@ into AGENTS.md.
   errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
+- A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
+  on a freshly started mock, and restart the mock again before the owner opens it.
 
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.
@@ -708,6 +717,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
+- `errorMessage()` shows the translated generic text for generic codes (`forbidden`, `not_found`, …) and
+  the server's English text only for `validation`/`conflict`/feature codes: test the text the user sees.
 - Shared shell code serves every edition: no product name or edition-wide constant (name, port, folder) in
   catalogs or code; use `{{product}}` and a `Product` field. Check an edition's first installer on a PC that
   also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).
