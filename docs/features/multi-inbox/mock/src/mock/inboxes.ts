@@ -148,6 +148,17 @@ export function setAccess(userId: number, access: string[]) {
   save({ ...state, access: { ...state.access, [userId]: access } });
 }
 
+/** From the inbox side: exactly these agents may open the inbox (others among `agentIds` lose it). */
+export function setInboxMembers(inboxId: string, agentIds: number[], allowed: number[]) {
+  const access = { ...state.access };
+  for (const id of agentIds) {
+    const current = access[id];
+    const list = Array.isArray(current) ? current.filter((x) => x !== inboxId) : [];
+    access[id] = allowed.includes(id) ? [...list, inboxId] : list;
+  }
+  save({ ...state, access });
+}
+
 /** Back to the seeded demo (walkthrough reset). */
 export function resetMockInboxes() {
   save(structuredClone(SEED));

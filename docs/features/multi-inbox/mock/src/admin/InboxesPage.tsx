@@ -4,16 +4,20 @@ import { useTranslation } from 'react-i18next';
 import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
+import type { User } from '@ezychat/shared';
 import { useUsers } from '../api/queries';
 import { Banner, PageHeader, ResponsiveDialog, StatusDot, type StatusTone } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ConfirmDialog, Field } from './adminUi';
 import {
   addInbox,
   removeInbox,
+  setInboxMembers,
   updateInbox,
   useMockInboxes,
   type InboxStatus,
@@ -146,7 +150,7 @@ export function InboxesPage() {
         </Card>
       ))}
 
-      <InboxDialog inbox={editing} onClose={() => setEditing(null)} />
+      <InboxDialog inbox={editing} people={people} onClose={() => setEditing(null)} />
       <ConfirmDialog
         open={removing !== null}
         title={t('mockInbox.removeTitle', { name: removing?.name ?? '' })}
@@ -165,26 +169,47 @@ export function InboxesPage() {
   );
 }
 
-/** Add an inbox (name, then the QR code) or edit one (rename, link the phone again). */
+/**
+ * Add an inbox (name and members, then the QR code) or edit one (rename, members, link the phone again).
+ */
 function InboxDialog({
   inbox,
+  people,
   onClose,
-}: Readonly<{ inbox: MockInbox | 'new' | null; onClose: () => void }>) {
+}: Readonly<{ inbox: MockInbox | 'new' | null; people: User[]; onClose: () => void }>) {
   const { t } = useTranslation(['admin', 'common']);
+  const state = useMockInboxes();
   const isNew = inbox === 'new';
   const current = inbox !== null && inbox !== 'new' ? inbox : null;
   const [name, setName] = useState('');
+  const [members, setMembers] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState<MockInbox | null>(null);
   const [relink, setRelink] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const admins = people.filter((u) => u.role === 'admin');
+  const agents = people.filter((u) => u.role !== 'admin');
+
   useEffect(() => {
     setName(current?.name ?? '');
+    setMembers(
+      current
+        ? agents
+            .filter((u) => {
+              const a = state.access[u.id];
+              return Array.isArray(a) && a.includes(current.id);
+            })
+            .map((u) => u.id)
+        : [],
+    );
     setSubmitted(false);
     setSaved(current);
     setRelink(false);
   }, [inbox]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleMember = (id: number, on: boolean) =>
+    setMembers((m) => (on ? [...new Set([...m, id])] : m.filter((x) => x !== id)));
 
   const nameError = submitted && name.trim() === '' ? t('mockInbox.required') : undefined;
 
@@ -192,12 +217,17 @@ function InboxDialog({
     event.preventDefault();
     setSubmitted(true);
     if (!name.trim()) return;
+    const agentIds = agents.map((u) => u.id);
     if (current) {
       updateInbox(current.id, { name: name.trim() });
+      setInboxMembers(current.id, agentIds, members);
       setSaved({ ...current, name: name.trim() });
       toast.success(t('mockInbox.saved'));
+      onClose();
     } else {
-      setSaved(addInbox(name.trim()));
+      const created = addInbox(name.trim());
+      setInboxMembers(created.id, agentIds, members);
+      setSaved(created);
       toast.success(t('mockInbox.createdPhone'));
     }
   };
@@ -258,6 +288,44 @@ function InboxDialog({
             <Input {...p} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
           )}
         </Field>
+
+        {!(saved && isNew) && (
+          <fieldset className="flex min-w-0 flex-col gap-3" data-testid="inbox-members">
+            <legend className="mb-1 text-sm font-medium">{t('mockInbox.membersField')}</legend>
+            <p className="text-sm text-muted-foreground">{t('mockInbox.membersFieldHint')}</p>
+            {admins.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {admins.map((u) => (
+                  <Badge key={u.id} variant="outline">
+                    {u.displayName} · {t('mockInbox.admin')}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {agents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('mockInbox.membersFieldNoAgents')}</p>
+            ) : (
+              agents.map((u) => {
+                const id = `inbox-member-${u.id}`;
+                return (
+                  <div key={u.id} className="flex min-h-11 items-center gap-3 md:min-h-8">
+                    <Checkbox
+                      id={id}
+                      checked={members.includes(u.id)}
+                      onCheckedChange={(v) => toggleMember(u.id, v === true)}
+                    />
+                    <Label htmlFor={id} className="font-normal">
+                      {u.displayName}
+                    </Label>
+                  </div>
+                );
+              })
+            )}
+            {agents.length > 0 && members.length === 0 && (
+              <p className="text-sm text-warning">{t('mockInbox.membersFieldNone')}</p>
+            )}
+          </fieldset>
+        )}
 
         {saved && saved.status === 'connected' && !relink && (
           <div className="flex flex-wrap items-center justify-between gap-3">
