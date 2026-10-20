@@ -16,8 +16,10 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- electron-builder loads this hook as CommonJS */
 const { spawnSync } = require('node:child_process');
 
-const DEFAULT_TIMESTAMP_URL = 'http://time.certum.pl';
-const AZURE_TIMESTAMP_URL = 'http://timestamp.acs.microsoft.com';
+// RFC 3161 timestamp servers: their responses are signed by the timestamp authority, so plain http is
+// the documented address (Microsoft and Certum publish these http URLs for signtool /tr).
+const DEFAULT_TIMESTAMP_URL = 'http://time.certum.pl'; // NOSONAR (javascript:S5332): signed RFC 3161 reply
+const AZURE_TIMESTAMP_URL = 'http://timestamp.acs.microsoft.com'; // NOSONAR (javascript:S5332): as above
 
 /** The command for one file, or null when signing is off. Pure (tested). */
 function signCommand(file, env = process.env) {

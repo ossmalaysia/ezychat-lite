@@ -111,7 +111,7 @@ async function ensureTool(tool, cache) {
   const archive = join(cache, `${tool.dir}.zip`);
   writeFileSync(archive, data);
   // Windows' own bsdtar reads zip files (Git's GNU tar on PATH does not).
-  const tar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
+  const tar = join(process.env.SystemRoot ?? String.raw`C:\Windows`, 'System32', 'tar.exe');
   const r = spawnSync(tar, ['-xf', archive, '-C', target], { stdio: 'inherit' });
   rmSync(archive, { force: true });
   if (r.status !== 0 || !existsSync(file)) throw new Error(`could not extract ${tool.url}`);
@@ -125,7 +125,7 @@ async function ensureTool(tool, cache) {
 export async function azureSignEnv(env = process.env) {
   const settings = azureSignSettings(env);
   if (!settings) return {};
-  const system32 = join(env.SystemRoot ?? 'C:\\Windows', 'System32');
+  const system32 = join(env.SystemRoot ?? String.raw`C:\Windows`, 'System32');
   if (!existsSync(join(system32, 'vcruntime140.dll')))
     throw new Error(
       'Azure signing needs the Microsoft Visual C++ Redistributable (x64) on this machine',
@@ -137,7 +137,7 @@ export async function azureSignEnv(env = process.env) {
     SIGNTOOL_PATH: await ensureTool(TOOLS.signtool, cache),
     AZURE_SIGN_DLIB: await ensureTool(TOOLS.dlib, cache),
   };
-  if (!hasDotnet8(env.ProgramFiles ?? 'C:\\Program Files')) {
+  if (!hasDotnet8(env.ProgramFiles ?? String.raw`C:\Program Files`)) {
     const dotnet = join(await ensureTool(TOOLS.dotnet, cache), '..');
     result.DOTNET_ROOT = dotnet;
     result.DOTNET_ROOT_X64 = dotnet;
