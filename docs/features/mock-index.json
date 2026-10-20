@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "token-permissions",
-    "gitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
-    "mock": "docs/features/token-permissions/mock/index.html",
-    "design": "docs/features/token-permissions/design.md",
-    "confirmedAt": "2026-10-20",
-    "confirmation": "Owner, 2026-10-20: \"finish the token permission first\" (after the mock at http://127.0.0.1:7487 was offered for review)."
+    "feature": "multi-inbox",
+    "gitRevision": "f585ace8860647ef050c4b786059233cf0dd6227",
+    "mock": "docs/features/multi-inbox/mock/index.html",
+    "design": "docs/features/multi-inbox/design.md",
+    "confirmedAt": "2026-10-21",
+    "confirmation": "Owner, 2026-10-21: \"ok with mock, implement it with workflow\" (round 3 with Who can open it in Add/Edit inbox)."
   },
   "proposals": [
     {
@@ -20,7 +20,7 @@
       "createdAt": "2026-10-21",
       "design": "docs/features/multi-inbox/design.md",
       "mock": "docs/features/multi-inbox/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "token-permissions",
       "baselineGitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
       "baselineAppRevision": "89ccabe",

@@ -7,7 +7,7 @@ and others, as simple admin will able to see all inbox, and team member agent ca
 and the inbox should be unified view, only the user have the inbox permission able to see the customer
 chat"; on the first mock: "how come inboxes missing personal whatsapp connect? … we should not do whatsapp
 business api first"; then: "remove the whatsapp business API connection type for now, we do it later".
-Status: **mock round 3 waits for the owner**.
+Status: **mock confirmed** (2026-10-21); implementation started.
 
 ## Goal
 
@@ -59,14 +59,14 @@ inbox; an agent sees only the inboxes an admin gave them. Everyone works in **on
 | **Desktop status window**                                             | One status line per inbox (connected / waiting for the scan / phone offline) instead of one WhatsApp status.                                                                                                                                                                                       | —           |
 | **Licence (Enterprise)**                                              | Open question 4.                                                                                                                                                                                                                                                                                   | —           |
 
-## Open questions (for the owner)
+## Open questions: defaults for the first build
 
-1. **Groups:** each group stays in the inbox of the number that is in it (my suggestion). If two of your
-   numbers are in the same group, it shows in both inboxes as two chats.
-2. **AI Sales Agent:** one AI for every inbox, or switch it on per inbox?
-3. **Same customer, two numbers:** two separate chats (my suggestion, simple and clear), or one shared
-   customer profile across inboxes?
-4. **Licence:** does the Enterprise SKU limit how many inboxes an install may have?
+The owner confirmed the mock without answers; the build uses these defaults (my call, each easy to change later):
+
+1. **Groups:** each group stays in the inbox of the number that is in it. The same group in two numbers is two chats.
+2. **AI Sales Agent:** one AI member for every inbox (as today). It answers only chats it may claim; per-inbox on/off is a later step.
+3. **Same customer, two numbers:** two separate chats, each with its own profile.
+4. **Licence:** no inbox limit in this step; Enterprise can add a limit later through an extension hook.
 
 ## Mock
 
@@ -88,7 +88,7 @@ inbox; an agent sees only the inboxes an admin gave them. Everyone works in **on
   `6a3ccfc312525007dd22aa771f75ca3c6fb67071`, recorded in `mock-index.json`).
 - Round 3 fix (owner: "on edit inbox connection it cant assign team member"): Add and Edit inbox now have
   **Who can open it**, with a tick box for each agent. Members → Inbox access stays as the second way in.
-- **Confirmation: pending** (owner).
+- **Confirmation:** owner, 2026-10-21: "ok with mock, implement it with workflow", at revision `f585ace8860647ef050c4b786059233cf0dd6227`.
 
 ## Later: the WhatsApp Business API as a second inbox type
 
