@@ -575,6 +575,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- `ResponsiveTable` renders the desktop table and the phone rows at once (one is hidden): a Playwright
+  `getByTestId(...).first()` can pick the hidden copy and time out. Wait on
+  `locator('[data-testid="…"]:visible')` (`getByRole` already skips hidden elements).
 - The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
   read `<userData>/updates/downloads/` (a growing `<uuid>.part`, then `<sha256>-<installer>` of the
   manifest size) and the installed exe's version before blaming the network or the feed.
