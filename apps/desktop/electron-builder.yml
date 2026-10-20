@@ -60,6 +60,11 @@ win:
   icon: build/icon.ico
   # Keep the binary path referenced by existing Windows service configurations.
   executableName: EzyChat Lite
+  # Our own hook signs every file when WIN_SIGN_MODE is set (Azure Artifact Signing in release.yml,
+  # signtool with a certificate, or a vendor command); without it the build stays unsigned. See
+  # scripts/sign-windows.cjs.
+  signtoolOptions:
+    sign: ../../scripts/sign-windows.cjs
   target:
     - target: nsis
       arch: [x64]

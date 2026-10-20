@@ -94,6 +94,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Azure sign-in from this public repository uses GitHub OIDC (`azure/login`, `id-token: write`), never
+  a stored client secret. Federated credentials match the subject exactly (no wildcards): use a GitHub
+  environment (`repo:<owner>/<repo>:environment:release`) whose rules allow only `v*` tags and `main`.
 - A CI job that fails in `npm ci` with `node-gyp` building `better-sqlite3` (no Python/compiler on the
   runner) means its prebuilt binary download failed, not that the change broke it: check the step
   (install, before any test), then `gh run rerun <id> --failed` before investigating the code.
