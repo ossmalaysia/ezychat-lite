@@ -251,3 +251,41 @@ describe('group mention names', () => {
     expect(list().find((m) => m.id === r.json().id)?.body).toBe('Hi @Jay Low');
   });
 });
+
+describe('mentions of the linked WhatsApp account', () => {
+  const ME_LID = '81071886581878@lid';
+  const meName = () => t.wa.status.me?.name;
+
+  it('names a tag of the linked account by its LID (WhatsApp hides its number in groups)', async () => {
+    t.wa.simulateStatus({
+      me: { jid: '60000000000@s.whatsapp.net', name: 'Kopi Apong', lid: ME_LID },
+    });
+    expect(meName()).toBe('Kopi Apong');
+    const result = await incoming('me-lid', `@${ME_LID.split('@')[0]}!!!!`, {
+      mentionedJids: [ME_LID],
+    });
+    expect(result?.body).toBe('@Kopi Apong!!!!');
+  });
+
+  it('names a tag of the linked account by its phone number and in old messages without metadata', async () => {
+    t.wa.simulateStatus({
+      me: { jid: '60000000000@s.whatsapp.net', name: 'Kopi Apong', lid: ME_LID },
+    });
+    expect(
+      (
+        await incoming('me-pn', 'Hi @60000000000', {
+          mentionedJids: ['60000000000@s.whatsapp.net'],
+        })
+      )?.body,
+    ).toBe('Hi @Kopi Apong');
+    expect((await incoming('me-legacy', `Hi @${ME_LID.split('@')[0]}`))?.body).toBe(
+      'Hi @Kopi Apong',
+    );
+  });
+
+  it('keeps the number when the account has no WhatsApp name', async () => {
+    t.wa.simulateStatus({ me: { jid: '60000000000@s.whatsapp.net', name: null, lid: ME_LID } });
+    const body = `@${ME_LID.split('@')[0]} hello`;
+    expect((await incoming('me-noname', body, { mentionedJids: [ME_LID] }))?.body).toBe(body);
+  });
+});

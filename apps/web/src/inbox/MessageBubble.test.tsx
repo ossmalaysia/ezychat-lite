@@ -219,3 +219,33 @@ describe('MessageBubble quote author', () => {
     expect(screen.getByText('Farah Catering Co')).toBeTruthy();
   });
 });
+
+describe('MessageBubble via AI assistant', () => {
+  const outbound: Message = {
+    ...groupMessage,
+    chatJid: '60123456789@s.whatsapp.net',
+    senderJid: null,
+    fromMe: true,
+    sentByUserId: 1,
+    clientId: 'mcp-0123456789abcdef',
+  };
+
+  it('marks a reply the AI assistant sent through MCP', () => {
+    render(
+      <MessageBubble
+        message={{ ...outbound, viaAssistant: true }}
+        showSender={false}
+        outboundLabel="Aisyah"
+        quoted={null}
+      />,
+    );
+    expect(screen.getByTestId('via-assistant').textContent).toContain('via AI assistant');
+  });
+
+  it('trusts only the stored marker, never an mcp- clientId alone', () => {
+    render(
+      <MessageBubble message={outbound} showSender={false} outboundLabel="Aisyah" quoted={null} />,
+    );
+    expect(screen.queryByTestId('via-assistant')).toBeNull();
+  });
+});

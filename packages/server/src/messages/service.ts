@@ -42,7 +42,15 @@ export const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
   ingest(m: WaIncomingMessage, source: 'live' | 'history'): Promise<Message | null>;
-  sendText(jid: string, body: SendTextBody, userId: number): Message;
+  /** `viaTokenId`: the MCP access token whose AI assistant sends it (marks it "via AI assistant"). */
+  sendText(
+    jid: string,
+    body: SendTextBody,
+    userId: number,
+    opts?: { viaTokenId?: number },
+  ): Message;
+  /** The message sent earlier with this clientId (send idempotency), or null. */
+  byClientId(clientId: string): Message | null;
   sendMedia(
     jid: string,
     file: {
@@ -591,7 +599,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return msg;
     },
 
-    sendText(jid, body, userId) {
+    byClientId(clientId) {
+      const row = repo.byClientId(clientId);
+      return row ? present(row) : null;
+    },
+
+    sendText(jid, body, userId, opts) {
       const existing = repo.byClientId(body.clientId);
       if (existing) return present(existing);
       requireChat(jid);
@@ -619,6 +632,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         created_at: t,
         client_id: body.clientId,
         wa_remote_jid: replyTarget(jid),
+        sent_via_token_id: opts?.viaTokenId ?? null,
       });
     },
 

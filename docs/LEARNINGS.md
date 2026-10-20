@@ -94,6 +94,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A CI job that fails in `npm ci` with `node-gyp` building `better-sqlite3` (no Python/compiler on the
+  runner) means its prebuilt binary download failed, not that the change broke it: check the step
+  (install, before any test), then `gh run rerun <id> --failed` before investigating the code.
+
 - Merge a stack in a squash-only repo by retargeting the top PR to `main` and squash-merging it once, then
   close the lower PRs as included. Retargeting does not start CI and `strict` needs an up-to-date branch:
   run `gh pr update-branch` and wait for the required `Test (…)` jobs, never for "any green check".
@@ -113,7 +117,8 @@ into AGENTS.md.
   gate can still have open Sonar findings: inspect review comments and findings on the final commit
   before reporting readiness, and leave the PR open until the owner requests merging.
 - CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
-  package mid-suite and starves slow Windows runners into timeouts. A test that is ~0.4 s on `main` and
+  package mid-suite and starves slow Windows runners into timeouts. Do the same locally after adding a
+  file to a package (e.g. a migration): a stale `dist/` fails "ships the build output". A test that is ~0.4 s on `main` and
   times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
 - Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
   as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
@@ -211,6 +216,8 @@ into AGENTS.md.
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
   fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
+  A new test file that copies another file's request helpers fails it too: import them from a shared
+  test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
 
@@ -260,7 +267,11 @@ into AGENTS.md.
 - A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
 - Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
   regexes from template literals with `String.raw`.
-- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo. Put
+- A stopped background shell (e.g. Claude Code's low-memory reap) can leave its `tsx` server child running:
+  check the port owner (`Get-NetTCPConnection -LocalPort <port>`) before a restart, else it fails with
+  EADDRINUSE; stop the old process by its PID only after you confirm its command line.
+- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
+  workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
@@ -378,6 +389,11 @@ into AGENTS.md.
   Test such limits with genuinely oversized input, not by editing the header (that is the attack).
 
 ## WhatsApp / Baileys
+
+- The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
+  groups WhatsApp shows it only by its LID. Anything that names people (mentions, member lists) must
+  also check `status.me.jid` and `status.me.lid` (from `sock.user.lid`) and name it from `status.me.name`;
+  a tag of the owner otherwise shows as a bare number.
 
 - Keep mention JIDs separate from the original body and resolve names at every presentation path, including inbox/notification previews before truncation; sender names alone do not name tags. Legacy numeric tags must be unambiguous across phone/LID identities, and recycled phone contacts must never supply another person's name.
 
@@ -536,6 +552,20 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Feature mocks rot with the code: the confirmed reference stopped compiling after the `@ezychat/*`
+  rename. Clone it, fix only mechanically (renames, type drift), record the fixes in
+  `reference.json` → `baselineDriftFixes` and refreeze the hashes so `snapshot.mjs --check` stays
+  meaningful. A runner that replaces Vite's `resolve` with only an alias drops the `ezychat-source`
+  condition and serves stale `dist/` packages (a new field never reached the page): spread the web
+  config's `resolve`.
+- An outgoing message's id is `local-<clientId>` until WhatsApp accepts it, then the WhatsApp id: an
+  API or tool that returns it must say so, and tests must find the row by `client_id`.
+- A socket event that arrives while its list is still loading is lost: the load's older answer replaces the
+  patched cache, and React Query reuses a running first load instead of restarting it on
+  `invalidateQueries`. Wait for the running load to end, then reload (`reloadAfterRunningLoad`). An e2e
+  test that fails only in the full run is usually such a race: read its failure screenshot, never just
+  rerun it.
 
 - Electron fires `will-frame-navigate` before `will-navigate`; `preventDefault()` in the first cancels the
   second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle

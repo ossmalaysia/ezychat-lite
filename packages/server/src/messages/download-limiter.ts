@@ -28,7 +28,10 @@ export class DownloadLimiter {
       const work = Promise.resolve().then(task);
       work.catch(() => undefined); // a late failure after a timeout must not become unhandled
       const timeout = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`media download timed out after ${this.opts.timeoutMs}ms`)), this.opts.timeoutMs);
+        timer = setTimeout(
+          () => reject(new Error(`media download timed out after ${this.opts.timeoutMs}ms`)),
+          this.opts.timeoutMs,
+        );
       });
       return await Promise.race([work, timeout]);
     } finally {

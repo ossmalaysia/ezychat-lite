@@ -187,6 +187,9 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
     if (!me) return out;
     out.add(me);
     for (const a of getAliases(ctx).group(me)) out.add(a);
+    // Own pairs are never learned as aliases (aliases.ts): the session knows the account's LID.
+    const lid = normalizeContactJid(ctx.wa.status.me?.lid);
+    if (lid) out.add(lid);
     return out;
   }
 

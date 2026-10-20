@@ -99,7 +99,9 @@
     "someoneElse": "someone else",
     "confirmTitle": "Assigned to {{name}}",
     "confirmBody": "This chat is assigned to <strong>{{name}}</strong> — reply anyway? You won’t be asked again for this chat during this session.",
-    "replyAnyway": "Reply anyway"
+    "replyAnyway": "Reply anyway",
+    "startedByAssistantTitle": "An AI assistant started this chat",
+    "startedByAssistantBody": "This customer has not written to you yet. WhatsApp can ban your number if people report messages they did not expect."
   },
   "composer": {
     "placeholder": "Type a message",
@@ -269,7 +271,8 @@
       "too_long": "Too long to transcribe",
       "unsupported": "This audio format can’t be transcribed"
     },
-    "reply": "Reply"
+    "reply": "Reply",
+    "viaAssistant": "via AI assistant"
   },
   "media": {
     "types": {
