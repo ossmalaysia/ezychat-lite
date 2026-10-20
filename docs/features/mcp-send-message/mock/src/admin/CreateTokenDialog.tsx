@@ -55,6 +55,8 @@ export function CreateTokenDialog({
   const [expiry, setExpiry] = useState<ExpiryOption>('90');
   const [canSend, setCanSend] = useState(false);
   const canSendId = useId();
+  const [canNew, setCanNew] = useState(false);
+  const canNewId = useId();
   const [submitted, setSubmitted] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
 
@@ -71,6 +73,8 @@ export function CreateTokenDialog({
     setSecret(null);
     setName('');
     setExpiry('90');
+    setCanSend(false);
+    setCanNew(false);
     setSubmitted(false);
     create.reset();
     onOpenChange(false);
@@ -81,7 +85,12 @@ export function CreateTokenDialog({
     setSubmitted(true);
     if (trimmed === '' || trimmed.length > NAME_MAX || create.isPending) return;
     create.mutate({
-      body: { name: trimmed, expiresInDays: EXPIRY_DAYS[expiry], canSend },
+      body: {
+        name: trimmed,
+        expiresInDays: EXPIRY_DAYS[expiry],
+        canSend,
+        canMessageNewNumbers: canSend && canNew,
+      },
       onSecret: setSecret,
     });
   };
@@ -195,7 +204,10 @@ export function CreateTokenDialog({
               id={canSendId}
               checked={canSend}
               disabled={create.isPending}
-              onCheckedChange={(v) => setCanSend(v === true)}
+              onCheckedChange={(v) => {
+                setCanSend(v === true);
+                if (v !== true) setCanNew(false);
+              }}
               className="mt-0.5"
             />
             <div className="flex flex-col gap-1">
@@ -207,6 +219,29 @@ export function CreateTokenDialog({
             </div>
           </div>
           {canSend && <Banner tone="warning">{t('mockSend.canSendWarning')}</Banner>}
+          {/* Proposed (MCP send to a new number): only under "Can send", off by default. */}
+          {canSend && (
+            <div className="ml-7 flex flex-col gap-2">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id={canNewId}
+                  checked={canNew}
+                  disabled={create.isPending}
+                  onCheckedChange={(v) => setCanNew(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={canNewId}>{t('mockSend.canNew')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('mockSend.canNewHint')}</p>
+                </div>
+              </div>
+              {canNew && (
+                <Banner tone="danger" title={t('mockSend.canNewWarningTitle')}>
+                  {t('mockSend.canNewWarning')}
+                </Banner>
+              )}
+            </div>
+          )}
         </div>
         {create.error != null && <Banner tone="danger">{errorMessage(create.error)}</Banner>}
       </form>

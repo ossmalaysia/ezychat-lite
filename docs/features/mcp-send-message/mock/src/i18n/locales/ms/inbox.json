@@ -468,6 +468,8 @@
     "listLabel": "Ahli kumpulan"
   },
   "mockSend": {
-    "viaAssistant": "melalui pembantu AI"
+    "viaAssistant": "melalui pembantu AI",
+    "startedTitle": "Pembantu AI memulakan sembang ini",
+    "startedBody": "Pelanggan ini belum menulis kepada anda. WhatsApp boleh menyekat nombor anda jika orang melaporkan mesej yang tidak dijangka."
   }
 }

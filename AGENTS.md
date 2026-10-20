@@ -267,10 +267,13 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   too) and an audit row with token id and reason, and is rate-limited per token. The send tool
   (`send_message`, scope `inbox:send`) exists only for a token created with `canSend` (default off; a
   token never gains a scope later) and goes only through `InboxSendPort` (`mcp/send.ts`), which rechecks
-  the scope: text into an **existing** chat only (never a new number), as the token owner, through the
+  the scope: text into an **existing** chat, as the token owner, through the
   normal message service; idempotent per token + `requestId`; 10 a minute and 100 a day per token;
-  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. Tools log tool name, counts and token
-  id, never arguments or message text.
+  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_to_new_number` (scope
+  `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
+  in the inbox only after `WaAdapter.checkNumber` confirms it (20 checks a day per token, counted before
+  the check; audit `mcp.new_chat`); its description and every result carry the WhatsApp ban warning.
+  Tools log tool name, counts and token id, never arguments, phone numbers or message text.
 - Host-only extension routes (`/api/ext/<name>/host/…`) answer only a direct loopback peer with a
   loopback `Host` and no `CF-Connecting-IP`; the access gate allowlist matches the decoded path and the
   matched route, never a raw prefix alone.

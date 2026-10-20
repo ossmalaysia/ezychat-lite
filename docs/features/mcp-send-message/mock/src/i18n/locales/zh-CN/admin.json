@@ -884,8 +884,13 @@
   },
   "mockSend": {
     "canSend": "可以发送 WhatsApp 消息",
-    "canSendHint": "您的 AI 助手可以以您的身份在现有对话中回复，但不能与新号码开始对话。",
+    "canSendHint": "您的 AI 助手可以以您的身份在现有对话中回复。",
     "canSendWarning": "回复会直接发送给您的客户。大多数 AI 助手会在每条消息前征求您的同意；请在批准前检查每条消息。",
-    "canSendBadge": "可发送"
+    "canSendBadge": "可发送",
+    "canNew": "也可以向新号码发送消息",
+    "canNewHint": "助手可以与收件箱中没有的号码开始对话。WhatsApp 会先检查该号码。每天最多 20 个新号码。",
+    "canNewWarningTitle": "WhatsApp 封号风险",
+    "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。",
+    "canNewBadge": "新号码"
   }
 }

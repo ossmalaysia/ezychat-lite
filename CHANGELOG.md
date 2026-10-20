@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - AI assistant access: a new tool lets your AI assistant send a text reply into an existing chat, as you, when its access token was created with "Can send WhatsApp messages". The option in Settings comes in a later update; tokens made before never get this right.
+- AI assistant access: a token created with "Can send" and "Can also message new numbers" may also start a chat with a number that is not in the inbox, after WhatsApp confirms the number (up to 20 new numbers a day). WhatsApp can ban a number that messages people who did not ask for it: the assistant gets this warning with the tool and with every result.
 - The AI assistant connection now names the edition you run (for example EzyChat Enterprise).
 
 ## [0.1.43] - 2026-10-20

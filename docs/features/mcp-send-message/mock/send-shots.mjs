@@ -1,6 +1,7 @@
 // Screenshots of the proposed MCP-send UI in the running seeded mock (run.ts --fake-wa): the token
 // list with its "Can send" badge, the Create token dialog with the new checkbox (off and ticked) and
-// a chat reply sent through the assistant, at desktop 1280 px and mobile 360 px. Reports page errors
+// a chat reply sent through the assistant, the "Can also message new numbers" option with its ban warning
+// and a chat the assistant started with a new number, at desktop 1280 px and mobile 360 px. Reports page errors
 // and horizontal overflow. Usage: node docs/features/mcp-send-message/mock/send-shots.mjs [baseUrl]
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -49,17 +50,27 @@ for (const [vp, size] of [
     .getByRole('button', { name: /create token/i })
     .first()
     .click();
-  await page.getByRole('checkbox').waitFor();
+  const canSend = page.getByRole('checkbox', { name: /can send whatsapp messages/i });
+  await canSend.waitFor();
   await shot('02', 'create-dialog', vp);
-  await page.getByRole('checkbox').click();
+  await canSend.click();
   await page.getByText(/Replies go straight to your customers/).waitFor();
   await shot('03', 'create-dialog-can-send', vp);
+  await page.getByRole('checkbox', { name: /also message new numbers/i }).click();
+  const ban = page.getByText(/Risk of a WhatsApp ban/);
+  await ban.waitFor();
+  await ban.scrollIntoViewIfNeeded();
+  await shot('05', 'create-dialog-new-numbers', vp);
   await page.keyboard.press('Escape');
 
   await page.goto(`/chats/${encodeURIComponent('60123110021@s.whatsapp.net')}`);
   await page.getByTestId('via-assistant').first().waitFor();
   await page.getByTestId('via-assistant').first().scrollIntoViewIfNeeded();
   await shot('04', 'chat-via-assistant', vp);
+
+  await page.goto(`/chats/${encodeURIComponent('60139990001@s.whatsapp.net')}`);
+  await page.getByTestId('started-by-assistant').waitFor();
+  await shot('06', 'chat-started-by-assistant', vp);
   await ctx.close();
 }
 await browser.close();

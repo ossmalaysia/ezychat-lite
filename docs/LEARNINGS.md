@@ -257,7 +257,8 @@ into AGENTS.md.
 - A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
 - Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
   regexes from template literals with `String.raw`.
-- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo. Put
+- Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
+  workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the

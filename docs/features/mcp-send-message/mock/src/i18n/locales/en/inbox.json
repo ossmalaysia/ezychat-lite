@@ -471,6 +471,8 @@
     "listLabel": "Group members"
   },
   "mockSend": {
-    "viaAssistant": "via AI assistant"
+    "viaAssistant": "via AI assistant",
+    "startedTitle": "An AI assistant started this chat",
+    "startedBody": "This customer has not written to you yet. WhatsApp can ban your number if people report messages they did not expect."
   }
 }

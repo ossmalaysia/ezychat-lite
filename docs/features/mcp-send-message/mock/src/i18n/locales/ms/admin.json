@@ -885,8 +885,13 @@
   },
   "mockSend": {
     "canSend": "Boleh menghantar mesej WhatsApp",
-    "canSendHint": "Pembantu AI anda boleh membalas dalam sembang sedia ada, sebagai anda. Ia tidak boleh memulakan sembang dengan nombor baharu.",
+    "canSendHint": "Pembantu AI anda boleh membalas dalam sembang sedia ada, sebagai anda.",
     "canSendWarning": "Balasan terus sampai kepada pelanggan anda. Kebanyakan pembantu AI bertanya kepada anda sebelum setiap mesej; semak setiap satu sebelum anda meluluskannya.",
-    "canSendBadge": "Boleh menghantar"
+    "canSendBadge": "Boleh menghantar",
+    "canNew": "Juga boleh menghantar mesej kepada nombor baharu",
+    "canNewHint": "Pembantu boleh memulakan sembang dengan nombor yang tiada dalam peti masuk. WhatsApp menyemak nombor itu dahulu. Sehingga 20 nombor baharu sehari.",
+    "canNewWarningTitle": "Risiko disekat oleh WhatsApp",
+    "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini.",
+    "canNewBadge": "Nombor baharu"
   }
 }

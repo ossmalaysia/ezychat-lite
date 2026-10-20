@@ -24,7 +24,7 @@ import {
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
-import { EmptyState } from '@/components/app';
+import { Banner, EmptyState } from '@/components/app';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -248,6 +248,13 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const queued = waQueuesMessages(waState);
   // Quotes in a direct chat name the customer like the header does (groups name each sender).
   const contactName = chat.type === 'dm' ? chatTitle(chat, t) : undefined;
+  // Proposed (MCP send to a new number): a chat an AI assistant started, where the customer has not
+  // written yet. The mock recognises it by the send tool's clientId; the app will use a stored marker.
+  const startedByAssistant =
+    chat.type === 'dm' &&
+    messages.length > 0 &&
+    messages.every((m) => m.fromMe) &&
+    messages.some((m) => m.clientId?.startsWith('mcp-'));
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
@@ -294,6 +301,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setNotesOpen(false);
           }}
         />
+        {startedByAssistant && (
+          <Banner tone="warning" title={t('mockSend.startedTitle')} className="mx-3 mt-3 md:mx-4">
+            <span data-testid="started-by-assistant">{t('mockSend.startedBody')}</span>
+          </Banner>
+        )}
         <MessageList
           items={items}
           messagesById={messagesById}

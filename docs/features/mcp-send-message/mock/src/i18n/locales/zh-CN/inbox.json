@@ -468,6 +468,8 @@
     "listLabel": "群组成员"
   },
   "mockSend": {
-    "viaAssistant": "通过 AI 助手"
+    "viaAssistant": "通过 AI 助手",
+    "startedTitle": "此对话由 AI 助手发起",
+    "startedBody": "该客户尚未给您发过消息。如果有人举报意外收到的消息，WhatsApp 可能会封禁您的号码。"
   }
 }

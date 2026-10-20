@@ -100,11 +100,26 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
     canSend: true,
   });
   await call('POST', '/integrations/tokens', { name: 'ChatGPT – reports only', expiresInDays: 30 });
+  // Proposed (MCP send to a new number): a token that may also message new numbers, and one chat it
+  // started with a number that was not in the inbox (the customer has not written yet).
+  const outreach = await call('POST', '/integrations/tokens', {
+    name: 'Claude – event follow-ups',
+    expiresInDays: 30,
+    canSend: true,
+    canMessageNewNumbers: true,
+  });
   const resolved = ctx.services.apiTokens!.resolve(created.secret as string);
   if (!resolved.ok) throw new Error('seed token');
   createInboxSendPort(ctx).sendText(resolved.principal, {
     jid: chats[0]![0]!,
     text: 'Yes, we can cater for 30 this Saturday. The set is RM12 per person; I will confirm the deposit today.',
     requestId: 'seed-assistant-0001',
+  });
+  const outreachToken = ctx.services.apiTokens!.resolve(outreach.secret as string);
+  if (!outreachToken.ok) throw new Error('seed outreach token');
+  await createInboxSendPort(ctx).sendToNewNumber(outreachToken.principal, {
+    phone: '+60 13-999 0001',
+    text: 'Hi, this is Aisyah. Thank you for visiting our booth at the food fair. As you asked, here is our catering menu: https://example.com/menu',
+    requestId: 'seed-assistant-new-0001',
   });
 }

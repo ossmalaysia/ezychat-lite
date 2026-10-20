@@ -893,8 +893,13 @@
   },
   "mockSend": {
     "canSend": "Can send WhatsApp messages",
-    "canSendHint": "Your AI assistant can reply in existing chats, as you. It cannot start a chat with a new number.",
+    "canSendHint": "Your AI assistant can reply in existing chats, as you.",
     "canSendWarning": "Replies go straight to your customers. Most AI assistants ask you before each message; check each one before you approve it.",
-    "canSendBadge": "Can send"
+    "canSendBadge": "Can send",
+    "canNew": "Can also message new numbers",
+    "canNewHint": "The assistant can start a chat with a number that is not in the inbox. WhatsApp checks the number first. Up to 20 new numbers a day.",
+    "canNewWarningTitle": "Risk of a WhatsApp ban",
+    "canNewWarning": "WhatsApp can ban your number if it messages people who did not ask for it. Turn this on only if your team messages people who agreed to be contacted. The assistant also gets this warning.",
+    "canNewBadge": "New numbers"
   }
 }

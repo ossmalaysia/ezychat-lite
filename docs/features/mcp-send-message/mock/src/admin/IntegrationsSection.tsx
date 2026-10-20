@@ -266,6 +266,15 @@ function TokenRow({
             {t('mockSend.canSendBadge')}
           </Badge>
         )}
+        {token.canMessageNewNumbers && (
+          <Badge
+            variant="outline"
+            className="border-danger/50 text-danger"
+            data-testid="token-can-message-new"
+          >
+            {t('mockSend.canNewBadge')}
+          </Badge>
+        )}
         <span>{t('integrations.tokens.created', { date: formatDate(token.createdAt) })}</span>
         <span>{lastUsed}</span>
         {token.expiresAt === null ? (
