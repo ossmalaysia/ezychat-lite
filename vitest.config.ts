@@ -26,5 +26,16 @@ export default defineConfig({
     passWithNoTests: true,
     // Transforms dominated test time (~86%); persist them across runs.
     fsModuleCache: true,
+    // `npm run test:coverage` (CI on ubuntu). Good to go = changed lines ≥ 90 % covered
+    // (scripts/changed-lines-coverage.mjs) and the totals never drop below these floors. Raise the
+    // floors whenever the totals rise; the target for every total is 90 % (AGENTS.md).
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.{ts,tsx,cts}', 'apps/*/src/**/*.{ts,tsx,cts}'],
+      exclude: ['**/*.test.*', '**/*.d.ts', '**/test/**', '**/locales/**'],
+      reporter: ['text-summary', 'json-summary', 'json'],
+      reportOnFailure: true,
+      thresholds: { lines: 84, statements: 81, branches: 75, functions: 78 },
+    },
   },
 });

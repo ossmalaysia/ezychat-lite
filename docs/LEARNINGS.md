@@ -233,6 +233,13 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
+  module or build a TypeScript program time out at Vitest's 5 s only under coverage. `test:coverage` uses
+  `--testTimeout=20000`; parse once in `beforeAll`, import light modules statically, and set
+  `reportOnFailure` so a timeout never hides the coverage numbers. A gate must fail closed: a filtered run
+  (`--project`) wrote an empty report and the changed-lines check passed; it now refuses an empty report
+  and a changed source file missing from it. Prove every gate with a run that must fail.
+
 - `codex exec -i <image>` takes several values, so a prompt after it is read as a second image ("No prompt
   provided"): send the prompt on stdin (`codex exec -i icon.png < PROMPT.md`).
 - Put Markdown syntax examples in CHANGELOG/docs inside backticks: Prettier rewrites a bare `**name**` or `*x*`

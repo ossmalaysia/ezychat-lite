@@ -118,20 +118,23 @@ export function webClientCalls(): { calls: ClientCall[]; unresolved: string[] } 
 
 describe('web client ↔ server routes', () => {
   let t: TestApp;
+  // Parsing and type-checking the web source is slow (most of all under coverage): do it once.
+  let scan: ReturnType<typeof webClientCalls>;
   beforeAll(async () => {
+    scan = webClientCalls();
     t = await makeTestApp();
-  });
+  }, 60_000);
   afterAll(async () => {
     await t?.close();
   });
 
   it('finds the web app calls', () => {
-    const { calls } = webClientCalls();
+    const { calls } = scan;
     expect(calls.length).toBeGreaterThan(60);
   });
 
   it('every web call has a server route with the same method', async () => {
-    const { calls } = webClientCalls();
+    const { calls } = scan;
     const missing: string[] = [];
     for (const call of calls) {
       const res = await t.app.inject({
@@ -152,7 +155,7 @@ describe('web client ↔ server routes', () => {
       [join('api', 'client.ts')]:
         'the api() helper itself: fetch(`/api${path}`) for every call above',
     };
-    const { unresolved } = webClientCalls();
+    const { unresolved } = scan;
     expect(unresolved.filter((at) => !(at.replace(/:\d+$/, '') in REVIEWED))).toEqual([]);
   });
 });

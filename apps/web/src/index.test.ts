@@ -27,5 +27,5 @@ describe('public web entry', () => {
     ]) {
       expect(api, name).toHaveProperty(name);
     }
-  });
+  }, 30_000);
 });
