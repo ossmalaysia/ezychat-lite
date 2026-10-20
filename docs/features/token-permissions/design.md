@@ -1,7 +1,7 @@
 # Change what an access token may do
 
 Owner request (2026-10-20): "it is troublesome to reissue access token, please allow to update access
-token permission like allow send msg". Status: **mock confirmed; production UI in progress**
+token permission like allow send msg". Status: **done** (server, UI, tests, e2e, Dev Build check, screen review)
 (AGENTS.md: mock first).
 
 ## Goal
@@ -51,5 +51,5 @@ Settings, audited; never through a token".
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------- |
 | 1   | Shared `UpdateApiTokenBody` / `UpdateApiTokenResponse`; `ApiTokenService.updatePermissions` (owner only, keeps other scopes, audit); `PATCH /api/integrations/tokens/:id` | `api-token-permissions.test.ts` (real route + real `/mcp` tool list), admin-only route list | done                  |
 | 2   | HTML mock (Permissions button, dialog, phone layout)                                                                                                                      | `perm-shots.mjs` at 1280/360 px                                                             | done, waits for owner |
-| 3   | UI after confirmation: `useUpdateApiToken`, the dialog, the row layout, i18n en/ms/zh-CN, web tests, e2e, screen review                                                   | web tests + e2e + screens.smoke                                                             | after confirmation    |
+| 3   | UI after confirmation: `useUpdateApiToken`, the dialog, the row layout, i18n en/ms/zh-CN, web tests, e2e, screen review                                                   | web tests + e2e + screens.smoke                                                             | done                  |
 | 4   | Docs: AGENTS.md security invariant, CHANGELOG                                                                                                                             | —                                                                                           | done                  |

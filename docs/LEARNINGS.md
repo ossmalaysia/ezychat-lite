@@ -710,6 +710,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
 - Switch language only after `activateLocale` resolves; apply static desktop strings once per locale.
+- `errorMessage()` shows the translated generic text for generic codes (`forbidden`, `not_found`, …) and
+  the server's English text only for `validation`/`conflict`/feature codes: test the text the user sees.
 - Shared shell code serves every edition: no product name or edition-wide constant (name, port, folder) in
   catalogs or code; use `{{product}}` and a `Product` field. Check an edition's first installer on a PC that
   also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).

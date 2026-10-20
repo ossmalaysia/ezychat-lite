@@ -211,5 +211,38 @@ check(
   'one mcp.new_chat audit row, without the text',
   String(newChatRows.length),
 );
+
+// Token permissions: the owner lets the read-only token send, without a new token or reconnecting.
+const listNames = async (secret) => {
+  const c = await connect(secret);
+  const names = (await c.listTools()).tools.map((t) => t.name);
+  await c.close();
+  return names;
+};
+const granted = await api('PATCH', `/integrations/tokens/${reader.token.id}`, {
+  canSend: true,
+  canMessageNewNumbers: false,
+});
+check(
+  granted.status === 200 && granted.json.token.canSend === true,
+  'owner turns on sending for the read-only token',
+);
+check(
+  (await listNames(reader.secret)).includes('send_message'),
+  'the same token lists send_message on its next connection',
+);
+await api('PATCH', `/integrations/tokens/${reader.token.id}`, {
+  canSend: false,
+  canMessageNewNumbers: false,
+});
+check(
+  !(await listNames(reader.secret)).includes('send_message'),
+  'turned off again: send_message is gone',
+);
+const audit3 = (await api('GET', '/audit?limit=50')).json;
+const updates = (audit3.entries ?? audit3.rows ?? audit3.items ?? []).filter(
+  (e) => e.action === 'api_token.update',
+);
+check(updates.length === 2, 'two api_token.update audit rows', String(updates.length));
 console.log(failed ? `\n${failed} step(s) FAILED` : '\nall steps PASS');
 process.exit(failed ? 1 : 0);
