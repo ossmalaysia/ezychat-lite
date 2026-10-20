@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.44] - 2026-10-20
+
 ### Added
 
 - AI assistant access: a new tool lets your AI assistant send a text reply into an existing chat, as you, when its access token was created with "Can send WhatsApp messages". Tick it in Settings → Integrations → Create token; tokens made before never get this right. Replies the assistant sent show "via AI assistant" in the chat.

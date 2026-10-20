@@ -137,7 +137,8 @@ into AGENTS.md.
   branch or path (e.g. `/code-review feat/x`) when the work lives in another worktree.
 - Never hard-reset a working tree with changes you didn't make; stash or use a worktree.
 - Before removing a worktree, delete its `node_modules` junctions with `[IO.Directory]::Delete(path, $false)`
-  (Git follows junctions); prefer `npm ci` in new worktrees.
+  (Git follows junctions); prefer `npm ci` in new worktrees. Without it, a bare `npx prettier`/`eslint`
+  there downloads other versions: for a one-file fix call the main checkout's `node_modules/.bin/<tool>`.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
   sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
