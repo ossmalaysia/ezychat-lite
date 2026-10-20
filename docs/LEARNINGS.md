@@ -502,6 +502,8 @@ into AGENTS.md.
   never one provider's name; state which clients a given auth method actually supports.
 - A new MCP tool must be added to every exact tool-name list in the tests (`mcp.test.ts` and
   `mcp-ai-setup.test.ts`): grep `server/test` for an existing tool name before pushing.
+- The server applies a token's scope change on the next call, but MCP clients cache `tools/list` until
+  they refresh or reconnect: tell the owner to refresh the connection (same token) after a change.
 - MCP analytics are aggregated on the server (`get_stats`, `get_activity`), never left to the model
   paging through `get_messages`; define every derived metric in the tool description (e.g. "new
   conversation = customer message after 12 h of silence") so the client cannot guess its meaning.
