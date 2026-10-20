@@ -24,6 +24,7 @@ const TEAM = [
 ];
 const jid = (n) => `6012${n}@s.whatsapp.net`;
 const GROUP = '120363025550001@g.us';
+const NEW_NUMBER = '60134455667';
 
 async function session(username, password = PASSWORD) {
   const headers = { 'content-type': 'application/json', origin: BASE };
@@ -188,8 +189,72 @@ async function seed() {
   });
   await say(owner, GROUP, 'Is the durian cendol back this weekend?', 'Farah Aziz');
   await say(owner, GROUP, 'Yes please, save me two!', 'Nurul Huda');
+
+  // AI assistant access (MCP): a token that may reply, one that may also message new numbers, a reply
+  // the assistant sent and a chat it started with a new number (fake WhatsApp, demo numbers only).
+  await owner.call('PATCH', '/integrations/mcp', { enabled: true });
+  await owner.call('POST', '/integrations/tokens', {
+    name: 'ChatGPT – weekly report',
+    expiresInDays: 90,
+  });
+  const replies = await owner.call('POST', '/integrations/tokens', {
+    name: 'Claude – office laptop',
+    expiresInDays: 90,
+    canSend: true,
+  });
+  const outreach = await owner.call('POST', '/integrations/tokens', {
+    name: 'Claude – food fair follow-ups',
+    expiresInDays: 30,
+    canSend: true,
+    canMessageNewNumbers: true,
+  });
+  await mcpTool(replies.secret, 'send_message', {
+    jid: jid('9001234'),
+    text: 'Hi Jason! A large Kopi Peng is RM5.50, and yes, we have oat milk (+RM1).',
+    requestId: 'demo-assistant-0001',
+  });
+  await mcpTool(outreach.secret, 'send_to_new_number', {
+    phone: NEW_NUMBER,
+    text: 'Hi, this is Aisyah from Kopi Apong. Thank you for visiting our booth at the food fair! As you asked, here is our catering menu: https://kopiapong.example/menu',
+    requestId: 'demo-assistant-0002',
+  });
   await pause(500);
   return owner;
+}
+
+/** One MCP tool call with a bearer token, as an AI assistant makes it. */
+async function mcpTool(secret, name, args) {
+  const res = await fetch(`${BASE}/mcp`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+      authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name, arguments: args },
+    }),
+  });
+  const body = await res.json();
+  if (!res.ok || body.result?.isError) throw new Error(`${name}: ${JSON.stringify(body)}`);
+}
+
+/** Open Create token with both send options ticked, so the ban warning shows. */
+async function openNewNumbersDialog(page) {
+  await page.getByRole('button', { name: 'Create token', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create access token' });
+  await dialog.getByLabel('Name', { exact: true }).fill('Claude – food fair follow-ups');
+  await dialog.getByRole('checkbox', { name: 'Can send WhatsApp messages' }).click();
+  await dialog.getByRole('checkbox', { name: 'Can also message new numbers' }).click();
+  await dialog.getByText('Risk of a WhatsApp ban').scrollIntoViewIfNeeded();
+}
+
+/** Scroll the token list into view. */
+async function showTokens(page) {
+  await page.getByTestId('api-token-row').first().scrollIntoViewIfNeeded();
 }
 
 /** Tap the group name in the chat header to open Group info. */
@@ -224,9 +289,35 @@ const SHOTS = [
   ['whatsapp-link', 'whatsapp', '/admin/whatsapp', ['desktop']],
   ['remote-access', 'remote-access', '/admin/tunnel', ['desktop']],
   ['settings', 'settings', '/admin/settings', ['desktop']],
+  [
+    'ai-assistant',
+    'access-tokens',
+    '/admin/settings/integrations',
+    ['desktop', 'mobile'],
+    showTokens,
+  ],
+  [
+    'ai-assistant',
+    'create-token-new-numbers',
+    '/admin/settings/integrations',
+    ['desktop', 'mobile'],
+    openNewNumbersDialog,
+  ],
+  [
+    'ai-assistant',
+    'reply-via-assistant',
+    `/chats/${encodeURIComponent(jid('9001234'))}`,
+    ['desktop', 'mobile'],
+  ],
+  [
+    'ai-assistant',
+    'chat-started-by-assistant',
+    `/chats/${encodeURIComponent(`${NEW_NUMBER}@s.whatsapp.net`)}`,
+    ['desktop', 'mobile'],
+  ],
 ];
 // Dark variants only where marketing uses them, to keep the repository small.
-const DARK = new Set(['inbox', 'conversation']);
+const DARK = new Set(['inbox', 'conversation', 'chat-started-by-assistant']);
 const VIEWPORTS = { desktop: { width: 1280, height: 800 }, mobile: { width: 360, height: 780 } };
 
 const owner = await seed();

@@ -122,6 +122,7 @@ check(
   'inbox shows the reply once, delivered by fake WhatsApp',
   mine.map((m) => m.status).join(','),
 );
+check(mine[0]?.viaAssistant === true, 'inbox marks the reply "via AI assistant"');
 const audit = (await api('GET', '/audit?limit=20')).json;
 const rows = (audit.entries ?? audit.rows ?? audit.items ?? []).filter(
   (e) => e.action === 'mcp.send',
@@ -131,6 +132,82 @@ check(
   'one mcp.send audit row, without the text',
   String(rows.length),
 );
+check(
+  !tools.some((t) => t.name === 'send_to_new_number'),
+  'a token that can only send has no send_to_new_number',
+);
 await client.close();
+
+// New numbers: a separate option, listed with the ban warning first.
+const outreach = (
+  await api('POST', '/integrations/tokens', {
+    name: 'outreach',
+    expiresInDays: 30,
+    canSend: true,
+    canMessageNewNumbers: true,
+  })
+).json;
+check(outreach.token.canMessageNewNumbers === true, 'token created that can message new numbers');
+const outClient = await connect(outreach.secret);
+const newTool = (await outClient.listTools()).tools.find((t) => t.name === 'send_to_new_number');
+check(
+  newTool?.description.startsWith('WARNING: WhatsApp can ban') &&
+    newTool?.annotations?.readOnlyHint === false,
+  'send_to_new_number listed with the ban warning first',
+);
+const NEW_PHONE = '60197776655';
+const started = await outClient.callTool({
+  name: 'send_to_new_number',
+  arguments: {
+    phone: '+60 19-777 6655',
+    text: 'Thank you for visiting our booth. Here is the menu you asked for.',
+    requestId: 'devbuild-new-0001',
+  },
+});
+const startedResult = JSON.parse(started.content[0].text);
+check(
+  !started.isError &&
+    startedResult.newChat === true &&
+    startedResult.chatJid === `${NEW_PHONE}@s.whatsapp.net` &&
+    /WhatsApp can ban/.test(startedResult.warning),
+  'send_to_new_number starts the chat and returns the warning',
+  JSON.stringify({ newChat: startedResult.newChat, chatJid: startedResult.chatJid }),
+);
+const known = JSON.parse(
+  (
+    await outClient.callTool({
+      name: 'send_to_new_number',
+      arguments: { phone: '60198887766', text: 'Following up.', requestId: 'devbuild-new-0002' },
+    })
+  ).content[0].text,
+);
+check(
+  known.newChat === false && known.chatJid === jid,
+  'a number with a chat gets an ordinary reply',
+);
+const bad = await outClient.callTool({
+  name: 'send_to_new_number',
+  arguments: { phone: '0123', text: 'hi', requestId: 'devbuild-new-0003' },
+});
+check(bad.isError === true, 'a bad number is refused', bad.content[0].text);
+await outClient.close();
+await new Promise((res) => setTimeout(res, 1500));
+const newMsgs = (
+  await api('GET', `/chats/${encodeURIComponent(`${NEW_PHONE}@s.whatsapp.net`)}/messages`)
+).json.messages;
+check(
+  newMsgs.length === 1 && newMsgs[0].fromMe && newMsgs[0].viaAssistant === true,
+  'the new chat holds one message marked "via AI assistant"',
+  newMsgs.map((m) => m.status).join(','),
+);
+const audit2 = (await api('GET', '/audit?limit=50')).json;
+const newChatRows = (audit2.entries ?? audit2.rows ?? audit2.items ?? []).filter(
+  (e) => e.action === 'mcp.new_chat',
+);
+check(
+  newChatRows.length === 1 && !JSON.stringify(newChatRows).includes('booth'),
+  'one mcp.new_chat audit row, without the text',
+  String(newChatRows.length),
+);
 console.log(failed ? `\n${failed} step(s) FAILED` : '\nall steps PASS');
 process.exit(failed ? 1 : 0);
