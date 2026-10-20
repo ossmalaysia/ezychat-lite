@@ -405,3 +405,21 @@ describe('dev: fake group', () => {
     expect(list.group.adminCount).toBe(3);
   });
 });
+
+describe('the linked account in a group where WhatsApp hides its number', () => {
+  it('is "me" by the session LID when the member has no phone number', async () => {
+    const ME_LID = '81071886581878@lid';
+    t.wa.simulateStatus({ me: { jid: ME, name: 'Kopi Apong', lid: ME_LID } });
+    t.wa.setGroupInfo(
+      group({
+        participants: [
+          { jid: ME_LID, phoneJid: null, lidJid: ME_LID, username: null, role: 'admin' },
+          { jid: HIDDEN, phoneJid: null, lidJid: HIDDEN, username: null, role: 'member' },
+        ],
+      }),
+    );
+    const r = await members();
+    expect(r.members[0]).toMatchObject({ jid: ME_LID, isMe: true });
+    expect(r.members[1]).toMatchObject({ jid: HIDDEN, isMe: false });
+  });
+});

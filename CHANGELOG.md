@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Group chats: when someone tags your own WhatsApp account, the message shows your account's name instead of a long number.
+- A message that arrived while a chat was still opening could stay hidden until you refreshed; it now shows.
+
 ## [0.1.43] - 2026-10-20
 
 ### Fixed

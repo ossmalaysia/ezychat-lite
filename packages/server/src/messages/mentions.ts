@@ -170,8 +170,20 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
       }
     }
 
+    // The linked account itself is never a contact or chat: name it from the WhatsApp session.
+    const me = ctx.wa.status.me;
+    const own = new Set(
+      [me?.jid, me?.lid].flatMap((j) => {
+        const n = normalizeContactJid(j);
+        return n ? [n] : [];
+      }),
+    );
+    const ownName = me?.name?.trim() || null;
+
     const nameFor = (jid: string): MentionName => {
       const identity = aliases.resolve(jid);
+      if (own.has(jid) || own.has(identity))
+        return { identity: [...own][0]!, known: true, name: ownName };
       // Stored phone contact/chat names may belong to the previous owner of a recycled number.
       if (aliases.movedAway(jid)) return { identity: jid, known: true, name: null };
       const group = aliases.group(jid).filter((id) => !aliases.movedAway(id));
