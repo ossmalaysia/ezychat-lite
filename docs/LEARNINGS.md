@@ -257,6 +257,9 @@ into AGENTS.md.
 - A scratch tsx script with top-level `await` outside the repo must be `.mts` (`.ts` there builds as CJS).
 - Write code containing backslashes with the Write tool, not Bash heredocs (they mangle `\\`); build
   regexes from template literals with `String.raw`.
+- A stopped background shell (e.g. Claude Code's low-memory reap) can leave its `tsx` server child running:
+  check the port owner (`Get-NetTCPConnection -LocalPort <port>`) before a restart, else it fails with
+  EADDRINUSE; stop the old process by its PID only after you confirm its command line.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
