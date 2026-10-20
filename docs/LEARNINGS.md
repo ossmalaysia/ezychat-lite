@@ -592,6 +592,8 @@ into AGENTS.md.
   errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
+- A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
+  on a freshly started mock, and restart the mock again before the owner opens it.
 
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.
