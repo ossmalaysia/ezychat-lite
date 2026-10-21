@@ -583,6 +583,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The updater jumps to the newest release (GitHub list, or Enterprise `latest.json`), never through the
+  versions between: an upgrade step lives in a numbered migration or in permanent start-up code, never
+  only in one release.
 - The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
   read `<userData>/updates/downloads/` (a growing `<uuid>.part`, then `<sha256>-<installer>` of the
   manifest size) and the installed exe's version before blaming the network or the feed.
