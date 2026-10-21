@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The update dialog no longer shows "Update installed" from the previous update next to a newer version; it now says "Updated to <version>" only for the version that runs. A "What's new" title names the version of the release notes, and editions with a private update feed can list their notes in the dialog.
+
 ## [0.1.45] - 2026-10-20
 
 ### Added
