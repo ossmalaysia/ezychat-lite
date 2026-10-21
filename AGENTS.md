@@ -117,7 +117,7 @@ longer than the prompt). Rule for new data: push what is small and needed in mos
 details, current situation); add a tool only for data that is large or rarely needed (each call costs
 a model round trip). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
 the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
-(table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
+(table `ai_documents`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
 Prompt layout for caching: static instructions, then input JSON in fixed order `businessKnowledge` →
 `conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
