@@ -94,6 +94,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A fix for an external issue says `Refs #N`, never `Closes`/`Fixes #N`: those close the issue at merge,
+  before the release. Close it after the release with a comment that links the release.
 - Azure sign-in from this public repository uses GitHub OIDC (`azure/login`, `id-token: write`), never
   a stored client secret. Federated credentials match the subject exactly (no wildcards): use a GitHub
   environment whose rules allow only `v*` tags and `main`. Read the subject format first
