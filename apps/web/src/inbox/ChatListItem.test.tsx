@@ -6,6 +6,8 @@ import { ChatListItem } from './ChatListItem';
 
 const lidChat: Chat = {
   jid: '123456789012345@lid',
+  inboxId: 1,
+  waJid: '123456789012345@lid',
   type: 'dm',
   name: '',
   avatarUrl: null,

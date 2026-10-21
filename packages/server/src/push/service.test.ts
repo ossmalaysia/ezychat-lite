@@ -25,6 +25,8 @@ function mkUser(name: string, role: 'admin' | 'agent' = 'agent') {
 const JID = '60123@s.whatsapp.net';
 const chat = (assignedTo: number | null): Chat => ({
   jid: JID,
+  inboxId: 1,
+  waJid: JID,
   type: 'dm',
   name: 'Alice',
   avatarUrl: null,

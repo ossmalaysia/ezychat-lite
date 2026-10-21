@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { join } from 'node:path';
-import { FakeWaAdapter, type WaAdapter, type WaAdapterOptions } from '@ezychat/wa';
+import type { WaAdapter } from '@ezychat/wa';
 import type { Logger } from 'pino';
 import { createAccessGate } from './access/gate.js';
 import { buildApp } from './app.js';
@@ -14,19 +14,13 @@ import { migrateExtension } from './db/extension-migrate.js';
 import { validateEdition, validateExtensions, type ServerExtension } from './extensions.js';
 import { acquireLock } from './lock.js';
 import { createLogger } from './logger.js';
+import { InboxConnections, defaultAdapterFactory } from './inboxes/connections.js';
+import { PRIMARY_INBOX_ID } from './inboxes/keys.js';
+import { InboxRepo } from './inboxes/repo.js';
 import { initializers } from './services.js';
 import { attachRealtime } from './realtime/index.js';
 import { DEFAULT_HISTORY_DAYS, SETTINGS_KEYS } from './admin/settings-service.js';
 import { isTransientNetworkError } from './transient-error.js';
-
-/** Loads the Baileys adapter lazily (keeps baileys out of tests / --fake-wa runs). */
-async function createRealWaAdapter(opts: WaAdapterOptions): Promise<WaAdapter> {
-  const mod = (await import('@ezychat/wa')) as Record<string, unknown>;
-  const create = mod.createBaileysAdapter as ((o: WaAdapterOptions) => WaAdapter) | undefined;
-  if (typeof create !== 'function')
-    throw new Error('createBaileysAdapter is not available in @ezychat/wa');
-  return create(opts);
-}
 
 /** Builds the AppContext (db, secrets, settings, bus, wa) without listening. Shared by startServer and tests. */
 export async function createContext(
@@ -38,6 +32,12 @@ export async function createContext(
     extensions?: readonly ServerExtension[];
     /** Edition reported by /api/health; default 'lite'. */
     edition?: string;
+    /** Most linked numbers (inboxes) this build allows; default 1. `--max-inboxes` overrides it. */
+    maxInboxes?: number;
+    /** Adapters to use for these inbox ids instead of building one (`wa` is inbox 1). */
+    inboxAdapters?: Readonly<Record<number, WaAdapter>>;
+    /** Pause between two inboxes when connecting them all (default 500 ms). */
+    connectStaggerMs?: number;
   },
 ): Promise<AppContext> {
   const { log } = deps;
@@ -62,15 +62,26 @@ export async function createContext(
   const bus = new Bus((err, ev) => log.error({ err, event: ev }, 'bus listener failed'));
   // a getter: a changed history_days applies on the next (re)link without a restart
   const historyDays = () => settings.get<number>(SETTINGS_KEYS.historyDays, DEFAULT_HISTORY_DAYS);
-  const wa =
-    deps.wa ??
-    (cfg.fakeWa
-      ? new FakeWaAdapter()
-      : await createRealWaAdapter({
-          authDir: join(cfg.dataDir, 'wa-auth'),
-          historyDays,
-          logger: log.child({ mod: 'wa' }),
-        }));
+  const inboxRepo = new InboxRepo(db);
+  const create = defaultAdapterFactory({
+    dataDir: cfg.dataDir,
+    fakeWa: cfg.fakeWa,
+    historyDays,
+    log,
+  });
+  const primaryRow = inboxRepo.get(PRIMARY_INBOX_ID)!;
+  const wa = deps.wa ?? deps.inboxAdapters?.[PRIMARY_INBOX_ID] ?? (await create(primaryRow));
+  const connections = new InboxConnections({
+    repo: inboxRepo,
+    maxInboxes: cfg.maxInboxes ?? deps.maxInboxes ?? 1,
+    log,
+    primary: wa,
+    create,
+    adapters: deps.inboxAdapters,
+    dataDir: cfg.dataDir,
+    staggerMs: deps.connectStaggerMs,
+  });
+  await connections.init();
   const access = createAccessGate({ db, bus, log });
   return {
     config: cfg,
@@ -80,6 +91,7 @@ export async function createContext(
     secret,
     settings,
     wa,
+    inboxes: { repo: inboxRepo, connections },
     services: {},
     edition,
     extensions,
@@ -108,7 +120,13 @@ export async function shutdownServices(ctx: AppContext): Promise<void> {
 
 export async function startServer(
   cfg: ServerConfig,
-  deps?: { wa?: WaAdapter; extensions?: readonly ServerExtension[]; edition?: string },
+  deps?: {
+    wa?: WaAdapter;
+    extensions?: readonly ServerExtension[];
+    edition?: string;
+    /** Most linked numbers (inboxes); default 1 (Lite). */
+    maxInboxes?: number;
+  },
 ): Promise<{ app: FastifyInstance; ctx: AppContext; close(): Promise<void> }> {
   const lock = acquireLock(cfg.dataDir);
   const logger = await createLogger({ dataDir: cfg.dataDir });
@@ -143,6 +161,7 @@ export async function startServer(
       log,
       extensions: deps?.extensions,
       edition: deps?.edition,
+      maxInboxes: deps?.maxInboxes,
     });
   } catch (err) {
     removeErrorHandlers();
@@ -187,13 +206,17 @@ export async function startServer(
       version: cfg.version,
       fakeWa: cfg.fakeWa,
       edition: ctx.edition,
+      maxInboxes: ctx.inboxes.connections.maxInboxes(),
       extensions: ctx.extensions.map((e) => e.name),
     },
     'server listening',
   );
   const realtime = attachRealtime(app.server, ctx);
 
-  ctx.wa.connect().catch((err: unknown) => log.error({ err }, 'wa connect failed'));
+  // every inbox connects, 500 ms apart; one failing number never blocks the others
+  ctx.inboxes.connections
+    .connectAll()
+    .catch((err: unknown) => log.error({ err }, 'wa connect failed'));
 
   let closing: Promise<void> | null = null;
   const close = (): Promise<void> => {
@@ -206,11 +229,7 @@ export async function startServer(
         log.warn({ err }, 'http close failed');
       }
       await shutdownServices(ctx);
-      try {
-        await ctx.wa.disconnect();
-      } catch (err) {
-        log.warn({ err }, 'wa disconnect failed');
-      }
+      await ctx.inboxes.connections.disconnectAll(); // allSettled: logs each failure
       ctx.bus.removeAllListeners();
       try {
         ctx.db.close();

@@ -188,3 +188,46 @@ describe('FakeWaAdapter groups', () => {
     await expect(wa.checkNumber('60128887777')).rejects.toMatchObject({ code: 'wa_unavailable' });
   });
 });
+
+describe('FakeWaAdapter options for several inboxes', () => {
+  it('uses the given own identity', async () => {
+    const wa = new FakeWaAdapter({ me: { jid: '60000000002@s.whatsapp.net', name: 'Catering' } });
+    await wa.connect();
+    expect(wa.status.me).toEqual({ jid: '60000000002@s.whatsapp.net', name: 'Catering' });
+    wa.setConnected(false);
+    wa.setConnected(true);
+    expect(wa.status.me?.jid).toBe('60000000002@s.whatsapp.net');
+    await wa.takeover();
+    expect(wa.status.me?.jid).toBe('60000000002@s.whatsapp.net');
+  });
+
+  it('two instances with different id prefixes never produce the same message id', async () => {
+    const a = new FakeWaAdapter();
+    const b = new FakeWaAdapter({ idPrefix: 'FAKE2' });
+    await a.connect();
+    await b.connect();
+    const ids = new Set<string>();
+    for (let i = 0; i < 3; i++) {
+      ids.add(a.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'x' }).id);
+      ids.add(b.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'x' }).id);
+      ids.add((await a.sendText('601111@s.whatsapp.net', 'y')).id);
+      ids.add((await b.sendText('601111@s.whatsapp.net', 'y')).id);
+      ids.add(
+        (
+          await b.sendMedia('601111@s.whatsapp.net', {
+            buffer: Buffer.from('z'),
+            mime: 'image/png',
+            fileName: 'z.png',
+          })
+        ).id,
+      );
+    }
+    expect(ids.size).toBe(15);
+    expect(b.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'x' }).id).toMatch(
+      /^FAKE2-[0-9a-z]+-\d+$/,
+    );
+    expect((await b.sendText('601111@s.whatsapp.net', 'y')).id).toMatch(
+      /^FAKE2-OUT-[0-9a-z]+-\d+$/,
+    );
+  });
+});

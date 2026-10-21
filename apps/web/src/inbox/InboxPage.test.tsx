@@ -20,6 +20,8 @@ const jid = '60123456789@s.whatsapp.net';
 const now = Date.now();
 const chat: Chat = {
   jid,
+  inboxId: 1,
+  waJid: jid,
   type: 'dm',
   name: 'Bob Customer',
   avatarUrl: null,

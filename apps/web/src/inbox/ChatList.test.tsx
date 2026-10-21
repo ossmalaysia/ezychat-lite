@@ -50,6 +50,8 @@ const defaultProps: ChatListProps = {
 function chat(index: number): Chat {
   return {
     jid: `${index}@s.whatsapp.net`,
+    inboxId: 1,
+    waJid: `${index}@s.whatsapp.net`,
     type: 'dm',
     name: `Customer ${index}`,
     avatarUrl: null,

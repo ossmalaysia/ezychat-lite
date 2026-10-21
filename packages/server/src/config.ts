@@ -16,6 +16,8 @@ export interface ServerConfig {
   portExplicit?: boolean;
   /** true when --host / WATI_HOST was given; otherwise startServer derives it from the `lan_enabled` setting */
   hostExplicit?: boolean;
+  /** --max-inboxes (dev + fake WhatsApp only): overrides the build's inbox limit for testing. */
+  maxInboxes?: number;
 }
 
 const MODES = ['standalone', 'service', 'dev'] as const;
@@ -25,7 +27,9 @@ function readVersion(): string {
   try {
     const here = dirname(fileURLToPath(import.meta.url));
     // src/config.ts and dist/config.js both sit one level below the package root
-    const pkg = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8')) as { version?: string };
+    const pkg = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8')) as {
+      version?: string;
+    };
     return pkg.version ?? '0.0.0';
   } catch {
     return '0.0.0';
@@ -40,11 +44,15 @@ function defaultWebDist(): string | null {
 
 /**
  * Flags: --data <dir> (required unless WATI_DATA env), --port <n>, --host <h>, --mode <m>,
- * --fake-wa, --web-dist <dir>, --reset-admin. Also accepts --flag=value.
+ * --fake-wa, --web-dist <dir>, --reset-admin, --max-inboxes <n>. Also accepts --flag=value.
  * Env fallbacks: WATI_DATA, WATI_PORT, WATI_HOST, WATI_MODE, WATI_WEB_DIST.
  * Fake WhatsApp is enabled ONLY by the explicit --fake-wa flag (never by env), and never in service mode.
+ * --max-inboxes is accepted only together with --mode dev and --fake-wa (never by env).
  */
-export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig & { resetAdmin: boolean } {
+export function parseArgs(
+  argv: string[],
+  env: NodeJS.ProcessEnv,
+): ServerConfig & { resetAdmin: boolean } {
   const flags = new Map<string, string | true>();
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -64,7 +72,16 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig 
     flags.set(name, next);
     i++;
   }
-  const known = new Set(['data', 'port', 'host', 'mode', 'fake-wa', 'web-dist', 'reset-admin']);
+  const known = new Set([
+    'data',
+    'port',
+    'host',
+    'mode',
+    'fake-wa',
+    'web-dist',
+    'reset-admin',
+    'max-inboxes',
+  ]);
   for (const k of flags.keys()) if (!known.has(k)) throw new Error(`unknown flag: --${k}`);
 
   const str = (k: string): string | undefined => {
@@ -79,13 +96,25 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig 
   let port = DEFAULT_PORT;
   if (portRaw !== undefined) {
     port = Number(portRaw);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`invalid port: ${portRaw}`);
+    if (!Number.isInteger(port) || port < 1 || port > 65535)
+      throw new Error(`invalid port: ${portRaw}`);
   }
 
   const modeRaw = str('mode') ?? env.WATI_MODE ?? 'standalone';
   if (!(MODES as readonly string[]).includes(modeRaw)) throw new Error(`invalid mode: ${modeRaw}`);
 
-  if (flags.get('fake-wa') === true && modeRaw === 'service') throw new Error('--fake-wa is not allowed in service mode');
+  if (flags.get('fake-wa') === true && modeRaw === 'service')
+    throw new Error('--fake-wa is not allowed in service mode');
+
+  let maxInboxes: number | undefined;
+  const maxInboxesRaw = str('max-inboxes');
+  if (maxInboxesRaw !== undefined) {
+    if (modeRaw !== 'dev' || flags.get('fake-wa') !== true)
+      throw new Error('--max-inboxes is allowed only with --mode dev and --fake-wa');
+    maxInboxes = Number(maxInboxesRaw);
+    if (!Number.isInteger(maxInboxes) || maxInboxes < 1 || maxInboxes > 100)
+      throw new Error(`invalid --max-inboxes: ${maxInboxesRaw}`);
+  }
 
   const hostRaw = str('host') ?? env.WATI_HOST;
   const webDist = str('web-dist') ?? env.WATI_WEB_DIST;
@@ -101,5 +130,6 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ServerConfig 
     portExplicit: portRaw !== undefined,
     hostExplicit: hostRaw !== undefined,
     resetAdmin: flags.get('reset-admin') === true,
+    ...(maxInboxes !== undefined ? { maxInboxes } : {}),
   };
 }

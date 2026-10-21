@@ -147,6 +147,8 @@ describe('shared schemas', () => {
   it('a chat carries its phone number, or null when WhatsApp hides it', () => {
     const chat = {
       jid: '1@lid',
+      inboxId: 1,
+      waJid: '1@lid',
       type: 'dm',
       name: '',
       avatarUrl: null,

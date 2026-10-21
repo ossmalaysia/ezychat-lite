@@ -32,6 +32,8 @@ export const FAKE_RUN = Date.now().toString(36);
 export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private readonly autoOpen: boolean;
+  private readonly me: { jid: string; name: string };
+  private readonly idPrefix: string;
   private inCounter = 0;
   private outCounter = 0;
   private nextSendError: Error | null = null;
@@ -47,9 +49,19 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
   readonly presences: Array<{ chatJid: string; presence: 'composing' | 'paused' }> = [];
 
-  constructor(opts?: { autoOpen?: boolean }) {
+  /**
+   * `me`: the linked account (default the fake number 60000000000); `idPrefix`: start of every
+   * message id (default `FAKE`), so adapters of different inboxes never share an id.
+   */
+  constructor(opts?: {
+    autoOpen?: boolean;
+    me?: { jid: string; name: string };
+    idPrefix?: string;
+  }) {
     super();
     this.autoOpen = opts?.autoOpen ?? true;
+    this.me = { ...(opts?.me ?? FAKE_ME) };
+    this.idPrefix = opts?.idPrefix ?? 'FAKE';
   }
 
   get status(): WaStatus {
@@ -82,7 +94,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   async connect(): Promise<void> {
     if (this._status.state === 'open' || this._status.state === 'connecting') return;
     this.setStatus({ state: 'connecting', qr: null, lastError: null });
-    if (this.autoOpen) this.setStatus({ state: 'open', me: { ...FAKE_ME }, qr: null });
+    if (this.autoOpen) this.setStatus({ state: 'open', me: { ...this.me }, qr: null });
   }
 
   async disconnect(): Promise<void> {
@@ -96,7 +108,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   async takeover(): Promise<void> {
     this.setStatus({ state: 'connecting', qr: null, lastError: null });
-    this.setStatus({ state: 'open', me: { ...FAKE_ME }, qr: null });
+    this.setStatus({ state: 'open', me: { ...this.me }, qr: null });
   }
 
   /** test helper: last phone number a pairing code was requested for */
@@ -126,14 +138,14 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   async sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
-    const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
+    const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
     this.sent.push({ chatJid, text, id, ...(opts?.quotedId ? { reply: opts } : {}) });
     return this.afterSend(chatJid, id);
   }
 
   async sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
-    const id = `FAKE-OUT-${FAKE_RUN}-${++this.outCounter}`;
+    const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
     this.sent.push({ chatJid, file, id, ...(opts?.quotedId ? { reply: opts } : {}) });
     this.media.set(id, file.buffer);
     return this.afterSend(chatJid, id);
@@ -232,7 +244,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     p: Partial<WaIncomingMessage> & { chatJid: string; body: string },
   ): WaIncomingMessage {
     // Unique per process start: a restarted dev server must not reuse ids already stored in app.db.
-    const id = p.id ?? `FAKE-${FAKE_RUN}-${++this.inCounter}`;
+    const id = p.id ?? `${this.idPrefix}-${FAKE_RUN}-${++this.inCounter}`;
     const isGroup = p.chatJid.endsWith('@g.us');
     const msg: WaIncomingMessage = {
       id,
@@ -262,7 +274,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   }
 
   setConnected(connected: boolean): void {
-    if (connected) this.setStatus({ state: 'open', me: { ...FAKE_ME }, qr: null, lastError: null });
+    if (connected) this.setStatus({ state: 'open', me: { ...this.me }, qr: null, lastError: null });
     else this.setStatus({ state: 'disconnected', qr: null });
   }
 }

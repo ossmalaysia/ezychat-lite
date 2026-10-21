@@ -29,6 +29,10 @@ export interface ChatColumns {
   assigned_to: number | null;
   updated_at: number;
   phone: string | null;
+  /** The chat's inbox (migration 014; default 1). Optional for rows built before it. */
+  inbox_id?: number;
+  /** The chat's WhatsApp JID inside its inbox; null on rows written before it was filled. */
+  wa_jid?: string | null;
 }
 
 /**
@@ -82,6 +86,8 @@ export function rowToChat(r: ChatRow): Chat {
   const profileName = dm ? r.profile_name?.trim() || null : null;
   return {
     jid: r.jid,
+    inboxId: r.inbox_id ?? 1,
+    waJid: r.wa_jid ?? r.jid,
     type: r.type,
     name: profileName ?? waName,
     avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,

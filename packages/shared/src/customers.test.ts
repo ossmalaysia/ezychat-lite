@@ -44,6 +44,8 @@ describe('customer profile contract', () => {
     expect(ChatListQuery.parse({ tag: ' VIP ' }).tag).toBe('VIP');
     const chat = ChatSchema.parse({
       jid: '601@s.whatsapp.net',
+      inboxId: 1,
+      waJid: '601@s.whatsapp.net',
       type: 'dm',
       name: 'Farah',
       avatarUrl: null,
