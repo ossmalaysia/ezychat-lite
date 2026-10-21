@@ -114,6 +114,8 @@ test('host update suggestion is readable, reviewed first and downloaded on reque
           'https://github.com/ossmalaysia/ezychat-lite/releases/download/v0.1.13/EzyChat-Lite-0.1.13-win-x64.exe',
         assetName: 'EzyChat-Lite-0.1.13-win-x64.exe',
       },
+      // The result of the last update (to 0.1.12) must not read as if 0.1.13 were installed.
+      lastInstall: { status: 'success', version: '0.1.12', message: 'Update installed.' },
     };
     const actions = { checks: 0, downloads: 0 };
     Object.defineProperty(window, 'testUpdateActions', { value: actions });
@@ -137,6 +139,9 @@ test('host update suggestion is readable, reviewed first and downloaded on reque
   const dialog = page.getByRole('dialog', { name: 'Update EzyChat Lite' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Preview release', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('What’s new in 0.1.13', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Updated to|Update installed/)).toHaveCount(0);
+  await dialog.screenshot({ path: test.info().outputPath('update-dialog.png') });
   expect(await page.evaluate(() => Reflect.get(window, 'testUpdateActions').downloads)).toBe(0);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),

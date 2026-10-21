@@ -66,7 +66,9 @@
     "automaticFeed": "这台电脑会自动检查新版本。",
     "noInstallerFeed": "暂时没有适用于这台电脑的安装程序。详情请查看发布说明。",
     "unverifiedFeed": "此版本无法在这里验证安装。请联系支持团队获取手动安装程序。",
-    "releaseNotes": "发布说明"
+    "releaseNotes": "发布说明",
+    "whatsNew": "{{version}} 的新内容",
+    "updatedTo": "已更新到 {{version}}。您的对话、账户和设置均已保留。"
   },
   "share": {
     "title": "分享此应用",

@@ -9,6 +9,7 @@ import { encodeJid } from '../lib/jid';
 import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
 import { InboxChip } from './InboxChip';
+import { plainWhatsApp } from '../lib/whatsapp-format';
 import { useGuardedLinkClick } from './navigation-guard';
 
 export interface ChatListItemProps {
@@ -94,7 +95,7 @@ export function ChatListItem({
               unread ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
-            {chat.lastMessagePreview ?? ' '}
+            {chat.lastMessagePreview ? plainWhatsApp(chat.lastMessagePreview) : ' '}
           </p>
           {assigneeName && (
             <Badge

@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDateTime, formatTime, truncate } from '../lib/format';
+import { formatWhatsApp, plainWhatsApp } from '../lib/whatsapp-format';
 import { formatJid } from '../lib/jid';
 import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
@@ -64,27 +65,17 @@ function SenderProfileCard({ chatJid, directory }: { chatJid: string; directory?
   );
 }
 
-const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
-
-/** Split text into plain strings and safe <a> elements. */
-function linkify(text: string): React.ReactNode[] {
-  const parts = text.split(URL_RE);
-  return parts.map((p, i) =>
-    i % 2 === 1 ? (
-      <a
-        key={i}
-        href={p}
-        target="_blank"
-        rel="noopener noreferrer nofollow"
-        className="break-all text-primary underline underline-offset-2"
-      >
-        {p}
-      </a>
-    ) : (
-      p
-    ),
-  );
-}
+/**
+ * How WhatsApp shows formatted text (lib/whatsapp-format.tsx emits plain tags): links, monospace,
+ * a grey bar for quotes, bullets with a hanging indent.
+ */
+const WHATSAPP_TEXT = cn(
+  '[&_a]:break-all [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2',
+  '[&_code]:rounded [&_code]:bg-muted/70 [&_code]:px-1 [&_code]:font-mono [&_code]:text-[13px]',
+  '[&_[data-block]]:block [&_[data-block]]:px-2 [&_[data-block]]:py-1',
+  '[&_[data-quote]]:block [&_[data-quote]]:border-l-4 [&_[data-quote]]:border-border [&_[data-quote]]:pl-2 [&_[data-quote]]:text-muted-foreground',
+  "[&_[data-bullet]]:block [&_[data-bullet]]:pl-4 [&_[data-bullet]]:-indent-3 [&_[data-bullet]]:before:content-['•_']",
+);
 
 /**
  * Who wrote a quoted message. In a direct chat the customer is named like the chat header
@@ -96,7 +87,7 @@ export function quotedAuthor(q: Message, t: TFunction<'inbox'>, contactName?: st
 }
 
 export function quotedPreview(q: Message, t: TFunction<'inbox'>): string {
-  if (q.body) return truncate(q.body, 140);
+  if (q.body) return truncate(plainWhatsApp(q.body), 140);
   switch (q.type) {
     case 'image':
       return t('message.quote.image');
@@ -283,8 +274,13 @@ export function MessageBubble({
         )}
         {m.type === 'audio' && <VoiceTranscript message={m} />}
         {m.body && (
-          <p className="whitespace-pre-wrap break-words text-[15px] leading-snug [overflow-wrap:anywhere]">
-            {linkify(m.body)}
+          <p
+            className={cn(
+              'whitespace-pre-wrap break-words text-[15px] leading-snug [overflow-wrap:anywhere]',
+              WHATSAPP_TEXT,
+            )}
+          >
+            {formatWhatsApp(m.body)}
           </p>
         )}
         <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">

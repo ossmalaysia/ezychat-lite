@@ -36,7 +36,8 @@ function licensing(): ServerExtension {
 const sessionCount = (tt: TestApp) =>
   (tt.ctx.db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number }).n;
 
-describe('access gate', () => {
+// Every test builds a full app (makeTestApp): the Windows CI runner needs more than 5 s.
+describe('access gate', { timeout: 20_000 }, () => {
   it('is open in Lite: /api/access and /api/health say so', async () => {
     t = await makeTestApp();
     const access = await t.app.inject({ method: 'GET', url: '/api/access' });
