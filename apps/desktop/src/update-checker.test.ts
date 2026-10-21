@@ -493,6 +493,23 @@ describe('URL update feed', () => {
     });
   });
 
+  it('turns the manifest notes into a list and refuses unsafe notes', () => {
+    const parsed = parseUrlFeed(
+      manifest('1.2.0', { notes: ['Several WhatsApp numbers', '  Faster search  '] }),
+      options,
+    );
+    expect(parsed).toMatchObject({
+      release: { notes: '• Several WhatsApp numbers\n• Faster search' },
+    });
+    expect(parseUrlFeed(manifest('1.2.0'), options)).toMatchObject({ release: { notes: '' } });
+    expect(parseUrlFeed(manifest('1.2.0', { notes: 'one string' }), options)).toBe('invalid');
+    expect(parseUrlFeed(manifest('1.2.0', { notes: [1] }), options)).toBe('invalid');
+    expect(parseUrlFeed(manifest('1.2.0', { notes: ['x'.repeat(501)] }), options)).toBe('invalid');
+    expect(
+      parseUrlFeed(manifest('1.2.0', { notes: Array.from({ length: 21 }, () => 'x') }), options),
+    ).toBe('invalid');
+  });
+
   it('rejects malformed manifests and skips previews unless allowed', () => {
     expect(parseUrlFeed(null, options)).toBe('invalid');
     expect(parseUrlFeed({ version: 'one', assets: [] }, options)).toBe('invalid');

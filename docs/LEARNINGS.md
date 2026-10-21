@@ -579,6 +579,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A stored result ("Update installed") names what it is about and shows only while it still is: tie
+  it to the version that runs and hide it beside a newer offer, or it reads as a claim about that offer.
 - The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
   read `<userData>/updates/downloads/` (a growing `<uuid>.part`, then `<sha256>-<installer>` of the
   manifest size) and the installed exe's version before blaming the network or the feed.
