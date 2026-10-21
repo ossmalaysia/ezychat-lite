@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.46] - 2026-10-21
+
 ### Security
 
 - Sign-in, AI assistant access and error-report limits now count an IPv6 client by its /64 network. Before, a client could change its IPv6 address inside its own network to reset the limit (reported in #76). The lock after 5 failed sign-ins for one username was not affected.

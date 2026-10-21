@@ -243,6 +243,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A scripted multi-file edit and its `git commit` go in one `&&` chain (or `set -e`): when an assert in
+  the script fails, the next line still commits a partial change. Check `git diff --stat` first.
 - Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
   module or build a TypeScript program time out at Vitest's 5 s only under coverage. `test:coverage` uses
   `--testTimeout=20000`; parse once in `beforeAll`, import light modules statically, and set
