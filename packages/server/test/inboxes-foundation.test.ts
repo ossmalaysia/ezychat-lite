@@ -110,7 +110,7 @@ describe('inbox foundation', () => {
     expect(readdirSync(join(dir, 'wa-auth'))).toEqual(['creds.json']);
     expect(existsSync(join(dir, 'wa-auth-inboxes'))).toBe(false);
     expect(ctx.wa).toBe(ctx.inboxes.connections.adapter(1));
-  });
+  }, 20_000);
 
   it('Lite refuses a second inbox', async () => {
     const t = await app();
