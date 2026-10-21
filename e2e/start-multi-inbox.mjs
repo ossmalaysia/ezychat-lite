@@ -24,10 +24,13 @@ async function waitForMain() {
 
 rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 await waitForMain();
+// Node runs tsx's CLI directly: no npx and no shell, so nothing is looked up on PATH.
+const tsxCli = resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs');
 const child = spawn(
-  'npx',
+  process.execPath,
   [
-    'tsx',
+    '--conditions=ezychat-source',
+    tsxCli,
     'packages/server/src/cli.ts',
     '--data',
     dataDir,
@@ -41,7 +44,7 @@ const child = spawn(
     '--web-dist',
     'apps/web/dist',
   ],
-  { stdio: 'inherit', shell: process.platform === 'win32' },
+  { stdio: 'inherit' },
 );
 const stop = () => child.kill();
 process.on('SIGINT', stop);

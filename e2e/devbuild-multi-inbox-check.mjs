@@ -123,7 +123,7 @@ const asAgent = session();
 await asAgent('POST', '/auth/login', { username: 'daniel', password: 'daniel-pass-123' });
 await asAgent('POST', '/auth/change-password', {
   currentPassword: 'daniel-pass-123',
-  newPassword: 'daniel-next-123',
+  newPassword: 'daniel-next-123', // NOSONAR: throwaway password of a temp Dev Build user
 });
 const agentChats = (await asAgent('GET', '/chats')).json.chats ?? [];
 check(

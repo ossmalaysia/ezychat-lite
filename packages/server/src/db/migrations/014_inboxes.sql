@@ -26,6 +26,6 @@ SELECT 1, id FROM users WHERE role = 'agent' AND kind = 'human';
 
 ALTER TABLE chats ADD COLUMN inbox_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE chats ADD COLUMN wa_jid TEXT;
-UPDATE chats SET wa_jid = jid;
+UPDATE chats SET wa_jid = jid WHERE wa_jid IS NULL;
 CREATE UNIQUE INDEX idx_chats_inbox_wa ON chats(inbox_id, wa_jid);
 CREATE INDEX idx_chats_inbox_last ON chats(inbox_id, last_message_at DESC);
