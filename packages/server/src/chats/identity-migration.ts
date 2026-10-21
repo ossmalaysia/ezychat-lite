@@ -8,14 +8,14 @@ import { mergeChat } from './merge.js';
 
 export interface IdentityMigrationDeps {
   now?: () => number;
-  /** default: readStoredLidMappings(<data>/wa-auth) */
+  /** default: readStoredLidMappings(<data>/<auth dir>), once per active inbox */
   readPairs?: (authDir: string) => WaContactAlias[];
   /** default: runBackupSync(dataDir, db, now, { label: 'premerge' }) */
   backup?: (dataDir: string, db: DB, now: Date) => string;
 }
 
 export interface IdentityMigrationSummary {
-  /** pairs read from the Baileys auth store */
+  /** pairs read from the Baileys auth stores of every active inbox */
   storedPairs: number;
   /** pairs that were new or re-pointed */
   learned: number;
@@ -44,17 +44,26 @@ export function runIdentityMigration(
   const now = deps.now ?? Date.now;
   const aliases = getAliases(ctx);
 
-  let pairs: WaContactAlias[] = [];
-  try {
-    pairs = (deps.readPairs ?? readStoredLidMappings)(join(ctx.config.dataDir, 'wa-auth'));
-  } catch (err) {
-    log.warn({ err }, 'stored WhatsApp ID mappings unreadable; using saved aliases only');
+  // A pair is a fact about one person, whichever inbox's phone saw it; merges stay per inbox.
+  const pairs: WaContactAlias[] = [];
+  const read = deps.readPairs ?? readStoredLidMappings;
+  for (const inbox of ctx.inboxes.repo.active()) {
+    try {
+      pairs.push(...read(join(ctx.config.dataDir, inbox.auth_dir)));
+    } catch (err) {
+      log.warn(
+        { err, inboxId: inbox.id },
+        'stored WhatsApp ID mappings unreadable; using saved aliases only',
+      );
+    }
   }
   let learned = 0;
-  for (const pair of pairs) {
-    const o = aliases.learn(pair, 'keystore');
-    if (o.kind === 'added' || o.kind === 'repointed') learned++;
-  }
+  aliases.batch(() => {
+    for (const pair of pairs) {
+      const o = aliases.learn(pair, 'keystore');
+      if (o.kind === 'added' || o.kind === 'repointed') learned++;
+    }
+  });
 
   const pending = aliases.pendingMerges();
   const summary: IdentityMigrationSummary = {
@@ -98,6 +107,7 @@ export function runIdentityMigration(
       if (r.rekeyed) summary.rekeyed++;
       log.info(
         {
+          inboxId: p.inboxId,
           from: r.from,
           to: r.to,
           rekeyed: r.rekeyed,
@@ -108,7 +118,10 @@ export function runIdentityMigration(
       );
     } catch (err) {
       summary.failed++;
-      log.error({ err, from: p.from, to: p.to }, 'chat merge failed; chats stay separate');
+      log.error(
+        { err, inboxId: p.inboxId, from: p.from, to: p.to },
+        'chat merge failed; chats stay separate',
+      );
     }
   }
   summary.result = summary.merged === 0 && summary.failed > 0 ? 'failed' : 'merged';

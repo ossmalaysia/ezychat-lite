@@ -2,6 +2,7 @@ import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
+  Inbox,
   Loader2,
   LogOut,
   Menu,
@@ -18,6 +19,7 @@ import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation } from '
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
+import { useInboxes } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { PushToggle } from '../pwa/PushToggle';
 import { Button } from '@/components/ui/button';
@@ -46,21 +48,56 @@ import {
 } from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
+import { ListSkeleton } from './adminUi';
+import { InboxesPage } from './InboxesPage';
 import { MembersPage } from './MembersPage';
 import { QuickRepliesPage } from './QuickRepliesPage';
 import { SettingsPage } from './SettingsPage';
 import { TunnelPage } from './TunnelPage';
 import { WhatsAppPage } from './WhatsAppPage';
 
-/** `labelKey` is a translation key in the `admin` namespace. */
+/**
+ * Every core admin section. `labelKey` is a translation key in the `admin` namespace. WhatsApp and
+ * Inboxes never show together: see `visibleAdminNav`.
+ */
 export const ADMIN_NAV = [
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
   { to: 'whatsapp', labelKey: 'nav.whatsapp', icon: Smartphone },
+  { to: 'inboxes', labelKey: 'inboxes.title', icon: Inbox },
   { to: 'tunnel', labelKey: 'nav.tunnel', icon: Globe },
   { to: 'settings', labelKey: 'nav.settings', icon: Settings },
   { to: 'audit', labelKey: 'nav.audit', icon: ScrollText },
 ] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
+
+export type AdminNavItem = (typeof ADMIN_NAV)[number];
+
+/**
+ * The sections in the nav: **Inboxes** replaces **WhatsApp** only in an edition that allows more than
+ * one WhatsApp number (Lite allows one, so it keeps WhatsApp).
+ */
+export function visibleAdminNav(multiInbox: boolean): AdminNavItem[] {
+  return ADMIN_NAV.filter((n) => n.to !== (multiInbox ? 'whatsapp' : 'inboxes'));
+}
+
+/** True when the edition allows several WhatsApp numbers; false (Lite) until the server says so. */
+function useMultiInbox(): { multiInbox: boolean; isPending: boolean } {
+  const inboxes = useInboxes();
+  return { multiInbox: (inboxes.data?.maxInboxes ?? 1) > 1, isPending: inboxes.isPending };
+}
+
+/** `/admin/whatsapp`: the WhatsApp page, or Inboxes when the edition has several numbers. */
+function WhatsAppRoute() {
+  const { multiInbox } = useMultiInbox();
+  return multiInbox ? <Navigate to="/admin/inboxes" replace /> : <WhatsAppPage />;
+}
+
+/** `/admin/inboxes`: only with several numbers; Lite goes back to its WhatsApp page. */
+function InboxesRoute() {
+  const { multiInbox, isPending } = useMultiInbox();
+  if (isPending) return <ListSkeleton rows={2} />;
+  return multiInbox ? <InboxesPage /> : <Navigate to="/admin/whatsapp" replace />;
+}
 
 interface ExtensionNavLink {
   key: string;
@@ -164,12 +201,13 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
   const tExt = useExtensionTranslation();
   const extensions = useWebExtensions();
   const extensionLinks = extensionNavLinks(extensions);
+  const { multiInbox } = useMultiInbox();
   // An extension page under a core section (e.g. an agent's sub-page) keeps that item active.
   const section = extensionSectionOf(extensions, useLocation().pathname);
   return (
     <nav aria-label={t('nav.label')} className={className}>
       <ul className="flex flex-col gap-1">
-        {ADMIN_NAV.map((n) => (
+        {visibleAdminNav(multiInbox).map((n) => (
           <li key={n.to}>
             <NavLink
               to={`/admin/${n.to}`}
@@ -271,6 +309,7 @@ export function AdminLayout() {
   const { t } = useTranslation(['admin', 'common']);
   const extensions = useWebExtensions();
   const tExt = useExtensionTranslation();
+  const { multiInbox } = useMultiInbox();
 
   if (isLoading)
     return (
@@ -285,7 +324,7 @@ export function AdminLayout() {
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
   const section = extensionSectionOf(extensions, location.pathname);
-  const coreCurrent = ADMIN_NAV.find(
+  const coreCurrent = visibleAdminNav(multiInbox).find(
     (n) => location.pathname.includes(`/admin/${n.to}`) || section === n.to,
   );
   const extensionCurrent = coreCurrent
@@ -351,7 +390,8 @@ export function AdminLayout() {
             <Route path="members" element={<MembersPage />} />
             <Route path="members/ai" element={<AiMemberPage />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
-            <Route path="whatsapp" element={<WhatsAppPage />} />
+            <Route path="whatsapp" element={<WhatsAppRoute />} />
+            <Route path="inboxes" element={<InboxesRoute />} />
             <Route path="tunnel" element={<TunnelPage />} />
             <Route path="settings/*" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />

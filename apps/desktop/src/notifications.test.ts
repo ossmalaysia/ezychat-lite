@@ -221,17 +221,29 @@ describe('native inbox notifications', () => {
 });
 
 describe('notification activation paths', () => {
-  it.each(['/chats/123%40s.whatsapp.net', '/chats/123%3A4%40lid', '/admin/whatsapp'])(
-    'accepts %s',
-    (path) => {
-      expect(notificationPath(path)).toBe(path);
-    },
-  );
+  it.each([
+    '/chats/123%40s.whatsapp.net',
+    '/chats/123%3A4%40lid',
+    '/admin/whatsapp',
+    '/admin/inboxes',
+    // A chat of another inbox: `<jid>#<inboxId>`.
+    '/chats/123%40s.whatsapp.net%232',
+    '/chats/123%40g.us%2312',
+  ])('accepts %s', (path) => {
+    expect(notificationPath(path)).toBe(path);
+  });
   it.each([
     'https://evil.example/',
     '//evil.example/',
     '/admin/members',
     '/admin/whatsapp?next=evil',
+    '/admin/inboxes?next=evil',
+    '/admin/inboxes/2',
+    '/chats/123%40s.whatsapp.net%230',
+    '/chats/123%40s.whatsapp.net%231',
+    '/chats/123%40s.whatsapp.net%2302',
+    '/chats/123%40s.whatsapp.net%232%233',
+    '/chats/%232',
     '/chats/',
     '/chats/..',
     '/chats/%2E%2E',

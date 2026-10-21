@@ -42,6 +42,7 @@ export const WEB_EXTENSION_ADMIN_SECTIONS = [
   'members',
   'quick-replies',
   'whatsapp',
+  'inboxes',
   'tunnel',
   'settings',
   'audit',

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DB } from '../db/index.js';
 
-/** Number of backups of each kind (db file, wa-auth dir) that are kept. */
+/** Number of backups of each kind (db file, wa-auth dir, wa-auth-inboxes dir) that are kept. */
 export const BACKUP_KEEP = 7;
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -40,7 +40,11 @@ function prunePremerge(dir: string, now: Date): void {
   );
   for (const n of readdirSync(dir)) {
     // labelled: <kind>-<label>-YYYYMMDD[-HHMMSS[-N]][.db] (date-only names are the older format)
-    const m = /^(?:app|wa-auth)-[a-z]+-(\d{8})(?:-\d{6}(?:-\d+)?)?(?:\.db)?$/.exec(n);
+    // `wa-auth-inboxes-YYYYMMDD` is a daily copy (pruned by count), not `wa-auth` labelled "inboxes"
+    const m =
+      /^(?:app|wa-auth(?:-inboxes)?)-(?!inboxes-\d{8}$)[a-z]+-(\d{8})(?:-\d{6}(?:-\d+)?)?(?:\.db)?$/.exec(
+        n,
+      );
     if (m && m[1]! < cutoff) rmSync(join(dir, n), { recursive: true, force: true });
   }
 }
@@ -51,19 +55,25 @@ const LABEL_RE = /^[a-z]+$/;
 const timeStamp = (now: Date) =>
   `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 
-/** First `<label>-YYYYMMDD-HHMMSS[-N]` stamp whose db file and wa-auth dir do not exist yet. */
+/** First `<label>-YYYYMMDD-HHMMSS[-N]` stamp whose db file and WhatsApp dirs do not exist yet. */
 function freshLabelledStamp(dir: string, label: string, now: Date): string {
   const base = `${label}-${backupStamp(now)}-${timeStamp(now)}`;
   for (let i = 1; ; i++) {
     const stamp = i === 1 ? base : `${base}-${i}`;
-    if (!existsSync(join(dir, `app-${stamp}.db`)) && !existsSync(join(dir, `wa-auth-${stamp}`))) {
+    if (
+      !existsSync(join(dir, `app-${stamp}.db`)) &&
+      !existsSync(join(dir, `wa-auth-${stamp}`)) &&
+      !existsSync(join(dir, `wa-auth-inboxes-${stamp}`))
+    ) {
       return stamp;
     }
   }
 }
 
 /**
- * Synchronous backup: `VACUUM INTO backups/app-YYYYMMDD.db` plus a copy of `wa-auth`. Must not run
+ * Synchronous backup: `VACUUM INTO backups/app-YYYYMMDD.db` plus a copy of `wa-auth` (inbox 1) and of
+ * `wa-auth-inboxes` (every other inbox's WhatsApp folder, as `wa-auth-inboxes-<stamp>/<id>`); the
+ * sources are only read, never moved. Must not run
  * inside a SQLite transaction (VACUUM INTO fails there). Daily backups (same-day overwritten) keep
  * the newest 7. A labelled backup (`app-<label>-YYYYMMDD-HHMMSS.db`) never overwrites an existing
  * one and is kept PREMERGE_KEEP_DAYS calendar days. Returns the db backup path.
@@ -88,15 +98,17 @@ export function runBackupSync(
   if (!labelled) rmSync(dbFile, { force: true });
   db.prepare('VACUUM INTO ?').run(dbFile);
 
-  const authSrc = join(dataDir, 'wa-auth');
-  if (existsSync(authSrc)) {
-    const authDst = join(dir, `wa-auth-${stamp}`);
-    if (!labelled) rmSync(authDst, { recursive: true, force: true });
-    cpSync(authSrc, authDst, { recursive: true });
+  for (const folder of ['wa-auth', 'wa-auth-inboxes']) {
+    const src = join(dataDir, folder);
+    if (!existsSync(src)) continue;
+    const dst = join(dir, `${folder}-${stamp}`);
+    if (!labelled) rmSync(dst, { recursive: true, force: true });
+    cpSync(src, dst, { recursive: true });
   }
 
   prune(dir, /^app-\d{8}\.db$/, BACKUP_KEEP);
   prune(dir, /^wa-auth-\d{8}$/, BACKUP_KEEP);
+  prune(dir, /^wa-auth-inboxes-\d{8}$/, BACKUP_KEEP);
   prunePremerge(dir, now);
   return dbFile;
 }

@@ -4,6 +4,7 @@ import { normalizeContactJid } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { getAliases, type AliasStore } from '../chats/aliases.js';
 import { jidUser, rowToChat, type ChatRow } from '../chats/repo.js';
+import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { previewOf, rowToMessage, type MessageRow } from './repo.js';
 
 // Whole numeric tags only. Emails, usernames and URLs are ordinary text.
@@ -49,6 +50,8 @@ interface KnownIdentity {
 
 interface MentionPlan {
   index: number;
+  /** the inbox of the message: its own number is named from that inbox's session */
+  inboxId: number;
   legacy: boolean;
   byToken: Map<string, Set<string>>;
 }
@@ -67,7 +70,7 @@ function planMentions(
 ): MentionPlan | null {
   if (!row.body || row.type === 'system') return null;
   const legacy = row.mentioned_jids == null;
-  if (legacy && !row.chat_jid.endsWith('@g.us')) return null;
+  if (legacy && !parseChatKey(row.chat_jid).waJid.endsWith('@g.us')) return null;
   const tags = tokens(row.body);
   if (!tags.length) return null;
   const byToken = new Map<string, Set<string>>();
@@ -87,7 +90,7 @@ function planMentions(
   } else {
     addStoredCandidates(row.mentioned_jids!, tags, aliases, add);
   }
-  return { index, legacy, byToken };
+  return { index, inboxId: inboxOfKey(row.chat_jid), legacy, byToken };
 }
 
 function addStoredCandidates(
@@ -170,18 +173,39 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
       }
     }
 
-    // The linked account itself is never a contact or chat: name it from the WhatsApp session.
-    const me = ctx.wa.status.me;
-    const own = new Set(
-      [me?.jid, me?.lid].flatMap((j) => {
-        const n = normalizeContactJid(j);
-        return n ? [n] : [];
-      }),
-    );
-    const ownName = me?.name?.trim() || null;
+    // The linked account itself is never a contact or chat: name it from the WhatsApp session of
+    // the message's inbox (a removed inbox keeps only its remembered number, without a name).
+    const owners = new Map<number, { own: Set<string>; name: string | null }>();
+    const sessionOf = (
+      inboxId: number,
+    ): { jid?: string; lid?: string | null; name?: string | null } | null => {
+      try {
+        return ctx.inboxes.connections.adapter(inboxId).status.me ?? null;
+      } catch {
+        const jid = ctx.inboxes.repo.get(inboxId)?.own_jid;
+        return jid ? { jid } : null;
+      }
+    };
+    const ownOf = (inboxId: number) => {
+      const cached = owners.get(inboxId);
+      if (cached) return cached;
+      const me = sessionOf(inboxId);
+      const entry = {
+        own: new Set(
+          [me?.jid, me?.lid].flatMap((j) => {
+            const n = normalizeContactJid(j);
+            return n ? [n] : [];
+          }),
+        ),
+        name: me?.name?.trim() || null,
+      };
+      owners.set(inboxId, entry);
+      return entry;
+    };
 
-    const nameFor = (jid: string): MentionName => {
+    const nameFor = (jid: string, inboxId: number): MentionName => {
       const identity = aliases.resolve(jid);
+      const { own, name: ownName } = ownOf(inboxId);
       if (own.has(jid) || own.has(identity))
         return { identity: [...own][0]!, known: true, name: ownName };
       // Stored phone contact/chat names may belong to the previous owner of a recycled number.
@@ -209,7 +233,7 @@ export function createMentionPresenter(ctx: AppContext, log: Pick<Logger, 'debug
     let resolvedMentionCount = 0;
     const out = [...messages];
     for (const plan of plans) {
-      const replacements = replacementsFor(plan, nameFor);
+      const replacements = replacementsFor(plan, (jid) => nameFor(jid, plan.inboxId));
       const message = messages[plan.index]!;
       const { body, count } = replaceMentions(message.body!, replacements);
       resolvedMentionCount += count;

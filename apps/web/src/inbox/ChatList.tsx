@@ -9,6 +9,7 @@ import { Banner, EmptyState } from '@/components/app';
 import { GettingStartedCard } from './GettingStartedCard';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
+import { useInboxOfChat } from './useVisibleInboxes';
 
 // Realtime cache updates retain unchanged Chat references. Keep those rows from
 // recalculating labels, dates and avatars when another conversation changes.
@@ -48,6 +49,8 @@ function ChatRowSkeleton() {
 export function ChatList({ filters, activeJid, directory, onResetFilters }: ChatListProps) {
   const { t } = useTranslation(['inbox', 'common']);
   const q = useChats(filters);
+  // One unified list: the server sends only chats of inboxes the user may open.
+  const inboxOf = useInboxOfChat();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
 
@@ -142,6 +145,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
           onResetFilters &&
           (filters.q ||
             filters.tag ||
+            filters.inbox != null ||
             filters.assigned !== 'any' ||
             filters.status === 'resolved') ? (
             <Button variant="outline" size="touch" onClick={onResetFilters}>
@@ -166,6 +170,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
               active={c.jid === activeJid}
               assigneeName={directory.nameOf(c.assignedTo, { youLabel: true })}
               assignedToMe={c.assignedTo != null && c.assignedTo === directory.me?.id}
+              inbox={inboxOf(c.inboxId)}
             />
           </li>
         ))}

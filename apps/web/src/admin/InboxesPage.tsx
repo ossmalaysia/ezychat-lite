@@ -1,0 +1,558 @@
+import { useEffect, useState } from 'react';
+import type React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Inbox, User, WaStatus } from '@ezychat/shared';
+import { ApiError, errorMessage } from '../api/client';
+import {
+  useCreateInbox,
+  useInboxWaAction,
+  useRemoveInbox,
+  useUpdateInbox,
+} from '../api/inbox-mutations';
+import { PRIMARY_INBOX_ID, qk, useInboxStatus, useInboxes, useUsers } from '../api/queries';
+import { InboxChip } from '../inbox/InboxChip';
+import { PhoneLink } from '../wa/PhoneLink';
+import { Banner, PageHeader, ResponsiveDialog, StatusDot } from '@/components/app';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ConfirmDialog, ErrorState, Field, ListSkeleton } from './adminUi';
+import { formatInboxNumber, inboxCardStatus } from './inbox-status';
+
+/** While a phone is being linked, ask for the status this often (the socket usually is faster). */
+const LINK_POLL_MS = 5_000;
+
+/** Every linked WhatsApp number (inbox), with who may open it. Admin only; shown when maxInboxes > 1. */
+export function InboxesPage() {
+  const { t } = useTranslation('admin');
+  const inboxes = useInboxes();
+  const users = useUsers();
+  const remove = useRemoveInbox();
+  const [editing, setEditing] = useState<number | 'new' | null>(null);
+  const [removing, setRemoving] = useState<Inbox | null>(null);
+
+  if (inboxes.isPending) return <ListSkeleton rows={2} />;
+  if (inboxes.isError)
+    return <ErrorState error={inboxes.error} onRetry={() => void inboxes.refetch()} />;
+
+  const { maxInboxes, canAdd } = inboxes.data;
+  // Removed inboxes keep their chats (read only); they are no longer managed here.
+  const active = inboxes.data.inboxes.filter((i) => !i.removed);
+  const people = (users.data ?? []).filter((u) => !u.disabled && u.kind !== 'ai');
+  const whoCanOpen = (inbox: Inbox) =>
+    people.filter((u) => u.role === 'admin' || (inbox.memberIds ?? []).includes(u.id));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={t('inboxes.title')}
+        description={t('inboxes.description')}
+        actions={
+          <Button
+            type="button"
+            size="touch"
+            className="md:min-h-9"
+            disabled={!canAdd}
+            onClick={() => setEditing('new')}
+          >
+            <Plus aria-hidden />
+            {t('inboxes.add')}
+          </Button>
+        }
+      />
+      {!canAdd && (
+        <p className="text-sm text-muted-foreground" data-testid="inbox-limit">
+          {t('inboxes.limitReached', { max: maxInboxes })}
+        </p>
+      )}
+
+      {active.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <InboxIcon className="size-8 text-muted-foreground" aria-hidden />
+            <p className="font-medium">{t('inboxes.emptyTitle')}</p>
+            <p className="max-w-md text-sm text-muted-foreground">{t('inboxes.emptyBody')}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {active.map((inbox) => (
+        <InboxCard
+          key={inbox.id}
+          inbox={inbox}
+          openers={whoCanOpen(inbox)}
+          onEdit={() => setEditing(inbox.id)}
+          onRemove={() => {
+            remove.reset();
+            setRemoving(inbox);
+          }}
+        />
+      ))}
+
+      <InboxDialog
+        target={editing}
+        inboxes={active}
+        people={people}
+        peopleReady={users.isSuccess}
+        maxInboxes={maxInboxes}
+        onClose={() => setEditing(null)}
+      />
+      <ConfirmDialog
+        open={removing !== null}
+        title={t('inboxes.removeTitle', { name: removing?.name ?? '' })}
+        confirmLabel={t('inboxes.removeConfirm')}
+        danger
+        loading={remove.isPending}
+        error={remove.error ?? undefined}
+        onConfirm={() => {
+          if (!removing) return;
+          remove.mutate(removing.id, {
+            onSuccess: () => {
+              toast.success(t('inboxes.removed'));
+              setRemoving(null);
+            },
+          });
+        }}
+        onClose={() => setRemoving(null)}
+      >
+        {t('inboxes.removeBodyPhone')}
+      </ConfirmDialog>
+    </div>
+  );
+}
+
+function InboxCard({
+  inbox,
+  openers,
+  onEdit,
+  onRemove,
+}: Readonly<{ inbox: Inbox; openers: User[]; onEdit: () => void; onRemove: () => void }>) {
+  const { t } = useTranslation('admin');
+  const status = useInboxStatus(inbox.id) ?? inbox.status;
+  const card = inboxCardStatus(status.state);
+  return (
+    <Card className="gap-4" data-testid="inbox-card">
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            <InboxChip inbox={inbox} />
+            <span className="text-base font-normal break-all text-muted-foreground tabular-nums">
+              {formatInboxNumber(inbox.number) ?? t('inboxes.numberAfterScan')}
+            </span>
+          </CardTitle>
+          <CardDescription className="flex items-center gap-1.5">
+            <Smartphone className="size-4" aria-hidden />
+            {t('inboxes.typeLinkedPhone')}
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="touch"
+            className="px-2 md:min-h-8"
+            aria-label={`${t('inboxes.edit')} · ${inbox.name}`}
+            onClick={onEdit}
+          >
+            {t('inboxes.edit')}
+          </Button>
+          {/* The first number cannot be removed: it is the number linked before multi-inbox. */}
+          {inbox.id !== PRIMARY_INBOX_ID && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="touch"
+              className="px-2 text-danger hover:bg-danger/10 hover:text-danger md:min-h-8"
+              aria-label={`${t('inboxes.remove')} · ${inbox.name}`}
+              onClick={onRemove}
+            >
+              {t('inboxes.remove')}
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <dl className="grid max-w-xl grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">{t('inboxes.status')}</dt>
+          <dd>
+            <StatusDot
+              tone={card.tone}
+              pulse={status.state === 'connecting'}
+              label={
+                <span className="font-medium" data-testid="inbox-state">
+                  {card.labelKey ? t(card.labelKey as never) : status.state}
+                </span>
+              }
+            />
+          </dd>
+          <dt className="text-muted-foreground">{t('inboxes.whoCanOpen')}</dt>
+          <dd className="flex min-w-0 flex-wrap gap-1.5">
+            {openers.map((u) => (
+              <Badge key={u.id} variant="outline" className="max-w-full truncate">
+                {u.displayName}
+                {u.role === 'admin' ? ` · ${t('inboxes.admin')}` : ''}
+              </Badge>
+            ))}
+          </dd>
+        </dl>
+        {card.notice === 'scan' && (
+          <Banner tone="warning" title={t('inboxes.scanTitle')}>
+            {t('inboxes.scanBody')}
+          </Banner>
+        )}
+        {card.notice === 'offline' && (
+          <Banner tone="danger" title={t('inboxes.offlineTitle')}>
+            {t('inboxes.offlineBody')}
+          </Banner>
+        )}
+        {card.notice === 'replaced' && (
+          <Banner tone="danger" title={t('whatsapp.replacedTitle')}>
+            {t('whatsapp.replacedBody')}
+          </Banner>
+        )}
+        <p className="text-sm text-muted-foreground">{t('inboxes.accessHint')}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+const sameSet = (a: readonly number[], b: readonly number[]) =>
+  a.length === b.length && a.every((x) => b.includes(x));
+
+/**
+ * Add an inbox (name and who can open it, then the QR code) or edit one (rename, who can open it,
+ * link the phone again).
+ */
+function InboxDialog({
+  target,
+  inboxes,
+  people,
+  peopleReady,
+  maxInboxes,
+  onClose,
+}: Readonly<{
+  target: number | 'new' | null;
+  inboxes: Inbox[];
+  people: User[];
+  /** False while the team list loads or failed: the tick boxes are then incomplete. */
+  peopleReady: boolean;
+  maxInboxes: number;
+  onClose: () => void;
+}>) {
+  const { t } = useTranslation(['admin', 'common']);
+  const create = useCreateInbox();
+  const update = useUpdateInbox();
+  const isNew = target === 'new';
+  const [name, setName] = useState('');
+  const [members, setMembers] = useState<number[]>([]);
+  /** True once the admin changed a tick box; only then does Save send memberIds. */
+  const [membersTouched, setMembersTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  /** The inbox just created in this dialog (its QR code shows next). */
+  const [createdId, setCreatedId] = useState<number | null>(null);
+
+  const inboxId = isNew ? createdId : target;
+  const inbox =
+    inboxes.find((i) => i.id === inboxId) ??
+    (create.data && create.data.id === inboxId ? create.data : undefined);
+  const saved = isNew ? createdId !== null : true;
+  const admins = people.filter((u) => u.role === 'admin');
+  const agents = people.filter((u) => u.role !== 'admin');
+
+  useEffect(() => {
+    const current = typeof target === 'number' ? inboxes.find((i) => i.id === target) : undefined;
+    setName(current?.name ?? '');
+    setMembers(current?.memberIds ?? []);
+    setMembersTouched(false);
+    setSubmitted(false);
+    setCreatedId(null);
+    create.reset();
+    update.reset();
+  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleMember = (id: number, on: boolean) => {
+    setMembersTouched(true);
+    setMembers((m) => (on ? [...new Set([...m, id])] : m.filter((x) => x !== id)));
+  };
+
+  const nameError = submitted && name.trim() === '' ? t('inboxes.required') : undefined;
+  const busy = create.isPending || update.isPending;
+  // Without the team list the tick boxes are incomplete: a save could take access away.
+  const canSave = !busy && peopleReady;
+  const error = create.error ?? update.error;
+
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitted(true);
+    const trimmed = name.trim();
+    if (!trimmed || !peopleReady) return;
+    // Only the agents shown can be ticked (admins always see every inbox). Members the dialog
+    // cannot show (a disabled agent) keep their access.
+    const shown = (id: number) => agents.some((u) => u.id === id);
+    const hidden = isNew ? [] : (inbox?.memberIds ?? []).filter((id) => !shown(id));
+    const memberIds = [...members.filter(shown), ...hidden];
+    if (isNew) {
+      create.mutate(
+        { name: trimmed, memberIds },
+        {
+          onSuccess: (created) => {
+            setCreatedId(created.id);
+            toast.success(t('inboxes.createdPhone'));
+          },
+        },
+      );
+      return;
+    }
+    if (!inbox) return;
+    const body = {
+      ...(trimmed !== inbox.name ? { name: trimmed } : {}),
+      ...(membersTouched && !sameSet(memberIds, inbox.memberIds ?? []) ? { memberIds } : {}),
+    };
+    if (Object.keys(body).length === 0) {
+      onClose();
+      return;
+    }
+    update.mutate(
+      { id: inbox.id, body },
+      {
+        onSuccess: () => {
+          toast.success(t('inboxes.saved'));
+          onClose();
+        },
+      },
+    );
+  };
+
+  const formId = 'inbox-form';
+  return (
+    <ResponsiveDialog
+      open={target !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title={
+        isNew && !saved
+          ? t('inboxes.addTitle')
+          : t('inboxes.editTitle', { name: inbox?.name ?? name })
+      }
+      description={t('inboxes.dialogDescription')}
+      size="medium"
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="sm:min-h-9"
+            onClick={onClose}
+          >
+            {saved && isNew ? t('common:actions.done') : t('common:actions.cancel')}
+          </Button>
+          {/* After a new inbox is saved only Done remains: the next step is on the phone. */}
+          {!(saved && isNew) && (
+            <Button
+              type="submit"
+              form={formId}
+              size="touch"
+              className="sm:min-h-9"
+              disabled={!canSave}
+              aria-busy={busy}
+            >
+              {t('inboxes.save')}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <form id={formId} onSubmit={save} noValidate className="flex min-w-0 flex-col gap-5 pb-1">
+        <Field label={t('inboxes.name')} hint={t('inboxes.nameHint')} error={nameError}>
+          {(p) => (
+            <Input
+              {...p}
+              value={name}
+              maxLength={40}
+              disabled={saved && isNew}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
+        </Field>
+
+        {!(saved && isNew) && (
+          <fieldset className="flex min-w-0 flex-col gap-3" data-testid="inbox-members">
+            <legend className="mb-1 text-sm font-medium">{t('inboxes.membersField')}</legend>
+            <p className="text-sm text-muted-foreground">{t('inboxes.membersFieldHint')}</p>
+            {admins.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {admins.map((u) => (
+                  <Badge key={u.id} variant="outline" className="max-w-full truncate">
+                    {u.displayName} · {t('inboxes.admin')}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {agents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('inboxes.membersFieldNoAgents')}</p>
+            ) : (
+              agents.map((u) => {
+                const id = `inbox-member-${u.id}`;
+                return (
+                  <div key={u.id} className="flex min-h-11 items-center gap-3 md:min-h-8">
+                    <Checkbox
+                      id={id}
+                      checked={members.includes(u.id)}
+                      onCheckedChange={(v) => toggleMember(u.id, v === true)}
+                    />
+                    <Label htmlFor={id} className="min-w-0 font-normal break-words">
+                      {u.displayName}
+                    </Label>
+                  </div>
+                );
+              })
+            )}
+            {agents.length > 0 && members.length === 0 && (
+              <p className="text-sm text-warning">{t('inboxes.membersFieldNone')}</p>
+            )}
+          </fieldset>
+        )}
+
+        {error && (
+          <Banner tone="danger">
+            {/* `inbox_limit`: another admin added an inbox meanwhile. */}
+            {error instanceof ApiError && error.code === 'inbox_limit'
+              ? t('inboxes.limitReached', { max: maxInboxes })
+              : errorMessage(error)}
+          </Banner>
+        )}
+
+        {inbox && <InboxLink inbox={inbox} justCreated={isNew} />}
+      </form>
+    </ResponsiveDialog>
+  );
+}
+
+/** The phone side of one inbox: linked number and "Link the phone again", or the QR code. */
+function InboxLink({ inbox, justCreated }: Readonly<{ inbox: Inbox; justCreated: boolean }>) {
+  const { t } = useTranslation('admin');
+  const status: WaStatus = useInboxStatus(inbox.id) ?? inbox.status;
+  const action = useInboxWaAction(inbox.id);
+  /** "Link the phone again" was pressed: the QR code shows until the phone is linked again. */
+  const [relinking, setRelinking] = useState(false);
+  const [unlinked, setUnlinked] = useState(false);
+  const card = inboxCardStatus(status.state);
+  const connected = status.state === 'open';
+
+  useEffect(() => {
+    if (!relinking) return;
+    // The status may still say `open` for a moment after the relink; wait until it left `open`.
+    if (!connected) setUnlinked(true);
+    else if (unlinked) {
+      setRelinking(false);
+      setUnlinked(false);
+    }
+  }, [connected, relinking, unlinked]);
+
+  const showQr = relinking || (!connected && (justCreated || card.needsLink));
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {action.error && <Banner tone="danger">{errorMessage(action.error)}</Banner>}
+      {!showQr && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <StatusDot
+            tone={card.tone}
+            label={
+              <span className="text-sm font-medium break-all">
+                {connected && inbox.number
+                  ? t('inboxes.linkedAs', { number: formatInboxNumber(inbox.number) })
+                  : card.labelKey
+                    ? t(card.labelKey as never)
+                    : status.state}
+              </span>
+            }
+          />
+          <div className="flex flex-wrap gap-2">
+            {status.state === 'replaced' && (
+              <Button
+                type="button"
+                size="touch"
+                className="md:min-h-9"
+                disabled={action.isPending}
+                onClick={() => action.mutate('takeover')}
+              >
+                {t('whatsapp.actions.takeover.label')}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="md:min-h-9"
+              disabled={action.isPending}
+              onClick={() =>
+                action.mutate('relink', {
+                  onSuccess: () => setRelinking(true),
+                })
+              }
+            >
+              {t('inboxes.relink')}
+            </Button>
+          </div>
+        </div>
+      )}
+      {showQr && <LinkPhone inboxId={inbox.id} status={status} />}
+    </div>
+  );
+}
+
+/** QR code from the inbox status, the phone steps, and the pairing code as the other way. */
+function LinkPhone({ inboxId, status }: Readonly<{ inboxId: number; status: WaStatus }>) {
+  const { t } = useTranslation('admin');
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    // Fallback while the phone links: the socket's `inbox:status` normally arrives first.
+    const timer = setInterval(() => {
+      void qc.invalidateQueries({ queryKey: inboxId === PRIMARY_INBOX_ID ? qk.wa : qk.inboxes });
+    }, LINK_POLL_MS);
+    return () => clearInterval(timer);
+  }, [qc, inboxId]);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      <div
+        className="flex min-w-0 flex-col items-center gap-3 rounded-lg border bg-muted/40 p-4 text-center"
+        data-testid="inbox-qr"
+      >
+        <p className="font-medium">{t('inboxes.scanTitle')}</p>
+        <p className="text-sm text-muted-foreground">{t('inboxes.scanSteps')}</p>
+        {status.state === 'qr' && status.qr ? (
+          // QR codes need a light quiet zone to scan reliably, even in dark mode.
+          <div className="rounded-lg border bg-card p-3 dark:bg-foreground">
+            <QRCodeSVG
+              value={status.qr}
+              size={208}
+              bgColor="transparent"
+              fgColor="currentColor"
+              className="h-auto w-full max-w-52 text-foreground dark:text-background"
+              aria-label={t('whatsapp.qrLabel')}
+            />
+          </div>
+        ) : (
+          <p role="status" className="text-sm text-muted-foreground" data-testid="inbox-qr-waiting">
+            {t('whatsapp.waitingQrTitle')}
+          </p>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <p className="text-sm font-medium">{t('whatsapp.phoneTitle')}</p>
+        <p className="text-sm text-muted-foreground">{t('whatsapp.phoneHint')}</p>
+        <PhoneLink inboxId={inboxId} />
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { Inbox } from '@ezychat/shared';
 import type { ChatFilters as Filters } from '../api/queries';
 import { ChatFilters } from './ChatFilters';
 
@@ -134,5 +135,87 @@ describe('ChatFilters', () => {
     renderFilters({ value: { assigned: 'any' }, onChange: vi.fn() });
     await userEvent.click(screen.getByRole('button', { name: 'Filter by tag' }));
     expect(await screen.findByText('No tags yet')).toBeTruthy();
+  });
+});
+
+function inbox(id: number, name: string, number: string | null): Inbox {
+  return {
+    id,
+    name,
+    tone: 'primary',
+    number,
+    removed: false,
+    status: { state: 'open', me: null, qr: null, lastError: null },
+  };
+}
+
+const user = () => userEvent.setup();
+
+function renderWithInboxes(value: Filters, onChange: (next: Filters) => void, inboxes: Inbox[]) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ChatFilters value={value} onChange={onChange} inboxes={inboxes} />
+    </QueryClientProvider>,
+  );
+}
+
+describe('ChatFilters inbox filter', () => {
+  beforeAll(() => {
+    const proto = Element.prototype as unknown as Record<string, unknown>;
+    proto.hasPointerCapture ??= () => false;
+    proto.setPointerCapture ??= () => {};
+    proto.releasePointerCapture ??= () => {};
+  });
+
+  it('is hidden with no inbox list and with one inbox (Lite)', () => {
+    renderFilters({ value: { assigned: 'any', status: 'open' }, onChange: vi.fn() });
+    expect(screen.queryByTestId('inbox-filter')).toBeNull();
+    cleanup();
+    renderWithInboxes({ assigned: 'any', status: 'open' }, vi.fn(), [
+      inbox(1, 'Kopi Apong', '60123456789'),
+    ]);
+    expect(screen.queryByTestId('inbox-filter')).toBeNull();
+  });
+
+  it('lists every visible inbox with the count, and sets and clears the inbox', async () => {
+    const inboxes = [inbox(1, 'Kopi Apong', '60123456789'), inbox(2, 'Catering', null)];
+    const onChange = vi.fn();
+    const u = user();
+    const view = renderWithInboxes({ assigned: 'me', status: 'open' }, onChange, inboxes);
+    const trigger = screen.getByRole('combobox', { name: 'Inbox' });
+    expect(trigger.textContent).toBe('All inboxes (2)');
+    await u.click(trigger);
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'All inboxes (2)',
+      'Kopi Apong · +60123456789',
+      'Catering',
+    ]);
+    await u.click(screen.getByRole('option', { name: 'Catering' }));
+    expect(onChange).toHaveBeenLastCalledWith({ assigned: 'me', status: 'open', inbox: 2 });
+
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <ChatFilters
+          value={{ assigned: 'me', status: 'open', inbox: 2 }}
+          onChange={onChange}
+          inboxes={inboxes}
+        />
+      </QueryClientProvider>,
+    );
+    const selected = screen.getByRole('combobox', { name: 'Inbox' });
+    expect(selected.textContent).toBe('Catering');
+    await u.click(selected);
+    await u.click(await screen.findByRole('option', { name: 'All inboxes (2)' }));
+    expect(onChange).toHaveBeenLastCalledWith({ assigned: 'me', status: 'open', inbox: undefined });
+  });
+
+  it('shows "All inboxes" for a remembered inbox the user can no longer open', () => {
+    renderWithInboxes({ assigned: 'any', status: 'open', inbox: 9 }, vi.fn(), [
+      inbox(1, 'Kopi Apong', null),
+      inbox(2, 'Catering', null),
+    ]);
+    expect(screen.getByRole('combobox', { name: 'Inbox' }).textContent).toBe('All inboxes (2)');
   });
 });

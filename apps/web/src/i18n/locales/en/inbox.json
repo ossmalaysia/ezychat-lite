@@ -347,7 +347,20 @@
     "blocked": {
       "title": "WhatsApp connection blocked",
       "body": "The connection was refused. An admin should check the WhatsApp page."
+    },
+    "inbox": {
+      "connecting": "{{name}}: connecting to WhatsApp…",
+      "disconnected": "{{name}} is offline",
+      "qr": "{{name}} is not linked",
+      "loggedOut": "{{name}} was logged out",
+      "replaced": "{{name}} opened in another session",
+      "blocked": "{{name}}: connection blocked"
     }
+  },
+  "inboxFilter": {
+    "label": "Inbox",
+    "all": "All inboxes ({{total}})",
+    "option": "{{name}} · {{number}}"
   },
   "phoneLink": {
     "label": "WhatsApp number (with country code)",

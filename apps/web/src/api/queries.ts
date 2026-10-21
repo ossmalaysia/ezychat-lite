@@ -38,6 +38,9 @@ import {
   type GroupMemberAboutResponse,
   type StartMemberChatResponse,
   type CustomerTagsResponse,
+  type DirectoryUser,
+  type InboxListResponse,
+  type InboxStatusPayload,
   type CloudflareCreateBody,
   type LoginBody,
   type Message,
@@ -68,6 +71,8 @@ export interface ChatFilters {
   q?: string;
   /** customer tag filter */
   tag?: string;
+  /** One inbox (multi-inbox); unset = every inbox the user may open. */
+  inbox?: number;
 }
 
 export const qk = {
@@ -87,6 +92,7 @@ export const qk = {
   users: ['users'] as const,
   directory: ['users', 'directory'] as const,
   wa: ['wa'] as const,
+  inboxes: ['inboxes'] as const,
   tunnel: ['tunnel'] as const,
   cloudflareSetup: ['cloudflare-setup'] as const,
   settings: ['settings'] as const,
@@ -451,6 +457,7 @@ export function useChats(filters: ChatFilters) {
       p.set('assigned', filters.assigned);
       if (filters.q?.trim()) p.set('q', filters.q.trim());
       if (filters.tag) p.set('tag', filters.tag);
+      if (filters.inbox != null) p.set('inbox', String(filters.inbox));
       if (pageParam) p.set('cursor', pageParam);
       return api<ChatListResponse>(`/chats?${p.toString()}`, { signal });
     },
@@ -825,10 +832,7 @@ export function useUsers(opts: { enabled?: boolean } = {}) {
 }
 
 /** Public team-member fields every logged-in user may see (`GET /api/users/directory`). */
-export type DirectoryUser = Pick<
-  User,
-  'id' | 'displayName' | 'role' | 'disabled' | 'kind' | 'aiRole'
->;
+export type { DirectoryUser };
 
 /**
  * Team directory for every role (agents included). Needs the server route
@@ -896,6 +900,58 @@ export function useWaStatus(opts: { enabled?: boolean } = {}) {
       return s === 'qr' || s === 'connecting' ? 5_000 : 30_000;
     },
   });
+}
+
+/** The inbox 1 number (the number linked before multi-inbox). */
+export const PRIMARY_INBOX_ID = 1;
+
+const NO_INBOXES: InboxListResponse = { inboxes: [], maxInboxes: 1, canAdd: false };
+
+/**
+ * The inboxes the signed-in user may open (`GET /api/inboxes`; the server filters them). A server
+ * without the route (404) counts as one inbox, so no inbox UI shows.
+ */
+export function useInboxes(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.inboxes,
+    queryFn: async ({ signal }): Promise<InboxListResponse> => {
+      try {
+        return await api<InboxListResponse>('/inboxes', { signal });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return NO_INBOXES;
+        throw e;
+      }
+    },
+    enabled: opts.enabled ?? true,
+    staleTime: 30_000,
+    // The socket pushes `inbox:status`; with several inboxes poll as a fallback (Lite never polls).
+    refetchInterval: (q) => ((q.state.data?.inboxes?.length ?? 0) > 1 ? 30_000 : false),
+  });
+}
+
+/** Applies a socket `inbox:status` to the cached inbox list. */
+export function patchInboxStatusInCache(qc: QueryClient, p: InboxStatusPayload): void {
+  qc.setQueryData<InboxListResponse>(qk.inboxes, (old) =>
+    old?.inboxes.some((i) => i.id === p.inboxId)
+      ? {
+          ...old,
+          inboxes: old.inboxes.map((i) => (i.id === p.inboxId ? { ...i, status: p.status } : i)),
+        }
+      : old,
+  );
+}
+
+/**
+ * Connection status of one inbox. Inbox 1 reads `GET /api/wa/status` as before (Lite unchanged);
+ * other inboxes read the inbox list, which `inbox:status` keeps current.
+ */
+export function useInboxStatus(inboxId: number | undefined): WaStatus | undefined {
+  const primary = inboxId === PRIMARY_INBOX_ID;
+  const wa = useWaStatus({ enabled: primary });
+  const list = useInboxes({ enabled: inboxId != null && !primary });
+  if (inboxId == null) return undefined;
+  if (primary) return wa.data;
+  return list.data?.inboxes?.find((i) => i.id === inboxId)?.status;
 }
 
 export type WaAction = 'logout' | 'relink' | 'takeover';

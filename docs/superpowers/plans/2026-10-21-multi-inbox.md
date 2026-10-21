@@ -235,7 +235,7 @@ Each implementation agent is followed by a reviewer agent (spec compliance + cod
 **Interfaces:**
 - Consumes: Task 1 keys, repo, connections (`ownJids`, `forChatKey`).
 - Produces:
-  - `ChatRepo.ensure(inboxId, waJid, init, now)` → key; `ChatRepo.byWa(inboxId, waJid): ChatRow | null`;
+  - `ChatRepo.ensure(inboxId, waJid, init, now)` → `ChatRow` (`row.jid` is the key); `ChatRepo.byWa(inboxId, waJid): ChatRow | null`;
     `ChatRepo.list(f & { inboxIds: number[]; inbox?: number })` (empty `inboxIds` → `[]`);
     `ChatRepo.get(key)` unchanged; `rowToChat` fills `inboxId`, `waJid` and parses JID shape from `wa_jid`.
   - `chats.upsertFromWa(c, inboxId)`, `chats.resolveJid(key)` (alias routing stays inside the key's inbox).

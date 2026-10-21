@@ -344,7 +344,20 @@
     "blocked": {
       "title": "Sambungan WhatsApp disekat",
       "body": "Sambungan ditolak. Admin perlu menyemak halaman WhatsApp."
+    },
+    "inbox": {
+      "connecting": "{{name}}: menyambung ke WhatsApp…",
+      "disconnected": "{{name}} di luar talian",
+      "qr": "{{name}} belum dipautkan",
+      "loggedOut": "{{name}} telah dilog keluar",
+      "replaced": "{{name}} dibuka dalam sesi lain",
+      "blocked": "{{name}}: sambungan disekat"
     }
+  },
+  "inboxFilter": {
+    "label": "Peti masuk",
+    "all": "Semua peti masuk ({{total}})",
+    "option": "{{name}} · {{number}}"
   },
   "phoneLink": {
     "label": "Nombor WhatsApp (dengan kod negara)",

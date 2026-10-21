@@ -3,6 +3,7 @@ import type {
   Chat,
   Role,
   ChatEvent,
+  InboxStatusPayload,
   Message,
   Note,
   ServerToClientEvents,
@@ -28,7 +29,10 @@ export interface BusEvents {
   'chat:updated': [Chat];
   'chat:event': [ChatEvent];
   'note:new': [Note];
+  /** Connection status of inbox 1 (the number linked before multi-inbox). */
   'wa:status': [WaStatus];
+  /** Connection status of every inbox, inbox 1 included. */
+  'inbox:status': [InboxStatusPayload];
   'tunnel:status': [TunnelStatus];
   'user:disabled': [number];
   'user:sessions-revoked': [number];

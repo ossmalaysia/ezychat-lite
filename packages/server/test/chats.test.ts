@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  ChatDetailResponse,
-  ChatListResponse,
-  ChatSchema,
-  NoteSchema,
-} from '@ezychat/shared';
+import { ChatDetailResponse, ChatListResponse, ChatSchema, NoteSchema } from '@ezychat/shared';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -204,6 +199,8 @@ describe('chat profile images', () => {
       assigned_to: null,
       updated_at: Date.now(),
       phone: null,
+      inbox_id: 1,
+      wa_jid: '60123:7@s.whatsapp.net',
       profile_name: null,
       profile_tags: [],
     };
@@ -222,6 +219,8 @@ describe('chat profile images', () => {
       updated_at: 1,
       profile_name: null,
       profile_tags: [] as string[],
+      inbox_id: 1,
+      wa_jid: null,
     } as const;
     expect(rowToChat({ ...base, jid: '123456789@lid', name: '', phone: null })).toMatchObject({
       name: '',
@@ -236,6 +235,20 @@ describe('chat profile images', () => {
     expect(
       rowToChat({ ...base, type: 'group', jid: '1-2@g.us', name: 'Team', phone: null }),
     ).toMatchObject({ name: 'Team', phone: null });
+    // another inbox's key: the JID shape is read from the WhatsApp JID, never from the key
+    expect(
+      rowToChat({ ...base, inbox_id: 2, jid: '123456789@lid#2', name: '123456789', phone: null }),
+    ).toMatchObject({ jid: '123456789@lid#2', inboxId: 2, waJid: '123456789@lid', name: '' });
+    expect(
+      rowToChat({
+        ...base,
+        inbox_id: 2,
+        jid: '60111@s.whatsapp.net#2',
+        wa_jid: '60111@s.whatsapp.net',
+        name: '',
+        phone: null,
+      }),
+    ).toMatchObject({ name: '60111', avatarUrl: '/api/chats/60111%40s.whatsapp.net%232/avatar' });
   });
 
   it('search matches the chat phone number and new phone-number chats store it', () => {

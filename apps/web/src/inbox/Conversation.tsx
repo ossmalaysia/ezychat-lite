@@ -17,8 +17,8 @@ import {
   useQuickReplies,
   useRetryMessage,
   useSendMedia,
+  useInboxStatus,
   useSendText,
-  useWaStatus,
   type MessagesData,
 } from '../api/queries';
 import { useRealtime } from '../api/socket';
@@ -51,6 +51,7 @@ import { buildTimeline } from './timeline';
 import { assistantStartedChat } from './assistant-started';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
+import { useInboxOfChat } from './useVisibleInboxes';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 
 export interface ConversationProps {
@@ -75,7 +76,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const messagesQ = useMessages(jid);
   const notesQ = useNotes(jid);
   const quickReplies = useQuickReplies();
-  const wa = useWaStatus();
+  const inboxOf = useInboxOfChat();
   const sendText = useSendText(jid);
   const sendMedia = useSendMedia(jid);
   // The message a reply will quote; cleared after sending and when another chat opens.
@@ -99,6 +100,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const chat = chatQ.data?.chat;
+  // The composer follows the chat's own inbox: another phone offline never blocks this one.
+  const waState = useInboxStatus(chat?.inboxId)?.state;
   // Group chats: the member count under the name (same cached list the Group info panel uses).
   const groupMembers = useGroupMembers(jid, chat?.type === 'group');
   const events = chatQ.data?.events;
@@ -244,7 +247,6 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     );
   }
 
-  const waState = wa.data?.state;
   const blocked = waSendingBlocked(waState);
   const queued = waQueuesMessages(waState);
   // Quotes in a direct chat name the customer like the header does (groups name each sender).
@@ -260,6 +262,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         <ConversationHeader
           chat={chat}
           directory={directory}
+          inbox={inboxOf(chat.inboxId)}
           onBack={onBack}
           busy={patch.isPending}
           onAssign={(id) => patch.mutate({ assignedTo: id }, { onError: toastError })}

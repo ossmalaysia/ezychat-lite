@@ -47,6 +47,10 @@ const SERVER_ACTIONS = [
   'customer.enrichment_update',
   'cloudflare.create',
   'cloudflare.login',
+  'inbox.access_update',
+  'inbox.create',
+  'inbox.remove',
+  'inbox.update',
   'logs.download',
   'mcp.disable',
   'mcp.enable',
@@ -134,6 +138,26 @@ describe('auditDetails', () => {
     expect(details).toContain('messages 12');
     expect(details).toContain('notes 1');
     expect(details).not.toContain('[object Object]');
+  });
+
+  it('labels the inbox actions and their fields', () => {
+    expect(auditActionLabel('inbox.create', t)).toBe('Inbox added');
+    expect(auditActionLabel('inbox.update', t)).toBe('Inbox updated');
+    expect(auditActionLabel('inbox.remove', t)).toBe('Inbox removed');
+    expect(auditActionLabel('inbox.access_update', t)).toBe('Inbox access changed');
+    expect(auditDetails({ inboxId: 2, changed: ['name', 'memberIds'] }, t, names)).toBe(
+      'Changed name, members · Inbox: 2',
+    );
+    expect(auditDetails({ targetId: 2, inboxIds: [1, 3] }, t, names)).toBe(
+      'Member: Bob Agent · Inboxes: 1, 3',
+    );
+  });
+
+  it('shows the phone number of a chat in another inbox, without the inbox suffix', () => {
+    expect(auditDetails({ chatJid: '60129001234@s.whatsapp.net#2' }, t, names)).toBe(
+      'Chat: +60129001234',
+    );
+    expect(auditDetails({ chatJid: '888000111@lid#2' }, t, names)).toBe('');
   });
 
   it('is empty when there is nothing to show', () => {

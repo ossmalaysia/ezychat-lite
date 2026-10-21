@@ -11,14 +11,30 @@ import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from './aliases.js';
-import { ChatRepo, chatTypeOf, jidUser, type ChatRow } from './repo.js';
+import { PRIMARY_INBOX_ID, chatKey, parseChatKey, waMessageId } from '../inboxes/keys.js';
+import { ChatRepo, chatTypeOf, jidUser, waJidOf, type ChatRow } from './repo.js';
 import { createChatPresenter } from '../messages/mentions.js';
 
+/** Which inboxes a chat list reads (the caller's scope and the inbox filter). */
+export interface ChatListScope {
+  /** Inboxes the caller may open; omitted = every inbox, empty = none. */
+  inboxIds?: readonly number[];
+  /** One inbox only. */
+  inbox?: number;
+}
+
 export interface ChatService {
-  list(q: ChatListQuery, userId: number): { chats: Chat[]; nextCursor: string | null };
+  list(
+    q: ChatListQuery,
+    userId: number,
+    scope?: ChatListScope,
+  ): { chats: Chat[]; nextCursor: string | null };
   get(jid: string): Chat | null;
-  /** `jid` when it has its own chat row, else the chat it routes to (old links, push URLs). */
-  resolveJid(jid: string): string;
+  /**
+   * The chat key `key` opens: itself when it has its own chat row, else the chat it routes to
+   * inside the same inbox (old links, push URLs). A plain JID is an inbox 1 key.
+   */
+  resolveJid(key: string): string;
   openCount(): number;
   resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
@@ -27,7 +43,8 @@ export interface ChatService {
    * never the tool's input or output), emitted on the bus for every teammate.
    */
   addAiToolUsed(jid: string, actorId: number, lookups: readonly AiToolUsedPayload[]): ChatEvent[];
-  upsertFromWa(info: WaChatInfo): Chat;
+  /** A chat WhatsApp reported through `inboxId` (default inbox 1); `info.jid` is a WhatsApp JID. */
+  upsertFromWa(info: WaChatInfo, inboxId?: number): Chat;
   /** actorId null = system */
   /** `eventDetail` is merged into the assignment event's payload (e.g. `{ handoff: reason }`). */
   patch(
@@ -39,7 +56,10 @@ export interface ChatService {
   markRead(jid: string, userId: number): Promise<void>;
   addNote(jid: string, userId: number, body: string): Note;
   listNotes(jid: string): Note[];
-  /** Contacts from WA: upserts contacts table and fills DM chat names that are still fallbacks. */
+  /**
+   * Contacts from WA: upserts contacts table and fills DM chat names that are still fallbacks.
+   * Contacts are keyed by WhatsApp JID, so a name reaches that person's chat in every inbox.
+   */
   upsertContacts(list: WaContactInfo[]): void;
   /** Explicit WhatsApp phone/LID identities; never infer a match from a name or number. */
   upsertContactAliases(list: WaContactAlias[]): void;
@@ -70,6 +90,12 @@ export function isFallbackName(name: string, jid: string): boolean {
 }
 
 export function createChatService(ctx: AppContext, deps?: { now?: () => number }): ChatService {
+  /** The adapter of the inbox a chat key belongs to (inbox 1: ctx.wa); null for a removed inbox. */
+  const adapterFor = (key: string) => {
+    const { inboxId } = parseChatKey(key);
+    if (inboxId === PRIMARY_INBOX_ID) return ctx.wa;
+    return ctx.inboxes.connections.entries().find(([id]) => id === inboxId)?.[1] ?? null;
+  };
   const repo = new ChatRepo(ctx.db);
   const now = deps?.now ?? Date.now;
   const aliases = getAliases(ctx);
@@ -102,16 +128,19 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       // Retain the phone-number search field on the opaque LID row as well.
       if (phone) ctx.db.prepare('UPDATE contacts SET phone = ? WHERE jid = ?').run(phone, jid);
       const best = savedName || pushName;
-      const chat = repo.get(jid);
-      const followsPushName = !!stored[index]?.push_name && chat?.name === stored[index]?.push_name;
-      if (
-        chat?.type === 'dm' &&
-        best &&
-        chat.name !== best &&
-        (savedName || isFallbackName(chat.name, jid) || followsPushName)
-      ) {
-        repo.setName(jid, best, t);
-        renamed.add(jid);
+      for (const key of repo.keysOf(jid)) {
+        const chat = repo.get(key);
+        const followsPushName =
+          !!stored[index]?.push_name && chat?.name === stored[index]?.push_name;
+        if (
+          chat?.type === 'dm' &&
+          best &&
+          chat.name !== best &&
+          (savedName || isFallbackName(chat.name, jid) || followsPushName)
+        ) {
+          repo.setName(key, best, t);
+          renamed.add(key);
+        }
       }
     }
     return renamed;
@@ -122,13 +151,10 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
   const backfilled = ctx.db.transaction(() => {
     let count = 0;
     for (const chat of repo.directChats()) {
-      const contact = repo.getContact(chat.jid);
+      const waJid = waJidOf(chat);
+      const contact = repo.getContact(waJid);
       const best = contact?.saved_name || contact?.push_name;
-      if (
-        best &&
-        (contact?.saved_name || isFallbackName(chat.name, chat.jid)) &&
-        chat.name !== best
-      ) {
+      if (best && (contact?.saved_name || isFallbackName(chat.name, waJid)) && chat.name !== best) {
         repo.setName(chat.jid, best, now());
         count++;
       }
@@ -138,7 +164,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
   log.info({ renamedCount: backfilled }, 'contact name startup backfill');
 
   const svc: ChatService = {
-    list(q, userId) {
+    list(q, userId, scope = {}) {
       let cursor: { ts: number; jid: string } | null = null;
       if (q.cursor) {
         cursor = decodeCursor(q.cursor);
@@ -153,6 +179,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         since: q.since,
         cursor,
         limit: q.limit + 1,
+        inboxIds: scope.inboxIds,
+        inbox: scope.inbox,
       });
       const more = rows.length > q.limit;
       const page = more ? rows.slice(0, q.limit) : rows;
@@ -233,24 +261,26 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       return events;
     },
 
-    upsertFromWa(info) {
-      // History chats.upsert must not recreate a merged phone-number chat.
-      const jid = info.type === 'dm' ? aliases.route(info.jid) : info.jid;
+    upsertFromWa(info, inboxId = PRIMARY_INBOX_ID) {
+      // History chats.upsert must not recreate a merged phone-number chat (inside this inbox).
+      const jid =
+        info.type === 'dm' ? aliases.route(inboxId, info.jid) : chatKey(inboxId, info.jid);
       const t = now();
       const existing = repo.get(jid);
       if (!existing) {
         repo.ensure(jid, { type: info.type, name: info.name ?? '' }, t);
         return emitChat(jid);
       }
-      const contact = existing.type === 'dm' ? repo.getContact(jid) : null;
+      const waJid = waJidOf(existing);
+      const contact = existing.type === 'dm' ? repo.getContact(waJid) : null;
       const supplied = info.name?.trim() || null;
       const best =
         contact?.saved_name ||
-        (supplied && !isFallbackName(supplied, jid) ? supplied : contact?.push_name || supplied);
+        (supplied && !isFallbackName(supplied, waJid) ? supplied : contact?.push_name || supplied);
       if (
         best &&
         best !== existing.name &&
-        (existing.type === 'group' || !!contact?.saved_name || isFallbackName(existing.name, jid))
+        (existing.type === 'group' || !!contact?.saved_name || isFallbackName(existing.name, waJid))
       ) {
         repo.setName(jid, best, t);
         return emitChat(jid);
@@ -333,26 +363,29 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       if (!cur) throw errors.notFound('Chat');
       const rows = ctx.db
         .prepare(
-          `SELECT id, COALESCE(wa_remote_jid, chat_jid) AS remote FROM messages
+          `SELECT id, wa_remote_jid AS remote FROM messages
            WHERE chat_jid = ? AND from_me = 0 ORDER BY timestamp DESC, id DESC LIMIT 20`,
         )
-        .all(jid) as Array<{ id: string; remote: string }>;
+        .all(jid) as Array<{ id: string; remote: string | null }>;
       if (cur.unread_count !== 0) {
         repo.update(jid, { unread_count: 0, updated_at: now() });
         emitChat(jid);
       }
-      if (rows.length && ctx.wa.status.state === 'open') {
+      // Receipts go out through the chat's own inbox, with WhatsApp's ids (no inbox suffix).
+      const wa = adapterFor(jid);
+      if (rows.length && wa?.status.state === 'open') {
         // Receipt keys carry remoteJid = the address WhatsApp used; never mix PN and LID ids.
         const byRemote = new Map<string, string[]>();
         const oldestFirst = [...rows].reverse();
         for (const r of oldestFirst) {
-          const ids = byRemote.get(r.remote) ?? [];
-          ids.push(r.id);
-          byRemote.set(r.remote, ids);
+          const remote = r.remote ?? waJidOf(cur);
+          const ids = byRemote.get(remote) ?? [];
+          ids.push(waMessageId(r.id));
+          byRemote.set(remote, ids);
         }
         for (const [remote, ids] of byRemote) {
           try {
-            await ctx.wa.markRead(remote, ids);
+            await wa.markRead(remote, ids);
           } catch (err) {
             ctx.log.debug({ err, jid: remote }, 'wa markRead failed (ignored)');
           }
@@ -374,10 +407,12 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     upsertContacts(list) {
       const t = now();
       // Learn pairs outside the name transaction so the alias cache never outlives a rollback.
-      for (const c of list) {
-        if (chatTypeOf(c.jid) !== 'dm') continue;
-        for (const alias of c.aliases ?? []) aliases.learn({ jid: c.jid, alias }, 'contacts');
-      }
+      aliases.batch(() => {
+        for (const c of list) {
+          if (chatTypeOf(c.jid) !== 'dm') continue;
+          for (const alias of c.aliases ?? []) aliases.learn({ jid: c.jid, alias }, 'contacts');
+        }
+      });
       const renamed = ctx.db.transaction((items: WaContactInfo[]) => {
         const out = new Set<string>();
         for (const c of items) {
@@ -394,7 +429,9 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     },
 
     upsertContactAliases(list) {
-      const outcomes = list.map((p) => aliases.learn(p, p.source ?? 'contacts'));
+      const outcomes = aliases.batch(() =>
+        list.map((p) => aliases.learn(p, p.source ?? 'contacts')),
+      );
       const changed = ctx.db.transaction(() => {
         const out = new Set<string>();
         for (const o of outcomes) {
@@ -405,9 +442,10 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         }
         return out;
       })();
-      // a newly known phone number shows in the WhatsApp ID chat's header
+      // a newly known phone number shows in the WhatsApp ID chat's header, in every inbox
       for (const o of outcomes) {
-        if ((o.kind === 'added' || o.kind === 'repointed') && repo.get(o.lid)) changed.add(o.lid);
+        if (o.kind === 'added' || o.kind === 'repointed')
+          for (const key of repo.keysOf(o.lid)) changed.add(key);
       }
       for (const jid of changed) emitChat(jid);
       log.info(

@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Chat, Message, User } from '@ezychat/shared';
+import type { Chat, Inbox, Message, User, WaStatus } from '@ezychat/shared';
 import { InboxPage } from './InboxPage';
 
 const me: User = {
@@ -371,5 +371,153 @@ describe('InboxPage', () => {
         .getByRole('button', { name: 'Customer details', hidden: true })
         .getAttribute('aria-pressed'),
     ).toBe('true');
+  });
+});
+
+describe('InboxPage with inboxes', () => {
+  const jid2 = `${jid}#2`;
+  const chat2: Chat = { ...chat, jid: jid2, inboxId: 2, name: 'Bob at Catering', unreadCount: 0 };
+  const status = (state: WaStatus['state']): WaStatus => ({
+    state,
+    me: null,
+    qr: null,
+    lastError: null,
+  });
+  const inbox = (id: number, name: string, state: WaStatus['state']): Inbox => ({
+    id,
+    name,
+    tone: id === 1 ? 'primary' : 'warning',
+    number: id === 1 ? '60123000001' : null,
+    removed: false,
+    status: status(state),
+  });
+
+  function setupInboxes(path: string, inboxes: Inbox[] | null, wa: WaStatus['state'] = 'open') {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        urls.push(url);
+        if ((init?.method ?? 'GET') !== 'GET') return json({ ok: true });
+        if (url === '/api/me') return json(me);
+        if (url === '/api/wa/status') return json(status(wa));
+        if (url === '/api/inboxes' && inboxes)
+          return json({ inboxes, maxInboxes: 3, canAdd: false });
+        if (url.startsWith('/api/chats?')) {
+          const only = new URLSearchParams(url.split('?')[1]).get('inbox');
+          const list = inboxes ? [chat, chat2] : [chat];
+          return json({
+            chats: only ? list.filter((c) => String(c.inboxId) === only) : list,
+            nextCursor: null,
+          });
+        }
+        for (const c of [chat, chat2]) {
+          const base = `/api/chats/${encodeURIComponent(c.jid)}`;
+          if (url === base) return json({ chat: c, events: [] });
+          if (url.startsWith(`${base}/messages`)) return json({ messages, nextBefore: null });
+          if (url === `${base}/notes`) return json([]);
+        }
+        if (url === '/api/quick-replies') return json([]);
+        return json({ error: { code: 'not_found', message: 'nope' } }, 404);
+      }),
+    );
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/" element={<InboxPage />} />
+            <Route path="/chats/:jid" element={<InboxPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    return { urls };
+  }
+
+  afterEach(() => sessionStorage.clear());
+
+  it("one inbox shows no chip, no filter and today's banner text", async () => {
+    setupInboxes(
+      `/chats/${encodeURIComponent(jid)}`,
+      [inbox(1, 'Kopi Apong', 'disconnected')],
+      'disconnected',
+    );
+    await screen.findByRole('log', { name: 'Messages' });
+    expect(await screen.findByText('WhatsApp is disconnected')).toBeTruthy();
+    expect(screen.queryByTestId('inbox-chip')).toBeNull();
+    expect(screen.queryByTestId('inbox-filter')).toBeNull();
+    expect(screen.queryByText(/Kopi Apong/)).toBeNull();
+  });
+
+  it('two visible inboxes show the chip, the filter with counts, and "Catering is offline"', async () => {
+    setupInboxes('/', [inbox(1, 'Kopi Apong', 'open'), inbox(2, 'Catering', 'disconnected')]);
+    await screen.findByText('Bob at Catering');
+    expect(await screen.findByText('Catering is offline')).toBeTruthy();
+    expect(screen.getAllByTestId('inbox-chip').map((c) => c.textContent)).toEqual([
+      'Kopi Apong',
+      'Catering',
+    ]);
+    expect(screen.getByRole('combobox', { name: 'Inbox' }).textContent).toBe('All inboxes (2)');
+  });
+
+  it('the filter sets `inbox` in the chats query and is remembered', async () => {
+    const proto = Element.prototype as unknown as Record<string, unknown>;
+    proto.hasPointerCapture ??= () => false;
+    proto.setPointerCapture ??= () => {};
+    proto.releasePointerCapture ??= () => {};
+    proto.scrollIntoView ??= () => {};
+    const { urls } = setupInboxes('/', [
+      inbox(1, 'Kopi Apong', 'open'),
+      inbox(2, 'Catering', 'open'),
+    ]);
+    await screen.findByText('Bob at Catering');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Inbox' }));
+    await user.click(await screen.findByRole('option', { name: 'Catering' }));
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('inbox=2'))).toBe(true));
+    await vi.waitFor(() => expect(screen.queryByText('Bob Customer')).toBeNull());
+    expect(JSON.parse(sessionStorage.getItem('wati.inbox.filters')!)).toMatchObject({ inbox: 2 });
+  });
+
+  it('drops a remembered inbox the user can no longer open', async () => {
+    sessionStorage.setItem(
+      'wati.inbox.filters',
+      JSON.stringify({ assigned: 'any', status: 'open', inbox: 2 }),
+    );
+    const { urls } = setupInboxes('/', null);
+    await screen.findByText('Bob Customer');
+    await vi.waitFor(() =>
+      expect(urls.filter((u) => u.startsWith('/api/chats?')).at(-1)).not.toContain('inbox='),
+    );
+  });
+
+  it('the composer of an inbox 1 chat is not blocked while inbox 2 is offline', async () => {
+    setupInboxes(`/chats/${encodeURIComponent(jid)}`, [
+      inbox(1, 'Kopi Apong', 'open'),
+      inbox(2, 'Catering', 'logged_out'),
+    ]);
+    await screen.findByRole('log', { name: 'Messages' });
+    expect(await screen.findByText('Catering was logged out')).toBeTruthy();
+    const box = screen.getByRole('textbox', { name: /message/i });
+    expect((box as HTMLTextAreaElement).disabled).toBe(false);
+    expect(screen.queryByText('Sending is unavailable until WhatsApp is linked again.')).toBeNull();
+    const header = screen.getByRole('heading', { level: 2 }).closest('header')!;
+    expect(within(header).getByTestId('inbox-chip').textContent).toBe('Kopi Apong');
+  });
+
+  it('the composer of an inbox 2 chat follows inbox 2', async () => {
+    setupInboxes(`/chats/${encodeURIComponent(jid2)}`, [
+      inbox(1, 'Kopi Apong', 'open'),
+      inbox(2, 'Catering', 'logged_out'),
+    ]);
+    await screen.findByRole('log', { name: 'Messages' });
+    expect(
+      await screen.findByText('Sending is unavailable until WhatsApp is linked again.'),
+    ).toBeTruthy();
+    const header = screen.getByRole('heading', { level: 2 }).closest('header')!;
+    expect(within(header).getByTestId('inbox-chip').textContent).toBe('Catering');
   });
 });

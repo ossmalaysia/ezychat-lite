@@ -48,6 +48,10 @@ const LABEL_KEYS = {
   'api_token.auth_failed': 'audit.actions.apiTokenAuthFailed',
   'mcp.enable': 'audit.actions.mcpEnable',
   'mcp.disable': 'audit.actions.mcpDisable',
+  'inbox.create': 'audit.actions.inboxCreate',
+  'inbox.update': 'audit.actions.inboxUpdate',
+  'inbox.remove': 'audit.actions.inboxRemove',
+  'inbox.access_update': 'audit.actions.inboxAccessUpdate',
 } as const;
 
 type KnownAction = keyof typeof LABEL_KEYS;
@@ -119,6 +123,9 @@ const FIELD_KEYS: Record<string, string> = {
   historyDays: 'audit.fields.historyDays',
   prefix: 'audit.fields.token',
   expiresAt: 'audit.fields.expires',
+  inboxId: 'audit.fields.inbox',
+  inboxIds: 'audit.fields.inboxes',
+  memberIds: 'audit.fields.members',
 };
 
 /**
@@ -165,8 +172,12 @@ const CHANGE_FLAGS: Record<string, string> = {
   handoffRulesChanged: 'handoffRules',
 };
 
-/** `123@s.whatsapp.net` → `+123`; other ids (LIDs, groups) keep their local part. */
-function chatLabel(jid: string): string {
+/**
+ * `123@s.whatsapp.net` → `+123`; other ids (LIDs, groups) keep their local part. A chat of another
+ * inbox (`<jid>#<inboxId>`) shows the same number.
+ */
+function chatLabel(key: string): string {
+  const jid = key.replace(/#\d+$/, '');
   const local = jid.split('@')[0]?.split(':')[0] ?? jid;
   return jid.endsWith('@s.whatsapp.net') && /^\d+$/.test(local) ? `+${local}` : local;
 }
@@ -195,7 +206,7 @@ export function auditDetails(
     if (key === 'prefix' && typeof v === 'string') return `${v}…`;
     if (JID_FIELDS.has(key) && typeof v === 'string')
       // An opaque WhatsApp ID (LID) means nothing to a reader and is never shown.
-      return v.endsWith('@lid') ? null : chatLabel(v);
+      return /@lid(#\d+)?$/.test(v) ? null : chatLabel(v);
     if (USER_FIELDS.has(key) && typeof v === 'number')
       return userName(v) ?? t('audit.userNumber', { id: v });
     if (typeof v === 'boolean') return v ? t('audit.yes') : t('audit.no');

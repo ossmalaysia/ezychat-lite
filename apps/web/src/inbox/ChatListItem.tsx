@@ -1,13 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserRound, Users } from 'lucide-react';
-import type { Chat } from '@ezychat/shared';
+import type { Chat, Inbox } from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatListTime } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
+import { InboxChip } from './InboxChip';
 import { useGuardedLinkClick } from './navigation-guard';
 
 export interface ChatListItemProps {
@@ -17,6 +18,8 @@ export interface ChatListItemProps {
   assigneeName: string | null;
   /** The current user owns this chat: the chip gets the accent outline. */
   assignedToMe?: boolean;
+  /** The chat's inbox, only while the user sees two or more inboxes. */
+  inbox?: Pick<Inbox, 'name' | 'tone'>;
 }
 
 export function GroupIcon({ className }: { className?: string }) {
@@ -29,6 +32,7 @@ export function ChatListItem({
   active,
   assigneeName,
   assignedToMe = false,
+  inbox,
 }: ChatListItemProps) {
   // Subscribes to language changes so the localized list time re-renders.
   const { t } = useTranslation('inbox');
@@ -70,6 +74,7 @@ export function ChatListItem({
             >
               {name}
             </span>
+            {inbox && <InboxChip inbox={inbox} className="ml-1 shrink-0" />}
           </span>
           <time
             className={cn(

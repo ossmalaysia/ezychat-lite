@@ -199,7 +199,11 @@
       "apiTokenRevoke": "Access token revoked",
       "apiTokenAuthFailed": "AI assistant token rejected",
       "mcpEnable": "AI assistant access turned on",
-      "mcpDisable": "AI assistant access turned off"
+      "mcpDisable": "AI assistant access turned off",
+      "inboxCreate": "Inbox added",
+      "inboxUpdate": "Inbox updated",
+      "inboxRemove": "Inbox removed",
+      "inboxAccessUpdate": "Inbox access changed"
     },
     "fields": {
       "chat": "Chat",
@@ -238,7 +242,10 @@
       "port": "Port",
       "lanEnabled": "LAN access",
       "historyDays": "History days",
-      "expires": "Expires"
+      "expires": "Expires",
+      "inbox": "Inbox",
+      "inboxes": "Inboxes",
+      "members": "Members"
     },
     "reasons": {
       "rateLimited": "Too many attempts",
@@ -899,5 +906,58 @@
       "self_reported": "Customer explicitly provided their current details.",
       "correction": "Customer explicitly corrected their saved details."
     }
+  },
+  "inboxes": {
+    "title": "Inboxes",
+    "add": "Add inbox",
+    "emptyTitle": "No inbox yet",
+    "emptyBody": "Add your first WhatsApp number: give it a name, then scan the QR code with its phone.",
+    "description": "One inbox for each WhatsApp number. Link each number with the WhatsApp app on its phone, by a QR scan, as you do today.",
+    "edit": "Edit",
+    "remove": "Remove",
+    "status": "Status",
+    "whoCanOpen": "Who can open it",
+    "admin": "admin",
+    "accessHint": "Admins see every inbox. Choose the agents who may open this inbox in Edit, or under Members.",
+    "typeLinkedPhone": "WhatsApp app (linked phone)",
+    "numberAfterScan": "Shown after the scan",
+    "limitReached": "This edition allows {{max}} inboxes. Remove one to add another.",
+    "membersField": "Who can open it",
+    "membersFieldHint": "Admins always see every inbox. Tick the agents who may open the chats of this inbox.",
+    "membersFieldNoAgents": "No agents yet. Add them under Members.",
+    "membersFieldNone": "No agent ticked: only admins see this inbox.",
+    "removeTitle": "Remove “{{name}}”?",
+    "removeConfirm": "Remove inbox",
+    "removeBodyPhone": "EzyChat unlinks this phone and stops receiving and sending for the number. Its chats stay, read only, for admins.",
+    "removed": "Inbox removed",
+    "required": "This is required.",
+    "saved": "Inbox saved",
+    "createdPhone": "Inbox added. Now scan the QR code with the phone.",
+    "addTitle": "Add an inbox",
+    "editTitle": "Inbox “{{name}}”",
+    "dialogDescription": "Give the inbox a name, choose who can open it, save, then scan the QR code with the phone that has this number.",
+    "save": "Save",
+    "name": "Inbox name",
+    "nameHint": "What your team sees on each chat, e.g. Sales or Catering.",
+    "scanTitle": "Scan the QR code",
+    "scanBody": "Open Edit and scan the QR code with the phone that has this number.",
+    "scanSteps": "On the phone: WhatsApp → Settings → Linked devices → Link a device, then point the camera at this code.",
+    "linkedAs": "Linked to {{number}}",
+    "relink": "Link the phone again",
+    "offlineTitle": "The phone is offline",
+    "offlineBody": "EzyChat cannot send or receive for this number. Charge the phone and connect it to the internet; if it stays offline, link it again.",
+    "state": {
+      "connected": "Connected",
+      "waiting_scan": "Waiting for the QR scan",
+      "phone_offline": "Phone offline"
+    },
+    "membersAccess": "Inbox access",
+    "membersAccessAll": "All inboxes (admin)",
+    "membersAccessNone": "No inbox: this agent sees no chats",
+    "membersAccessTitle": "Inboxes for {{name}}",
+    "membersAccessDescription": "This agent sees only the chats of the inboxes you tick, and only those notifications.",
+    "membersAccessNoInboxes": "No inbox yet. Add one under Inboxes.",
+    "membersAccessSave": "Save",
+    "membersAccessSaved": "Inbox access saved"
   }
 }

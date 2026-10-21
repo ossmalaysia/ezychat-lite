@@ -229,6 +229,8 @@ export const accessStatusSchema = z.object({
 export type AccessStatus = z.infer<typeof accessStatusSchema>;
 
 export const FakeIncomingBody = z.object({
+  /** fake WA only: the inbox whose fake phone receives it (default 1) */
+  inboxId: z.number().int().positive().optional(),
   chatJid: z.string(),
   /** fake WA only: the other address of the same person (PN for a LID chat, or the reverse) */
   chatJidAlt: z.string().max(256).optional(),
@@ -248,3 +250,7 @@ export const FakeIncomingBody = z.object({
     .optional(),
 });
 export type FakeIncomingBody = z.infer<typeof FakeIncomingBody>;
+
+/** POST /api/dev/fake-link (fake WA only): the inbox's fake phone links, as a QR scan would. */
+export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
+export type FakeLinkBody = z.infer<typeof FakeLinkBody>;

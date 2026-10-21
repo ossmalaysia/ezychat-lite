@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { User } from '@ezychat/shared';
+import type { InboxListResponse, User } from '@ezychat/shared';
 import { MembersPage } from './MembersPage';
 
 function Location() {
@@ -48,10 +48,27 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function setup(memberList = users) {
+const status = { state: 'open' as const, qr: null, me: null, lastError: null };
+/** Two inboxes in an edition that allows three numbers. */
+const multiInbox: InboxListResponse = {
+  maxInboxes: 3,
+  canAdd: true,
+  inboxes: [
+    { id: 1, name: 'Sales', tone: 'primary', number: '60111', status, removed: false },
+    { id: 2, name: 'Catering', tone: 'warning', number: null, status, removed: false },
+    { id: 3, name: 'Old', tone: 'info', number: null, status, removed: true },
+  ],
+};
+
+function setup(memberList = users, inboxList?: InboxListResponse) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     if (url === '/api/users' && method === 'GET') return json({ users: memberList });
+    if (url === '/api/inboxes' && inboxList) return json(inboxList);
+    if (url === '/api/users/2/inboxes' && method === 'PUT') {
+      const body = JSON.parse(String(init?.body)) as { inboxIds: number[] };
+      return json({ ...memberList[1], inboxIds: body.inboxIds });
+    }
     if (url === '/api/ai')
       return json({
         member: memberList.find((member) => member.kind === 'ai') ?? null,
@@ -214,5 +231,72 @@ describe('MembersPage', () => {
     const dialog = await screen.findByRole('dialog');
     const pw = within(dialog).getByLabelText(/temporary password/i) as HTMLInputElement;
     expect(pw.value.length).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe('MembersPage inbox access', () => {
+  const agent = { ...users[1]!, disabled: false, inboxIds: [] as number[] };
+
+  it('shows no inbox access in Lite (one number)', async () => {
+    setup([users[0]!, agent]);
+    await screen.findAllByText('Bob Agent');
+    expect(screen.queryByText('Inbox access')).toBeNull();
+    expect(screen.queryByTestId('inbox-access')).toBeNull();
+  });
+
+  it("warns 'No inbox: this agent sees no chats' and saves the ticked inboxes", async () => {
+    const fetchMock = setup([users[0]!, agent, aiUser], multiInbox);
+    const warnings = await screen.findAllByText('No inbox: this agent sees no chats');
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Inbox access').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('All inboxes (admin)').length).toBeGreaterThan(0);
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole('button', { name: 'Inboxes for Bob Agent' })[0]!);
+    const dialog = await screen.findByRole('dialog');
+    // Removed inboxes cannot be ticked.
+    expect(within(dialog).queryByText('Old')).toBeNull();
+    expect(within(dialog).getByText('+60111')).toBeTruthy();
+    await user.click(within(dialog).getByRole('checkbox', { name: /Catering/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) => url === '/api/users/2/inboxes' && init?.method === 'PUT',
+        ),
+      ).toBe(true),
+    );
+    const put = fetchMock.mock.calls.find(([url]) => url === '/api/users/2/inboxes')!;
+    expect(JSON.parse(String(put[1]?.body))).toEqual({ inboxIds: [2] });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('shows the chips of the inboxes an agent may open', async () => {
+    setup([users[0]!, { ...agent, inboxIds: [1, 3] }], multiInbox);
+    const chips = await screen.findAllByTestId('inbox-chip');
+    expect(chips.map((c) => c.textContent)).toContain('Sales');
+    expect(chips.map((c) => c.textContent)).not.toContain('Old');
+    expect(screen.queryByText('No inbox: this agent sees no chats')).toBeNull();
+  });
+
+  it('keeps the dialog open with the server error when saving fails', async () => {
+    const fetchMock = setup([users[0]!, { ...agent, inboxIds: [1] }], multiInbox);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/users/2/inboxes'
+        ? json({ error: { code: 'validation', message: 'Unknown inbox' } }, 400)
+        : base(url, init),
+    );
+    const user = userEvent.setup();
+    await user.click((await screen.findAllByRole('button', { name: 'Inboxes for Bob Agent' }))[0]!);
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('checkbox', { name: /Sales/ }).getAttribute('aria-checked') ??
+        within(dialog).getByRole('checkbox', { name: /Sales/ }).getAttribute('data-state'),
+    ).toMatch(/true|checked/);
+    await user.click(within(dialog).getByRole('checkbox', { name: /Sales/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await within(dialog).findByText('Unknown inbox')).toBeTruthy();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

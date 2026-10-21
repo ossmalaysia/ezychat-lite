@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, CircleDot, Tag, X } from 'lucide-react';
+import type { Inbox } from '@ezychat/shared';
 import { useCustomerTags, type ChatFilters as Filters } from '../api/queries';
 import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,22 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { formatPhone } from '../lib/jid';
 
 export interface ChatFiltersProps {
   value: Filters;
   onChange(next: Filters): void;
+  /** The active inboxes the user may open; the inbox filter shows with two or more. */
+  inboxes?: readonly Inbox[];
 }
 
 const tabs = [
@@ -27,6 +38,53 @@ const tabs = [
 ] as const satisfies readonly { key: Filters['assigned']; labelKey: string }[];
 
 const SEARCH_DEBOUNCE_MS = 300;
+const ALL_INBOXES = 'all';
+
+/**
+ * One unified list; this narrows it to one inbox. Shown only when the user may open two or more
+ * inboxes (an agent with one inbox and Lite never see it).
+ */
+function InboxFilter({
+  value,
+  onChange,
+  visible,
+}: Omit<ChatFiltersProps, 'inboxes'> & { visible: readonly Inbox[] }) {
+  const { t } = useTranslation('inbox');
+  if (visible.length < 2) return null;
+  const selected =
+    value.inbox != null && visible.some((i) => i.id === value.inbox)
+      ? String(value.inbox)
+      : ALL_INBOXES;
+  return (
+    <Select
+      value={selected}
+      onValueChange={(v) =>
+        onChange({ ...value, inbox: v === ALL_INBOXES ? undefined : Number(v) })
+      }
+    >
+      <SelectTrigger
+        aria-label={t('inboxFilter.label')}
+        data-testid="inbox-filter"
+        className="h-11! w-full bg-surface text-base *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate md:text-sm"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent position="popper">
+        <SelectItem value={ALL_INBOXES} className="min-h-11 md:min-h-8">
+          {t('inboxFilter.all', { total: visible.length })}
+        </SelectItem>
+        {visible.map((i) => {
+          const number = formatPhone({ phone: i.number });
+          return (
+            <SelectItem key={i.id} value={String(i.id)} className="min-h-11 md:min-h-8">
+              {number ? t('inboxFilter.option', { name: i.name, number }) : i.name}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /** Mounted only while the tag popover is open, so tags are fetched on demand. */
 function TagOptions({ onPick }: { onPick(tag: string): void }) {
@@ -59,7 +117,7 @@ function TagOptions({ onPick }: { onPick(tag: string): void }) {
   );
 }
 
-export function ChatFilters({ value, onChange }: ChatFiltersProps) {
+export function ChatFilters({ value, onChange, inboxes = [] }: ChatFiltersProps) {
   const { t } = useTranslation('inbox');
   const [search, setSearch] = useState(value.q ?? '');
   const latest = useRef({ value, onChange });
@@ -89,6 +147,7 @@ export function ChatFilters({ value, onChange }: ChatFiltersProps) {
         label={t('filters.searchLabel')}
         placeholder={t('filters.searchPlaceholder')}
       />
+      <InboxFilter value={value} onChange={onChange} visible={inboxes} />
       {/* Assignment gets the full row: its labels are the longest (Malay "Belum ditugaskan"). */}
       <Tabs
         value={value.assigned}

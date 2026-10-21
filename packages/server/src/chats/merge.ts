@@ -1,7 +1,8 @@
 import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
-import { ChatRepo, jidUser, type ChatColumns } from './repo.js';
+import { parseChatKey } from '../inboxes/keys.js';
+import { ChatRepo, jidUser, waJidOf, type ChatColumns } from './repo.js';
 import { isFallbackName } from './service.js';
 
 export interface MergeResult {
@@ -78,37 +79,44 @@ function mergeAiState(db: DB, from: string, to: string, fromNewer: boolean): num
   return 1;
 }
 
-/** Name for a re-keyed chat: saved contact name > WhatsApp push name > the chat's own real name. */
-function rekeyName(db: DB, from: ChatColumns, to: string): string {
+/**
+ * Name for a re-keyed chat: saved contact name > WhatsApp push name > the chat's own real name.
+ * Contacts are keyed by WhatsApp JID (`toWa`), chats by chat key.
+ */
+function rekeyName(db: DB, from: ChatColumns, toWa: string): string {
+  const fromWa = waJidOf(from);
   const contact = db
     .prepare(
       `SELECT saved_name, push_name FROM contacts WHERE jid IN (?, ?)
        ORDER BY (saved_name IS NOT NULL AND saved_name <> '') DESC, jid = ? DESC LIMIT 1`,
     )
-    .get(to, from.jid, to) as { saved_name: string | null; push_name: string | null } | undefined;
+    .get(toWa, fromWa, toWa) as { saved_name: string | null; push_name: string | null } | undefined;
   if (contact?.saved_name) return contact.saved_name;
-  if (!isFallbackName(from.name, from.jid)) return from.name;
+  if (!isFallbackName(from.name, fromWa)) return from.name;
   return contact?.push_name ?? '';
 }
 
 /** saved contact name > a real (non-fallback) chat name > the canonical chat's name */
 function bestName(db: DB, from: ChatColumns, to: ChatColumns): string {
+  const fromWa = waJidOf(from);
+  const toWa = waJidOf(to);
   const saved = db
     .prepare(
       `SELECT saved_name FROM contacts WHERE jid IN (?, ?) AND saved_name IS NOT NULL AND saved_name <> ''
        ORDER BY jid = ? DESC LIMIT 1`,
     )
-    .get(to.jid, from.jid, to.jid) as { saved_name: string } | undefined;
+    .get(toWa, fromWa, toWa) as { saved_name: string } | undefined;
   if (saved) return saved.saved_name;
-  if (!isFallbackName(to.name, to.jid)) return to.name;
-  if (!isFallbackName(from.name, from.jid)) return from.name;
+  if (!isFallbackName(to.name, toWa)) return to.name;
+  if (!isFallbackName(from.name, fromWa)) return from.name;
   return to.name;
 }
 
 /**
- * Merges chat `from` (the PN) into `to` (the LID) in one synchronous transaction. Only the startup
- * identity migration calls this. Returns null when `from` has no chat row (idempotent). Media files
- * are not moved: `media_path` stays valid. `jid_aliases` is not touched (the pair already exists).
+ * Merges chat `from` (the PN) into `to` (the LID) in one synchronous transaction. Both are chat keys
+ * of the same inbox: a merge never joins two inboxes (throws). Only the startup identity migration
+ * calls this. Returns null when `from` has no chat row (idempotent). Media files are not moved:
+ * `media_path` stays valid. `jid_aliases` is not touched (the pair already exists).
  */
 export function mergeChat(
   db: DB,
@@ -117,6 +125,9 @@ export function mergeChat(
   opts: { now: number },
 ): MergeResult | null {
   if (from === to) return null;
+  const src = parseChatKey(from);
+  const dst = parseChatKey(to);
+  if (src.inboxId !== dst.inboxId) throw new Error('chat merge across two inboxes refused');
   const repo = new ChatRepo(db);
   return db.transaction((): MergeResult | null => {
     const a = repo.get(from);
@@ -124,18 +135,21 @@ export function mergeChat(
     const b = repo.get(to);
     // Decide before any message moves: which chat heard from the customer last.
     const fromNewer = lastInboundAt(db, from) > lastInboundAt(db, to);
-    const phone = pnDigits(from) ?? a.phone;
+    const phone = pnDigits(waJidOf(a)) ?? a.phone;
     let assignedTo = a.assigned_to;
     let assigneeDropped: number | null = null;
 
     if (!b) {
       db.prepare(
         `INSERT INTO chats (jid, type, name, avatar_path, unread_count, last_message_at, last_message_preview,
-           status, assigned_to, updated_at, phone)
-         VALUES (@jid, 'dm', @name, @avatar, @unread, @lastAt, @preview, @status, @assigned, @now, @phone)`,
+           status, assigned_to, updated_at, phone, inbox_id, wa_jid)
+         VALUES (@jid, 'dm', @name, @avatar, @unread, @lastAt, @preview, @status, @assigned, @now, @phone,
+           @inboxId, @waJid)`,
       ).run({
         jid: to,
-        name: rekeyName(db, a, to),
+        inboxId: dst.inboxId,
+        waJid: dst.waJid,
+        name: rekeyName(db, a, dst.waJid),
         avatar: a.avatar_path,
         unread: a.unread_count,
         lastAt: a.last_message_at,

@@ -19,6 +19,7 @@ import type {
 } from '@ezychat/shared';
 import {
   dropPushSubscription,
+  patchInboxStatusInCache,
   patchMessageInCache,
   qk,
   patchSenderProfilesInCache,
@@ -171,6 +172,14 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     socket.on('wa:status', (s) => {
       qc.setQueryData(qk.wa, s);
       if (s.state === 'open') setAvatarRevision(Date.now());
+    });
+    socket.on('inbox:status', (p) => patchInboxStatusInCache(qc, p));
+    socket.on('inboxes:changed', () => {
+      // An inbox was added, renamed or removed, or who may open it changed: the inbox list, the
+      // team's inbox access (assign dropdown) and the chats the user may see all follow.
+      void qc.invalidateQueries({ queryKey: qk.inboxes });
+      void qc.invalidateQueries({ queryKey: qk.users });
+      refreshChats();
     });
     socket.on('tunnel:status', (s) => {
       qc.setQueryData(qk.tunnel, s);
