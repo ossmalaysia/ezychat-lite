@@ -244,3 +244,42 @@ it('requires trusted installer metadata and reports failed update recovery', asy
   expect(screen.getByText(/cannot be verified/)).toBeTruthy();
   expect(screen.getByText('Update failed. The previous app was restored.')).toBeTruthy();
 });
+
+it('names what is new in the version and shows the last update only for the installed version', async () => {
+  vi.mocked(bridge.getState).mockResolvedValue({
+    ...available,
+    release: { ...available.release!, notes: '• Several WhatsApp numbers' },
+    lastInstall: { status: 'success', version: '0.1.12', message: 'Update installed.' },
+  });
+  render(<DesktopUpdatePanel />);
+  expect(await screen.findByText('What’s new in 0.1.13')).toBeTruthy();
+  expect(screen.getByText('• Several WhatsApp numbers')).toBeTruthy();
+  // 0.1.13 is waiting: the old "installed" result would read as if 0.1.13 were installed.
+  expect(screen.queryByText(/Updated to/)).toBeNull();
+  expect(screen.queryByText('Update installed.')).toBeNull();
+});
+
+it('confirms a finished update with its version while no newer one waits', async () => {
+  vi.mocked(bridge.getState).mockResolvedValue({
+    ...available,
+    status: 'current',
+    release: null,
+    lastInstall: { status: 'success', version: '0.1.12', message: 'Update installed.' },
+  });
+  const view = render(<DesktopUpdatePanel />);
+  expect(
+    await screen.findByText(
+      'Updated to 0.1.12. Your conversations, accounts and settings are preserved.',
+    ),
+  ).toBeTruthy();
+  view.unmount();
+  vi.mocked(bridge.getState).mockResolvedValue({
+    ...available,
+    status: 'current',
+    release: null,
+    lastInstall: { status: 'success', version: '0.1.11', message: 'Update installed.' },
+  });
+  render(<DesktopUpdatePanel />);
+  await screen.findByText('Check for updates');
+  expect(screen.queryByText(/Updated to/)).toBeNull();
+});

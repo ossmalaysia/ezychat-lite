@@ -162,13 +162,29 @@ function httpsUrl(value: unknown): string | null {
   }
 }
 
+const MAX_NOTE_LINES = 20;
+const MAX_NOTE_LENGTH = 500;
+
+/** The manifest's notes as a bullet list ('' when absent); null when they are not a short string list. */
+function feedNotes(value: unknown): string | null {
+  if (value === undefined) return '';
+  if (!Array.isArray(value) || value.length > MAX_NOTE_LINES) return null;
+  const lines: string[] = [];
+  for (const line of value) {
+    if (typeof line !== 'string' || line.length > MAX_NOTE_LENGTH) return null;
+    if (line.trim()) lines.push(`• ${line.trim()}`);
+  }
+  return lines.join('\n');
+}
+
 /**
  * A private edition's update manifest (updateFeed { kind: 'url' }):
- *   { version, notesUrl?, assets: [{ name, url, sha256, size }] }
+ *   { version, notesUrl?, notes?: string[], assets: [{ name, url, sha256, size }] }
  * The installer for this computer is the asset named `<artifactPrefix>-<version>-<os>-<arch>.<ext>`.
  * Its https URL, SHA-256 and size come from this manifest only; without a valid digest and size
  * the release is shown but cannot be installed in-app. Returns null when the manifest offers
- * nothing for this channel and 'invalid' when it is malformed.
+ * nothing for this channel and 'invalid' when it is malformed. `notes` (at most 20 lines of at most
+ * 500 characters, plain text) becomes the "What's new" list.
  */
 export function parseUrlFeed(
   value: unknown,
@@ -183,6 +199,8 @@ export function parseUrlFeed(
   if (!options.allowPreview && version.prerelease.length) return null;
   const notesUrl = item.notesUrl === undefined ? null : httpsUrl(item.notesUrl);
   if (item.notesUrl !== undefined && !notesUrl) return 'invalid';
+  const notes = feedNotes(item.notes);
+  if (notes === null) return 'invalid';
   const names = installerNames(versionString, options.platform, options.arch, options.product);
   let installer: Record<string, unknown> | null = null;
   for (const name of names) {
@@ -197,7 +215,7 @@ export function parseUrlFeed(
     release: {
       version: versionString,
       name: `${options.product.productName} ${versionString}`,
-      notes: '',
+      notes,
       publishedAt:
         typeof item.publishedAt === 'string' && Number.isFinite(Date.parse(item.publishedAt))
           ? new Date(item.publishedAt).toISOString()

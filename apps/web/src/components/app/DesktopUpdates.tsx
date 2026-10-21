@@ -27,6 +27,16 @@ export function DesktopUpdatePanel() {
   const managed = state.canInstall !== false && !!window.watiUpdates?.installUpdate;
   const verifiedMetadata = !!release?.assetSha256 && !!release.assetSize;
   const notesUrl = release && links.releaseNotes ? links.releaseNotes(release.version) : null;
+  // The result of the last update: a success only for the version running now and while no newer
+  // one waits (next to "0.1.3 is available" an old "installed" reads as if 0.1.3 were installed).
+  const last = state.lastInstall;
+  const lastInstall =
+    last &&
+    (last.status === 'success'
+      ? last.version === state.currentVersion && !release
+      : last.version !== state.currentVersion)
+      ? last
+      : null;
   const percentage = transfer?.totalBytes
     ? Math.min(100, Math.max(0, Math.round((transfer.downloadedBytes / transfer.totalBytes) * 100)))
     : 0;
@@ -55,9 +65,11 @@ export function DesktopUpdatePanel() {
       {(error || transfer?.error || state.error) && (
         <Banner tone="warning">{error ?? transfer?.error ?? state.error}</Banner>
       )}
-      {state.lastInstall && (
-        <Banner tone={state.lastInstall.status === 'success' ? 'info' : 'warning'}>
-          {state.lastInstall.message}
+      {lastInstall && (
+        <Banner tone={lastInstall.status === 'success' ? 'info' : 'warning'}>
+          {lastInstall.status === 'success'
+            ? t('updates.updatedTo', { version: lastInstall.version })
+            : lastInstall.message}
         </Banner>
       )}
       {(downloading || ready || installing) && (
@@ -95,6 +107,11 @@ export function DesktopUpdatePanel() {
             <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{release.name}</p>
             {release.prerelease && <Badge variant="secondary">{t('updates.preview')}</Badge>}
           </div>
+          {release.notes && (
+            <p className="text-sm font-medium">
+              {t('updates.whatsNew', { version: release.version })}
+            </p>
+          )}
           {release.notes && (
             <div className="max-h-44 overflow-y-auto rounded-md bg-muted/50 p-3 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
               {release.notes}
