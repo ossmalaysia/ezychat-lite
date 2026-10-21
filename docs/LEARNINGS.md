@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Dev Build check scripts (`e2e/devbuild-*.mjs`) assume a fresh data dir: run each once per new temp
+  folder; a second run on the same data reports false FAILs (duplicate rows, existing chats).
 - When the owner confirms a mock but leaves its open questions unanswered, do not block: write the default
   for each in `design.md` as "my call", build to it, and keep each easy to change; list them in the report.
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
@@ -358,7 +360,8 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs. So does any test that builds `makeTestApp()` inside itself, and
+  several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
+  migrates a data dir inside itself, and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
