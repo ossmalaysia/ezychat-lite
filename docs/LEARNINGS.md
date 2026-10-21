@@ -243,6 +243,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A scripted multi-file edit and its `git commit` go in one `&&` chain (or `set -e`): when an assert in
+  the script fails, the next line still commits a partial change. Check `git diff --stat` first.
 - Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
   module or build a TypeScript program time out at Vitest's 5 s only under coverage. `test:coverage` uses
   `--testTimeout=20000`; parse once in `beforeAll`, import light modules statically, and set
@@ -373,6 +375,8 @@ into AGENTS.md.
 
 ## Security
 
+- A per-IP limit keys IPv6 by its /64 (`rateLimitKey`): one client owns the whole /64 and can
+  rotate addresses in it. Every new IP-keyed limiter uses the key; logs keep the full address.
 - Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
   prefix: `/%61pi/...` routes like `/api/...`.
 - Edition cards in privileged windows are plain data; the main process opens link/email buttons from its
