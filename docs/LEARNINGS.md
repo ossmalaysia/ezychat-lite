@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- An edition feature built in the core still runs in Lite: report "no visible change" apart from "same
+  code path", and for a new core migration check before merge that the previous release still opens the
+  migrated data dir (downgrade), or say it is untested.
 - Dev Build check scripts (`e2e/devbuild-*.mjs`) assume a fresh data dir: run each once per new temp
   folder; a second run on the same data reports false FAILs (duplicate rows, existing chats).
 - When the owner confirms a mock but leaves its open questions unanswered, do not block: write the default
