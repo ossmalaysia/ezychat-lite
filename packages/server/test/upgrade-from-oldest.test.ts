@@ -66,7 +66,14 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     const chats = (
       await t.app.inject({ method: 'GET', url: '/api/chats', headers: { cookie } })
     ).json().chats as Array<{ jid: string; name: string; assignedTo: number | null }>;
-    expect(chats.find((c) => c.jid === CUSTOMER)).toMatchObject({ name: 'Ahmad', assignedTo: 1 });
+    // 014: the chat keeps its key and becomes part of inbox 1 (the number linked today).
+    expect(chats.find((c) => c.jid === CUSTOMER)).toMatchObject({
+      name: 'Ahmad',
+      assignedTo: 1,
+      inboxId: 1,
+      waJid: CUSTOMER,
+    });
+    expect(t.ctx.inboxes.repo.active().map((i) => [i.id, i.auth_dir])).toEqual([[1, 'wa-auth']]);
 
     const chatUrl = `/api/chats/${encodeURIComponent(CUSTOMER)}`;
     const messages = (
@@ -84,5 +91,41 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.
     expect(readFileSync(join(dir, 'wa-auth', 'creds.json'), 'utf8')).toBe(CREDS);
+  });
+
+  it('after a downgrade and a new update, a chat the older version made is found, not duplicated', async () => {
+    dir = oldestDataDir();
+    t = await makeTestApp({ config: { dataDir: dir } });
+    await t.close();
+    t = null;
+    // An older release (no inboxes) running on the migrated folder adds a chat as it always did:
+    // no inbox_id (the column default, 1) and no wa_jid. Migration 014 does not run again later.
+    const OTHER = '60199990000@s.whatsapp.net';
+    const db = new Database(join(dir, 'app.db'));
+    db.prepare(
+      "INSERT INTO chats (jid, type, name, status, updated_at) VALUES (?, 'dm', 'Siti', 'open', 1)",
+    ).run(OTHER);
+    db.close();
+
+    t = await makeTestApp({ config: { dataDir: dir } });
+    t.wa.simulateIncoming({ chatJid: OTHER, body: 'Back again', senderName: 'Siti' });
+    const rows = () =>
+      t!.ctx.db.prepare('SELECT jid, inbox_id FROM chats WHERE jid LIKE ?').all(`${OTHER}%`);
+    for (
+      let i = 0;
+      i < 100 && !t.ctx.db.prepare("SELECT 1 FROM messages WHERE body = 'Back again'").get();
+      i++
+    )
+      await new Promise((r) => setTimeout(r, 20));
+    expect(rows()).toEqual([{ jid: OTHER, inbox_id: 1 }]);
+    const { cookie } = await createUserAndLogin(t, { role: 'admin' });
+    const chat = (
+      await t.app.inject({
+        method: 'GET',
+        url: `/api/chats/${encodeURIComponent(OTHER)}`,
+        headers: { cookie },
+      })
+    ).json() as { chat: { inboxId: number; waJid: string } };
+    expect(chat.chat).toMatchObject({ inboxId: 1, waJid: OTHER });
   });
 });
