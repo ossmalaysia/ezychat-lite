@@ -42,6 +42,15 @@ describe('LoginRateLimiter', () => {
     expect(rl.check('alice', '1.1.1.3').ok).toBe(true);
   });
 
+  it('counts IPv6 attempts per /64 network, so changing the address does not reset the limit', () => {
+    const c = clock();
+    const rl = new LoginRateLimiter(c.now);
+    for (let i = 0; i < 20; i++)
+      expect(rl.check(`u${i}`, `2001:db8:1:2::${(i + 1).toString(16)}`).ok).toBe(true);
+    expect(rl.check('u20', '2001:db8:1:2:ffff::99').ok).toBe(false);
+    expect(rl.check('u21', '2001:db8:1:3::1').ok).toBe(true);
+  });
+
   it('allows 20 attempts per IP per 60s', () => {
     const c = clock();
     const rl = new LoginRateLimiter(c.now);

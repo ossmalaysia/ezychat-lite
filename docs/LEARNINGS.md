@@ -261,6 +261,8 @@ into AGENTS.md.
   own project and `testIgnore` in the others. Confirm dialogs are `alertdialog`, not `dialog`.
 - A fake that links at once hides a linking step: a flow that must show a QR (a new inbox) needs a fake
   that waits for its scan (`FakeWaAdapter({ awaitScan })`, `POST /api/dev/fake-link`).
+- A scripted multi-file edit and its `git commit` go in one `&&` chain (or `set -e`): when an assert in
+  the script fails, the next line still commits a partial change. Check `git diff --stat` first.
 - Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
   module or build a TypeScript program time out at Vitest's 5 s only under coverage. `test:coverage` uses
   `--testTimeout=20000`; parse once in `beforeAll`, import light modules statically, and set
@@ -395,6 +397,8 @@ into AGENTS.md.
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
   the current limit (an older run, a dev flag). Shortcuts like "one inbox → everyone sees all" check the
   stored rows too, and rows over the limit are never connected.
+- A per-IP limit keys IPv6 by its /64 (`rateLimitKey`): one client owns the whole /64 and can
+  rotate addresses in it. Every new IP-keyed limiter uses the key; logs keep the full address.
 - Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
   prefix: `/%61pi/...` routes like `/api/...`.
 - Edition cards in privileged windows are plain data; the main process opens link/email buttons from its

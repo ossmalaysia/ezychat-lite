@@ -231,7 +231,11 @@ daily, 14 kept), `backups/` (`VACUUM INTO app-YYYYMMDD.db` + `wa-auth-YYYYMMDD/`
 plus a lock file. Tests never download the real model or call OpenAI. Live app data on Windows: `%APPDATA%\WA Team Inbox\data`.
 The Windows program is `EzyChat Lite.exe` in `Program Files\EzyChat Lite` since 0.1.17 (the updater
 still accepts the legacy `WA Team Inbox.exe`). The data folders, desktop profile, service ID and app ID
-are intentional upgrade contracts; do not rename them when changing visible branding. Workspaces are published to npm as `@ezychat/*`
+are intentional upgrade contracts; do not rename them when changing visible branding. The updater
+jumps straight to the newest release (Lite: GitHub releases; Enterprise: `latest.json`), never through the
+versions between: every upgrade step lives in a numbered migration or in permanent start-up code, never
+only in one release, and `packages/server/test/upgrade-from-oldest.test.ts` (schema 1 → latest in one
+start) must keep passing; extend its seed when a migration moves existing data. Workspaces are published to npm as `@ezychat/*`
 (shared, wa, server, web, desktop); the desktop package ships the shell, never the server bundle.
 
 **Logging.** Structured pino JSON in `<data>/logs/*.log`; child loggers carry `mod` (`wa`, `messages`,
@@ -249,7 +253,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   with a loopback `Host`, and never through the tunnel.
 - `CF-Connecting-IP` is trusted only when the socket peer is loopback and its single value is a valid
   IP (`http/client-ip.ts`); it keys rate limits and decides `Secure` cookies. Unknown named-tunnel
-  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO.
+  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO. Rate limits
+  count an IPv6 client by its /64 network (`http/rate-limit-key.ts`), never by the single address;
+  logs and audit rows keep the full address.
 - Every request passes the Host allowlist (`http/host.ts`, DNS-rebinding defence: loopback, IP
   literals, single-label/`.local`, current tunnel hostnames). Mutating `/api` requests need
   `Origin` host == `Host` (`http/origin.ts`); Socket.IO checks Origin too.

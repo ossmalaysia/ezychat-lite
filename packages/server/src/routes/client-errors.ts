@@ -3,6 +3,7 @@ import { ClientErrorBody } from '@ezychat/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
+import { rateLimitKey } from '../http/rate-limit-key.js';
 import { parse } from '../http/errors.js';
 
 const WINDOW_MS = 60_000;
@@ -78,7 +79,7 @@ export default async function clientErrorRoutes(app: FastifyInstance, ctx: AppCo
 
   app.post('/client-errors', { bodyLimit: 32 * 1024 }, async (req, reply) => {
     const ip = clientIp(req);
-    const { allowed, droppedInPreviousWindow } = limiter.hit(ip);
+    const { allowed, droppedInPreviousWindow } = limiter.hit(rateLimitKey(ip));
     if (droppedInPreviousWindow)
       log.warn(
         { ip, dropped: droppedInPreviousWindow },
