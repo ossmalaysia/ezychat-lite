@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Several WhatsApp numbers in one install (EzyChat Enterprise): each number is an inbox with its own phone link, status and send queue. Admins see every inbox; each agent sees only the inboxes an admin gives them, in one chat list with an inbox name on each chat and an inbox filter. Manage numbers under Admin → Inboxes and inbox access under Members. EzyChat Lite stays one number and its screens do not change; the number you have today becomes the first inbox with no new link.
+
 ## [0.1.45] - 2026-10-20
 
 ### Added

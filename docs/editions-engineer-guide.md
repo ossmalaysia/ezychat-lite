@@ -339,6 +339,15 @@ Never commit tarballs, `file:` dependencies, or a lockfile that points to local 
 6. Keep `npm run pack:core` working: Enterprise uses it to try an unreleased core change.
 7. Both repos: feature branches and PRs; merge only when the owner asks.
 
+### Limits (`maxInboxes`)
+
+The first edition limit. `runCli(argv, env, { edition, extensions, maxInboxes })` (also
+`startServer`/`createContext`) sets how many WhatsApp numbers (inboxes) an install may link: Lite passes
+nothing (1), Enterprise passes its number. `POST /api/inboxes` answers 409 `inbox_limit` above it; a lower
+limit never deletes an inbox, it only skips connecting the rows above it. The web reads it from
+`GET /api/inboxes` (`maxInboxes`, `canAdd`), never from `/api/health`. A licence can later set it from an
+extension's `init(ctx)`.
+
 ## 9. Status and next phases
 
 | Phase                                                                             | Status                                                    |

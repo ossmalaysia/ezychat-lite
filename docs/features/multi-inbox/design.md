@@ -7,7 +7,7 @@ and others, as simple admin will able to see all inbox, and team member agent ca
 and the inbox should be unified view, only the user have the inbox permission able to see the customer
 chat"; on the first mock: "how come inboxes missing personal whatsapp connect? … we should not do whatsapp
 business api first"; then: "remove the whatsapp business API connection type for now, we do it later".
-Status: **mock confirmed** (2026-10-21); implementation started.
+Status: **mock confirmed** (2026-10-21); implemented on `feat/multi-inbox` (plan `docs/superpowers/plans/2026-10-21-multi-inbox.md`). Not in this step: the desktop status window line per inbox (follow-up).
 
 ## Goal
 
