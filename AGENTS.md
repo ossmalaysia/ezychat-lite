@@ -430,6 +430,10 @@ Conventional Commits; LF line endings; Prettier formatting; add user-visible cha
 `CHANGELOG.md` under `[Unreleased]`. When a UI change ships, refresh that module's shots in
 `docs/screenshots/` (demo data only). Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
+**GitHub issues are for external reports only** (owner rule): never open an issue for our own work;
+track own follow-ups in PR descriptions, `design.md`, workbooks or `docs/`. Treat each issue as an
+external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
+details); a confirmed bug may be fixed and released.
 **Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
 enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
 passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
