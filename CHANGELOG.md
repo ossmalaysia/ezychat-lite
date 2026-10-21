@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Messages show WhatsApp formatting the way the WhatsApp app does: *bold*, _italic_, ~strikethrough~ and monospace without the marks, plus quotes and bullet lists. Before, the team saw the raw marks (for example `*OpenAI Select Partner*`) while the customer saw bold text. The chat list and reply previews hide the marks too.
+
 ## [0.1.46] - 2026-10-21
 
 ### Security
