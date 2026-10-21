@@ -214,6 +214,8 @@ into AGENTS.md.
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
+  A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
+  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below.
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
