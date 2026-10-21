@@ -417,6 +417,8 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A chat key is opaque (`<waJid>#<inboxId>` outside inbox 1): read the JID shape (`@lid`, `@g.us`, phone)
+  from `chats.wa_jid` / `waJidOf`, and send `waJid`/`waMessageId` to WhatsApp, never the key.
 - The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
   groups WhatsApp shows it only by its LID. Anything that names people (mentions, member lists) must
   also check `status.me.jid` and `status.me.lid` (from `sock.user.lid`) and name it from `status.me.name`;
@@ -582,6 +584,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A shell component that starts calling a new hook from a widely mocked module (`api/queries`) breaks
+  every `vi.mock('../api/queries', () => …)` factory that lacks it: grep those mocks and add the hook.
 - A permission between two things (member ↔ inbox) is edited from both screens: the member's row and the
   resource's own Add/Edit dialog. Both write the one store, so they never disagree; admins with implied
   access show as badges, never as tick boxes.
