@@ -94,6 +94,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A fix for an external issue says `Refs #N`, never `Closes`/`Fixes #N`: those close the issue at merge,
+  before the release. Close it after the release with a comment that links the release.
 - Azure sign-in from this public repository uses GitHub OIDC (`azure/login`, `id-token: write`), never
   a stored client secret. Federated credentials match the subject exactly (no wildcards): use a GitHub
   environment whose rules allow only `v*` tags and `main`. Read the subject format first
@@ -377,6 +379,8 @@ into AGENTS.md.
 
 - A per-IP limit keys IPv6 by its /64 (`rateLimitKey`): one client owns the whole /64 and can
   rotate addresses in it. Every new IP-keyed limiter uses the key; logs keep the full address.
+  Known limits: ISPs that hand out a /56 or /48 still allow rotating between /64s, and people
+  sharing one /64 (an office via the tunnel) share one limit.
 - Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
   prefix: `/%61pi/...` routes like `/api/...`.
 - Edition cards in privileged windows are plain data; the main process opens link/email buttons from its
@@ -579,6 +583,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- The updater jumps to the newest release (GitHub list, or Enterprise `latest.json`), never through the
+  versions between: an upgrade step lives in a numbered migration or in permanent start-up code, never
+  only in one release.
 - A stored result ("Update installed") names what it is about and shows only while it still is: tie
   it to the version that runs and hide it beside a newer offer, or it reads as a claim about that offer.
 - The desktop main log (`desktopLog`, updater events) lives only in memory: to debug an in-app update,
