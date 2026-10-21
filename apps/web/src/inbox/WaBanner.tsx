@@ -75,6 +75,9 @@ function StateBanner({
   const { t } = useTranslation('inbox');
   const { isAdmin } = useAuth();
   const c = copy[state];
+  // With several inboxes the link opens Admin → Inboxes, so it is named that way.
+  const openLabel =
+    settingsPath === '/admin/inboxes' ? t('waBanner.openInboxes') : t('waBanner.openSettings');
   return (
     <Banner
       tone={c.tone}
@@ -82,9 +85,9 @@ function StateBanner({
       action={
         isAdmin ? (
           <Button asChild variant="outline" size="touch" className="sm:h-8 sm:min-h-8">
-            <Link to={settingsPath} aria-label={t('waBanner.openSettings')}>
+            <Link to={settingsPath} aria-label={openLabel}>
               <span className="sm:hidden">{t('waBanner.settingsShort')}</span>
-              <span className="hidden sm:inline">{t('waBanner.openSettings')}</span>
+              <span className="hidden sm:inline">{openLabel}</span>
             </Link>
           </Button>
         ) : undefined

@@ -321,6 +321,7 @@
   "waBanner": {
     "settingsShort": "设置",
     "openSettings": "打开 WhatsApp 设置",
+    "openInboxes": "打开收件箱",
     "connecting": {
       "title": "正在连接 WhatsApp…",
       "body": "连接恢复后，你发送的消息将自动发出。"

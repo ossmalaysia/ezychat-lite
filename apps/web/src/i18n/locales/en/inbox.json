@@ -324,6 +324,7 @@
   "waBanner": {
     "settingsShort": "Settings",
     "openSettings": "Open WhatsApp settings",
+    "openInboxes": "Open Inboxes",
     "connecting": {
       "title": "Connecting to WhatsApp…",
       "body": "Messages you send will go out when the connection is back."

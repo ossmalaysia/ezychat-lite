@@ -95,7 +95,7 @@ describe('WaBanner', () => {
     expect(screen.queryByText(/Closed shop/)).toBeNull();
     expect(screen.queryByText('WhatsApp is disconnected')).toBeNull();
     const link = await within(banner as HTMLElement).findByRole('link', {
-      name: 'Open WhatsApp settings',
+      name: 'Open Inboxes',
     });
     expect(link.getAttribute('href')).toBe('/admin/inboxes');
   });
@@ -121,7 +121,7 @@ describe('WaBanner', () => {
     const banner = (await screen.findByText('Catering was logged out')).closest('[role]')!;
     expect(screen.queryByText('WhatsApp is disconnected')).toBeNull();
     const link = await within(banner as HTMLElement).findByRole('link', {
-      name: 'Open WhatsApp settings',
+      name: 'Open Inboxes',
     });
     expect(link.getAttribute('href')).toBe('/admin/inboxes');
     expect(view.fetched('/api/wa/status')).toBe(false);
