@@ -377,6 +377,9 @@ into AGENTS.md.
 
 ## Security
 
+- An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
+  the current limit (an older run, a dev flag). Shortcuts like "one inbox → everyone sees all" check the
+  stored rows too, and rows over the limit are never connected.
 - Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
   prefix: `/%61pi/...` routes like `/api/...`.
 - Edition cards in privileged windows are plain data; the main process opens link/email buttons from its
