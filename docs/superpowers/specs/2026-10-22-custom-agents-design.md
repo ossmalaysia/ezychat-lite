@@ -124,8 +124,9 @@ facts, prices or promises; internal items inform decisions only. The existing sa
 into this block (no duplicates).
 
 **Leak check (my call):** before sending, a reply that contains a 40-character (or longer) verbatim run of an
-Internal item or of the role text is not sent; the chat is handed to the team with reason `confidential_leak`
-(logged without the text). `search_business_context` marks internal chunks as internal.
+Internal item is not sent; the chat is handed to the team with reason `confidential_leak` (logged without the
+text). The role text is not checked (it often holds public greetings and prices). Internal items are always sent
+in full in `internalKnowledge` and `search_business_context` never returns them.
 
 ### Presets
 
@@ -162,6 +163,21 @@ a FAQ agent is not pushed toward sales.
 - **Admin → Inboxes** (Enterprise): "AI agent" line on each card and a select in Add/Edit.
 - **Settings → AI** (connection) and the setup wizard stay; the wizard ensures "agent 1 = Sales on inbox 1"
   idempotently.
+
+## Builder-check decisions (my calls, 2026-10-22)
+
+1. **Upgrade with 2+ active inboxes** (Enterprise): agent 1 serves inbox 1; for every other active inbox the
+   start-up step creates one more agent (new `kind='ai'` user, same name, same preset, copies of the texts and the
+   items with their files) so no inbox loses its AI. Guarded by `ai_agents_migrated`, so it runs once.
+2. **"No changed reply"** means: the same texts, items and history reach the model; the guardrail block and the
+   neutral core wording are new for every agent (intended). Tests pin texts/items/history, not model output.
+3. **Leak check** covers Internal items only. Try it runs the same check and shows "Would hand over: internal
+   item".
+4. **Delete an agent**: its user row is disabled and flagged deleted (`ai_agents` row removed, items cascade);
+   the user stays for message history, is hidden from Members and assignee lists, and does not count toward
+   `maxAgents`. Its owned chats are released first.
+5. **Internal size**: Internal items are always sent in full, capped at 10,000 characters per agent (409
+   `internal_too_large` on create/update/flag); they do not count toward the 40,000-character selection budget.
 
 ## Left to the builder
 

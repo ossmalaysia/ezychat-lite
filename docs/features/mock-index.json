@@ -15,6 +15,19 @@
   },
   "proposals": [
     {
+      "feature": "custom-agents",
+      "creationOrder": 7,
+      "createdAt": "2026-10-22",
+      "design": "docs/features/custom-agents/design.md",
+      "mock": "docs/features/custom-agents/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "multi-inbox",
+      "baselineGitRevision": "f585ace8860647ef050c4b786059233cf0dd6227",
+      "baselineAppRevision": "610ca5e",
+      "coverage": "Full app clone of the confirmed multi-inbox reference; custom AI agents (mock state in localStorage): Members with one row per agent (preset badge, inbox chip) and Add AI agent below the limit, agent page /admin/members/ai/:agentId and /new?preset= with the Sales/FAQ/Custom preset picker, role and hand-over texts with Use the template, read-only Always-on safety rules, per-agent Business context with Internal switch, badge and filter, Try it on the draft (deterministic, no model call), inbox select and Delete (Enterprise), Admin -> Inboxes AI agent line and select, and a mock-only Lite view (one inbox, one agent, no inbox UI, no Delete); English only",
+      "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"run plan and implement with workflow, no need me review, u review urself\"); self-review confirmed 2026-10-22 (design.md)"
+    },
+    {
       "feature": "multi-inbox",
       "creationOrder": 6,
       "createdAt": "2026-10-21",
@@ -88,7 +101,12 @@
       "status": "unconfirmed",
       "baselineFeature": null,
       "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
-      "coverage": "Full existing frontend: 169 original runtime files, all routes; provider side effects simulated"
+      "coverage": "Full existing frontend: 169 original runtime files, all routes; provider side effects simulated",
+      "archived": {
+        "folderRemovedAt": "2026-10-22",
+        "lastRevision": "610ca5e0ac2c624d3399eb187cecac5f65f010e4",
+        "reason": "retention: sixth feature folder (custom-agents)"
+      }
     }
   ]
 }
