@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Messages show WhatsApp formatting the way the WhatsApp app does: *bold*, _italic_, ~strikethrough~ and monospace without the marks, plus quotes and bullet lists. Before, the team saw the raw marks (for example `*OpenAI Select Partner*`) while the customer saw bold text. The chat list and reply previews hide the marks too.
+
 - The update dialog no longer shows "Update installed" from the previous update next to a newer version; it now says "Updated to <version>" only for the version that runs. A "What's new" title names the version of the release notes, and editions with a private update feed can list their notes in the dialog.
 
 ## [0.1.46] - 2026-10-21

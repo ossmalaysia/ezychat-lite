@@ -583,6 +583,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Message text is shown the way WhatsApp shows it (`lib/whatsapp-format.tsx`: marks hidden, React nodes
+  only, no classes; the bubble styles the tags). A new place that shows message text uses
+  `formatWhatsApp` (bubble) or `plainWhatsApp` (one-line previews), never the raw body.
 - The updater jumps to the newest release (GitHub list, or Enterprise `latest.json`), never through the
   versions between: an upgrade step lives in a numbered migration or in permanent start-up code, never
   only in one release.
