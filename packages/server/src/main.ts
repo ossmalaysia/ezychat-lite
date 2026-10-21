@@ -68,6 +68,7 @@ export async function createContext(
     fakeWa: cfg.fakeWa,
     historyDays,
     log,
+    fakeScan: cfg.maxInboxes !== undefined,
   });
   const primaryRow = inboxRepo.get(PRIMARY_INBOX_ID)!;
   const wa = deps.wa ?? deps.inboxAdapters?.[PRIMARY_INBOX_ID] ?? (await create(primaryRow));

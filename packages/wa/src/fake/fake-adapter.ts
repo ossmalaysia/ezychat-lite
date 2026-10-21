@@ -32,6 +32,7 @@ export const FAKE_RUN = Date.now().toString(36);
 export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private readonly autoOpen: boolean;
+  private awaitScan: boolean;
   private readonly me: { jid: string; name: string };
   private readonly idPrefix: string;
   private inCounter = 0;
@@ -52,14 +53,18 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   /**
    * `me`: the linked account (default the fake number 60000000000); `idPrefix`: start of every
    * message id (default `FAKE`), so adapters of different inboxes never share an id.
+   * `awaitScan`: a phone that was never linked — `connect()` shows a QR code and stays there
+   * until `setConnected(true)` (the dev stand-in for the scan).
    */
   constructor(opts?: {
     autoOpen?: boolean;
     me?: { jid: string; name: string };
     idPrefix?: string;
+    awaitScan?: boolean;
   }) {
     super();
     this.autoOpen = opts?.autoOpen ?? true;
+    this.awaitScan = opts?.awaitScan ?? false;
     this.me = { ...(opts?.me ?? FAKE_ME) };
     this.idPrefix = opts?.idPrefix ?? 'FAKE';
   }
@@ -94,7 +99,8 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   async connect(): Promise<void> {
     if (this._status.state === 'open' || this._status.state === 'connecting') return;
     this.setStatus({ state: 'connecting', qr: null, lastError: null });
-    if (this.autoOpen) this.setStatus({ state: 'open', me: { ...this.me }, qr: null });
+    if (this.awaitScan) this.setStatus({ state: 'qr', me: null, qr: `FAKE-QR-${this.idPrefix}` });
+    else if (this.autoOpen) this.setStatus({ state: 'open', me: { ...this.me }, qr: null });
   }
 
   async disconnect(): Promise<void> {
@@ -274,6 +280,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   }
 
   setConnected(connected: boolean): void {
+    if (connected) this.awaitScan = false;
     if (connected) this.setStatus({ state: 'open', me: { ...this.me }, qr: null, lastError: null });
     else this.setStatus({ state: 'disconnected', qr: null });
   }

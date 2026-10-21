@@ -52,6 +52,28 @@ describe('InboxConnections', () => {
     expect(two.simulateIncoming({ chatJid: 'a@s.whatsapp.net', body: 'x' }).id).toMatch(/^FAKE2-/);
   });
 
+  it('with fakeScan a never-linked fake inbox waits for its scan; a linked one opens', async () => {
+    const repo = setup();
+    const create = defaultAdapterFactory({
+      dataDir: dir,
+      fakeWa: true,
+      historyDays: 3,
+      log: silentLogger(),
+      fakeScan: true,
+    });
+    const fresh = await create(repo.insert('Fresh', repo.nextTone(), 1));
+    await fresh.connect();
+    expect(fresh.status.state).toBe('qr');
+    const linkedRow = repo.insert('Linked', repo.nextTone(), 1);
+    repo.setOwnJid(linkedRow.id, '60000000003@s.whatsapp.net');
+    const linked = await create(repo.get(linkedRow.id)!);
+    await linked.connect();
+    expect(linked.status.state).toBe('open');
+    const primary = await create(repo.get(1)!);
+    await primary.connect();
+    expect(primary.status.state).toBe('open');
+  });
+
   it('refuses a limit below one', () => {
     const repo = setup();
     const primary = new FakeWaAdapter();

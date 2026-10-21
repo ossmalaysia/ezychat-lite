@@ -25,6 +25,17 @@ describe('FakeWaAdapter', () => {
     expect(states).toEqual([]);
   });
 
+  it('awaitScan shows a QR code until the scan, then reconnects open', async () => {
+    const wa = new FakeWaAdapter({ awaitScan: true, idPrefix: 'FAKE2' });
+    await wa.connect();
+    expect(wa.status).toMatchObject({ state: 'qr', me: null, qr: 'FAKE-QR-FAKE2' });
+    wa.setConnected(true);
+    expect(wa.status.state).toBe('open');
+    await wa.disconnect();
+    await wa.connect();
+    expect(wa.status.state).toBe('open');
+  });
+
   it('autoOpen false stays connecting', async () => {
     const wa = new FakeWaAdapter({ autoOpen: false });
     await wa.connect();

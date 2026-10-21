@@ -28,6 +28,8 @@ export function defaultAdapterFactory(opts: {
   fakeWa: boolean;
   historyDays: number | (() => number);
   log: Logger;
+  /** Dev runs with --max-inboxes: a fake phone that was never linked waits for its QR scan. */
+  fakeScan?: boolean;
 }): InboxAdapterFactory {
   return async (row) => {
     if (opts.fakeWa) {
@@ -35,6 +37,7 @@ export function defaultAdapterFactory(opts: {
       return new FakeWaAdapter({
         me: { jid: `6000000000${row.id}@s.whatsapp.net`, name: row.name },
         idPrefix: `FAKE${row.id}`,
+        awaitScan: opts.fakeScan === true && row.own_jid === null,
       });
     }
     return createRealWaAdapter({
