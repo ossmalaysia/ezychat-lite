@@ -236,7 +236,9 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   with a loopback `Host`, and never through the tunnel.
 - `CF-Connecting-IP` is trusted only when the socket peer is loopback and its single value is a valid
   IP (`http/client-ip.ts`); it keys rate limits and decides `Secure` cookies. Unknown named-tunnel
-  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO.
+  hosts are allowed only on this proxy boundary, consistently for HTTP and Socket.IO. Rate limits
+  count an IPv6 client by its /64 network (`http/rate-limit-key.ts`), never by the single address;
+  logs and audit rows keep the full address.
 - Every request passes the Host allowlist (`http/host.ts`, DNS-rebinding defence: loopback, IP
   literals, single-label/`.local`, current tunnel hostnames). Mutating `/api` requests need
   `Origin` host == `Host` (`http/origin.ts`); Socket.IO checks Origin too.

@@ -3,6 +3,7 @@ import type { AppContext } from '../context.js';
 import { getApiTokens, parseBearer, type ApiPrincipal } from '../api-tokens/index.js';
 import { audit } from '../db/audit.js';
 import { clientIp, isLocalOrTunnel } from '../http/client-ip.js';
+import { rateLimitKey } from '../http/rate-limit-key.js';
 import { HttpError, errors } from '../http/errors.js';
 import { originHost } from '../http/origin.js';
 import { WindowLimiter } from '../http/window-limiter.js';
@@ -57,11 +58,13 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         throw errors.badOrigin();
       }
       const ip = clientIp(req);
-      limit(ipLimiter, ip);
+      // Limits count an IPv6 client by its /64 network; the audit row keeps the full address.
+      const ipKey = rateLimitKey(ip);
+      limit(ipLimiter, ipKey);
       const result = tokens.resolve(parseBearer(req.headers.authorization) ?? '');
       if (!result.ok) {
-        limit(failureLimiter, ip);
-        if (auditLimiter.hit(`${ip}|${result.reason}`).allowed) {
+        limit(failureLimiter, ipKey);
+        if (auditLimiter.hit(`${ipKey}|${result.reason}`).allowed) {
           audit(ctx.db, {
             userId: null,
             action: 'api_token.auth_failed',
