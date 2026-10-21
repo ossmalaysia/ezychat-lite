@@ -436,6 +436,9 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A column a migration backfills (e.g. `chats.wa_jid`) is NULL in rows an older release writes after a
+  downgrade, and the migration never runs again: read it with a fallback (`waJidOf`, `COALESCE`) and
+  find rows by a key both versions write (`upgrade-from-oldest.test.ts` covers it).
 - A chat key is opaque (`<waJid>#<inboxId>` outside inbox 1): read the JID shape (`@lid`, `@g.us`, phone)
   from `chats.wa_jid` / `waJidOf`, and send `waJid`/`waMessageId` to WhatsApp, never the key.
 - The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
