@@ -66,7 +66,9 @@
     "automaticFeed": "Komputer ini menyemak keluaran baharu secara automatik.",
     "noInstallerFeed": "Pemasang yang serasi belum tersedia untuk komputer ini. Lihat nota keluaran untuk butiran.",
     "unverifiedFeed": "Keluaran ini tidak dapat disahkan untuk pemasangan di sini. Hubungi sokongan untuk pemasang manual.",
-    "releaseNotes": "Nota keluaran"
+    "releaseNotes": "Nota keluaran",
+    "whatsNew": "Apa yang baharu dalam {{version}}",
+    "updatedTo": "Dikemas kini ke {{version}}. Perbualan, akaun dan tetapan anda dikekalkan."
   },
   "share": {
     "title": "Kongsi aplikasi ini",
