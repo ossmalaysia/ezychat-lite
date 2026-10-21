@@ -377,6 +377,8 @@ into AGENTS.md.
 
 - A per-IP limit keys IPv6 by its /64 (`rateLimitKey`): one client owns the whole /64 and can
   rotate addresses in it. Every new IP-keyed limiter uses the key; logs keep the full address.
+  Known limits: ISPs that hand out a /56 or /48 still allow rotating between /64s, and people
+  sharing one /64 (an office via the tunnel) share one limit.
 - Allowlists in request hooks must match the decoded path and the matched route, never only the raw URL
   prefix: `/%61pi/...` routes like `/api/...`.
 - Edition cards in privileged windows are plain data; the main process opens link/email buttons from its
