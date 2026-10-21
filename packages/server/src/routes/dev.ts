@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { FakeGroupBody, FakeIncomingBody, type Message } from '@ezychat/shared';
+import { FakeGroupBody, FakeIncomingBody, FakeLinkBody, type Message } from '@ezychat/shared';
 import type { WaGroupParticipant } from '@ezychat/wa';
 import type { FakeWaAdapter } from '@ezychat/wa';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
-import { parse } from '../http/errors.js';
+import { errors, parse } from '../http/errors.js';
+import { PRIMARY_INBOX_ID, chatKey, messageKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
 
 const INGEST_WAIT_MS = 2000;
@@ -15,15 +16,30 @@ function isFake(wa: unknown): wa is FakeWaAdapter {
 
 /**
  * POST /api/dev/fake-incoming: only registered with --fake-wa. Simulates an inbound WhatsApp
- * message on the FakeWaAdapter. When the messages service is present, waits (bounded) until the
- * WA bridge has ingested it so callers (e2e tests) can immediately see the chat.
+ * message on the FakeWaAdapter of an inbox (default 1). When the messages service is present,
+ * waits (bounded) until the WA bridge has ingested it so callers (e2e tests) can immediately see
+ * the chat. Answers the stored message id and chat key.
  */
 export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
   if (!ctx.config.fakeWa || !isFake(ctx.wa)) return;
-  const wa = ctx.wa;
+
+  /** The fake phone of an active inbox; 404 for an unknown or removed one. */
+  const fakeOf = (inboxId: number): FakeWaAdapter => {
+    let wa: unknown;
+    try {
+      wa = ctx.inboxes.connections.adapter(inboxId);
+    } catch {
+      throw errors.notFound('Inbox');
+    }
+    if (!isFake(wa)) throw errors.notFound('Inbox');
+    return wa;
+  };
 
   app.post('/dev/fake-incoming', { preHandler: requireUser(ctx) }, async (req) => {
     const body = parse(FakeIncomingBody, req.body ?? {});
+    const inboxId = body.inboxId ?? PRIMARY_INBOX_ID;
+    const wa = fakeOf(inboxId);
+    const direct = chatKey(inboxId, body.chatJid);
     const waitIngest = Boolean(ctx.services.messages);
     let expectId: string | null = null;
     const earlyMessages = new Map<string, string>();
@@ -39,8 +55,8 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
       onNew = (m: Message) => {
         // Presentation may replace mentions with names; match the generated id, never display text.
         // The bridge can emit synchronously before simulateIncoming returns that id.
-        const routed = ctx.services.aliases?.route(body.chatJid) ?? body.chatJid;
-        if (expectId === null && (m.chatJid === routed || m.chatJid === body.chatJid) && !m.fromMe)
+        const routed = ctx.services.aliases?.route(inboxId, body.chatJid) ?? direct;
+        if (expectId === null && (m.chatJid === routed || m.chatJid === direct) && !m.fromMe)
           earlyMessages.set(m.id, m.chatJid);
         const match = m.id === expectId;
         if (match) {
@@ -70,13 +86,13 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
             }
           : null,
       });
-      expectId = msg.id;
+      expectId = messageKey(inboxId, msg.id);
       if (earlyMessages.has(expectId)) {
         ingestedChatJid = earlyMessages.get(expectId)!;
         done();
       }
       await ingested;
-      return { id: msg.id, chatJid: ingestedChatJid ?? msg.chatJid, timestamp: msg.timestamp };
+      return { id: expectId, chatJid: ingestedChatJid ?? direct, timestamp: msg.timestamp };
     } finally {
       if (timer) clearTimeout(timer);
       if (onNew) ctx.bus.off('message:new', onNew);
@@ -89,9 +105,11 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
    */
   app.post('/dev/fake-group', { preHandler: requireUser(ctx) }, async (req) => {
     const body = parse(FakeGroupBody, req.body ?? {});
+    const inboxId = body.inboxId ?? PRIMARY_INBOX_ID;
+    const wa = fakeOf(inboxId);
     const participants: WaGroupParticipant[] = [];
     const contacts: Array<{ jid: string; pushName: string | null; savedName: null }> = [];
-    const me = ctx.wa.status.me?.jid.replace(/:\d+@/, '@');
+    const me = wa.status.me?.jid.replace(/:\d+@/, '@');
     if (me)
       participants.push({
         jid: me,
@@ -137,8 +155,16 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
       participants,
     });
     getChats(ctx).upsertContacts(contacts);
-    getChats(ctx).upsertFromWa({ jid: body.groupJid, type: 'group', name: body.name });
+    getChats(ctx).upsertFromWa({ jid: body.groupJid, type: 'group', name: body.name }, inboxId);
     wa.simulateGroupChanged(body.groupJid);
-    return { groupJid: body.groupJid, members: participants.length };
+    return { groupJid: chatKey(inboxId, body.groupJid), members: participants.length };
+  });
+
+  /** POST /api/dev/fake-link: the inbox's fake phone links (the e2e stand-in for a QR scan). */
+  app.post('/dev/fake-link', { preHandler: requireUser(ctx) }, async (req) => {
+    const body = parse(FakeLinkBody, req.body ?? {});
+    const wa = fakeOf(body.inboxId);
+    wa.setConnected(true);
+    return { inboxId: body.inboxId, state: wa.status.state };
   });
 }

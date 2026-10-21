@@ -321,6 +321,7 @@
   "waBanner": {
     "settingsShort": "设置",
     "openSettings": "打开 WhatsApp 设置",
+    "openInboxes": "打开收件箱",
     "connecting": {
       "title": "正在连接 WhatsApp…",
       "body": "连接恢复后，你发送的消息将自动发出。"
@@ -344,7 +345,20 @@
     "blocked": {
       "title": "WhatsApp 连接被阻止",
       "body": "连接被拒绝。管理员应检查 WhatsApp 页面。"
+    },
+    "inbox": {
+      "connecting": "{{name}}：正在连接 WhatsApp…",
+      "disconnected": "{{name}} 已离线",
+      "qr": "{{name}} 未关联",
+      "loggedOut": "{{name}} 已退出登录",
+      "replaced": "{{name}} 已在其他会话中打开",
+      "blocked": "{{name}}：连接被阻止"
     }
+  },
+  "inboxFilter": {
+    "label": "收件箱",
+    "all": "所有收件箱（{{total}}）",
+    "option": "{{name}} · {{number}}"
   },
   "phoneLink": {
     "label": "WhatsApp 号码（含国家代码）",

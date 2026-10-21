@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { backupStamp, hasBackupFor, runBackup, runBackupSync } from './backup.js';
@@ -34,7 +42,9 @@ describe('runBackup', () => {
     const copy = new Database(file, { readonly: true });
     expect(copy.prepare('SELECT x FROM t').get()).toEqual({ x: 42 });
     copy.close();
-    expect(readFileSync(join(dir, 'backups', 'wa-auth-20261002', 'creds.json'), 'utf8')).toBe('{"a":1}');
+    expect(readFileSync(join(dir, 'backups', 'wa-auth-20261002', 'creds.json'), 'utf8')).toBe(
+      '{"a":1}',
+    );
     expect(hasBackupFor(dir, now)).toBe(true);
     expect(hasBackupFor(dir, new Date(2026, 9, 3))).toBe(false);
   });
@@ -121,6 +131,57 @@ describe('runBackup', () => {
   it.each(['', 'Pre-merge', '../x', 'pre merge'])('rejects the backup label %j', (label) => {
     expect(() => runBackupSync(dir, db, new Date(2026, 9, 5), { label })).toThrow(/label/);
     expect(existsSync(join(dir, 'backups'))).toBe(false);
+  });
+
+  it('keeps every inbox’s WhatsApp folder and never moves wa-auth (RF-5)', () => {
+    mkdirSync(join(dir, 'wa-auth-inboxes', '2'), { recursive: true });
+    writeFileSync(join(dir, 'wa-auth-inboxes', '2', 'creds.json'), '{"two":1}');
+    const before = readFileSync(join(dir, 'wa-auth', 'creds.json'));
+    for (let d = 1; d <= 9; d++) runBackupSync(dir, db, new Date(2026, 9, d, 3, 0));
+    const b = join(dir, 'backups');
+    expect(readFileSync(join(b, 'wa-auth-20261009', 'creds.json'), 'utf8')).toBe('{"a":1}');
+    expect(readFileSync(join(b, 'wa-auth-inboxes-20261009', '2', 'creds.json'), 'utf8')).toBe(
+      '{"two":1}',
+    );
+    // the sources stay where they are, byte for byte
+    expect(readFileSync(join(dir, 'wa-auth', 'creds.json')).equals(before)).toBe(true);
+    expect(existsSync(join(dir, 'wa-auth-inboxes', '2', 'creds.json'))).toBe(true);
+    // both kinds are pruned to the newest 7, and one kind never counts the other
+    const names = readdirSync(b).sort();
+    expect(names.filter((n) => /^wa-auth-\d{8}$/.test(n))).toHaveLength(7);
+    const inboxes = names.filter((n) => /^wa-auth-inboxes-\d{8}$/.test(n));
+    expect(inboxes).toHaveLength(7);
+    expect(inboxes[0]).toBe('wa-auth-inboxes-20261003');
+  });
+
+  it('never ages out a daily inboxes copy as if it were a labelled one (RF-5)', () => {
+    const b = join(dir, 'backups');
+    // the app was off for weeks: the newest daily copies are older than the pre-merge cutoff
+    mkdirSync(join(b, 'wa-auth-inboxes-20260801', '2'), { recursive: true });
+    mkdirSync(join(b, 'wa-auth-20260801'), { recursive: true });
+    writeFileSync(join(b, 'app-20260801.db'), '');
+    runBackupSync(dir, db, new Date(2026, 9, 9, 3, 0));
+    expect(existsSync(join(b, 'wa-auth-inboxes-20260801', '2'))).toBe(true);
+    expect(existsSync(join(b, 'wa-auth-20260801'))).toBe(true);
+    expect(existsSync(join(b, 'app-20260801.db'))).toBe(true);
+  });
+
+  it('labels and ages the inboxes folder of a pre-merge backup too', () => {
+    mkdirSync(join(dir, 'wa-auth-inboxes', '2'), { recursive: true });
+    writeFileSync(join(dir, 'wa-auth-inboxes', '2', 'creds.json'), '{}');
+    runBackupSync(dir, db, new Date(2026, 9, 5, 9, 0), { label: 'premerge' });
+    const b = join(dir, 'backups');
+    expect(existsSync(join(b, 'wa-auth-inboxes-premerge-20261005-090000', '2', 'creds.json'))).toBe(
+      true,
+    );
+    // a stamp taken by an inboxes copy alone is not reused
+    rmSync(join(b, 'app-premerge-20261005-090000.db'));
+    rmSync(join(b, 'wa-auth-premerge-20261005-090000'), { recursive: true });
+    expect(runBackupSync(dir, db, new Date(2026, 9, 5, 9, 0), { label: 'premerge' })).toBe(
+      join(b, 'app-premerge-20261005-090000-2.db'),
+    );
+    runBackupSync(dir, db, new Date(2026, 10, 5));
+    expect(existsSync(join(b, 'wa-auth-inboxes-premerge-20261005-090000'))).toBe(false);
   });
 
   it('refuses to run inside a transaction', () => {

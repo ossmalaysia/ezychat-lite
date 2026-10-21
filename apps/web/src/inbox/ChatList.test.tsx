@@ -2,12 +2,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { Chat } from '@ezychat/shared';
+import type { Chat, Inbox, InboxListResponse } from '@ezychat/shared';
 import type { ChatsData } from '../api/queries';
 import type * as QueriesModule from '../api/queries';
 import type * as ChatListItemModule from './ChatListItem';
 import { ChatList, type ChatListProps } from './ChatList';
 import { ProfileImageContext } from './ProfileImageContext';
+import { buildDirectory } from './useDirectory';
 
 const hooks = vi.hoisted(() => ({
   useActualQueries: false,
@@ -20,6 +21,7 @@ const hooks = vi.hoisted(() => ({
     fetchNextPage: vi.fn(async () => undefined),
   },
   renderRow: vi.fn<(jid: string) => void>(),
+  inboxes: { data: undefined as InboxListResponse | undefined },
 }));
 
 vi.mock('../api/queries', async (importOriginal) => {
@@ -28,6 +30,7 @@ vi.mock('../api/queries', async (importOriginal) => {
     ...actual,
     useChats: (filters: QueriesModule.ChatFilters) =>
       hooks.useActualQueries ? actual.useChats(filters) : hooks.query,
+    useInboxes: () => hooks.inboxes,
   };
 });
 vi.mock('./ChatListItem', async (importOriginal) => {
@@ -44,12 +47,14 @@ vi.mock('./ChatListItem', async (importOriginal) => {
 const defaultProps: ChatListProps = {
   filters: { assigned: 'any', status: 'open' },
   activeJid: null,
-  directory: { me: null, isAdmin: false, byId: new Map(), assignable: [], nameOf: () => null },
+  directory: buildDirectory(null, false, []),
 };
 
 function chat(index: number): Chat {
   return {
     jid: `${index}@s.whatsapp.net`,
+    inboxId: 1,
+    waJid: `${index}@s.whatsapp.net`,
     type: 'dm',
     name: `Customer ${index}`,
     avatarUrl: null,
@@ -84,6 +89,7 @@ beforeEach(() => {
   hooks.query.isFetchingNextPage = false;
   hooks.query.fetchNextPage.mockClear();
   hooks.renderRow.mockClear();
+  hooks.inboxes.data = undefined;
 });
 afterEach(() => {
   cleanup();
@@ -245,4 +251,71 @@ it('explains an empty tag filter and offers to show all open chats', () => {
   expect(screen.getByText('No chats are tagged “VIP”.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Show all open chats' }));
   expect(onResetFilters).toHaveBeenCalledOnce();
+});
+
+function inbox(id: number, name: string, tone: Inbox['tone'], removed = false): Inbox {
+  return {
+    id,
+    name,
+    tone,
+    number: null,
+    removed,
+    status: { state: 'open', me: null, qr: null, lastError: null },
+  };
+}
+
+it('shows no inbox chip with one inbox (Lite)', () => {
+  hooks.inboxes.data = {
+    inboxes: [inbox(1, 'Kopi Apong', 'primary')],
+    maxInboxes: 1,
+    canAdd: false,
+  };
+  chats([chat(0)]);
+  render(list());
+  expect(screen.queryByTestId('inbox-chip')).toBeNull();
+});
+
+it("names each chat's inbox in the unified list when two inboxes are visible", () => {
+  hooks.inboxes.data = {
+    inboxes: [inbox(1, 'Kopi Apong', 'primary'), inbox(2, 'Catering', 'warning')],
+    maxInboxes: 3,
+    canAdd: true,
+  };
+  chats([chat(0), { ...chat(0), jid: '0@s.whatsapp.net#2', inboxId: 2 }]);
+  render(list());
+  const chips = screen.getAllByTestId('inbox-chip');
+  expect(chips.map((c) => c.textContent)).toEqual(['Kopi Apong', 'Catering']);
+  expect(chips[1]!.dataset.tone).toBe('warning');
+});
+
+it('a removed inbox still names its read-only chats but does not count as visible', () => {
+  hooks.inboxes.data = {
+    inboxes: [inbox(1, 'Kopi Apong', 'primary'), inbox(2, 'Old shop', 'warning', true)],
+    maxInboxes: 3,
+    canAdd: true,
+  };
+  chats([{ ...chat(0), jid: '0@s.whatsapp.net#2', inboxId: 2 }]);
+  render(list());
+  // Only one active inbox: no chips.
+  expect(screen.queryByTestId('inbox-chip')).toBeNull();
+  hooks.inboxes.data = {
+    inboxes: [
+      inbox(1, 'Kopi Apong', 'primary'),
+      inbox(2, 'Old shop', 'warning', true),
+      inbox(3, 'Catering', 'info'),
+    ],
+    maxInboxes: 3,
+    canAdd: false,
+  };
+  cleanup();
+  render(list());
+  expect(screen.getByTestId('inbox-chip').textContent).toBe('Old shop');
+});
+
+it('offers "Show all open chats" when only the inbox filter hides every chat', () => {
+  chats([]);
+  const onResetFilters = vi.fn();
+  render(list({ filters: { assigned: 'any', status: 'open', inbox: 2 }, onResetFilters }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all open chats' }));
+  expect(onResetFilters).toHaveBeenCalled();
 });

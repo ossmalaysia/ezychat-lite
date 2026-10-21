@@ -9,6 +9,7 @@ export * from './customers.js';
 export * from './enrichment.js';
 export * from './groups.js';
 export * from './mcp.js';
+export * from './inboxes.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,

@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Several WhatsApp numbers in one install (EzyChat Enterprise): each number is an inbox with its own phone link, status and send queue. Admins see every inbox; each agent sees only the inboxes an admin gives them, in one chat list with an inbox name on each chat and an inbox filter. Manage numbers under Admin → Inboxes and inbox access under Members. EzyChat Lite stays one number and its screens do not change; the number you have today becomes the first inbox with no new link.
+
 ### Fixed
 
-- Messages show WhatsApp formatting the way the WhatsApp app does: *bold*, _italic_, ~strikethrough~ and monospace without the marks, plus quotes and bullet lists. Before, the team saw the raw marks (for example `*OpenAI Select Partner*`) while the customer saw bold text. The chat list and reply previews hide the marks too.
-
+- Messages show WhatsApp formatting the way the WhatsApp app does: _bold_, _italic_, ~strikethrough~ and monospace without the marks, plus quotes and bullet lists. Before, the team saw the raw marks (for example `*OpenAI Select Partner*`) while the customer saw bold text. The chat list and reply previews hide the marks too.
 - The update dialog no longer shows "Update installed" from the previous update next to a newer version; it now says "Updated to <version>" only for the version that runs. A "What's new" title names the version of the release notes, and editions with a private update feed can list their notes in the dialog.
 
 ## [0.1.46] - 2026-10-21

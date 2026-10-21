@@ -60,19 +60,38 @@ export function localMidnight(date: string, timeZone: string): number {
   return guess - zoneOffset(first, timeZone);
 }
 
+/**
+ * SQL condition: chat alias `c` is in one of `inboxIds` (omitted = every inbox, empty = none).
+ * Inbox ids are checked integers, so they are written into the SQL as literals.
+ */
+export function inboxCondition(c: string, inboxIds?: readonly number[]): string {
+  if (!inboxIds) return '1 = 1';
+  for (const id of inboxIds)
+    if (!Number.isInteger(id) || id < 1) throw new Error(`invalid inbox id: ${id}`);
+  return `${c}.inbox_id IN (${inboxIds.join(', ')})`;
+}
+
 export function computeInboxStats(
   db: DB,
-  opts: { days: number; timeZone: string; now: number },
+  opts: {
+    days: number;
+    timeZone: string;
+    now: number;
+    /** Only chats of these inboxes (the caller's scope); omitted = every inbox. */
+    inboxIds?: readonly number[];
+  },
 ): InboxStats {
+  const inScope = inboxCondition('c', opts.inboxIds);
   const byStatus = db
-    .prepare('SELECT status, COUNT(*) AS n FROM chats GROUP BY status')
+    .prepare(`SELECT status, COUNT(*) AS n FROM chats c WHERE ${inScope} GROUP BY status`)
     .all() as Array<{ status: string; n: number }>;
   const count = (status: string) => byStatus.find((r) => r.status === status)?.n ?? 0;
 
   const openByAssignee = (
     db
       .prepare(
-        `SELECT assigned_to AS userId, COUNT(*) AS count FROM chats WHERE status = 'open'
+        `SELECT assigned_to AS userId, COUNT(*) AS count FROM chats c
+         WHERE status = 'open' AND ${inScope}
          GROUP BY assigned_to ORDER BY count DESC`,
       )
       .all() as Array<{ userId: number | null; count: number }>
@@ -86,7 +105,7 @@ export function computeInboxStats(
                  ORDER BY m.timestamp DESC, m.id DESC LIMIT 1) AS last_from_me,
                 (SELECT m.timestamp FROM messages m WHERE m.chat_jid = c.jid AND m.type != 'system'
                  ORDER BY m.timestamp DESC, m.id DESC LIMIT 1) AS last_at
-         FROM chats c WHERE c.status = 'open'
+         FROM chats c WHERE c.status = 'open' AND ${inScope}
        ) WHERE last_from_me = 0`,
     )
     .get() as { n: number; oldest: number | null };
@@ -95,7 +114,9 @@ export function computeInboxStats(
     `SELECT COUNT(DISTINCT chat_jid) AS activeChats,
             COALESCE(SUM(from_me = 0), 0) AS inbound,
             COALESCE(SUM(from_me = 1), 0) AS outbound
-     FROM messages WHERE timestamp >= ? AND timestamp < ? AND type != 'system'`,
+     FROM messages WHERE timestamp >= ? AND timestamp < ? AND type != 'system'${
+       opts.inboxIds ? ` AND chat_jid IN (SELECT c.jid FROM chats c WHERE ${inScope})` : ''
+     }`,
   );
   // Local days are 23-25 h long, so +1.5 days from today's midnight always lands in tomorrow and
   // -0.5 days from a midnight always lands in the previous day.

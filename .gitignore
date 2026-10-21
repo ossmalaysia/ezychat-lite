@@ -14,6 +14,7 @@ data/
 wa-auth/
 tmp-data/
 .e2e-data/
+.e2e-data-multi/
 
 # env / secrets
 .env*

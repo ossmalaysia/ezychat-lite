@@ -12,6 +12,8 @@ export interface CliProduct {
   edition?: string;
   /** Server extensions; Lite passes none. */
   extensions?: readonly ServerExtension[];
+  /** Most linked WhatsApp numbers (inboxes); default 1 (Lite: no inbox UI). */
+  maxInboxes?: number;
   /** Process exit (tests replace it); default process.exit. */
   exit?: (code: number) => never;
 }
@@ -32,7 +34,7 @@ export async function runCli(
   } catch (err) {
     process.stderr.write(`${(err as Error).message}\n`);
     process.stderr.write(
-      'Usage: server --data <dir> [--port <n>] [--host <h>] [--mode standalone|service|dev] [--fake-wa] [--web-dist <dir>] [--reset-admin]\n',
+      'Usage: server --data <dir> [--port <n>] [--host <h>] [--mode standalone|service|dev] [--fake-wa] [--web-dist <dir>] [--reset-admin] [--max-inboxes <n> (dev with --fake-wa)]\n',
     );
     exit(2);
   }
@@ -52,7 +54,11 @@ export async function runCli(
 
   const { resetAdmin: _ignored, ...serverCfg } = cfg;
   try {
-    await startServer(serverCfg, { extensions: product?.extensions, edition: product?.edition });
+    await startServer(serverCfg, {
+      extensions: product?.extensions,
+      edition: product?.edition,
+      maxInboxes: product?.maxInboxes,
+    });
   } catch (err) {
     if (err instanceof LockedError) {
       process.stderr.write(`${err.message}\n`);

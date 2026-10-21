@@ -9,6 +9,7 @@ import type {
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
+import { PRIMARY_INBOX_ID, chatKey, inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
 import { CustomerRepo, PROFILE_FIELDS, type ProfileFields } from './repo.js';
 
@@ -21,9 +22,13 @@ export interface CustomerService {
     body: CustomerProfileBody,
     actor: { userId: number; ip: string | null; isAdmin?: boolean },
   ): CustomerProfileResponse;
-  suggestTags(q?: string): string[];
-  /** Group messages: sender JID → their direct chat's profile name (only when one is set). */
-  senderProfiles(senderJids: string[]): Map<string, SenderProfile>;
+  /** Tag suggestions; `inboxIds` limits them to tags used on chats of those inboxes. */
+  suggestTags(q?: string, inboxIds?: readonly number[]): string[];
+  /**
+   * Group messages: sender JID → their direct chat's profile name (only when one is set). Only the
+   * direct chats of `inboxId` (the group's inbox, default 1) count.
+   */
+  senderProfiles(senderJids: string[], inboxId?: number): Map<string, SenderProfile>;
   /** Attaches `senderProfile` to inbound group messages (one batched lookup); others unchanged. */
   withSenderProfiles(messages: Message[]): Message[];
 }
@@ -64,8 +69,9 @@ export function createCustomerService(ctx: AppContext): CustomerService {
 
   /** Read-only WhatsApp facts across every JID of the person (phone number and LID forms). */
   function whatsappFacts(chat: Chat, viewer: Viewer) {
-    const jids = ctx.services.aliases?.group(chat.jid) ?? [chat.jid];
-    const all = [...new Set([chat.jid, ...jids])];
+    // contacts and aliases are keyed by WhatsApp JID, never by the chat key
+    const jids = ctx.services.aliases?.group(chat.waJid) ?? [chat.waJid];
+    const all = [...new Set([chat.waJid, ...jids])];
     const rows = ctx.db
       .prepare(
         `SELECT push_name, saved_name, phone FROM contacts WHERE jid IN (${all.map(() => '?').join(', ')})`,
@@ -125,15 +131,15 @@ export function createCustomerService(ctx: AppContext): CustomerService {
       return service.profile(jid, { isAdmin: !!actor.isAdmin });
     },
 
-    suggestTags(q) {
-      return repo.suggest(q);
+    suggestTags(q, inboxIds) {
+      return repo.suggest(q, 20, inboxIds);
     },
 
-    senderProfiles(senderJids) {
+    senderProfiles(senderJids, inboxId = PRIMARY_INBOX_ID) {
       const aliases = ctx.services.aliases;
       const byChat = new Map<string, string[]>();
       for (const sender of new Set(senderJids)) {
-        const chatJid = aliases ? aliases.route(sender) : sender;
+        const chatJid = aliases ? aliases.route(inboxId, sender) : chatKey(inboxId, sender);
         byChat.set(chatJid, [...(byChat.get(chatJid) ?? []), sender]);
       }
       const names = repo.namesByChat([...byChat.keys()]);
@@ -144,12 +150,28 @@ export function createCustomerService(ctx: AppContext): CustomerService {
     },
 
     withSenderProfiles(messages) {
-      const inGroup = (m: Message) => !m.fromMe && !!m.senderJid && m.chatJid.endsWith('@g.us');
-      const senders = messages.filter(inGroup).map((m) => m.senderJid!);
-      if (!senders.length) return messages;
-      const profiles = service.senderProfiles(senders);
+      const inGroup = (m: Message) =>
+        !m.fromMe && !!m.senderJid && parseChatKey(m.chatJid).waJid.endsWith('@g.us');
+      // A sender's profile is the one of their direct chat in the group's own inbox.
+      const byInbox = new Map<number, string[]>();
+      for (const m of messages.filter(inGroup)) {
+        const inboxId = inboxOfKey(m.chatJid);
+        byInbox.set(inboxId, [...(byInbox.get(inboxId) ?? []), m.senderJid!]);
+      }
+      if (!byInbox.size) return messages;
+      const profiles = new Map(
+        [...byInbox].map(([inboxId, senders]) => [
+          inboxId,
+          service.senderProfiles(senders, inboxId),
+        ]),
+      );
       return messages.map((m) =>
-        inGroup(m) ? { ...m, senderProfile: profiles.get(m.senderJid!) ?? null } : m,
+        inGroup(m)
+          ? {
+              ...m,
+              senderProfile: profiles.get(inboxOfKey(m.chatJid))?.get(m.senderJid!) ?? null,
+            }
+          : m,
       );
     },
   };

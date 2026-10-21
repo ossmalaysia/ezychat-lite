@@ -49,6 +49,8 @@ export const ChatListQuery = z.object({
   cursor: z.string().optional(),
   since: z.coerce.number().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  /** One inbox only (multi-inbox); unset = every inbox the caller may open. */
+  inbox: z.coerce.number().int().positive().optional(),
 });
 export type ChatListQuery = z.infer<typeof ChatListQuery>;
 /** Input shape (before defaults/coercion), for clients building query strings. */
@@ -229,6 +231,8 @@ export const accessStatusSchema = z.object({
 export type AccessStatus = z.infer<typeof accessStatusSchema>;
 
 export const FakeIncomingBody = z.object({
+  /** fake WA only: the inbox whose fake phone receives it (default 1) */
+  inboxId: z.number().int().positive().optional(),
   chatJid: z.string(),
   /** fake WA only: the other address of the same person (PN for a LID chat, or the reverse) */
   chatJidAlt: z.string().max(256).optional(),
@@ -248,3 +252,7 @@ export const FakeIncomingBody = z.object({
     .optional(),
 });
 export type FakeIncomingBody = z.infer<typeof FakeIncomingBody>;
+
+/** POST /api/dev/fake-link (fake WA only): the inbox's fake phone links, as a QR scan would. */
+export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
+export type FakeLinkBody = z.infer<typeof FakeLinkBody>;

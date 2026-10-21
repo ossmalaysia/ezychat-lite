@@ -5,7 +5,10 @@ import type { ApiPrincipal } from '../api-tokens/index.js';
 import { audit } from '../db/audit.js';
 import { HttpError } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
+import { scopeFor, scopeIds } from '../inboxes/access.js';
+import { chatKey, inboxOfKey } from '../inboxes/keys.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
+import { ambiguousChat, findChats } from './inbox.js';
 
 /** Thrown for an expected failure of a send; its message is shown to the model. */
 export class SendError extends Error {}
@@ -40,7 +43,7 @@ export interface InboxSendPort {
   ): SendResult;
   sendToNewNumber(
     principal: ApiPrincipal,
-    input: { phone: string; text: string; requestId: string },
+    input: { phone: string; text: string; requestId: string; inboxId?: number },
   ): Promise<NewNumberResult>;
 }
 
@@ -72,14 +75,38 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
   ];
   const newNumbers = new WindowLimiter({ ...SEND_LIMITS.newNumbersPerDay, now: deps?.now });
 
-  /** The existing chat of a JID (phone number or WhatsApp ID), or null. */
+  /** The existing chat of a JID or chat key (phone number or WhatsApp ID), or null. */
   const existing = (jid: string) => chats.get(chats.resolveJid(jid));
+
+  /**
+   * The inbox a new number is messaged from: `inboxId` when the owner may open that active inbox,
+   * else the only active inbox in scope; with several, the caller must choose (`inbox_required`).
+   */
+  function senderInbox(principal: ApiPrincipal, inboxId: number | undefined): number {
+    const active = scopeIds(ctx, scopeFor(ctx, principal.user));
+    const list = () =>
+      active.map((id) => `${id} (${ctx.inboxes.repo.get(id)?.name ?? `inbox ${id}`})`).join(', ');
+    if (inboxId !== undefined) {
+      if (!active.includes(inboxId))
+        throw new SendError(`No inbox ${inboxId} to send from. Inboxes: ${list()}.`);
+      return inboxId;
+    }
+    if (active.length === 1) return active[0]!;
+    throw new SendError(
+      `inbox_required: this team has more than one WhatsApp number; pass inboxId to choose the ` +
+        `one to send from. Inboxes: ${list()}.`,
+    );
+  }
 
   return {
     sendText(principal, input) {
       if (!principal.scopes.has('inbox:send'))
         throw new SendError('This access token cannot send messages.');
-      const chat = existing(input.jid);
+      // A chat of an inbox the token owner may not open is "not found", never a hint it exists. A
+      // phone or JID with chats in several inboxes is never sent from a guessed number.
+      const found = findChats(ctx, input.jid, principal.user);
+      if (found.length > 1) throw new SendError(ambiguousChat(ctx, input.jid, found));
+      const chat = found[0];
       if (!chat)
         throw new SendError(
           `No chat found for ${input.jid}. Only existing chats can receive a message` +
@@ -98,9 +125,12 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
         throw new SendError(
           'Not a phone number. Use the full number with country code, for example 60123456789.',
         );
-      const jid = `${phone}@s.whatsapp.net`;
-      if (ctx.wa.status.me?.jid.split(/[:@]/)[0] === phone)
-        throw new SendError('This is the linked WhatsApp number itself.');
+      const inboxId = senderInbox(principal, input.inboxId);
+      const wa = ctx.inboxes.connections.adapter(inboxId);
+      const jid = chatKey(inboxId, `${phone}@s.whatsapp.net`);
+      // The number of any inbox (linked now or before) is the team's own, never a customer.
+      const own = [...ctx.inboxes.connections.ownJids()].some((j) => j.split(/[:@]/)[0] === phone);
+      if (own) throw new SendError('This is a linked WhatsApp number itself.');
 
       // A retry, or a number that already has a chat: an ordinary send, nothing new is created.
       const known = existing(jid);
@@ -116,7 +146,7 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
           warning: NEW_NUMBER_WARNING,
         };
 
-      if (ctx.wa.status.state !== 'open')
+      if (wa.status.state !== 'open')
         throw new SendError(
           'WhatsApp is not connected, so the number cannot be checked. Try again when it is connected.',
         );
@@ -126,14 +156,14 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
         throw new SendError(
           `Too many new numbers from this token in a day; try again in ${hit.retryAfterSec} s.`,
         );
-      const found = await ctx.wa.checkNumber(phone);
+      const found = await wa.checkNumber(phone);
       if (!found) {
         log.info({ tokenId: principal.tokenId, found: false }, 'mcp new number check');
         throw new SendError('This number does not have WhatsApp.');
       }
       // The chat may have appeared while WhatsApp answered (an inbound message, another call).
-      const raced = existing(found);
-      const chat = raced ?? chats.upsertFromWa({ jid: found, type: 'dm', name: null });
+      const raced = existing(chatKey(inboxId, found));
+      const chat = raced ?? chats.upsertFromWa({ jid: found, type: 'dm', name: null }, inboxId);
       if (!raced)
         audit(ctx.db, {
           userId: principal.user.id,
@@ -194,12 +224,17 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
     return result(msg, false);
   }
 
+  /** Connection state of an inbox; a removed one has no connection. */
+  function inboxState(inboxId: number) {
+    return ctx.inboxes.connections.statuses().get(inboxId)?.state ?? 'disconnected';
+  }
+
   function result(msg: Message, duplicate: boolean): SendResult {
     return {
       messageId: msg.id,
       chatJid: msg.chatJid,
       status: msg.status,
-      queued: ctx.wa.status.state !== 'open' && msg.status === 'pending',
+      queued: inboxState(inboxOfKey(msg.chatJid)) !== 'open' && msg.status === 'pending',
       duplicate,
     };
   }

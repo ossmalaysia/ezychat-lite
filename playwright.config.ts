@@ -27,6 +27,9 @@ const chromiumEngine = hasBundledChromium()
   : { browserName: 'chromium' as const, channel: 'chrome' };
 
 const ADMIN_STATE = 'e2e/.auth/admin.json';
+// Several WhatsApp numbers: its own server (port 7498, --max-inboxes) and its own project.
+const MULTI_INBOX_SPEC = /multi-inbox\.spec\.ts/;
+const MULTI_INBOX_URL = 'http://127.0.0.1:7498';
 
 export default defineConfig({
   testDir: './e2e',
@@ -56,6 +59,7 @@ export default defineConfig({
     {
       name: 'desktop-chromium',
       testMatch: /.*\.spec\.ts/,
+      testIgnore: MULTI_INBOX_SPEC,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -70,25 +74,43 @@ export default defineConfig({
     {
       name: 'mobile',
       testMatch: /.*\.spec\.ts/,
+      testIgnore: MULTI_INBOX_SPEC,
       dependencies: ['setup'],
       use: { ...devices['Pixel 7'], ...chromiumEngine, storageState: ADMIN_STATE },
     },
     {
       name: 'iphone',
       testMatch: /.*\.spec\.ts/,
+      testIgnore: MULTI_INBOX_SPEC,
       dependencies: ['setup'],
       use: { ...devices['iPhone 14'], ...chromiumEngine, storageState: ADMIN_STATE },
     },
+    {
+      name: 'multi-inbox',
+      testMatch: MULTI_INBOX_SPEC,
+      use: { ...devices['Desktop Chrome'], ...chromiumEngine, baseURL: MULTI_INBOX_URL },
+    },
   ],
-  webServer: {
-    // The data dir is wiped here (not in globalSetup): Playwright starts the webServer
-    // before globalSetup runs, so deleting it there would pull the DB out from under the server.
-    command:
-      'node e2e/clean-data.mjs && npm run build -w @ezychat/web && npx tsx packages/server/src/cli.ts --data .e2e-data --port 7499 --fake-wa --mode dev --web-dist apps/web/dist',
-    url: `${BASE_URL}/api/health`,
-    reuseExistingServer: false,
-    timeout: 240_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  webServer: [
+    {
+      // The data dir is wiped here (not in globalSetup): Playwright starts the webServer
+      // before globalSetup runs, so deleting it there would pull the DB out from under the server.
+      command:
+        'node e2e/clean-data.mjs && npm run build -w @ezychat/web && npx tsx packages/server/src/cli.ts --data .e2e-data --port 7499 --fake-wa --mode dev --web-dist apps/web/dist',
+      url: `${BASE_URL}/api/health`,
+      reuseExistingServer: false,
+      timeout: 240_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      // Waits for the server above (it builds apps/web/dist), then starts on port 7498.
+      command: 'node e2e/start-multi-inbox.mjs',
+      url: `${MULTI_INBOX_URL}/api/health`,
+      reuseExistingServer: false,
+      timeout: 300_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+  ],
 });

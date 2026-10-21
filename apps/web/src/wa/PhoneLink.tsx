@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Copy, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
+import { useInboxPairingCode } from '../api/inbox-mutations';
 import { useRequestPairingCode } from '../api/queries';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
@@ -15,11 +16,17 @@ export function formatPairingCode(code: string): string {
   return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
 }
 
-/** Link WhatsApp with a phone number + 8-character pairing code instead of scanning a QR. */
-export function PhoneLink() {
+/**
+ * Link WhatsApp with a phone number + 8-character pairing code instead of scanning a QR. Without
+ * `inboxId` it links the first number (`/wa/pairing-code`, as before multi-inbox).
+ */
+export function PhoneLink({ inboxId }: Readonly<{ inboxId?: number }> = {}) {
   const { t } = useTranslation('inbox');
   const [phone, setPhone] = useState('');
-  const req = useRequestPairingCode();
+  const primary = useRequestPairingCode();
+  const inbox = useInboxPairingCode(inboxId ?? 1);
+  const req = inboxId === undefined ? primary : inbox;
+  const inputId = inboxId === undefined ? 'wa-phone' : `wa-phone-${inboxId}`;
   const code = req.data?.code ? formatPairingCode(req.data.code) : null;
 
   return (
@@ -31,10 +38,10 @@ export function PhoneLink() {
           req.mutate(phone);
         }}
       >
-        <Label htmlFor="wa-phone">{t('phoneLink.label')}</Label>
+        <Label htmlFor={inputId}>{t('phoneLink.label')}</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            id="wa-phone"
+            id={inputId}
             type="tel"
             inputMode="tel"
             autoComplete="tel"

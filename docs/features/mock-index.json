@@ -6,14 +6,26 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "token-permissions",
-    "gitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
-    "mock": "docs/features/token-permissions/mock/index.html",
-    "design": "docs/features/token-permissions/design.md",
-    "confirmedAt": "2026-10-20",
-    "confirmation": "Owner, 2026-10-20: \"finish the token permission first\" (after the mock at http://127.0.0.1:7487 was offered for review)."
+    "feature": "multi-inbox",
+    "gitRevision": "f585ace8860647ef050c4b786059233cf0dd6227",
+    "mock": "docs/features/multi-inbox/mock/index.html",
+    "design": "docs/features/multi-inbox/design.md",
+    "confirmedAt": "2026-10-21",
+    "confirmation": "Owner, 2026-10-21: \"ok with mock, implement it with workflow\" (round 3 with Who can open it in Add/Edit inbox)."
   },
   "proposals": [
+    {
+      "feature": "multi-inbox",
+      "creationOrder": 6,
+      "createdAt": "2026-10-21",
+      "design": "docs/features/multi-inbox/design.md",
+      "mock": "docs/features/multi-inbox/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "token-permissions",
+      "baselineGitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
+      "baselineAppRevision": "89ccabe",
+      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number, each a linked phone with a QR scan): Admin → Inboxes with add (name + QR), edit (rename, link again) and remove, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, agent no-access state; the Business API type is out (round 3, owner); English only; mock state in localStorage"
+    },
     {
       "feature": "token-permissions",
       "creationOrder": 5,
@@ -60,7 +72,12 @@
       "baselineFeature": "app-baseline",
       "baselineGitRevision": "7d7e4fb4af1c3e64408aa1319f8f843289b5b7a8",
       "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
-      "coverage": "Full app clone; only enrichment Settings and Audit UI added; deterministic demo extraction"
+      "coverage": "Full app clone; only enrichment Settings and Audit UI added; deterministic demo extraction",
+      "archived": {
+        "folderRemovedAt": "2026-10-21",
+        "lastRevision": "6a3ccfc312525007dd22aa771f75ca3c6fb67071",
+        "reason": "retention: sixth feature folder (multi-inbox)"
+      }
     },
     {
       "feature": "app-baseline",

@@ -30,6 +30,8 @@ vi.mock('../api/queries', () => ({
     data: { port: 7420, lanEnabled: false, historyDays: 3 },
   }),
   usePatchSettings: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  // Lite: one WhatsApp number, so the admin nav keeps WhatsApp (no Inboxes).
+  useInboxes: () => ({ isPending: false, data: { inboxes: [], maxInboxes: 1, canAdd: false } }),
 }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));

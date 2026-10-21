@@ -391,3 +391,41 @@ it('keeps a message that arrives while its chat is still loading (the load start
   await screen.findByText('Review noted');
   qc.clear();
 });
+
+it('keeps the inbox list current: a status patches it, a change reloads inboxes, team and chats', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const open = { state: 'open', me: null, qr: null, lastError: null };
+  qc.setQueryData(['inboxes'], {
+    inboxes: [
+      { id: 2, name: 'Catering', tone: 'warning', number: null, removed: false, status: open },
+    ],
+    maxInboxes: 3,
+    canAdd: true,
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(socket.listeners.has('inbox:status')).toBe(true));
+  act(() =>
+    socket.listeners.get('inbox:status')!({
+      inboxId: 2,
+      status: { ...open, state: 'disconnected' },
+    }),
+  );
+  expect(
+    (qc.getQueryData(['inboxes']) as { inboxes: { status: { state: string } }[] }).inboxes[0]!
+      .status.state,
+  ).toBe('disconnected');
+  const invalidate = vi.spyOn(qc, 'invalidateQueries');
+  act(() => socket.listeners.get('inboxes:changed')!());
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['inboxes'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] });
+  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
+  qc.clear();
+});

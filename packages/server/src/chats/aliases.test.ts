@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import type { Logger } from 'pino';
 import { migrate } from '../db/migrate.js';
 import { AliasStore, normalizeLid, normalizePn, orientPair } from './aliases.js';
+import { ChatRepo } from './repo.js';
 
 const PN = '60111111111@s.whatsapp.net';
 const PN2 = '60222222222@s.whatsapp.net';
@@ -202,11 +203,88 @@ describe('AliasStore', () => {
     expect(store().aliasesOf(LID)).toEqual([PN]);
   });
 
+  it('reads the own numbers once per batch, and again on every call outside one', () => {
+    const ownJids = vi.fn(() => [ME]);
+    const s = new AliasStore(db, {
+      ownJids,
+      now: () => clock,
+      log: { warn, info: vi.fn() } as unknown as Pick<Logger, 'warn' | 'info'>,
+    });
+    const outcomes = s.batch(() => [
+      s.learn({ jid: PN, alias: LID }, 'contacts'),
+      s.learn({ jid: PN2, alias: OTHER_LID }, 'contacts'),
+      s.batch(() => s.learn({ jid: ME, alias: '555@lid' }, 'contacts')),
+    ]);
+    expect(outcomes.map((o) => o.kind)).toEqual(['added', 'added', 'ignored']);
+    expect(ownJids).toHaveBeenCalledTimes(1);
+    s.learn({ jid: PN, alias: LID }, 'contacts');
+    s.learn({ jid: PN2, alias: OTHER_LID }, 'contacts');
+    expect(ownJids).toHaveBeenCalledTimes(3);
+    // a throwing batch never leaves a stale own set behind
+    expect(() =>
+      s.batch(() => {
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+    ownJids.mockReturnValue([ME, '60333333333@s.whatsapp.net']);
+    expect(s.learn({ jid: '60333333333@s.whatsapp.net', alias: '777@lid' }, 'contacts')).toEqual({
+      kind: 'ignored',
+    });
+  });
+
+  it('finds the chats of a WhatsApp JID in every inbox by primary key, never by a table scan', () => {
+    db.prepare(
+      "INSERT INTO inboxes (id, name, tone, auth_dir, created_at) VALUES (2, 'Two', 'info', 'wa-auth-inboxes/2', 1)",
+    ).run();
+    chat(LID); // inbox 1, written before wa_jid existed
+    db.prepare(
+      "INSERT INTO chats (jid, type, name, updated_at, inbox_id, wa_jid) VALUES (?, 'dm', '', 1, 2, NULL)",
+    ).run(`${LID}#2`);
+    const seen: string[] = [];
+    const prepare = db.prepare.bind(db);
+    vi.spyOn(db, 'prepare').mockImplementation(((sql: string) => {
+      seen.push(sql);
+      return prepare(sql);
+    }) as typeof db.prepare);
+    const repo = new ChatRepo(db);
+    expect(repo.keysOf(LID)).toEqual([LID, `${LID}#2`]);
+    expect(repo.keysOf('nobody@lid')).toEqual([]);
+    chat(PN);
+    const s = store();
+    s.learn({ jid: PN, alias: LID }, 'contacts'); // both chats exist: hasAnyChat on each
+    s.learn({ jid: PN, alias: OTHER_LID }, 'message'); // re-point: clears the old phone
+    expect(phoneOf(LID)).toBeNull();
+    expect(phoneOf(`${LID}#2`)).toBeNull();
+    vi.mocked(db.prepare).mockRestore();
+    const chatQueries = [...new Set(seen)].filter((q) => /\b(FROM|UPDATE) chats\b/.test(q));
+    expect(chatQueries.length).toBeGreaterThanOrEqual(3);
+    for (const q of chatQueries) {
+      const params = Array.from({ length: (q.match(/\?/g) ?? []).length }, () => null);
+      const plan = db.prepare(`EXPLAIN QUERY PLAN ${q}`).all(...params) as Array<{
+        detail: string;
+      }>;
+      expect(plan.map((p) => p.detail).join('\n'), q).not.toMatch(/\bSCAN (c|chats)\b/);
+    }
+  });
+
+  it('shows a learned number on the WhatsApp ID chat of every inbox', () => {
+    db.prepare(
+      "INSERT INTO inboxes (id, name, tone, auth_dir, created_at) VALUES (2, 'Two', 'info', 'wa-auth-inboxes/2', 1)",
+    ).run();
+    chat(LID);
+    db.prepare(
+      "INSERT INTO chats (jid, type, name, updated_at, inbox_id, wa_jid) VALUES (?, 'dm', '', 1, 2, ?)",
+    ).run(`${LID}#2`, LID);
+    store().learn({ jid: PN, alias: LID }, 'contacts');
+    expect(phoneOf(LID)).toBe('60111111111');
+    expect(phoneOf(`${LID}#2`)).toBe('60111111111');
+  });
+
   it('lists aliases that still have their own chat row as pending merges', () => {
     chat(PN);
     chat(LID);
     const s = store();
     s.learn({ jid: PN, alias: LID }, 'contacts');
-    expect(s.pendingMerges()).toEqual([{ from: PN, to: LID }]);
+    expect(s.pendingMerges()).toEqual([{ inboxId: 1, from: PN, to: LID }]);
   });
 });

@@ -6,6 +6,7 @@ import { createGroupService, type GroupService } from '../groups/service.js';
 import { clientIp } from '../http/client-ip.js';
 import { parse } from '../http/errors.js';
 import { createProfileImages } from '../http/profile-images.js';
+import { chatWaState } from '../inboxes/service.js';
 import { chatJidParam } from './chats.js';
 
 declare module '../context.js' {
@@ -25,17 +26,17 @@ export default async function groupRoutes(app: FastifyInstance, ctx: AppContext)
   const groups = (ctx.services.groups ??= createGroupService(ctx));
   const photo = createProfileImages(ctx, ctx.log.child({ mod: 'groups' }), { max: 2000 });
 
-  app.get('/chats/:jid/members', async (req) => groups.info(chatJidParam(ctx, req.params)));
+  app.get('/chats/:jid/members', async (req) => groups.info(chatJidParam(ctx, req)));
 
   app.get('/chats/:jid/members/:member/about', async (req) => {
     const { member } = parse(MemberParams, req.params);
-    return { about: await groups.about(chatJidParam(ctx, req.params), member) };
+    return { about: await groups.about(chatJidParam(ctx, req), member) };
   });
 
   app.get('/chats/:jid/members/:member/avatar', async (req, reply) => {
     const { member } = parse(MemberParams, req.params);
-    const groupJid = chatJidParam(ctx, req.params);
-    if (ctx.wa.status.state !== 'open')
+    const groupJid = chatJidParam(ctx, req);
+    if (chatWaState(ctx, groupJid) !== 'open')
       return reply.header('cache-control', 'no-store').code(204).send();
     const target = await groups.photoTarget(groupJid, member);
     const url = await photo(target.jid, target.key).catch(() => undefined);
@@ -46,7 +47,7 @@ export default async function groupRoutes(app: FastifyInstance, ctx: AppContext)
 
   app.post('/chats/:jid/members/:member/chat', async (req) => {
     const { member } = parse(MemberParams, req.params);
-    const chatJid = await groups.startChat(chatJidParam(ctx, req.params), member, {
+    const chatJid = await groups.startChat(chatJidParam(ctx, req), member, {
       userId: req.user!.id,
       ip: clientIp(req),
     });

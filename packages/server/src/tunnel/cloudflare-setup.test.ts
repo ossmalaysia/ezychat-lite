@@ -16,6 +16,8 @@ import { SecretBox } from '../crypto/secret.js';
 import { openDb } from '../db/index.js';
 import { SettingsStore } from '../db/settings.js';
 import { silentLogger } from '../logger.js';
+import { InboxConnections } from '../inboxes/connections.js';
+import { InboxRepo } from '../inboxes/repo.js';
 import {
   CLOUDFLARE_AUTH_KEY,
   CLOUDFLARE_DOMAINS_KEY,
@@ -90,6 +92,23 @@ let services: CloudflareSetup[];
 let manager: TunnelService;
 let fetcher: typeof fetch;
 
+/** The inbox registry of a single-inbox (Lite) context; the tunnel never uses it. */
+function inboxesFor(db: AppContext['db']): AppContext['inboxes'] {
+  const repo = new InboxRepo(db);
+  const primary = new FakeWaAdapter();
+  const create = () => Promise.resolve(primary);
+  return {
+    repo,
+    connections: new InboxConnections({
+      repo,
+      maxInboxes: 1,
+      log: silentLogger(),
+      primary,
+      create,
+    }),
+  };
+}
+
 beforeEach(() => {
   const dataDir = mkdtempSync(join(tmpdir(), 'wati-cloudflare-'));
   const db = openDb(join(dataDir, 'app.db'));
@@ -110,6 +129,7 @@ beforeEach(() => {
     log: silentLogger(),
     bus: new Bus(),
     wa: new FakeWaAdapter(),
+    inboxes: inboxesFor(db),
     services: {},
     edition: 'lite',
     extensions: [],

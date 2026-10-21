@@ -5,7 +5,7 @@ import { makeTestApp, type TestApp } from '../../test/helpers.js';
 import { createUserAndLogin } from '../../test/auth-helpers.js';
 import { getAliases } from '../chats/aliases.js';
 import { runIdentityMigration } from '../chats/identity-migration.js';
-import { getChats, getMessages } from './index.js';
+import { attachWaBridge, getChats, getMessages } from './index.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -36,7 +36,9 @@ function incoming(p: Partial<WaIncomingMessage> & { id: string }): WaIncomingMes
 }
 
 function rowCount(id: string): number {
-  return (t.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages WHERE id = ?').get(id) as { n: number }).n;
+  return (
+    t.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages WHERE id = ?').get(id) as { n: number }
+  ).n;
 }
 
 describe('wa bridge / ingest', () => {
@@ -80,7 +82,10 @@ describe('wa bridge / ingest', () => {
   });
 
   it('fromMe message sent from the phone has sentByUserId null and no unread', async () => {
-    const msg = await getMessages(t.ctx).ingest(incoming({ id: 'PH-1', fromMe: true, senderJid: null }), 'live');
+    const msg = await getMessages(t.ctx).ingest(
+      incoming({ id: 'PH-1', fromMe: true, senderJid: null }),
+      'live',
+    );
     expect(msg!.fromMe).toBe(true);
     expect(msg!.sentByUserId).toBeNull();
     expect(getChats(t.ctx).get(JID)!.unreadCount).toBe(0);
@@ -116,7 +121,11 @@ describe('wa bridge / ingest', () => {
         id: 'M-1',
         type: 'image',
         body: 'pic',
-        media: { mime: 'image/png', fileName: null, download: async () => Buffer.from('png-bytes') },
+        media: {
+          mime: 'image/png',
+          fileName: null,
+          download: async () => Buffer.from('png-bytes'),
+        },
       }),
       'live',
     );
@@ -173,7 +182,9 @@ describe('wa bridge / ingest', () => {
     await msgs.ingest(incoming({ id: 'S-1', fromMe: true }), 'live');
     msgs.applyStatus({ id: 'S-1', chatJid: JID, status: 'read' });
     msgs.applyStatus({ id: 'S-1', chatJid: JID, status: 'delivered' });
-    const row = t.ctx.db.prepare('SELECT status FROM messages WHERE id = ?').get('S-1') as { status: string };
+    const row = t.ctx.db.prepare('SELECT status FROM messages WHERE id = ?').get('S-1') as {
+      status: string;
+    };
     expect(row.status).toBe('read');
     t.wa.setConnected(false);
     expect(statuses).toContain('disconnected');
@@ -262,7 +273,7 @@ describe('one chat per person at runtime (routing only, never merging)', () => {
       wa_remote_jid: PN,
     });
     expect(getChats(t.ctx).resolveJid(PN)).toBe(PN);
-    expect(getAliases(t.ctx).pendingMerges()).toEqual([{ from: PN, to: LID }]);
+    expect(getAliases(t.ctx).pendingMerges()).toEqual([{ inboxId: 1, from: PN, to: LID }]);
     expect(runIdentityMigration(t.ctx)).toMatchObject({ merged: 1, rekeyed: 0 });
     expect(chatJids()).toEqual([LID]);
     expect(getChats(t.ctx).get(LID)!.unreadCount).toBe(3);
@@ -287,5 +298,59 @@ describe('one chat per person at runtime (routing only, never merging)', () => {
     await settle();
     expect(getAliases(t.ctx).resolve(PN)).toBe(PN);
     expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM jid_aliases').get()).toEqual({ n: 0 });
+  });
+});
+
+describe('wa bridge / one bridge per inbox', () => {
+  let m: TestApp;
+  beforeEach(async () => {
+    m = await makeTestApp({ maxInboxes: 3, inboxes: 2 });
+  });
+  afterEach(async () => {
+    await m.close();
+  });
+  const count = (chatJid: string) =>
+    (
+      m.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages WHERE chat_jid = ?').get(chatJid) as {
+        n: number;
+      }
+    ).n;
+
+  it('detaching inbox 2 bridge stops ingest from inbox 2 only', async () => {
+    // replace the bridges initMessaging attached with one bridge per inbox owned by this test
+    m.ctx.services.waBridge!.shutdown();
+    const detach1 = attachWaBridge(m.ctx, 1, m.inboxWa(1));
+    const detach2 = attachWaBridge(m.ctx, 2, m.inboxWa(2));
+    try {
+      m.inboxWa(2).simulateIncoming({ id: 'B2-1', chatJid: JID, body: 'two' });
+      await settle();
+      expect(count(`${JID}#2`)).toBe(1);
+      detach2();
+      m.inboxWa(2).simulateIncoming({ id: 'B2-2', chatJid: JID, body: 'late' });
+      m.inboxWa(1).simulateIncoming({ id: 'B1-2', chatJid: JID, body: 'one' });
+      await settle();
+      expect(count(`${JID}#2`)).toBe(1);
+      expect(count(JID)).toBe(1);
+    } finally {
+      detach1();
+    }
+  });
+
+  it('removing an inbox detaches its bridge and keeps the others', async () => {
+    const wa2 = m.inboxWa(2);
+    await m.ctx.inboxes.connections.remove(2);
+    wa2.simulateIncoming({ id: 'RM-2', chatJid: JID, body: 'after remove' });
+    m.inboxWa(1).simulateIncoming({ id: 'RM-1', chatJid: JID, body: 'still here' });
+    await settle();
+    expect(count(`${JID}#2`)).toBe(0);
+    expect(count(JID)).toBe(1);
+  });
+
+  it('defaults to inbox 1 and its adapter', async () => {
+    const detach = attachWaBridge(m.ctx);
+    m.inboxWa(1).simulateIncoming({ id: 'D1-1', chatJid: JID, body: 'one' });
+    await settle();
+    expect(count(JID)).toBe(1);
+    detach();
   });
 });

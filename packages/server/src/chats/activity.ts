@@ -1,5 +1,5 @@
 import type { DB } from '../db/index.js';
-import { localDate, localMidnight } from './stats.js';
+import { inboxCondition, localDate, localMidnight } from './stats.js';
 
 /** A customer message after this much silence in its chat starts a new conversation. */
 export const CONVERSATION_GAP_MS = 12 * 60 * 60 * 1000;
@@ -75,7 +75,13 @@ const zeroCounts = (): Counts => ({ customerMessages: 0, newConversations: 0, te
 
 export function computeInboxActivity(
   db: DB,
-  opts: { days: number; timeZone: string; now: number },
+  opts: {
+    days: number;
+    timeZone: string;
+    now: number;
+    /** Only chats of these inboxes (the caller's scope); omitted = every inbox. */
+    inboxIds?: readonly number[];
+  },
 ): InboxActivity {
   const startOfToday = localMidnight(localDate(opts.now, opts.timeZone), opts.timeZone);
   const from = localMidnight(
@@ -94,7 +100,8 @@ export function computeInboxActivity(
     .prepare(
       `SELECT m.chat_jid, m.from_me, m.sent_by_user_id, m.timestamp FROM messages m
        JOIN chats c ON c.jid = m.chat_jid
-       WHERE c.type = 'dm' AND ${counted} AND m.timestamp >= ? AND m.timestamp <= ?
+       WHERE c.type = 'dm' AND ${inboxCondition('c', opts.inboxIds)} AND ${counted}
+         AND m.timestamp >= ? AND m.timestamp <= ?
        ORDER BY m.chat_jid, m.timestamp, m.rowid`,
     )
     .all(lookback, opts.now) as Row[];

@@ -197,7 +197,11 @@
       "apiTokenRevoke": "Token akses dibatalkan",
       "apiTokenAuthFailed": "Token pembantu AI ditolak",
       "mcpEnable": "Akses pembantu AI dihidupkan",
-      "mcpDisable": "Akses pembantu AI dimatikan"
+      "mcpDisable": "Akses pembantu AI dimatikan",
+      "inboxCreate": "Peti masuk ditambah",
+      "inboxUpdate": "Peti masuk dikemas kini",
+      "inboxRemove": "Peti masuk dibuang",
+      "inboxAccessUpdate": "Akses peti masuk ditukar"
     },
     "fields": {
       "chat": "Sembang",
@@ -236,7 +240,10 @@
       "port": "Port",
       "lanEnabled": "Akses LAN",
       "historyDays": "Hari sejarah",
-      "expires": "Tamat tempoh"
+      "expires": "Tamat tempoh",
+      "inbox": "Peti masuk",
+      "inboxes": "Peti masuk",
+      "members": "Ahli"
     },
     "reasons": {
       "rateLimited": "Terlalu banyak cubaan",
@@ -891,5 +898,58 @@
       "self_reported": "Pelanggan memberikan maklumat semasa mereka secara jelas.",
       "correction": "Pelanggan membetulkan maklumat tersimpan mereka secara jelas."
     }
+  },
+  "inboxes": {
+    "title": "Peti masuk",
+    "add": "Tambah peti masuk",
+    "emptyTitle": "Belum ada peti masuk",
+    "emptyBody": "Tambah nombor WhatsApp pertama anda: beri nama, kemudian imbas kod QR dengan telefonnya.",
+    "description": "Satu peti masuk untuk setiap nombor WhatsApp. Paut setiap nombor dengan aplikasi WhatsApp pada telefonnya, melalui imbasan QR, seperti yang anda lakukan sekarang.",
+    "edit": "Sunting",
+    "remove": "Buang",
+    "status": "Status",
+    "whoCanOpen": "Siapa boleh membukanya",
+    "admin": "pentadbir",
+    "accessHint": "Pentadbir melihat setiap peti masuk. Pilih ejen yang boleh membuka peti masuk ini dalam Sunting, atau di bawah Ahli.",
+    "typeLinkedPhone": "Aplikasi WhatsApp (telefon dipaut)",
+    "numberAfterScan": "Ditunjukkan selepas imbasan",
+    "limitReached": "Edisi ini membenarkan {{max}} peti masuk. Buang satu untuk menambah yang lain.",
+    "membersField": "Siapa boleh membukanya",
+    "membersFieldHint": "Pentadbir sentiasa melihat setiap peti masuk. Tandakan ejen yang boleh membuka sembang peti masuk ini.",
+    "membersFieldNoAgents": "Belum ada ejen. Tambah mereka di bawah Ahli.",
+    "membersFieldNone": "Tiada ejen ditandakan: hanya pentadbir melihat peti masuk ini.",
+    "removeTitle": "Buang “{{name}}”?",
+    "removeConfirm": "Buang peti masuk",
+    "removeBodyPhone": "EzyChat menyahpaut telefon ini dan berhenti menerima dan menghantar untuk nombor ini. Sembangnya kekal, baca sahaja, untuk pentadbir.",
+    "removed": "Peti masuk dibuang",
+    "required": "Ruangan ini wajib diisi.",
+    "saved": "Peti masuk disimpan",
+    "createdPhone": "Peti masuk ditambah. Sekarang imbas kod QR dengan telefon.",
+    "addTitle": "Tambah peti masuk",
+    "editTitle": "Peti masuk “{{name}}”",
+    "dialogDescription": "Beri nama peti masuk, pilih siapa boleh membukanya, simpan, kemudian imbas kod QR dengan telefon yang mempunyai nombor ini.",
+    "save": "Simpan",
+    "name": "Nama peti masuk",
+    "nameHint": "Nama yang pasukan anda lihat pada setiap sembang, cth. Jualan atau Katering.",
+    "scanTitle": "Imbas kod QR",
+    "scanBody": "Buka Sunting dan imbas kod QR dengan telefon yang mempunyai nombor ini.",
+    "scanSteps": "Pada telefon: WhatsApp → Tetapan → Peranti dipaut → Paut peranti, kemudian halakan kamera ke kod ini.",
+    "linkedAs": "Dipaut ke {{number}}",
+    "relink": "Paut telefon semula",
+    "offlineTitle": "Telefon di luar talian",
+    "offlineBody": "EzyChat tidak boleh menghantar atau menerima untuk nombor ini. Cas telefon dan sambungkan ke internet; jika ia kekal di luar talian, paut semula.",
+    "state": {
+      "connected": "Bersambung",
+      "waiting_scan": "Menunggu imbasan QR",
+      "phone_offline": "Telefon di luar talian"
+    },
+    "membersAccess": "Akses peti masuk",
+    "membersAccessAll": "Semua peti masuk (pentadbir)",
+    "membersAccessNone": "Tiada peti masuk: ejen ini tidak melihat sebarang sembang",
+    "membersAccessTitle": "Peti masuk untuk {{name}}",
+    "membersAccessDescription": "Ejen ini hanya melihat sembang dan pemberitahuan daripada peti masuk yang anda tandakan.",
+    "membersAccessNoInboxes": "Belum ada peti masuk. Tambah satu di bawah Peti masuk.",
+    "membersAccessSave": "Simpan",
+    "membersAccessSaved": "Akses peti masuk disimpan"
   }
 }

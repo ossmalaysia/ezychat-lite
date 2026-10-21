@@ -1,4 +1,5 @@
 import type { WaStatus } from '@ezychat/shared';
+import type { WaAdapter } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { createAliasStore } from '../chats/aliases.js';
 import { runIdentityMigration } from '../chats/identity-migration.js';
@@ -10,9 +11,9 @@ declare module '../context.js' {
   interface Services {
     chats?: ChatService;
     messages?: MessageService;
-    /** last WaStatus seen by the bridge (in memory) */
+    /** last WaStatus of inbox 1 seen by the bridge (in memory); per inbox: connections.statuses() */
     waStatus?: WaStatus;
-    /** detaches the bridge on shutdown */
+    /** detaches the bridge of every inbox on shutdown */
     waBridge?: { shutdown(): void };
   }
 }
@@ -31,8 +32,36 @@ export function initMessaging(ctx: AppContext): void {
   runIdentityMigration(ctx);
   ctx.services.chats = createChatService(ctx);
   ctx.services.messages = createMessageService(ctx);
-  const detach = attachWaBridge(ctx);
-  ctx.services.waBridge = { shutdown: detach };
+  ctx.services.waBridge = attachInboxBridges(ctx);
+}
+
+/**
+ * One bridge per inbox: the inboxes connected at start, then every inbox added later; a removed
+ * inbox's bridge is detached (the message service stops its queue on the same event).
+ */
+function attachInboxBridges(ctx: AppContext): { shutdown(): void } {
+  const { connections } = ctx.inboxes;
+  const detachers = new Map<number, () => void>();
+  const attach = (inboxId: number, wa: WaAdapter) => {
+    detachers.get(inboxId)?.();
+    detachers.set(inboxId, attachWaBridge(ctx, inboxId, wa));
+  };
+  const onAdded = (inboxId: number, wa: WaAdapter) => attach(inboxId, wa);
+  const onRemoved = (inboxId: number) => {
+    detachers.get(inboxId)?.();
+    detachers.delete(inboxId);
+  };
+  for (const [inboxId, wa] of connections.entries()) attach(inboxId, wa);
+  connections.on('added', onAdded);
+  connections.on('removed', onRemoved);
+  return {
+    shutdown() {
+      connections.off('added', onAdded);
+      connections.off('removed', onRemoved);
+      for (const detach of detachers.values()) detach();
+      detachers.clear();
+    },
+  };
 }
 
 export function getChats(ctx: AppContext): ChatService {

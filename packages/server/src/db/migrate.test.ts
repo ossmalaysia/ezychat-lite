@@ -25,8 +25,10 @@ const TABLES = [
   'customer_tags',
   'api_tokens',
   'ai_setup_versions',
+  'inboxes',
+  'inbox_members',
 ];
-const LATEST = 13;
+const LATEST = 14;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {

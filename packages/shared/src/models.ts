@@ -30,11 +30,18 @@ export const UserSchema = z.object({
   createdAt: z.number(),
   /** Preferred UI language; null = follow the browser. */
   locale: LocaleSchema.nullable(),
+  /** Inboxes an agent may open (admin responses only; admins open every inbox). */
+  inboxIds: z.array(z.number().int().positive()).optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
 export const ChatSchema = z.object({
+  /** Chat key: the WhatsApp JID for inbox 1, `<waJid>#<inboxId>` for other inboxes. */
   jid: z.string(),
+  /** The inbox (linked number) the chat belongs to; replies leave from it. */
+  inboxId: z.number().int().positive(),
+  /** The chat's WhatsApp JID inside its inbox. */
+  waJid: z.string(),
   type: ChatType,
   name: z.string(),
   /** Authenticated image endpoint; missing/private WhatsApp photos fall back to initials. */

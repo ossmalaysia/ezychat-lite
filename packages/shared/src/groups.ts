@@ -50,6 +50,8 @@ export type StartMemberChatResponse = z.infer<typeof StartMemberChatResponse>;
 
 /** Fake WhatsApp only: create a group with generated members for tests and the Dev Build. */
 export const FakeGroupBody = z.object({
+  /** The inbox whose fake phone is in the group (default 1). */
+  inboxId: z.number().int().positive().optional(),
   groupJid: z.string().regex(/@g\.us$/),
   name: z.string().min(1).max(200),
   /** How many generated members besides the linked number (and any `members` given). */

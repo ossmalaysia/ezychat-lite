@@ -1,11 +1,11 @@
 import { ExtensionBannerSlot } from '@/access/BannerSlot';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAppVersion } from '../lib/version';
-import type { ChatFilters as Filters } from '../api/queries';
+import { useInboxes, type ChatFilters as Filters } from '../api/queries';
 import { UserMenu } from '../auth/UserMenu';
 import { EmptyState } from '@/components/app';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import { GettingStartedCard } from './GettingStartedCard';
 import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
+import { useVisibleInboxes } from './useVisibleInboxes';
 import { useCanonicalChatRedirect } from './useCanonicalChatRedirect';
 import { NavigationGuardProvider } from './navigation-guard';
 
@@ -32,7 +33,9 @@ function loadFilters(): Filters {
     const status = v.status === 'resolved' ? 'resolved' : 'open';
     const tag =
       typeof v.tag === 'string' && v.tag.trim() && v.tag.length <= 30 ? v.tag.trim() : undefined;
-    return { assigned, status, q: typeof v.q === 'string' && v.q ? v.q : undefined, tag };
+    const inbox =
+      typeof v.inbox === 'number' && Number.isInteger(v.inbox) && v.inbox > 0 ? v.inbox : undefined;
+    return { assigned, status, q: typeof v.q === 'string' && v.q ? v.q : undefined, tag, inbox };
   } catch {
     return DEFAULT_FILTERS;
   }
@@ -64,6 +67,15 @@ export function InboxPage() {
       /* storage unavailable */
     }
   }, [filters]);
+  // A remembered inbox the user can no longer pick (access removed, inbox removed) lists every inbox.
+  const inboxesLoaded = useInboxes().data != null;
+  const visibleInboxes = useVisibleInboxes();
+  const listFilters = useMemo(() => {
+    if (filters.inbox == null || !inboxesLoaded) return filters;
+    return visibleInboxes.length > 1 && visibleInboxes.some((i) => i.id === filters.inbox)
+      ? filters
+      : { ...filters, inbox: undefined };
+  }, [filters, inboxesLoaded, visibleInboxes]);
 
   return (
     <NavigationGuardProvider>
@@ -94,9 +106,9 @@ export function InboxPage() {
               )}
               <UserMenu />
             </header>
-            <ChatFilters value={filters} onChange={setFilters} />
+            <ChatFilters value={filters} onChange={setFilters} inboxes={visibleInboxes} />
             <ChatList
-              filters={filters}
+              filters={listFilters}
               activeJid={jid}
               directory={directory}
               onResetFilters={() => setFilters(DEFAULT_FILTERS)}

@@ -1,11 +1,4 @@
-import type {
-  Chat,
-  ChatEvent,
-  ChatEventType,
-  ChatStatus,
-  ChatType,
-  Note,
-} from '@ezychat/shared';
+import type { Chat, ChatEvent, ChatEventType, ChatStatus, ChatType, Note } from '@ezychat/shared';
 import { customerTagKey } from '@ezychat/shared';
 import {
   PROFILE_JOIN,
@@ -15,6 +8,7 @@ import {
   tagsByChat,
 } from '../customers/sql.js';
 import type { DB } from '../db/index.js';
+import { chatKey, parseChatKey } from '../inboxes/keys.js';
 
 /** Columns of the `chats` table itself (e.g. `SELECT * FROM chats`). */
 export interface ChatColumns {
@@ -29,6 +23,10 @@ export interface ChatColumns {
   assigned_to: number | null;
   updated_at: number;
   phone: string | null;
+  /** The chat's inbox (migration 014; default 1). */
+  inbox_id: number;
+  /** The chat's WhatsApp JID inside its inbox; null only on rows written by old code (read waJidOf). */
+  wa_jid: string | null;
 }
 
 /**
@@ -70,18 +68,27 @@ export interface ContactRow {
   phone: string | null;
 }
 
+/**
+ * The WhatsApp JID of a chat row inside its inbox. JID shape (`@lid`, `@g.us`, …) is read from it,
+ * never from the key (`<waJid>#<inboxId>` for inboxes other than 1).
+ */
+export function waJidOf(r: Pick<ChatColumns, 'jid' | 'wa_jid'>): string {
+  return r.wa_jid ?? parseChatKey(r.jid).waJid;
+}
+
 export function rowToChat(r: ChatRow): Chat {
+  const waJid = waJidOf(r);
+  const lid = waJid.endsWith('@lid');
   // A LID is an opaque WhatsApp ID, never a phone number: do not show its digits as a name.
-  const lidDigits = r.jid.endsWith('@lid') && r.name === jidUser(r.jid);
-  const waName =
-    (r.name && !lidDigits ? r.name : null) ||
-    r.phone ||
-    (r.jid.endsWith('@lid') ? '' : jidUser(r.jid));
+  const lidDigits = lid && r.name === jidUser(waJid);
+  const waName = (r.name && !lidDigits ? r.name : null) || r.phone || (lid ? '' : jidUser(waJid));
   const dm = r.type === 'dm';
   // A customer profile name wins; a cleared (NULL/blank) one falls back to the WhatsApp name.
   const profileName = dm ? r.profile_name?.trim() || null : null;
   return {
     jid: r.jid,
+    inboxId: r.inbox_id,
+    waJid,
     type: r.type,
     name: profileName ?? waName,
     avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
@@ -132,6 +139,29 @@ export function chatTypeOf(jid: string): ChatType {
 
 type JoinedRow = Omit<ChatRow, 'profile_tags'>;
 
+/**
+ * Every chat key `waJid` can have: one per inbox, removed ones too. Built from the small inboxes
+ * table so a look-up by WhatsApp JID stays a primary-key search (`wa_jid` alone is not indexed).
+ */
+export function candidateChatKeys(db: DB, waJid: string): string[] {
+  const ids = (db.prepare('SELECT id FROM inboxes ORDER BY id').all() as Array<{ id: number }>).map(
+    (r) => r.id,
+  );
+  return (ids.length ? ids : [1]).map((id) => chatKey(id, waJid));
+}
+
+/** The keys of the existing chats with this WhatsApp JID, in inbox order (primary-key look-ups). */
+export function existingChatKeys(db: DB, waJid: string): string[] {
+  const keys = candidateChatKeys(db, waJid);
+  return (
+    db
+      .prepare(
+        `SELECT jid FROM chats WHERE jid IN (${keys.map(() => '?').join(', ')}) ORDER BY inbox_id`,
+      )
+      .all(...keys) as Array<{ jid: string }>
+  ).map((r) => r.jid);
+}
+
 export class ChatRepo {
   constructor(private readonly db: DB) {}
 
@@ -147,6 +177,16 @@ export class ChatRepo {
   get(jid: string): ChatRow | null {
     const r = this.db.prepare(`${CHAT_SELECT} WHERE c.jid = ?`).get(jid) as JoinedRow | undefined;
     return r ? this.withTags([r])[0]! : null;
+  }
+
+  /** The chat of a WhatsApp JID inside one inbox. */
+  byWa(inboxId: number, waJid: string): ChatRow | null {
+    return this.get(chatKey(inboxId, waJid));
+  }
+
+  /** Keys of the chats with this WhatsApp JID, in every inbox (contact names are per JID). */
+  keysOf(waJid: string): string[] {
+    return existingChatKeys(this.db, waJid);
   }
 
   /** PN digits for a DM: from a PN JID itself, or from the newest phone number aliased to a LID. */
@@ -175,20 +215,40 @@ export class ChatRepo {
       .all() as ChatColumns[];
   }
 
-  /** Inserts a chat if missing; returns the row. */
-  ensure(jid: string, init: { type?: ChatType; name?: string | null }, now: number): ChatRow {
-    const type = init.type ?? chatTypeOf(jid);
-    const contact = type === 'dm' ? this.getContact(jid) : null;
+  /**
+   * Inserts the chat of `waJid` in `inboxId` if missing; returns the row (its `jid` is the chat
+   * key). The one-key form takes a chat key (a plain WhatsApp JID is inbox 1's key).
+   */
+  ensure(
+    inboxId: number,
+    waJid: string,
+    init: { type?: ChatType; name?: string | null },
+    now: number,
+  ): ChatRow;
+  ensure(key: string, init: { type?: ChatType; name?: string | null }, now: number): ChatRow;
+  ensure(
+    a: number | string,
+    b: string | { type?: ChatType; name?: string | null },
+    c: { type?: ChatType; name?: string | null } | number,
+    d?: number,
+  ): ChatRow {
+    const { inboxId, waJid } =
+      typeof a === 'number' ? { inboxId: a, waJid: b as string } : parseChatKey(a);
+    const init = (typeof a === 'number' ? c : b) as { type?: ChatType; name?: string | null };
+    const now = (typeof a === 'number' ? d : c) as number;
+    const key = chatKey(inboxId, waJid);
+    const type = init.type ?? chatTypeOf(waJid);
+    const contact = type === 'dm' ? this.getContact(waJid) : null;
     const supplied = init.name?.trim() || '';
-    const meaningful = supplied && supplied !== jid && supplied !== jidUser(jid);
+    const meaningful = supplied && supplied !== waJid && supplied !== jidUser(waJid);
     const name = contact?.saved_name || (meaningful ? supplied : contact?.push_name || supplied);
     this.db
       .prepare(
-        `INSERT INTO chats (jid, type, name, unread_count, status, updated_at, phone)
-         VALUES (?, ?, ?, 0, 'open', ?, ?) ON CONFLICT(jid) DO NOTHING`,
+        `INSERT INTO chats (jid, type, name, unread_count, status, updated_at, phone, inbox_id, wa_jid)
+         VALUES (?, ?, ?, 0, 'open', ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
       )
-      .run(jid, type, name, now, type === 'dm' ? this.phoneFor(jid) : null);
-    return this.get(jid)!;
+      .run(key, type, name, now, type === 'dm' ? this.phoneFor(waJid) : null, inboxId, waJid);
+    return this.get(key)!;
   }
 
   setName(jid: string, name: string, now: number): void {
@@ -212,9 +272,22 @@ export class ChatRepo {
     since?: number;
     cursor?: { ts: number; jid: string } | null;
     limit: number;
+    /** Inboxes the caller may open; omitted = every inbox, empty = none. */
+    inboxIds?: readonly number[];
+    /** Narrows to one inbox (the inbox filter). */
+    inbox?: number;
   }): ChatRow[] {
+    if (f.inboxIds && f.inboxIds.length === 0) return [];
+    if (f.inbox !== undefined && f.inboxIds && !f.inboxIds.includes(f.inbox)) return [];
     const where: string[] = [];
     const params: Record<string, unknown> = { limit: f.limit };
+    if (f.inbox !== undefined) {
+      where.push('c.inbox_id = @inbox');
+      params.inbox = f.inbox;
+    } else if (f.inboxIds) {
+      where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
+      params.inboxIds = JSON.stringify(f.inboxIds);
+    }
     if (f.status) {
       where.push('c.status = @status');
       params.status = f.status;
@@ -237,7 +310,7 @@ export class ChatRepo {
     if (q) {
       params.q = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       where.push(
-        `(c.name LIKE @q ESCAPE '\\' OR c.jid LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
+        `(c.name LIKE @q ESCAPE '\\' OR COALESCE(c.wa_jid, c.jid) LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
           OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\'
           OR ${PROFILE_SEARCH})`,
       );
@@ -249,7 +322,7 @@ export class ChatRepo {
       params.cts = f.cursor.ts;
       params.cjid = f.cursor.jid;
     }
-    const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = c.jid
+    const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = COALESCE(c.wa_jid, c.jid)
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY COALESCE(c.last_message_at, 0) DESC, c.jid ASC LIMIT @limit`;
     return this.withTags(this.db.prepare(sql).all(params) as JoinedRow[]);
@@ -325,7 +398,9 @@ export class ChatRepo {
   contactJids(): string[] {
     return (
       this.db
-        .prepare("SELECT jid FROM contacts UNION SELECT jid FROM chats WHERE type = 'dm'")
+        .prepare(
+          "SELECT jid FROM contacts UNION SELECT COALESCE(wa_jid, jid) FROM chats WHERE type = 'dm'",
+        )
         .all() as Array<{ jid: string }>
     ).map((r) => r.jid);
   }

@@ -18,6 +18,7 @@ import { intlTag, isLocale, type Role, type User } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import {
   useCreateUser,
+  useInboxes,
   usePatchUser,
   useResetPassword,
   useRevokeSessions,
@@ -62,6 +63,7 @@ import {
   canGeneratePassword,
   generatePassword,
 } from './adminUi';
+import { InboxAccessCell } from './InboxAccess';
 
 type Dialog =
   | { kind: 'create' }
@@ -73,6 +75,7 @@ type Dialog =
 
 export function MembersPage() {
   const users = useUsers();
+  const inboxList = useInboxes();
   const { user: me } = useAuth();
   const { t, i18n } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -87,6 +90,10 @@ export function MembersPage() {
       .includes(query),
   );
 
+  // Inbox access shows only in an edition with several WhatsApp numbers (never in Lite).
+  const multiInbox = (inboxList.data?.maxInboxes ?? 1) > 1;
+  const inboxes = (inboxList.data?.inboxes ?? []).filter((i) => !i.removed);
+
   const columns: Column<User>[] = [
     {
       key: 'member',
@@ -99,6 +106,15 @@ export function MembersPage() {
       cell: (u) => (u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />),
     },
     { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
+    ...(multiInbox
+      ? [
+          {
+            key: 'inboxes',
+            header: t('inboxes.membersAccess'),
+            cell: (u: User) => <InboxAccessCell user={u} inboxes={inboxes} />,
+          },
+        ]
+      : []),
     {
       key: 'created',
       header: t('members.columns.created'),
@@ -178,6 +194,11 @@ export function MembersPage() {
                 {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
                 <StatusBadges user={u} />
               </div>
+              {multiInbox && (
+                <div className="pl-11">
+                  <InboxAccessCell user={u} inboxes={inboxes} />
+                </div>
+              )}
               <p className="pl-11 text-xs text-muted-foreground">
                 <Trans
                   t={t}

@@ -21,6 +21,7 @@ import {
 } from '../ai/setup-versions.js';
 import { localDate, localMidnight } from '../chats/stats.js';
 import { WindowLimiter } from '../http/window-limiter.js';
+import { inboxOfKey } from '../inboxes/keys.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -63,7 +64,8 @@ export interface AiStats {
 export interface AiSetupPort {
   setup(): AiAgentSetup;
   contextItem(id: number): AiDocumentView;
-  stats(days: number): AiStats;
+  /** `inboxIds` counts the chats of those inboxes only; omitted = every inbox. */
+  stats(days: number, inboxIds?: readonly number[]): AiStats;
   tryReply(input: McpTryAiReplyInput): Promise<AiTryResult>;
   update(input: McpUpdateAiSetupInput, principal: ApiPrincipal): { versionId: number | null };
   history(target: SetupTarget, itemId: number | null, limit: number): SetupVersion[];
@@ -111,7 +113,7 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
       return ai().document(id);
     },
 
-    stats(days) {
+    stats(days, inboxIds) {
       const tz = timeZone();
       const startOfToday = localMidnight(localDate(Date.now(), tz), tz);
       let end = localMidnight(localDate(startOfToday + DAY_MS * 1.5, tz), tz);
@@ -119,16 +121,32 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
       const audits = ctx.db.prepare(
         'SELECT meta FROM audit_log WHERE action = ? AND at >= ? AND at < ?',
       );
+      const only = inboxIds ? new Set(inboxIds) : null;
+      // An audit row names its chat by key; the key carries the inbox.
+      const inInboxes = (meta: string) => {
+        if (!only) return true;
+        try {
+          const chatJid = (JSON.parse(meta) as { chatJid?: unknown }).chatJid;
+          return typeof chatJid === 'string' && only.has(inboxOfKey(chatJid));
+        } catch {
+          return false;
+        }
+      };
       const answered = ctx.db.prepare(
         `SELECT COUNT(DISTINCT chat_jid) AS chats, COUNT(*) AS messages FROM messages
-         WHERE sent_by_user_id = ? AND from_me = 1 AND timestamp >= ? AND timestamp < ?`,
+         WHERE sent_by_user_id = ? AND from_me = 1 AND timestamp >= ? AND timestamp < ?
+           AND (? IS NULL OR chat_jid IN (SELECT jid FROM chats
+                WHERE inbox_id IN (SELECT value FROM json_each(?))))`,
       );
+      const inboxJson = inboxIds ? JSON.stringify(inboxIds) : null;
       const byReason: Record<string, number> = {};
       const daily: AiStats['daily'] = [];
       for (let i = 0; i < days; i++) {
         const date = localDate(end - DAY_MS / 2, tz);
         const start = localMidnight(date, tz);
-        const handoffs = audits.all('ai.handoff', start, end) as Array<{ meta: string }>;
+        const handoffs = (audits.all('ai.handoff', start, end) as Array<{ meta: string }>).filter(
+          (h) => inInboxes(h.meta),
+        );
         for (const h of handoffs) {
           let reason = 'unknown';
           try {
@@ -139,11 +157,16 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
           }
           byReason[reason] = (byReason[reason] ?? 0) + 1;
         }
-        const resolved = (audits.all('ai.resolve', start, end) as unknown[]).length;
+        const resolved = (audits.all('ai.resolve', start, end) as Array<{ meta: string }>).filter(
+          (r) => inInboxes(r.meta),
+        ).length;
         const sent =
           aiUserId === null
             ? { chats: 0, messages: 0 }
-            : (answered.get(aiUserId, start, end) as { chats: number; messages: number });
+            : (answered.get(aiUserId, start, end, inboxJson, inboxJson) as {
+                chats: number;
+                messages: number;
+              });
         daily.unshift({
           date,
           handoffs: handoffs.length,

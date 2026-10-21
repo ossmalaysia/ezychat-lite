@@ -10,6 +10,13 @@ into AGENTS.md.
 
 ## Working method
 
+- An edition feature built in the core still runs in Lite: report "no visible change" apart from "same
+  code path", and for a new core migration check before merge that the previous release still opens the
+  migrated data dir (downgrade), or say it is untested.
+- Dev Build check scripts (`e2e/devbuild-*.mjs`) assume a fresh data dir: run each once per new temp
+  folder; a second run on the same data reports false FAILs (duplicate rows, existing chats).
+- When the owner confirms a mock but leaves its open questions unanswered, do not block: write the default
+  for each in `design.md` as "my call", build to it, and keep each easy to change; list them in the report.
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
   become unreadable; put long names on their own lines and keep one short line per item. Lead with
   the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
@@ -73,6 +80,8 @@ into AGENTS.md.
 - Small changes are done directly. Large multi-part work runs through the Workflow tool with as many
   parallel agents as the work allows, with disjoint file ownership and a time budget; only the
   orchestrator commits; agents don't `npm install` unless they own that package.json.
+  A hub file two agents of one wave both need (e.g. `apps/web/src/api/queries.ts`) stays with one owner;
+  the other puts its new code in a new file that imports from the hub.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
@@ -94,6 +103,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Every push to a PR branch cancels its running CI (Windows takes ~11 min): while waiting for checks,
+  commit docs-only changes (LEARNINGS, workbook) locally and push them with the next code change.
 - A fix for an external issue says `Refs #N`, never `Closes`/`Fixes #N`: those close the issue at merge,
   before the release. Close it after the release with a comment that links the release.
 - Azure sign-in from this public repository uses GitHub OIDC (`azure/login`, `id-token: write`), never
@@ -210,6 +221,8 @@ into AGENTS.md.
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
+  A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
+  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below.
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
@@ -245,6 +258,11 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A second Playwright `webServer` that serves the same `apps/web/dist` waits for the first server's
+  `/api/health` (that one builds the web) instead of building again in parallel. Specs for it get their
+  own project and `testIgnore` in the others. Confirm dialogs are `alertdialog`, not `dialog`.
+- A fake that links at once hides a linking step: a flow that must show a QR (a new inbox) needs a fake
+  that waits for its scan (`FakeWaAdapter({ awaitScan })`, `POST /api/dev/fake-link`).
 - A scripted multi-file edit and its `git commit` go in one `&&` chain (or `set -e`): when an assert in
   the script fails, the next line still commits a partial change. Check `git diff --stat` first.
 - Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
@@ -353,7 +371,8 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs. So does any test that builds `makeTestApp()` inside itself, and
+  several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
+  migrates a data dir inside itself, and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
@@ -377,6 +396,9 @@ into AGENTS.md.
 
 ## Security
 
+- An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
+  the current limit (an older run, a dev flag). Shortcuts like "one inbox → everyone sees all" check the
+  stored rows too, and rows over the limit are never connected.
 - A per-IP limit keys IPv6 by its /64 (`rateLimitKey`): one client owns the whole /64 and can
   rotate addresses in it. Every new IP-keyed limiter uses the key; logs keep the full address.
   Known limits: ISPs that hand out a /56 or /48 still allow rotating between /64s, and people
@@ -418,6 +440,11 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A column a migration backfills (e.g. `chats.wa_jid`) is NULL in rows an older release writes after a
+  downgrade, and the migration never runs again: read it with a fallback (`waJidOf`, `COALESCE`) and
+  find rows by a key both versions write (`upgrade-from-oldest.test.ts` covers it).
+- A chat key is opaque (`<waJid>#<inboxId>` outside inbox 1): read the JID shape (`@lid`, `@g.us`, phone)
+  from `chats.wa_jid` / `waJidOf`, and send `waJid`/`waMessageId` to WhatsApp, never the key.
 - The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
   groups WhatsApp shows it only by its LID. Anything that names people (mentions, member lists) must
   also check `status.me.jid` and `status.me.lid` (from `sock.user.lid`) and name it from `status.me.name`;
@@ -583,6 +610,15 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A shell component that starts calling a new hook from a widely mocked module (`api/queries`) breaks
+  every `vi.mock('../api/queries', () => …)` factory that lacks it: grep those mocks and add the hook.
+- A permission between two things (member ↔ inbox) is edited from both screens: the member's row and the
+  resource's own Add/Edit dialog. Both write the one store, so they never disagree; admins with implied
+  access show as badges, never as tick boxes.
+- `ResponsiveTable` renders the desktop table and the phone rows at once (one is hidden), and on phones an
+  open conversation hides the chat list but keeps it in the page: a Playwright
+  `getByTestId(...).first()` can pick the hidden copy and time out. Wait on
+  `locator('[data-testid="…"]:visible')` (`getByRole` already skips hidden elements).
 - Message text is shown the way WhatsApp shows it (`lib/whatsapp-format.tsx`: marks hidden, React nodes
   only, no classes; the bubble styles the tags). A new place that shows message text uses
   `formatWhatsApp` (bubble) or `plainWhatsApp` (one-line previews), never the raw body.
@@ -624,6 +660,10 @@ into AGENTS.md.
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it.
+- A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
+  first multi-inbox mock showed only the new Business API type and dropped the QR-linked phone, and the
+  owner caught it. List the replaced screen's flows in `design.md` and show each in the new screen. When
+  the mock's own localStorage seed changes, bump its storage key so open browsers get the new seed.
 
 - Audit detail controls sit with the action or in their own layout slot, never inline with the
   summary sentence; compact links preserve list density while retaining 44px touch targets.

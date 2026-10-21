@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { Chat } from '@ezychat/shared';
 import { ConversationHeader } from './ConversationHeader';
 import { buildDirectory } from './useDirectory';
 
 const base: Chat = {
   jid: '123456789012345@lid',
+  inboxId: 1,
+  waJid: '123456789012345@lid',
   type: 'dm',
   name: '',
   avatarUrl: null,
@@ -108,5 +111,85 @@ describe('ConversationHeader details', () => {
     renderHeader({ ...base, name: 'Farah', phone: '60123456789' }, { onOpenInfo });
     fireEvent.click(screen.getByRole('button', { name: 'Open customer details for Farah' }));
     expect(onOpenInfo).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ConversationHeader inboxes', () => {
+  it('shows no inbox chip without an inbox (one inbox, Lite)', () => {
+    renderHeader({ ...base, name: 'Aisyah', phone: '60123456789' });
+    expect(screen.queryByTestId('inbox-chip')).toBeNull();
+  });
+
+  it('shows the inbox chip before the number when the user sees two or more inboxes', () => {
+    render(
+      <ConversationHeader
+        chat={{ ...base, name: 'Aisyah', phone: '60123456789', status: 'resolved' }}
+        directory={buildDirectory(null, false, [])}
+        inbox={{ name: 'Catering', tone: 'warning' }}
+        onBack={vi.fn()}
+        onAssign={vi.fn()}
+        onToggleStatus={vi.fn()}
+        notesOpen={false}
+        notesCount={0}
+        onToggleNotes={vi.fn()}
+        showCustomer
+        customerOpen={false}
+        onToggleCustomer={vi.fn()}
+      />,
+    );
+    const chip = screen.getByTestId('inbox-chip');
+    expect(chip.textContent).toBe('Catering');
+    expect(chip.nextElementSibling?.textContent).toBe('+60123456789 · Resolved');
+  });
+
+  it('offers only members who may open the chat’s inbox for assignment', async () => {
+    const proto = Element.prototype as unknown as Record<string, unknown>;
+    proto.hasPointerCapture ??= () => false;
+    proto.setPointerCapture ??= () => {};
+    proto.releasePointerCapture ??= () => {};
+    proto.scrollIntoView ??= () => {};
+    const onAssign = vi.fn();
+    const directory = buildDirectory(null, false, [
+      { id: 1, displayName: 'Aisyah', role: 'admin', disabled: false, inboxIds: 'all' },
+      { id: 2, displayName: 'Daniel', role: 'agent', disabled: false, inboxIds: [1] },
+      { id: 3, displayName: 'Mei Ling', role: 'agent', disabled: false, inboxIds: [2] },
+      {
+        id: 4,
+        displayName: 'Sales Agent',
+        role: 'agent',
+        disabled: false,
+        kind: 'ai',
+        aiRole: 'sales',
+        inboxIds: 'all',
+      },
+    ]);
+    const user = userEvent.setup();
+    render(
+      <ConversationHeader
+        chat={{ ...base, jid: 'x@s.whatsapp.net#2', inboxId: 2, name: 'Bob', assignedTo: 2 }}
+        directory={directory}
+        onBack={vi.fn()}
+        onAssign={onAssign}
+        onToggleStatus={vi.fn()}
+        notesOpen={false}
+        notesCount={0}
+        onToggleNotes={vi.fn()}
+        showCustomer
+        customerOpen={false}
+        onToggleCustomer={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Assigned to' }));
+    const options = await screen.findAllByRole('option');
+    // Daniel (inbox 1 only) stays listed as the current assignee, but nobody else without access.
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Unassigned',
+      'Aisyah',
+      'Mei Ling',
+      'Sales Agent (AI Sales Agent)',
+      'Daniel',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Mei Ling' }));
+    expect(onAssign).toHaveBeenCalledWith(3);
   });
 });

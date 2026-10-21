@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
-import type { Chat } from '@ezychat/shared';
+import type { Chat, Inbox } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -14,6 +14,7 @@ import { formatPhone } from '../lib/jid';
 import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
 import { GroupIcon } from './ChatListItem';
+import { InboxChip } from './InboxChip';
 import type { Directory } from './useDirectory';
 
 export interface ConversationHeaderProps {
@@ -36,6 +37,8 @@ export interface ConversationHeaderProps {
   onOpenInfo?(): void;
   /** Group chats: WhatsApp's member count, shown under the name once known. */
   memberCount?: number | null;
+  /** The chat's inbox, only while the user sees two or more inboxes (replies leave from it). */
+  inbox?: Pick<Inbox, 'name' | 'tone'>;
   busy?: boolean;
 }
 
@@ -55,6 +58,7 @@ export function ConversationHeader({
   onToggleCustomer,
   onOpenInfo,
   memberCount = null,
+  inbox,
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
@@ -67,8 +71,8 @@ export function ConversationHeader({
       : (formatPhone(chat) ?? t('header.phoneHidden'));
   const resolved = chat.status === 'resolved';
 
-  // Options: active team members (from the team directory) + current assignee.
-  const options = [...directory.assignable];
+  // Options: active team members who may open this chat's inbox + current assignee.
+  const options = [...directory.assignableFor(chat.inboxId)];
   if (chat.assignedTo != null && !options.some((u) => u.id === chat.assignedTo)) {
     const known = directory.byId.get(chat.assignedTo);
     options.push(
@@ -120,10 +124,20 @@ export function ConversationHeader({
               {name}
             </span>
           </span>
-          <span className="block truncate text-xs text-muted-foreground tabular-nums">
-            {subtitle}
-            {resolved && ` · ${t('header.resolved')}`}
-          </span>
+          {inbox ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+              <InboxChip inbox={inbox} className="shrink-0" />
+              <span className="truncate">
+                {subtitle}
+                {resolved && ` · ${t('header.resolved')}`}
+              </span>
+            </span>
+          ) : (
+            <span className="block truncate text-xs text-muted-foreground tabular-nums">
+              {subtitle}
+              {resolved && ` · ${t('header.resolved')}`}
+            </span>
+          )}
         </span>
       </Button>
       {/* One row from a 672px-wide header (Customer/Notes icon-only below 768px); narrower

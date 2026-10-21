@@ -2,13 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AdminLayout, ADMIN_NAV as NAV_ITEMS } from './AdminLayout';
+import { AdminLayout, visibleAdminNav } from './AdminLayout';
 import { i18n } from '@/i18n';
 import { reportClientError } from '@/lib/error-reporter';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL, GITHUB_ISSUES_URL } from '@/lib/links';
 import { toast } from 'sonner';
 
 const logout = vi.hoisted(() => vi.fn());
+/** What `useInboxes()` returns: Lite (`maxInboxes` 1) unless a test changes it. */
+const inboxes = vi.hoisted(() => ({
+  current: { data: { inboxes: [], maxInboxes: 1, canAdd: false }, isPending: false } as {
+    data?: { inboxes: unknown[]; maxInboxes: number; canAdd: boolean };
+    isPending: boolean;
+  },
+}));
+
+vi.mock('../api/queries', () => ({ useInboxes: () => inboxes.current }));
+vi.mock('./InboxesPage', () => ({ InboxesPage: () => <h1>Inboxes</h1> }));
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ user: { role: 'admin' }, isLoading: false, logout }),
@@ -25,7 +35,10 @@ vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Phone access</h1> }));
 vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
 
-const ADMIN_NAV = NAV_ITEMS.map((n) => ({ ...n, label: i18n.t(`admin:${n.labelKey}`) }));
+const ADMIN_NAV = visibleAdminNav(false).map((n) => ({
+  ...n,
+  label: i18n.t(`admin:${n.labelKey}`),
+}));
 
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;
@@ -44,7 +57,11 @@ function setup(path: string) {
   return userEvent.setup();
 }
 
+const LITE = { data: { inboxes: [], maxInboxes: 1, canAdd: false }, isPending: false };
+const MULTI = { data: { inboxes: [], maxInboxes: 3, canAdd: true }, isPending: false };
+
 beforeEach(() => {
+  inboxes.current = LITE;
   logout.mockReset().mockResolvedValue(undefined);
   vi.mocked(toast.error).mockClear();
 });
@@ -223,5 +240,51 @@ describe('AdminLayout routing', () => {
     await user.click(retry);
     expect(logout).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+describe('AdminLayout inboxes', () => {
+  it('shows WhatsApp, not Inboxes, in Lite (one number)', () => {
+    setup('/admin/members');
+    expect(screen.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')).toBe(
+      '/admin/whatsapp',
+    );
+    expect(screen.queryByRole('link', { name: 'Inboxes' })).toBeNull();
+    expect(visibleAdminNav(false).map((n) => n.to)).not.toContain('inboxes');
+  });
+
+  it('sends Lite from /admin/inboxes back to its WhatsApp page', async () => {
+    setup('/admin/inboxes');
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/whatsapp'));
+    expect(screen.getByRole('heading', { name: 'WhatsApp' })).toBeTruthy();
+  });
+
+  it('keeps the WhatsApp page while the inbox list loads, and waits on /admin/inboxes', () => {
+    inboxes.current = { data: undefined, isPending: true };
+    setup('/admin/whatsapp');
+    expect(screen.getByRole('heading', { name: 'WhatsApp' })).toBeTruthy();
+    cleanup();
+    setup('/admin/inboxes');
+    expect(screen.getByLabelText('Loading').getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByTestId('location').textContent).toBe('/admin/inboxes');
+  });
+
+  it('shows Inboxes instead of WhatsApp when the edition allows several numbers', async () => {
+    inboxes.current = MULTI;
+    const user = setup('/admin/members');
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+    const link = screen.getByRole('link', { name: 'Inboxes' });
+    expect(link.getAttribute('href')).toBe('/admin/inboxes');
+    await user.click(link);
+    expect(screen.getByRole('heading', { name: 'Inboxes' })).toBeTruthy();
+    expect(link.getAttribute('aria-current')).toBe('page');
+    expect(screen.getByText('Admin · Inboxes')).toBeTruthy();
+  });
+
+  it('redirects /admin/whatsapp to /admin/inboxes with several numbers', async () => {
+    inboxes.current = MULTI;
+    setup('/admin/whatsapp');
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/inboxes'));
+    expect(screen.getByRole('heading', { name: 'Inboxes' })).toBeTruthy();
   });
 });

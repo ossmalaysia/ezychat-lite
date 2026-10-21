@@ -111,13 +111,22 @@ export class CustomerRepo {
     })();
   }
 
-  /** Existing tags for the tag input: prefix matches, most used first. */
-  suggest(q: string | undefined, limit = 20): string[] {
+  /**
+   * Existing tags for the tag input: prefix matches, most used first. With `inboxIds`, only tags
+   * used on chats of those inboxes count (an agent never learns tags of other inboxes).
+   */
+  suggest(q: string | undefined, limit = 20, inboxIds?: readonly number[]): string[] {
     const key = q ? customerTagKey(q) : '';
+    // inbox ids are integers, so they are written into the query as they are
+    const ids = inboxIds?.filter((id) => Number.isInteger(id));
+    if (ids && !ids.length) return [];
+    const inInboxes = ids
+      ? `AND chat_jid IN (SELECT jid FROM chats WHERE inbox_id IN (${ids.join(', ')}))`
+      : '';
     const rows = this.db
       .prepare(
         `SELECT MIN(tag) AS tag, COUNT(*) AS uses FROM customer_tags
-         WHERE tag_key LIKE @prefix ESCAPE '\\'
+         WHERE tag_key LIKE @prefix ESCAPE '\\' ${inInboxes}
          GROUP BY tag_key ORDER BY uses DESC, tag_key ASC LIMIT @limit`,
       )
       .all({ prefix: `${escapeLike(key)}%`, limit }) as Array<{ tag: string }>;

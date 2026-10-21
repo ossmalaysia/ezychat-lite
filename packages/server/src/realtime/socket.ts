@@ -4,6 +4,7 @@ import type {
   Chat,
   ChatEvent,
   ClientToServerEvents,
+  InboxStatusPayload,
   Message,
   MessageStatusPayload,
   Note,
@@ -17,6 +18,9 @@ import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { contextHostPolicy, hostAllowed } from '../http/host.js';
 import { isTrustedTunnelPeer } from '../http/client-ip.js';
+import { canOpen, scopeFor } from '../inboxes/access.js';
+import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
+import { inboxOfKeyOrNull as inboxOf } from '../inboxes/service.js';
 
 export interface SocketData {
   userId: number;
@@ -86,8 +90,12 @@ export function originAllowed(req: IncomingMessage): boolean {
   }
 }
 
+/** Room of the users who may open one inbox (admins join every inbox room). */
+export const inboxRoom = (inboxId: number) => `inbox:${inboxId}`;
+
 /**
- * Attaches Socket.IO to the HTTP server. Cookie-authenticated handshake; rooms `user:<id>`, `all`, `admins`.
+ * Attaches Socket.IO to the HTTP server. Cookie-authenticated handshake; rooms `user:<id>`, `all`,
+ * `admins` and `inbox:<id>` for each inbox the user may open (rebuilt when access changes).
  * Bridges domain bus events to clients and kicks sockets of disabled / revoked users.
  * Registers itself as ctx.services.realtime (used by push to skip online users).
  */
@@ -125,6 +133,24 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     next();
   });
 
+  /** Inboxes the socket's user may open (admins: every inbox, removed ones too). */
+  const scopeOf = (s: IoSocket) =>
+    scopeFor(ctx, { id: s.data.userId, role: s.data.role, kind: 'human' });
+
+  /** Joins the inbox rooms of the user's scope and leaves the others; no reconnect needed. */
+  const syncInboxRooms = (s: IoSocket) => {
+    const scope = scopeOf(s);
+    const want = new Set(
+      ctx.inboxes.repo
+        .list()
+        .filter((r) => canOpen(scope, r.id))
+        .map((r) => inboxRoom(r.id)),
+    );
+    for (const room of s.rooms)
+      if (room.startsWith('inbox:') && !want.has(room)) void s.leave(room);
+    void s.join([...want]);
+  };
+
   io.on('connection', (socket: IoSocket) => {
     const { userId } = socket.data;
     void socket.join([
@@ -132,11 +158,15 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       'all',
       ...(socket.data.role === 'admin' ? ['admins'] : []),
     ]);
+    syncInboxRooms(socket);
     online.set(userId, (online.get(userId) ?? 0) + 1);
 
     socket.on('typing', (p) => {
       const chatJid = p && typeof p === 'object' ? (p as { chatJid?: unknown }).chatJid : undefined;
       if (typeof chatJid !== 'string' || !chatJid || chatJid.length > 256) return;
+      // typing reaches only the people who may open that chat's inbox, and only from them
+      const inboxId = inboxOf(chatJid);
+      if (inboxId === null || !canOpen(scopeOf(socket), inboxId)) return;
       const key = `${userId}\u0000${chatJid}`;
       const now = Date.now();
       const last = lastTyping.get(key);
@@ -146,7 +176,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
         for (const [k, at] of lastTyping) if (now - at >= TYPING_THROTTLE_MS) lastTyping.delete(k);
       }
       socket
-        .to('all')
+        .to([inboxRoom(inboxId), 'admins'])
         .except(`user:${userId}`)
         .emit('typing', { chatJid, userId, displayName: socket.data.displayName });
     });
@@ -163,19 +193,35 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     s.disconnect(true);
   };
 
-  // bus → clients
-  const onMessageNew = (m: Message) => io.to('all').emit('message:new', m);
-  const onMessageStatus = (p: MessageStatusPayload) => io.to('all').emit('message:status', p);
-  const onMessageUpdated = (m: Message) => io.to('all').emit('message:updated', m);
+  // bus → clients. Chat data goes to the chat's inbox room (and admins, also while a new inbox's
+  // rooms are being built); a key that does not parse reaches admins only.
+  const toChat = (chatJid: string) => {
+    const inboxId = inboxOf(chatJid);
+    return io.to(inboxId === null ? ['admins'] : [inboxRoom(inboxId), 'admins']);
+  };
+  const onMessageNew = (m: Message) => toChat(m.chatJid).emit('message:new', m);
+  const onMessageStatus = (p: MessageStatusPayload) => toChat(p.chatJid).emit('message:status', p);
+  const onMessageUpdated = (m: Message) => toChat(m.chatJid).emit('message:updated', m);
   const onVoice = (s: VoiceStatus) => io.to('admins').emit('voice:status', s);
-  const onChatUpdated = (c: Chat) => io.to('all').emit('chat:updated', c);
-  const onChatEvent = (e: ChatEvent) => io.to('all').emit('chat:event', e);
-  const onNote = (n: Note) => io.to('all').emit('note:new', n);
+  const onChatUpdated = (c: Chat) => toChat(c.jid).emit('chat:updated', c);
+  const onChatEvent = (e: ChatEvent) => toChat(e.chatJid).emit('chat:event', e);
+  const onNote = (n: Note) => toChat(n.chatJid).emit('note:new', n);
   const onWaStatus = (s: WaStatus) => {
     io.to('admins').emit('wa:status', s);
-    io.to('all')
+    io.to(inboxRoom(PRIMARY_INBOX_ID))
       .except('admins')
       .emit('wa:status', { ...s, qr: null });
+  };
+  // the QR only for admins; the people of that inbox see its state
+  const onInboxStatus = (p: InboxStatusPayload) => {
+    io.to('admins').emit('inbox:status', p);
+    io.to(inboxRoom(p.inboxId))
+      .except('admins')
+      .emit('inbox:status', { ...p, status: { ...p.status, qr: null } });
+  };
+  const onInboxesChanged = () => {
+    for (const s of io.of('/').sockets.values()) syncInboxRooms(s);
+    io.to('all').emit('inboxes:changed');
   };
   const onTunnel = (s: TunnelStatus) => io.to('admins').emit('tunnel:status', s);
   const onDisabled = (userId: number) => {
@@ -198,6 +244,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       s.data.role = role;
       if (role === 'admin') void s.join('admins');
       else void s.leave('admins');
+      syncInboxRooms(s);
     }
   };
 
@@ -219,6 +266,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   bus.on('chat:event', onChatEvent);
   bus.on('note:new', onNote);
   bus.on('wa:status', onWaStatus);
+  bus.on('inbox:status', onInboxStatus);
+  bus.on('inboxes:changed', onInboxesChanged);
   bus.on('tunnel:status', onTunnel);
   bus.on('user:disabled', onDisabled);
   bus.on('user:sessions-revoked', onRevoked);
@@ -240,6 +289,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       bus.off('chat:event', onChatEvent);
       bus.off('note:new', onNote);
       bus.off('wa:status', onWaStatus);
+      bus.off('inbox:status', onInboxStatus);
+      bus.off('inboxes:changed', onInboxesChanged);
       bus.off('tunnel:status', onTunnel);
       bus.off('user:disabled', onDisabled);
       bus.off('user:sessions-revoked', onRevoked);

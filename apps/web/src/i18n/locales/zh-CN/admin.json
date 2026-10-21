@@ -197,7 +197,11 @@
       "apiTokenRevoke": "已撤销访问令牌",
       "apiTokenAuthFailed": "AI 助手令牌被拒绝",
       "mcpEnable": "已开启 AI 助手访问",
-      "mcpDisable": "已关闭 AI 助手访问"
+      "mcpDisable": "已关闭 AI 助手访问",
+      "inboxCreate": "已添加收件箱",
+      "inboxUpdate": "已更新收件箱",
+      "inboxRemove": "已移除收件箱",
+      "inboxAccessUpdate": "已更改收件箱权限"
     },
     "fields": {
       "chat": "对话",
@@ -236,7 +240,10 @@
       "port": "端口",
       "lanEnabled": "局域网访问",
       "historyDays": "历史天数",
-      "expires": "到期"
+      "expires": "到期",
+      "inbox": "收件箱",
+      "inboxes": "收件箱",
+      "members": "成员"
     },
     "reasons": {
       "rateLimited": "尝试次数过多",
@@ -890,5 +897,58 @@
       "self_reported": "客户明确提供了自己的当前资料。",
       "correction": "客户明确更正了已保存的资料。"
     }
+  },
+  "inboxes": {
+    "title": "收件箱",
+    "add": "添加收件箱",
+    "emptyTitle": "还没有收件箱",
+    "emptyBody": "添加您的第一个 WhatsApp 号码：为它命名，然后用它的手机扫描二维码。",
+    "description": "每个 WhatsApp 号码一个收件箱。像现在一样，用手机上的 WhatsApp 应用扫描二维码来关联每个号码。",
+    "edit": "编辑",
+    "remove": "移除",
+    "status": "状态",
+    "whoCanOpen": "谁可以打开",
+    "admin": "管理员",
+    "accessHint": "管理员可以看到所有收件箱。在“编辑”或“成员”中选择可以打开此收件箱的客服。",
+    "typeLinkedPhone": "WhatsApp 应用（已关联的手机）",
+    "numberAfterScan": "扫描后显示",
+    "limitReached": "此版本最多允许 {{max}} 个收件箱。请先移除一个再添加。",
+    "membersField": "谁可以打开",
+    "membersFieldHint": "管理员始终可以看到所有收件箱。勾选可以打开此收件箱聊天的客服。",
+    "membersFieldNoAgents": "还没有客服。请在“成员”中添加。",
+    "membersFieldNone": "未勾选客服：只有管理员能看到此收件箱。",
+    "removeTitle": "移除“{{name}}”？",
+    "removeConfirm": "移除收件箱",
+    "removeBodyPhone": "EzyChat 会取消关联此手机，并停止为此号码收发消息。它的聊天会保留，供管理员只读查看。",
+    "removed": "收件箱已移除",
+    "required": "此项为必填项。",
+    "saved": "收件箱已保存",
+    "createdPhone": "收件箱已添加。现在用手机扫描二维码。",
+    "addTitle": "添加收件箱",
+    "editTitle": "收件箱“{{name}}”",
+    "dialogDescription": "为收件箱命名，选择谁可以打开它，保存，然后用拥有此号码的手机扫描二维码。",
+    "save": "保存",
+    "name": "收件箱名称",
+    "nameHint": "团队在每个聊天上看到的名称，例如“销售”或“餐饮”。",
+    "scanTitle": "扫描二维码",
+    "scanBody": "打开“编辑”，用拥有此号码的手机扫描二维码。",
+    "scanSteps": "在手机上：WhatsApp → 设置 → 已关联的设备 → 关联新设备，然后将摄像头对准此二维码。",
+    "linkedAs": "已关联到 {{number}}",
+    "relink": "重新关联手机",
+    "offlineTitle": "手机已离线",
+    "offlineBody": "EzyChat 无法为此号码收发消息。请给手机充电并连接互联网；如果仍然离线，请重新关联。",
+    "state": {
+      "connected": "已连接",
+      "waiting_scan": "等待扫描二维码",
+      "phone_offline": "手机离线"
+    },
+    "membersAccess": "收件箱权限",
+    "membersAccessAll": "所有收件箱（管理员）",
+    "membersAccessNone": "没有收件箱：此客服看不到任何聊天",
+    "membersAccessTitle": "{{name}} 的收件箱",
+    "membersAccessDescription": "此客服只能看到您勾选的收件箱中的聊天，也只会收到这些聊天的通知。",
+    "membersAccessNoInboxes": "还没有收件箱。请在“收件箱”中添加。",
+    "membersAccessSave": "保存",
+    "membersAccessSaved": "收件箱权限已保存"
   }
 }

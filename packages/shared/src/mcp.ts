@@ -75,6 +75,14 @@ export type McpSettingsPatch = z.infer<typeof McpSettingsPatch>;
 
 // Tool inputs. MCP clients send real JSON numbers, so these never coerce.
 
+/** Optional inbox (WhatsApp number) filter of the inbox tools; omitted = every inbox in scope. */
+const McpInboxFilter = z
+  .number()
+  .int()
+  .positive()
+  .optional()
+  .describe('Only this inbox (WhatsApp number), by inboxId from list_chats; omit for every inbox');
+
 export const McpListChatsInput = z.strictObject({
   status: ChatStatus.optional().describe('open or resolved; omit for both'),
   assigned: z
@@ -85,6 +93,7 @@ export const McpListChatsInput = z.strictObject({
   since: z.number().int().optional().describe('Only chats updated at or after this epoch ms'),
   cursor: z.string().optional().describe('nextCursor from the previous page'),
   limit: z.number().int().min(1).max(100).default(25),
+  inboxId: McpInboxFilter,
 });
 export type McpListChatsInput = z.infer<typeof McpListChatsInput>;
 
@@ -106,6 +115,7 @@ export type McpGetMessagesInput = z.infer<typeof McpGetMessagesInput>;
 
 export const McpGetStatsInput = z.strictObject({
   days: z.number().int().min(1).max(90).default(14).describe('Days of daily activity to include'),
+  inboxId: McpInboxFilter,
 });
 export type McpGetStatsInput = z.infer<typeof McpGetStatsInput>;
 
@@ -117,6 +127,7 @@ export const McpGetActivityInput = z.strictObject({
     .max(90)
     .default(28)
     .describe('Days to cover, ending now (today counts as one day)'),
+  inboxId: McpInboxFilter,
 });
 export type McpGetActivityInput = z.infer<typeof McpGetActivityInput>;
 
@@ -169,6 +180,14 @@ export const McpSendToNewNumberInput = z.strictObject({
     .describe('Full phone number with country code, for example 60123456789 or +60 12-345 6789'),
   text: McpSendMessageInput.shape.text,
   requestId: McpSendMessageInput.shape.requestId,
+  inboxId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'The inbox (WhatsApp number) to send from; required when the team has more than one inbox',
+    ),
 });
 export type McpSendToNewNumberInput = z.infer<typeof McpSendToNewNumberInput>;
 

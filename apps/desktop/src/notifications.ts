@@ -14,20 +14,33 @@ export const NOTIFICATION_CHANNELS = {
 
 type NotificationPayload = { title: string; body: string; url: string; tag: string };
 
+/** Admin pages a notification may open (the WhatsApp-offline alert: one number, or several inboxes). */
+const ADMIN_PATHS = new Set(['/admin/whatsapp', '/admin/inboxes']);
+
+/** A chat of inbox 2 or later is keyed `<jid>#<inboxId>`; inbox 1 keeps the bare JID. */
+function jidOfChatKey(key: string): string | null {
+  const hash = key.indexOf('#');
+  if (hash < 0) return key;
+  return /^[1-9]\d*$/u.test(key.slice(hash + 1)) && key.slice(hash + 1) !== '1'
+    ? key.slice(0, hash)
+    : null;
+}
+
 /** Restrict activation to application routes, without URL parsing's path normalization. */
 export function notificationPath(value: unknown): string | null {
-  if (value === '/admin/whatsapp') return value;
+  if (typeof value === 'string' && ADMIN_PATHS.has(value)) return value;
   if (typeof value !== 'string' || value.length > 1024 || !value.startsWith('/chats/')) return null;
   const segment = value.slice('/chats/'.length);
   try {
-    const jid = decodeURIComponent(segment);
+    const key = decodeURIComponent(segment);
+    const jid = jidOfChatKey(key);
     if (
       !jid ||
       /[\s/\\?#]/u.test(jid) ||
       [...jid].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)
     )
       return null;
-    if (encodeURIComponent(jid) !== segment || jid === '.' || jid === '..') return null;
+    if (encodeURIComponent(key) !== segment || jid === '.' || jid === '..') return null;
     return value;
   } catch {
     return null;

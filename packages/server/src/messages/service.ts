@@ -18,10 +18,18 @@ import type {
   WaSendOptions,
 } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
-import { errors } from '../http/errors.js';
+import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
 import { ChatRepo } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
+import {
+  PRIMARY_INBOX_ID,
+  chatKey,
+  inboxOfKey,
+  messageKey,
+  parseChatKey,
+  waMessageId,
+} from '../inboxes/keys.js';
 import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
@@ -41,7 +49,15 @@ export const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
-  ingest(m: WaIncomingMessage, source: 'live' | 'history'): Promise<Message | null>;
+  /**
+   * Stores a message WhatsApp delivered through `inboxId` (default inbox 1): chat key and message
+   * id get the inbox suffix (keys.ts), so the same customer or group in two inboxes stays apart.
+   */
+  ingest(
+    m: WaIncomingMessage,
+    source: 'live' | 'history',
+    inboxId?: number,
+  ): Promise<Message | null>;
   /** `viaTokenId`: the MCP access token whose AI assistant sends it (marks it "via AI assistant"). */
   sendText(
     jid: string,
@@ -64,7 +80,8 @@ export interface MessageService {
     clientId: string,
   ): Promise<Message>;
   retry(id: string, userId: number): Message;
-  applyStatus(u: WaMessageStatusUpdate): void;
+  /** A WhatsApp receipt from `inboxId` (default inbox 1); `u.id` is the WhatsApp message id. */
+  applyStatus(u: WaMessageStatusUpdate, inboxId?: number): void;
   mediaPath(id: string): MediaFile | null;
   redownload(id: string): Promise<Message>;
   /**
@@ -80,9 +97,14 @@ export interface MessageService {
    * pending but the download failed.
    */
   ensureMedia(id: string): Promise<MediaFile | null | 'unavailable'>;
-  /** the outbound queue (bridge calls queue.onConnected()) */
+  /** the outbound queue of inbox 1 (`queueFor(1)`) */
   readonly queue: SendQueue;
-  /** stops the queue */
+  /**
+   * The outbound queue of one inbox (the bridge calls onConnected() on it): one phone offline never
+   * holds back the others. Throws for an inbox without a WhatsApp connection (removed, unknown).
+   */
+  queueFor(inboxId: number): SendQueue;
+  /** stops every queue */
   shutdown(): void;
 }
 
@@ -175,7 +197,45 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     }
   };
 
+  const { connections } = ctx.inboxes;
+  /** The inbox's adapter, or null once the inbox is removed (or unknown). */
+  const adapterOf = (inboxId: number) => {
+    try {
+      return connections.adapter(inboxId);
+    } catch {
+      return null;
+    }
+  };
+  /** An inbox that never sends again: removed (or unknown). */
+  const inboxRemoved = (inboxId: number): boolean => {
+    if (inboxId === PRIMARY_INBOX_ID) return false;
+    const row = ctx.inboxes.repo.get(inboxId);
+    return !row || row.removed_at !== null;
+  };
+  /**
+   * An active inbox without a WhatsApp connection in this build (over the edition's inbox limit).
+   * Its pending sends stay pending; new sends are refused.
+   */
+  const inboxUnconnected = (inboxId: number): boolean =>
+    inboxId !== PRIMARY_INBOX_ID && !inboxRemoved(inboxId) && adapterOf(inboxId) === null;
+  /** Sending into a chat of this inbox is refused now (409 with a reason code). */
+  const refuseSend = (inboxId: number): void => {
+    if (inboxRemoved(inboxId)) throw new HttpError(409, 'inbox_removed', 'This inbox was removed');
+    if (inboxUnconnected(inboxId))
+      throw new HttpError(
+        409,
+        'inbox_not_connected',
+        'This inbox is not connected in this edition',
+      );
+  };
+  const ownJidOf = (chatJid: string): string | null =>
+    adapterOf(inboxOfKey(chatJid))?.status.me?.jid ?? null;
+  /** The WhatsApp JID of a chat key (no inbox suffix). */
+  const waJidOf = (chatJid: string): string => parseChatKey(chatJid).waJid;
+
   const sendJob = async (job: SendJob): Promise<SendResult> => {
+    const inboxId = inboxOfKey(job.chatJid);
+    const wa = connections.adapter(inboxId);
     const row = repo.get(job.localId);
     if (!row || row.status !== 'pending') throw new Error('Message is no longer pending');
     if (
@@ -196,11 +256,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     inflight.set(job.chatJid, guard);
     const p = (async () => {
       if (job.kind === 'text') {
-        return ctx.wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
+        return wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       const seconds = job.voiceNote ? voiceNoteSeconds(buffer) : null;
-      return ctx.wa.sendMedia(
+      return wa.sendMedia(
         job.targetJid,
         {
           buffer,
@@ -216,7 +276,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       );
     })();
     try {
-      return await p;
+      const r = await p;
+      // stored ids carry the inbox suffix; the queue hands this id to onSent
+      return { ...r, id: messageKey(inboxId, r.id) };
     } catch (error) {
       reconciliations.get(job.localId)?.();
       throw error;
@@ -227,7 +289,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     try {
       const row = repo.get(job.localId);
       if (!row) return;
-      const waId = r.id;
+      const waId = r.id; // the stored message key (sendJob added the inbox suffix)
       ctx.db.transaction(() => {
         if (waId !== job.localId) {
           // an echo of our own send may already have been ingested under the WA id
@@ -266,23 +328,59 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     }
   };
 
-  const queue = new SendQueue({
-    send: sendJob,
-    onSent,
-    onFailed,
-    isConnected: () => ctx.wa.status.state === 'open',
-    // Access gate closed: nothing is sent and nothing expires; jobs stay pending.
-    isPaused: () => !ctx.access.state().open,
-    presence: (job) => ctx.wa.sendPresence(job.targetJid, 'composing'),
-    now,
-    ...(deps?.queue ?? {}),
-  });
+  /** One send queue per inbox, each waiting only for its own phone. */
+  const queues = new Map<number, SendQueue>();
+  let stopped = false;
+  const queueFor = (inboxId: number): SendQueue => {
+    const existing = queues.get(inboxId);
+    if (existing) return existing;
+    const wa = connections.adapter(inboxId); // throws for a removed or unknown inbox
+    const q = new SendQueue({
+      send: sendJob,
+      onSent,
+      onFailed,
+      isConnected: () => wa.status.state === 'open',
+      // Access gate closed: nothing is sent and nothing expires; jobs stay pending.
+      isPaused: () => !ctx.access.state().open,
+      presence: (job) => wa.sendPresence(job.targetJid, 'composing'),
+      now,
+      ...(deps?.queue ?? {}),
+    });
+    if (stopped) q.stop();
+    queues.set(inboxId, q);
+    return q;
+  };
+  const queue = queueFor(PRIMARY_INBOX_ID);
+
+  const INBOX_REMOVED_MESSAGE = 'This inbox was removed';
+
+  /** Pending sends of a removed inbox fail at once: its phone is unlinked and never sends them. */
+  const failPendingOf = (inboxId: number): void => {
+    for (const r of repo.pendingLocal()) {
+      if (inboxOfKey(r.chat_jid) !== inboxId) continue;
+      repo.update(r.id, { status: 'failed', error: INBOX_REMOVED_MESSAGE });
+      emitStatus(repo.get(r.id)!);
+    }
+  };
+
+  const onInboxRemoved = (inboxId: number): void => {
+    const q = queues.get(inboxId);
+    queues.delete(inboxId);
+    q?.stop();
+    try {
+      failPendingOf(inboxId);
+    } catch (err) {
+      log.warn({ err, inboxId }, 'pending sends of a removed inbox not failed');
+    }
+  };
+  connections.on('removed', onInboxRemoved);
 
   /** `address` still belongs to the person of `chatJid` (not a number recycled to someone else). */
   const addressOf = (address: string, chatJid: string): boolean => {
-    if (address === chatJid) return true;
+    const { inboxId, waJid } = parseChatKey(chatJid);
+    if (address === waJid) return true;
     const aliases = getAliases(ctx);
-    return aliases.resolve(address) === chatJid || aliases.route(address) === chatJid;
+    return aliases.resolve(address) === waJid || aliases.route(inboxId, address) === chatJid;
   };
 
   /**
@@ -290,21 +388,22 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    * since the message was queued falls back to the chat JID (persisted on the row).
    */
   const jobTarget = (r: MessageRow): string => {
-    const stored = r.wa_remote_jid ?? r.chat_jid;
+    const chatWaJid = waJidOf(r.chat_jid);
+    const stored = r.wa_remote_jid ?? chatWaJid;
     if (addressOf(stored, r.chat_jid)) return stored;
-    repo.update(r.id, { wa_remote_jid: r.chat_jid });
+    repo.update(r.id, { wa_remote_jid: chatWaJid });
     log.warn(
       { id: r.id, chatJid: r.chat_jid, stored },
       'send target moved to another WhatsApp ID; sending to the chat instead',
     );
-    return r.chat_jid;
+    return chatWaJid;
   };
 
   const MOVED_NUMBER_MESSAGE =
     'This phone number now belongs to a different WhatsApp account; reply from the current chat.';
 
   /** The chat's own phone number was re-pointed to another person: nothing may be sent from it. */
-  const chatNumberMoved = (chatJid: string): boolean => getAliases(ctx).movedAway(chatJid);
+  const chatNumberMoved = (chatJid: string): boolean => getAliases(ctx).movedAway(waJidOf(chatJid));
 
   const failMoved = (r: MessageRow): void => {
     log.warn(
@@ -318,7 +417,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   /** Queue a row's send, or fail it when its chat's number now belongs to someone else. */
   const enqueueRow = (r: MessageRow): void => {
     if (chatNumberMoved(r.chat_jid)) failMoved(r);
-    else queue.enqueue(jobFromRow(r));
+    else queueFor(inboxOfKey(r.chat_jid)).enqueue(jobFromRow(r));
   };
 
   const jobFromRow = (r: MessageRow): SendJob => {
@@ -349,12 +448,19 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    */
   const replyTarget = (chatJid: string): string => {
     const last = repo.lastInboundRemoteJid(chatJid);
-    return last && addressOf(last, chatJid) ? last : chatJid;
+    return last && addressOf(last, chatJid) ? last : waJidOf(chatJid);
   };
 
   const requireChat = (jid: string) => {
     const c = chats.get(jid);
     if (!c) throw errors.notFound('Chat');
+    return c;
+  };
+
+  /** Sending needs the chat's inbox: a removed inbox keeps its chats read only. */
+  const requireSendable = (jid: string) => {
+    const c = requireChat(jid);
+    refuseSend(inboxOfKey(jid));
     return c;
   };
 
@@ -376,17 +482,19 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const q = repo.get(quotedId);
     if (!q) return undefined;
     return {
-      id: q.id,
+      id: waMessageId(q.id),
       fromMe: q.from_me === 1,
       senderJid: q.sender_jid,
       type: q.type,
       text: q.body,
     };
   };
+  /** WhatsApp sees its own message ids: the stored key loses its inbox suffix. */
   const replyOptions = (quotedId: string | undefined): WaSendOptions | undefined => {
     if (!quotedId) return undefined;
     const quoted = quotedRef(quotedId);
-    return quoted ? { quotedId, quoted } : { quotedId };
+    const waId = waMessageId(quotedId);
+    return quoted ? { quotedId: waId, quoted } : { quotedId: waId };
   };
 
   const isAiUser = (userId: number) =>
@@ -438,7 +546,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     if (r.type === 'text' || r.type === 'system') throw errors.validation('Message has no media');
     let buf: Buffer | null = null;
     try {
-      buf = await downloads.run(() => ctx.wa.downloadMedia(id));
+      // the chat's own phone, asked with the WhatsApp id (no inbox suffix)
+      buf = await downloads.run(() =>
+        connections.forChatKey(r.chat_jid).downloadMedia(waMessageId(id)),
+      );
     } catch (err) {
       log.warn({ err, id }, 'media redownload failed');
     }
@@ -457,6 +568,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
 
   const svc: MessageService = {
     queue,
+    queueFor,
     present,
     presentAll,
 
@@ -476,8 +588,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       };
     },
 
-    async ingest(m, source) {
-      if (repo.exists(m.id)) return null;
+    async ingest(m, source, inboxId = PRIMARY_INBOX_ID) {
+      // The same WhatsApp id may arrive through two inboxes (one group, two linked phones).
+      const id = messageKey(inboxId, m.id);
+      if (repo.exists(id)) return null;
       const isGroup = m.chatJid.endsWith('@g.us');
       const aliases = getAliases(ctx);
       if (isGroup && m.senderJid && m.senderJidAlt) {
@@ -493,24 +607,23 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           source === 'history' ? 'history' : 'message',
         );
       }
-      // One person, one chat: the existing chat of either address (the LID chat first).
-      const chatJid = isGroup ? m.chatJid : aliases.route(m.chatJid);
+      // One person, one chat per inbox: the existing chat of either address (the LID chat first).
+      const directKey = chatKey(inboxId, m.chatJid);
+      const chatJid = isGroup ? directKey : aliases.route(inboxId, m.chatJid);
+      const chatWaJid = waJidOf(chatJid);
       // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
       // is keyed by the chat the send came from: the routed chat, or a PN chat still kept separate.
-      const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(m.chatJid)) : undefined;
+      const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(directKey)) : undefined;
       if (guard) {
         await guard;
-        if (repo.exists(m.id)) return null;
+        if (repo.exists(id)) return null;
       }
       const t = now();
-      const chatBefore = chats.ensure(
-        chatJid,
-        { name: !isGroup && !m.fromMe ? m.senderName : null },
-        t,
-      );
+      chats.ensure(inboxId, chatWaJid, { name: !isGroup && !m.fromMe ? m.senderName : null }, t);
+      const chatBefore = chats.get(chatJid)!;
 
       const row: MessageRow = {
-        id: m.id,
+        id,
         chat_jid: chatJid,
         sender_jid: m.senderJid,
         sender_name: m.senderName,
@@ -523,7 +636,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: m.media?.mime ?? null,
         media_name: m.media?.fileName ?? null,
         media_status: m.media ? 'pending' : 'none',
-        quoted_id: m.quotedId,
+        quoted_id: m.quotedId ? messageKey(inboxId, m.quotedId) : null,
         status: m.fromMe ? 'sent' : 'delivered',
         error: null,
         timestamp: m.timestamp,
@@ -547,7 +660,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
             reopened = true;
           }
         }
-        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, chatJid)) {
+        if (!isGroup && !m.fromMe && m.senderName && isFallbackName(chatBefore.name, chatWaJid)) {
           chats.setName(chatJid, m.senderName, t);
         }
         if (m.senderJid && m.senderName && !m.fromMe) {
@@ -580,17 +693,17 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         const dl = m.media.download;
         try {
           const buf = await downloads.run(() => dl());
-          const rel = media.save(chatJid, m.id, buf, extFor(m.media.mime, m.media.fileName));
-          repo.update(m.id, { media_path: rel, media_status: 'ok' });
+          const rel = media.save(chatJid, id, buf, extFor(m.media.mime, m.media.fileName));
+          repo.update(id, { media_path: rel, media_status: 'ok' });
           // Live customer voice notes are transcribed (marked pending before message:new).
-          if (m.type === 'audio' && !m.fromMe) ctx.services.voice?.onAudioStored(m.id);
+          if (m.type === 'audio' && !m.fromMe) ctx.services.voice?.onAudioStored(id);
         } catch (err) {
-          log.warn({ err, id: m.id }, 'media download failed');
-          repo.update(m.id, { media_status: 'failed' });
+          log.warn({ err, id }, 'media download failed');
+          repo.update(id, { media_status: 'failed' });
         }
       }
 
-      const final = repo.get(m.id);
+      const final = repo.get(id);
       if (!final) return null;
       const msg = present(final);
       ctx.bus.emit('message:new', msg);
@@ -607,7 +720,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     sendText(jid, body, userId, opts) {
       const existing = repo.byClientId(body.clientId);
       if (existing) return present(existing);
-      requireChat(jid);
+      requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       const quotedId = checkQuote(jid, body.quotedId);
       const t = now();
@@ -615,7 +728,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return insertOutgoing({
         id: `local-${body.clientId}`,
         chat_jid: jid,
-        sender_jid: ctx.wa.status.me?.jid ?? null,
+        sender_jid: ownJidOf(jid),
         sender_name: null,
         from_me: 1,
         sent_by_user_id: userId,
@@ -639,7 +752,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     async sendMedia(jid, file, userId, clientId) {
       const existing = repo.byClientId(clientId);
       if (existing) return present(existing);
-      requireChat(jid);
+      requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       if (!file.buffer.length) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);
@@ -660,7 +773,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return insertOutgoing({
         id,
         chat_jid: jid,
-        sender_jid: ctx.wa.status.me?.jid ?? null,
+        sender_jid: ownJidOf(jid),
         sender_name: null,
         from_me: 1,
         sent_by_user_id: userId,
@@ -686,6 +799,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (!r) throw errors.notFound('Message');
       if (r.status !== 'failed' || !r.from_me)
         throw errors.conflict('Only failed outgoing messages can be retried');
+      refuseSend(inboxOfKey(r.chat_jid));
       const t = now();
       if (!r.id.startsWith('local-')) {
         // Failed after reaching WhatsApp (ERROR ack, row already renamed to the WA id): turn it back into
@@ -718,26 +832,28 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return present(updated);
     },
 
-    applyStatus(u) {
-      const r = repo.get(u.id);
+    applyStatus(u, inboxId = PRIMARY_INBOX_ID) {
+      // a receipt names the WhatsApp id; the row of this inbox carries the inbox suffix
+      const id = messageKey(inboxId, u.id);
+      const r = repo.get(id);
       if (!r) {
         // may belong to a send whose ack has not been processed yet
         if (earlyStatus.size > 500) earlyStatus.clear();
-        const prev = earlyStatus.get(u.id);
+        const prev = earlyStatus.get(id);
         // a failure is sticky: a later (or reordered) ack must not mask it
         if (prev === 'failed') return;
         if (!prev || u.status === 'failed' || STATUS_RANK[u.status] > STATUS_RANK[prev])
-          earlyStatus.set(u.id, u.status);
+          earlyStatus.set(id, u.status);
         return;
       }
       if (u.status === 'failed') {
         if (r.status !== 'pending' && r.status !== 'sent') return;
-        repo.update(u.id, { status: 'failed', error: r.error ?? 'Delivery failed' });
+        repo.update(id, { status: 'failed', error: r.error ?? 'Delivery failed' });
       } else {
         if (r.status === 'failed' || STATUS_RANK[u.status] <= STATUS_RANK[r.status]) return;
-        repo.update(u.id, { status: u.status });
+        repo.update(id, { status: u.status });
       }
-      emitStatus(repo.get(u.id)!);
+      emitStatus(repo.get(id)!);
     },
 
     mediaPath(id) {
@@ -779,26 +895,41 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     },
 
     shutdown() {
+      stopped = true;
       ctx.bus.off('access:opened', onAccessOpened);
-      queue.stop();
+      connections.off('removed', onInboxRemoved);
+      for (const q of queues.values()) q.stop();
     },
   };
 
   // Access gate opened again: paused chats resume, with the full expiry window from now.
   function onAccessOpened(): void {
-    queue.onResumed();
+    for (const q of queues.values()) q.onResumed();
   }
   ctx.bus.on('access:opened', onAccessOpened);
 
-  // restore persisted pending sends (expired ones fail immediately when processed)
+  // restore persisted pending sends into their inbox's queue (expired ones fail when processed);
+  // a removed inbox never sends again, so its leftovers fail now; an inbox not connected in this
+  // build (over the edition's inbox limit) keeps its rows pending, with no queue
   const pending = repo.pendingLocal();
   if (pending.length) {
-    const live = pending.filter((r) => {
-      if (!chatNumberMoved(r.chat_jid)) return true;
-      failMoved(r);
-      return false;
-    });
-    queue.restore(live.map(jobFromRow));
+    const byInbox = new Map<number, SendJob[]>();
+    for (const r of pending) {
+      if (chatNumberMoved(r.chat_jid)) {
+        failMoved(r);
+        continue;
+      }
+      const inboxId = inboxOfKey(r.chat_jid);
+      if (inboxRemoved(inboxId)) {
+        repo.update(r.id, { status: 'failed', error: INBOX_REMOVED_MESSAGE });
+        continue;
+      }
+      if (inboxUnconnected(inboxId)) continue;
+      const jobs = byInbox.get(inboxId) ?? [];
+      jobs.push(jobFromRow(r));
+      byInbox.set(inboxId, jobs);
+    }
+    for (const [inboxId, jobs] of byInbox) queueFor(inboxId).restore(jobs);
   }
 
   return svc;

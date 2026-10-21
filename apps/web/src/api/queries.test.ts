@@ -2,12 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type default as React } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Message } from '@ezychat/shared';
+import type { Inbox, InboxListResponse, Message, WaStatus } from '@ezychat/shared';
 import {
+  patchInboxStatusInCache,
   patchMessageInCache,
   qk,
   upsertMessageInCache,
   useChats,
+  useInboxStatus,
+  useInboxes,
   useCustomerProfile,
   useCustomerTags,
   useSaveCustomerProfile,
@@ -242,5 +245,101 @@ describe('customer profile queries', () => {
     const { result } = renderHook(() => useCustomerTags('v i'), { wrapper });
     await waitFor(() => expect(result.current.data).toEqual(['VIP', 'Vegan']));
     expect(calls).toEqual(['GET /api/customer-tags?q=v%20i']);
+  });
+});
+
+describe('inboxes', () => {
+  const open: WaStatus = { state: 'open', me: null, qr: null, lastError: null };
+  const offline: WaStatus = { ...open, state: 'disconnected' };
+  const inbox = (id: number, status: WaStatus): Inbox => ({
+    id,
+    name: `Inbox ${id}`,
+    tone: 'primary',
+    number: null,
+    removed: false,
+    status,
+  });
+  const list: InboxListResponse = {
+    inboxes: [inbox(1, open), inbox(2, offline)],
+    maxInboxes: 3,
+    canAdd: true,
+  };
+
+  function mockRoutes(routes: Record<string, { status?: number; body: unknown }>) {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        const r = routes[url] ?? { status: 404, body: { error: { code: 'not_found' } } };
+        return new Response(JSON.stringify(r.body), {
+          status: r.status ?? 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    );
+    return calls;
+  }
+
+  function wrap() {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    return { qc, wrapper };
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends the inbox filter in the chat list query', async () => {
+    const calls = mockRoutes({});
+    const { wrapper } = wrap();
+    renderHook(() => useChats({ assigned: 'any', inbox: 2 }), { wrapper });
+    await waitFor(() => expect(calls[0]).toContain('inbox=2'));
+  });
+
+  it('loads the inbox list, and counts a server without the route as no inboxes', async () => {
+    mockRoutes({ '/api/inboxes': { body: list } });
+    let { wrapper } = wrap();
+    const loaded = renderHook(() => useInboxes(), { wrapper });
+    await waitFor(() => expect(loaded.result.current.data).toEqual(list));
+
+    mockRoutes({});
+    ({ wrapper } = wrap());
+    const missing = renderHook(() => useInboxes(), { wrapper });
+    await waitFor(() =>
+      expect(missing.result.current.data).toEqual({ inboxes: [], maxInboxes: 1, canAdd: false }),
+    );
+
+    mockRoutes({ '/api/inboxes': { status: 500, body: { error: { code: 'boom' } } } });
+    ({ wrapper } = wrap());
+    const failed = renderHook(() => useInboxes(), { wrapper });
+    await waitFor(() => expect(failed.result.current.isError).toBe(true));
+  });
+
+  it('reads inbox 1 from the WhatsApp status and other inboxes from the inbox list', async () => {
+    const calls = mockRoutes({
+      '/api/inboxes': { body: list },
+      '/api/wa/status': { body: { ...open, state: 'connecting' } },
+    });
+    const { wrapper } = wrap();
+    const primary = renderHook(() => useInboxStatus(1), { wrapper });
+    await waitFor(() => expect(primary.result.current?.state).toBe('connecting'));
+    expect(calls).toEqual(['/api/wa/status']);
+    const second = renderHook(() => useInboxStatus(2), { wrapper });
+    await waitFor(() => expect(second.result.current?.state).toBe('disconnected'));
+    const unknown = renderHook(() => useInboxStatus(undefined), { wrapper });
+    expect(unknown.result.current).toBeUndefined();
+  });
+
+  it('applies a socket inbox status to the cached list only for a known inbox', () => {
+    const qc = new QueryClient();
+    patchInboxStatusInCache(qc, { inboxId: 2, status: open });
+    expect(qc.getQueryData(qk.inboxes)).toBeUndefined();
+    qc.setQueryData(qk.inboxes, list);
+    patchInboxStatusInCache(qc, { inboxId: 2, status: open });
+    const after = qc.getQueryData<InboxListResponse>(qk.inboxes)!;
+    expect(after.inboxes.map((i) => i.status.state)).toEqual(['open', 'open']);
+    patchInboxStatusInCache(qc, { inboxId: 7, status: offline });
+    expect(qc.getQueryData(qk.inboxes)).toBe(after);
   });
 });
