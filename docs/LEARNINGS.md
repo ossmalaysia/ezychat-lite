@@ -100,6 +100,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Every push to a PR branch cancels its running CI (Windows takes ~11 min): while waiting for checks,
+  commit docs-only changes (LEARNINGS, workbook) locally and push them with the next code change.
 - Azure sign-in from this public repository uses GitHub OIDC (`azure/login`, `id-token: write`), never
   a stored client secret. Federated credentials match the subject exactly (no wildcards): use a GitHub
   environment whose rules allow only `v*` tags and `main`. Read the subject format first
