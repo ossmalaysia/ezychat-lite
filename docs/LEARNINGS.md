@@ -103,6 +103,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- `git add -A` on a branch cut before an ignore rule landed committed `.e2e-data-multi/secret.key` (test
+  data) to `main`: stage named paths only and read `git diff --cached --stat` before every commit.
 - Every push to a PR branch cancels its running CI (Windows takes ~11 min): while waiting for checks,
   commit docs-only changes (LEARNINGS, workbook) locally and push them with the next code change.
 - A fix for an external issue says `Refs #N`, never `Closes`/`Fixes #N`: those close the issue at merge,

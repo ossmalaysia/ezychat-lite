@@ -451,7 +451,9 @@ themselves.)
 
 Conventional Commits; LF line endings; Prettier formatting; add user-visible changes to
 `CHANGELOG.md` under `[Unreleased]`. When a UI change ships, refresh that module's shots in
-`docs/screenshots/` (demo data only). Never commit `data/`, `.e2e-data/`, `wa-auth`, databases or secrets.
+`docs/screenshots/` (demo data only). Never commit `data/`, `.e2e-data*/`, `wa-auth`, databases or secrets.
+Stage the files a change names (`git add <paths>`), never `git add -A` / `git add .`: a branch cut before an
+ignore rule landed still tracks local test data.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
 **GitHub issues are for external reports only** (owner rule): never open an issue for our own work;
 track own follow-ups in PR descriptions, `design.md`, workbooks or `docs/`. Treat each issue as an
