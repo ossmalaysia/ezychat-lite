@@ -247,6 +247,11 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A second Playwright `webServer` that serves the same `apps/web/dist` waits for the first server's
+  `/api/health` (that one builds the web) instead of building again in parallel. Specs for it get their
+  own project and `testIgnore` in the others. Confirm dialogs are `alertdialog`, not `dialog`.
+- A fake that links at once hides a linking step: a flow that must show a QR (a new inbox) needs a fake
+  that waits for its scan (`FakeWaAdapter({ awaitScan })`, `POST /api/dev/fake-link`).
 - Coverage instrumentation makes module loading several times slower: tests that dynamic-import an entry
   module or build a TypeScript program time out at Vitest's 5 s only under coverage. `test:coverage` uses
   `--testTimeout=20000`; parse once in `beforeAll`, import light modules statically, and set
