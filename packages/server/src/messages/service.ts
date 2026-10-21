@@ -18,7 +18,7 @@ import type {
   WaSendOptions,
 } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
-import { errors } from '../http/errors.js';
+import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
 import { ChatRepo } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
@@ -220,8 +220,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     inboxId !== PRIMARY_INBOX_ID && !inboxRemoved(inboxId) && adapterOf(inboxId) === null;
   /** Sending into a chat of this inbox is refused now (409 with a reason code). */
   const refuseSend = (inboxId: number): void => {
-    if (inboxRemoved(inboxId)) throw errors.conflict('inbox_removed');
-    if (inboxUnconnected(inboxId)) throw errors.conflict('inbox_not_connected');
+    if (inboxRemoved(inboxId)) throw new HttpError(409, 'inbox_removed', 'This inbox was removed');
+    if (inboxUnconnected(inboxId))
+      throw new HttpError(
+        409,
+        'inbox_not_connected',
+        'This inbox is not connected in this edition',
+      );
   };
   const ownJidOf = (chatJid: string): string | null =>
     adapterOf(inboxOfKey(chatJid))?.status.me?.jid ?? null;

@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ChatListQuery, ChatPatchBody, ResolveAllChatsBody } from '@ezychat/shared';
 import { requireAdmin, requireUser } from '../auth/guards.js';
@@ -7,13 +7,19 @@ import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats } from '../wa-bridge/index.js';
 import { createProfileImages } from '../http/profile-images.js';
+import { scopeFor } from '../inboxes/access.js';
+import { chatWaState, requireChatAccess } from '../inboxes/service.js';
 
 export const JidParams = z.object({ jid: z.string().min(3).max(256) });
 
-/** Parses `:jid`; a phone number re-keyed to its WhatsApp ID opens that chat (old links, push). */
-export function chatJidParam(ctx: AppContext, params: unknown): string {
-  const { jid } = parse(JidParams, params);
-  return getChats(ctx).resolveJid(jid);
+/**
+ * Parses `:jid` into the chat key the signed-in user may open: a phone number re-keyed to its
+ * WhatsApp ID opens that chat (old links, push); a missing chat, a malformed key and a chat of an
+ * inbox the user may not open all answer 404.
+ */
+export function chatJidParam(ctx: AppContext, req: FastifyRequest): string {
+  const { jid } = parse(JidParams, req.params);
+  return requireChatAccess(ctx, req.user!, jid).jid;
 }
 
 export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext) {
@@ -31,10 +37,10 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
   // Only visible image requests query WhatsApp (bounded, coalesced cache).
   const profileImage = createProfileImages(ctx, log);
   app.get('/chats/:jid/avatar', async (req, reply) => {
-    const jid = chatJidParam(ctx, req.params);
-    if (!chats.get(jid)) throw errors.notFound('Chat');
+    const jid = chatJidParam(ctx, req);
     reply.header('cache-control', 'private, max-age=300');
-    if (ctx.wa.status.state !== 'open')
+    // the chat's own number looks the picture up; a removed inbox has none
+    if (chatWaState(ctx, jid) !== 'open')
       return reply.header('cache-control', 'no-store').code(204).send();
     const url = await profileImage(jid).catch(() => undefined);
     // A failed lookup must not be cached by the browser either.
@@ -44,24 +50,27 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
 
   app.get('/chats', async (req) => {
     const q = parse(ChatListQuery, req.query);
-    return chats.list(q, req.user!.id);
+    const scope = scopeFor(ctx, req.user!);
+    // every inbox (removed ones too) for admins; an agent's own active inboxes otherwise
+    const inboxIds = scope === 'all' ? undefined : [...scope];
+    return chats.list(q, req.user!.id, { inboxIds, inbox: q.inbox });
   });
 
   app.get('/chats/:jid', async (req) => {
-    const jid = chatJidParam(ctx, req.params);
+    const jid = chatJidParam(ctx, req);
     const chat = chats.get(jid);
     if (!chat) throw errors.notFound('Chat');
     return { chat, events: chats.events(jid) };
   });
 
   app.patch('/chats/:jid', async (req) => {
-    const jid = chatJidParam(ctx, req.params);
+    const jid = chatJidParam(ctx, req);
     const body = parse(ChatPatchBody, req.body ?? {});
     return chats.patch(jid, body, req.user!.id);
   });
 
   app.post('/chats/:jid/read', async (req) => {
-    const jid = chatJidParam(ctx, req.params);
+    const jid = chatJidParam(ctx, req);
     await chats.markRead(jid, req.user!.id);
     return { ok: true };
   });

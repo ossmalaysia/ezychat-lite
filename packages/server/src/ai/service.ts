@@ -35,6 +35,8 @@ import { audit } from '../db/audit.js';
 import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
+import { usersWhoCanOpen } from '../inboxes/access.js';
+import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AgentTurnFailure } from './agent/models.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
@@ -529,8 +531,12 @@ export function createAiService(
       AND NOT EXISTS (SELECT 1 FROM chats c WHERE c.assigned_to = u.id AND c.status = 'open') ORDER BY u.id`,
       )
       .all() as Array<{ id: number }>;
-    const idle = candidates.find((user) =>
-      (deps.isOnline ?? ((id) => ctx.services.realtime?.isOnline(id) ?? false))(user.id),
+    // Only a teammate who may open the chat's inbox (every human with a single inbox).
+    const allowed = new Set(usersWhoCanOpen(ctx, inboxOfKey(jid)));
+    const idle = candidates.find(
+      (user) =>
+        allowed.has(user.id) &&
+        (deps.isOnline ?? ((id) => ctx.services.realtime?.isOnline(id) ?? false))(user.id),
     );
     pause(jid);
     chats.patch(jid, { assignedTo: idle?.id ?? null }, userId, { handoff: reason });

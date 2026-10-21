@@ -9,7 +9,8 @@ import type {
 import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
-import { errors } from '../http/errors.js';
+import { HttpError, errors } from '../http/errors.js';
+import { canOpen, scopeFor } from '../inboxes/access.js';
 import { getAliases } from './aliases.js';
 import { PRIMARY_INBOX_ID, chatKey, parseChatKey, waMessageId } from '../inboxes/keys.js';
 import { ChatRepo, chatTypeOf, jidUser, waJidOf, type ChatRow } from './repo.js';
@@ -299,6 +300,9 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         if (body.assignedTo !== null) {
           const user = ctx.services.auth?.getUser(body.assignedTo) ?? null;
           if (!user || user.disabled) throw errors.validation('Assignee must be an active user');
+          // assigning gives no access: the assignee must already open the chat's inbox
+          if (user.kind !== 'ai' && !canOpen(scopeFor(ctx, user), cur.inbox_id))
+            throw new HttpError(400, 'assignee_no_access', 'The assignee cannot open this inbox');
           fields.assigned_to = body.assignedTo;
           events.push(
             repo.insertEvent({

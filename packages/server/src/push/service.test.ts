@@ -343,3 +343,103 @@ describe('isAllowedPushEndpoint', () => {
     }
   });
 });
+
+describe('several inboxes', () => {
+  beforeEach(async () => {
+    await t.close();
+    t = await makeTestApp({ maxInboxes: 3, inboxes: 2 });
+  });
+  const KEY2 = `${JID}#2`;
+  const chat2 = (assignedTo: number | null): Chat => ({
+    ...chat(assignedTo),
+    jid: KEY2,
+    inboxId: 2,
+  });
+
+  it('an unassigned inbox 2 chat notifies admins and inbox 2 members only', async () => {
+    const admin = mkUser('adm', 'admin');
+    const member = mkUser('two');
+    const outsider = mkUser('one');
+    t.ctx.inboxes.repo.setUserInboxes(member.id, [2]);
+    t.ctx.inboxes.repo.setUserInboxes(outsider.id, [1]);
+    const { push, sent } = setup(new Set());
+    const live = connectedNotifications();
+    for (const u of [admin, member, outsider]) push.subscribe(u.id, sub(String(u.id)));
+    await push.notifyInbound(chat2(null), { ...message, chatJid: KEY2 });
+    expect(sent.map((s) => s.endpoint).sort()).toEqual(
+      [admin.id, member.id].map((id) => `https://push.example/${id}`).sort(),
+    );
+    expect(live.to).toHaveBeenCalledWith(
+      expect.arrayContaining([`user:${admin.id}`, `user:${member.id}`]),
+    );
+    expect(live.to).not.toHaveBeenCalledWith(expect.arrayContaining([`user:${outsider.id}`]));
+    await push.notifyHandoff(chat2(null));
+    expect(sent.filter((s) => s.endpoint.endsWith(`/${outsider.id}`))).toEqual([]);
+  });
+
+  it('a chat key that does not parse reaches nobody', async () => {
+    const admin = mkUser('adm', 'admin');
+    const { push, sent } = setup(new Set());
+    push.subscribe(admin.id, sub('adm'));
+    await push.notifyInbound({ ...chat(null), jid: `${JID}#1` }, message);
+    expect(sent).toEqual([]);
+  });
+
+  it('an assignee who lost the inbox gets nothing', async () => {
+    const agent = mkUser('lost');
+    t.ctx.inboxes.repo.setUserInboxes(agent.id, [1]);
+    const { push, sent } = setup(new Set());
+    push.subscribe(agent.id, sub('lost'));
+    await push.notifyInbound(chat2(agent.id), message);
+    expect(sent).toEqual([]);
+    t.ctx.inboxes.repo.setUserInboxes(agent.id, [1, 2]);
+    await push.notifyInbound(chat2(agent.id), message);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('WhatsApp alerts are per inbox, name the inbox and open Admin → Inboxes', async () => {
+    const admin = mkUser('adm', 'admin');
+    const { push, sent } = setup(new Set());
+    push.subscribe(admin.id, sub('adm'));
+    const down = { state: 'logged_out' as const, me: null, qr: null, lastError: null };
+    t.ctx.bus.emit('inbox:status', { inboxId: 2, status: down });
+    t.ctx.bus.emit('inbox:status', { inboxId: 2, status: down });
+    // inbox 1 alerts come from wa:status (its inbox:status is not counted twice)
+    t.ctx.bus.emit('inbox:status', { inboxId: 1, status: down });
+    t.ctx.bus.emit('wa:status', down);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sent).toHaveLength(2);
+    const byTag = new Map(sent.map((s) => [s.payload.tag, s.payload]));
+    expect(byTag.get('wa-status-2')).toMatchObject({
+      title: 'Inbox 2: WhatsApp disconnected',
+      url: '/admin/inboxes',
+    });
+    expect(String(byTag.get('wa-status-2')!.body)).toContain('Admin > Inboxes');
+    expect(byTag.get('wa-status')).toMatchObject({
+      title: 'WhatsApp: WhatsApp disconnected',
+      url: '/admin/inboxes',
+    });
+    // back online, then down again: a new alert
+    t.ctx.bus.emit('inbox:status', { inboxId: 2, status: { ...down, state: 'open' } });
+    t.ctx.bus.emit('inbox:status', { inboxId: 2, status: { ...down, state: 'replaced' } });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sent).toHaveLength(3);
+    expect(sent[2]!.payload.title).toBe('Inbox 2: WhatsApp session replaced');
+    push.shutdown();
+  });
+
+  it('a removed inbox no longer counts: one active inbox alerts as before', async () => {
+    const admin = mkUser('adm', 'admin');
+    t.ctx.inboxes.repo.markRemoved(2, Date.now());
+    const { push, sent } = setup(new Set());
+    push.subscribe(admin.id, sub('adm'));
+    t.ctx.bus.emit('wa:status', { state: 'blocked', me: null, qr: null, lastError: null });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sent[0]!.payload).toMatchObject({
+      title: 'WhatsApp unavailable',
+      url: '/admin/whatsapp',
+      tag: 'wa-status',
+    });
+    push.shutdown();
+  });
+});

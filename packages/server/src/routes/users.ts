@@ -6,18 +6,27 @@ import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
+import { getInboxService } from '../inboxes/service.js';
 
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
 
 export default async function usersRoutes(app: FastifyInstance, ctx: AppContext) {
   const auth = getAuth(ctx);
+  const inboxes = getInboxService(ctx);
   app.addHook('preHandler', requireAdmin(ctx));
 
-  app.get('/users', async () => ({ users: auth.listUsers() }));
+  // agents carry the inboxes they may open when the build allows several ([] for none)
+  app.get('/users', async () => ({
+    users: auth.listUsers().map((u) => {
+      const inboxIds = inboxes.usersListInboxIds(u);
+      return inboxIds ? { ...u, inboxIds } : u;
+    }),
+  }));
 
   app.post('/users', async (req, reply) => {
     const body = parse(CreateUserBody, req.body);
     const user = auth.createUser({ ...body, mustChangePassword: true });
+    inboxes.onUserCreated(user);
     audit(ctx.db, {
       userId: req.user!.id,
       action: 'user.create',

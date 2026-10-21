@@ -49,6 +49,8 @@ export const ChatListQuery = z.object({
   cursor: z.string().optional(),
   since: z.coerce.number().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  /** One inbox only (multi-inbox); unset = every inbox the caller may open. */
+  inbox: z.coerce.number().int().positive().optional(),
 });
 export type ChatListQuery = z.infer<typeof ChatListQuery>;
 /** Input shape (before defaults/coercion), for clients building query strings. */

@@ -11,13 +11,13 @@ export default async function notesRoutes(app: FastifyInstance, ctx: AppContext)
   app.addHook('preHandler', requireUser(ctx));
 
   app.get('/chats/:jid/notes', async (req) => {
-    const jid = chatJidParam(ctx, req.params);
+    const jid = chatJidParam(ctx, req);
     if (!chats.get(jid)) throw errors.notFound('Chat');
     return { notes: chats.listNotes(jid) };
   });
 
   app.post('/chats/:jid/notes', async (req, reply) => {
-    const jid = chatJidParam(ctx, req.params);
+    const jid = chatJidParam(ctx, req);
     const { body } = parse(NoteBody, req.body);
     const note = chats.addNote(jid, req.user!.id, body);
     return reply.status(201).send(note);

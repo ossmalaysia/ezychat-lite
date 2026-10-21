@@ -265,7 +265,7 @@ describe('multi-inbox messages', () => {
     try {
       expect(row('local-gone-1')).toMatchObject({ status: 'failed' });
       expect(restarted.queue.size).toBe(0);
-      expect(() => restarted.retry('local-gone-1', user.id)).toThrow('inbox_removed');
+      expect(() => restarted.retry('local-gone-1', user.id)).toThrow('This inbox was removed');
     } finally {
       restarted.shutdown();
     }
@@ -287,7 +287,7 @@ describe('multi-inbox messages', () => {
       expect(restarted.queue.size).toBe(0);
       expect(() => restarted.queueFor(2)).toThrow();
       expect(() => restarted.sendText(C2, { clientId: 'over-2', text: 'no' }, user.id)).toThrow(
-        'inbox_not_connected',
+        'not connected',
       );
       expect(row('local-over-2')).toBeUndefined();
     } finally {
@@ -423,7 +423,7 @@ describe('multi-inbox messages', () => {
     expect(messagesOf(C3)).toHaveLength(2);
     const r = await send(cookie, C3, 'no', 'rm-2');
     expect(r.statusCode).toBe(409);
-    expect(r.json()).toMatchObject({ error: { code: 'conflict', message: 'inbox_removed' } });
+    expect(r.json()).toMatchObject({ error: { code: 'inbox_removed' } });
     expect(() => getMessages(t.ctx).queueFor(3)).toThrow();
   });
 });

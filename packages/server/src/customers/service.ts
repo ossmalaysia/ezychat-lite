@@ -22,7 +22,8 @@ export interface CustomerService {
     body: CustomerProfileBody,
     actor: { userId: number; ip: string | null; isAdmin?: boolean },
   ): CustomerProfileResponse;
-  suggestTags(q?: string): string[];
+  /** Tag suggestions; `inboxIds` limits them to tags used on chats of those inboxes. */
+  suggestTags(q?: string, inboxIds?: readonly number[]): string[];
   /**
    * Group messages: sender JID → their direct chat's profile name (only when one is set). Only the
    * direct chats of `inboxId` (the group's inbox, default 1) count.
@@ -130,8 +131,8 @@ export function createCustomerService(ctx: AppContext): CustomerService {
       return service.profile(jid, { isAdmin: !!actor.isAdmin });
     },
 
-    suggestTags(q) {
-      return repo.suggest(q);
+    suggestTags(q, inboxIds) {
+      return repo.suggest(q, 20, inboxIds);
     },
 
     senderProfiles(senderJids, inboxId = PRIMARY_INBOX_ID) {

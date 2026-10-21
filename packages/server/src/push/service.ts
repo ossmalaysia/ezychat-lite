@@ -2,6 +2,7 @@ import webpush from 'web-push';
 import {
   isLocale,
   type Chat,
+  type InboxStatusPayload,
   type Locale,
   type Message,
   type NotificationPayload,
@@ -10,6 +11,9 @@ import {
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { t } from '../i18n/messages.js';
+import { usersWhoCanOpen } from '../inboxes/access.js';
+import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
+import { inboxOfKeyOrNull } from '../inboxes/service.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';
 
 export interface PushService {
@@ -18,8 +22,11 @@ export interface PushService {
   unsubscribe(userId: number, endpoint: string): void;
   notifyInbound(chat: Chat, message: Message): Promise<void>;
   notifyHandoff(chat: Chat): Promise<void>;
-  /** `text` is rendered in each admin's preferred language. */
-  notifyAdmins(text: LocalizedText): Promise<void>;
+  /**
+   * `text` is rendered in each admin's preferred language. `link` overrides the URL and tag
+   * (default Admin → WhatsApp, `wa-status`).
+   */
+  notifyAdmins(text: LocalizedText, link?: { url: string; tag: string }): Promise<void>;
   /** detaches bus listeners */
   shutdown(): void;
 }
@@ -94,22 +101,28 @@ function statusCodeOf(err: unknown): number | null {
   return null;
 }
 
-function waAlertText(s: WaStatus): LocalizedText {
+/**
+ * The alert for a WhatsApp number that went offline. With several active inboxes `inbox` names
+ * it in the title, and the text points to Admin → Inboxes instead of Admin → WhatsApp.
+ */
+function waAlertText(s: WaStatus, inbox: string | null = null): LocalizedText {
+  const titled = (locale: Locale | null, title: string) =>
+    inbox === null ? title : t(locale, 'push.inboxAlertTitle', { inbox, title });
   return (locale) => {
     switch (s.state) {
       case 'logged_out':
         return {
-          title: t(locale, 'push.waLoggedOut.title'),
-          body: t(locale, 'push.waLoggedOut.body'),
+          title: titled(locale, t(locale, 'push.waLoggedOut.title')),
+          body: t(locale, inbox === null ? 'push.waLoggedOut.body' : 'push.waLoggedOut.inboxBody'),
         };
       case 'replaced':
         return {
-          title: t(locale, 'push.waReplaced.title'),
-          body: t(locale, 'push.waReplaced.body'),
+          title: titled(locale, t(locale, 'push.waReplaced.title')),
+          body: t(locale, inbox === null ? 'push.waReplaced.body' : 'push.waReplaced.inboxBody'),
         };
       default:
         return {
-          title: t(locale, 'push.waUnavailable.title'),
+          title: titled(locale, t(locale, 'push.waUnavailable.title')),
           // lastError is a technical detail from the socket and stays as reported.
           body: s.lastError ?? t(locale, 'push.waUnavailable.body', { state: s.state }),
         };
@@ -135,7 +148,6 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     ),
     delOwn: db.prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?'),
     delById: db.prepare('DELETE FROM push_subscriptions WHERE id = ?'),
-    activeUsers: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND kind = 'human'"),
     activeAdmins: db.prepare("SELECT id FROM users WHERE disabled_at IS NULL AND role = 'admin'"),
     activeUser: db.prepare(
       "SELECT id FROM users WHERE id = ? AND disabled_at IS NULL AND kind = 'human'",
@@ -202,9 +214,19 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       rt.io.to(userIds.map((id) => `user:${id}`)).emit('notification:new', payload);
   }
 
+  /**
+   * Who hears about a chat: everyone who may open its inbox while it is unassigned, else the
+   * assignee only while they still may open it (an agent who lost the inbox hears nothing).
+   */
   const recipients = (chat: Chat): number[] => {
-    if (chat.assignedTo == null) return ids(q.activeUsers.all());
-    return q.activeUser.get(chat.assignedTo) ? [chat.assignedTo] : [];
+    // the key is the source of truth for the inbox (and a malformed one reaches nobody)
+    const inboxId = inboxOfKeyOrNull(chat.jid);
+    if (inboxId === null) return [];
+    const allowed = usersWhoCanOpen(ctx, inboxId);
+    if (chat.assignedTo == null) return allowed;
+    return q.activeUser.get(chat.assignedTo) && allowed.includes(chat.assignedTo)
+      ? [chat.assignedTo]
+      : [];
   };
 
   const service: PushService = {
@@ -272,7 +294,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       await Promise.all(jobs);
     },
 
-    async notifyAdmins(text) {
+    async notifyAdmins(text, link = { url: '/admin/whatsapp', tag: 'wa-status' }) {
       const targets = ids(q.activeAdmins.all());
       if (!targets.length) return;
       const jobs: Array<Promise<void>> = [];
@@ -281,8 +303,8 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
         const payload = {
           title: title.slice(0, 200),
           body: body.slice(0, 1000),
-          url: '/admin/whatsapp',
-          tag: 'wa-status',
+          url: link.url,
+          tag: link.tag,
         };
         notifyConnected(group, payload);
         jobs.push(sendTo(group, payload));
@@ -294,6 +316,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       ctx.bus.off('inbound:notify', onInbound);
       ctx.bus.off('ai:handoff', onHandoff);
       ctx.bus.off('wa:status', onWaStatus);
+      ctx.bus.off('inbox:status', onInboxStatus);
     },
   };
 
@@ -305,21 +328,35 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   const onHandoff = (chat: Chat) => {
     service.notifyHandoff(chat).catch((err: unknown) => log.warn({ err }, 'notifyHandoff failed'));
   };
-  let lastAlertState: WaStatus['state'] | null = null;
-  const onWaStatus = (s: WaStatus) => {
+  // the last alert state of each inbox: one alert per outage, per number
+  const lastAlertState = new Map<number, WaStatus['state']>();
+  const alertInbox = (inboxId: number, s: WaStatus) => {
     if (!ALERT_STATES.has(s.state)) {
-      lastAlertState = null;
+      lastAlertState.delete(inboxId);
       return;
     }
-    if (lastAlertState === s.state) return; // don't spam admins on repeated status events
-    lastAlertState = s.state;
+    if (lastAlertState.get(inboxId) === s.state) return; // don't spam admins on repeated status events
+    lastAlertState.set(inboxId, s.state);
+    const active = ctx.inboxes.repo.active();
+    const several = active.length > 1;
+    const name = several ? (active.find((r) => r.id === inboxId)?.name ?? null) : null;
+    const tag = inboxId === PRIMARY_INBOX_ID ? 'wa-status' : `wa-status-${inboxId}`;
     service
-      .notifyAdmins(waAlertText(s))
+      .notifyAdmins(
+        waAlertText(s, name),
+        several ? { url: '/admin/inboxes', tag } : { url: '/admin/whatsapp', tag },
+      )
       .catch((err: unknown) => log.warn({ err }, 'notifyAdmins failed'));
+  };
+  // inbox 1 reports through wa:status as before; the others through inbox:status
+  const onWaStatus = (s: WaStatus) => alertInbox(PRIMARY_INBOX_ID, s);
+  const onInboxStatus = (p: InboxStatusPayload) => {
+    if (p.inboxId !== PRIMARY_INBOX_ID) alertInbox(p.inboxId, p.status);
   };
   ctx.bus.on('inbound:notify', onInbound);
   ctx.bus.on('ai:handoff', onHandoff);
   ctx.bus.on('wa:status', onWaStatus);
+  ctx.bus.on('inbox:status', onInboxStatus);
 
   return service;
 }

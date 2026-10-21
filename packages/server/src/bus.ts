@@ -33,6 +33,11 @@ export interface BusEvents {
   'wa:status': [WaStatus];
   /** Connection status of every inbox, inbox 1 included. */
   'inbox:status': [InboxStatusPayload];
+  /**
+   * An inbox was added, renamed or removed, or who may open one changed: live sockets rebuild
+   * their inbox rooms and clients reload the inbox list.
+   */
+  'inboxes:changed': [];
   'tunnel:status': [TunnelStatus];
   'user:disabled': [number];
   'user:sessions-revoked': [number];

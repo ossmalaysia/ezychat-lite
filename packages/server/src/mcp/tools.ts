@@ -9,7 +9,7 @@ import {
 import type { z } from 'zod';
 import type { ApiPrincipal, TokenScope } from '../api-tokens/index.js';
 import type { AiSetupPort } from './ai-setup.js';
-import type { InboxReadPort } from './inbox.js';
+import type { InboxInfo, InboxReadPort } from './inbox.js';
 import type { InboxSendPort } from './send.js';
 
 /** Longest message text returned per message; longer text is cut and flagged `truncated`. */
@@ -50,9 +50,31 @@ export class ToolError extends Error {}
 
 const iso = (t: number | null) => (t === null ? null : new Date(t).toISOString());
 
-function chatDto(c: Chat, names: Map<number, string>) {
+interface InboxLabels {
+  /** The token owner may open more than one active inbox: every chat result names its inbox. */
+  multi: boolean;
+  byId: Map<number, InboxInfo>;
+}
+
+/**
+ * The inboxes the token owner may open. With one active inbox (Lite) chat results carry no inbox
+ * fields, except a chat of a removed inbox, which always names it.
+ */
+function inboxLabels(inbox: InboxReadPort, principal: ApiPrincipal): InboxLabels {
+  const list = inbox.inboxesFor(principal.user);
+  return {
+    multi: list.filter((i) => !i.removed).length > 1,
+    byId: new Map(list.map((i) => [i.id, i])),
+  };
+}
+
+function chatDto(c: Chat, names: Map<number, string>, inboxes: InboxLabels) {
+  const own = inboxes.byId.get(c.inboxId);
   return {
     jid: c.jid,
+    ...(inboxes.multi || own?.removed
+      ? { inboxId: c.inboxId, inboxName: own?.name ?? `inbox ${c.inboxId}` }
+      : {}),
     type: c.type,
     name: c.name,
     phone: c.phone,
@@ -117,12 +139,13 @@ const listChats: ToolDef<typeof McpListChatsInput> = {
   name: 'list_chats',
   title: 'List chats',
   description:
-    'List WhatsApp inbox chats, newest activity first, with status, assignee and last message preview. Page with nextCursor.' +
+    'List WhatsApp inbox chats, newest activity first, with status, assignee and last message preview. Page with nextCursor. With more than one inbox (WhatsApp number), each chat has inboxId and inboxName; pass inboxId to list one inbox.' +
     UNTRUSTED,
   scope: 'inbox:read',
   input: McpListChatsInput,
   run(args, { inbox, principal }) {
     const names = inbox.userNames();
+    const inboxes = inboxLabels(inbox, principal);
     const page = inbox.listChats(
       {
         status: args.status,
@@ -132,10 +155,14 @@ const listChats: ToolDef<typeof McpListChatsInput> = {
         cursor: args.cursor,
         limit: args.limit,
       },
-      principal.user.id,
+      principal.user,
+      args.inboxId,
     );
     return {
-      result: { chats: page.chats.map((c) => chatDto(c, names)), nextCursor: page.nextCursor },
+      result: {
+        chats: page.chats.map((c) => chatDto(c, names, inboxes)),
+        nextCursor: page.nextCursor,
+      },
       count: page.chats.length,
     };
   },
@@ -145,17 +172,17 @@ const getChat: ToolDef<typeof McpGetChatInput> = {
   name: 'get_chat',
   title: 'Get chat details',
   description:
-    'One chat with its assignment history (assigned, unassigned, resolved, reopened) and internal team notes.' +
+    'One chat with its assignment history (assigned, unassigned, resolved, reopened) and internal team notes. A phone number with chats in more than one inbox (WhatsApp number) is an error that lists their chat ids.' +
     UNTRUSTED,
   scope: 'inbox:read',
   input: McpGetChatInput,
-  run(args, { inbox }) {
-    const found = inbox.getChat(args.jid);
+  run(args, { inbox, principal }) {
+    const found = inbox.getChat(args.jid, principal.user);
     if (!found) throw new ToolError(`No chat found for ${args.jid}`);
     const names = inbox.userNames();
     return {
       result: {
-        chat: chatDto(found.chat, names),
+        chat: chatDto(found.chat, names, inboxLabels(inbox, principal)),
         history: found.events.map((e) => eventDto(e, names)),
         notes: found.notes.map((n) => noteDto(n, names)),
       },
@@ -172,8 +199,12 @@ const getMessages: ToolDef<typeof McpGetMessagesInput> = {
     UNTRUSTED,
   scope: 'inbox:read',
   input: McpGetMessagesInput,
-  run(args, { inbox }) {
-    const page = inbox.listMessages(args.jid, { before: args.before, limit: args.limit });
+  run(args, { inbox, principal }) {
+    const page = inbox.listMessages(
+      args.jid,
+      { before: args.before, limit: args.limit },
+      principal.user,
+    );
     if (!page) throw new ToolError(`No chat found for ${args.jid}`);
     const names = inbox.userNames();
     return {
@@ -190,15 +221,19 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   name: 'get_stats',
   title: 'Inbox statistics',
   description:
-    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered.',
+    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered. With more than one inbox (WhatsApp number), byInbox gives open, resolved and waiting chats and the messages in and out per inbox; pass inboxId for one inbox (the `ai` counts too).',
   scope: 'inbox:read',
   input: McpGetStatsInput,
   run(args, { inbox, aiSetup, principal }) {
-    const stats = inbox.stats(args.days);
+    const stats = inbox.stats(args.days, principal.user, args.inboxId);
     const names = inbox.userNames();
     return {
       result: {
-        ...(principal.scopes.has('ai:setup') ? { ai: aiSetup.stats(args.days) } : {}),
+        ...(principal.scopes.has('ai:setup')
+          ? {
+              ai: aiSetup.stats(args.days, args.inboxId === undefined ? undefined : [args.inboxId]),
+            }
+          : {}),
         ...stats,
         openByAssignee: stats.openByAssignee.map((r) => ({
           assignee: r.userId === null ? null : (names.get(r.userId) ?? `user ${r.userId}`),
@@ -218,11 +253,11 @@ const getActivity: ToolDef<typeof McpGetActivityInput> = {
   name: 'get_activity',
   title: 'Peak times and who replies',
   description:
-    'When customers write and who answers, in the business time zone, for direct chats over the last `days` days. byHour / byWeekday: customer messages, new conversations (a customer message after 12 hours of silence in that chat) and team replies; newConversationsHeatmap: new conversations per weekday (Mon first) × hour 0-23, to find peak times. firstReply: how long customers waited for the first team reply (minutes, median and p90; a wait starts at the first customer message after the last team reply), overall and by the hour the customer wrote, plus waits still unanswered. responders: per team member, the AI Sales Agent (kind "ai") and "phone" (sent from the WhatsApp phone or another linked device): messages sent in total and per hour, chats, first replies and their wait times.',
+    'When customers write and who answers, in the business time zone, for direct chats over the last `days` days. byHour / byWeekday: customer messages, new conversations (a customer message after 12 hours of silence in that chat) and team replies; newConversationsHeatmap: new conversations per weekday (Mon first) × hour 0-23, to find peak times. firstReply: how long customers waited for the first team reply (minutes, median and p90; a wait starts at the first customer message after the last team reply), overall and by the hour the customer wrote, plus waits still unanswered. responders: per team member, the AI Sales Agent (kind "ai") and "phone" (sent from the WhatsApp phone or another linked device): messages sent in total and per hour, chats, first replies and their wait times. With more than one inbox (WhatsApp number), byInbox gives customer messages, new conversations, team replies and first-reply waits per inbox; pass inboxId for one inbox.',
   scope: 'inbox:read',
   input: McpGetActivityInput,
-  run(args, { inbox }) {
-    const activity = inbox.activity(args.days);
+  run(args, { inbox, principal }) {
+    const activity = inbox.activity(args.days, principal.user, args.inboxId);
     const names = inbox.userNames();
     const ai = inbox.aiUserIds();
     return {
