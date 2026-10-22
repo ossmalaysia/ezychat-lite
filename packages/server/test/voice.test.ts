@@ -292,6 +292,10 @@ describe('voice settings routes', () => {
     // ChatGPT sign-in cannot transcribe: cloud is unavailable outside API-key mode.
     t.ctx.services.ai!.saveConnection({ mode: 'chatgpt', model: '' }, actor);
     expect((await api('GET', '/api/ai/voice')).json().cloudAvailable).toBe(false);
+    // Claude cannot transcribe either: the saved OpenAI key is kept but not used for voice.
+    t.ctx.services.ai!.saveConnection({ mode: 'claude', model: '' }, actor);
+    expect((await api('GET', '/api/ai/voice')).json().cloudAvailable).toBe(false);
+    expect((await api('PATCH', '/api/ai/voice', { transcription: 'cloud' })).statusCode).toBe(400);
   });
 
   it('downloads the model, turns local transcription on, and removes it again', async () => {

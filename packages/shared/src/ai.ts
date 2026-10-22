@@ -15,6 +15,16 @@ export const CHATGPT_FALLBACK_MODELS = [
   'gpt-5.5',
 ] as const;
 export const CHATGPT_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+/** Claude API key mode: the fixed models an admin may choose ('' means the default). */
+export const CLAUDE_MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'] as const;
+export type ClaudeModel = (typeof CLAUDE_MODELS)[number];
+export const CLAUDE_DEFAULT_MODEL: ClaudeModel = 'claude-sonnet-5-5';
+/**
+ * The AI connection: `api` = an OpenAI API key (name kept for older clients and saves),
+ * `chatgpt` = the EXPERIMENTAL ChatGPT sign-in, `claude` = an Anthropic Claude API key.
+ */
+export const AiConnectionMode = z.enum(['api', 'chatgpt', 'claude']);
+export type AiConnectionMode = z.infer<typeof AiConnectionMode>;
 
 /**
  * Text limit of one Business context text item in characters (Unicode code points, so an emoji
@@ -144,7 +154,7 @@ export const AI_INTERNAL_CHARACTERS = 10_000;
 export const AiSettingsBody = z.object({
   displayName: z.string().trim().min(1).max(64),
   enabled: z.boolean(),
-  mode: z.enum(['api', 'chatgpt']),
+  mode: AiConnectionMode,
   model: z.string().trim().max(128),
   instructions: z.string().max(AI_INSTRUCTIONS_CHARACTERS),
   /** Optional in requests (older clients); the server always returns the effective rules. */
@@ -159,10 +169,19 @@ export const AiConnectionBody = AiSettingsBody.pick({
   mode: true,
   model: true,
   apiKey: true,
-}).refine(({ mode, model }) => mode !== 'chatgpt' || !model || CHATGPT_MODEL_ID.test(model), {
-  path: ['model'],
-  message: 'ChatGPT mode supports only listed model ids. Choose Auto to use the default.',
-});
+})
+  .refine(({ mode, model }) => mode !== 'chatgpt' || !model || CHATGPT_MODEL_ID.test(model), {
+    path: ['model'],
+    message: 'ChatGPT mode supports only listed model ids. Choose Auto to use the default.',
+  })
+  .refine(
+    ({ mode, model }) =>
+      mode !== 'claude' || !model || (CLAUDE_MODELS as readonly string[]).includes(model),
+    {
+      path: ['model'],
+      message: `Claude mode supports ${CLAUDE_MODELS.join(', ')}. Choose the default to use ${CLAUDE_DEFAULT_MODEL}.`,
+    },
+  );
 export type AiConnectionBody = z.infer<typeof AiConnectionBody>;
 export const AiMemberBody = AiSettings.omit({ mode: true, model: true });
 export type AiMemberBody = z.infer<typeof AiMemberBody>;
@@ -260,7 +279,10 @@ export type AiAgentStatus = z.infer<typeof AiAgentStatus>;
 export const AiMemberStatus = z.object({
   member: UserSchema.nullable(),
   settings: AiSettings,
+  /** An OpenAI API key is saved (kept while another mode is selected). */
   hasApiKey: z.boolean(),
+  /** A Claude API key is saved (kept while another mode is selected); false from older servers. */
+  hasClaudeApiKey: z.boolean().default(false),
   connection: AiConnection,
   documents: z.array(AiDocument),
   // Defaults keep a client working with an older server or a test double that predates agents.
@@ -343,11 +365,17 @@ export type AiDecision = z.infer<typeof AiDecision>;
 export const AiCallbackBody = z.object({ url: z.string().trim().min(1).max(4096) });
 export type AiCallbackBody = z.infer<typeof AiCallbackBody>;
 
-/** Check an OpenAI API key before saving it; the server never stores or logs the key. */
-export const AiKeyTestBody = z.object({ apiKey: z.string().trim().min(1).max(400) });
+/**
+ * Check an API key before saving it; the server never stores or logs the key. `mode` picks the
+ * service: `api` (OpenAI, the default for older clients) or `claude` (Anthropic).
+ */
+export const AiKeyTestBody = z.object({
+  apiKey: z.string().trim().min(1).max(400),
+  mode: z.enum(['api', 'claude']).optional(),
+});
 export type AiKeyTestBody = z.infer<typeof AiKeyTestBody>;
 /**
- * invalid_key: OpenAI rejected the key (401), never saved. The others may still answer customers
+ * invalid_key: the service rejected the key (401), never saved. The others may still answer customers
  * (a restricted key without the Models permission, a region block, a passing rate limit or outage),
  * so the admin may save the key anyway.
  */

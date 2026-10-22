@@ -28,6 +28,7 @@ function json(data: unknown, code = 200) {
 
 function aiStatus(ready: boolean): AiMemberStatus {
   return {
+    hasClaudeApiKey: false,
     member: null,
     settings: {
       displayName: 'AI assistant',

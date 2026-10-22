@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { VOICE_MODEL_BYTES, type VoiceStatus } from '@ezychat/shared';
+import { VOICE_MODEL_BYTES, type AiMemberStatus, type VoiceStatus } from '@ezychat/shared';
 import { AiVoiceSection } from './AiVoiceSection';
 
 function status(overrides: Partial<VoiceStatus> = {}, model: Partial<VoiceStatus['model']> = {}) {
@@ -25,10 +25,20 @@ function json(data: unknown, code = 200) {
     headers: { 'content-type': 'application/json' },
   });
 }
-function setup(initial: VoiceStatus) {
+/** `aiMode`: the saved AI connection mode `/api/ai` reports (no answer when left out). */
+function setup(initial: VoiceStatus, aiMode?: AiMemberStatus['settings']['mode']) {
   let current = initial;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
+    if (url === '/api/ai' && aiMode)
+      return json({
+        member: null,
+        settings: { displayName: 'AI', enabled: false, mode: aiMode, model: '', instructions: '' },
+        hasApiKey: false,
+        hasClaudeApiKey: aiMode === 'claude',
+        connection: { state: 'connected', loginUrl: null, error: null },
+        documents: [],
+      });
     if (url === '/api/ai/voice' && method === 'PATCH') {
       current = { ...current, ...JSON.parse(String(init!.body)) };
       return json(current);
@@ -144,5 +154,36 @@ describe('Settings → AI → Voice messages', () => {
       'did not match its expected checksum',
     );
     expect(screen.getByRole('button', { name: /Download voice model/ })).toBeTruthy();
+  });
+
+  it('hides Cloud with the Claude connection and says why', async () => {
+    setup(status({ transcription: 'local' }, { state: 'installed' }), 'claude');
+    expect(await screen.findByText(/Voice notes use the on-device model with Claude/)).toBeTruthy();
+    expect(screen.getAllByRole('radio').map((radio) => radio.id)).toEqual([
+      'voice-engine-off',
+      'voice-engine-local',
+    ]);
+    expect(screen.queryByText(/With Cloud, the audio is sent to OpenAI/)).toBeNull();
+    expect(
+      screen.getByText(
+        'On this PC, voice notes never leave this computer. Transcripts are stored with the chat.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('asks for another engine when Cloud was chosen before the switch to Claude', async () => {
+    setup(status({ transcription: 'cloud' }, { state: 'installed' }), 'claude');
+    expect(
+      await screen.findByText(
+        'Cloud transcription is off while the AI uses Claude. Choose On this PC or Off.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: /Cloud/ })).toBeNull();
+  });
+
+  it('keeps Cloud for the other connections', async () => {
+    setup(status({ cloudAvailable: true }), 'api');
+    await screen.findByRole('radio', { name: /Cloud/ });
+    expect(screen.queryByText(/on-device model with Claude/)).toBeNull();
   });
 });

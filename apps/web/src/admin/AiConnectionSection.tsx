@@ -7,17 +7,21 @@ import { toast } from 'sonner';
 import {
   AiConnectionBody,
   CHATGPT_FALLBACK_MODELS,
+  CLAUDE_DEFAULT_MODEL,
+  CLAUDE_MODELS,
   type AiMemberStatus,
   type AiSettings,
+  type ClaudeModel,
 } from '@ezychat/shared';
 import { useAiMember, useAiMemberAction, useAiModels, useAiTest } from '../api/ai';
 import { errorMessage } from '../api/client';
-import { Banner, SegmentedControl } from '@/components/app';
+import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -28,20 +32,35 @@ import {
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { connectionReady, officialLoginUrl } from './ai-status';
 import { aiAgentsPath } from './agent-path';
-import { keyTestBlocks, keyTestMessage, useTestApiKey } from './AiQuickConnect';
+import {
+  ANTHROPIC_CONSOLE_URL,
+  keyTestBlocks,
+  keyTestMessage,
+  useTestApiKey,
+  type KeyMode,
+} from './AiQuickConnect';
 import { useChatgptSignIn } from './use-chatgpt-sign-in';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { cn } from '@/lib/utils';
 
 /** Radix Select needs a non-empty value; '' (Auto) is what is stored. */
 const AUTO_MODEL = 'auto';
+type Mode = AiSettings['mode'];
 type ConnectionDraft = Pick<AiSettings, 'mode' | 'model'>;
-type ModeDrafts = { mode: AiSettings['mode']; api: string; chatgpt: string };
+/** One model per mode, so flipping between modes keeps what was chosen for each. */
+type ModeDrafts = { mode: Mode } & Record<Mode, string>;
 const draftsFrom = (settings: ConnectionDraft): ModeDrafts => ({
   mode: settings.mode,
   api: settings.mode === 'api' ? settings.model : '',
   chatgpt: settings.mode === 'chatgpt' ? settings.model : '',
+  claude: settings.mode === 'claude' ? settings.model : '',
 });
+const CLAUDE_MODEL_LABELS = {
+  'claude-sonnet-5-5': 'ai.claude.models.sonnet',
+  'claude-opus-5-5': 'ai.claude.models.opus',
+  'claude-haiku-5-5': 'ai.claude.models.haiku',
+} as const satisfies Record<ClaudeModel, string>;
+const NO_KEYS: Record<KeyMode, string> = { api: '', claude: '' };
 
 /** Settings → AI: the inbox-wide AI connection, edited in place (no popup). */
 export function AiConnectionSection() {
@@ -72,13 +91,25 @@ function ConnectionForm({
     error: t('ai.state.error'),
     expired: t('ai.state.expired'),
   };
+  const modeOptions: Array<{ value: Mode; label: string; hint: string }> = [
+    { value: 'chatgpt', label: t('ai.modeChatgpt'), hint: t('ai.modeChatgptHint') },
+    { value: 'api', label: t('ai.modeApi'), hint: t('ai.modeApiHint') },
+    { value: 'claude', label: t('ai.modeClaude'), hint: t('ai.modeClaudeHint') },
+  ];
   // Status polling replaces `status`; the draft keeps what the admin has not saved yet.
-  // One model per mode, so flipping API -> ChatGPT -> API keeps what was typed.
   const [drafts, setDrafts] = useState<ModeDrafts>(() => draftsFrom(status.settings));
   const draft: ConnectionDraft = { mode: drafts.mode, model: drafts[drafts.mode] };
   const setModel = (model: string) => setDrafts((old) => ({ ...old, [old.mode]: model }));
-  const [apiKey, setApiKey] = useState('');
-  const [replacingKey, setReplacingKey] = useState(false);
+  // Each key mode has its own field, "replace" state and test, so flipping modes never mixes keys.
+  const [keys, setKeys] = useState(NO_KEYS);
+  const [replacing, setReplacing] = useState<Record<KeyMode, boolean>>({
+    api: false,
+    claude: false,
+  });
+  const [testedKeys, setTestedKeys] = useState<Record<KeyMode, string | null>>({
+    api: null,
+    claude: null,
+  });
   const apiModelId = useId();
   const [apiModelOpen, setApiModelOpen] = useState(false);
   // A custom model stays visible; the default ("leave blank") stays tucked away.
@@ -88,22 +119,25 @@ function ConnectionForm({
   const action = useAiMemberAction();
   const test = useAiTest();
   const chatgpt = useChatgptSignIn(action);
-  // A new API key is tested before it is saved. A key OpenAI rejects is never stored; after any other
-  // failure (restricted key, region, limit, outage) the admin may save it anyway.
-  const testKey = useTestApiKey();
-  const [testedKey, setTestedKey] = useState<string | null>(null);
-  const runKeyTest = async (key: string) => {
-    const result = await testKey.mutateAsync(key);
-    if (result.ok) setTestedKey(key);
+  // A new API key is tested before it is saved. A key the service rejects is never stored; after any
+  // other failure (restricted key, region, limit, outage) the admin may save it anyway.
+  const keyTests = { api: useTestApiKey(), claude: useTestApiKey() };
+  const keyMode: KeyMode | null = draft.mode === 'chatgpt' ? null : draft.mode;
+  const savedKey: Record<KeyMode, boolean> = {
+    api: status.hasApiKey,
+    claude: status.hasClaudeApiKey,
+  };
+  const newKey = keyMode ? keys[keyMode].trim() : '';
+  const keyTestPending = keyTests.api.isPending || keyTests.claude.isPending;
+  const runKeyTest = async (mode: KeyMode, key: string) => {
+    const result = await keyTests[mode].mutateAsync({ apiKey: key, mode });
+    if (result.ok) setTestedKeys((old) => ({ ...old, [mode]: key }));
     return result.ok;
   };
   const saved = status.settings;
   const conn = status.connection;
   const savedChatgpt = saved.mode === 'chatgpt';
-  const dirty =
-    draft.mode !== saved.mode ||
-    draft.model !== saved.model ||
-    (draft.mode === 'api' && apiKey.trim() !== '');
+  const dirty = draft.mode !== saved.mode || draft.model !== saved.model || newKey !== '';
   const loginUrl = officialLoginUrl(conn.loginUrl);
   // Stored tokens exist: connected and expired always; a failed first sign-in has none.
   const hasTokens =
@@ -139,17 +173,21 @@ function ConnectionForm({
 
   const commit = async (skipKeyTest: boolean) => {
     setLocalError(null);
-    const key = apiKey.trim();
-    if (draft.mode === 'api' && key && testedKey !== key && !skipKeyTest) {
+    // Claude has no key to fall back on: the first save needs one.
+    if (keyMode === 'claude' && !newKey && !status.hasClaudeApiKey) {
+      setLocalError(t('ai.claude.keyRequired'));
+      return;
+    }
+    if (keyMode && newKey && testedKeys[keyMode] !== newKey && !skipKeyTest) {
       try {
-        if (!(await runKeyTest(key))) return;
+        if (!(await runKeyTest(keyMode, newKey))) return;
       } catch {
-        return; // shown from testKey.error
+        return; // shown from the key test's error
       }
     }
     const parsed = AiConnectionBody.safeParse({
       ...draft,
-      ...(draft.mode === 'api' && apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+      ...(newKey ? { apiKey: newKey } : {}),
     });
     if (!parsed.success) {
       setLocalError(
@@ -166,10 +204,11 @@ function ConnectionForm({
       {
         onSuccess: (next) => {
           setDrafts(draftsFrom(next.settings));
-          setApiKey('');
-          setReplacingKey(false);
-          setTestedKey(null);
-          testKey.reset();
+          setKeys(NO_KEYS);
+          setReplacing({ api: false, claude: false });
+          setTestedKeys({ api: null, claude: null });
+          keyTests.api.reset();
+          keyTests.claude.reset();
           toast.success(t('ai.connectionSaved'));
         },
       },
@@ -187,129 +226,82 @@ function ConnectionForm({
           <AiConnectionBanner status={status} />
           <div className="flex flex-col gap-2">
             <Label id={modeLabelId}>{t('ai.connectionMode')}</Label>
-            <SegmentedControl
+            {/* Three options do not fit one segmented row at 360 px: option cards, as in Voice
+                messages. */}
+            <RadioGroup
               aria-labelledby={modeLabelId}
               value={draft.mode}
-              onValueChange={(mode) => setDrafts((old) => ({ ...old, mode }))}
-              options={[
-                {
-                  value: 'chatgpt',
-                  label: (
-                    <span className="inline-flex items-center gap-1.5">
-                      {t('ai.modeChatgpt')}
-                      {/* Inherit the segment's token colour: primary-foreground when selected,
-                          muted-foreground otherwise, so the badge never clashes with the fill.
-                          pointer-events-none: a click on the badge must select the option. */}
-                      <Badge
-                        variant="outline"
-                        className="pointer-events-none border-current/40 bg-transparent px-1.5 text-xs font-normal text-inherit"
-                      >
-                        {t('ai.connect.recommended')}
-                      </Badge>
+              onValueChange={(mode) => setDrafts((old) => ({ ...old, mode: mode as Mode }))}
+              disabled={action.isPending}
+              className="grid gap-2 sm:grid-cols-3"
+            >
+              {modeOptions.map((option) => {
+                const id = `ai-mode-${option.value}`;
+                return (
+                  <Label
+                    key={option.value}
+                    htmlFor={id}
+                    className={cn(
+                      'flex min-h-11 cursor-pointer flex-col items-start gap-1 rounded-lg border p-3 leading-normal transition-colors hover:bg-accent',
+                      draft.mode === option.value && 'border-primary bg-primary/5',
+                    )}
+                  >
+                    <span className="flex flex-wrap items-center gap-2 font-medium">
+                      <RadioGroupItem id={id} value={option.value} />
+                      {option.label}
+                      {/* pointer-events-none: a click on the badge must select the option. */}
+                      {option.value === 'chatgpt' && (
+                        <Badge variant="secondary" className="pointer-events-none">
+                          {t('ai.connect.recommended')}
+                        </Badge>
+                      )}
                     </span>
-                  ),
-                },
-                { value: 'api', label: t('ai.modeApi') },
-              ]}
-            />
+                    <span className="font-normal text-muted-foreground">{option.hint}</span>
+                  </Label>
+                );
+              })}
+            </RadioGroup>
           </div>
 
-          {draft.mode === 'api' ? (
-            status.hasApiKey && !replacingKey ? (
-              // A saved key is never shown; say so plainly instead of an empty "hidden" field.
-              <div className="flex flex-col gap-2">
-                <p className="text-sm leading-none font-medium">{t('ai.apiKey')}</p>
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
-                  <span className="inline-flex items-center gap-2 text-sm">
-                    <KeyRound className="size-4 text-success" aria-hidden />
-                    {t('ai.keySaved')}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="touch"
-                    className="md:pointer-fine:min-h-8"
-                    disabled={action.isPending}
-                    onClick={() => setReplacingKey(true)}
-                  >
-                    {t('ai.replaceKey')}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <Field
-                  label={t('ai.apiKey')}
-                  hint={status.hasApiKey ? t('ai.keepKeyHint') : t('ai.apiKeyHint')}
-                  error={
-                    testKey.data && !testKey.data.ok
-                      ? keyTestMessage(t, testKey.data.error)
-                      : undefined
+          {keyMode ? (
+            <div className="flex flex-col gap-3">
+              <KeyEditor
+                key={keyMode}
+                mode={keyMode}
+                saved={savedKey[keyMode]}
+                replacing={replacing[keyMode]}
+                value={keys[keyMode]}
+                tested={testedKeys[keyMode]}
+                check={keyTests[keyMode]}
+                busy={action.isPending}
+                onReplace={(on) => {
+                  setReplacing((old) => ({ ...old, [keyMode]: on }));
+                  if (!on) {
+                    setKeys((old) => ({ ...old, [keyMode]: '' }));
+                    keyTests[keyMode].reset();
                   }
+                }}
+                onChange={(value) => {
+                  setKeys((old) => ({ ...old, [keyMode]: value }));
+                  keyTests[keyMode].reset();
+                }}
+                onTest={() => void runKeyTest(keyMode, newKey).catch(() => undefined)}
+                onSaveAnyway={() => void commit(true)}
+              />
+              {keyMode === 'claude' && (
+                <Button
+                  asChild
+                  variant="link"
+                  size="touch"
+                  className="h-auto self-start px-0 text-left whitespace-normal"
                 >
-                  {(p) => (
-                    <Input
-                      {...p}
-                      type="password"
-                      value={apiKey}
-                      autoComplete="new-password"
-                      disabled={action.isPending || testKey.isPending}
-                      onChange={(e) => {
-                        setApiKey(e.target.value);
-                        testKey.reset();
-                      }}
-                      placeholder={t('ai.enterKey')}
-                    />
-                  )}
-                </Field>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="touch"
-                    disabled={!apiKey.trim() || testKey.isPending || action.isPending}
-                    onClick={() => void runKeyTest(apiKey.trim()).catch(() => undefined)}
-                  >
-                    <Pending show={testKey.isPending} />
-                    {t('ai.connect.testKey')}
-                  </Button>
-                  {testKey.data && !testKey.data.ok && !keyTestBlocks(testKey.data.error) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="touch"
-                      disabled={!apiKey.trim() || action.isPending}
-                      onClick={() => void commit(true)}
-                    >
-                      {t('ai.connect.saveAnyway')}
-                    </Button>
-                  )}
-                  {testKey.data?.ok && testedKey === apiKey.trim() && (
-                    <p role="status" className="inline-flex items-center gap-1.5 text-sm">
-                      <CheckCircle2 className="size-4 text-success" aria-hidden />
-                      {t('ai.keyOk')}
-                    </p>
-                  )}
-                </div>
-                {testKey.error && <Banner tone="danger">{errorMessage(testKey.error)}</Banner>}
-                {status.hasApiKey && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="touch"
-                    className="self-start"
-                    disabled={action.isPending}
-                    onClick={() => {
-                      setApiKey('');
-                      setReplacingKey(false);
-                      testKey.reset();
-                    }}
-                  >
-                    {t('ai.keepKey')}
-                  </Button>
-                )}
-              </div>
-            )
+                  <a href={ANTHROPIC_CONSOLE_URL} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink aria-hidden />
+                    {t('ai.claude.getKey')}
+                  </a>
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{t('ai.connect.note')}</p>
@@ -435,6 +427,31 @@ function ConnectionForm({
                 </Select>
               )}
             </Field>
+          ) : draft.mode === 'claude' ? (
+            <div className="flex flex-col gap-3">
+              {/* '' (the server's default) shows as Sonnet, the default model. */}
+              <Field label={t('ai.claude.model')} hint={t('ai.claude.modelHint')}>
+                {(p) => (
+                  <Select
+                    value={draft.model || CLAUDE_DEFAULT_MODEL}
+                    disabled={action.isPending}
+                    onValueChange={setModel}
+                  >
+                    <SelectTrigger {...p} className="min-h-11 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLAUDE_MODELS.map((id) => (
+                        <SelectItem key={id} value={id}>
+                          {t(CLAUDE_MODEL_LABELS[id])}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+              <p className="text-sm text-muted-foreground">{t('ai.claude.voiceNote')}</p>
+            </div>
           ) : (
             // Most inboxes keep the default model, so the free-text model id sits behind Advanced.
             <div className="flex flex-col gap-2">
@@ -528,14 +545,137 @@ function ConnectionForm({
             <Button
               type="submit"
               size="touch"
-              disabled={action.isPending || testKey.isPending || !dirty}
+              disabled={action.isPending || keyTestPending || !dirty}
             >
-              <Pending show={action.isPending || testKey.isPending} />
+              <Pending show={action.isPending || keyTestPending} />
               {t('ai.saveConnection')}
             </Button>
           </SaveBar>
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The API key of one key mode (OpenAI or Claude): a saved key is never shown, only "saved" with
+ * Replace; a new key is typed, tested before it is saved, and may be saved anyway after a check
+ * that did not reject it.
+ */
+function KeyEditor({
+  mode,
+  saved,
+  replacing,
+  value,
+  tested,
+  check,
+  busy,
+  onReplace,
+  onChange,
+  onTest,
+  onSaveAnyway,
+}: {
+  mode: KeyMode;
+  saved: boolean;
+  replacing: boolean;
+  value: string;
+  tested: string | null;
+  check: ReturnType<typeof useTestApiKey>;
+  busy: boolean;
+  onReplace: (on: boolean) => void;
+  onChange: (value: string) => void;
+  onTest: () => void;
+  onSaveAnyway: () => void;
+}) {
+  const { t } = useTranslation('admin');
+  const claude = mode === 'claude';
+  const label = claude ? t('ai.claude.keyLabel') : t('ai.apiKey');
+  const key = value.trim();
+  if (saved && !replacing)
+    // A saved key is never shown; say so plainly instead of an empty "hidden" field.
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm leading-none font-medium">{label}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+          <span className="inline-flex items-center gap-2 text-sm">
+            <KeyRound className="size-4 text-success" aria-hidden />
+            {claude ? t('ai.claude.keySaved') : t('ai.keySaved')}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="md:pointer-fine:min-h-8"
+            disabled={busy}
+            onClick={() => onReplace(true)}
+          >
+            {t('ai.replaceKey')}
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-2">
+      <Field
+        label={label}
+        hint={saved ? t('ai.keepKeyHint') : claude ? t('ai.claude.keyHint') : t('ai.apiKeyHint')}
+        error={check.data && !check.data.ok ? keyTestMessage(t, check.data.error, mode) : undefined}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            type="password"
+            value={value}
+            autoComplete="new-password"
+            spellCheck={false}
+            disabled={busy || check.isPending}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={claude ? t('ai.claude.keyPlaceholder') : t('ai.enterKey')}
+          />
+        )}
+      </Field>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={!key || check.isPending || busy}
+          onClick={onTest}
+        >
+          <Pending show={check.isPending} />
+          {t('ai.connect.testKey')}
+        </Button>
+        {check.data && !check.data.ok && !keyTestBlocks(check.data.error) && (
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            disabled={!key || busy}
+            onClick={onSaveAnyway}
+          >
+            {t('ai.connect.saveAnyway')}
+          </Button>
+        )}
+        {check.data?.ok && tested === key && (
+          <p role="status" className="inline-flex items-center gap-1.5 text-sm">
+            <CheckCircle2 className="size-4 text-success" aria-hidden />
+            {t('ai.keyOk')}
+          </p>
+        )}
+      </div>
+      {check.error && <Banner tone="danger">{errorMessage(check.error)}</Banner>}
+      {saved && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="touch"
+          className="self-start"
+          disabled={busy}
+          onClick={() => onReplace(false)}
+        >
+          {t('ai.keepKey')}
+        </Button>
+      )}
+    </div>
   );
 }

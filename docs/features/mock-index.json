@@ -15,6 +15,19 @@
   },
   "proposals": [
     {
+      "feature": "claude-provider",
+      "creationOrder": 8,
+      "createdAt": "2026-10-22",
+      "design": "docs/features/claude-provider/design.md",
+      "mock": "docs/features/claude-provider/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "custom-agents",
+      "baselineGitRevision": "117d57e23e8817db156efa1301c4aa4accc92f06",
+      "baselineAppRevision": "117d57e",
+      "coverage": "Full app clone of the confirmed custom-agents reference (as on main 117d57e); a third AI connection, Claude API key (mock state in localStorage mock.claudeProvider.v1): Settings -> AI with three connection option cards (ChatGPT / OpenAI API key / Claude API key), Anthropic key field with Test key (rejected, warn-only unreachable, OpenAI-key pointer), saved note + Replace + Keep, console.anthropic.com link, 3-model select (Sonnet 5.5 recommended, Opus 5.5, Haiku 5.5), Test connection, voice note; switching keeps both keys; inline connect card (agent page and setup wizard) with Use a Claude API key; Voice messages hide Cloud under Claude (note, warning when Cloud was on); agent page connection line; English mock keys",
+      "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review round 1 confirmed (design.md). latestConfirmed is updated after the commit."
+    },
+    {
       "feature": "custom-agents",
       "creationOrder": 7,
       "createdAt": "2026-10-22",
@@ -74,7 +87,12 @@
       "baselineFeature": "customer-enrichment",
       "baselineGitRevision": "8716cb73ab86186aaacf202bcbbf00e256f52ecb",
       "baselineAppRevision": "2ce7018",
-      "coverage": "Full app clone of the confirmed enrichment reference; 4-step setup wizard (account, WhatsApp, AI assistant, ready), Getting started card, inline AI connect and Advanced section on the Sales Agent page, Settings → AI reorder/Test key/More AI features, Phone access label; ChatGPT sign-in, key test and WhatsApp linking simulated; fresh-install runner mode"
+      "coverage": "Full app clone of the confirmed enrichment reference; 4-step setup wizard (account, WhatsApp, AI assistant, ready), Getting started card, inline AI connect and Advanced section on the Sales Agent page, Settings → AI reorder/Test key/More AI features, Phone access label; ChatGPT sign-in, key test and WhatsApp linking simulated; fresh-install runner mode",
+      "archived": {
+        "folderRemovedAt": "2026-10-22",
+        "lastRevision": "117d57e23e8817db156efa1301c4aa4accc92f06",
+        "reason": "retention: sixth feature folder (claude-provider)"
+      }
     },
     {
       "feature": "customer-enrichment",

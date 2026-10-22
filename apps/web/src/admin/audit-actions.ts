@@ -145,6 +145,7 @@ const VALUE_KEYS: Record<string, Record<string, string>> = {
   mode: {
     api: 'ai.modeApi',
     chatgpt: 'ai.modeChatgpt',
+    claude: 'ai.modeClaude',
     off: 'tunnel.modes.off',
     quick: 'tunnel.modes.quick',
     named: 'tunnel.modes.named',

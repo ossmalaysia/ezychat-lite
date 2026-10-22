@@ -40,6 +40,8 @@ interface World {
   maxAgents: number;
   agents: AiAgentStatus[];
   inboxes: { id: number; name: string; aiAgentId: number | null }[];
+  /** The connection uses a Claude API key instead of an OpenAI one. */
+  claude?: boolean;
 }
 function agentStatus(
   id = 5,
@@ -82,15 +84,16 @@ function world(patch: Partial<World> = {}): World {
 }
 function memberStatus(w: World): AiMemberStatus {
   return {
+    hasClaudeApiKey: !!w.claude && w.connected,
     member: null,
     settings: {
       displayName: 'Sales Assistant',
       enabled: false,
-      mode: 'api',
+      mode: w.claude ? 'claude' : 'api',
       model: '',
       instructions: '',
     },
-    hasApiKey: w.connected,
+    hasApiKey: !w.claude && w.connected,
     connection: { state: 'connected', loginUrl: null, error: null },
     documents: [],
     agents: w.agents.map((a) => a.agent),
@@ -357,6 +360,12 @@ describe('AI agent page', () => {
     expect(within(card).getByText('Cannot be changed')).toBeTruthy();
     expect(within(card).getAllByRole('listitem')).toHaveLength(4);
     expect(within(card).queryByRole('textbox')).toBeNull();
+  });
+
+  it('names the saved Claude key in the connection line', async () => {
+    setup(world({ claude: true }));
+    expect(await screen.findByText(/Anthropic API key is saved/)).toBeTruthy();
+    expect(screen.queryByText(/ChatGPT:/)).toBeNull();
   });
 
   it('keeps Turn on disabled with the reason until the connection works', async () => {

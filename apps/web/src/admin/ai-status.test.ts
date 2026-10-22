@@ -20,6 +20,7 @@ import {
 
 function status(): AiMemberStatus {
   return {
+    hasClaudeApiKey: false,
     member: null,
     settings: {
       displayName: 'Sales Agent',

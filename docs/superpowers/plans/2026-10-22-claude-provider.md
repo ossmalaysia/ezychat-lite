@@ -21,7 +21,7 @@
 2. An Anthropic 401/429/529 or a timeout gives the same visible states and log fields as the OpenAI path.
 3. The system prompt reaches Anthropic as the system message with cache control; the input JSON stays last.
 4. A malformed structured answer from Claude is asked once more, as today (`isMalformedAnswer`).
-5. Cloud voice is hidden and refused (409) in `claude` mode; local voice still works.
+5. Cloud voice is hidden and refused (400, as for ChatGPT) in `claude` mode; local voice still works.
 
 ## Task 1 — Shared + server (files: `packages/shared/src/ai.ts` (+ its tests), `packages/server/src/ai/{settings-keys,claude,chatgpt-direct,key-test,provider-types}.ts`, `packages/server/src/ai/service.ts` (connection, ready, models), `packages/server/src/routes/ai.ts` (connection test, models), `packages/server/package.json` + root lockfile, new tests under `packages/server/test/` and `packages/server/src/ai/*.test.ts`)
 

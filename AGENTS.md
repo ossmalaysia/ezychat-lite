@@ -114,7 +114,10 @@ and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (
 `ai/edit-prompt.ts` + `ai/agent/rewrite.ts`) only suggests a rewrite of one box — the page applies it to its
 draft and its Save persists it; its log line holds field, ok, ms and model only — never the request,
 the current text or the suggestion; closing the popup aborts the request and the model call; `resolution.ts` is the resolution guard;
-`knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
+`knowledge.ts` selects knowledge. Provider modes: API key (`api`, public OpenAI Responses API), Claude API key
+(`claude`, Anthropic Messages API through `@ai-sdk/anthropic`, only in `ai/claude.ts`; 3 fixed models
+`CLAUDE_MODELS`, key in the encrypted `ai_claude_api_key` setting, kept beside the OpenAI key; cloud voice is
+off in this mode) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
 `docs/ai-chatgpt-protocol.md`). A data dir with no saved connection defaults to ChatGPT mode

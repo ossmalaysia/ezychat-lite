@@ -22,7 +22,7 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
     await page.goto('/admin/settings/ai');
     await expect(page.getByText('Connection mode', { exact: true })).toBeVisible();
     await expect(page.getByRole('radio').first()).toHaveAccessibleName(/ChatGPT/);
-    await page.getByText('API key', { exact: true }).first().click();
+    await page.getByText('OpenAI API key', { exact: true }).first().click();
     // On the second viewport the key is already saved: replacing it reopens the field.
     const replace = page.getByRole('button', { name: 'Replace key' });
     if (await replace.isVisible()) await replace.click();

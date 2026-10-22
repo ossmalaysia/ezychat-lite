@@ -1,7 +1,8 @@
 /**
  * EXPERIMENTAL (owner-approved spike): ChatGPT-mode provider that signs in with the Codex OAuth
  * client and calls the ChatGPT Codex backend directly — no Codex binary. Non-public endpoints;
- * may break without notice. API-key mode still uses the public OpenAI API.
+ * may break without notice. API-key mode still uses the public OpenAI API; Claude mode the public
+ * Anthropic Messages API (`claude.ts`).
  *
  * Tokens live only in the encrypted settings secret store. Logs carry event names and HTTP
  * status codes only — never tokens, codes, state, account ids or URLs with parameters.
@@ -19,6 +20,7 @@ import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';
 import type { AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
+import { extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
 import { runRewrite } from './agent/rewrite.js';
@@ -505,6 +507,7 @@ export class DirectChatGptProvider implements AiProvider {
     signal: AbortSignal,
   ): Promise<AiDecision> {
     if (settings.mode === 'api') return generateOpenAi(settings, apiKey, prompt, signal);
+    if (settings.mode === 'claude') return generateClaude(settings, apiKey, prompt, signal);
     return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal) => {
       const turn = await runAgentTurn({
         model,
@@ -524,6 +527,7 @@ export class DirectChatGptProvider implements AiProvider {
     signal: AbortSignal,
   ) {
     if (settings.mode === 'api') return extractCustomerOpenAi(settings, apiKey, prompt, signal);
+    if (settings.mode === 'claude') return extractCustomerClaude(settings, apiKey, prompt, signal);
     return this.turn(settings, prompt.cacheId, signal, async (model, bounded) =>
       runCustomerExtraction({ model, prompt, signal: bounded }),
     );
@@ -537,6 +541,7 @@ export class DirectChatGptProvider implements AiProvider {
     signal: AbortSignal,
   ): Promise<{ text: string; model: string }> {
     if (settings.mode === 'api') return rewriteOpenAi(settings, apiKey, prompt, signal);
+    if (settings.mode === 'claude') return rewriteClaude(settings, apiKey, prompt, signal);
     return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal, id) => ({
       ...(await runRewrite({ model, prompt, signal: turnSignal })),
       model: id,

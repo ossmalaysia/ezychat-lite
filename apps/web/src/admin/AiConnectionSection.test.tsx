@@ -18,6 +18,7 @@ function status(): AiMemberStatus {
       instructions: '',
     },
     hasApiKey: true,
+    hasClaudeApiKey: false,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
     agents: [],
@@ -39,8 +40,13 @@ function setup(
     const custom = respond?.(url, init);
     if (custom) return custom;
     if (url === '/api/ai/connection' && init?.method === 'PATCH') {
-      const { apiKey: _key, ...settings } = JSON.parse(String(init.body));
-      current = { ...current, settings: { ...current.settings, ...settings } };
+      const { apiKey, ...settings } = JSON.parse(String(init.body));
+      current = {
+        ...current,
+        settings: { ...current.settings, ...settings },
+        hasApiKey: current.hasApiKey || (settings.mode === 'api' && Boolean(apiKey)),
+        hasClaudeApiKey: current.hasClaudeApiKey || (settings.mode === 'claude' && Boolean(apiKey)),
+      };
       return json(current);
     }
     if (url === '/api/ai') return json(current);
@@ -120,7 +126,7 @@ describe('Settings → AI connection (inline)', () => {
     expect(screen.queryByRole('button', { name: 'Replace key' })).toBeNull();
   });
 
-  it('switches with the segmented control, lists ChatGPT first as recommended and offers Auto first', async () => {
+  it('switches with option cards, lists ChatGPT first as recommended and offers Auto first', async () => {
     const initial = status();
     initial.settings.model = 'gpt-4.1-mini';
     const { fetchMock } = setup(initial, (url) =>
@@ -137,8 +143,9 @@ describe('Settings → AI connection (inline)', () => {
     const user = userEvent.setup();
     const radios = await screen.findAllByRole('radio');
     expect(radios.map((radio) => radio.closest('label')?.textContent)).toEqual([
-      'ChatGPTRecommended',
-      'API key',
+      'ChatGPTRecommendedYour ChatGPT account. Experimental.',
+      'OpenAI API keyYour own key, billed by OpenAI.',
+      'Claude API keyYour own key, billed by Anthropic.',
     ]);
     await user.click(screen.getByRole('radio', { name: /ChatGPT/ }));
     expect(screen.getByText('Recommended')).toBeTruthy();
@@ -281,7 +288,7 @@ describe('Settings → AI connection (inline)', () => {
     await user.type(screen.getByLabelText('Model (optional)'), 'gpt-4.1-mini');
     expect(screen.getByText('Unsaved')).toBeTruthy();
     await user.click(screen.getByRole('radio', { name: /ChatGPT/ }));
-    await user.click(screen.getByRole('radio', { name: 'API key' }));
+    await user.click(screen.getByRole('radio', { name: /^OpenAI API key/ }));
     expect(((await screen.findByLabelText('Model (optional)')) as HTMLInputElement).value).toBe(
       'gpt-4.1-mini',
     );
@@ -495,5 +502,159 @@ describe('Settings → AI connection (inline)', () => {
     setup({ ...status(), hasApiKey: false });
     await screen.findByLabelText('OpenAI API key');
     expect(screen.queryByRole('link', { name: 'Set up your AI agent' })).toBeNull();
+  });
+});
+
+describe('Settings → AI connection: Claude API key', () => {
+  const claudeStatus = (): AiMemberStatus => ({
+    ...status(),
+    settings: { ...status().settings, mode: 'claude', model: '' },
+    hasClaudeApiKey: true,
+    connection: { state: 'connected', loginUrl: null, error: null },
+  });
+
+  it('asks for an Anthropic key, tests it with Anthropic and saves Claude with the chosen model', async () => {
+    const { fetchMock } = setup(status(), (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: true, error: null })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('radio', { name: /Claude API key/ }));
+    expect(
+      screen.getByText('Starts with sk-ant-. Stored securely on the inbox server.'),
+    ).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Get a key at console.anthropic.com' });
+    expect(link.getAttribute('href')).toBe('https://console.anthropic.com/settings/keys');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByText(/Voice notes use the on-device model with Claude/)).toBeTruthy();
+    const model = screen.getByRole('combobox', { name: 'Claude model' });
+    expect(model.textContent).toContain('Claude Sonnet 5.5 (recommended)');
+    await user.click(model);
+    await waitFor(() =>
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'Claude Sonnet 5.5 (recommended)',
+        'Claude Opus 5.5',
+        'Claude Haiku 5.5',
+      ]),
+    );
+    await user.click(screen.getByRole('option', { name: 'Claude Opus 5.5' }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-good-key');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({
+        mode: 'claude',
+        model: 'claude-opus-5-5',
+        apiKey: 'sk-ant-good-key',
+      }),
+    );
+    const testCall = fetchMock.mock.calls.find((call) => call[0] === '/api/ai/connection/test');
+    expect(JSON.parse(String(testCall![1]!.body))).toEqual({
+      apiKey: 'sk-ant-good-key',
+      mode: 'claude',
+    });
+  });
+
+  it('needs an Anthropic key before Claude can be saved the first time', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('radio', { name: /Claude API key/ }));
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText('Enter your Anthropic API key.');
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+  });
+
+  it('keeps both saved keys when switching between Claude and OpenAI', async () => {
+    const { fetchMock } = setup({ ...claudeStatus(), hasApiKey: true });
+    const user = userEvent.setup();
+    expect(await screen.findByText('Anthropic API key is saved.')).toBeTruthy();
+    expect(screen.getByText('The AI connection is ready.')).toBeTruthy();
+    expect(screen.queryByLabelText('Anthropic API key')).toBeNull();
+    // Cloud voice has no OpenAI key to use under Claude.
+    expect(screen.getByText(/Voice notes use the on-device model with Claude/)).toBeTruthy();
+    // The connection test is a ChatGPT sign-in check only.
+    expect(screen.queryByRole('button', { name: 'Test connection' })).toBeNull();
+
+    await user.click(screen.getByRole('radio', { name: /^OpenAI API key/ }));
+    expect(screen.getByText('OpenAI API key is saved.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() => expect(patchBody(fetchMock)).toEqual({ mode: 'api', model: '' }));
+  });
+
+  it('replaces a saved Claude key, or keeps it', async () => {
+    const { fetchMock } = setup(claudeStatus(), (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: true, error: null })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Replace key' }));
+    expect(screen.getByText('Enter the new key. Leave blank to keep the saved one.')).toBeTruthy();
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-next');
+    await user.click(screen.getByRole('button', { name: 'Keep saved key' }));
+    expect(screen.queryByLabelText('Anthropic API key')).toBeNull();
+    expect(screen.queryByText('Unsaved')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Replace key' }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-next');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText('Key works.');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({ mode: 'claude', model: '', apiKey: 'sk-ant-next' }),
+    );
+    expect(
+      fetchMock.mock.calls.filter((call) => call[0] === '/api/ai/connection/test'),
+    ).toHaveLength(1);
+  });
+
+  it('points an OpenAI key in the Anthropic field to the OpenAI option and never tests it', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('radio', { name: /Claude API key/ }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-proj-openai-key');
+    await user.click(screen.getByRole('button', { name: 'Save AI connection' }));
+    await screen.findByText(/This is an OpenAI key/);
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+    expect(fetchMock.mock.calls.some((call) => call[0] === '/api/ai/connection/test')).toBe(false);
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'PATCH')).toBe(false);
+  });
+
+  it('names Anthropic in a failed check and saves anyway when it was only unreachable', async () => {
+    let error = 'invalid_key';
+    const { fetchMock } = setup(status(), (url, init) =>
+      url === '/api/ai/connection/test' && init?.method === 'POST'
+        ? json({ ok: false, error })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('radio', { name: /Claude API key/ }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-key-1');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/Anthropic did not accept this key/);
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+
+    for (const [code, text] of [
+      ['forbidden', /Anthropic did not let this key list models/],
+      ['rate_limited', /Anthropic is busy or this key has reached its limit/],
+      ['unreachable', /Could not reach Anthropic to check the key/],
+    ] as const) {
+      error = code;
+      await user.click(screen.getByRole('button', { name: 'Test key' }));
+      await screen.findByText(text);
+    }
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() =>
+      expect(patchBody(fetchMock)).toEqual({ mode: 'claude', model: '', apiKey: 'sk-ant-key-1' }),
+    );
+  });
+
+  it('points a Claude key in the OpenAI field to the Claude option', async () => {
+    setup({ ...status(), hasApiKey: false });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('OpenAI API key'), 'sk-ant-claude-key');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await screen.findByText(/This is a Claude \(Anthropic\) key/);
   });
 });

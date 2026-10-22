@@ -314,12 +314,14 @@ function AgentEditor({
     error: t('ai.state.error'),
     expired: t('ai.state.expired'),
   };
+  const keyText = (saved: boolean, prefix: '' | 'claude.') =>
+    saved ? t(`ai.${prefix}keySaved`) : t(`ai.${prefix}keyMissing`);
   const connectionText =
     status.settings.mode === 'api'
-      ? status.hasApiKey
-        ? t('ai.keySaved')
-        : t('ai.keyMissing')
-      : t('ai.chatgptState', { state: stateLabels[status.connection.state] });
+      ? keyText(status.hasApiKey, '')
+      : status.settings.mode === 'claude'
+        ? keyText(status.hasClaudeApiKey, 'claude.')
+        : t('ai.chatgptState', { state: stateLabels[status.connection.state] });
 
   const applyTemplate = (p: AiAgentPreset) => {
     setPreset(p);
