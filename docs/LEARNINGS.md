@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A UI/UX finding comes from the screen, never from the API: Try it returned `business_rule` over HTTP,
+  but the page already showed "matches your hand-off rules", so a reported "raw codes" problem was wrong.
+  Look at (or read) the rendered page before putting a screen problem in a review.
 - An edition feature built in the core still runs in Lite: report "no visible change" apart from "same
   code path", and for a new core migration check before merge that the previous release still opens the
   migrated data dir (downgrade), or say it is untested.
