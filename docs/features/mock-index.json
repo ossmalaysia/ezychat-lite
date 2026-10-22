@@ -7,11 +7,11 @@
   },
   "latestConfirmed": {
     "feature": "custom-agents",
-    "gitRevision": "1e682eac21fd47a8b96fe7c1f063c339452a590d",
+    "gitRevision": "dc28d1d096a61343a2a46b81b7126e0473a22e8d",
     "mock": "docs/features/custom-agents/mock/index.html",
     "design": "docs/features/custom-agents/design.md",
     "confirmedAt": "2026-10-22",
-    "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"run plan and implement with workflow, no need me review, u review urself\"); self-review confirmed 2026-10-22 (design.md)"
+    "confirmation": "Delegated to the agent by the owner 2026-10-22; round 1 and round 2 (usability, from the real-ChatGPT Enterprise review) self-reviewed and confirmed (design.md)"
   },
   "proposals": [
     {
@@ -25,8 +25,8 @@
       "baselineGitRevision": "f585ace8860647ef050c4b786059233cf0dd6227",
       "baselineAppRevision": "610ca5e",
       "coverage": "Full app clone of the confirmed multi-inbox reference; custom AI agents (mock state in localStorage): Members with one row per agent (preset badge, inbox chip) and Add AI agent below the limit, agent page /admin/members/ai/:agentId and /new?preset= with the Sales/FAQ/Custom preset picker, role and hand-over texts with Use the template, read-only Always-on safety rules, per-agent Business context with Internal switch, badge and filter, Try it on the draft (deterministic, no model call), inbox select and Delete (Enterprise), Admin -> Inboxes AI agent line and select, and a mock-only Lite view (one inbox, one agent, no inbox UI, no Delete); English only",
-      "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"run plan and implement with workflow, no need me review, u review urself\"); self-review confirmed 2026-10-22 (design.md)",
-      "gitRevision": "1e682eac21fd47a8b96fe7c1f063c339452a590d"
+      "confirmation": "Delegated to the agent by the owner 2026-10-22; round 1 and round 2 (usability, from the real-ChatGPT Enterprise review) self-reviewed and confirmed (design.md)",
+      "gitRevision": "dc28d1d096a61343a2a46b81b7126e0473a22e8d"
     },
     {
       "feature": "multi-inbox",
