@@ -110,6 +110,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- The Lite updater shows the GitHub release body as the notes: `release.yml` writes it from the
+  version's `CHANGELOG.md` section (`scripts/release-notes.mjs`) and stops before the build when that
+  section is missing. A draft published without it gives an empty update dialog.
 - `git add -A` on a branch cut before an ignore rule landed committed `.e2e-data-multi/secret.key` (test
   data) to `main`: stage named paths only and read `git diff --cached --stat` before every commit.
 - Every push to a PR branch cancels its running CI (Windows takes ~11 min): while waiting for checks,

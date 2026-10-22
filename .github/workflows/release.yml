@@ -48,6 +48,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The updater shows the release body as the notes: take it from CHANGELOG.md, and stop here (before
+      # the long build) when the version has no notes.
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        env:
+          TAG: ${{ inputs.ref || github.ref_name }}
+        run: node scripts/release-notes.mjs "$TAG" > release-notes.md
       - run: node apps/desktop/scripts/fetch-cloudflared.mjs
       - run: node apps/desktop/scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
@@ -107,6 +114,7 @@ jobs:
           tag_name: ${{ inputs.ref || github.ref_name }}
           draft: true
           prerelease: true
+          body_path: release-notes.md
           files: |
             apps/desktop/release/*-${{ matrix.arch }}.exe
             apps/desktop/release/*-${{ matrix.arch }}.dmg
