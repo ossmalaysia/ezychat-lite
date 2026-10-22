@@ -480,7 +480,7 @@ Stage the files a change names (`git add <paths>`), never `git add -A` / `git ad
 ignore rule landed still tracks local test data.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
 **GitHub issues are for external reports only** (owner rule): never open an issue for our own work;
-track own follow-ups in PR descriptions, `design.md`, workbooks or `docs/`. Treat each issue as an
+track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
 details); a confirmed bug may be fixed and released.
 **Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
@@ -491,7 +491,7 @@ This is currently a solo-maintainer repository, so a second maintainer's approva
 the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
 approval when another maintainer can review changes.
-Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
+**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, tag, publish, permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`
