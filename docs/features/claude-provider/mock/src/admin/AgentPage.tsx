@@ -371,8 +371,43 @@ function AgentEditor({
   const choosePreset = (p: AgentPreset) => {
     if (p === preset) return;
     if (onTemplate) applyTemplate(p);
-    else setTemplateFor(p);
+    else if (isNew) setTemplateFor(p);
+    else setPreset(p);
   };
+  const [typeOpen, setTypeOpen] = useState(false);
+  const presetPicker = () => (
+    <RadioGroup
+      aria-labelledby={pickId}
+      value={preset}
+      onValueChange={(v) => choosePreset(v as AgentPreset)}
+      className="grid gap-3 sm:grid-cols-3"
+    >
+      {AGENT_PRESETS.map((p) => {
+        const Icon = PRESET_ICON[p];
+        const id = `${pickId}-${p}`;
+        return (
+          <Label
+            key={p}
+            htmlFor={id}
+            className={cn(
+              'flex min-h-11 cursor-pointer flex-col items-start gap-2 rounded-lg border bg-card p-4 font-normal transition-colors',
+              'hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5',
+              'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+            )}
+          >
+            <span className="flex w-full items-center gap-2">
+              <Icon aria-hidden className="size-4 text-primary" />
+              <span className="font-medium">{presetName(p)}</span>
+              <RadioGroupItem id={id} value={p} className="ml-auto" />
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {t(`mockAgents.preset.${p}Description`)}
+            </span>
+          </Label>
+        );
+      })}
+    </RadioGroup>
+  );
 
   /** Agent on inbox 1: the server's AI member gets the name and on/off first (useAgents.ts). */
   const persist = async (target: MockAgent, patch: Partial<Omit<MockAgent, 'id' | 'items'>>) => {
@@ -530,45 +565,70 @@ function AgentEditor({
         </Card>
       )}
 
+      {!isNew && (
+        <Card className="gap-4" data-testid="agent-type">
+          <CardHeader className={EDIT_HEADER}>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <CardTitle id={pickId}>{t('mockAgents.page.typeTitle')}</CardTitle>
+              <CardDescription>{t('mockAgents.page.typeHint')}</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                aria-expanded={typeOpen}
+                onClick={() => setTypeOpen((open) => !open)}
+              >
+                {t('mockAgents.page.typeChange')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => {
+                  setEditField('instructions');
+                  setEditOpen(true);
+                }}
+              >
+                <Sparkles aria-hidden />
+                {t('mockAgents.page.typeEditRole')}
+              </Button>
+            </div>
+          </CardHeader>
+          {(typeOpen || (!onTemplate && preset !== 'custom')) && (
+            <CardContent className="flex flex-col gap-3">
+              {typeOpen && presetPicker()}
+              {!onTemplate && preset !== 'custom' && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-sm text-muted-foreground">
+                    {t('mockAgents.page.typeOwnTexts')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    className="md:min-h-9"
+                    onClick={() => setTemplateFor(preset)}
+                  >
+                    {t('mockAgents.page.useTemplate', { preset: presetName(preset) })}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {isNew && (
         <Card className="gap-4" data-testid="preset-picker">
           <CardHeader>
             <CardTitle id={pickId}>{t('mockAgents.page.pickTitle')}</CardTitle>
             <CardDescription>{t('mockAgents.page.pickHint')}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <RadioGroup
-              aria-labelledby={pickId}
-              value={preset}
-              onValueChange={(v) => choosePreset(v as AgentPreset)}
-              className="grid gap-3 sm:grid-cols-3"
-            >
-              {AGENT_PRESETS.map((p) => {
-                const Icon = PRESET_ICON[p];
-                const id = `${pickId}-${p}`;
-                return (
-                  <Label
-                    key={p}
-                    htmlFor={id}
-                    className={cn(
-                      'flex min-h-11 cursor-pointer flex-col items-start gap-2 rounded-lg border bg-card p-4 font-normal transition-colors',
-                      'hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5',
-                      'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
-                    )}
-                  >
-                    <span className="flex w-full items-center gap-2">
-                      <Icon aria-hidden className="size-4 text-primary" />
-                      <span className="font-medium">{presetName(p)}</span>
-                      <RadioGroupItem id={id} value={p} className="ml-auto" />
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {t(`mockAgents.preset.${p}Description`)}
-                    </span>
-                  </Label>
-                );
-              })}
-            </RadioGroup>
-          </CardContent>
+          <CardContent>{presetPicker()}</CardContent>
         </Card>
       )}
 
@@ -716,7 +776,7 @@ function AgentEditor({
                   />
                 )}
               </Field>
-              {!onTemplate && (
+              {isNew && !onTemplate && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Button
                     type="button"

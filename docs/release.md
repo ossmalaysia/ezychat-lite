@@ -24,7 +24,9 @@ On a branch `chore/release-<version>` from `main`:
 ## 2. Tag
 
 On the merge commit, an annotated tag: `git tag -a v<version> <commit> -m "EzyChat Lite <version>"`, then
-`git push origin v<version>`. The tag starts two workflows:
+`git push origin v<version>`. If a fetch or push fails (network), check both sides before you retry:
+`git rev-list -n1 v<version>` (local tag) and `git ls-remote --tags origin v<version>` (remote tag) — a failed
+`git fetch` earlier in the same command can skip the tag step entirely. The tag starts two workflows:
 
 | Workflow               | What it does                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

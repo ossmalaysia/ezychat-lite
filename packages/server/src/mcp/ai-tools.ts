@@ -122,7 +122,7 @@ const updateAiSetup: ToolDef<typeof McpUpdateAiSetupInput> = {
   name: 'update_ai_setup',
   title: 'Change an AI agent setup',
   description:
-    "Saves an AI agent's new AI instructions, hand-off rules, or a Business context text item (add or replace; send the complete text; internal = true marks an item used to decide, never told to customers). Takes effect for customers right away. Only change what the admin you are working with asked for; test with try_ai_reply first. Every change is kept in the version history (get_ai_setup_history) and the audit log with your reason. Limited to 20 changes an hour.",
+    "Saves an AI agent's new AI instructions, hand-off rules, or a Business context text item (add or replace; send the complete text; internal = true marks an item used to decide, never told to customers). Write each paragraph or list item on ONE line: never break lines at a fixed width, because the app shows every line break as typed and wrapped text looks cut short. Takes effect for customers right away. Only change what the admin you are working with asked for; test with try_ai_reply first. Every change is kept in the version history (get_ai_setup_history) and the audit log with your reason. Limited to 20 changes an hour.",
   scope: 'ai:setup',
   readOnly: false,
   input: McpUpdateAiSetupInput,

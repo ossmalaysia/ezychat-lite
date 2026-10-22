@@ -1004,7 +1004,12 @@
       },
       "noFreeInbox": "每个收件箱都已有 AI 客服。添加收件箱，让此客服使用自己的号码。",
       "addInbox": "添加收件箱",
-      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。"
+      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。",
+      "typeTitle": "客服类型",
+      "typeHint": "类型说明客服的用途并提供初始文本。更改类型会保留您写的角色和转交规则。",
+      "typeChange": "更改",
+      "typeEditRole": "用 AI 编辑角色",
+      "typeOwnTexts": "角色和转交规则是您自己的文本。"
     },
     "presets": {
       "sales": "销售",

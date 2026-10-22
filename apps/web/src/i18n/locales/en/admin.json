@@ -1014,7 +1014,12 @@
       },
       "noFreeInbox": "Every inbox has an AI agent. Add an inbox to give this agent its own number.",
       "addInbox": "Add an inbox",
-      "createNext": "After you create the agent, add its Business context, try it and turn it on."
+      "createNext": "After you create the agent, add its Business context, try it and turn it on.",
+      "typeTitle": "Agent type",
+      "typeHint": "The type names what the agent is for and gives its starting texts. Changing it keeps the role and hand-over rules you wrote.",
+      "typeChange": "Change",
+      "typeEditRole": "Edit role with AI",
+      "typeOwnTexts": "The role and hand-over rules are your own texts."
     },
     "presets": {
       "sales": "Sales",

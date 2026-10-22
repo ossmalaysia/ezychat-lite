@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Change an AI agent's type (Sales, FAQ or Custom) at any time on its page, also for the one agent in EzyChat Lite. Your own role and hand-over rules stay; the page offers the new type's starting texts if you want them. Edit role with AI is now one click away on the same card.
+
+### Fixed
+
+- AI assistants that update the AI agent over MCP are now told to write one line per paragraph, so rules no longer show as short broken lines.
+
 ## [0.1.49] - 2026-10-22
 
 ### Added

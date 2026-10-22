@@ -116,3 +116,14 @@ Delegated to the agent by the owner 2026-10-22 ("You review it yourself"). Self-
 
 `latestConfirmed` in `mock-index.json` is updated by the orchestrator after the commit (its `gitRevision` must
 name the commit that holds this mock).
+
+## Round 2 (2026-10-23): change the agent type on an existing agent
+
+Owner: "do it now, and also allow role to be also support edit with AI". Lite has one agent that cannot be
+deleted, and an upgraded install's agent is Sales, so the type chosen only on create could never change.
+`AgentPage.tsx` gains an **Agent type** card on existing agents: **Change** opens the same Sales / FAQ /
+Custom choice; unedited starting texts follow the new type, own texts stay (the card then offers "Use the
+<type> template", with a confirm); **Edit role with AI** opens Edit with AI for the role outside the closed
+Advanced section. The page header badge shows the type (no second badge in the card); the Role card's
+template button stays only on the create page. Same change in `apps/web/src/admin/AiMemberPage.tsx`.
+Review: delegated (owner: "You review it yourself"); mock tsc and `snapshot.mjs --check` pass.

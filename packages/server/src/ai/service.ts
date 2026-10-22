@@ -1355,6 +1355,7 @@ export function createAiService(
             enabled: body.enabled,
             role: 'sales',
             preset: body.preset ?? agent.preset,
+            presetChanged: body.preset !== undefined && body.preset !== agent.preset,
             instructionsChanged: body.instructions !== before.instructions,
             handoffRulesChanged: handoffRules !== before.handoffRules,
             ...mcpAudit(actor),
