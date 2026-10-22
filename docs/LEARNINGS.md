@@ -537,6 +537,11 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A choice offered only on create (an agent's Sales / FAQ / Custom type) is out of reach when the edition
+  allows one item that cannot be deleted (Lite: one agent, `last_agent`), and for every upgraded install whose
+  item was created by a migration. For each create-only field, ask "can this user ever create again?"; if not,
+  it must also be editable.
+
 - A key check maps each provider status on its own: a **400** from Anthropic is the account (e.g. "credit
   balance is too low"), not the network, so it must never read "could not reach". Read only the short
   error object of a 400 (type for the log, the message only matched), and before blaming the code send the
