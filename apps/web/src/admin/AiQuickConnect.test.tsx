@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AiMemberStatus } from '@ezychat/shared';
-import { AiQuickConnect } from './AiQuickConnect';
-import '../i18n';
+import { AiQuickConnect, keyTestMessage } from './AiQuickConnect';
+import { i18n } from '../i18n';
 
 const LOGIN_URL = 'https://auth.openai.com/oauth/authorize?state=abc';
 
@@ -299,5 +299,15 @@ describe('AiQuickConnect', () => {
     expect(screen.getByLabelText('OpenAI API key')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
     expect(screen.getByLabelText('Anthropic API key')).toBeTruthy();
+  });
+});
+
+describe('keyTestMessage', () => {
+  it('names a missing Anthropic credit and another refusal instead of "could not reach"', () => {
+    const t = i18n.getFixedT('en', 'admin');
+    expect(keyTestMessage(t, 'no_credit', 'claude')).toMatch(/no credit.*Billing/);
+    expect(keyTestMessage(t, 'rejected', 'claude')).toMatch(/Anthropic refused the check/);
+    expect(keyTestMessage(t, 'rejected', 'api')).toMatch(/OpenAI refused the check/);
+    expect(keyTestMessage(t, 'no_credit', 'claude')).not.toMatch(/internet connection/);
   });
 });

@@ -84,6 +84,10 @@ export function keyTestMessage(
       return claude ? t('ai.claude.keyUnreachable') : t('ai.connect.keyUnreachable');
     case 'rate_limited':
       return claude ? t('ai.claude.keyRateLimited') : t('ai.connect.keyRateLimited');
+    case 'no_credit':
+      return claude ? t('ai.claude.keyNoCredit') : t('ai.connect.keyRejected');
+    case 'rejected':
+      return claude ? t('ai.claude.keyRejected') : t('ai.connect.keyRejected');
     default:
       return t('ai.connect.keyFailedFallback');
   }

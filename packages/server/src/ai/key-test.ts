@@ -53,6 +53,7 @@ async function testKey(
   const started = Date.now();
   let result: AiKeyTestResponse;
   let status: number | null = null;
+  let providerError: string | null = null;
   try {
     const response = await fetchImpl(provider.url, {
       method: 'GET',
@@ -61,9 +62,13 @@ async function testKey(
       signal: AbortSignal.timeout(opts.timeoutMs ?? AI_KEY_TEST_TIMEOUT_MS),
     });
     status = response.status;
-    // The body is not needed; release the connection.
-    await response.body?.cancel().catch(() => undefined);
+    // A 400 means the service answered but refused (e.g. Anthropic's "credit balance is too low"):
+    // read only its short error object, which never echoes the key. Otherwise the body is not needed.
+    const refusal = status === 400 ? await readRefusal(response) : null;
+    if (!refusal) await response.body?.cancel().catch(() => undefined);
+    providerError = refusal?.type ?? null;
     if (response.ok) result = { ok: true, error: null };
+    else if (refusal) result = { ok: false, error: refusal.noCredit ? 'no_credit' : 'rejected' };
     else if (status === 401) result = { ok: false, error: 'invalid_key' };
     // A restricted key without the Models permission, or a blocked region: the key itself is real.
     else if (status === 403) result = { ok: false, error: 'forbidden' };
@@ -80,11 +85,37 @@ async function testKey(
       ok: result.ok,
       error: result.error,
       status,
+      // The service's error type only (e.g. invalid_request_error), never its message or the key.
+      ...(providerError ? { providerError } : {}),
       ms: Date.now() - started,
     },
     provider.message,
   );
   return result;
+}
+
+/** The largest refusal body read (Anthropic's and OpenAI's error objects are well below it). */
+const REFUSAL_BYTES = 4_096;
+
+/**
+ * A 400 answer's error type and whether it is about credit (`{ error: { type, message } }`), or
+ * null when the body is not such an object. The message is only matched, never kept or logged.
+ */
+async function readRefusal(
+  response: Response,
+): Promise<{ type: string | null; noCredit: boolean } | null> {
+  try {
+    const text = (await response.text()).slice(0, REFUSAL_BYTES);
+    const error = (JSON.parse(text) as { error?: { type?: unknown; message?: unknown } }).error;
+    if (!error || typeof error !== 'object') return { type: null, noCredit: false };
+    const message = typeof error.message === 'string' ? error.message : '';
+    return {
+      type: typeof error.type === 'string' ? error.type.slice(0, 64) : null,
+      noCredit: /credit balance|billing|purchase credits/i.test(message),
+    };
+  } catch {
+    return { type: null, noCredit: false };
+  }
 }
 
 /** Checks an Anthropic Claude API key with `GET /v1/models`; never stores or logs it. */

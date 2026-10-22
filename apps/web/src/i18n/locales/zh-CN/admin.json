@@ -911,7 +911,8 @@
       "keyRateLimited": "OpenAI 繁忙或此密钥已达到用量限制。请稍等一分钟后重试。",
       "keyForbidden": "OpenAI 不允许此密钥列出模型。受限密钥或地区限制可能导致此情况；此密钥仍可能用于回复。",
       "claudeKey": "这是 Claude（Anthropic）密钥。请在“Claude API 密钥”选项中使用它，或粘贴 OpenAI 密钥（以 sk- 开头）。",
-      "saveAnyway": "仍然保存"
+      "saveAnyway": "仍然保存",
+      "keyRejected": "OpenAI 拒绝了此检查。密钥可能仍然可用；请在 platform.openai.com 检查账户。"
     },
     "claude": {
       "keyLabel": "Anthropic API 密钥",
@@ -935,7 +936,9 @@
       "keyForbidden": "Anthropic 不允许此密钥列出模型。受限密钥或地区限制可能导致此情况；此密钥仍可能用于回复。",
       "openAiKey": "这是 OpenAI 密钥。请在“OpenAI API 密钥”选项中使用它，或粘贴 Anthropic 密钥（以 sk-ant- 开头）。",
       "connected": "Claude API 密钥已检查并保存",
-      "useClaude": "改用 Claude API 密钥"
+      "useClaude": "改用 Claude API 密钥",
+      "keyNoCredit": "您的 Anthropic 账户没有余额。请在 console.anthropic.com → Billing 充值后再测试。",
+      "keyRejected": "Anthropic 拒绝了此检查。密钥可能仍然可用；请在 console.anthropic.com 检查账户。"
     },
     "agents": {
       "add": "添加 AI 客服",

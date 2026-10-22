@@ -912,7 +912,8 @@
       "keyRateLimited": "OpenAI sibuk atau kunci ini telah mencapai hadnya. Tunggu seminit dan cuba lagi.",
       "keyForbidden": "OpenAI tidak membenarkan kunci ini menyenaraikan model. Kunci terhad atau had wilayah boleh menyebabkan ini; kunci mungkin masih berfungsi untuk balasan.",
       "claudeKey": "Ini kunci Claude (Anthropic). Gunakannya dengan pilihan Kunci API Claude, atau tampal kunci OpenAI (bermula dengan sk-).",
-      "saveAnyway": "Simpan juga"
+      "saveAnyway": "Simpan juga",
+      "keyRejected": "OpenAI menolak semakan ini. Kunci mungkin masih berfungsi; semak akaun di platform.openai.com."
     },
     "claude": {
       "keyLabel": "Kunci API Anthropic",
@@ -936,7 +937,9 @@
       "keyForbidden": "Anthropic tidak membenarkan kunci ini menyenaraikan model. Kunci terhad atau had wilayah boleh menyebabkan ini; kunci mungkin masih berfungsi untuk balasan.",
       "openAiKey": "Ini kunci OpenAI. Gunakannya dengan pilihan Kunci API OpenAI, atau tampal kunci Anthropic (bermula dengan sk-ant-).",
       "connected": "Kunci API Claude telah disemak dan disimpan",
-      "useClaude": "Guna kunci API Claude"
+      "useClaude": "Guna kunci API Claude",
+      "keyNoCredit": "Akaun Anthropic anda tiada kredit. Tambah kredit di console.anthropic.com → Billing, kemudian uji semula.",
+      "keyRejected": "Anthropic menolak semakan ini. Kunci mungkin masih berfungsi; semak akaun di console.anthropic.com."
     },
     "agents": {
       "add": "Tambah ejen AI",

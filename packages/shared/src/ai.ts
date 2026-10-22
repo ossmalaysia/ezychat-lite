@@ -379,7 +379,15 @@ export type AiKeyTestBody = z.infer<typeof AiKeyTestBody>;
  * (a restricted key without the Models permission, a region block, a passing rate limit or outage),
  * so the admin may save the key anyway.
  */
-export const AiKeyTestError = z.enum(['invalid_key', 'forbidden', 'unreachable', 'rate_limited']);
+export const AiKeyTestError = z.enum([
+  'invalid_key',
+  'forbidden',
+  'unreachable',
+  'rate_limited',
+  // The service answered 400: no credit on the account, or another refusal (the key may be fine).
+  'no_credit',
+  'rejected',
+]);
 export type AiKeyTestError = z.infer<typeof AiKeyTestError>;
 export const AiKeyTestResponse = z.object({
   ok: z.boolean(),

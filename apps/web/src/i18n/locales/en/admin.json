@@ -920,7 +920,8 @@
       "keyRateLimited": "OpenAI is busy or this key has reached its limit. Wait a minute and try again.",
       "keyForbidden": "OpenAI did not let this key list models. A restricted key or a region limit can cause this; the key may still work for replies.",
       "claudeKey": "This is a Claude (Anthropic) key. Use it with the Claude API key option, or paste an OpenAI key (it starts with sk-).",
-      "saveAnyway": "Save anyway"
+      "saveAnyway": "Save anyway",
+      "keyRejected": "OpenAI refused the check. The key may still work; check the account at platform.openai.com."
     },
     "claude": {
       "keyLabel": "Anthropic API key",
@@ -944,7 +945,9 @@
       "keyForbidden": "Anthropic did not let this key list models. A restricted key or a region limit can cause this; the key may still work for replies.",
       "openAiKey": "This is an OpenAI key. Use it with the OpenAI API key option, or paste an Anthropic key (it starts with sk-ant-).",
       "connected": "Claude API key checked and saved",
-      "useClaude": "Use a Claude API key instead"
+      "useClaude": "Use a Claude API key instead",
+      "keyNoCredit": "Your Anthropic account has no credit. Add credit at console.anthropic.com → Billing, then test again.",
+      "keyRejected": "Anthropic refused the check. The key may still work; check the account at console.anthropic.com."
     },
     "agents": {
       "add": "Add AI agent",
