@@ -64,7 +64,7 @@ beforeEach(async () => {
   const actor = { userId: admin.id, ip: null };
   t.ctx.services.ai!.saveConnection({ mode: 'chatgpt', model: '' }, actor);
   t.ctx.services.ai!.saveMember({ displayName: 'Agent', enabled: false, instructions: '' }, actor);
-  t.ctx.services.ai!.addText({ name: 'Hours', text: 'We open 9am to 6pm.' }, actor);
+  t.ctx.services.ai!.addText(null, { name: 'Hours', text: 'We open 9am to 6pm.' }, actor);
 });
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -115,7 +115,9 @@ it('returns the trimmed suggestion from the editor prompt', async () => {
   expect(input).toMatchObject({ field: 'instructions', currentText: CURRENT, request: REQUEST });
   expect(input.businessKnowledge).toContain('We open 9am to 6pm.');
   expect(prompt.instructions).not.toContain(REQUEST);
-  expect(prompt.cacheId).toBe(t.ctx.settings.get('ai_install_id', null));
+  expect(prompt.cacheId).toBe(
+    `${t.ctx.settings.get('ai_install_id', null)}#agent:${t.ctx.services.ai!.status().agents[0]!.id}`,
+  );
   // Nothing is saved: the member's instructions are untouched.
   expect(t.ctx.services.ai!.status().settings.instructions).not.toBe(SUGGESTION);
 });

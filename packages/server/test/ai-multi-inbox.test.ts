@@ -1,5 +1,5 @@
-// The AI Sales Agent with several inboxes: one AI member for every inbox; a hand-off picks only a
-// teammate who may open the chat's inbox (RF-3). Plan: multi-inbox Task 5.
+// The AI with several inboxes: each inbox is answered by its own AI agent; a hand-off picks only a
+// teammate who may open the chat's inbox (RF-3). Plan: multi-inbox Task 5, custom agents Task 4.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { AiMemberBody } from '@ezychat/shared';
 import { createAiService, AI_FALLBACK_MS } from '../src/ai/service.js';
@@ -44,8 +44,16 @@ beforeEach(async () => {
   t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
   t.ctx.services.ai.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   t.ctx.services.ai.saveMember({ ...body, enabled: false }, actor);
-  t.ctx.services.ai.addText({ name: 'Business context', text: 'Open 9 to 5.' }, actor);
+  t.ctx.services.ai.addText(null, { name: 'Business context', text: 'Open 9 to 5.' }, actor);
   t.ctx.services.ai.saveMember(body, actor);
+  // Inbox 2 has its own agent (custom agents: one agent per inbox).
+  const second = t.ctx.services.ai.createAgent({ ...body, enabled: false, inboxId: 2 }, actor);
+  t.ctx.services.ai.addText(
+    second.agent.id,
+    { name: 'Business context', text: 'Open 9 to 5.' },
+    actor,
+  );
+  t.ctx.services.ai.saveAgent(second.agent.id, { ...body, inboxId: 2 }, actor);
 });
 afterEach(async () => {
   await t.close();

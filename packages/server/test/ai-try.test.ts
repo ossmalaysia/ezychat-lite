@@ -36,7 +36,7 @@ beforeEach(async () => {
   t.ctx.services.ai!.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   // Try it answers from the saved context items.
   t.ctx.services.ai!.saveMember({ displayName: 'Agent', enabled: false, instructions: '' }, actor);
-  t.ctx.services.ai!.addText({ name: 'Delivery', text: 'Delivery RM10' }, actor);
+  t.ctx.services.ai!.addText(null, { name: 'Delivery', text: 'Delivery RM10' }, actor);
 });
 afterEach(async () => {
   await t.close();
@@ -88,5 +88,7 @@ it('builds Try it like a live reply: knowledge, the question, then the Current s
     timeZone: 'Asia/Kuala_Lumpur',
     resolution: 'Resolution confirmation is currently NOT awaited.',
   });
-  expect(prompt.cacheId).toBe(t.ctx.settings.get('ai_install_id', null));
+  expect(prompt.cacheId).toBe(
+    `${t.ctx.settings.get('ai_install_id', null)}#agent:${t.ctx.services.ai!.status().agents[0]!.id}`,
+  );
 });

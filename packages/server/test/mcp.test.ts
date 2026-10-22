@@ -198,6 +198,7 @@ describe('protocol and tools', () => {
       'get_chat',
       'get_messages',
       'get_stats',
+      'list_ai_agents',
       'list_chats',
       'try_ai_reply',
       'update_ai_setup',

@@ -3,6 +3,7 @@ import {
   McpGetAiContextItemInput,
   McpGetAiSetupHistoryInput,
   McpGetAiSetupVersionInput,
+  McpListAiAgentsInput,
   McpTryAiReplyInput,
   McpUpdateAiSetupInput,
 } from '@ezychat/shared';
@@ -32,15 +33,28 @@ export function page(text: string, offset: number, size = PAGE_CHARS) {
   };
 }
 
+const listAiAgents: ToolDef<typeof McpListAiAgentsInput> = {
+  name: 'list_ai_agents',
+  title: 'List the AI agents',
+  description:
+    'Every AI agent: id, name, preset (sales, faq or custom), the inbox (WhatsApp number) it answers and whether it is on. Pass the id as agentId to the other AI setup tools; without agentId they use the only agent, else the agent of inbox 1.',
+  scope: 'ai:setup',
+  input: McpListAiAgentsInput,
+  run(_args, { aiSetup }) {
+    const agents = aiSetup.agents();
+    return { result: { agents }, count: agents.length };
+  },
+};
+
 const getAiAgentSetup: ToolDef<typeof McpGetAiAgentSetupInput> = {
   name: 'get_ai_agent_setup',
-  title: 'Read the AI Sales Agent setup',
+  title: 'Read an AI agent setup',
   description:
-    "The AI Sales Agent's current AI instructions, hand-off rules, on/off state and the list of Business context items (read one with get_ai_context_item). Hand-offs in chats name the rule type that fired; compare with get_stats → ai.",
+    "One AI agent's current AI instructions, hand-off rules, preset, inbox, on/off state and the list of its Business context items (read one with get_ai_context_item; internal = used to decide, never told to customers). Hand-offs in chats name the rule type that fired; compare with get_stats → ai.",
   scope: 'ai:setup',
   input: McpGetAiAgentSetupInput,
-  run(_args, { aiSetup }) {
-    const setup = aiSetup.setup();
+  run(args, { aiSetup }) {
+    const setup = aiSetup.setup(args.agentId);
     return {
       result: {
         ...setup,
@@ -55,16 +69,17 @@ const getAiContextItem: ToolDef<typeof McpGetAiContextItemInput> = {
   name: 'get_ai_context_item',
   title: 'Read a Business context item',
   description:
-    'The text of one Business context item (what the AI answers from), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Text items can be changed with update_ai_setup (send the complete joined text); uploaded files are read-only and show a preview only.',
+    'The text of one Business context item of an AI agent (what the AI answers from), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Text items can be changed with update_ai_setup (send the complete joined text); uploaded files are read-only and show a preview only.',
   scope: 'ai:setup',
   input: McpGetAiContextItemInput,
   run(args, { aiSetup }) {
-    const item = aiSetup.contextItem(args.id);
+    const item = aiSetup.contextItem(args.id, args.agentId);
     return {
       result: {
         id: item.id,
         name: item.name,
         kind: item.kind,
+        internal: item.internal,
         editable: item.kind === 'text',
         updatedAt: iso(item.updatedAt),
         ...page(item.text, args.offset),
@@ -80,7 +95,7 @@ const tryAiReply: ToolDef<typeof McpTryAiReplyInput> = {
   name: 'try_ai_reply',
   title: 'Test an AI reply',
   description:
-    'Shows how the AI Sales Agent would answer a customer message, with the saved setup or with draft instructions / hand-off rules, and whether it would hand the chat to the team (and why). Touches no chat and saves nothing, but uses the owner’s AI connection (limited to 10 a minute).',
+    'Shows how an AI agent would answer a customer message, with the saved setup or with draft instructions / hand-off rules, and whether it would hand the chat to the team (and why). Touches no chat and saves nothing, but uses the owner’s AI connection (limited to 10 a minute).',
   scope: 'ai:setup',
   input: McpTryAiReplyInput,
   async run(args, { aiSetup, principal }) {
@@ -105,9 +120,9 @@ const tryAiReply: ToolDef<typeof McpTryAiReplyInput> = {
 
 const updateAiSetup: ToolDef<typeof McpUpdateAiSetupInput> = {
   name: 'update_ai_setup',
-  title: 'Change the AI Sales Agent setup',
+  title: 'Change an AI agent setup',
   description:
-    'Saves new AI instructions, hand-off rules, or a Business context text item (add or replace; send the complete text). Takes effect for customers right away. Only change what the admin you are working with asked for; test with try_ai_reply first. Every change is kept in the version history (get_ai_setup_history) and the audit log with your reason. Limited to 20 changes an hour.',
+    "Saves an AI agent's new AI instructions, hand-off rules, or a Business context text item (add or replace; send the complete text; internal = true marks an item used to decide, never told to customers). Takes effect for customers right away. Only change what the admin you are working with asked for; test with try_ai_reply first. Every change is kept in the version history (get_ai_setup_history) and the audit log with your reason. Limited to 20 changes an hour.",
   scope: 'ai:setup',
   readOnly: false,
   input: McpUpdateAiSetupInput,
@@ -122,7 +137,7 @@ const getAiSetupHistory: ToolDef<typeof McpGetAiSetupHistoryInput> = {
   name: 'get_ai_setup_history',
   title: 'AI setup version history',
   description:
-    'Saved versions of the AI instructions, hand-off rules or a Business context text item, newest first: who changed it (in the app or by an AI assistant over MCP), when, why, and a preview. Get the complete text of a version with get_ai_setup_version; to revert, send that complete text back with update_ai_setup.',
+    'Saved versions of the AI instructions of an AI agent, its hand-off rules or a Business context text item, newest first: who changed it (in the app or by an AI assistant over MCP), when, why, and a preview. Get the complete text of a version with get_ai_setup_version; to revert, send that complete text back with update_ai_setup.',
   scope: 'ai:setup',
   input: McpGetAiSetupHistoryInput,
   run(args, { aiSetup, inbox }) {
@@ -131,7 +146,7 @@ const getAiSetupHistory: ToolDef<typeof McpGetAiSetupHistoryInput> = {
     if (args.target === 'context_text' && args.itemId === undefined)
       throw new ToolError('Give the itemId of the Business context text item');
     const names = inbox.userNames();
-    const versions = aiSetup.history(args.target, args.itemId ?? null, args.limit);
+    const versions = aiSetup.history(args.target, args.itemId ?? null, args.limit, args.agentId);
     return {
       result: {
         versions: versions.map((v) => {
@@ -158,7 +173,7 @@ const getAiSetupVersion: ToolDef<typeof McpGetAiSetupVersionInput> = {
   name: 'get_ai_setup_version',
   title: 'Read one saved version',
   description:
-    'The complete text of one saved version (versionId from get_ai_setup_history), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Send the joined text to update_ai_setup to restore it.',
+    'The complete text of one saved version (versionId from get_ai_setup_history), 20,000 characters per page: while nextOffset is not null, call again with offset = nextOffset and join the pages. Send the joined text to update_ai_setup with the same agentId to restore it.',
   scope: 'ai:setup',
   input: McpGetAiSetupVersionInput,
   run(args, { aiSetup }) {
@@ -167,6 +182,8 @@ const getAiSetupVersion: ToolDef<typeof McpGetAiSetupVersionInput> = {
     return {
       result: {
         versionId: version.id,
+        // The agent to restore it to (update_ai_setup without agentId means the inbox-1 agent).
+        agentId: version.agentId,
         target: version.target,
         itemId: version.itemId,
         at: iso(version.createdAt),
@@ -184,6 +201,7 @@ function changedIn(via: string): string {
 }
 
 export const AI_SETUP_TOOLS: readonly ToolDef[] = [
+  listAiAgents,
   getAiAgentSetup,
   getAiContextItem,
   tryAiReply,

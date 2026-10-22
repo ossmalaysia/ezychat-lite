@@ -1,10 +1,4 @@
-import {
-  isLocale,
-  type Locale,
-  type PatchUserBody,
-  type Role,
-  type User,
-} from '@ezychat/shared';
+import { isLocale, type Locale, type PatchUserBody, type Role, type User } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { randomToken, sha256 } from '../crypto/secret.js';
 import { errors } from '../http/errors.js';
@@ -72,7 +66,13 @@ interface UserRow {
   disabled_at: number | null;
   created_at: number;
   locale: string | null;
+  /** The AI agent of an AI member (`ai_agents.id`, joined); null for people and deleted agents. */
+  ai_agent_id?: number | null;
 }
+
+/** Users with their AI agent id. A deleted agent's user has no `ai_agents` row. */
+const USER_SELECT =
+  'SELECT u.*, a.id AS ai_agent_id FROM users u LEFT JOIN ai_agents a ON a.user_id = u.id';
 
 export function rowToUser(r: UserRow): User {
   return {
@@ -81,7 +81,9 @@ export function rowToUser(r: UserRow): User {
     displayName: r.display_name,
     role: r.role,
     kind: r.kind,
-    ...(r.kind === 'ai' ? { aiRole: 'sales' as const } : {}),
+    ...(r.kind === 'ai'
+      ? { aiRole: 'sales' as const, ...(r.ai_agent_id ? { aiAgentId: r.ai_agent_id } : {}) }
+      : {}),
     mustChangePassword: r.must_change_password === 1,
     disabled: r.disabled_at !== null,
     createdAt: r.created_at,
@@ -99,9 +101,10 @@ export function createAuthService(
 
   const q = {
     count: db.prepare('SELECT COUNT(*) AS n FROM users'),
-    byId: db.prepare('SELECT * FROM users WHERE id = ?'),
-    byName: db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE'),
-    list: db.prepare('SELECT * FROM users ORDER BY id'),
+    byId: db.prepare(`${USER_SELECT} WHERE u.id = ?`),
+    byName: db.prepare(`${USER_SELECT} WHERE u.username = ? COLLATE NOCASE`),
+    // A deleted AI agent's user stays for message history but is hidden from lists.
+    list: db.prepare(`${USER_SELECT} WHERE u.ai_deleted_at IS NULL ORDER BY u.id`),
     insert: db.prepare(
       `INSERT INTO users (username, display_name, password_hash, role, must_change_password, disabled_at, created_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,

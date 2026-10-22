@@ -7,6 +7,7 @@ import {
 } from '@ezychat/shared';
 import { createAiService, AI_FALLBACK_MS, isResolutionConfirmation } from '../src/ai/service.js';
 import { VOICE_RETRY_REPLY } from '../src/ai/prompt.js';
+import { defaultAgent, updateAgentTexts } from '../src/ai/agents.js';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -72,7 +73,7 @@ beforeEach(async () => {
   t.ctx.services.ai.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   // Context items belong to the member: save it as a draft, add the business facts, turn on.
   t.ctx.services.ai.saveMember({ ...body, enabled: false }, actor);
-  t.ctx.services.ai.addText({ name: 'Business context', text: CONTEXT }, actor);
+  t.ctx.services.ai.addText(null, { name: 'Business context', text: CONTEXT }, actor);
   t.ctx.services.ai.saveMember(body, actor);
 });
 afterEach(async () => {
@@ -860,7 +861,7 @@ it('answers Try it from the draft name and instructions plus saved context witho
     error: null,
   });
   const [, key, prompt] = vi.mocked(provider.generate).mock.calls[0]!;
-  expect(prompt.instructions).toContain('named Draft Agent');
+  expect(prompt.instructions).toContain('Your name: Draft Agent');
   expect(prompt.instructions).toContain('Be brief');
   expect(prompt.input).toContain('Delivery costs RM10.');
   expect(prompt.instructions).not.toContain('Be concise');
@@ -898,7 +899,7 @@ it('Try it reports a missing connection and a provider failure without throwing'
 
 it('refuses to turn on the AI member without any context item', () => {
   const ai = t.ctx.services.ai!;
-  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
+  for (const doc of ai.status().documents) ai.removeDocument(null, doc.id, actor);
   expect(() => ai.saveMember(body, actor)).toThrow('Add business context');
   // The AI may answer only from business facts: instructions alone are not enough.
   expect(() => ai.saveMember({ ...body, instructions: 'Be friendly' }, actor)).toThrow(
@@ -909,7 +910,7 @@ it('refuses to turn on the AI member without any context item', () => {
 
 it('loads a 60,000-character migrated context intact and finds a deep fact by retrieval', async () => {
   const ai = t.ctx.services.ai!;
-  for (const doc of ai.status().documents) ai.removeDocument(doc.id, actor);
+  for (const doc of ai.status().documents) ai.removeDocument(null, doc.id, actor);
   const filler = Array.from(
     { length: 1300 },
     (_, i) => `Paragraph ${i}: the office wall colour is white.`,
@@ -924,7 +925,9 @@ it('loads a 60,000-character migrated context intact and finds a deep fact by re
   expect(migrated).toMatchObject({ name: 'Business context', kind: 'text' });
   expect(migrated!.characters).toBeGreaterThan(60_000);
   expect(
-    ai.document(migrated!.id).text.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.'),
+    ai
+      .document(null, migrated!.id)
+      .text.endsWith('Q: Wifi password?\nA: The wifi password is kopi123.'),
   ).toBe(true);
   clock();
   await incoming('wifi', 'What is the wifi password?');
@@ -970,9 +973,12 @@ it('appends the current time, zone and resolution state last and keeps a stable 
     timeZone: 'Europe/London',
   });
   expect(second!.instructions).toBe(first!.instructions);
-  expect(first!.cacheId).toMatch(/^[0-9a-f-]{36}$/);
+  // One cache key per install and agent.
+  expect(first!.cacheId).toMatch(/^[0-9a-f-]{36}#agent:\d+$/);
   expect(second!.cacheId).toBe(first!.cacheId);
-  expect(t.ctx.settings.get('ai_install_id', null)).toBe(first!.cacheId);
+  expect(first!.cacheId).toBe(
+    `${t.ctx.settings.get('ai_install_id', null)}#agent:${defaultAgent(t.ctx.db)!.id}`,
+  );
 });
 
 it('tells the AI to answer order questions and hand order requests to the team', async () => {
@@ -1122,11 +1128,13 @@ it('replies to the address the customer last wrote from when one person has a ph
 });
 
 it('starts a member that never saved instructions with the default ones, and keeps saved text', async () => {
-  t.ctx.settings.set('ai_sales_member', {});
+  // The texts live on the agent row: NULL = never saved.
+  const id = defaultAgent(t.ctx.db)!.id;
+  updateAgentTexts(t.ctx.db, id, { instructions: null });
   expect(t.ctx.services.ai!.status().settings.instructions).toBe(DEFAULT_AI_INSTRUCTIONS);
-  t.ctx.settings.set('ai_sales_member', { instructions: '' });
+  updateAgentTexts(t.ctx.db, id, { instructions: '' });
   expect(t.ctx.services.ai!.status().settings.instructions).toBe('');
-  t.ctx.settings.set('ai_sales_member', { instructions: 'Be concise' });
+  updateAgentTexts(t.ctx.db, id, { instructions: 'Be concise' });
   expect(t.ctx.services.ai!.status().settings.instructions).toBe('Be concise');
 });
 
@@ -1154,6 +1162,7 @@ it('answers every reply from the latest saved business context', async () => {
   expect(vi.mocked(provider.generate).mock.calls[0]![2].input).toContain('9am to 5pm');
   const [item] = t.ctx.services.ai!.status().documents;
   t.ctx.services.ai!.updateText(
+    null,
     item!.id,
     { text: 'Opening hours: 10am to 8pm. Delivery costs RM12.' },
     actor,

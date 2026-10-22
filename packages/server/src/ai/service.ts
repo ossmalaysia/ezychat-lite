@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  AiAgentBody,
+  AiAgentPreset,
+  AiAgentStatus,
+  AiAgentSummary,
   AiContextPatchBody,
   AiEditBody,
   AiEditResult,
@@ -22,6 +26,7 @@ import {
   AI_CONTEXT_ITEMS,
   AI_CONTEXT_PREVIEW_CHARACTERS,
   AI_EDIT_FIELD_CHARACTERS,
+  AI_INTERNAL_CHARACTERS,
   AiConnectionBody,
   AiContextTextBody,
   AiDecision,
@@ -29,12 +34,27 @@ import {
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
+  presetTexts,
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';
-import { defaultAgent } from './agents.js';
-import { errors, parse } from '../http/errors.js';
+import {
+  AgentError,
+  agentById,
+  agentByUserId,
+  agentForInbox,
+  createAgentRow,
+  defaultAgent,
+  deleteAgentRow,
+  listAgents,
+  migrateMemberSetting,
+  setAgentInbox,
+  updateAgentTexts,
+  type AgentRow,
+} from './agents.js';
+import { findLeak } from './leak-check.js';
+import { HttpError, errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
 import { inboxOfKey } from '../inboxes/keys.js';
@@ -46,13 +66,6 @@ import {
   extensionLookupsAvailable,
   type AgentToolInfo,
 } from './agent/extension-tools.js';
-
-/** The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. */
-const conversation = (history: Message[], aiUserId: number): AiConversationTurn[] =>
-  history.map((message) => ({
-    speaker: message.fromMe ? (message.sentByUserId === aiUserId ? 'AI' : 'human') : 'customer',
-    text: conversationLine(message),
-  }));
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { buildEditPrompt } from './edit-prompt.js';
@@ -63,8 +76,8 @@ import {
   VOICE_RETRY_REPLY,
   aiCustomer,
   buildAiPrompt,
-  knowledgeSources,
   resolveAiTimeZone,
+  splitKnowledge,
   type AiContextItem,
   type AiConversationTurn,
   type AiCustomer,
@@ -76,6 +89,20 @@ import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } fr
 import { guardResolution, objectsToResolution } from './resolution.js';
 import { AI_PROVIDER_KEY, AI_SECRET_KEY, aiProviderSettings } from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
+
+/**
+ * The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. Every
+ * AI agent's message is `AI` (an inbox may have been answered by another agent before).
+ */
+const conversation = (history: Message[], aiUserIds: ReadonlySet<number>): AiConversationTurn[] =>
+  history.map((message) => ({
+    speaker: message.fromMe
+      ? message.sentByUserId !== null && aiUserIds.has(message.sentByUserId)
+        ? 'AI'
+        : 'human'
+      : 'customer',
+    text: conversationLine(message),
+  }));
 
 export const AI_FALLBACK_MS = 10_000;
 const PROVIDER_KEY = AI_PROVIDER_KEY;
@@ -114,6 +141,29 @@ const versionSource = (actor: Actor): SetupChangeSource => ({
 /** Extra audit fields for a change an AI assistant made over MCP. */
 const mcpAudit = (actor: Actor) =>
   actor.via === 'mcp' ? { via: 'mcp', tokenId: actor.tokenId, reason: actor.reason } : {};
+type AgentHttpCode = AgentError['code'] | 'last_agent';
+const AGENT_ERRORS: Record<AgentHttpCode, [status: number, message: string]> = {
+  agent_limit: [409, 'No more AI agents can be added in this edition'],
+  inbox_has_agent: [409, 'This inbox already has an AI agent'],
+  agent_not_found: [404, 'AI agent not found'],
+  internal_too_large: [
+    409,
+    `Internal items can contain up to ${AI_INTERNAL_CHARACTERS.toLocaleString('en')} characters in total`,
+  ],
+  last_agent: [409, 'The only AI agent cannot be deleted'],
+};
+/** Agent errors as HTTP errors whose `code` is the agent code (`{ error: { code } }`). */
+const agentHttpError = (code: AgentHttpCode) =>
+  new HttpError(AGENT_ERRORS[code][0], code, AGENT_ERRORS[code][1]);
+/** Runs a repo call and turns its `AgentError` into the matching HTTP error. */
+function agentCall<T>(fn: () => T): T {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof AgentError) throw agentHttpError(error.code);
+    throw error;
+  }
+}
 interface State {
   paused: number;
   awaiting_confirmation: number;
@@ -126,23 +176,60 @@ export interface AiService {
   /** Shared connection, independent of the Sales Agent's on/off and ownership. */
   connectionReady(): boolean;
   extractCustomer(prompt: AiRewritePrompt, signal: AbortSignal): Promise<EnrichmentExtraction>;
+  /** The connection and the default agent (the only one, else inbox 1's) in the old shape, plus every agent. */
   status(): AiMemberStatus;
+  /** Every agent, oldest first. */
+  listAgents(): AiAgentSummary[];
+  /** Agents this edition allows (= maxInboxes; Lite 1). */
+  maxAgents(): number;
+  /** 404 `agent_not_found` for an unknown or deleted agent. */
+  agentStatus(agentId: number): AiAgentStatus;
+  /** 409 `agent_limit` at maxAgents, 409 `inbox_has_agent`; in Lite the agent always serves inbox 1. */
+  createAgent(body: AiAgentBody, actor: Actor): AiAgentStatus;
+  saveAgent(agentId: number, body: AiAgentBody, actor: Actor): AiAgentStatus;
+  /** Releases its chats first; 409 `last_agent` in Lite. */
+  deleteAgent(agentId: number, actor: Actor): void;
+  /** Binds the agent to an inbox (null = none) and releases the chats it owned. */
+  setAgentInbox(agentId: number, inboxId: number | null, actor: Actor): AiAgentStatus;
+  /** The inbox-1 agent if one exists (nothing is updated), else a new one from `body`. */
+  ensureDefaultAgent(body: AiAgentBody, actor: Actor): AiAgentStatus;
+  /** Old `PUT /api/ai`: `ensureDefaultAgent`, then saves it. */
   saveMember(body: AiMemberBody, actor: Actor): AiMemberStatus;
   saveConnection(body: AiConnectionBody, actor: Actor): AiMemberStatus;
-  addDocument(name: string, size: number, text: string, actor: Actor): AiMemberStatus;
-  addText(body: AiContextTextBody, actor: Actor): AiMemberStatus;
-  updateText(id: number, body: AiContextPatchBody, actor: Actor): AiMemberStatus;
-  document(id: number): AiDocumentView;
-  removeDocument(id: number, actor: Actor): AiMemberStatus;
+  /** Business context of one agent; `agentId` null = the default agent (old routes and tools). */
+  addDocument(
+    agentId: number | null,
+    name: string,
+    size: number,
+    text: string,
+    actor: Actor,
+    internal?: boolean,
+  ): AiAgentStatus;
+  addText(agentId: number | null, body: AiContextTextBody, actor: Actor): AiAgentStatus;
+  updateText(
+    agentId: number | null,
+    id: number,
+    body: AiContextPatchBody,
+    actor: Actor,
+  ): AiAgentStatus;
+  document(agentId: number | null, id: number): AiDocumentView;
+  removeDocument(agentId: number | null, id: number, actor: Actor): AiAgentStatus;
+  /** The agent that answers this chat (the agent of its inbox), or null. */
+  agentForChat(jid: string): AgentRow | null;
+  /** Unassigns and pauses every open chat the agent owns (through chats.patch, so events fire). */
+  releaseAgent(agentId: number): void;
+  /** Stops the agent's scheduled and running replies. */
+  cancelAgent(agentId: number): void;
   login(): Promise<void>;
   completeSignIn(url: string): Promise<void>;
   logout(): Promise<void>;
   models(): Promise<AiModelList>;
   testConnection(): Promise<AiTestResult>;
   tryAnswer(body: AiTryBody): Promise<AiTryResult>;
-  /** Edit with AI: a suggested rewrite of one AI member text; nothing is saved. */
+  /** Edit with AI: a suggested rewrite of one AI agent text; nothing is saved. */
   /** `signal`: the admin cancelled (closed the popup) — stop the AI call. */
-  editText(body: AiEditBody, signal?: AbortSignal): Promise<AiEditResult>;
+  /** `agentId`: whose business items inform the edit (null/absent = the default agent). */
+  editText(body: AiEditBody, signal?: AbortSignal, agentId?: number | null): Promise<AiEditResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
   shutdown(): Promise<void>;
 }
@@ -167,7 +254,28 @@ export function createAiService(
   const generations = new Map<string, AbortController>();
   const running = new Set<Promise<void>>();
   let closed = false;
-  const member = () => ctx.services.auth!.listUsers().find((user) => user.kind === 'ai') ?? null;
+  /** Lite 1; an Enterprise build one per inbox. */
+  const maxAgents = () => ctx.inboxes.connections.maxInboxes();
+  /** The agent of the chat's inbox: the only AI that may answer it. */
+  const agentOfChat = (jid: string) => agentForInbox(ctx.db, inboxOfKey(jid));
+  /** Every AI team member, deleted agents included (their messages stay in the history). */
+  const aiUserIds = () =>
+    new Set(
+      (ctx.db.prepare("SELECT id FROM users WHERE kind = 'ai'").all() as Array<{ id: number }>).map(
+        (row) => row.id,
+      ),
+    );
+  const isAiUser = (id: number | null) =>
+    id !== null &&
+    (ctx.db.prepare('SELECT kind FROM users WHERE id = ?').get(id) as { kind: string } | undefined)
+      ?.kind === 'ai';
+  /** An explicit agent id, else the default agent (old routes and tools name none). */
+  const agentOrDefault = (agentId: number | null): AgentRow | null => {
+    if (agentId === null) return defaultAgent(ctx.db);
+    const agent = agentById(ctx.db, agentId);
+    if (!agent) throw agentHttpError('agent_not_found');
+    return agent;
+  };
   /**
    * Migration on read: member knowledge stored as one `context` text (or older notes + FAQs)
    * becomes ONE "Business context" text item, then the fields are dropped. The flag makes it
@@ -189,9 +297,11 @@ export function createAiService(
         documentId = Number(
           ctx.db
             .prepare(
-              "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
+              "INSERT INTO ai_documents(agent_id, name, kind, size, text, created_at, updated_at) VALUES (?, ?, 'text', ?, ?, ?, ?)",
             )
             .run(
+              // No agent yet: the first agent adopts it (migrateMemberSetting / insertAgent).
+              (agentForInbox(ctx.db, 1) ?? defaultAgent(ctx.db))?.id ?? null,
               MIGRATED_CONTEXT_NAME,
               Buffer.byteLength(knowledge.context),
               knowledge.context,
@@ -213,26 +323,25 @@ export function createAiService(
         'Stored AI knowledge exceeded the text item limit; kept the start',
       );
   };
-  const settings = (): AiSettings => {
-    const user = member();
+  /**
+   * The effective settings of one agent: its name and on/off, its texts (NULL = never saved → the
+   * preset's defaults; a saved blank stays blank) and the shared connection. No agent → defaults.
+   */
+  const settingsFor = (agent: AgentRow | null): AiSettings => {
     migrateLegacyContext();
-    const stored = ctx.settings.get<{ instructions?: unknown; handoffRules?: unknown }>(
-      MEMBER_KEY,
-      {},
-    );
+    const defaults = presetTexts(agent?.preset ?? 'sales');
     return {
       ...DEFAULT_SETTINGS,
-      // Never saved → the defaults; saved text (even blank) is kept.
-      instructions:
-        typeof stored?.instructions === 'string' ? stored.instructions : DEFAULT_AI_INSTRUCTIONS,
-      handoffRules:
-        typeof stored?.handoffRules === 'string' ? stored.handoffRules : DEFAULT_AI_HANDOFF_RULES,
+      instructions: agent?.instructions ?? defaults.instructions,
+      handoffRules: agent?.handoffRules ?? defaults.handoffRules,
       // Never saved → ChatGPT sign-in (nothing signs in until an admin does).
       ...aiProviderSettings(ctx.settings),
-      displayName: user?.displayName ?? DEFAULT_SETTINGS.displayName,
-      enabled: !!user && !user.disabled,
+      displayName: agent?.displayName ?? DEFAULT_SETTINGS.displayName,
+      enabled: !!agent?.enabled,
     };
   };
+  /** The shared connection (mode, model) as the provider reads it. */
+  const settings = (): AiSettings => settingsFor(defaultAgent(ctx.db));
   const installId = () => {
     let id = ctx.settings.get<string | null>(INSTALL_ID_KEY, null);
     if (typeof id !== 'string' || !id) {
@@ -242,8 +351,11 @@ export function createAiService(
     return id;
   };
   /** The cacheable prompt plus this call's facts (time, zone, resolution state) in the last block. */
+  /** `agentId` makes the cache key per agent (`<installId>#agent:<id>`); 0 = no agent yet. */
   const prompt = (
-    knowledge: Omit<AiKnowledge, 'preset'>,
+    agentId: number,
+    knowledge: AiKnowledge,
+    internal: string,
     business: string,
     conversation: AiConversationTurn[],
     awaitingConfirmation: boolean,
@@ -251,8 +363,8 @@ export function createAiService(
     customer: AiCustomer | null = null,
   ) => ({
     ...buildAiPrompt(
-      { ...knowledge, preset: 'sales' },
-      '',
+      knowledge,
+      internal,
       business,
       conversation,
       {
@@ -263,7 +375,7 @@ export function createAiService(
       images,
       customer,
     ),
-    cacheId: installId(),
+    cacheId: `${installId()}#agent:${agentId}`,
   });
   const mediaPending = (id: string) =>
     (
@@ -307,33 +419,73 @@ export function createAiService(
   }
   const state = (jid: string) =>
     ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(jid) as State | undefined;
-  /** Every Business context item with its text, oldest first (stable knowledge prefix). */
-  const contextItems = () =>
-    ctx.db
-      .prepare(
-        'SELECT id, name, kind, text, created_at AS createdAt FROM ai_documents ORDER BY created_at, id',
-      )
-      .all() as AiContextItem[];
-  const requireMember = () => {
-    if (!member()) throw errors.conflict('Add the Sales Agent before adding business context');
+  /** One agent's Business context items with their text, oldest first (stable knowledge prefix). */
+  const contextItems = (agentId: number | null): AiContextItem[] =>
+    agentId === null
+      ? []
+      : (
+          ctx.db
+            .prepare(
+              `SELECT id, name, kind, text, internal, created_at AS createdAt FROM ai_documents
+               WHERE agent_id = ? ORDER BY created_at, id`,
+            )
+            .all(agentId) as Array<Omit<AiContextItem, 'internal'> & { internal: number }>
+        ).map((item) => ({ ...item, internal: item.internal === 1 }));
+  /** One agent's items as the page lists them (no text). */
+  const documentsOf = (agentId: number | null): AiMemberStatus['documents'] =>
+    agentId === null
+      ? []
+      : (
+          ctx.db
+            .prepare(
+              `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
+               updated_at AS updatedAt, internal FROM ai_documents WHERE agent_id = ?
+               ORDER BY created_at, id`,
+            )
+            .all(agentId) as Array<
+            Omit<AiMemberStatus['documents'][number], 'internal'> & {
+              internal: number;
+            }
+          >
+        ).map((doc) => ({ ...doc, internal: doc.internal === 1 }));
+  /** The agent whose items change; null = the default agent, which must exist. */
+  const contextAgent = (agentId: number | null): AgentRow => {
+    const agent = agentOrDefault(agentId);
+    if (!agent) throw errors.conflict('Add the AI agent before adding business context');
+    return agent;
   };
-  /** Item count and total text limits; `replacing` is the item being edited (not counted). */
-  const checkLimits = (adding: string, replacing: number | null) => {
+  /**
+   * Item count and total text limits of one agent; `replacing` is the item being edited (not
+   * counted). `internal`: the new text is Internal, which has its own total (always sent in full).
+   */
+  const checkLimits = (
+    agentId: number,
+    adding: string,
+    replacing: number | null,
+    internal: boolean,
+    countText = true,
+  ) => {
     const total = ctx.db
       .prepare(
-        'SELECT count(*) AS count, coalesce(sum(length(text)), 0) AS characters FROM ai_documents WHERE id IS NOT ?',
+        `SELECT count(*) AS count, coalesce(sum(length(text)), 0) AS characters,
+         coalesce(sum(CASE WHEN internal = 1 THEN length(text) ELSE 0 END), 0) AS internal
+         FROM ai_documents WHERE agent_id = ? AND id IS NOT ?`,
       )
-      .get(replacing) as { count: number; characters: number };
+      .get(agentId, replacing) as { count: number; characters: number; internal: number };
+    const length = codePointLength(adding);
     if (
-      (replacing === null && total.count >= AI_CONTEXT_ITEMS) ||
-      total.characters + codePointLength(adding) > AI_KNOWLEDGE_CHARACTERS
+      countText &&
+      ((replacing === null && total.count >= AI_CONTEXT_ITEMS) ||
+        total.characters + length > AI_KNOWLEDGE_CHARACTERS)
     )
       throw errors.validation('Business context can contain up to 20 items and 500,000 characters');
+    if (internal && total.internal + length > AI_INTERNAL_CHARACTERS)
+      throw agentHttpError('internal_too_large');
   };
   /** False while an edition has closed the access gate: the AI member does no work then. */
   const gateOpen = () => ctx.access.state().open;
   const ready = () =>
-    settings().mode === 'api'
+    aiProviderSettings(ctx.settings).mode === 'api'
       ? !!ctx.settings.getSecret(SECRET_KEY)
       : provider.connection().state === 'connected';
   const cancel = (jid: string) => {
@@ -366,6 +518,16 @@ export function createAiService(
   const cancelAll = () => {
     for (const jid of new Set([...timers.keys(), ...generations.keys()])) cancel(jid);
   };
+  /** Stops scheduled and running replies in the chats this agent answers or owns. */
+  const cancelAgent = (agentId: number) => {
+    const agent = agentById(ctx.db, agentId);
+    for (const jid of new Set([...timers.keys(), ...generations.keys()]))
+      if (
+        agentOfChat(jid)?.id === agentId ||
+        (agent && chats.get(jid)?.assignedTo === agent.userId)
+      )
+        cancel(jid);
+  };
   const pause = (jid: string) => {
     ctx.db
       .prepare(
@@ -374,32 +536,38 @@ export function createAiService(
       .run(jid);
     cancel(jid);
   };
-  const releaseOwned = () => {
-    const user = member();
-    if (!user) return;
-    const rows = ctx.db
-      .prepare("SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open'")
-      .all(user.id) as Array<{ jid: string }>;
-    for (const row of rows) {
-      pause(row.jid);
-      chats.patch(row.jid, { assignedTo: null }, user.id);
+  const ownedOpenChats = (userId: number) =>
+    (
+      ctx.db
+        .prepare("SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open'")
+        .all(userId) as Array<{ jid: string }>
+    ).map((row) => row.jid);
+  /** Unassigns and pauses every open chat this AI user owns, so none waits on an AI that will not answer. */
+  const releaseUser = (userId: number) => {
+    for (const jid of ownedOpenChats(userId)) {
+      pause(jid);
+      chats.patch(jid, { assignedTo: null }, userId);
     }
+  };
+  const releaseAgent = (agentId: number) => {
+    const agent = agentById(ctx.db, agentId);
+    if (agent) releaseUser(agent.userId);
+  };
+  /** Every agent's chats (a changed connection, a sign-out). */
+  const releaseOwned = () => {
+    for (const agent of listAgents(ctx.db)) releaseUser(agent.userId);
   };
   /**
    * The connection itself broke (sign-in expired, or ChatGPT blocked us): stop all AI work and
    * leave its open chats unassigned for the team. Customers are never sent error text.
    */
   const releaseForConnection = () => {
-    const user = member();
-    if (!user) return;
     cancelAll();
-    const rows = ctx.db
-      .prepare("SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open'")
-      .all(user.id) as Array<{ jid: string }>;
-    for (const row of rows) {
-      ctx.db.prepare('UPDATE ai_chat_state SET due_at = NULL WHERE chat_jid = ?').run(row.jid);
-      chats.patch(row.jid, { assignedTo: null }, user.id);
-    }
+    for (const agent of listAgents(ctx.db))
+      for (const jid of ownedOpenChats(agent.userId)) {
+        ctx.db.prepare('UPDATE ai_chat_state SET due_at = NULL WHERE chat_jid = ?').run(jid);
+        chats.patch(jid, { assignedTo: null }, agent.userId);
+      }
   };
   provider.onProblem?.(() => {
     if (!closed) {
@@ -408,18 +576,18 @@ export function createAiService(
     }
   });
   const eligible = (jid: string): boolean => {
-    const user = member();
+    const agent = agentOfChat(jid);
     const chat = chats.get(jid);
     const s = state(jid);
     return (
       !closed &&
       gateOpen() &&
-      !!user &&
-      !user.disabled &&
+      !!agent &&
+      agent.enabled &&
       ready() &&
       chat?.type === 'dm' &&
       chat.status === 'open' &&
-      (chat.assignedTo === null || chat.assignedTo === user.id) &&
+      (chat.assignedTo === null || chat.assignedTo === agent.userId) &&
       !!s &&
       !s.paused &&
       !!s.last_customer_message_id &&
@@ -462,7 +630,7 @@ export function createAiService(
   }
 
   function drainPending() {
-    if (closed || !gateOpen() || !settings().enabled || !ready()) return;
+    if (closed || !gateOpen() || !listAgents(ctx.db).some((a) => a.enabled) || !ready()) return;
     const pending = ctx.db
       .prepare(
         `SELECT chat_jid AS jid, due_at AS dueAt FROM ai_chat_state
@@ -540,16 +708,17 @@ export function createAiService(
         allowed.has(user.id) &&
         (deps.isOnline ?? ((id) => ctx.services.realtime?.isOnline(id) ?? false))(user.id),
     );
+    const agentId = agentByUserId(ctx.db, userId)?.id ?? null;
     pause(jid);
     chats.patch(jid, { assignedTo: idle?.id ?? null }, userId, { handoff: reason });
     audit(ctx.db, {
       userId,
       action: 'ai.handoff',
       ip: null,
-      meta: { chatJid: jid, assignedTo: idle?.id ?? null, reason },
+      meta: { chatJid: jid, assignedTo: idle?.id ?? null, reason, agentId },
     });
     log.info(
-      { event: 'ai_handoff', assignedTo: idle?.id ?? null, reason },
+      { event: 'ai_handoff', assignedTo: idle?.id ?? null, reason, agentId },
       'AI handed chat to team',
     );
     const handedOver = chats.get(jid);
@@ -558,7 +727,8 @@ export function createAiService(
 
   async function respond(jid: string) {
     if (!eligible(jid)) return;
-    const user = member()!;
+    const agent = agentOfChat(jid)!;
+    const user = { id: agent.userId };
     const customerId = state(jid)!.last_customer_message_id!;
     const controller = new AbortController();
     generations.set(jid, controller);
@@ -567,11 +737,18 @@ export function createAiService(
       chats.get(jid)?.assignedTo === user.id &&
       state(jid)?.last_customer_message_id === customerId &&
       !state(jid)?.paused &&
-      !member()?.disabled;
+      agentOfChat(jid)?.id === agent.id &&
+      !!agentById(ctx.db, agent.id)?.enabled;
     try {
       if (chats.get(jid)!.assignedTo === null) chats.patch(jid, { assignedTo: user.id }, user.id);
       if (!owned()) return;
-      const current = settings();
+      const current = settingsFor(agentById(ctx.db, agent.id) ?? agent);
+      const knowledgeOf = { ...current, preset: agent.preset };
+      // This agent's items only: Internal ones in full, business ones selected per question.
+      const saved = contextItems(agent.id);
+      const items = splitKnowledge(saved);
+      const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
+      const aiUsers = aiUserIds();
       /** The team's saved details as the AI sees them (no tags). */
       const customerDetails = () =>
         aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
@@ -621,7 +798,7 @@ export function createAiService(
       }
       const { history, customer, batchStart, batch, olderBefore } = snap;
       const knowledge = relevantKnowledge(
-        knowledgeSources(contextItems()),
+        items.business,
         history
           .filter((message) => !message.fromMe)
           .slice(-3)
@@ -647,7 +824,7 @@ export function createAiService(
           older = result.messages;
           before = result.nextBefore;
         }
-        return conversation(older, user.id);
+        return conversation(older, aiUsers);
       };
       /** One model decision; the model may use this chat's read tools first. */
       const decide = async (
@@ -662,7 +839,7 @@ export function createAiService(
         const extension = await extensionAgentTools(
           ctx,
           log,
-          { agent: 'sales', chatJid: jid, signal },
+          { agent: 'sales', agentId: agent.id, chatJid: jid, signal },
           {
             onFailure: () => {
               lookupFailed = true;
@@ -677,10 +854,19 @@ export function createAiService(
               current,
               ctx.settings.getSecret(SECRET_KEY),
               {
-                ...prompt(current, facts, turns, awaitingConfirmation, batchImages, savedCustomer),
+                ...prompt(
+                  agent.id,
+                  knowledgeOf,
+                  items.internal,
+                  facts,
+                  turns,
+                  awaitingConfirmation,
+                  batchImages,
+                  savedCustomer,
+                ),
                 tools: {
                   ...chatTools({
-                    knowledge: knowledgeSources(contextItems()),
+                    knowledge: items.business,
                     olderMessages: olderBefore ? olderMessages : undefined,
                     onCall: (name) => toolCalls.push(name),
                   }),
@@ -724,7 +910,7 @@ export function createAiService(
                   .some((reply) => reply.fromMe && reply.sentByUserId === user.id),
             );
         // Facts come from the Business context or from extension look-ups the agent may call.
-        const hasFacts = !!knowledge.trim() || extensionLookupsAvailable(ctx, 'sales');
+        const hasFacts = !!knowledge.trim() || extensionLookupsAvailable(ctx, 'sales', agent.id);
         decision =
           !readable || !understood || !hasFacts || voiceRepeat
             ? {
@@ -732,7 +918,7 @@ export function createAiService(
                 reply: HANDOFF_REPLY,
                 handoffReason: hasFacts ? 'unsupported_message' : 'missing_facts',
               }
-            : await decide(conversation(history, user.id), knowledge, awaiting, images);
+            : await decide(conversation(history, aiUsers), knowledge, awaiting, images);
         // The first voice note the AI could not listen to always gets the "please type it" answer
         // (a repeat was handed off above); only a request for a person or a sensitive topic
         // still hands off.
@@ -801,6 +987,15 @@ export function createAiService(
         .join('\n');
       const proposed = decision.action;
       decision = guardResolution(decision, asked, batchText, conversationText);
+      // A reply that quotes an Internal item is never sent: the team takes over (no text logged).
+      if (decision.action !== 'no_reply' && findLeak(decision.reply, internalTexts)) {
+        log.warn({ jid, agentId: agent.id, reason: 'confidential_leak' }, 'AI reply withheld');
+        decision = {
+          action: 'handoff' as const,
+          reply: HANDOFF_REPLY,
+          handoffReason: 'confidential_leak',
+        };
+      }
       // One line per decision (no message text) so a chat's AI behaviour can be traced from the log.
       log.info(
         {
@@ -842,7 +1037,12 @@ export function createAiService(
       if (decision.action === 'handoff') handoff(jid, user.id, decision.handoffReason ?? null);
       else if (decision.action === 'resolve') {
         chats.patch(jid, { status: 'resolved' }, user.id);
-        audit(ctx.db, { userId: user.id, action: 'ai.resolve', ip: null, meta: { chatJid: jid } });
+        audit(ctx.db, {
+          userId: user.id,
+          action: 'ai.resolve',
+          ip: null,
+          meta: { chatJid: jid, agentId: agent.id },
+        });
       }
     } catch {
       if (owned()) {
@@ -855,10 +1055,11 @@ export function createAiService(
   }
 
   const onInbound = ({ chat, message }: { chat: Chat; message: Message }) => {
-    const user = member();
+    // Only the agent of the chat's inbox answers it.
+    const agent = agentForInbox(ctx.db, chat.inboxId);
+    const user = agent?.enabled ? { id: agent.userId } : null;
     if (
       !user ||
-      user.disabled ||
       chat.type !== 'dm' ||
       chat.status !== 'open' ||
       (chat.assignedTo !== null && chat.assignedTo !== user.id)
@@ -875,7 +1076,8 @@ export function createAiService(
     schedule(chat.jid, dueAt);
   };
   const onMessage = (message: Message) => {
-    if (!message.fromMe || message.sentByUserId === member()?.id) return;
+    // Any AI agent's own reply is not a human response.
+    if (!message.fromMe || isAiUser(message.sentByUserId)) return;
     const s = state(message.chatJid);
     if (!s?.last_customer_message_id) return;
     const customer = ctx.db
@@ -892,10 +1094,15 @@ export function createAiService(
     if (chat.status === 'resolved') {
       cancel(chat.jid);
       ctx.db.prepare('DELETE FROM ai_chat_state WHERE chat_jid = ?').run(chat.jid);
-    } else if (chat.assignedTo !== null && chat.assignedTo !== member()?.id) pause(chat.jid);
+    } else if (
+      chat.assignedTo !== null &&
+      chat.assignedTo !== agentForInbox(ctx.db, chat.inboxId)?.userId
+    )
+      pause(chat.jid);
   };
   const onChatEvent = (event: ChatEvent) => {
-    const user = member();
+    const agent = agentOfChat(event.chatJid);
+    const user = agent ? { id: agent.userId } : null;
     if (!user || event.actorId === user.id) return;
     if (event.type === 'assigned' && event.payload.assignedTo === user.id) {
       ctx.db
@@ -912,9 +1119,10 @@ export function createAiService(
     }
   };
   const onDisabled = (id: number) => {
-    if (id === member()?.id) {
-      cancelAll();
-      releaseOwned();
+    const agent = agentByUserId(ctx.db, id);
+    if (agent) {
+      cancelAgent(agent.id);
+      releaseAgent(agent.id);
     }
   };
   // Access gate closed: stop in-flight work; on open, persisted due times are picked up again.
@@ -929,6 +1137,99 @@ export function createAiService(
     .on('chat:event', onChatEvent)
     .on('user:disabled', onDisabled);
 
+  const summary = (agent: AgentRow): AiAgentSummary => ({
+    id: agent.id,
+    userId: agent.userId,
+    displayName: agent.displayName,
+    enabled: agent.enabled,
+    preset: agent.preset,
+    inboxId: agent.inboxId,
+    documentCount: (
+      ctx.db.prepare('SELECT count(*) AS n FROM ai_documents WHERE agent_id = ?').get(agent.id) as {
+        n: number;
+      }
+    ).n,
+  });
+  const requireInbox = (inboxId: number) => {
+    const inbox = ctx.inboxes.repo.get(inboxId);
+    if (!inbox || inbox.removed_at !== null) throw errors.notFound('Inbox');
+  };
+  /**
+   * The AI answers only from business facts (its Business context, or extension look-ups), so
+   * instructions alone cannot turn an agent on. `agentId` null = no agent yet: items written
+   * before any agent existed count only when `adoptsOrphans` (the new agent serves inbox 1 and
+   * adopts them, see insertAgent); any other new agent starts with no items.
+   */
+  const checkEnable = (agentId: number | null, enabled: boolean, adoptsOrphans = true) => {
+    if (!enabled) return;
+    if (!ready())
+      throw errors.validation('Configure the inbox AI connection before enabling the Sales Agent');
+    const hasContext =
+      (agentId !== null || adoptsOrphans) &&
+      !!ctx.db
+        .prepare(
+          'SELECT 1 FROM ai_documents WHERE agent_id IS ? AND internal = 0 AND length(trim(text)) > 0 LIMIT 1',
+        )
+        .get(agentId);
+    if (!hasContext && !extensionLookupsAvailable(ctx, 'sales', agentId ?? undefined))
+      throw errors.validation('Add business context before turning on the AI member');
+  };
+  /** A new `kind = 'ai'` team member and its agent row (409 `agent_limit` / `inbox_has_agent`). */
+  const insertAgent = (
+    fields: {
+      displayName: string;
+      enabled: boolean;
+      preset: AiAgentPreset;
+      inboxId: number | null;
+      instructions: string | null;
+      handoffRules: string | null;
+    },
+    actor: Actor,
+  ): AgentRow => {
+    if (listAgents(ctx.db).length >= maxAgents()) throw agentHttpError('agent_limit');
+    // Lite: the only agent always answers the only inbox.
+    const inboxId = maxAgents() <= 1 ? 1 : fields.inboxId;
+    if (inboxId !== null) requireInbox(inboxId);
+    return ctx.db.transaction(() => {
+      const now = Date.now();
+      const userId = Number(
+        ctx.db
+          .prepare(
+            "INSERT INTO users(username, display_name, password_hash, role, kind, disabled_at, created_at) VALUES (?, ?, '', 'agent', 'ai', ?, ?)",
+          )
+          .run(`ai-${randomUUID()}`, fields.displayName, fields.enabled ? null : now, now)
+          .lastInsertRowid,
+      );
+      const agent = agentCall(() =>
+        createAgentRow(
+          ctx.db,
+          {
+            userId,
+            inboxId,
+            preset: fields.preset,
+            instructions: fields.instructions,
+            handoffRules: fields.handoffRules,
+          },
+          now,
+        ),
+      );
+      // Items and history written before any agent existed belong to the inbox-1 agent.
+      if (inboxId === 1) {
+        ctx.db.prepare('UPDATE ai_documents SET agent_id = ? WHERE agent_id IS NULL').run(agent.id);
+        ctx.db
+          .prepare('UPDATE ai_setup_versions SET agent_id = ? WHERE agent_id IS NULL')
+          .run(agent.id);
+      }
+      audit(ctx.db, {
+        userId: actor.userId,
+        ip: actor.ip,
+        action: 'ai.agent_create',
+        meta: { agentId: agent.id, preset: fields.preset, inboxId, ...mcpAudit(actor) },
+      });
+      return agent;
+    })();
+  };
+
   const service: AiService = {
     connectionReady: () => !closed && gateOpen() && ready() && !!provider.extractCustomer,
     async extractCustomer(prompt, signal) {
@@ -941,67 +1242,77 @@ export function createAiService(
       );
     },
     status() {
-      const current = settings();
-      const documents = ctx.db
-        .prepare(
-          `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
-          updated_at AS updatedAt FROM ai_documents ORDER BY created_at, id`,
-        )
-        .all() as AiMemberStatus['documents'];
+      const agent = defaultAgent(ctx.db);
+      const current = settingsFor(agent);
       return {
-        member: member(),
+        member: agent ? (ctx.services.auth!.getUser(agent.userId) ?? null) : null,
         settings: current,
         hasApiKey: !!ctx.settings.getSecret(SECRET_KEY),
-        documents,
+        documents: documentsOf(agent?.id ?? null),
         connection:
           current.mode === 'chatgpt'
             ? provider.connection()
             : { state: ready() ? 'connected' : 'signed_out', loginUrl: null, error: null },
+        agents: service.listAgents(),
+        maxAgents: maxAgents(),
       };
     },
-    saveMember(body, actor) {
-      if (body.enabled && !ready())
-        throw errors.validation(
-          'Configure the inbox AI connection before enabling the Sales Agent',
-        );
-      const hasContext = !!ctx.db
-        .prepare('SELECT 1 FROM ai_documents WHERE length(trim(text)) > 0 LIMIT 1')
-        .get();
-      // The AI answers only from business facts (Business context or extension look-ups), so
-      // instructions alone cannot turn it on.
-      if (body.enabled && !hasContext && !extensionLookupsAvailable(ctx, 'sales'))
-        throw errors.validation('Add business context before turning on the AI member');
-      cancelAll();
-      ctx.db.transaction(() => {
-        const user = member();
-        if (user)
-          ctx.db
-            .prepare('UPDATE users SET display_name = ?, disabled_at = ? WHERE id = ?')
-            .run(body.displayName, body.enabled ? null : Date.now(), user.id);
-        else
-          ctx.db
-            .prepare(
-              "INSERT INTO users(username, display_name, password_hash, role, kind, disabled_at, created_at) VALUES (?, ?, '', 'agent', 'ai', ?, ?)",
-            )
-            .run(
-              `ai-${randomUUID()}`,
-              body.displayName,
-              body.enabled ? null : Date.now(),
-              Date.now(),
-            );
-        const before = settings();
-        // Older clients send no rules: keep the effective ones.
-        const handoffRules = body.handoffRules ?? before.handoffRules;
-        ctx.settings.set(MEMBER_KEY, {
+    listAgents: () => listAgents(ctx.db).map(summary),
+    maxAgents,
+    agentStatus(agentId) {
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      return {
+        agent: summary(agent),
+        settings: settingsFor(agent),
+        documents: documentsOf(agent.id),
+      };
+    },
+    createAgent(body, actor) {
+      // Lite forces inbox 1 (insertAgent); only an inbox-1 agent adopts items written before it.
+      checkEnable(null, body.enabled, maxAgents() <= 1 || body.inboxId === 1);
+      const preset = body.preset ?? 'sales';
+      const agent = insertAgent(
+        {
           displayName: body.displayName,
+          enabled: body.enabled,
+          preset,
+          inboxId: body.inboxId ?? null,
           instructions: body.instructions,
-          handoffRules,
-        });
+          handoffRules: body.handoffRules ?? presetTexts(preset).handoffRules,
+        },
+        actor,
+      );
+      if (body.enabled) refreshPending();
+      return service.agentStatus(agent.id);
+    },
+    saveAgent(agentId, body, actor) {
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      checkEnable(agent.id, body.enabled);
+      // A new inbox first: it may be refused (inbox_has_agent) before anything is saved.
+      if (body.inboxId !== undefined && body.inboxId !== agent.inboxId)
+        service.setAgentInbox(agent.id, body.inboxId, actor);
+      cancelAgent(agent.id);
+      const before = settingsFor(agent);
+      // Older clients send no rules: keep the effective ones.
+      const handoffRules = body.handoffRules ?? before.handoffRules ?? '';
+      ctx.db.transaction(() => {
+        ctx.db
+          .prepare('UPDATE users SET display_name = ?, disabled_at = ? WHERE id = ?')
+          .run(body.displayName, body.enabled ? null : Date.now(), agent.userId);
+        agentCall(() =>
+          updateAgentTexts(ctx.db, agent.id, {
+            ...(body.preset ? { preset: body.preset } : {}),
+            instructions: body.instructions,
+            handoffRules,
+          }),
+        );
         // Record who changed the AI's behaviour, without copying the text into the audit log.
         if (body.instructions !== before.instructions)
           recordSetupVersion(
             ctx.db,
-            defaultAgent(ctx.db)?.id ?? null,
+            agent.id,
             'instructions',
             null,
             before.instructions,
@@ -1011,11 +1322,11 @@ export function createAiService(
         if (handoffRules !== before.handoffRules)
           recordSetupVersion(
             ctx.db,
-            defaultAgent(ctx.db)?.id ?? null,
+            agent.id,
             'handoff_rules',
             null,
             before.handoffRules ?? null,
-            handoffRules ?? '',
+            handoffRules,
             versionSource(actor),
           );
         audit(ctx.db, {
@@ -1023,8 +1334,10 @@ export function createAiService(
           ip: actor.ip,
           action: 'ai.member_update',
           meta: {
+            agentId: agent.id,
             enabled: body.enabled,
             role: 'sales',
+            preset: body.preset ?? agent.preset,
             instructionsChanged: body.instructions !== before.instructions,
             handoffRulesChanged: handoffRules !== before.handoffRules,
             ...mcpAudit(actor),
@@ -1032,9 +1345,73 @@ export function createAiService(
         });
       })();
       if (!body.enabled) {
-        ctx.bus.emit('user:disabled', member()!.id);
-        releaseOwned();
+        ctx.bus.emit('user:disabled', agent.userId);
+        releaseAgent(agent.id);
       } else refreshPending();
+      return service.agentStatus(agent.id);
+    },
+    deleteAgent(agentId, actor) {
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      // Lite edits its one agent; it never deletes it.
+      if (maxAgents() <= 1) throw agentHttpError('last_agent');
+      cancelAgent(agent.id);
+      releaseAgent(agent.id);
+      ctx.db.transaction(() => {
+        agentCall(() => deleteAgentRow(ctx.db, agent.id));
+        audit(ctx.db, {
+          userId: actor.userId,
+          ip: actor.ip,
+          action: 'ai.agent_delete',
+          meta: { agentId: agent.id, inboxId: agent.inboxId, ...mcpAudit(actor) },
+        });
+      })();
+      ctx.bus.emit('user:disabled', agent.userId);
+    },
+    setAgentInbox(agentId, inboxId, actor) {
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      if (maxAgents() <= 1 && inboxId !== 1)
+        throw errors.validation('The AI agent always answers the only inbox');
+      if (inboxId !== null) requireInbox(inboxId);
+      if (inboxId === agent.inboxId) return service.agentStatus(agent.id);
+      cancelAgent(agent.id);
+      ctx.db.transaction(() => {
+        agentCall(() => setAgentInbox(ctx.db, agent.id, inboxId));
+        audit(ctx.db, {
+          userId: actor.userId,
+          ip: actor.ip,
+          action: 'ai.agent_inbox_update',
+          meta: { agentId: agent.id, from: agent.inboxId, to: inboxId, ...mcpAudit(actor) },
+        });
+      })();
+      // Its chats of the old inbox would wait on an AI that no longer answers them.
+      releaseAgent(agent.id);
+      return service.agentStatus(agent.id);
+    },
+    ensureDefaultAgent(body, actor) {
+      const existing = agentForInbox(ctx.db, 1);
+      if (existing) return service.agentStatus(existing.id);
+      return service.createAgent({ ...body, inboxId: 1 }, actor);
+    },
+    saveMember(body, actor) {
+      const existing = defaultAgent(ctx.db);
+      // Refuse before creating anything (same checks as before agents existed).
+      checkEnable(existing?.id ?? null, body.enabled);
+      const agent =
+        existing ??
+        insertAgent(
+          {
+            displayName: body.displayName,
+            enabled: false,
+            preset: 'sales',
+            inboxId: 1,
+            instructions: null,
+            handoffRules: null,
+          },
+          actor,
+        );
+      service.saveAgent(agent.id, body, actor);
       return service.status();
     },
     saveConnection(body, actor) {
@@ -1062,42 +1439,48 @@ export function createAiService(
       refreshPending();
       return service.status();
     },
-    addDocument(name, size, text, actor) {
-      requireMember();
+    addDocument(agentId, name, size, text, actor, internal = false) {
+      const agent = contextAgent(agentId);
       ctx.db.transaction(() => {
-        checkLimits(text, null);
+        checkLimits(agent.id, text, null, internal);
         const now = Date.now();
         const result = ctx.db
           .prepare(
-            "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'file', ?, ?, ?, ?)",
+            "INSERT INTO ai_documents(agent_id, name, kind, size, text, internal, created_at, updated_at) VALUES (?, ?, 'file', ?, ?, ?, ?, ?)",
           )
-          .run(name, size, text, now, now);
+          .run(agent.id, name, size, text, internal ? 1 : 0, now, now);
         audit(ctx.db, {
           ...actor,
           action: 'ai.document_add',
-          meta: { documentId: Number(result.lastInsertRowid), kind: 'file', size },
+          meta: {
+            agentId: agent.id,
+            documentId: Number(result.lastInsertRowid),
+            kind: 'file',
+            size,
+            internal,
+          },
         });
       })();
-      cancelAll();
+      cancelAgent(agent.id);
       refreshPending();
-      return service.status();
+      return service.agentStatus(agent.id);
     },
-    addText(body, actor) {
-      const { name, text } = parse(AiContextTextBody, body);
-      requireMember();
+    addText(agentId, body, actor) {
+      const { name, text, internal = false } = parse(AiContextTextBody, body);
+      const agent = contextAgent(agentId);
       const size = Buffer.byteLength(text);
       ctx.db.transaction(() => {
-        checkLimits(text, null);
+        checkLimits(agent.id, text, null, internal);
         const now = Date.now();
         const result = ctx.db
           .prepare(
-            "INSERT INTO ai_documents(name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
+            "INSERT INTO ai_documents(agent_id, name, kind, size, text, internal, created_at, updated_at) VALUES (?, ?, 'text', ?, ?, ?, ?, ?)",
           )
-          .run(name, size, text, now, now);
+          .run(agent.id, name, size, text, internal ? 1 : 0, now, now);
         const documentId = Number(result.lastInsertRowid);
         recordSetupVersion(
           ctx.db,
-          defaultAgent(ctx.db)?.id ?? null,
+          agent.id,
           'context_text',
           documentId,
           null,
@@ -1109,34 +1492,44 @@ export function createAiService(
           userId: actor.userId,
           ip: actor.ip,
           action: 'ai.document_add',
-          meta: { documentId, kind: 'text', size, ...mcpAudit(actor) },
+          meta: { agentId: agent.id, documentId, kind: 'text', size, internal, ...mcpAudit(actor) },
         });
       })();
-      cancelAll();
+      cancelAgent(agent.id);
       refreshPending();
-      return service.status();
+      return service.agentStatus(agent.id);
     },
-    updateText(id, body, actor) {
+    updateText(agentId, id, body, actor) {
+      const agent = agentOrDefault(agentId);
+      if (!agent) throw errors.notFound('Document');
       ctx.db.transaction(() => {
         const row = ctx.db
-          .prepare('SELECT kind, name, text FROM ai_documents WHERE id = ?')
-          .get(id) as { kind: 'file' | 'text'; name: string; text: string } | undefined;
+          .prepare(
+            'SELECT kind, name, text, internal FROM ai_documents WHERE id = ? AND agent_id = ?',
+          )
+          .get(id, agent.id) as
+          { kind: 'file' | 'text'; name: string; text: string; internal: number } | undefined;
         if (!row) throw errors.notFound('Document');
-        if (row.kind !== 'text')
+        // A file item may only be flagged Internal (or not); its text is read-only.
+        if (row.kind !== 'text' && (body.name !== undefined || body.text !== undefined))
           throw errors.validation('Only text content can be edited. Upload a new file instead.');
         const name = body.name ?? row.name;
         const text = body.text ?? row.text;
-        if (body.text !== undefined) checkLimits(text, id);
-        const size = Buffer.byteLength(text);
+        const internal = body.internal ?? row.internal === 1;
+        const checkInternal = internal && (body.text !== undefined || row.internal !== 1);
+        if (body.text !== undefined || checkInternal)
+          checkLimits(agent.id, text, id, checkInternal, body.text !== undefined);
+        // A file keeps its uploaded size; a text item's size is its text.
+        const size = row.kind === 'text' ? Buffer.byteLength(text) : null;
         ctx.db
           .prepare(
-            'UPDATE ai_documents SET name = ?, text = ?, size = ?, updated_at = ? WHERE id = ?',
+            'UPDATE ai_documents SET name = ?, text = ?, size = coalesce(?, size), internal = ?, updated_at = ? WHERE id = ? AND agent_id = ?',
           )
-          .run(name, text, size, Date.now(), id);
+          .run(name, text, size, internal ? 1 : 0, Date.now(), id, agent.id);
         if (text !== row.text)
           recordSetupVersion(
             ctx.db,
-            defaultAgent(ctx.db)?.id ?? null,
+            agent.id,
             'context_text',
             id,
             row.text,
@@ -1148,44 +1541,64 @@ export function createAiService(
           ip: actor.ip,
           action: 'ai.document_update',
           meta: {
+            agentId: agent.id,
             documentId: id,
             size,
             renamed: body.name !== undefined,
             edited: body.text !== undefined,
+            internal,
             ...mcpAudit(actor),
           },
         });
       })();
-      cancelAll();
+      cancelAgent(agent.id);
       refreshPending();
-      return service.status();
+      return service.agentStatus(agent.id);
     },
-    document(id) {
-      const row = ctx.db
-        .prepare(
-          `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
-          updated_at AS updatedAt, text FROM ai_documents WHERE id = ?`,
-        )
-        .get(id) as Omit<AiDocumentView, 'truncated'> | undefined;
+    document(agentId, id) {
+      const agent = agentOrDefault(agentId);
+      const row = (
+        agent
+          ? ctx.db
+              .prepare(
+                `SELECT id, name, kind, size, length(text) AS characters, created_at AS createdAt,
+                updated_at AS updatedAt, internal, text FROM ai_documents WHERE id = ? AND agent_id = ?`,
+              )
+              .get(id, agent.id)
+          : undefined
+      ) as (Omit<AiDocumentView, 'truncated' | 'internal'> & { internal: number }) | undefined;
       if (!row) throw errors.notFound('Document');
       // Text items are edited in full; a file shows a read-only preview of its extracted text.
       const truncated = row.kind === 'file' && row.characters > AI_CONTEXT_PREVIEW_CHARACTERS;
       return {
         ...row,
+        internal: row.internal === 1,
         text: truncated ? sliceCodePoints(row.text, AI_CONTEXT_PREVIEW_CHARACTERS) : row.text,
         truncated,
       };
     },
-    removeDocument(id, actor) {
+    removeDocument(agentId, id, actor) {
+      const agent = agentOrDefault(agentId);
+      if (!agent) throw errors.notFound('Document');
       ctx.db.transaction(() => {
-        if (!ctx.db.prepare('DELETE FROM ai_documents WHERE id = ?').run(id).changes)
-          throw errors.notFound('Document');
-        audit(ctx.db, { ...actor, action: 'ai.document_remove', meta: { documentId: id } });
+        const row = ctx.db
+          .prepare('SELECT internal FROM ai_documents WHERE id = ? AND agent_id = ?')
+          .get(id, agent.id) as { internal: number } | undefined;
+        if (!row) throw errors.notFound('Document');
+        ctx.db.prepare('DELETE FROM ai_documents WHERE id = ? AND agent_id = ?').run(id, agent.id);
+        audit(ctx.db, {
+          ...actor,
+          action: 'ai.document_remove',
+          meta: { agentId: agent.id, documentId: id, internal: row.internal === 1 },
+        });
       })();
-      cancelAll();
+      cancelAgent(agent.id);
       refreshPending();
-      return service.status();
+      return service.agentStatus(agent.id);
     },
+    agentForChat: (jid) => agentOfChat(jid),
+    releaseAgent,
+    cancelAgent,
     async login() {
       await provider.login();
     },
@@ -1218,7 +1631,9 @@ export function createAiService(
       return provider.test(current.model);
     },
     async tryAnswer(body) {
-      const current = settings();
+      // The named agent's saved items (else the default agent's), with the page's draft texts.
+      const agent = agentOrDefault(body.agentId ?? null);
+      const current = settingsFor(agent);
       if (!ready())
         return {
           ok: false,
@@ -1228,10 +1643,13 @@ export function createAiService(
           error: 'Set up the AI connection in Settings → AI first.',
         };
       // The draft name and instructions, with the saved Business context items.
-      const knowledge = relevantKnowledge(knowledgeSources(contextItems()), body.question);
+      const saved = contextItems(agent?.id ?? null);
+      const items = splitKnowledge(saved);
+      const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
+      const knowledge = relevantKnowledge(items.business, body.question);
       // Same rule as live replies: with no relevant knowledge and no extension look-ups the AI hands
       // the chat to a human.
-      if (!knowledge.trim() && !extensionLookupsAvailable(ctx, 'sales'))
+      if (!knowledge.trim() && !extensionLookupsAvailable(ctx, 'sales', agent?.id))
         return {
           ok: true,
           reply: HANDOFF_REPLY,
@@ -1257,7 +1675,7 @@ export function createAiService(
         extension = await extensionAgentTools(
           ctx,
           log,
-          { agent: 'sales', chatJid: null, signal },
+          { agent: 'sales', agentId: agent?.id, chatJid: null, signal },
           { onFailure: () => lookupAbort.abort() },
         );
         const decision = await provider.generate(
@@ -1267,13 +1685,19 @@ export function createAiService(
           // live reply, so Try it tests what customers get; no chat, so no chat history.
           {
             ...prompt(
-              { handoffRules: current.handoffRules, ...body.knowledge },
+              agent?.id ?? 0,
+              {
+                handoffRules: current.handoffRules,
+                ...body.knowledge,
+                preset: agent?.preset ?? 'sales',
+              },
+              items.internal,
               knowledge,
               [{ speaker: 'customer', text: body.question }],
               false,
             ),
             tools: {
-              ...chatTools({ knowledge: knowledgeSources(contextItems()) }),
+              ...chatTools({ knowledge: items.business }),
               ...extension.tools,
             },
             onTiming: (timing) =>
@@ -1283,6 +1707,19 @@ export function createAiService(
         );
         // Same gate as live replies; Try it has never asked, so it can never resolve.
         const guarded = guardResolution(decision, 0, body.question);
+        // Same leak check as live replies: Try it shows the hand-over, never the quoted item.
+        if (guarded.action !== 'no_reply' && findLeak(guarded.reply, internalTexts)) {
+          log.warn({ event: 'ai_try_leak', agentId: agent?.id ?? null }, 'AI reply withheld');
+          return {
+            ok: true,
+            reply: HANDOFF_REPLY,
+            action: 'handoff',
+            handoffReason: 'confidential_leak',
+            model,
+            error: null,
+            ...lookups(),
+          };
+        }
         return {
           ok: true,
           reply: guarded.reply,
@@ -1316,7 +1753,8 @@ export function createAiService(
         await extension?.dispose();
       }
     },
-    async editText(body, signal) {
+    async editText(body, signal, agentId = null) {
+      const agent = agentOrDefault(agentId);
       if (!ready() || !provider.rewrite)
         return { ok: false, text: null, error: 'Connect the AI in Settings → AI first.' };
       const started = Date.now();
@@ -1331,10 +1769,14 @@ export function createAiService(
               field: body.field,
               current: body.current,
               request: body.request,
-              businessKnowledge: relevantKnowledge(knowledgeSources(contextItems()), body.request),
-              preset: 'sales',
+              businessKnowledge: relevantKnowledge(
+                splitKnowledge(contextItems(agent?.id ?? null)).business,
+                body.request,
+              ),
+              // A FAQ agent's texts are not pushed toward sales.
+              preset: body.preset ?? agent?.preset ?? 'sales',
             }),
-            cacheId: installId(),
+            cacheId: `${installId()}#agent:${agent?.id ?? 0}`,
           },
           signal
             ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
@@ -1368,7 +1810,7 @@ export function createAiService(
     canSend(jid, userId, quotedId) {
       return (
         eligible(jid) &&
-        member()?.id === userId &&
+        agentOfChat(jid)?.userId === userId &&
         chats.get(jid)?.assignedTo === userId &&
         !!quotedId &&
         state(jid)?.last_customer_message_id === quotedId
@@ -1392,6 +1834,8 @@ export function createAiService(
     },
   };
   migrateLegacyContext();
+  // Permanent start-up step: the old member texts become agent 1 (once, see ai/agents.ts).
+  migrateMemberSetting(ctx.db, ctx.settings);
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.
   const pending = ctx.db
     .prepare(

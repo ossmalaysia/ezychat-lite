@@ -115,7 +115,7 @@ it('validates text items and refuses to edit a file item or a missing item', asy
     (await inject('POST', '/api/ai/documents/text', { name: 'A', text: '😀'.repeat(100_000) }))
       .statusCode,
   ).toBe(200);
-  const file = ai().addDocument('hours.md', 8, 'Open 9am', actor).documents.at(-1)!;
+  const file = ai().addDocument(null, 'hours.md', 8, 'Open 9am', actor).documents.at(-1)!;
   expect(file.kind).toBe('file');
   const patchFile = await inject('PATCH', `/api/ai/documents/${file.id}`, { text: 'Hacked' });
   expect(patchFile.statusCode).toBe(400);
@@ -129,8 +129,8 @@ it('needs the AI member before adding text and allows at most 20 items', async (
   const early = await inject('POST', '/api/ai/documents/text', { name: 'A', text: 'x' });
   expect(early.statusCode).toBe(409);
   ai().saveMember(member, actor);
-  for (let i = 0; i < 19; i++) ai().addText({ name: `Item ${i}`, text: 'x' }, actor);
-  ai().addDocument('last.md', 1, 'y', actor);
+  for (let i = 0; i < 19; i++) ai().addText(null, { name: `Item ${i}`, text: 'x' }, actor);
+  ai().addDocument(null, 'last.md', 1, 'y', actor);
   const full = await inject('POST', '/api/ai/documents/text', { name: 'One more', text: 'x' });
   expect(full.statusCode).toBe(400);
   expect(full.json().error.message).toContain('up to 20');
@@ -139,7 +139,7 @@ it('needs the AI member before adding text and allows at most 20 items', async (
 it('views a file item as a read-only, truncated preview of its extracted text', async () => {
   ai().saveMember(member, actor);
   const long = `Menu\n\n${'Nasi lemak RM8. '.repeat(3000)}`;
-  const file = ai().addDocument('menu.pdf', 4096, long, actor).documents[0]!;
+  const file = ai().addDocument(null, 'menu.pdf', 4096, long, actor).documents[0]!;
   const view = await inject('GET', `/api/ai/documents/${file.id}`);
   expect(view.statusCode).toBe(200);
   const body = view.json();
@@ -153,24 +153,24 @@ it('turns on only with at least one context item that has text', () => {
     'Add business context before turning on the AI member',
   );
   ai().saveMember(member, actor);
-  const id = ai().addText({ name: 'Hours', text: 'Open 9am' }, actor).documents[0]!.id;
+  const id = ai().addText(null, { name: 'Hours', text: 'Open 9am' }, actor).documents[0]!.id;
   expect(ai().saveMember({ ...member, enabled: true }, actor).settings.enabled).toBe(true);
-  ai().removeDocument(id, actor);
+  ai().removeDocument(null, id, actor);
   expect(() => ai().saveMember({ ...member, enabled: true }, actor)).toThrow(
     'Add business context',
   );
-  ai().addDocument('hours.md', 8, 'Open 9am', actor);
+  ai().addDocument(null, 'hours.md', 8, 'Open 9am', actor);
   expect(ai().saveMember({ ...member, enabled: true }, actor).settings.enabled).toBe(true);
 });
 
 it('sends context items oldest first so the knowledge prefix stays byte-stable', async () => {
   ai().saveMember(member, actor);
-  ai().addText({ name: 'Company', text: 'Kedai Ezy sells cakes.' }, actor);
-  ai().addDocument('delivery.md', 12, 'Delivery RM10', actor);
-  ai().addText({ name: 'Hours', text: 'Open 9am' }, actor);
+  ai().addText(null, { name: 'Company', text: 'Kedai Ezy sells cakes.' }, actor);
+  ai().addDocument(null, 'delivery.md', 12, 'Delivery RM10', actor);
+  ai().addText(null, { name: 'Hours', text: 'Open 9am' }, actor);
   // Editing an item never moves it: order follows the created date, then id.
   const company = ai().status().documents[0]!;
-  ai().updateText(company.id, { text: 'Kedai Ezy sells cakes and bread.' }, actor);
+  ai().updateText(null, company.id, { text: 'Kedai Ezy sells cakes and bread.' }, actor);
   await ai().tryAnswer({
     question: 'Delivery?',
     knowledge: { displayName: 'A', instructions: '' },
@@ -192,7 +192,11 @@ it('sends context items oldest first so the knowledge prefix stays byte-stable',
 
 it('Try it can search a large Business context like live replies, but has no chat history', async () => {
   ai().saveMember(member, actor);
-  ai().addText({ name: 'Catalogue', text: `Widgets. ${'Spare part. '.repeat(4_000)}` }, actor);
+  ai().addText(
+    null,
+    { name: 'Catalogue', text: `Widgets. ${'Spare part. '.repeat(4_000)}` },
+    actor,
+  );
   await ai().tryAnswer({
     question: 'Do you sell widgets?',
     knowledge: { displayName: 'Draft Agent', instructions: 'Draft rules' },
@@ -203,18 +207,18 @@ it('Try it can search a large Business context like live replies, but has no cha
 
 it('Try it answers from the saved items plus the draft name and instructions', async () => {
   ai().saveMember(member, actor);
-  ai().addText({ name: 'Delivery', text: 'Delivery costs RM10.' }, actor);
+  ai().addText(null, { name: 'Delivery', text: 'Delivery costs RM10.' }, actor);
   const result = await ai().tryAnswer({
     question: 'How much is delivery?',
     knowledge: { displayName: 'Draft Agent', instructions: 'Draft rules' },
   });
   expect(result).toMatchObject({ ok: true, reply: 'RM10' });
   const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
-  expect(prompt.instructions).toContain('named Draft Agent');
+  expect(prompt.instructions).toContain('Your name: Draft Agent');
   expect(prompt.instructions).toContain('Draft rules');
   expect(JSON.parse(prompt.input).businessKnowledge).toBe('[Delivery]\nDelivery costs RM10.');
   // With no saved items there is nothing to answer from: hand off without calling the model.
-  ai().removeDocument(ai().status().documents[0]!.id, actor);
+  ai().removeDocument(null, ai().status().documents[0]!.id, actor);
   expect(
     await ai().tryAnswer({
       question: 'Delivery?',
@@ -248,6 +252,8 @@ it.each([
 ])('migrates %s into one "Business context" text item, once', async (_name, stored, text) => {
   ai().saveMember(member, actor);
   t.ctx.settings.set('ai_sales_member', stored);
+  // Data from before custom agents: the member texts still live in the setting.
+  t.ctx.settings.set('ai_agents_migrated', false);
   await restart();
   const status = ai().status();
   expect(status.settings).toMatchObject({ instructions: 'Be kind' });
@@ -294,7 +300,7 @@ it('migrates an empty legacy context by dropping the field without creating an i
 
 it('leaves an already migrated (current shape) member and its items alone', async () => {
   ai().saveMember(member, actor);
-  ai().addText({ name: 'Hours', text: 'Open 9am' }, actor);
+  ai().addText(null, { name: 'Hours', text: 'Open 9am' }, actor);
   const before = t.ctx.settings.get('ai_sales_member', {});
   await restart();
   ai().status();

@@ -20,9 +20,12 @@ export function productTitle(edition: string): string {
 const instructions = (title: string) =>
   `Access to an ${title} WhatsApp team inbox.` +
   ' Read the inbox with get_stats for an ' +
-  'overview, list_chats to find chats, then get_chat and get_messages. AI Sales Agent tools ' +
-  '(get_ai_agent_setup, try_ai_reply, update_ai_setup, get_ai_setup_history) let the admin ' +
-  'review and refine its instructions, hand-off rules and business context: change them only ' +
+  'overview, list_chats to find chats, then get_chat and get_messages. AI agent tools ' +
+  '(list_ai_agents, get_ai_agent_setup, try_ai_reply, update_ai_setup, get_ai_setup_history) let ' +
+  'the admin review and refine the instructions, hand-off rules and business context of each AI ' +
+  'agent; ' +
+  'with more than one AI agent, pass agentId from list_ai_agents (without it the tools use the ' +
+  'agent of inbox 1). Change them only ' +
   'when the admin you are working with asks, and test with try_ai_reply first. With send access, ' +
   'send_message sends a text reply into an existing chat as the admin: send only what the admin ' +
   'asked for and approved. With more than one inbox (WhatsApp number), chats carry inboxId and ' +

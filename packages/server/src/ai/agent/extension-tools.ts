@@ -4,12 +4,17 @@ import type { AiToolUsedPayload } from '@ezychat/shared';
 import { AI_TOOL_LABEL_CHARACTERS } from '@ezychat/shared';
 import type { AppContext } from '../../context.js';
 
-/** The agents that may get extension tools. Only the Sales Agent exists today. */
+/**
+ * The kind of agent that may get extension tools. Every customer-facing AI agent passes `'sales'`
+ * (whatever its preset); `agentId` says which agent it is.
+ */
 export type AgentKind = 'sales';
 
 /** What an extension is told about the turn it adds tools to. */
 export interface AgentToolsInput {
   agent: AgentKind;
+  /** The AI agent of this turn (`ai_agents.id`); absent only before any agent exists (Try it). */
+  agentId?: number;
   /** The chat being answered; null for Try it (POST /api/ai/try), which has no chat. */
   chatJid: string | null;
   /** Aborted when the turn is cancelled, times out or ends early (a failed look-up). */
@@ -40,6 +45,8 @@ export class ToolHandoverError extends Error {
 /** Bus payload `ai:tool_call`: one finished extension tool call. Never its input or output. */
 export interface AiToolCallEvent {
   agent: AgentKind;
+  /** The AI agent that made the call. */
+  agentId?: number;
   chatJid: string | null;
   /** Tool name as the model saw it. */
   tool: string;
@@ -120,11 +127,16 @@ async function setup(
  * True when any extension says it would offer this agent a look-up now (`hasAgentLookups`). Cheap
  * and synchronous; an extension that throws counts as "no look-ups" and is logged by name only.
  */
-export function extensionLookupsAvailable(ctx: AppContext, agent: AgentKind): boolean {
+export function extensionLookupsAvailable(
+  ctx: AppContext,
+  agent: AgentKind,
+  agentId?: number,
+): boolean {
   for (const ext of ctx.extensions) {
     if (!ext.hasAgentLookups) continue;
     try {
-      if (ext.hasAgentLookups(ctx, { agent })) return true;
+      if (ext.hasAgentLookups(ctx, agentId === undefined ? { agent } : { agent, agentId }))
+        return true;
     } catch (error) {
       ctx.log.warn(
         { mod: 'ai', event: 'ai_lookups_check_failed', source: ext.name, err: errName(error) },
@@ -136,7 +148,7 @@ export function extensionLookupsAvailable(ctx: AppContext, agent: AgentKind): bo
 }
 
 /**
- * Collects every extension's tools for one Sales Agent turn and wraps each so that a call emits
+ * Collects every extension's tools for one AI agent turn and wraps each so that a call emits
  * `ai:tool_call` and logs (tool, source, ok, ms only), and a thrown error marks the turn failed
  * and calls `onFailure` (the caller aborts the turn and hands over).
  */
@@ -206,6 +218,7 @@ export async function extensionAgentTools(
             );
             ctx.bus.emit('ai:tool_call', {
               agent: input.agent,
+              ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
               chatJid: input.chatJid,
               tool: name,
               source: ext.name,

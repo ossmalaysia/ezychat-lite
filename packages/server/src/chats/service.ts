@@ -8,6 +8,7 @@ import type {
 } from '@ezychat/shared';
 import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
+import { agentForInbox } from '../ai/agents.js';
 import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
 import { canOpen, scopeFor } from '../inboxes/access.js';
@@ -303,6 +304,13 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
           // assigning gives no access: the assignee must already open the chat's inbox
           if (user.kind !== 'ai' && !canOpen(scopeFor(ctx, user), cur.inbox_id))
             throw new HttpError(400, 'assignee_no_access', 'The assignee cannot open this inbox');
+          // an AI agent answers only its own inbox: on any other chat it would never reply
+          if (user.kind === 'ai' && agentForInbox(ctx.db, cur.inbox_id)?.userId !== user.id)
+            throw new HttpError(
+              400,
+              'assignee_not_inbox_agent',
+              "The assignee is not this inbox's AI agent",
+            );
           fields.assigned_to = body.assignedTo;
           events.push(
             repo.insertEvent({

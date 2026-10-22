@@ -104,7 +104,7 @@ async function setUp(extensions: ServerExtension[], { context = true } = {}) {
   t.ctx.services.ai!.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
   if (context)
-    t.ctx.services.ai!.addText({ name: 'Business context', text: 'Orders ship in 2 days.' }, actor);
+    t.ctx.services.ai!.addText(null, { name: 'Business context', text: 'Orders ship in 2 days.' }, actor);
   if (context || extensionLookupsAvailable(t.ctx, 'sales'))
     t.ctx.services.ai!.saveMember(body, actor);
 }
@@ -157,7 +157,7 @@ it('merges extension tools with the core tools for a live reply and disposes the
   // The bus event names the call; never its input or output.
   expect(events).toHaveLength(1);
   expect(Object.keys(events[0]!).sort()).toEqual(
-    ['agent', 'chatJid', 'ms', 'ok', 'source', 'title', 'tool'].sort(),
+    ['agent', 'agentId', 'chatJid', 'ms', 'ok', 'source', 'title', 'tool'].sort(),
   );
   expect(events[0]).toMatchObject({
     agent: 'sales',
