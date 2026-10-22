@@ -271,7 +271,12 @@
       "unsupported": "无法转写这种音频格式"
     },
     "reply": "回复",
-    "viaAssistant": "通过 AI 助手"
+    "viaAssistant": "通过 AI 助手",
+    "reactions": {
+      "label": "表情回应：{{list}}",
+      "title": "表情回应",
+      "fromPhone": "你（手机）"
+    }
   },
   "media": {
     "types": {

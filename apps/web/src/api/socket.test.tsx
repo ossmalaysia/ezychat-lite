@@ -429,3 +429,44 @@ it('keeps the inbox list current: a status patches it, a change reloads inboxes,
   await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
   qc.clear();
 });
+
+it('replaces the reactions of a cached message when someone reacts, changes or removes one', async () => {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const jid = '601@s.whatsapp.net';
+  qc.setQueryData(['messages', jid], {
+    pages: [
+      {
+        messages: [
+          { id: 'M1', chatJid: jid, clientId: null, reactions: [] },
+          { id: 'M2', chatJid: jid, clientId: null, reactions: [] },
+        ],
+        nextBefore: null,
+      },
+    ],
+    pageParams: [null],
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span />
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(socket.listeners.has('message:reactions')).toBe(true));
+  const reactions = [{ emoji: '👍', senderJid: jid, senderName: 'Farah', fromMe: false, at: 2 }];
+  const cached = () =>
+    (
+      qc.getQueryData(['messages', jid]) as { pages: { messages: { reactions: unknown }[] }[] }
+    ).pages[0]!.messages.map((m) => m.reactions);
+  act(() =>
+    socket.listeners.get('message:reactions')!({ chatJid: jid, messageId: 'M1', reactions }),
+  );
+  expect(cached()).toEqual([reactions, []]);
+  act(() =>
+    socket.listeners.get('message:reactions')!({ chatJid: jid, messageId: 'M1', reactions: [] }),
+  );
+  expect(cached()).toEqual([[], []]);
+  qc.clear();
+});

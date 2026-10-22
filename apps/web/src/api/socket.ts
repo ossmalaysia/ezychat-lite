@@ -139,6 +139,15 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     // A transcript arrived for a voice note: update it in place (no chat list refresh needed).
     socket.on('message:updated', (m) => upsertMessageInCache(qc, m));
+    // Someone reacted, changed or removed a reaction: replace the message's reaction list.
+    socket.on('message:reactions', (p) =>
+      patchMessageInCache(
+        qc,
+        p.chatJid,
+        { id: p.messageId, clientId: null },
+        { reactions: p.reactions },
+      ),
+    );
     socket.on('voice:status', (s) => qc.setQueryData(voiceStatusKey, s));
     socket.on('message:status', (p) => {
       const patch: { status: typeof p.status; error: string | null; id?: string } = {

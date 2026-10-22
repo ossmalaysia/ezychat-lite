@@ -271,7 +271,12 @@
       "unsupported": "Format audio ini tidak dapat ditranskripsi"
     },
     "reply": "Balas",
-    "viaAssistant": "melalui pembantu AI"
+    "viaAssistant": "melalui pembantu AI",
+    "reactions": {
+      "label": "Reaksi: {{list}}",
+      "title": "Reaksi",
+      "fromPhone": "Anda (telefon)"
+    }
   },
   "media": {
     "types": {
