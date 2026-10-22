@@ -6,13 +6,14 @@ import type {
   WaContactAlias,
   WaIncomingMessage,
   WaMessageStatusUpdate,
+  WaReaction,
 } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
 
 /**
  * Wires the events of one inbox's WaAdapter into the domain services:
- * message → messages.ingest; messageStatus → applyStatus; chats → upsertFromWa (all with the
+ * message → messages.ingest; reaction → messages.applyReaction; messageStatus → applyStatus; chats → upsertFromWa (all with the
  * inbox); contacts → contacts upsert; status → bus 'inbox:status' (every inbox) and, for inbox 1,
  * ctx.services.waStatus + bus 'wa:status'; when open → that inbox's send queue onConnected().
  * Returns a detach function.
@@ -75,6 +76,13 @@ export function attachWaBridge(
       .ingest(m, meta?.source ?? 'live', inboxId)
       .catch((err: unknown) => log.error({ err, id: m.id }, 'ingest failed'));
   };
+  const onReaction = (r: WaReaction, meta: { source: 'live' | 'history' }) => {
+    try {
+      messages.applyReaction(r, meta?.source ?? 'live', inboxId);
+    } catch (err) {
+      log.error({ err, id: r.targetId }, 'reaction not stored');
+    }
+  };
   const onStatusUpdate = (u: WaMessageStatusUpdate) => {
     try {
       messages.applyStatus(u, inboxId);
@@ -120,6 +128,7 @@ export function attachWaBridge(
 
   if (primary) ctx.services.waStatus = wa.status;
   wa.on('message', onMessage);
+  wa.on('reaction', onReaction);
   wa.on('messageStatus', onStatusUpdate);
   wa.on('chats', onChats);
   wa.on('contacts', onContacts);
@@ -131,6 +140,7 @@ export function attachWaBridge(
     detached = true;
     connectionGeneration++;
     wa.off('message', onMessage);
+    wa.off('reaction', onReaction);
     wa.off('messageStatus', onStatusUpdate);
     wa.off('chats', onChats);
     wa.off('contacts', onContacts);

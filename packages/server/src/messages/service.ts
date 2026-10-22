@@ -15,6 +15,7 @@ import type {
   WaIncomingMessage,
   WaMessageStatusUpdate,
   WaQuotedRef,
+  WaReaction,
   WaSendOptions,
 } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
@@ -35,6 +36,7 @@ import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } fr
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
 import { createMentionPresenter } from './mentions.js';
+import { createReactionPresenter, reactionRow } from './reactions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
 
 export interface MediaFile {
@@ -82,6 +84,12 @@ export interface MessageService {
   retry(id: string, userId: number): Message;
   /** A WhatsApp receipt from `inboxId` (default inbox 1); `u.id` is the WhatsApp message id. */
   applyStatus(u: WaMessageStatusUpdate, inboxId?: number): void;
+  /**
+   * A reaction WhatsApp delivered through `inboxId` (default inbox 1): stored by the reacted
+   * message's key (kept until that message arrives when it is not stored yet), `emoji` '' removes
+   * it. Emits `message:reactions` when a stored message's reactions changed. Never notifies.
+   */
+  applyReaction(r: WaReaction, source: 'live' | 'history', inboxId?: number): void;
   mediaPath(id: string): MediaFile | null;
   redownload(id: string): Promise<Message>;
   /**
@@ -148,6 +156,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const now = deps?.now ?? Date.now;
   const log = ctx.log.child({ mod: 'messages' });
   const withMentionNames = createMentionPresenter(ctx, log);
+  const reactions = createReactionPresenter(ctx);
 
   /** WA statuses that arrived before the local row was renamed to the WA id. */
   const earlyStatus = new Map<string, WaMessageStatusUpdate['status']>();
@@ -155,13 +164,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const inflight = new Map<string, Promise<unknown>>();
   const reconciliations = new Map<string, () => void>();
 
-  /** Rows → Messages, with each inbound group sender's customer profile (one batched lookup). */
+  /**
+   * Rows → Messages, with each inbound group sender's customer profile and every message's
+   * reactions (one batched lookup each).
+   */
   const presentAll = (rows: MessageRow[]): Message[] => {
     const list = withMentionNames(
       rows,
       rows.map((row) => rowToMessage(row)),
     );
-    return ctx.services.customers?.withSenderProfiles(list) ?? list;
+    return reactions.attach(ctx.services.customers?.withSenderProfiles(list) ?? list);
   };
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
@@ -854,6 +866,29 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         repo.update(id, { status: u.status });
       }
       emitStatus(repo.get(id)!);
+    },
+
+    applyReaction(r, source, inboxId = PRIMARY_INBOX_ID) {
+      const aliases = getAliases(ctx);
+      const learnedFrom = source === 'history' ? 'history' : 'message';
+      // The same explicit PN/LID pairs a message would teach (never a name match).
+      if (r.chatJid.endsWith('@g.us')) {
+        if (r.senderJid && r.senderJidAlt)
+          aliases.learn({ jid: r.senderJid, alias: r.senderJidAlt }, learnedFrom);
+      } else if (r.chatJidAlt) {
+        aliases.learn({ jid: r.chatJid, alias: r.chatJidAlt }, learnedFrom);
+      }
+      const messageId = messageKey(inboxId, r.targetId);
+      const row = reactionRow(r, messageId, aliases);
+      if (!row || !reactions.repo.apply(row)) return;
+      const target = repo.get(messageId);
+      // Not stored yet: the reaction waits and shows with the message (present()).
+      if (!target) return;
+      ctx.bus.emit('message:reactions', {
+        chatJid: target.chat_jid,
+        messageId,
+        reactions: reactions.forMessage(messageId, target.chat_jid),
+      });
     },
 
     mediaPath(id) {

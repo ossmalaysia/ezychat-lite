@@ -67,6 +67,26 @@ describe('wa bridge / ingest', () => {
     expect(chat.lastMessagePreview).toBe('hi');
   });
 
+  it('reactions flow through the bridge (default source live); a failing store is logged, not thrown', async () => {
+    const seen: string[][] = [];
+    t.ctx.bus.on('message:reactions', (p) => seen.push(p.reactions.map((r) => r.emoji)));
+    await getMessages(t.ctx).ingest(incoming({ id: 'RX-1' }), 'live');
+    t.wa.emit('reaction', {
+      targetId: 'RX-1',
+      chatJid: JID,
+      senderJid: JID,
+      senderName: null,
+      fromMe: false,
+      emoji: '👍',
+      timestamp: 1,
+    });
+    expect(seen).toEqual([['👍']]);
+    t.ctx.db.exec('DROP TABLE message_reactions');
+    expect(() =>
+      t.wa.simulateReaction({ chatJid: JID, targetId: 'RX-1', emoji: '❤️' }),
+    ).not.toThrow();
+  });
+
   it('inbound on a resolved chat reopens it and keeps the assignee', async () => {
     const { user } = await createUserAndLogin(t, { role: 'agent' });
     const msgs = getMessages(t.ctx);

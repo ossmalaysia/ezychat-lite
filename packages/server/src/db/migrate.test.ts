@@ -28,8 +28,9 @@ const TABLES = [
   'inboxes',
   'inbox_members',
   'ai_agents',
+  'message_reactions',
 ];
-const LATEST = 15;
+const LATEST = 16;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {

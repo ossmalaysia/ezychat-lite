@@ -6,6 +6,7 @@ import type {
   ClientToServerEvents,
   InboxStatusPayload,
   Message,
+  MessageReactionsPayload,
   MessageStatusPayload,
   Note,
   ServerToClientEvents,
@@ -202,6 +203,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const onMessageNew = (m: Message) => toChat(m.chatJid).emit('message:new', m);
   const onMessageStatus = (p: MessageStatusPayload) => toChat(p.chatJid).emit('message:status', p);
   const onMessageUpdated = (m: Message) => toChat(m.chatJid).emit('message:updated', m);
+  const onMessageReactions = (p: MessageReactionsPayload) =>
+    toChat(p.chatJid).emit('message:reactions', p);
   const onVoice = (s: VoiceStatus) => io.to('admins').emit('voice:status', s);
   const onChatUpdated = (c: Chat) => toChat(c.jid).emit('chat:updated', c);
   const onChatEvent = (e: ChatEvent) => toChat(e.chatJid).emit('chat:event', e);
@@ -261,6 +264,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   bus.on('message:new', onMessageNew);
   bus.on('message:status', onMessageStatus);
   bus.on('message:updated', onMessageUpdated);
+  bus.on('message:reactions', onMessageReactions);
   bus.on('voice:status', onVoice);
   bus.on('chat:updated', onChatUpdated);
   bus.on('chat:event', onChatEvent);
@@ -284,6 +288,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       bus.off('message:new', onMessageNew);
       bus.off('message:status', onMessageStatus);
       bus.off('message:updated', onMessageUpdated);
+      bus.off('message:reactions', onMessageReactions);
       bus.off('voice:status', onVoice);
       bus.off('chat:updated', onChatUpdated);
       bus.off('chat:event', onChatEvent);

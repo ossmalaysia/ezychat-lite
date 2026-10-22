@@ -1,11 +1,24 @@
 import type { FastifyInstance } from 'fastify';
-import { FakeGroupBody, FakeIncomingBody, FakeLinkBody, type Message } from '@ezychat/shared';
+import {
+  FakeGroupBody,
+  FakeIncomingBody,
+  FakeLinkBody,
+  FakeReactionBody,
+  type Message,
+} from '@ezychat/shared';
 import type { WaGroupParticipant } from '@ezychat/wa';
 import type { FakeWaAdapter } from '@ezychat/wa';
 import { requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
-import { PRIMARY_INBOX_ID, chatKey, messageKey } from '../inboxes/keys.js';
+import {
+  PRIMARY_INBOX_ID,
+  chatKey,
+  inboxOfKey,
+  messageKey,
+  parseChatKey,
+  waMessageId,
+} from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
 
 const INGEST_WAIT_MS = 2000;
@@ -97,6 +110,32 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
       if (timer) clearTimeout(timer);
       if (onNew) ctx.bus.off('message:new', onNew);
     }
+  });
+
+  /**
+   * POST /api/dev/fake-reaction: the fake phone of the message's inbox delivers a reaction (or its
+   * change or removal) to a stored message, in that message's chat, as WhatsApp would.
+   */
+  app.post('/dev/fake-reaction', { preHandler: requireUser(ctx) }, async (req) => {
+    const body = parse(FakeReactionBody, req.body ?? {});
+    const message = ctx.db
+      .prepare('SELECT chat_jid, wa_remote_jid FROM messages WHERE id = ?')
+      .get(body.messageId) as { chat_jid: string; wa_remote_jid: string | null } | undefined;
+    if (!message) throw errors.notFound('Message');
+    const inboxId = inboxOfKey(body.messageId);
+    const wa = fakeOf(inboxId);
+    const chatJid = message.wa_remote_jid ?? parseChatKey(message.chat_jid).waJid;
+    if (chatJid.endsWith('@g.us') && !body.fromMe && !body.senderJid)
+      throw errors.validation('A group reaction needs senderJid');
+    const reaction = wa.simulateReaction({
+      chatJid,
+      targetId: waMessageId(body.messageId),
+      emoji: body.emoji,
+      fromMe: body.fromMe ?? false,
+      ...(body.senderJid ? { senderJid: body.senderJid } : {}),
+      ...(body.senderName ? { senderName: body.senderName } : {}),
+    });
+    return { messageId: body.messageId, chatJid: message.chat_jid, timestamp: reaction.timestamp };
   });
 
   /**
