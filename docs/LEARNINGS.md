@@ -641,6 +641,10 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- In e2e, scope a sent or received message text to the conversation
+  (`getByRole('log', { name: 'Messages' })`): the chat list preview shows the same text, and a plain
+  `getByText` fails in strict mode only when the preview updates first (flaky, not every run).
+
 - A shell component that starts calling a new hook from a widely mocked module (`api/queries`) breaks
   every `vi.mock('../api/queries', () => …)` factory that lacks it: grep those mocks and add the hook.
 - A permission between two things (member ↔ inbox) is edited from both screens: the member's row and the
