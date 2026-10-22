@@ -78,7 +78,9 @@ import { EditionSwitch } from '../mock/EditionSwitch';
 import { useShownAgents } from '../mock/useAgents';
 import { useMockInboxes } from '../mock/inboxes';
 import { InboxChip } from '../inbox/InboxChip';
-import { PresetBadge } from './AgentPage';
+import { useAiMember } from '../api/ai';
+import { connectionReady } from './ai-status';
+import { agentPill, type AgentPill } from './AgentPage';
 
 /** Synthetic member id → mock agent, for the AI rows of the table. */
 const AgentRows = createContext<ReadonlyMap<number, MockAgent>>(new Map());
@@ -112,7 +114,7 @@ export function MembersPage() {
   const all = [...(users.data ?? []).filter((u) => u.kind !== 'ai'), ...agentUsers];
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? `${t('mockAgents.members.aiBadge')} ${presetOf(u)}` : ''}`
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? `${t('mockAgents.members.aiBadge')} ${presetOf(u)} ${inboxes.find((i) => i.id === agentRows.get(u.id)?.inboxId)?.name ?? ''}` : ''}`
       .toLocaleLowerCase()
       .includes(query),
   );
@@ -126,7 +128,7 @@ export function MembersPage() {
     {
       key: 'role',
       header: t('members.columns.role'),
-      cell: (u) => (u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />),
+      cell: (u) => (u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />),
     },
     // Proposed (multi-inbox): which inboxes each member may open (custom-agents: the agent's inbox).
     // The mock Lite view has one inbox and no inbox UI.
@@ -226,7 +228,7 @@ export function MembersPage() {
                   <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                  {u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />}
+                  {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
                   <StatusBadges user={u} />
                 </div>
                 {!lite && (
@@ -329,18 +331,64 @@ function initials(name: string) {
   );
 }
 
-/** The AI row's robot badge and (custom-agents) its preset. */
-function AiBadge({ user }: Readonly<{ user: User }>) {
+/** The AI row's robot badge (round 2: its preset moved into the subtitle under the name). */
+function AiBadge() {
   const { t } = useTranslation('admin');
-  const agent = useContext(AgentRows).get(user.id);
   return (
-    <span className="inline-flex flex-wrap gap-1">
-      <Badge variant="secondary" className="gap-1">
-        <Bot aria-hidden className="size-3" />
-        {t('mockAgents.members.aiBadge')}
-      </Badge>
-      {agent && <PresetBadge preset={agent.preset} />}
-    </span>
+    <Badge variant="secondary" className="gap-1">
+      <Bot aria-hidden className="size-3" />
+      {t('mockAgents.members.aiBadge')}
+    </Badge>
+  );
+}
+
+/** "Sales agent · Kopi Apong" (Lite: "Sales agent"), instead of "AI assistant". */
+function AgentSubtitle({ agent }: Readonly<{ agent: MockAgent | undefined }>) {
+  const { t } = useTranslation('admin');
+  const { inboxes } = useMockInboxes();
+  const { lite } = useShownAgents();
+  if (!agent) return <>{t('ai.assistant')}</>;
+  const preset = t('mockAgents.preset.badge', { preset: t(`mockAgents.preset.${agent.preset}`) });
+  if (lite) return <>{preset}</>;
+  const inbox = inboxes.find((i) => i.id === agent.inboxId);
+  return (
+    <>
+      {t('mockAgents.members.subtitle', {
+        preset,
+        inbox: inbox?.name ?? t('mockAgents.members.noInbox'),
+      })}
+    </>
+  );
+}
+
+const AGENT_PILL_CLASS: Record<AgentPill, string> = {
+  on: 'bg-success/15 text-success',
+  off: '',
+  needsKnowledge: 'bg-warning/15 text-foreground',
+  needsConnection: 'bg-danger/15 text-danger',
+};
+
+/** An AI agent's status in the agent page's words: On, Off, Needs business context, Needs connection. */
+function AgentStatusBadge({ agent }: Readonly<{ agent: MockAgent }>) {
+  const { t } = useTranslation('admin');
+  const status = useAiMember().data;
+  // No status word until the connection state is known (never a "Needs connection" flash).
+  if (!status) return null;
+  const pill = agentPill(connectionReady(status), agent);
+  const labels: Record<AgentPill, string> = {
+    on: t('ai.page.pill.on'),
+    off: t('ai.page.pill.off'),
+    needsConnection: t('ai.page.pill.needsConnection'),
+    needsKnowledge: t('ai.page.pill.needsKnowledge'),
+  };
+  return (
+    <Badge
+      variant={pill === 'off' ? 'secondary' : 'default'}
+      className={AGENT_PILL_CLASS[pill] || undefined}
+      data-testid="agent-status"
+    >
+      {labels[pill]}
+    </Badge>
   );
 }
 
@@ -373,7 +421,7 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
           )}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {user.kind === 'ai' ? t('ai.assistant') : `@${user.username}`}
+          {user.kind === 'ai' ? <AgentSubtitle agent={agent} /> : `@${user.username}`}
         </p>
       </div>
     </div>
@@ -391,6 +439,8 @@ function RoleBadge({ role }: { role: Role }) {
 
 function StatusBadges({ user }: { user: User }) {
   const { t } = useTranslation('admin');
+  const agent = useContext(AgentRows).get(user.id);
+  if (user.kind === 'ai' && agent) return <AgentStatusBadge agent={agent} />;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {/* A switched-off account is a normal state, not an error: neutral, never red. */}

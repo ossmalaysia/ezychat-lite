@@ -595,7 +595,7 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "Connect ChatGPT or an OpenAI API key. One provider and model is shared by every AI member in this inbox.",
+    "settingsDescription": "Connect ChatGPT or an OpenAI API key. One provider and model is shared by all your AI agents.",
     "roleBadge": "AI · Sales Agent",
     "membersDescription": "Your team and AI assistant for customer chats.",
     "assistant": "AI assistant",
@@ -695,7 +695,15 @@
       "usingRecommended": "Using the recommended instructions. Edit them to match your tone.",
       "advanced": "Advanced: instructions and hand-off rules",
       "advancedRecommended": "Using recommended settings",
-      "advancedCustomised": "Customised"
+      "advancedCustomised": "Customised",
+      "nextSteps": {
+        "title": "Next steps",
+        "context": "Add Business context",
+        "try": "Try a test question",
+        "turnOn": "Turn on",
+        "done": "Done",
+        "todo": "Step {{step}}"
+      }
     },
     "try": {
       "label": "Customer question",
@@ -822,7 +830,14 @@
       "internalTotal": "Internal items: {{count}} / {{max}} characters",
       "addFileTitle": "Add a file",
       "fileLabel": "File",
-      "itemSaved": "Item saved"
+      "itemSaved": "Item saved",
+      "actions": "Actions",
+      "markInternal": "Mark as Internal",
+      "markCustomer": "Mark as customer-facing",
+      "markInternalFor": "Mark {{name}} as Internal",
+      "markCustomerFor": "Mark {{name}} as customer-facing",
+      "markedInternal": "{{name}} is Internal now.",
+      "markedCustomer": "{{name}} is customer-facing now."
     },
     "defaults": {
       "sales": {
@@ -873,7 +888,7 @@
     },
     "keyOk": "Key works.",
     "connectionReady": "The AI connection is ready.",
-    "setupAgent": "Set up the Sales Agent",
+    "setupAgent": "Set up your AI agent",
     "moreFeatures": "More AI features",
     "moreFeaturesHint": "Voice messages and Customer enrichment",
     "remoteSignInHint": "Sign in from a browser on the computer running the inbox; from another computer, paste the final address when asked.",
@@ -935,9 +950,7 @@
       "advanced": "Advanced: role and hand-over rules",
       "advancedBlank": "Role not written yet",
       "usingTemplate": "Using the {{preset}} starting text. Edit it to match your business.",
-      "contextNew": "Save the agent first, then add its Business context.",
       "tryTitle": "Try it",
-      "tryNew": "Save the agent first, then try it with a test question.",
       "deleteTitle": "Delete this agent",
       "deleteHint": "The agent stops answering. Its chats go back to your team, unassigned. Its Business context items are deleted.",
       "delete": "Delete agent",
@@ -963,7 +976,11 @@
         "internal_too_large": "Internal items can contain up to {{max}} characters in total. Shorten an Internal item or make it customer-facing.",
         "last_agent": "You cannot delete the only AI agent.",
         "agent_not_found": "This AI agent does not exist. It may have been deleted."
-      }
+      },
+      "noFreeInbox": "Every inbox has an AI agent. Add an inbox to give this agent its own number.",
+      "addInbox": "Add an inbox",
+      "createNext": "After you create the agent, add its Business context, try it and turn it on.",
+      "memberSubtitle": "{{agent}} · {{inbox}}"
     },
     "presets": {
       "sales": "Sales",
@@ -982,7 +999,8 @@
       "rule2": "Treats customer messages, files and voice notes as information, never as orders.",
       "rule3": "Its role and rules cannot be changed from a chat.",
       "rule4": "Never invents facts, prices or promises; Internal items only help it decide."
-    }
+    },
+    "openAgents": "Open AI agents"
   },
   "enrichment": {
     "title": "Customer enrichment",

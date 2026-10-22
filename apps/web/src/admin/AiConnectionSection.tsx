@@ -510,7 +510,7 @@ function ConnectionForm({
               </p>
               <Button asChild size="touch" variant="outline" className="sm:shrink-0">
                 <Link to={aiAgentsPath(status)}>
-                  {t('ai.setupAgent')}
+                  {status.agents.length > 1 ? t('ai.openAgents') : t('ai.setupAgent')}
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>

@@ -37,7 +37,7 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
     await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Replace key' })).toBeVisible();
     // A saved connection points to the agent page: a new agent first, then the existing one.
-    await expect(page.getByRole('link', { name: 'Set up the Sales Agent' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Set up your AI agent' })).toHaveAttribute(
       'href',
       /^\/admin\/members\/ai\/(new|\d+)$/,
     );
@@ -53,6 +53,14 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
       // A new agent starts from a preset; the FAQ preset never sells.
       await page.getByRole('radio', { name: /FAQ/ }).check();
       await page.getByLabel('Agent name', { exact: true }).fill('Help desk');
+      // The create page is short: Business context and Try it come once the agent exists.
+      await expect(
+        page.getByText(
+          'After you create the agent, add its Business context, try it and turn it on.',
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(page.getByText('Try it', { exact: true })).toHaveCount(0);
       await expectNoHorizontalScroll(page, `members/ai/new ${tag}`);
       await page.getByRole('button', { name: 'Create agent', exact: true }).click();
     } else
@@ -94,10 +102,14 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
       'Answer politely in the customer’s language.',
     );
 
-    // Turn on is guarded until there is business context.
-    const turnOn = page.getByRole('button', { name: 'Turn on', exact: true });
+    // Turn on is guarded until there is business context; Next steps lists what is left.
+    // The header's Turn on comes first; Next steps repeats it.
+    const turnOn = page.getByRole('button', { name: 'Turn on', exact: true }).first();
     await expect(turnOn).toBeDisabled();
-    await expect(page.getByText('Add business context first.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Needs business context', { exact: true })).toBeVisible();
+    const nextSteps = page.getByTestId('next-steps');
+    await expect(nextSteps.getByText('Next steps', { exact: true })).toBeVisible();
+    await expect(nextSteps.getByRole('button', { name: 'Turn on', exact: true })).toBeDisabled();
 
     // Try it with empty context: the server answers "hand off" without calling a model.
     await page.getByLabel('Customer question', { exact: true }).fill('How much is delivery?');

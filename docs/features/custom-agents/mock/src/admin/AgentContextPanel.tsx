@@ -1,6 +1,15 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, FileText, Lock, NotebookText, Plus, Search, Upload } from 'lucide-react';
+import {
+  ChevronDown,
+  FileText,
+  Lock,
+  LockOpen,
+  NotebookText,
+  Plus,
+  Search,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_CONTEXT_CHARACTERS,
@@ -35,7 +44,15 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { AGENT_ITEMS, addItem, removeItems, updateItem, type MockAgentItem } from '../mock/agents';
+import {
+  AGENT_INTERNAL_CHARACTERS,
+  AGENT_ITEMS,
+  addItem,
+  internalTooLarge,
+  removeItems,
+  updateItem,
+  type MockAgentItem,
+} from '../mock/agents';
 import { ConfirmDialog, Field } from './adminUi';
 
 const UPLOAD_ACCEPT = '.txt,.md,.pdf,.docx';
@@ -70,6 +87,12 @@ export function AgentContextPanel({
   const [open, setOpen] = useState<Open>(null);
   const [confirm, setConfirm] = useState<MockAgentItem[] | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  // Round 2: the 10,000-character Internal rule, shown inside the open dialog.
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const tooLargeText = t('mockAgents.context.internalTooLarge', {
+    max: formatNumber(AGENT_INTERNAL_CHARACTERS),
+  });
+  useEffect(() => setDialogError(null), [open]);
 
   useEffect(() => {
     setSelected((current) => {
@@ -134,6 +157,44 @@ export function AgentContextPanel({
     const label =
       item.kind === 'file' ? t('ai.contextPanel.kindFile') : t('ai.contextPanel.kindText');
     return <Icon role="img" aria-label={label} className="size-4 shrink-0 text-muted-foreground" />;
+  };
+  /** Round 2: "Mark as Internal" / "Mark as customer-facing" from the list (only `internal` changes). */
+  const flipInternal = (item: MockAgentItem) => {
+    const internal = !item.internal;
+    if (internalTooLarge(items, { id: item.id, internal, text: item.text }))
+      return setLocalError(tooLargeText);
+    setLocalError(null);
+    updateItem(agentId, item.id, { internal });
+    toast.success(
+      internal
+        ? t('mockAgents.context.markedInternal', { name: item.name })
+        : t('mockAgents.context.markedCustomer', { name: item.name }),
+    );
+  };
+  const internalButton = (item: MockAgentItem) => {
+    const Icon = item.internal ? LockOpen : Lock;
+    return (
+      <Button
+        variant="ghost"
+        size="icon-touch"
+        className="shrink-0 md:size-8"
+        disabled={disabled}
+        title={
+          item.internal
+            ? t('mockAgents.context.markCustomer')
+            : t('mockAgents.context.markInternal')
+        }
+        aria-label={
+          item.internal
+            ? t('mockAgents.context.markCustomerFor', { name: item.name })
+            : t('mockAgents.context.markInternalFor', { name: item.name })
+        }
+        data-testid="item-internal-toggle"
+        onClick={() => flipInternal(item)}
+      >
+        <Icon aria-hidden />
+      </Button>
+    );
   };
   const added = (item: MockAgentItem) =>
     t('ai.contextPanel.added', { when: formatRelative(item.createdAt) });
@@ -326,6 +387,11 @@ export function AgentContextPanel({
                         <TableHead>{t('ai.contextPanel.name')}</TableHead>
                         <TableHead className="w-24">{t('ai.contextPanel.size')}</TableHead>
                         <TableHead className="w-44">{t('ai.contextPanel.details')}</TableHead>
+                        {!selecting && (
+                          <TableHead className="w-14">
+                            <span className="sr-only">{t('mockAgents.context.audience')}</span>
+                          </TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -364,6 +430,7 @@ export function AgentContextPanel({
                           >
                             {added(item)}
                           </TableCell>
+                          {!selecting && <TableCell>{internalButton(item)}</TableCell>}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -402,6 +469,7 @@ export function AgentContextPanel({
                           )}
                         </span>
                       </Button>
+                      {!selecting && internalButton(item)}
                     </li>
                   ))}
                 </ul>
@@ -416,8 +484,10 @@ export function AgentContextPanel({
         <TextItemDialog
           title={t('ai.contextPanel.addTextTitle')}
           initial={{ name: '', text: '', internal: false }}
+          error={dialogError}
           onClose={() => setOpen(null)}
           onSave={(body) => {
+            if (internalTooLarge(items, { id: null, ...body })) return setDialogError(tooLargeText);
             addItem(agentId, {
               kind: 'text',
               ...body,
@@ -436,7 +506,10 @@ export function AgentContextPanel({
           initialInternal={false}
           isNew
           onClose={() => setOpen(null)}
+          error={dialogError}
           onSave={(internal) => {
+            if (internalTooLarge(items, { id: null, internal, text: open.text }))
+              return setDialogError(tooLargeText);
             addItem(agentId, {
               kind: 'file',
               name: open.name,
@@ -453,8 +526,11 @@ export function AgentContextPanel({
         <TextItemDialog
           title={current.name}
           initial={{ name: current.name, text: current.text, internal: current.internal }}
+          error={dialogError}
           onClose={() => setOpen(null)}
           onSave={(body) => {
+            if (internalTooLarge(items, { id: current.id, ...body }))
+              return setDialogError(tooLargeText);
             updateItem(agentId, current.id, {
               ...body,
               size: new TextEncoder().encode(body.text).length,
@@ -475,7 +551,10 @@ export function AgentContextPanel({
           text={current.text}
           initialInternal={current.internal}
           onClose={() => setOpen(null)}
+          error={dialogError}
           onSave={(internal) => {
+            if (internalTooLarge(items, { id: current.id, internal, text: current.text }))
+              return setDialogError(tooLargeText);
             updateItem(agentId, current.id, { internal });
             toast.success(t('mockAgents.context.fileSaved'));
             setOpen(null);
@@ -562,12 +641,14 @@ type TextDraft = { name: string; text: string; internal: boolean };
 function TextItemDialog({
   title,
   initial,
+  error,
   onClose,
   onSave,
   onDelete,
 }: Readonly<{
   title: string;
   initial: TextDraft;
+  error?: string | null;
   onClose: () => void;
   onSave: (body: TextDraft) => void;
   onDelete?: () => void;
@@ -651,6 +732,7 @@ function TextItemDialog({
             />
           )}
         </Field>
+        {error && <Banner tone="danger">{error}</Banner>}
       </form>
     </ResponsiveDialog>
   );
@@ -663,6 +745,7 @@ function FileItemDialog({
   text,
   initialInternal,
   isNew = false,
+  error,
   onClose,
   onSave,
   onDelete,
@@ -672,6 +755,7 @@ function FileItemDialog({
   text: string;
   initialInternal: boolean;
   isNew?: boolean;
+  error?: string | null;
   onClose: () => void;
   onSave: (internal: boolean) => void;
   onDelete?: () => void;
@@ -719,6 +803,7 @@ function FileItemDialog({
           </p>
         )}
         <InternalSwitch checked={internal} onCheckedChange={setInternal} />
+        {error && <Banner tone="danger">{error}</Banner>}
         <div className="flex min-w-0 flex-col gap-2">
           <p className="text-sm font-medium">{t('ai.contextPanel.preview')}</p>
           <pre className="max-h-[40dvh] overflow-y-auto rounded-md bg-muted p-3 font-sans text-sm break-words whitespace-pre-wrap">

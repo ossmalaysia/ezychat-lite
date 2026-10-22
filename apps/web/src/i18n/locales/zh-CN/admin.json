@@ -590,7 +590,7 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。此收件箱的所有 AI 成员共用一个提供商和模型。",
+    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。您的所有 AI 客服共用一个提供商和模型。",
     "roleBadge": "AI · 销售客服",
     "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
     "assistant": "AI 助手",
@@ -690,7 +690,15 @@
       "usingRecommended": "正在使用推荐的指令。可按您的语气进行编辑。",
       "advanced": "高级：指令和转接规则",
       "advancedRecommended": "使用推荐设置",
-      "advancedCustomised": "已自定义"
+      "advancedCustomised": "已自定义",
+      "nextSteps": {
+        "title": "后续步骤",
+        "context": "添加业务背景",
+        "try": "试问一个测试问题",
+        "turnOn": "开启",
+        "done": "已完成",
+        "todo": "第 {{step}} 步"
+      }
     },
     "try": {
       "label": "客户问题",
@@ -814,7 +822,14 @@
       "internalTotal": "内部条目：{{count}} / {{max}} 个字符",
       "addFileTitle": "添加文件",
       "fileLabel": "文件",
-      "itemSaved": "条目已保存"
+      "itemSaved": "条目已保存",
+      "actions": "操作",
+      "markInternal": "标为内部",
+      "markCustomer": "标为面向客户",
+      "markInternalFor": "将 {{name}} 标为内部",
+      "markCustomerFor": "将 {{name}} 标为面向客户",
+      "markedInternal": "{{name}} 已标为内部。",
+      "markedCustomer": "{{name}} 已标为面向客户。"
     },
     "defaults": {
       "sales": {
@@ -864,7 +879,7 @@
     },
     "keyOk": "密钥有效。",
     "connectionReady": "AI 连接已就绪。",
-    "setupAgent": "设置销售代理",
+    "setupAgent": "设置您的 AI 客服",
     "moreFeatures": "更多 AI 功能",
     "moreFeaturesHint": "语音消息和客户资料补全",
     "remoteSignInHint": "请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
@@ -926,9 +941,7 @@
       "advanced": "高级：角色和转交规则",
       "advancedBlank": "尚未填写角色",
       "usingTemplate": "正在使用 {{preset}} 起始文本。请按您的业务进行编辑。",
-      "contextNew": "请先保存客服，然后再添加其业务背景。",
       "tryTitle": "试一试",
-      "tryNew": "请先保存客服，然后再用测试问题试一试。",
       "deleteTitle": "删除此客服",
       "deleteHint": "该客服停止回复。其对话将退回给您的团队，且不分配给任何人。其业务背景条目将被删除。",
       "delete": "删除客服",
@@ -953,7 +966,11 @@
         "internal_too_large": "内部条目合计最多 {{max}} 个字符。请缩短某个内部条目，或将其改为面向客户。",
         "last_agent": "无法删除唯一的 AI 客服。",
         "agent_not_found": "此 AI 客服不存在，可能已被删除。"
-      }
+      },
+      "noFreeInbox": "每个收件箱都已有 AI 客服。添加收件箱，让此客服使用自己的号码。",
+      "addInbox": "添加收件箱",
+      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。",
+      "memberSubtitle": "{{agent}} · {{inbox}}"
     },
     "presets": {
       "sales": "销售",
@@ -972,7 +989,8 @@
       "rule2": "把客户的消息、文件和语音留言当作信息，而不是命令。",
       "rule3": "其角色和规则无法在对话中更改。",
       "rule4": "从不编造事实、价格或承诺；内部条目只用于帮助其做决定。"
-    }
+    },
+    "openAgents": "打开 AI 客服"
   },
   "enrichment": {
     "title": "客户资料补全",

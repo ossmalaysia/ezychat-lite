@@ -559,7 +559,7 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。此收件箱的所有 AI 成员共用一个提供商和模型。",
+    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。您的所有 AI 代理共用一个提供商和模型。",
     "roleBadge": "AI · 销售客服",
     "addMember": "添加 AI 成员",
     "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
@@ -865,9 +865,10 @@
       "remoteSignInHint": "请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
       "keyOk": "密钥有效。",
       "connectionReady": "AI 连接已就绪。",
-      "setupAgent": "设置销售代理",
+      "setupAgent": "设置您的 AI 代理",
       "moreFeatures": "更多 AI 功能",
-      "moreFeaturesHint": "语音消息和客户资料补全"
+      "moreFeaturesHint": "语音消息和客户资料补全",
+      "openAgents": "打开 AI 代理"
     },
     "started": {
       "title": "入门",
@@ -970,7 +971,8 @@
       "aiBadge": "AI",
       "limitHint": "One AI agent per inbox. Add an inbox to add another agent.",
       "noInbox": "No inbox",
-      "inboxLabel": "Answers {{name}}"
+      "inboxLabel": "Answers {{name}}",
+      "subtitle": "{{preset}} · {{inbox}}"
     },
     "preset": {
       "sales": "Sales",
@@ -1038,7 +1040,10 @@
       "notFoundTitle": "This AI agent does not exist",
       "notFoundBody": "It may have been deleted.",
       "on": "On",
-      "off": "Off"
+      "off": "Off",
+      "inboxAllTaken": "Every inbox has an AI agent. Add an inbox to give this agent its own number.",
+      "addInbox": "Add an inbox",
+      "createNote": "After you create the agent, add its Business context, try it and turn it on."
     },
     "context": {
       "internal": "Internal",
@@ -1054,7 +1059,14 @@
       "fileSaved": "Item saved",
       "audience": "Who may hear it",
       "audienceCustomer": "Customer-facing",
-      "audienceInternal": "Internal"
+      "audienceInternal": "Internal",
+      "markInternal": "Mark as Internal",
+      "markCustomer": "Mark as customer-facing",
+      "markInternalFor": "Mark {{name}} as Internal",
+      "markCustomerFor": "Mark {{name}} as customer-facing",
+      "markedInternal": "{{name}} is Internal now.",
+      "markedCustomer": "{{name}} is customer-facing now.",
+      "internalTooLarge": "Internal items can contain up to {{max}} characters in total. Shorten an Internal item or make it customer-facing."
     },
     "try": {
       "hint": "Ask what a customer might ask. The answer uses this page's texts (also unsaved changes) and the saved Business context.",
@@ -1080,6 +1092,14 @@
       "agentMove": "{{agent}} answers {{inbox}} now. When you save, {{agent}} moves to this inbox and stops answering {{inbox}}.",
       "agentReplace": "{{agent}} answers this inbox now. When you save, {{agent}} is unassigned.",
       "removeAgent": "Its AI agent {{agent}} is unassigned and stops answering."
+    },
+    "nextSteps": {
+      "title": "Next steps",
+      "context": "Add Business context",
+      "try": "Try a test question",
+      "turnOn": "Turn on",
+      "done": "Done",
+      "todo": "Step {{step}}"
     }
   }
 }

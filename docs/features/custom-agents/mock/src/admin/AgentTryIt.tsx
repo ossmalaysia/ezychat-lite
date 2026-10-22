@@ -76,12 +76,15 @@ export function AgentTryIt({
   instructions,
   handoffRules,
   items,
+  onAnswered,
 }: Readonly<{
   name: string;
   preset: AgentPreset;
   instructions: string;
   handoffRules: string;
   items: MockAgentItem[];
+  /** Round 2: the page marks its Next steps row "Try a test question" done. */
+  onAnswered?: () => void;
 }>) {
   const { t } = useTranslation('admin');
   const status = useAiMember();
@@ -138,6 +141,7 @@ export function AgentTryIt({
     window.setTimeout(() => {
       setResult(answer(text));
       setPending(false);
+      onAnswered?.();
     }, 600);
   };
 

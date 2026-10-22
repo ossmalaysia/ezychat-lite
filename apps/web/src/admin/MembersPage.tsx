@@ -22,7 +22,7 @@ import {
   type Role,
   type User,
 } from '@ezychat/shared';
-import { useAiAgents } from '../api/ai';
+import { useAiAgents, useAiMember } from '../api/ai';
 import { errorMessage } from '../api/client';
 import {
   useCreateUser,
@@ -72,7 +72,7 @@ import {
   generatePassword,
 } from './adminUi';
 import { InboxAccessCell } from './InboxAccess';
-import { PresetBadge } from './PresetBadge';
+import { connectionReady } from './ai-status';
 import { InboxChip } from '../inbox/InboxChip';
 
 type Dialog =
@@ -85,6 +85,14 @@ type Dialog =
 
 /** AI agent id -> agent, for the AI rows (each AI team member is one agent). */
 const AgentRows = createContext<ReadonlyMap<number, AiAgentSummary>>(new Map());
+/**
+ * What the AI rows need besides their agent: the inbox names (null in an edition with one number)
+ * and whether the shared AI connection works (null while unknown).
+ */
+const AgentContext = createContext<{
+  inboxNames: ReadonlyMap<number, string> | null;
+  connectionReady: boolean | null;
+}>({ inboxNames: null, connectionReady: null });
 const agentPath = (user: User) =>
   user.aiAgentId === undefined ? '/admin/members/ai' : `/admin/members/ai/${user.aiAgentId}`;
 
@@ -92,6 +100,7 @@ export function MembersPage() {
   const users = useUsers();
   const inboxList = useInboxes();
   const agentList = useAiAgents();
+  const aiStatus = useAiMember();
   const { user: me } = useAuth();
   const { t, i18n } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -118,6 +127,10 @@ export function MembersPage() {
   // Inbox access shows only in an edition with several WhatsApp numbers (never in Lite).
   const multiInbox = (inboxList.data?.maxInboxes ?? 1) > 1;
   const inboxes = (inboxList.data?.inboxes ?? []).filter((i) => !i.removed);
+  const agentContext = {
+    inboxNames: multiInbox ? new Map(inboxes.map((i) => [i.id, i.name])) : null,
+    connectionReady: aiStatus.data ? connectionReady(aiStatus.data) : null,
+  };
   const memberInboxCell = (u: User) =>
     u.kind === 'ai' ? (
       <AgentInboxCell user={u} inboxes={inboxes} />
@@ -134,7 +147,7 @@ export function MembersPage() {
     {
       key: 'role',
       header: t('members.columns.role'),
-      cell: (u) => (u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />),
+      cell: (u) => (u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />),
     },
     { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
     ...(multiInbox
@@ -168,127 +181,129 @@ export function MembersPage() {
 
   return (
     <AgentRows.Provider value={agentRows}>
-      <div>
-        <PageHeader
-          title={t('members.title')}
-          description={t('ai.membersDescription')}
-          actions={
-            <>
-              {!users.isPending && !users.isError && canAddAgent && (
-                <Button asChild variant="outline" size="touch" className="md:min-h-9">
-                  <Link to="/admin/members/ai/new">
-                    <Bot aria-hidden />
-                    {t('ai.agents.add')}
-                  </Link>
+      <AgentContext.Provider value={agentContext}>
+        <div>
+          <PageHeader
+            title={t('members.title')}
+            description={t('ai.membersDescription')}
+            actions={
+              <>
+                {!users.isPending && !users.isError && canAddAgent && (
+                  <Button asChild variant="outline" size="touch" className="md:min-h-9">
+                    <Link to="/admin/members/ai/new">
+                      <Bot aria-hidden />
+                      {t('ai.agents.add')}
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  size="touch"
+                  className="md:min-h-9"
+                  onClick={() => setDialog({ kind: 'create' })}
+                >
+                  <UserPlus aria-hidden />
+                  {t('members.add')}
                 </Button>
-              )}
-              <Button
-                size="touch"
-                className="md:min-h-9"
-                onClick={() => setDialog({ kind: 'create' })}
-              >
-                <UserPlus aria-hidden />
-                {t('members.add')}
-              </Button>
-            </>
-          }
-        />
-        {/* Why Add AI agent is missing: every inbox has its agent (editions with several numbers). */}
-        {!users.isPending && !users.isError && atAgentLimit && (
-          <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
-            {t('ai.agents.limitHint')}
-          </p>
-        )}
-
-        <div className="mb-4 space-y-2">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            label={t('members.searchLabel')}
-            placeholder={t('members.searchPlaceholder')}
-          />
-          {!users.isPending && !users.isError && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t('members.count', { shown: list.length, count: all.length })}
-            </p>
-          )}
-        </div>
-        {users.isPending ? (
-          <ListSkeleton />
-        ) : users.isError ? (
-          <ErrorState error={users.error} onRetry={() => void users.refetch()} />
-        ) : (
-          <ResponsiveTable
-            rows={list}
-            columns={columns}
-            rowKey={(u) => u.id}
-            renderMobileRow={(u) => (
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <MemberIdentity user={u} isMe={u.id === me?.id} />
-                  <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                  {u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />}
-                  <StatusBadges user={u} />
-                </div>
-                {multiInbox && <div className="pl-11">{memberInboxCell(u)}</div>}
-                <p className="pl-11 text-xs text-muted-foreground">
-                  <Trans
-                    t={t}
-                    i18nKey="members.added"
-                    values={{ date: formatDate(u.createdAt, i18n.language) }}
-                    components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
-                  />
-                </p>
-              </div>
-            )}
-            empty={
-              query ? (
-                <EmptyState
-                  title={t('members.empty.noMatchTitle')}
-                  description={t('members.empty.noMatchBody')}
-                  action={
-                    <Button variant="outline" size="touch" onClick={() => setSearch('')}>
-                      {t('members.empty.clearSearch')}
-                    </Button>
-                  }
-                />
-              ) : (
-                <EmptyState
-                  title={t('members.empty.noneTitle')}
-                  description={t('members.empty.noneBody')}
-                />
-              )
+              </>
             }
           />
-        )}
+          {/* Why Add AI agent is missing: every inbox has its agent (editions with several numbers). */}
+          {!users.isPending && !users.isError && atAgentLimit && (
+            <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
+              {t('ai.agents.limitHint')}
+            </p>
+          )}
 
-        {dialog?.kind === 'create' && (
-          <CreateMemberDialog
-            onClose={close}
-            onCreated={(name) => {
-              close();
-              toast.success(t('members.create.done', { name }));
-            }}
-          />
-        )}
-        {dialog?.kind === 'edit' && (
-          <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
-        )}
-        {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
-        {dialog?.kind === 'revoke' && (
-          <RevokeSessionsDialog
-            user={dialog.user}
-            onClose={close}
-            onDone={() => {
-              close();
-              toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
-            }}
-          />
-        )}
-        {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
-      </div>
+          <div className="mb-4 space-y-2">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              label={t('members.searchLabel')}
+              placeholder={t('members.searchPlaceholder')}
+            />
+            {!users.isPending && !users.isError && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {t('members.count', { shown: list.length, count: all.length })}
+              </p>
+            )}
+          </div>
+          {users.isPending ? (
+            <ListSkeleton />
+          ) : users.isError ? (
+            <ErrorState error={users.error} onRetry={() => void users.refetch()} />
+          ) : (
+            <ResponsiveTable
+              rows={list}
+              columns={columns}
+              rowKey={(u) => u.id}
+              renderMobileRow={(u) => (
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <MemberIdentity user={u} isMe={u.id === me?.id} />
+                    <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pl-11">
+                    {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
+                    <StatusBadges user={u} />
+                  </div>
+                  {multiInbox && <div className="pl-11">{memberInboxCell(u)}</div>}
+                  <p className="pl-11 text-xs text-muted-foreground">
+                    <Trans
+                      t={t}
+                      i18nKey="members.added"
+                      values={{ date: formatDate(u.createdAt, i18n.language) }}
+                      components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
+                    />
+                  </p>
+                </div>
+              )}
+              empty={
+                query ? (
+                  <EmptyState
+                    title={t('members.empty.noMatchTitle')}
+                    description={t('members.empty.noMatchBody')}
+                    action={
+                      <Button variant="outline" size="touch" onClick={() => setSearch('')}>
+                        {t('members.empty.clearSearch')}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    title={t('members.empty.noneTitle')}
+                    description={t('members.empty.noneBody')}
+                  />
+                )
+              }
+            />
+          )}
+
+          {dialog?.kind === 'create' && (
+            <CreateMemberDialog
+              onClose={close}
+              onCreated={(name) => {
+                close();
+                toast.success(t('members.create.done', { name }));
+              }}
+            />
+          )}
+          {dialog?.kind === 'edit' && (
+            <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
+          )}
+          {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
+          {dialog?.kind === 'revoke' && (
+            <RevokeSessionsDialog
+              user={dialog.user}
+              onClose={close}
+              onDone={() => {
+                close();
+                toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
+              }}
+            />
+          )}
+          {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
+        </div>
+      </AgentContext.Provider>
     </AgentRows.Provider>
   );
 }
@@ -331,18 +346,63 @@ function initials(name: string) {
   );
 }
 
-/** The AI row's robot badge and its agent's preset. */
-function AiBadge({ user }: Readonly<{ user: User }>) {
+/** The AI row's robot badge (the subtitle names the agent's preset). */
+function AiBadge() {
+  const { t } = useTranslation('admin');
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <Bot aria-hidden className="size-3" />
+      {t('ai.agents.aiBadge')}
+    </Badge>
+  );
+}
+
+/** "Sales agent · Sales line" (Lite: "Sales agent"), like the agent page's preset and inbox. */
+function AiSubtitle({ user }: Readonly<{ user: User }>) {
   const { t } = useTranslation('admin');
   const agent = useAgentOf(user);
+  const { inboxNames } = useContext(AgentContext);
+  if (!agent) return t('ai.assistant');
+  const preset = t('ai.presets.badge', { preset: t(`ai.presets.${agent.preset}`) });
+  if (!inboxNames) return preset;
+  const inbox =
+    (agent.inboxId === null ? undefined : inboxNames.get(agent.inboxId)) ?? t('ai.agents.noInbox');
+  return t('ai.agents.memberSubtitle', { agent: preset, inbox });
+}
+
+const AGENT_STATUS_CLASS = {
+  on: 'bg-success/15 text-success',
+  off: undefined,
+  needsConnection: 'bg-danger/15 text-danger',
+  needsKnowledge: 'bg-warning/15 text-foreground',
+} as const;
+
+/** Same order as the agent page's pill: connection, then Business context, then on/off. */
+function aiRowStatus(
+  user: User,
+  agent: AiAgentSummary | undefined,
+  ready: boolean | null,
+): keyof typeof AGENT_STATUS_CLASS {
+  if (ready === false) return 'needsConnection';
+  if (agent && agent.documentCount === 0) return 'needsKnowledge';
+  const on = agent ? agent.enabled : !user.disabled;
+  return on ? 'on' : 'off';
+}
+
+/** An AI agent's status in the agent page's words: On, Off, Needs business context / connection. */
+function AiStatusBadge({ user }: Readonly<{ user: User }>) {
+  const { t } = useTranslation('admin');
+  const agent = useAgentOf(user);
+  const { connectionReady: ready } = useContext(AgentContext);
+  const status = aiRowStatus(user, agent, ready);
   return (
-    <span className="inline-flex flex-wrap gap-1">
-      <Badge variant="secondary" className="gap-1">
-        <Bot aria-hidden className="size-3" />
-        {t('ai.agents.aiBadge')}
-      </Badge>
-      {agent && <PresetBadge preset={agent.preset} />}
-    </span>
+    <Badge
+      variant={status === 'off' ? 'secondary' : 'default'}
+      className={AGENT_STATUS_CLASS[status]}
+      data-testid="ai-status"
+    >
+      {t(`ai.page.pill.${status}`)}
+    </Badge>
   );
 }
 
@@ -374,7 +434,7 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
           )}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {user.kind === 'ai' ? t('ai.assistant') : `@${user.username}`}
+          {user.kind === 'ai' ? <AiSubtitle user={user} /> : `@${user.username}`}
         </p>
       </div>
     </div>
@@ -395,10 +455,10 @@ function StatusBadges({ user }: { user: User }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
       {/* A switched-off account is a normal state, not an error: neutral, never red. */}
-      {user.disabled ? (
-        <Badge variant="secondary">
-          {user.kind === 'ai' ? t('ai.page.pill.off') : t('members.status.disabled')}
-        </Badge>
+      {user.kind === 'ai' ? (
+        <AiStatusBadge user={user} />
+      ) : user.disabled ? (
+        <Badge variant="secondary">{t('members.status.disabled')}</Badge>
       ) : (
         <Badge className="bg-success/15 text-success">{t('members.status.active')}</Badge>
       )}

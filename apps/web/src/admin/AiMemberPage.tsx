@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Check,
   CheckCircle2,
   ChevronRight,
   Lock,
@@ -63,7 +64,12 @@ import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
-import { ExtensionBoundary, useWebExtensions } from '../extensions';
+import {
+  AgentSectionProvider,
+  ExtensionBoundary,
+  useWebExtensions,
+  type AgentSectionInfo,
+} from '../extensions';
 
 const PILL_TONE = {
   on: 'success',
@@ -189,6 +195,8 @@ function AgentEditor({
   const inboxFieldId = useId();
   const reasonId = useId();
   const editReasonId = useId();
+  const contextSectionId = useId();
+  const trySectionId = useId();
   const id = agent?.agent.id ?? null;
   const isNew = id === null;
   const lite = list.maxAgents <= 1;
@@ -240,6 +248,8 @@ function AgentEditor({
   const [editOpen, setEditOpen] = useState(false);
   // New agents (and a restored draft) open Advanced: the role is where a Custom agent starts.
   const [advancedOpen] = useState(() => isNew || Boolean(initial));
+  // Next steps: a Try it answer in this page session counts as "tried".
+  const [tried, setTried] = useState(false);
 
   // The inbox shown follows the server when it changes elsewhere (Admin → Inboxes) or, on a create
   // page, once the inbox list arrives; typed edits are kept.
@@ -356,6 +366,8 @@ function AgentEditor({
         writeStoredDraft(storeKey, null);
         toast.success(t('ai.agents.created', { name }));
         navigate(`/admin/members/ai/${result.agent.id}`, { replace: true });
+        // The new agent page starts at the top: its name, status and Next steps.
+        window.scrollTo({ top: 0, left: 0 });
         return;
       }
       const stored = fromAgent(result);
@@ -408,6 +420,30 @@ function AgentEditor({
     </CardAction>
   );
   const boundInbox = agent ? inboxes.find((inbox) => inbox.id === agent.agent.inboxId) : undefined;
+  // Every inbox already answered by another agent: this one can only get an inbox once one is added.
+  const noFreeInbox =
+    showInboxUi &&
+    inboxes.every((inbox) => list.agents.some((a) => a.inboxId === inbox.id && a.id !== id));
+  // Jump to a section and move focus there, so keyboard and screen-reader users land on it too.
+  const scrollTo = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    section.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    section.focus({ preventScroll: true });
+  };
+  const turnOnButton = (className?: string) => (
+    <Button
+      size="touch"
+      className={className}
+      disabled={busy || !canTurnOn}
+      aria-describedby={canTurnOn ? undefined : reasonId}
+      onClick={() => void save(true, t('ai.page.turnedOn'))}
+    >
+      <Pending show={busy} />
+      {t('ai.page.turnOn')}
+    </Button>
+  );
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -439,22 +475,18 @@ function AgentEditor({
                   {t('ai.page.turnOff')}
                 </Button>
               ) : (
-                <Button
-                  size="touch"
-                  disabled={busy || !canTurnOn}
-                  aria-describedby={canTurnOn ? undefined : reasonId}
-                  onClick={() => void save(true, t('ai.page.turnedOn'))}
-                >
-                  <Pending show={busy} />
-                  {t('ai.page.turnOn')}
-                </Button>
+                turnOnButton()
               )}
             </div>
           )
         }
       />
       {agent && !enabled && !canTurnOn && (
-        <p id={reasonId} className="text-sm text-muted-foreground">
+        // The status already says "Needs business context": the reason stays for screen readers only.
+        <p
+          id={reasonId}
+          className={pill === 'needsKnowledge' ? 'sr-only' : 'text-sm text-muted-foreground'}
+        >
           {reason}
         </p>
       )}
@@ -469,16 +501,37 @@ function AgentEditor({
             ))}
         </div>
       )}
-      <AiConnectionBanner
-        status={status}
-        action={
-          <Button asChild size="touch" variant="outline">
-            <Link to="/admin/settings/ai">{t('ai.page.openSettings')}</Link>
-          </Button>
-        }
-      />
+      {agent && !enabled && (
+        <NextSteps
+          steps={[
+            {
+              key: 'context',
+              label: t('ai.page.nextSteps.context'),
+              done: knowledge,
+              onGo: () => scrollTo(contextSectionId),
+            },
+            {
+              key: 'try',
+              label: t('ai.page.nextSteps.try'),
+              done: tried,
+              onGo: () => scrollTo(trySectionId),
+            },
+          ]}
+          turnOn={turnOnButton('md:min-h-9')}
+        />
+      )}
+      {!isNew && (
+        <AiConnectionBanner
+          status={status}
+          action={
+            <Button asChild size="touch" variant="outline">
+              <Link to="/admin/settings/ai">{t('ai.page.openSettings')}</Link>
+            </Button>
+          }
+        />
+      )}
 
-      {!ready && (
+      {!ready && !isNew && (
         <Card className="gap-4 border-primary/40">
           <CardHeader>
             <CardTitle>{t('ai.connect.title')}</CardTitle>
@@ -581,6 +634,17 @@ function AgentEditor({
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">{t('ai.agents.inboxHint')}</p>
+              {noFreeInbox && (
+                <p className="text-sm text-muted-foreground" data-testid="no-free-inbox">
+                  {t('ai.agents.noFreeInbox')}{' '}
+                  <Link
+                    to="/admin/inboxes"
+                    className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
+                  >
+                    {t('ai.agents.addInbox')}
+                  </Link>
+                </p>
+              )}
               {otherOnInbox && (
                 <Banner tone="warning">
                   {t('ai.agents.inboxMove', {
@@ -594,31 +658,45 @@ function AgentEditor({
         </CardContent>
       </Card>
 
-      {agent ? (
-        <AiContextPanel agentId={agent.agent.id} documents={documents} disabled={busy} />
-      ) : (
-        <Card className="gap-2">
-          <CardHeader>
-            <CardTitle>{t('ai.page.stepContext')}</CardTitle>
-            <CardDescription>{t('ai.agents.contextNew')}</CardDescription>
-          </CardHeader>
-        </Card>
+      {/* A new agent page stays short: context, extensions and Try it come once it exists. */}
+      {agent && (
+        <>
+          {/* scroll-mt clears the phone's sticky admin bar. */}
+          <div
+            id={contextSectionId}
+            tabIndex={-1}
+            className="scroll-mt-16 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring md:scroll-mt-4"
+          >
+            <AiContextPanel agentId={agent.agent.id} documents={documents} disabled={busy} />
+          </div>
+
+          {/* Every agent is a customer-facing agent for extensions ('sales'). */}
+          <AgentExtensionSections
+            agent="sales"
+            agentId={agent.agent.id}
+            displayName={agent.settings.displayName}
+            preset={agent.agent.preset}
+          />
+
+          <Card
+            id={trySectionId}
+            tabIndex={-1}
+            className="scroll-mt-16 gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring md:scroll-mt-4"
+          >
+            <CardHeader>
+              <CardTitle>{t('ai.agents.tryTitle')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AiTryIt
+                draft={draft}
+                agentId={agent.agent.id}
+                ready={ready}
+                onAnswered={() => setTried(true)}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
-
-      {/* Every agent is a customer-facing agent for extensions ('sales'). */}
-      <AgentExtensionSections agent="sales" />
-
-      <Card className={agent ? 'gap-4' : 'gap-2'}>
-        <CardHeader>
-          <CardTitle>{t('ai.agents.tryTitle')}</CardTitle>
-          {!agent && <CardDescription>{t('ai.agents.tryNew')}</CardDescription>}
-        </CardHeader>
-        {agent && (
-          <CardContent>
-            <AiTryIt draft={draft} agentId={agent.agent.id} ready={ready} />
-          </CardContent>
-        )}
-      </Card>
 
       <details className="group rounded-lg border bg-card" open={advancedOpen}>
         <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
@@ -710,24 +788,30 @@ function AgentEditor({
         </div>
       </details>
 
-      <SafetyRules />
+      {isNew ? (
+        <p className="text-sm text-muted-foreground">{t('ai.agents.createNext')}</p>
+      ) : (
+        <>
+          <SafetyRules />
 
-      <details className="rounded-lg border bg-card px-4">
-        <summary className="flex min-h-11 cursor-pointer items-center font-medium">
-          {t('ai.page.howItWorks')}
-        </summary>
-        <p className="pb-4 text-sm leading-relaxed text-muted-foreground">{t('ai.behavior')}</p>
-      </details>
+          <details className="rounded-lg border bg-card px-4">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium">
+              {t('ai.page.howItWorks')}
+            </summary>
+            <p className="pb-4 text-sm leading-relaxed text-muted-foreground">{t('ai.behavior')}</p>
+          </details>
 
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-        <span>{t('ai.page.connectionLine', { state: connectionText })}</span>
-        <Link
-          to="/admin/settings/ai"
-          className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
-        >
-          {t('ai.page.openSettings')}
-        </Link>
-      </p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>{t('ai.page.connectionLine', { state: connectionText })}</span>
+            <Link
+              to="/admin/settings/ai"
+              className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
+            >
+              {t('ai.page.openSettings')}
+            </Link>
+          </p>
+        </>
+      )}
 
       {agent && !lite && (
         <Card className="gap-3 border-danger/40">
@@ -823,32 +907,98 @@ function SafetyRules() {
     t('ai.guardrails.rule3'),
     t('ai.guardrails.rule4'),
   ];
+  // Closed by default (like Advanced): the rules never change, so they need not take page space.
   return (
-    <Card className="gap-3 bg-muted/40">
-      <CardHeader className={EDIT_HEADER}>
-        <CardTitle className="inline-flex items-center gap-2">
-          <ShieldCheck aria-hidden className="size-4 text-success" />
-          {t('ai.guardrails.title')}
-        </CardTitle>
+    <details className="group rounded-lg border bg-muted/40" data-testid="safety-rules">
+      <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+        <ShieldCheck aria-hidden className="size-4 text-success" />
+        <span className="font-medium">{t('ai.guardrails.title')}</span>
         <Badge variant="outline" className="gap-1">
           <Lock aria-hidden className="size-3" />
           {t('ai.guardrails.badge')}
         </Badge>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      </summary>
+      <div className="flex flex-col gap-2 border-t p-4">
         <p className="text-sm text-muted-foreground">{t('ai.guardrails.intro')}</p>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
           {rules.map((rule) => (
             <li key={rule}>{rule}</li>
           ))}
         </ul>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * The "Next steps" card of an agent that is off: numbered rows that turn into checks, each jumping
+ * to its section, and Turn on (same rules as the header button) last.
+ */
+function NextSteps({
+  steps,
+  turnOn,
+}: {
+  steps: { key: string; label: string; done: boolean; onGo: () => void }[];
+  turnOn: ReactNode;
+}) {
+  const { t } = useTranslation('admin');
+  const marker = (done: boolean, step: number) =>
+    done ? (
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+        <Check aria-hidden className="size-4" />
+        <span className="sr-only">{t('ai.page.nextSteps.done')}</span>
+      </span>
+    ) : (
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium text-muted-foreground">
+        <span aria-hidden>{step}</span>
+        <span className="sr-only">{t('ai.page.nextSteps.todo', { step })}</span>
+      </span>
+    );
+  return (
+    <Card className="gap-3" data-testid="next-steps">
+      <CardHeader>
+        <CardTitle>{t('ai.page.nextSteps.title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ol className="flex flex-col gap-1">
+          {steps.map((step, index) => (
+            <li key={step.key} className="flex items-center gap-3" data-done={step.done}>
+              {marker(step.done, index + 1)}
+              <Button
+                type="button"
+                variant="link"
+                className={cn(
+                  'h-auto min-h-11 justify-start p-0 text-left whitespace-normal md:min-h-9',
+                  step.done ? 'text-muted-foreground line-through' : 'text-foreground',
+                )}
+                onClick={step.onGo}
+              >
+                {step.label}
+              </Button>
+            </li>
+          ))}
+          <li className="flex flex-wrap items-center gap-3 pt-1">
+            {marker(false, steps.length + 1)}
+            {turnOn}
+          </li>
+        </ol>
       </CardContent>
     </Card>
   );
 }
 
 /** Extension rows for one agent (e.g. Connectors), right under Business context. */
-function AgentExtensionSections({ agent }: { agent: 'sales' }) {
+function AgentExtensionSections({
+  agent,
+  agentId,
+  displayName,
+  preset,
+}: { agent: 'sales' } & AgentSectionInfo) {
+  // One stable value per agent, so extension rows do not re-render on every page keystroke.
+  const info = useMemo<AgentSectionInfo>(
+    () => ({ agentId, displayName, preset }),
+    [agentId, displayName, preset],
+  );
   const sections = useWebExtensions().flatMap((ext) =>
     (ext.agentSections ?? [])
       .filter((section) => section.agent === agent)
@@ -856,12 +1006,14 @@ function AgentExtensionSections({ agent }: { agent: 'sales' }) {
   );
   if (!sections.length) return null;
   return (
-    <div className="flex flex-col gap-3" data-testid="agent-extension-sections">
-      {sections.map((section) => (
-        <div key={section.key} data-extension-section={section.key}>
-          <ExtensionBoundary>{section.element}</ExtensionBoundary>
-        </div>
-      ))}
-    </div>
+    <AgentSectionProvider value={info}>
+      <div className="flex flex-col gap-3" data-testid="agent-extension-sections">
+        {sections.map((section) => (
+          <div key={section.key} data-extension-section={section.key}>
+            <ExtensionBoundary>{section.element}</ExtensionBoundary>
+          </div>
+        ))}
+      </div>
+    </AgentSectionProvider>
   );
 }

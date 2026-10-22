@@ -1,7 +1,16 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ChevronDown, FileText, Lock, NotebookText, Plus, Search, Upload } from 'lucide-react';
+import {
+  ChevronDown,
+  FileText,
+  Lock,
+  LockOpen,
+  NotebookText,
+  Plus,
+  Search,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_CONTEXT_CHARACTERS,
@@ -220,6 +229,49 @@ export function AiContextPanel({
     </DropdownMenu>
   );
 
+  /** Marks one item Internal or customer-facing from the list (only the `internal` flag). */
+  const toggleInternal = async (doc: AiDocument) => {
+    setLocalError(null);
+    const internal = !doc.internal;
+    // The same total limit the server checks; asking would only fail.
+    if (internal && internalCharacters + doc.characters > AI_INTERNAL_CHARACTERS) {
+      setLocalError(
+        t('ai.agents.errors.internal_too_large', { max: formatNumber(AI_INTERNAL_CHARACTERS) }),
+      );
+      return;
+    }
+    try {
+      await action.mutateAsync({ kind: 'updateText', id: doc.id, body: { internal } });
+      toast.success(
+        internal
+          ? t('ai.contextPanel.markedInternal', { name: doc.name })
+          : t('ai.contextPanel.markedCustomer', { name: doc.name }),
+      );
+    } catch {
+      /* shown below from the mutation error */
+    }
+  };
+  const internalToggle = (doc: AiDocument) => {
+    const Icon = doc.internal ? LockOpen : Lock;
+    return (
+      <Button
+        variant="ghost"
+        size="icon-touch"
+        className="shrink-0 md:size-9"
+        disabled={busy}
+        aria-label={
+          doc.internal
+            ? t('ai.contextPanel.markCustomerFor', { name: doc.name })
+            : t('ai.contextPanel.markInternalFor', { name: doc.name })
+        }
+        title={doc.internal ? t('ai.contextPanel.markCustomer') : t('ai.contextPanel.markInternal')}
+        onClick={() => void toggleInternal(doc)}
+      >
+        <Icon aria-hidden />
+      </Button>
+    );
+  };
+
   const current = open?.kind === 'item' ? documents.find((doc) => doc.id === open.id) : undefined;
   const askDelete = (doc: AiDocument | undefined) => {
     setOpen(null);
@@ -387,6 +439,11 @@ export function AiContextPanel({
                         <TableHead>{t('ai.contextPanel.name')}</TableHead>
                         <TableHead className="w-24">{t('ai.contextPanel.size')}</TableHead>
                         <TableHead className="w-44">{t('ai.contextPanel.details')}</TableHead>
+                        {!selecting && (
+                          <TableHead className="w-14">
+                            <span className="sr-only">{t('ai.contextPanel.actions')}</span>
+                          </TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -426,6 +483,9 @@ export function AiContextPanel({
                           >
                             {added(doc)}
                           </TableCell>
+                          {!selecting && (
+                            <TableCell className="text-right">{internalToggle(doc)}</TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -464,6 +524,7 @@ export function AiContextPanel({
                           )}
                         </span>
                       </Button>
+                      {!selecting && internalToggle(doc)}
                     </li>
                   ))}
                 </ul>

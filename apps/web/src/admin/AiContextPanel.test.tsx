@@ -562,6 +562,71 @@ describe('Business context panel', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  describe('Internal from the list', () => {
+    it('marks an item Internal from its row, sending only the flag', async () => {
+      const { fetchMock } = setup();
+      const user = userEvent.setup();
+      const rows = await table();
+      await user.click(rows.getByRole('button', { name: 'Mark Price list as Internal' }));
+      await waitFor(() => expect(writes(fetchMock)).toEqual([`PATCH ${BASE}/documents/2`]));
+      expect(bodyOf(fetchMock, 'PATCH')).toEqual({ internal: true });
+      // The row now shows the badge and offers the way back; no dialog opened.
+      const row = (await table()).getByText('Price list').closest('tr')!;
+      expect(await within(row).findByTestId('internal-badge')).toBeTruthy();
+      expect(
+        within(row).getByRole('button', { name: 'Mark Price list as customer-facing' }),
+      ).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('marks an Internal item customer-facing from the phone list', async () => {
+      const { fetchMock } = setup(status(internal()));
+      const user = userEvent.setup();
+      await table();
+      await user.click(
+        mobileList().getByRole('button', { name: 'Mark Lowest prices as customer-facing' }),
+      );
+      await waitFor(() => expect(writes(fetchMock)).toEqual([`PATCH ${BASE}/documents/3`]));
+      expect(bodyOf(fetchMock, 'PATCH')).toEqual({ internal: false });
+    });
+
+    it('refuses an item that would pass the Internal limit without asking the server', async () => {
+      const big = documents().map((doc) =>
+        doc.id === 1 ? { ...doc, internal: true, characters: 9_500 } : doc,
+      );
+      const { fetchMock } = setup(status(big));
+      const user = userEvent.setup();
+      const rows = await table();
+      await user.click(rows.getByRole('button', { name: 'Mark Price list as Internal' }));
+      expect(
+        await screen.findByText(/up to 10,000 characters in total\. Shorten an Internal item/),
+      ).toBeTruthy();
+      expect(writes(fetchMock)).toEqual([]);
+    });
+
+    it('shows the server Internal limit error in the admin language', async () => {
+      setup(status(), (url, init) =>
+        url === `${BASE}/documents/2` && init?.method === 'PATCH'
+          ? json({ error: { code: 'internal_too_large', message: 'Too large' } }, 409)
+          : undefined,
+      );
+      const user = userEvent.setup();
+      const rows = await table();
+      await user.click(rows.getByRole('button', { name: 'Mark Price list as Internal' }));
+      expect(
+        await screen.findByText(/Shorten an Internal item or make it customer-facing/),
+      ).toBeTruthy();
+    });
+
+    it('hides the row buttons while selecting', async () => {
+      setup();
+      const user = userEvent.setup();
+      await table();
+      await user.click(screen.getByRole('button', { name: 'Select' }));
+      expect(screen.queryByRole('button', { name: /^Mark .* as Internal$/ })).toBeNull();
+    });
+  });
+
   it('deletes a file item from its dialog after confirming', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();

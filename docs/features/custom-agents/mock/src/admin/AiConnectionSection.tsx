@@ -30,6 +30,8 @@ import { connectionReady, officialLoginUrl } from './ai-status';
 import { useTestApiKey } from './AiQuickConnect';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { cn } from '@/lib/utils';
+// Proposed (custom-agents round 2): the ready card links to the AI agent(s), not "the Sales Agent".
+import { useShownAgents } from '../mock/useAgents';
 
 /** Radix Select needs a non-empty value; '' (Auto) is what is stored. */
 const AUTO_MODEL = 'auto';
@@ -62,6 +64,15 @@ function ConnectionForm({
 }) {
   const { t } = useTranslation('admin');
   const modeLabelId = useId();
+  const { shown: agents } = useShownAgents();
+  const onlyAgent = agents.length === 1 ? agents[0] : undefined;
+  // 0–1 agents: straight to that agent (or the create page); 2+: the list on Members.
+  const agentLink =
+    agents.length > 1
+      ? '/admin/members'
+      : onlyAgent
+        ? `/admin/members/ai/${onlyAgent.id}`
+        : '/admin/members/ai/new';
   const stateLabels: Record<AiMemberStatus['connection']['state'], string> = {
     unavailable: t('ai.state.unavailable'),
     signed_out: t('ai.state.signed_out'),
@@ -514,8 +525,10 @@ function ConnectionForm({
                 {t('mockSetup.settings.connectionReady')}
               </p>
               <Button asChild size="touch" variant="outline" className="sm:shrink-0">
-                <Link to="/admin/members/ai">
-                  {t('mockSetup.settings.setupAgent')}
+                <Link to={agentLink} data-testid="settings-agent-link">
+                  {agents.length > 1
+                    ? t('mockSetup.settings.openAgents')
+                    : t('mockSetup.settings.setupAgent')}
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>

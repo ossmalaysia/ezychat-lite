@@ -10,6 +10,7 @@ describe('public web entry', () => {
       'validateWebExtensions',
       'WEB_EXTENSION_ADMIN_SECTIONS',
       'useExtensionTranslation',
+      'useAgentSection',
       'useTranslation',
       'useAuth',
       'api',

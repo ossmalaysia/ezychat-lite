@@ -1,7 +1,15 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Link,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
+import {
+  Check,
   CheckCircle2,
   ChevronRight,
   Lock,
@@ -76,6 +84,22 @@ const PILL_TONE = {
   needsConnection: 'danger',
   needsKnowledge: 'warning',
 } as const;
+export type AgentPill = keyof typeof PILL_TONE;
+/** One status for the agent page and Members (round 2): connection first, then Business context. */
+export function agentPill(ready: boolean, agent: Pick<MockAgent, 'items' | 'enabled'>): AgentPill {
+  if (!ready) return 'needsConnection';
+  if (!agent.items.some((i) => i.text.trim().length > 0)) return 'needsKnowledge';
+  return agent.enabled ? 'on' : 'off';
+}
+const SECTION_CONTEXT = 'agent-context-section';
+const SECTION_TRY = 'agent-try-section';
+/** Brings a section into view and moves focus there (Next steps links). */
+function showSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.focus({ preventScroll: true });
+}
 /** A title with Edit with AI beside it: one centred row (the card grid would put the title higher). */
 const EDIT_HEADER = 'flex flex-wrap items-center justify-between gap-2';
 const isPreset = (value: unknown): value is AgentPreset =>
@@ -213,6 +237,8 @@ function AgentEditor({
 }>) {
   const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
+  const location = useLocation();
+  const topRef = useRef<HTMLDivElement>(null);
   const ready = connectionReady(status);
   const { agents, firstInboxId, lite } = useShownAgents();
   const member = useSaveAgentMember();
@@ -254,8 +280,17 @@ function AgentEditor({
   // The field stays set while the dialog closes so its content doesn't vanish mid-animation.
   const [editField, setEditField] = useState<AiEditField>('instructions');
   const [editOpen, setEditOpen] = useState(false);
-  // New agents (and a restored draft) open Advanced: the role is where a Custom agent starts.
-  const [advancedOpen] = useState(() => isNew || Boolean(initial));
+  // Round 2: Advanced starts collapsed, also on the short create page; a restored draft opens it.
+  const [advancedOpen] = useState(() => Boolean(initial));
+  // Next steps 2: done after a Try it answer in this page session.
+  const [tried, setTried] = useState(false);
+
+  // Round 2: after Create agent, show the new page from its top (name, status, next steps).
+  useEffect(() => {
+    if (!(location.state as { created?: boolean } | null)?.created) return;
+    window.scrollTo({ top: 0 });
+    topRef.current?.scrollIntoView({ block: 'start' });
+  }, [location.state]);
 
   // Keep the saved copy in step when another screen (Admin → Inboxes) re-binds this agent.
   useEffect(() => {
@@ -290,19 +325,25 @@ function AgentEditor({
     : undefined;
   const inboxName = (id: string | null) => inboxes.find((i) => i.id === id)?.name ?? '';
   const showInboxUi = !lite && inboxes.length > 0;
+  // Round 2: every inbox already has another agent: say how to give this one its own number.
+  const noFreeInbox = inboxes.every((i) =>
+    agents.some((a) => a.inboxId === i.id && a.id !== agent?.id),
+  );
 
   // As on the AI Sales Agent page: Turn on needs a ready connection AND Business context.
   const knowledge = items.some((i) => i.text.trim().length > 0);
   const canTurnOn = ready && knowledge;
   const enabled = Boolean(agent?.enabled);
-  const pill = !ready ? 'needsConnection' : !knowledge ? 'needsKnowledge' : enabled ? 'on' : 'off';
+  const pill = agentPill(ready, { items, enabled });
   const pillLabels = {
     on: t('ai.page.pill.on'),
     off: t('ai.page.pill.off'),
     needsConnection: t('ai.page.pill.needsConnection'),
     needsKnowledge: t('ai.page.pill.needsKnowledge'),
   };
-  const reason = !ready ? t('mockSetup.agent.connectFirst') : t('ai.page.reasonKnowledge');
+  // Round 2: no reason line when the status already says "Needs business context".
+  const reason = ready ? null : t('mockSetup.agent.connectFirst');
+  const showReason = Boolean(agent && !enabled && !canTurnOn && reason);
   const stateLabels: Record<AiMemberStatus['connection']['state'], string> = {
     unavailable: t('ai.state.unavailable'),
     signed_out: t('ai.state.signed_out'),
@@ -363,7 +404,7 @@ function AgentEditor({
       if (created.inboxId && created.inboxId === firstInboxId) await persist(created, { name });
       writeStoredDraft(storeKey, null);
       toast.success(t('mockAgents.page.created', { name }));
-      navigate(`/admin/members/ai/${created.id}`, { replace: true });
+      navigate(`/admin/members/ai/${created.id}`, { replace: true, state: { created: true } });
       return;
     }
     if (!(await persist(agent, { ...next, preset }))) return;
@@ -395,7 +436,7 @@ function AgentEditor({
   );
 
   return (
-    <div className="flex flex-col gap-4 pb-4" data-testid="agent-page">
+    <div ref={topRef} className="flex flex-col gap-4 pb-4" data-testid="agent-page">
       <EditionSwitch />
       <nav aria-label={t('ai.page.breadcrumb')} className="flex items-center gap-1 text-sm">
         <Link
@@ -428,7 +469,7 @@ function AgentEditor({
                 <Button
                   size="touch"
                   disabled={member.isPending || !canTurnOn}
-                  aria-describedby={canTurnOn ? undefined : reasonId}
+                  aria-describedby={showReason ? reasonId : undefined}
                   onClick={() => void toggle()}
                 >
                   <Pending show={member.isPending} />
@@ -439,7 +480,7 @@ function AgentEditor({
           )
         }
       />
-      {agent && !enabled && !canTurnOn && (
+      {showReason && (
         <p id={reasonId} className="text-sm text-muted-foreground" data-testid="turn-on-reason">
           {reason}
         </p>
@@ -455,6 +496,15 @@ function AgentEditor({
             ))}
         </div>
       )}
+      {agent && !enabled && (
+        <NextSteps
+          hasContext={knowledge}
+          tried={tried}
+          canTurnOn={canTurnOn}
+          pending={member.isPending}
+          onTurnOn={() => void toggle()}
+        />
+      )}
       <AiConnectionBanner
         status={status}
         action={
@@ -464,7 +514,7 @@ function AgentEditor({
         }
       />
 
-      {!ready && (
+      {!ready && !isNew && (
         <Card className="gap-4 border-primary/40" data-testid="agent-connect">
           <CardHeader className={EDIT_HEADER}>
             <CardTitle>{t('mockSetup.connect.title')}</CardTitle>
@@ -567,6 +617,17 @@ function AgentEditor({
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">{t('mockAgents.page.inboxHint')}</p>
+              {noFreeInbox && (
+                <p className="text-sm text-muted-foreground" data-testid="agent-no-free-inbox">
+                  {t('mockAgents.page.inboxAllTaken')}{' '}
+                  <Link
+                    to="/admin/inboxes"
+                    className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
+                  >
+                    {t('mockAgents.page.addInbox')}
+                  </Link>
+                </p>
+              )}
               {otherOnInbox && (
                 <Banner tone="warning">
                   {t('mockAgents.page.inboxMove', {
@@ -580,31 +641,30 @@ function AgentEditor({
         </CardContent>
       </Card>
 
-      {agent ? (
-        <AgentContextPanel agentId={agent.id} items={items} />
-      ) : (
-        <Card className="gap-2">
-          <CardHeader>
-            <CardTitle>{t('ai.page.stepContext')}</CardTitle>
-            <CardDescription>{t('mockAgents.page.contextNew')}</CardDescription>
-          </CardHeader>
-        </Card>
+      {/* Round 2: the create page is short; Business context and Try it come after Create. */}
+      {agent && (
+        <div id={SECTION_CONTEXT} tabIndex={-1} className="scroll-mt-4 outline-none">
+          <AgentContextPanel agentId={agent.id} items={items} />
+        </div>
       )}
 
-      <Card className="gap-4">
-        <CardHeader>
-          <CardTitle>{t('mockAgents.page.tryTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AgentTryIt
-            name={draft.name.trim() || title}
-            preset={preset}
-            instructions={draft.instructions}
-            handoffRules={draft.handoffRules}
-            items={items}
-          />
-        </CardContent>
-      </Card>
+      {agent && (
+        <Card id={SECTION_TRY} tabIndex={-1} className="scroll-mt-4 gap-4 outline-none">
+          <CardHeader>
+            <CardTitle>{t('mockAgents.page.tryTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AgentTryIt
+              name={draft.name.trim() || title}
+              preset={preset}
+              instructions={draft.instructions}
+              handoffRules={draft.handoffRules}
+              items={items}
+              onAnswered={() => setTried(true)}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <details
         className="group rounded-lg border bg-card"
@@ -703,24 +763,34 @@ function AgentEditor({
         </div>
       </details>
 
-      <SafetyRules />
+      {agent && (
+        <>
+          <SafetyRules />
 
-      <details className="rounded-lg border bg-card px-4">
-        <summary className="flex min-h-11 cursor-pointer items-center font-medium">
-          {t('ai.page.howItWorks')}
-        </summary>
-        <p className="pb-4 text-sm leading-relaxed text-muted-foreground">{t('ai.behavior')}</p>
-      </details>
+          <details className="rounded-lg border bg-card px-4">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium">
+              {t('ai.page.howItWorks')}
+            </summary>
+            <p className="pb-4 text-sm leading-relaxed text-muted-foreground">{t('ai.behavior')}</p>
+          </details>
 
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-        <span>{t('ai.page.connectionLine', { state: connectionText })}</span>
-        <Link
-          to="/admin/settings/ai"
-          className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
-        >
-          {t('ai.page.openSettings')}
-        </Link>
-      </p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>{t('ai.page.connectionLine', { state: connectionText })}</span>
+            <Link
+              to="/admin/settings/ai"
+              className="inline-flex items-center font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
+            >
+              {t('ai.page.openSettings')}
+            </Link>
+          </p>
+        </>
+      )}
+
+      {isNew && (
+        <p className="text-sm text-muted-foreground" data-testid="agent-create-note">
+          {t('mockAgents.page.createNote')}
+        </p>
+      )}
 
       {agent && !lite && (
         <Card className="gap-3 border-danger/40" data-testid="agent-delete">
@@ -804,6 +874,87 @@ function AgentEditor({
   );
 }
 
+/**
+ * Round 2: while an agent is off, the three steps to a working agent (Business context, a test
+ * question, Turn on). Each text brings its section into view; Turn on follows the header's rules.
+ */
+function NextSteps({
+  hasContext,
+  tried,
+  canTurnOn,
+  pending,
+  onTurnOn,
+}: Readonly<{
+  hasContext: boolean;
+  tried: boolean;
+  canTurnOn: boolean;
+  pending: boolean;
+  onTurnOn: () => void;
+}>) {
+  const { t } = useTranslation('admin');
+  const titleId = useId();
+  const marker = (done: boolean, n: number) =>
+    done ? (
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+        <Check aria-hidden className="size-3.5" />
+        <span className="sr-only">{t('mockAgents.nextSteps.done')}</span>
+      </span>
+    ) : (
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium text-muted-foreground">
+        <span aria-hidden>{n}</span>
+        <span className="sr-only">{t('mockAgents.nextSteps.todo', { step: n })}</span>
+      </span>
+    );
+  const linkClass = (done: boolean) =>
+    cn(
+      'h-auto min-h-11 justify-start px-0 py-1 text-left whitespace-normal md:min-h-8',
+      done ? 'text-muted-foreground line-through' : 'text-foreground',
+    );
+  return (
+    <Card className="gap-3 border-primary/40" data-testid="agent-next-steps">
+      <CardHeader>
+        <CardTitle id={titleId}>{t('mockAgents.nextSteps.title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ol aria-labelledby={titleId} className="flex flex-col gap-1">
+          <li className="flex items-center gap-3" data-done={hasContext}>
+            {marker(hasContext, 1)}
+            <Button
+              variant="link"
+              className={linkClass(hasContext)}
+              onClick={() => showSection(SECTION_CONTEXT)}
+            >
+              {t('mockAgents.nextSteps.context')}
+            </Button>
+          </li>
+          <li className="flex items-center gap-3" data-done={tried}>
+            {marker(tried, 2)}
+            <Button
+              variant="link"
+              className={linkClass(tried)}
+              onClick={() => showSection(SECTION_TRY)}
+            >
+              {t('mockAgents.nextSteps.try')}
+            </Button>
+          </li>
+          <li className="flex flex-wrap items-center gap-3">
+            {marker(false, 3)}
+            <Button
+              size="touch"
+              className="md:min-h-9"
+              disabled={pending || !canTurnOn}
+              onClick={onTurnOn}
+            >
+              <Pending show={pending} />
+              {t('mockAgents.nextSteps.turnOn')}
+            </Button>
+          </li>
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** "Sales agent", "FAQ agent", "Custom agent". */
 export function PresetBadge({ preset }: Readonly<{ preset: AgentPreset }>) {
   const { t } = useTranslation('admin');
@@ -825,26 +976,25 @@ function SafetyRules() {
     t('mockAgents.page.safety3'),
     t('mockAgents.page.safety4'),
   ];
+  // Closed by default (like Advanced): the rules never change, so they need not take page space.
   return (
-    <Card className="gap-3 bg-muted/40" data-testid="agent-safety">
-      <CardHeader className={EDIT_HEADER}>
-        <CardTitle className="inline-flex items-center gap-2">
-          <ShieldCheck aria-hidden className="size-4 text-success" />
-          {t('mockAgents.page.safetyTitle')}
-        </CardTitle>
+    <details className="group rounded-lg border bg-muted/40" data-testid="agent-safety">
+      <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+        <ShieldCheck aria-hidden className="size-4 text-success" />
+        <span className="font-medium">{t('mockAgents.page.safetyTitle')}</span>
         <Badge variant="outline" className="gap-1">
           <Lock aria-hidden className="size-3" />
           {t('mockAgents.page.safetyBadge')}
         </Badge>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      </summary>
+      <div className="flex flex-col gap-2 border-t p-4">
         <p className="text-sm text-muted-foreground">{t('mockAgents.page.safetyIntro')}</p>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
           {rules.map((rule) => (
             <li key={rule}>{rule}</li>
           ))}
         </ul>
-      </CardContent>
-    </Card>
+      </div>
+    </details>
   );
 }

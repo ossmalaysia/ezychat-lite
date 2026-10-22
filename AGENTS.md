@@ -208,7 +208,7 @@ catalog strings name the app only through `{{product}}`, default "EzyChat Lite",
 `WebExtension`s (`src/extensions/types.ts`, `validateWebExtensions`): routes only at `/ext/<name>/…`
 (signed-in) or `/admin/ext/<name>/…` (admin shell and guard), admin nav links (absolute paths),
 Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with
-`useExtensionTranslation`), `agentSections` (rows under Business context on the agent page), route
+`useExtensionTranslation`), `agentSections` (rows under Business context on each agent page, not on the new-agent page; `useAgentSection()` gives the row its `{ agentId, displayName, preset }`), route
 `section` (an agent sub-page marks a core admin item active and names it in the phone header) and
 adminNav `useBadge` (a count, or an attention dot in the warning tone); `banners` (one slim bar slot, first non-null wins), `lockScreen` (full page while the gate is closed; core `PausedScreen` otherwise), `createInboxApp({ links })` + `useAppLinks()` (About/issue/source/release/feedback/support links; `null` hides one) and brand files exported as `@ezychat/web/public/*`; every extension element is
 wrapped in an `ErrorBoundary`. _Desktop_:

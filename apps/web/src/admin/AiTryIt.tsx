@@ -21,10 +21,13 @@ export function AiTryIt({
   draft,
   agentId,
   ready = true,
+  onAnswered,
 }: {
   draft: AiKnowledgeDraft;
   agentId?: number;
   ready?: boolean;
+  /** Called after the model answered a test question (the agent page's Next steps). */
+  onAnswered?: () => void;
 }) {
   const { t } = useTranslation('admin');
   const ask = useAiTry();
@@ -40,15 +43,22 @@ export function AiTryIt({
   const submit = () => {
     const text = question.trim();
     if (!text || !ready) return;
-    ask.mutate({
-      question: text,
-      knowledge: {
-        displayName: name,
-        instructions: draft.instructions,
-        handoffRules: draft.handoffRules,
+    ask.mutate(
+      {
+        question: text,
+        knowledge: {
+          displayName: name,
+          instructions: draft.instructions,
+          handoffRules: draft.handoffRules,
+        },
+        ...(agentId === undefined ? {} : { agentId }),
       },
-      ...(agentId === undefined ? {} : { agentId }),
-    });
+      {
+        onSuccess: (result) => {
+          if (result.ok) onAnswered?.();
+        },
+      },
+    );
   };
   const leak = ask.data?.action === 'handoff' && ask.data.handoffReason === 'confidential_leak';
   return (

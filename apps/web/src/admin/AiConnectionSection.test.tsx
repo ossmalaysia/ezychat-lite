@@ -450,7 +450,7 @@ describe('Settings → AI connection (inline)', () => {
 
   it('links to a new agent once the connection is ready and no agent exists', async () => {
     setup();
-    const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });
+    const link = await screen.findByRole('link', { name: 'Set up your AI agent' });
     expect(link.getAttribute('href')).toBe('/admin/members/ai/new');
     expect(screen.getByText('The AI connection is ready.')).toBeTruthy();
   });
@@ -470,13 +470,30 @@ describe('Settings → AI connection (inline)', () => {
         },
       ],
     });
-    const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });
+    const link = await screen.findByRole('link', { name: 'Set up your AI agent' });
     expect(link.getAttribute('href')).toBe('/admin/members/ai/5');
   });
 
-  it('hides the Sales Agent link while nothing is connected', async () => {
+  it('opens Members with every agent when there are several', async () => {
+    const agent = {
+      id: 5,
+      userId: 9,
+      displayName: 'Business AI',
+      enabled: false,
+      preset: 'sales' as const,
+      inboxId: 1,
+      documentCount: 0,
+    };
+    setup({ ...status(), agents: [agent, { ...agent, id: 6, userId: 10, inboxId: 2 }] });
+    const link = await screen.findByRole('link', { name: 'Open AI agents' });
+    expect(link.getAttribute('href')).toBe('/admin/members');
+    expect(screen.queryByRole('link', { name: 'Set up your AI agent' })).toBeNull();
+    expect(screen.getByText(/shared by all your AI agents/)).toBeTruthy();
+  });
+
+  it('hides the agent link while nothing is connected', async () => {
     setup({ ...status(), hasApiKey: false });
     await screen.findByLabelText('OpenAI API key');
-    expect(screen.queryByRole('link', { name: 'Set up the Sales Agent' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Set up your AI agent' })).toBeNull();
   });
 });

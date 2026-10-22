@@ -12,7 +12,12 @@ import {
   type AiMemberStatus,
 } from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
-import { validateWebExtensions, WebExtensionsProvider, type WebExtension } from '../extensions';
+import {
+  useAgentSection,
+  validateWebExtensions,
+  WebExtensionsProvider,
+  type WebExtension,
+} from '../extensions';
 import { activateLocale } from '../i18n';
 import msAdmin from '../i18n/locales/ms/admin.json';
 
@@ -224,6 +229,9 @@ const writeLines = (fetchMock: ReturnType<typeof vi.fn>) =>
   writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`);
 const lastBody = (fetchMock: ReturnType<typeof vi.fn>) =>
   JSON.parse(String(writes(fetchMock).at(-1)![1]!.body));
+/** The header's Turn on (Next steps repeats it below the header). */
+const headerTurnOn = async () =>
+  (await screen.findAllByRole('button', { name: 'Turn on' }))[0] as HTMLButtonElement;
 const cardTitles = () =>
   [...document.querySelectorAll('[data-slot="card-title"]')].map((title) => title.textContent);
 const withContext = (patch: Partial<AiAgentSummary> = {}) =>
@@ -250,6 +258,7 @@ beforeAll(() => {
   proto.scrollIntoView ??= () => {};
 });
 beforeEach(() => {
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -294,6 +303,28 @@ describe('AI agent page', () => {
     expect(sections.compareDocumentPosition(tryIt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('tells an extension row which agent page it is on', async () => {
+    function AgentName() {
+      const section = useAgentSection();
+      return (
+        <p>{section ? `${section.agentId}:${section.displayName}:${section.preset}` : 'none'}</p>
+      );
+    }
+    function Outside() {
+      return <p data-testid="outside">{useAgentSection() === null ? 'no agent' : 'agent'}</p>;
+    }
+    setup(enterprise(), '/admin/members/ai/6', undefined, [
+      {
+        name: 'connectors',
+        agentSections: [{ agent: 'sales', id: 'row', element: <AgentName /> }],
+      },
+    ]);
+    expect(await screen.findByText('6:Help Desk:faq')).toBeTruthy();
+    cleanup();
+    render(<Outside />);
+    expect(screen.getByTestId('outside').textContent).toBe('no agent');
+  });
+
   it('adds no extension rows without extensions', async () => {
     setup();
     await screen.findByText('Business context');
@@ -304,23 +335,25 @@ describe('AI agent page', () => {
     setup();
     await screen.findByText('Business context');
     expect(cardTitles()).toEqual([
+      'Next steps',
       'Name',
       'Business context',
       'Try it',
       'Role',
       'Hand-over rules',
-      'Always-on safety rules',
     ]);
+    // The safety rules are a closed section after the cards, not a card.
+    expect(screen.getByTestId('safety-rules').textContent).toContain('Always-on safety rules');
     expect(screen.getByRole('heading', { name: 'Sales Assistant' })).toBeTruthy();
     expect(screen.getByText(/own role, its own Business context/)).toBeTruthy();
     expect(screen.getByTestId('preset-badge').textContent).toBe('Sales agent');
   });
 
-  it('shows the four fixed safety rules as read-only text', async () => {
+  it('shows the four fixed safety rules as read-only text, closed by default', async () => {
     setup();
-    const card = (await screen.findByText('Always-on safety rules')).closest(
-      '[data-slot="card"]',
-    ) as HTMLElement;
+    await screen.findByText('Always-on safety rules');
+    const card = screen.getByTestId('safety-rules') as HTMLDetailsElement;
+    expect(card.open).toBe(false);
     expect(within(card).getByText('Cannot be changed')).toBeTruthy();
     expect(within(card).getAllByRole('listitem')).toHaveLength(4);
     expect(within(card).queryByRole('textbox')).toBeNull();
@@ -330,12 +363,13 @@ describe('AI agent page', () => {
     const w = withContext();
     w.connected = false;
     setup(w);
-    const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
+    const turnOn = await headerTurnOn();
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs connection')).toBeTruthy();
-    expect(screen.getByText('Connect the AI below first.')).toBeTruthy();
-    // The connect card comes first, before the Name card.
-    expect(cardTitles()[0]).toBe('Connect the AI');
+    // Another reason than the status's own words stays visible under the header.
+    expect(screen.getByText('Connect the AI below first.').className).not.toContain('sr-only');
+    // The connect card comes right after Next steps, before the Name card.
+    expect(cardTitles().slice(0, 2)).toEqual(['Next steps', 'Connect the AI']);
     expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
     // Try it explains why it cannot ask yet.
     expect(screen.getByText('Connect AI under Settings → AI to try the agent.')).toBeTruthy();
@@ -350,10 +384,13 @@ describe('AI agent page', () => {
   it('keeps Turn on disabled until there is a context item, then turns on', async () => {
     setup();
     const user = userEvent.setup();
-    const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
+    const turnOn = await headerTurnOn();
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs business context')).toBeTruthy();
-    expect(screen.getByText('Add business context first.')).toBeTruthy();
+    // The status says it already: the reason is kept for screen readers only.
+    const reason = screen.getByText('Add business context first.');
+    expect(reason.className).toContain('sr-only');
+    expect(turnOn.getAttribute('aria-describedby')).toBe(reason.id);
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Add text content' }));
     const dialog = await screen.findByRole('dialog');
@@ -364,6 +401,68 @@ describe('AI agent page', () => {
     expect(screen.getByText('Off')).toBeTruthy();
   });
 
+  describe('Next steps', () => {
+    const steps = () => within(screen.getByTestId('next-steps'));
+    const row = (name: string) =>
+      steps().getByRole('button', { name }).closest('li') as HTMLElement;
+
+    it('numbers the open steps, checks done ones and jumps to their section', async () => {
+      const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+      setup();
+      const user = userEvent.setup();
+      await screen.findByTestId('next-steps');
+      expect(row('Add Business context').dataset.done).toBe('false');
+      expect(within(row('Add Business context')).getByText('Step 1')).toBeTruthy();
+      expect(within(row('Try a test question')).getByText('Step 2')).toBeTruthy();
+      const turnOn = steps().getByRole('button', { name: 'Turn on' }) as HTMLButtonElement;
+      expect(turnOn.disabled).toBe(true);
+      await user.click(steps().getByRole('button', { name: 'Add Business context' }));
+      const contextTitle = screen.getByText('Business context', {
+        selector: '[data-slot="card-title"]',
+      });
+      expect((scroll.mock.contexts.at(-1) as HTMLElement).contains(contextTitle)).toBe(true);
+      // Focus follows the jump, so keyboard and screen-reader users land on the section too.
+      expect(document.activeElement).toBe(scroll.mock.contexts.at(-1));
+      await user.click(steps().getByRole('button', { name: 'Try a test question' }));
+      expect((scroll.mock.contexts.at(-1) as HTMLElement).textContent).toContain('Try it');
+      expect(document.activeElement).toBe(scroll.mock.contexts.at(-1));
+    });
+
+    it('checks Business context and the test question, then turns on from the card', async () => {
+      const { fetchMock } = setup(withContext(), undefined, (url, init) =>
+        url === '/api/ai/agents/5/try' && init?.method === 'POST'
+          ? json({ ok: true, reply: 'RM10.', action: 'answer', model: 'm', error: null })
+          : undefined,
+      );
+      const user = userEvent.setup();
+      await screen.findByTestId('next-steps');
+      expect(row('Add Business context').dataset.done).toBe('true');
+      expect(within(row('Add Business context')).getByText('Done')).toBeTruthy();
+      expect(row('Try a test question').dataset.done).toBe('false');
+      await user.type(screen.getByLabelText('Customer question'), 'Delivery?');
+      await user.click(screen.getByRole('button', { name: 'Ask' }));
+      await waitFor(() => expect(row('Try a test question').dataset.done).toBe('true'));
+      await user.click(steps().getByRole('button', { name: 'Turn on' }));
+      await screen.findByRole('button', { name: 'Turn off' });
+      expect(lastBody(fetchMock)).toMatchObject({ enabled: true });
+      // An agent that is on needs no Next steps.
+      expect(screen.queryByTestId('next-steps')).toBeNull();
+    });
+
+    it('does not check the test question when Try it failed', async () => {
+      setup(withContext(), undefined, (url, init) =>
+        url === '/api/ai/agents/5/try' && init?.method === 'POST'
+          ? json({ ok: false, reply: null, action: null, model: 'm', error: 'Model failed' })
+          : undefined,
+      );
+      const user = userEvent.setup();
+      await user.type(await screen.findByLabelText('Customer question'), 'Delivery?');
+      await user.click(screen.getByRole('button', { name: 'Ask' }));
+      await screen.findByText(/Model failed/);
+      expect(row('Try a test question').dataset.done).toBe('false');
+    });
+  });
+
   it('Turn on saves unsaved edits in the same request', async () => {
     const { fetchMock } = setup(withContext());
     const user = userEvent.setup();
@@ -371,7 +470,7 @@ describe('AI agent page', () => {
     await user.clear(role);
     await user.type(role, 'Be brief.');
     expect(screen.getByText('Unsaved')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Turn on' }));
+    await user.click(await headerTurnOn());
     await screen.findByRole('button', { name: 'Turn off' });
     expect(screen.getByText('On')).toBeTruthy();
     expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']);
@@ -390,7 +489,7 @@ describe('AI agent page', () => {
     const { fetchMock } = setup(withContext({ enabled: true }));
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Turn off' }));
-    await screen.findByRole('button', { name: 'Turn on' });
+    await headerTurnOn();
     expect(lastBody(fetchMock)).toMatchObject({ enabled: false });
   });
 
@@ -553,13 +652,15 @@ describe('AI agent page', () => {
       expect(
         (within(picker).getByRole('radio', { name: /FAQ/ }) as HTMLButtonElement).dataset.state,
       ).toBe('checked');
-      expect(cardTitles().slice(0, 2)).toEqual(['Starting point', 'Name']);
+      // A short page: Business context, Try it, Next steps and the safety rules come after Create.
+      expect(cardTitles()).toEqual(['Starting point', 'Name', 'Role', 'Hand-over rules']);
       expect(screen.getByRole('heading', { name: 'New AI agent' })).toBeTruthy();
-      // A new agent has no items yet and the Advanced texts are open.
-      expect(screen.getByText('Save the agent first, then add its Business context.')).toBeTruthy();
       expect(
-        screen.getByText('Save the agent first, then try it with a test question.'),
+        screen.getByText(
+          'After you create the agent, add its Business context, try it and turn it on.',
+        ),
       ).toBeTruthy();
+      expect(screen.queryByText('How it works')).toBeNull();
       const role = screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement;
       expect(role.value).toBe(FAQ.instructions);
       expect(role.closest('details')!.open).toBe(true);
@@ -569,6 +670,9 @@ describe('AI agent page', () => {
       await waitFor(() =>
         expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
       );
+      // The new agent page opens at its top (name, status and Next steps).
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
+      expect(await screen.findByTestId('next-steps')).toBeTruthy();
       expect(writeLines(fetchMock)).toEqual(['POST /api/ai/agents']);
       expect(lastBody(fetchMock)).toEqual({
         displayName: 'Help Desk',
@@ -582,7 +686,7 @@ describe('AI agent page', () => {
       expect(sessionStorage.getItem('wati.ai-draft.new-faq')).toBeNull();
     });
 
-    it('binds a new agent to the first free inbox in Enterprise', async () => {
+    it('binds a new agent to the first free inbox in Enterprise, without the no-inbox hint', async () => {
       const w = enterprise({
         agents: [agentStatus(5)],
         inboxes: [
@@ -598,10 +702,33 @@ describe('AI agent page', () => {
           'Support line',
         ),
       );
+      expect(screen.queryByTestId('no-free-inbox')).toBeNull();
       await user.type(screen.getByLabelText('Agent name'), 'Second');
       await user.click(screen.getByRole('button', { name: 'Create agent' }));
       await waitFor(() => expect(writeLines(fetchMock)).toEqual(['POST /api/ai/agents']));
       expect(lastBody(fetchMock)).toMatchObject({ preset: 'sales', inboxId: 2 });
+    });
+
+    it('shows no extension rows on the create page', async () => {
+      setup(world({ maxAgents: 2 }), '/admin/members/ai/new', undefined, [
+        { name: 'connectors', agentSections: [{ agent: 'sales', id: 'row', element: <p>Row</p> }] },
+      ]);
+      await screen.findByRole('radiogroup', { name: 'Starting point' });
+      expect(screen.queryByTestId('agent-extension-sections')).toBeNull();
+    });
+
+    it('says how to get an inbox when every inbox has an agent (Enterprise)', async () => {
+      setup(enterprise({ maxAgents: 3 }), '/admin/members/ai/new');
+      const hint = await screen.findByTestId('no-free-inbox');
+      expect(hint.textContent).toContain(
+        'Every inbox has an AI agent. Add an inbox to give this agent its own number.',
+      );
+      expect(within(hint).getByRole('link', { name: 'Add an inbox' }).getAttribute('href')).toBe(
+        '/admin/inboxes',
+      );
+      expect(within(screen.getByTestId('agent-inbox')).getByRole('combobox').textContent).toBe(
+        'None (the agent does not answer any chat)',
+      );
     });
 
     it('switches the starting texts directly while unedited, and asks once edited', async () => {

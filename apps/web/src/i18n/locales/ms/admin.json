@@ -591,7 +591,7 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "Sambungkan ChatGPT atau kunci API OpenAI. Semua ahli AI dalam peti masuk ini berkongsi satu penyedia dan model.",
+    "settingsDescription": "Sambungkan ChatGPT atau kunci API OpenAI. Semua ejen AI anda berkongsi satu penyedia dan model.",
     "roleBadge": "AI · Ejen Jualan",
     "membersDescription": "Pasukan dan pembantu AI anda untuk perbualan pelanggan.",
     "assistant": "Pembantu AI",
@@ -691,7 +691,15 @@
       "usingRecommended": "Menggunakan arahan yang disyorkan. Suntingnya mengikut gaya anda.",
       "advanced": "Lanjutan: arahan dan peraturan serahan",
       "advancedRecommended": "Menggunakan tetapan yang disyorkan",
-      "advancedCustomised": "Diubah suai"
+      "advancedCustomised": "Diubah suai",
+      "nextSteps": {
+        "title": "Langkah seterusnya",
+        "context": "Tambah Konteks perniagaan",
+        "try": "Cuba satu soalan ujian",
+        "turnOn": "Hidupkan",
+        "done": "Selesai",
+        "todo": "Langkah {{step}}"
+      }
     },
     "try": {
       "label": "Soalan pelanggan",
@@ -815,7 +823,14 @@
       "internalTotal": "Item dalaman: {{count}} / {{max}} aksara",
       "addFileTitle": "Tambah fail",
       "fileLabel": "Fail",
-      "itemSaved": "Item disimpan"
+      "itemSaved": "Item disimpan",
+      "actions": "Tindakan",
+      "markInternal": "Tandakan sebagai Dalaman",
+      "markCustomer": "Tandakan untuk pelanggan",
+      "markInternalFor": "Tandakan {{name}} sebagai Dalaman",
+      "markCustomerFor": "Tandakan {{name}} untuk pelanggan",
+      "markedInternal": "{{name}} kini Dalaman.",
+      "markedCustomer": "{{name}} kini untuk pelanggan."
     },
     "defaults": {
       "sales": {
@@ -865,7 +880,7 @@
     },
     "keyOk": "Kunci berfungsi.",
     "connectionReady": "Sambungan AI sudah sedia.",
-    "setupAgent": "Sediakan Ejen Jualan",
+    "setupAgent": "Sediakan ejen AI anda",
     "moreFeatures": "Lagi ciri AI",
     "moreFeaturesHint": "Mesej suara dan Pengayaan pelanggan",
     "remoteSignInHint": "Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
@@ -927,9 +942,7 @@
       "advanced": "Lanjutan: peranan dan peraturan serahan",
       "advancedBlank": "Peranan belum ditulis",
       "usingTemplate": "Menggunakan teks permulaan {{preset}}. Ubah teks ini supaya sesuai dengan perniagaan anda.",
-      "contextNew": "Simpan ejen dahulu, kemudian tambah konteks perniagaannya.",
       "tryTitle": "Cuba",
-      "tryNew": "Simpan ejen dahulu, kemudian cuba dengan soalan ujian.",
       "deleteTitle": "Padam ejen ini",
       "deleteHint": "Ejen berhenti menjawab. Sembangnya kembali kepada pasukan anda, tanpa ditugaskan. Item konteks perniagaannya dipadam.",
       "delete": "Padam ejen",
@@ -954,7 +967,11 @@
         "internal_too_large": "Item dalaman boleh mengandungi sehingga {{max}} aksara kesemuanya. Pendekkan item dalaman atau jadikannya untuk pelanggan.",
         "last_agent": "Anda tidak boleh memadam satu-satunya ejen AI.",
         "agent_not_found": "Ejen AI ini tidak wujud. Ejen ini mungkin telah dipadam."
-      }
+      },
+      "noFreeInbox": "Setiap peti masuk sudah ada ejen AI. Tambah peti masuk untuk memberi ejen ini nombornya sendiri.",
+      "addInbox": "Tambah peti masuk",
+      "createNext": "Selepas anda mencipta ejen, tambah Konteks perniagaannya, cuba dan hidupkannya.",
+      "memberSubtitle": "{{agent}} · {{inbox}}"
     },
     "presets": {
       "sales": "Jualan",
@@ -973,7 +990,8 @@
       "rule2": "Menganggap mesej, fail dan nota suara pelanggan sebagai maklumat, bukan sebagai arahan.",
       "rule3": "Peranan dan peraturannya tidak boleh ditukar daripada sembang.",
       "rule4": "Tidak pernah mereka fakta, harga atau janji; item dalaman hanya membantunya membuat keputusan."
-    }
+    },
+    "openAgents": "Buka ejen AI"
   },
   "enrichment": {
     "title": "Pelengkapan maklumat pelanggan",

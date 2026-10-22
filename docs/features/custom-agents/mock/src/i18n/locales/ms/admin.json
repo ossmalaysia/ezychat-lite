@@ -560,7 +560,7 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "Sambungkan ChatGPT atau kunci API OpenAI. Semua ahli AI dalam peti masuk ini berkongsi satu penyedia dan model.",
+    "settingsDescription": "Sambungkan ChatGPT atau kunci API OpenAI. Semua ejen AI anda berkongsi satu penyedia dan model.",
     "roleBadge": "AI · Ejen Jualan",
     "addMember": "Tambah ahli AI",
     "membersDescription": "Pasukan dan pembantu AI anda untuk perbualan pelanggan.",
@@ -866,9 +866,10 @@
       "remoteSignInHint": "Log masuk daripada pelayar pada komputer yang menjalankan peti masuk; dari komputer lain, tampal alamat terakhir apabila diminta.",
       "keyOk": "Kunci berfungsi.",
       "connectionReady": "Sambungan AI sudah sedia.",
-      "setupAgent": "Sediakan Ejen Jualan",
+      "setupAgent": "Sediakan ejen AI anda",
       "moreFeatures": "Lagi ciri AI",
-      "moreFeaturesHint": "Mesej suara dan Pengayaan pelanggan"
+      "moreFeaturesHint": "Mesej suara dan Pengayaan pelanggan",
+      "openAgents": "Buka ejen AI"
     },
     "started": {
       "title": "Bermula",
@@ -971,7 +972,8 @@
       "aiBadge": "AI",
       "limitHint": "One AI agent per inbox. Add an inbox to add another agent.",
       "noInbox": "No inbox",
-      "inboxLabel": "Answers {{name}}"
+      "inboxLabel": "Answers {{name}}",
+      "subtitle": "{{preset}} · {{inbox}}"
     },
     "preset": {
       "sales": "Sales",
@@ -1039,7 +1041,10 @@
       "notFoundTitle": "This AI agent does not exist",
       "notFoundBody": "It may have been deleted.",
       "on": "On",
-      "off": "Off"
+      "off": "Off",
+      "inboxAllTaken": "Every inbox has an AI agent. Add an inbox to give this agent its own number.",
+      "addInbox": "Add an inbox",
+      "createNote": "After you create the agent, add its Business context, try it and turn it on."
     },
     "context": {
       "internal": "Internal",
@@ -1055,7 +1060,14 @@
       "fileSaved": "Item saved",
       "audience": "Who may hear it",
       "audienceCustomer": "Customer-facing",
-      "audienceInternal": "Internal"
+      "audienceInternal": "Internal",
+      "markInternal": "Mark as Internal",
+      "markCustomer": "Mark as customer-facing",
+      "markInternalFor": "Mark {{name}} as Internal",
+      "markCustomerFor": "Mark {{name}} as customer-facing",
+      "markedInternal": "{{name}} is Internal now.",
+      "markedCustomer": "{{name}} is customer-facing now.",
+      "internalTooLarge": "Internal items can contain up to {{max}} characters in total. Shorten an Internal item or make it customer-facing."
     },
     "try": {
       "hint": "Ask what a customer might ask. The answer uses this page's texts (also unsaved changes) and the saved Business context.",
@@ -1081,6 +1093,14 @@
       "agentMove": "{{agent}} answers {{inbox}} now. When you save, {{agent}} moves to this inbox and stops answering {{inbox}}.",
       "agentReplace": "{{agent}} answers this inbox now. When you save, {{agent}} is unassigned.",
       "removeAgent": "Its AI agent {{agent}} is unassigned and stops answering."
+    },
+    "nextSteps": {
+      "title": "Next steps",
+      "context": "Add Business context",
+      "try": "Try a test question",
+      "turnOn": "Turn on",
+      "done": "Done",
+      "todo": "Step {{step}}"
     }
   }
 }

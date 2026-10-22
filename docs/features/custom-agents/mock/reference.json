@@ -31,12 +31,14 @@
     "src/inbox/ChatList.tsx",
     "src/inbox/ChatListItem.tsx",
     "src/inbox/ChatFilters.tsx",
-    "src/inbox/ConversationHeader.tsx"
+    "src/inbox/ConversationHeader.tsx",
+    "src/admin/AiConnectionSection.tsx"
   ],
   "proposalChanged": [
     "src/admin/AdminLayout.tsx",
     "src/admin/MembersPage.tsx",
     "src/admin/InboxesPage.tsx",
+    "src/admin/AiConnectionSection.tsx",
     "src/mock/inboxes.ts",
     "src/i18n/locales/en/admin.json",
     "src/i18n/locales/ms/admin.json",

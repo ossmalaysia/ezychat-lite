@@ -3,7 +3,11 @@
 // `mock/inboxes.ts`; the production feature keeps all of it on the server (`ai_agents`, `ai_documents`
 // with `agent_id` and `internal`), checks every item id against its agent in SQL and builds the prompt there.
 import { useSyncExternalStore } from 'react';
-import { DEFAULT_AI_HANDOFF_RULES, DEFAULT_AI_INSTRUCTIONS } from '@ezychat/shared';
+import {
+  DEFAULT_AI_HANDOFF_RULES,
+  DEFAULT_AI_INSTRUCTIONS,
+  codePointLength,
+} from '@ezychat/shared';
 
 export type AgentPreset = 'sales' | 'faq' | 'custom';
 export const AGENT_PRESETS: readonly AgentPreset[] = ['sales', 'faq', 'custom'];
@@ -12,6 +16,8 @@ export const AGENT_PRESETS: readonly AgentPreset[] = ['sales', 'faq', 'custom'];
 export const AGENT_INSTRUCTIONS_CHARACTERS = 8000;
 export const AGENT_HANDOFF_CHARACTERS = 4000;
 export const AGENT_ITEMS = 20;
+/** Production `AI_INTERNAL_CHARACTERS`: an agent's Internal items, in characters in total. */
+export const AGENT_INTERNAL_CHARACTERS = 10_000;
 
 /** A neutral question-answering role in the same style as the Sales text; it never sells. */
 const FAQ_INSTRUCTIONS = [
@@ -297,6 +303,21 @@ export function updateItem(
         : a,
     ),
   });
+}
+
+/**
+ * Round 2: would this change push the agent's Internal items over 10,000 characters? Same rule for the
+ * item dialogs and the row's "Mark as Internal" (production: 400 `internal_too_large`).
+ */
+export function internalTooLarge(
+  items: MockAgentItem[],
+  change: { id: string | null; internal: boolean; text: string },
+): boolean {
+  if (!change.internal) return false;
+  const others = items
+    .filter((i) => i.internal && i.id !== change.id)
+    .reduce((total, i) => total + codePointLength(i.text), 0);
+  return others + codePointLength(change.text) > AGENT_INTERNAL_CHARACTERS;
 }
 
 export function removeItems(agentId: string, itemIds: string[]) {

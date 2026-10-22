@@ -110,6 +110,7 @@ function setup(
     agents: memberList.some((m) => m.kind === 'ai') ? [salesAgent] : [],
     maxAgents: inboxList?.maxInboxes ?? 1,
   },
+  aiReady = false,
 ) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -130,7 +131,7 @@ function setup(
           model: '',
           instructions: '',
         },
-        hasApiKey: false,
+        hasApiKey: aiReady,
         connection: { state: 'signed_out', loginUrl: null, error: null },
         documents: [],
       });
@@ -202,10 +203,13 @@ afterEach(() => {
 });
 
 describe('MembersPage', () => {
-  it('opens the agent page from the AI row and shows its AI and preset badges', async () => {
+  it('opens the agent page from the AI row and shows the AI badge and its preset', async () => {
     setup([...users, aiUser]);
     await screen.findAllByText('Business AI');
+    // Lite: the subtitle names the preset only; no separate preset badge.
     expect((await screen.findAllByText('Sales agent')).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('preset-badge')).toBeNull();
+    expect(screen.queryByText('AI assistant')).toBeNull();
     expect(screen.getAllByText('AI').length).toBeGreaterThan(0);
     // Lite: one agent is the limit, and Lite shows no limit hint.
     expect(screen.queryByRole('link', { name: 'Add AI agent' })).toBeNull();
@@ -218,7 +222,7 @@ describe('MembersPage', () => {
     expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/1');
   });
 
-  it('shows one row per agent, each linking to its own page with its preset badge', async () => {
+  it('shows one row per agent, each linking to its own page with its preset and inbox', async () => {
     setup([...users, aiUser, faqUser], multiInbox, {
       agents: [salesAgent, faqAgent],
       maxAgents: 3,
@@ -227,8 +231,10 @@ describe('MembersPage', () => {
     const faq = screen.getAllByRole('link', { name: 'Clinic FAQ' });
     expect(sales[0]!.getAttribute('href')).toBe('/admin/members/ai/1');
     expect(faq[0]!.getAttribute('href')).toBe('/admin/members/ai/2');
-    await waitFor(() => expect(screen.getAllByText('FAQ agent').length).toBeGreaterThan(0));
-    expect(screen.getAllByText('Sales agent').length).toBeGreaterThan(0);
+    await waitFor(() =>
+      expect(screen.getAllByText('FAQ agent · No inbox').length).toBeGreaterThan(0),
+    );
+    expect(screen.getAllByText('Sales agent · Sales').length).toBeGreaterThan(0);
     // Enterprise: the agent's inbox chip, or "No inbox".
     await waitFor(() =>
       expect(screen.getAllByTestId('agent-inbox-chip').some((c) => c.textContent === 'Sales')).toBe(
@@ -247,7 +253,7 @@ describe('MembersPage', () => {
       agents: [salesAgent, faqAgent],
       maxAgents: 3,
     });
-    await screen.findAllByText('FAQ agent');
+    await screen.findAllByText(/^FAQ agent/);
     const user = userEvent.setup();
     await user.type(screen.getByRole('searchbox', { name: 'Search members' }), 'faq');
     expect(screen.getAllByText('Clinic FAQ').length).toBeGreaterThan(0);
@@ -264,10 +270,35 @@ describe('MembersPage', () => {
   });
 
   it('shows a turned-off AI member as a neutral Off, not as Disabled', async () => {
-    setup([users[0]!, { ...aiUser, disabled: true }]);
+    setup(
+      [users[0]!, { ...aiUser, disabled: true }],
+      undefined,
+      { agents: [{ ...salesAgent, enabled: false, documentCount: 2 }], maxAgents: 1 },
+      true,
+    );
     await screen.findAllByText('Business AI');
-    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText('Off').length).toBeGreaterThan(0));
     expect(screen.queryByText('Disabled')).toBeNull();
+  });
+
+  it.each([
+    ['On', { enabled: true, documentCount: 2 }, true],
+    ['Needs business context', { enabled: true, documentCount: 0 }, true],
+    ['Needs connection', { enabled: true, documentCount: 2 }, false],
+  ] as const)('shows an AI agent as %s, in the agent page words', async (word, patch, ready) => {
+    setup(
+      [users[0]!, aiUser],
+      undefined,
+      { agents: [{ ...salesAgent, ...patch }], maxAgents: 1 },
+      ready,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId('ai-status').every((b) => b.textContent === word)).toBe(true),
+    );
+    // Never the human "Active": the AI row has only its agent status.
+    const badges = screen.getAllByTestId('ai-status');
+    expect(badges.length).toBeGreaterThan(0);
+    for (const badge of badges) expect(badge.parentElement!.textContent).not.toContain('Active');
   });
 
   it('shows the date a member was added without the time', async () => {
