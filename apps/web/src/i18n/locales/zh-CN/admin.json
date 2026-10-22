@@ -801,6 +801,7 @@
       "namesMore": "{{names}} 等另外 {{count}} 项",
       "internal": "内部",
       "internalHint": "客服用它来做决定（例如最低价格），但从不告诉客户。",
+      "internalIntro": "将条目标记为“内部”，客服可用它来做决定（例如最低价格），但不会告诉客户。",
       "internalBadgeTitle": "用于做决定，从不告诉客户",
       "internalFilterLabel": "显示",
       "internalFilterAll": "全部（{{count}}）",

@@ -802,6 +802,7 @@
       "namesMore": "{{names}} +{{count}} lagi",
       "internal": "Dalaman",
       "internalHint": "Ejen menggunakan ini untuk membuat keputusan (contohnya harga terendah) tetapi tidak pernah memberitahunya kepada pelanggan.",
+      "internalIntro": "Tandakan item sebagai Dalaman supaya ejen menggunakannya untuk membuat keputusan (contohnya harga terendah) tanpa memberitahu pelanggan.",
       "internalBadgeTitle": "Digunakan untuk membuat keputusan, tidak diberitahu kepada pelanggan",
       "internalFilterLabel": "Tunjuk",
       "internalFilterAll": "Semua ({{count}})",

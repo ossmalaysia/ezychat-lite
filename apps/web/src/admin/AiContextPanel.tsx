@@ -232,7 +232,7 @@ export function AiContextPanel({
         <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
         <CardDescription>
           {t('ai.contextPanel.hint')}
-          <span className="mt-1 block">{t('ai.contextPanel.internalHint')}</span>
+          <span className="mt-1 block">{t('ai.contextPanel.internalIntro')}</span>
           <span className="mt-1 block text-xs">{t('ai.contextPanel.limits')}</span>
         </CardDescription>
       </CardHeader>
@@ -287,7 +287,8 @@ export function AiContextPanel({
                       }),
                     },
                   ]}
-                  className="max-w-full flex-wrap"
+                  // Phones: three equal cells across the card, a long label takes two lines.
+                  className="grid w-full grid-cols-3 sm:inline-flex sm:w-fit [&>label]:h-auto [&>label]:min-h-11 [&>label]:py-1.5 [&>label]:text-center [&>label]:whitespace-normal sm:[&>label]:min-h-8 sm:[&>label]:whitespace-nowrap"
                 />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">

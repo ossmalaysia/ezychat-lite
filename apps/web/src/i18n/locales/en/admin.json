@@ -809,6 +809,7 @@
       "namesMore": "{{names}} +{{count}} more",
       "internal": "Internal",
       "internalHint": "The agent uses this to decide (for example a lowest price) but never tells it to customers.",
+      "internalIntro": "Mark an item Internal to let the agent use it to decide (for example a lowest price) without telling customers.",
       "internalBadgeTitle": "Used to decide, never told to customers",
       "internalFilterLabel": "Show",
       "internalFilterAll": "All ({{count}})",

@@ -203,7 +203,7 @@ describe('Business context panel', () => {
     expect(rows.getByLabelText('File')).toBeTruthy();
     expect(rows.getByLabelText('Text content')).toBeTruthy();
     expect(screen.getByText('Up to 20 items, 10 MB per file')).toBeTruthy();
-    expect(screen.getByText(/never tells it to customers/)).toBeTruthy();
+    expect(screen.getByText(/Mark an item Internal .* without telling customers/)).toBeTruthy();
   });
 
   it('shows the same items as stacked cards below 640px without horizontal scroll', async () => {
