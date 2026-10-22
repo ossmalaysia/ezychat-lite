@@ -2,7 +2,7 @@ import { expect, test, expectNoHorizontalScroll } from './helpers';
 
 // Never contacts OpenAI/ChatGPT: the saved key is a placeholder and "Try it" runs only while the
 // Business context is empty, where the server hands off without calling a model.
-test('admin sets up the AI connection inline and builds the AI member page on desktop and mobile', async ({
+test('admin sets up the AI connection inline and builds an AI agent page on desktop and mobile', async ({
   page,
 }, info) => {
   // One inbox-wide connection/member shared by the projects; exercise both viewports once.
@@ -36,39 +36,50 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     // The saved key is never shown again: the field becomes a 'saved' note with Replace.
     await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Replace key' })).toBeVisible();
-    // A saved connection points to the Sales Agent.
+    // A saved connection points to the agent page: a new agent first, then the existing one.
     await expect(page.getByRole('link', { name: 'Set up the Sales Agent' })).toHaveAttribute(
       'href',
-      '/admin/members/ai',
+      /^\/admin\/members\/ai\/(new|\d+)$/,
     );
     await expectNoHorizontalScroll(page, `settings/ai ${tag}`);
 
-    // Members lists the AI member (or offers to add it) and opens the page, not a popup.
+    // Members lists the AI agent (or offers to add one: Lite has one) and opens its page, not a popup.
     await page.goto('/admin/members');
     await page.getByText(/\d+ of \d+ members?/).waitFor();
-    const add = page.getByRole('link', { name: 'Add AI member', exact: true });
-    if (await add.isVisible()) await add.click();
-    else
+    const add = page.getByRole('link', { name: 'Add AI agent', exact: true });
+    if (await add.isVisible()) {
+      await add.click();
+      await expect(page).toHaveURL(/\/admin\/members\/ai\/new/);
+      // A new agent starts from a preset; the FAQ preset never sells.
+      await page.getByRole('radio', { name: /FAQ/ }).check();
+      await page.getByLabel('Agent name', { exact: true }).fill('Help desk');
+      await expectNoHorizontalScroll(page, `members/ai/new ${tag}`);
+      await page.getByRole('button', { name: 'Create agent', exact: true }).click();
+    } else
       await page
         .getByRole('link', { name: /^Edit /, includeHidden: false })
         .filter({ visible: true })
         .first()
         .click();
-    await expect(page).toHaveURL(/\/admin\/members\/ai$/);
+    await expect(page).toHaveURL(/\/admin\/members\/ai\/\d+$/);
     await expect(page.getByRole('heading', { name: /\S/ }).first()).toBeVisible();
+    await expect(page.getByTestId('preset-badge').filter({ visible: true }).first()).toHaveText(
+      'FAQ agent',
+    );
 
-    // Name and instructions (instructions live in the closed Advanced section).
-    await page.getByLabel('AI member name', { exact: true }).fill('Sales Agent');
-    const advanced = page.getByText('Advanced: instructions and hand-off rules', { exact: true });
-    await expect(page.getByLabel('AI instructions', { exact: true })).toBeHidden();
-    await advanced.click();
+    // Name and role (the role lives in the closed Advanced section).
+    await page.getByLabel('Agent name', { exact: true }).fill('Help desk');
+    const advanced = page.getByText('Advanced: role and hand-over rules', { exact: true });
+    // Closed for a saved agent; a restored unsaved draft (the second viewport) opens it.
+    if (!(await page.getByLabel('Role (instructions)', { exact: true }).isVisible()))
+      await advanced.click();
     await page
-      .getByLabel('AI instructions', { exact: true })
+      .getByLabel('Role (instructions)', { exact: true })
       .fill('Answer politely in the customer’s language.');
 
     // Edit with AI opens a review dialog. Suggest is never pressed: it would call a model.
     const instructionsCard = page.locator('[data-slot="card"]').filter({
-      has: page.locator('[data-slot="card-title"]', { hasText: /^AI instructions$/ }),
+      has: page.locator('[data-slot="card-title"]', { hasText: /^Role$/ }),
     });
     await instructionsCard.getByRole('button', { name: 'Edit with AI', exact: true }).click();
     const editDialog = page.getByRole('dialog');
@@ -79,7 +90,7 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     await expectNoHorizontalScroll(page, `members/ai edit dialog ${tag}`);
     await editDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByLabel('AI instructions', { exact: true })).toHaveValue(
+    await expect(page.getByLabel('Role (instructions)', { exact: true })).toHaveValue(
       'Answer politely in the customer’s language.',
     );
 
@@ -93,19 +104,22 @@ test('admin sets up the AI connection inline and builds the AI member page on de
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
     await expect(page.getByText('Would hand off', { exact: true })).toBeVisible();
 
-    // Add text content (this saves the draft member first), then upload a file.
-    const textName = `Delivery ${tag}`;
+    // Add an Internal text item (used to decide, never told to customers), then upload a file.
+    const textName = `Prices ${tag}`;
     await page.getByRole('button', { name: 'Add', exact: true }).first().click();
     await page.getByRole('menuitem', { name: 'Add text content', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Name', { exact: true }).fill(textName);
     await dialog
       .getByLabel('Text content', { exact: true })
-      .fill('We open Monday to Friday, 9am to 5pm. Delivery costs RM10.');
+      .fill('Lowest price we accept: RM80. Never give a discount above 10%.');
+    await dialog.getByRole('switch', { name: 'Internal' }).click();
+    await expect(dialog.getByRole('switch', { name: 'Internal' })).toBeChecked();
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(
       page.getByText(textName, { exact: true }).filter({ visible: true }).first(),
     ).toBeVisible();
+    await expect(page.getByTestId('internal-badge').filter({ visible: true })).toHaveCount(1);
 
     const fileName = `business-${tag}.md`;
     await page.getByTestId('ai-context-file').setInputFiles({
@@ -113,6 +127,11 @@ test('admin sets up the AI connection inline and builds the AI member page on de
       mimeType: 'text/markdown',
       buffer: Buffer.from('# FAQ\nDelivery costs RM10.'),
     });
+    // The file dialog offers the Internal switch; this file is customer-facing, so it stays off.
+    const fileDialog = page.getByRole('dialog', { name: 'Add a file' });
+    await expect(fileDialog.getByRole('switch', { name: 'Internal' })).not.toBeChecked();
+    await fileDialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(
       page.getByText(fileName, { exact: true }).filter({ visible: true }).first(),
     ).toBeVisible();
