@@ -264,6 +264,10 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
+  it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
+  `packages/server` (the server build compiles against shared's `dist`, not `src`).
+
 - A second Playwright `webServer` that serves the same `apps/web/dist` waits for the first server's
   `/api/health` (that one builds the web) instead of building again in parallel. Specs for it get their
   own project and `testIgnore` in the others. Confirm dialogs are `alertdialog`, not `dialog`.
