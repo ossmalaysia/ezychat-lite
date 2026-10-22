@@ -253,6 +253,23 @@ export const FakeIncomingBody = z.object({
 });
 export type FakeIncomingBody = z.infer<typeof FakeIncomingBody>;
 
+/**
+ * POST /api/dev/fake-reaction (fake WA only): someone reacts to a stored message, changes the
+ * reaction or removes it (`emoji` ''). The reactor defaults to the chat partner of a direct chat.
+ */
+export const FakeReactionBody = z.object({
+  /** The stored message id (as `message:new` and the message list give it). */
+  messageId: z.string().min(1).max(256),
+  /** '' removes the reaction. */
+  emoji: z.string().max(32),
+  /** Group reactor; required in a group unless `fromMe`. */
+  senderJid: z.string().max(256).optional(),
+  senderName: z.string().max(200).optional(),
+  /** The linked number itself reacted (its phone). */
+  fromMe: z.boolean().optional(),
+});
+export type FakeReactionBody = z.infer<typeof FakeReactionBody>;
+
 /** POST /api/dev/fake-link (fake WA only): the inbox's fake phone links, as a QR scan would. */
 export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
 export type FakeLinkBody = z.infer<typeof FakeLinkBody>;

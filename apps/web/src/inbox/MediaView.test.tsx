@@ -22,6 +22,7 @@ const base: Message = {
   error: null,
   timestamp: 1,
   clientId: null,
+  reactions: [],
 };
 
 function show(m: Message) {

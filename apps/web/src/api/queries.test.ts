@@ -38,6 +38,7 @@ function msg(fields: Partial<Message>): Message {
     error: null,
     timestamp: 1000,
     clientId: 'c1',
+    reactions: [],
     ...fields,
   };
 }

@@ -24,6 +24,7 @@ const groupMessage: Message = {
   error: null,
   timestamp: 1_700_000_000_000,
   clientId: null,
+  reactions: [],
 };
 
 afterEach(() => {

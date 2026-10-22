@@ -8,6 +8,7 @@ import {
   type WaContactAlias,
   type WaGroupInfo,
   type WaIncomingMessage,
+  type WaReaction,
   type WaSendFile,
   type WaSendOptions,
 } from '../types.js';
@@ -269,6 +270,37 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     };
     this.emitTyped('message', msg, { source: 'live' });
     return msg;
+  }
+
+  /**
+   * Emit a reaction (live unless `source` says history): `emoji` '' removes the person's reaction.
+   * In a DM the reactor defaults to the chat partner; `fromMe` means the linked number reacted.
+   */
+  simulateReaction(
+    p: Partial<WaReaction> & { chatJid: string; targetId: string; emoji: string },
+    source: 'live' | 'history' = 'live',
+  ): WaReaction {
+    const isGroup = p.chatJid.endsWith('@g.us');
+    const fromMe = p.fromMe ?? false;
+    const reaction: WaReaction = {
+      targetId: p.targetId,
+      chatJid: p.chatJid,
+      chatJidAlt: p.chatJidAlt ?? null,
+      senderJid: fromMe
+        ? null
+        : p.senderJid !== undefined
+          ? p.senderJid
+          : isGroup
+            ? null
+            : p.chatJid,
+      senderJidAlt: p.senderJidAlt ?? null,
+      senderName: p.senderName ?? null,
+      fromMe,
+      emoji: p.emoji,
+      timestamp: p.timestamp ?? Date.now(),
+    };
+    this.emitTyped('reaction', reaction, { source });
+    return reaction;
   }
 
   simulateStatus(s: Partial<WaStatus>): void {
