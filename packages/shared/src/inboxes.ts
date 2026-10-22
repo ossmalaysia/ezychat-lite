@@ -73,6 +73,8 @@ export const DirectoryUserSchema = z.object({
   aiRole: z.literal('sales').optional(),
   /** The AI agent this AI team member is (AI members only). */
   aiAgentId: z.number().int().optional(),
+  /** A deleted AI agent: kept only to name its old messages; never offered as an assignee. */
+  aiDeleted: z.boolean().optional(),
   inboxIds: z.union([z.literal('all'), z.array(InboxId)]),
 });
 export type DirectoryUser = z.infer<typeof DirectoryUserSchema>;

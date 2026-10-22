@@ -27,6 +27,8 @@ export const UserSchema = z.object({
   aiRole: z.literal('sales').optional(),
   /** The AI agent this AI team member is (AI members only). */
   aiAgentId: z.number().int().optional(),
+  /** A deleted AI agent (only in lists that ask for deleted users). */
+  aiDeleted: z.boolean().optional(),
   mustChangePassword: z.boolean(),
   disabled: z.boolean(),
   createdAt: z.number(),

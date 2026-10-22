@@ -21,7 +21,7 @@ const UNTRUSTED =
 
 export interface ToolContext {
   inbox: InboxReadPort;
-  /** AI Sales Agent setup (scope `ai:setup` tools only). */
+  /** AI agent setup (scope `ai:setup` tools only). */
   aiSetup: AiSetupPort;
   /** Text replies into existing chats (scope `inbox:send` tools only). */
   send: InboxSendPort;
@@ -221,7 +221,7 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   name: 'get_stats',
   title: 'Inbox statistics',
   description:
-    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI Sales Agent: hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered. With more than one inbox (WhatsApp number), byInbox gives open, resolved and waiting chats and the messages in and out per inbox; pass inboxId for one inbox (the `ai` counts too).',
+    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI agents (all agents together): hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered. With more than one inbox (WhatsApp number), byInbox gives open, resolved and waiting chats and the messages in and out per inbox; pass inboxId for one inbox (the `ai` counts too).',
   scope: 'inbox:read',
   input: McpGetStatsInput,
   run(args, { inbox, aiSetup, principal }) {
@@ -253,7 +253,7 @@ const getActivity: ToolDef<typeof McpGetActivityInput> = {
   name: 'get_activity',
   title: 'Peak times and who replies',
   description:
-    'When customers write and who answers, in the business time zone, for direct chats over the last `days` days. byHour / byWeekday: customer messages, new conversations (a customer message after 12 hours of silence in that chat) and team replies; newConversationsHeatmap: new conversations per weekday (Mon first) × hour 0-23, to find peak times. firstReply: how long customers waited for the first team reply (minutes, median and p90; a wait starts at the first customer message after the last team reply), overall and by the hour the customer wrote, plus waits still unanswered. responders: per team member, the AI Sales Agent (kind "ai") and "phone" (sent from the WhatsApp phone or another linked device): messages sent in total and per hour, chats, first replies and their wait times. With more than one inbox (WhatsApp number), byInbox gives customer messages, new conversations, team replies and first-reply waits per inbox; pass inboxId for one inbox.',
+    'When customers write and who answers, in the business time zone, for direct chats over the last `days` days. byHour / byWeekday: customer messages, new conversations (a customer message after 12 hours of silence in that chat) and team replies; newConversationsHeatmap: new conversations per weekday (Mon first) × hour 0-23, to find peak times. firstReply: how long customers waited for the first team reply (minutes, median and p90; a wait starts at the first customer message after the last team reply), overall and by the hour the customer wrote, plus waits still unanswered. responders: per team member, each AI agent (kind "ai") and "phone" (sent from the WhatsApp phone or another linked device): messages sent in total and per hour, chats, first replies and their wait times. With more than one inbox (WhatsApp number), byInbox gives customer messages, new conversations, team replies and first-reply waits per inbox; pass inboxId for one inbox.',
   scope: 'inbox:read',
   input: McpGetActivityInput,
   run(args, { inbox, principal }) {

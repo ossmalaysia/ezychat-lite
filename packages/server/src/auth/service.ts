@@ -47,7 +47,8 @@ export interface AuthService {
   changePassword(userId: number, current: string, next: string, rawToken: string): Promise<void>;
   /** random 12-char, must_change_password=1, revokeAll; rechecks the authorizing admin session */
   resetPassword(userId: number, actorToken: string): Promise<string>;
-  listUsers(): User[];
+  /** Deleted AI agents are left out unless `includeDeleted` (names in message history). */
+  listUsers(opts?: { includeDeleted?: boolean }): User[];
   /** cannot demote/disable last active admin → conflict; disabling emits 'user:disabled' + revokeAll; a role change emits 'user:role-changed' */
   updateUser(id: number, patch: PatchUserBody, actorId: number): User;
   getUser(id: number): User | null;
@@ -68,6 +69,7 @@ interface UserRow {
   locale: string | null;
   /** The AI agent of an AI member (`ai_agents.id`, joined); null for people and deleted agents. */
   ai_agent_id?: number | null;
+  ai_deleted_at?: number | null;
 }
 
 /** Users with their AI agent id. A deleted agent's user has no `ai_agents` row. */
@@ -82,7 +84,11 @@ export function rowToUser(r: UserRow): User {
     role: r.role,
     kind: r.kind,
     ...(r.kind === 'ai'
-      ? { aiRole: 'sales' as const, ...(r.ai_agent_id ? { aiAgentId: r.ai_agent_id } : {}) }
+      ? {
+          aiRole: 'sales' as const,
+          ...(r.ai_agent_id ? { aiAgentId: r.ai_agent_id } : {}),
+          ...(r.ai_deleted_at ? { aiDeleted: true } : {}),
+        }
       : {}),
     mustChangePassword: r.must_change_password === 1,
     disabled: r.disabled_at !== null,
@@ -105,6 +111,7 @@ export function createAuthService(
     byName: db.prepare(`${USER_SELECT} WHERE u.username = ? COLLATE NOCASE`),
     // A deleted AI agent's user stays for message history but is hidden from lists.
     list: db.prepare(`${USER_SELECT} WHERE u.ai_deleted_at IS NULL ORDER BY u.id`),
+    listAll: db.prepare(`${USER_SELECT} ORDER BY u.id`),
     insert: db.prepare(
       `INSERT INTO users (username, display_name, password_hash, role, must_change_password, disabled_at, created_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
@@ -277,8 +284,8 @@ export function createAuthService(
       return password;
     },
 
-    listUsers() {
-      return (q.list.all() as UserRow[]).map(rowToUser);
+    listUsers(opts) {
+      return ((opts?.includeDeleted ? q.listAll : q.list).all() as UserRow[]).map(rowToUser);
     },
 
     updateUser(id, patch, actorId) {

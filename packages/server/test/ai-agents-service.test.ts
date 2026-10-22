@@ -295,6 +295,21 @@ describe('with three inboxes', () => {
     const auth = t.ctx.services.auth!;
     expect(auth.listUsers().some((u) => u.id === two.userId)).toBe(false);
     expect(auth.getUser(two.userId)).toMatchObject({ kind: 'ai', disabled: true });
+    expect(auth.listUsers({ includeDeleted: true }).find((u) => u.id === two.userId)).toMatchObject(
+      {
+        aiDeleted: true,
+      },
+    );
+    // The directory keeps the deleted agent (disabled, flagged) so its old messages keep a name.
+    const sid = auth.createSession(actor.userId, { ip: 'test', userAgent: 'test' });
+    const dir = await t.app.inject({
+      url: '/api/users/directory',
+      headers: { cookie: `sid=${sid}` },
+    });
+    const users = dir.json().users as { id: number; aiDeleted?: boolean; aiAgentId?: number }[];
+    expect(users.find((u) => u.id === two.userId)).toMatchObject({ aiDeleted: true });
+    expect(users.find((u) => u.id === one.userId)).toMatchObject({ aiAgentId: one.id });
+    expect(users.find((u) => u.id === one.userId)?.aiDeleted).toBeUndefined();
     expect(auditMetas('ai.agent_delete')).toEqual([expect.objectContaining({ agentId: two.id })]);
     expect(() => ai.agentStatus(two.id)).toThrow(expect.objectContaining({ status: 404 }));
     expect(() => ai.deleteAgent(two.id, actor)).toThrow(

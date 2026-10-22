@@ -229,7 +229,11 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
       });
       return { ...total, byInbox };
     },
-    userNames: () => new Map(auth.listUsers().map((u) => [u.id, u.displayName])),
-    aiUserIds: () => new Set(auth.listUsers().flatMap((u) => (u.kind === 'ai' ? [u.id] : []))),
+    userNames: () =>
+      new Map(auth.listUsers({ includeDeleted: true }).map((u) => [u.id, u.displayName])),
+    aiUserIds: () =>
+      new Set(
+        auth.listUsers({ includeDeleted: true }).flatMap((u) => (u.kind === 'ai' ? [u.id] : [])),
+      ),
   };
 }
