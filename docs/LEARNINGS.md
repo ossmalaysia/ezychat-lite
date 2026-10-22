@@ -109,6 +109,7 @@ into AGENTS.md.
   (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
 
 ## Git, GitHub and CI
+
 - To strip a version from a file name, replace the exact version (`${f/-$version-/-}`, version from
   `package.json`), never a semver pattern: an optional pre-release group (`(-[0-9A-Za-z.]+)?-`) also
   matched `-win-` and turned `EzyChat-Lite-0.1.48-win-x64.exe` into `EzyChat-Lite-x64.exe`.
@@ -276,6 +277,10 @@ into AGENTS.md.
   write `UPDATE` statements with an explicit `WHERE`.
 
 ## Build, tooling and Windows
+
+- Insert Markdown with the Edit tool, not `sed -i '<n>a\ …'`: each insert shifts the next line numbers (a
+  second insert landed inside another bullet) and `sed` turns `\d`, `\t` in the text into escapes
+  (`D:\dev\test-env` became `D:dev<TAB>est-env`).
 
 - `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
   it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
