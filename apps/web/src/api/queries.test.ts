@@ -257,6 +257,7 @@ describe('inboxes', () => {
     tone: 'primary',
     number: null,
     removed: false,
+    aiAgentId: null,
     status,
   });
   const list: InboxListResponse = {

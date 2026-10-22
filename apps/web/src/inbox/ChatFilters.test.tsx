@@ -145,6 +145,7 @@ function inbox(id: number, name: string, number: string | null): Inbox {
     tone: 'primary',
     number,
     removed: false,
+    aiAgentId: null,
     status: { state: 'open', me: null, qr: null, lastError: null },
   };
 }

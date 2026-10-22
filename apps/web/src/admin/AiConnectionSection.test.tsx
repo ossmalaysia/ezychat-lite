@@ -20,6 +20,8 @@ function status(): AiMemberStatus {
     hasApiKey: true,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
+    agents: [],
+    maxAgents: 1,
   };
 }
 function json(data: unknown, code = 200) {
@@ -446,11 +448,30 @@ describe('Settings → AI connection (inline)', () => {
     );
   });
 
-  it('links to the Sales Agent once the connection is ready', async () => {
+  it('links to a new agent once the connection is ready and no agent exists', async () => {
     setup();
     const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });
-    expect(link.getAttribute('href')).toBe('/admin/members/ai');
+    expect(link.getAttribute('href')).toBe('/admin/members/ai/new');
     expect(screen.getByText('The AI connection is ready.')).toBeTruthy();
+  });
+
+  it("links to the agent's own page when there is one", async () => {
+    setup({
+      ...status(),
+      agents: [
+        {
+          id: 5,
+          userId: 9,
+          displayName: 'Business AI',
+          enabled: false,
+          preset: 'sales',
+          inboxId: 1,
+          documentCount: 0,
+        },
+      ],
+    });
+    const link = await screen.findByRole('link', { name: 'Set up the Sales Agent' });
+    expect(link.getAttribute('href')).toBe('/admin/members/ai/5');
   });
 
   it('hides the Sales Agent link while nothing is connected', async () => {

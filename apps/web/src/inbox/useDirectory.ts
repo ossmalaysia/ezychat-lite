@@ -29,9 +29,12 @@ export interface Directory {
   me: User | null;
   isAdmin: boolean;
   byId: Map<number, DirectoryEntry>;
-  /** Users that can be picked as assignee (active only). */
+  /** Users that can be picked as assignee (active only; never a deleted AI agent). */
   assignable: DirectoryEntry[];
-  /** Active users who may open chats of this inbox: the assign dropdown of such a chat. */
+  /**
+   * The assign dropdown of a chat of this inbox: active people who may open it, and the AI agent
+   * that answers this inbox (no other AI agent: the server refuses it).
+   */
   assignableFor(inboxId: number): DirectoryEntry[];
   /** Display name for a user id ("You" for the current user when `youLabel`). */
   nameOf(id: number | null | undefined, opts?: { youLabel?: boolean }): string | null;
@@ -42,22 +45,31 @@ export function buildDirectory(
   me: User | null,
   isAdmin: boolean,
   list: readonly DirectoryEntry[] | undefined,
-  opts: { multiInbox?: boolean } = {},
+  opts: {
+    multiInbox?: boolean;
+    /** Inbox id -> the AI agent that answers it (`Inbox.aiAgentId`); unknown = no AI offered. */
+    inboxAgents?: ReadonlyMap<number, number | null>;
+  } = {},
 ): Directory {
   const multiInbox = opts.multiInbox ?? false;
+  const inboxAgents = opts.inboxAgents ?? new Map<number, number | null>();
+  const mayAssign = (u: DirectoryEntry, inboxId: number) =>
+    u.kind === 'ai'
+      ? u.aiAgentId !== undefined && inboxAgents.get(inboxId) === u.aiAgentId
+      : canOpenInbox(u, inboxId, multiInbox);
   const byId = new Map<number, DirectoryEntry>();
   for (const u of list ?? []) byId.set(u.id, u);
   // Keep the directory's inbox list for the signed-in user (`/api/me` does not carry it).
   if (me) byId.set(me.id, { ...me, inboxIds: me.inboxIds ?? byId.get(me.id)?.inboxIds });
   const assignable = [...byId.values()]
-    .filter((u) => !u.disabled)
+    .filter((u) => !u.disabled && !u.aiDeleted)
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
   return {
     me,
     isAdmin,
     byId,
     assignable,
-    assignableFor: (inboxId) => assignable.filter((u) => canOpenInbox(u, inboxId, multiInbox)),
+    assignableFor: (inboxId) => assignable.filter((u) => mayAssign(u, inboxId)),
     nameOf(id, opts) {
       if (id == null) return null;
       if (opts?.youLabel && me && id === me.id) return i18n.t('inbox:directory.you');
@@ -87,10 +99,15 @@ export function useDirectory(): Directory {
   const inboxes = useInboxes({ enabled: me != null });
   const multiInbox =
     (inboxes.data?.maxInboxes ?? 1) > 1 || (inboxes.data?.inboxes?.length ?? 0) > 1;
+  const inboxList = inboxes.data?.inboxes;
 
   return useMemo(
-    () => buildDirectory(me, isAdmin, list, { multiInbox }),
+    () =>
+      buildDirectory(me, isAdmin, list, {
+        multiInbox,
+        inboxAgents: new Map((inboxList ?? []).map((i) => [i.id, i.aiAgentId])),
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `language` invalidates localized labels
-    [list, me, isAdmin, multiInbox, language],
+    [list, me, isAdmin, multiInbox, inboxList, language],
   );
 }

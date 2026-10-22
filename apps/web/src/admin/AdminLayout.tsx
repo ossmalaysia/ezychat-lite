@@ -15,10 +15,20 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import { Link, NavLink, Navigate, Route, Routes, matchPath, useLocation } from 'react-router-dom';
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  matchPath,
+  useLocation,
+  useParams,
+} from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../api/client';
+import { useAiAgents } from '../api/ai';
 import { useInboxes } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
 import { PushToggle } from '../pwa/PushToggle';
@@ -97,6 +107,31 @@ function InboxesRoute() {
   const { multiInbox, isPending } = useMultiInbox();
   if (isPending) return <ListSkeleton rows={2} />;
   return multiInbox ? <InboxesPage /> : <Navigate to="/admin/whatsapp" replace />;
+}
+
+/**
+ * `/admin/members/ai`: Lite opens its one agent (or a new one); an edition with several agents lists
+ * them on Members.
+ */
+function AiAgentIndexRoute() {
+  const agents = useAiAgents();
+  if (agents.isPending) return <ListSkeleton rows={2} />;
+  const data = agents.data;
+  if (!data || data.maxAgents > 1) return <Navigate to="/admin/members" replace />;
+  const first = data.agents[0];
+  return (
+    <Navigate to={first ? `/admin/members/ai/${first.id}` : '/admin/members/ai/new'} replace />
+  );
+}
+
+/** `/admin/members/ai/:agentId`: a positive id only; anything else goes back to Members. */
+function AiAgentRoute() {
+  const { agentId = '' } = useParams();
+  return /^[1-9]\d{0,9}$/.test(agentId) ? (
+    <AiMemberPage />
+  ) : (
+    <Navigate to="/admin/members" replace />
+  );
 }
 
 interface ExtensionNavLink {
@@ -388,7 +423,9 @@ export function AdminLayout() {
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
             <Route path="members" element={<MembersPage />} />
-            <Route path="members/ai" element={<AiMemberPage />} />
+            <Route path="members/ai" element={<AiAgentIndexRoute />} />
+            <Route path="members/ai/new" element={<AiMemberPage />} />
+            <Route path="members/ai/:agentId" element={<AiAgentRoute />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
             <Route path="whatsapp" element={<WhatsAppRoute />} />
             <Route path="inboxes" element={<InboxesRoute />} />

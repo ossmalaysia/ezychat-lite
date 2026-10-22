@@ -260,6 +260,7 @@ function inbox(id: number, name: string, tone: Inbox['tone'], removed = false): 
     tone,
     number: null,
     removed,
+    aiAgentId: null,
     status: { state: 'open', me: null, qr: null, lastError: null },
   };
 }

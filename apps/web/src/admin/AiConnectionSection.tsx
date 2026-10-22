@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { connectionReady, officialLoginUrl } from './ai-status';
+import { aiAgentsPath } from './agent-path';
 import { keyTestBlocks, keyTestMessage, useTestApiKey } from './AiQuickConnect';
 import { useChatgptSignIn } from './use-chatgpt-sign-in';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
@@ -508,7 +509,7 @@ function ConnectionForm({
                 {t('ai.connectionReady')}
               </p>
               <Button asChild size="touch" variant="outline" className="sm:shrink-0">
-                <Link to="/admin/members/ai">
+                <Link to={aiAgentsPath(status)}>
                   {t('ai.setupAgent')}
                   <ArrowRight aria-hidden />
                 </Link>

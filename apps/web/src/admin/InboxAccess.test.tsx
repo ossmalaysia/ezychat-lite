@@ -23,6 +23,7 @@ const SALES: Inbox = {
   number: null,
   status,
   removed: false,
+  aiAgentId: null,
 };
 
 function show(user: User, inboxes: Inbox[] = [SALES]) {

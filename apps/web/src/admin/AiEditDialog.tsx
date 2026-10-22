@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AI_EDIT_REQUEST_CHARACTERS, type AiEditField } from '@ezychat/shared';
+import { AI_EDIT_REQUEST_CHARACTERS, type AiAgentPreset, type AiEditField } from '@ezychat/shared';
 import { useAiEdit } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog } from '@/components/app';
@@ -27,6 +27,8 @@ export function AiEditDialog({
   open,
   onOpenChange,
   onApply,
+  agentId,
+  preset,
 }: {
   field: AiEditField;
   /** The box's current (possibly unsaved) text. */
@@ -34,9 +36,13 @@ export function AiEditDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApply: (text: string) => void;
+  /** The agent whose Business context informs the rewrite (none: the inbox-1 agent). */
+  agentId?: number;
+  /** The agent's preset, so a FAQ agent is not pushed toward sales. */
+  preset?: AiAgentPreset;
 }) {
   const { t } = useTranslation(['admin', 'common']);
-  const edit = useAiEdit();
+  const edit = useAiEdit(agentId);
   const [request, setRequest] = useState('');
   const result = edit.data;
   const suggestion = result?.ok && result.text !== null ? result.text : null;
@@ -73,7 +79,10 @@ export function AiEditDialog({
     stop();
     const controller = new AbortController();
     running.current = controller;
-    edit.mutate({ body: { field, current, request: text }, signal: controller.signal });
+    edit.mutate({
+      body: { field, current, request: text, ...(preset ? { preset } : {}) },
+      signal: controller.signal,
+    });
   };
   const apply = () => {
     if (suggestion === null || !changed) return;

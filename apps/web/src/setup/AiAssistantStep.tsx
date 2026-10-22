@@ -1,13 +1,17 @@
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  AiAgentStatus,
   AiMemberBody,
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
+  type AiContextTextBody,
+  type AiMemberStatus,
 } from '@ezychat/shared';
-import { useAiMember, useAiMemberAction } from '../api/ai';
-import { errorMessage } from '../api/client';
+import { aiAgentKey, aiAgentsKey, aiMemberKey, useAiMember, useAiMemberAction } from '../api/ai';
+import { api, errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,9 +23,20 @@ import { ButtonSpinner } from '../auth/AuthShell';
 import { agentNameFor } from './agent-name';
 
 /**
+ * The agent `PUT /api/ai` saved: the AI member's agent (inbox 1's), else the only agent; null for an
+ * older server without agents (its old item route then means that agent).
+ */
+function savedAgentId(status: AiMemberStatus): number | null {
+  const own = status.agents.find((a) => a.userId === status.member?.id);
+  if (own) return own.id;
+  return status.agents.length === 1 ? status.agents[0]!.id : null;
+}
+
+/**
  * Setup step 3 (skippable): describe the business, connect the AI, optionally turn it on.
- * Finish creates the Sales Agent with the recommended instructions and hand-off rules, saves the
- * text as one Business context item and turns the agent on when chosen.
+ * Finish saves the default Sales Agent through `PUT /api/ai` (it creates the agent only once, so a
+ * retry never makes a second one) with the recommended instructions and hand-off rules, saves the
+ * text as one Business context item of that agent and turns the agent on when chosen.
  */
 export function AiAssistantStep({
   businessName,
@@ -33,6 +48,7 @@ export function AiAssistantStep({
   const { t } = useTranslation('auth');
   const status = useAiMember();
   const action = useAiMemberAction();
+  const qc = useQueryClient();
   const textId = useId();
   const hintId = useId();
   const switchId = useId();
@@ -46,6 +62,21 @@ export function AiAssistantStep({
   // The text item already saved by an earlier Finish whose later step failed: never add it twice.
   const savedText = useRef<string | null>(null);
   const ready = status.data ? connectionReady(status.data) : false;
+
+  /** Adds the text item to the agent just saved (by its id: never another agent's). */
+  const addText = async (saved: AiMemberStatus, body: AiContextTextBody) => {
+    const agentId = savedAgentId(saved);
+    if (agentId === null) {
+      await action.mutateAsync({ kind: 'addText', body });
+      return;
+    }
+    const result = await api(`/ai/agents/${agentId}/documents/text`, {
+      body,
+      schema: AiAgentStatus,
+    });
+    qc.setQueryData(aiAgentKey(agentId), result);
+    void qc.invalidateQueries({ queryKey: aiMemberKey });
+  };
   const filled = text.trim().length > 0 && text.trim() !== template.trim();
 
   const finish = async () => {
@@ -67,11 +98,11 @@ export function AiAssistantStep({
     }
     setSaving(true);
     try {
-      // The Business context item belongs to the member, so the member is saved first (off).
-      await action.mutateAsync({ kind: 'save', settings: member.data });
+      // The Business context item belongs to the agent, so the agent is saved first (off).
+      const saved = await action.mutateAsync({ kind: 'save', settings: member.data });
       const body = { name: t('setup.ai.contextName'), text: text.trim() };
       if (savedText.current !== body.text) {
-        await action.mutateAsync({ kind: 'addText', body });
+        await addText(saved, body);
         savedText.current = body.text;
       }
       if (enable)
@@ -80,6 +111,9 @@ export function AiAssistantStep({
     } catch (e) {
       setError(errorMessage(e));
     } finally {
+      // The saves changed the agent (name, item, on/off), also when a later step failed.
+      void qc.invalidateQueries({ queryKey: aiAgentsKey });
+      void qc.invalidateQueries({ queryKey: ['ai-agent'] });
       setSaving(false);
     }
   };

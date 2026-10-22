@@ -29,6 +29,9 @@ const LABEL_KEYS = {
   'chat.merge': 'audit.actions.chatMerge',
   'chat.start_from_group': 'audit.actions.chatStartFromGroup',
   'logs.download': 'audit.actions.logsDownload',
+  'ai.agent_create': 'audit.actions.aiAgentCreate',
+  'ai.agent_delete': 'audit.actions.aiAgentDelete',
+  'ai.agent_inbox_update': 'audit.actions.aiAgentInboxUpdate',
   'ai.connection_update': 'audit.actions.aiConnectionUpdate',
   'ai.member_update': 'audit.actions.aiMemberUpdate',
   'ai.document_add': 'audit.actions.aiDocumentAdd',
@@ -126,6 +129,9 @@ const FIELD_KEYS: Record<string, string> = {
   inboxId: 'audit.fields.inbox',
   inboxIds: 'audit.fields.inboxes',
   memberIds: 'audit.fields.members',
+  agentId: 'audit.fields.agent',
+  preset: 'audit.fields.preset',
+  internal: 'audit.fields.internal',
 };
 
 /**
@@ -144,6 +150,7 @@ const VALUE_KEYS: Record<string, Record<string, string>> = {
     named: 'tunnel.modes.named',
   },
   kind: { file: 'ai.contextPanel.kindFile', text: 'ai.contextPanel.kindText' },
+  preset: { sales: 'ai.presets.sales', faq: 'ai.presets.faq', custom: 'ai.presets.custom' },
   transcription: { off: 'ai.voice.off', local: 'ai.voice.local', cloud: 'ai.voice.cloud' },
   role: { admin: 'common:roles.admin', agent: 'common:roles.agent', sales: 'ai.roleBadge' },
   reason: {

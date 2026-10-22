@@ -224,7 +224,8 @@
       "unsupported_message": "mesej yang tidak dapat dibaca oleh AI",
       "ai_unavailable": "AI tidak tersedia",
       "lookup_failed": "carian dalam sistem yang disambungkan gagal",
-      "business_rule": "sepadan dengan peraturan serahan anda"
+      "business_rule": "sepadan dengan peraturan serahan anda",
+      "confidential_leak": "balasan akan mendedahkan item dalaman"
     },
     "resolved": "{{actor}} menyelesaikan sembang ini",
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",

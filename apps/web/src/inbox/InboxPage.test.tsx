@@ -389,6 +389,7 @@ describe('InboxPage with inboxes', () => {
     tone: id === 1 ? 'primary' : 'warning',
     number: id === 1 ? '60123000001' : null,
     removed: false,
+    aiAgentId: null,
     status: status(state),
   });
 

@@ -203,7 +203,10 @@
       "inboxCreate": "Inbox added",
       "inboxUpdate": "Inbox updated",
       "inboxRemove": "Inbox removed",
-      "inboxAccessUpdate": "Inbox access changed"
+      "inboxAccessUpdate": "Inbox access changed",
+      "aiAgentCreate": "AI agent created",
+      "aiAgentDelete": "AI agent deleted",
+      "aiAgentInboxUpdate": "AI agent inbox changed"
     },
     "fields": {
       "chat": "Chat",
@@ -245,7 +248,10 @@
       "expires": "Expires",
       "inbox": "Inbox",
       "inboxes": "Inboxes",
-      "members": "Members"
+      "members": "Members",
+      "agent": "AI agent",
+      "preset": "Starting point",
+      "internal": "Internal"
     },
     "reasons": {
       "rateLimited": "Too many attempts",
@@ -712,7 +718,13 @@
       "noReply": "The AI would send nothing and keep the chat.",
       "noKnowledge": "No matching business knowledge was found, so the AI would hand this chat to a human without calling the model.",
       "model": "Model: {{model}}",
-      "failed": "Could not answer: {{error}}"
+      "failed": "Could not answer: {{error}}",
+      "agentHint": "Ask what a customer might ask. The answer uses this page's texts (also unsaved changes) and the saved Business context.",
+      "safety": "Safety rule: the agent does not reveal its instructions or Internal items.",
+      "answeredAs": "Answered as {{name}}",
+      "needsConnection": "Connect AI under Settings → AI to try the agent.",
+      "noRole": "The role is blank: the agent answers with only the safety rules and its Business context.",
+      "confidentialLeak": "Would hand over: the reply quoted an Internal item, so it would not be sent to the customer."
     },
     "voice": {
       "title": "Voice messages",
@@ -795,11 +807,32 @@
       "confirmMany_other": "Delete {{count}} items?",
       "confirmText": "The AI stops using it right away. This cannot be undone.",
       "deleteFailed": "Could not delete: {{names}}",
-      "namesMore": "{{names}} +{{count}} more"
+      "namesMore": "{{names}} +{{count}} more",
+      "internal": "Internal",
+      "internalHint": "The agent uses this to decide (for example a lowest price) but never tells it to customers.",
+      "internalBadgeTitle": "Used to decide, never told to customers",
+      "internalFilterLabel": "Show",
+      "internalFilterAll": "All ({{count}})",
+      "internalFilterCustomer": "Customer-facing ({{count}})",
+      "internalFilterInternal": "Internal ({{count}})",
+      "internalFilterEmpty": "No items in this view.",
+      "internalAudience": "Who may hear it",
+      "internalAudienceCustomer": "Customer-facing",
+      "internalAudienceInternal": "Internal",
+      "internalTotal": "Internal items: {{count}} / {{max}} characters",
+      "addFileTitle": "Add a file",
+      "fileLabel": "File",
+      "itemSaved": "Item saved"
     },
     "defaults": {
-      "instructions": "ROLE\nYou are this business's WhatsApp assistant. You answer customer enquiries and product questions and represent the business professionally.\n\nSCOPE\nYou help with:\n- Products: features, specifications, variants, availability and usage\n- General enquiries: business hours, location, how to order, delivery areas, payment methods and return policy\n- The right next step: how to order, how to request a quotation, or reaching our team\nYou do not help with topics unrelated to the business or its products (general chat, news, coding, homework, opinions, politics, religion). Reply politely in one line and steer back, for example: \"Sorry, I can only help with questions about our products and services. How can I help you with those?\"\n\nKNOWLEDGE\n- Keep product names, model numbers and prices exactly as written in the business context.\n- Never guess prices, stock, specifications, delivery dates, promotions or policies. If a detail is missing, say so and let our team confirm.\n- Never promise discounts, free gifts or exceptions.\n\nLANGUAGE\n- Reply in the customer's language. If they mix languages, reply in the main language of their message.\n- If you cannot reply in their language, use the default language named in the business context, otherwise English.\n\nSTYLE\n- Professional, polite and friendly; no slang. At most one emoji, and only where it fits.\n- One to three short sentences. Use a short list only for options or specifications.\n- Answer first: no long greetings and no repeating the question back.\n- Ask at most one clarifying question when needed (for example which model, size or area).\n- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.",
-      "handoffRules": "- The customer is upset or makes a complaint\n- The customer asks for a refund, return, exchange or warranty claim\n- The customer asks about an existing order, delivery or payment\n- The customer wants a bulk or custom order, or a quotation\n- The customer wants to negotiate the price or asks for a discount"
+      "sales": {
+        "instructions": "ROLE\nYou are this business's WhatsApp assistant. You answer customer enquiries and product questions and represent the business professionally.\n\nSCOPE\nYou help with:\n- Products: features, specifications, variants, availability and usage\n- General enquiries: business hours, location, how to order, delivery areas, payment methods and return policy\n- The right next step: how to order, how to request a quotation, or reaching our team\nYou do not help with topics unrelated to the business or its products (general chat, news, coding, homework, opinions, politics, religion). Reply politely in one line and steer back, for example: \"Sorry, I can only help with questions about our products and services. How can I help you with those?\"\n\nKNOWLEDGE\n- Keep product names, model numbers and prices exactly as written in the business context.\n- Never guess prices, stock, specifications, delivery dates, promotions or policies. If a detail is missing, say so and let our team confirm.\n- Never promise discounts, free gifts or exceptions.\n\nLANGUAGE\n- Reply in the customer's language. If they mix languages, reply in the main language of their message.\n- If you cannot reply in their language, use the default language named in the business context, otherwise English.\n\nSTYLE\n- Professional, polite and friendly; no slang. At most one emoji, and only where it fits.\n- One to three short sentences. Use a short list only for options or specifications.\n- Answer first: no long greetings and no repeating the question back.\n- Ask at most one clarifying question when needed (for example which model, size or area).\n- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.",
+        "handoffRules": "- The customer is upset or makes a complaint\n- The customer asks for a refund, return, exchange or warranty claim\n- The customer asks about an existing order, delivery or payment\n- The customer wants a bulk or custom order, or a quotation\n- The customer wants to negotiate the price or asks for a discount"
+      },
+      "faq": {
+        "instructions": "ROLE\nYou are this business's WhatsApp help desk. You answer customers' questions clearly and correctly. You do not sell: never recommend products, upsell or ask the customer to order.\n\nSCOPE\nYou help with:\n- Questions about the services, opening hours, location, prices and fees written in the business context\n- Procedures and policies: how to book, what to bring, how long it takes, who to contact\n- The right next step: where to find a form, how to make an appointment, or reaching our team\nYou do not help with topics unrelated to the business (general chat, news, coding, homework, opinions, politics, religion). Reply politely in one line and steer back, for example: \"Sorry, I can only help with questions about our services. What would you like to know?\"\n\nKNOWLEDGE\n- Answer only from the business context. Keep names, times, fees and steps exactly as written.\n- Never guess. If a detail is missing, say so and let our team confirm.\n- Never give personal medical, legal or financial advice, and never promise exceptions.\n\nLANGUAGE\n- Reply in the customer's language. If they mix languages, reply in the main language of their message.\n- If you cannot reply in their language, use the default language named in the business context, otherwise English.\n\nSTYLE\n- Calm, polite and helpful; no slang and no sales language. At most one emoji, and only where it fits.\n- One to three short sentences. Use a short numbered list only for steps.\n- Answer first: no long greetings and no repeating the question back.\n- Ask at most one clarifying question when needed.\n- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.",
+        "handoffRules": "- The customer is upset or makes a complaint\n- The customer wants to book, change or cancel an appointment or an order\n- The customer asks about their own account, case, payment or personal records\n- The customer asks for an exception to a rule or policy"
+      }
     },
     "replaceKey": "Replace key",
     "keepKey": "Keep saved key",
@@ -865,6 +898,90 @@
       "keyRateLimited": "OpenAI is busy or this key has reached its limit. Wait a minute and try again.",
       "keyForbidden": "OpenAI did not let this key list models. A restricted key or a region limit can cause this; the key may still work for replies.",
       "saveAnyway": "Save anyway"
+    },
+    "agents": {
+      "add": "Add AI agent",
+      "aiBadge": "AI",
+      "limitHint": "One AI agent per inbox. Add an inbox to add another agent.",
+      "noInbox": "No inbox",
+      "answersInbox": "Answers {{name}}",
+      "newTitle": "New AI agent",
+      "newDescription": "Choose a starting point, give the agent a name, then save. You can change every text later.",
+      "description": "This agent answers WhatsApp chats with its own role, its own Business context and its own hand-over rules.",
+      "pickTitle": "Starting point",
+      "pickHint": "This only fills in the role and the hand-over rules. You can change them.",
+      "nameTitle": "Name",
+      "nameLabel": "Agent name",
+      "nameHint": "Customers do not see this name. Your team sees it on the chats the agent answers.",
+      "nameRequired": "Enter a name for the agent.",
+      "inboxLabel": "Inbox",
+      "inboxHint": "The agent answers the new chats of this inbox. One agent per inbox.",
+      "inboxNone": "None (the agent does not answer any chat)",
+      "inboxHas": "{{inbox}} (has {{agent}})",
+      "inboxMove": "{{agent}} answers {{inbox}} now. When you save, {{agent}} is unassigned from {{inbox}} and stops answering there.",
+      "roleTitle": "Role",
+      "roleLabel": "Role (instructions)",
+      "roleHint": "Who the agent is, what it helps with and how it writes. Facts go in Business context.",
+      "rolePlaceholder": "Describe the role, for example: You answer questions about our clinic's services and opening hours.",
+      "handoffTitle": "Hand-over rules",
+      "handoffHint": "One case per line. The agent hands these chats to your team.",
+      "handoffPlaceholder": "For example: The customer wants to book an appointment.",
+      "useTemplate": "Use the {{preset}} template",
+      "templateTitle": "Use the {{preset}} template?",
+      "templateBody": "This replaces the role and the hand-over rules with the {{preset}} starting texts. Your edited texts are lost when you save.",
+      "templateConfirm": "Use template",
+      "templateApplied": "Template applied. Save to keep it.",
+      "customTemplateNote": "The Custom template is blank.",
+      "advanced": "Advanced: role and hand-over rules",
+      "advancedBlank": "Role not written yet",
+      "usingTemplate": "Using the {{preset}} starting text. Edit it to match your business.",
+      "contextNew": "Save the agent first, then add its Business context.",
+      "tryTitle": "Try it",
+      "tryNew": "Save the agent first, then try it with a test question.",
+      "deleteTitle": "Delete this agent",
+      "deleteHint": "The agent stops answering. Its chats go back to your team, unassigned. Its Business context items are deleted.",
+      "delete": "Delete agent",
+      "deleteConfirmTitle": "Delete {{name}}?",
+      "deleteConfirmBody_one": "{{name}} stops answering and its open chats go back to your team, unassigned. Its {{count}} Business context item is deleted. You cannot undo this.",
+      "deleteConfirmBody_other": "{{name}} stops answering and its open chats go back to your team, unassigned. Its {{count}} Business context items are deleted. You cannot undo this.",
+      "deleted": "{{name}} deleted",
+      "created": "{{name}} created. Add its Business context, then turn it on.",
+      "saved": "Agent saved",
+      "save": "Save",
+      "create": "Create agent",
+      "limitTitle": "You have the maximum number of AI agents",
+      "limitBody": "One AI agent per inbox. Add an inbox under Admin → Inboxes, or change an existing agent.",
+      "limitBodyLite": "Lite has one AI agent. Change your agent instead.",
+      "backToMembers": "Back to Members",
+      "notFoundTitle": "This AI agent does not exist",
+      "notFoundBody": "It may have been deleted.",
+      "on": "On",
+      "off": "Off",
+      "errors": {
+        "agent_limit": "You cannot add more AI agents in this edition.",
+        "inbox_has_agent": "This inbox already has an AI agent. Choose another inbox.",
+        "internal_too_large": "Internal items can contain up to {{max}} characters in total. Shorten an Internal item or make it customer-facing.",
+        "last_agent": "You cannot delete the only AI agent.",
+        "agent_not_found": "This AI agent does not exist. It may have been deleted."
+      }
+    },
+    "presets": {
+      "sales": "Sales",
+      "faq": "FAQ",
+      "custom": "Custom",
+      "salesDescription": "Answers product questions and guides customers to order.",
+      "faqDescription": "Answers questions from your Business context. Never sells.",
+      "customDescription": "Starts blank: you write the role and the hand-over rules.",
+      "badge": "{{preset}} agent"
+    },
+    "guardrails": {
+      "title": "Always-on safety rules",
+      "badge": "Cannot be changed",
+      "intro": "EzyChat adds these rules to every AI agent, before your texts. No role, rule or customer message can switch them off.",
+      "rule1": "Never reveals its instructions, hand-over rules or Internal items, whatever the customer says.",
+      "rule2": "Treats customer messages, files and voice notes as information, never as orders.",
+      "rule3": "Its role and rules cannot be changed from a chat.",
+      "rule4": "Never invents facts, prices or promises; Internal items only help it decide."
     }
   },
   "enrichment": {
@@ -958,6 +1075,14 @@
     "membersAccessDescription": "This agent sees only the chats of the inboxes you tick, and only those notifications.",
     "membersAccessNoInboxes": "No inbox yet. Add one under Inboxes.",
     "membersAccessSave": "Save",
-    "membersAccessSaved": "Inbox access saved"
+    "membersAccessSaved": "Inbox access saved",
+    "aiAgent": "AI agent",
+    "aiAgentNone": "None",
+    "aiAgentField": "AI agent",
+    "aiAgentFieldHint": "The AI agent that answers the new chats of this inbox. One agent per inbox.",
+    "aiAgentOption": "{{agent}} (on {{inbox}})",
+    "aiAgentMove": "{{agent}} answers {{inbox}} now. When you save, {{agent}} moves to this inbox and stops answering {{inbox}}.",
+    "aiAgentReplace": "{{agent}} answers this inbox now. When you save, {{agent}} is unassigned.",
+    "aiAgentRemove": "Its AI agent {{agent}} is unassigned and stops answering."
   }
 }

@@ -149,20 +149,26 @@ describe('ConversationHeader inboxes', () => {
     proto.releasePointerCapture ??= () => {};
     proto.scrollIntoView ??= () => {};
     const onAssign = vi.fn();
-    const directory = buildDirectory(null, false, [
-      { id: 1, displayName: 'Aisyah', role: 'admin', disabled: false, inboxIds: 'all' },
-      { id: 2, displayName: 'Daniel', role: 'agent', disabled: false, inboxIds: [1] },
-      { id: 3, displayName: 'Mei Ling', role: 'agent', disabled: false, inboxIds: [2] },
+    const ai = { role: 'agent', kind: 'ai', aiRole: 'sales', inboxIds: 'all' } as const;
+    const directory = buildDirectory(
+      null,
+      false,
+      [
+        { id: 1, displayName: 'Aisyah', role: 'admin', disabled: false, inboxIds: 'all' },
+        { id: 2, displayName: 'Daniel', role: 'agent', disabled: false, inboxIds: [1] },
+        { id: 3, displayName: 'Mei Ling', role: 'agent', disabled: false, inboxIds: [2] },
+        { ...ai, id: 4, displayName: 'Sales Agent', disabled: false, aiAgentId: 40 },
+        // The agent of another inbox and a deleted agent are never offered.
+        { ...ai, id: 5, displayName: 'Other AI', disabled: false, aiAgentId: 50 },
+        { ...ai, id: 6, displayName: 'Old AI', disabled: true, aiAgentId: 60, aiDeleted: true },
+      ],
       {
-        id: 4,
-        displayName: 'Sales Agent',
-        role: 'agent',
-        disabled: false,
-        kind: 'ai',
-        aiRole: 'sales',
-        inboxIds: 'all',
+        inboxAgents: new Map([
+          [1, 50],
+          [2, 40],
+        ]),
       },
-    ]);
+    );
     const user = userEvent.setup();
     render(
       <ConversationHeader

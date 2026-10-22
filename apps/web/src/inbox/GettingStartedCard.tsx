@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bot, ChevronRight, Smartphone, Users, X } from 'lucide-react';
 import { useAiMember } from '../api/ai';
+import { aiAgentsPath } from '../admin/agent-path';
 import { useMe, useSettings, useTunnel, useUsers } from '../api/queries';
 import { memberPill } from '../admin/ai-status';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,7 @@ function AdminChecklist({ className, onHide }: { className?: string; onHide: () 
       title: t('gettingStarted.ai'),
       hint: t('gettingStarted.aiHint'),
       action: t('gettingStarted.setUp'),
-      to: '/admin/members/ai',
+      to: aiAgentsPath(ai.data),
     },
     {
       key: 'team',

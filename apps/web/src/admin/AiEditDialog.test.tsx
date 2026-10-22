@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { AiEditField, AiEditResult } from '@ezychat/shared';
+import type { AiAgentPreset, AiEditField, AiEditResult } from '@ezychat/shared';
 import { AiEditDialog } from './AiEditDialog';
 
 function json(data: unknown, code = 200) {
@@ -17,10 +17,14 @@ function Harness({
   field,
   current,
   onApply,
+  agentId,
+  preset,
 }: {
   field: AiEditField;
   current: string;
   onApply: (text: string) => void;
+  agentId?: number;
+  preset?: AiAgentPreset;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -32,6 +36,8 @@ function Harness({
         open={open}
         onOpenChange={setOpen}
         onApply={onApply}
+        agentId={agentId}
+        preset={preset}
       />
     </>
   );
@@ -46,9 +52,12 @@ function setup({
       text: 'Hand off complaints.\nHand off refund requests.',
       error: null,
     } satisfies AiEditResult),
+  agentId = undefined as number | undefined,
+  preset = undefined as AiAgentPreset | undefined,
 } = {}) {
+  const editUrl = agentId === undefined ? '/api/ai/edit' : `/api/ai/agents/${agentId}/edit`;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url === '/api/ai/edit' && init?.method === 'POST') return respond();
+    if (url === editUrl && init?.method === 'POST') return respond();
     return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -58,7 +67,13 @@ function setup({
   });
   render(
     <QueryClientProvider client={qc}>
-      <Harness field={field} current={current} onApply={onApply} />
+      <Harness
+        field={field}
+        current={current}
+        onApply={onApply}
+        agentId={agentId}
+        preset={preset}
+      />
     </QueryClientProvider>,
   );
   return { fetchMock, onApply, user: userEvent.setup() };
@@ -87,6 +102,22 @@ afterEach(() => {
 });
 
 describe('Edit with AI dialog', () => {
+  it("asks the agent's own route and sends its preset", async () => {
+    const { fetchMock, user } = setup({ agentId: 7, preset: 'faq' });
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('What should change?'), 'Add refunds');
+    await user.click(within(dialog).getByRole('button', { name: 'Suggest' }));
+    await within(dialog).findByText('Suggested hand-off rules');
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('/api/ai/agents/7/edit');
+    expect(JSON.parse(String(init!.body))).toEqual({
+      field: 'handoffRules',
+      current: 'Hand off complaints.\nHand off bulk orders.',
+      request: 'Add refunds',
+      preset: 'faq',
+    });
+  });
+
   it('names the field and keeps Suggest disabled until a request is typed', async () => {
     const { user } = setup();
     const dialog = await screen.findByRole('dialog');

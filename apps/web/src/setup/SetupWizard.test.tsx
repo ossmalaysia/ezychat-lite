@@ -39,13 +39,47 @@ function aiStatus(ready: boolean): AiMemberStatus {
     hasApiKey: ready,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
+    agents: [],
+    maxAgents: 1,
   };
 }
 
 type Call = { url: string; method: string; body: unknown };
 
+/** The agent `PUT /api/ai` ensures (inbox 1's), and another agent the wizard must never use. */
+const DEFAULT_AGENT = {
+  id: 7,
+  userId: 9,
+  displayName: 'Kedai Aisyah AI',
+  enabled: false,
+  preset: 'sales' as const,
+  inboxId: 1,
+  documentCount: 0,
+};
+const OTHER_AGENT = { ...DEFAULT_AGENT, id: 8, userId: 10, displayName: 'FAQ', inboxId: 2 };
+const AI_USER = {
+  id: 9,
+  username: 'ai-assistant',
+  displayName: 'Kedai Aisyah AI',
+  role: 'agent' as const,
+  mustChangePassword: false,
+  disabled: true,
+  createdAt: 1_700_000_000_000,
+  locale: null,
+  kind: 'ai' as const,
+  aiRole: 'sales' as const,
+  aiAgentId: 7,
+};
+
 /** Fake server: setup, WhatsApp (linked) and the AI endpoints the wizard uses. */
-function stubServer(opts: { aiReady?: boolean; failText?: boolean } = {}) {
+function stubServer(
+  opts: {
+    aiReady?: boolean;
+    failText?: boolean;
+    /** What `PUT /api/ai` answers: the member's agent among two (default), only one, or none. */
+    saved?: 'member' | 'only' | 'none';
+  } = {},
+) {
   const calls: Call[] = [];
   let ai = aiStatus(opts.aiReady ?? false);
   let textFailures = opts.failText ? 1 : 0;
@@ -61,15 +95,29 @@ function stubServer(opts: { aiReady?: boolean; failText?: boolean } = {}) {
     if (url === '/api/ai' && method === 'GET') return json(ai);
     if (url === '/api/ai' && method === 'PUT') {
       const b = body as AiMemberBody;
-      ai = { ...ai, settings: { ...ai.settings, ...b } };
+      // Idempotent: the same default agent every time (created on the first save only).
+      const saved = opts.saved ?? 'member';
+      ai = {
+        ...ai,
+        member: saved === 'member' ? AI_USER : null,
+        settings: { ...ai.settings, ...b },
+        agents:
+          saved === 'member'
+            ? [OTHER_AGENT, DEFAULT_AGENT]
+            : saved === 'only'
+              ? [DEFAULT_AGENT]
+              : [],
+        maxAgents: 2,
+      };
       return json(ai);
     }
-    if (url === '/api/ai/documents/text' && method === 'POST') {
+    if (url === '/api/ai/documents/text' && method === 'POST') return json(ai);
+    if (url === '/api/ai/agents/7/documents/text' && method === 'POST') {
       if (textFailures > 0) {
         textFailures -= 1;
         return json({ error: { code: 'internal', message: 'Disk full' } }, 500);
       }
-      return json(ai);
+      return json({ agent: DEFAULT_AGENT, settings: ai.settings, documents: [] });
     }
     return json({ error: { code: 'not_found', message: `unexpected ${method} ${url}` } }, 404);
   });
@@ -93,9 +141,13 @@ function renderWizard() {
   );
 }
 
-function renderAiStep(onDone: (on: boolean) => void, businessName = 'Kedai Aisyah') {
+function renderAiStep(
+  onDone: (on: boolean) => void,
+  businessName = 'Kedai Aisyah',
+  qc: QueryClient = client(),
+) {
   return render(
-    <QueryClientProvider client={client()}>
+    <QueryClientProvider client={qc}>
       <MemoryRouter>
         <AiAssistantStep businessName={businessName} onDone={onDone} />
       </MemoryRouter>
@@ -281,7 +333,9 @@ describe('AiAssistantStep', () => {
   it('saves the Sales Agent, the business text and turns it on when connected', async () => {
     const calls = stubServer({ aiReady: true });
     const onDone = vi.fn();
-    renderAiStep(onDone);
+    const qc = client();
+    const refresh = vi.spyOn(qc, 'invalidateQueries');
+    renderAiStep(onDone, undefined, qc);
     const user = userEvent.setup();
     const turnOn = await screen.findByRole('switch', { name: 'Turn on the AI assistant now' });
     expect(turnOn.getAttribute('aria-checked')).toBe('true');
@@ -292,7 +346,7 @@ describe('AiAssistantStep', () => {
     const writes = calls.filter((c) => c.method !== 'GET');
     expect(writes.map((c) => `${c.method} ${c.url}`)).toEqual([
       'PUT /api/ai',
-      'POST /api/ai/documents/text',
+      'POST /api/ai/agents/7/documents/text',
       'PUT /api/ai',
     ]);
     expect(writes[0]?.body).toEqual({
@@ -305,6 +359,9 @@ describe('AiAssistantStep', () => {
     expect(textBody.name).toBe('About the business');
     expect(textBody.text).toMatch(/^Kedai Aisyah\n[\s\S]*Teh tarik RM4$/);
     expect((writes[2]?.body as AiMemberBody).enabled).toBe(true);
+    // Members and the agent page show the agent as saved last (turned on).
+    expect(refresh).toHaveBeenCalledWith({ queryKey: ['ai-agents'] });
+    expect(refresh).toHaveBeenCalledWith({ queryKey: ['ai-agent'] });
   });
 
   it('leaves the agent off when the owner switches it off', async () => {
@@ -332,7 +389,43 @@ describe('AiAssistantStep', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(false));
     expect(calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.url}`)).toEqual([
       'PUT /api/ai',
-      'POST /api/ai/documents/text',
+      'POST /api/ai/agents/7/documents/text',
+    ]);
+  });
+
+  it('retried after a failed item step, saves the same agent again and never creates one', async () => {
+    const calls = stubServer({ aiReady: false, failText: true });
+    const onDone = vi.fn();
+    renderAiStep(onDone);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('About your business'), 'Open 9-5');
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(await screen.findByText('Disk full')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(false));
+    const writes = calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.url}`);
+    expect(writes).toEqual([
+      'PUT /api/ai',
+      'POST /api/ai/agents/7/documents/text',
+      'PUT /api/ai',
+      'POST /api/ai/agents/7/documents/text',
+    ]);
+    expect(calls.some((c) => c.url === '/api/ai/agents' && c.method === 'POST')).toBe(false);
+  });
+
+  it.each([
+    ['the only agent', 'only' as const, 'POST /api/ai/agents/7/documents/text'],
+    ['the old route on a server without agents', 'none' as const, 'POST /api/ai/documents/text'],
+  ])('adds the text to %s', async (_label, saved, route) => {
+    const calls = stubServer({ aiReady: false, saved });
+    const onDone = vi.fn();
+    renderAiStep(onDone);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('About your business'), 'Open 9-5');
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(false));
+    expect(calls.filter((c) => c.method === 'POST').map((c) => `${c.method} ${c.url}`)).toEqual([
+      route,
     ]);
   });
 
@@ -347,7 +440,7 @@ describe('AiAssistantStep', () => {
     expect(onDone).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Finish' }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
-    expect(calls.filter((c) => c.url === '/api/ai/documents/text')).toHaveLength(2);
+    expect(calls.filter((c) => c.url === '/api/ai/agents/7/documents/text')).toHaveLength(2);
   });
 
   it('Skip for now saves nothing', async () => {

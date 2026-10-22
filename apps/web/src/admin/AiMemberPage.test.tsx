@@ -4,44 +4,20 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import {
-  DEFAULT_AI_HANDOFF_RULES,
-  DEFAULT_AI_INSTRUCTIONS,
+  AI_AGENT_PRESETS,
+  type AiAgentBody,
+  type AiAgentStatus,
+  type AiAgentSummary,
   type AiDocument,
-  type AiMemberBody,
   type AiMemberStatus,
-  type User,
 } from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
 import { validateWebExtensions, WebExtensionsProvider, type WebExtension } from '../extensions';
 import { activateLocale } from '../i18n';
 import msAdmin from '../i18n/locales/ms/admin.json';
 
-const aiUser: User = {
-  id: 3,
-  username: 'ai-assistant',
-  displayName: 'Sales Assistant',
-  role: 'agent',
-  kind: 'ai',
-  mustChangePassword: false,
-  disabled: true,
-  createdAt: 1,
-  locale: null,
-};
-function status(): AiMemberStatus {
-  return {
-    member: { ...aiUser },
-    settings: {
-      displayName: 'Sales Assistant',
-      enabled: false,
-      mode: 'api',
-      model: '',
-      instructions: '',
-    },
-    hasApiKey: true,
-    connection: { state: 'connected', loginUrl: null, error: null },
-    documents: [],
-  };
-}
+const SALES = AI_AGENT_PRESETS.sales;
+const FAQ = AI_AGENT_PRESETS.faq;
 const item: AiDocument = {
   id: 1,
   name: 'Business context',
@@ -50,10 +26,71 @@ const item: AiDocument = {
   characters: 13,
   createdAt: 1,
   updatedAt: 1,
+  internal: false,
 };
-function withContext(initial = status()) {
-  initial.documents = [{ ...item }];
-  return initial;
+
+interface World {
+  /** Connection (GET /api/ai). */
+  connected: boolean;
+  maxAgents: number;
+  agents: AiAgentStatus[];
+  inboxes: { id: number; name: string; aiAgentId: number | null }[];
+}
+function agentStatus(
+  id = 5,
+  patch: Partial<AiAgentSummary> = {},
+  settings: Partial<AiAgentStatus['settings']> = {},
+  documents: AiDocument[] = [],
+): AiAgentStatus {
+  const agent: AiAgentSummary = {
+    id,
+    userId: 3,
+    displayName: 'Sales Assistant',
+    enabled: false,
+    preset: 'sales',
+    inboxId: 1,
+    documentCount: documents.length,
+    ...patch,
+  };
+  return {
+    agent,
+    settings: {
+      displayName: agent.displayName,
+      enabled: agent.enabled,
+      mode: 'api',
+      model: '',
+      instructions: SALES.instructions,
+      handoffRules: SALES.handoffRules,
+      ...settings,
+    },
+    documents,
+  };
+}
+function world(patch: Partial<World> = {}): World {
+  return {
+    connected: true,
+    maxAgents: 1,
+    agents: [agentStatus()],
+    inboxes: [{ id: 1, name: 'Sales line', aiAgentId: 5 }],
+    ...patch,
+  };
+}
+function memberStatus(w: World): AiMemberStatus {
+  return {
+    member: null,
+    settings: {
+      displayName: 'Sales Assistant',
+      enabled: false,
+      mode: 'api',
+      model: '',
+      instructions: '',
+    },
+    hasApiKey: w.connected,
+    connection: { state: 'connected', loginUrl: null, error: null },
+    documents: [],
+    agents: w.agents.map((a) => a.agent),
+    maxAgents: w.maxAgents,
+  };
 }
 function json(data: unknown, code = 200) {
   return new Response(JSON.stringify(data), {
@@ -61,45 +98,104 @@ function json(data: unknown, code = 200) {
     headers: { 'content-type': 'application/json' },
   });
 }
+const notFound = () => json({ error: { code: 'not_found', message: 'Not found' } }, 404);
 function Location() {
-  return <output data-testid="location">{useLocation().pathname}</output>;
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
 }
+type Respond = (url: string, init: RequestInit | undefined, w: World) => Response | undefined;
+
 function setup(
-  initial = status(),
-  respond?: (
-    url: string,
-    init: RequestInit | undefined,
-    current: AiMemberStatus,
-  ) => Response | undefined,
+  w: World = world(),
+  path = '/admin/members/ai/5',
+  respond?: Respond,
   extensions: readonly WebExtension[] = [],
 ) {
-  let current = initial;
+  const list = () => ({ agents: w.agents.map((a) => a.agent), maxAgents: w.maxAgents });
+  const find = (id: number) => w.agents.find((a) => a.agent.id === id);
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-    const custom = respond?.(url, init, current);
+    const custom = respond?.(url, init, w);
     if (custom) return custom;
-    if (url === '/api/ai' && init?.method === 'PUT') {
-      const body = JSON.parse(String(init.body)) as AiMemberBody;
-      current = {
-        ...current,
-        member: {
-          ...(current.member ?? aiUser),
+    const method = init?.method ?? 'GET';
+    const agentMatch = /^\/api\/ai\/agents\/(\d+)(\/.*)?$/.exec(url);
+    const id = agentMatch ? Number(agentMatch[1]) : 0;
+    const rest = agentMatch?.[2] ?? '';
+    if (url === '/api/ai') return json(memberStatus(w));
+    if (url === '/api/ai/agents' && method === 'GET') return json(list());
+    if (url === '/api/ai/agents' && method === 'POST') {
+      const body = JSON.parse(String(init!.body)) as AiAgentBody;
+      const created = agentStatus(
+        8,
+        {
           displayName: body.displayName,
-          disabled: !body.enabled,
+          enabled: body.enabled,
+          preset: body.preset ?? 'sales',
+          inboxId: body.inboxId ?? (w.maxAgents <= 1 ? 1 : null),
         },
-        settings: { ...current.settings, ...body },
-      };
-      return json(current);
+        { instructions: body.instructions, handoffRules: body.handoffRules },
+      );
+      w.agents = [...w.agents, created];
+      return json(created);
     }
-    if (url === '/api/ai/documents/text' && init?.method === 'POST') {
-      const body = JSON.parse(String(init.body)) as { name: string; text: string };
-      current = {
+    if (url === '/api/inboxes' && method === 'GET')
+      return json({
+        inboxes: w.inboxes.map((inbox, i) => ({
+          ...inbox,
+          tone: (['primary', 'warning', 'info', 'success'] as const)[i % 4],
+          number: null,
+          status: 'connected',
+          removed: false,
+        })),
+        maxInboxes: w.maxAgents,
+        canAdd: false,
+      });
+    const inboxMatch = /^\/api\/inboxes\/(\d+)$/.exec(url);
+    if (inboxMatch && method === 'PATCH') {
+      const inboxId = Number(inboxMatch[1]);
+      const body = JSON.parse(String(init!.body)) as { aiAgentId: number | null };
+      w.agents = w.agents.map((a) =>
+        a.agent.inboxId === inboxId && body.aiAgentId === null
+          ? { ...a, agent: { ...a.agent, inboxId: null } }
+          : a,
+      );
+      return json({});
+    }
+    const current = find(id);
+    if (!agentMatch) return notFound();
+    if (!current)
+      return json({ error: { code: 'agent_not_found', message: 'AI agent not found' } }, 404);
+    if (rest === '' && method === 'GET') return json(current);
+    if (rest === '' && method === 'PUT') {
+      const body = JSON.parse(String(init!.body)) as AiAgentBody;
+      const next = agentStatus(
+        id,
+        {
+          ...current.agent,
+          displayName: body.displayName,
+          enabled: body.enabled,
+          preset: body.preset ?? current.agent.preset,
+          ...(body.inboxId !== undefined ? { inboxId: body.inboxId } : {}),
+        },
+        { instructions: body.instructions, handoffRules: body.handoffRules },
+        current.documents,
+      );
+      w.agents = w.agents.map((a) => (a.agent.id === id ? next : a));
+      return json(next);
+    }
+    if (rest === '' && method === 'DELETE') {
+      w.agents = w.agents.filter((a) => a.agent.id !== id);
+      return json(list());
+    }
+    if (rest === '/documents/text' && method === 'POST') {
+      const body = JSON.parse(String(init!.body)) as { name: string };
+      const next = {
         ...current,
         documents: [...current.documents, { ...item, id: 7, name: body.name }],
       };
-      return json(current);
+      w.agents = w.agents.map((a) => (a.agent.id === id ? next : a));
+      return json(next);
     }
-    if (url === '/api/ai') return json(current);
-    return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    return notFound();
   });
   vi.stubGlobal('fetch', fetchMock);
   const qc = new QueryClient({
@@ -108,9 +204,10 @@ function setup(
   render(
     <QueryClientProvider client={qc}>
       <WebExtensionsProvider extensions={validateWebExtensions(extensions)}>
-        <MemoryRouter initialEntries={['/admin/members/ai']}>
+        <MemoryRouter initialEntries={[path]}>
           <Routes>
-            <Route path="/admin/members/ai" element={<AiMemberPage />} />
+            <Route path="/admin/members/ai/new" element={<AiMemberPage />} />
+            <Route path="/admin/members/ai/:agentId" element={<AiMemberPage />} />
             <Route path="/admin/settings/ai" element={<h1>Settings AI</h1>} />
             <Route path="/admin/members" element={<h1>Members list</h1>} />
           </Routes>
@@ -119,10 +216,31 @@ function setup(
       </WebExtensionsProvider>
     </QueryClientProvider>,
   );
-  return { fetchMock };
+  return { fetchMock, world: w };
 }
 const writes = (fetchMock: ReturnType<typeof vi.fn>) =>
   fetchMock.mock.calls.filter((call) => call[1]?.method && call[1].method !== 'GET');
+const writeLines = (fetchMock: ReturnType<typeof vi.fn>) =>
+  writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`);
+const lastBody = (fetchMock: ReturnType<typeof vi.fn>) =>
+  JSON.parse(String(writes(fetchMock).at(-1)![1]!.body));
+const cardTitles = () =>
+  [...document.querySelectorAll('[data-slot="card-title"]')].map((title) => title.textContent);
+const withContext = (patch: Partial<AiAgentSummary> = {}) =>
+  world({ agents: [agentStatus(5, patch, {}, [{ ...item }])] });
+const enterprise = (patch: Partial<World> = {}) =>
+  world({
+    maxAgents: 2,
+    agents: [
+      agentStatus(5, {}, {}, [{ ...item }, { ...item, id: 2, name: 'Prices' }]),
+      agentStatus(6, { displayName: 'Help Desk', preset: 'faq', inboxId: 2 }),
+    ],
+    inboxes: [
+      { id: 1, name: 'Sales line', aiAgentId: 5 },
+      { id: 2, name: 'Support line', aiAgentId: 6 },
+    ],
+    ...patch,
+  });
 
 beforeAll(() => {
   const proto = Element.prototype as unknown as Record<string, unknown>;
@@ -145,15 +263,16 @@ afterEach(() => {
   cleanup();
   sessionStorage.clear();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
-describe('AI member page', () => {
+describe('AI agent page', () => {
   it('renders extension agent rows right under Business context, each behind a boundary', async () => {
     function Boom(): never {
       throw new Error('row exploded');
     }
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    setup(status(), undefined, [
+    setup(world(), undefined, undefined, [
       {
         name: 'connectors',
         agentSections: [
@@ -166,177 +285,75 @@ describe('AI member page', () => {
     const sections = screen.getByTestId('agent-extension-sections');
     expect(sections.contains(row)).toBe(true);
     expect(within(sections).getByTestId('error-boundary')).toBeTruthy();
-    // Placed after the Business context panel and before Try it.
-    const headings = screen
-      .getAllByText(/^(Business context|Try it)$/)
-      .filter((el) => el.closest('[data-slot="card-title"], h2, h3'));
-    const context = headings.find((el) => el.textContent === 'Business context')!;
-    const tryIt = headings.find((el) => el.textContent === 'Try it')!;
+    const titles = [...document.querySelectorAll('[data-slot="card-title"]')];
+    const context = titles.find((el) => el.textContent === 'Business context')!;
+    const tryIt = titles.find((el) => el.textContent === 'Try it')!;
     expect(
       context.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(sections.compareDocumentPosition(tryIt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('adds no extension rows in Lite', async () => {
+  it('adds no extension rows without extensions', async () => {
     setup();
     await screen.findByText('Business context');
     expect(screen.queryByTestId('agent-extension-sections')).toBeNull();
   });
 
-  it('shows the look-ups and a failed look-up hand-over in Try it', async () => {
-    setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({
-            ok: true,
-            reply: 'A human agent will help with your question.',
-            action: 'handoff',
-            handoffReason: 'lookup_failed',
-            model: 'gpt-6.1-sol',
-            error: null,
-            lookups: [
-              {
-                tool: 'get_order_status',
-                source: 'connectors',
-                title: 'Get order status',
-                sourceLabel: 'Demo catalogue',
-                ok: false,
-                ms: 12,
-              },
-            ],
-          })
-        : undefined,
-    );
-    const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Customer question'), 'Where is my order?');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(await screen.findByText('Reason: a look-up in a connected system failed')).toBeTruthy();
-    expect(screen.getByText('Could not look up Get order status · Demo catalogue')).toBeTruthy();
+  it('shows Name, Business context, Try it, the Advanced texts and the safety rules', async () => {
+    setup();
+    await screen.findByText('Business context');
+    expect(cardTitles()).toEqual([
+      'Name',
+      'Business context',
+      'Try it',
+      'Role',
+      'Hand-over rules',
+      'Always-on safety rules',
+    ]);
+    expect(screen.getByRole('heading', { name: 'Sales Assistant' })).toBeTruthy();
+    expect(screen.getByText(/own role, its own Business context/)).toBeTruthy();
+    expect(screen.getByTestId('preset-badge').textContent).toBe('Sales agent');
   });
 
-  it('says plainly in Try it when the AI would not reply', async () => {
-    setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({
-            ok: true,
-            reply: '',
-            action: 'no_reply',
-            handoffReason: null,
-            model: 'gpt-6.1-sol',
-            error: null,
-          })
-        : undefined,
-    );
-    const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Customer question'), 'ok thanks');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(await screen.findByText('Would not reply')).toBeTruthy();
-    expect(screen.getByText('The AI would send nothing and keep the chat.')).toBeTruthy();
+  it('shows the four fixed safety rules as read-only text', async () => {
+    setup();
+    const card = (await screen.findByText('Always-on safety rules')).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    expect(within(card).getByText('Cannot be changed')).toBeTruthy();
+    expect(within(card).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(card).queryByRole('textbox')).toBeNull();
   });
 
   it('keeps Turn on disabled with the reason until the connection works', async () => {
-    const initial = withContext();
-    initial.hasApiKey = false;
-    setup(initial);
+    const w = withContext();
+    w.connected = false;
+    setup(w);
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs connection')).toBeTruthy();
     expect(screen.getByText('Connect the AI below first.')).toBeTruthy();
-  });
-
-  it('offers to connect the AI right on the page when nothing is connected', async () => {
-    const initial = withContext();
-    initial.hasApiKey = false;
-    setup(initial);
-    expect(await screen.findByText('Connect the AI')).toBeTruthy();
+    // The connect card comes first, before the Name card.
+    expect(cardTitles()[0]).toBe('Connect the AI');
     expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Use an OpenAI API key instead' })).toBeTruthy();
-    const titles = [...document.querySelectorAll('[data-slot="card-title"]')].map(
-      (title) => title.textContent,
-    );
-    expect(titles[0]).toBe('Connect the AI');
+    // Try it explains why it cannot ask yet.
+    expect(screen.getByText('Connect AI under Settings → AI to try the agent.')).toBeTruthy();
   });
 
   it('hides the connect card once the AI connection works', async () => {
     setup(withContext());
-    await screen.findByText('Name & role');
+    await screen.findByLabelText('Agent name');
     expect(screen.queryByText('Connect the AI')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Sign in with ChatGPT' })).toBeNull();
   });
 
-  it('keeps instructions and hand-off rules in a closed Advanced section', async () => {
-    const initial = status();
-    initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
-    setup(initial);
-    const summary = await screen.findByText('Advanced: instructions and hand-off rules');
-    const details = summary.closest('details')!;
-    expect(details.open).toBe(false);
-    expect(within(details).getByText('Using recommended settings')).toBeTruthy();
-    expect(within(details).getByLabelText('AI instructions')).toBeTruthy();
-    expect(within(details).getByLabelText('Hand-off rules')).toBeTruthy();
-    const user = userEvent.setup();
-    await user.click(summary);
-    expect(details.open).toBe(true);
-  });
-
-  it('says Customised when the instructions differ from the recommended ones', async () => {
-    const initial = status();
-    initial.settings.instructions = 'Only answer in haiku.';
-    setup(initial);
-    const summary = await screen.findByText('Advanced: instructions and hand-off rules');
-    expect(within(summary.closest('details')!).getByText('Customised')).toBeTruthy();
-  });
-
-  it('shows Name & role, the Business context panel, Try it, then the advanced boxes', async () => {
-    setup();
-    await screen.findByText('Name & role');
-    // Plain section titles: the page is not a wizard, so no step numbers.
-    const titles = [...document.querySelectorAll('[data-slot="card-title"]')].map(
-      (title) => title.textContent,
-    );
-    expect(titles).toEqual([
-      'Name & role',
-      'Business context',
-      'Try it',
-      'AI instructions',
-      'Hand-off rules',
-    ]);
-    expect(
-      screen.getByText('Set up, test and turn on the AI assistant that answers customer chats.'),
-    ).toBeTruthy();
-    expect(screen.getByLabelText('AI instructions')).toBeTruthy();
-    // The single Business context textarea is gone: context is a list of items.
-    expect(screen.queryByLabelText('Business context')).toBeNull();
-    expect(screen.queryByLabelText('Attach files')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
-    expect(screen.queryByText(/Frequently asked questions|Business notes/)).toBeNull();
-  });
-
-  it('drops a stored draft in an older shape without crashing', async () => {
-    sessionStorage.setItem(
-      'wati.ai-draft.3',
-      JSON.stringify({ displayName: 'Old draft', instructions: 'Be kind', context: 'RM10' }),
-    );
-    const initial = status();
-    initial.settings.instructions = 'Saved rules';
-    setup(initial);
-    expect(((await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement).value).toBe(
-      'Saved rules',
-    );
-    expect(screen.queryByText('Unsaved')).toBeNull();
-    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
-  });
-
-  it('keeps Turn on disabled until there is a context item', async () => {
+  it('keeps Turn on disabled until there is a context item, then turns on', async () => {
     setup();
     const user = userEvent.setup();
     const turnOn = (await screen.findByRole('button', { name: 'Turn on' })) as HTMLButtonElement;
     expect(turnOn.disabled).toBe(true);
     expect(screen.getByText('Needs business context')).toBeTruthy();
     expect(screen.getByText('Add business context first.')).toBeTruthy();
-    await user.type(screen.getByLabelText('AI instructions'), 'Be friendly');
-    expect(turnOn.disabled).toBe(true);
-    expect(screen.getByText('Needs business context')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Add text content' }));
     const dialog = await screen.findByRole('dialog');
@@ -350,138 +367,100 @@ describe('AI member page', () => {
   it('Turn on saves unsaved edits in the same request', async () => {
     const { fetchMock } = setup(withContext());
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief.');
+    const role = await screen.findByLabelText('Role (instructions)');
+    await user.clear(role);
+    await user.type(role, 'Be brief.');
     expect(screen.getByText('Unsaved')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Turn on' }));
     await screen.findByRole('button', { name: 'Turn off' });
     expect(screen.getByText('On')).toBeTruthy();
-    const puts = writes(fetchMock);
-    expect(puts.map((call) => `${call[1]!.method} ${call[0]}`)).toEqual(['PUT /api/ai']);
-    expect(JSON.parse(String(puts[0]![1]!.body))).toEqual({
+    expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']);
+    // Lite never sends an inbox: its one agent always answers inbox 1.
+    expect(lastBody(fetchMock)).toEqual({
       displayName: 'Sales Assistant',
-      instructions: 'Be brief.',
-      handoffRules: DEFAULT_AI_HANDOFF_RULES,
       enabled: true,
+      preset: 'sales',
+      instructions: 'Be brief.',
+      handoffRules: SALES.handoffRules,
     });
     expect(screen.queryByText('Unsaved')).toBeNull();
   });
 
-  it('labels each Try it answer with the AI decision', async () => {
-    setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({
-            ok: true,
-            reply: 'A human agent will help with your question.',
-            action: 'handoff',
-            handoffReason: 'sensitive',
-            model: 'gpt-6.1-sol',
-            error: null,
-          })
-        : undefined,
-    );
+  it('Turn off saves the agent as disabled', async () => {
+    const { fetchMock } = setup(withContext({ enabled: true }));
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Customer question'), 'I want a refund');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(await screen.findByText('Would hand off')).toBeTruthy();
-    expect(screen.getByText('Reason: sensitive topic')).toBeTruthy();
-    expect(screen.queryByText(/no matching business knowledge/i)).toBeNull();
+    await user.click(await screen.findByRole('button', { name: 'Turn off' }));
+    await screen.findByRole('button', { name: 'Turn on' });
+    expect(lastBody(fetchMock)).toMatchObject({ enabled: false });
   });
 
-  it('explains a hand-off that happened without calling the model', async () => {
-    setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({
-            ok: true,
-            reply: 'A human agent will help with your question.',
-            action: 'handoff',
-            model: null,
-            error: null,
-          })
-        : undefined,
-    );
-    const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Customer question'), 'Do you sell tyres?');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(await screen.findByText('Would hand off')).toBeTruthy();
-    expect(screen.getByText(/No matching business knowledge was found/)).toBeTruthy();
+  it('keeps the role and hand-over rules in a closed Advanced section', async () => {
+    setup();
+    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    const details = summary.closest('details')!;
+    expect(details.open).toBe(false);
+    expect(within(details).getByText('Using recommended settings')).toBeTruthy();
+    expect(within(details).getByText(/Using the Sales starting text/)).toBeTruthy();
+    expect(within(details).queryByRole('button', { name: /Use the .* template/ })).toBeNull();
   });
 
-  it('Try it sends the current unsaved name and instructions and shows the answer and model', async () => {
-    const { fetchMock } = setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({
-            ok: true,
-            reply: 'Delivery is RM10.',
-            action: 'answer',
-            model: 'gpt-6.1-sol',
-            error: null,
-          })
+  it('says Customised and offers the template, which asks before replacing the texts', async () => {
+    setup(world({ agents: [agentStatus(5, {}, { instructions: 'Only answer in haiku.' })] }));
+    const user = userEvent.setup();
+    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    expect(within(summary.closest('details')!).getByText('Customised')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Use the Sales template' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByText('Use the Sales template?')).toBeTruthy();
+    await user.click(within(confirm).getByRole('button', { name: 'Use template' }));
+    expect((screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value).toBe(
+      SALES.instructions,
+    );
+    expect(screen.queryByRole('button', { name: 'Use the Sales template' })).toBeNull();
+  });
+
+  it('Try it sends the agent id and the unsaved name and texts', async () => {
+    const { fetchMock } = setup(world(), undefined, (url, init) =>
+      url === '/api/ai/agents/5/try' && init?.method === 'POST'
+        ? json({ ok: true, reply: 'Delivery is RM10.', action: 'answer', model: 'm', error: null })
         : undefined,
     );
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief.');
+    const name = await screen.findByLabelText('Agent name');
+    await user.clear(name);
+    await user.type(name, 'Ezy Bot');
     await user.type(screen.getByLabelText('Customer question'), 'How much is delivery?');
     await user.click(screen.getByRole('button', { name: 'Ask' }));
     await screen.findByText('Delivery is RM10.');
-    expect(screen.getByText('Model: gpt-6.1-sol')).toBeTruthy();
-    expect(screen.getByText('Answer')).toBeTruthy();
-    const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/try')!;
+    const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/agents/5/try')!;
     expect(JSON.parse(String(call[1]!.body))).toEqual({
       question: 'How much is delivery?',
       knowledge: {
-        displayName: 'Sales Assistant',
-        instructions: 'Be brief.',
-        handoffRules: DEFAULT_AI_HANDOFF_RULES,
+        displayName: 'Ezy Bot',
+        instructions: SALES.instructions,
+        handoffRules: SALES.handoffRules,
       },
+      agentId: 5,
     });
     expect(writes(fetchMock).some((c) => c[1]!.method === 'PUT')).toBe(false);
   });
 
-  it('uploading before the first save creates a draft member, then uploads, keeping typed text', async () => {
-    const initial = status();
-    initial.member = null;
-    const { fetchMock } = setup(initial, (url, init, current) =>
-      url === '/api/ai/documents' && init?.method === 'POST'
+  it('shows the connection banner and deep-links to Settings → AI', async () => {
+    const w = world();
+    setup(w, undefined, (url) =>
+      url === '/api/ai'
         ? json({
-            ...current,
-            documents: [{ ...item, name: 'hours.md', kind: 'file' }],
+            ...memberStatus(w),
+            settings: { ...memberStatus(w).settings, mode: 'chatgpt' },
+            connection: {
+              state: 'error',
+              loginUrl: null,
+              error: 'ChatGPT stopped accepting this connection.',
+              email: 'owner@example.com',
+            },
           })
         : undefined,
     );
-    const user = userEvent.setup();
-    const name = await screen.findByLabelText('AI member name');
-    await user.clear(name);
-    await user.type(name, 'Ezy Bot');
-    await user.type(screen.getByLabelText('AI instructions'), 'Be brief');
-    await user.upload(
-      screen.getByTestId('ai-context-file'),
-      new File(['Delivery RM10'], 'hours.md', { type: 'text/markdown' }),
-    );
-    expect((await screen.findAllByText('hours.md')).length).toBeGreaterThan(0);
-    expect(writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`)).toEqual([
-      'PUT /api/ai',
-      'POST /api/ai/documents',
-    ]);
-    expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body))).toMatchObject({
-      displayName: 'Ezy Bot',
-      instructions: 'Be brief',
-      enabled: false,
-    });
-    expect((screen.getByLabelText('AI instructions') as HTMLTextAreaElement).value).toBe(
-      'Be brief',
-    );
-  });
-
-  it('shows the connection banner and deep-links to Settings → AI', async () => {
-    const initial = status();
-    initial.settings.mode = 'chatgpt';
-    initial.connection = {
-      state: 'error',
-      loginUrl: null,
-      error: 'ChatGPT stopped accepting this connection.',
-      email: 'owner@example.com',
-    };
-    setup(initial);
     const user = userEvent.setup();
     expect(await screen.findByText('ChatGPT connection stopped working')).toBeTruthy();
     const links = screen.getAllByRole('link', { name: 'Settings → AI' });
@@ -499,148 +478,267 @@ describe('AI member page', () => {
     );
   });
 
-  it('restores unsaved edits after leaving for Settings → AI and coming back', async () => {
-    sessionStorage.clear();
+  it('restores unsaved edits per agent and opens Advanced for them', async () => {
     const first = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('AI instructions'), 'Be brief');
-    expect(JSON.parse(sessionStorage.getItem('wati.ai-draft.3')!).instructions).toBe('Be brief');
-    await user.click(screen.getAllByRole('link', { name: 'Settings → AI' })[0]!);
-    expect(screen.getByTestId('location').textContent).toBe('/admin/settings/ai');
+    const role = await screen.findByLabelText('Role (instructions)');
+    await user.clear(role);
+    await user.type(role, 'Be brief');
+    const stored = JSON.parse(sessionStorage.getItem('wati.ai-draft.5')!);
+    expect(stored).toMatchObject({ preset: 'sales', draft: { instructions: 'Be brief' } });
     cleanup();
-    vi.unstubAllGlobals();
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
     first.fetchMock.mockClear();
     setup();
-    expect(((await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement).value).toBe(
-      'Be brief',
-    );
+    const restored = (await screen.findByLabelText('Role (instructions)')) as HTMLTextAreaElement;
+    expect(restored.value).toBe('Be brief');
+    expect(restored.closest('details')!.open).toBe(true);
     expect(screen.getByText('Unsaved')).toBeTruthy();
-    sessionStorage.clear();
   });
 
-  it('clears the stored draft once saved', async () => {
-    sessionStorage.clear();
-    setup();
-    const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('AI instructions'), 'x');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.3')).toBeNull());
-  });
-
-  it('ignores a second file pick while the draft is being saved', async () => {
-    const initial = status();
-    initial.member = null;
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    const { fetchMock } = setup(initial, (url, init, current) => {
-      if (url === '/api/ai' && init?.method === 'PUT')
-        return gate.then(() => json({ ...current, member: aiUser })) as unknown as Response;
-      if (url === '/api/ai/documents' && init?.method === 'POST') return json(current);
-      return undefined;
-    });
-    const user = userEvent.setup();
-    const input = await screen.findByTestId('ai-context-file');
-    await user.upload(input, new File(['a'], 'a.md', { type: 'text/markdown' }));
-    await user.upload(input, new File(['b'], 'b.md', { type: 'text/markdown' }));
-    release();
-    await waitFor(() =>
-      expect(writes(fetchMock).some((c) => c[0] === '/api/ai/documents')).toBe(true),
+  it('drops a stored draft in an older shape without crashing', async () => {
+    sessionStorage.setItem(
+      'wati.ai-draft.5',
+      JSON.stringify({ displayName: 'Old draft', instructions: 'Be kind', handoffRules: '' }),
     );
-    expect(writes(fetchMock).filter((c) => c[1]!.method === 'PUT')).toHaveLength(1);
-    expect(writes(fetchMock).filter((c) => c[0] === '/api/ai/documents')).toHaveLength(1);
+    setup(world({ agents: [agentStatus(5, {}, { instructions: 'Saved rules' })] }));
+    expect(
+      ((await screen.findByLabelText('Role (instructions)')) as HTMLTextAreaElement).value,
+    ).toBe('Saved rules');
+    expect(screen.queryByText('Unsaved')).toBeNull();
+    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.5')).toBeNull());
   });
 
-  it('shows a Try it server failure and an API error', async () => {
-    let n = 0;
-    setup(status(), (url, init) => {
-      if (url !== '/api/ai/try' || init?.method !== 'POST') return undefined;
-      return n++ === 0
-        ? json({ ok: false, reply: null, action: null, model: null, error: 'quota used up' })
-        : json({ error: { code: 'ai_unavailable', message: 'AI is not connected' } }, 409);
-    });
+  it('saves edits, then clears the stored draft', async () => {
+    const { fetchMock } = setup();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText('Customer question'), 'Hi?');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    await screen.findByText('Could not answer: quota used up');
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    await screen.findByText('AI is not connected');
+    const rules = await screen.findByLabelText('Hand-over rules');
+    await user.clear(rules);
+    await user.type(rules, '- The customer asks for a wholesale price');
+    expect(screen.getByText(/Always handed over, whatever you write here/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
+    expect(lastBody(fetchMock).handoffRules).toBe('- The customer asks for a wholesale price');
+    await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.5')).toBeNull());
   });
 
-  it('Turn off saves the member as disabled', async () => {
-    const initial = status();
-    initial.member = { ...aiUser, disabled: false };
-    initial.settings.enabled = true;
-    initial.documents = [{ ...item }];
-    const { fetchMock } = setup(initial);
+  it('asks for a name before saving', async () => {
+    const { fetchMock } = setup();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Turn off' }));
-    await screen.findByRole('button', { name: 'Turn on' });
-    const puts = writes(fetchMock);
-    expect(JSON.parse(String(puts[0]![1]!.body))).toMatchObject({ enabled: false });
-    expect(screen.getByText('Off')).toBeTruthy();
+    await user.clear(await screen.findByLabelText('Agent name'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Enter a name for the agent.')).toBeTruthy();
+    expect(writes(fetchMock)).toEqual([]);
   });
 
-  it('shows the default AI instructions and restores them with Use default', async () => {
-    const initial = status();
-    initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
-    setup(initial);
-    const box = (await screen.findByLabelText('AI instructions')) as HTMLTextAreaElement;
-    expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
-    expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
-    expect(screen.getByText(/Using the recommended instructions/)).toBeTruthy();
-    const user = userEvent.setup();
-    await user.clear(box);
-    await user.type(box, 'Always mention our Grab link.');
-    expect(screen.queryByText(/Using the recommended instructions/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Use default instructions' }));
-    expect(box.value).toBe(DEFAULT_AI_INSTRUCTIONS);
-    expect(screen.queryByRole('button', { name: 'Use default instructions' })).toBeNull();
-  });
-
-  it('Try it asks on Enter and keeps Shift+Enter for a new line', async () => {
-    const { fetchMock } = setup(status(), (url, init) =>
-      url === '/api/ai/try' && init?.method === 'POST'
-        ? json({ ok: true, reply: 'Delivery is RM10.', action: 'answer', model: 'm', error: null })
+  it('shows a save error from the server', async () => {
+    setup(world(), undefined, (url, init) =>
+      url === '/api/ai/agents/5' && init?.method === 'PUT'
+        ? json({ error: { code: 'agent_not_found', message: 'AI agent not found' } }, 404)
         : undefined,
     );
     const user = userEvent.setup();
-    const box = (await screen.findByLabelText('Customer question')) as HTMLTextAreaElement;
-    await user.type(box, 'How much{Shift>}{Enter}{/Shift}is delivery?');
-    expect(box.value).toBe('How much' + String.fromCharCode(10) + 'is delivery?');
-    expect(fetchMock.mock.calls.some((c) => c[0] === '/api/ai/try')).toBe(false);
-    await user.type(box, '{Enter}');
-    await screen.findByText('Delivery is RM10.');
-    const tries = fetchMock.mock.calls.filter((c) => c[0] === '/api/ai/try');
-    expect(tries).toHaveLength(1);
-    expect(JSON.parse(String(tries[0]![1]!.body)).question).toBe(
-      'How much' + String.fromCharCode(10) + 'is delivery?',
-    );
+    await user.type(await screen.findByLabelText('Agent name'), '!');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(
+      await screen.findByText('This AI agent does not exist. It may have been deleted.'),
+    ).toBeTruthy();
   });
 
-  it('edits business hand-off rules, shows the fixed system hand-offs, and restores the defaults', async () => {
+  describe('create', () => {
+    it('creates a FAQ agent with the FAQ starting texts and opens it', async () => {
+      const w = world({ maxAgents: 2, agents: [agentStatus()] });
+      const { fetchMock } = setup(w, '/admin/members/ai/new?preset=faq');
+      const user = userEvent.setup();
+      const picker = await screen.findByRole('radiogroup', { name: 'Starting point' });
+      expect(
+        (within(picker).getByRole('radio', { name: /FAQ/ }) as HTMLButtonElement).dataset.state,
+      ).toBe('checked');
+      expect(cardTitles().slice(0, 2)).toEqual(['Starting point', 'Name']);
+      expect(screen.getByRole('heading', { name: 'New AI agent' })).toBeTruthy();
+      // A new agent has no items yet and the Advanced texts are open.
+      expect(screen.getByText('Save the agent first, then add its Business context.')).toBeTruthy();
+      expect(
+        screen.getByText('Save the agent first, then try it with a test question.'),
+      ).toBeTruthy();
+      const role = screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement;
+      expect(role.value).toBe(FAQ.instructions);
+      expect(role.closest('details')!.open).toBe(true);
+      expect(screen.queryByRole('button', { name: 'Turn on' })).toBeNull();
+      await user.type(screen.getByLabelText('Agent name'), 'Help Desk');
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual(['POST /api/ai/agents']);
+      expect(lastBody(fetchMock)).toEqual({
+        displayName: 'Help Desk',
+        enabled: false,
+        preset: 'faq',
+        instructions: FAQ.instructions,
+        handoffRules: FAQ.handoffRules,
+        // Every inbox has an agent: the new one answers none until it is bound.
+        inboxId: null,
+      });
+      expect(sessionStorage.getItem('wati.ai-draft.new-faq')).toBeNull();
+    });
+
+    it('binds a new agent to the first free inbox in Enterprise', async () => {
+      const w = enterprise({
+        agents: [agentStatus(5)],
+        inboxes: [
+          { id: 1, name: 'Sales line', aiAgentId: 5 },
+          { id: 2, name: 'Support line', aiAgentId: null },
+        ],
+      });
+      const { fetchMock } = setup(w, '/admin/members/ai/new');
+      const user = userEvent.setup();
+      await screen.findByTestId('agent-inbox');
+      await waitFor(() =>
+        expect(within(screen.getByTestId('agent-inbox')).getByRole('combobox').textContent).toBe(
+          'Support line',
+        ),
+      );
+      await user.type(screen.getByLabelText('Agent name'), 'Second');
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() => expect(writeLines(fetchMock)).toEqual(['POST /api/ai/agents']));
+      expect(lastBody(fetchMock)).toMatchObject({ preset: 'sales', inboxId: 2 });
+    });
+
+    it('switches the starting texts directly while unedited, and asks once edited', async () => {
+      setup(world({ maxAgents: 2 }), '/admin/members/ai/new');
+      const user = userEvent.setup();
+      const picker = await screen.findByRole('radiogroup', { name: 'Starting point' });
+      const role = screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement;
+      expect(role.value).toBe(SALES.instructions);
+      await user.click(within(picker).getByRole('radio', { name: /FAQ/ }));
+      expect(role.value).toBe(FAQ.instructions);
+      await user.type(role, ' Extra.');
+      await user.click(within(picker).getByRole('radio', { name: /Custom/ }));
+      const confirm = await screen.findByRole('alertdialog');
+      expect(within(confirm).getByText('Use the Custom template?')).toBeTruthy();
+      await user.click(within(confirm).getByRole('button', { name: 'Use template' }));
+      expect(role.value).toBe('');
+      expect(screen.getByText('Role not written yet')).toBeTruthy();
+    });
+
+    it('says the limit is reached instead of a create page', async () => {
+      setup(world(), '/admin/members/ai/new');
+      expect(await screen.findByText('You have the maximum number of AI agents')).toBeTruthy();
+      expect(screen.getByText('Lite has one AI agent. Change your agent instead.')).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Back to Members' }).getAttribute('href')).toBe(
+        '/admin/members',
+      );
+    });
+  });
+
+  it('says an unknown agent does not exist', async () => {
+    setup(world(), '/admin/members/ai/99');
+    expect(await screen.findByText('This AI agent does not exist')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to Members' })).toBeTruthy();
+  });
+
+  it('Lite renders no inbox select, no inbox chip and no Delete', async () => {
     const { fetchMock } = setup();
-    const box = (await screen.findByLabelText('Hand-off rules')) as HTMLTextAreaElement;
-    expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
-    expect(screen.getByText(/Always handed over, whatever you write here/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Use default rules' })).toBeNull();
-    const user = userEvent.setup();
-    await user.clear(box);
-    await user.type(box, '- The customer asks for a wholesale price');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(writes(fetchMock)).toHaveLength(1));
-    expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body)).handoffRules).toBe(
-      '- The customer asks for a wholesale price',
-    );
-    await user.click(screen.getByRole('button', { name: 'Use default rules' }));
-    expect(box.value).toBe(DEFAULT_AI_HANDOFF_RULES);
+    await screen.findByText('Business context');
+    expect(screen.queryByTestId('agent-inbox')).toBeNull();
+    expect(screen.queryByTestId('inbox-chip')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete agent' })).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0] === '/api/inboxes')).toBe(false);
+  });
+
+  describe('Enterprise', () => {
+    it('shows the inbox chip and the inbox select with the agent on each inbox', async () => {
+      setup(enterprise());
+      const user = userEvent.setup();
+      expect((await screen.findByTestId('inbox-chip')).textContent).toBe('Sales line');
+      const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
+      await waitFor(() => expect(select.textContent).toBe('Sales line'));
+      await user.click(select);
+      expect(
+        await screen.findByRole('option', { name: 'Support line (has Help Desk)' }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('option', { name: 'None (the agent does not answer any chat)' }),
+      ).toBeTruthy();
+    });
+
+    it('moving to an inbox with another agent warns, frees it, then saves the binding', async () => {
+      const { fetchMock } = setup(enterprise());
+      const user = userEvent.setup();
+      const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
+      await waitFor(() => expect(select.textContent).toBe('Sales line'));
+      await user.click(select);
+      await user.click(await screen.findByRole('option', { name: 'Support line (has Help Desk)' }));
+      expect(screen.getByText(/Help Desk answers Support line now/)).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() =>
+        expect(writeLines(fetchMock)).toEqual(['PATCH /api/inboxes/2', 'PUT /api/ai/agents/5']),
+      );
+      expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body))).toEqual({ aiAgentId: null });
+      expect(lastBody(fetchMock)).toMatchObject({ inboxId: 2 });
+    });
+
+    it('gives the inbox back to the other agent when the save after freeing it fails', async () => {
+      const { fetchMock } = setup(enterprise(), '/admin/members/ai/5', (url, init) =>
+        url === '/api/ai/agents/5' && init?.method === 'PUT'
+          ? json({ error: { code: 'inbox_has_agent', message: 'Inbox has agent' } }, 409)
+          : undefined,
+      );
+      const user = userEvent.setup();
+      const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
+      await waitFor(() => expect(select.textContent).toBe('Sales line'));
+      await user.click(select);
+      await user.click(await screen.findByRole('option', { name: 'Support line (has Help Desk)' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        await screen.findByText('This inbox already has an AI agent. Choose another inbox.'),
+      ).toBeTruthy();
+      expect(writeLines(fetchMock)).toEqual([
+        'PATCH /api/inboxes/2',
+        'PUT /api/ai/agents/5',
+        'PATCH /api/inboxes/2',
+      ]);
+      expect(lastBody(fetchMock)).toEqual({ aiAgentId: 6 });
+    });
+
+    it('keeps the agent and shows why when Delete is refused', async () => {
+      const { fetchMock } = setup(enterprise(), '/admin/members/ai/5', (url, init) =>
+        url === '/api/ai/agents/5' && init?.method === 'DELETE'
+          ? json({ error: { code: 'last_agent', message: 'Last agent' } }, 409)
+          : undefined,
+      );
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Delete agent' }));
+      const confirm = await screen.findByRole('alertdialog');
+      await user.click(within(confirm).getByRole('button', { name: 'Delete agent' }));
+      expect(await screen.findByText('You cannot delete the only AI agent.')).toBeTruthy();
+      expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/5');
+      expect(writeLines(fetchMock)).toEqual(['DELETE /api/ai/agents/5']);
+    });
+
+    it('says when the agent answers no inbox', async () => {
+      setup(
+        enterprise({
+          agents: [agentStatus(5, { inboxId: null })],
+          inboxes: [{ id: 1, name: 'Sales line', aiAgentId: null }],
+        }),
+      );
+      expect(await screen.findByText('No inbox')).toBeTruthy();
+    });
+
+    it('Delete names the item count, deletes and goes back to Members', async () => {
+      const { fetchMock } = setup(enterprise());
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Delete agent' }));
+      const confirm = await screen.findByRole('alertdialog');
+      expect(within(confirm).getByText('Delete Sales Assistant?')).toBeTruthy();
+      expect(within(confirm).getByText(/Its 2 Business context/)).toBeTruthy();
+      await user.click(within(confirm).getByRole('button', { name: 'Delete agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members'),
+      );
+      expect(writeLines(fetchMock)).toEqual(['DELETE /api/ai/agents/5']);
+    });
   });
 
   describe('Edit with AI', () => {
@@ -649,79 +747,48 @@ describe('AI member page', () => {
         .getByText(title, { selector: '[data-slot="card-title"]' })
         .closest('[data-slot="card"]')!;
 
-    it('applies a suggestion to the hand-off rules box without saving', async () => {
-      const initial = status();
-      initial.settings.handoffRules = 'Hand off complaints.';
-      const { fetchMock } = setup(initial, (url, init) =>
-        url === '/api/ai/edit' && init?.method === 'POST'
-          ? json({
-              ok: true,
-              text: 'Hand off complaints.\nHand off refund requests.',
-              error: null,
-            })
-          : undefined,
+    it("rewrites the hand-over rules with the agent's route and preset, without saving", async () => {
+      const { fetchMock } = setup(
+        world({
+          agents: [agentStatus(5, { preset: 'faq' }, { handoffRules: 'Hand off complaints.' })],
+        }),
+        undefined,
+        (url, init) =>
+          url === '/api/ai/agents/5/edit' && init?.method === 'POST'
+            ? json({ ok: true, text: 'Hand off complaints.\nHand off refunds.', error: null })
+            : undefined,
       );
       const user = userEvent.setup();
-      await screen.findByText('Name & role');
+      await screen.findByText('Business context');
       await user.click(
-        within(card('Hand-off rules') as HTMLElement).getByRole('button', {
+        within(card('Hand-over rules') as HTMLElement).getByRole('button', {
           name: 'Edit with AI',
         }),
       );
       const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Edit hand-off rules with AI')).toBeTruthy();
-      await user.type(
-        within(dialog).getByLabelText('What should change?'),
-        'Hand refund requests to a person',
-      );
+      await user.type(within(dialog).getByLabelText('What should change?'), 'Add refunds');
       await user.click(within(dialog).getByRole('button', { name: 'Suggest' }));
       await within(dialog).findByText('Suggested hand-off rules');
-      const sent = fetchMock.mock.calls.find((call) => call[0] === '/api/ai/edit');
-      expect(JSON.parse(String(sent![1]!.body))).toEqual({
-        field: 'handoffRules',
-        current: 'Hand off complaints.',
-        request: 'Hand refund requests to a person',
-      });
+      const sent = fetchMock.mock.calls.find((call) => call[0] === '/api/ai/agents/5/edit')!;
+      expect(JSON.parse(String(sent[1]!.body))).toMatchObject({ preset: 'faq' });
       await user.click(within(dialog).getByRole('button', { name: 'Apply to hand-off rules' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toBe(
-        'Hand off complaints.\nHand off refund requests.',
+      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toBe(
+        'Hand off complaints.\nHand off refunds.',
       );
       expect(screen.getByText('Unsaved')).toBeTruthy();
-      expect(writes(fetchMock).map((call) => call[0])).toEqual(['/api/ai/edit']);
-    });
-
-    it('opens on the AI instructions card for that box', async () => {
-      setup();
-      const user = userEvent.setup();
-      await screen.findByText('Name & role');
-      // Compact next to the card title on desktop, a 44 px target on touch screens.
-      const open = within(card('AI instructions') as HTMLElement).getByRole('button', {
-        name: 'Edit with AI',
-      });
-      expect(open.className).toMatch(/(^|\s)h-8(\s|$)/);
-      expect(open.className).toMatch(/(^|\s)pointer-coarse:min-h-11(\s|$)/);
-      expect(open.parentElement!.className).toMatch(/(^|\s)self-center(\s|$)/);
-      expect(open.closest('[data-slot="card-header"]')!.className).toMatch(
-        /(^|\s)items-center(\s|$)/,
-      );
-      await user.click(open);
-      const dialog = await screen.findByRole('dialog');
-      expect(within(dialog).getByText('Edit AI instructions with AI')).toBeTruthy();
-      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(writeLines(fetchMock)).toEqual(['POST /api/ai/agents/5/edit']);
     });
 
     it('is disabled with the reason while the AI is not connected', async () => {
-      const initial = status();
-      initial.hasApiKey = false;
-      setup(initial);
-      await screen.findByText('Name & role');
+      const w = world();
+      w.connected = false;
+      setup(w);
+      await screen.findByText('Business context');
       const buttons = screen.getAllByRole('button', { name: 'Edit with AI' });
       expect(buttons).toHaveLength(2);
       for (const button of buttons) {
         expect((button as HTMLButtonElement).disabled).toBe(true);
-        expect(button.getAttribute('title')).toBe('Connect the AI above to use Edit with AI.');
         const describedBy = button.getAttribute('aria-describedby') ?? '';
         expect(document.getElementById(describedBy)?.textContent).toBe(
           'Connect the AI above to use Edit with AI.',
@@ -733,14 +800,13 @@ describe('AI member page', () => {
   it('shows the never-edited defaults in the admin language (Malay)', async () => {
     await activateLocale('ms');
     try {
-      const initial = status();
-      initial.settings.instructions = DEFAULT_AI_INSTRUCTIONS;
-      setup(initial);
-      const rules = (await screen.findByLabelText('Peraturan serahan')) as HTMLTextAreaElement;
-      expect(rules.value).toBe(msAdmin.ai.defaults.handoffRules);
+      setup();
+      const rules = (await screen.findByLabelText(
+        msAdmin.ai.agents.handoffTitle,
+      )) as HTMLTextAreaElement;
+      expect(rules.value).toBe(msAdmin.ai.defaults.sales.handoffRules);
       expect(screen.getByDisplayValue(/PERANAN/)).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Guna arahan lalai' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Guna peraturan lalai' })).toBeNull();
+      expect(screen.queryByText('Unsaved')).toBeNull();
     } finally {
       await activateLocale('en');
     }

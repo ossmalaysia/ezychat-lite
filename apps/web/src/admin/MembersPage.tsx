@@ -1,20 +1,33 @@
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import type React from 'react';
 import {
   Bot,
   KeyRound,
   LogOut,
+  MessageCircleQuestionMark,
   MoreHorizontal,
   Pencil,
+  PencilLine,
   RefreshCw,
+  ShoppingBag,
   UserCheck,
   UserPlus,
   UserX,
+  type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trans, useTranslation } from 'react-i18next';
-import { intlTag, isLocale, type Role, type User } from '@ezychat/shared';
+import {
+  intlTag,
+  isLocale,
+  type AiAgentPreset,
+  type AiAgentSummary,
+  type Inbox,
+  type Role,
+  type User,
+} from '@ezychat/shared';
+import { useAiAgents } from '../api/ai';
 import { errorMessage } from '../api/client';
 import {
   useCreateUser,
@@ -64,6 +77,7 @@ import {
   generatePassword,
 } from './adminUi';
 import { InboxAccessCell } from './InboxAccess';
+import { InboxChip } from '../inbox/InboxChip';
 
 type Dialog =
   | { kind: 'create' }
@@ -73,9 +87,15 @@ type Dialog =
   | { kind: 'disable'; user: User }
   | null;
 
+/** AI agent id -> agent, for the AI rows (each AI team member is one agent). */
+const AgentRows = createContext<ReadonlyMap<number, AiAgentSummary>>(new Map());
+const agentPath = (user: User) =>
+  user.aiAgentId === undefined ? '/admin/members/ai' : `/admin/members/ai/${user.aiAgentId}`;
+
 export function MembersPage() {
   const users = useUsers();
   const inboxList = useInboxes();
+  const agentList = useAiAgents();
   const { user: me } = useAuth();
   const { t, i18n } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -83,9 +103,18 @@ export function MembersPage() {
   const close = () => setDialog(null);
 
   const all = users.data ?? [];
+  const agents = agentList.data?.agents ?? [];
+  const agentRows = new Map(agents.map((a) => [a.id, a]));
+  // Add AI agent: only once the list is known and while the edition allows another agent.
+  const canAddAgent = agentList.data !== undefined && agents.length < agentList.data.maxAgents;
+  const atAgentLimit = agentList.data !== undefined && !canAddAgent && agentList.data.maxAgents > 1;
+  const aiSearchText = (u: User) => {
+    const agent = u.aiAgentId === undefined ? undefined : agentRows.get(u.aiAgentId);
+    return `${t('ai.agents.aiBadge')} ${agent ? t(`ai.presets.${agent.preset}`) : ''}`;
+  };
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? t('ai.roleBadge') : ''}`
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? aiSearchText(u) : ''}`
       .toLocaleLowerCase()
       .includes(query),
   );
@@ -93,6 +122,12 @@ export function MembersPage() {
   // Inbox access shows only in an edition with several WhatsApp numbers (never in Lite).
   const multiInbox = (inboxList.data?.maxInboxes ?? 1) > 1;
   const inboxes = (inboxList.data?.inboxes ?? []).filter((i) => !i.removed);
+  const memberInboxCell = (u: User) =>
+    u.kind === 'ai' ? (
+      <AgentInboxCell user={u} inboxes={inboxes} />
+    ) : (
+      <InboxAccessCell user={u} inboxes={inboxes} />
+    );
 
   const columns: Column<User>[] = [
     {
@@ -103,7 +138,7 @@ export function MembersPage() {
     {
       key: 'role',
       header: t('members.columns.role'),
-      cell: (u) => (u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />),
+      cell: (u) => (u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />),
     },
     { key: 'status', header: t('members.columns.status'), cell: (u) => <StatusBadges user={u} /> },
     ...(multiInbox
@@ -111,7 +146,7 @@ export function MembersPage() {
           {
             key: 'inboxes',
             header: t('inboxes.membersAccess'),
-            cell: (u: User) => <InboxAccessCell user={u} inboxes={inboxes} />,
+            cell: memberInboxCell,
           },
         ]
       : []),
@@ -136,125 +171,167 @@ export function MembersPage() {
   ];
 
   return (
-    <div>
-      <PageHeader
-        title={t('members.title')}
-        description={t('ai.membersDescription')}
-        actions={
-          <>
-            {!users.isPending && !users.isError && !all.some((u) => u.kind === 'ai') && (
-              <Button asChild variant="outline" size="touch" className="md:min-h-9">
-                <Link to="/admin/members/ai">
-                  <Bot aria-hidden />
-                  {t('ai.addMember')}
-                </Link>
-              </Button>
-            )}
-            <Button
-              size="touch"
-              className="md:min-h-9"
-              onClick={() => setDialog({ kind: 'create' })}
-            >
-              <UserPlus aria-hidden />
-              {t('members.add')}
-            </Button>
-          </>
-        }
-      />
-
-      <div className="mb-4 space-y-2">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          label={t('members.searchLabel')}
-          placeholder={t('members.searchPlaceholder')}
-        />
-        {!users.isPending && !users.isError && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t('members.count', { shown: list.length, count: all.length })}
-          </p>
-        )}
-      </div>
-      {users.isPending ? (
-        <ListSkeleton />
-      ) : users.isError ? (
-        <ErrorState error={users.error} onRetry={() => void users.refetch()} />
-      ) : (
-        <ResponsiveTable
-          rows={list}
-          columns={columns}
-          rowKey={(u) => u.id}
-          renderMobileRow={(u) => (
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <MemberIdentity user={u} isMe={u.id === me?.id} />
-                <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
-                <StatusBadges user={u} />
-              </div>
-              {multiInbox && (
-                <div className="pl-11">
-                  <InboxAccessCell user={u} inboxes={inboxes} />
-                </div>
+    <AgentRows.Provider value={agentRows}>
+      <div>
+        <PageHeader
+          title={t('members.title')}
+          description={t('ai.membersDescription')}
+          actions={
+            <>
+              {!users.isPending && !users.isError && canAddAgent && (
+                <Button asChild variant="outline" size="touch" className="md:min-h-9">
+                  <Link to="/admin/members/ai/new">
+                    <Bot aria-hidden />
+                    {t('ai.agents.add')}
+                  </Link>
+                </Button>
               )}
-              <p className="pl-11 text-xs text-muted-foreground">
-                <Trans
-                  t={t}
-                  i18nKey="members.added"
-                  values={{ date: formatDate(u.createdAt, i18n.language) }}
-                  components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
-                />
-              </p>
-            </div>
-          )}
-          empty={
-            query ? (
-              <EmptyState
-                title={t('members.empty.noMatchTitle')}
-                description={t('members.empty.noMatchBody')}
-                action={
-                  <Button variant="outline" size="touch" onClick={() => setSearch('')}>
-                    {t('members.empty.clearSearch')}
-                  </Button>
-                }
-              />
-            ) : (
-              <EmptyState
-                title={t('members.empty.noneTitle')}
-                description={t('members.empty.noneBody')}
-              />
-            )
+              <Button
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => setDialog({ kind: 'create' })}
+              >
+                <UserPlus aria-hidden />
+                {t('members.add')}
+              </Button>
+            </>
           }
         />
-      )}
+        {/* Why Add AI agent is missing: every inbox has its agent (editions with several numbers). */}
+        {!users.isPending && !users.isError && atAgentLimit && (
+          <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
+            {t('ai.agents.limitHint')}
+          </p>
+        )}
 
-      {dialog?.kind === 'create' && (
-        <CreateMemberDialog
-          onClose={close}
-          onCreated={(name) => {
-            close();
-            toast.success(t('members.create.done', { name }));
-          }}
-        />
-      )}
-      {dialog?.kind === 'edit' && (
-        <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
-      )}
-      {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
-      {dialog?.kind === 'revoke' && (
-        <RevokeSessionsDialog
-          user={dialog.user}
-          onClose={close}
-          onDone={() => {
-            close();
-            toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
-          }}
-        />
-      )}
-      {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
-    </div>
+        <div className="mb-4 space-y-2">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            label={t('members.searchLabel')}
+            placeholder={t('members.searchPlaceholder')}
+          />
+          {!users.isPending && !users.isError && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t('members.count', { shown: list.length, count: all.length })}
+            </p>
+          )}
+        </div>
+        {users.isPending ? (
+          <ListSkeleton />
+        ) : users.isError ? (
+          <ErrorState error={users.error} onRetry={() => void users.refetch()} />
+        ) : (
+          <ResponsiveTable
+            rows={list}
+            columns={columns}
+            rowKey={(u) => u.id}
+            renderMobileRow={(u) => (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <MemberIdentity user={u} isMe={u.id === me?.id} />
+                  <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pl-11">
+                  {u.kind === 'ai' ? <AiBadge user={u} /> : <RoleBadge role={u.role} />}
+                  <StatusBadges user={u} />
+                </div>
+                {multiInbox && <div className="pl-11">{memberInboxCell(u)}</div>}
+                <p className="pl-11 text-xs text-muted-foreground">
+                  <Trans
+                    t={t}
+                    i18nKey="members.added"
+                    values={{ date: formatDate(u.createdAt, i18n.language) }}
+                    components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
+                  />
+                </p>
+              </div>
+            )}
+            empty={
+              query ? (
+                <EmptyState
+                  title={t('members.empty.noMatchTitle')}
+                  description={t('members.empty.noMatchBody')}
+                  action={
+                    <Button variant="outline" size="touch" onClick={() => setSearch('')}>
+                      {t('members.empty.clearSearch')}
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  title={t('members.empty.noneTitle')}
+                  description={t('members.empty.noneBody')}
+                />
+              )
+            }
+          />
+        )}
+
+        {dialog?.kind === 'create' && (
+          <CreateMemberDialog
+            onClose={close}
+            onCreated={(name) => {
+              close();
+              toast.success(t('members.create.done', { name }));
+            }}
+          />
+        )}
+        {dialog?.kind === 'edit' && (
+          <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
+        )}
+        {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
+        {dialog?.kind === 'revoke' && (
+          <RevokeSessionsDialog
+            user={dialog.user}
+            onClose={close}
+            onDone={() => {
+              close();
+              toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
+            }}
+          />
+        )}
+        {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
+      </div>
+    </AgentRows.Provider>
+  );
+}
+
+function useAgentOf(user: User): AiAgentSummary | undefined {
+  const rows = useContext(AgentRows);
+  return user.aiAgentId === undefined ? undefined : rows.get(user.aiAgentId);
+}
+
+/** An AI agent's inbox: the one it answers, or "No inbox" (shown with two or more numbers). */
+function AgentInboxCell({ user, inboxes }: Readonly<{ user: User; inboxes: Inbox[] }>) {
+  const { t } = useTranslation('admin');
+  const agent = useAgentOf(user);
+  if (!agent) return <span className="text-sm text-muted-foreground">—</span>;
+  const inbox = inboxes.find((i) => i.id === agent.inboxId);
+  return inbox ? (
+    <span className="inline-flex flex-wrap items-center gap-1.5" data-testid="agent-inbox-chip">
+      <InboxChip inbox={inbox} />
+    </span>
+  ) : (
+    <span className="text-sm text-warning">{t('ai.agents.noInbox')}</span>
+  );
+}
+
+const PRESET_ICON: Record<AiAgentPreset, LucideIcon> = {
+  sales: ShoppingBag,
+  faq: MessageCircleQuestionMark,
+  custom: PencilLine,
+};
+
+/** "Sales agent", "FAQ agent", "Custom agent". */
+function PresetBadge({ preset }: Readonly<{ preset: AiAgentPreset }>) {
+  const { t } = useTranslation('admin');
+  const Icon = PRESET_ICON[preset];
+  return (
+    <Badge variant="outline" className="gap-1" data-testid="preset-badge">
+      <Icon aria-hidden className="size-3" />
+      {t('ai.presets.badge', { preset: t(`ai.presets.${preset}`) })}
+    </Badge>
   );
 }
 
@@ -276,14 +353,18 @@ function initials(name: string) {
   );
 }
 
-/** The AI row's robot badge. */
-function AiBadge() {
+/** The AI row's robot badge and its agent's preset. */
+function AiBadge({ user }: Readonly<{ user: User }>) {
   const { t } = useTranslation('admin');
+  const agent = useAgentOf(user);
   return (
-    <Badge variant="secondary" className="gap-1">
-      <Bot aria-hidden className="size-3" />
-      {t('ai.roleBadge')}
-    </Badge>
+    <span className="inline-flex flex-wrap gap-1">
+      <Badge variant="secondary" className="gap-1">
+        <Bot aria-hidden className="size-3" />
+        {t('ai.agents.aiBadge')}
+      </Badge>
+      {agent && <PresetBadge preset={agent.preset} />}
+    </span>
   );
 }
 
@@ -300,7 +381,7 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
         <p className="font-medium [overflow-wrap:anywhere] md:truncate">
           {user.kind === 'ai' ? (
             <Link
-              to="/admin/members/ai"
+              to={agentPath(user)}
               className="inline-flex items-center underline-offset-4 hover:underline pointer-coarse:min-h-11"
             >
               {user.displayName}
@@ -377,7 +458,7 @@ function RowActions({
           className={editClass}
         >
           <Link
-            to="/admin/members/ai"
+            to={agentPath(user)}
             aria-label={
               compact ? t('members.actions.editMember', { name: user.displayName }) : undefined
             }
