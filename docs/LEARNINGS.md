@@ -521,6 +521,10 @@ into AGENTS.md.
   isolation and order end to end; a data-moving migration is also checked from the installed release
   (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
   the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
+- When one thing becomes many (one AI member → one agent per inbox), every extension slot keyed by
+  kind (`agentSections` with `agent: 'sales'`) must also get the instance id, and the screen review must
+  include an Enterprise Dev Build: its Connectors card named the inbox-1 agent on every agent page, which
+  no Lite test or Lite screenshot could show.
 - A soft-deleted user (a deleted AI agent) leaves Members and assignee lists, but name lookups for old
   messages (directory, MCP) must still include it, flagged (`aiDeleted`), or its history turns nameless.
 
