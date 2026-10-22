@@ -537,6 +537,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- An MCP tool that writes text a person reads in a box must say the format: AI assistants hard-wrap long
+  text at about 60–80 characters, and the box shows every line break, so rules looked cut short. The
+  `update_ai_setup` description and `text` field say "one line per paragraph or list item".
+
 - A choice offered only on create (an agent's Sales / FAQ / Custom type) is out of reach when the edition
   allows one item that cannot be deleted (Lite: one agent, `last_agent`), and for every upgraded install whose
   item was created by a migration. For each create-only field, ask "can this user ever create again?"; if not,
