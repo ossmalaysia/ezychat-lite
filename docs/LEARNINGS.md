@@ -534,6 +534,12 @@ into AGENTS.md.
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
   time, only when asked for. A LID-only member may already have a chat whose fallback name is its
   number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is. Baileys (rc14) resolves a timed-out query to `undefined` instead of throwing: treat a missing result as a failure.
+- Baileys (rc14) delivers one live reaction twice: as a `reactionMessage` in `messages.upsert` and as
+  `messages.reaction`. Read one path only (the upsert, which history batches share); history keeps older
+  reactions on the reacted message itself (`WebMessageInfo.reactions`).
+- Anything WhatsApp attaches to a message by its id (reactions, receipts) can arrive before the message
+  or before an own send is renamed from `local-…`: key it by the stored message key, keep it, attach it
+  at presentation, and let a newer timestamp win so a late history copy never undoes a live change.
 
 ## AI sales agent
 

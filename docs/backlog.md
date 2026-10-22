@@ -5,13 +5,11 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
-- **Emoji reactions are not shown** (owner, 2026-10-22). WhatsApp shows a reaction (e.g. 👍) as a small
-  badge under the message; EzyChat never shows it. Cause: `packages/wa/src/baileys/mapping.ts` drops
-  `reactionMessage` (returns null), so reactions are never stored. Needs: map reactions (target message
-  id, reactor, emoji; an empty emoji removes it) for live and history messages, store them per message
-  (one per person), a socket update, and a badge under the bubble with who reacted. Changes under
-  `packages/wa/src/baileys/**` must be smoke-tested against real WhatsApp (receive only). Mock first
-  (screen change). Later, optionally, let the team react.
+- **Emoji reactions: receive and show done** (branch `feat/emoji-reactions`, 2026-10-23; design
+  `docs/features/emoji-reactions/design.md`). Left: (1) a live smoke against real WhatsApp of the Baileys
+  mapping (`mapWAReaction`, `mapStoredReactions`: live, change, removal, group, history), still
+  **untested against real WhatsApp**; (2) **let the team react** from EzyChat (send a `react` message,
+  mock first); (3) optionally show "reacted 👍 to …" in the chat list preview.
 - **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
   no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
 
