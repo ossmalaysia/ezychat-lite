@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import type { AiAgentSummary, Inbox, User, WaStatus } from '@ezychat/shared';
-import { aiAgentsKey, aiMemberKey, useAiAgents } from '../api/ai';
+import { refreshAgents, useAiAgents } from '../api/ai';
 import { ApiError, errorMessage } from '../api/client';
 import {
   useCreateInbox,
@@ -39,16 +39,6 @@ import { formatInboxNumber, inboxCardStatus } from './inbox-status';
 const LINK_POLL_MS = 5_000;
 /** The AI agent select's value for "no AI agent". */
 const NO_AGENT = 'none';
-
-/**
- * An inbox change moves agents: the agent list (Members, this page), every open agent page and the
- * inbox-1 view (`GET /api/ai`) show the new inbox.
- */
-function refreshAgentViews(qc: QueryClient) {
-  void qc.invalidateQueries({ queryKey: aiAgentsKey });
-  void qc.invalidateQueries({ queryKey: ['ai-agent'] });
-  void qc.invalidateQueries({ queryKey: aiMemberKey });
-}
 
 /** Every linked WhatsApp number (inbox), with who may open it. Admin only; shown when maxInboxes > 1. */
 export function InboxesPage() {
@@ -145,7 +135,7 @@ export function InboxesPage() {
           remove.mutate(removing.id, {
             onSuccess: () => {
               // Its agent no longer answers an inbox.
-              refreshAgentViews(qc);
+              refreshAgents(qc);
               toast.success(t('inboxes.removed'));
               setRemoving(null);
             },
@@ -361,7 +351,7 @@ function InboxDialog({
     chosen && chosen.inboxId !== null && chosen.inboxId !== inbox?.id
       ? inboxName(chosen.inboxId)
       : '';
-  const refreshAgents = () => refreshAgentViews(qc);
+  const refreshAgentQueries = () => refreshAgents(qc);
 
   const save = (event: React.FormEvent) => {
     event.preventDefault();
@@ -382,7 +372,7 @@ function InboxDialog({
         },
         {
           onSuccess: (created) => {
-            if (chosenAgentId !== null) refreshAgents();
+            if (chosenAgentId !== null) refreshAgentQueries();
             setCreatedId(created.id);
             toast.success(t('inboxes.createdPhone'));
           },
@@ -404,7 +394,7 @@ function InboxDialog({
       { id: inbox.id, body },
       {
         onSuccess: () => {
-          if ('aiAgentId' in body) refreshAgents();
+          if ('aiAgentId' in body) refreshAgentQueries();
           toast.success(t('inboxes.saved'));
           onClose();
         },

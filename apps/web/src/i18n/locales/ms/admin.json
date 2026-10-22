@@ -593,7 +593,6 @@
     "settingsTitle": "AI",
     "settingsDescription": "Sambungkan ChatGPT atau kunci API OpenAI. Semua ahli AI dalam peti masuk ini berkongsi satu penyedia dan model.",
     "roleBadge": "AI · Ejen Jualan",
-    "addMember": "Tambah ahli AI",
     "membersDescription": "Pasukan dan pembantu AI anda untuk perbualan pelanggan.",
     "assistant": "Pembantu AI",
     "behavior": "Membalas selepas 10 saat dalam perbualan pelanggan yang belum ditugaskan dan mengambil alih perbualan. Tugaskan perbualan kepada diri anda untuk mengambil alih. AI hanya menyelesaikan perbualan selepas pengesahan pelanggan. Apabila memerlukan bantuan, AI menugaskannya kepada ejen manusia dalam talian tanpa perbualan terbuka, atau mengembalikannya sebagai belum ditugaskan.",

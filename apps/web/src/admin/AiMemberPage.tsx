@@ -5,14 +5,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Lock,
-  MessageCircleQuestionMark,
-  PencilLine,
   ShieldCheck,
-  ShoppingBag,
   SlidersHorizontal,
   Sparkles,
   Trash2,
-  type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -60,6 +56,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { InboxChip } from '../inbox/InboxChip';
 import { AiConnectionBanner } from './AiConnectionBanner';
+import { PRESET_ICON, PresetBadge } from './PresetBadge';
 import { AiContextPanel, agentErrorMessage } from './AiContextPanel';
 import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
@@ -68,11 +65,6 @@ import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from 
 import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { ExtensionBoundary, useWebExtensions } from '../extensions';
 
-const PRESET_ICON: Record<AiAgentPreset, LucideIcon> = {
-  sales: ShoppingBag,
-  faq: MessageCircleQuestionMark,
-  custom: PencilLine,
-};
 const PILL_TONE = {
   on: 'success',
   off: 'muted',
@@ -819,18 +811,6 @@ function AgentEditor({
         }}
       />
     </div>
-  );
-}
-
-/** "Sales agent", "FAQ agent", "Custom agent". */
-export function PresetBadge({ preset }: { preset: AiAgentPreset }) {
-  const { t } = useTranslation('admin');
-  const Icon = PRESET_ICON[preset];
-  return (
-    <Badge variant="outline" className="gap-1" data-testid="preset-badge">
-      <Icon aria-hidden className="size-3" />
-      {t('ai.presets.badge', { preset: t(`ai.presets.${preset}`) })}
-    </Badge>
   );
 }
 

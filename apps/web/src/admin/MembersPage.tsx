@@ -4,16 +4,12 @@ import {
   Bot,
   KeyRound,
   LogOut,
-  MessageCircleQuestionMark,
   MoreHorizontal,
   Pencil,
-  PencilLine,
   RefreshCw,
-  ShoppingBag,
   UserCheck,
   UserPlus,
   UserX,
-  type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -21,7 +17,6 @@ import { Trans, useTranslation } from 'react-i18next';
 import {
   intlTag,
   isLocale,
-  type AiAgentPreset,
   type AiAgentSummary,
   type Inbox,
   type Role,
@@ -77,6 +72,7 @@ import {
   generatePassword,
 } from './adminUi';
 import { InboxAccessCell } from './InboxAccess';
+import { PresetBadge } from './PresetBadge';
 import { InboxChip } from '../inbox/InboxChip';
 
 type Dialog =
@@ -314,24 +310,6 @@ function AgentInboxCell({ user, inboxes }: Readonly<{ user: User; inboxes: Inbox
     </span>
   ) : (
     <span className="text-sm text-warning">{t('ai.agents.noInbox')}</span>
-  );
-}
-
-const PRESET_ICON: Record<AiAgentPreset, LucideIcon> = {
-  sales: ShoppingBag,
-  faq: MessageCircleQuestionMark,
-  custom: PencilLine,
-};
-
-/** "Sales agent", "FAQ agent", "Custom agent". */
-function PresetBadge({ preset }: Readonly<{ preset: AiAgentPreset }>) {
-  const { t } = useTranslation('admin');
-  const Icon = PRESET_ICON[preset];
-  return (
-    <Badge variant="outline" className="gap-1" data-testid="preset-badge">
-      <Icon aria-hidden className="size-3" />
-      {t('ai.presets.badge', { preset: t(`ai.presets.${preset}`) })}
-    </Badge>
   );
 }
 

@@ -10,7 +10,7 @@ import {
   type AiContextTextBody,
   type AiMemberStatus,
 } from '@ezychat/shared';
-import { aiAgentKey, aiAgentsKey, aiMemberKey, useAiMember, useAiMemberAction } from '../api/ai';
+import { aiAgentKey, aiMemberKey, refreshAgents, useAiMember, useAiMemberAction } from '../api/ai';
 import { api, errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
@@ -112,8 +112,7 @@ export function AiAssistantStep({
       setError(errorMessage(e));
     } finally {
       // The saves changed the agent (name, item, on/off), also when a later step failed.
-      void qc.invalidateQueries({ queryKey: aiAgentsKey });
-      void qc.invalidateQueries({ queryKey: ['ai-agent'] });
+      refreshAgents(qc);
       setSaving(false);
     }
   };

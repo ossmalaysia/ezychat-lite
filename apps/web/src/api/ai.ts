@@ -307,7 +307,7 @@ function runAgentAction(
 const allAgentsKey = ['ai-agent'] as const;
 
 /** Everything that shows agents: the list, every agent, the old AI member view, members, inboxes. */
-function refreshAgents(qc: QueryClient) {
+export function refreshAgents(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: aiAgentsKey });
   void qc.invalidateQueries({ queryKey: allAgentsKey });
   void qc.invalidateQueries({ queryKey: aiMemberKey });
