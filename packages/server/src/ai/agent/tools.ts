@@ -18,7 +18,10 @@ const capped = (text: string) =>
     : text;
 
 export interface ChatToolContext {
-  /** This AI member's Business context. */
+  /**
+   * This agent's business sources only (`splitKnowledge().business`): Internal items are never
+   * passed here, so search can never return them.
+   */
   knowledge: readonly KnowledgeSource[];
   /**
    * Page `n` (1 = just before the messages in the prompt) of THIS chat's older messages, oldest

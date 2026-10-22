@@ -17,6 +17,8 @@ export interface SetupChangeSource {
 
 export interface SetupVersion {
   id: number;
+  /** The agent whose text this is (null only for history written before any agent existed). */
+  agentId: number | null;
   target: SetupTarget;
   itemId: number | null;
   content: string;
@@ -29,6 +31,7 @@ export interface SetupVersion {
 
 interface Row {
   id: number;
+  agent_id: number | null;
   target: SetupTarget;
   item_id: number | null;
   content: string;
@@ -41,6 +44,7 @@ interface Row {
 
 const toVersion = (r: Row): SetupVersion => ({
   id: r.id,
+  agentId: r.agent_id,
   target: r.target,
   itemId: r.item_id,
   content: r.content,
@@ -52,11 +56,13 @@ const toVersion = (r: Row): SetupVersion => ({
 });
 
 /**
- * Records a new saved text. The first change of a target also stores the text it replaced, so the
- * original can always be restored. Call inside the transaction that saves the text.
+ * Records a new saved text of one agent. The first change of a target (per agent) also stores the
+ * text it replaced, so the original can always be restored. Call inside the transaction that saves
+ * the text.
  */
 export function recordSetupVersion(
   db: DB,
+  agentId: number | null,
   target: SetupTarget,
   itemId: number | null,
   previous: string | null,
@@ -65,16 +71,19 @@ export function recordSetupVersion(
   now = Date.now(),
 ): void {
   const insert = db.prepare(
-    `INSERT INTO ai_setup_versions (target, item_id, content, via, user_id, token_id, reason, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO ai_setup_versions (agent_id, target, item_id, content, via, user_id, token_id, reason, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const hasHistory = db
-    .prepare('SELECT 1 FROM ai_setup_versions WHERE target = ? AND item_id IS ? LIMIT 1')
-    .get(target, itemId);
+    .prepare(
+      'SELECT 1 FROM ai_setup_versions WHERE agent_id IS ? AND target = ? AND item_id IS ? LIMIT 1',
+    )
+    .get(agentId, target, itemId);
   if (!hasHistory && previous !== null && previous !== next) {
-    insert.run(target, itemId, previous, 'baseline', null, null, null, now - 1);
+    insert.run(agentId, target, itemId, previous, 'baseline', null, null, null, now - 1);
   }
   insert.run(
+    agentId,
     target,
     itemId,
     next,
@@ -86,9 +95,10 @@ export function recordSetupVersion(
   );
 }
 
-/** Newest first. */
+/** One agent's versions of one target, newest first. */
 export function listSetupVersions(
   db: DB,
+  agentId: number | null,
   target: SetupTarget,
   itemId: number | null,
   limit: number,
@@ -96,9 +106,9 @@ export function listSetupVersions(
   return (
     db
       .prepare(
-        'SELECT * FROM ai_setup_versions WHERE target = ? AND item_id IS ? ORDER BY id DESC LIMIT ?',
+        'SELECT * FROM ai_setup_versions WHERE agent_id IS ? AND target = ? AND item_id IS ? ORDER BY id DESC LIMIT ?',
       )
-      .all(target, itemId, limit) as Row[]
+      .all(agentId, target, itemId, limit) as Row[]
   ).map(toVersion);
 }
 

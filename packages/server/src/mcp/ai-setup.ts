@@ -19,6 +19,7 @@ import {
   type SetupTarget,
   type SetupVersion,
 } from '../ai/setup-versions.js';
+import { defaultAgent } from '../ai/agents.js';
 import { localDate, localMidnight } from '../chats/stats.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { inboxOfKey } from '../inboxes/keys.js';
@@ -231,7 +232,8 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
         reason: input.reason,
       };
       const latest = (target: SetupTarget, itemId: number | null) =>
-        listSetupVersions(ctx.db, target, itemId, 1)[0]?.id ?? null;
+        listSetupVersions(ctx.db, defaultAgent(ctx.db)?.id ?? null, target, itemId, 1)[0]?.id ??
+        null;
       if (input.target === 'instructions' || input.target === 'handoff_rules') {
         if (input.itemId !== undefined || input.name !== undefined)
           throw new AiSetupError('itemId and name apply to context_text only');
@@ -268,7 +270,7 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
     },
 
     history(target, itemId, limit) {
-      return listSetupVersions(ctx.db, target, itemId, limit);
+      return listSetupVersions(ctx.db, defaultAgent(ctx.db)?.id ?? null, target, itemId, limit);
     },
 
     version(id) {

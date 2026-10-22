@@ -33,6 +33,7 @@ import {
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { recordSetupVersion, type SetupChangeSource } from './setup-versions.js';
+import { defaultAgent } from './agents.js';
 import { errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
@@ -242,7 +243,7 @@ export function createAiService(
   };
   /** The cacheable prompt plus this call's facts (time, zone, resolution state) in the last block. */
   const prompt = (
-    knowledge: AiKnowledge,
+    knowledge: Omit<AiKnowledge, 'preset'>,
     business: string,
     conversation: AiConversationTurn[],
     awaitingConfirmation: boolean,
@@ -250,7 +251,8 @@ export function createAiService(
     customer: AiCustomer | null = null,
   ) => ({
     ...buildAiPrompt(
-      knowledge,
+      { ...knowledge, preset: 'sales' },
+      '',
       business,
       conversation,
       {
@@ -999,6 +1001,7 @@ export function createAiService(
         if (body.instructions !== before.instructions)
           recordSetupVersion(
             ctx.db,
+            defaultAgent(ctx.db)?.id ?? null,
             'instructions',
             null,
             before.instructions,
@@ -1008,6 +1011,7 @@ export function createAiService(
         if (handoffRules !== before.handoffRules)
           recordSetupVersion(
             ctx.db,
+            defaultAgent(ctx.db)?.id ?? null,
             'handoff_rules',
             null,
             before.handoffRules ?? null,
@@ -1093,6 +1097,7 @@ export function createAiService(
         const documentId = Number(result.lastInsertRowid);
         recordSetupVersion(
           ctx.db,
+          defaultAgent(ctx.db)?.id ?? null,
           'context_text',
           documentId,
           null,
@@ -1129,7 +1134,15 @@ export function createAiService(
           )
           .run(name, text, size, Date.now(), id);
         if (text !== row.text)
-          recordSetupVersion(ctx.db, 'context_text', id, row.text, text, versionSource(actor));
+          recordSetupVersion(
+            ctx.db,
+            defaultAgent(ctx.db)?.id ?? null,
+            'context_text',
+            id,
+            row.text,
+            text,
+            versionSource(actor),
+          );
         audit(ctx.db, {
           userId: actor.userId,
           ip: actor.ip,
@@ -1319,6 +1332,7 @@ export function createAiService(
               current: body.current,
               request: body.request,
               businessKnowledge: relevantKnowledge(knowledgeSources(contextItems()), body.request),
+              preset: 'sales',
             }),
             cacheId: installId(),
           },
