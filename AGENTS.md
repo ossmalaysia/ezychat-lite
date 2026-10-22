@@ -233,7 +233,7 @@ precompiled CSS with font files); inside the monorepo imports resolve to `src/` 
 `.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`; a package not yet on npm is skipped with a warning: its first version is published by hand). Enterprise
 (`anchorsprint/ezychat-enterprise`) consumes pinned published `@ezychat/*` versions, never a
 git submodule or a committed `file:` dependency; to try an unreleased core it installs `npm run pack:core`
-tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. Lite never imports Enterprise
+tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. A change to a shared contract or an extension API is ready only after the Enterprise typecheck, lint and tests pass on that local core (then `npm ci` there); new response fields get zod defaults. Lite never imports Enterprise
 code. Only each package's `index` exports are public API; anything else is internal and may change.
 
 **Send queue** (`messages/send-queue.ts`): FIFO per chat, chats in parallel, ≥1s between sends in a
