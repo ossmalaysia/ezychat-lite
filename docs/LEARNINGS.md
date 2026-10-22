@@ -271,6 +271,8 @@ into AGENTS.md.
   bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
   the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
   contract change ships, then `npm ci` there to restore the npm core.
+- Pass extra Vitest flags through the script (`npm run test:coverage -- --pool=forks --maxWorkers=2`), never a
+  raw `npx vitest run --coverage`: the script's `--testTimeout=20000` keeps slow tests from false failures.
 - A git worktree whose `node_modules` is a junction to the main checkout: delete the junction first
   (`[System.IO.Directory]::Delete(<link>)` removes only the link) before removing the worktree.
 
