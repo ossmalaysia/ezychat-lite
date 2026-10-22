@@ -114,7 +114,10 @@ and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (
 `ai/edit-prompt.ts` + `ai/agent/rewrite.ts`) only suggests a rewrite of one box — the page applies it to its
 draft and its Save persists it; its log line holds field, ok, ms and model only — never the request,
 the current text or the suggestion; closing the popup aborts the request and the model call; `resolution.ts` is the resolution guard;
-`knowledge.ts` selects knowledge. Provider modes: API key (public OpenAI Responses API) or ChatGPT
+`knowledge.ts` selects knowledge. Provider modes: API key (`api`, public OpenAI Responses API), Claude API key
+(`claude`, Anthropic Messages API through `@ai-sdk/anthropic`, only in `ai/claude.ts`; 3 fixed models
+`CLAUDE_MODELS`, key in the encrypted `ai_claude_api_key` setting, kept beside the OpenAI key; cloud voice is
+off in this mode) or ChatGPT
 (EXPERIMENTAL: direct PKCE sign-in, `chatgpt-oauth.ts` + `chatgpt-backend.ts` + `chatgpt-direct.ts`, tokens
 only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bundled; protocol and sources in
 `docs/ai-chatgpt-protocol.md`). A data dir with no saved connection defaults to ChatGPT mode
@@ -383,6 +386,11 @@ cover navigation from every admin section and recovery from malformed URLs.
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
   `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
+- **Owner test environments** (owner rule): Dev Builds that the owner tests by hand (real AI sign-in or
+  key, Enterprise licence trial) run on the permanent folders outside the repos, `D:\dev\test-env\lite`
+  (port 7491) and `D:\dev\test-env\enterprise` (port 7434), each with `start.ps1` and a README; their data
+  stays between checks. `npm run e2e`, unit tests and the mock-model checks never use them (they start
+  from empty temp data). Never real app data.
 - **Run the Dev Build check yourself before saying a feature works.** Unit tests, e2e and a screen
   review are not enough: run the feature end to end in a Dev Build (and with the real outside client
   where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say

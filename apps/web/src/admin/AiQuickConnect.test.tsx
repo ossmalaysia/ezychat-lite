@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AiMemberStatus } from '@ezychat/shared';
-import { AiQuickConnect } from './AiQuickConnect';
-import '../i18n';
+import { AiQuickConnect, keyTestMessage } from './AiQuickConnect';
+import { i18n } from '../i18n';
 
 const LOGIN_URL = 'https://auth.openai.com/oauth/authorize?state=abc';
 
@@ -19,6 +19,7 @@ function status(overrides: Partial<AiMemberStatus> = {}): AiMemberStatus {
       instructions: '',
     },
     hasApiKey: false,
+    hasClaudeApiKey: false,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
     agents: [],
@@ -44,13 +45,20 @@ function setup(
     if (url === '/api/ai/connection' && init?.method === 'PATCH') {
       const { apiKey, ...settings } = JSON.parse(String(init.body)) as {
         apiKey?: string;
-        mode: 'api' | 'chatgpt';
+        mode: 'api' | 'chatgpt' | 'claude';
         model: string;
       };
+      const claude = settings.mode === 'claude';
+      const hasClaudeApiKey = current.hasClaudeApiKey || (claude && Boolean(apiKey));
       current = {
         ...current,
         settings: { ...current.settings, ...settings },
-        hasApiKey: current.hasApiKey || Boolean(apiKey),
+        hasApiKey: current.hasApiKey || (settings.mode === 'api' && Boolean(apiKey)),
+        hasClaudeApiKey,
+        // Like the server: an API-key mode reports "connected" once its key is saved.
+        ...(claude && hasClaudeApiKey
+          ? { connection: { state: 'connected', loginUrl: null, error: null } }
+          : {}),
       };
       return json(current);
     }
@@ -198,5 +206,108 @@ describe('AiQuickConnect', () => {
     expect(screen.getByText('Connected to ChatGPT')).toBeTruthy();
     expect(screen.getByText('Signed in as o@shop.my')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sign in with ChatGPT' })).toBeNull();
+  });
+
+  it('offers a Claude API key: tests it with Anthropic and saves the Claude connection', async () => {
+    const { fetchMock, refresh } = setup(status());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    expect(screen.queryByLabelText('OpenAI API key')).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Get a key at console.anthropic.com' }).getAttribute('href'),
+    ).toBe('https://console.anthropic.com/settings/keys');
+    expect(screen.getByText(/Voice notes use the on-device model with Claude/)).toBeTruthy();
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-good-key{Enter}');
+    await waitFor(() => expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(1));
+    const test = calls(fetchMock, '/api/ai/connection/test')[0]!;
+    expect(JSON.parse(String(test[1]!.body))).toEqual({
+      apiKey: 'sk-ant-good-key',
+      mode: 'claude',
+    });
+    expect(JSON.parse(String(calls(fetchMock, '/api/ai/connection')[0]![1]!.body))).toEqual({
+      mode: 'claude',
+      model: '',
+      apiKey: 'sk-ant-good-key',
+    });
+    refresh();
+    expect(await screen.findByText('Claude API key checked and saved')).toBeTruthy();
+  });
+
+  it('keeps the saved Claude model when a new Claude key is saved', async () => {
+    const initial = status();
+    initial.settings = { ...initial.settings, mode: 'claude', model: 'claude-opus-5-5' };
+    const { fetchMock } = setup(initial);
+    const user = userEvent.setup();
+    // A saved Claude connection that is not ready opens on the Claude key.
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-new-key');
+    await user.click(screen.getByRole('button', { name: 'Test key' }));
+    await waitFor(() => expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(1));
+    expect(JSON.parse(String(calls(fetchMock, '/api/ai/connection')[0]![1]!.body))).toEqual({
+      mode: 'claude',
+      model: 'claude-opus-5-5',
+      apiKey: 'sk-ant-new-key',
+    });
+  });
+
+  it('points a key of the other vendor to the right option without testing it', async () => {
+    const { fetchMock } = setup(status());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-proj-openai{Enter}');
+    expect(await screen.findByText(/This is an OpenAI key/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Use an OpenAI API key instead' }));
+    expect(screen.queryByText(/This is an OpenAI key/)).toBeNull();
+    await user.type(screen.getByLabelText('OpenAI API key'), 'sk-ant-claude{Enter}');
+    expect(await screen.findByText(/This is a Claude \(Anthropic\) key/)).toBeTruthy();
+    expect(calls(fetchMock, '/api/ai/connection/test')).toHaveLength(0);
+    expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(0);
+  });
+
+  it('names Anthropic when it rejects a key, and saves anyway after an unreachable check', async () => {
+    const rejected = setup(status(), { ok: false, error: 'invalid_key' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-wrong{Enter}');
+    expect(await screen.findByText(/Anthropic did not accept this key/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).toBeNull();
+    expect(calls(rejected.fetchMock, '/api/ai/connection')).toHaveLength(0);
+    cleanup();
+
+    const { fetchMock } = setup(status(), { ok: false, error: 'unreachable' });
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-offline{Enter}');
+    expect(await screen.findByText(/Could not reach Anthropic to check the key/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() => expect(calls(fetchMock, '/api/ai/connection')).toHaveLength(1));
+    expect(JSON.parse(String(calls(fetchMock, '/api/ai/connection')[0]![1]!.body))).toEqual({
+      mode: 'claude',
+      model: '',
+      apiKey: 'sk-ant-offline',
+    });
+  });
+
+  it('moves between the three options from the Claude view', async () => {
+    setup(status());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.click(screen.getByRole('button', { name: 'Use Sign in with ChatGPT instead' }));
+    expect(screen.getByRole('button', { name: 'Sign in with ChatGPT' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.click(screen.getByRole('button', { name: 'Use an OpenAI API key instead' }));
+    expect(screen.getByLabelText('OpenAI API key')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    expect(screen.getByLabelText('Anthropic API key')).toBeTruthy();
+  });
+});
+
+describe('keyTestMessage', () => {
+  it('names a missing Anthropic credit and another refusal instead of "could not reach"', () => {
+    const t = i18n.getFixedT('en', 'admin');
+    expect(keyTestMessage(t, 'no_credit', 'claude')).toMatch(/no credit.*Billing/);
+    expect(keyTestMessage(t, 'rejected', 'claude')).toMatch(/Anthropic refused the check/);
+    expect(keyTestMessage(t, 'rejected', 'api')).toMatch(/OpenAI refused the check/);
+    expect(keyTestMessage(t, 'no_credit', 'claude')).not.toMatch(/internet connection/);
   });
 });

@@ -5,6 +5,8 @@ import type { SettingsStore } from '../db/settings.js';
 export const AI_PROVIDER_KEY = 'ai_inbox_provider';
 /** Encrypted OpenAI API key (API-key mode). */
 export const AI_SECRET_KEY = 'ai_api_key';
+/** Encrypted Anthropic Claude API key (Claude mode). Kept while another mode is selected. */
+export const AI_CLAUDE_SECRET_KEY = 'ai_claude_api_key';
 
 type AiProviderSettings = Pick<AiSettings, 'mode' | 'model'>;
 
@@ -21,8 +23,31 @@ export function aiProviderSettings(settings: SettingsStore): AiProviderSettings 
   return { mode: settings.getSecret(AI_SECRET_KEY) ? 'api' : 'chatgpt', model: '' };
 }
 
+/** Where a connection mode keeps its API key (ChatGPT sign-in has no key). */
+export function secretKeyFor(mode: AiSettings['mode']): string | null {
+  if (mode === 'api') return AI_SECRET_KEY;
+  if (mode === 'claude') return AI_CLAUDE_SECRET_KEY;
+  return null;
+}
+
 /** The saved OpenAI API key when the inbox AI connection uses API-key mode, else null. */
 export function openAiApiKey(settings: SettingsStore): string | null {
   if (aiProviderSettings(settings).mode !== 'api') return null;
   return settings.getSecret(AI_SECRET_KEY);
+}
+
+/** The saved Claude API key when the inbox AI connection uses Claude mode, else null. */
+export function claudeApiKey(settings: SettingsStore): string | null {
+  if (aiProviderSettings(settings).mode !== 'claude') return null;
+  return settings.getSecret(AI_CLAUDE_SECRET_KEY);
+}
+
+/**
+ * The key the providers receive: the Claude key in Claude mode, else the OpenAI key (unchanged
+ * from before Claude: ChatGPT mode ignores it).
+ */
+export function aiApiKey(settings: SettingsStore): string | null {
+  return aiProviderSettings(settings).mode === 'claude'
+    ? settings.getSecret(AI_CLAUDE_SECRET_KEY)
+    : settings.getSecret(AI_SECRET_KEY);
 }

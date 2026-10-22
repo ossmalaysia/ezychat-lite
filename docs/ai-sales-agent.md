@@ -2,9 +2,16 @@
 
 ## Setup
 
-1. Open **Admin → Settings → AI → Configure AI connection**. Choose OpenAI API key or
-   ChatGPT sign-in and save the shared connection. An empty API model uses `gpt-4.1-mini`;
-   ChatGPT uses `gpt-5.4` and also supports `gpt-5.3-codex`.
+1. Open **Admin → Settings → AI → Configure AI connection**. Choose ChatGPT sign-in, an
+   OpenAI API key or a Claude API key and save the shared connection. An empty API model uses
+   `gpt-4.1-mini`; ChatGPT uses `gpt-5.4` and also supports `gpt-5.3-codex`. Claude offers three
+   fixed models: Claude Sonnet 5.5 (`claude-sonnet-5-5`, the default), Claude Opus 5.5 and
+   Claude Haiku 5.5. A Claude key comes from console.anthropic.com (it starts with `sk-ant-`); it
+   is checked with `GET https://api.anthropic.com/v1/models` before it is saved, stored
+   encrypted in the setting `ai_claude_api_key` and never shown again. Each key mode keeps its
+   own key: switching between the OpenAI key, Claude and ChatGPT never deletes a saved key. A
+   key of the other vendor (an `sk-ant-` key in the OpenAI field, or an OpenAI `sk-` key in the
+   Anthropic field) is pointed to the right option in the page and never sent.
 2. ChatGPT sign-in uses the official bundled Codex helper. Complete browser sign-in on the
    computer hosting the inbox because its callback is localhost. Tokens use the operating
    system's secure credential store. If an OS service cannot access that store, use API mode.
@@ -125,8 +132,9 @@ notes are not automatically included in the approved business knowledge.
 ### Images
 
 - Customer photos and screenshots (with or without a caption) are read with the configured
-  connection in both modes: ChatGPT sign-in and OpenAI API key. They go as `input_image` parts
-  (`detail: 'low'`) after the text part of the user message; the instructions and input JSON
+  connection in every mode: ChatGPT sign-in, OpenAI API key and Claude API key. They go as
+  image parts after the text part of the user message (OpenAI: `input_image` with
+  `detail: 'low'`; Claude gets no OpenAI-only `detail` option); the instructions and input JSON
   stay byte-identical, so prompt caching is unaffected. Without images the request is unchanged.
 - Only images in the batch being answered (customer messages since the last AI reply) are sent,
   at most the newest 3 (`ai/images.ts`). Earlier images appear in the conversation only as
@@ -185,7 +193,9 @@ the question. If the customer sends another untranscribed voice note after that 
 server hands the chat off as `unsupported_message` without calling the model.
 
 API (admin-only, audited without content): `GET /api/ai/voice`, `PATCH /api/ai/voice`
-(`{ transcription }`; `local` needs the installed model, `cloud` needs an API key),
+(`{ transcription }`; `local` needs the installed model, `cloud` needs the OpenAI API key
+connection: with ChatGPT or Claude it is refused, and Settings hides Cloud under Claude with a
+short note),
 `POST /api/ai/voice/download` (5 per minute per admin), `POST /api/ai/voice/cancel`,
 `DELETE /api/ai/voice/model`.
 
@@ -261,7 +271,9 @@ The time zone comes from the optional setting `ai_timezone` (an IANA name such a
 `Asia/Kuala_Lumpur`. The builder is pure: the service passes `now` and the zone.
 
 Cache key: on first use the server stores a random per-install id in the setting `ai_install_id`.
-Both providers send `prompt_cache_key = "ezychat-" + first 16 hex of sha256(install id + "\n" +
+Claude gets no cache key: its system message carries an Anthropic cache breakpoint
+(`cacheControl: { type: 'ephemeral' }`) and the input JSON stays the last user content.
+Both OpenAI providers send `prompt_cache_key = "ezychat-" + first 16 hex of sha256(install id + "\n" +
 model)`, so the key is stable for this inbox and model, differs by model, and never contains
 customer data. The ChatGPT backend also gets the same value as its `session_id` header. pi-ai
 sends one value for both, and docs/ai-chatgpt-protocol.md lists `session_id` as optional, so the key is not

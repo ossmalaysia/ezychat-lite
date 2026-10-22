@@ -8,6 +8,7 @@ import {
   type VoiceStatus,
   type VoiceTranscription,
 } from '@ezychat/shared';
+import { useAiMember } from '../api/ai';
 import { useVoiceAction, useVoiceStatus } from '../api/voice';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
@@ -42,8 +43,10 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const model = status.model;
   const installed = model.state === 'installed';
+  // Cloud transcription needs an OpenAI key, which the Claude connection does not use: hide it.
+  const claude = useAiMember().data?.settings.mode === 'claude';
 
-  const options: Array<{
+  const allOptions: Array<{
     value: VoiceTranscription;
     label: string;
     hint: string;
@@ -63,6 +66,7 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
       disabled: !status.cloudAvailable,
     },
   ];
+  const options = claude ? allOptions.filter((option) => option.value !== 'cloud') : allOptions;
   const errorText: Record<VoiceModelError, string> = {
     disk_space: t('ai.voice.errors.disk_space'),
     network: t('ai.voice.errors.network'),
@@ -97,7 +101,7 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
             value={status.transcription}
             onValueChange={choose}
             disabled={action.isPending}
-            className="grid gap-2 sm:grid-cols-3"
+            className={cn('grid gap-2', claude ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}
           >
             {options.map((option) => {
               const id = `voice-engine-${option.value}`;
@@ -120,6 +124,12 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
               );
             })}
           </RadioGroup>
+          {claude &&
+            (status.transcription === 'cloud' ? (
+              <Banner tone="warning">{t('ai.voice.claudeCloudOff')}</Banner>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('ai.claude.voiceNote')}</p>
+            ))}
         </fieldset>
 
         <section
@@ -188,7 +198,9 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
           )}
         </section>
 
-        <p className="text-sm text-muted-foreground">{t('ai.voice.privacy')}</p>
+        <p className="text-sm text-muted-foreground">
+          {claude ? t('ai.voice.privacyClaude') : t('ai.voice.privacy')}
+        </p>
         {action.error && !confirmRemove && (
           <Banner tone="danger">{errorMessage(action.error)}</Banner>
         )}

@@ -31,6 +31,7 @@ import {
   AiContextTextBody,
   AiDecision,
   CHATGPT_FALLBACK_MODELS,
+  CLAUDE_MODELS,
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
@@ -84,10 +85,18 @@ import {
   type AiKnowledge,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
+import { claudeModelId } from './claude.js';
 import type { AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
-import { AI_PROVIDER_KEY, AI_SECRET_KEY, aiProviderSettings } from './settings-keys.js';
+import {
+  AI_CLAUDE_SECRET_KEY,
+  AI_PROVIDER_KEY,
+  AI_SECRET_KEY,
+  aiApiKey,
+  aiProviderSettings,
+  secretKeyFor,
+} from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 
 /**
@@ -105,6 +114,12 @@ const conversation = (history: Message[], aiUserIds: ReadonlySet<number>): AiCon
   }));
 
 export const AI_FALLBACK_MS = 10_000;
+/** Names of the fixed Claude models (`GET /api/ai/models` in Claude mode). */
+const CLAUDE_MODEL_LABELS: Record<(typeof CLAUDE_MODELS)[number], string> = {
+  'claude-sonnet-5-5': 'Claude Sonnet 5.5',
+  'claude-opus-5-5': 'Claude Opus 5.5',
+  'claude-haiku-5-5': 'Claude Haiku 5.5',
+};
 const PROVIDER_KEY = AI_PROVIDER_KEY;
 const MEMBER_KEY = 'ai_sales_member';
 const SECRET_KEY = AI_SECRET_KEY;
@@ -484,10 +499,11 @@ export function createAiService(
   };
   /** False while an edition has closed the access gate: the AI member does no work then. */
   const gateOpen = () => ctx.access.state().open;
+  /** API-key modes (OpenAI, Claude) are ready with a saved key; ChatGPT once signed in. */
   const ready = () =>
-    aiProviderSettings(ctx.settings).mode === 'api'
-      ? !!ctx.settings.getSecret(SECRET_KEY)
-      : provider.connection().state === 'connected';
+    aiProviderSettings(ctx.settings).mode === 'chatgpt'
+      ? provider.connection().state === 'connected'
+      : !!aiApiKey(ctx.settings);
   const cancel = (jid: string) => {
     const timer = timers.get(jid);
     if (timer) clearTimeout(timer);
@@ -852,7 +868,7 @@ export function createAiService(
           return AiDecision.parse(
             await provider.generate(
               current,
-              ctx.settings.getSecret(SECRET_KEY),
+              aiApiKey(ctx.settings),
               {
                 ...prompt(
                   agent.id,
@@ -1236,7 +1252,7 @@ export function createAiService(
       if (!service.connectionReady()) throw errors.conflict('AI connection unavailable');
       return provider.extractCustomer!(
         settings(),
-        ctx.settings.getSecret(SECRET_KEY),
+        aiApiKey(ctx.settings),
         { ...prompt, cacheId: installId() },
         AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
       );
@@ -1248,6 +1264,7 @@ export function createAiService(
         member: agent ? (ctx.services.auth!.getUser(agent.userId) ?? null) : null,
         settings: current,
         hasApiKey: !!ctx.settings.getSecret(SECRET_KEY),
+        hasClaudeApiKey: !!ctx.settings.getSecret(AI_CLAUDE_SECRET_KEY),
         documents: documentsOf(agent?.id ?? null),
         connection:
           current.mode === 'chatgpt'
@@ -1426,7 +1443,8 @@ export function createAiService(
       cancelAll();
       ctx.db.transaction(() => {
         ctx.settings.set(PROVIDER_KEY, { mode: body.mode, model: body.model });
-        if (body.apiKey) ctx.settings.setSecret(SECRET_KEY, body.apiKey);
+        // Each API-key mode keeps its own key; the other mode's key stays saved.
+        if (body.apiKey) ctx.settings.setSecret(secretKeyFor(body.mode) ?? SECRET_KEY, body.apiKey);
         audit(ctx.db, {
           ...actor,
           action: 'ai.connection_update',
@@ -1621,6 +1639,12 @@ export function createAiService(
       releaseOwned();
     },
     async models() {
+      // Claude: the fixed list (no network call).
+      if (settings().mode === 'claude')
+        return {
+          models: CLAUDE_MODELS.map((id) => ({ id, label: CLAUDE_MODEL_LABELS[id] })),
+          source: 'fallback',
+        };
       if (!provider.models) return { models: [], source: 'fallback' };
       return provider.models();
     },
@@ -1671,7 +1695,9 @@ export function createAiService(
         model =
           current.mode === 'api'
             ? current.model || OPENAI_DEFAULT_MODEL
-            : ((await provider.resolveModel?.(current.model)) ?? current.model);
+            : current.mode === 'claude'
+              ? claudeModelId(current)
+              : ((await provider.resolveModel?.(current.model)) ?? current.model);
         extension = await extensionAgentTools(
           ctx,
           log,
@@ -1680,7 +1706,7 @@ export function createAiService(
         );
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
-          ctx.settings.getSecret(SECRET_KEY),
+          aiApiKey(ctx.settings),
           // Draft rules when the page sends them, else the saved ones. Same knowledge tools as a
           // live reply, so Try it tests what customers get; no chat, so no chat history.
           {
@@ -1763,7 +1789,7 @@ export function createAiService(
       try {
         const suggestion = await provider.rewrite(
           settings(),
-          ctx.settings.getSecret(SECRET_KEY),
+          aiApiKey(ctx.settings),
           {
             ...buildEditPrompt({
               field: body.field,

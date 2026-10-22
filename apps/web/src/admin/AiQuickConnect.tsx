@@ -3,7 +3,12 @@ import { useMutation } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, ExternalLink, KeyRound, Loader2, Sparkles } from 'lucide-react';
-import { AiKeyTestResponse, type AiKeyTestError, type AiMemberStatus } from '@ezychat/shared';
+import {
+  AiKeyTestResponse,
+  type AiKeyTestError,
+  type AiMemberStatus,
+  type AiSettings,
+} from '@ezychat/shared';
 import { useAiMemberAction } from '../api/ai';
 import { api, errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
@@ -14,49 +19,84 @@ import { connectionReady, officialLoginUrl } from './ai-status';
 import { Field, Pending } from './adminUi';
 import { useChatgptSignIn } from './use-chatgpt-sign-in';
 
-/** Checks an OpenAI API key with one small request; the server never stores or logs it. */
+/** The connection modes that use an API key: `api` = OpenAI, `claude` = Anthropic. */
+export type KeyMode = Exclude<AiSettings['mode'], 'chatgpt'>;
+/** Where an admin creates a Claude key (the desktop shell opens it in the OS browser). */
+export const ANTHROPIC_CONSOLE_URL = 'https://console.anthropic.com/settings/keys';
+/** A failed check: the server's verdict, or `other_vendor` (found from the prefix, never sent). */
+export type KeyTestError = AiKeyTestError | 'other_vendor';
+export type KeyTestResult = { ok: boolean; error: KeyTestError | null };
+
+/** Every Anthropic key starts with `sk-ant-`; OpenAI keys start with `sk-` but never `sk-ant-`. */
+function otherVendorKey(mode: KeyMode, key: string): boolean {
+  const anthropic = key.startsWith('sk-ant-');
+  return mode === 'claude' ? key.startsWith('sk-') && !anthropic : anthropic;
+}
+
+/**
+ * Checks an OpenAI or Claude API key with one small request; the server never stores or logs it.
+ * A key of the other vendor is caught from its prefix and never sent.
+ */
 export function useTestApiKey() {
   return useMutation({
-    mutationFn: (apiKey: string) =>
-      api('/ai/connection/test', {
+    mutationFn: async ({
+      apiKey,
+      mode = 'api',
+    }: {
+      apiKey: string;
+      mode?: KeyMode;
+    }): Promise<KeyTestResult> => {
+      if (otherVendorKey(mode, apiKey)) return { ok: false, error: 'other_vendor' };
+      return api('/ai/connection/test', {
         method: 'POST',
-        body: { apiKey },
+        // `mode` is left out for OpenAI, the default of every server version.
+        body: mode === 'claude' ? { apiKey, mode } : { apiKey },
         schema: AiKeyTestResponse,
-      }),
+      });
+    },
   });
 }
 
 /**
- * Only a key OpenAI rejected outright (401) is refused. Any other failed test may be a key that still
- * answers customers (no Models permission, a region block, a passing limit), so it can be saved anyway.
+ * Only a key the service rejected outright (401), or a key of the other vendor, is refused. Any
+ * other failed test may be a key that still answers customers (no Models permission, a region block,
+ * a passing limit), so it can be saved anyway.
  */
-export function keyTestBlocks(error: AiKeyTestError | null | undefined): boolean {
-  return error === 'invalid_key';
+export function keyTestBlocks(error: KeyTestError | null | undefined): boolean {
+  return error === 'invalid_key' || error === 'other_vendor';
 }
 
-/** The message for a failed key test (`ok: false`). */
+/** The message for a failed key test (`ok: false`), naming the vendor of `mode`. */
 export function keyTestMessage(
   t: TFunction<'admin'>,
-  error: AiKeyTestError | null | undefined,
+  error: KeyTestError | null | undefined,
+  mode: KeyMode = 'api',
 ): string {
+  const claude = mode === 'claude';
   switch (error) {
+    case 'other_vendor':
+      return claude ? t('ai.claude.openAiKey') : t('ai.connect.claudeKey');
     case 'invalid_key':
-      return t('ai.connect.keyInvalid');
+      return claude ? t('ai.claude.keyInvalid') : t('ai.connect.keyInvalid');
     case 'forbidden':
-      return t('ai.connect.keyForbidden');
+      return claude ? t('ai.claude.keyForbidden') : t('ai.connect.keyForbidden');
     case 'unreachable':
-      return t('ai.connect.keyUnreachable');
+      return claude ? t('ai.claude.keyUnreachable') : t('ai.connect.keyUnreachable');
     case 'rate_limited':
-      return t('ai.connect.keyRateLimited');
+      return claude ? t('ai.claude.keyRateLimited') : t('ai.connect.keyRateLimited');
+    case 'no_credit':
+      return claude ? t('ai.claude.keyNoCredit') : t('ai.connect.keyRejected');
+    case 'rejected':
+      return claude ? t('ai.claude.keyRejected') : t('ai.connect.keyRejected');
     default:
       return t('ai.connect.keyFailedFallback');
   }
 }
 
 /**
- * One compact "connect the AI" block, used by the setup wizard and the Sales Agent page.
- * Sign in with ChatGPT first (recommended); an OpenAI API key is the secondary option and is
- * tested before it is saved.
+ * One compact "connect the AI" block, used by the setup wizard and the agent page.
+ * Sign in with ChatGPT first (recommended); an OpenAI or a Claude API key are the other options,
+ * each tested before it is saved.
  */
 export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
   const { t } = useTranslation('admin');
@@ -64,13 +104,18 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
   const testKey = useTestApiKey();
   const chatgpt = useChatgptSignIn(action);
   const noteId = useId();
-  // ChatGPT is the recommended path; a not-ready API mode has no key yet, so start there too.
-  const [useKey, setUseKey] = useState(false);
+  // ChatGPT is the recommended path; a not-ready OpenAI mode has no key yet, so start there too.
+  // A saved Claude connection that is not ready opens on its key.
+  const [view, setView] = useState<'chatgpt' | KeyMode>(
+    status.settings.mode === 'claude' ? 'claude' : 'chatgpt',
+  );
+  const keyMode: KeyMode = view === 'claude' ? 'claude' : 'api';
   const [apiKey, setApiKey] = useState('');
   const [pasted, setPasted] = useState('');
   const keyInputRef = useRef<HTMLInputElement>(null);
   const conn = status.connection;
   const savedChatgpt = status.settings.mode === 'chatgpt';
+  const savedClaude = status.settings.mode === 'claude';
 
   const keyFailed = Boolean(testKey.data && !testKey.data.ok);
   const canSaveAnyway = keyFailed && !keyTestBlocks(testKey.data?.error);
@@ -89,7 +134,11 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
         <div className="min-w-0">
           <p className="font-medium">
-            {savedChatgpt ? t('ai.connect.connectedChatgpt') : t('ai.connect.connectedKey')}
+            {savedChatgpt
+              ? t('ai.connect.connectedChatgpt')
+              : savedClaude
+                ? t('ai.claude.connected')
+                : t('ai.connect.connectedKey')}
           </p>
           {savedChatgpt && conn.email && (
             <p className="break-words text-muted-foreground">
@@ -118,8 +167,9 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
     await action.mutateAsync({
       kind: 'connection',
       settings: {
-        mode: 'api',
-        model: status.settings.mode === 'api' ? status.settings.model : '',
+        mode: keyMode,
+        // The model saved for this mode stays; another mode's model means nothing here.
+        model: status.settings.mode === keyMode ? status.settings.model : '',
         apiKey: key,
       },
     });
@@ -133,7 +183,7 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
     if (!key) return;
     action.reset();
     try {
-      const result = await testKey.mutateAsync(key);
+      const result = await testKey.mutateAsync({ apiKey: key, mode: keyMode });
       if (!result.ok) return;
       await saveKey(key);
     } catch {
@@ -153,9 +203,18 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
     }
   };
 
+  const switchTo = (next: 'chatgpt' | KeyMode) => {
+    testKey.reset();
+    action.reset();
+    chatgpt.resetPopup();
+    setApiKey('');
+    setView(next);
+  };
+  const linkClass = 'h-auto px-0 text-left whitespace-normal';
+
   return (
     <div className="flex flex-col gap-4">
-      {!useKey ? (
+      {view === 'chatgpt' ? (
         <div className="flex flex-col gap-3">
           {signingIn ? (
             <div className="flex flex-col gap-3">
@@ -242,27 +301,34 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
             {t('ai.connect.note')}
           </p>
           {!signingIn && (
-            <Button
-              type="button"
-              variant="link"
-              size="touch"
-              className="h-auto self-start px-0 text-left whitespace-normal"
-              onClick={() => {
-                action.reset();
-                chatgpt.resetPopup();
-                setUseKey(true);
-              }}
-            >
-              {t('ai.connect.useKey')}
-            </Button>
+            <div className="flex flex-col items-start">
+              <Button
+                type="button"
+                variant="link"
+                size="touch"
+                className={linkClass}
+                onClick={() => switchTo('api')}
+              >
+                {t('ai.connect.useKey')}
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                size="touch"
+                className={linkClass}
+                onClick={() => switchTo('claude')}
+              >
+                {t('ai.claude.useClaude')}
+              </Button>
+            </div>
           )}
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <Field
-            label={t('ai.connect.keyLabel')}
-            hint={t('ai.connect.keyHint')}
-            error={keyFailed ? keyTestMessage(t, testKey.data?.error) : undefined}
+            label={view === 'claude' ? t('ai.claude.keyLabel') : t('ai.connect.keyLabel')}
+            hint={view === 'claude' ? t('ai.claude.keyHint') : t('ai.connect.keyHint')}
+            error={keyFailed ? keyTestMessage(t, testKey.data?.error, keyMode) : undefined}
           >
             {(p) => (
               <Input
@@ -272,6 +338,9 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
                 value={apiKey}
                 autoComplete="off"
                 spellCheck={false}
+                placeholder={
+                  view === 'claude' ? t('ai.claude.keyPlaceholder') : t('ai.connect.keyPlaceholder')
+                }
                 className="h-11 text-base md:text-sm"
                 disabled={testKey.isPending || action.isPending}
                 onChange={(e) => {
@@ -310,20 +379,38 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
                 {t('ai.connect.saveAnyway')}
               </Button>
             )}
+            {view === 'claude' && (
+              <Button asChild variant="link" size="touch" className={linkClass}>
+                <a href={ANTHROPIC_CONSOLE_URL} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink aria-hidden />
+                  {t('ai.claude.getKey')}
+                </a>
+              </Button>
+            )}
           </div>
-          <Button
-            type="button"
-            variant="link"
-            size="touch"
-            className="h-auto self-start px-0 text-left whitespace-normal"
-            onClick={() => {
-              testKey.reset();
-              action.reset();
-              setUseKey(false);
-            }}
-          >
-            {t('ai.connect.useChatgpt')}
-          </Button>
+          {view === 'claude' && (
+            <p className="text-sm text-muted-foreground">{t('ai.claude.voiceNote')}</p>
+          )}
+          <div className="flex flex-col items-start">
+            <Button
+              type="button"
+              variant="link"
+              size="touch"
+              className={linkClass}
+              onClick={() => switchTo('chatgpt')}
+            >
+              {t('ai.connect.useChatgpt')}
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              size="touch"
+              className={linkClass}
+              onClick={() => switchTo(view === 'claude' ? 'api' : 'claude')}
+            >
+              {view === 'claude' ? t('ai.connect.useKey') : t('ai.claude.useClaude')}
+            </Button>
+          </div>
         </div>
       )}
       {(action.error || testKey.error) && (

@@ -135,7 +135,8 @@ describe('auditDetails', () => {
     expect(
       auditDetails({ changes: { lanEnabled: true, port: 7500 }, restartRequired: true }, t, names),
     ).toBe('Changed LAN access, port · Restart required: Yes');
-    expect(auditDetails({ mode: 'api', model: '' }, t, names)).toBe('Mode: API key');
+    expect(auditDetails({ mode: 'api', model: '' }, t, names)).toBe('Mode: OpenAI API key');
+    expect(auditDetails({ mode: 'claude', model: '' }, t, names)).toBe('Mode: Claude API key');
   });
 
   it('summarises object values such as the moved counts of a chat merge instead of dropping them', () => {

@@ -248,8 +248,9 @@ into AGENTS.md.
   seed a temp data dir with the released packaged server, start the new packaged server on the same dir,
   diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
   cookie, and compare identity strings across all `dist/**` files in both `app.asar`s (e.g. `dist/service/`).
-- A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
-  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
+- A `v*` tag makes `release.yml` build a **draft pre-release** whose notes come from the version's
+  `CHANGELOG.md` section (so write that section in plain language before tagging); nothing reaches users
+  until `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
   flags in one call: without `--prerelease=false` GitHub answers 422 "Latest release cannot be draft or
   prerelease" and the release stays a pre-release that the updater ignores.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
@@ -344,7 +345,9 @@ into AGENTS.md.
   check the port owner (`Get-NetTCPConnection -LocalPort <port>`) before a restart, else it fails with
   EADDRINUSE; stop the old process by its PID only after you confirm its command line. Before e2e or a
   full suite, list `node.exe` processes whose command line has `mock/run.ts` or the repo path: old mock
-  servers survive for days.
+  servers survive for days. Run coverage, e2e and electron-links as separate background commands (each
+  logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
+  Build first.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
@@ -526,6 +529,16 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A key check maps each provider status on its own: a **400** from Anthropic is the account (e.g. "credit
+  balance is too low"), not the network, so it must never read "could not reach". Read only the short
+  error object of a 400 (type for the log, the message only matched), and before blaming the code send the
+  same request with a fake key: a 401 proves the request shape is right.
+
+- Claude 5.5 models think adaptively, and thinking tokens count toward `maxOutputTokens`: with the default
+  effort a 2,000-token reply could stop early, parse as malformed and hand the chat over. `ai/claude.ts`
+  sends `providerOptions.anthropic.effort = 'low'` (`CLAUDE_EFFORT`); raise it only together with the cap,
+  and check a new provider's hidden token use before setting a reply limit.
+
 - A migration that splits one owner into several (one AI member → one agent per inbox) must also move what
   the old owner holds (assigned chats, pending state) to the new owner of each scope, in the same
   transaction; otherwise those chats stay with an agent that never answers them.
@@ -658,6 +671,13 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Windows has no flag emoji in its font: Chrome on Windows shows 🇲🇾 as the letters "MY" while phones and
+  Macs show the flag. Not a parsing bug; fixing it needs a bundled flag font (e.g. a country-flag
+  polyfill), not a change to `formatWhatsApp`. Check an emoji report on the reporter's device first.
+
+- Renaming a visible label ("API key" → "OpenAI API key") breaks e2e steps and tests that match the old
+  words, including audit-label tests: grep `e2e/` and `*.test.ts*` for the old text in the same change.
 
 - In e2e, scope a sent or received message text to the conversation
   (`getByRole('log', { name: 'Messages' })`): the chat list preview shows the same text, and a plain

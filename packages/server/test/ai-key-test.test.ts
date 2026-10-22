@@ -41,6 +41,44 @@ describe('createAiKeyTester', () => {
     expect(result).toEqual({ ok: false, error });
   });
 
+  it('tells a 400 "no credit" from another refusal and logs only the error type', async () => {
+    const { lines, log } = capture();
+    const answer = (message: string) =>
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              type: 'error',
+              error: { type: 'invalid_request_error', message },
+            }),
+            { status: 400 },
+          ),
+      );
+    const tester = (message: string) => createAiKeyTester({ log, fetch: answer(message) as never });
+    expect(
+      await tester('Your credit balance is too low to access the Anthropic API.')(KEY, 'claude'),
+    ).toEqual({ ok: false, error: 'no_credit' });
+    expect(await tester('Organization is disabled.')(KEY, 'claude')).toEqual({
+      ok: false,
+      error: 'rejected',
+    });
+    // A 400 whose body is not an error object is still a refusal, not "unreachable".
+    const plain = vi.fn(async () => new Response('Bad request', { status: 400 }));
+    expect(await createAiKeyTester({ log, fetch: plain as never })(KEY, 'claude')).toEqual({
+      ok: false,
+      error: 'rejected',
+    });
+    const logged = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(logged[0]).toMatchObject({
+      error: 'no_credit',
+      status: 400,
+      providerError: 'invalid_request_error',
+    });
+    expect(lines.join('\n')).not.toContain('credit balance');
+    expect(lines.join('\n')).not.toContain('Organization is disabled');
+    expect(lines.join('\n')).not.toContain(KEY);
+  });
+
   it('reports a network failure as unreachable', async () => {
     const { log } = capture();
     const fetchMock = vi.fn(async () => {

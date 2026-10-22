@@ -57,11 +57,12 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.patch('/ai/connection', async (req) =>
     ai.saveConnection(parse(AiConnectionBody, req.body), actor(req)),
   );
-  // Checks a key before the page saves it; the key is neither stored nor logged here.
+  // Checks an OpenAI (default) or Claude key before the page saves it; the key is neither stored
+  // nor logged here.
   app.post('/ai/connection/test', async (req): Promise<AiKeyTestResponse> => {
     limit(keyTestLimiter, req);
-    const { apiKey } = parse(AiKeyTestBody, req.body);
-    const result = await keyTest(apiKey);
+    const { apiKey, mode = 'api' } = parse(AiKeyTestBody, req.body);
+    const result = await keyTest(apiKey, mode);
     recheck(req);
     return result;
   });

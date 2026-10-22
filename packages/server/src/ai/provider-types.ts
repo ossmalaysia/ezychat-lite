@@ -42,7 +42,7 @@ export interface AiPromptImage {
   mime: string;
   base64: string;
 }
-/** Low detail keeps image tokens small and replies fast. */
+/** Low detail keeps image tokens small and replies fast (OpenAI only; never sent to Claude). */
 export const AI_IMAGE_DETAIL = 'low';
 
 /** The user message content: the text part, then one `input_image` part per image. */
@@ -56,6 +56,10 @@ export function userMessageContent(text: string, images: readonly AiPromptImage[
     })),
   ];
 }
+/**
+ * Every call receives the saved key of the selected API-key mode (`aiApiKey`: the OpenAI key in
+ * `api` mode, the Claude key in `claude` mode); ChatGPT sign-in ignores it.
+ */
 export interface AiProvider {
   extractCustomer?(
     settings: AiSettings,

@@ -118,6 +118,7 @@ describe('agent bodies', () => {
       member: null,
       settings,
       hasApiKey: false,
+      hasClaudeApiKey: false,
       connection: { state: 'signed_out', loginUrl: null, error: null },
       documents: [],
       agents: [summary],

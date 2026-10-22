@@ -1,0 +1,28 @@
+# Backlog (own follow-ups)
+
+Our own open items. GitHub issues are for external reports only (AGENTS.md), so internal bugs and ideas
+are listed here until they get a branch. Newest first; remove an item when its PR merges.
+
+## Bugs
+
+- **Emoji reactions are not shown** (owner, 2026-10-22). WhatsApp shows a reaction (e.g. 👍) as a small
+  badge under the message; EzyChat never shows it. Cause: `packages/wa/src/baileys/mapping.ts` drops
+  `reactionMessage` (returns null), so reactions are never stored. Needs: map reactions (target message
+  id, reactor, emoji; an empty emoji removes it) for live and history messages, store them per message
+  (one per person), a socket update, and a badge under the bubble with who reacted. Changes under
+  `packages/wa/src/baileys/**` must be smoke-tested against real WhatsApp (receive only). Mock first
+  (screen change). Later, optionally, let the team react.
+- **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
+  no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
+
+## Ideas and next steps
+
+- **One affiliate download link** `https://ezychat.ai/download?ref=<code>` (website repo): detects
+  Windows / Mac Apple silicon / Mac Intel and starts the newest published installer, buttons for the
+  others. Waiting for the owner: skip or keep the download form for this link.
+- **Enterprise 0.1.5 on core 0.1.48**: pins to 0.1.48; the connectors test double needs
+  `GET /api/ai/agents` and `GET /api/ai/agents/1`; the Connectors card should read `useAgentSection()`
+  to name the agent of the page; create `D:\dev\test-env\enterprise` (copy the earlier trial data).
+- **AI agents follow-ups**: see `docs/features/custom-agents/design.md` → Follow-ups (copy items between
+  agents, conflict warning, Try it as a short chat, and more).
+- **Claude provider follow-ups**: test a saved Claude key from the page; wording for a Claude refusal.
