@@ -667,6 +667,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Renaming a visible label ("API key" → "OpenAI API key") breaks e2e steps and tests that match the old
+  words, including audit-label tests: grep `e2e/` and `*.test.ts*` for the old text in the same change.
+
 - In e2e, scope a sent or received message text to the conversation
   (`getByRole('log', { name: 'Messages' })`): the chat list preview shows the same text, and a plain
   `getByText` fails in strict mode only when the preview updates first (flaky, not every run).
