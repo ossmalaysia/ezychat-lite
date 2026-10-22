@@ -7,6 +7,7 @@ import { GETTING_STARTED_HIDDEN_KEY, GettingStartedCard } from './GettingStarted
 const state = vi.hoisted(() => ({
   role: 'admin' as 'admin' | 'agent',
   aiOn: false,
+  agents: [] as { id: number }[],
   users: [] as { id: number; kind?: string; disabled: boolean }[],
   tunnelState: 'stopped' as string,
   hasTunnelToken: false,
@@ -21,6 +22,7 @@ vi.mock('../api/ai', () => ({
       hasApiKey: true,
       connection: { state: 'disconnected' },
       documents: [{ characters: 120 }],
+      agents: state.agents,
     },
   }),
 }));
@@ -51,6 +53,7 @@ beforeEach(() => {
   Object.assign(state, {
     role: 'admin',
     aiOn: false,
+    agents: [],
     users: [{ id: 1, kind: 'human', disabled: false }],
     tunnelState: 'stopped',
     hasTunnelToken: false,
@@ -69,7 +72,7 @@ describe('GettingStartedCard', () => {
     renderCard();
     expect(screen.getByRole('heading', { name: 'Getting started' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /AI assistant/ }).getAttribute('href')).toBe(
-      '/admin/members/ai',
+      '/admin/members/ai/new',
     );
     expect(screen.getByRole('link', { name: /Teammates/ }).getAttribute('href')).toBe(
       '/admin/members',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Lock } from 'lucide-react';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
 import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
 import { useAiTry } from '../api/ai';
@@ -13,9 +14,21 @@ import { Field, Pending } from './adminUi';
 
 /**
  * Asks the AI a test question with the page's current (possibly unsaved) name and instructions;
- * the server answers from the saved Business context items.
+ * the server answers from the saved Business context items of `agentId` (none: the inbox-1 agent).
+ * `ready` false: the AI connection does not work yet, so asking is off.
  */
-export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
+export function AiTryIt({
+  draft,
+  agentId,
+  ready = true,
+  onAnswered,
+}: {
+  draft: AiKnowledgeDraft;
+  agentId?: number;
+  ready?: boolean;
+  /** Called after the model answered a test question (the agent page's Next steps). */
+  onAnswered?: () => void;
+}) {
   const { t } = useTranslation('admin');
   const ask = useAiTry();
   const [question, setQuestion] = useState('');
@@ -26,21 +39,37 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
     handoff: t('ai.try.decision.handoff'),
     no_reply: t('ai.try.decision.no_reply'),
   };
+  const name = draft.displayName.trim() || t('ai.page.defaultTitle');
   const submit = () => {
     const text = question.trim();
-    if (!text) return;
-    ask.mutate({
-      question: text,
-      knowledge: {
-        displayName: draft.displayName.trim() || t('ai.page.defaultTitle'),
-        instructions: draft.instructions,
-        handoffRules: draft.handoffRules,
+    if (!text || !ready) return;
+    ask.mutate(
+      {
+        question: text,
+        knowledge: {
+          displayName: name,
+          instructions: draft.instructions,
+          handoffRules: draft.handoffRules,
+        },
+        ...(agentId === undefined ? {} : { agentId }),
       },
-    });
+      {
+        onSuccess: (result) => {
+          if (result.ok) onAnswered?.();
+        },
+      },
+    );
   };
+  const leak = ask.data?.action === 'handoff' && ask.data.handoffReason === 'confidential_leak';
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{t('ai.try.hint')}</p>
+      <p className="text-sm text-muted-foreground">
+        {agentId === undefined ? t('ai.try.hint') : t('ai.try.agentHint')}
+      </p>
+      {!draft.instructions.trim() && (
+        <p className="text-sm text-muted-foreground">{t('ai.try.noRole')}</p>
+      )}
+      {!ready && <Banner tone="warning">{t('ai.try.needsConnection')}</Banner>}
       <Field label={t('ai.try.label')} hint={t('ai.try.enterHint')}>
         {(p) => (
           <Textarea
@@ -63,7 +92,7 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
         type="button"
         size="touch"
         className="self-start"
-        disabled={!question.trim() || ask.isPending}
+        disabled={!question.trim() || ask.isPending || !ready}
         onClick={submit}
       >
         <Pending show={ask.isPending} />
@@ -77,13 +106,24 @@ export function AiTryIt({ draft }: { draft: AiKnowledgeDraft }) {
                 {ask.data.action && (
                   <Badge variant="outline">{decisionLabels[ask.data.action]}</Badge>
                 )}
+                {agentId !== undefined && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('ai.try.answeredAs', { name })}
+                  </span>
+                )}
                 {ask.data.model && (
                   <span className="text-xs text-muted-foreground">
                     {t('ai.try.model', { model: ask.data.model })}
                   </span>
                 )}
               </div>
-              {ask.data.action === 'handoff' && ask.data.handoffReason && (
+              {leak && (
+                <p className="mb-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                  {t('ai.try.confidentialLeak')}
+                </p>
+              )}
+              {ask.data.action === 'handoff' && ask.data.handoffReason && !leak && (
                 <p className="mb-2 text-xs text-muted-foreground">
                   {t('ai.try.handoffReason', {
                     reason: handoffReasonLabel(ask.data.handoffReason),

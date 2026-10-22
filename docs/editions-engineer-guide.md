@@ -221,7 +221,10 @@ export const reportsWeb: WebExtension = {
   and guard. Every element is wrapped in an `ErrorBoundary`.
 - Settings sections appear under Settings → Integrations, below the core sections.
 - `agentSections: [{ agent: 'sales', id, element }]` add one compact row each under Business
-  context on the Sales Agent page (`/admin/members/ai`); put details on the extension's own page.
+  context on every AI agent's page (`/admin/members/ai/<id>`; not on the new-agent page); put
+  details on the extension's own page. Inside the element, `useAgentSection()` returns the agent
+  whose page shows it, `{ agentId, displayName, preset }` (null anywhere else), so a row can name
+  that agent and read its own data for it instead of assuming inbox 1's agent.
 - An admin route with `section: 'members'` (any core admin section) highlights that nav item and
   names it in the phone header, so an agent sub-page still looks like part of Members.
 - `adminNav[].useBadge` is a cheap React hook returning `{ count?, attention?, labelKey? }` or null:

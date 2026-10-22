@@ -209,6 +209,7 @@ describe('AI member knowledge', () => {
       characters: 9,
       createdAt: 1,
       updatedAt: 2,
+      internal: false,
     };
     expect(AiDocument.parse(doc)).toEqual(doc);
     expect(AiDocument.safeParse({ ...doc, kind: 'note' }).success).toBe(false);

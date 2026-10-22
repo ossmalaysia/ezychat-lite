@@ -1,23 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_AI_HANDOFF_RULES, DEFAULT_AI_INSTRUCTIONS } from '@ezychat/shared';
+import { AI_AGENT_PRESETS } from '@ezychat/shared';
 import en from '../i18n/locales/en/admin.json';
 import ms from '../i18n/locales/ms/admin.json';
 import zh from '../i18n/locales/zh-CN/admin.json';
 
-describe('default AI instructions and hand-off rules in the catalogs', () => {
-  it('keeps the English catalog identical to the server defaults', () => {
-    expect(en.ai.defaults.instructions).toBe(DEFAULT_AI_INSTRUCTIONS);
-    expect(en.ai.defaults.handoffRules).toBe(DEFAULT_AI_HANDOFF_RULES);
+const PRESETS = ['sales', 'faq'] as const;
+
+describe('preset starting texts in the catalogs', () => {
+  it.each(PRESETS)('keeps the English %s texts identical to the server presets', (preset) => {
+    expect(en.ai.defaults[preset]).toEqual(AI_AGENT_PRESETS[preset]);
   });
 
-  it('translates them for Malay and Chinese admins, with the same structure', () => {
+  it.each(PRESETS)('translates the %s texts for Malay and Chinese, same structure', (preset) => {
+    const source = AI_AGENT_PRESETS[preset];
     for (const catalog of [ms, zh]) {
-      const { instructions, handoffRules } = catalog.ai.defaults;
-      expect(instructions).not.toBe(DEFAULT_AI_INSTRUCTIONS);
-      expect(handoffRules).not.toBe(DEFAULT_AI_HANDOFF_RULES);
+      const { instructions, handoffRules } = catalog.ai.defaults[preset];
+      expect(instructions).not.toBe(source.instructions);
+      expect(handoffRules).not.toBe(source.handoffRules);
       // Same sections and the same number of rules as the English source.
-      expect(instructions.split('\n').length).toBe(DEFAULT_AI_INSTRUCTIONS.split('\n').length);
-      expect(handoffRules.split('\n').length).toBe(DEFAULT_AI_HANDOFF_RULES.split('\n').length);
+      expect(instructions.split('\n').length).toBe(source.instructions.split('\n').length);
+      expect(handoffRules.split('\n').length).toBe(source.handoffRules.split('\n').length);
       expect(instructions).toContain('*');
     }
   });

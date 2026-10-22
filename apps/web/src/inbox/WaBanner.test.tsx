@@ -21,7 +21,15 @@ function status(state: WaStatus['state']): WaStatus {
 }
 
 function inbox(id: number, name: string, state: WaStatus['state'], removed = false): Inbox {
-  return { id, name, tone: 'primary', number: null, removed, status: status(state) };
+  return {
+    id,
+    name,
+    tone: 'primary',
+    number: null,
+    removed,
+    aiAgentId: null,
+    status: status(state),
+  };
 }
 
 function json(data: unknown, code = 200) {

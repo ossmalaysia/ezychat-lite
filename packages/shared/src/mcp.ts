@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AI_HANDOFF_RULES_CHARACTERS, AI_INSTRUCTIONS_CHARACTERS } from './ai.js';
 import { ChatStatus } from './enums.js';
 
 // AI assistant (MCP) access: admin-created personal access tokens and the read-only tool inputs.
@@ -200,10 +201,21 @@ export const McpSetupTarget = z
   );
 export type McpSetupTarget = z.infer<typeof McpSetupTarget>;
 
-export const McpGetAiAgentSetupInput = z.strictObject({});
+const McpAgentId = z
+  .number()
+  .int()
+  .positive()
+  .optional()
+  .describe('AI agent id from list_ai_agents; omit for the only agent, else the agent of inbox 1');
+
+export const McpListAiAgentsInput = z.strictObject({});
+export type McpListAiAgentsInput = z.infer<typeof McpListAiAgentsInput>;
+
+export const McpGetAiAgentSetupInput = z.strictObject({ agentId: McpAgentId });
 export type McpGetAiAgentSetupInput = z.infer<typeof McpGetAiAgentSetupInput>;
 
 export const McpGetAiContextItemInput = z.strictObject({
+  agentId: McpAgentId,
   id: z.number().int().positive().describe('Business context item id from get_ai_agent_setup'),
   offset: z
     .number()
@@ -215,21 +227,23 @@ export const McpGetAiContextItemInput = z.strictObject({
 export type McpGetAiContextItemInput = z.infer<typeof McpGetAiContextItemInput>;
 
 export const McpTryAiReplyInput = z.strictObject({
+  agentId: McpAgentId,
   message: z.string().trim().min(1).max(500).describe('A customer message to test'),
   instructions: z
     .string()
-    .max(8000)
+    .max(AI_INSTRUCTIONS_CHARACTERS)
     .optional()
     .describe('Draft AI instructions to test instead of the saved ones'),
   handoffRules: z
     .string()
-    .max(4000)
+    .max(AI_HANDOFF_RULES_CHARACTERS)
     .optional()
     .describe('Draft hand-off rules to test instead of the saved ones'),
 });
 export type McpTryAiReplyInput = z.infer<typeof McpTryAiReplyInput>;
 
 export const McpUpdateAiSetupInput = z.strictObject({
+  agentId: McpAgentId,
   target: McpSetupTarget,
   itemId: z
     .number()
@@ -256,10 +270,17 @@ export const McpUpdateAiSetupInput = z.strictObject({
     .min(5)
     .max(300)
     .describe('Why this change is being made; stored in the audit log and version history'),
+  internal: z
+    .boolean()
+    .optional()
+    .describe(
+      'context_text only: true = Internal item (used to decide, never told to customers); omit to keep it as it is',
+    ),
 });
 export type McpUpdateAiSetupInput = z.infer<typeof McpUpdateAiSetupInput>;
 
 export const McpGetAiSetupHistoryInput = z.strictObject({
+  agentId: McpAgentId,
   target: McpSetupTarget,
   itemId: z.number().int().positive().optional().describe('context_text only: the item'),
   limit: z.number().int().min(1).max(50).default(10),

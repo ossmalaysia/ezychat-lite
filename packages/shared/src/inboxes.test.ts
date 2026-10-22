@@ -44,6 +44,7 @@ describe('inbox contract', () => {
       number: null,
       status,
       removed: false,
+      aiAgentId: null,
     } as const;
     expect(InboxSchema.parse(inbox)).toEqual(inbox);
     expect(InboxSchema.safeParse({ ...inbox, id: 0 }).success).toBe(false);

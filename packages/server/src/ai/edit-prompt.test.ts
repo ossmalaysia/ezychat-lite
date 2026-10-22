@@ -6,6 +6,7 @@ const base = {
   current: 'ROLE\nYou are a friendly sales assistant.',
   request: 'Make it more formal',
   businessKnowledge: '[Hours]\nWe open 9am to 6pm.',
+  preset: 'sales' as const,
 };
 
 describe('buildEditPrompt', () => {
@@ -16,6 +17,7 @@ describe('buildEditPrompt', () => {
       current: '- The customer asks for a refund.',
       request: 'Hand off complaints too',
       businessKnowledge: '',
+      preset: 'sales',
     });
     expect(a.instructions).toBe(b.instructions);
     expect(a.instructions).not.toContain('Make it more formal');

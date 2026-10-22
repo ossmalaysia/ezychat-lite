@@ -92,8 +92,12 @@ beforeEach(async () => {
     },
     actor,
   );
-  ai.addText({ name: 'Prices', text: 'ChatGPT Business costs RM120 per user per month.' }, actor);
-  ai.addDocument('catalogue.pdf', 1000, 'Catalogue text', actor);
+  ai.addText(
+    null,
+    { name: 'Prices', text: 'ChatGPT Business costs RM120 per user per month.' },
+    actor,
+  );
+  ai.addDocument(null, 'catalogue.pdf', 1000, 'Catalogue text', actor);
   setMcpEnabled(t.ctx, true);
   const created = t.ctx.services.apiTokens!.create(
     admin.id,
@@ -119,6 +123,7 @@ describe('AI setup over MCP', () => {
       'get_chat',
       'get_messages',
       'get_stats',
+      'list_ai_agents',
       'list_chats',
       'try_ai_reply',
       'update_ai_setup',

@@ -5,7 +5,9 @@ import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Inbox, User, WaStatus } from '@ezychat/shared';
+import { Link } from 'react-router-dom';
+import type { AiAgentSummary, Inbox, User, WaStatus } from '@ezychat/shared';
+import { refreshAgents, useAiAgents } from '../api/ai';
 import { ApiError, errorMessage } from '../api/client';
 import {
   useCreateInbox,
@@ -23,17 +25,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton } from './adminUi';
 import { formatInboxNumber, inboxCardStatus } from './inbox-status';
 
 /** While a phone is being linked, ask for the status this often (the socket usually is faster). */
 const LINK_POLL_MS = 5_000;
+/** The AI agent select's value for "no AI agent". */
+const NO_AGENT = 'none';
 
 /** Every linked WhatsApp number (inbox), with who may open it. Admin only; shown when maxInboxes > 1. */
 export function InboxesPage() {
   const { t } = useTranslation('admin');
   const inboxes = useInboxes();
   const users = useUsers();
+  const agentList = useAiAgents();
+  const qc = useQueryClient();
   const remove = useRemoveInbox();
   const [editing, setEditing] = useState<number | 'new' | null>(null);
   const [removing, setRemoving] = useState<Inbox | null>(null);
@@ -48,6 +61,10 @@ export function InboxesPage() {
   const people = (users.data ?? []).filter((u) => !u.disabled && u.kind !== 'ai');
   const whoCanOpen = (inbox: Inbox) =>
     people.filter((u) => u.role === 'admin' || (inbox.memberIds ?? []).includes(u.id));
+  const agents = agentList.data?.agents ?? [];
+  const agentOf = (inbox: Inbox) =>
+    inbox.aiAgentId === null ? undefined : agents.find((a) => a.id === inbox.aiAgentId);
+  const removingAgent = removing ? agentOf(removing) : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,6 +105,7 @@ export function InboxesPage() {
           key={inbox.id}
           inbox={inbox}
           openers={whoCanOpen(inbox)}
+          agent={agentOf(inbox)}
           onEdit={() => setEditing(inbox.id)}
           onRemove={() => {
             remove.reset();
@@ -101,6 +119,7 @@ export function InboxesPage() {
         inboxes={active}
         people={people}
         peopleReady={users.isSuccess}
+        agents={agents}
         maxInboxes={maxInboxes}
         onClose={() => setEditing(null)}
       />
@@ -115,6 +134,8 @@ export function InboxesPage() {
           if (!removing) return;
           remove.mutate(removing.id, {
             onSuccess: () => {
+              // Its agent no longer answers an inbox.
+              refreshAgents(qc);
               toast.success(t('inboxes.removed'));
               setRemoving(null);
             },
@@ -123,6 +144,11 @@ export function InboxesPage() {
         onClose={() => setRemoving(null)}
       >
         {t('inboxes.removeBodyPhone')}
+        {removingAgent && (
+          <span className="mt-2 block">
+            {t('inboxes.aiAgentRemove', { agent: removingAgent.displayName })}
+          </span>
+        )}
       </ConfirmDialog>
     </div>
   );
@@ -131,9 +157,17 @@ export function InboxesPage() {
 function InboxCard({
   inbox,
   openers,
+  agent,
   onEdit,
   onRemove,
-}: Readonly<{ inbox: Inbox; openers: User[]; onEdit: () => void; onRemove: () => void }>) {
+}: Readonly<{
+  inbox: Inbox;
+  openers: User[];
+  /** The AI agent that answers this inbox, if any. */
+  agent: AiAgentSummary | undefined;
+  onEdit: () => void;
+  onRemove: () => void;
+}>) {
   const { t } = useTranslation('admin');
   const status = useInboxStatus(inbox.id) ?? inbox.status;
   const card = inboxCardStatus(status.state);
@@ -192,6 +226,19 @@ function InboxCard({
               }
             />
           </dd>
+          <dt className="text-muted-foreground">{t('inboxes.aiAgent')}</dt>
+          <dd data-testid="inbox-agent">
+            {agent ? (
+              <Link
+                to={`/admin/members/ai/${agent.id}`}
+                className="inline-flex items-center font-medium break-all text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
+              >
+                {agent.displayName}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">{t('inboxes.aiAgentNone')}</span>
+            )}
+          </dd>
           <dt className="text-muted-foreground">{t('inboxes.whoCanOpen')}</dt>
           <dd className="flex min-w-0 flex-wrap gap-1.5">
             {openers.map((u) => (
@@ -235,6 +282,7 @@ function InboxDialog({
   inboxes,
   people,
   peopleReady,
+  agents: aiAgents,
   maxInboxes,
   onClose,
 }: Readonly<{
@@ -243,17 +291,22 @@ function InboxDialog({
   people: User[];
   /** False while the team list loads or failed: the tick boxes are then incomplete. */
   peopleReady: boolean;
+  /** Every AI agent: one of them (or none) answers the inbox. */
+  agents: AiAgentSummary[];
   maxInboxes: number;
   onClose: () => void;
 }>) {
   const { t } = useTranslation(['admin', 'common']);
   const create = useCreateInbox();
   const update = useUpdateInbox();
+  const qc = useQueryClient();
   const isNew = target === 'new';
   const [name, setName] = useState('');
   const [members, setMembers] = useState<number[]>([]);
   /** True once the admin changed a tick box; only then does Save send memberIds. */
   const [membersTouched, setMembersTouched] = useState(false);
+  /** The AI agent select: an agent id, or NO_AGENT. */
+  const [agentChoice, setAgentChoice] = useState(NO_AGENT);
   const [submitted, setSubmitted] = useState(false);
   /** The inbox just created in this dialog (its QR code shows next). */
   const [createdId, setCreatedId] = useState<number | null>(null);
@@ -271,6 +324,7 @@ function InboxDialog({
     setName(current?.name ?? '');
     setMembers(current?.memberIds ?? []);
     setMembersTouched(false);
+    setAgentChoice(current?.aiAgentId == null ? NO_AGENT : String(current.aiAgentId));
     setSubmitted(false);
     setCreatedId(null);
     create.reset();
@@ -287,6 +341,17 @@ function InboxDialog({
   // Without the team list the tick boxes are incomplete: a save could take access away.
   const canSave = !busy && peopleReady;
   const error = create.error ?? update.error;
+  const inboxName = (id: number | null) => inboxes.find((i) => i.id === id)?.name ?? '';
+  const chosenAgentId = agentChoice === NO_AGENT ? null : Number(agentChoice);
+  const chosen = aiAgents.find((a) => a.id === chosenAgentId);
+  const previous =
+    inbox?.aiAgentId == null ? undefined : aiAgents.find((a) => a.id === inbox.aiAgentId);
+  /** The chosen agent answers another inbox now: saving moves it here. */
+  const movesFrom =
+    chosen && chosen.inboxId !== null && chosen.inboxId !== inbox?.id
+      ? inboxName(chosen.inboxId)
+      : '';
+  const refreshAgentQueries = () => refreshAgents(qc);
 
   const save = (event: React.FormEvent) => {
     event.preventDefault();
@@ -300,9 +365,14 @@ function InboxDialog({
     const memberIds = [...members.filter(shown), ...hidden];
     if (isNew) {
       create.mutate(
-        { name: trimmed, memberIds },
+        {
+          name: trimmed,
+          memberIds,
+          ...(chosenAgentId !== null ? { aiAgentId: chosenAgentId } : {}),
+        },
         {
           onSuccess: (created) => {
+            if (chosenAgentId !== null) refreshAgentQueries();
             setCreatedId(created.id);
             toast.success(t('inboxes.createdPhone'));
           },
@@ -314,6 +384,7 @@ function InboxDialog({
     const body = {
       ...(trimmed !== inbox.name ? { name: trimmed } : {}),
       ...(membersTouched && !sameSet(memberIds, inbox.memberIds ?? []) ? { memberIds } : {}),
+      ...(chosenAgentId !== (inbox.aiAgentId ?? null) ? { aiAgentId: chosenAgentId } : {}),
     };
     if (Object.keys(body).length === 0) {
       onClose();
@@ -323,6 +394,7 @@ function InboxDialog({
       { id: inbox.id, body },
       {
         onSuccess: () => {
+          if ('aiAgentId' in body) refreshAgentQueries();
           toast.success(t('inboxes.saved'));
           onClose();
         },
@@ -418,6 +490,43 @@ function InboxDialog({
               <p className="text-sm text-warning">{t('inboxes.membersFieldNone')}</p>
             )}
           </fieldset>
+        )}
+
+        {!(saved && isNew) && (
+          <div className="flex min-w-0 flex-col gap-2" data-testid="inbox-agent-field">
+            <Label htmlFor="inbox-ai-agent">{t('inboxes.aiAgentField')}</Label>
+            <Select value={agentChoice} onValueChange={setAgentChoice}>
+              <SelectTrigger id="inbox-ai-agent" className="min-h-11 w-full md:min-h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_AGENT} className="min-h-11 md:min-h-8">
+                  {t('inboxes.aiAgentNone')}
+                </SelectItem>
+                {aiAgents.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)} className="min-h-11 md:min-h-8">
+                    {a.inboxId !== null && a.inboxId !== inbox?.id && inboxName(a.inboxId)
+                      ? t('inboxes.aiAgentOption', {
+                          agent: a.displayName,
+                          inbox: inboxName(a.inboxId),
+                        })
+                      : a.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">{t('inboxes.aiAgentFieldHint')}</p>
+            {chosen && movesFrom && (
+              <Banner tone="warning">
+                {t('inboxes.aiAgentMove', { agent: chosen.displayName, inbox: movesFrom })}
+              </Banner>
+            )}
+            {previous && previous.id !== chosenAgentId && (
+              <Banner tone="warning">
+                {t('inboxes.aiAgentReplace', { agent: previous.displayName })}
+              </Banner>
+            )}
+          </div>
         )}
 
         {error && (

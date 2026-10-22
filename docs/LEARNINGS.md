@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A UI/UX finding comes from the screen, never from the API: Try it returned `business_rule` over HTTP,
+  but the page already showed "matches your hand-off rules", so a reported "raw codes" problem was wrong.
+  Look at (or read) the rendered page before putting a screen problem in a review.
 - An edition feature built in the core still runs in Lite: report "no visible change" apart from "same
   code path", and for a new core migration check before merge that the previous release still opens the
   migrated data dir (downgrade), or say it is untested.
@@ -100,6 +103,10 @@ into AGENTS.md.
   took 40–60 min per agent on a low-memory PC. Agents build; the main agent reviews and captures once.
 - Agents that don't commit can't know the confirmed mock's git revision: after committing, the
   orchestrator replaces their placeholder in `mock-index.json` / `design.md` with the SHA (grep for it).
+- Put shared UI pieces and helpers (a badge, a query-refresh helper) in the Interfaces of the first task
+  that needs them: parallel agents with disjoint files otherwise each write a private copy.
+- A scripted rename to a shared function's name can make a same-named local wrapper call itself
+  (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
 
 ## Git, GitHub and CI
 
@@ -263,6 +270,22 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
+  it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
+  `packages/server` (the server build compiles against shared's `dist`, not `src`).
+- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
+  bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
+  the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
+  contract change ships, then `npm ci` there to restore the npm core.
+- An Enterprise Dev Build (bundled `server.cjs` on a temp folder) uses the LIVE licence portal: the owner
+  registers it (real email code, real trial record). To show new core code, stop only that server, rerun
+  `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
+  sessions and test agents stay, so nobody registers again.
+- Pass extra Vitest flags through the script (`npm run test:coverage -- --pool=forks --maxWorkers=2`), never a
+  raw `npx vitest run --coverage`: the script's `--testTimeout=20000` keeps slow tests from false failures.
+- A git worktree whose `node_modules` is a junction to the main checkout: delete the junction first
+  (`[System.IO.Directory]::Delete(<link>)` removes only the link) before removing the worktree.
+
 - A second Playwright `webServer` that serves the same `apps/web/dist` waits for the first server's
   `/api/health` (that one builds the web) instead of building again in parallel. Specs for it get their
   own project and `testIgnore` in the others. Confirm dialogs are `alertdialog`, not `dialog`.
@@ -316,7 +339,9 @@ into AGENTS.md.
   regexes from template literals with `String.raw`.
 - A stopped background shell (e.g. Claude Code's low-memory reap) can leave its `tsx` server child running:
   check the port owner (`Get-NetTCPConnection -LocalPort <port>`) before a restart, else it fails with
-  EADDRINUSE; stop the old process by its PID only after you confirm its command line.
+  EADDRINUSE; stop the old process by its PID only after you confirm its command line. Before e2e or a
+  full suite, list `node.exe` processes whose command line has `mock/run.ts` or the repo path: old mock
+  servers survive for days.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
@@ -377,7 +402,8 @@ into AGENTS.md.
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
   several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
-  migrates a data dir inside itself, and
+  migrates a data dir inside itself (`describe(name, { timeout: 30_000 }, …)`; put it in subagent and
+  reviewer prompts: five agent-written files missed it and failed only on Windows CI), and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
@@ -497,6 +523,21 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A migration that splits one owner into several (one AI member → one agent per inbox) must also move what
+  the old owner holds (assigned chats, pending state) to the new owner of each scope, in the same
+  transaction; otherwise those chats stay with an agent that never answers them.
+- A Dev Build check of prompt wiring needs no real model: a mock provider that answers with what it
+  received (`e2e/agents-devbuild.ts`: name, guardrails first, `MARK-…` words per knowledge part) proves
+  isolation and order end to end; a data-moving migration is also checked from the installed release
+  (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
+  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
+- When one thing becomes many (one AI member → one agent per inbox), every extension slot keyed by
+  kind (`agentSections` with `agent: 'sales'`) must also get the instance id, and the screen review must
+  include an Enterprise Dev Build: its Connectors card named the inbox-1 agent on every agent page, which
+  no Lite test or Lite screenshot could show.
+- A soft-deleted user (a deleted AI agent) leaves Members and assignee lists, but name lookups for old
+  messages (directory, MCP) must still include it, flagged (`aiDeleted`), or its history turns nameless.
+
 - Every behaviour the admin instructions may ask for needs a decision the schema accepts: "do not reply to
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
@@ -614,6 +655,10 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- In e2e, scope a sent or received message text to the conversation
+  (`getByRole('log', { name: 'Messages' })`): the chat list preview shows the same text, and a plain
+  `getByText` fails in strict mode only when the preview updates first (flaky, not every run).
 
 - A shell component that starts calling a new hook from a widely mocked module (`api/queries`) breaks
   every `vi.mock('../api/queries', () => …)` factory that lacks it: grep those mocks and add the hook.

@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
+import { listAgents, migrateMemberSetting } from '../src/ai/agents.js';
+import { listSetupVersions } from '../src/ai/setup-versions.js';
 import { migrationsDir } from '../src/db/migrate.js';
 import { createUserAndLogin } from './auth-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -39,6 +41,41 @@ function oldestDataDir(): string {
   db.close();
   mkdirSync(join(dir, 'wa-auth'));
   writeFileSync(join(dir, 'wa-auth', 'creds.json'), CREDS);
+  return dir;
+}
+
+/**
+ * The oldest folder after release 14 (one AI Sales Agent): the AI member, its saved texts in the
+ * `ai_sales_member` setting (blank hand-over rules), two Business context items and one saved version.
+ */
+function aiMemberDataDir(): string {
+  const dir = oldestDataDir();
+  const db = new Database(join(dir, 'app.db'));
+  for (const f of readdirSync(migrationsDir())
+    .filter((f) => /^\d+_.+\.sql$/.test(f))
+    .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+    .filter((f) => parseInt(f, 10) > 1 && parseInt(f, 10) <= 14))
+    db.exec(readFileSync(join(migrationsDir(), f), 'utf8'));
+  db.pragma('user_version = 14');
+  const now = 1_700_000_000_000;
+  db.prepare(
+    "INSERT INTO users (id, username, display_name, password_hash, role, kind, created_at) VALUES (7, 'ai-x', 'Kopi Bot', '', 'agent', 'ai', ?)",
+  ).run(now);
+  db.prepare("INSERT INTO settings (key, value) VALUES ('ai_sales_member', ?)").run(
+    JSON.stringify({ displayName: 'Kopi Bot', instructions: 'Sell kopi kindly', handoffRules: '' }),
+  );
+  const items: Array<[string, string]> = [
+    ['Prices', 'Kopi RM5'],
+    ['Hours', 'Open 8-6'],
+  ];
+  for (const [name, text] of items)
+    db.prepare(
+      "INSERT INTO ai_documents (name, kind, size, text, created_at, updated_at) VALUES (?, 'text', ?, ?, ?, ?)",
+    ).run(name, text.length, text, now, now);
+  db.prepare(
+    "INSERT INTO ai_setup_versions (target, item_id, content, via, user_id, created_at) VALUES ('instructions', NULL, 'Sell kopi kindly', 'app', 1, ?)",
+  ).run(now);
+  db.close();
   return dir;
 }
 
@@ -91,6 +128,44 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.
     expect(readFileSync(join(dir, 'wa-auth', 'creds.json'), 'utf8')).toBe(CREDS);
+  });
+
+  it('015 turns the one AI Sales Agent into agent 1 with the same texts, items and history', async () => {
+    dir = aiMemberDataDir();
+    t = await makeTestApp({ config: { dataDir: dir } });
+    const db = t.ctx.db;
+    // The permanent start-up step (idempotent; a no-op when start-up already ran it).
+    migrateMemberSetting(db, t.ctx.settings);
+    const agents = listAgents(db);
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      userId: 7,
+      inboxId: 1,
+      preset: 'sales',
+      displayName: 'Kopi Bot',
+      instructions: 'Sell kopi kindly',
+      handoffRules: '',
+    });
+    const agentId = agents[0]!.id;
+    expect(
+      db.prepare('SELECT name, agent_id AS agentId FROM ai_documents ORDER BY id').all(),
+    ).toEqual([
+      { name: 'Prices', agentId },
+      { name: 'Hours', agentId },
+    ]);
+    expect(listSetupVersions(db, agentId, 'instructions', null, 10).map((v) => v.content)).toEqual([
+      'Sell kopi kindly',
+    ]);
+
+    const { cookie } = await createUserAndLogin(t, { role: 'admin' });
+    const ai = (
+      await t.app.inject({ method: 'GET', url: '/api/ai', headers: { cookie } })
+    ).json() as {
+      settings: { instructions: string; handoffRules: string };
+      documents: Array<{ name: string }>;
+    };
+    expect(ai.settings).toMatchObject({ instructions: 'Sell kopi kindly', handoffRules: '' });
+    expect(ai.documents.map((d) => d.name)).toEqual(['Prices', 'Hours']);
   });
 
   it('after a downgrade and a new update, a chat the older version made is found, not duplicated', async () => {

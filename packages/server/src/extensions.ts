@@ -27,10 +27,10 @@ export interface ServerExtension {
   agentTools?(ctx: AppContext, input: AgentToolsInput): Promise<AgentToolsResult | null>;
   /**
    * Cheap and synchronous (no network): true when `agentTools` would offer this agent at least one
-   * look-up right now. The core then treats look-ups as a fact source and does not hand over (or
+   * look-up right now (`agentId`: which AI agent asks). The core then treats look-ups as a fact source and does not hand over (or
    * refuse to turn the agent on) only because the Business context is empty.
    */
-  hasAgentLookups?(ctx: AppContext, input: { agent: AgentKind }): boolean;
+  hasAgentLookups?(ctx: AppContext, input: { agent: AgentKind; agentId?: number }): boolean;
 }
 
 export function validateExtensions(list: readonly ServerExtension[]): void {

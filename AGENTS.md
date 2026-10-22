@@ -95,7 +95,20 @@ keep `wa-auth-inboxes/<id>/` (never inside `wa-auth/`: logout wipes the folder) 
 inbox keeps its chats read only for admins (409 `inbox_removed`). Web inbox UI shows only with 2+
 visible inboxes; the Admin nav shows Inboxes instead of WhatsApp only when `maxInboxes > 1`.
 
-**AI Sales Agent.** Code in `packages/server/src/ai/`: `service.ts` decides when the one AI member
+**AI agents.** Design `docs/superpowers/specs/2026-10-22-custom-agents-design.md`. An install has up to
+`maxAgents = maxInboxes` AI agents (Lite 1, 409 `agent_limit`), at most one per inbox (409
+`inbox_has_agent`); table `ai_agents` (`ai/agents.ts` is its only SQL: name and on/off stay on the `kind='ai'`
+`users` row, preset `sales|faq|custom`, `instructions`/`handoff_rules` NULL = preset defaults, a saved blank
+stays blank). Each agent owns its Business context items and setup versions (`agent_id`; every item SQL has
+`AND agent_id = ?`) and answers only chats of its inbox (`agentForChat`; an AI assignee outside its inbox is
+400 `assignee_not_inbox_agent`); re-binding, disabling, deleting an agent or removing its inbox releases its
+chats first. A deleted agent's user stays (`ai_deleted_at`) for history names only. Start-up runs the permanent
+`migrateMemberSetting` (old `ai_sales_member` texts → agent 1). Routes `/api/ai/agents/*`; the old `/api/ai*`
+routes and MCP AI-setup tools without `agentId` mean the only agent, else inbox 1's (`defaultAgent`).
+Extensions keep `agent: 'sales'` for every agent and get `agentId`. Internal items (`internal`, ≤ 10,000
+characters per agent, 409 `internal_too_large`) go in full into `internalKnowledge`, never into
+`search_business_context`; a reply with a ≥ 40-character run of one (`ai/leak-check.ts`, spacing and case
+ignored) is not sent and hands over as `confidential_leak`. `service.ts` decides when an agent
 claims, answers, hands off or resolves a chat; `prompt.ts` builds the single prompt used by live replies
 and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (admin-only, Edit with AI:
 `ai/edit-prompt.ts` + `ai/agent/rewrite.ts`) only suggests a rewrite of one box — the page applies it to its
@@ -117,18 +130,21 @@ longer than the prompt). Rule for new data: push what is small and needed in mos
 details, current situation); add a tool only for data that is large or rarely needed (each call costs
 a model round trip). A rejected refresh sets `expired` and a blocked backend sets `error`; in both
 the AI stops claiming and releases its chats without messaging customers. Knowledge = Business context items
-(table `ai_context_items`: uploaded files and text, up to 20); everything is sent while it fits
+(table `ai_documents`: uploaded files and text, up to 20); everything is sent while it fits
 `AI_FULL_CONTEXT_CHARACTERS` (40,000), above that a CJK-aware selection picks chunks (no vector search).
-Prompt layout for caching: static instructions, then input JSON in fixed order `businessKnowledge` →
+Prompt layout for caching: the fixed `GUARDRAILS` block first (no interpolation, same for every agent), the
+neutral core, then name, role text and hand-over rules, then input JSON in fixed order `internalKnowledge` →
+`businessKnowledge` →
 `conversation` → `currentSituation` last (date/time in `ai_timezone`, default Asia/Kuala_Lumpur; resolution
 awaited; `customer` = the team's saved name, company, email, other phone and address via `aiCustomer`,
 never tags, none in Try it); never put per-call or team-editable values earlier. A reply generated with
-customer details that changed meanwhile is dropped and regenerated. `prompt_cache_key` is derived from the random `ai_install_id`
-and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
+customer details that changed meanwhile is dropped and regenerated. `prompt_cache_key` is derived from the random `ai_install_id`,
+the agent id (`cacheId = installId#agent:<id>`) and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
 questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
 Order and delivery questions keep the chat with the AI. Web: `admin/AiConnectionSection.tsx` (Settings → AI),
-`admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai`), `admin/AiQuickConnect.tsx` (connect
-card shared by the Sales Agent page and the setup wizard's AI assistant step: Account → WhatsApp → AI
+`admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai/:agentId`, `/new?preset=`; `/admin/members/ai`
+redirects), `admin/AiQuickConnect.tsx` (connect
+card shared by the agent page and the setup wizard's AI assistant step: Account → WhatsApp → AI
 assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests and e2e never call OpenAI or
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
@@ -192,7 +208,7 @@ catalog strings name the app only through `{{product}}`, default "EzyChat Lite",
 `WebExtension`s (`src/extensions/types.ts`, `validateWebExtensions`): routes only at `/ext/<name>/…`
 (signed-in) or `/admin/ext/<name>/…` (admin shell and guard), admin nav links (absolute paths),
 Settings → Integrations sections, and catalogs whose keys start with `ext.<name>.` (read with
-`useExtensionTranslation`), `agentSections` (rows under Business context on the agent page), route
+`useExtensionTranslation`), `agentSections` (rows under Business context on each agent page, not on the new-agent page; `useAgentSection()` gives the row its `{ agentId, displayName, preset }`), route
 `section` (an agent sub-page marks a core admin item active and names it in the phone header) and
 adminNav `useBadge` (a count, or an attention dot in the warning tone); `banners` (one slim bar slot, first non-null wins), `lockScreen` (full page while the gate is closed; core `PausedScreen` otherwise), `createInboxApp({ links })` + `useAppLinks()` (About/issue/source/release/feedback/support links; `null` hides one) and brand files exported as `@ezychat/web/public/*`; every extension element is
 wrapped in an `ErrorBoundary`. _Desktop_:
@@ -217,7 +233,7 @@ precompiled CSS with font files); inside the monorepo imports resolve to `src/` 
 `.github/workflows/publish-packages.yml` publishes on `v*` tags (npm trusted publishing via GitHub OIDC; dry run until the repo variable `NPM_TRUSTED_PUBLISHING` is `true`; a package not yet on npm is skipped with a warning: its first version is published by hand). Enterprise
 (`anchorsprint/ezychat-enterprise`) consumes pinned published `@ezychat/*` versions, never a
 git submodule or a committed `file:` dependency; to try an unreleased core it installs `npm run pack:core`
-tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. Lite never imports Enterprise
+tarballs (`scripts/use-local-core.mjs` there), so never break `pack:core`. A change to a shared contract or an extension API is ready only after the Enterprise typecheck, lint and tests pass on that local core (then `npm ci` there); new response fields get zod defaults. Lite never imports Enterprise
 code. Only each package's `index` exports are public API; anything else is internal and may change.
 
 **Send queue** (`messages/send-queue.ts`): FIFO per chat, chats in parallel, ≥1s between sends in a

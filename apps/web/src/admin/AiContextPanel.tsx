@@ -1,19 +1,31 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, FileText, NotebookText, Plus, Search, Upload } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import {
+  ChevronDown,
+  FileText,
+  Lock,
+  LockOpen,
+  NotebookText,
+  Plus,
+  Search,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_ITEMS,
   AI_CONTEXT_NAME_CHARACTERS,
+  AI_INTERNAL_CHARACTERS,
   AiContextTextBody,
   codePointLength,
   type AiDocument,
 } from '@ezychat/shared';
-import { BatchDeleteError, useAiDocument, useAiMemberAction } from '../api/ai';
-import { errorMessage } from '../api/client';
-import { Banner, ResponsiveDialog } from '@/components/app';
+import { BatchDeleteError, useAiAgentAction, useAiAgentDocument } from '../api/ai';
+import { ApiError, errorMessage } from '../api/client';
+import { Banner, ResponsiveDialog, SegmentedControl } from '@/components/app';
 import { SearchField } from '@/components/app/SearchField';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +36,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -41,29 +55,50 @@ const UPLOAD_ACCEPT = '.txt,.md,.pdf,.docx';
 const UPLOAD_BYTES = 10 * 1024 * 1024;
 const CONFIRM_NAMES = 5;
 
-type Open = { kind: 'item'; id: number } | { kind: 'addText' } | null;
+const AGENT_ERROR_CODES = [
+  'agent_limit',
+  'inbox_has_agent',
+  'internal_too_large',
+  'last_agent',
+  'agent_not_found',
+] as const;
+type AgentErrorCode = (typeof AGENT_ERROR_CODES)[number];
+
+/** An AI agent API error in the admin's language (`ai.agents.errors.*`); others as usual. */
+export function agentErrorMessage(error: unknown, t: TFunction<'admin'>): string {
+  if (error instanceof ApiError && (AGENT_ERROR_CODES as readonly string[]).includes(error.code))
+    return t(`ai.agents.errors.${error.code as AgentErrorCode}`, {
+      max: formatNumber(AI_INTERNAL_CHARACTERS),
+    });
+  return errorMessage(error);
+}
+
+type Filter = 'all' | 'customer' | 'internal';
+type Open =
+  { kind: 'item'; id: number } | { kind: 'addText' } | { kind: 'addFile'; file: File } | null;
 
 /**
- * Business context as a list of items (uploaded files and text content), like a project
- * knowledge panel: search, multi-select delete, and Add ▾ (upload or text). Items belong to the
- * AI member, so `ensureMember` saves a draft member first when there is none yet.
+ * The Business context of ONE agent as a list of items (uploaded files and text content), like a
+ * project knowledge panel: search, the Internal filter, multi-select delete, and Add ▾ (upload or
+ * text). An Internal item helps the agent decide and is never told to customers.
  */
 export function AiContextPanel({
+  agentId,
   documents,
-  ensureMember,
   disabled = false,
 }: {
+  agentId: number;
   documents: AiDocument[];
-  ensureMember: () => Promise<boolean>;
   disabled?: boolean;
 }) {
   const { t } = useTranslation('admin');
   const titleId = useId();
-  const action = useAiMemberAction();
+  const filterId = useId();
+  const action = useAiAgentAction(agentId);
   const fileInput = useRef<HTMLInputElement>(null);
-  const uploading = useRef(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [open, setOpen] = useState<Open>(null);
@@ -82,32 +117,27 @@ export function AiContextPanel({
 
   const busy = disabled || action.isPending;
   const full = documents.length >= AI_CONTEXT_ITEMS;
+  const internalDocs = documents.filter((doc) => doc.internal);
+  const internalCharacters = internalDocs.reduce((sum, doc) => sum + doc.characters, 0);
   const needle = query.trim().toLocaleLowerCase();
-  const shown = needle
-    ? documents.filter((doc) => doc.name.toLocaleLowerCase().includes(needle))
-    : documents;
+  const shown = documents.filter(
+    (doc) =>
+      (filter === 'all' || (filter === 'internal') === doc.internal) &&
+      (!needle || doc.name.toLocaleLowerCase().includes(needle)),
+  );
+  const actionError = action.error ? agentErrorMessage(action.error, t) : null;
 
-  const upload = async (file: File) => {
-    if (uploading.current) return;
-    uploading.current = true;
-    try {
-      setLocalError(null);
-      if (!/\.(txt|md|pdf|docx)$/i.test(file.name)) {
-        setLocalError(t('ai.fileTypeError'));
-        return;
-      }
-      if (file.size > UPLOAD_BYTES) {
-        setLocalError(t('ai.fileSizeError'));
-        return;
-      }
-      if (!(await ensureMember())) return;
-      await action.mutateAsync({ kind: 'upload', file });
-      toast.success(t('ai.contextPanel.fileAdded'));
-    } catch {
-      /* shown from action.error */
-    } finally {
-      uploading.current = false;
+  const pickFile = (file: File) => {
+    setLocalError(null);
+    if (!/\.(txt|md|pdf|docx)$/i.test(file.name)) {
+      setLocalError(t('ai.fileTypeError'));
+      return;
     }
+    if (file.size > UPLOAD_BYTES) {
+      setLocalError(t('ai.fileSizeError'));
+      return;
+    }
+    show({ kind: 'addFile', file });
   };
 
   const remove = async (items: AiDocument[]) => {
@@ -145,10 +175,10 @@ export function AiContextPanel({
       else next.add(id);
       return next;
     });
-  const show = (next: Open) => {
+  function show(next: Open) {
     action.reset();
     setOpen(next);
-  };
+  }
   const activate = (doc: AiDocument) => {
     if (selecting) toggle(doc.id);
     else show({ kind: 'item', id: doc.id });
@@ -199,12 +229,62 @@ export function AiContextPanel({
     </DropdownMenu>
   );
 
+  /** Marks one item Internal or customer-facing from the list (only the `internal` flag). */
+  const toggleInternal = async (doc: AiDocument) => {
+    setLocalError(null);
+    const internal = !doc.internal;
+    // The same total limit the server checks; asking would only fail.
+    if (internal && internalCharacters + doc.characters > AI_INTERNAL_CHARACTERS) {
+      setLocalError(
+        t('ai.agents.errors.internal_too_large', { max: formatNumber(AI_INTERNAL_CHARACTERS) }),
+      );
+      return;
+    }
+    try {
+      await action.mutateAsync({ kind: 'updateText', id: doc.id, body: { internal } });
+      toast.success(
+        internal
+          ? t('ai.contextPanel.markedInternal', { name: doc.name })
+          : t('ai.contextPanel.markedCustomer', { name: doc.name }),
+      );
+    } catch {
+      /* shown below from the mutation error */
+    }
+  };
+  const internalToggle = (doc: AiDocument) => {
+    const Icon = doc.internal ? LockOpen : Lock;
+    return (
+      <Button
+        variant="ghost"
+        size="icon-touch"
+        className="shrink-0 md:size-9"
+        disabled={busy}
+        aria-label={
+          doc.internal
+            ? t('ai.contextPanel.markCustomerFor', { name: doc.name })
+            : t('ai.contextPanel.markInternalFor', { name: doc.name })
+        }
+        title={doc.internal ? t('ai.contextPanel.markCustomer') : t('ai.contextPanel.markInternal')}
+        onClick={() => void toggleInternal(doc)}
+      >
+        <Icon aria-hidden />
+      </Button>
+    );
+  };
+
+  const current = open?.kind === 'item' ? documents.find((doc) => doc.id === open.id) : undefined;
+  const askDelete = (doc: AiDocument | undefined) => {
+    setOpen(null);
+    if (doc) setConfirm([doc]);
+  };
+
   return (
     <Card className="gap-4">
       <CardHeader>
         <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
         <CardDescription>
           {t('ai.contextPanel.hint')}
+          <span className="mt-1 block">{t('ai.contextPanel.internalIntro')}</span>
           <span className="mt-1 block text-xs">{t('ai.contextPanel.limits')}</span>
         </CardDescription>
       </CardHeader>
@@ -218,7 +298,7 @@ export function AiContextPanel({
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
-            if (file) void upload(file);
+            if (file) pickFile(file);
           }}
         />
         {documents.length === 0 ? (
@@ -228,62 +308,98 @@ export function AiContextPanel({
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {selecting ? (
-                <>
-                  <Button
-                    variant="destructive"
-                    size="touch"
-                    className="md:min-h-9"
-                    disabled={busy || selected.size === 0}
-                    onClick={() => setConfirm(documents.filter((doc) => selected.has(doc.id)))}
-                  >
-                    {t('ai.contextPanel.deleteSelected', { count: selected.size })}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="touch"
-                    className="md:min-h-9"
-                    onClick={() => {
-                      setSelecting(false);
-                      setSelected(new Set());
-                    }}
-                  >
-                    {t('ai.contextPanel.cancel')}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant={searching ? 'secondary' : 'ghost'}
-                    size="icon-touch"
-                    className="md:size-9"
-                    aria-label={t('ai.contextPanel.search')}
-                    aria-pressed={searching}
-                    onClick={() => {
-                      setSearching((on) => !on);
-                      setQuery('');
-                    }}
-                  >
-                    <Search aria-hidden />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="touch"
-                    className="md:min-h-9"
-                    disabled={busy}
-                    onClick={() => {
-                      // Hidden (filtered-out) items must never be selectable for deletion.
-                      setSearching(false);
-                      setQuery('');
-                      setSelecting(true);
-                    }}
-                  >
-                    {t('ai.contextPanel.select')}
-                  </Button>
-                  {addMenu}
-                </>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span id={filterId} className="text-sm text-muted-foreground">
+                  {t('ai.contextPanel.internalFilterLabel')}
+                </span>
+                <SegmentedControl<Filter>
+                  size="sm"
+                  aria-labelledby={filterId}
+                  value={filter}
+                  onValueChange={(next) => {
+                    setFilter(next);
+                    setSelected(new Set());
+                  }}
+                  options={[
+                    {
+                      value: 'all',
+                      label: t('ai.contextPanel.internalFilterAll', { count: documents.length }),
+                    },
+                    {
+                      value: 'customer',
+                      label: t('ai.contextPanel.internalFilterCustomer', {
+                        count: documents.length - internalDocs.length,
+                      }),
+                    },
+                    {
+                      value: 'internal',
+                      label: t('ai.contextPanel.internalFilterInternal', {
+                        count: internalDocs.length,
+                      }),
+                    },
+                  ]}
+                  // Phones: three equal cells across the card, a long label takes two lines.
+                  className="grid w-full grid-cols-3 sm:inline-flex sm:w-fit [&>label]:h-auto [&>label]:min-h-11 [&>label]:py-1.5 [&>label]:text-center [&>label]:whitespace-normal sm:[&>label]:min-h-8 sm:[&>label]:whitespace-nowrap"
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {selecting ? (
+                  <>
+                    <Button
+                      variant="destructive"
+                      size="touch"
+                      className="md:min-h-9"
+                      disabled={busy || selected.size === 0}
+                      onClick={() => setConfirm(documents.filter((doc) => selected.has(doc.id)))}
+                    >
+                      {t('ai.contextPanel.deleteSelected', { count: selected.size })}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="touch"
+                      className="md:min-h-9"
+                      onClick={() => {
+                        setSelecting(false);
+                        setSelected(new Set());
+                      }}
+                    >
+                      {t('ai.contextPanel.cancel')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant={searching ? 'secondary' : 'ghost'}
+                      size="icon-touch"
+                      className="md:size-9"
+                      aria-label={t('ai.contextPanel.search')}
+                      aria-pressed={searching}
+                      onClick={() => {
+                        setSearching((on) => !on);
+                        setQuery('');
+                      }}
+                    >
+                      <Search aria-hidden />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="touch"
+                      className="md:min-h-9"
+                      disabled={busy}
+                      onClick={() => {
+                        // Hidden (filtered-out) items must never be selectable for deletion.
+                        setSearching(false);
+                        setQuery('');
+                        setSelecting(true);
+                      }}
+                    >
+                      {t('ai.contextPanel.select')}
+                    </Button>
+                    {addMenu}
+                  </>
+                )}
+              </div>
             </div>
             {searching && (
               <SearchField
@@ -293,12 +409,22 @@ export function AiContextPanel({
                 placeholder={t('ai.contextPanel.searchPlaceholder')}
               />
             )}
+            {internalDocs.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t('ai.contextPanel.internalTotal', {
+                  count: formatNumber(internalCharacters),
+                  max: formatNumber(AI_INTERNAL_CHARACTERS),
+                })}
+              </p>
+            )}
             {full && (
               <p className="text-sm text-muted-foreground">{t('ai.contextPanel.limitReached')}</p>
             )}
             {shown.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                {t('ai.contextPanel.noMatches', { query: query.trim() })}
+                {needle
+                  ? t('ai.contextPanel.noMatches', { query: query.trim() })
+                  : t('ai.contextPanel.internalFilterEmpty')}
               </p>
             ) : (
               <>
@@ -313,6 +439,11 @@ export function AiContextPanel({
                         <TableHead>{t('ai.contextPanel.name')}</TableHead>
                         <TableHead className="w-24">{t('ai.contextPanel.size')}</TableHead>
                         <TableHead className="w-44">{t('ai.contextPanel.details')}</TableHead>
+                        {!selecting && (
+                          <TableHead className="w-14">
+                            <span className="sr-only">{t('ai.contextPanel.actions')}</span>
+                          </TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -330,15 +461,18 @@ export function AiContextPanel({
                           {selecting && <TableCell>{selectBox(doc)}</TableCell>}
                           <TableCell>{kindIcon(doc)}</TableCell>
                           <TableCell className="min-w-0">
-                            <Button
-                              variant="link"
-                              className="h-auto max-w-full justify-start p-0 font-medium text-foreground pointer-coarse:min-h-11"
-                              onClick={() => activate(doc)}
-                            >
-                              <span className="truncate" title={doc.name}>
-                                {doc.name}
-                              </span>
-                            </Button>
+                            <span className="flex min-w-0 items-center gap-2">
+                              <Button
+                                variant="link"
+                                className="h-auto min-w-0 shrink justify-start p-0 font-medium text-foreground pointer-coarse:min-h-11"
+                                onClick={() => activate(doc)}
+                              >
+                                <span className="truncate" title={doc.name}>
+                                  {doc.name}
+                                </span>
+                              </Button>
+                              {doc.internal && <InternalBadge />}
+                            </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatBytes(doc.size)}
@@ -349,6 +483,9 @@ export function AiContextPanel({
                           >
                             {added(doc)}
                           </TableCell>
+                          {!selecting && (
+                            <TableCell className="text-right">{internalToggle(doc)}</TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -370,7 +507,7 @@ export function AiContextPanel({
                         onClick={() => activate(doc)}
                       >
                         {kindIcon(doc)}
-                        <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span className="truncate font-medium" title={doc.name}>
                             {doc.name}
                           </span>
@@ -380,8 +517,14 @@ export function AiContextPanel({
                               added: added(doc),
                             })}
                           </span>
+                          {doc.internal && (
+                            <span>
+                              <InternalBadge />
+                            </span>
+                          )}
                         </span>
                       </Button>
+                      {!selecting && internalToggle(doc)}
                     </li>
                   ))}
                 </ul>
@@ -389,42 +532,59 @@ export function AiContextPanel({
             )}
           </>
         )}
-        {(localError || (action.error && !confirm && !open)) && (
-          <Banner tone="danger">{localError ?? errorMessage(action.error)}</Banner>
+        {(localError || (actionError && !confirm && !open)) && (
+          <Banner tone="danger">{localError ?? actionError}</Banner>
         )}
       </CardContent>
 
       {open?.kind === 'addText' && (
         <TextItemDialog
           title={t('ai.contextPanel.addTextTitle')}
-          initial={{ name: '', text: '' }}
+          initial={{ name: '', text: '', internal: false }}
           pending={action.isPending}
-          error={action.error}
+          error={actionError}
           onClose={() => setOpen(null)}
           onSave={async (body) => {
-            if (!(await ensureMember())) return;
             await action.mutateAsync({ kind: 'addText', body });
             toast.success(t('ai.contextPanel.textAdded'));
             setOpen(null);
           }}
         />
       )}
+      {open?.kind === 'addFile' && (
+        <FileItemDialog
+          title={t('ai.contextPanel.addFileTitle')}
+          name={open.file.name}
+          initialInternal={false}
+          pending={action.isPending}
+          error={actionError}
+          onClose={() => setOpen(null)}
+          onSave={async (internal) => {
+            await action.mutateAsync({ kind: 'upload', file: open.file, internal });
+            toast.success(t('ai.contextPanel.fileAdded'));
+            setOpen(null);
+          }}
+        />
+      )}
       {open?.kind === 'item' && (
         <ItemDialog
+          agentId={agentId}
           id={open.id}
+          internal={current?.internal ?? false}
           pending={action.isPending}
-          error={action.error}
+          error={actionError}
           onClose={() => setOpen(null)}
-          onSave={async (body) => {
+          onSaveText={async (body) => {
             await action.mutateAsync({ kind: 'updateText', id: open.id, body });
             toast.success(t('ai.contextPanel.changesSaved'));
             setOpen(null);
           }}
-          onDelete={() => {
-            const doc = documents.find((item) => item.id === open.id);
+          onSaveInternal={async (internal) => {
+            await action.mutateAsync({ kind: 'updateText', id: open.id, body: { internal } });
+            toast.success(t('ai.contextPanel.itemSaved'));
             setOpen(null);
-            if (doc) setConfirm([doc]);
           }}
+          onDelete={() => askDelete(current)}
         />
       )}
       <ConfirmDialog
@@ -456,73 +616,121 @@ export function AiContextPanel({
   );
 }
 
-type TextDraft = { name: string; text: string };
+/** "Internal" badge: used to decide, never told to customers. */
+export function InternalBadge() {
+  const { t } = useTranslation('admin');
+  return (
+    <Badge
+      className="shrink-0 gap-1 bg-warning/15 text-foreground"
+      title={t('ai.contextPanel.internalBadgeTitle')}
+      data-testid="internal-badge"
+    >
+      <Lock aria-hidden className="size-3" />
+      {t('ai.contextPanel.internal')}
+    </Badge>
+  );
+}
+
+/** The Internal switch shared by the text and the file dialog. */
+function InternalSwitch({
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  const { t } = useTranslation('admin');
+  const id = useId();
+  const hintId = useId();
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 rounded-lg border p-3',
+        checked && 'border-warning/60 bg-warning/10',
+      )}
+    >
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+        aria-describedby={hintId}
+        className="mt-0.5"
+      />
+      <div className="flex min-w-0 flex-col gap-1">
+        <Label htmlFor={id} className="inline-flex items-center gap-1.5 pointer-coarse:min-h-11">
+          <Lock aria-hidden className="size-3.5" />
+          {t('ai.contextPanel.internal')}
+        </Label>
+        <p id={hintId} className="text-sm text-muted-foreground">
+          {t('ai.contextPanel.internalHint')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+type TextDraft = { name: string; text: string; internal: boolean };
 
 /** Opens an item: text items are edited in place; files show a read-only preview. */
 function ItemDialog({
+  agentId,
   id,
+  internal,
   pending,
   error,
   onClose,
-  onSave,
+  onSaveText,
+  onSaveInternal,
   onDelete,
 }: {
+  agentId: number;
   id: number;
+  internal: boolean;
   pending: boolean;
-  error: unknown;
+  error: string | null;
   onClose: () => void;
-  onSave: (body: TextDraft) => Promise<void>;
+  onSaveText: (body: TextDraft) => Promise<void>;
+  onSaveInternal: (internal: boolean) => Promise<void>;
   onDelete: () => void;
 }) {
   const { t } = useTranslation('admin');
-  const view = useAiDocument(id);
+  const view = useAiAgentDocument(agentId, id);
   const doc = view.data;
   if (doc?.kind === 'text')
     return (
       <TextItemDialog
         title={doc.name}
-        initial={{ name: doc.name, text: doc.text }}
+        initial={{ name: doc.name, text: doc.text, internal: doc.internal }}
         pending={pending}
         error={error}
         onClose={onClose}
-        onSave={onSave}
+        onSave={onSaveText}
         onDelete={onDelete}
       />
     );
   return (
-    <ResponsiveDialog
-      open
-      size="wide"
-      onOpenChange={(o) => !o && !pending && onClose()}
-      title={<span className="break-words">{doc?.name ?? t('ai.contextPanel.loading')}</span>}
+    <FileItemDialog
+      title={doc?.name ?? t('ai.contextPanel.loading')}
       description={doc ? t('ai.contextPanel.fileReadOnly') : undefined}
-      footer={
-        <>
-          <Button variant="outline" size="touch" className="md:min-h-9" onClick={onClose}>
-            {t('ai.contextPanel.close')}
-          </Button>
-          {doc && (
-            <Button
-              variant="destructive"
-              size="touch"
-              className="md:min-h-9"
-              disabled={pending}
-              onClick={onDelete}
-            >
-              {t('ai.contextPanel.delete')}
-            </Button>
-          )}
-        </>
-      }
+      initialInternal={doc?.internal ?? internal}
+      pending={pending}
+      error={error}
+      loaded={Boolean(doc)}
+      onClose={onClose}
+      onSave={onSaveInternal}
+      onDelete={doc ? onDelete : undefined}
     >
       {view.isError ? (
         <Banner tone="danger">
           {t('ai.contextPanel.loadError', { error: errorMessage(view.error) })}
         </Banner>
       ) : doc ? (
-        <div className="flex min-w-0 flex-col gap-2 pb-1">
+        <div className="flex min-w-0 flex-col gap-2">
           <p className="text-sm font-medium">{t('ai.contextPanel.preview')}</p>
-          <pre className="max-h-[50dvh] overflow-y-auto rounded-md bg-muted p-3 font-sans text-sm break-words whitespace-pre-wrap">
+          <pre className="max-h-[40dvh] overflow-y-auto rounded-md bg-muted p-3 font-sans text-sm break-words whitespace-pre-wrap">
             {doc.text}
           </pre>
           {doc.truncated && (
@@ -530,13 +738,13 @@ function ItemDialog({
           )}
         </div>
       ) : (
-        <p className="pb-1 text-sm text-muted-foreground">{t('ai.contextPanel.loading')}</p>
+        <p className="text-sm text-muted-foreground">{t('ai.contextPanel.loading')}</p>
       )}
-    </ResponsiveDialog>
+    </FileItemDialog>
   );
 }
 
-/** Name + text editor for adding or editing a text item. */
+/** Name + text editor (and the Internal switch) for adding or editing a text item. */
 function TextItemDialog({
   title,
   initial,
@@ -549,7 +757,7 @@ function TextItemDialog({
   title: string;
   initial: TextDraft;
   pending: boolean;
-  error: unknown;
+  error: string | null;
   onClose: () => void;
   onSave: (body: TextDraft) => Promise<void>;
   onDelete?: () => void;
@@ -558,13 +766,16 @@ function TextItemDialog({
   const formId = useId();
   const [draft, setDraft] = useState(initial);
   const valid = AiContextTextBody.safeParse(draft).success;
-  const changed = draft.name !== initial.name || draft.text !== initial.text;
+  const changed =
+    draft.name !== initial.name ||
+    draft.text !== initial.text ||
+    draft.internal !== initial.internal;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const parsed = AiContextTextBody.safeParse(draft);
     if (!parsed.success || pending) return;
     try {
-      await onSave(parsed.data);
+      await onSave({ name: parsed.data.name, text: parsed.data.text, internal: draft.internal });
     } catch {
       /* shown below from the mutation error */
     }
@@ -614,6 +825,11 @@ function TextItemDialog({
             />
           )}
         </Field>
+        <InternalSwitch
+          checked={draft.internal}
+          disabled={pending}
+          onCheckedChange={(internal) => setDraft((old) => ({ ...old, internal }))}
+        />
         <Field
           label={t('ai.contextPanel.textLabel')}
           hint={t('ai.contextPanel.characterCount', {
@@ -625,7 +841,7 @@ function TextItemDialog({
             <Textarea
               {...p}
               // Fixed size: long lines wrap and the box scrolls instead of widening the dialog.
-              className="field-sizing-fixed h-[min(55dvh,32rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
+              className="field-sizing-fixed h-[min(45dvh,28rem)] resize-y overflow-y-auto text-base leading-6 md:text-sm"
               value={draft.text}
               // Counts UTF-16 units (≥ code points), so typing can never pass the server limit.
               maxLength={AI_CONTEXT_CHARACTERS}
@@ -634,8 +850,118 @@ function TextItemDialog({
             />
           )}
         </Field>
-        {error != null && <Banner tone="danger">{errorMessage(error)}</Banner>}
+        {error && <Banner tone="danger">{error}</Banner>}
       </form>
+    </ResponsiveDialog>
+  );
+}
+
+/**
+ * A file item: the Internal switch above its read-only preview (`children`). A new upload (`name`)
+ * shows the picked file name instead; the server extracts its text after the upload.
+ */
+function FileItemDialog({
+  title,
+  description,
+  name,
+  initialInternal,
+  pending,
+  error,
+  loaded = true,
+  onClose,
+  onSave,
+  onDelete,
+  children,
+}: {
+  title: string;
+  description?: string;
+  /** Set for a new upload. */
+  name?: string;
+  initialInternal: boolean;
+  pending: boolean;
+  error: string | null;
+  loaded?: boolean;
+  onClose: () => void;
+  onSave: (internal: boolean) => Promise<void>;
+  onDelete?: () => void;
+  children?: React.ReactNode;
+}) {
+  const { t } = useTranslation('admin');
+  const isNew = name !== undefined;
+  const [internal, setInternal] = useState(initialInternal);
+  // The saved flag arrives with the preview: follow it until the admin changes the switch.
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (!touched) setInternal(initialInternal);
+  }, [initialInternal, touched]);
+  const save = async () => {
+    try {
+      await onSave(internal);
+    } catch {
+      /* shown below from the mutation error */
+    }
+  };
+  return (
+    <ResponsiveDialog
+      open
+      size="wide"
+      onOpenChange={(o) => !o && !pending && onClose()}
+      title={<span className="break-words">{title}</span>}
+      description={description}
+      footer={
+        <>
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="touch"
+              className="text-danger md:min-h-9 sm:mr-auto"
+              disabled={pending}
+              onClick={onDelete}
+            >
+              {t('ai.contextPanel.delete')}
+            </Button>
+          )}
+          {loaded ? (
+            <Button
+              size="touch"
+              className="md:min-h-9"
+              disabled={pending || (!isNew && internal === initialInternal)}
+              onClick={() => void save()}
+            >
+              <Pending show={pending} />
+              {isNew ? t('ai.contextPanel.add') : t('ai.contextPanel.save')}
+            </Button>
+          ) : (
+            <Button variant="outline" size="touch" className="md:min-h-9" onClick={onClose}>
+              {t('ai.contextPanel.close')}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-4 pb-1">
+        {isNew && (
+          <p className="flex min-w-0 items-center gap-2 text-sm">
+            <FileText aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+            <span className="font-medium">{t('ai.contextPanel.fileLabel')}</span>
+            <span className="truncate" title={name}>
+              {name}
+            </span>
+          </p>
+        )}
+        {loaded && (
+          <InternalSwitch
+            checked={internal}
+            disabled={pending}
+            onCheckedChange={(next) => {
+              setTouched(true);
+              setInternal(next);
+            }}
+          />
+        )}
+        {children}
+        {error && <Banner tone="danger">{error}</Banner>}
+      </div>
     </ResponsiveDialog>
   );
 }

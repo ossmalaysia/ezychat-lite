@@ -21,6 +21,9 @@ it('reads a chat started from a group', () => {
 
 // Every action the server writes (packages/server/src/**: `action: '…'` and `record(req, '…')`).
 const SERVER_ACTIONS = [
+  'ai.agent_create',
+  'ai.agent_delete',
+  'ai.agent_inbox_update',
   'ai.connection_update',
   'ai.document_add',
   'ai.document_remove',
@@ -85,6 +88,16 @@ describe('auditActionLabel', () => {
 
 describe('auditDetails', () => {
   const names = (id: number) => ({ 2: 'Bob Agent' })[id];
+
+  it('names the AI agent, its starting point and Internal items', () => {
+    expect(auditActionLabel('ai.agent_create', t)).toBe('AI agent created');
+    expect(auditDetails({ agentId: 4, preset: 'faq', inboxId: 2 }, t, names)).toBe(
+      'AI agent: 4 · Starting point: FAQ · Inbox: 2',
+    );
+    expect(auditDetails({ agentId: 4, documentId: 7, internal: true }, t, names)).toBe(
+      'Item: 7 · AI agent: 4 · Internal: Yes',
+    );
+  });
 
   it('shows phone numbers instead of chat JIDs and changed fields as a sentence', () => {
     expect(

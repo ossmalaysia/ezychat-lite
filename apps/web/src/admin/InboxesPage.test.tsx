@@ -2,8 +2,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
-import type { Inbox, InboxListResponse, User, WaStatus } from '@ezychat/shared';
+import type { AiAgentSummary, Inbox, InboxListResponse, User, WaStatus } from '@ezychat/shared';
 import { qk } from '../api/queries';
 import { InboxesPage } from './InboxesPage';
 
@@ -49,6 +50,7 @@ const SALES: Inbox = {
   number: '60111',
   status: open,
   removed: false,
+  aiAgentId: null,
   memberIds: [2],
 };
 const CATERING: Inbox = {
@@ -58,7 +60,26 @@ const CATERING: Inbox = {
   number: null,
   status: status('qr', 'QR-CATERING'),
   removed: false,
+  aiAgentId: null,
   memberIds: [2],
+};
+
+const SALES_AI: AiAgentSummary = {
+  id: 1,
+  userId: 4,
+  displayName: 'Business AI',
+  enabled: true,
+  preset: 'sales',
+  inboxId: 1,
+  documentCount: 0,
+};
+const FAQ_AI: AiAgentSummary = {
+  ...SALES_AI,
+  id: 2,
+  userId: 6,
+  displayName: 'Clinic FAQ',
+  preset: 'faq',
+  inboxId: null,
 };
 
 function json(data: unknown, status = 200) {
@@ -69,12 +90,13 @@ function json(data: unknown, status = 200) {
 }
 
 interface Setup {
+  agents?: AiAgentSummary[];
   list?: InboxListResponse;
   wa?: WaStatus;
   respond?: (url: string, init: RequestInit | undefined) => Response | undefined;
 }
 
-function setup({ list, wa = open, respond }: Setup = {}) {
+function setup({ list, wa = open, respond, agents = [] }: Setup = {}) {
   let inboxList: InboxListResponse = list ?? {
     inboxes: [SALES, CATERING, { ...CATERING, id: 3, name: 'Old', removed: true }],
     maxInboxes: 3,
@@ -87,6 +109,7 @@ function setup({ list, wa = open, respond }: Setup = {}) {
     if (url === '/api/inboxes' && method === 'GET') return json(inboxList);
     if (url === '/api/users') return json({ users: USERS });
     if (url === '/api/wa/status') return json(wa);
+    if (url === '/api/ai/agents') return json({ agents, maxAgents: 3 });
     if (url === '/api/audit') return json({ entries: [] });
     return json({ error: { code: 'not_found', message: 'nope' } }, 404);
   });
@@ -96,7 +119,9 @@ function setup({ list, wa = open, respond }: Setup = {}) {
   });
   render(
     <QueryClientProvider client={qc}>
-      <InboxesPage />
+      <MemoryRouter>
+        <InboxesPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   const calls = (method: string, url: string) =>
@@ -115,6 +140,8 @@ beforeAll(() => {
   proto.hasPointerCapture ??= () => false;
   proto.setPointerCapture ??= () => {};
   proto.releasePointerCapture ??= () => {};
+  // Radix Select scrolls the chosen option into view.
+  proto.scrollIntoView ??= () => {};
 });
 
 beforeEach(() => {
@@ -418,8 +445,115 @@ describe('InboxesPage', () => {
     await waitFor(() => expect(reads()).toBeGreaterThan(before));
   });
 
-  it('removes an inbox after the confirmation', async () => {
+  it('shows the AI agent of each inbox on its card, linked to the agent page', async () => {
+    setup({
+      list: { inboxes: [{ ...SALES, aiAgentId: 1 }, CATERING], maxInboxes: 3, canAdd: true },
+      agents: [SALES_AI, FAQ_AI],
+    });
+    const lines = await screen.findAllByTestId('inbox-agent');
+    await waitFor(() =>
+      expect(within(lines[0]!).getByRole('link').textContent).toBe('Business AI'),
+    );
+    expect(within(lines[0]!).getByRole('link').getAttribute('href')).toBe('/admin/members/ai/1');
+    expect(lines[1]!.textContent).toBe('None');
+  });
+
+  it('moves an agent to another inbox from Edit and warns where it moves from', async () => {
+    const { calls, qc, user } = setup({
+      list: { inboxes: [{ ...SALES, aiAgentId: 1 }, CATERING], maxInboxes: 3, canAdd: true },
+      agents: [SALES_AI, FAQ_AI],
+      respond: (url, init) =>
+        url === '/api/inboxes/2' && init?.method === 'PATCH'
+          ? json({ ...CATERING, aiAgentId: 1 })
+          : undefined,
+    });
+    await screen.findAllByText('Business AI');
+    await user.click(screen.getByRole('button', { name: 'Edit · Catering' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Inbox “Catering”' });
+    await user.click(within(dialog).getByRole('combobox', { name: 'AI agent' }));
+    expect(await screen.findByRole('option', { name: 'Clinic FAQ' })).toBeTruthy();
+    await user.click(screen.getByRole('option', { name: 'Business AI (on Sales)' }));
+    expect(
+      within(dialog).getByText(
+        'Business AI answers Sales now. When you save, Business AI moves to this inbox and stops answering Sales.',
+      ),
+    ).toBeTruthy();
+    const refresh = vi.spyOn(qc, 'invalidateQueries');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls('PATCH', '/api/inboxes/2')).toEqual([{ aiAgentId: 1 }]));
+    // The list, every open agent page and the inbox-1 view show the agent's new inbox.
+    await waitFor(() => {
+      for (const queryKey of [['ai-agents'], ['ai-agent'], ['ai-member']])
+        expect(refresh).toHaveBeenCalledWith({ queryKey });
+    });
+  });
+
+  it('unassigns the agent of an inbox with None', async () => {
     const { calls, user } = setup({
+      list: { inboxes: [{ ...SALES, aiAgentId: 1 }, CATERING], maxInboxes: 3, canAdd: true },
+      agents: [SALES_AI, FAQ_AI],
+      respond: (url, init) =>
+        url === '/api/inboxes/1' && init?.method === 'PATCH'
+          ? json({ ...SALES, aiAgentId: null })
+          : undefined,
+    });
+    await screen.findAllByText('Business AI');
+    await user.click(screen.getByRole('button', { name: 'Edit · Sales' }));
+    const dialog = await screen.findByRole('dialog');
+    const select = within(dialog).getByRole('combobox', { name: 'AI agent' });
+    expect(select.textContent).toBe('Business AI');
+    await user.click(select);
+    await user.click(await screen.findByRole('option', { name: 'None' }));
+    expect(
+      within(dialog).getByText(
+        'Business AI answers this inbox now. When you save, Business AI is unassigned.',
+      ),
+    ).toBeTruthy();
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls('PATCH', '/api/inboxes/1')).toEqual([{ aiAgentId: null }]));
+  });
+
+  it('sends the chosen AI agent with a new inbox', async () => {
+    const created: Inbox = { ...CATERING, id: 4, name: 'Events', memberIds: [], aiAgentId: 2 };
+    const { calls, user } = setup({
+      list: { inboxes: [{ ...SALES, aiAgentId: 1 }], maxInboxes: 3, canAdd: true },
+      agents: [SALES_AI, FAQ_AI],
+      respond: (url, init) =>
+        url === '/api/inboxes' && init?.method === 'POST' ? json(created, 201) : undefined,
+    });
+    await screen.findAllByText('Business AI');
+    await user.click(screen.getByRole('button', { name: 'Add inbox' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add an inbox' });
+    await user.type(within(dialog).getByLabelText('Inbox name'), 'Events');
+    await user.click(within(dialog).getByRole('combobox', { name: 'AI agent' }));
+    await user.click(await screen.findByRole('option', { name: 'Clinic FAQ' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls('POST', '/api/inboxes')).toEqual([
+        { name: 'Events', memberIds: [], aiAgentId: 2 },
+      ]),
+    );
+  });
+
+  it('says the agent is unassigned when its inbox is removed', async () => {
+    const { user } = setup({
+      list: {
+        inboxes: [SALES, { ...CATERING, aiAgentId: 2 }],
+        maxInboxes: 3,
+        canAdd: true,
+      },
+      agents: [SALES_AI, { ...FAQ_AI, inboxId: 2 }],
+    });
+    await screen.findAllByText('Clinic FAQ');
+    await user.click(screen.getByRole('button', { name: 'Remove · Catering' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(
+      within(confirm).getByText('Its AI agent Clinic FAQ is unassigned and stops answering.'),
+    ).toBeTruthy();
+  });
+
+  it('removes an inbox after the confirmation', async () => {
+    const { calls, qc, user } = setup({
       respond: (url, init) =>
         url === '/api/inboxes/2' && init?.method === 'DELETE'
           ? new Response(null, { status: 204 })
@@ -428,9 +562,13 @@ describe('InboxesPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Remove · Catering' }));
     const confirm = await screen.findByRole('alertdialog');
     expect(within(confirm).getByText('Remove “Catering”?')).toBeTruthy();
+    const refresh = vi.spyOn(qc, 'invalidateQueries');
     await user.click(within(confirm).getByRole('button', { name: 'Remove inbox' }));
     await waitFor(() => expect(calls('DELETE', '/api/inboxes/2')).toHaveLength(1));
     expect(toast.success).toHaveBeenCalledWith('Inbox removed');
+    // Its agent no longer answers an inbox: every agent view reloads.
+    for (const queryKey of [['ai-agents'], ['ai-agent'], ['ai-member']])
+      expect(refresh).toHaveBeenCalledWith({ queryKey });
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   });
 });

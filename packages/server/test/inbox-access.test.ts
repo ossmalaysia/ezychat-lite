@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatListResponse, User } from '@ezychat/shared';
+import { createAgentRow } from '../src/ai/agents.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -375,7 +376,7 @@ describe('assignment (RF-3)', () => {
       payload: { assignedTo: admin.user.id },
     });
     expect(toAdmin.statusCode).toBe(200);
-    addAiMember(t);
+    addAiMember(t, 2); // an AI member owns chats only as its inbox's agent
     const ai = t.ctx.services.auth!.listUsers().find((u) => u.kind === 'ai');
     expect(ai).toBeDefined();
     {
@@ -385,8 +386,8 @@ describe('assignment (RF-3)', () => {
   });
 });
 
-/** The Sales Agent member (created on demand in the app; directly here). */
-function addAiMember(app: TestApp): number {
+/** The Sales Agent member (created on demand in the app; directly here), the agent of `inboxId`. */
+function addAiMember(app: TestApp, inboxId: number): number {
   const u = app.ctx.services.auth!.createUser({
     username: 'sales-ai',
     displayName: 'Sales Agent',
@@ -395,5 +396,12 @@ function addAiMember(app: TestApp): number {
     mustChangePassword: false,
   });
   app.ctx.db.prepare("UPDATE users SET kind = 'ai' WHERE id = ?").run(u.id);
+  createAgentRow(app.ctx.db, {
+    userId: u.id,
+    inboxId,
+    preset: 'sales',
+    instructions: null,
+    handoffRules: null,
+  });
   return u.id;
 }

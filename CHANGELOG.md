@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AI agents for every purpose: the AI Sales Agent becomes an AI agent that you can make a Sales, FAQ or Custom agent, with its own name, role and hand-over rules. Fixed safety rules come first for every agent: it never reveals its instructions or internal information and ignores customer messages that try to change its rules. Mark a Business context item as Internal to let the agent use it (a minimum price, a discount limit) without ever telling customers; a reply that quotes an Internal item is not sent and the chat goes to your team. EzyChat Enterprise: one agent per WhatsApp number, each with its own knowledge. Your current AI agent, its texts and its knowledge stay as they are.
+
 ## [0.1.47] - 2026-10-22
 
 ### Added

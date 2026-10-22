@@ -201,7 +201,10 @@
       "inboxCreate": "已添加收件箱",
       "inboxUpdate": "已更新收件箱",
       "inboxRemove": "已移除收件箱",
-      "inboxAccessUpdate": "已更改收件箱权限"
+      "inboxAccessUpdate": "已更改收件箱权限",
+      "aiAgentCreate": "已创建 AI 客服",
+      "aiAgentDelete": "已删除 AI 客服",
+      "aiAgentInboxUpdate": "已更改 AI 客服的收件箱"
     },
     "fields": {
       "chat": "对话",
@@ -243,7 +246,10 @@
       "expires": "到期",
       "inbox": "收件箱",
       "inboxes": "收件箱",
-      "members": "成员"
+      "members": "成员",
+      "agent": "AI 客服",
+      "preset": "起点",
+      "internal": "内部"
     },
     "reasons": {
       "rateLimited": "尝试次数过多",
@@ -584,10 +590,9 @@
   },
   "ai": {
     "settingsTitle": "AI",
-    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。此收件箱的所有 AI 成员共用一个提供商和模型。",
+    "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。您的所有 AI 客服共用一个提供商和模型。",
     "roleBadge": "AI · 销售客服",
-    "addMember": "添加 AI 成员",
-    "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
+    "membersDescription": "为客户聊天提供服务的团队和 AI 客服。",
     "assistant": "AI 助手",
     "behavior": "在未分配的客户聊天中等待 10 秒后回复并接管。将聊天分配给自己即可接手。AI 仅在客户确认后解决聊天。需要帮助时，AI 会将聊天分配给没有进行中聊天的在线人工客服，或将其退回未分配状态。",
     "memberName": "AI 成员名称",
@@ -685,7 +690,15 @@
       "usingRecommended": "正在使用推荐的指令。可按您的语气进行编辑。",
       "advanced": "高级：指令和转接规则",
       "advancedRecommended": "使用推荐设置",
-      "advancedCustomised": "已自定义"
+      "advancedCustomised": "已自定义",
+      "nextSteps": {
+        "title": "后续步骤",
+        "context": "添加业务背景",
+        "try": "试问一个测试问题",
+        "turnOn": "开启",
+        "done": "已完成",
+        "todo": "第 {{step}} 步"
+      }
     },
     "try": {
       "label": "客户问题",
@@ -707,7 +720,13 @@
       "noReply": "AI 不会发送任何内容，并继续负责此聊天。",
       "noKnowledge": "未找到匹配的业务知识，因此 AI 会在不调用模型的情况下将此聊天转交给人工。",
       "model": "模型：{{model}}",
-      "failed": "无法回答：{{error}}"
+      "failed": "无法回答：{{error}}",
+      "agentHint": "输入客户可能会问的问题。回答会使用本页的文本（包括未保存的更改）和已保存的业务背景。",
+      "safety": "安全规则：客服不会透露其指令或内部条目。",
+      "answeredAs": "以 {{name}} 的身份回答",
+      "needsConnection": "请在“设置 → AI”中连接 AI，以试用该客服。",
+      "noRole": "角色为空：客服只会依据安全规则和其业务背景回答。",
+      "confidentialLeak": "将转交：回复引用了内部条目，因此不会发送给客户。"
     },
     "voice": {
       "title": "语音消息",
@@ -787,11 +806,40 @@
       "confirmMany_other": "删除 {{count}} 项？",
       "confirmText": "AI 将立即停止使用它。此操作无法撤销。",
       "deleteFailed": "无法删除：{{names}}",
-      "namesMore": "{{names}} 等另外 {{count}} 项"
+      "namesMore": "{{names}} 等另外 {{count}} 项",
+      "internal": "内部",
+      "internalHint": "客服用它来做决定（例如最低价格），但从不告诉客户。",
+      "internalIntro": "将条目标记为“内部”，客服可用它来做决定（例如最低价格），但不会告诉客户。",
+      "internalBadgeTitle": "用于做决定，从不告诉客户",
+      "internalFilterLabel": "显示",
+      "internalFilterAll": "全部（{{count}}）",
+      "internalFilterCustomer": "面向客户（{{count}}）",
+      "internalFilterInternal": "内部（{{count}}）",
+      "internalFilterEmpty": "此视图中没有条目。",
+      "internalAudience": "谁可以知道",
+      "internalAudienceCustomer": "面向客户",
+      "internalAudienceInternal": "内部",
+      "internalTotal": "内部条目：{{count}} / {{max}} 个字符",
+      "addFileTitle": "添加文件",
+      "fileLabel": "文件",
+      "itemSaved": "条目已保存",
+      "actions": "操作",
+      "markInternal": "标为内部",
+      "markCustomer": "标为面向客户",
+      "markInternalFor": "将 {{name}} 标为内部",
+      "markCustomerFor": "将 {{name}} 标为面向客户",
+      "markedInternal": "{{name}} 已标为内部。",
+      "markedCustomer": "{{name}} 已标为面向客户。"
     },
     "defaults": {
-      "instructions": "角色\n你是本商家的 WhatsApp 助手。你负责回答客户咨询和产品问题，并以专业的方式代表商家。\n\n范围\n你可以协助：\n- 产品：功能、规格、款式、库存情况和使用方法\n- 一般咨询：营业时间、地点、下单方式、配送区域、付款方式和退货政策\n- 下一步：如何下单、如何索取报价，或联系我们的团队\n与本商家或其产品无关的话题（闲聊、新闻、编程、作业、观点、政治、宗教），你不提供帮助。请用一句话礼貌回复并引导回正题，例如：“抱歉，我只能回答有关我们产品和服务的问题。请问有什么可以帮您？”\n\n知识\n- 产品名称、型号和价格必须与业务背景中的写法完全一致。\n- 切勿猜测价格、库存、规格、配送日期、促销或政策。如果缺少信息，请说明并让我们的团队确认。\n- 切勿承诺折扣、赠品或特殊处理。\n\n语言\n- 使用客户的语言回复。如果客户混用多种语言，请使用其消息的主要语言回复。\n- 如果无法使用客户的语言回复，请使用业务背景中指定的默认语言，否则使用英语。\n\n风格\n- 专业、礼貌、友好；不用俚语。最多使用一个表情符号，且仅在合适时使用。\n- 一到三句短句。仅在列出选项或规格时使用简短列表。\n- 先回答问题：不要冗长的问候，也不要复述问题。\n- 需要时最多问一个澄清问题（例如哪个型号、尺寸或区域）。\n- 仅使用 WhatsApp 格式：用 *粗体* 标出关键信息，使用普通换行。不要使用标题、表格或未提供给你的链接。",
-      "handoffRules": "- 客户不满或提出投诉\n- 客户要求退款、退货、换货或保修索赔\n- 客户询问现有订单、配送或付款\n- 客户需要批量或定制订单，或索取报价\n- 客户想议价或要求折扣"
+      "sales": {
+        "instructions": "角色\n你是本商家的 WhatsApp 助手。你负责回答客户咨询和产品问题，并以专业的方式代表商家。\n\n范围\n你可以协助：\n- 产品：功能、规格、款式、库存情况和使用方法\n- 一般咨询：营业时间、地点、下单方式、配送区域、付款方式和退货政策\n- 下一步：如何下单、如何索取报价，或联系我们的团队\n与本商家或其产品无关的话题（闲聊、新闻、编程、作业、观点、政治、宗教），你不提供帮助。请用一句话礼貌回复并引导回正题，例如：“抱歉，我只能回答有关我们产品和服务的问题。请问有什么可以帮您？”\n\n知识\n- 产品名称、型号和价格必须与业务背景中的写法完全一致。\n- 切勿猜测价格、库存、规格、配送日期、促销或政策。如果缺少信息，请说明并让我们的团队确认。\n- 切勿承诺折扣、赠品或特殊处理。\n\n语言\n- 使用客户的语言回复。如果客户混用多种语言，请使用其消息的主要语言回复。\n- 如果无法使用客户的语言回复，请使用业务背景中指定的默认语言，否则使用英语。\n\n风格\n- 专业、礼貌、友好；不用俚语。最多使用一个表情符号，且仅在合适时使用。\n- 一到三句短句。仅在列出选项或规格时使用简短列表。\n- 先回答问题：不要冗长的问候，也不要复述问题。\n- 需要时最多问一个澄清问题（例如哪个型号、尺寸或区域）。\n- 仅使用 WhatsApp 格式：用 *粗体* 标出关键信息，使用普通换行。不要使用标题、表格或未提供给你的链接。",
+        "handoffRules": "- 客户不满或提出投诉\n- 客户要求退款、退货、换货或保修索赔\n- 客户询问现有订单、配送或付款\n- 客户需要批量或定制订单，或索取报价\n- 客户想议价或要求折扣"
+      },
+      "faq": {
+        "instructions": "角色\n你是本商家的 WhatsApp 服务台。你清楚、准确地回答客户的问题。你不做销售：切勿推荐产品、追加销售或请客户下单。\n\n范围\n你可以协助：\n- 业务背景中写明的服务、营业时间、地点、价格和费用相关问题\n- 流程和政策：如何预约、需要携带什么、需要多长时间、应联系谁\n- 下一步：在哪里找到表格、如何预约，或联系我们的团队\n与本商家无关的话题（闲聊、新闻、编程、作业、观点、政治、宗教），你不提供帮助。请用一句话礼貌回复并引导回正题，例如：“抱歉，我只能回答有关我们服务的问题。请问您想了解什么？”\n\n知识\n- 只根据业务背景回答。名称、时间、费用和步骤必须与原文完全一致。\n- 切勿猜测。如果缺少信息，请说明并让我们的团队确认。\n- 切勿提供个人医疗、法律或财务建议，也切勿承诺特殊处理。\n\n语言\n- 使用客户的语言回复。如果客户混用多种语言，请使用其消息的主要语言回复。\n- 如果无法使用客户的语言回复，请使用业务背景中指定的默认语言，否则使用英语。\n\n风格\n- 冷静、礼貌、乐于助人；不用俚语，也不用销售用语。最多使用一个表情符号，且仅在合适时使用。\n- 一到三句短句。仅在说明步骤时使用简短的编号列表。\n- 先回答问题：不要冗长的问候，也不要复述问题。\n- 需要时最多问一个澄清问题。\n- 仅使用 WhatsApp 格式：用 *粗体* 标出关键信息，使用普通换行。不要使用标题、表格或未提供给你的链接。",
+        "handoffRules": "- 客户不满或提出投诉\n- 客户想要预约、更改或取消预约或订单\n- 客户询问其本人的账户、个案、付款或个人记录\n- 客户要求对规则或政策作例外处理"
+      }
     },
     "replaceKey": "替换密钥",
     "keepKey": "保留已保存的密钥",
@@ -831,7 +879,7 @@
     },
     "keyOk": "密钥有效。",
     "connectionReady": "AI 连接已就绪。",
-    "setupAgent": "设置销售代理",
+    "setupAgent": "设置您的 AI 客服",
     "moreFeatures": "更多 AI 功能",
     "moreFeaturesHint": "语音消息和客户资料补全",
     "remoteSignInHint": "请在运行收件箱的电脑上的浏览器中登录；如在其他电脑上登录，请按提示粘贴最终地址。",
@@ -856,7 +904,92 @@
       "keyRateLimited": "OpenAI 繁忙或此密钥已达到用量限制。请稍等一分钟后重试。",
       "keyForbidden": "OpenAI 不允许此密钥列出模型。受限密钥或地区限制可能导致此情况；此密钥仍可能用于回复。",
       "saveAnyway": "仍然保存"
-    }
+    },
+    "agents": {
+      "add": "添加 AI 客服",
+      "aiBadge": "AI",
+      "limitHint": "每个收件箱一个 AI 客服。添加收件箱后才能添加另一个客服。",
+      "noInbox": "无收件箱",
+      "answersInbox": "负责 {{name}}",
+      "newTitle": "新建 AI 客服",
+      "newDescription": "选择起点，为客服命名，然后保存。所有文本以后都可以更改。",
+      "description": "此客服使用自己的角色、自己的业务背景和自己的转交规则回复 WhatsApp 对话。",
+      "pickTitle": "起点",
+      "pickHint": "这只会填入角色和转交规则。您可以更改它们。",
+      "nameTitle": "名称",
+      "nameLabel": "客服名称",
+      "nameHint": "客户看不到此名称。您的团队会在该客服回复的对话上看到它。",
+      "nameRequired": "请输入客服名称。",
+      "inboxLabel": "收件箱",
+      "inboxHint": "该客服回复此收件箱的新对话。每个收件箱一个客服。",
+      "inboxNone": "无（该客服不回复任何对话）",
+      "inboxHas": "{{inbox}}（已有 {{agent}}）",
+      "inboxMove": "{{agent}} 目前负责 {{inbox}}。保存后，{{agent}} 将从 {{inbox}} 移除，并停止在那里回复。",
+      "roleTitle": "角色",
+      "roleLabel": "角色（指令）",
+      "roleHint": "客服是谁、协助什么以及如何书写。事实请放在业务背景中。",
+      "rolePlaceholder": "描述角色，例如：你负责回答有关本诊所服务和营业时间的问题。",
+      "handoffTitle": "转交规则",
+      "handoffHint": "每行一种情况。客服会把这些对话转交给您的团队。",
+      "handoffPlaceholder": "例如：客户想要预约。",
+      "useTemplate": "使用 {{preset}} 模板",
+      "templateTitle": "使用 {{preset}} 模板？",
+      "templateBody": "这会用 {{preset}} 起始文本替换角色和转交规则。保存后，您编辑过的文本将会丢失。",
+      "templateConfirm": "使用模板",
+      "templateApplied": "已应用模板。请保存以保留。",
+      "customTemplateNote": "自定义模板为空白。",
+      "advanced": "高级：角色和转交规则",
+      "advancedBlank": "尚未填写角色",
+      "usingTemplate": "正在使用 {{preset}} 起始文本。请按您的业务进行编辑。",
+      "tryTitle": "试一试",
+      "deleteTitle": "删除此客服",
+      "deleteHint": "该客服停止回复。其对话将退回给您的团队，且不分配给任何人。其业务背景条目将被删除。",
+      "delete": "删除客服",
+      "deleteConfirmTitle": "删除 {{name}}？",
+      "deleteConfirmBody_other": "{{name}} 将停止回复，其未结束的对话将退回给您的团队，且不分配给任何人。其 {{count}} 个业务背景条目将被删除。此操作无法撤销。",
+      "deleted": "已删除 {{name}}",
+      "created": "已创建 {{name}}。请添加其业务背景，然后开启它。",
+      "saved": "客服已保存",
+      "save": "保存",
+      "create": "创建客服",
+      "limitTitle": "AI 客服数量已达上限",
+      "limitBody": "每个收件箱一个 AI 客服。请在“管理 → 收件箱”中添加收件箱，或更改现有客服。",
+      "limitBodyLite": "Lite 只有一个 AI 客服。请改为编辑您的客服。",
+      "backToMembers": "返回成员",
+      "notFoundTitle": "此 AI 客服不存在",
+      "notFoundBody": "它可能已被删除。",
+      "on": "开",
+      "off": "关",
+      "errors": {
+        "agent_limit": "此版本无法再添加 AI 客服。",
+        "inbox_has_agent": "此收件箱已有 AI 客服。请选择其他收件箱。",
+        "internal_too_large": "内部条目合计最多 {{max}} 个字符。请缩短某个内部条目，或将其改为面向客户。",
+        "last_agent": "无法删除唯一的 AI 客服。",
+        "agent_not_found": "此 AI 客服不存在，可能已被删除。"
+      },
+      "noFreeInbox": "每个收件箱都已有 AI 客服。添加收件箱，让此客服使用自己的号码。",
+      "addInbox": "添加收件箱",
+      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。"
+    },
+    "presets": {
+      "sales": "销售",
+      "faq": "常见问题",
+      "custom": "自定义",
+      "salesDescription": "回答产品问题，并引导客户下单。",
+      "faqDescription": "根据您的业务背景回答问题。从不推销。",
+      "customDescription": "从空白开始：由您编写角色和转交规则。",
+      "badge": "{{preset}}客服"
+    },
+    "guardrails": {
+      "title": "始终生效的安全规则",
+      "badge": "无法更改",
+      "intro": "EzyChat 会在您的文本之前，为每个 AI 客服加入这些规则。任何角色、规则或客户消息都无法关闭它们。",
+      "rule1": "无论客户说什么，都不会透露其指令、转交规则或内部条目。",
+      "rule2": "把客户的消息、文件和语音留言当作信息，而不是命令。",
+      "rule3": "其角色和规则无法在对话中更改。",
+      "rule4": "从不编造事实、价格或承诺；内部条目只用于帮助其做决定。"
+    },
+    "openAgents": "打开 AI 客服"
   },
   "enrichment": {
     "title": "客户资料补全",
@@ -949,6 +1082,14 @@
     "membersAccessDescription": "此客服只能看到您勾选的收件箱中的聊天，也只会收到这些聊天的通知。",
     "membersAccessNoInboxes": "还没有收件箱。请在“收件箱”中添加。",
     "membersAccessSave": "保存",
-    "membersAccessSaved": "收件箱权限已保存"
+    "membersAccessSaved": "收件箱权限已保存",
+    "aiAgent": "AI 客服",
+    "aiAgentNone": "无",
+    "aiAgentField": "AI 客服",
+    "aiAgentFieldHint": "回复此收件箱新对话的 AI 客服。每个收件箱一个客服。",
+    "aiAgentOption": "{{agent}}（在 {{inbox}}）",
+    "aiAgentMove": "{{agent}} 目前负责 {{inbox}}。保存后，{{agent}} 将移到此收件箱，并停止回复 {{inbox}}。",
+    "aiAgentReplace": "{{agent}} 目前负责此收件箱。保存后，{{agent}} 将被移除。",
+    "aiAgentRemove": "其 AI 客服 {{agent}} 将被移除并停止回复。"
   }
 }

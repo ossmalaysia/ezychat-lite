@@ -8,6 +8,7 @@ import type {
 } from '@ezychat/shared';
 import type { WaAdapter } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
+import { agentById, agentForInbox, setAgentInbox } from '../ai/agents.js';
 import { ChatRepo, type ChatRow } from '../chats/repo.js';
 import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
@@ -147,6 +148,7 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       number: numberOfJid(wa?.status.me?.jid ?? row.own_jid),
       status: wa ? waStatusFor(wa.status, admin) : { ...OFFLINE },
       removed: row.removed_at !== null,
+      aiAgentId: agentForInbox(ctx.db, row.id)?.id ?? null,
       ...(admin ? { memberIds: repo.members(row.id) } : {}),
     };
   };
@@ -194,6 +196,34 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
 
   const changed = () => ctx.bus.emit('inboxes:changed');
 
+  /** The AI service: binding an agent cancels its work and hands back its chats there. */
+  const aiService = () => {
+    const ai = ctx.services.ai;
+    if (!ai) throw new HttpError(503, 'ai_unavailable', 'The AI service is not running');
+    return ai;
+  };
+  const requireAgent = (agentId: number) => {
+    if (!agentById(ctx.db, agentId))
+      throw new HttpError(404, 'agent_not_found', 'AI agent not found');
+  };
+
+  /**
+   * Admin → Inboxes: the agent that answers this inbox (null = none). A move releases the
+   * agent's chats of its old inbox. Returns true when the binding changed.
+   */
+  const bindAgent = (inboxId: number, agentId: number | null, actor: InboxActor): boolean => {
+    const current = agentForInbox(ctx.db, inboxId);
+    if ((current?.id ?? null) === agentId) return false;
+    if (agentId === null) {
+      aiService().setAgentInbox(current!.id, null, actor);
+      return true;
+    }
+    requireAgent(agentId);
+    if (current) throw new HttpError(409, 'inbox_has_agent', 'This inbox already has an AI agent');
+    aiService().setAgentInbox(agentId, inboxId, actor);
+    return true;
+  };
+
   // a demoted admin keeps only the inboxes they are a member of: hand back the others' chats
   ctx.bus.on('user:role-changed', (userId, role) => {
     if (role !== 'agent') return;
@@ -224,6 +254,11 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
 
     async create(body, actor) {
       const memberIds = checkMembers(body.memberIds);
+      // refuse before the insert: a refused binding creates no inbox
+      if (body.aiAgentId != null) {
+        aiService();
+        requireAgent(body.aiAgentId);
+      }
       // check and insert without a pause between them: two admins cannot pass the limit together
       if (repo.active().length >= connections.maxInboxes())
         throw new HttpError(409, 'inbox_limit', 'The inbox limit is reached');
@@ -242,6 +277,7 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
         ip: actor.ip,
         meta: { inboxId: row.id, memberCount: memberIds.length },
       });
+      if (body.aiAgentId != null) bindAgent(row.id, body.aiAgentId, actor);
       changed();
       return toInbox(repo.get(row.id)!, true);
     },
@@ -249,12 +285,16 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
     update(id, body, actor) {
       const row = activeRow(id);
       const fields: string[] = [];
+      // check the members first, then bind: a refused member list or binding (409
+      // inbox_has_agent, 404) leaves the inbox unchanged
+      const next = body.memberIds !== undefined ? checkMembers(body.memberIds) : undefined;
+      if (body.aiAgentId !== undefined && bindAgent(id, body.aiAgentId, actor))
+        fields.push('aiAgentId');
       if (body.name !== undefined && body.name !== row.name) {
         repo.rename(id, body.name);
         fields.push('name');
       }
-      if (body.memberIds !== undefined) {
-        const next = checkMembers(body.memberIds);
+      if (next !== undefined) {
         const before = repo.members(id);
         repo.setMembers(id, next);
         if (before.join() !== next.join()) fields.push('memberIds');
@@ -281,6 +321,23 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       // unlink first: the message service fails this inbox's pending sends on 'removed'
       await connections.remove(id);
       repo.markRemoved(id, now());
+      // its AI agent answers no inbox now: unbind it and hand back its chats
+      const agent = agentForInbox(ctx.db, id);
+      if (agent) {
+        const ai = ctx.services.ai;
+        // the service also stops the agent's running work (it refuses "no inbox" with one agent)
+        if (ai && ai.maxAgents() > 1) ai.setAgentInbox(agent.id, null, actor);
+        else {
+          setAgentInbox(ctx.db, agent.id, null, now());
+          audit(ctx.db, {
+            userId: actor.userId,
+            action: 'ai.agent_inbox_update',
+            ip: actor.ip,
+            meta: { agentId: agent.id, from: id, to: null },
+          });
+          ai?.releaseAgent(agent.id);
+        }
+      }
       // agents no longer open a removed inbox: its open chats go back to Unassigned for admins
       const assignees = ctx.db
         .prepare(

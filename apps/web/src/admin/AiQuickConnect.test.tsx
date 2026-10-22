@@ -21,6 +21,8 @@ function status(overrides: Partial<AiMemberStatus> = {}): AiMemberStatus {
     hasApiKey: false,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
+    agents: [],
+    maxAgents: 1,
     ...overrides,
   };
 }

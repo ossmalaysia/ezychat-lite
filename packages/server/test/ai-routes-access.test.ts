@@ -22,6 +22,18 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/chatgpt/logout' },
   { method: 'POST', url: '/api/ai/try' },
   { method: 'POST', url: '/api/ai/edit' },
+  { method: 'GET', url: '/api/ai/agents' },
+  { method: 'POST', url: '/api/ai/agents' },
+  { method: 'GET', url: '/api/ai/agents/1' },
+  { method: 'PUT', url: '/api/ai/agents/1' },
+  { method: 'DELETE', url: '/api/ai/agents/1' },
+  { method: 'POST', url: '/api/ai/agents/1/documents' },
+  { method: 'POST', url: '/api/ai/agents/1/documents/text' },
+  { method: 'GET', url: '/api/ai/agents/1/documents/1' },
+  { method: 'PATCH', url: '/api/ai/agents/1/documents/1' },
+  { method: 'DELETE', url: '/api/ai/agents/1/documents/1' },
+  { method: 'POST', url: '/api/ai/agents/1/try' },
+  { method: 'POST', url: '/api/ai/agents/1/edit' },
   { method: 'GET', url: '/api/ai/voice' },
   { method: 'PATCH', url: '/api/ai/voice' },
   { method: 'POST', url: '/api/ai/voice/download' },
@@ -93,7 +105,8 @@ function registeredRoutes(tree: string): string[] {
 }
 
 it('lists every registered /api/ai route in the table above', () => {
-  const normalize = (path: string) => path.replace(/\/\d+(?=\/|$)/g, '/:id');
+  const normalize = (path: string) =>
+    path.replace(/\/agents\/\d+/, '/agents/:agentId').replace(/\/\d+(?=\/|$)/g, '/:id');
   const registered = registeredRoutes(t.app.printRoutes({ commonPrefix: false })).filter((r) =>
     /^\S+ \/api\/ai(\/|$)/.test(r),
   );

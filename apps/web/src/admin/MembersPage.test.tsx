@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { InboxListResponse, User } from '@ezychat/shared';
+import type { AiAgentSummary, InboxListResponse, User } from '@ezychat/shared';
 import { MembersPage } from './MembersPage';
 
 function Location() {
@@ -39,7 +39,34 @@ const aiUser: User = {
   displayName: 'Business AI',
   disabled: false,
   kind: 'ai',
+  aiRole: 'sales',
+  aiAgentId: 1,
 };
+const faqUser: User = {
+  ...aiUser,
+  id: 4,
+  username: 'ai-2',
+  displayName: 'Clinic FAQ',
+  aiAgentId: 2,
+};
+const salesAgent: AiAgentSummary = {
+  id: 1,
+  userId: 3,
+  displayName: 'Business AI',
+  enabled: true,
+  preset: 'sales',
+  inboxId: 1,
+  documentCount: 0,
+};
+const faqAgent: AiAgentSummary = {
+  ...salesAgent,
+  id: 2,
+  userId: 4,
+  displayName: 'Clinic FAQ',
+  preset: 'faq',
+  inboxId: null,
+};
+type AgentList = { agents: AiAgentSummary[]; maxAgents: number };
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -54,15 +81,40 @@ const multiInbox: InboxListResponse = {
   maxInboxes: 3,
   canAdd: true,
   inboxes: [
-    { id: 1, name: 'Sales', tone: 'primary', number: '60111', status, removed: false },
-    { id: 2, name: 'Catering', tone: 'warning', number: null, status, removed: false },
-    { id: 3, name: 'Old', tone: 'info', number: null, status, removed: true },
+    {
+      id: 1,
+      name: 'Sales',
+      tone: 'primary',
+      number: '60111',
+      status,
+      removed: false,
+      aiAgentId: null,
+    },
+    {
+      id: 2,
+      name: 'Catering',
+      tone: 'warning',
+      number: null,
+      status,
+      removed: false,
+      aiAgentId: null,
+    },
+    { id: 3, name: 'Old', tone: 'info', number: null, status, removed: true, aiAgentId: null },
   ],
 };
 
-function setup(memberList = users, inboxList?: InboxListResponse) {
+function setup(
+  memberList = users,
+  inboxList?: InboxListResponse,
+  agentList: AgentList = {
+    agents: memberList.some((m) => m.kind === 'ai') ? [salesAgent] : [],
+    maxAgents: inboxList?.maxInboxes ?? 1,
+  },
+  aiReady = false,
+) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
+    if (url === '/api/ai/agents') return json(agentList);
     if (url === '/api/users' && method === 'GET') return json({ users: memberList });
     if (url === '/api/inboxes' && inboxList) return json(inboxList);
     if (url === '/api/users/2/inboxes' && method === 'PUT') {
@@ -79,7 +131,7 @@ function setup(memberList = users, inboxList?: InboxListResponse) {
           model: '',
           instructions: '',
         },
-        hasApiKey: false,
+        hasApiKey: aiReady,
         connection: { state: 'signed_out', loginUrl: null, error: null },
         documents: [],
       });
@@ -99,7 +151,7 @@ function setup(memberList = users, inboxList?: InboxListResponse) {
       <MemoryRouter initialEntries={['/admin/members']}>
         <Routes>
           <Route path="/admin/members" element={<MembersPage />} />
-          <Route path="/admin/members/ai" element={<h1>AI member page</h1>} />
+          <Route path="/admin/members/ai/*" element={<h1>AI member page</h1>} />
         </Routes>
         <Location />
       </MemoryRouter>
@@ -151,24 +203,102 @@ afterEach(() => {
 });
 
 describe('MembersPage', () => {
-  it('opens the AI member page from the AI row and shows its AI badge', async () => {
+  it('opens the agent page from the AI row and shows the AI badge and its preset', async () => {
     setup([...users, aiUser]);
     await screen.findAllByText('Business AI');
-    expect(screen.getAllByText('AI · Sales Agent').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('link', { name: 'Add AI member' })).toBeNull();
+    // Lite: the subtitle names the preset only; no separate preset badge.
+    expect((await screen.findAllByText('Sales agent')).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('preset-badge')).toBeNull();
+    expect(screen.queryByText('AI assistant')).toBeNull();
+    expect(screen.getAllByText('AI').length).toBeGreaterThan(0);
+    // Lite: one agent is the limit, and Lite shows no limit hint.
+    expect(screen.queryByRole('link', { name: 'Add AI agent' })).toBeNull();
+    expect(screen.queryByTestId('agent-limit-hint')).toBeNull();
     expect(screen.queryByRole('button', { name: 'More actions for Business AI' })).toBeNull();
     const user = userEvent.setup();
     const edit = screen.getAllByRole('link', { name: 'Edit Business AI' })[0]!;
-    expect(edit.getAttribute('href')).toBe('/admin/members/ai');
+    expect(edit.getAttribute('href')).toBe('/admin/members/ai/1');
     await user.click(edit);
-    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai');
+    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/1');
+  });
+
+  it('shows one row per agent, each linking to its own page with its preset and inbox', async () => {
+    setup([...users, aiUser, faqUser], multiInbox, {
+      agents: [salesAgent, faqAgent],
+      maxAgents: 3,
+    });
+    const sales = await screen.findAllByRole('link', { name: 'Business AI' });
+    const faq = screen.getAllByRole('link', { name: 'Clinic FAQ' });
+    expect(sales[0]!.getAttribute('href')).toBe('/admin/members/ai/1');
+    expect(faq[0]!.getAttribute('href')).toBe('/admin/members/ai/2');
+    await waitFor(() => expect(screen.getAllByText('FAQ agent').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Sales agent').length).toBeGreaterThan(0);
+    // The subtitle does not repeat the inbox: the chip below names it.
+    expect(screen.queryByText('Sales agent · Sales')).toBeNull();
+    // Enterprise: the agent's inbox chip, or "No inbox".
+    await waitFor(() =>
+      expect(screen.getAllByTestId('agent-inbox-chip').some((c) => c.textContent === 'Sales')).toBe(
+        true,
+      ),
+    );
+    expect(screen.getAllByText('No inbox').length).toBeGreaterThan(0);
+    // Below the limit: Add AI agent opens a new agent.
+    const add = screen.getByRole('link', { name: 'Add AI agent' });
+    expect(add.getAttribute('href')).toBe('/admin/members/ai/new');
+    expect(screen.queryByTestId('agent-limit-hint')).toBeNull();
+  });
+
+  it('finds an agent by its preset in the search', async () => {
+    setup([...users, aiUser, faqUser], multiInbox, {
+      agents: [salesAgent, faqAgent],
+      maxAgents: 3,
+    });
+    await screen.findAllByText(/^FAQ agent/);
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'Search members' }), 'faq');
+    expect(screen.getAllByText('Clinic FAQ').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Business AI')).toBeNull();
+  });
+
+  it('hides Add AI agent at the limit and explains why in an edition', async () => {
+    setup([...users, aiUser, faqUser], multiInbox, {
+      agents: [salesAgent, faqAgent],
+      maxAgents: 2,
+    });
+    expect(await screen.findByTestId('agent-limit-hint')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Add AI agent' })).toBeNull();
   });
 
   it('shows a turned-off AI member as a neutral Off, not as Disabled', async () => {
-    setup([users[0]!, { ...aiUser, disabled: true }]);
+    setup(
+      [users[0]!, { ...aiUser, disabled: true }],
+      undefined,
+      { agents: [{ ...salesAgent, enabled: false, documentCount: 2 }], maxAgents: 1 },
+      true,
+    );
     await screen.findAllByText('Business AI');
-    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText('Off').length).toBeGreaterThan(0));
     expect(screen.queryByText('Disabled')).toBeNull();
+  });
+
+  it.each([
+    ['On', { enabled: true, documentCount: 2 }, true],
+    ['Needs business context', { enabled: true, documentCount: 0 }, true],
+    ['Needs connection', { enabled: true, documentCount: 2 }, false],
+  ] as const)('shows an AI agent as %s, in the agent page words', async (word, patch, ready) => {
+    setup(
+      [users[0]!, aiUser],
+      undefined,
+      { agents: [{ ...salesAgent, ...patch }], maxAgents: 1 },
+      ready,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByTestId('ai-status').every((b) => b.textContent === word)).toBe(true),
+    );
+    // Never the human "Active": the AI row has only its agent status.
+    const badges = screen.getAllByTestId('ai-status');
+    expect(badges.length).toBeGreaterThan(0);
+    for (const badge of badges) expect(badge.parentElement!.textContent).not.toContain('Active');
   });
 
   it('shows the date a member was added without the time', async () => {
@@ -178,10 +308,10 @@ describe('MembersPage', () => {
     expect(screen.getAllByText(/2023/).length).toBeGreaterThan(0);
   });
 
-  it('links Add AI member to the AI member page when there is no AI member', async () => {
+  it('links Add AI agent to a new agent when there is no agent yet', async () => {
     setup();
-    const link = await screen.findByRole('link', { name: 'Add AI member' });
-    expect(link.getAttribute('href')).toBe('/admin/members/ai');
+    const link = await screen.findByRole('link', { name: 'Add AI agent' });
+    expect(link.getAttribute('href')).toBe('/admin/members/ai/new');
   });
 
   it('renders users from the users query', async () => {

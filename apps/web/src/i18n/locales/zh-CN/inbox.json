@@ -224,7 +224,8 @@
       "unsupported_message": "AI 无法读取的消息",
       "ai_unavailable": "AI 暂不可用",
       "lookup_failed": "在已连接系统中的查询失败",
-      "business_rule": "符合您的转交规则"
+      "business_rule": "符合您的转交规则",
+      "confidential_leak": "回复会透露内部条目"
     },
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",

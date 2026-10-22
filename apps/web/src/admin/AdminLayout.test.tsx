@@ -17,7 +17,21 @@ const inboxes = vi.hoisted(() => ({
   },
 }));
 
+/** What `useAiAgents()` returns: Lite with agent 1 unless a test changes it. */
+const agents = vi.hoisted(() => ({
+  current: {
+    data: { agents: [{ id: 1 }], maxAgents: 1 },
+    isPending: false,
+    isError: false,
+  } as {
+    data?: { agents: { id: number }[]; maxAgents: number };
+    isPending: boolean;
+    isError: boolean;
+  },
+}));
+
 vi.mock('../api/queries', () => ({ useInboxes: () => inboxes.current }));
+vi.mock('../api/ai', () => ({ useAiAgents: () => agents.current }));
 vi.mock('./InboxesPage', () => ({ InboxesPage: () => <h1>Inboxes</h1> }));
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -62,6 +76,11 @@ const MULTI = { data: { inboxes: [], maxInboxes: 3, canAdd: true }, isPending: f
 
 beforeEach(() => {
   inboxes.current = LITE;
+  agents.current = {
+    data: { agents: [{ id: 1 }], maxAgents: 1 },
+    isPending: false,
+    isError: false,
+  };
   logout.mockReset().mockResolvedValue(undefined);
   vi.mocked(toast.error).mockClear();
 });
@@ -88,6 +107,10 @@ describe('AdminLayout routing', () => {
     '/admin/',
     '/admin/members/quick-replies/members/members',
     '/admin/members/ai/unknown',
+    '/admin/members/ai/0',
+    '/admin/members/ai/01',
+    '/admin/members/ai/2x',
+    '/admin/members/ai/1/extra',
     '/admin/unknown',
   ])('recovers %s to the canonical Members page', async (path) => {
     setup(path);
@@ -102,11 +125,63 @@ describe('AdminLayout routing', () => {
     expect(screen.queryByRole('link', { name: 'Cloudflare' })).toBeNull();
   });
 
-  it('opens the AI member page under an active Members section', () => {
-    setup('/admin/members/ai');
+  it('opens an AI agent page under an active Members section', () => {
+    setup('/admin/members/ai/7');
     expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Members' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByText('Admin · Members')).toBeTruthy();
+    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/7');
+  });
+
+  it('opens the new-agent page with its preset', () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/members/ai/new?preset=faq']}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminLayout />} />
+        </Routes>
+        <Location />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
+    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/new');
+  });
+
+  it('sends Lite from /admin/members/ai to its one agent', async () => {
+    setup('/admin/members/ai');
+    await waitFor(() =>
+      expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/1'),
+    );
+    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
+  });
+
+  it('sends Lite with no agent yet from /admin/members/ai to a new agent', async () => {
+    agents.current = { data: { agents: [], maxAgents: 1 }, isPending: false, isError: false };
+    setup('/admin/members/ai');
+    await waitFor(() =>
+      expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/new'),
+    );
+  });
+
+  it('sends Enterprise from /admin/members/ai to Members, where every agent is listed', async () => {
+    agents.current = {
+      data: { agents: [{ id: 1 }, { id: 2 }], maxAgents: 3 },
+      isPending: false,
+      isError: false,
+    };
+    setup('/admin/members/ai');
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
+    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+  });
+
+  it('waits for the agent list on /admin/members/ai, and falls back to Members on an error', async () => {
+    agents.current = { data: undefined, isPending: true, isError: false };
+    setup('/admin/members/ai');
+    expect(screen.getByLabelText('Loading').getAttribute('aria-busy')).toBe('true');
     expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai');
+    cleanup();
+    agents.current = { data: undefined, isPending: false, isError: true };
+    setup('/admin/members/ai');
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
   });
 
   it.each(['general', 'ai', 'device', 'maintenance'])(

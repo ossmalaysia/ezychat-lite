@@ -122,7 +122,10 @@ test('one customer writing to both numbers is two chats in one list', async () =
   await admin.goto(chatHref(CUSTOMER_IN_CATERING));
   await admin.getByPlaceholder(/Type a message/i).fill('Yes, we can do 40.');
   await admin.keyboard.press('Enter');
-  await expect(admin.getByText('Yes, we can do 40.')).toBeVisible();
+  // The chat list preview shows the same text: look in the conversation only.
+  await expect(
+    admin.getByRole('log', { name: 'Messages' }).getByText('Yes, we can do 40.'),
+  ).toBeVisible();
 });
 
 test('an agent sees only the chats of their inboxes', async ({ browser }) => {

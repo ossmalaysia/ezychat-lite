@@ -1,6 +1,22 @@
-import { describe, expect, it } from 'vitest';
-import type { AiDocument, AiMemberStatus } from '@ezychat/shared';
-import { connectionReady, hasKnowledge, memberPill, officialLoginUrl } from './ai-status';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  AI_AGENT_PRESETS,
+  DEFAULT_AI_HANDOFF_RULES,
+  DEFAULT_AI_INSTRUCTIONS,
+  type AiDocument,
+  type AiMemberStatus,
+} from '@ezychat/shared';
+import { activateLocale, i18n } from '@/i18n';
+import ms from '../i18n/locales/ms/admin.json';
+import zh from '../i18n/locales/zh-CN/admin.json';
+import {
+  connectionReady,
+  hasKnowledge,
+  isPresetDefault,
+  memberPill,
+  officialLoginUrl,
+  presetDefaults,
+} from './ai-status';
 
 function status(): AiMemberStatus {
   return {
@@ -15,6 +31,8 @@ function status(): AiMemberStatus {
     hasApiKey: true,
     connection: { state: 'signed_out', loginUrl: null, error: null },
     documents: [],
+    agents: [],
+    maxAgents: 1,
   };
 }
 const doc = (characters: number): AiDocument => ({
@@ -25,6 +43,7 @@ const doc = (characters: number): AiDocument => ({
   characters,
   createdAt: 1,
   updatedAt: 1,
+  internal: false,
 });
 
 describe('AI status helpers', () => {
@@ -77,5 +96,40 @@ describe('AI status helpers', () => {
       locale: null,
     };
     expect(memberPill(s)).toBe('on');
+  });
+});
+
+describe('preset starting texts', () => {
+  afterEach(async () => {
+    await activateLocale('en');
+  });
+
+  it('gives each preset its localized starting texts, and Custom blank ones', async () => {
+    const en = i18n.getFixedT('en', 'admin');
+    expect(presetDefaults('sales', en)).toEqual({
+      instructions: DEFAULT_AI_INSTRUCTIONS,
+      handoffRules: DEFAULT_AI_HANDOFF_RULES,
+    });
+    expect(presetDefaults('faq', en)).toEqual(AI_AGENT_PRESETS.faq);
+    expect(presetDefaults('custom', en)).toEqual({ instructions: '', handoffRules: '' });
+    await activateLocale('ms');
+    const malay = presetDefaults('faq', i18n.getFixedT('ms', 'admin'));
+    expect(malay).toEqual(ms.ai.defaults.faq);
+    expect(malay.instructions).not.toBe(AI_AGENT_PRESETS.faq.instructions);
+  });
+
+  it('knows a default of any preset in English or a loaded language, never edited text', async () => {
+    expect(isPresetDefault(DEFAULT_AI_INSTRUCTIONS, 'instructions')).toBe(true);
+    expect(isPresetDefault(DEFAULT_AI_HANDOFF_RULES, 'handoffRules')).toBe(true);
+    expect(isPresetDefault(AI_AGENT_PRESETS.faq.handoffRules, 'handoffRules')).toBe(true);
+    // The rules are not instructions, and an edited or blank text is never a default.
+    expect(isPresetDefault(DEFAULT_AI_HANDOFF_RULES, 'instructions')).toBe(false);
+    expect(isPresetDefault(`${DEFAULT_AI_INSTRUCTIONS}\nAlso sell cakes.`, 'instructions')).toBe(
+      false,
+    );
+    expect(isPresetDefault('', 'instructions')).toBe(false);
+    await activateLocale('zh-CN');
+    expect(isPresetDefault(zh.ai.defaults.faq.instructions, 'instructions')).toBe(true);
+    expect(isPresetDefault(zh.ai.defaults.sales.handoffRules, 'handoffRules')).toBe(true);
   });
 });

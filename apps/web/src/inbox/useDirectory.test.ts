@@ -68,6 +68,50 @@ describe('inbox access in the team directory', () => {
     expect(dir.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Daniel']);
   });
 
+  it('offers an AI agent only for the inbox it answers, and never a deleted agent', () => {
+    const ai = (id: number, name: string, aiAgentId: number, extra = {}) => ({
+      id,
+      displayName: name,
+      role: 'agent' as const,
+      disabled: false,
+      kind: 'ai' as const,
+      aiRole: 'sales' as const,
+      aiAgentId,
+      inboxIds: 'all' as const,
+      ...extra,
+    });
+    const list = [
+      { id: 1, displayName: 'Aisyah', role: 'admin' as const, disabled: false },
+      ai(7, 'Sales AI', 70),
+      ai(8, 'FAQ AI', 80),
+      // A deleted agent stays only to name its old messages (the server also marks it disabled).
+      ai(9, 'Old AI', 90, { aiDeleted: true }),
+      ai(10, 'Ghost AI', 100, { aiDeleted: true, disabled: true }),
+    ];
+    const dir = buildDirectory(null, true, list, {
+      multiInbox: true,
+      inboxAgents: new Map([
+        [1, 70],
+        [2, 80],
+        [3, 90],
+        [4, null],
+      ]),
+    });
+    expect(dir.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Sales AI']);
+    expect(dir.assignableFor(2).map((u) => u.displayName)).toEqual(['Aisyah', 'FAQ AI']);
+    expect(dir.assignableFor(3).map((u) => u.displayName)).toEqual(['Aisyah']);
+    expect(dir.assignableFor(4).map((u) => u.displayName)).toEqual(['Aisyah']);
+    expect(dir.assignable.map((u) => u.displayName)).not.toContain('Old AI');
+    // A deleted agent still names its old messages.
+    expect(dir.nameOf(9)).toContain('Old AI');
+    // Inboxes not known yet: no AI is offered (the server would refuse it).
+    expect(
+      buildDirectory(null, true, list)
+        .assignableFor(1)
+        .map((u) => u.id),
+    ).toEqual([1]);
+  });
+
   it('keeps the directory’s inbox list for the signed-in agent', () => {
     const dir = buildDirectory(agent, false, [
       { id: 2, displayName: 'Daniel', role: 'agent', disabled: false, inboxIds: [1] },
@@ -90,6 +134,16 @@ describe('useDirectory', () => {
     });
   }
 
+  const inbox = (id: number, aiAgentId: number | null) => ({
+    id,
+    name: `Inbox ${id}`,
+    tone: 'primary',
+    number: null,
+    status: { state: 'open', qr: null, me: null, lastError: null },
+    removed: false,
+    aiAgentId,
+  });
+
   function run(maxInboxes: number | null) {
     const admin = { ...agent, id: 1, displayName: 'Aisyah', role: 'admin' as const };
     vi.stubGlobal(
@@ -98,10 +152,15 @@ describe('useDirectory', () => {
         if (url === '/api/me') return json(admin);
         if (url === '/api/users')
           return json({
-            users: [admin, { ...agent, inboxIds: [] }, { ...agent, id: 3, displayName: 'Mei' }],
+            users: [
+              admin,
+              { ...agent, inboxIds: [] },
+              { ...agent, id: 3, displayName: 'Mei' },
+              { ...agent, id: 4, displayName: 'Bot', kind: 'ai', aiRole: 'sales', aiAgentId: 7 },
+            ],
           });
         if (url === '/api/inboxes' && maxInboxes != null)
-          return json({ inboxes: [], maxInboxes, canAdd: false });
+          return json({ inboxes: [inbox(1, 7), inbox(2, null)], maxInboxes, canAdd: false });
         return json({ error: { code: 'not_found', message: 'nope' } }, 404);
       }),
     );
@@ -113,15 +172,19 @@ describe('useDirectory', () => {
 
   it('fails closed for rows without an inbox list in a multi-inbox install', async () => {
     const { result } = run(3);
-    await waitFor(() => expect(result.current.byId.size).toBe(3));
+    await waitFor(() => expect(result.current.byId.size).toBe(4));
     await waitFor(() =>
       expect(result.current.assignableFor(2).map((u) => u.displayName)).toEqual(['Aisyah']),
+    );
+    // The AI agent of inbox 1 is offered there only.
+    await waitFor(() =>
+      expect(result.current.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Bot']),
     );
   });
 
   it('keeps rows without an inbox list assignable on a single-inbox server', async () => {
     const { result } = run(null);
-    await waitFor(() => expect(result.current.byId.size).toBe(3));
+    await waitFor(() => expect(result.current.byId.size).toBe(4));
     expect(result.current.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Mei']);
   });
 });
