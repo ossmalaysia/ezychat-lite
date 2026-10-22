@@ -345,7 +345,9 @@ into AGENTS.md.
   check the port owner (`Get-NetTCPConnection -LocalPort <port>`) before a restart, else it fails with
   EADDRINUSE; stop the old process by its PID only after you confirm its command line. Before e2e or a
   full suite, list `node.exe` processes whose command line has `mock/run.ts` or the repo path: old mock
-  servers survive for days.
+  servers survive for days. Run coverage, e2e and electron-links as separate background commands (each
+  logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
+  Build first.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs). Put
   `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
