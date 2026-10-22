@@ -15,6 +15,19 @@
   },
   "proposals": [
     {
+      "feature": "emoji-reactions",
+      "creationOrder": 9,
+      "createdAt": "2026-10-23",
+      "design": "docs/features/emoji-reactions/design.md",
+      "mock": "docs/features/emoji-reactions/mock/index.html",
+      "status": "proposal-self-reviewed",
+      "baselineFeature": "claude-provider",
+      "baselineGitRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
+      "baselineAppRevision": "21d9718",
+      "coverage": "Full app clone of the confirmed claude-provider reference (as on main 21d9718, with its round 2); emoji reactions received from WhatsApp and shown in the conversation: a badge under the inner corner of inbound and outbound bubbles, several emojis grouped (at most three, most used first) with the total, a click/tap list of who reacted (profile/contact/WhatsApp names, long names truncate, the phone as \"You (phone)\"), live change and removal; a mock-only \"Simulate reactions from WhatsApp\" panel and seeded reactions through the fake-WhatsApp dev route POST /api/dev/fake-reaction; desktop 1280 / mobile 360, light/dark (reaction-shots.mjs)",
+      "confirmation": "Delegated to the agent; self-review 2026-10-23 recorded in design.md. Not yet shown to the owner (the orchestrator reports it)."
+    },
+    {
       "feature": "claude-provider",
       "creationOrder": 8,
       "createdAt": "2026-10-22",
@@ -76,7 +89,12 @@
       "baselineFeature": "simple-first-setup",
       "baselineGitRevision": "90a95dab5e992e2ea5d2daf773d613356b02f146",
       "baselineAppRevision": "e43b0de",
-      "coverage": "Full app clone of the confirmed simple-first-setup reference (rebuilt against @ezychat/* packages: mechanical import rename and 3 type drift fixes); adds the Create token \"Can send WhatsApp messages\" checkbox with its warning, the \"Can send\" token badge, the \"via AI assistant\" line on replies sent through the assistant, and updated Integrations texts; the demo reply is sent through the real send port; the \"Can also message new numbers\" option with its ban warning, the \"New numbers\" token badge and the warning above a chat an AI assistant started"
+      "coverage": "Full app clone of the confirmed simple-first-setup reference (rebuilt against @ezychat/* packages: mechanical import rename and 3 type drift fixes); adds the Create token \"Can send WhatsApp messages\" checkbox with its warning, the \"Can send\" token badge, the \"via AI assistant\" line on replies sent through the assistant, and updated Integrations texts; the demo reply is sent through the real send port; the \"Can also message new numbers\" option with its ban warning, the \"New numbers\" token badge and the warning above a chat an AI assistant started",
+      "archived": {
+        "folderRemovedAt": "2026-10-23",
+        "lastRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
+        "reason": "retention: sixth feature folder (emoji-reactions)"
+      }
     },
     {
       "feature": "simple-first-setup",
