@@ -267,6 +267,12 @@ into AGENTS.md.
 - `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
   it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
   `packages/server` (the server build compiles against shared's `dist`, not `src`).
+- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
+  bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
+  the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
+  contract change ships, then `npm ci` there to restore the npm core.
+- A git worktree whose `node_modules` is a junction to the main checkout: delete the junction first
+  (`[System.IO.Directory]::Delete(<link>)` removes only the link) before removing the worktree.
 
 - A second Playwright `webServer` that serves the same `apps/web/dist` waits for the first server's
   `/api/health` (that one builds the web) instead of building again in parallel. Specs for it get their
