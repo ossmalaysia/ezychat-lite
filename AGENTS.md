@@ -386,6 +386,11 @@ cover navigation from every admin section and recovery from malformed URLs.
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
   `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
+- **Owner test environments** (owner rule): Dev Builds that the owner tests by hand (real AI sign-in or
+  key, Enterprise licence trial) run on the permanent folders outside the repos, `D:\dev\test-env\lite`
+  (port 7491) and `D:\dev\test-env\enterprise` (port 7434), each with `start.ps1` and a README; their data
+  stays between checks. `npm run e2e`, unit tests and the mock-model checks never use them (they start
+  from empty temp data). Never real app data.
 - **Run the Dev Build check yourself before saying a feature works.** Unit tests, e2e and a screen
   review are not enough: run the feature end to end in a Dev Build (and with the real outside client
   where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
