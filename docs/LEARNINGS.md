@@ -100,6 +100,10 @@ into AGENTS.md.
   took 40–60 min per agent on a low-memory PC. Agents build; the main agent reviews and captures once.
 - Agents that don't commit can't know the confirmed mock's git revision: after committing, the
   orchestrator replaces their placeholder in `mock-index.json` / `design.md` with the SHA (grep for it).
+- Put shared UI pieces and helpers (a badge, a query-refresh helper) in the Interfaces of the first task
+  that needs them: parallel agents with disjoint files otherwise each write a private copy.
+- A scripted rename to a shared function's name can make a same-named local wrapper call itself
+  (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
 
 ## Git, GitHub and CI
 
