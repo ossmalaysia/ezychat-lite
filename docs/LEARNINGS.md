@@ -109,6 +109,9 @@ into AGENTS.md.
   (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
 
 ## Git, GitHub and CI
+- To strip a version from a file name, replace the exact version (`${f/-$version-/-}`, version from
+  `package.json`), never a semver pattern: an optional pre-release group (`(-[0-9A-Za-z.]+)?-`) also
+  matched `-win-` and turned `EzyChat-Lite-0.1.48-win-x64.exe` into `EzyChat-Lite-x64.exe`.
 
 - `main` requires an up-to-date branch: after one PR merges, the next one waits a full CI round (about 11
   min, Windows the slowest). Merging several PRs, merge the one with the longest CI first and update the
