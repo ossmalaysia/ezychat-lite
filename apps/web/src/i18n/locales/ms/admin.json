@@ -1005,7 +1005,12 @@
       },
       "noFreeInbox": "Setiap peti masuk sudah ada ejen AI. Tambah peti masuk untuk memberi ejen ini nombornya sendiri.",
       "addInbox": "Tambah peti masuk",
-      "createNext": "Selepas anda mencipta ejen, tambah Konteks perniagaannya, cuba dan hidupkannya."
+      "createNext": "Selepas anda mencipta ejen, tambah Konteks perniagaannya, cuba dan hidupkannya.",
+      "typeTitle": "Jenis ejen",
+      "typeHint": "Jenis menyatakan tujuan ejen dan memberi teks permulaannya. Menukarnya mengekalkan peranan dan peraturan serahan yang anda tulis.",
+      "typeChange": "Tukar",
+      "typeEditRole": "Sunting peranan dengan AI",
+      "typeOwnTexts": "Peranan dan peraturan serahan ialah teks anda sendiri."
     },
     "presets": {
       "sales": "Jualan",

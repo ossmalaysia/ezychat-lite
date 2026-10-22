@@ -283,6 +283,32 @@ describe('with three inboxes', { timeout: 30_000 }, () => {
     })();
   });
 
+  it('changes an existing agent type and audits it', () => {
+    const { one } = twoAgents();
+    const before = ai.agentStatus(one.id);
+    ai.saveAgent(
+      one.id,
+      {
+        displayName: before.settings.displayName,
+        enabled: before.agent.enabled,
+        preset: 'faq',
+        instructions: before.settings.instructions,
+        handoffRules: before.settings.handoffRules,
+      },
+      actor,
+    );
+    const after = ai.agentStatus(one.id);
+    expect(after.agent.preset).toBe('faq');
+    // Only the type changed: the texts stay as they were.
+    expect(after.settings.instructions).toBe(before.settings.instructions);
+    expect(auditMetas('ai.member_update').at(-1)).toMatchObject({
+      agentId: one.id,
+      preset: 'faq',
+      presetChanged: true,
+      instructionsChanged: false,
+    });
+  });
+
   it('deleteAgent releases its chats, hides its user and keeps it for history', async () => {
     const { one, two } = twoAgents();
     const chats = getChats(t.ctx);

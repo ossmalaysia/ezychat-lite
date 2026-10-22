@@ -327,12 +327,49 @@ function AgentEditor({
     setPreset(p);
     setDraft((old) => ({ ...old, ...presetDefaults(p, t) }));
   };
-  /** Picking a starting point replaces the texts directly while they are unedited; else it asks. */
+  /**
+   * Picking a starting point replaces the texts directly while they are unedited. Otherwise a new
+   * agent asks first; an existing agent changes only its type and keeps the admin's own texts (the
+   * Agent type card then offers that type's template).
+   */
   const choosePreset = (p: AiAgentPreset) => {
     if (p === preset) return;
     if (onTemplate) applyTemplate(p);
-    else setTemplateFor(p);
+    else if (isNew) setTemplateFor(p);
+    else setPreset(p);
   };
+  const [typeOpen, setTypeOpen] = useState(false);
+  const presetPicker = (labelledBy: string) => (
+    <RadioGroup
+      aria-labelledby={labelledBy}
+      value={preset}
+      onValueChange={(value) => choosePreset(value as AiAgentPreset)}
+      className="grid gap-3 sm:grid-cols-3"
+    >
+      {AiAgentPreset.options.map((p) => {
+        const Icon = PRESET_ICON[p];
+        const optionId = `${labelledBy}-${p}`;
+        return (
+          <Label
+            key={p}
+            htmlFor={optionId}
+            className={cn(
+              'flex min-h-11 cursor-pointer flex-col items-start gap-2 rounded-lg border bg-card p-4 font-normal transition-colors',
+              'hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5',
+              'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+            )}
+          >
+            <span className="flex w-full items-center gap-2">
+              <Icon aria-hidden className="size-4 text-primary" />
+              <span className="font-medium">{presetName(p)}</span>
+              <RadioGroupItem id={optionId} value={p} className="ml-auto" />
+            </span>
+            <span className="text-sm text-muted-foreground">{t(`ai.presets.${p}Description`)}</span>
+          </Label>
+        );
+      })}
+    </RadioGroup>
+  );
 
   /** Saves (or creates) the whole page with the given on/off state. */
   const save = async (nextEnabled: boolean, done: string) => {
@@ -550,39 +587,66 @@ function AgentEditor({
             <CardTitle id={pickId}>{t('ai.agents.pickTitle')}</CardTitle>
             <CardDescription>{t('ai.agents.pickHint')}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <RadioGroup
-              aria-labelledby={pickId}
-              value={preset}
-              onValueChange={(value) => choosePreset(value as AiAgentPreset)}
-              className="grid gap-3 sm:grid-cols-3"
-            >
-              {AiAgentPreset.options.map((p) => {
-                const Icon = PRESET_ICON[p];
-                const optionId = `${pickId}-${p}`;
-                return (
-                  <Label
-                    key={p}
-                    htmlFor={optionId}
-                    className={cn(
-                      'flex min-h-11 cursor-pointer flex-col items-start gap-2 rounded-lg border bg-card p-4 font-normal transition-colors',
-                      'hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5',
-                      'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
-                    )}
+          <CardContent>{presetPicker(pickId)}</CardContent>
+        </Card>
+      )}
+
+      {!isNew && (
+        <Card className="gap-4" data-testid="agent-type">
+          <CardHeader className={EDIT_HEADER}>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <CardTitle id={pickId}>{t('ai.agents.typeTitle')}</CardTitle>
+              <CardDescription>{t('ai.agents.typeHint')}</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                aria-expanded={typeOpen}
+                onClick={() => setTypeOpen((open) => !open)}
+              >
+                {t('ai.agents.typeChange')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                disabled={busy}
+                onClick={() => {
+                  setEditField('instructions');
+                  setEditOpen(true);
+                }}
+              >
+                <Sparkles aria-hidden />
+                {t('ai.agents.typeEditRole')}
+              </Button>
+            </div>
+          </CardHeader>
+          {(typeOpen || (!onTemplate && preset !== 'custom')) && (
+            <CardContent className="flex flex-col gap-3">
+              {typeOpen && presetPicker(pickId)}
+              {!onTemplate && preset !== 'custom' && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-sm text-muted-foreground">
+                    {t('ai.agents.typeOwnTexts')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    className="md:min-h-9"
+                    disabled={busy}
+                    onClick={() => setTemplateFor(preset)}
                   >
-                    <span className="flex w-full items-center gap-2">
-                      <Icon aria-hidden className="size-4 text-primary" />
-                      <span className="font-medium">{presetName(p)}</span>
-                      <RadioGroupItem id={optionId} value={p} className="ml-auto" />
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {t(`ai.presets.${p}Description`)}
-                    </span>
-                  </Label>
-                );
-              })}
-            </RadioGroup>
-          </CardContent>
+                    {t('ai.agents.useTemplate', { preset: presetName(preset) })}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -739,7 +803,7 @@ function AgentEditor({
                   />
                 )}
               </Field>
-              {!onTemplate && (
+              {isNew && !onTemplate && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Button
                     type="button"

@@ -339,6 +339,7 @@ describe('AI agent page', () => {
     await screen.findByText('Business context');
     expect(cardTitles()).toEqual([
       'Next steps',
+      'Agent type',
       'Name',
       'Business context',
       'Try it',
@@ -627,6 +628,53 @@ describe('AI agent page', () => {
     await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
     expect(lastBody(fetchMock).handoffRules).toBe('- The customer asks for a wholesale price');
     await waitFor(() => expect(sessionStorage.getItem('wati.ai-draft.5')).toBeNull());
+  });
+
+  it('changes an existing agent to FAQ: own texts stay, starting texts follow the type', async () => {
+    // Own texts (the Sales agent of an upgraded Lite install whose role was rewritten).
+    const own = withContext();
+    own.agents = [
+      agentStatus(5, {}, { instructions: 'Answer politely.', handoffRules: '- Refunds' }),
+    ];
+    const { fetchMock } = setup(own);
+    const user = userEvent.setup();
+    const card = await screen.findByTestId('agent-type');
+    // The page header's badge names the type and follows a change at once.
+    expect(screen.getByTestId('preset-badge').textContent).toBe('Sales agent');
+    await user.click(within(card).getByRole('button', { name: 'Change' }));
+    await user.click(within(card).getByRole('radio', { name: /FAQ/ }));
+    expect(screen.getByTestId('preset-badge').textContent).toBe('FAQ agent');
+    expect(within(card).getByText('The role and hand-over rules are your own texts.')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Use the FAQ template' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
+    expect(lastBody(fetchMock)).toMatchObject({
+      preset: 'faq',
+      instructions: 'Answer politely.',
+      handoffRules: '- Refunds',
+    });
+  });
+
+  it('loads the FAQ starting texts when the agent still has the Sales starting texts', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    const card = await screen.findByTestId('agent-type');
+    await user.click(within(card).getByRole('button', { name: 'Change' }));
+    await user.click(within(card).getByRole('radio', { name: /FAQ/ }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
+    expect(lastBody(fetchMock)).toMatchObject({
+      preset: 'faq',
+      instructions: AI_AGENT_PRESETS.faq.instructions,
+    });
+  });
+
+  it('opens Edit with AI for the role from the Agent type card', async () => {
+    setup();
+    const user = userEvent.setup();
+    const card = await screen.findByTestId('agent-type');
+    await user.click(within(card).getByRole('button', { name: 'Edit role with AI' }));
+    expect(await screen.findByText('Edit AI instructions with AI')).toBeTruthy();
   });
 
   it('asks for a name before saving', async () => {
