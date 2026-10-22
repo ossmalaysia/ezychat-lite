@@ -24,7 +24,7 @@ export const InboxSchema = z.object({
   /** Agents who may open the inbox (admins always may); in admin responses only. */
   memberIds: z.array(UserId).optional(),
   /** The AI agent that answers this inbox; null = no AI agent. */
-  aiAgentId: z.number().int().nullable(),
+  aiAgentId: z.number().int().nullable().default(null),
 });
 export type Inbox = z.infer<typeof InboxSchema>;
 

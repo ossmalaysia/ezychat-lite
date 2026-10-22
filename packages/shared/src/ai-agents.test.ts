@@ -124,16 +124,18 @@ describe('agent bodies', () => {
       maxAgents: 1,
     };
     expect(AiStatus.parse(status)).toEqual(status);
-    const { agents: _agents, ...old } = status;
-    expect(AiStatus.safeParse(old).success).toBe(false);
+    // An answer from an older server (or a test double) without agents still parses: no agents, limit 1.
+    const { agents: _agents, maxAgents: _max, ...old } = status;
+    expect(AiStatus.parse(old)).toMatchObject({ agents: [], maxAgents: 1 });
   });
 });
 
 describe('internal items', () => {
   it('documents carry internal', () => {
     expect(AiDocument.parse(doc).internal).toBe(true);
+    // Without the flag (an older server) an item is customer-facing.
     const { internal: _internal, ...noFlag } = doc;
-    expect(AiDocument.safeParse(noFlag).success).toBe(false);
+    expect(AiDocument.parse(noFlag).internal).toBe(false);
   });
 
   it('text and patch bodies take internal', () => {
@@ -181,7 +183,8 @@ describe('inbox and user binding', () => {
     };
     expect(InboxSchema.parse({ ...inbox, aiAgentId: 2 }).aiAgentId).toBe(2);
     expect(InboxSchema.parse({ ...inbox, aiAgentId: null }).aiAgentId).toBeNull();
-    expect(InboxSchema.safeParse(inbox).success).toBe(false);
+    // An older server sends no aiAgentId: no AI agent.
+    expect(InboxSchema.parse(inbox).aiAgentId).toBeNull();
     expect(UpdateInboxBody.parse({ aiAgentId: null })).toEqual({ aiAgentId: null });
     expect(UpdateInboxBody.parse({ aiAgentId: 3 })).toEqual({ aiAgentId: 3 });
     expect(UpdateInboxBody.safeParse({ aiAgentId: 0 }).success).toBe(false);

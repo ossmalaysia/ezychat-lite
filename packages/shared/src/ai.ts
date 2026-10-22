@@ -208,7 +208,7 @@ export const AiDocument = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   /** Internal: used by the agent to decide, never told to customers. */
-  internal: z.boolean(),
+  internal: z.boolean().default(false),
 });
 export type AiDocument = z.infer<typeof AiDocument>;
 /** Characters of a file item's extracted text shown in its read-only preview. */
@@ -263,9 +263,10 @@ export const AiMemberStatus = z.object({
   hasApiKey: z.boolean(),
   connection: AiConnection,
   documents: z.array(AiDocument),
-  agents: z.array(AiAgentSummary),
+  // Defaults keep a client working with an older server or a test double that predates agents.
+  agents: z.array(AiAgentSummary).default([]),
   /** Agents this edition allows (= maxInboxes; Lite 1). */
-  maxAgents: z.number().int(),
+  maxAgents: z.number().int().default(1),
 });
 export type AiMemberStatus = z.infer<typeof AiMemberStatus>;
 export const AiStatus = AiMemberStatus;
