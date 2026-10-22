@@ -110,6 +110,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- `main` requires an up-to-date branch: after one PR merges, the next one waits a full CI round (about 11
+  min, Windows the slowest). Merging several PRs, merge the one with the longest CI first and update the
+  others once, never push to a PR whose merge is waiting.
 - The Lite updater shows the GitHub release body as the notes: `release.yml` writes it from the
   version's `CHANGELOG.md` section (`scripts/release-notes.mjs`) and stops before the build when that
   section is missing. A draft published without it gives an empty update dialog.
