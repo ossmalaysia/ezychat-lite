@@ -392,7 +392,8 @@ into AGENTS.md.
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
   several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
-  migrates a data dir inside itself, and
+  migrates a data dir inside itself (`describe(name, { timeout: 30_000 }, …)`; put it in subagent and
+  reviewer prompts: five agent-written files missed it and failed only on Windows CI), and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
