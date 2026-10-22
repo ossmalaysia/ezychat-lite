@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.49] - 2026-10-22
+
 ### Added
 
 - Run your AI agents on your own Claude API key. Settings → AI and the setup wizard now offer three connections: ChatGPT, OpenAI API key and Claude API key. Paste a key from console.anthropic.com, choose Claude Sonnet 5.5 (recommended), Claude Opus 5.5 or Claude Haiku 5.5, and the key is checked before it is saved. Agent replies, Try it, Edit with AI and customer details work the same way with Claude. Your OpenAI key and your Claude key both stay saved when you switch between them. With Claude, voice notes use the on-device model (cloud transcription needs an OpenAI key).
