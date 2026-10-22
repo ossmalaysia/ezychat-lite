@@ -515,6 +515,11 @@ into AGENTS.md.
 - A migration that splits one owner into several (one AI member → one agent per inbox) must also move what
   the old owner holds (assigned chats, pending state) to the new owner of each scope, in the same
   transaction; otherwise those chats stay with an agent that never answers them.
+- A Dev Build check of prompt wiring needs no real model: a mock provider that answers with what it
+  received (`e2e/agents-devbuild.ts`: name, guardrails first, `MARK-…` words per knowledge part) proves
+  isolation and order end to end; a data-moving migration is also checked from the installed release
+  (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
+  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
 - A soft-deleted user (a deleted AI agent) leaves Members and assignee lists, but name lookups for old
   messages (directory, MCP) must still include it, flagged (`aiDeleted`), or its history turns nameless.
 
