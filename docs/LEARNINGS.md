@@ -494,6 +494,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A migration that splits one owner into several (one AI member → one agent per inbox) must also move what
+  the old owner holds (assigned chats, pending state) to the new owner of each scope, in the same
+  transaction; otherwise those chats stay with an agent that never answers them.
+
 - Every behaviour the admin instructions may ask for needs a decision the schema accepts: "do not reply to
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
