@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "custom-agents",
-    "gitRevision": "dc28d1d096a61343a2a46b81b7126e0473a22e8d",
-    "mock": "docs/features/custom-agents/mock/index.html",
-    "design": "docs/features/custom-agents/design.md",
+    "feature": "claude-provider",
+    "gitRevision": "f5d5ade3ef74194a645fbd4a6fb3ca13741b5945",
+    "mock": "docs/features/claude-provider/mock/index.html",
+    "design": "docs/features/claude-provider/design.md",
     "confirmedAt": "2026-10-22",
-    "confirmation": "Delegated to the agent by the owner 2026-10-22; round 1 and round 2 (usability, from the real-ChatGPT Enterprise review) self-reviewed and confirmed (design.md)"
+    "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review recorded in design.md"
   },
   "proposals": [
     {
@@ -25,7 +25,8 @@
       "baselineGitRevision": "117d57e23e8817db156efa1301c4aa4accc92f06",
       "baselineAppRevision": "117d57e",
       "coverage": "Full app clone of the confirmed custom-agents reference (as on main 117d57e); a third AI connection, Claude API key (mock state in localStorage mock.claudeProvider.v1): Settings -> AI with three connection option cards (ChatGPT / OpenAI API key / Claude API key), Anthropic key field with Test key (rejected, warn-only unreachable, OpenAI-key pointer), saved note + Replace + Keep, console.anthropic.com link, 3-model select (Sonnet 5.5 recommended, Opus 5.5, Haiku 5.5), Test connection, voice note; switching keeps both keys; inline connect card (agent page and setup wizard) with Use a Claude API key; Voice messages hide Cloud under Claude (note, warning when Cloud was on); agent page connection line; English mock keys",
-      "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review round 1 confirmed (design.md). latestConfirmed is updated after the commit."
+      "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review recorded in design.md",
+      "gitRevision": "f5d5ade3ef74194a645fbd4a6fb3ca13741b5945"
     },
     {
       "feature": "custom-agents",
