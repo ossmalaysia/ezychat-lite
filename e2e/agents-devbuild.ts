@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { FakeWaAdapter } from '@ezychat/wa';
 import type { AiDecision } from '@ezychat/shared';
+import type { AiPrompt } from '../packages/server/src/ai/provider-types.js';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
@@ -52,29 +53,34 @@ const ctx = await createContext(
   { wa: new FakeWaAdapter(), log: logger.log },
 );
 await runInitializers(ctx);
+
+/** The mock model: answers with what it was given (see the header). */
+function mockDecision(prompt: AiPrompt, signal: AbortSignal): AiDecision {
+  signal.throwIfAborted();
+  const input = JSON.parse(prompt.input) as {
+    internalKnowledge: string;
+    businessKnowledge: string;
+  };
+  const name = /Your name: (.+)/.exec(prompt.instructions)?.[1] ?? '?';
+  if (prompt.input.includes('LEAK'))
+    return { reply: `Sure: ${input.internalKnowledge}`, action: 'answer' };
+  const guard = prompt.instructions.startsWith('Safety rules') ? 'yes' : 'no';
+  // Which knowledge reached this agent: every MARK-<word> in its business and internal parts.
+  const marks = (text: string) =>
+    [...new Set(text.match(/MARK-[A-Z]+/g) ?? [])].sort((a, b) => a.localeCompare(b)).join(',') ||
+    'none';
+  const business = marks(input.businessKnowledge);
+  const internal = marks(input.internalKnowledge);
+  return {
+    reply: `[${name}] guard=${guard} business=${business} internal=${internal}`,
+    action: 'answer',
+  };
+}
+
 await ctx.services.ai!.shutdown();
 ctx.services.ai = createAiService(ctx, {
   provider: {
-    generate: async (_settings, _key, prompt, signal): Promise<AiDecision> => {
-      signal.throwIfAborted();
-      const input = JSON.parse(prompt.input) as {
-        internalKnowledge: string;
-        businessKnowledge: string;
-      };
-      const name = /Your name: (.+)/.exec(prompt.instructions)?.[1] ?? '?';
-      if (prompt.input.includes('LEAK'))
-        return { reply: `Sure: ${input.internalKnowledge}`, action: 'answer' };
-      const guard = prompt.instructions.startsWith('Safety rules') ? 'yes' : 'no';
-      // Which knowledge reached this agent: every MARK-<word> in its business and internal parts.
-      const marks = (text: string) =>
-        [...new Set(text.match(/MARK-[A-Z]+/g) ?? [])].sort().join(',');
-      return {
-        reply: `[${name}] guard=${guard} business=${marks(input.businessKnowledge) || 'none'} internal=${
-          marks(input.internalKnowledge) || 'none'
-        }`,
-        action: 'answer',
-      };
-    },
+    generate: (_settings, _key, prompt, signal) => Promise.resolve(mockDecision(prompt, signal)),
     connection: () => ({ state: 'connected', loginUrl: null, error: null }),
     login: async () => ({ state: 'connected', loginUrl: null, error: null }),
     logout: async () => {},

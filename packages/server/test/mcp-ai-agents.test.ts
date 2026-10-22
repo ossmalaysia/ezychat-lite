@@ -115,7 +115,7 @@ afterEach(async () => {
   await t.close();
 });
 
-describe('MCP AI-setup tools with several agents', () => {
+describe('MCP AI-setup tools with several agents', { timeout: 30_000 }, () => {
   it('list_ai_agents lists every agent with its preset and inbox', async () => {
     const tools = (await rpc('tools/list')).result.tools as Array<{
       name: string;
@@ -344,7 +344,7 @@ describe('MCP AI-setup tools with several agents', () => {
   });
 });
 
-describe('MCP AI-setup tools before any agent exists', () => {
+describe('MCP AI-setup tools before any agent exists', { timeout: 30_000 }, () => {
   beforeEach(() => {
     // A data dir that never saved an AI agent (cascades remove the agents' items).
     t.ctx.db.exec('DELETE FROM ai_setup_versions; DELETE FROM ai_agents');

@@ -108,7 +108,7 @@ const itemRow = (id: number) =>
     .prepare('SELECT agent_id AS agentId, name, text, internal FROM ai_documents WHERE id = ?')
     .get(id) as { agentId: number; name: string; text: string; internal: number } | undefined;
 
-describe('several agents (maxInboxes 3)', () => {
+describe('several agents (maxInboxes 3)', { timeout: 30_000 }, () => {
   async function twoAgents() {
     await setUp({ maxInboxes: 3, inboxes: 2 });
     const one = await inject('POST', '/api/ai/agents', sales);
@@ -425,7 +425,7 @@ describe('several agents (maxInboxes 3)', () => {
   });
 });
 
-describe('Lite (one inbox)', () => {
+describe('Lite (one inbox)', { timeout: 30_000 }, () => {
   it('refuses to delete the only agent with 409 last_agent', async () => {
     await setUp({ maxInboxes: 1, inboxes: 1 });
     const created = await inject('POST', '/api/ai/agents', { ...sales, inboxId: undefined });

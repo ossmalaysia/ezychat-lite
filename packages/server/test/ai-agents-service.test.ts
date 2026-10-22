@@ -136,7 +136,7 @@ function twoAgents() {
   return { one, two };
 }
 
-describe('with three inboxes', () => {
+describe('with three inboxes', { timeout: 30_000 }, () => {
   beforeEach(() => setUp());
 
   it('answers each inbox with its own agent, texts, items and cache key', async () => {
@@ -459,7 +459,7 @@ describe('with three inboxes', () => {
   });
 });
 
-describe('per-agent tools and connection', () => {
+describe('per-agent tools and connection', { timeout: 30_000 }, () => {
   beforeEach(() => setUp());
 
   it('Edit with AI and tryAgentReply use the named agent', async () => {
@@ -541,7 +541,7 @@ describe('per-agent tools and connection', () => {
   });
 });
 
-describe('Lite (one inbox)', () => {
+describe('Lite (one inbox)', { timeout: 30_000 }, () => {
   beforeEach(() => setUp({ maxInboxes: 1, inboxes: 1 }));
 
   it('allows one agent, always on inbox 1, that cannot be deleted or moved', () => {

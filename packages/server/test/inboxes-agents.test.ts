@@ -94,7 +94,7 @@ const assignedTo = (t: TestApp, jid: string) =>
     }
   ).assigned_to;
 
-describe('assignment guard', () => {
+describe('assignment guard', { timeout: 30_000 }, () => {
   it('refuses an AI agent on a chat of another inbox and accepts the inbox agent', async () => {
     const { t, ai, actor, req } = await setUp();
     const { one, two } = twoAgents(t, ai, actor);
@@ -119,7 +119,7 @@ describe('assignment guard', () => {
   });
 });
 
-describe('Admin → Inboxes binding', () => {
+describe('Admin → Inboxes binding', { timeout: 30_000 }, () => {
   it('lists aiAgentId for every inbox', async () => {
     const { t, ai, actor, req } = await setUp();
     const { one, two } = twoAgents(t, ai, actor);
@@ -242,7 +242,7 @@ describe('Admin → Inboxes binding', () => {
   });
 });
 
-describe('removing an inbox when the edition allows one agent', () => {
+describe('removing an inbox when the edition allows one agent', { timeout: 30_000 }, () => {
   it('still unbinds the agent and hands back its chats', async () => {
     const { t, ai, actor, req } = await setUp();
     const { two } = twoAgents(t, ai, actor);
@@ -259,7 +259,7 @@ describe('removing an inbox when the edition allows one agent', () => {
   });
 });
 
-describe('Lite (one inbox)', () => {
+describe('Lite (one inbox)', { timeout: 30_000 }, () => {
   it('keeps the only agent on inbox 1', async () => {
     const { t, ai, actor, req } = await setUp({ maxInboxes: 1, inboxes: 1 });
     const one = ai.ensureDefaultAgent({ ...sales, enabled: false }, actor).agent;

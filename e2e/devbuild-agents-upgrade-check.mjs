@@ -8,11 +8,12 @@
 const [port = '7433', phase = 'seed'] = process.argv.slice(2);
 const BASE = `http://127.0.0.1:${port}`;
 let failed = 0;
+/** Server values in log lines: letters, digits, dot and dash only (no log injection). */
+const clean = (value) => String(value).replace(/[^\w.-]/g, '');
 const check = (ok, step, detail = '') => {
   if (!ok) failed++;
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? `  (${String(detail).replace(/\s+/g, ' ')})` : ''}`,
-  );
+  const extra = detail ? '  (' + String(detail).replace(/\s+/g, ' ') + ')' : '';
+  console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + extra);
 };
 let cookie = '';
 async function api(method, path, body) {
@@ -37,7 +38,7 @@ const MENU = 'Kopi O RM2.50, Kopi C RM3.00, kaya toast RM3.50. Open 7am to 3pm d
 
 if (phase === 'seed') {
   const health = (await api('GET', '/health')).json;
-  console.log(`seeding on ${health.app} ${health.version}`);
+  console.log(`seeding on ${clean(health.app)} ${clean(health.version)}`);
   if ((await api('GET', '/setup/status')).json.needsSetup) await api('POST', '/setup/admin', ADMIN);
   check((await api('POST', '/auth/login', ADMIN)).status === 200, 'admin signs in (old release)');
   // Saved instructions and a saved BLANK hand-over list: both must survive the upgrade as they are.
@@ -59,7 +60,7 @@ if (phase === 'seed') {
   check(menu.status === 200 && hours.status === 200, 'the old release saves two context items');
 } else {
   const health = (await api('GET', '/health')).json;
-  console.log(`verifying on ${health.app} ${health.version}`);
+  console.log(`verifying on ${clean(health.app)} ${clean(health.version)}`);
   check(
     (await api('POST', '/auth/login', ADMIN)).status === 200,
     'the same admin signs in (branch)',

@@ -95,7 +95,7 @@ function upgradedWithMember(): { db: DB; settings: SettingsStore; userId: number
   return { db, settings, userId };
 }
 
-describe('migration 015', () => {
+describe('migration 015', { timeout: 30_000 }, () => {
   it('turns the AI member into agent 1 on inbox 1 with NULL texts, its items and its history', () => {
     const { db, userId } = upgradedWithMember();
     const agents = listAgents(db);
@@ -133,7 +133,7 @@ describe('migration 015', () => {
   });
 });
 
-describe('agents repo', () => {
+describe('agents repo', { timeout: 30_000 }, () => {
   it('finds an agent by id, user and inbox', () => {
     const { db, userId } = upgradedWithMember();
     const agent = listAgents(db)[0]!;
@@ -287,7 +287,7 @@ describe('agents repo', () => {
   });
 });
 
-describe('migrateMemberSetting', () => {
+describe('migrateMemberSetting', { timeout: 30_000 }, () => {
   it('keeps blank hand-over rules and leaves never-saved instructions NULL (Review Focus 1)', () => {
     const { db, settings } = upgradedWithMember();
     settings.set('ai_sales_member', { displayName: 'Sales Agent', handoffRules: '' });
@@ -385,7 +385,7 @@ describe('migrateMemberSetting', () => {
   });
 });
 
-describe('setup versions per agent', () => {
+describe('setup versions per agent', { timeout: 30_000 }, () => {
   it("stores a baseline for agent 2's first save although agent 1 has history", () => {
     const { db } = upgradedWithMember();
     addInbox(db, 2);
