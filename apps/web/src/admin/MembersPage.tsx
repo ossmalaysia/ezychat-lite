@@ -89,10 +89,7 @@ const AgentRows = createContext<ReadonlyMap<number, AiAgentSummary>>(new Map());
  * What the AI rows need besides their agent: the inbox names (null in an edition with one number)
  * and whether the shared AI connection works (null while unknown).
  */
-const AgentContext = createContext<{
-  inboxNames: ReadonlyMap<number, string> | null;
-  connectionReady: boolean | null;
-}>({ inboxNames: null, connectionReady: null });
+const AgentContext = createContext<{ connectionReady: boolean | null }>({ connectionReady: null });
 const agentPath = (user: User) =>
   user.aiAgentId === undefined ? '/admin/members/ai' : `/admin/members/ai/${user.aiAgentId}`;
 
@@ -128,7 +125,6 @@ export function MembersPage() {
   const multiInbox = (inboxList.data?.maxInboxes ?? 1) > 1;
   const inboxes = (inboxList.data?.inboxes ?? []).filter((i) => !i.removed);
   const agentContext = {
-    inboxNames: multiInbox ? new Map(inboxes.map((i) => [i.id, i.name])) : null,
     connectionReady: aiStatus.data ? connectionReady(aiStatus.data) : null,
   };
   const memberInboxCell = (u: User) =>
@@ -357,17 +353,12 @@ function AiBadge() {
   );
 }
 
-/** "Sales agent · Sales line" (Lite: "Sales agent"), like the agent page's preset and inbox. */
+/** "Sales agent": the inbox has its own chip in the row, so the subtitle does not repeat it. */
 function AiSubtitle({ user }: Readonly<{ user: User }>) {
   const { t } = useTranslation('admin');
   const agent = useAgentOf(user);
-  const { inboxNames } = useContext(AgentContext);
   if (!agent) return t('ai.assistant');
-  const preset = t('ai.presets.badge', { preset: t(`ai.presets.${agent.preset}`) });
-  if (!inboxNames) return preset;
-  const inbox =
-    (agent.inboxId === null ? undefined : inboxNames.get(agent.inboxId)) ?? t('ai.agents.noInbox');
-  return t('ai.agents.memberSubtitle', { agent: preset, inbox });
+  return t('ai.presets.badge', { preset: t(`ai.presets.${agent.preset}`) });
 }
 
 const AGENT_STATUS_CLASS = {

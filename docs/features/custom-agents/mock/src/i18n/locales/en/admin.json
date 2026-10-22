@@ -567,7 +567,7 @@
     "settingsDescription": "Connect ChatGPT or an OpenAI API key. One provider and model is shared by all your AI agents.",
     "roleBadge": "AI · Sales Agent",
     "addMember": "Add AI member",
-    "membersDescription": "Your team and AI assistant for customer chats.",
+    "membersDescription": "Your team and AI agents for customer chats.",
     "assistant": "AI assistant",
     "behavior": "Replies after 10 seconds in unassigned customer chats and takes ownership. Assign the chat to yourself to take over. The AI resolves a chat only after customer confirmation. When it needs help, it assigns an online human with no open chats, or returns the chat to unassigned.",
     "memberName": "AI member name",
@@ -980,8 +980,7 @@
       "aiBadge": "AI",
       "limitHint": "One AI agent per inbox. Add an inbox to add another agent.",
       "noInbox": "No inbox",
-      "inboxLabel": "Answers {{name}}",
-      "subtitle": "{{preset}} · {{inbox}}"
+      "inboxLabel": "Answers {{name}}"
     },
     "preset": {
       "sales": "Sales",

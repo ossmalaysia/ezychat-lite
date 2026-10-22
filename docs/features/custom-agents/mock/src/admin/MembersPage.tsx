@@ -342,23 +342,11 @@ function AiBadge() {
   );
 }
 
-/** "Sales agent · Kopi Apong" (Lite: "Sales agent"), instead of "AI assistant". */
+/** "Sales agent" instead of "AI assistant": the inbox has its own chip in the row, so it is not repeated. */
 function AgentSubtitle({ agent }: Readonly<{ agent: MockAgent | undefined }>) {
   const { t } = useTranslation('admin');
-  const { inboxes } = useMockInboxes();
-  const { lite } = useShownAgents();
   if (!agent) return <>{t('ai.assistant')}</>;
-  const preset = t('mockAgents.preset.badge', { preset: t(`mockAgents.preset.${agent.preset}`) });
-  if (lite) return <>{preset}</>;
-  const inbox = inboxes.find((i) => i.id === agent.inboxId);
-  return (
-    <>
-      {t('mockAgents.members.subtitle', {
-        preset,
-        inbox: inbox?.name ?? t('mockAgents.members.noInbox'),
-      })}
-    </>
-  );
+  return <>{t('mockAgents.preset.badge', { preset: t(`mockAgents.preset.${agent.preset}`) })}</>;
 }
 
 const AGENT_PILL_CLASS: Record<AgentPill, string> = {

@@ -592,7 +592,7 @@
     "settingsTitle": "AI",
     "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。您的所有 AI 客服共用一个提供商和模型。",
     "roleBadge": "AI · 销售客服",
-    "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
+    "membersDescription": "为客户聊天提供服务的团队和 AI 客服。",
     "assistant": "AI 助手",
     "behavior": "在未分配的客户聊天中等待 10 秒后回复并接管。将聊天分配给自己即可接手。AI 仅在客户确认后解决聊天。需要帮助时，AI 会将聊天分配给没有进行中聊天的在线人工客服，或将其退回未分配状态。",
     "memberName": "AI 成员名称",
@@ -969,8 +969,7 @@
       },
       "noFreeInbox": "每个收件箱都已有 AI 客服。添加收件箱，让此客服使用自己的号码。",
       "addInbox": "添加收件箱",
-      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。",
-      "memberSubtitle": "{{agent}} · {{inbox}}"
+      "createNext": "创建客服后，添加其业务背景，试一试，然后开启。"
     },
     "presets": {
       "sales": "销售",

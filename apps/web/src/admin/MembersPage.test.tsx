@@ -231,10 +231,10 @@ describe('MembersPage', () => {
     const faq = screen.getAllByRole('link', { name: 'Clinic FAQ' });
     expect(sales[0]!.getAttribute('href')).toBe('/admin/members/ai/1');
     expect(faq[0]!.getAttribute('href')).toBe('/admin/members/ai/2');
-    await waitFor(() =>
-      expect(screen.getAllByText('FAQ agent · No inbox').length).toBeGreaterThan(0),
-    );
-    expect(screen.getAllByText('Sales agent · Sales').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText('FAQ agent').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Sales agent').length).toBeGreaterThan(0);
+    // The subtitle does not repeat the inbox: the chip below names it.
+    expect(screen.queryByText('Sales agent · Sales')).toBeNull();
     // Enterprise: the agent's inbox chip, or "No inbox".
     await waitFor(() =>
       expect(screen.getAllByTestId('agent-inbox-chip').some((c) => c.textContent === 'Sales')).toBe(

@@ -562,7 +562,7 @@
     "settingsDescription": "连接 ChatGPT 或 OpenAI API 密钥。您的所有 AI 代理共用一个提供商和模型。",
     "roleBadge": "AI · 销售客服",
     "addMember": "添加 AI 成员",
-    "membersDescription": "为客户聊天提供服务的团队和 AI 助手。",
+    "membersDescription": "为客户聊天提供服务的团队和 AI 客服。",
     "assistant": "AI 助手",
     "behavior": "在未分配的客户聊天中等待 10 秒后回复并接管。将聊天分配给自己即可接手。AI 仅在客户确认后解决聊天。需要帮助时，AI 会将聊天分配给没有进行中聊天的在线人工客服，或将其退回未分配状态。",
     "memberName": "AI 成员名称",
@@ -971,8 +971,7 @@
       "aiBadge": "AI",
       "limitHint": "One AI agent per inbox. Add an inbox to add another agent.",
       "noInbox": "No inbox",
-      "inboxLabel": "Answers {{name}}",
-      "subtitle": "{{preset}} · {{inbox}}"
+      "inboxLabel": "Answers {{name}}"
     },
     "preset": {
       "sales": "Sales",
