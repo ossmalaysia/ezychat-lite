@@ -262,7 +262,7 @@ export const McpUpdateAiSetupInput = z.strictObject({
     .string()
     .max(200_000)
     .describe(
-      'The complete new text (not a diff). For a long item, read every page with get_ai_context_item first so nothing is lost.',
+      'The complete new text (not a diff). One line per paragraph or list item, no line breaks inside a sentence (the app shows every line break). For a long item, read every page with get_ai_context_item first so nothing is lost.',
     ),
   reason: z
     .string()
