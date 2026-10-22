@@ -248,8 +248,9 @@ into AGENTS.md.
   seed a temp data dir with the released packaged server, start the new packaged server on the same dir,
   diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
   cookie, and compare identity strings across all `dist/**` files in both `app.asar`s (e.g. `dist/service/`).
-- A `v*` tag makes `release.yml` build a **draft pre-release**; nothing reaches users until it gets
-  plain-language notes and `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
+- A `v*` tag makes `release.yml` build a **draft pre-release** whose notes come from the version's
+  `CHANGELOG.md` section (so write that section in plain language before tagging); nothing reaches users
+  until `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
   flags in one call: without `--prerelease=false` GitHub answers 422 "Latest release cannot be draft or
   prerelease" and the release stays a pre-release that the updater ignores.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
