@@ -527,6 +527,11 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Claude 5.5 models think adaptively, and thinking tokens count toward `maxOutputTokens`: with the default
+  effort a 2,000-token reply could stop early, parse as malformed and hand the chat over. `ai/claude.ts`
+  sends `providerOptions.anthropic.effort = 'low'` (`CLAUDE_EFFORT`); raise it only together with the cap,
+  and check a new provider's hidden token use before setting a reply limit.
+
 - A migration that splits one owner into several (one AI member → one agent per inbox) must also move what
   the old owner holds (assigned chats, pending state) to the new owner of each scope, in the same
   transaction; otherwise those chats stay with an agent that never answers them.
