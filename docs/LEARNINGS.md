@@ -529,6 +529,11 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A key check maps each provider status on its own: a **400** from Anthropic is the account (e.g. "credit
+  balance is too low"), not the network, so it must never read "could not reach". Read only the short
+  error object of a 400 (type for the log, the message only matched), and before blaming the code send the
+  same request with a fake key: a 401 proves the request shape is right.
+
 - Claude 5.5 models think adaptively, and thinking tokens count toward `maxOutputTokens`: with the default
   effort a 2,000-token reply could stop early, parse as malformed and hand the chat over. `ai/claude.ts`
   sends `providerOptions.anthropic.effort = 'low'` (`CLAUDE_EFFORT`); raise it only together with the cap,
@@ -666,6 +671,10 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Windows has no flag emoji in its font: Chrome on Windows shows 🇲🇾 as the letters "MY" while phones and
+  Macs show the flag. Not a parsing bug; fixing it needs a bundled flag font (e.g. a country-flag
+  polyfill), not a change to `formatWhatsApp`. Check an emoji report on the reporter's device first.
 
 - Renaming a visible label ("API key" → "OpenAI API key") breaks e2e steps and tests that match the old
   words, including audit-label tests: grep `e2e/` and `*.test.ts*` for the old text in the same change.
