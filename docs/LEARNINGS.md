@@ -294,7 +294,9 @@ into AGENTS.md.
 - A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
   bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
   the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
-  contract change ships, then `npm ci` there to restore the npm core.
+  contract change ships, then `npm ci` there to restore the npm core. First check port 7434: the owner's
+  Enterprise test server loads native modules from that checkout's `node_modules`, so `npm ci` deletes
+  the folder and then stops on a locked `.node` file (EPERM). Ask the owner before you stop that server.
 - An Enterprise Dev Build (bundled `server.cjs` on a temp folder) uses the LIVE licence portal: the owner
   registers it (real email code, real trial record). To show new core code, stop only that server, rerun
   `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
