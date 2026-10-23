@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "send-reactions",
+      "creationOrder": 10,
+      "createdAt": "2026-10-23",
+      "design": "docs/features/send-reactions/design.md",
+      "mock": "docs/features/send-reactions/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "emoji-reactions",
+      "baselineGitRevision": "988db65fdc692e1e777d7a130239b17ef3e55680",
+      "baselineAppRevision": "988db65",
+      "coverage": "Full app clone of the confirmed emoji-reactions reference (with its screen-review fix); the team reacts from EzyChat: a 🙂 button beside each bubble on hover/focus, an emoji bar (👍 ❤️ 😂 😮 😢 🙏 and + for 40 more), the current reaction highlighted, the same emoji again or Remove in the list removes it, one shared reaction per WhatsApp number (a teammate's choice replaces it, the bar says so), list names \"You\" / \"<name> (team)\" / \"You (phone)\", press-and-hold on touch opens the bar with Reply, disabled bar while WhatsApp is offline; mock-only routes POST/GET /api/mock/react and POST /api/mock/wa-offline; desktop 1280 / mobile 360, light/dark (send-reaction-shots.mjs)"
+    },
+    {
       "feature": "emoji-reactions",
       "creationOrder": 9,
       "createdAt": "2026-10-23",
@@ -77,7 +89,12 @@
       "baselineFeature": "mcp-send-message",
       "baselineGitRevision": "b3a5479b92cc4b519b141ebb013758c13bcea67c",
       "baselineAppRevision": "1b09ea1",
-      "coverage": "Full app clone of the confirmed mcp-send-message reference; adds a Permissions button on your own tokens and a Permissions dialog (can send, new numbers, warnings) that saves through the real PATCH route; phone layout puts the token actions under the details"
+      "coverage": "Full app clone of the confirmed mcp-send-message reference; adds a Permissions button on your own tokens and a Permissions dialog (can send, new numbers, warnings) that saves through the real PATCH route; phone layout puts the token actions under the details",
+      "archived": {
+        "folderRemovedAt": "2026-10-23",
+        "lastRevision": "988db65fdc692e1e777d7a130239b17ef3e55680",
+        "reason": "retention: sixth feature folder (send-reactions)"
+      }
     },
     {
       "feature": "mcp-send-message",
