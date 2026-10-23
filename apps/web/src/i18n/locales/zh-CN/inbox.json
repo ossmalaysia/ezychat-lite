@@ -408,6 +408,7 @@
     "cancel": "取消",
     "saveFailed": "无法保存客户资料",
     "noName": "未设置姓名",
+    "nameFromWhatsapp": "来自 WhatsApp 的名字。选择编辑即可保存。",
     "whatsappName": "WhatsApp：{{name}}",
     "updatedBy": "由 {{name}} 更新 · {{when}}",
     "updated": "更新于 {{when}}",

@@ -146,6 +146,59 @@ describe('CustomerPanel', () => {
     expect(put.mock.calls[0]![0]).toMatchObject({ name: 'Farah 🌸' });
   });
 
+  it('uses the WhatsApp facts when the chat itself has no name (a chat keyed by a WhatsApp ID)', async () => {
+    const put = mockApi({
+      profile: { ...EMPTY.profile, id: 'p1', company: 'Kopi Apong', updatedAt: 1, updatedBy: 1 },
+      whatsappName: null,
+      whatsappPhone: '60129900123',
+      whatsapp: {
+        pushName: 'Mei Wong',
+        savedName: 'Mei Wong - Kopi Apong Catering',
+        phone: '60129900123',
+        lid: null,
+      },
+    });
+    renderPanel();
+    // The saved profile has no name: the heading shows the WhatsApp name, marked as such.
+    expect(await screen.findByRole('heading', { name: 'Mei Wong' })).toBeTruthy();
+    expect(screen.getByText('Name from WhatsApp. Select Edit to save it.')).toBeTruthy();
+    expect(screen.queryByText('No name set')).toBeNull();
+    // Edit starts with that name, and Save stores it.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Mei Wong');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    expect(put.mock.calls[0]![0]).toMatchObject({ name: 'Mei Wong', company: 'Kopi Apong' });
+  });
+
+  it('skips a WhatsApp name that is only the number and takes the name saved in the phone', async () => {
+    mockApi({
+      ...EMPTY,
+      whatsappName: null,
+      whatsapp: {
+        pushName: '+60 12-345 67',
+        savedName: 'Farah (catering)',
+        phone: null,
+        lid: null,
+      },
+    });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add details' }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Farah (catering)');
+  });
+
+  it('keeps "No name set" when WhatsApp gives no usable name', async () => {
+    mockApi({
+      profile: { ...EMPTY.profile, id: 'p1', company: 'Kopi Apong', updatedAt: 1, updatedBy: 1 },
+      whatsappName: '601234567',
+      whatsappPhone: '601234567',
+      whatsapp: { pushName: null, savedName: null, phone: '601234567', lid: null },
+    });
+    renderPanel();
+    expect(await screen.findByText('No name set')).toBeTruthy();
+    expect(screen.queryByText('Name from WhatsApp. Select Edit to save it.')).toBeNull();
+  });
+
   it('does not prefill a name that is only the phone number', async () => {
     mockApi({ ...EMPTY, whatsappName: '601234567' });
     renderPanel();
