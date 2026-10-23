@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "upgrade-enterprise",
+      "creationOrder": 11,
+      "createdAt": "2026-10-24",
+      "design": "docs/features/upgrade-enterprise/design.md",
+      "mock": "docs/features/upgrade-enterprise/mock/index.html",
+      "status": "proposed",
+      "baselineFeature": "send-reactions",
+      "baselineGitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
+      "baselineAppRevision": "eb6cc65",
+      "coverage": "Full app clone of the confirmed send-reactions reference; Upgrade to Enterprise links (https://ezychat.ai/#enterprise, new tab) in the Lite view only: Admin -> Members note and the AI agent limit page, Admin -> WhatsApp Connection card note, account menu item (admins only), About dialog text and button; Enterprise view and an agent menu without links; desktop 1280 / mobile 360, light/dark (upgrade-shots.mjs)"
+    },
+    {
       "feature": "send-reactions",
       "creationOrder": 10,
       "createdAt": "2026-10-23",
@@ -78,7 +90,12 @@
       "baselineFeature": "token-permissions",
       "baselineGitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
       "baselineAppRevision": "89ccabe",
-      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number, each a linked phone with a QR scan): Admin → Inboxes with add (name + QR), edit (rename, link again) and remove, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, agent no-access state; the Business API type is out (round 3, owner); English only; mock state in localStorage"
+      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number, each a linked phone with a QR scan): Admin → Inboxes with add (name + QR), edit (rename, link again) and remove, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, agent no-access state; the Business API type is out (round 3, owner); English only; mock state in localStorage",
+      "archived": {
+        "folderRemovedAt": "2026-10-24",
+        "lastRevision": "eb6cc65c0febea54dfbc092bd02e08ce2e1b41a3",
+        "reason": "retention: sixth feature folder (upgrade-enterprise)"
+      }
     },
     {
       "feature": "token-permissions",
