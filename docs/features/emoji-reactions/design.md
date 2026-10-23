@@ -92,7 +92,11 @@ recorded in `mock-index.json`).
 
 ## Confirmation
 
-Delegated to the agent; self-review 2026-10-23 (status `proposal-self-reviewed` in `mock-index.json`):
+Confirmed by the owner 2026-10-23: the orchestrator showed the screenshots `01-dm-outbound-badge-desktop-light`,
+`04-group-badge-desktop-light` and `05-group-reaction-list-mobile-dark`, and the owner asked to complete the feature
+("yes complet it"). Status `confirmed` in `mock-index.json`; it is now `latestConfirmed`.
+
+Self-review before that, 2026-10-23:
 
 - Mock `tsc` passes; `snapshot.mjs --check` passes (148 unchanged frontend files, 21 deltas, 31 inherited files,
   16 added files).

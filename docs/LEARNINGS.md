@@ -238,6 +238,9 @@ into AGENTS.md.
   done: wait for its status, not for the comment to exist.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
+- `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
+  still queued (seen with macOS CI and a queued self-hosted job): read the final status after the wait,
+  or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write

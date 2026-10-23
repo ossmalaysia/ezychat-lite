@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "claude-provider",
-    "gitRevision": "f5d5ade3ef74194a645fbd4a6fb3ca13741b5945",
-    "mock": "docs/features/claude-provider/mock/index.html",
-    "design": "docs/features/claude-provider/design.md",
-    "confirmedAt": "2026-10-22",
-    "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review recorded in design.md"
+    "feature": "emoji-reactions",
+    "gitRevision": "6d176698b5901ce24d9e66787c6a49db3d355da0",
+    "mock": "docs/features/emoji-reactions/mock/index.html",
+    "design": "docs/features/emoji-reactions/design.md",
+    "confirmedAt": "2026-10-23",
+    "confirmation": "Owner saw the mock screenshots (DM and group badge, reaction list on mobile) and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review recorded in design.md"
   },
   "proposals": [
     {
@@ -20,12 +20,12 @@
       "createdAt": "2026-10-23",
       "design": "docs/features/emoji-reactions/design.md",
       "mock": "docs/features/emoji-reactions/mock/index.html",
-      "status": "proposal-self-reviewed",
+      "status": "confirmed",
       "baselineFeature": "claude-provider",
       "baselineGitRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
       "baselineAppRevision": "21d9718",
       "coverage": "Full app clone of the confirmed claude-provider reference (as on main 21d9718, with its round 2); emoji reactions received from WhatsApp and shown in the conversation: a badge under the inner corner of inbound and outbound bubbles, several emojis grouped (at most three, most used first) with the total, a click/tap list of who reacted (profile/contact/WhatsApp names, long names truncate, the phone as \"You (phone)\"), live change and removal; a mock-only \"Simulate reactions from WhatsApp\" panel and seeded reactions through the fake-WhatsApp dev route POST /api/dev/fake-reaction; desktop 1280 / mobile 360, light/dark (reaction-shots.mjs)",
-      "confirmation": "Delegated to the agent; self-review 2026-10-23 recorded in design.md. Not yet shown to the owner (the orchestrator reports it)."
+      "confirmation": "Owner saw the mock screenshots and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review 2026-10-23 recorded in design.md"
     },
     {
       "feature": "claude-provider",
