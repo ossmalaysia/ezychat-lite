@@ -9,7 +9,7 @@ Branch: `feat/emoji-reactions` · Every agent updates its stage with
 | Dev | done | Contract (Message.reactions, message:reactions), WaAdapter reaction event (Baileys mapping untested against real WhatsApp), migration 016 + messages/reactions.ts, dev route fake-reaction, web ReactionBadges | 2026-10-22 |
 | Unit tests | done | npm run test:coverage: 258 files, 2963 tests passed; changed lines 100 % (178/178); Enterprise typecheck, lint, 334 tests on the local core | 2026-10-23 |
 | E2E | done | npm run e2e: 77 passed (reactions on desktop, mobile, iphone); e2e:electron-links 15/15, after the screen review fixes | 2026-10-23 |
-| Dev Build | done | devbuild-reactions-check.mjs: 8/8 incl. restart; real WhatsApp receive test still open (owner) | 2026-10-23 |
+| Dev Build | done | Real WhatsApp (receive only): 58 history and live reactions stored and matched; owner saw the badges | 2026-10-23 |
 | Screen review | done | Real-app demo shots 1280/360 light/dark; fixed badge covering time/ticks and a demo name; docs/screenshots/chat refreshed | 2026-10-23 |
 
 ## Log
@@ -24,3 +24,4 @@ Branch: `feat/emoji-reactions` · Every agent updates its stage with
 - 2026-10-23 E2E: done — npm run e2e: 77 passed (reactions on desktop, mobile, iphone); e2e:electron-links 15/15, after the screen review fixes
 - 2026-10-23 Screen review: done — Real-app demo shots 1280/360 light/dark; fixed badge covering time/ticks and a demo name; docs/screenshots/chat refreshed
 - 2026-10-23 Dev Build: done — devbuild-reactions-check.mjs: 8/8 incl. restart; real WhatsApp receive test still open (owner)
+- 2026-10-23 Dev Build: done — Real WhatsApp (receive only): 58 history and live reactions stored and matched; owner saw the badges

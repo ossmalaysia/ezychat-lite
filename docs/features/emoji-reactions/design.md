@@ -83,7 +83,8 @@ recorded in `mock-index.json`).
 - Contract: `MessageReactionSchema` and `Message.reactions` (default `[]`), socket `message:reactions`
   (`MessageReactionsPayload`), dev body `FakeReactionBody` (`packages/shared`).
 - WhatsApp: `WaAdapterEvents.reaction` (`WaReaction`); `mapWAReaction` / `mapStoredReactions` in
-  `packages/wa/src/baileys/mapping.ts`; `FakeWaAdapter.simulateReaction`. **Untested against real WhatsApp.**
+  `packages/wa/src/baileys/mapping.ts`; `FakeWaAdapter.simulateReaction`. Checked against real WhatsApp
+  2026-10-23 (receive only, history and live; `docs/dev-build-checks.md`).
 - Server: migration `016_message_reactions.sql`, `messages/reactions.ts` (repo, row mapping through the alias
   store, batched presenter), `MessageService.applyReaction`, bus + socket `message:reactions` to the chat's
   inbox room, `POST /api/dev/fake-reaction` (fake WhatsApp only). Reactions are keyed by message id, so
