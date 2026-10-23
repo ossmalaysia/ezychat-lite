@@ -509,6 +509,10 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- Baileys emits the echo of our own send (`messages.upsert`, `fromMe`) before `sendMessage` resolves:
+  data only the sender knows (e.g. which teammate sent a reaction) must be added after the send by an
+  idempotent step that works whether the echo came first or later (`ReactionRepo.applyOwn`), and the
+  fake adapter echoes first so tests hit that order.
 - A column a migration backfills (e.g. `chats.wa_jid`) is NULL in rows an older release writes after a
   downgrade, and the migration never runs again: read it with a fallback (`waJidOf`, `COALESCE`) and
   find rows by a key both versions write (`upgrade-from-oldest.test.ts` covers it).
