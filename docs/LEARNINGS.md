@@ -241,6 +241,9 @@ into AGENTS.md.
 - `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
   still queued (seen with macOS CI and a queued self-hosted job): read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+- Before you start a new run or a rerun, stop every old watcher or retry task: a leftover one can start an old
+  run again, and that attempt can still publish. Report a release from the live files (feed, sizes,
+  SHA-256), never from a run's conclusion alone.
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
