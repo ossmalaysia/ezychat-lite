@@ -12,7 +12,8 @@ Read this log before testing a feature, and add a row after every Dev Build chec
 1. Build the web app from the branch under test: `npm run build -w @ezychat/web`. Stop any
    server that serves `apps/web/dist` first.
 2. Start a Dev Build on a fresh temp data folder, never the real app data:
-   `npx tsx packages/server/src/cli.ts --data <temp dir> --port 7490 --fake-wa --mode dev --web-dist apps/web/dist`
+   `npx tsx packages/server/src/cli.ts --data <temp dir> --port 7490 --fake-wa --mode standalone --web-dist apps/web/dist`
+   (with `--mode dev` the first-admin setup answered 404 on 2026-10-23, so step 3 cannot seed there)
 3. Seed demo data: `node e2e/marketing-screenshots.mjs 7490 <throwaway out dir>`. Sign in as
    `aisyah` / `demo-pass-123`. Farah Aziz has a full customer profile (tags VIP, Catering).
 4. **AI checks** need a real model, so the owner signs in (Settings → AI) and agrees to the calls:
