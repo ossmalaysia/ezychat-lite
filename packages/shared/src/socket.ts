@@ -1,6 +1,14 @@
 import type { MessageStatus } from './enums.js';
 import { z } from 'zod';
-import type { Chat, ChatEvent, Message, Note, TunnelStatus, WaStatus } from './models.js';
+import {
+  MessageReactionSchema,
+  type Chat,
+  type ChatEvent,
+  type Message,
+  type Note,
+  type TunnelStatus,
+  type WaStatus,
+} from './models.js';
 import type { InboxStatusPayload } from './inboxes.js';
 import type { VoiceStatus } from './voice.js';
 
@@ -28,10 +36,20 @@ export const NotificationPayload = z.object({
 });
 export type NotificationPayload = z.infer<typeof NotificationPayload>;
 
+/** The full, current reaction list of one message after someone reacted, changed or removed one. */
+export const MessageReactionsPayload = z.object({
+  chatJid: z.string(),
+  messageId: z.string(),
+  reactions: z.array(MessageReactionSchema),
+});
+export type MessageReactionsPayload = z.infer<typeof MessageReactionsPayload>;
+
 export interface ServerToClientEvents {
   'notification:new': (notification: NotificationPayload) => void;
   'message:new': (m: Message) => void;
   'message:status': (p: MessageStatusPayload) => void;
+  /** A message's reactions changed (sent only to users who may open the chat's inbox). */
+  'message:reactions': (p: MessageReactionsPayload) => void;
   /** An existing message changed (e.g. its voice note transcript arrived). */
   'message:updated': (m: Message) => void;
   /** Voice model download/install state (admins only). */

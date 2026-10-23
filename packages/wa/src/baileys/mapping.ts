@@ -1,6 +1,6 @@
 import { downloadMediaMessage, normalizeMessageContent, type proto, type WAMessage } from 'baileys';
 import type { MessageType } from '@ezychat/shared';
-import type { WaIncomingMessage } from '../types.js';
+import type { WaIncomingMessage, WaReaction } from '../types.js';
 import { normalizeContactJid } from './contact-aliases.js';
 
 export type JidKind = 'dm' | 'group' | 'other';
@@ -23,6 +23,92 @@ export function toMs(ts: number | LongLike | null | undefined, fallback = Date.n
   return fallback;
 }
 
+/** A protobuf millisecond timestamp (number | Long | null) as epoch ms, or `fallback`. */
+function msToNumber(ts: number | LongLike | null | undefined, fallback: number): number {
+  if (ts == null) return fallback;
+  if (typeof ts === 'number') return ts;
+  if ('toNumber' in ts && typeof ts.toNumber === 'function') return ts.toNumber();
+  if ('low' in ts) return (ts.high >>> 0) * 2 ** 32 + (ts.low >>> 0);
+  return fallback;
+}
+
+/** Who reacted, from the reaction's own message key (group participant, DM partner or us). */
+function reactor(
+  key: proto.IMessageKey,
+  chatJid: string,
+): Pick<WaReaction, 'senderJid' | 'senderJidAlt' | 'fromMe'> {
+  const fromMe = !!key.fromMe;
+  if (fromMe) return { senderJid: null, senderJidAlt: null, fromMe };
+  if (jidType(chatJid) !== 'group')
+    return { senderJid: normalizeContactJid(chatJid) ?? chatJid, senderJidAlt: null, fromMe };
+  return {
+    senderJid: normalizeContactJid(key.participant),
+    senderJidAlt: normalizeContactJid((key as WAMessage['key']).participantAlt),
+    fromMe,
+  };
+}
+
+/**
+ * A live or history reaction message (`reactionMessage`): who reacted with which emoji to which
+ * message. Empty text = the reaction was removed. Null for anything else, for reactions without a
+ * target or reactor, and for status/broadcast/newsletter chats. Encrypted reactions
+ * (`encReactionMessage`, community announcements) are not read.
+ */
+export function mapWAReaction(msg: proto.IWebMessageInfo): WaReaction | null {
+  const key = msg.key;
+  const chatJid = key?.remoteJid;
+  if (!key || !chatJid || jidType(chatJid) === 'other') return null;
+  const reaction = normalizeMessageContent(msg.message)?.reactionMessage;
+  const targetId = reaction?.key?.id;
+  if (!reaction || !targetId) return null;
+  const who = reactor(key, chatJid);
+  if (!who.fromMe && !who.senderJid) return null;
+  const isGroup = jidType(chatJid) === 'group';
+  const alt = isGroup ? null : normalizeContactJid((key as WAMessage['key']).remoteJidAlt);
+  return {
+    targetId,
+    chatJid,
+    chatJidAlt: alt && alt.endsWith('@lid') !== chatJid.endsWith('@lid') ? alt : null,
+    ...who,
+    senderName: who.fromMe ? null : (msg.pushName ?? null),
+    emoji: reaction.text ?? '',
+    timestamp: msToNumber(
+      reaction.senderTimestampMs as number | LongLike | null | undefined,
+      toMs(msg.messageTimestamp as number | LongLike | null | undefined),
+    ),
+  };
+}
+
+/**
+ * Reactions WhatsApp attached to a stored message (history sync keeps them on the message itself,
+ * `WebMessageInfo.reactions`, instead of separate reaction messages). Removed ones are skipped.
+ */
+export function mapStoredReactions(msg: proto.IWebMessageInfo): WaReaction[] {
+  const chatJid = msg.key?.remoteJid;
+  const targetId = msg.key?.id;
+  if (!chatJid || !targetId || jidType(chatJid) === 'other' || !msg.reactions?.length) return [];
+  const fallback = toMs(msg.messageTimestamp as number | LongLike | null | undefined);
+  return msg.reactions.flatMap((r) => {
+    if (!r.key || !r.text) return [];
+    const who = reactor(r.key, chatJid);
+    if (!who.fromMe && !who.senderJid) return [];
+    return [
+      {
+        targetId,
+        chatJid,
+        chatJidAlt: null,
+        ...who,
+        senderName: null,
+        emoji: r.text,
+        timestamp: msToNumber(
+          r.senderTimestampMs as number | LongLike | null | undefined,
+          fallback,
+        ),
+      },
+    ];
+  });
+}
+
 /** Optional hook for media downloads that need a live socket (reupload of expired media). */
 export type MediaDownloader = (msg: WAMessage) => Promise<Buffer>;
 
@@ -35,8 +121,8 @@ interface ContextCarrier {
 
 /**
  * Map a raw Baileys message to our adapter shape. Returns null for messages
- * that should not appear in the inbox (reactions, protocol, key distribution,
- * status/newsletter/broadcast, empty).
+ * that should not appear in the inbox (reactions — read by mapWAReaction —, protocol, key
+ * distribution, status/newsletter/broadcast, empty).
  */
 export function mapWAMessage(
   msg: proto.IWebMessageInfo,

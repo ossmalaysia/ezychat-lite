@@ -238,6 +238,12 @@ into AGENTS.md.
   done: wait for its status, not for the comment to exist.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
+- `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
+  still queued (seen with macOS CI and a queued self-hosted job): read the final status after the wait,
+  or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+- Before you start a new run or a rerun, stop every old watcher or retry task: a leftover one can start an old
+  run again, and that attempt can still publish. Report a release from the live files (feed, sizes,
+  SHA-256), never from a run's conclusion alone.
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
@@ -278,6 +284,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In a Node script on Windows, never call `process.exit()` while a `fetch` may still be open: Node aborts
+  with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and a non-zero code, so a `&&` chain
+  stops. Set `process.exitCode` and return instead.
 - Insert Markdown with the Edit tool, not `sed -i '<n>a\ …'`: each insert shifts the next line numbers (a
   second insert landed inside another bullet) and `sed` turns `\d`, `\t` in the text into escapes
   (`D:\dev\test-env` became `D:dev<TAB>est-env`).
@@ -288,7 +297,9 @@ into AGENTS.md.
 - A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
   bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
   the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
-  contract change ships, then `npm ci` there to restore the npm core.
+  contract change ships, then `npm ci` there to restore the npm core. First check port 7434: the owner's
+  Enterprise test server loads native modules from that checkout's `node_modules`, so `npm ci` deletes
+  the folder and then stops on a locked `.node` file (EPERM). Ask the owner before you stop that server.
 - An Enterprise Dev Build (bundled `server.cjs` on a temp folder) uses the LIVE licence portal: the owner
   registers it (real email code, real trial record). To show new core code, stop only that server, rerun
   `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
@@ -357,8 +368,9 @@ into AGENTS.md.
   logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
   Build first.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
-  workers die with exit code 3221225477 before any test runs). Put
-  `D:\nvm\v24.13.0` first on PATH for our commands instead of changing the global version. A
+  workers die with exit code 3221225477 before any test runs; a one-off script that loads `better-sqlite3`
+  segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
+  instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
@@ -534,6 +546,12 @@ into AGENTS.md.
   `groups.update` / `group-participants.update` invalidate; fetch About and photos one person at a
   time, only when asked for. A LID-only member may already have a chat whose fallback name is its
   number: never show a number as a name. Most About reads come back empty (privacy), which is normal; WhatsApp lookups (About, photo) throw on failure and failures are never cached; only a real "none" (photo 404/401) is. Baileys (rc14) resolves a timed-out query to `undefined` instead of throwing: treat a missing result as a failure.
+- Baileys (rc14) delivers one live reaction twice: as a `reactionMessage` in `messages.upsert` and as
+  `messages.reaction`. Read one path only (the upsert, which history batches share); history keeps older
+  reactions on the reacted message itself (`WebMessageInfo.reactions`).
+- Anything WhatsApp attaches to a message by its id (reactions, receipts) can arrive before the message
+  or before an own send is renamed from `local-…`: key it by the stored message key, keep it, attach it
+  at presentation, and let a newer timestamp win so a late history copy never undoes a live change.
 
 ## AI sales agent
 
@@ -825,6 +843,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
+  It rewrites every module (times change), so commit only the modules whose screens changed and
+  `git checkout` the rest. Demo group members never reuse a customer's number: the member's name renames that chat.
 - Playwright `page.clock.pauseAt(new Date())` is flaky under load (page clock runs ahead: "Cannot
   fast-forward to the past"); pause at the page's own `Date.now()` plus a few ms.
 - Never pipe a step into `tail`/`head` inside an `&&` chain: the pipe hides its exit code and the chain

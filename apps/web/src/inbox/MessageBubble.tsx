@@ -14,6 +14,7 @@ import { formatWhatsApp, plainWhatsApp } from '../lib/whatsapp-format';
 import { formatJid } from '../lib/jid';
 import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
+import { ReactionBadges } from './ReactionBadges';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
 import { SWIPE_TRIGGER_PX, useSwipeReply } from './useSwipeReply';
@@ -174,6 +175,8 @@ export function MessageBubble({
 
   const out = m.fromMe;
   const hasMedia = m.type !== 'text';
+  // Messages cached before reactions existed have none.
+  const reactions = m.reactions ?? [];
   // A WhatsApp ID (LID) sender formats to '' (never its digits): fall back to a placeholder.
   const senderName =
     m.senderName ??
@@ -202,6 +205,8 @@ export function MessageBubble({
       className={cn(
         'group relative flex items-center gap-1.5 px-2 py-0.5 sm:px-4',
         out ? 'justify-end' : 'justify-start',
+        // room for the reaction badge that hangs under the bubble
+        reactions.length > 0 && 'mb-4',
       )}
     >
       {swipe.offset > 0 && (
@@ -283,7 +288,14 @@ export function MessageBubble({
             {formatWhatsApp(m.body)}
           </p>
         )}
-        <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+        <div
+          className={cn(
+            'mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground',
+            // Room for the reaction badge, which overlaps the bubble's lower edge: it never covers
+            // the time or the ticks.
+            reactions.length > 0 && 'pb-3',
+          )}
+        >
           {/* Replies the admin's AI assistant sent through MCP (stored marker, not the clientId). */}
           {out && m.viaAssistant && (
             <span className="flex items-center gap-0.5" data-testid="via-assistant">
@@ -319,6 +331,7 @@ export function MessageBubble({
             )}
           </div>
         )}
+        <ReactionBadges reactions={reactions} out={out} contactName={contactName} />
       </div>
       {!out && replyButton}
     </div>

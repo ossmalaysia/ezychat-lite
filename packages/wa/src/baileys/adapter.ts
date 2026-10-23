@@ -40,7 +40,7 @@ import {
 import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
-import { jidType, mapWAMessage, toMs } from './mapping.js';
+import { jidType, mapStoredReactions, mapWAMessage, mapWAReaction, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 import { checkedNumberJid } from './number-check.js';
@@ -495,7 +495,19 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     );
     const id = m.key?.id;
     if (!id) return;
+    // A reaction arrives as its own message in messages.upsert (live) and in history batches.
+    // Baileys also emits messages.reaction for the same live reaction: that event is not
+    // subscribed, so a reaction is counted once.
+    const reaction = mapWAReaction(m);
+    if (reaction) {
+      if (source === 'history' && reaction.timestamp < this.historyCutoff()) return;
+      this.emitTyped('reaction', reaction, { source });
+      return;
+    }
     if (m.message) this.raw.set(id, m);
+    // History sync keeps earlier reactions on the reacted message itself.
+    if (source === 'history')
+      for (const r of mapStoredReactions(m)) this.emitTyped('reaction', r, { source });
     const mapped = mapWAMessage(m, (raw) => this.download(raw));
     if (!mapped) return;
     if (source === 'history' && mapped.timestamp < this.historyCutoff()) return;

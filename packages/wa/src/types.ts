@@ -24,6 +24,31 @@ export interface WaIncomingMessage {
   media: null | { mime: string; fileName: string | null; download: () => Promise<Buffer> };
 }
 
+/**
+ * One person's emoji reaction to a message. WhatsApp keeps one reaction per person and message: a
+ * new emoji replaces the previous one, an empty `emoji` removes it.
+ */
+export interface WaReaction {
+  /** WhatsApp id of the message that was reacted to. */
+  targetId: string;
+  /** The chat of both the reaction and the reacted message (as WhatsApp delivered it). */
+  chatJid: string;
+  /** DM only: the same person's other address (`key.remoteJidAlt`), as for messages. */
+  chatJidAlt?: string | null;
+  /** Who reacted: the group participant or the DM partner; null when `fromMe`. */
+  senderJid: string | null;
+  /** Group reactor's explicitly associated alternate phone/LID address. */
+  senderJidAlt?: string | null;
+  /** WhatsApp profile name delivered with the reaction (never inferred). */
+  senderName: string | null;
+  /** Reacted from the linked number (its phone or another linked device). */
+  fromMe: boolean;
+  /** The emoji; '' = the reaction was removed. */
+  emoji: string;
+  /** epoch ms */
+  timestamp: number;
+}
+
 export interface WaChatInfo {
   jid: string;
   type: 'dm' | 'group';
@@ -82,6 +107,8 @@ export interface WaMessageStatusUpdate {
 export interface WaAdapterEvents {
   status: [WaStatus];
   message: [WaIncomingMessage, { source: 'live' | 'history' }];
+  /** Someone reacted to a message, changed their reaction or removed it (live or history). */
+  reaction: [WaReaction, { source: 'live' | 'history' }];
   messageStatus: [WaMessageStatusUpdate];
   chats: [WaChatInfo[]];
   contacts: [WaContactInfo[]];

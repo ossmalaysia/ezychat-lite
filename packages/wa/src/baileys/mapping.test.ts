@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jidType, mapWAMessage } from './mapping.js';
+import { jidType, mapStoredReactions, mapWAMessage, mapWAReaction } from './mapping.js';
 
 const base = (over: Record<string, unknown> = {}) => ({
   key: { remoteJid: '60123456789@s.whatsapp.net', fromMe: false, id: 'ABC' },
@@ -227,5 +227,172 @@ describe('jidType', () => {
     ['garbage', 'other'],
   ] as const)('%s -> %s', (jid, t) => {
     expect(jidType(jid)).toBe(t);
+  });
+});
+
+describe('mapWAReaction', () => {
+  const reaction = (text: string, over: Record<string, unknown> = {}, target = 'TARGET') =>
+    base({
+      key: { remoteJid: '60123456789@s.whatsapp.net', fromMe: false, id: 'R1' },
+      message: {
+        reactionMessage: { text, key: { id: target }, senderTimestampMs: 1_700_000_123_456 },
+      },
+      ...over,
+    });
+
+  it('maps a direct-chat reaction: the chat partner reacted to a message', () => {
+    expect(mapWAReaction(reaction('👍'))).toEqual({
+      targetId: 'TARGET',
+      chatJid: '60123456789@s.whatsapp.net',
+      chatJidAlt: null,
+      senderJid: '60123456789@s.whatsapp.net',
+      senderJidAlt: null,
+      senderName: 'Alice',
+      fromMe: false,
+      emoji: '👍',
+      timestamp: 1_700_000_123_456,
+    });
+  });
+
+  it('an empty text is a removal; a change is just a new emoji', () => {
+    expect(mapWAReaction(reaction(''))?.emoji).toBe('');
+    expect(mapWAReaction(reaction('❤️'))?.emoji).toBe('❤️');
+    const noText = base({ message: { reactionMessage: { key: { id: 'T' } } } });
+    expect(mapWAReaction(noText)?.emoji).toBe('');
+  });
+
+  it('a group reaction names the participant (and its alternate address)', () => {
+    const r = mapWAReaction(
+      reaction('😂', {
+        key: {
+          remoteJid: '1203@g.us',
+          fromMe: false,
+          id: 'R2',
+          participant: '999:4@lid',
+          participantAlt: '60111111111@s.whatsapp.net',
+        },
+      }),
+    );
+    expect(r).toMatchObject({
+      chatJid: '1203@g.us',
+      chatJidAlt: null,
+      senderJid: '999@lid',
+      senderJidAlt: '60111111111@s.whatsapp.net',
+      emoji: '😂',
+    });
+  });
+
+  it('a reaction from the linked number is fromMe, without a sender', () => {
+    const r = mapWAReaction(
+      reaction('🙏', { key: { remoteJid: '1203@g.us', fromMe: true, id: 'R3' }, pushName: 'Me' }),
+    );
+    expect(r).toMatchObject({ fromMe: true, senderJid: null, senderName: null });
+  });
+
+  it('keeps the other address of a direct chat (LID chat, phone alt)', () => {
+    const r = mapWAReaction(
+      reaction('👍', {
+        key: {
+          remoteJid: '777@lid',
+          remoteJidAlt: '60123@s.whatsapp.net',
+          fromMe: false,
+          id: 'R4',
+        },
+      }),
+    );
+    expect(r).toMatchObject({ chatJid: '777@lid', chatJidAlt: '60123@s.whatsapp.net' });
+  });
+
+  it('falls back to the message timestamp and reads Long-like milliseconds', () => {
+    const plain = base({ message: { reactionMessage: { text: '👍', key: { id: 'T' } } } });
+    expect(mapWAReaction(plain)?.timestamp).toBe(1_700_000_000_000);
+    const long = base({
+      message: {
+        reactionMessage: {
+          text: '👍',
+          key: { id: 'T' },
+          senderTimestampMs: { low: 5, high: 1, toNumber: () => 4_294_967_301 },
+        },
+      },
+    });
+    expect(mapWAReaction(long)?.timestamp).toBe(4_294_967_301);
+    const lowHigh = base({
+      message: {
+        reactionMessage: { text: '👍', key: { id: 'T' }, senderTimestampMs: { low: 5, high: 1 } },
+      },
+    });
+    expect(mapWAReaction(lowHigh)?.timestamp).toBe(4_294_967_301);
+    const odd = base({
+      message: { reactionMessage: { text: '👍', key: { id: 'T' }, senderTimestampMs: {} } },
+    });
+    expect(mapWAReaction(odd)?.timestamp).toBe(1_700_000_000_000);
+  });
+
+  it('ignores non-reactions, missing targets or reactors, and status/broadcast chats', () => {
+    expect(mapWAReaction(base({ message: { conversation: 'hi' } }))).toBeNull();
+    expect(mapWAReaction(base({ message: { reactionMessage: { text: '👍' } } }))).toBeNull();
+    expect(
+      mapWAReaction(reaction('👍', { key: { remoteJid: 'status@broadcast', id: 'S' } })),
+    ).toBeNull();
+    expect(
+      mapWAReaction(reaction('👍', { key: { remoteJid: '1203@g.us', fromMe: false, id: 'R' } })),
+    ).toBeNull();
+    expect(mapWAReaction(base({ key: undefined }))).toBeNull();
+  });
+});
+
+describe('mapStoredReactions (history sync)', () => {
+  const stored = (reactions: unknown[], remoteJid = '1203@g.us') =>
+    base({
+      key: { remoteJid, fromMe: false, id: 'TARGET', participant: '601@s.whatsapp.net' },
+      message: { conversation: 'durian cendol?' },
+      reactions,
+    });
+
+  it('maps the reactions kept on a history message, skipping removed ones', () => {
+    const list = mapStoredReactions(
+      stored([
+        {
+          key: { remoteJid: '1203@g.us', participant: '602@s.whatsapp.net', fromMe: false },
+          text: '👍',
+          senderTimestampMs: 1_700_000_000_500,
+        },
+        { key: { remoteJid: '1203@g.us', fromMe: true }, text: '❤️' },
+        { key: { remoteJid: '1203@g.us', participant: '603@s.whatsapp.net' }, text: '' },
+        { text: '😮' },
+        { key: { remoteJid: '1203@g.us' }, text: '😮' },
+      ]),
+    );
+    expect(list).toEqual([
+      {
+        targetId: 'TARGET',
+        chatJid: '1203@g.us',
+        chatJidAlt: null,
+        senderJid: '602@s.whatsapp.net',
+        senderJidAlt: null,
+        senderName: null,
+        fromMe: false,
+        emoji: '👍',
+        timestamp: 1_700_000_000_500,
+      },
+      expect.objectContaining({
+        fromMe: true,
+        senderJid: null,
+        emoji: '❤️',
+        timestamp: 1_700_000_000_000,
+      }),
+    ]);
+  });
+
+  it('names the chat partner in a direct chat; nothing for plain messages', () => {
+    const dmList = mapStoredReactions(
+      stored(
+        [{ key: { remoteJid: '60123@s.whatsapp.net', fromMe: false }, text: '👍' }],
+        '60123@s.whatsapp.net',
+      ),
+    );
+    expect(dmList[0]).toMatchObject({ senderJid: '60123@s.whatsapp.net', fromMe: false });
+    expect(mapStoredReactions(base({ message: { conversation: 'x' } }))).toEqual([]);
+    expect(mapStoredReactions(stored([{ text: '👍', key: {} }], 'status@broadcast'))).toEqual([]);
   });
 });

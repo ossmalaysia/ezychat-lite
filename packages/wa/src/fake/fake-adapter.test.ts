@@ -59,6 +59,45 @@ describe('FakeWaAdapter', () => {
     expect(m2.id).not.toBe(m.id);
   });
 
+  it('simulateReaction emits reactions: DM partner by default, group sender, fromMe, history', () => {
+    const wa = new FakeWaAdapter();
+    const got: Array<[unknown, { source: string }]> = [];
+    wa.on('reaction', (r, meta) => got.push([r, meta]));
+    const dm = wa.simulateReaction({
+      chatJid: '601111@s.whatsapp.net',
+      targetId: 'M1',
+      emoji: '👍',
+      timestamp: 5,
+    });
+    expect(dm).toEqual({
+      targetId: 'M1',
+      chatJid: '601111@s.whatsapp.net',
+      chatJidAlt: null,
+      senderJid: '601111@s.whatsapp.net',
+      senderJidAlt: null,
+      senderName: null,
+      fromMe: false,
+      emoji: '👍',
+      timestamp: 5,
+    });
+    const group = wa.simulateReaction({ chatJid: '1@g.us', targetId: 'M2', emoji: '' });
+    expect(group.senderJid).toBeNull();
+    const named = wa.simulateReaction({
+      chatJid: '1@g.us',
+      targetId: 'M2',
+      emoji: '😂',
+      senderJid: '602@s.whatsapp.net',
+      senderName: 'Ali',
+    });
+    expect(named).toMatchObject({ senderJid: '602@s.whatsapp.net', senderName: 'Ali' });
+    const mine = wa.simulateReaction(
+      { chatJid: '601111@s.whatsapp.net', targetId: 'M1', emoji: '❤️', fromMe: true },
+      'history',
+    );
+    expect(mine.senderJid).toBeNull();
+    expect(got.map(([, meta]) => meta.source)).toEqual(['live', 'live', 'live', 'history']);
+  });
+
   it('sendText records and emits sent then delivered', async () => {
     const wa = new FakeWaAdapter();
     await wa.connect();

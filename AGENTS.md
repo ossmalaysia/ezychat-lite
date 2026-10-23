@@ -80,7 +80,11 @@ migration (`chats/identity-migration.ts`, run by `initMessaging` before the mess
 and `wa.connect()`; pairs read offline by `readStoredLidMappings`; pre-merge backup first). Runtime code
 never merges: `AliasStore.route` picks the existing chat of either JID, routes resolve `:jid` through
 `chatJidParam`, and replies go to the `wa_remote_jid` of the last inbound message. Never merge on a
-name or number match.
+name or number match. Emoji reactions (adapter event `reaction`; Baileys' upsert path only, plus
+`WebMessageInfo.reactions` in history) live in `message_reactions` (`messages/reactions.ts`), one row per
+stored message key and reactor (alias-resolved JID, `me` for the linked number), kept when the message
+is not stored yet; `present()` attaches them in one batched query and `message:reactions` goes to the
+chat's inbox room. Reactions never notify. Dev: `POST /api/dev/fake-reaction` (fake WA only).
 
 **Inboxes (several WhatsApp numbers).** Design `docs/features/multi-inbox/design.md`. Each WhatsApp
 number is an inbox (table `inboxes`, linked phone). `InboxConnections` (`inboxes/connections.ts`) holds one

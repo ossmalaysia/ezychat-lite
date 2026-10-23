@@ -63,6 +63,8 @@ export function rowToMessage(r: MessageRow): Message {
     error: r.error,
     timestamp: r.timestamp,
     clientId: r.client_id,
+    // Filled by the message service's present() (one batched lookup per page).
+    reactions: [],
     ...(r.voice_note === 1 ? { voiceNote: true } : {}),
     ...(r.sent_via_token_id != null ? { viaAssistant: true } : {}),
     // Only voice notes that went through transcription carry these fields.

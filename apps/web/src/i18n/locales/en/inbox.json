@@ -273,7 +273,12 @@
       "unsupported": "This audio format can’t be transcribed"
     },
     "reply": "Reply",
-    "viaAssistant": "via AI assistant"
+    "viaAssistant": "via AI assistant",
+    "reactions": {
+      "label": "Reactions: {{list}}",
+      "title": "Reactions",
+      "fromPhone": "You (phone)"
+    }
   },
   "media": {
     "types": {

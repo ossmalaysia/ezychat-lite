@@ -47,6 +47,7 @@ const base: Omit<Message, 'id' | 'body' | 'fromMe' | 'timestamp'> = {
   status: 'delivered',
   error: null,
   clientId: null,
+  reactions: [],
 };
 const messages: Message[] = [
   { ...base, id: 'A1', body: 'Hello', fromMe: false, timestamp: now - 60_000 },

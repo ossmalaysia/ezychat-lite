@@ -5,6 +5,7 @@ import type {
   ChatEvent,
   InboxStatusPayload,
   Message,
+  MessageReactionsPayload,
   Note,
   ServerToClientEvents,
   TunnelStatus,
@@ -18,6 +19,8 @@ export interface BusEvents {
   'message:status': [Parameters<ServerToClientEvents['message:status']>[0]];
   /** An existing message changed after `message:new` (voice note transcript). */
   'message:updated': [Message];
+  /** A stored message's reactions changed (never a notification). */
+  'message:reactions': [MessageReactionsPayload];
   /** Voice model download/install state (admins only). */
   'voice:status': [VoiceStatus];
   /** Invalidate background work when the shared AI connection changes or becomes unavailable. */

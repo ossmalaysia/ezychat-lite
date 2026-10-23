@@ -21,6 +21,7 @@ function msg(id: string, timestamp: number, extra: Partial<Message> = {}): Messa
     error: null,
     timestamp,
     clientId: null,
+    reactions: [],
     ...extra,
   };
 }

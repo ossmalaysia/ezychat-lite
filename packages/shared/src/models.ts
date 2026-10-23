@@ -65,6 +65,23 @@ export const ChatSchema = z.object({
 });
 export type Chat = z.infer<typeof ChatSchema>;
 
+/**
+ * One person's emoji reaction to a message, as WhatsApp reported it (one per person: a new emoji
+ * replaces the old one, an empty one removes it).
+ */
+export const MessageReactionSchema = z.object({
+  emoji: z.string().min(1),
+  /** Who reacted (phone-number JID or WhatsApp ID); null when the linked number itself reacted. */
+  senderJid: z.string().nullable(),
+  /** The reactor's name from contacts, a customer profile or WhatsApp; never inferred. */
+  senderName: z.string().nullable().optional(),
+  /** Reacted from the linked WhatsApp number (the phone or another linked device). */
+  fromMe: z.boolean(),
+  /** epoch ms */
+  at: z.number(),
+});
+export type MessageReaction = z.infer<typeof MessageReactionSchema>;
+
 export const MessageSchema = z.object({
   id: z.string(),
   chatJid: z.string(),
@@ -95,6 +112,8 @@ export const MessageSchema = z.object({
   transcriptStatus: TranscriptStatus.nullable().optional(),
   /** Group messages: the sender's customer profile (from their direct chat), when one is set. */
   senderProfile: z.object({ chatJid: z.string(), name: z.string() }).nullable().optional(),
+  /** Emoji reactions, oldest first; empty when nobody reacted. */
+  reactions: z.array(MessageReactionSchema).default([]),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

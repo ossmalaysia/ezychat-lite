@@ -123,6 +123,27 @@ describe('inbox socket rooms (RF-3)', () => {
     expect(seenA.filter((e) => e.ev === 'typing' && chatOf(e.arg) === C2)).toEqual([]);
   });
 
+  it('reaction changes reach only the users who may open the chat inbox', async () => {
+    const { seenA, seenB } = await both();
+    const two = t.inboxWa(2).simulateIncoming({ chatJid: C, body: 'two' });
+    const one = t.inboxWa(1).simulateIncoming({ chatJid: C, body: 'one' });
+    await until(() => touches(seenA, C2).includes('message:new'));
+    await until(() => touches(seenB, C).includes('message:new'));
+    t.inboxWa(2).simulateReaction({ chatJid: C, targetId: two.id, emoji: '👍' });
+    t.inboxWa(1).simulateReaction({ chatJid: C, targetId: one.id, emoji: '❤️' });
+    await until(() => touches(seenA, C2).includes('message:reactions'));
+    await until(() => touches(seenB, C).includes('message:reactions'));
+    await delay(100);
+    expect(touches(seenB, C2)).toEqual([]);
+    expect(seenB.filter((e) => e.ev === 'message:reactions').map((e) => e.arg)).toEqual([
+      {
+        chatJid: C,
+        messageId: one.id,
+        reactions: [expect.objectContaining({ emoji: '❤️', senderJid: C })],
+      },
+    ]);
+  });
+
   it('access changes move live sockets in and out of inbox rooms without reconnecting', async () => {
     const { seenB } = await both();
     const put = (inboxIds: number[]) =>

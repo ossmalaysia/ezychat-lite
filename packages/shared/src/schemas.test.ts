@@ -24,7 +24,9 @@ import {
   CloudflareCreateBody,
   ErrorCode,
   FakeIncomingBody,
+  FakeReactionBody,
   HealthResponse,
+  MessageReactionsPayload,
   MessageSchema,
   QuickReplyBody,
   QuickReplySchema,
@@ -112,9 +114,49 @@ describe('shared schemas', () => {
       error: null,
       timestamp: 1_700_000_000_000,
       clientId: null,
+      reactions: [],
     };
     expect(MessageSchema.parse(sample)).toEqual(sample);
     expect(MessageSchema.safeParse({ ...sample, type: 'gif' }).success).toBe(false);
+  });
+
+  it('a message from an older server gets no reactions; reactions need an emoji', () => {
+    const { reactions: _omitted, ...older } = MessageSchema.parse({
+      id: 'A',
+      chatJid: 'x@s.whatsapp.net',
+      senderJid: null,
+      senderName: null,
+      fromMe: true,
+      sentByUserId: null,
+      type: 'text',
+      body: 'hi',
+      mediaUrl: null,
+      mediaMime: null,
+      mediaName: null,
+      mediaStatus: 'none',
+      quotedId: null,
+      status: 'sent',
+      error: null,
+      timestamp: 1,
+      clientId: null,
+    });
+    expect(MessageSchema.parse(older).reactions).toEqual([]);
+    const reaction = { emoji: '👍', senderJid: null, fromMe: true, at: 2 };
+    expect(
+      MessageReactionsPayload.parse({ chatJid: 'x', messageId: 'A', reactions: [reaction] }),
+    ).toEqual({ chatJid: 'x', messageId: 'A', reactions: [reaction] });
+    expect(
+      MessageReactionsPayload.safeParse({
+        chatJid: 'x',
+        messageId: 'A',
+        reactions: [{ ...reaction, emoji: '' }],
+      }).success,
+    ).toBe(false);
+    expect(FakeReactionBody.parse({ messageId: 'A', emoji: '' })).toEqual({
+      messageId: 'A',
+      emoji: '',
+    });
+    expect(FakeReactionBody.safeParse({ messageId: '', emoji: '👍' }).success).toBe(false);
   });
 
   it('ChatEventSchema accepts record payloads', () => {

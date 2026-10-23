@@ -11,6 +11,7 @@ import type {
   WaContactInfo,
   WaIncomingMessage,
   WaMessageStatusUpdate,
+  WaReaction,
 } from '../types.js';
 import {
   BaileysAdapter,
@@ -145,6 +146,57 @@ describe('BaileysAdapter event handling', () => {
     expect(msgs.map((x) => [x.m.id, x.source])).toEqual([
       ['OFF1', 'live'],
       ['LIVE1', 'live'],
+    ]);
+  });
+
+  it('emits a live reaction as a reaction event, never as a message', () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    const { msgs } = collect(a);
+    const reactions: Array<{ r: WaReaction; source: string }> = [];
+    a.on('reaction', (r, meta) => reactions.push({ r, source: meta.source }));
+    a.handleUpsert(
+      [dm('R1', { message: { reactionMessage: { text: '👍', key: { id: 'TARGET' } } } })],
+      'notify',
+    );
+    expect(msgs).toEqual([]);
+    expect(reactions).toEqual([
+      { r: expect.objectContaining({ targetId: 'TARGET', emoji: '👍' }), source: 'live' },
+    ]);
+    // The reaction is not kept in the quote/media cache.
+    expect((a as unknown as { raw: { get(id: string): unknown } }).raw.get('R1')).toBeUndefined();
+  });
+
+  it('history: reaction messages and reactions kept on messages, within history_days', () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 3 });
+    const { msgs } = collect(a);
+    const reactions: Array<{ r: WaReaction; source: string }> = [];
+    a.on('reaction', (r, meta) => reactions.push({ r, source: meta.source }));
+    const now = Math.floor(Date.now() / 1000);
+    a.onHistory({
+      chats: [],
+      contacts: [],
+      messages: [
+        dm('H1', {
+          reactions: [{ key: { remoteJid: '60123456789@s.whatsapp.net' }, text: '❤️' }],
+        }),
+        dm('H2', { message: { reactionMessage: { text: '😂', key: { id: 'H1' } } } }),
+        dm('OLD', {
+          messageTimestamp: now - 2 * 86400,
+          message: {
+            reactionMessage: {
+              text: '😮',
+              key: { id: 'H1' },
+              senderTimestampMs: (now - 5 * 86400) * 1000,
+            },
+          },
+        }),
+      ],
+      isLatest: true,
+    } as never);
+    expect(msgs.map((x) => x.m.id)).toEqual(['H1']);
+    expect(reactions.map(({ r, source }) => [r.targetId, r.emoji, source])).toEqual([
+      ['H1', '❤️', 'history'],
+      ['H1', '😂', 'history'],
     ]);
   });
 

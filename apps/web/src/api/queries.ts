@@ -320,6 +320,7 @@ function optimisticMessage(
     error: null,
     timestamp: Date.now(),
     clientId,
+    reactions: [],
     ...fields,
   };
 }
