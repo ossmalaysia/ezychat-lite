@@ -284,6 +284,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In a Node script on Windows, never call `process.exit()` while a `fetch` may still be open: Node aborts
+  with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and a non-zero code, so a `&&` chain
+  stops. Set `process.exitCode` and return instead.
 - Insert Markdown with the Edit tool, not `sed -i '<n>a\ …'`: each insert shifts the next line numbers (a
   second insert landed inside another bullet) and `sed` turns `\d`, `\t` in the text into escapes
   (`D:\dev\test-env` became `D:dev<TAB>est-env`).
