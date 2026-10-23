@@ -259,6 +259,87 @@ describe('BaileysAdapter event handling', () => {
     });
     await expect(a.sendText('1@s.whatsapp.net', 'hi')).rejects.toBe(other);
   });
+
+  it('sends a reaction with the key WhatsApp matches; the group author comes from the cache first', async () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
+    const calls: Array<{ jid: string; content: unknown }> = [];
+    Object.assign(a as unknown as Record<string, unknown>, {
+      sock: {
+        sendMessage: async (jid: string, content: unknown) => {
+          calls.push({ jid, content });
+          return { key: { id: `R${calls.length}` }, messageTimestamp: 1_700_000_000 };
+        },
+      },
+      _status: { state: 'open', me: null, qr: null, lastError: null },
+    });
+    const raw = (
+      a as unknown as { raw: { get(id: string): unknown; set(id: string, v: unknown): void } }
+    ).raw;
+    raw.set('CACHED', { key: { id: 'CACHED', participant: '900111@lid' } });
+
+    const res = await a.sendReaction('1@s.whatsapp.net', { id: 'M1', fromMe: true }, '👍');
+    expect(res).toEqual({ id: 'R1', timestamp: 1_700_000_000_000 });
+    await a.sendReaction(
+      '1203@g.us',
+      { id: 'G1', fromMe: false, participant: '6011@s.whatsapp.net' },
+      '',
+    );
+    await a.sendReaction(
+      '1203@g.us',
+      { id: 'CACHED', fromMe: false, participant: '6011@s.whatsapp.net' },
+      '❤️',
+    );
+    // A direct chat never carries a participant, even when one is passed.
+    await a.sendReaction(
+      '1@s.whatsapp.net',
+      { id: 'M2', fromMe: false, participant: '6011@s.whatsapp.net' },
+      '😮',
+    );
+    expect(calls).toEqual([
+      {
+        jid: '1@s.whatsapp.net',
+        content: {
+          react: { text: '👍', key: { remoteJid: '1@s.whatsapp.net', id: 'M1', fromMe: true } },
+        },
+      },
+      {
+        jid: '1203@g.us',
+        content: {
+          react: {
+            text: '',
+            key: {
+              remoteJid: '1203@g.us',
+              id: 'G1',
+              fromMe: false,
+              participant: '6011@s.whatsapp.net',
+            },
+          },
+        },
+      },
+      {
+        jid: '1203@g.us',
+        content: {
+          react: {
+            text: '❤️',
+            key: { remoteJid: '1203@g.us', id: 'CACHED', fromMe: false, participant: '900111@lid' },
+          },
+        },
+      },
+      {
+        jid: '1@s.whatsapp.net',
+        content: {
+          react: { text: '😮', key: { remoteJid: '1@s.whatsapp.net', id: 'M2', fromMe: false } },
+        },
+      },
+    ]);
+    // Sent reactions stay out of the quote/media cache.
+    expect(raw.get('R1')).toBeUndefined();
+
+    Object.assign(a as unknown as Record<string, unknown>, { sock: null });
+    await expect(
+      a.sendReaction('1@s.whatsapp.net', { id: 'M1', fromMe: true }, '👍'),
+    ).rejects.toBeInstanceOf(WaUnavailableError);
+  });
 });
 
 const PN = '60123456789@s.whatsapp.net';

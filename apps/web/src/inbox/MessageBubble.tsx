@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link } from 'react-router-dom';
@@ -15,6 +16,7 @@ import { formatJid } from '../lib/jid';
 import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
 import { ReactionBadges } from './ReactionBadges';
+import { ReactionPicker } from './ReactionPicker';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
 import { SWIPE_TRIGGER_PX, useSwipeReply } from './useSwipeReply';
@@ -30,6 +32,10 @@ export interface MessageBubbleProps {
   retrying?: boolean;
   /** Start a reply that quotes this message (hover button, swipe right or long-press on touch). */
   onReply?(m: Message): void;
+  /** React as the linked number ('' removes): 🙂 button, or press and hold on touch. */
+  onReact?(m: Message, emoji: string): void;
+  /** Why reacting is not possible now (WhatsApp not connected): the bar shows it, disabled. */
+  reactDisabledReason?: string | null;
   onMediaLoad?(): void;
   /** Team directory, for "Updated by" in a group sender's profile popover. */
   directory?: Directory;
@@ -157,12 +163,20 @@ export function MessageBubble({
   onMediaLoad,
   directory,
   onReply,
+  onReact,
+  reactDisabledReason = null,
   contactName,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
   // Pending and failed messages still have a local id that WhatsApp could not match.
   const canReply = !!onReply && m.type !== 'system' && !m.id.startsWith('local-');
-  const swipe = useSwipeReply(canReply ? () => onReply!(m) : undefined);
+  // Whoever may reply may react, with the linked number's one reaction.
+  const canReact = canReply && !!onReact;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const swipe = useSwipeReply(
+    canReply ? () => onReply!(m) : undefined,
+    canReact ? () => setPickerOpen(true) : undefined,
+  );
   if (m.type === 'system') {
     return (
       <div className="flex justify-center px-3 py-1">
@@ -200,6 +214,29 @@ export function MessageBubble({
     </Button>
   );
 
+  // The linked number's reaction and the teammate who sent it from the inbox (null: the phone).
+  const mine = reactions.find((r) => r.fromMe) ?? null;
+  const sentBy = mine?.sentByUserId ?? null;
+  const meId = directory?.me?.id ?? null;
+  const teamName =
+    sentBy === null
+      ? null
+      : sentBy === meId
+        ? ''
+        : (directory?.nameOf(sentBy) ?? t('message.reactions.fromTeammateUnknown'));
+  const reactButton = canReact && (
+    <ReactionPicker
+      out={out}
+      current={mine?.emoji ?? ''}
+      currentBy={teamName || null}
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      onReact={(emoji) => onReact!(m, emoji)}
+      disabledReason={reactDisabledReason}
+      onReply={() => onReply!(m)}
+    />
+  );
+
   return (
     <div
       className={cn(
@@ -219,6 +256,7 @@ export function MessageBubble({
         </span>
       )}
       {out && replyButton}
+      {out && reactButton}
       <div
         {...swipe.handlers}
         style={swipe.offset ? { transform: `translateX(${swipe.offset}px)` } : undefined}
@@ -331,8 +369,17 @@ export function MessageBubble({
             )}
           </div>
         )}
-        <ReactionBadges reactions={reactions} out={out} contactName={contactName} />
+        <ReactionBadges
+          reactions={reactions}
+          out={out}
+          contactName={contactName}
+          teamName={teamName}
+          onRemoveMine={
+            canReact && mine && !reactDisabledReason ? () => onReact!(m, '') : undefined
+          }
+        />
       </div>
+      {!out && reactButton}
       {!out && replyButton}
     </div>
   );

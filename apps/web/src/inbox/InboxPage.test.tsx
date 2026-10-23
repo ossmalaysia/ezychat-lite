@@ -156,6 +156,19 @@ describe('InboxPage', () => {
     });
   });
 
+  it('reacts to a customer message from the 🙂 button', async () => {
+    const { posted } = setup(`/chats/${encodeURIComponent(jid)}`);
+    const log = await screen.findByRole('log', { name: 'Messages' });
+    const bubble = (await within(log).findByText('Hello')).closest('[data-message-id]')!;
+    const row = bubble.parentElement as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(within(row).getByTestId('reaction-picker-button'));
+    await user.click(await screen.findByRole('button', { name: 'React with 🙏' }));
+    await vi.waitFor(() =>
+      expect(posted).toContainEqual({ url: '/api/messages/A1/reaction', body: { emoji: '🙏' } }),
+    );
+  });
+
   it('agents see teammate names from the team directory', async () => {
     setup(`/chats/${encodeURIComponent(jid)}`, {
       directory: [

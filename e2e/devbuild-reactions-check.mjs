@@ -1,6 +1,7 @@
 // Dev Build check for emoji reactions (docs/dev-build-checks.md): on a Dev Build seeded by
 // e2e/marketing-screenshots.mjs (fake WhatsApp, temp data), reactions arrive through the fake phone,
-// change, go away, group per person, and are still there after a server restart.
+// change, go away, group per person, and are still there after a server restart. A teammate's own
+// reaction (PUT /api/messages/:id/reaction) shows as "team", replaces and removes, and survives too.
 // Usage: node e2e/devbuild-reactions-check.mjs <port> run       (before the restart)
 //        node e2e/devbuild-reactions-check.mjs <port> restart   (after it: the stored state)
 const [port, mode = 'run'] = process.argv.slice(2);
@@ -37,7 +38,10 @@ const message = async (chat, text) => {
 };
 const summary = (m) =>
   m.reactions
-    .map((r) => `${r.emoji} ${r.fromMe ? 'phone' : r.senderName || r.senderJid}`)
+    .map(
+      (r) =>
+        `${r.emoji} ${r.fromMe ? (r.sentByUserId ? 'team' : 'phone') : r.senderName || r.senderJid}`,
+    )
     .sort()
     .join(', ') || '(none)';
 let failed = 0;
@@ -47,6 +51,8 @@ const expectReactions = async (label, chat, text, want) => {
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}: ${got}${ok ? '' : ` (want ${want})`}`);
 };
+const teamReact = async (chat, text, emoji) =>
+  call('PUT', `/messages/${encodeURIComponent((await message(chat, text)).id)}/reaction`, { emoji });
 const react = async (chat, text, body) =>
   call('POST', '/dev/fake-reaction', { messageId: (await message(chat, text)).id, ...body });
 
@@ -68,15 +74,30 @@ if (mode === 'run') {
     'Is the durian cendol back',
     '❤️ Farah Aziz, 😋 Nurul Huda, 😋 kopilover',
   );
+  // The team reacts from the inbox: beside the customer's own, then the same emoji removes it.
+  await teamReact(PRIYA, 'The rider is 5 minutes away', '🙏');
+  await expectReactions('team reacts', PRIYA, 'The rider is 5 minutes away', '👍 Priya Nair, 🙏 team');
+  await teamReact(PRIYA, 'The rider is 5 minutes away', '');
+  await expectReactions('team removes', PRIYA, 'The rider is 5 minutes away', '👍 Priya Nair');
+  // It replaces the phone's reaction (one per number).
+  await teamReact(PRIYA, 'Okay thank you', '🎉');
+  await expectReactions('replaces the phone', PRIYA, 'Okay thank you', '🎉 team');
+  await teamReact(GROUP, 'Is the durian cendol back', '👍');
+  await expectReactions(
+    'team in a group',
+    GROUP,
+    'Is the durian cendol back',
+    '❤️ Farah Aziz, 👍 team, 😋 Nurul Huda, 😋 kopilover',
+  );
 } else {
   await expectReactions('after restart: DM', PRIYA, 'The rider is 5 minutes away', '👍 Priya Nair');
   await expectReactions('after restart: removed', PRIYA, 'So sorry Priya', '(none)');
-  await expectReactions('after restart: phone', PRIYA, 'Okay thank you', '🙏 phone');
+  await expectReactions('after restart: team', PRIYA, 'Okay thank you', '🎉 team');
   await expectReactions(
     'after restart: group',
     GROUP,
     'Is the durian cendol back',
-    '❤️ Farah Aziz, 😋 Nurul Huda, 😋 kopilover',
+    '❤️ Farah Aziz, 👍 team, 😋 Nurul Huda, 😋 kopilover',
   );
 }
 console.log(failed ? `${failed} check(s) failed` : 'all checks passed');

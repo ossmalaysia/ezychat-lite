@@ -14,6 +14,7 @@ import {
   useCustomerProfile,
   useCustomerTags,
   useSaveCustomerProfile,
+  useSendReaction,
   type MessagesData,
 } from './queries';
 
@@ -238,6 +239,19 @@ describe('customer profile queries', () => {
     const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
     expect(keys).toContainEqual(qk.chat(FARAH));
     expect(keys).toContainEqual(qk.chatsAll);
+  });
+
+  it('sends a reaction and puts the answered reactions on the cached message', async () => {
+    const reactions = [
+      { emoji: '👍', senderJid: null, senderName: null, fromMe: true, at: 5, sentByUserId: 1 },
+    ];
+    const calls = mockFetchJson({ messageId: 'WA/1', reactions });
+    const { queryClient, wrapper } = setup();
+    seed(queryClient, [msg({ id: 'WA/1', status: 'delivered', clientId: null })]);
+    const { result } = renderHook(() => useSendReaction(), { wrapper });
+    await act(() => result.current.mutateAsync({ chatJid: JID, messageId: 'WA/1', emoji: '👍' }));
+    expect(calls).toEqual(['PUT /api/messages/WA%2F1/reaction {"emoji":"👍"}']);
+    expect(cached(queryClient)[0]!.reactions).toEqual(reactions);
   });
 
   it('loads tag suggestions for a search', async () => {

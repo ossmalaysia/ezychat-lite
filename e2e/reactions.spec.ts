@@ -102,3 +102,50 @@ test('emoji reactions show live under the bubble, group by emoji, list who react
   await expect(list).toContainText(long);
   await expectNoHorizontalScroll(page, 'group reactions list');
 });
+
+test('a teammate reacts from the 🙂 button, sees "You", and the same emoji removes it', async ({
+  page,
+  baseURL,
+}, info) => {
+  const jid = customerJid(info, 42);
+  const origin = { Origin: new URL(baseURL!).origin };
+  await page.goto('/');
+  await expect(inboxHeading(page)).toBeVisible();
+  const r = await page.request.post('/api/dev/fake-incoming', {
+    headers: origin,
+    data: { chatJid: jid, senderName: 'Mei Reacts', text: 'Thank you, see you Saturday!' },
+  });
+  expect(r.status(), await r.text()).toBe(200);
+  const { id } = (await r.json()) as { id: string };
+  await page.goto(chatHref(jid));
+  const row = page.locator(`[data-message-id="${id}"]`).locator('..');
+
+  // Keyboard path (works with mouse and touch layouts): focus the button, Enter opens the bar.
+  const open = async () => {
+    await row.getByTestId('reaction-picker-button').focus();
+    await page.keyboard.press('Enter');
+    return page.getByTestId('reaction-picker');
+  };
+  let bar = await open();
+  await expect(bar.getByRole('button', { name: /^React with/ })).toHaveCount(6);
+  await expectNoHorizontalScroll(page, 'reaction bar');
+  await bar.getByRole('button', { name: 'React with 👍' }).click();
+  const badge = row.getByTestId('reaction-badges');
+  await expect(badge).toHaveText('👍');
+  await badge.click();
+  await expect(page.getByTestId('reaction-list')).toContainText('You');
+  await page.keyboard.press('Escape');
+
+  // The current emoji is highlighted; selecting it again removes the reaction.
+  bar = await open();
+  const current = bar.getByRole('button', { name: 'React with 👍' });
+  await expect(current).toHaveAttribute('aria-pressed', 'true');
+  await current.click();
+  await expect(badge).toHaveCount(0);
+
+  // An emoji from the grid of 40.
+  bar = await open();
+  await bar.getByRole('button', { name: 'More emojis' }).click();
+  await bar.getByRole('button', { name: 'React with 🎉' }).click();
+  await expect(badge).toHaveText('🎉');
+});

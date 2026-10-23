@@ -49,4 +49,20 @@ describe('useSwipeReply', () => {
     act(() => vi.advanceTimersByTime(600));
     expect(onReply).toHaveBeenCalledTimes(1);
   });
+
+  it('with onLongPress, press and hold opens it instead; a swipe still replies', () => {
+    vi.useFakeTimers();
+    const onReply = vi.fn();
+    const onLongPress = vi.fn();
+    const { result } = renderHook(() => useSwipeReply(onReply, onLongPress));
+    call(result.current.handlers, 'onPointerDown', ev('touch', 10));
+    act(() => vi.advanceTimersByTime(600));
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+    expect(onReply).not.toHaveBeenCalled();
+    call(result.current.handlers, 'onPointerDown', ev('touch', 10));
+    call(result.current.handlers, 'onPointerMove', ev('touch', 30));
+    call(result.current.handlers, 'onPointerMove', ev('touch', 90));
+    call(result.current.handlers, 'onPointerUp');
+    expect(onReply).toHaveBeenCalledTimes(1);
+  });
 });

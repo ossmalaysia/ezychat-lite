@@ -277,7 +277,20 @@
     "reactions": {
       "label": "Reactions: {{list}}",
       "title": "Reactions",
-      "fromPhone": "You (phone)"
+      "fromPhone": "You (phone)",
+      "add": "Add a reaction",
+      "reactWith": "React with {{emoji}}",
+      "more": "More emojis",
+      "back": "Back to the bar",
+      "removeHint": "Select your emoji again to remove it.",
+      "removeYours": "Remove your reaction",
+      "replacesTeammate": "{{name}} reacted {{emoji}}. Your choice replaces it: the team shares one reaction.",
+      "notConnected": "WhatsApp is not connected. You can react when it is back.",
+      "notSent": "The reaction was not sent",
+      "fromYou": "You",
+      "fromTeammate": "{{name}} (team)",
+      "remove": "Remove",
+      "fromTeammateUnknown": "Someone"
     }
   },
   "media": {

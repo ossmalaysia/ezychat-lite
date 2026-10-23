@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **See customers' emoji reactions.** When someone reacts to a message on WhatsApp (for example 👍 or ❤️), the emoji now shows under that message in EzyChat, as on the phone. Group chats show each emoji and how many people reacted. Click or tap the emojis to see who reacted with what. A changed or removed reaction updates at once. Reacting from EzyChat comes in a later release.
+- **See customers' emoji reactions.** When someone reacts to a message on WhatsApp (for example 👍 or ❤️), the emoji now shows under that message in EzyChat, as on the phone. Group chats show each emoji and how many people reacted. Click or tap the emojis to see who reacted with what. A changed or removed reaction updates at once.
+- **React to messages from EzyChat.** Move the pointer over a message and select the 🙂 button (on a phone, press and hold the message), then select an emoji: 👍 ❤️ 😂 😮 😢 🙏, or **+** for 40 more. The customer sees the reaction from your business number. WhatsApp allows one reaction per number, so your team shares it: a new emoji replaces the current one, and the same emoji again removes it. The reaction list shows which teammate reacted. While WhatsApp is not connected, the emojis are turned off.
 
 ### Fixed
 

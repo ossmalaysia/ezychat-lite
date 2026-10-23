@@ -6,6 +6,7 @@ import mime from 'mime-types';
 import type {
   Message,
   MessageListQuery,
+  MessageReaction,
   MessageStatus,
   MessageType,
   SendTextBody,
@@ -36,7 +37,7 @@ import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } fr
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
 import { createMentionPresenter } from './mentions.js';
-import { createReactionPresenter, reactionRow } from './reactions.js';
+import { OWN_REACTOR, createReactionPresenter, reactionRow } from './reactions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
 
 export interface MediaFile {
@@ -90,6 +91,13 @@ export interface MessageService {
    * it. Emits `message:reactions` when a stored message's reactions changed. Never notifies.
    */
   applyReaction(r: WaReaction, source: 'live' | 'history', inboxId?: number): void;
+  /**
+   * `userId` reacts to a stored message as the linked number (`emoji` '' removes the reaction),
+   * straight away, never queued: a late reaction confuses. Same refusals as a reply (removed inbox,
+   * moved number, `local-` message); WhatsApp offline → WaUnavailableError (503). Emits
+   * `message:reactions` and returns the message's reactions.
+   */
+  sendReaction(messageId: string, emoji: string, userId: number): Promise<MessageReaction[]>;
   mediaPath(id: string): MediaFile | null;
   redownload(id: string): Promise<Message>;
   /**
@@ -889,6 +897,50 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         messageId,
         reactions: reactions.forMessage(messageId, target.chat_jid),
       });
+    },
+
+    async sendReaction(messageId, emoji, userId) {
+      const r = repo.get(messageId);
+      if (!r) throw errors.notFound('Message');
+      if (r.id.startsWith('local-') || r.type === 'system')
+        throw errors.validation('This message cannot get a reaction');
+      requireSendable(r.chat_jid);
+      if (chatNumberMoved(r.chat_jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      const wa = connections.adapter(inboxOfKey(r.chat_jid));
+      // The reaction goes to the chat address the message lives in (phone number or WhatsApp ID).
+      const stored = r.wa_remote_jid ?? waJidOf(r.chat_jid);
+      const chatWaJid = addressOf(stored, r.chat_jid) ? stored : waJidOf(r.chat_jid);
+      const fromMe = r.from_me === 1;
+      const sent = await wa.sendReaction(
+        chatWaJid,
+        {
+          id: waMessageId(r.id),
+          fromMe,
+          participant: chatWaJid.endsWith('@g.us') && !fromMe ? r.sender_jid : null,
+        },
+        emoji,
+      );
+      const row = {
+        message_id: r.id,
+        reactor: OWN_REACTOR,
+        chat_wa_jid: chatWaJid,
+        emoji,
+        sender_jid: null,
+        sender_name: null,
+        from_me: 1,
+        reacted_at: sent.timestamp,
+        sent_by_user_id: emoji ? userId : null,
+      };
+      const changed = reactions.repo.applyOwn(row, userId);
+      log.info({ messageId: r.id, chatJid: r.chat_jid, userId, removed: !emoji }, 'reaction sent');
+      const list = reactions.forMessage(r.id, r.chat_jid);
+      if (changed)
+        ctx.bus.emit('message:reactions', {
+          chatJid: r.chat_jid,
+          messageId: r.id,
+          reactions: list,
+        });
+      return list;
     },
 
     mediaPath(id) {

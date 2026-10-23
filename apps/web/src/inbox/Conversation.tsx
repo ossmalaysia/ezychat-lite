@@ -16,6 +16,7 @@ import {
   usePatchChat,
   useQuickReplies,
   useRetryMessage,
+  useSendReaction,
   useSendMedia,
   useInboxStatus,
   useSendText,
@@ -83,6 +84,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   useEffect(() => setReplyTo(null), [jid]);
   const retry = useRetryMessage();
+  const { mutate: doReact } = useSendReaction();
   const markRead = useMarkRead(jid);
   const patch = usePatchChat(jid);
   const { typing, emitTyping } = useRealtime();
@@ -199,6 +201,21 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       onSettled: () => setRetryingId(null),
     });
   }
+
+  // The badge changes when the server answers (and for teammates through message:reactions).
+  const onReact = useCallback(
+    (m: Message, emoji: string) =>
+      doReact(
+        { chatJid: jid, messageId: m.id, emoji },
+        {
+          onError: (e) =>
+            toast.error(t('message.reactions.notSent'), {
+              description: e instanceof Error ? e.message : undefined,
+            }),
+        },
+      ),
+    [doReact, jid, t],
+  );
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = messagesQ;
   const loadOlder = useCallback(() => {
@@ -322,6 +339,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onRetry={onRetry}
           retryingId={retryingId}
           onReply={setReplyTo}
+          onReact={onReact}
+          reactDisabledReason={blocked || queued ? t('message.reactions.notConnected') : null}
           contactName={contactName}
         />
         <div className="safe-bottom border-t bg-surface">

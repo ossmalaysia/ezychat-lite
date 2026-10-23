@@ -9,6 +9,7 @@ import {
   type WaGroupInfo,
   type WaIncomingMessage,
   type WaReaction,
+  type WaReactionTarget,
   type WaSendFile,
   type WaSendOptions,
 } from '../types.js';
@@ -48,6 +49,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   readonly aboutCalls: string[] = [];
 
   readonly sent: FakeSentRecord[] = [];
+  readonly reactions: Array<{ chatJid: string; target: WaReactionTarget; emoji: string }> = [];
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
   readonly presences: Array<{ chatJid: string; presence: 'composing' | 'paused' }> = [];
 
@@ -156,6 +158,20 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     this.sent.push({ chatJid, file, id, ...(opts?.quotedId ? { reply: opts } : {}) });
     this.media.set(id, file.buffer);
     return this.afterSend(chatJid, id);
+  }
+
+  /** Like WhatsApp, the linked number's own reaction comes back as a `reaction` event first. */
+  async sendReaction(
+    chatJid: string,
+    target: WaReactionTarget,
+    emoji: string,
+  ): Promise<SendResult> {
+    this.beforeSend();
+    const id = `${this.idPrefix}-REACT-${FAKE_RUN}-${++this.outCounter}`;
+    const timestamp = Date.now();
+    this.reactions.push({ chatJid, target: { ...target }, emoji });
+    this.simulateReaction({ chatJid, targetId: target.id, emoji, fromMe: true, timestamp });
+    return { id, timestamp };
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {

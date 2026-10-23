@@ -23,6 +23,10 @@ export interface MessageListProps {
   onRetry(m: Message): void;
   retryingId: string | null;
   onReply?(m: Message): void;
+  /** React as the linked number ('' removes); offered wherever a reply is. */
+  onReact?(m: Message, emoji: string): void;
+  /** Why reacting is not possible now (WhatsApp not connected); null when it is. */
+  reactDisabledReason?: string | null;
   /** Direct chats: the customer's display name, for quotes. */
   contactName?: string;
   footer?: React.ReactNode;
@@ -53,6 +57,8 @@ export function MessageList({
   onRetry,
   retryingId,
   onReply,
+  onReact,
+  reactDisabledReason,
   contactName,
   footer,
 }: MessageListProps) {
@@ -201,6 +207,8 @@ export function MessageList({
                     onMediaLoad={onMediaLoad}
                     directory={directory}
                     onReply={onReply}
+                    onReact={onReact}
+                    reactDisabledReason={reactDisabledReason}
                     contactName={contactName}
                   />
                 );

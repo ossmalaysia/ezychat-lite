@@ -144,7 +144,7 @@ describe('shared schemas', () => {
     const reaction = { emoji: '👍', senderJid: null, fromMe: true, at: 2 };
     expect(
       MessageReactionsPayload.parse({ chatJid: 'x', messageId: 'A', reactions: [reaction] }),
-    ).toEqual({ chatJid: 'x', messageId: 'A', reactions: [reaction] });
+    ).toEqual({ chatJid: 'x', messageId: 'A', reactions: [{ ...reaction, sentByUserId: null }] });
     expect(
       MessageReactionsPayload.safeParse({
         chatJid: 'x',
@@ -331,6 +331,21 @@ describe('SendMediaFields', () => {
     });
     expect(SendMediaFields.safeParse({ clientId: 'c1', voiceNote: 'true' }).success).toBe(false);
     expect(SendMediaFields.safeParse({ caption: 'hi' }).success).toBe(false);
+  });
+});
+
+describe('SendReactionBody', () => {
+  it('accepts one emoji (skin tone, flag, joined sequence) or empty; refuses text', async () => {
+    const { SendReactionBody, MessageReactionSchema } = await import('./index.js');
+    for (const ok of ['', '👍', '❤️', '👍🏽', '🇲🇾', '👨‍👩‍👧', '🙏', '1️⃣'])
+      expect(SendReactionBody.safeParse({ emoji: ok }).success, ok).toBe(true);
+    for (const bad of ['a', '1', ' 👍', '👍 ', 'ok👍', '<b>', '👍👍', '🇲'])
+      expect(SendReactionBody.safeParse({ emoji: bad }).success, bad).toBe(false);
+    // Older servers send no teammate: it defaults to null.
+    expect(
+      MessageReactionSchema.parse({ emoji: '👍', senderJid: null, fromMe: true, at: 1 })
+        .sentByUserId,
+    ).toBeNull();
   });
 });
 

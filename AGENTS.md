@@ -85,6 +85,10 @@ name or number match. Emoji reactions (adapter event `reaction`; Baileys' upsert
 stored message key and reactor (alias-resolved JID, `me` for the linked number), kept when the message
 is not stored yet; `present()` attaches them in one batched query and `message:reactions` goes to the
 chat's inbox room. Reactions never notify. Dev: `POST /api/dev/fake-reaction` (fake WA only).
+Sending: `PUT /api/messages/:id/reaction` {emoji} ('' removes; one emoji, zod-checked; 30 a minute per user)
+goes straight to `WaAdapter.sendReaction` (never queued; offline → 503), with the reply refusals; the
+linked number's row (reactor `me`) keeps `sent_by_user_id` (teammate, `ReactionRepo.applyOwn`) until
+WhatsApp reports another emoji from the phone. One reaction per number: the team shares it.
 
 **Inboxes (several WhatsApp numbers).** Design `docs/features/multi-inbox/design.md`. Each WhatsApp
 number is an inbox (table `inboxes`, linked phone). `InboxConnections` (`inboxes/connections.ts`) holds one

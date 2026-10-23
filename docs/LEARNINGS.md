@@ -63,7 +63,9 @@ into AGENTS.md.
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
 - When a screen breaks only in the app window, suspect the PWA service-worker cache first (F12,
-  Ctrl+Shift+R).
+  Ctrl+Shift+R). The same applies to a mock the owner opens on a reused `localhost` port: an older app's
+  `sw.js` keeps serving its build (`/assets/index-*.js` instead of Vite's modules), so the new feature is
+  missing. Check `navigator.serviceWorker.controller` in their browser before doubting the mock.
 - Before building UI for existing data, check the live data for why the current UI is empty; prefer making
   the data appear over adding UI.
 - Re-fetch `main` and re-verify paths and conventions right before planning or executing a plan; plans in
@@ -228,7 +230,9 @@ into AGENTS.md.
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
-  `###` headings: two branches adding the same section merge cleanly into two copies.
+  `###` headings: two branches adding the same section merge cleanly into two copies. A branch rebased
+  over a release can carry its entry into the released version's section: before a merge, check that
+  `git diff origin/main...HEAD -- CHANGELOG.md` adds lines only under `[Unreleased]`.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
@@ -449,6 +453,9 @@ into AGENTS.md.
   reformats untouched files (shadcn primitives, tests).
 - Run the final verification in stages (typecheck, lint, tests per workspace, web build, e2e), not
   one chained command: on this dev machine the chain can be stopped for low memory, losing every result.
+  A "stopped for low memory" notice for a background server stops only its shell: the server usually
+  keeps running. Check the port (and the process command line) before you report it stopped or delete
+  its data folder; stop finished servers of your own to free memory.
   Web tests time out under load: rerun failures alone and the web suite with `--maxWorkers=2`
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
@@ -502,6 +509,10 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- Baileys emits the echo of our own send (`messages.upsert`, `fromMe`) before `sendMessage` resolves:
+  data only the sender knows (e.g. which teammate sent a reaction) must be added after the send by an
+  idempotent step that works whether the echo came first or later (`ReactionRepo.applyOwn`), and the
+  fake adapter echoes first so tests hit that order.
 - A column a migration backfills (e.g. `chats.wa_jid`) is NULL in rows an older release writes after a
   downgrade, and the migration never runs again: read it with a fallback (`waJidOf`, `COALESCE`) and
   find rows by a key both versions write (`upgrade-from-oldest.test.ts` covers it).
@@ -775,6 +786,9 @@ into AGENTS.md.
   errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
+- Cloning a mock for the next proposal: move the old proposal to `baselineProposal`, add its added files to
+  `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
+  before and after: a drop in inherited files means the check got weaker and still passes.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it.
 - A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the

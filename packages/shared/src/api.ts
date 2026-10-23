@@ -4,6 +4,7 @@ import { LocaleSchema } from './i18n/locales.js';
 import {
   ChatEventSchema,
   ChatSchema,
+  MessageReactionSchema,
   MessageSchema,
   QuickReplySchema,
   SettingsSchema,
@@ -107,6 +108,32 @@ export const SendMediaFields = z.object({
   voiceNote: z.literal('1').optional(),
 });
 export type SendMediaFields = z.infer<typeof SendMediaFields>;
+
+/** One emoji: a flag, a keycap, or a picture with skin tone and joined parts; no text or spaces. */
+const EMOJI_PART = '\\p{Extended_Pictographic}\\ufe0f?\\p{Emoji_Modifier}?';
+const REACTION_EMOJI = new RegExp(
+  `^(?:\\p{Regional_Indicator}{2}|[0-9#*]\\ufe0f?\\u20e3|${EMOJI_PART}(?:\\u200d${EMOJI_PART})*)$`,
+  'u',
+);
+
+/**
+ * PUT /messages/:id/reaction: the linked number reacts to the message (WhatsApp keeps one
+ * reaction per number, so this replaces the current one); `emoji` '' removes it.
+ */
+export const SendReactionBody = z.object({
+  emoji: z
+    .string()
+    .max(32)
+    .refine((e) => e === '' || REACTION_EMOJI.test(e), 'emoji must be a single emoji or empty'),
+});
+export type SendReactionBody = z.infer<typeof SendReactionBody>;
+
+/** The message's reactions after the change. */
+export const SendReactionResponse = z.object({
+  messageId: z.string(),
+  reactions: z.array(MessageReactionSchema),
+});
+export type SendReactionResponse = z.infer<typeof SendReactionResponse>;
 
 export const NoteBody = z.object({ body: z.string().min(1).max(8192) });
 export type NoteBody = z.infer<typeof NoteBody>;

@@ -34,6 +34,7 @@ import {
   type WaContactAlias,
   type WaGroupInfo,
   type WaMessageStatusUpdate,
+  type WaReactionTarget,
   type WaSendFile,
   type WaSendOptions,
 } from '../types.js';
@@ -674,6 +675,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     chatJid: string,
     content: AnyMessageContent,
     opts?: WaSendOptions,
+    /** keep the sent message for quotes and media (not for reactions) */
+    cache = true,
   ): Promise<SendResult> {
     const sock = this.requireOpen();
     // The live cache is small and cleared on reconnect; rebuild older quotes from the saved copy.
@@ -698,7 +701,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     }
     const id = res?.key?.id;
     if (!res || !id) throw new Error('send returned no message id');
-    this.raw.set(id, res);
+    if (cache) this.raw.set(id, res);
     return { id, timestamp: toMs(res.messageTimestamp as number | null | undefined) };
   }
 
@@ -732,6 +735,18 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       content = { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
     }
     return this.send(chatJid, content, opts);
+  }
+
+  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult> {
+    // The cached key carries the group author exactly as WhatsApp delivered it.
+    const participant = this.raw.get(target.id)?.key?.participant ?? target.participant;
+    const key: WAMessageKey = {
+      remoteJid: chatJid,
+      id: target.id,
+      fromMe: target.fromMe,
+      ...(participant && chatJid.endsWith('@g.us') ? { participant } : {}),
+    };
+    return this.send(chatJid, { react: { text: emoji, key } }, undefined, false);
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {
