@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **See customers' emoji reactions.** When someone reacts to a message on WhatsApp (for example 👍 or ❤️), the emoji now shows under that message in EzyChat, as on the phone. Group chats show each emoji and how many people reacted. Click or tap the emojis to see who reacted with what. A changed or removed reaction updates at once. Reacting from EzyChat comes in a later release.
+
 ## [0.1.50] - 2026-10-23
 
 ### Added
 
 - Change an AI agent's type (Sales, FAQ or Custom) at any time on its page, also for the one agent in EzyChat Lite. Your own role and hand-over rules stay; the page offers the new type's starting texts if you want them. Edit role with AI is now one click away on the same card.
-- Emoji reactions from WhatsApp now show under the message, as on the phone: the emojis, how many people reacted, and (tap or click) who reacted with what. A changed or removed reaction updates at once. Reacting from EzyChat comes later.
 
 ### Fixed
 
