@@ -689,6 +689,9 @@ into AGENTS.md.
 - The AI is notified before live media downloads (300 ms debounce once it owns a chat): wait for a
   `pending` customer image (`message:new`, bounded) before calling it unreadable; trust the file's
   bytes, not the declared MIME. Async `fs/promises` reads stall under `vi.advanceTimersByTimeAsync`.
+- OpenAI `detail: 'low'` shrinks an image to about 512 px: the model sees a form or receipt but cannot read
+  its text, and the guardrails make it ask instead ("I can't determine…"). Customer screenshots need
+  `high`; when an AI reply ignores an image's content, check the detail level before the prompt.
 - Fastify routes capture `ctx.services.*` when the app is built. Replace a service in a route test
   inside `makeTestApp`'s `beforeBuild`, never afterwards, or the route keeps the real service (that
   once sent a real OpenAI request with a placeholder key).
