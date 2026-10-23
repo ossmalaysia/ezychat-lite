@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Customer details showed "No name set" and Edit started with an empty name for some chats although WhatsApp knew the name (chats that WhatsApp identifies by a WhatsApp ID). The panel now shows the WhatsApp name, marked "Name from WhatsApp", and Edit starts with it.
+- **Customer name from WhatsApp.** Customer details now show the customer's WhatsApp name when your team has not saved a name, marked "Name from WhatsApp". Before, some chats showed "No name set" and Edit started with an empty name, although WhatsApp knew the name. Edit now starts with that name, so one click on Save keeps it.
 
 ## [0.1.50] - 2026-10-23
 
