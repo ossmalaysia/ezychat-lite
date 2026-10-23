@@ -292,7 +292,13 @@ export function MessageBubble({
             {linkify(m.body)}
           </p>
         )}
-        <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+        <div
+          className={cn(
+            'mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground',
+            // Screen review: room for the reaction badge, so it never covers the time or the ticks.
+            reactions.length > 0 && 'pb-3',
+          )}
+        >
           {/* Proposed (MCP send): replies the admin's AI assistant sent carry this line. The mock
               recognises them by the send tool's clientId; the app will use a stored marker. */}
           {out && m.clientId?.startsWith('mcp-') && (

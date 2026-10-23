@@ -61,6 +61,27 @@ const reply = (s, chat, text) =>
     clientId: `demo-${++clientSeq}`,
   });
 
+/** The stored id of the newest message in `chat` that starts with `text` (outbound ids settle after the send). */
+async function messageId(s, chat, text) {
+  for (let i = 0; i < 20; i++) {
+    const res = await s.call('GET', `/chats/${encodeURIComponent(chat)}/messages`);
+    const m = res.messages.filter((x) => x.body?.startsWith(text)).at(-1);
+    if (m && !m.id.startsWith('local-')) return m.id;
+    await pause(250);
+  }
+  throw new Error(`no message "${text}" in ${chat}`);
+}
+
+/** Tap a message's reaction badge to open the list of who reacted. */
+async function openReactionList(page) {
+  await page
+    .locator('[data-message-id]')
+    .filter({ hasText: 'Is the durian cendol back' })
+    .getByTestId('reaction-badges')
+    .click();
+  await page.getByTestId('reaction-list').waitFor();
+}
+
 async function seed() {
   const setup = await fetch(`${BASE}/api/setup/admin`, {
     method: 'POST',
@@ -183,13 +204,29 @@ async function seed() {
         role: 'admin',
         about: 'Farah Catering Co, Penang',
       },
-      { phone: '60128814455', name: 'Daniel Lim', username: 'daniel.lim' },
+      // Never a customer's number: the member's name would rename that customer's chat.
+      { phone: '60128020777', name: 'Daniel Lim', username: 'daniel.lim' },
       { phone: '60126677889', name: 'Nurul Huda', about: 'Nasi lemak every Friday 🍛' },
       { lid: '184392017734251', username: 'kopilover' },
     ],
   });
   await say(owner, GROUP, 'Is the durian cendol back this weekend?', 'Farah Aziz');
   await say(owner, GROUP, 'Yes please, save me two!', 'Nurul Huda');
+
+  // Emoji reactions from WhatsApp: Priya likes the rider update, the phone thanks her, regulars react
+  // in the group (grouped with a count).
+  const react = async (chat, text, reactions) => {
+    const id = await messageId(owner, chat, text);
+    for (const r of reactions)
+      await owner.call('POST', '/dev/fake-reaction', { messageId: id, ...r });
+  };
+  await react(jid('8814455'), 'The rider is 5 minutes away', [{ emoji: '❤️' }]);
+  await react(jid('8814455'), 'Okay thank you', [{ emoji: '🙏', fromMe: true }]);
+  await react(GROUP, 'Is the durian cendol back', [
+    { emoji: '👍', senderJid: jid('6677889'), senderName: 'Nurul Huda' },
+    { emoji: '❤️', senderJid: jid('3110021'), senderName: 'Farah Aziz' },
+    { emoji: '😋', senderJid: '184392017734251@lid', senderName: 'kopilover' },
+  ]);
 
   // AI assistant access (MCP): a token that may reply, one that may also message new numbers, a reply
   // the assistant sent and a chat it started with a new number (fake WhatsApp, demo numbers only).
@@ -287,6 +324,13 @@ const SHOTS = [
   ['chat', 'conversation-chinese', `/chats/${encodeURIComponent(jid('7020388'))}`, ['mobile']],
   [
     'chat',
+    'group-reactions',
+    `/chats/${encodeURIComponent(GROUP)}`,
+    ['desktop', 'mobile'],
+    openReactionList,
+  ],
+  [
+    'chat',
     'group-info',
     `/chats/${encodeURIComponent(GROUP)}`,
     ['desktop', 'mobile'],
@@ -334,7 +378,7 @@ const SHOTS = [
   ],
 ];
 // Dark variants only where marketing uses them, to keep the repository small.
-const DARK = new Set(['inbox', 'conversation', 'chat-started-by-assistant']);
+const DARK = new Set(['inbox', 'conversation', 'group-reactions', 'chat-started-by-assistant']);
 const VIEWPORTS = { desktop: { width: 1280, height: 800 }, mobile: { width: 360, height: 780 } };
 
 const owner = await seed();

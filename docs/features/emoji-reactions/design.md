@@ -107,3 +107,16 @@ Self-review before that, 2026-10-23:
   truncate, a 44 px hit area on touch screens (`pointer-coarse:after:-inset-2` around the 28 px pill).
 - Not done by the agent (owner rule: the orchestrator runs it once): the screenshot round
   (`reaction-shots.mjs`), the designer screen review and the owner's look at the screenshots.
+
+## Screen review (real app, 2026-10-23)
+
+Demo data (`e2e/marketing-screenshots.mjs`: Priya's ❤️ on a staff reply, the phone's 🙏, three regulars in the
+group), desktop 1280 / mobile 360, light and dark (`docs/screenshots/chat/conversation-*`,
+`group-reactions-*`).
+
+- Fixed: on an outbound bubble the badge (under the right corner, as in the mock) covered the time and the
+  ticks. The meta line now gets `pb-3` when the message has reactions (app and mock); `e2e/reactions.spec.ts`
+  checks that the badge starts below the time.
+- Fixed (demo data, older than this feature): the group member "Daniel Lim" had Priya's number, so her chat
+  showed his name.
+- Kept: the reaction list opens over the next message (a popover, closed with Escape or a tap outside).

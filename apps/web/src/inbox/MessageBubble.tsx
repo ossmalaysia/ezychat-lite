@@ -288,7 +288,14 @@ export function MessageBubble({
             {formatWhatsApp(m.body)}
           </p>
         )}
-        <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+        <div
+          className={cn(
+            'mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground',
+            // Room for the reaction badge, which overlaps the bubble's lower edge: it never covers
+            // the time or the ticks.
+            reactions.length > 0 && 'pb-3',
+          )}
+        >
           {/* Replies the admin's AI assistant sent through MCP (stored marker, not the clientId). */}
           {out && m.viaAssistant && (
             <span className="flex items-center gap-0.5" data-testid="via-assistant">

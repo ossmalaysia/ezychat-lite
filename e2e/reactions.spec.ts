@@ -51,6 +51,10 @@ test('emoji reactions show live under the bubble, group by emoji, list who react
   const badge = outbound.getByTestId('reaction-badges');
   await expect(badge).toHaveText('👍');
   await expect(badge).toHaveAccessibleName('Reactions: 👍 1');
+  // The badge hangs under the bubble's corner and never covers the time or the ticks.
+  const badgeBox = (await badge.boundingBox())!;
+  const timeBox = (await outbound.locator('time').boundingBox())!;
+  expect(badgeBox.y).toBeGreaterThanOrEqual(timeBox.y + timeBox.height);
   await react({ messageId: outboundId, emoji: '❤️' });
   await expect(badge).toHaveText('❤️');
   // The linked phone reacts to the customer's question too.
