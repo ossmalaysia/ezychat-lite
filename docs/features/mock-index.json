@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "emoji-reactions",
-    "gitRevision": "6d176698b5901ce24d9e66787c6a49db3d355da0",
-    "mock": "docs/features/emoji-reactions/mock/index.html",
-    "design": "docs/features/emoji-reactions/design.md",
+    "feature": "send-reactions",
+    "gitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
+    "mock": "docs/features/send-reactions/mock/index.html",
+    "design": "docs/features/send-reactions/design.md",
     "confirmedAt": "2026-10-23",
-    "confirmation": "Owner saw the mock screenshots (DM and group badge, reaction list on mobile) and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review recorded in design.md"
+    "confirmation": "Owner tried the running mock (hover a message, the 🙂 button, the emoji bar) and confirmed it 2026-10-23 (\"ok look fine\")"
   },
   "proposals": [
     {
@@ -20,11 +20,12 @@
       "createdAt": "2026-10-23",
       "design": "docs/features/send-reactions/design.md",
       "mock": "docs/features/send-reactions/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "emoji-reactions",
       "baselineGitRevision": "988db65fdc692e1e777d7a130239b17ef3e55680",
       "baselineAppRevision": "988db65",
-      "coverage": "Full app clone of the confirmed emoji-reactions reference (with its screen-review fix); the team reacts from EzyChat: a 🙂 button beside each bubble on hover/focus, an emoji bar (👍 ❤️ 😂 😮 😢 🙏 and + for 40 more), the current reaction highlighted, the same emoji again or Remove in the list removes it, one shared reaction per WhatsApp number (a teammate's choice replaces it, the bar says so), list names \"You\" / \"<name> (team)\" / \"You (phone)\", press-and-hold on touch opens the bar with Reply, disabled bar while WhatsApp is offline; mock-only routes POST/GET /api/mock/react and POST /api/mock/wa-offline; desktop 1280 / mobile 360, light/dark (send-reaction-shots.mjs)"
+      "coverage": "Full app clone of the confirmed emoji-reactions reference (with its screen-review fix); the team reacts from EzyChat: a 🙂 button beside each bubble on hover/focus, an emoji bar (👍 ❤️ 😂 😮 😢 🙏 and + for 40 more), the current reaction highlighted, the same emoji again or Remove in the list removes it, one shared reaction per WhatsApp number (a teammate's choice replaces it, the bar says so), list names \"You\" / \"<name> (team)\" / \"You (phone)\", press-and-hold on touch opens the bar with Reply, disabled bar while WhatsApp is offline; mock-only routes POST/GET /api/mock/react and POST /api/mock/wa-offline; desktop 1280 / mobile 360, light/dark (send-reaction-shots.mjs)",
+      "confirmation": "Owner tried the running mock (hover a message, the 🙂 button, the emoji bar) and confirmed it 2026-10-23 (\"ok look fine\")"
     },
     {
       "feature": "emoji-reactions",

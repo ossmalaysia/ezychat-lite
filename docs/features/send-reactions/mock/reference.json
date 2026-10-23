@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "988db65",
   "appVersionAtProposal": "0.1.50",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "send-reactions",
   "createdAt": "2026-10-23",
   "baselineFeature": "emoji-reactions",

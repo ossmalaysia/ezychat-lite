@@ -2,7 +2,7 @@
 
 Owner request 2026-10-23 ("how to add reaction in desktop? using mouse?", then "yes" to the proposed design):
 team members react to a message from EzyChat, as on WhatsApp Web. Builds on **emoji-reactions** (receive and
-show, PR #157). Status: **proposal**, waiting for the owner's confirmation.
+show, PR #157). Status: **confirmed** (see Confirmation).
 
 ## Decisions
 
@@ -76,3 +76,13 @@ Reused: `MessageBubble` (Reply button pattern, hover/focus visibility, `pointer-
 
 Adding this sixth feature folder removes the oldest by `creationOrder`, `docs/features/token-permissions`
 (creation order 5; clean and committed; last revision with the folder `988db65a`, recorded in `mock-index.json`).
+
+## Confirmation
+
+Confirmed by the owner 2026-10-23 after trying the running mock at `http://localhost:7483` (hover a message, the
+🙂 button, the emoji bar): "ok look fine". Status `confirmed` in `mock-index.json`; it is now `latestConfirmed`
+(revision `82c8419`). The AI assistant reacting stays out of this round.
+
+Note from the owner's first try: the browser showed an old EzyChat build that a service worker (`sw.js`) had
+cached on `localhost:7483` from an earlier app on that port, so the 🙂 button was missing. Unregistering the
+service worker fixed it. The real app must not show a stale cached build after an update (check during the build).
