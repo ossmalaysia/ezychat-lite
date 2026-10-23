@@ -63,7 +63,9 @@ into AGENTS.md.
   the DB before proposing a cause; if the failure isn't logged, add structured logging first, reproduce,
   then read it. Browser errors reach the log through `/api/client-errors` and route `ErrorBoundary`s.
 - When a screen breaks only in the app window, suspect the PWA service-worker cache first (F12,
-  Ctrl+Shift+R).
+  Ctrl+Shift+R). The same applies to a mock the owner opens on a reused `localhost` port: an older app's
+  `sw.js` keeps serving its build (`/assets/index-*.js` instead of Vite's modules), so the new feature is
+  missing. Check `navigator.serviceWorker.controller` in their browser before doubting the mock.
 - Before building UI for existing data, check the live data for why the current UI is empty; prefer making
   the data appear over adding UI.
 - Re-fetch `main` and re-verify paths and conventions right before planning or executing a plan; plans in
@@ -228,7 +230,9 @@ into AGENTS.md.
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404).
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
-  `###` headings: two branches adding the same section merge cleanly into two copies.
+  `###` headings: two branches adding the same section merge cleanly into two copies. A branch rebased
+  over a release can carry its entry into the released version's section: before a merge, check that
+  `git diff origin/main...HEAD -- CHANGELOG.md` adds lines only under `[Unreleased]`.
 - Migration numbers collide across parallel branches: keep `main`'s published numbers, renumber the
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
