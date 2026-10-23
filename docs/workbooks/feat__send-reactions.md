@@ -8,9 +8,9 @@ Branch: `feat/send-reactions` · Every agent updates its stage with
 | Design | done | Mock confirmed by the owner 2026-10-23 ("ok look fine") | 2026-10-23 |
 | Dev | done | Server PUT /api/messages/:id/reaction (WaAdapter.sendReaction, sent_by_user_id, 30/min), web 🙂 button + bar from the confirmed mock | 2026-10-23 |
 | Unit tests | done | send-reaction.test (server), adapters, schema, ReactionBadges/MessageBubble, useSwipeReply, queries, InboxPage; contract test passes | 2026-10-23 |
-| E2E | todo |  |  |
-| Dev Build | todo |  |  |
-| Screen review | todo |  |  |
+| E2E | pass | npm run e2e 80/80 (new: team reacts from the 🙂 button, removes, grid); e2e:electron-links 15/15 | 2026-10-23 |
+| Dev Build | pass | 12/12 checks on fake WA (team react, remove, replace phone, group, restart); real WhatsApp send not yet: needs a test number | 2026-10-23 |
+| Screen review | done | 24 screens 1280/360 light/dark match the confirmed mock; no findings; docs/screenshots/chat/react-bar-* | 2026-10-23 |
 
 ## Log
 
@@ -18,3 +18,6 @@ Branch: `feat/send-reactions` · Every agent updates its stage with
 - 2026-10-23 Design: done — Mock confirmed by the owner 2026-10-23 ("ok look fine")
 - 2026-10-23 Dev: done — Server PUT /api/messages/:id/reaction (WaAdapter.sendReaction, sent_by_user_id, 30/min), web 🙂 button + bar from the confirmed mock
 - 2026-10-23 Unit tests: done — send-reaction.test (server), adapters, schema, ReactionBadges/MessageBubble, useSwipeReply, queries, InboxPage; contract test passes
+- 2026-10-23 E2E: pass — npm run e2e 80/80 (new: team reacts from the 🙂 button, removes, grid); e2e:electron-links 15/15
+- 2026-10-23 Dev Build: pass — 12/12 checks on fake WA (team react, remove, replace phone, group, restart); real WhatsApp send not yet: needs a test number
+- 2026-10-23 Screen review: done — 24 screens 1280/360 light/dark match the confirmed mock; no findings; docs/screenshots/chat/react-bar-*

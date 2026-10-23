@@ -6,7 +6,7 @@ demo data only: the fictional "Kopi Apong" coffee shop on fake WhatsApp. No real
 | Folder                 | What it shows                                                                                                                                |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `inbox/`               | Shared inbox list with owner chips and unread counts                                                                                         |
-| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info                                                            |
+| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info, reactions and the emoji bar (`react-bar-*`)               |
 | `admin-members/`       | Team members                                                                                                                                 |
 | `ai-member/`           | AI Sales Agent page (instructions, hand-off rules, Business context)                                                                         |
 | `ai-settings/`         | AI connection settings                                                                                                                       |
