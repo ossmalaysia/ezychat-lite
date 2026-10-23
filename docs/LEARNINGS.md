@@ -775,6 +775,9 @@ into AGENTS.md.
   errors at the field or top of the drawer and keep the drawer actions sticky, never below the fold.
 - Format only the files you changed inside a feature mock: `prettier --write` over `mock/src/**`
   rewrites frozen baseline files and breaks `snapshot.mjs --check`.
+- Cloning a mock for the next proposal: move the old proposal to `baselineProposal`, add its added files to
+  `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
+  before and after: a drop in inherited files means the check got weaker and still passes.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it.
 - A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
