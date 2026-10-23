@@ -11,8 +11,10 @@ const MOVE_TOLERANCE_PX = 8;
 /**
  * Touch gestures that start a reply, like WhatsApp: swipe the message right, or press and hold.
  * Mouse and pen are ignored (desktop uses the Reply button). Vertical movement keeps scrolling.
+ * With `onLongPress`, press-and-hold calls it instead (the reaction bar,
+ * which offers Reply too).
  */
-export function useSwipeReply(onReply: (() => void) | undefined) {
+export function useSwipeReply(onReply: (() => void) | undefined, onLongPress?: () => void) {
   const [offset, setOffset] = useState(0);
   const start = useRef<{ x: number; y: number; id: number; horizontal: boolean } | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,7 +41,7 @@ export function useSwipeReply(onReply: (() => void) | undefined) {
             holdTimer.current = null;
             start.current = null;
             setOffset(0);
-            onReply();
+            (onLongPress ?? onReply)();
           }, LONG_PRESS_MS);
         },
         onPointerMove(e) {

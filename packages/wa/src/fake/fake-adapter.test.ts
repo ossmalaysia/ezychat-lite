@@ -98,6 +98,30 @@ describe('FakeWaAdapter', () => {
     expect(got.map(([, meta]) => meta.source)).toEqual(['live', 'live', 'live', 'history']);
   });
 
+  it('sendReaction records it and echoes the linked number’s reaction; refuses while offline', async () => {
+    const wa = new FakeWaAdapter();
+    await expect(
+      wa.sendReaction('601111@s.whatsapp.net', { id: 'M1', fromMe: false }, '👍'),
+    ).rejects.toBeInstanceOf(WaUnavailableError);
+    await wa.connect();
+    const got: unknown[] = [];
+    wa.on('reaction', (r) => got.push(r));
+    const res = await wa.sendReaction('601111@s.whatsapp.net', { id: 'M1', fromMe: false }, '👍');
+    expect(res.id).toMatch(/^FAKE-REACT-/);
+    expect(wa.reactions).toEqual([
+      { chatJid: '601111@s.whatsapp.net', target: { id: 'M1', fromMe: false }, emoji: '👍' },
+    ]);
+    expect(got).toEqual([
+      expect.objectContaining({
+        targetId: 'M1',
+        fromMe: true,
+        senderJid: null,
+        emoji: '👍',
+        timestamp: res.timestamp,
+      }),
+    ]);
+  });
+
   it('sendText records and emits sent then delivered', async () => {
     const wa = new FakeWaAdapter();
     await wa.connect();

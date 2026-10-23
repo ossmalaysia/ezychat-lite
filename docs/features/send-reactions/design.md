@@ -66,11 +66,15 @@ Reused: `MessageBubble` (Reply button pattern, hover/focus visibility, `pointer-
 
 - WhatsApp: `WaAdapter.sendReaction(chatJid, targetKey, emoji)` (Baileys `sendMessage(jid, { react: { text, key } })`,
   `text: ''` removes); the target key needs `fromMe` and, in groups, `participant`.
-- Server: `PUT /api/chats/:jid/messages/:id/reaction` `{ emoji }` (`''` removes), inbox access rules, 503 when
-  WhatsApp is not connected; store `sent_by_user_id` on the linked number's reaction row (cleared when the phone
+- Server (as built): `PUT /api/messages/:id/reaction` `{ emoji }` (`''` removes; message-id route like
+  retry, so `requireMessageAccess` gives 404 outside the caller's inboxes), 503 when WhatsApp is not connected,
+  30 reactions a minute per user; store `sent_by_user_id` on the linked number's reaction row (cleared when the phone
   reacts) so the list can name the teammate; audit without the emoji text is not needed (no customer data).
 - Contract: `MessageReaction.sentByUserId` (zod default `null`).
 - Must be smoke-tested against real WhatsApp with a **test number** (this one sends).
+- Stale build (owner note): checked during the build. The app's service worker already activates a new build at
+  once (`registerType: 'autoUpdate'`, `skipWaiting`, `cleanupOutdatedCaches`) and the desktop clears the cache
+  on a version change. The mock problem came from another app's service worker on the same localhost port.
 
 ## Retention
 

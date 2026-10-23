@@ -275,7 +275,20 @@
     "reactions": {
       "label": "表情回应：{{list}}",
       "title": "表情回应",
-      "fromPhone": "你（手机）"
+      "fromPhone": "你（手机）",
+      "add": "添加表情回应",
+      "reactWith": "用 {{emoji}} 回应",
+      "more": "更多表情",
+      "back": "返回",
+      "removeHint": "再次选择你的表情即可移除。",
+      "removeYours": "移除你的回应",
+      "replacesTeammate": "{{name}} 已回应 {{emoji}}。你的选择会替换它：团队共用一个回应。",
+      "notConnected": "WhatsApp 未连接。恢复连接后即可回应。",
+      "notSent": "回应未发送",
+      "fromYou": "你",
+      "fromTeammate": "{{name}}（团队）",
+      "remove": "移除",
+      "fromTeammateUnknown": "某位成员"
     }
   },
   "media": {

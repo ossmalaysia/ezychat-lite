@@ -79,7 +79,16 @@ describe('message reactions', () => {
     expect(MessageReactionsPayload.parse(events[0])).toEqual({
       chatJid: DM,
       messageId: 'M1',
-      reactions: [{ emoji: '👍', senderJid: DM, senderName: 'Gus', fromMe: false, at: 10 }],
+      reactions: [
+        {
+          emoji: '👍',
+          senderJid: DM,
+          senderName: 'Gus',
+          fromMe: false,
+          at: 10,
+          sentByUserId: null,
+        },
+      ],
     });
     expect((await list(DM))[0]!.reactions).toEqual(events[0]!.reactions);
 
@@ -311,6 +320,7 @@ describe('ReactionRepo and reactionRow', () => {
       sender_name: 'Ali',
       from_me: 0,
       reacted_at: 1,
+      sent_by_user_id: null,
     };
     expect(repo.apply(row)).toBe(true);
     expect(repo.apply({ ...row, sender_name: null })).toBe(false);

@@ -79,6 +79,11 @@ export const MessageReactionSchema = z.object({
   fromMe: z.boolean(),
   /** epoch ms */
   at: z.number(),
+  /**
+   * The linked number's reaction only: the teammate who sent it from the inbox; null when it came
+   * from the phone (or another linked device).
+   */
+  sentByUserId: z.number().nullable().default(null),
 });
 export type MessageReaction = z.infer<typeof MessageReactionSchema>;
 

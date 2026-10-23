@@ -138,6 +138,16 @@ export interface WaSendOptions {
   quoted?: WaQuotedRef;
 }
 
+/** The message a reaction points at: WhatsApp matches it by chat, id, side and group author. */
+export interface WaReactionTarget {
+  /** WhatsApp id of the message. */
+  id: string;
+  /** The message was sent from the linked number. */
+  fromMe: boolean;
+  /** Group messages from someone else: who wrote it. */
+  participant?: string | null;
+}
+
 export interface SendResult {
   id: string;
   timestamp: number;
@@ -168,6 +178,11 @@ export interface WaAdapter {
   requestPairingCode(phone: string): Promise<string>;
   sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult>;
   sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult>;
+  /**
+   * React to a message as the linked number (`emoji` '' removes the reaction). WhatsApp keeps one
+   * reaction per number, so this replaces one made on the phone. Throws WaUnavailableError offline.
+   */
+  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult>;
   markRead(chatJid: string, messageIds: string[]): Promise<void>;
   sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
   /** re-download by id if still cached */

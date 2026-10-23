@@ -22,6 +22,8 @@ export interface ReactionRow {
   sender_name: string | null;
   from_me: number;
   reacted_at: number;
+  /** reactor OWN_REACTOR only: the teammate who sent it from the inbox (null: the phone) */
+  sent_by_user_id: number | null;
 }
 
 /** SQL of table message_reactions (migration 016); one row per reacted message and person. */
@@ -30,6 +32,7 @@ export class ReactionRepo {
   private readonly upsertStmt;
   private readonly deleteStmt;
   private readonly listStmt;
+  private readonly sentByStmt;
 
   constructor(db: DB) {
     this.getStmt = db.prepare(
@@ -37,12 +40,18 @@ export class ReactionRepo {
     );
     this.upsertStmt = db.prepare(
       `INSERT INTO message_reactions
-         (message_id, reactor, chat_wa_jid, emoji, sender_jid, sender_name, from_me, reacted_at)
-       VALUES (@message_id, @reactor, @chat_wa_jid, @emoji, @sender_jid, @sender_name, @from_me, @reacted_at)
+         (message_id, reactor, chat_wa_jid, emoji, sender_jid, sender_name, from_me, reacted_at,
+          sent_by_user_id)
+       VALUES (@message_id, @reactor, @chat_wa_jid, @emoji, @sender_jid, @sender_name, @from_me,
+          @reacted_at, @sent_by_user_id)
        ON CONFLICT (message_id, reactor) DO UPDATE SET chat_wa_jid = excluded.chat_wa_jid,
          emoji = excluded.emoji, sender_jid = excluded.sender_jid,
          sender_name = COALESCE(excluded.sender_name, message_reactions.sender_name),
-         from_me = excluded.from_me, reacted_at = excluded.reacted_at`,
+         from_me = excluded.from_me, reacted_at = excluded.reacted_at,
+         sent_by_user_id = excluded.sent_by_user_id`,
+    );
+    this.sentByStmt = db.prepare(
+      'UPDATE message_reactions SET sent_by_user_id = ? WHERE message_id = ? AND reactor = ? AND emoji = ?',
     );
     this.deleteStmt = db.prepare(
       'DELETE FROM message_reactions WHERE message_id = ? AND reactor = ?',
@@ -80,6 +89,20 @@ export class ReactionRepo {
     return true;
   }
 
+  /**
+   * The linked number's reaction that a teammate just sent from the inbox: stored (unless WhatsApp's
+   * echo of it already was) and marked with the teammate. True when something changed.
+   */
+  applyOwn(row: ReactionRow, userId: number): boolean {
+    const changed = this.apply(row);
+    if (!row.emoji) return changed;
+    const current = this.get(row.message_id, OWN_REACTOR);
+    if (!current || current.emoji !== row.emoji || current.sent_by_user_id === userId)
+      return changed;
+    this.sentByStmt.run(userId, row.message_id, OWN_REACTOR, row.emoji);
+    return true;
+  }
+
   /** Reactions of many messages in one query per 500 ids, oldest first. */
   forMessages(ids: string[]): Map<string, ReactionRow[]> {
     const out = new Map<string, ReactionRow[]>();
@@ -114,6 +137,7 @@ export function reactionRow(
     sender_name: r.fromMe ? null : r.senderName?.trim() || null,
     from_me: r.fromMe ? 1 : 0,
     reacted_at: r.timestamp,
+    sent_by_user_id: null,
   };
 }
 
@@ -207,6 +231,7 @@ export function createReactionPresenter(ctx: AppContext) {
         senderName: nameOf(r, inboxId),
         fromMe: r.from_me === 1,
         at: r.reacted_at,
+        sentByUserId: r.from_me === 1 ? r.sent_by_user_id : null,
       })),
     );
   };

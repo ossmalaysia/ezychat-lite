@@ -30,7 +30,7 @@ const TABLES = [
   'ai_agents',
   'message_reactions',
 ];
-const LATEST = 16;
+const LATEST = 17;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {

@@ -275,7 +275,20 @@
     "reactions": {
       "label": "Reaksi: {{list}}",
       "title": "Reaksi",
-      "fromPhone": "Anda (telefon)"
+      "fromPhone": "Anda (telefon)",
+      "add": "Tambah reaksi",
+      "reactWith": "Beri reaksi {{emoji}}",
+      "more": "Lagi emoji",
+      "back": "Kembali ke bar",
+      "removeHint": "Pilih emoji anda sekali lagi untuk membuangnya.",
+      "removeYours": "Buang reaksi anda",
+      "replacesTeammate": "{{name}} memberi reaksi {{emoji}}. Pilihan anda menggantikannya: pasukan berkongsi satu reaksi.",
+      "notConnected": "WhatsApp tidak bersambung. Anda boleh memberi reaksi apabila ia kembali.",
+      "notSent": "Reaksi tidak dihantar",
+      "fromYou": "Anda",
+      "fromTeammate": "{{name}} (pasukan)",
+      "remove": "Buang",
+      "fromTeammateUnknown": "Seseorang"
     }
   },
   "media": {

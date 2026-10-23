@@ -35,7 +35,12 @@ export function reactorName(
   r: MessageReaction,
   t: TFunction<'inbox'>,
   contactName?: string,
+  teamName?: string | null,
 ): string {
+  // The linked number's reaction names the teammate who sent it from
+  // EzyChat ('' = the signed-in user); null = the phone or another linked device.
+  if (r.fromMe && teamName === '') return t('message.reactions.fromYou');
+  if (r.fromMe && teamName) return t('message.reactions.fromTeammate', { name: teamName });
   if (r.fromMe) return t('message.reactions.fromPhone');
   return (
     r.senderName ||
@@ -51,13 +56,23 @@ export interface ReactionBadgesProps {
   out: boolean;
   /** Direct chats: the customer's name as the header shows it. */
   contactName?: string;
+  /** Who sent the linked number's reaction (see `reactorName`). */
+  teamName?: string | null;
+  /** Removes the linked number's reaction from the list. */
+  onRemoveMine?(): void;
 }
 
 /**
  * Emoji reactions under a bubble's corner, as WhatsApp shows them: the emojis (most used first)
  * and the total when more than one person reacted. Tap or click lists who reacted with what.
  */
-export function ReactionBadges({ reactions, out, contactName }: ReactionBadgesProps) {
+export function ReactionBadges({
+  reactions,
+  out,
+  contactName,
+  teamName,
+  onRemoveMine,
+}: ReactionBadgesProps) {
   const { t } = useTranslation('inbox');
   if (!reactions.length) return null;
   const groups = groupReactions(reactions);
@@ -103,7 +118,20 @@ export function ReactionBadges({ reactions, out, contactName }: ReactionBadgesPr
                 className="flex min-h-9 items-center gap-2 rounded-md px-2"
               >
                 <span className="w-6 shrink-0 text-center text-lg leading-none">{r.emoji}</span>
-                <span className="min-w-0 truncate text-sm">{reactorName(r, t, contactName)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {reactorName(r, t, contactName, teamName)}
+                </span>
+                {r.fromMe && onRemoveMine && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRemoveMine}
+                    className="h-8 shrink-0 px-2 text-xs text-muted-foreground pointer-coarse:min-h-11"
+                  >
+                    {t('message.reactions.remove')}
+                  </Button>
+                )}
               </li>
             )),
           )}

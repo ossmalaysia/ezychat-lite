@@ -50,6 +50,7 @@ import {
   type QuickReply,
   type QuickReplyBody,
   type ResetPasswordResponse,
+  type SendReactionResponse,
   type SetupAdminBody,
   type Settings,
   type SettingsPatchBody,
@@ -645,6 +646,30 @@ export function useRetryMessage() {
     mutationFn: (id: string) => api<Message>(`/messages/${enc(id)}/retry`, { method: 'POST' }),
     onSuccess: (m) => {
       if (m && typeof m === 'object' && 'id' in m) upsertMessageInCache(qc, m);
+    },
+  });
+}
+
+/**
+ * The linked number reacts to a message (`emoji` '' removes the reaction). The answer carries the
+ * message's reactions; the `message:reactions` event brings the same list to every teammate.
+ */
+export function useSendReaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { chatJid: string; messageId: string; emoji: string }) =>
+      api<SendReactionResponse>(`/messages/${enc(input.messageId)}/reaction`, {
+        method: 'PUT',
+        body: { emoji: input.emoji },
+      }),
+    onSuccess: (res, input) => {
+      if (res && Array.isArray(res.reactions))
+        patchMessageInCache(
+          qc,
+          input.chatJid,
+          { id: input.messageId, clientId: null },
+          { reactions: res.reactions },
+        );
     },
   });
 }
