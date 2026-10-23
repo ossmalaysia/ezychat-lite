@@ -453,6 +453,9 @@ into AGENTS.md.
   reformats untouched files (shadcn primitives, tests).
 - Run the final verification in stages (typecheck, lint, tests per workspace, web build, e2e), not
   one chained command: on this dev machine the chain can be stopped for low memory, losing every result.
+  A "stopped for low memory" notice for a background server stops only its shell: the server usually
+  keeps running. Check the port (and the process command line) before you report it stopped or delete
+  its data folder; stop finished servers of your own to free memory.
   Web tests time out under load: rerun failures alone and the web suite with `--maxWorkers=2`
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
