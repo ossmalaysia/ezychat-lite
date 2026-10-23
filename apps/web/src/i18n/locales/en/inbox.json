@@ -411,6 +411,7 @@
     "cancel": "Cancel",
     "saveFailed": "Could not save customer details",
     "noName": "No name set",
+    "nameFromWhatsapp": "Name from WhatsApp. Select Edit to save it.",
     "whatsappName": "WhatsApp: {{name}}",
     "updatedBy": "Updated by {{name}} · {{when}}",
     "updated": "Updated {{when}}",

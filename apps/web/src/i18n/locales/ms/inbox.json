@@ -408,6 +408,7 @@
     "cancel": "Batal",
     "saveFailed": "Tidak dapat menyimpan butiran pelanggan",
     "noName": "Tiada nama",
+    "nameFromWhatsapp": "Nama daripada WhatsApp. Pilih Edit untuk menyimpannya.",
     "whatsappName": "WhatsApp: {{name}}",
     "updatedBy": "Dikemas kini oleh {{name}} · {{when}}",
     "updated": "Dikemas kini {{when}}",

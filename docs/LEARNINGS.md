@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A bug report with a screenshot of the live app shows real customers: rebuild the case with demo names,
+  companies and numbers in tests, docs and commits; grep the branch for the real values before pushing.
+
 - A UI/UX finding comes from the screen, never from the API: Try it returned `business_rule` over HTTP,
   but the page already showed "matches your hand-off rules", so a reported "raw codes" problem was wrong.
   Look at (or read) the rendered page before putting a screen problem in a review.
@@ -176,6 +179,8 @@ into AGENTS.md.
 - Before removing a worktree, delete its `node_modules` junctions with `[IO.Directory]::Delete(path, $false)`
   (Git follows junctions); prefer `npm ci` in new worktrees. Without it, a bare `npx prettier`/`eslint`
   there downloads other versions: for a one-file fix call the main checkout's `node_modules/.bin/<tool>`.
+  A junction to another branch's install links `@ezychat/*` to that branch's sources: link only to a
+  checkout on the same base, else `tsc` reports the other branch's contract changes as your errors.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
   sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
@@ -552,6 +557,10 @@ into AGENTS.md.
 - Anything WhatsApp attaches to a message by its id (reactions, receipts) can arrive before the message
   or before an own send is renamed from `local-…`: key it by the stored message key, keep it, attach it
   at presentation, and let a newer timestamp win so a late history copy never undoes a live change.
+- A chat keyed by a LID often has no name of its own while its `contacts` rows (phone and LID forms,
+  `aliases.group`) carry the push and saved names: a screen that names a person must fall back to those
+  facts, never only to `chat.whatsappName` (the customer panel showed "No name set" above its own
+  "Name on WhatsApp" row).
 
 ## AI sales agent
 

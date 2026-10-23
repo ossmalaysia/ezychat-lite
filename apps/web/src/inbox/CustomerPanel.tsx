@@ -115,6 +115,24 @@ function prefillName(whatsappName: string | null, whatsappPhone?: string | null)
   return name && !isPhoneLike(name, whatsappPhone) ? name : '';
 }
 
+/**
+ * The best WhatsApp name of a person: the chat's name (what the chat list shows), else the
+ * WhatsApp facts (name on WhatsApp, then the name saved in the phone). A chat keyed by a WhatsApp
+ * ID often has no name of its own while its contact rows have one.
+ */
+function bestWhatsappName(
+  whatsappName: string | null,
+  whatsappPhone: string | null | undefined,
+  facts: WhatsappFactsData | undefined,
+): string | null {
+  const phone = whatsappPhone ?? facts?.phone;
+  return (
+    [whatsappName, facts?.pushName ?? null, facts?.savedName ?? null]
+      .map((name) => prefillName(name, phone))
+      .find((name) => !!name) || null
+  );
+}
+
 /** "Farah 🌸 · +60123…": what WhatsApp tells us, minus a name equal to the profile name. */
 function whatsappDetails(
   whatsappName: string | null,
@@ -216,6 +234,8 @@ export function CustomerDetails({
 }) {
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
+  // No saved name yet: show the WhatsApp name, marked as such, instead of "No name set".
+  const waName = name ? null : bestWhatsappName(whatsappName, whatsappPhone, whatsapp);
   const fromWhatsapp = whatsapp ? null : whatsappDetails(whatsappName, whatsappPhone, name);
   const updatedByMe =
     profile.updatedBy != null && directory?.me != null && profile.updatedBy === directory.me.id;
@@ -263,14 +283,17 @@ export function CustomerDetails({
       <div className="min-w-0">
         <h4
           className={
-            name
+            name || waName
               ? 'text-base font-semibold text-foreground [overflow-wrap:anywhere]'
               : 'text-base italic text-muted-foreground'
           }
         >
-          {name ?? t('customer.noName')}
+          {name ?? waName ?? t('customer.noName')}
         </h4>
-        {fromWhatsapp && (
+        {waName && (
+          <p className="text-xs text-muted-foreground">{t('customer.nameFromWhatsapp')}</p>
+        )}
+        {fromWhatsapp && !waName && (
           <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {t('customer.whatsappName', { name: fromWhatsapp })}
           </p>
@@ -367,7 +390,9 @@ function CustomerForm({
   // saved); `start` is what the form opened with (dirty baseline: opening and cancelling never asks).
   const [initial] = useState(() => draftOf(snapshot));
   const [start] = useState<Draft>(() =>
-    initial.name ? initial : { ...initial, name: prefillName(whatsappName, whatsappPhone) },
+    initial.name
+      ? initial
+      : { ...initial, name: bestWhatsappName(whatsappName, whatsappPhone, whatsapp) ?? '' },
   );
   const [draft, setDraft] = useState<Draft>(start);
   const fromWhatsapp = whatsappDetails(whatsappName, whatsappPhone, snapshot.name?.trim() || null);

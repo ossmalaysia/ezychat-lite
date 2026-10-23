@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **See customers' emoji reactions.** When someone reacts to a message on WhatsApp (for example 👍 or ❤️), the emoji now shows under that message in EzyChat, as on the phone. Group chats show each emoji and how many people reacted. Click or tap the emojis to see who reacted with what. A changed or removed reaction updates at once. Reacting from EzyChat comes in a later release.
 
+### Fixed
+
+- Customer details showed "No name set" and Edit started with an empty name for some chats although WhatsApp knew the name (chats that WhatsApp identifies by a WhatsApp ID). The panel now shows the WhatsApp name, marked "Name from WhatsApp", and Edit starts with it.
+
 ## [0.1.50] - 2026-10-23
 
 ### Added
