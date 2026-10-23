@@ -43,7 +43,7 @@
     "@ai-sdk/openai": "4.0.94",
     "@ezychat/shared": "0.1.51",
     "@ezychat/wa": "0.1.51",
-    "@fastify/cookie": "^11.1.2",
+    "@fastify/cookie": "^11.1.3",
     "@fastify/helmet": "^13.1.1",
     "@fastify/multipart": "^10.1.4",
     "@fastify/static": "^10.1.5",
