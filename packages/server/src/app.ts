@@ -14,6 +14,7 @@ import { registerSecurityHeaders } from './http/security-headers.js';
 import { registerApiCacheHeaders, staticCacheControl } from './http/cache.js';
 import { registerRoutes } from './routes/index.js';
 import { registerMcp } from './mcp/route.js';
+import { registerMcpOAuth } from './mcp/oauth-routes.js';
 
 export const UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
 
@@ -36,6 +37,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
 
   await registerRoutes(app, ctx);
   await registerMcp(app, ctx);
+  await registerMcpOAuth(app, ctx);
 
   const webDist = ctx.config.webDistDir;
   const hasWeb = webDist !== null && existsSync(join(webDist, 'index.html'));

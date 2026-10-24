@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   request as playwrightRequest,
   type APIRequestContext,
@@ -256,6 +257,75 @@ test('the owner lets an existing token send, and the same token gets send_messag
     await expectNoHorizontalScroll(page, 'token permissions 360');
 
     await revokeAndTurnOff(page, name, access);
+  } finally {
+    await api.dispose();
+  }
+});
+
+test('an AI app signs in with OAuth: the admin approves it on the approval page, no token copy', async ({
+  page,
+  baseURL,
+}, info) => {
+  test.skip(info.project.name !== DESKTOP, ONE_PROJECT);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const api = await playwrightRequest.newContext({ baseURL });
+  const callback = 'http://localhost:4999/callback';
+  const name = `E2E Assistant ${String(Date.now()).slice(-6)}`;
+  const verifier = `e2e-verifier-${'x'.repeat(40)}`;
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  try {
+    const access = await accessOn(page);
+    const card = page.getByTestId('connect-app-card');
+    await expect(card.getByTestId('connect-app-url')).toHaveText(/\/mcp$/);
+
+    // What claude.ai or ChatGPT does after the admin pastes the address: find the sign-in, register.
+    const unauth = await api.post('/mcp', { data: MCP_INITIALIZE });
+    expect(unauth.status()).toBe(401);
+    expect(unauth.headers()['www-authenticate']).toContain('resource_metadata=');
+    const meta = await (await api.get('/.well-known/oauth-authorization-server')).json();
+    const reg = await api.post(new URL(meta.registration_endpoint).pathname, {
+      data: { client_name: name, redirect_uris: [callback], token_endpoint_auth_method: 'none' },
+    });
+    expect(reg.status()).toBe(201);
+    const clientId = (await reg.json()).client_id as string;
+
+    // The app's redirect target is not running: answer it here and keep the URL.
+    await page.route(`${callback}**`, (route) => route.fulfill({ status: 200, body: 'ok' }));
+    const authorize = new URL(meta.authorization_endpoint);
+    authorize.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: callback,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      state: 'e2e-state',
+    }).toString();
+    await page.goto(authorize.pathname + authorize.search);
+    await expect(page.getByRole('heading', { name: `Connect ${name}?` })).toBeVisible();
+    await expect(page.getByTestId('oauth-host')).toHaveText('localhost:4999');
+    await page.setViewportSize({ width: 360, height: 780 });
+    await expectNoHorizontalScroll(page, 'oauth approval 360');
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
+    await page.waitForURL(`${callback}**`);
+    const back = new URL(page.url());
+    expect(back.searchParams.get('state')).toBe('e2e-state');
+
+    const tokenRes = await api.post(new URL(meta.token_endpoint).pathname, {
+      form: {
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code: back.searchParams.get('code')!,
+        redirect_uri: callback,
+        code_verifier: verifier,
+      },
+    });
+    expect(tokenRes.status()).toBe(200);
+    const accessToken = (await tokenRes.json()).access_token as string;
+    expect(await postInitialize(api, accessToken)).toBe(200);
+
+    // The connection is an ordinary token in Settings: the admin can see and revoke it.
+    await revokeAndTurnOff(page, name, access);
+    expect(await postInitialize(api, accessToken)).toBe(404);
   } finally {
     await api.dispose();
   }

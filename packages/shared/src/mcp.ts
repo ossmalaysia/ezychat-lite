@@ -74,6 +74,37 @@ export type McpSettingsResponse = z.infer<typeof McpSettingsResponse>;
 export const McpSettingsPatch = z.strictObject({ enabled: z.boolean() });
 export type McpSettingsPatch = z.infer<typeof McpSettingsPatch>;
 
+// MCP sign-in (OAuth 2.1 authorization code + PKCE): an AI assistant app (claude.ai, ChatGPT, …)
+// sends the admin's browser to /oauth/authorize; the page shows the app and asks the admin to approve.
+
+/** The authorization request as the app sent it (query names of RFC 6749 / RFC 7636 / RFC 8707). */
+export const OAuthAuthorizeParams = z.object({
+  response_type: z.string().max(32),
+  client_id: z.string().min(1).max(200),
+  redirect_uri: z.string().max(2000).optional(),
+  code_challenge: z.string().max(200).optional(),
+  code_challenge_method: z.string().max(32).optional(),
+  state: z.string().max(2000).optional(),
+  scope: z.string().max(2000).optional(),
+  resource: z.string().max(2000).optional(),
+});
+export type OAuthAuthorizeParams = z.infer<typeof OAuthAuthorizeParams>;
+
+/** What the approval page shows: the app's own name (unverified) and where it returns to. */
+export const OAuthRequestInfo = z.object({
+  clientName: z.string(),
+  /** Host of the redirect address (e.g. claude.ai): the part the admin can trust. */
+  redirectHost: z.string(),
+});
+export type OAuthRequestInfo = z.infer<typeof OAuthRequestInfo>;
+
+export const OAuthDecisionBody = OAuthAuthorizeParams.extend({ approve: z.boolean() });
+export type OAuthDecisionBody = z.infer<typeof OAuthDecisionBody>;
+
+/** Where the page sends the browser next: back to the app with a code, or with access_denied. */
+export const OAuthDecisionResponse = z.object({ redirectTo: z.string() });
+export type OAuthDecisionResponse = z.infer<typeof OAuthDecisionResponse>;
+
 // Tool inputs. MCP clients send real JSON numbers, so these never coerce.
 
 /** Optional inbox (WhatsApp number) filter of the inbox tools; omitted = every inbox in scope. */

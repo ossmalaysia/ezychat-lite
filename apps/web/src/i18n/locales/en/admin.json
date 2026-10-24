@@ -297,6 +297,13 @@
       "turnedOn": "AI assistant access turned on",
       "turnedOff": "AI assistant access turned off"
     },
+    "connectApp": {
+      "title": "Connect claude.ai, ChatGPT or Claude Desktop",
+      "description": "In your AI app, add a custom connector and paste this address. The app then opens {{product}}: sign in and click Approve. You do not need a token.",
+      "address": "Connector address",
+      "copy": "Copy address",
+      "needsTunnel": "claude.ai and ChatGPT run in the cloud, so they need the tunnel address. Turn on Phone access first."
+    },
     "noTunnel": {
       "title": "No tunnel is running",
       "body": "Assistants on the computer running {{product}} can connect now. To connect from anywhere else, turn on Phone access first.",
@@ -361,7 +368,7 @@
       "copyUrl": "Copy URL",
       "copyHeader": "Copy header",
       "otherHint": "Use these in any MCP app that accepts a server URL and a header (for example Codex CLI, Cursor or VS Code).",
-      "oauthHint": "Apps that only sign in with OAuth, such as ChatGPT and claude.ai connectors, are not supported yet.",
+      "oauthHint": "Apps that sign in by themselves, such as claude.ai and ChatGPT connectors, need no token: use “Connect claude.ai, ChatGPT or Claude Desktop” instead.",
       "localOnly": "This address works only on the computer running {{product}}. Start a tunnel to connect from elsewhere.",
       "askHint": "Then ask things like “Which chats are waiting for a reply?”"
     },

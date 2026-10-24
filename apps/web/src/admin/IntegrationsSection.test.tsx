@@ -178,6 +178,37 @@ describe('Settings → Integrations', () => {
     expect(screen.queryByText('No tunnel is running')).toBeNull();
   });
 
+  it('shows the connector address for claude.ai and ChatGPT once access is on', async () => {
+    setup({
+      mcp: {
+        enabled: true,
+        endpointPath: '/mcp',
+        publicUrl: 'https://inbox.example.com',
+        localUrl: LOCAL,
+      },
+    });
+    const card = await screen.findByTestId('connect-app-card');
+    expect(within(card).getByText('Connect claude.ai, ChatGPT or Claude Desktop')).toBeTruthy();
+    expect(within(card).getByTestId('connect-app-url').textContent).toBe(
+      'https://inbox.example.com/mcp',
+    );
+    expect(within(card).getByRole('button', { name: 'Copy address' })).toBeTruthy();
+    expect(within(card).queryByText(/they need the tunnel address/)).toBeNull();
+  });
+
+  it('says cloud apps need the tunnel when only the local address exists', async () => {
+    setup({ mcp: { enabled: true, endpointPath: '/mcp', publicUrl: null, localUrl: LOCAL } });
+    const card = await screen.findByTestId('connect-app-card');
+    expect(within(card).getByTestId('connect-app-url').textContent).toBe(`${LOCAL}/mcp`);
+    expect(within(card).getByText(/they need the tunnel address/)).toBeTruthy();
+  });
+
+  it('hides the connector card while access is off', async () => {
+    setup();
+    await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
+    expect(screen.queryByTestId('connect-app-card')).toBeNull();
+  });
+
   it('creates a token, shows the secret once, and clears it on Done', async () => {
     const { fetchMock, qc } = setup();
     const user = userEvent.setup();
@@ -266,7 +297,7 @@ describe('Settings → Integrations', () => {
     expect(within(created).getByTestId('mcp-snippet-header').textContent).toBe(
       `Authorization: Bearer ${SECRET}`,
     );
-    expect(within(created).getByText(/not supported yet/)).toBeTruthy();
+    expect(within(created).getByText(/need no token/)).toBeTruthy();
   });
 
   it('offers "Can send" off by default and "new numbers" only under it, each with its warning', async () => {

@@ -18,6 +18,8 @@ export const SCREEN_ROUTES = [
   ['admin-settings', '/admin/settings'],
   ['admin-settings-ai', '/admin/settings/ai'],
   ['admin-settings-integrations', '/admin/settings/integrations'],
+  // MCP sign-in approval page; without a registered app it shows its error state.
+  ['oauth-authorize', '/oauth/authorize?response_type=code&client_id=smoke'],
   ['admin-settings-device', '/admin/settings/device'],
   ['admin-settings-maintenance', '/admin/settings/maintenance'],
   ['admin-audit', '/admin/audit'],

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AdminLayout } from './admin/AdminLayout';
 import { ChangePasswordPage } from './auth/ChangePasswordPage';
 import { LoginPage } from './auth/LoginPage';
+import { OAuthConsentPage } from './auth/OAuthConsentPage';
 import { RequireAuth } from './auth/RequireAuth';
 import { InboxPage } from './inbox/InboxPage';
 import { SetupWizard } from './setup/SetupWizard';
@@ -32,6 +33,8 @@ export function App() {
         />
         <Route element={<RequireAuth />}>
           <Route path="/" element={<InboxPage />} />
+          {/* MCP sign-in: an AI assistant app asks an admin to approve its connection. */}
+          <Route path="/oauth/authorize" element={<OAuthConsentPage />} />
           <Route path="/chats/:jid" element={<InboxPage />} />
           {extensionRoutes(extensions, false)}
         </Route>

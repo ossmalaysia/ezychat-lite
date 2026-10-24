@@ -17,6 +17,9 @@ import {
   UpdateApiTokenResponse,
   type UpdateApiTokenBody,
   McpSettingsResponse,
+  OAuthRequestInfo,
+  OAuthDecisionResponse,
+  type OAuthDecisionBody,
   type PatchMeBody,
   MeResponse,
   OpenChatCountResponse,
@@ -1130,6 +1133,24 @@ export function usePatchMcpSettings() {
     mutationFn: (body: McpSettingsPatch) =>
       api('/integrations/mcp', { method: 'PATCH', body, schema: McpSettingsResponse }),
     onSuccess: (next) => qc.setQueryData(qk.mcpSettings, next),
+  });
+}
+
+/** The approval page of the MCP sign-in: which app asks, and where it returns to. */
+export function useOAuthRequest(search: string) {
+  return useQuery({
+    queryKey: ['oauth', 'request', search] as const,
+    queryFn: ({ signal }) => api(`/oauth/request?${search}`, { schema: OAuthRequestInfo, signal }),
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Approve or decline; the response says where to send the browser (back to the app). */
+export function useOAuthDecision() {
+  return useMutation({
+    mutationFn: (body: OAuthDecisionBody) =>
+      api('/oauth/decision', { method: 'POST', body, schema: OAuthDecisionResponse }),
   });
 }
 
