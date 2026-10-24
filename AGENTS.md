@@ -500,6 +500,9 @@ details); a confirmed bug may be fixed and released.
 enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
 passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
 then leave the PR open until the owner requests the merge.
+**Release once a day** (owner rule): a merge does not start a release. Merged work goes out in one daily
+release of both editions (Lite, then Enterprise on that core); release in between only for an important
+change (security, data loss, a broken install or update) or when the owner asks "merge … and release".
 This is currently a solo-maintainer repository, so a second maintainer's approval is not required;
 the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required

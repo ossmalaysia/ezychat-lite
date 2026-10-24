@@ -151,6 +151,10 @@ into AGENTS.md.
   environment whose rules allow only `v*` tags and `main`. Read the subject format first
   (`gh api repos/<repo>/actions/oidc/customization/sub`): with `use_immutable_subject` it is
   `repo:<owner>@<owner id>/<repo>@<repo id>:environment:release`, not `repo:<owner>/<repo>:…`.
+- The `ossmalaysia` organization allows only GitHub-owned actions plus pinned SHAs
+  (`gh api orgs/ossmalaysia/actions/permissions/selected-actions`): a workflow with any other action
+  fails as `startup_failure` before a job runs. Add the exact pinned SHA (with the owner's approval)
+  before merging the workflow, not after the release tag.
 - A CI job that fails in `npm ci` with `node-gyp` building `better-sqlite3` (no Python/compiler on the
   runner) means its prebuilt binary download failed, not that the change broke it: check the step
   (install, before any test), then `gh run rerun <id> --failed` before investigating the code.
@@ -221,7 +225,9 @@ into AGENTS.md.
   the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
-  answer from a cached 404. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
+  answer from a cached 404. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
+  10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until
+  `https://registry.npmjs.org/@ezychat%2f<pkg>/<version>` answers 200 for all five. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
   publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
   "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
   ticked) from a package that publishes. Then `gh run rerun <publish run> --failed` on the existing tag
