@@ -308,6 +308,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `npm run e2e:electron-links` in a fresh worktree needs `npm run build -w @ezychat/desktop` first (the shell
+  loads `apps/desktop/dist/window.js`): without it the window never opens (`firstWindow` timeout, no other error).
+  If `node_modules/electron/path.txt` is empty, run `node node_modules/electron/install.js`.
 - Never name a source folder `release-*` or `release`: ESLint ignores `**/release-*/**` (installer output)
   and the files are silently not linted. Check a new folder with `npx eslint <file>` (no "File ignored" warning).
 - Stopping a background `npx tsx …cli.ts` shell task on Windows leaves the Node server running on its port
