@@ -326,6 +326,11 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- After an electron-builder update, check the Windows sign hook with a fake command, not the build log
+  (26.18 stopped printing "signing with signtool.exe" but still calls the hook):
+  `WIN_SIGN_MODE=command WIN_SIGN_COMMAND="node <script that appends {file} to a list> {file}"` and
+  `npx electron-builder --config electron-builder.yml --dir` in `apps/desktop`; expect WinSW, cloudflared
+  and the app exe.
 - `npm run e2e:electron-links` in a fresh worktree needs `npm run build -w @ezychat/desktop` first (the shell
   loads `apps/desktop/dist/window.js`): without it the window never opens (`firstWindow` timeout, no other error).
   If `node_modules/electron/path.txt` is empty, run `node node_modules/electron/install.js`.
