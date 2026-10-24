@@ -92,15 +92,24 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
   const compare = api(`compare/${info.baseRefOid}...${head}`);
   const base = compare.merge_base_commit.sha;
   const sinceCache = new Map();
+  // Only the PR's own files count: a branch update from main brings main's files in after the
+  // evidence, and those were checked on main (CI still runs on the updated head).
+  const prFiles = new Set(compare.files.map((f) => f.filename));
+  // Evidence must name one of this PR's commits; GitHub lists at most 300 files per compare, so a
+  // full list is unknown, never "nothing changed".
+  const prCommits = (compare.commits ?? []).map((c) => c.sha);
+  const ownCommit = (sha) => prCommits.some((c) => c.startsWith(sha));
   const changedFilesSince = (sha) => {
     if (!sinceCache.has(sha)) {
       try {
-        sinceCache.set(
-          sha,
-          sha === head.slice(0, sha.length)
-            ? []
-            : api(`compare/${sha}...${head}`).files.map((f) => f.filename),
-        );
+        const since = () => {
+          if (sha === head.slice(0, sha.length)) return [];
+          if (!ownCommit(sha)) return null;
+          const files = api(`compare/${sha}...${head}`).files;
+          if (files.length >= 300) return null;
+          return files.map((f) => f.filename).filter((path) => prFiles.has(path));
+        };
+        sinceCache.set(sha, since());
       } catch {
         sinceCache.set(sha, null);
       }
