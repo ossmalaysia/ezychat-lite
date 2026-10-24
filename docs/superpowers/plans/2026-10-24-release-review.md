@@ -5,7 +5,7 @@
 **Goal:** A deterministic safety score for every PR (Lite and Enterprise), written to a review log, a permanent
 index, a PR comment and a label — scoring only; the merge rule does not change.
 
-**Architecture:** Pure modules under `scripts/release-review/` (component map, evidence parsers, rubric, log
+**Architecture:** Pure modules under `scripts/review/` (component map, evidence parsers, rubric, log
 rendering) behind one CLI `scripts/release-review.mjs` that gathers facts with `git` and `gh`. A skill tells the
 agent when to run it and how to post the result. Enterprise gets a copy plus a core-bump module.
 
@@ -52,13 +52,13 @@ approved**).
 | `docs/release-review/components.json` | Tier map, screen globs, neutral globs, critical dependencies |
 | `docs/release-review/index.md` | Permanent index table (header only at first) |
 | `docs/release-review/log.md` | Shared review log (header only at first) |
-| `scripts/release-review/components.mjs` | Load map; classify a file; classify dependency changes |
-| `scripts/release-review/evidence.mjs` | Parse workbook (with Commit column), Dev Build rows, coverage line; SHA validity |
-| `scripts/release-review/rubric.mjs` | `scoreChange()`: pure score + hard stops + decision |
-| `scripts/release-review/log.mjs` | Render log entry, PR comment, index row; append |
+| `scripts/review/components.mjs` | Load map; classify a file; classify dependency changes |
+| `scripts/review/evidence.mjs` | Parse workbook (with Commit column), Dev Build rows, coverage line; SHA validity |
+| `scripts/review/rubric.mjs` | `scoreChange()`: pure score + hard stops + decision |
+| `scripts/review/log.mjs` | Render log entry, PR comment, index row; append |
 | `scripts/release-review.mjs` | CLI: gather with git/gh, call the modules, print, `--write` |
 | `scripts/build-summary.mjs` | `record --sha`, new Commit column (backward compatible) |
-| `scripts/release-review/*.test.mjs`, `scripts/build-summary.test.mjs` | Tests |
+| `scripts/review/*.test.mjs`, `scripts/build-summary.test.mjs` | Tests |
 | `.claude/skills/release-review/SKILL.md` | When and how the agent runs it |
 | `AGENTS.md` | One Working-rules bullet; Security invariants unchanged |
 
@@ -86,8 +86,8 @@ approved**).
 
 ### Task 2: Component map and file classification
 
-**Files:** Create `docs/release-review/components.json`, `scripts/release-review/components.mjs`,
-`scripts/release-review/components.test.mjs`.
+**Files:** Create `docs/release-review/components.json`, `scripts/review/components.mjs`,
+`scripts/review/components.test.mjs`.
 
 **Interfaces:**
 - Produces:
@@ -120,7 +120,7 @@ approved**).
 
 ### Task 3: Evidence parsers and commit validity
 
-**Files:** Create `scripts/release-review/evidence.mjs`, `scripts/release-review/evidence.test.mjs`.
+**Files:** Create `scripts/review/evidence.mjs`, `scripts/review/evidence.test.mjs`.
 
 **Interfaces:**
 - Consumes: `parseWorkbook` (Task 1), `isNeutral` (Task 2).
@@ -144,7 +144,7 @@ approved**).
 
 ### Task 4: Rubric
 
-**Files:** Create `scripts/release-review/rubric.mjs`, `scripts/release-review/rubric.test.mjs`.
+**Files:** Create `scripts/review/rubric.mjs`, `scripts/review/rubric.test.mjs`.
 
 **Interfaces:**
 - Produces `scoreChange(input) -> Result`.
@@ -167,7 +167,7 @@ approved**).
 
 ### Task 5: Logs, index, PR comment
 
-**Files:** Create `scripts/release-review/log.mjs`, `scripts/release-review/log.test.mjs`,
+**Files:** Create `scripts/review/log.mjs`, `scripts/review/log.test.mjs`,
 `docs/release-review/index.md`, `docs/release-review/log.md`.
 
 **Interfaces:**
@@ -247,10 +247,10 @@ approved**).
 ### Task 9: Enterprise copy and core bump
 
 **Files (in `D:\dev\ezychat-enterprise`, branch from its integration branch per its own rules):** copy
-`scripts/release-review/{components,evidence,rubric,log}.mjs` + tests, `scripts/release-review.mjs`,
+`scripts/review/{components,evidence,rubric,log}.mjs` + tests, `scripts/release-review.mjs`,
 `scripts/build-summary.mjs` (+ test; `docs/workbooks/`), `.claude/skills/release-review/SKILL.md`; create
 `docs/release-review/{components.json,index.md,log.md}` from spec 4.2; create
-`scripts/release-review/core-bump.mjs` + test.
+`scripts/review/core-bump.mjs` + test.
 
 **Interfaces:**
 - Produces `coreBumpScore({ oldVersion, newVersion, litePrs: [{ number, mergedAt }], liteIndex }) ->

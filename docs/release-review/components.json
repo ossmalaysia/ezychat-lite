@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "about": "Release review tier map (docs/superpowers/specs/2026-10-24-release-review-design.md). First match wins. Tier = what happens if this part breaks: critical = app stops or data is lost; core = a main daily task fails; noncore = a side feature fails.",
+  "screenGlobs": ["apps/web/src/**", "apps/desktop/src/**"],
+  "neutralGlobs": [
+    "docs/workbooks/**",
+    "docs/dev-build-checks.md",
+    "docs/LEARNINGS.md",
+    "docs/screenshots/**",
+    "docs/release-review/index.md",
+    "docs/release-review/log.md",
+    "docs/features/*/review.md"
+  ],
+  "criticalDependencies": [
+    "baileys",
+    "electron",
+    "electron-builder",
+    "better-sqlite3",
+    "@node-rs/argon2",
+    "fastify",
+    "socket.io"
+  ],
+  "components": [
+    { "glob": "**/*.test.*", "tier": "docs", "name": "Tests" },
+    { "glob": "**/test/**", "tier": "docs", "name": "Tests" },
+    { "glob": "e2e/**", "tier": "docs", "name": "End-to-end tests" },
+    { "glob": "docs/release-review/components.json", "tier": "core", "name": "Release review map" },
+    { "glob": "docs/**", "tier": "docs", "name": "Docs" },
+    { "glob": "design/**", "tier": "docs", "name": "Design assets" },
+    { "glob": "*.md", "tier": "docs", "name": "Docs" },
+    { "glob": ".claude/**", "tier": "docs", "name": "Agent settings" },
+    { "glob": ".github/ISSUE_TEMPLATE/**", "tier": "docs", "name": "Issue templates" },
+    { "glob": "LICENSE", "tier": "docs", "name": "Licence text" },
+
+    {
+      "glob": ".github/dependabot.yml",
+      "tier": "pipeline",
+      "name": "Dependency updates (Dependabot)"
+    },
+    { "glob": ".github/workflows/**", "tier": "pipeline", "name": "CI and release workflows" },
+    { "glob": "scripts/release-notes.mjs", "tier": "pipeline", "name": "Release notes" },
+    { "glob": "scripts/*sign*", "tier": "pipeline", "name": "Signing" },
+    { "glob": "scripts/sync-version.mjs", "tier": "pipeline", "name": "Version sync" },
+    { "glob": "scripts/pack-core.mjs", "tier": "pipeline", "name": "Core packs" },
+    { "glob": "scripts/build-package.mjs", "tier": "pipeline", "name": "Package build" },
+    { "glob": "apps/desktop/scripts/**", "tier": "pipeline", "name": "Desktop build scripts" },
+    { "glob": "apps/desktop/electron-builder.yml", "tier": "pipeline", "name": "Installer build" },
+
+    {
+      "glob": "packages/wa/src/fake/**",
+      "tier": "noncore",
+      "name": "Fake WhatsApp (dev and tests)"
+    },
+    {
+      "glob": "packages/wa/**",
+      "tier": "critical",
+      "name": "WhatsApp (Baileys)",
+      "realTest": "real WhatsApp"
+    },
+    {
+      "glob": "packages/server/src/wa-bridge/**",
+      "tier": "critical",
+      "name": "WhatsApp bridge",
+      "realTest": "real WhatsApp"
+    },
+    {
+      "glob": "packages/server/src/messages/send-queue*",
+      "tier": "critical",
+      "name": "Send queue"
+    },
+    { "glob": "packages/server/src/db/**", "tier": "critical", "name": "Database and migrations" },
+    { "glob": "packages/server/src/backup/**", "tier": "critical", "name": "Backups" },
+    {
+      "glob": "packages/server/src/http/**",
+      "tier": "critical",
+      "name": "HTTP security checks",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/auth/**",
+      "tier": "critical",
+      "name": "Sign-in and sessions",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/crypto/**",
+      "tier": "critical",
+      "name": "Secrets encryption",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/access/**",
+      "tier": "critical",
+      "name": "Access gate",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/routes/setup*",
+      "tier": "critical",
+      "name": "First-admin setup",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/{cli,config,main,run-cli,app,context,services,lock,index,logger,log-redaction}.ts",
+      "tier": "critical",
+      "name": "Server start-up and config"
+    },
+    {
+      "glob": "packages/server/src/chats/**",
+      "tier": "critical",
+      "name": "Chats and identity merges"
+    },
+    { "glob": "packages/server/src/messages/**", "tier": "critical", "name": "Message storage" },
+    {
+      "glob": "packages/shared/src/{api,socket,models,enums,errors,index}.ts",
+      "tier": "critical",
+      "name": "REST and socket contract"
+    },
+    {
+      "glob": "apps/desktop/src/{main,server-host,server-process,startup,paths,product,app-identity,ipc,window-security}.*",
+      "tier": "critical",
+      "name": "Desktop main process",
+      "realTest": "packaged install"
+    },
+    {
+      "glob": "apps/desktop/src/service*",
+      "tier": "critical",
+      "name": "Windows service",
+      "realTest": "packaged install"
+    },
+    {
+      "glob": "apps/desktop/src/service/**",
+      "tier": "critical",
+      "name": "Windows service",
+      "realTest": "packaged install"
+    },
+    {
+      "glob": "apps/desktop/src/update*",
+      "tier": "critical",
+      "name": "Updater",
+      "realTest": "packaged install"
+    },
+    {
+      "glob": "apps/desktop/src/updater/**",
+      "tier": "critical",
+      "name": "Updater",
+      "realTest": "packaged install"
+    },
+
+    {
+      "glob": "packages/server/src/inboxes/**",
+      "tier": "core",
+      "name": "Inboxes and inbox access",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/api-tokens/**",
+      "tier": "core",
+      "name": "Access tokens",
+      "security": true
+    },
+    {
+      "glob": "packages/server/src/mcp/**",
+      "tier": "noncore",
+      "name": "AI assistant access (MCP)"
+    },
+    { "glob": "packages/server/src/realtime/**", "tier": "core", "name": "Live updates" },
+    { "glob": "packages/server/src/push/**", "tier": "core", "name": "Push notifications" },
+    { "glob": "packages/server/src/ai/**", "tier": "core", "name": "AI agents" },
+    { "glob": "packages/server/src/customers/**", "tier": "core", "name": "Customer profiles" },
+    { "glob": "packages/server/src/tunnel/**", "tier": "core", "name": "Phone access (tunnel)" },
+    { "glob": "packages/server/src/bus.ts", "tier": "core", "name": "Event bus" },
+    { "glob": "packages/server/src/**", "tier": "core", "name": "Server" },
+    { "glob": "packages/shared/src/i18n/**", "tier": "noncore", "name": "Server texts" },
+    { "glob": "packages/shared/**", "tier": "core", "name": "Shared schemas" },
+    { "glob": "apps/web/src/i18n/**", "tier": "noncore", "name": "Translations" },
+    { "glob": "apps/web/src/admin/**", "tier": "noncore", "name": "Admin pages" },
+    { "glob": "apps/web/src/setup/**", "tier": "noncore", "name": "Setup wizard" },
+    {
+      "glob": "apps/web/src/components/app/{AboutDialog,UpgradeEnterprise,AppCredits}*",
+      "tier": "noncore",
+      "name": "About and links"
+    },
+    { "glob": "apps/web/src/lib/links.ts", "tier": "noncore", "name": "Links" },
+    { "glob": "apps/web/src/**", "tier": "core", "name": "Inbox web app" },
+    { "glob": "apps/desktop/src/locales/**", "tier": "noncore", "name": "Desktop texts" },
+    { "glob": "apps/desktop/src/renderer/**", "tier": "noncore", "name": "Desktop status window" },
+    { "glob": "apps/desktop/src/**", "tier": "core", "name": "Desktop shell" },
+    { "glob": "apps/web/public/**", "tier": "noncore", "name": "Web assets" },
+    { "glob": "scripts/**", "tier": "noncore", "name": "Developer scripts" },
+    { "glob": "**/package.json", "tier": "noncore", "name": "Package manifest" },
+    { "glob": "**/package-lock.json", "tier": "noncore", "name": "Lockfile" },
+    { "glob": "**/*.config.*", "tier": "noncore", "name": "Tool config" },
+    { "glob": "**/tsconfig*.json", "tier": "noncore", "name": "Tool config" },
+    { "glob": ".*", "tier": "noncore", "name": "Repo config" },
+    { "glob": "apps/**", "tier": "noncore", "name": "App files" },
+    { "glob": "packages/**", "tier": "noncore", "name": "Package files" }
+  ]
+}

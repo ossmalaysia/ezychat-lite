@@ -5,7 +5,8 @@
 //
 //   node scripts/build-summary.mjs                    open PRs + the 3 most recently merged
 //   node scripts/build-summary.mjs 47                 one PR (any age)
-//   node scripts/build-summary.mjs record <stage> <status> "<detail>" [--title "Feature name"]
+//   node scripts/build-summary.mjs record <stage> <status> "<detail>" [--title "Feature name"] [--sha <commit>]
+//       (stores the commit the stage checked, default HEAD: the release review reads it)
 //       update the current branch's workbook (then commit it with the work)
 //       stages:   design | dev | unit | e2e | devbuild | screen
 //       statuses: todo | doing | done | pass | fail | skip
@@ -26,7 +27,7 @@ const STAGE_ALIASES = {
 };
 const STATUSES = ['todo', 'doing', 'done', 'pass', 'fail', 'skip'];
 const OS = ['ubuntu', 'windows', 'macos'];
-const TODO = { status: 'todo', detail: '', updated: '' };
+const TODO = { status: 'todo', detail: '', commit: '', updated: '' };
 
 export const workbookPath = (branch) =>
   join('docs', 'workbooks', `${branch.replaceAll(/[^\w.-]+/g, '__')}.md`);
@@ -39,19 +40,24 @@ const cellsOf = (line) =>
     .slice(1, -1)
     .map((cell) => cell.trim());
 
-/** The stage table of a workbook: { stages: { Design: { status, detail, updated }, … } }. */
+/**
+ * The stage table of a workbook: { stages: { Design: { status, detail, commit, updated }, … } }.
+ * Workbooks from before the Commit column have 4 cells; their commit is ''.
+ */
 export function parseWorkbook(markdown) {
   const stages = {};
   for (const line of markdown.split('\n')) {
-    const [stage, status, detail, updated] = cellsOf(line);
+    const cells = cellsOf(line);
+    const [stage, status, detail] = cells;
+    const [commit, updated] = cells.length >= 5 ? cells.slice(3, 5) : ['', cells[3]];
     if (STAGES.includes(stage) && STATUSES.includes(status))
-      stages[stage] = { status, detail: detail ?? '', updated: updated ?? '' };
+      stages[stage] = { status, detail: detail ?? '', commit, updated: updated ?? '' };
   }
   return { stages };
 }
 
-const tableRow = (stage, { status, detail, updated }) =>
-  `| ${stage} | ${status} | ${detail.replaceAll('|', '/')} | ${updated} |`;
+const tableRow = (stage, { status, detail, commit, updated }) =>
+  `| ${stage} | ${status} | ${detail.replaceAll('|', '/')} | ${commit ?? ''} | ${updated} |`;
 
 const workbookHead = (title, branch) =>
   [
@@ -64,12 +70,12 @@ const workbookHead = (title, branch) =>
   ].join('\n');
 
 /** A workbook with `stage` set (a new one when `markdown` is null) and one log line appended. */
-export function setStage(markdown, { title, branch }, stage, status, detail, date) {
+export function setStage(markdown, { title, branch }, stage, status, detail, date, commit = '') {
   if (!STAGES.includes(stage)) throw new Error(`Unknown stage "${stage}": ${STAGES.join(', ')}`);
   if (!STATUSES.includes(status))
     throw new Error(`Unknown status "${status}": ${STATUSES.join(', ')}`);
   const stages = markdown ? parseWorkbook(markdown).stages : {};
-  stages[stage] = { status, detail, updated: date };
+  stages[stage] = { status, detail, commit, updated: date };
   const head = markdown
     ? markdown.slice(0, markdown.indexOf('| Stage |'))
     : workbookHead(title, branch);
@@ -77,12 +83,13 @@ export function setStage(markdown, { title, branch }, stage, status, detail, dat
     ? markdown.slice(markdown.indexOf('## Log')).trimEnd()
     : '## Log';
   const table = [
-    '| Stage | Status | Detail | Updated |',
-    '| --- | --- | --- | --- |',
+    '| Stage | Status | Detail | Commit | Updated |',
+    '| --- | --- | --- | --- | --- |',
     ...STAGES.map((name) => tableRow(name, stages[name] ?? TODO)),
   ].join('\n');
   const gap = log === '## Log' ? '\n\n' : '\n';
-  return `${head}${table}\n\n${log}${gap}- ${date} ${stage}: ${status} — ${detail}\n`;
+  const sha = commit ? ` (${commit})` : '';
+  return `${head}${table}\n\n${log}${gap}- ${date} ${stage}: ${status} — ${detail}${sha}\n`;
 }
 
 /* ------------------------------------------------------------------------- other sources */
@@ -449,20 +456,33 @@ function features(number) {
   return prs.map((pr) => toFeature(pr, nameWithOwner));
 }
 
+/** `record` arguments: stage, status and detail in order, plus --title and --sha anywhere. */
+export function parseRecordArgs(args) {
+  const options = {};
+  const positional = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--title' || args[i] === '--sha') options[args[i].slice(2)] = args[++i];
+    else positional.push(args[i]);
+  }
+  const [alias, status, detail] = positional;
+  return { alias, status, detail, title: options.title ?? null, sha: options.sha ?? null };
+}
+
 function record(args) {
-  const titleAt = args.indexOf('--title');
-  const title = titleAt >= 0 ? args[titleAt + 1] : null;
-  const [alias, status, detail] = titleAt >= 0 ? args.slice(0, titleAt) : args;
+  const { alias, status, detail, title, sha } = parseRecordArgs(args);
   const stage = STAGE_ALIASES[String(alias).toLowerCase()];
   if (!stage || !detail)
     throw new Error(
-      'Usage: build-summary.mjs record design|dev|unit|e2e|devbuild|screen todo|doing|done|pass|fail|skip "detail" [--title "Feature"]',
+      'Usage: build-summary.mjs record design|dev|unit|e2e|devbuild|screen todo|doing|done|pass|fail|skip "detail" [--title "Feature"] [--sha <commit>]',
     );
   const branch = run('git', ['branch', '--show-current']).trim();
   const path = workbookPath(branch);
   const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
   const date = new Date().toISOString().slice(0, 10);
-  const next = setStage(current, { title: title ?? branch, branch }, stage, status, detail, date);
+  // The commit this stage checked; the release review counts evidence only for that commit.
+  const commit = sha ?? run('git', ['rev-parse', '--short=7', 'HEAD']).trim();
+  const meta = { title: title ?? branch, branch };
+  const next = setStage(current, meta, stage, status, detail, date, commit);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, next);
   console.log(`${path}: ${stage} → ${status} (${detail}). Commit it with the work.`);

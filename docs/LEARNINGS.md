@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A scoring rubric gives "not needed" items their full points only where the item guards a risk the change
+  cannot have (no screen → no screen review); a bonus that only one tier can earn (the real-part test for
+  critical) scores 0 elsewhere, or every small change jumps to 100. Pin the worked examples in tests.
 - Ask for a mock confirmation with the key screenshots in front of the owner (send the image files, one per
   screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
   in `design.md` only after that reply.
@@ -301,6 +304,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Never name a source folder `release-*` or `release`: ESLint ignores `**/release-*/**` (installer output)
+  and the files are silently not linted. Check a new folder with `npx eslint <file>` (no "File ignored" warning).
 - Stopping a background `npx tsx …cli.ts` shell task on Windows leaves the Node server running on its port
   (the next server fails with `EADDRINUSE`, and scripts talk to the old one). After the stop, find the
   owner of the port and stop it only when its command line shows your own temp data folder.
