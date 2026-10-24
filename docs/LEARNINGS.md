@@ -122,10 +122,17 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
+  "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
+  (`compare.commits`), not just any commit in a log.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
   merges. Critical ones (release-review map) stay separate for the owner.
+- A Dependabot alert: `npm ls <package>` shows the path. Build-only tools (electron-builder and its
+  downloaders) never ship to users; for a runtime path, check that our code reaches the vulnerable
+  function before treating it as urgent. Dismissing an alert is a repository setting (owner decides).
+
 - Never put `[skip ci]` on a Lite PR: `main` requires the three `Test (*)` checks, a skipped run never reports
   them and the PR cannot merge (path filters have the same effect). Builds and releases run only on `v*` tags,
   so a doc PR never releases anyway.
