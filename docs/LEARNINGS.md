@@ -301,6 +301,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Stopping a background `npx tsx …cli.ts` shell task on Windows leaves the Node server running on its port
+  (the next server fails with `EADDRINUSE`, and scripts talk to the old one). After the stop, find the
+  owner of the port and stop it only when its command line shows your own temp data folder.
 - In a Node script on Windows, never call `process.exit()` while a `fetch` may still be open: Node aborts
   with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and a non-zero code, so a `&&` chain
   stops. Set `process.exitCode` and return instead.
