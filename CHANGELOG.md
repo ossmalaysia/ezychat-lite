@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.52] - 2026-10-25
+
 ### Added
 
 - **Upgrade to Enterprise:** where EzyChat Lite reaches its limits (one AI agent on Members and on the
   AI agent page, one WhatsApp number on Admin → WhatsApp), a short note explains what EzyChat Enterprise
   adds, with an **Upgrade to Enterprise** button that opens ezychat.ai in your browser. Admins also find
   it in the account menu, and everyone in About.
+
+### Changed
+
+- The desktop app runs on a newer engine (Electron 45 with a newer Chromium), and the server and inbox use
+  updated libraries (React, fastify, password hashing). These bring the latest security and stability fixes;
+  nothing changes in how you use the app.
 
 ## [0.1.51] - 2026-10-24
 
