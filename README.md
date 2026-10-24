@@ -45,8 +45,8 @@ number once and lets everyone on the team answer from their own phone or laptop,
 and internal notes, and with no cloud service in the middle: your messages stay on your computer.
 
 The goal is practical: give businesses a free foundation for managing customer conversations,
-then build towards an optional **bring-your-own-key (BYOK) sales agent** and a **light CRM**.
-Those are planned features, not part of today's inbox. See the [roadmap](ROADMAP.md) for priorities.
+with optional **AI agents** on your own AI account (in preview) and a growing **light CRM**
+(customer profiles and tags today). See the [roadmap](ROADMAP.md) for what comes next.
 
 ## Features
 
