@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Bug,
+  ExternalLink,
   Info,
   KeyRound,
   LogOut,
@@ -10,6 +11,7 @@ import {
   Moon,
   Settings,
   Share2,
+  Sparkles,
   Sun,
   UserRound,
 } from 'lucide-react';
@@ -191,6 +193,21 @@ export function UserMenu({
                 <Settings aria-hidden="true" />
                 {t('account.adminSettings')}
               </Link>
+            </DropdownMenuItem>
+          )}
+          {/* Admins only: agents cannot buy. Hidden when the product has no upgrade link. */}
+          {isAdmin && links.upgrade && (
+            <DropdownMenuItem asChild className="min-h-11">
+              <a
+                href={links.upgrade}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="menu-upgrade"
+              >
+                <Sparkles aria-hidden="true" />
+                {t('upgrade.cta')}
+                <ExternalLink aria-hidden="true" className="ml-auto" />
+              </a>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild className="min-h-11">

@@ -38,7 +38,12 @@ export interface AppLinks {
   feedback: (locale: string, version: string | null) => string;
   /** Support email address (mailto link where there is no report-issue page). */
   supportEmail: string | null;
+  /** "Upgrade to Enterprise" page (Lite's limits, account menu, About); null hides every upgrade link. */
+  upgrade: string | null;
 }
+
+/** The EzyChat Enterprise section of the website. */
+export const ENTERPRISE_UPGRADE_URL = 'https://ezychat.ai/#enterprise';
 
 const liteReleaseNotes = (version: string): string =>
   `${GITHUB_REPO_URL}/releases/tag/v${encodeURIComponent(version)}`;
@@ -51,6 +56,7 @@ export const LITE_APP_LINKS: Readonly<AppLinks> = Object.freeze({
   releaseNotes: liteReleaseNotes,
   feedback: feedbackUrl,
   supportEmail: null,
+  upgrade: ENTERPRISE_UPGRADE_URL,
 });
 
 /** Lite's links with the given overrides (an explicit `null` hides that link). */

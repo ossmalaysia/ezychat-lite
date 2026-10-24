@@ -6,14 +6,28 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "send-reactions",
-    "gitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
-    "mock": "docs/features/send-reactions/mock/index.html",
-    "design": "docs/features/send-reactions/design.md",
-    "confirmedAt": "2026-10-23",
-    "confirmation": "Owner tried the running mock (hover a message, the 🙂 button, the emoji bar) and confirmed it 2026-10-23 (\"ok look fine\")"
+    "feature": "upgrade-enterprise",
+    "gitRevision": "2fce4a709235d6ac4d8707c682d637a87bfd7087",
+    "mock": "docs/features/upgrade-enterprise/mock/index.html",
+    "design": "docs/features/upgrade-enterprise/design.md",
+    "confirmedAt": "2026-10-24",
+    "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
   },
   "proposals": [
+    {
+      "feature": "upgrade-enterprise",
+      "creationOrder": 11,
+      "createdAt": "2026-10-24",
+      "design": "docs/features/upgrade-enterprise/design.md",
+      "mock": "docs/features/upgrade-enterprise/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "send-reactions",
+      "baselineGitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
+      "baselineAppRevision": "eb6cc65",
+      "coverage": "Full app clone of the confirmed send-reactions reference; Upgrade to Enterprise links (https://ezychat.ai/#enterprise, new tab) in the Lite view only: Admin -> Members note and the AI agent limit page, Admin -> WhatsApp Connection card note, account menu item (admins only), About dialog text and button; Enterprise view and an agent menu without links; desktop 1280 / mobile 360, light/dark (upgrade-shots.mjs)",
+      "confirmedAt": "2026-10-24",
+      "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
+    },
     {
       "feature": "send-reactions",
       "creationOrder": 10,
@@ -78,7 +92,12 @@
       "baselineFeature": "token-permissions",
       "baselineGitRevision": "58346c1f0ba43e07575e35e4bf4e1dc44083c5c5",
       "baselineAppRevision": "89ccabe",
-      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number, each a linked phone with a QR scan): Admin → Inboxes with add (name + QR), edit (rename, link again) and remove, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, agent no-access state; the Business API type is out (round 3, owner); English only; mock state in localStorage"
+      "coverage": "Full app clone of the confirmed token-permissions reference; inboxes (one per WhatsApp number, each a linked phone with a QR scan): Admin → Inboxes with add (name + QR), edit (rename, link again) and remove, inbox access per member, unified chat list with inbox chips and filter, inbox chip in the conversation header, agent no-access state; the Business API type is out (round 3, owner); English only; mock state in localStorage",
+      "archived": {
+        "folderRemovedAt": "2026-10-24",
+        "lastRevision": "eb6cc65c0febea54dfbc092bd02e08ce2e1b41a3",
+        "reason": "retention: sixth feature folder (upgrade-enterprise)"
+      }
     },
     {
       "feature": "token-permissions",

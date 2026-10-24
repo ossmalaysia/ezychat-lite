@@ -5,6 +5,7 @@ import { useAppLinks } from '@/lib/app-links';
 import { ResponsiveDialog } from './index';
 import { AppCredits } from './AppCredits';
 import { DesktopUpdatePanel } from './DesktopUpdates';
+import { UpgradeButton, useUpgradeUrl } from './UpgradeEnterprise';
 
 /** "About <product>": icon, name, description, version, repo (or website) link and credits. */
 export function AboutDialog({
@@ -18,6 +19,7 @@ export function AboutDialog({
 }) {
   const { t } = useTranslation(['app', 'common']);
   const links = useAppLinks();
+  const upgradeUrl = useUpgradeUrl();
   // Lite links its public source code; another product links its website instead.
   const projectLink = links.sourceCode
     ? { href: links.sourceCode, label: t('about.github') }
@@ -49,6 +51,12 @@ export function AboutDialog({
             <ExternalLink aria-hidden="true" />
           </a>
         </Button>
+        {upgradeUrl && (
+          <div className="flex flex-col items-center gap-2" data-testid="about-upgrade">
+            <p className="max-w-xs text-sm text-muted-foreground">{t('common:upgrade.about')}</p>
+            <UpgradeButton />
+          </div>
+        )}
         <AppCredits />
       </div>
     </ResponsiveDialog>

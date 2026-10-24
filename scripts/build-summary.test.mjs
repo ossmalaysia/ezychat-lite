@@ -4,6 +4,7 @@ import {
   devBuildSummary,
   overviewRows,
   paint,
+  parseRecordArgs,
   prQuery,
   resolveTool,
   parseWorkbook,
@@ -64,6 +65,43 @@ describe('ciSummary', () => {
 });
 
 describe('workbook', () => {
+  it('records the checked commit in the table and the log', () => {
+    const md = setStage(
+      null,
+      { title: 'X', branch: 'feat/x' },
+      'E2E',
+      'pass',
+      '80/80',
+      '2026-10-24',
+      'abc1234',
+    );
+    expect(md).toContain('| Stage | Status | Detail | Commit | Updated |');
+    expect(parseWorkbook(md).stages.E2E.commit).toBe('abc1234');
+    expect(md).toContain('- 2026-10-24 E2E: pass — 80/80 (abc1234)');
+  });
+
+  it('reads workbooks from before the Commit column', () => {
+    const old =
+      '| Stage | Status | Detail | Updated |\n| --- | --- | --- | --- |\n| E2E | pass | 80/80 | 2026-10-23 |\n';
+    expect(parseWorkbook(old).stages.E2E).toEqual({
+      status: 'pass',
+      detail: '80/80',
+      commit: '',
+      updated: '2026-10-23',
+    });
+  });
+
+  it('takes --sha and --title anywhere in the record arguments', () => {
+    expect(parseRecordArgs(['e2e', '--sha', 'abc1234', 'pass', '80/80'])).toEqual({
+      alias: 'e2e',
+      status: 'pass',
+      detail: '80/80',
+      title: null,
+      sha: 'abc1234',
+    });
+    expect(parseRecordArgs(['dev', 'done', 'x', '--title', 'Feature']).sha).toBeNull();
+  });
+
   it('starts a new workbook with every stage open, then records one', () => {
     const md = setStage(
       null,
@@ -77,8 +115,13 @@ describe('workbook', () => {
     expect(md).toContain('Branch: `feat/x`');
     const book = parseWorkbook(md);
     expect(Object.keys(book.stages)).toEqual(STAGES);
-    expect(book.stages.E2E).toEqual({ status: 'pass', detail: '50 passed', updated: '2026-10-08' });
-    expect(book.stages.Design).toEqual({ status: 'todo', detail: '', updated: '' });
+    expect(book.stages.E2E).toEqual({
+      status: 'pass',
+      detail: '50 passed',
+      commit: '',
+      updated: '2026-10-08',
+    });
+    expect(book.stages.Design).toEqual({ status: 'todo', detail: '', commit: '', updated: '' });
     expect(md).toMatch(/## Log\n\n- 2026-10-08 E2E: pass — 50 passed/);
   });
 
@@ -93,7 +136,12 @@ describe('workbook', () => {
     );
     md = setStage(md, { title: 'X', branch: 'feat/x' }, 'Dev', 'done', 'web done', '2026-10-08');
     const book = parseWorkbook(md);
-    expect(book.stages.Dev).toEqual({ status: 'done', detail: 'web done', updated: '2026-10-08' });
+    expect(book.stages.Dev).toEqual({
+      status: 'done',
+      detail: 'web done',
+      commit: '',
+      updated: '2026-10-08',
+    });
     expect(md.match(/\| Dev \|/g)).toHaveLength(1);
     expect(md).toContain('- 2026-10-07 Dev: doing — server done');
     expect(md).toContain('- 2026-10-08 Dev: done — web done');
@@ -119,7 +167,7 @@ describe('renderFeature', () => {
       ci: { unit: { ubuntu: 'pass', windows: 'pass', macos: 'pass' }, quality: 'pass' },
       workbook: book({
         Design: { status: 'done', detail: 'mockup approved', updated: '2026-10-08' },
-        E2E: { status: 'pass', detail: '50 passed', updated: '2026-10-08' },
+        E2E: { status: 'pass', detail: '50 passed', commit: '', updated: '2026-10-08' },
         'Screen review': { status: 'done', detail: '8 findings fixed', updated: '2026-10-08' },
       }),
       devBuild: { pass: 3, fail: 0 },

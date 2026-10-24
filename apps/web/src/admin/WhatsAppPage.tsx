@@ -6,6 +6,7 @@ import type { WaState } from '@ezychat/shared';
 import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
 import { PhoneLink } from '../wa/PhoneLink';
 import { Banner, EmptyState, PageHeader, StatusDot, stateTone } from '@/components/app';
+import { UpgradeNote } from '@/components/app/UpgradeEnterprise';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,6 +104,8 @@ export function WhatsAppPage() {
             </Banner>
           )}
           {unlinked && <Banner tone="danger">{t('whatsapp.unlinkedBody')}</Banner>}
+          {/* This page serves one number (several numbers use Inboxes); hidden without an upgrade link. */}
+          <UpgradeNote reason="numbers" />
         </CardContent>
       </Card>
 
