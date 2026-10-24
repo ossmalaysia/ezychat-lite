@@ -15,6 +15,15 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Docs-only CI fast path** (2026-10-24): `main` requires the three `Test (*)` checks, so a doc PR cannot
+  use `[skip ci]`. Add a first step in `ci.yml` that detects a change of `*.md` files only and reports the
+  test jobs as passed without installing or testing.
+- **Desktop memory** (measured 2026-10-24 on 0.1.51, temp data, fake WhatsApp, private MB): server ~230,
+  shell without a window ~105, window open adds ~85 (renderer) and GPU grows from 60 to 130–260 and keeps
+  it after the window closes. Next: (1) `app.disableHardwareAcceleration()` (GPU 205 → 21 in the probe;
+  screen check for scrolling), (2) destroy the window on close instead of hiding it (renderer ~70–90 MB;
+  reopen took 180–300 ms; tray and notifications must still work). Re-measure with real WhatsApp.
+
 - **One affiliate download link** `https://ezychat.ai/download?ref=<code>` (website repo): detects
   Windows / Mac Apple silicon / Mac Intel and starts the newest published installer, buttons for the
   others. Waiting for the owner: skip or keep the download form for this link.
