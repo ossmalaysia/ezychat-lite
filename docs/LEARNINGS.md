@@ -122,6 +122,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
+  up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
+  one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
+  merges. Critical ones (release-review map) stay separate for the owner.
 - Never put `[skip ci]` on a Lite PR: `main` requires the three `Test (*)` checks, a skipped run never reports
   them and the PR cannot merge (path filters have the same effect). Builds and releases run only on `v*` tags,
   so a doc PR never releases anyway.
