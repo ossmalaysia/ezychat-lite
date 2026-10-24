@@ -52,7 +52,7 @@
     "bundle:server": "node ../../scripts/bundle-server.mjs"
   },
   "dependencies": {
-    "@node-rs/argon2": "^2.2.1",
+    "@node-rs/argon2": "^2.2.2",
     "better-sqlite3": "^13.0.3",
     "sherpa-onnx-node": "1.13.8",
     "sudo-prompt": "^9.2.1"
@@ -61,7 +61,7 @@
     "electron": ">=44"
   },
   "devDependencies": {
-    "electron": "44.7.2",
+    "electron": "44.9.2",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2"
   }
