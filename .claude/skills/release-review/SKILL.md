@@ -23,9 +23,12 @@ request, also for `risk:auto`, until the owner approves section 9 of the design 
 5. Post the entry: `gh pr comment <pr> --body-file <file with the printed Markdown>`.
 6. Set the label: remove `risk:auto`, `risk:human`, `risk:pipeline`, then add the decision. If the labels do
    not exist yet, ask the owner before you create them.
-7. Tell the owner the score and decision in STE. For `risk:human`, list what the owner must test: each hard
-   stop and each `✗ missing` item.
-8. When the owner reports their test result and approves, run
+7. **For `risk:human`, test before you hand over** (owner rule): for each hard stop and each `✗ missing`
+   item, run the check that proves it (e2e + `e2e:electron-links`, Dev Build, the packaged `--dir` smoke for a
+   critical runtime part; see `docs/LEARNINGS.md`), record it, and score again.
+8. Tell the owner the score and decision in STE. If it is still `risk:human`, list only what you could not
+   test (real WhatsApp, the real installer, an action that needs approval) and why.
+9. When the owner reports their test result and approves, run
    `node scripts/release-review.mjs <pr> --approve "<the owner's exact words>"`, commit the two files, push.
 
 ## Evidence the script reads (record it, or the points are lost)
