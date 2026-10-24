@@ -2,8 +2,7 @@
 
 Owner request 2026-10-24 ("add upgrade enterprise, suggest where to put this, user click and go
 https://ezychat.ai/#enterprise"). The owner chose all four suggested places: the AI agent limit, Admin →
-WhatsApp, the account menu (admins) and the About dialog. Status: **proposed** (waits for the owner's
-confirmation).
+WhatsApp, the account menu (admins) and the About dialog. Status: **confirmed** (see Confirmation).
 
 ## Decisions
 
@@ -74,4 +73,6 @@ Adding this sixth feature folder removes the oldest by `creationOrder`, `docs/fe
 
 ## Confirmation
 
-Waiting for the owner.
+Confirmed by the owner 2026-10-24 after viewing the screenshots (Members note, AI agent limit, WhatsApp card,
+account menu, About; desktop and phone): "Ok implement it". Status `confirmed` in `mock-index.json`; it is now
+`latestConfirmed` (mock revision `2fce4a7`).

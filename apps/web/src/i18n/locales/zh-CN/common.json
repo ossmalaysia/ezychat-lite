@@ -73,5 +73,11 @@
     "code": "原因：{{code}}",
     "checkAgain": "重新检查",
     "checking": "正在检查…"
+  },
+  "upgrade": {
+    "cta": "升级到企业版",
+    "agents": "需要更多 AI 客服？EzyChat Enterprise 为每个 WhatsApp 号码提供一个 AI 客服。",
+    "numbers": "需要更多 WhatsApp 号码？EzyChat Enterprise 可将多个号码连接到同一个团队收件箱。",
+    "about": "更多 WhatsApp 号码和 AI 客服，并由 Anchor Sprint 提供支持。"
   }
 }

@@ -51,3 +51,12 @@ it('shows the linked number and name in a compact list', () => {
   expect(screen.getByText('Shop')).toBeTruthy();
   expect(screen.getByTestId('wa-state').textContent).toBe('Connected');
 });
+
+it('suggests EzyChat Enterprise for more numbers in the Connection card', () => {
+  render(<WhatsAppPage />);
+  const note = screen.getByTestId('upgrade-note');
+  expect(note.textContent).toContain('Need more WhatsApp numbers?');
+  expect(
+    within(note).getByRole('link', { name: 'Upgrade to Enterprise' }).getAttribute('href'),
+  ).toBe('https://ezychat.ai/#enterprise');
+});

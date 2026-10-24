@@ -73,5 +73,11 @@
     "code": "Sebab: {{code}}",
     "checkAgain": "Semak semula",
     "checking": "Menyemak…"
+  },
+  "upgrade": {
+    "cta": "Naik taraf ke Enterprise",
+    "agents": "Perlukan lebih banyak ejen AI? EzyChat Enterprise ada satu ejen AI untuk setiap nombor WhatsApp.",
+    "numbers": "Perlukan lebih banyak nombor WhatsApp? EzyChat Enterprise memautkan beberapa nombor ke satu peti masuk pasukan.",
+    "about": "Lebih banyak nombor WhatsApp dan ejen AI, dengan sokongan daripada Anchor Sprint."
   }
 }

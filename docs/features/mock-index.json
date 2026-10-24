@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "send-reactions",
-    "gitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
-    "mock": "docs/features/send-reactions/mock/index.html",
-    "design": "docs/features/send-reactions/design.md",
-    "confirmedAt": "2026-10-23",
-    "confirmation": "Owner tried the running mock (hover a message, the 🙂 button, the emoji bar) and confirmed it 2026-10-23 (\"ok look fine\")"
+    "feature": "upgrade-enterprise",
+    "gitRevision": "2fce4a709235d6ac4d8707c682d637a87bfd7087",
+    "mock": "docs/features/upgrade-enterprise/mock/index.html",
+    "design": "docs/features/upgrade-enterprise/design.md",
+    "confirmedAt": "2026-10-24",
+    "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
   },
   "proposals": [
     {
@@ -20,11 +20,13 @@
       "createdAt": "2026-10-24",
       "design": "docs/features/upgrade-enterprise/design.md",
       "mock": "docs/features/upgrade-enterprise/mock/index.html",
-      "status": "proposed",
+      "status": "confirmed",
       "baselineFeature": "send-reactions",
       "baselineGitRevision": "82c84192fb54bc0d655926c82dd203412ace9fc0",
       "baselineAppRevision": "eb6cc65",
-      "coverage": "Full app clone of the confirmed send-reactions reference; Upgrade to Enterprise links (https://ezychat.ai/#enterprise, new tab) in the Lite view only: Admin -> Members note and the AI agent limit page, Admin -> WhatsApp Connection card note, account menu item (admins only), About dialog text and button; Enterprise view and an agent menu without links; desktop 1280 / mobile 360, light/dark (upgrade-shots.mjs)"
+      "coverage": "Full app clone of the confirmed send-reactions reference; Upgrade to Enterprise links (https://ezychat.ai/#enterprise, new tab) in the Lite view only: Admin -> Members note and the AI agent limit page, Admin -> WhatsApp Connection card note, account menu item (admins only), About dialog text and button; Enterprise view and an agent menu without links; desktop 1280 / mobile 360, light/dark (upgrade-shots.mjs)",
+      "confirmedAt": "2026-10-24",
+      "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
     },
     {
       "feature": "send-reactions",
