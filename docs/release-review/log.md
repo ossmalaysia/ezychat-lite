@@ -134,3 +134,34 @@ Only docs, tests or pipeline files changed.
 Hard stops: 4. checks pending
 
 Decision: **risk:human**
+
+## 2026-10-24 · PR #138 · `e8fd796` · risk:auto (100)
+
+Tier **docs**, set by: docs/LEARNINGS.md, docs/release-review/index.md, docs/release-review/log.md
+
+Only docs, tests or pipeline files changed.
+
+Hard stops: none
+
+Decision: **risk:auto**
+
+## 2026-10-24 · PR #167 · `b005c10` · risk:auto (85)
+
+Tier **critical**, set by: package.json dependencies
+
+| Item                            | Points | Proof |
+| ------------------------------- | ------ | ----- |
+| Start                           | 50     |       |
+| Tier: critical                  | -30    | ✓     |
+| Size: 14 code lines             | 0      | ✓     |
+| Changed-lines coverage 100 %    | +20    | ✓     |
+| e2e covers the change           | +10    | ✓     |
+| Desktop link check (not needed) | +5     | ✓     |
+| Dev Build check                 | +10    | ✓     |
+| Screen review (not needed)      | +5     | ✓     |
+| Real-part test                  | +15    | ✓     |
+| **Score**                       | **85** |       |
+
+Hard stops: none
+
+Decision: **risk:auto**
