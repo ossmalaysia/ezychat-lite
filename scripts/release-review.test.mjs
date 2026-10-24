@@ -20,6 +20,7 @@ function fakeGh({
   ],
   contents = {},
   since = {},
+  commits = [],
 }) {
   return (args) => {
     const key = args.join(' ');
@@ -39,7 +40,7 @@ function fakeGh({
     if (from && from in since)
       return JSON.stringify({ files: since[from].map((filename) => ({ filename })) });
     if (path.startsWith('compare/'))
-      return JSON.stringify({ merge_base_commit: { sha: 'm'.repeat(40) }, files });
+      return JSON.stringify({ merge_base_commit: { sha: 'm'.repeat(40) }, files, commits });
     if (path.startsWith('commits/')) return JSON.stringify({ check_runs: checks });
     if (path.startsWith('actions/jobs/'))
       return 'changed-lines coverage: 96.0 % (24/25 lines, minimum 90 %)';
@@ -130,18 +131,27 @@ describe('evidence after a branch update', () => {
     { filename: 'apps/web/src/x.tsx', status: 'modified', additions: 3, deletions: 1 },
   ];
   const contents = { 'docs/workbooks/docs__x.md': workbook };
+  const commits = [{ sha: 'a'.repeat(40) }];
+  const e2e = (opts) => gatherFacts(5, { gh: fakeGh({ files, contents, commits, ...opts }), map });
 
   it('ignores files that came from main', () => {
     const since = {
       aaaaaaa: ['README.md', 'packages/server/src/app.ts', 'docs/workbooks/docs__x.md'],
     };
-    const facts = gatherFacts(5, { gh: fakeGh({ files, contents, since }), map });
-    expect(facts.input.evidence.e2e).toBe(true);
+    expect(e2e({ since }).input.evidence.e2e).toBe(true);
   });
   it('still drops evidence when a PR file changed after it', () => {
-    const since = { aaaaaaa: ['README.md', 'apps/web/src/x.tsx'] };
-    const facts = gatherFacts(5, { gh: fakeGh({ files, contents, since }), map });
-    expect(facts.input.evidence.e2e).toBe(false);
+    expect(
+      e2e({ since: { aaaaaaa: ['README.md', 'apps/web/src/x.tsx'] } }).input.evidence.e2e,
+    ).toBe(false);
+  });
+  it('drops evidence that names a commit outside this PR', () => {
+    const since = { aaaaaaa: ['README.md'] };
+    expect(e2e({ since, commits: [{ sha: 'c'.repeat(40) }] }).input.evidence.e2e).toBe(false);
+  });
+  it('treats a cut-off file list (300 files) as unknown', () => {
+    const since = { aaaaaaa: Array.from({ length: 300 }, (_, i) => `docs/f${i}.md`) };
+    expect(e2e({ since }).input.evidence.e2e).toBe(false);
   });
 });
 
