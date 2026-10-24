@@ -122,6 +122,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
+  up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
+  one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
+  merges. Critical ones (release-review map) stay separate for the owner.
 - Never put `[skip ci]` on a Lite PR: `main` requires the three `Test (*)` checks, a skipped run never reports
   them and the PR cannot merge (path filters have the same effect). Builds and releases run only on `v*` tags,
   so a doc PR never releases anyway.
@@ -310,6 +314,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `npm run e2e:electron-links` in a fresh worktree needs `npm run build -w @ezychat/desktop` first (the shell
+  loads `apps/desktop/dist/window.js`): without it the window never opens (`firstWindow` timeout, no other error).
+  If `node_modules/electron/path.txt` is empty, run `node node_modules/electron/install.js`.
 - Never name a source folder `release-*` or `release`: ESLint ignores `**/release-*/**` (installer output)
   and the files are silently not linted. Check a new folder with `npx eslint <file>` (no "File ignored" warning).
 - Stopping a background `npx tsx …cli.ts` shell task on Windows leaves the Node server running on its port
