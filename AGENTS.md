@@ -395,6 +395,10 @@ cover navigation from every admin section and recovery from malformed URLs.
   it scores, logs, comments and labels only. Record workbook stages with the checked commit
   (`build-summary.mjs record` does it) and put the short commit in each Dev Build row. The merge rule
   below is unchanged until the owner approves the design's section 9 in writing.
+  **A low score is a to-do list, not a stop** (owner rule): run every check you can for each `✗` item and
+  hard stop (e2e + links, Dev Build, packaged `--dir` smoke for critical runtime parts: see LEARNINGS), then
+  score again. Hand a PR to the owner only when everything testable is done and it is still `risk:human`
+  (real WhatsApp, the real installer, actions that need approval), and list exactly what is left.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
   `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
