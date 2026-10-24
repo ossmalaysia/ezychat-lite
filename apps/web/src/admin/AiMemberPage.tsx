@@ -33,6 +33,7 @@ import {
 import { ApiError, errorMessage } from '../api/client';
 import { useInboxes } from '../api/queries';
 import { Banner, EmptyState, PageHeader, StatusDot } from '@/components/app';
+import { UpgradeButton } from '@/components/app/UpgradeEnterprise';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -160,7 +161,16 @@ export function AiMemberPage() {
       <EmptyState
         title={t('ai.agents.limitTitle')}
         description={list.maxAgents <= 1 ? t('ai.agents.limitBodyLite') : t('ai.agents.limitBody')}
-        action={back}
+        action={
+          list.maxAgents <= 1 ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              <UpgradeButton />
+              {back}
+            </div>
+          ) : (
+            back
+          )
+        }
       />
     );
   const refreshError = status.isError ? status.error : agent.isError ? agent.error : null;

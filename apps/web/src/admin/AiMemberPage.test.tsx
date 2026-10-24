@@ -812,6 +812,9 @@ describe('AI agent page', () => {
       expect(screen.getByRole('link', { name: 'Back to Members' }).getAttribute('href')).toBe(
         '/admin/members',
       );
+      const upgrade = screen.getByRole('link', { name: 'Upgrade to Enterprise' });
+      expect(upgrade.getAttribute('href')).toBe('https://ezychat.ai/#enterprise');
+      expect(upgrade.getAttribute('target')).toBe('_blank');
     });
   });
 

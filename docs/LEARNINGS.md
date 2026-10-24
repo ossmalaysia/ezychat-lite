@@ -10,6 +10,10 @@ into AGENTS.md.
 
 ## Working method
 
+- Ask for a mock confirmation with the key screenshots in front of the owner (send the image files, one per
+  screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
+  in `design.md` only after that reply.
+
 - A bug report with a screenshot of the live app shows real customers: rebuild the case with demo names,
   companies and numbers in tests, docs and commits; grep the branch for the real values before pushing.
 
@@ -114,6 +118,10 @@ into AGENTS.md.
   (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
 
 ## Git, GitHub and CI
+
+- Never put `[skip ci]` on a Lite PR: `main` requires the three `Test (*)` checks, a skipped run never reports
+  them and the PR cannot merge (path filters have the same effect). Builds and releases run only on `v*` tags,
+  so a doc PR never releases anyway.
 
 - To strip a version from a file name, replace the exact version (`${f/-$version-/-}`, version from
   `package.json`), never a semver pattern: an optional pre-release group (`(-[0-9A-Za-z.]+)?-`) also
@@ -293,6 +301,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Stopping a background `npx tsx …cli.ts` shell task on Windows leaves the Node server running on its port
+  (the next server fails with `EADDRINUSE`, and scripts talk to the old one). After the stop, find the
+  owner of the port and stop it only when its command line shows your own temp data folder.
 - In a Node script on Windows, never call `process.exit()` while a `fetch` may still be open: Node aborts
   with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and a non-zero code, so a `&&` chain
   stops. Set `process.exitCode` and return instead.
@@ -726,6 +737,11 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Measure desktop memory per process with `app.getAppMetrics()` in an Electron harness that forks the real
+  `dist/server-host.cjs` + `server.cjs` as a utility process and opens the real `createMainWindow` (temp data
+  and profile, `--fake-wa`). Read GPU and renderer separately: the GPU process keeps its memory after the
+  window is destroyed, and `--fake-wa` never loads Baileys, so real-WhatsApp numbers are higher.
 
 - Windows has no flag emoji in its font: Chrome on Windows shows 🇲🇾 as the letters "MY" while phones and
   Macs show the flag. Not a parsing bug; fixing it needs a bundled flag font (e.g. a country-flag

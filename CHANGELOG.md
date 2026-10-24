@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Upgrade to Enterprise:** where EzyChat Lite reaches its limits (one AI agent on Members and on the
+  AI agent page, one WhatsApp number on Admin → WhatsApp), a short note explains what EzyChat Enterprise
+  adds, with an **Upgrade to Enterprise** button that opens ezychat.ai in your browser. Admins also find
+  it in the account menu, and everyone in About.
+
 ## [0.1.51] - 2026-10-24
 
 ### Added

@@ -73,5 +73,11 @@
     "code": "Reason: {{code}}",
     "checkAgain": "Check again",
     "checking": "Checking…"
+  },
+  "upgrade": {
+    "cta": "Upgrade to Enterprise",
+    "agents": "Need more AI agents? EzyChat Enterprise has one AI agent for each WhatsApp number.",
+    "numbers": "Need more WhatsApp numbers? EzyChat Enterprise links several numbers to one team inbox.",
+    "about": "More WhatsApp numbers and AI agents, with support from Anchor Sprint."
   }
 }

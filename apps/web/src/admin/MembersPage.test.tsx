@@ -267,6 +267,17 @@ describe('MembersPage', () => {
     });
     expect(await screen.findByTestId('agent-limit-hint')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Add AI agent' })).toBeNull();
+    // Editions with several numbers get no Lite upgrade note.
+    expect(screen.queryByTestId('upgrade-note')).toBeNull();
+  });
+
+  it('shows the Upgrade to Enterprise note in Lite (one AI agent)', async () => {
+    setup([users[0]!, aiUser], undefined, { agents: [salesAgent], maxAgents: 1 }, true);
+    const note = await screen.findByTestId('upgrade-note');
+    expect(note.textContent).toContain('Need more AI agents?');
+    expect(
+      within(note).getByRole('link', { name: 'Upgrade to Enterprise' }).getAttribute('href'),
+    ).toBe('https://ezychat.ai/#enterprise');
   });
 
   it('shows a turned-off AI member as a neutral Off, not as Disabled', async () => {

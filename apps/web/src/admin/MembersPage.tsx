@@ -53,6 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SearchField } from '@/components/app/SearchField';
+import { UpgradeNote } from '@/components/app/UpgradeEnterprise';
 import { cn } from '@/lib/utils';
 import {
   Select,
@@ -110,6 +111,7 @@ export function MembersPage() {
   // Add AI agent: only once the list is known and while the edition allows another agent.
   const canAddAgent = agentList.data !== undefined && agents.length < agentList.data.maxAgents;
   const atAgentLimit = agentList.data !== undefined && !canAddAgent && agentList.data.maxAgents > 1;
+  const liteAgentLimit = agentList.data !== undefined && agentList.data.maxAgents <= 1;
   const aiSearchText = (u: User) => {
     const agent = u.aiAgentId === undefined ? undefined : agentRows.get(u.aiAgentId);
     return `${t('ai.agents.aiBadge')} ${agent ? t(`ai.presets.${agent.preset}`) : ''}`;
@@ -208,6 +210,10 @@ export function MembersPage() {
             <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
               {t('ai.agents.limitHint')}
             </p>
+          )}
+          {/* Lite has one AI agent; the note hides itself when the product has no upgrade link. */}
+          {!users.isPending && !users.isError && liteAgentLimit && (
+            <UpgradeNote className="mb-4" reason="agents" />
           )}
 
           <div className="mb-4 space-y-2">
