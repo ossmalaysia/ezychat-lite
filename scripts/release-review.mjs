@@ -92,6 +92,9 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
   const compare = api(`compare/${info.baseRefOid}...${head}`);
   const base = compare.merge_base_commit.sha;
   const sinceCache = new Map();
+  // Only the PR's own files count: a branch update from main brings main's files in after the
+  // evidence, and those were checked on main (CI still runs on the updated head).
+  const prFiles = new Set(compare.files.map((f) => f.filename));
   const changedFilesSince = (sha) => {
     if (!sinceCache.has(sha)) {
       try {
@@ -99,7 +102,9 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
           sha,
           sha === head.slice(0, sha.length)
             ? []
-            : api(`compare/${sha}...${head}`).files.map((f) => f.filename),
+            : api(`compare/${sha}...${head}`)
+                .files.map((f) => f.filename)
+                .filter((path) => prFiles.has(path)),
         );
       } catch {
         sinceCache.set(sha, null);

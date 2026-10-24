@@ -19,6 +19,7 @@ function fakeGh({
     },
   ],
   contents = {},
+  since = {},
 }) {
   return (args) => {
     const key = args.join(' ');
@@ -34,6 +35,9 @@ function fakeGh({
       return JSON.stringify(all);
     }
     const path = args[1]?.replace('repos/o/r/', '') ?? '';
+    const from = path.match(/^compare\/([0-9a-f]+)\.\.\./)?.[1];
+    if (from && from in since)
+      return JSON.stringify({ files: since[from].map((filename) => ({ filename })) });
     if (path.startsWith('compare/'))
       return JSON.stringify({ merge_base_commit: { sha: 'm'.repeat(40) }, files });
     if (path.startsWith('commits/')) return JSON.stringify({ check_runs: checks });
@@ -115,6 +119,29 @@ describe('gatherFacts', () => {
     expect(facts.input.coverage).toBeNull();
     expect(facts.input.migrations).toEqual(['packages/server/src/db/migrations/030_x.sql']);
     expect(facts.logPath).toBe('docs/features/x/review.md');
+  });
+});
+
+describe('evidence after a branch update', () => {
+  const workbook =
+    '| Stage | Status | Detail | Commit | Updated |\n| --- | --- | --- | --- | --- |\n' +
+    '| E2E | pass | e2e:electron-links | aaaaaaa | d |\n';
+  const files = [
+    { filename: 'apps/web/src/x.tsx', status: 'modified', additions: 3, deletions: 1 },
+  ];
+  const contents = { 'docs/workbooks/docs__x.md': workbook };
+
+  it('ignores files that came from main', () => {
+    const since = {
+      aaaaaaa: ['README.md', 'packages/server/src/app.ts', 'docs/workbooks/docs__x.md'],
+    };
+    const facts = gatherFacts(5, { gh: fakeGh({ files, contents, since }), map });
+    expect(facts.input.evidence.e2e).toBe(true);
+  });
+  it('still drops evidence when a PR file changed after it', () => {
+    const since = { aaaaaaa: ['README.md', 'apps/web/src/x.tsx'] };
+    const facts = gatherFacts(5, { gh: fakeGh({ files, contents, since }), map });
+    expect(facts.input.evidence.e2e).toBe(false);
   });
 });
 
