@@ -27,6 +27,7 @@ import {
   workbookEvidence,
 } from './review/evidence.mjs';
 import { scoreChange } from './review/rubric.mjs';
+import { applyCoreBump, coreBumpScore, corePin, prsFromCommits } from './review/core-bump.mjs';
 import {
   INDEX,
   appendEntry,
@@ -38,7 +39,7 @@ import {
 } from './review/log.mjs';
 
 const MAP_PATH = 'docs/release-review/components.json';
-const COVERAGE_JOB = 'Test (ubuntu-latest)';
+const DEFAULT_COVERAGE_JOB = 'Test (ubuntu-latest)';
 const GREEN = ['success', 'skipped', 'neutral'];
 
 export const defaultGh = (args) =>
@@ -119,10 +120,32 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
   }));
 
   let depTier = null;
+  let coreBump = null;
   for (const f of files.filter((x) => x.path.endsWith('package.json'))) {
     const parse = (text) => (text ? JSON.parse(text) : {});
-    const t = dependencyTier(map, parse(file(f.path, base)), parse(file(f.path, head)));
+    const [before, after] = [parse(file(f.path, base)), parse(file(f.path, head))];
+    const t = dependencyTier(map, before, after);
     if (t === 'critical' || (t && !depTier)) depTier = t;
+    const prefix = map.coreBump?.packagePrefix;
+    const [from, to] = prefix ? [corePin(before, prefix), corePin(after, prefix)] : [];
+    if (!coreBump && from && to && from !== to) coreBump = { from, to };
+  }
+  if (coreBump) {
+    const lite = map.coreBump.repo;
+    const commits = json([
+      'api',
+      `repos/${lite}/compare/v${coreBump.from}...v${coreBump.to}`,
+    ]).commits;
+    // No Lite index yet means no reviewed Lite PR: every PR in the range is from before the review.
+    const index = (() => {
+      try {
+        const path = `repos/${lite}/contents/docs/release-review/index.md`;
+        return Buffer.from(json(['api', path]).content, 'base64').toString('utf8');
+      } catch {
+        return '';
+      }
+    })();
+    coreBump = { ...coreBump, ...coreBumpScore(prsFromCommits(commits), index) };
   }
 
   const agents = files.find((f) => f.path === 'AGENTS.md');
@@ -147,7 +170,9 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
     : runs.every((r) => GREEN.includes(r.conclusion))
       ? 'green'
       : 'failed';
-  const coverageRun = runs.find((r) => r.name === COVERAGE_JOB && r.status === 'completed');
+  const coverageRun = runs.find(
+    (r) => r.name === (map.coverageJob ?? DEFAULT_COVERAGE_JOB) && r.status === 'completed',
+  );
   let coverage = null;
   if (coverageRun)
     try {
@@ -172,6 +197,7 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
 
   return {
     repo,
+    coreBump,
     pr,
     title: info.title,
     head,
@@ -250,7 +276,7 @@ export function main(
     log(`Recorded the owner's approval in ${facts.logPath} and ${INDEX}.`);
     return null;
   }
-  const result = scoreChange(facts.input);
+  const result = applyCoreBump(scoreChange(facts.input), facts.coreBump);
   const migrationNote = facts.input.migrations.length
     ? `${facts.input.migrations.join(', ')} — ${args.migration ?? 'not confirmed yet'}`
     : '';

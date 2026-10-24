@@ -10,7 +10,14 @@ const b64 = (text) => Buffer.from(text).toString('base64');
 function fakeGh({
   title = 'feat: x',
   files,
-  checks = [{ name: 'Test (ubuntu-latest)', id: 7, status: 'completed', conclusion: 'success' }],
+  checks = [
+    {
+      name: map.coverageJob ?? 'Test (ubuntu-latest)',
+      id: 7,
+      status: 'completed',
+      conclusion: 'success',
+    },
+  ],
   contents = {},
 }) {
   return (args) => {

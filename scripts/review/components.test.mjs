@@ -32,6 +32,11 @@ describe('component map', () => {
     expect(tier('docs/release.md')).toBe('docs');
     expect(tier('apps/web/src/admin/MembersPage.test.tsx')).toBe('docs');
     expect(tier('.github/workflows/ci.yml')).toBe('pipeline');
+    // A manifest inside a critical folder: its dependency changes decide the risk, not the folder.
+    expect(classifyFile(map, 'packages/wa/package.json')).toMatchObject({
+      tier: 'noncore',
+      security: false,
+    });
   });
 
   it('counts an unmapped code file as core and reports it', () => {
