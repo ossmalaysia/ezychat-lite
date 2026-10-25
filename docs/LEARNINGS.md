@@ -59,7 +59,9 @@ into AGENTS.md.
 - Feature mocks evolve cumulatively: clone the latest owner-confirmed interactive app mock from
   `docs/features/mock-index.json`, preserve existing flows, record the source revision, and advance
   the baseline only after the owner confirms the complete enhancement; an unconfirmed demo is not
-  a baseline for the next feature.
+  a baseline for the next feature. Fetch and re-read `latestConfirmed` and the folder list on
+  `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
+  retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -775,7 +777,9 @@ into AGENTS.md.
 - When the AI promises a human follow-up, the code hands the chat to the team. Questions about X stay with
   the AI; requests to do X (order, book, pay, cancel) are handed off and never resolved.
 - Prompt caching: instructions stay static; per-call facts (date, time, state) go in the last input block;
-  cache keys come from a stable install id + model, never customer data.
+  cache keys come from a stable install id + model, never customer data. Only `GUARDRAILS` is a shared
+  prefix for a new kind of AI call: `CORE_RULES` holds the agent's decision format and hand-off rules, so a
+  call with another output (drafts, rewrites) needs its own fixed rules block instead.
 - A human takeover can land mid-generation: abort, invalidate queued replies, and recheck ownership and
   the latest customer message right before sending. Notify automation on live receipt, before media
   downloads.

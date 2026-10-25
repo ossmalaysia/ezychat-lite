@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "ai-reply-suggestions",
+      "creationOrder": 13,
+      "createdAt": "2026-10-25",
+      "design": "docs/features/ai-reply-suggestions/design.md",
+      "mock": "docs/features/ai-reply-suggestions/mock/index.html",
+      "status": "proposed",
+      "baselineFeature": "business-api",
+      "baselineGitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b",
+      "baselineAppRevision": "61e6bb9",
+      "coverage": "Full app clone of the confirmed business-api reference; AI reply suggestions in direct chats: a Suggest reply button beside Quick replies, a strip of up to 2 chips (short label, tap = full draft in the composer; stacked on phones), \"Replace your text?\" confirm over typed text, grey completion after a full word with Tab / Esc on desktop and an Accept pill on touch, notes for no answer (admin link to Business context) and a matching hand-off rule, Chinese and Malay drafts, loading, error with Try again, disabled button when the connection expired; Settings → AI card with the team-wide switch, cost note, no-connection hint and the updated-install note; mock-only routes POST /api/mock/suggestions, POST /api/mock/complete, GET/PUT /api/mock/reply-suggestions (install kind and AI behaviour); desktop 1280 / mobile 360 touch, light/dark (suggest-shots.mjs)"
+    },
+    {
       "feature": "business-api",
       "creationOrder": 12,
       "createdAt": "2026-10-25",
@@ -81,7 +93,12 @@
       "baselineAppRevision": "117d57e",
       "coverage": "Full app clone of the confirmed custom-agents reference (as on main 117d57e); a third AI connection, Claude API key (mock state in localStorage mock.claudeProvider.v1): Settings -> AI with three connection option cards (ChatGPT / OpenAI API key / Claude API key), Anthropic key field with Test key (rejected, warn-only unreachable, OpenAI-key pointer), saved note + Replace + Keep, console.anthropic.com link, 3-model select (Sonnet 5.5 recommended, Opus 5.5, Haiku 5.5), Test connection, voice note; switching keeps both keys; inline connect card (agent page and setup wizard) with Use a Claude API key; Voice messages hide Cloud under Claude (note, warning when Cloud was on); agent page connection line; English mock keys",
       "confirmation": "Delegated to the agent by the owner 2026-10-22 (\"You review it yourself\"); self-review recorded in design.md",
-      "gitRevision": "f5d5ade3ef74194a645fbd4a6fb3ca13741b5945"
+      "gitRevision": "f5d5ade3ef74194a645fbd4a6fb3ca13741b5945",
+      "archived": {
+        "folderRemovedAt": "2026-10-26",
+        "lastRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
+        "reason": "retention: sixth feature folder (ai-reply-suggestions)"
+      }
     },
     {
       "feature": "custom-agents",
