@@ -468,8 +468,11 @@ into AGENTS.md.
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - "No tsconfigRootDir was set, and multiple candidate TSConfigRootDirs" on thousands of files means ESLint
   reads untracked repo copies (agent worktrees): ignore them in `eslint.config.js` (`.claude/worktrees/**`).
-- In the Bash tool, `\n` inside text that a heredoc passes to Python or sed can arrive as a real line
-  break: edit code that holds escapes (`'\n'`, regexes) with the Edit tool and check the result.
+- In the Bash tool, `\n` or `\t` inside text that a heredoc passes to Python or sed can arrive as a real
+  line break or tab (`D:\dev\test-env` → `D:\dev<TAB>est-env`): write text with escapes, regexes or
+  Windows paths with the Edit tool and check the result.
+- Run `npm run lint` again after the last code change, also for a script added late: e2e scripts that
+  touch `document`/`window` inside `page.evaluate` need `/* global document, window -- … */` (Node globals only).
 - The context-mode hook blocks `fetch('http…` inside a Bash command: put Dev Build HTTP steps in a script
   file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration also moves `LATEST` and the table
   list in `src/db/migrate.test.ts`.
