@@ -14,12 +14,16 @@ temporary test tunnel that no longer works; use the address from your own Settin
 ## 1. Copy the connector address in EzyChat
 
 Admin → **Settings** → **Integrations**. Turn on **Let AI assistants read this inbox**. The card
-**Connect claude.ai, ChatGPT or Claude Desktop** shows the address. Click **Copy address**.
+**Connect an AI app** shows the **Recommended** way for claude.ai, ChatGPT or Claude Desktop as three
+steps, with the address and **Copy address**. You do not need a token.
 
-![Settings → Integrations with the connector address](ezychat-integrations.png)
+![Settings → Integrations: Connect an AI app and Connected apps](ezychat-integrations.png)
 
-Each app you connect later shows here under **Access tokens** (here: ChatGPT and Claude). Use
-**Permissions** to let it send messages, or **Revoke** to disconnect it.
+**For developer tools** (Claude Code, Gemini CLI, Cursor, scripts) opens the token way: use it only when
+a tool asks for a token or an "Authorization" header.
+
+Every app you connect shows under **Connected apps**, marked **Signed in** (sign-in) or **Token**. Use
+**Permissions** to let it send messages, or **Remove** to disconnect it.
 
 ## 2a. claude.ai
 

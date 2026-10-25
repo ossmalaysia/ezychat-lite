@@ -298,11 +298,17 @@
       "turnedOff": "AI assistant access turned off"
     },
     "connectApp": {
-      "title": "Connect claude.ai, ChatGPT or Claude Desktop",
-      "description": "In your AI app, add a custom connector and paste this address. The app then opens {{product}}: sign in and click Approve. You do not need a token.",
-      "address": "Connector address",
+      "title": "Connect an AI app",
+      "recommended": "Recommended",
+      "apps": "claude.ai, ChatGPT or Claude Desktop",
+      "step1": "In your AI app, add a custom connector.",
+      "step2": "Paste this address:",
+      "step3": "{{product}} opens. Sign in and click Approve.",
+      "noToken": "You do not need a token. The app then shows under Connected apps.",
       "copy": "Copy address",
-      "needsTunnel": "claude.ai and ChatGPT run in the cloud, so they need the tunnel address. Turn on Phone access first."
+      "needsTunnel": "claude.ai and ChatGPT run in the cloud, so they need the tunnel address. Turn on Phone access first.",
+      "developerToggle": "For developer tools (Claude Code, Gemini CLI, Cursor, scripts): use an access token",
+      "developerBody": "Use this only if your tool asks for a token or an \"Authorization\" header. Create a token, then paste it into the tool. Keep it private: anyone with it can read the inbox."
     },
     "noTunnel": {
       "title": "No tunnel is running",
@@ -310,24 +316,26 @@
       "link": "Open Phone access"
     },
     "tokens": {
-      "title": "Access tokens",
-      "description": "Paste a token into your AI assistant to connect. Anyone with a token can read the inbox (and send replies, if the token allows it), so keep it private.",
+      "title": "Connected apps",
+      "description": "Every AI app or token that can use this inbox. Remove one to disconnect it.",
       "create": "Create token",
-      "empty": "No tokens yet. Create one for each assistant and computer you use.",
+      "empty": "No apps connected yet.",
       "created": "Created {{date}}",
       "lastUsed": "Used {{when}}",
       "neverUsed": "Never used",
       "expires": "Expires {{date}}",
       "neverExpires": "Never expires",
       "expired": "Expired {{date}}",
-      "revoke": "Revoke",
-      "revokeLabel": "Revoke token {{name}}",
-      "revokeTitle": "Revoke “{{name}}”?",
-      "revokeBody": "Any assistant using this token stops working right away. This can't be undone.",
-      "revokeConfirm": "Revoke token",
-      "revoked": "Token revoked",
+      "revoke": "Remove",
+      "revokeLabel": "Remove {{name}}",
+      "revokeTitle": "Remove “{{name}}”?",
+      "revokeBody": "The app or tool stops working with this inbox right away. To use it again, connect it again.",
+      "revokeConfirm": "Remove",
+      "revoked": "Removed",
       "canSendBadge": "Can send",
-      "canNewBadge": "New numbers"
+      "canNewBadge": "New numbers",
+      "signedInBadge": "Signed in",
+      "tokenBadge": "Token"
     },
     "create": {
       "title": "Create access token",
@@ -368,7 +376,7 @@
       "copyUrl": "Copy URL",
       "copyHeader": "Copy header",
       "otherHint": "Use these in any MCP app that accepts a server URL and a header (for example Codex CLI, Cursor or VS Code).",
-      "oauthHint": "Apps that sign in by themselves, such as claude.ai and ChatGPT connectors, need no token: use “Connect claude.ai, ChatGPT or Claude Desktop” instead.",
+      "oauthHint": "Apps that sign in by themselves, such as claude.ai and ChatGPT, need no token: use the steps under “Connect an AI app” instead.",
       "localOnly": "This address works only on the computer running {{product}}. Start a tunnel to connect from elsewhere.",
       "askHint": "Then ask things like “Which chats are waiting for a reply?”"
     },

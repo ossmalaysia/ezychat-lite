@@ -282,6 +282,8 @@ async function mcpTool(secret, name, args) {
 
 /** Open Create token with both send options ticked, so the ban warning shows. */
 async function openNewNumbersDialog(page) {
+  const devTools = page.getByRole('button', { name: /For developer tools/ });
+  if ((await devTools.getAttribute('aria-expanded')) !== 'true') await devTools.click();
   await page.getByRole('button', { name: 'Create token', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Create access token' });
   await dialog.getByLabel('Name', { exact: true }).fill('Claude – food fair follow-ups');

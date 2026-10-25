@@ -296,11 +296,17 @@
       "turnedOff": "Akses pembantu AI dimatikan"
     },
     "connectApp": {
-      "title": "Sambungkan claude.ai, ChatGPT atau Claude Desktop",
-      "description": "Dalam aplikasi AI anda, tambah penyambung tersuai dan tampal alamat ini. Aplikasi itu kemudian membuka {{product}}: log masuk dan klik Luluskan. Anda tidak memerlukan token.",
-      "address": "Alamat penyambung",
+      "title": "Sambungkan aplikasi AI",
+      "recommended": "Disyorkan",
+      "apps": "claude.ai, ChatGPT atau Claude Desktop",
+      "step1": "Dalam aplikasi AI anda, tambah penyambung tersuai.",
+      "step2": "Tampal alamat ini:",
+      "step3": "{{product}} dibuka. Log masuk dan klik Luluskan.",
+      "noToken": "Anda tidak memerlukan token. Aplikasi itu kemudian dipaparkan di bawah Aplikasi yang disambungkan.",
       "copy": "Salin alamat",
-      "needsTunnel": "claude.ai dan ChatGPT berjalan di awan, jadi ia memerlukan alamat terowong. Hidupkan Akses telefon dahulu."
+      "needsTunnel": "claude.ai dan ChatGPT berjalan di awan, jadi ia memerlukan alamat terowong. Hidupkan Akses telefon dahulu.",
+      "developerToggle": "Untuk alat pembangun (Claude Code, Gemini CLI, Cursor, skrip): gunakan token akses",
+      "developerBody": "Gunakan ini hanya jika alat anda meminta token atau pengepala \"Authorization\". Cipta token, kemudian tampalkannya ke dalam alat itu. Rahsiakannya: sesiapa yang memilikinya boleh membaca peti masuk."
     },
     "noTunnel": {
       "title": "Tiada terowong yang berjalan",
@@ -308,24 +314,26 @@
       "link": "Buka Akses telefon"
     },
     "tokens": {
-      "title": "Token akses",
-      "description": "Tampal token ke dalam pembantu AI anda untuk menyambung. Sesiapa yang mempunyai token boleh membaca peti masuk (dan menghantar balasan, jika token membenarkannya), jadi rahsiakannya.",
+      "title": "Aplikasi yang disambungkan",
+      "description": "Setiap aplikasi AI atau token yang boleh menggunakan peti masuk ini. Alih keluar satu untuk memutuskan sambungannya.",
       "create": "Cipta token",
-      "empty": "Belum ada token. Cipta satu untuk setiap pembantu dan komputer yang anda gunakan.",
+      "empty": "Belum ada aplikasi yang disambungkan.",
       "created": "Dicipta {{date}}",
       "lastUsed": "Digunakan {{when}}",
       "neverUsed": "Belum digunakan",
       "expires": "Tamat {{date}}",
       "neverExpires": "Tiada tamat tempoh",
       "expired": "Tamat tempoh {{date}}",
-      "revoke": "Batalkan",
-      "revokeLabel": "Batalkan token {{name}}",
-      "revokeTitle": "Batalkan “{{name}}”?",
-      "revokeBody": "Mana-mana pembantu yang menggunakan token ini akan berhenti berfungsi serta-merta. Tindakan ini tidak boleh dibuat asal.",
-      "revokeConfirm": "Batalkan token",
-      "revoked": "Token dibatalkan",
+      "revoke": "Alih keluar",
+      "revokeLabel": "Alih keluar {{name}}",
+      "revokeTitle": "Alih keluar “{{name}}”?",
+      "revokeBody": "Aplikasi atau alat itu berhenti berfungsi dengan peti masuk ini serta-merta. Untuk menggunakannya lagi, sambungkannya semula.",
+      "revokeConfirm": "Alih keluar",
+      "revoked": "Dialih keluar",
       "canSendBadge": "Boleh menghantar",
-      "canNewBadge": "Nombor baharu"
+      "canNewBadge": "Nombor baharu",
+      "signedInBadge": "Log masuk",
+      "tokenBadge": "Token"
     },
     "create": {
       "title": "Cipta token akses",
@@ -366,7 +374,7 @@
       "copyUrl": "Salin URL",
       "copyHeader": "Salin pengepala",
       "otherHint": "Gunakan ini dalam mana-mana aplikasi MCP yang menerima URL pelayan dan pengepala (contohnya Codex CLI, Cursor atau VS Code).",
-      "oauthHint": "Aplikasi yang log masuk sendiri, seperti penyambung claude.ai dan ChatGPT, tidak memerlukan token: gunakan “Sambungkan claude.ai, ChatGPT atau Claude Desktop”.",
+      "oauthHint": "Aplikasi yang log masuk sendiri, seperti claude.ai dan ChatGPT, tidak memerlukan token: gunakan langkah di bawah “Sambungkan aplikasi AI”.",
       "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan {{product}}. Mulakan terowong untuk menyambung dari tempat lain.",
       "askHint": "Kemudian tanya soalan seperti “Sembang mana yang sedang menunggu balasan?”"
     },

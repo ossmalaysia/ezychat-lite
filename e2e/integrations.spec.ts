@@ -46,15 +46,22 @@ async function accessOn(page: Page) {
   return access;
 }
 
-/** Revoke the token through its confirm dialog, then turn the inbox-wide switch off again. */
+/** Create token sits under "For developer tools" (closed by default) in the Connect card. */
+async function openCreateToken(page: Page) {
+  const toggle = page.getByRole('button', { name: /For developer tools/ });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await page.getByRole('button', { name: 'Create token', exact: true }).click();
+}
+
+/** Remove the connection through its confirm dialog, then turn the inbox-wide switch off again. */
 async function revokeAndTurnOff(page: Page, name: string, access: Locator) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/admin/settings/integrations');
   const row = page.getByTestId('api-token-row').filter({ hasText: name });
-  await row.getByRole('button', { name: `Revoke token ${name}` }).click();
+  await row.getByRole('button', { name: `Remove ${name}` }).click();
   await page
-    .getByRole('alertdialog', { name: `Revoke “${name}”?` })
-    .getByRole('button', { name: 'Revoke token', exact: true })
+    .getByRole('alertdialog', { name: `Remove “${name}”?` })
+    .getByRole('button', { name: 'Remove', exact: true })
     .click();
   await expect(row).toHaveCount(0);
   await access.click();
@@ -91,7 +98,7 @@ test('admin turns on AI assistant access, creates a token, uses it on /mcp and r
 
     // Create a token with a Chinese name that never expires.
     const name = `客服助手 ${String(Date.now()).slice(-6)}`;
-    await page.getByRole('button', { name: 'Create token', exact: true }).click();
+    await openCreateToken(page);
     const create = page.getByRole('dialog', { name: 'Create access token' });
     await expect(create).toBeVisible();
     await expect(create.getByRole('radio', { name: '90 days' })).toBeChecked();
@@ -129,10 +136,10 @@ test('admin turns on AI assistant access, creates a token, uses it on /mcp and r
     expect(await postInitialize(api, secret)).toBe(200);
 
     // Revoke through the confirm dialog; the token stops working at once.
-    await row.getByRole('button', { name: `Revoke token ${name}` }).click();
-    const confirm = page.getByRole('alertdialog', { name: `Revoke “${name}”?` });
+    await row.getByRole('button', { name: `Remove ${name}` }).click();
+    const confirm = page.getByRole('alertdialog', { name: `Remove “${name}”?` });
     await expect(confirm).toBeVisible();
-    await confirm.getByRole('button', { name: 'Revoke token', exact: true }).click();
+    await confirm.getByRole('button', { name: 'Remove', exact: true }).click();
     await expect(confirm).toBeHidden();
     await expect(row).toHaveCount(0);
     expect(await postInitialize(api, secret)).toBe(401);
@@ -161,7 +168,7 @@ test('a token that can message new numbers: badges, ban warning, and the chat th
     const access = await accessOn(page);
 
     const name = `Follow-ups ${String(Date.now()).slice(-6)}`;
-    await page.getByRole('button', { name: 'Create token', exact: true }).click();
+    await openCreateToken(page);
     const create = page.getByRole('dialog', { name: 'Create access token' });
     await create.getByLabel('Name', { exact: true }).fill(name);
     const canNew = create.getByRole('checkbox', { name: 'Can also message new numbers' });
@@ -229,7 +236,7 @@ test('the owner lets an existing token send, and the same token gets send_messag
     const access = await accessOn(page);
 
     const name = `Reports ${String(Date.now()).slice(-6)}`;
-    await page.getByRole('button', { name: 'Create token', exact: true }).click();
+    await openCreateToken(page);
     const create = page.getByRole('dialog', { name: 'Create access token' });
     await create.getByLabel('Name', { exact: true }).fill(name);
     await create.getByRole('button', { name: 'Create token', exact: true }).click();
@@ -323,7 +330,10 @@ test('an AI app signs in with OAuth: the admin approves it on the approval page,
     const accessToken = (await tokenRes.json()).access_token as string;
     expect(await postInitialize(api, accessToken)).toBe(200);
 
-    // The connection is an ordinary token in Settings: the admin can see and revoke it.
+    // The connection shows under Connected apps, marked Signed in; the admin can remove it.
+    await page.goto('/admin/settings/integrations');
+    const row = page.getByTestId('api-token-row').filter({ hasText: name });
+    await expect(row.getByTestId('token-kind')).toHaveText('Signed in');
     await revokeAndTurnOff(page, name, access);
     expect(await postInitialize(api, accessToken)).toBe(404);
   } finally {
