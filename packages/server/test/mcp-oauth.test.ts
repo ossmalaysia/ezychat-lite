@@ -226,7 +226,19 @@ describe('MCP sign-in with the real MCP SDK client', () => {
     await client.close();
 
     const listed = t.ctx.services.apiTokens!.list().find((x) => x.name === 'SDK Assistant')!;
-    expect(listed).toMatchObject({ userId: admin.id, expiresAt: null, canSend: false });
+    expect(listed).toMatchObject({
+      userId: admin.id,
+      expiresAt: null,
+      canSend: false,
+      connectedApp: true,
+    });
+    // A token made in Settings is not marked as a connected app.
+    const made = t.ctx.services.apiTokens!.create(
+      admin.id,
+      { name: 'cli', expiresInDays: 30 },
+      'ip',
+    );
+    expect(made.token.connectedApp).toBe(false);
   });
 });
 

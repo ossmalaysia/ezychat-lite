@@ -23,6 +23,8 @@ export const ApiTokenSchema = z.object({
   canSend: z.boolean(),
   /** Scope `inbox:send_new`: the assistant may also start a chat with a number not in the inbox. */
   canMessageNewNumbers: z.boolean(),
+  /** Made by an app's sign-in (OAuth approval), not by Create token in Settings. */
+  connectedApp: z.boolean().default(false),
 });
 export type ApiToken = z.infer<typeof ApiTokenSchema>;
 

@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ApiToken } from '@ezychat/shared';
 import {
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { formatDate, formatRelative } from '@/lib/format';
 import { ConfirmDialog, CopyButton, ErrorState, ListSkeleton } from './adminUi';
@@ -119,35 +120,13 @@ export function IntegrationsSection() {
         </CardContent>
       </Card>
 
-      {/* Apps that sign in themselves (MCP OAuth): one address, then Approve in this app. */}
+      {/* One place to connect: sign-in first (most people), a token only for developer tools. */}
       {enabled && (
-        <Card className="gap-4" data-testid="connect-app-card">
-          <CardHeader>
-            <CardTitle>{t('integrations.connectApp.title')}</CardTitle>
-            <CardDescription className="mt-1.5">
-              {t('integrations.connectApp.description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex min-w-0 flex-col gap-2">
-            <p className="text-sm font-medium">{t('integrations.connectApp.address')}</p>
-            <code
-              data-testid="connect-app-url"
-              className="rounded-md border bg-muted px-3 py-2.5 font-mono text-xs [overflow-wrap:anywhere]"
-            >
-              {endpoint}
-            </code>
-            <CopyButton
-              text={endpoint}
-              label={t('integrations.connectApp.copy')}
-              className="self-start"
-            />
-            {!publicUrl && (
-              <p className="text-sm text-muted-foreground">
-                {t('integrations.connectApp.needsTunnel')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <ConnectAppCard
+          endpoint={endpoint}
+          localOnly={!publicUrl}
+          onCreateToken={() => setCreateOpen(true)}
+        />
       )}
 
       {!publicUrl && (
@@ -163,17 +142,11 @@ export function IntegrationsSection() {
       )}
 
       <Card className="gap-4">
-        <CardHeader className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-[1_1_220px]">
-            <CardTitle>{t('integrations.tokens.title')}</CardTitle>
-            <CardDescription className="mt-1.5">
-              {t('integrations.tokens.description')}
-            </CardDescription>
-          </div>
-          <Button size="touch" className="md:min-h-9" onClick={() => setCreateOpen(true)}>
-            <Plus aria-hidden />
-            {t('integrations.tokens.create')}
-          </Button>
+        <CardHeader>
+          <CardTitle>{t('integrations.tokens.title')}</CardTitle>
+          <CardDescription className="mt-1.5">
+            {t('integrations.tokens.description')}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <TokenList />
@@ -187,6 +160,94 @@ export function IntegrationsSection() {
         localOnly={!publicUrl}
       />
     </div>
+  );
+}
+
+/**
+ * "Connect an AI app": the sign-in way (claude.ai, ChatGPT, Claude Desktop) as numbered steps, marked
+ * Recommended; the access token way only behind "For developer tools", closed by default.
+ */
+function ConnectAppCard({
+  endpoint,
+  localOnly,
+  onCreateToken,
+}: {
+  endpoint: string;
+  localOnly: boolean;
+  onCreateToken: () => void;
+}) {
+  const { t } = useTranslation('admin');
+  const [devOpen, setDevOpen] = useState(false);
+  const devId = useId();
+  return (
+    <Card className="gap-4" data-testid="connect-app-card">
+      <CardHeader>
+        <CardTitle>{t('integrations.connectApp.title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex min-w-0 flex-col gap-4">
+        <section className="flex min-w-0 flex-col gap-3" data-testid="connect-app-signin">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{t('integrations.connectApp.recommended')}</Badge>
+            <h3 className="text-sm font-medium">{t('integrations.connectApp.apps')}</h3>
+          </div>
+          <ol className="flex list-decimal flex-col gap-2 ps-5 text-sm">
+            <li>{t('integrations.connectApp.step1')}</li>
+            <li>
+              {/* A flex box inside the item: a flex <li> loses its number. */}
+              <div className="flex flex-col gap-2">
+                <span>{t('integrations.connectApp.step2')}</span>
+                <code
+                  data-testid="connect-app-url"
+                  className="rounded-md border bg-muted px-3 py-2.5 font-mono text-xs [overflow-wrap:anywhere]"
+                >
+                  {endpoint}
+                </code>
+                <CopyButton
+                  text={endpoint}
+                  label={t('integrations.connectApp.copy')}
+                  className="self-start"
+                />
+              </div>
+            </li>
+            <li>{t('integrations.connectApp.step3')}</li>
+          </ol>
+          <p className="text-sm text-muted-foreground">{t('integrations.connectApp.noToken')}</p>
+          {localOnly && (
+            <p className="text-sm text-muted-foreground">
+              {t('integrations.connectApp.needsTunnel')}
+            </p>
+          )}
+        </section>
+        <Separator />
+        <section className="flex min-w-0 flex-col gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="touch"
+            className="-mx-2 h-auto justify-start px-2 text-start whitespace-normal md:min-h-9"
+            aria-expanded={devOpen}
+            aria-controls={devId}
+            onClick={() => setDevOpen((v) => !v)}
+          >
+            {devOpen ? (
+              <ChevronDown aria-hidden className="shrink-0" />
+            ) : (
+              <ChevronRight aria-hidden className="shrink-0" />
+            )}
+            {t('integrations.connectApp.developerToggle')}
+          </Button>
+          {devOpen && (
+            <div id={devId} className="flex flex-col gap-3 text-sm text-muted-foreground">
+              <p>{t('integrations.connectApp.developerBody')}</p>
+              <Button size="touch" className="self-start md:min-h-9" onClick={onCreateToken}>
+                <Plus aria-hidden />
+                {t('integrations.tokens.create')}
+              </Button>
+            </div>
+          )}
+        </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -312,6 +373,12 @@ function TokenRow({
         </Button>
       </div>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground tabular-nums">
+        {/* How it connected: an app's sign-in, or a token pasted into a developer tool. */}
+        <Badge variant="outline" data-testid="token-kind">
+          {token.connectedApp
+            ? t('integrations.tokens.signedInBadge')
+            : t('integrations.tokens.tokenBadge')}
+        </Badge>
         <code className="rounded bg-muted px-1.5 font-mono text-xs text-foreground">
           {token.prefix}…
         </code>

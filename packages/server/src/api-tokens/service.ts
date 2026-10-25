@@ -172,6 +172,7 @@ export function createApiTokenService(
     expiresAt: r.expires_at,
     canSend: r.scopes.split(' ').includes(SEND_SCOPE),
     canMessageNewNumbers: r.scopes.split(' ').includes(SEND_NEW_SCOPE),
+    connectedApp: r.oauth_client_id !== null,
   });
 
   /** The token's owner when the token can be used right now, else why it cannot. */

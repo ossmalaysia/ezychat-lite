@@ -35,6 +35,7 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     expiresAt: Date.now() + 80 * DAY,
     canSend: false,
     canMessageNewNumbers: false,
+    connectedApp: false,
     ...over,
   };
 }
@@ -47,7 +48,7 @@ function json(data: unknown, code = 200) {
 }
 
 function setup({
-  mcp = { enabled: false, endpointPath: '/mcp', publicUrl: null, localUrl: LOCAL },
+  mcp = { enabled: true, endpointPath: '/mcp', publicUrl: null, localUrl: LOCAL },
   tokens = [],
   fail = {},
 }: {
@@ -114,6 +115,20 @@ function setup({
 const calls = (fetchMock: ReturnType<typeof vi.fn>, method: string) =>
   fetchMock.mock.calls.filter((call) => (call[1] as RequestInit | undefined)?.method === method);
 
+const OFF: McpSettingsResponse = {
+  enabled: false,
+  endpointPath: '/mcp',
+  publicUrl: null,
+  localUrl: LOCAL,
+};
+
+/** Create token sits under "For developer tools" (closed by default) in the Connect card. */
+async function openCreateToken(user: ReturnType<typeof userEvent.setup>) {
+  const toggle = await screen.findByRole('button', { name: /For developer tools/ });
+  if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
+  await user.click(screen.getByRole('button', { name: 'Create token' }));
+}
+
 beforeAll(() => {
   const proto = Element.prototype as unknown as Record<string, unknown>;
   proto.hasPointerCapture ??= () => false;
@@ -145,7 +160,7 @@ afterEach(() => {
 
 describe('Settings → Integrations', () => {
   it('turns AI assistant access on with PATCH', async () => {
-    const { fetchMock } = setup();
+    const { fetchMock } = setup({ mcp: OFF });
     const user = userEvent.setup();
     const toggle = await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
@@ -162,7 +177,7 @@ describe('Settings → Integrations', () => {
     expect(await screen.findByText('No tunnel is running')).toBeTruthy();
     const link = screen.getByRole('link', { name: 'Open Phone access' });
     expect(link.getAttribute('href')).toBe('/admin/tunnel');
-    expect(await screen.findByText(/No tokens yet/)).toBeTruthy();
+    expect(await screen.findByText(/No apps connected yet/)).toBeTruthy();
   });
 
   it('shows the tunnel URL and no warning when a tunnel runs', async () => {
@@ -188,12 +203,46 @@ describe('Settings → Integrations', () => {
       },
     });
     const card = await screen.findByTestId('connect-app-card');
-    expect(within(card).getByText('Connect claude.ai, ChatGPT or Claude Desktop')).toBeTruthy();
+    expect(within(card).getByText('Connect an AI app')).toBeTruthy();
+    // Sign-in first, marked Recommended, as three steps; no token needed.
+    const signin = within(card).getByTestId('connect-app-signin');
+    expect(within(signin).getByText('Recommended')).toBeTruthy();
+    expect(within(signin).getByText('claude.ai, ChatGPT or Claude Desktop')).toBeTruthy();
+    expect(within(signin).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(signin).getByText(/You do not need a token/)).toBeTruthy();
     expect(within(card).getByTestId('connect-app-url').textContent).toBe(
       'https://inbox.example.com/mcp',
     );
     expect(within(card).getByRole('button', { name: 'Copy address' })).toBeTruthy();
     expect(within(card).queryByText(/they need the tunnel address/)).toBeNull();
+  });
+
+  it('keeps the token way closed under "For developer tools" until asked', async () => {
+    setup();
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('button', { name: /For developer tools/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Create token' })).toBeNull();
+    await user.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText(/asks for a token or an "Authorization" header/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create token' })).toBeTruthy();
+    await user.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Create token' })).toBeNull();
+  });
+
+  it('lists every connection under Connected apps, marked Signed in or Token', async () => {
+    setup({
+      tokens: [
+        token({ id: 1, name: 'ChatGPT', connectedApp: true, expiresAt: null }),
+        token({ id: 2, name: 'Claude Code – laptop' }),
+      ],
+    });
+    expect(await screen.findByText('Connected apps')).toBeTruthy();
+    const rows = await screen.findAllByTestId('api-token-row');
+    expect(within(rows[0]!).getByTestId('token-kind').textContent).toBe('Signed in');
+    expect(within(rows[1]!).getByTestId('token-kind').textContent).toBe('Token');
+    expect(within(rows[0]!).getByRole('button', { name: 'Remove ChatGPT' })).toBeTruthy();
   });
 
   it('says cloud apps need the tunnel when only the local address exists', async () => {
@@ -204,7 +253,7 @@ describe('Settings → Integrations', () => {
   });
 
   it('hides the connector card while access is off', async () => {
-    setup();
+    setup({ mcp: OFF });
     await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
     expect(screen.queryByTestId('connect-app-card')).toBeNull();
   });
@@ -212,7 +261,7 @@ describe('Settings → Integrations', () => {
   it('creates a token, shows the secret once, and clears it on Done', async () => {
     const { fetchMock, qc } = setup();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
     // Name is required.
     await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
@@ -259,7 +308,7 @@ describe('Settings → Integrations', () => {
     // The list refetched and shows the new token without its secret.
     expect(await screen.findByText('Gemini CLI – office laptop')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const again = await screen.findByRole('dialog', { name: 'Create access token' });
     expect(within(again).queryByTestId('api-token-secret')).toBeNull();
     expect((within(again).getByLabelText('Name') as HTMLInputElement).value).toBe('');
@@ -276,7 +325,7 @@ describe('Settings → Integrations', () => {
       },
     });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
     await user.type(within(dialog).getByLabelText('Name'), 'Laptop');
     await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
@@ -303,7 +352,7 @@ describe('Settings → Integrations', () => {
   it('offers "Can send" off by default and "new numbers" only under it, each with its warning', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
     const canSend = within(dialog).getByRole('checkbox', { name: 'Can send WhatsApp messages' });
     expect(canSend.getAttribute('aria-checked')).toBe('false');
@@ -345,7 +394,7 @@ describe('Settings → Integrations', () => {
 
     // The next token starts with both options off again.
     await user.click(within(created).getByRole('button', { name: 'Done' }));
-    await user.click(screen.getByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const again = await screen.findByRole('dialog', { name: 'Create access token' });
     expect(
       within(again)
@@ -473,20 +522,20 @@ describe('Settings → Integrations', () => {
   it('revokes a token after confirmation', async () => {
     const { fetchMock } = setup({ tokens: [token({ id: 4, name: 'Cursor trial' })] });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Revoke token Cursor trial' }));
-    const confirm = await screen.findByRole('alertdialog', { name: 'Revoke “Cursor trial”?' });
+    await user.click(await screen.findByRole('button', { name: 'Remove Cursor trial' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Remove “Cursor trial”?' });
     expect(calls(fetchMock, 'DELETE')).toHaveLength(0);
-    await user.click(within(confirm).getByRole('button', { name: 'Revoke token' }));
+    await user.click(within(confirm).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     const [del] = calls(fetchMock, 'DELETE');
     expect(del![0]).toBe('/api/integrations/tokens/4');
-    expect(await screen.findByText(/No tokens yet/)).toBeTruthy();
+    expect(await screen.findByText(/No apps connected yet/)).toBeTruthy();
   });
 
   it('clears the secret when the created dialog is closed with Escape', async () => {
     setup();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
     await user.type(within(dialog).getByLabelText('Name'), 'Laptop');
     await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
@@ -494,7 +543,7 @@ describe('Settings → Integrations', () => {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(document.body.textContent).not.toContain(SECRET);
-    await user.click(screen.getByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const again = await screen.findByRole('dialog', { name: 'Create access token' });
     expect(within(again).queryByTestId('api-token-secret')).toBeNull();
   });
@@ -502,7 +551,7 @@ describe('Settings → Integrations', () => {
   it('keeps the form and shows no secret when creating fails', async () => {
     setup({ fail: { post: true } });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Create token' }));
+    await openCreateToken(user);
     const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
     await user.type(within(dialog).getByLabelText('Name'), 'Laptop');
     await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
@@ -514,15 +563,15 @@ describe('Settings → Integrations', () => {
   it('treats revoking an already revoked token as done', async () => {
     setup({ tokens: [token({ id: 4, name: 'Cursor trial' })], fail: { revokeGone: true } });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Revoke token Cursor trial' }));
-    const confirm = await screen.findByRole('alertdialog', { name: 'Revoke “Cursor trial”?' });
-    await user.click(within(confirm).getByRole('button', { name: 'Revoke token' }));
+    await user.click(await screen.findByRole('button', { name: 'Remove Cursor trial' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Remove “Cursor trial”?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    expect(await screen.findByText(/No tokens yet/)).toBeTruthy();
+    expect(await screen.findByText(/No apps connected yet/)).toBeTruthy();
   });
 
   it('shows an error when switching access fails', async () => {
-    setup({ fail: { patch: true } });
+    setup({ mcp: OFF, fail: { patch: true } });
     const user = userEvent.setup();
     const toggle = await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
     await user.click(toggle);

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Settings → Integrations is clearer:** one card, **Connect an AI app**, shows the recommended way for
+  claude.ai, ChatGPT and Claude Desktop as three steps (no token needed). Access tokens are now only under
+  **For developer tools** (Claude Code, Gemini CLI, Cursor, scripts). The list is called **Connected apps**
+  and shows whether each app signed in or uses a token; **Remove** disconnects one.
+
 ## [0.1.53] - 2026-10-25
 
 ### Added
