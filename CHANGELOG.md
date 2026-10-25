@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The **Upgrade to Enterprise** link carries a campaign tag, so the website can count visits that come
+  from the app. The app itself still sends no data.
+
 ### Added
 
 - **Business templates for AI agents:** on the AI agent page, click **Browse templates** to open a

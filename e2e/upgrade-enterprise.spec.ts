@@ -1,6 +1,7 @@
 import { expect, expectNoHorizontalScroll, test } from './helpers';
 
-const UPGRADE = 'https://ezychat.ai/#enterprise';
+const UPGRADE =
+  'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise';
 
 test('Lite offers Upgrade to Enterprise at its limits, in the admin menu and in About', async ({
   page,

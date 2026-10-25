@@ -58,5 +58,7 @@ it('suggests EzyChat Enterprise for more numbers in the Connection card', () => 
   expect(note.textContent).toContain('Need more WhatsApp numbers?');
   expect(
     within(note).getByRole('link', { name: 'Upgrade to Enterprise' }).getAttribute('href'),
-  ).toBe('https://ezychat.ai/#enterprise');
+  ).toBe(
+    'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise',
+  );
 });

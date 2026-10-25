@@ -42,8 +42,12 @@ export interface AppLinks {
   upgrade: string | null;
 }
 
-/** The EzyChat Enterprise section of the website. */
-export const ENTERPRISE_UPGRADE_URL = 'https://ezychat.ai/#enterprise';
+/**
+ * The EzyChat Enterprise section of the website. The campaign tag lets the website count upgrade
+ * visits from the app; the app itself sends nothing (no tracking in Lite).
+ */
+export const ENTERPRISE_UPGRADE_URL =
+  'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise';
 
 const liteReleaseNotes = (version: string): string =>
   `${GITHUB_REPO_URL}/releases/tag/v${encodeURIComponent(version)}`;

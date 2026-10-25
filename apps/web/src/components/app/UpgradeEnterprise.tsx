@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * The "Upgrade to Enterprise" address, or null when the product hides it: Lite links
- * ezychat.ai/#enterprise, another product passes `createInboxApp({ links: { upgrade: null } })`.
+ * ezychat.ai/#enterprise (with a campaign tag), another product passes `createInboxApp({ links: { upgrade: null } })`.
  */
 export function useUpgradeUrl(): string | null {
   return useAppLinks().upgrade;

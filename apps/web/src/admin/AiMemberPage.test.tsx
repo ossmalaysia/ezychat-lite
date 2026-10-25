@@ -913,7 +913,9 @@ describe('AI agent page', () => {
         '/admin/members',
       );
       const upgrade = screen.getByRole('link', { name: 'Upgrade to Enterprise' });
-      expect(upgrade.getAttribute('href')).toBe('https://ezychat.ai/#enterprise');
+      expect(upgrade.getAttribute('href')).toBe(
+        'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise',
+      );
       expect(upgrade.getAttribute('target')).toBe('_blank');
     });
   });

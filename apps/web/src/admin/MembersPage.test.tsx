@@ -277,7 +277,9 @@ describe('MembersPage', () => {
     expect(note.textContent).toContain('Need more AI agents?');
     expect(
       within(note).getByRole('link', { name: 'Upgrade to Enterprise' }).getAttribute('href'),
-    ).toBe('https://ezychat.ai/#enterprise');
+    ).toBe(
+      'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise',
+    );
   });
 
   it('shows a turned-off AI member as a neutral Off, not as Disabled', async () => {
