@@ -78,9 +78,9 @@ decision below and for the Dev Build checks.
   items; a hit is dropped silently (the teammate could send it to the customer).
 - **Setting**: `ai_reply_suggestions` (boolean, default true), changed only by admins on the AI connection
   route or its own admin route; audited (`ai.reply_suggestions.update`, before/after).
-- **Status for every user**: the bootstrap/`me` payload carries `aiReplySuggestions: 'on' | 'off' |
-  'unavailable'` so the composer knows whether to show the button (zod schema in `packages/shared` first, with
-  a default for older servers).
+- **Status for every user**: `GET /api/ai/reply-suggestions` (any signed-in user) returns `{ enabled, connected,
+  state: 'on' | 'off' | 'unavailable', upgraded }` so the composer knows whether to show the button (zod schema
+  in `packages/shared` first). Our call in the plan: a small route instead of growing the `/api/me` user payload.
 - **Logs**: `mod:"ai"`, kind (`suggest`/`complete`), ok, ms, model, count. Never the composer text, the
   suggestions, the conversation or the customer.
 
