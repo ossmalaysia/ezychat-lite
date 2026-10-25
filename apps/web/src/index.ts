@@ -19,6 +19,8 @@ export {
   type WebExtensionAgent,
   type WebExtensionAgentSection,
   type WebExtensionCatalogs,
+  type WebExtensionInboxDraft,
+  type WebExtensionInboxType,
   type WebExtensionLockScreenProps,
   type WebExtensionNavBadge,
   type WebExtensionNavItem,
