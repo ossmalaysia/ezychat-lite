@@ -331,6 +331,11 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
+  `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
+  the Playwright config for it. The document-reader worker (`knowledge-worker.ts`, `--import tsx`) only resolves
+  under Node 24: on Node 22 every upload says "Cannot read this document" (4 unit tests, ai-member e2e), not a
+  regression of the change under test.
 - Stop a background mock or server by its pid (`ps -eo pid,args | grep "[n]ode.*run.ts"`), never
   `pkill -f <pattern>`: the pattern also matches the shell running the command and kills it (exit 144).
 - After an electron-builder update, check the Windows sign hook with a fake command, not the build log

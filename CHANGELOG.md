@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ready for the WhatsApp Business API (EzyChat Enterprise).** The core now lets an edition add other
+  ways to connect a WhatsApp number next to the linked phone. For such a number, the conversation shows how
+  long the 24-hour reply window stays open, and after it closes the team sends an approved template
+  (**Send a template**, with its variables and a preview) until the customer writes again. The AI agent
+  hands such a chat to the team when the window has closed. EzyChat Lite itself still links one phone by QR
+  code, unchanged.
+
 ### Fixed
 
 - **Phone notifications no longer go missing.** When the AI handed a chat to a teammate, or a new

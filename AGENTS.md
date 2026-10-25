@@ -102,6 +102,18 @@ keep `wa-auth-inboxes/<id>/` (never inside `wa-auth/`: logout wipes the folder) 
 `multi-inbox` on port 7498, `POST /api/dev/fake-link` is the scan). Inbox 1 cannot be removed; a removed
 inbox keeps its chats read only for admins (409 `inbox_removed`). Web inbox UI shows only with 2+
 visible inboxes; the Admin nav shows Inboxes instead of WhatsApp only when `maxInboxes > 1`.
+Inbox types (design `docs/features/business-api/`): `inboxes.type` is `linked_phone` (the core's) or a type an
+extension registers (`ServerExtension.inboxTypes`, e.g. Enterprise `wa-cloud`, the WhatsApp Business API);
+`inboxes/types.ts` builds each inbox's adapter by type (an unknown type gets a disconnected placeholder).
+`InboxService.create(…, { type, beforeConnect })` / `changeType` switch an inbox in place (same id, chat keys
+and chats). The core reads what a connection can do only from `WaAdapter.capabilities` (`qrLink`, `history`,
+`groups`, `replyWindowHours`, `templates`, `needsPublicUrl`), never from a type name. With `replyWindowHours`,
+free-form sends (text, media, voice, reactions, queued jobs) answer 409 `window_closed` outside the window
+(`chats.last_inbound_at`, live inbound only), templates go through `GET /inboxes/:id/templates` and
+`POST /chats/:jid/template`, and the AI hands off with `window_closed`. `ServerExtension.publicRoutes` mounts
+webhooks at `/api/ext/<name>/public` (no session, no Origin check for that prefix only, `verify` first).
+Web: `WebExtension.inboxTypes` fills the type choice and slots of Admin → Inboxes and the setup wizard. Dev:
+`--mode dev --fake-wa` adds the `fake-api` type (`POST /api/dev/fake-api-inbox`, `POST /api/dev/fake-window`).
 
 **AI agents.** Design `docs/superpowers/specs/2026-10-22-custom-agents-design.md`. An install has up to
 `maxAgents = maxInboxes` AI agents (Lite 1, 409 `agent_limit`), at most one per inbox (409
