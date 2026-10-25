@@ -38,7 +38,9 @@ into AGENTS.md.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
   log), never from an agent's memory of the session: record each stage when it finishes, mark
   stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
-  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose.
+  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose. Stage keys are
+  `design|dev|unit|e2e|devbuild|screen`. A plan ledger under `.superpowers/` is git-ignored and deleted
+  at the end: copy its rulings and deferred findings into the workbook first.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
