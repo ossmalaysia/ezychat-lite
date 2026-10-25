@@ -82,10 +82,12 @@ Download the latest installer from the
 | macOS (Apple Silicon) | `EzyChat-Lite-<version>-mac-arm64.dmg` |
 | macOS (Intel)         | `EzyChat-Lite-<version>-mac-x64.dmg`   |
 
-The builds are **not yet signed with a publisher certificate**, so your computer warns you the first
-time you open EzyChat Lite. This is expected; the steps below get you past it once.
+The **Windows** installer is signed by **Anchor Sprint Pte. Ltd.** (since 0.1.45), so Windows shows a
+known publisher. If Windows still shows "Windows protected your PC", click **More info**, check that the
+publisher is Anchor Sprint Pte. Ltd., then click **Run anyway**.
 
-**Windows** ("Windows protected your PC"): click **More info**, then **Run anyway**.
+The **macOS** builds are not yet notarized by Apple, so your Mac warns you the first time you open
+EzyChat Lite. This is expected; the steps below get you past it once.
 
 ### macOS: first launch
 
@@ -140,13 +142,14 @@ so installed background services can still start it.
    **Settings → Linked devices → Link a device** and scan the QR code.
 3. **Invite your team.** In **Admin → Members**, add each person with a username and a temporary
    password (they change it at first sign-in). Give admins the admin role.
-4. **Make it reachable.** In **Admin → Cloudflare**, use **Temporary link** to get a public
+4. **Make it reachable.** In **Admin → Phone access**, use **Temporary link** to get a public
    `https://….trycloudflare.com` URL (it changes on every start), or choose
    **Your domain** for a stable hostname: sign in to Cloudflare, approve your domain, choose an
    address and tunnel name, then select **Create and connect inbox**. The app creates the tunnel and
-   DNS record without replacing existing websites. Existing tunnel tokens remain under **Advanced**.
-   Alternatively enable **LAN mode** in Settings for
-   access on your local network only.
+   DNS record without replacing existing websites. Existing tunnel tokens remain under
+   **Advanced: use a tunnel token**. Alternatively, in **Settings**, turn on **Allow access from the
+   local network (LAN)** for access on your local network only (plain HTTP, so only on a network you
+   trust).
 5. **On each phone:** open the URL, sign in, then **Add to Home Screen** (Safari share menu on
    iOS, browser menu on Android) and allow notifications. On iOS, push notifications only work from
    the installed Home Screen app, not from a Safari tab.
