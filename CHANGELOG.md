@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.57] - 2026-10-25
+
+### Fixed
+
+- **Linking a phone from Admin → Inboxes no longer shows a page error.** The phone-number pairing box
+  was placed inside the inbox form, which browsers do not allow; it now sits below the form.
+
 ### Added
 
 - **Ready for the WhatsApp Business API (EzyChat Enterprise).** The core now lets an edition add other

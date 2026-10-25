@@ -673,11 +673,14 @@ function InboxDialog({
               : errorMessage(error)}
           </Banner>
         )}
-
-        {inbox && qrLink && <InboxLink inbox={inbox} justCreated={isNew} />}
       </form>
 
-      {/* Extension forms sit outside the core form: they may hold forms of their own. */}
+      {/* The link box and extension forms sit outside the core form: they hold forms of their own. */}
+      {inbox && qrLink && (
+        <div className="mt-5 min-w-0">
+          <InboxLink inbox={inbox} justCreated={isNew} />
+        </div>
+      )}
       {extCreating && extType && (
         <section
           className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
