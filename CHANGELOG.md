@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.57] - 2026-10-25
+
 ### Added
 
 - **Ready for the WhatsApp Business API (EzyChat Enterprise).** The core now lets an edition add other
