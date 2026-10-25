@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "business-api",
+      "creationOrder": 12,
+      "createdAt": "2026-10-25",
+      "design": "docs/features/business-api/design.md",
+      "mock": "docs/features/business-api/mock/index.html",
+      "status": "proposed",
+      "baselineFeature": "upgrade-enterprise",
+      "baselineGitRevision": "2fce4a709235d6ac4d8707c682d637a87bfd7087",
+      "baselineAppRevision": "48008cf",
+      "coverage": "Full app clone of the confirmed upgrade-enterprise reference; WhatsApp Business API (Meta Cloud API) inbox type in the Enterprise view: Admin -> Inboxes type choice, Meta form (Phone number ID, WABA ID, permanent token, App secret, guide, required/rejected/connected), card (quality, templates + Sync, AI window note), webhook over Phone access (off/on/failing), token rejected, Edit with Replace token, Business API remove text; setup wizard WhatsApp step choice (QR default / Business API) for inbox 1; Phone access note; 24-hour reply window (note, closed-window chat-list icon, Send a template dialog with variables, preview, marketing note, empty state, sent marker, simulated customer reply); Lite view without any of it; desktop 1280 / mobile 360, light/dark (business-api-shots.mjs)"
+    },
+    {
       "feature": "upgrade-enterprise",
       "creationOrder": 11,
       "createdAt": "2026-10-24",
@@ -80,7 +92,12 @@
       "baselineAppRevision": "610ca5e",
       "coverage": "Full app clone of the confirmed multi-inbox reference; custom AI agents (mock state in localStorage): Members with one row per agent (preset badge, inbox chip) and Add AI agent below the limit, agent page /admin/members/ai/:agentId and /new?preset= with the Sales/FAQ/Custom preset picker, role and hand-over texts with Use the template, read-only Always-on safety rules, per-agent Business context with Internal switch, badge and filter, Try it on the draft (deterministic, no model call), inbox select and Delete (Enterprise), Admin -> Inboxes AI agent line and select, and a mock-only Lite view (one inbox, one agent, no inbox UI, no Delete); English only",
       "confirmation": "Delegated to the agent by the owner 2026-10-22; round 1 and round 2 (usability, from the real-ChatGPT Enterprise review) self-reviewed and confirmed (design.md)",
-      "gitRevision": "dc28d1d096a61343a2a46b81b7126e0473a22e8d"
+      "gitRevision": "dc28d1d096a61343a2a46b81b7126e0473a22e8d",
+      "archived": {
+        "folderRemovedAt": "2026-10-25",
+        "lastRevision": "48008cfda4e8fc302b9ae3f5ffd190bd6a246161",
+        "reason": "retention: sixth feature folder (business-api)"
+      }
     },
     {
       "feature": "multi-inbox",

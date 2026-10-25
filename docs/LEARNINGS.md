@@ -331,6 +331,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Stop a background mock or server by its pid (`ps -eo pid,args | grep "[n]ode.*run.ts"`), never
+  `pkill -f <pattern>`: the pattern also matches the shell running the command and kills it (exit 144).
 - After an electron-builder update, check the Windows sign hook with a fake command, not the build log
   (26.18 stopped printing "signing with signtool.exe" but still calls the hook):
   `WIN_SIGN_MODE=command WIN_SIGN_COMMAND="node <script that appends {file} to a list> {file}"` and
@@ -872,7 +874,9 @@ into AGENTS.md.
   `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
   before and after: a drop in inherited files means the check got weaker and still passes.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
-  on a freshly started mock, and restart the mock again before the owner opens it.
+  on a freshly started mock, and restart the mock again before the owner opens it. Restart after a failed
+  run too, and send server-side effects (messages) from one viewport only: every browser context starts
+  from the mock's localStorage seed while the server keeps what earlier contexts sent.
 - A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
   first multi-inbox mock showed only the new Business API type and dropped the QR-linked phone, and the
   owner caught it. List the replaced screen's flows in `design.md` and show each in the new screen. When
