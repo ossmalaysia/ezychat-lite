@@ -22,6 +22,7 @@ import {
   useSendText,
   type MessagesData,
 } from '../api/queries';
+import { useReplySuggestionsStatus } from '../api/reply-suggestions';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
@@ -123,6 +124,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const groupMembers = useGroupMembers(jid, chat?.type === 'group');
   const events = chatQ.data?.events;
   const me = directory.me;
+  const replySuggestions = useReplySuggestionsStatus();
+  const suggestState = replySuggestions.data?.state ?? 'off';
 
   const messages = useMemo(
     () => flattenMessages(messagesQ.data as MessagesData | undefined),
@@ -417,6 +420,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                     : null
                 }
                 onCancelReply={() => setReplyTo(null)}
+                aiSuggest={
+                  chat.type === 'dm' && suggestState !== 'off'
+                    ? {
+                        chatJid: chat.jid,
+                        lastCustomerMessageId: lastInboundId,
+                        isAdmin: me?.role === 'admin',
+                        state: suggestState,
+                      }
+                    : null
+                }
                 onSend={(text) => {
                   sendText.mutate(
                     { text, clientId: newClientId(), quotedId: replyTo?.id },

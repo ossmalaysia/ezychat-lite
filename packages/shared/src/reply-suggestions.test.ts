@@ -5,6 +5,9 @@ describe('completionReady', () => {
   it('is true only after a full word and a space or punctuation', () => {
     expect(completionReady('Hi Nurul ')).toBe(true);
     expect(completionReady('Hi Nurul,')).toBe(true);
+    expect(completionReady('Hi Nurul, ')).toBe(true);
+    expect(completionReady('Yes! ')).toBe(true);
+    expect(completionReady('Hi Nurul, , ')).toBe(true);
     expect(completionReady('Hi Nu')).toBe(false);
     expect(completionReady('')).toBe(false);
     expect(completionReady('   ')).toBe(false);
