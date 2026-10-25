@@ -27,6 +27,8 @@ export interface ChatColumns {
   inbox_id: number;
   /** The chat's WhatsApp JID inside its inbox; null only on rows written by old code (read waJidOf). */
   wa_jid: string | null;
+  /** epoch ms of the customer's last live message (migration 019; the reply window starts there). */
+  last_inbound_at?: number | null;
 }
 
 /**
@@ -101,6 +103,7 @@ export function rowToChat(r: ChatRow): Chat {
     phone: r.phone ?? null,
     tags: dm ? r.profile_tags : [],
     whatsappName: dm ? waName || null : null,
+    lastInboundAt: r.last_inbound_at ?? null,
   };
 }
 

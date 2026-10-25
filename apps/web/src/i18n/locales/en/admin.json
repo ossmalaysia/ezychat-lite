@@ -1350,6 +1350,15 @@
     "aiAgentOption": "{{agent}} (on {{inbox}})",
     "aiAgentMove": "{{agent}} answers {{inbox}} now. When you save, {{agent}} moves to this inbox and stops answering {{inbox}}.",
     "aiAgentReplace": "{{agent}} answers this inbox now. When you save, {{agent}} is unassigned.",
-    "aiAgentRemove": "Its AI agent {{agent}} is unassigned and stops answering."
+    "aiAgentRemove": "Its AI agent {{agent}} is unassigned and stops answering.",
+    "typeField": "How is this number connected?",
+    "typePhoneHint": "Scan a QR code with the WhatsApp app on the phone, as you do today.",
+    "typeOther": "Other connection",
+    "dialogDescriptionOther": "Give the inbox a name, choose who can open it, then connect the number below.",
+    "connectionType": "Connection type",
+    "switchTo": "Move to {{type}}",
+    "removeBodyOther": "EzyChat stops receiving and sending for this number. Its chats stay, read only, for admins.",
+    "aiWindowNote": "On this number the AI agent replies only within {{hours}} hours of the customer's last message; after that it hands the chat to the team.",
+    "createdOther": "Inbox added. The number is connected."
   }
 }

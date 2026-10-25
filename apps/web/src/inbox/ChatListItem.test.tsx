@@ -18,6 +18,7 @@ const lidChat: Chat = {
   assignedTo: null,
   updatedAt: 0,
   phone: null,
+  lastInboundAt: null,
 };
 
 afterEach(cleanup);
@@ -134,5 +135,32 @@ describe('ChatListItem tags', () => {
       </MemoryRouter>,
     );
     expect(view.container.textContent).not.toContain('+');
+  });
+});
+
+describe('ChatListItem reply window', () => {
+  it('marks a chat whose reply window closed, with a label for screen readers', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem
+          chat={{ ...lidChat, name: 'Farah' }}
+          active={false}
+          assigneeName={null}
+          windowClosed
+        />
+      </MemoryRouter>,
+    );
+    const icon = screen.getByTestId('window-closed-icon');
+    expect(icon.getAttribute('title')).toBe('Reply window closed: template only');
+    expect(icon.querySelector('.sr-only')?.textContent).toBe('Reply window closed: template only');
+  });
+
+  it('shows no icon for an open window or a linked phone', () => {
+    render(
+      <MemoryRouter>
+        <ChatListItem chat={{ ...lidChat, name: 'Farah' }} active={false} assigneeName={null} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('window-closed-icon')).toBeNull();
   });
 });

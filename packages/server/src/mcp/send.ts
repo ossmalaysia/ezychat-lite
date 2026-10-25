@@ -7,6 +7,8 @@ import { HttpError } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { scopeFor, scopeIds } from '../inboxes/access.js';
 import { chatKey, inboxOfKey } from '../inboxes/keys.js';
+import { WINDOW_CLOSED } from '../inboxes/reply-window.js';
+import { capabilitiesOf } from '../inboxes/types.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { ambiguousChat, findChats } from './inbox.js';
 
@@ -127,6 +129,12 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
         );
       const inboxId = senderInbox(principal, input.inboxId);
       const wa = ctx.inboxes.connections.adapter(inboxId);
+      // A Business API number may start a chat only with an approved template (never sent here).
+      if (capabilitiesOf(wa).replyWindowHours !== null)
+        throw new SendError(
+          'template_required: this inbox uses the WhatsApp Business API, where a new chat must start ' +
+            'with an approved message template; a person can send one from the inbox.',
+        );
       const jid = chatKey(inboxId, `${phone}@s.whatsapp.net`);
       // The number of any inbox (linked now or before) is the team's own, never a customer.
       const own = [...ctx.inboxes.connections.ownJids()].some((j) => j.split(/[:@]/)[0] === phone);
@@ -210,6 +218,12 @@ export function createInboxSendPort(ctx: AppContext, deps?: { now?: () => number
       }
     } catch (err) {
       if (err instanceof SendError) throw err;
+      if (err instanceof HttpError && err.code === WINDOW_CLOSED)
+        throw new SendError(
+          "window_closed: this chat's reply window has closed (the customer has not written " +
+            'recently), so WhatsApp allows only an approved template now; a person can send one ' +
+            'from the inbox.',
+        );
       // Expected checks of the message service (moved number, quote not in this chat, ...).
       if (err instanceof HttpError && err.status < 500) throw new SendError(err.message);
       throw err;

@@ -225,7 +225,8 @@
       "ai_unavailable": "AI tidak tersedia",
       "lookup_failed": "carian dalam sistem yang disambungkan gagal",
       "business_rule": "sepadan dengan peraturan serahan anda",
-      "confidential_leak": "balasan akan mendedahkan item dalaman"
+      "confidential_leak": "balasan akan mendedahkan item dalaman",
+      "window_closed": "tetingkap balasan telah ditutup (hanya templat boleh dihantar)"
     },
     "resolved": "{{actor}} menyelesaikan sembang ini",
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",
@@ -289,7 +290,8 @@
       "fromTeammate": "{{name}} (pasukan)",
       "remove": "Buang",
       "fromTeammateUnknown": "Seseorang"
-    }
+    },
+    "template": "Templat {{name}}"
   },
   "media": {
     "types": {
@@ -517,5 +519,43 @@
     "setUp": "Sediakan",
     "add": "Tambah",
     "hide": "Sembunyikan panduan bermula"
+  },
+  "window": {
+    "leftHours": "Tetingkap balasan: tinggal {{hours}} j {{minutes}} min",
+    "leftMinutes": "Tetingkap balasan: tinggal {{minutes}} min",
+    "explain": "Anda boleh menulis dengan bebas selama {{hours}} jam selepas mesej terakhir pelanggan. Selepas itu WhatsApp hanya menerima templat yang diluluskan.",
+    "closedTitle": "Tetingkap balasan telah ditutup",
+    "closedBody": "WhatsApp hanya membenarkan templat yang diluluskan sehingga {{name}} menulis semula. Balasan mereka membuka tetingkap itu semula.",
+    "closedShort": "Tetingkap balasan ditutup: templat sahaja",
+    "sendTemplate": "Hantar templat",
+    "sent": "Templat dihantar. Anda boleh menulis dengan bebas sebaik sahaja pelanggan membalas.",
+    "dialogTitle": "Hantar templat",
+    "dialogDescription": "Templat yang diluluskan bagi Akaun WhatsApp Business nombor ini. Meta mungkin mengenakan caj untuk perbualan yang dibuka oleh templat.",
+    "loading": "Memuatkan templat…",
+    "loadFailed": "Templat tidak dapat dimuatkan.",
+    "choose": "Templat",
+    "values": "Isikan pemboleh ubah",
+    "variable": "Pemboleh ubah {{n}}",
+    "required": "Sila isikan ini.",
+    "preview": "Pratonton",
+    "send": "Hantar templat",
+    "marketingNote": "Templat pemasaran hanya boleh dihantar kepada pelanggan yang bersetuju untuk menerimanya.",
+    "category": {
+      "utility": "Utiliti",
+      "marketing": "Pemasaran",
+      "authentication": "Pengesahan"
+    },
+    "unsupported": {
+      "image": "Pengepala imej: belum disokong",
+      "document": "Pengepala dokumen: belum disokong",
+      "video": "Pengepala video: belum disokong",
+      "buttons": "Butang: belum disokong",
+      "other": "Belum disokong"
+    },
+    "emptyTitle": "Belum ada templat yang diluluskan",
+    "emptyBody": "Cipta templat dalam WhatsApp Manager. Meta menyemaknya, biasanya dalam beberapa minit; templat yang diluluskan muncul di sini selepas penyegerakan.",
+    "manage": "Buka WhatsApp Manager",
+    "sync": "Segerakkan",
+    "synced": "Templat disegerakkan daripada WhatsApp"
   }
 }

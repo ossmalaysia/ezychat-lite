@@ -8,7 +8,7 @@ import { ErrorCode } from '@ezychat/shared';
 import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
 import { contextHostPolicy, createHostHook } from './http/host.js';
-import { originHook } from './http/origin.js';
+import { createOriginHook } from './http/origin.js';
 import { createAccessHook, hostOnlyHook } from './http/access.js';
 import { registerSecurityHeaders } from './http/security-headers.js';
 import { registerApiCacheHeaders, staticCacheControl } from './http/cache.js';
@@ -30,7 +30,11 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   registerSecurityHeaders(app);
   registerApiCacheHeaders(app);
   app.addHook('onRequest', createHostHook(contextHostPolicy(ctx)));
-  app.addHook('onRequest', originHook);
+  // public extension routes (webhooks) carry no browser Origin; their own `verify` guards them
+  app.addHook(
+    'onRequest',
+    createOriginHook(ctx.extensions.filter((e) => e.publicRoutes).map((e) => e.name)),
+  );
   app.addHook('onRequest', hostOnlyHook);
   app.addHook('onRequest', createAccessHook(ctx.access));
   app.setErrorHandler(errorHandler);

@@ -3,7 +3,14 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Chat, Inbox, Message, User, WaStatus } from '@ezychat/shared';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type Chat,
+  type Inbox,
+  type Message,
+  type User,
+  type WaStatus,
+} from '@ezychat/shared';
 import { InboxPage } from './InboxPage';
 
 const me: User = {
@@ -32,6 +39,7 @@ const chat: Chat = {
   assignedTo: 2,
   updatedAt: now,
   phone: '60123456789',
+  lastInboundAt: null,
 };
 const base: Omit<Message, 'id' | 'body' | 'fromMe' | 'timestamp'> = {
   chatJid: jid,
@@ -404,6 +412,8 @@ describe('InboxPage with inboxes', () => {
     number: id === 1 ? '60123000001' : null,
     removed: false,
     aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
     status: status(state),
   });
 

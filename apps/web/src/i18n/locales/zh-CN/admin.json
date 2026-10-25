@@ -1340,6 +1340,15 @@
     "aiAgentOption": "{{agent}}（在 {{inbox}}）",
     "aiAgentMove": "{{agent}} 目前负责 {{inbox}}。保存后，{{agent}} 将移到此收件箱，并停止回复 {{inbox}}。",
     "aiAgentReplace": "{{agent}} 目前负责此收件箱。保存后，{{agent}} 将被移除。",
-    "aiAgentRemove": "其 AI 客服 {{agent}} 将被移除并停止回复。"
+    "aiAgentRemove": "其 AI 客服 {{agent}} 将被移除并停止回复。",
+    "typeField": "此号码如何连接？",
+    "typePhoneHint": "像现在一样，用手机上的 WhatsApp 应用扫描二维码。",
+    "typeOther": "其他连接方式",
+    "dialogDescriptionOther": "为收件箱命名，选择谁可以打开它，然后在下方连接号码。",
+    "connectionType": "连接方式",
+    "switchTo": "改用{{type}}",
+    "removeBodyOther": "EzyChat 会停止为此号码收发消息。它的聊天会保留，供管理员只读查看。",
+    "aiWindowNote": "在此号码上，AI 客服只在客户最后一条消息后的 {{hours}} 小时内回复；之后会把聊天交给团队。",
+    "createdOther": "收件箱已添加，号码已连接。"
   }
 }

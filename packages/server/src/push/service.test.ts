@@ -33,6 +33,7 @@ const chat = (assignedTo: number | null): Chat => ({
   avatarUrl: null,
   unreadCount: 1,
   lastMessageAt: 1,
+  lastInboundAt: null,
   lastMessagePreview: 'hello there',
   status: 'open',
   assignedTo,

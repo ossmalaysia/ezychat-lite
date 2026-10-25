@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
+  CreateInboxBody,
   FakeGroupBody,
   FakeIncomingBody,
   FakeLinkBody,
@@ -8,7 +10,7 @@ import {
 } from '@ezychat/shared';
 import type { WaGroupParticipant } from '@ezychat/wa';
 import type { FakeWaAdapter } from '@ezychat/wa';
-import { requireUser } from '../auth/guards.js';
+import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { errors, parse } from '../http/errors.js';
 import {
@@ -20,6 +22,18 @@ import {
   waMessageId,
 } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
+import { clientIp } from '../http/client-ip.js';
+import { FAKE_API_TYPE } from '../inboxes/fake-api.js';
+import { getInboxService } from '../inboxes/service.js';
+
+const FakeWindowBody = z.object({
+  chatJid: z.string().min(1).max(256),
+  /** The customer's last live message this many hours ago (0 = now). */
+  hoursAgo: z
+    .number()
+    .min(0)
+    .max(24 * 365),
+});
 
 const INGEST_WAIT_MS = 2000;
 
@@ -205,5 +219,42 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     const wa = fakeOf(body.inboxId);
     wa.setConnected(true);
     return { inboxId: body.inboxId, state: wa.status.state };
+  });
+
+  // Business API stand-ins: only with --mode dev and --fake-wa (never a packaged build)
+  if (ctx.config.mode !== 'dev') return;
+
+  /**
+   * POST /api/dev/fake-api-inbox: adds an inbox of the built-in `fake-api` type (a fake Business
+   * API number: 24-hour reply window, three templates), within the inbox limit (409 `inbox_limit`).
+   */
+  app.post('/dev/fake-api-inbox', { preHandler: requireAdmin(ctx) }, async (req, reply) => {
+    const body = parse(CreateInboxBody, req.body ?? {});
+    const inbox = await getInboxService(ctx).create(
+      body,
+      { userId: req.user!.id, ip: clientIp(req) },
+      { type: FAKE_API_TYPE },
+    );
+    return reply.status(201).send(inbox);
+  });
+
+  /** POST /api/dev/fake-window: moves a chat's last customer message to `hoursAgo` (open/close its window). */
+  app.post('/dev/fake-window', { preHandler: requireUser(ctx) }, async (req) => {
+    const body = parse(FakeWindowBody, req.body ?? {});
+    const chats = getChats(ctx);
+    let jid: string;
+    try {
+      jid = chats.resolveJid(body.chatJid);
+    } catch {
+      throw errors.notFound('Chat');
+    }
+    const at = Date.now() - Math.round(body.hoursAgo * 3_600_000);
+    const changed = ctx.db
+      .prepare('UPDATE chats SET last_inbound_at = ? WHERE jid = ?')
+      .run(at, jid).changes;
+    if (!changed) throw errors.notFound('Chat');
+    const chat = chats.get(jid);
+    if (chat) ctx.bus.emit('chat:updated', chat);
+    return { chatJid: jid, lastInboundAt: at };
   });
 }

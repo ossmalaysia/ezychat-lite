@@ -45,6 +45,14 @@ describe('describeEvent', () => {
     );
   });
 
+  it('names a hand-off because the reply window closed', () => {
+    expect(
+      describeEvent(event('unassigned', 2, { previous: 2, handoff: 'window_closed' }), dir),
+    ).toBe(
+      'Jee Fong handed this chat to the team: the reply window closed (only a template can be sent)',
+    );
+  });
+
   it('explains why the AI handed a chat to the team', () => {
     expect(
       describeEvent(event('unassigned', 2, { previous: 2, handoff: 'needs_action' }), dir),

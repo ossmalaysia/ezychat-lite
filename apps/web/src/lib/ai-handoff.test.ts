@@ -16,4 +16,11 @@ describe('handoffReasonLabel', () => {
     expect(isHandoffReason('confidential_leak')).toBe(true);
     expect(isHandoffReason('made_up')).toBe(false);
   });
+
+  it('says the AI handed over because the reply window closed', () => {
+    expect(handoffReasonLabel('window_closed')).toBe(
+      'the reply window closed (only a template can be sent)',
+    );
+    expect(isHandoffReason('window_closed')).toBe(true);
+  });
 });

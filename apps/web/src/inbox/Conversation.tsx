@@ -54,6 +54,8 @@ import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
+import { ReplyWindowNote, WindowClosedPanel } from './ReplyWindow';
+import { useReplyWindowHours, useWindowClosed } from './reply-window';
 
 export interface ConversationProps {
   jid: string;
@@ -104,6 +106,19 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const chat = chatQ.data?.chat;
   // The composer follows the chat's own inbox: another phone offline never blocks this one.
   const waState = useInboxStatus(chat?.inboxId)?.state;
+  // WhatsApp Business API: free-form replies only within the inbox's reply window.
+  const windowHoursOf = useReplyWindowHours();
+  const windowHours = chat ? windowHoursOf(chat.inboxId) : null;
+  const windowClosedNow = useWindowClosed(chat?.lastInboundAt, windowHours);
+  /** The server refused a send with `window_closed` (until the customer writes again). */
+  const [refusedAt, setRefusedAt] = useState<{ jid: string; lastInboundAt: number | null } | null>(
+    null,
+  );
+  const windowClosed =
+    windowClosedNow === true ||
+    (refusedAt !== null &&
+      refusedAt.jid === jid &&
+      refusedAt.lastInboundAt === (chat?.lastInboundAt ?? null));
   // Group chats: the member count under the name (same cached list the Group info panel uses).
   const groupMembers = useGroupMembers(jid, chat?.type === 'group');
   const events = chatQ.data?.events;
@@ -201,6 +216,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       onSettled: () => setRetryingId(null),
     });
   }
+
+  /** A send refused because the reply window closed shows the template panel at once. */
+  const onSendError = useCallback(
+    (e: unknown) => {
+      if (!(e instanceof ApiError) || e.code !== 'window_closed') return;
+      setRefusedAt({ jid, lastInboundAt: chat?.lastInboundAt ?? null });
+      void qc.invalidateQueries({ queryKey: qk.chat(jid) });
+    },
+    [jid, chat?.lastInboundAt, qc],
+  );
 
   // The badge changes when the server answers (and for teammates through message:reactions).
   const onReact = useCallback(
@@ -357,49 +382,72 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
               {blocked ? t('conversation.sendingBlocked') : t('conversation.reconnecting')}
             </p>
           )}
-          <div className="px-2 py-2 sm:px-3">
-            <Composer
-              key={jid}
-              quickReplies={quickReplies.data ?? []}
+          {windowHours !== null && !windowClosed && (
+            <ReplyWindowNote lastInboundAt={chat.lastInboundAt ?? null} windowHours={windowHours} />
+          )}
+          {windowClosed ? (
+            <WindowClosedPanel
+              jid={jid}
+              inboxId={chat.inboxId}
+              customerName={chatTitle(chat, t)}
               disabled={blocked}
-              placeholder={
-                blocked
-                  ? t('conversation.placeholderBlocked')
-                  : wideComposer
-                    ? t('conversation.placeholder')
-                    : t('composer.placeholder')
-              }
-              confirmSend={confirmSend}
-              onTyping={() => emitTyping(jid)}
-              replyTo={
-                replyTo
-                  ? {
-                      id: replyTo.id,
-                      author: quotedAuthor(replyTo, t, contactName),
-                      preview: quotedPreview(replyTo, t),
-                    }
-                  : null
-              }
-              onCancelReply={() => setReplyTo(null)}
-              onSend={(text) => {
-                sendText.mutate({ text, clientId: newClientId(), quotedId: replyTo?.id });
-                setReplyTo(null);
-              }}
-              onAttach={(file, caption) => {
-                sendMedia.mutate({ file, caption, clientId: newClientId(), quotedId: replyTo?.id });
-                setReplyTo(null);
-              }}
-              onVoiceNote={async (file, clientId) => {
-                await sendMedia.mutateAsync({
-                  file,
-                  voiceNote: true,
-                  clientId,
-                  quotedId: replyTo?.id,
-                });
-                setReplyTo(null);
-              }}
             />
-          </div>
+          ) : (
+            <div className="px-2 py-2 sm:px-3">
+              <Composer
+                key={jid}
+                quickReplies={quickReplies.data ?? []}
+                disabled={blocked}
+                placeholder={
+                  blocked
+                    ? t('conversation.placeholderBlocked')
+                    : wideComposer
+                      ? t('conversation.placeholder')
+                      : t('composer.placeholder')
+                }
+                confirmSend={confirmSend}
+                onTyping={() => emitTyping(jid)}
+                replyTo={
+                  replyTo
+                    ? {
+                        id: replyTo.id,
+                        author: quotedAuthor(replyTo, t, contactName),
+                        preview: quotedPreview(replyTo, t),
+                      }
+                    : null
+                }
+                onCancelReply={() => setReplyTo(null)}
+                onSend={(text) => {
+                  sendText.mutate(
+                    { text, clientId: newClientId(), quotedId: replyTo?.id },
+                    { onError: onSendError },
+                  );
+                  setReplyTo(null);
+                }}
+                onAttach={(file, caption) => {
+                  sendMedia.mutate(
+                    { file, caption, clientId: newClientId(), quotedId: replyTo?.id },
+                    { onError: onSendError },
+                  );
+                  setReplyTo(null);
+                }}
+                onVoiceNote={async (file, clientId) => {
+                  try {
+                    await sendMedia.mutateAsync({
+                      file,
+                      voiceNote: true,
+                      clientId,
+                      quotedId: replyTo?.id,
+                    });
+                  } catch (e) {
+                    onSendError(e);
+                    throw e;
+                  }
+                  setReplyTo(null);
+                }}
+              />
+            </div>
+          )}
         </div>
       </section>
       <NotesPanel

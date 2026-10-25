@@ -10,6 +10,7 @@ import { GettingStartedCard } from './GettingStartedCard';
 import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
+import { replyWindowLeft, useNow, useReplyWindowHours } from './reply-window';
 
 // Realtime cache updates retain unchanged Chat references. Keep those rows from
 // recalculating labels, dates and avatars when another conversation changes.
@@ -51,6 +52,9 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
   const q = useChats(filters);
   // One unified list: the server sends only chats of inboxes the user may open.
   const inboxOf = useInboxOfChat();
+  // Business API chats whose reply window closed get an icon; the list re-checks each minute.
+  const windowHoursOf = useReplyWindowHours();
+  const now = useNow();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
 
@@ -171,6 +175,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
               assigneeName={directory.nameOf(c.assignedTo, { youLabel: true })}
               assignedToMe={c.assignedTo != null && c.assignedTo === directory.me?.id}
               inbox={inboxOf(c.inboxId)}
+              windowClosed={replyWindowLeft(c.lastInboundAt, windowHoursOf(c.inboxId), now) === 0}
             />
           </li>
         ))}

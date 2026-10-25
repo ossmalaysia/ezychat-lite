@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { PairingCodeBody, type PairingCodeResponse } from '@ezychat/shared';
 import { WaUnavailableError, type WaAdapter } from '@ezychat/wa';
-import { errors, parse } from '../http/errors.js';
+import { HttpError, errors, parse } from '../http/errors.js';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
@@ -9,6 +9,7 @@ import { clientIp } from '../http/client-ip.js';
 import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
 import { OFFLINE, waStatusFor } from '../inboxes/service.js';
 import { canOpen, scopeFor } from '../inboxes/access.js';
+import { capabilitiesOf } from '../inboxes/types.js';
 
 export { waStatusFor };
 
@@ -17,14 +18,21 @@ export type WaTarget = (req: FastifyRequest) => { wa: WaAdapter; inboxId: number
 
 /**
  * POST `<base>/{logout,relink,takeover,pairing-code}` (admin, audited with `meta.inboxId`):
- * `/wa/*` for inbox 1, `/inboxes/:id/wa/*` for any inbox.
+ * `/wa/*` for inbox 1, `/inboxes/:id/wa/*` for any inbox. 409 `not_linked_phone` for an inbox whose
+ * connection is not linked by QR (e.g. the WhatsApp Business API).
  */
 export function registerWaActions(
   app: FastifyInstance,
   ctx: AppContext,
   base: string,
-  target: WaTarget,
+  linkTarget: WaTarget,
 ): void {
+  const target: WaTarget = (req) => {
+    const t = linkTarget(req);
+    if (!capabilitiesOf(t.wa).qrLink)
+      throw new HttpError(409, 'not_linked_phone', 'This inbox is not linked by a QR code');
+    return t;
+  };
   const adminOnly = requireAdmin(ctx);
   const record = (req: FastifyRequest, action: string, wa: WaAdapter, inboxId: number) =>
     audit(ctx.db, {

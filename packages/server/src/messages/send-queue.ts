@@ -1,4 +1,4 @@
-import type { SendResult } from '@ezychat/wa';
+import type { SendResult, WaTemplateSend } from '@ezychat/wa';
 
 export interface SendJob {
   /** row id of the pending message (`local-<clientId>`) */
@@ -8,7 +8,7 @@ export interface SendJob {
   targetJid: string;
   /** epoch ms; jobs older than maxAgeMs are failed with 'expired' instead of being sent */
   createdAt: number;
-  kind: 'text' | 'media';
+  kind: 'text' | 'media' | 'template';
   text?: string;
   quotedId?: string;
   /** media jobs: relative media path (MediaStore) + metadata */
@@ -18,6 +18,8 @@ export interface SendJob {
   caption?: string;
   /** media jobs: send the Ogg/Opus file as a WhatsApp voice note */
   voiceNote?: boolean;
+  /** template jobs: the approved template and its body values */
+  template?: WaTemplateSend;
 }
 
 export interface SendQueueDeps {

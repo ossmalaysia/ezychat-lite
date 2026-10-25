@@ -147,7 +147,7 @@ describe('several inboxes', () => {
     expect(t.ctx.inboxes.repo.userInboxIds(agent.user.id)).toEqual([1, 2, 3]);
     expect(auditRows(t, 'inbox.create')[0]).toEqual({
       userId: admin.user.id,
-      meta: { inboxId: 2, memberCount: 1 },
+      meta: { inboxId: 2, memberCount: 1, type: 'linked_phone' },
     });
   });
 

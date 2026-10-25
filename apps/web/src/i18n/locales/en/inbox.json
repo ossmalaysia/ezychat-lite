@@ -227,7 +227,8 @@
       "ai_unavailable": "AI unavailable",
       "lookup_failed": "a look-up in a connected system failed",
       "business_rule": "matches your hand-off rules",
-      "confidential_leak": "the reply would have revealed an Internal item"
+      "confidential_leak": "the reply would have revealed an Internal item",
+      "window_closed": "the reply window closed (only a template can be sent)"
     },
     "resolved": "{{actor}} resolved this chat",
     "reopenedByMessage": "Chat reopened by a new message",
@@ -291,7 +292,8 @@
       "fromTeammate": "{{name}} (team)",
       "remove": "Remove",
       "fromTeammateUnknown": "Someone"
-    }
+    },
+    "template": "Template {{name}}"
   },
   "media": {
     "types": {
@@ -520,5 +522,43 @@
     "setUp": "Set up",
     "add": "Add",
     "hide": "Hide getting started"
+  },
+  "window": {
+    "leftHours": "Reply window: {{hours}} h {{minutes}} min left",
+    "leftMinutes": "Reply window: {{minutes}} min left",
+    "explain": "You can write freely for {{hours}} hours after the customer's last message. After that WhatsApp accepts only an approved template.",
+    "closedTitle": "The reply window has closed",
+    "closedBody": "WhatsApp allows only an approved template until {{name}} writes again. Their reply opens the window again.",
+    "closedShort": "Reply window closed: template only",
+    "sendTemplate": "Send a template",
+    "sent": "Template sent. You can write freely once the customer replies.",
+    "dialogTitle": "Send a template",
+    "dialogDescription": "Approved templates of this number's WhatsApp Business Account. Meta may charge for the conversation a template opens.",
+    "loading": "Loading templates…",
+    "loadFailed": "Couldn't load the templates.",
+    "choose": "Template",
+    "values": "Fill in the variables",
+    "variable": "Variable {{n}}",
+    "required": "Fill this in.",
+    "preview": "Preview",
+    "send": "Send template",
+    "marketingNote": "Marketing templates may go only to customers who agreed to receive them.",
+    "category": {
+      "utility": "Utility",
+      "marketing": "Marketing",
+      "authentication": "Authentication"
+    },
+    "unsupported": {
+      "image": "Image header: not supported yet",
+      "document": "Document header: not supported yet",
+      "video": "Video header: not supported yet",
+      "buttons": "Buttons: not supported yet",
+      "other": "Not supported yet"
+    },
+    "emptyTitle": "No approved templates yet",
+    "emptyBody": "Create templates in WhatsApp Manager. Meta reviews them, usually within minutes; approved ones appear here after a sync.",
+    "manage": "Open WhatsApp Manager",
+    "sync": "Sync",
+    "synced": "Templates synced from WhatsApp"
   }
 }

@@ -1,10 +1,12 @@
-import type {
-  CreateInboxBody,
-  Inbox,
-  InboxListResponse,
-  UpdateInboxBody,
-  User,
-  WaStatus,
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  LINKED_PHONE,
+  type CreateInboxBody,
+  type Inbox,
+  type InboxListResponse,
+  type UpdateInboxBody,
+  type User,
+  type WaStatus,
 } from '@ezychat/shared';
 import type { WaAdapter } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
@@ -16,6 +18,7 @@ import { getChats } from '../wa-bridge/index.js';
 import { canOpen, scopeFor } from './access.js';
 import { PRIMARY_INBOX_ID, inboxOfKey } from './keys.js';
 import type { InboxRow } from './repo.js';
+import { isKnownInboxType } from './types.js';
 
 declare module '../context.js' {
   interface Services {
@@ -31,11 +34,35 @@ export interface InboxActor {
 
 type Viewer = Pick<User, 'id' | 'role' | 'kind'>;
 
+/**
+ * Runs once the inbox row has its (new) type and before its adapter is built, so an extension can
+ * store that inbox id's own settings (credentials) first. Throwing undoes the create/type change.
+ */
+export type BeforeConnect = (row: InboxRow) => void | Promise<void>;
+
 export interface InboxService {
   /** `GET /inboxes`: the inboxes the viewer may open; QR, members and removed ones for admins. */
   list(viewer: Viewer): InboxListResponse;
-  /** Adds an inbox (409 `inbox_limit` above the build's limit); its phone starts linking. */
-  create(body: CreateInboxBody, actor: InboxActor): Promise<Inbox>;
+  /**
+   * Adds an inbox (409 `inbox_limit` above the build's limit); its phone starts linking. `type`:
+   * `linked_phone` (default) or a registered extension type (400 `unknown_inbox_type`).
+   */
+  create(
+    body: CreateInboxBody,
+    actor: InboxActor,
+    opts?: { type?: string; beforeConnect?: BeforeConnect },
+  ): Promise<Inbox>;
+  /**
+   * Switches an active inbox to another connection type (`linked_phone` or a registered one; 400
+   * `unknown_inbox_type`, 409 `inbox_removed`): the adapter is swapped, chats, keys, notes, tags
+   * and assignments stay. The same type is a no-op. Audited `inbox.type_change` {from, to}.
+   */
+  changeType(
+    id: number,
+    type: string,
+    actor: InboxActor,
+    opts?: { beforeConnect?: BeforeConnect },
+  ): Promise<Inbox>;
   update(id: number, body: UpdateInboxBody, actor: InboxActor): Inbox;
   /** Unlinks the phone, deletes its own folder and keeps its chats read only (409 for inbox 1). */
   remove(id: number, actor: InboxActor): Promise<void>;
@@ -150,6 +177,8 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       removed: row.removed_at !== null,
       aiAgentId: agentForInbox(ctx.db, row.id)?.id ?? null,
       ...(admin ? { memberIds: repo.members(row.id) } : {}),
+      type: row.type,
+      capabilities: wa?.capabilities ? { ...wa.capabilities } : { ...DEFAULT_INBOX_CAPABILITIES },
     };
   };
 
@@ -195,6 +224,11 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
   };
 
   const changed = () => ctx.bus.emit('inboxes:changed');
+
+  const requireKnownType = (type: string) => {
+    if (!isKnownInboxType(ctx, type))
+      throw new HttpError(400, 'unknown_inbox_type', `Unknown inbox type: ${type}`);
+  };
 
   /** The AI service: binding an agent cancels its work and hands back its chats there. */
   const aiService = () => {
@@ -252,7 +286,9 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       };
     },
 
-    async create(body, actor) {
+    async create(body, actor, opts) {
+      const type = opts?.type ?? LINKED_PHONE;
+      requireKnownType(type);
       const memberIds = checkMembers(body.memberIds);
       // refuse before the insert: a refused binding creates no inbox
       if (body.aiAgentId != null) {
@@ -262,9 +298,10 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       // check and insert without a pause between them: two admins cannot pass the limit together
       if (repo.active().length >= connections.maxInboxes())
         throw new HttpError(409, 'inbox_limit', 'The inbox limit is reached');
-      const row = repo.insert(body.name, repo.nextTone(), now());
+      const row = repo.insert(body.name, repo.nextTone(), now(), type);
       repo.setMembers(row.id, memberIds);
       try {
+        await opts?.beforeConnect?.(row);
         await connections.add(row);
       } catch (err) {
         repo.markRemoved(row.id, now());
@@ -275,11 +312,43 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
         userId: actor.userId,
         action: 'inbox.create',
         ip: actor.ip,
-        meta: { inboxId: row.id, memberCount: memberIds.length },
+        meta: { inboxId: row.id, memberCount: memberIds.length, type },
       });
       if (body.aiAgentId != null) bindAgent(row.id, body.aiAgentId, actor);
       changed();
       return toInbox(repo.get(row.id)!, true);
+    },
+
+    async changeType(id, type, actor, opts) {
+      const row = activeRow(id);
+      requireKnownType(type);
+      if (row.type === type) return toInbox(row, true);
+      if (adapterOrNull(id) === null)
+        throw new HttpError(
+          409,
+          'inbox_not_connected',
+          'This inbox is not connected in this edition',
+        );
+      const from = row.type;
+      repo.setType(id, type);
+      try {
+        await opts?.beforeConnect?.(repo.get(id)!);
+        // builds the new adapter before letting go of the old one: a failure changes nothing
+        await connections.replace(id, from);
+      } catch (err) {
+        repo.setType(id, from);
+        log.warn({ err, inboxId: id, from, to: type }, 'inbox type not changed');
+        throw err;
+      }
+      log.info({ inboxId: id, from, to: type }, 'inbox type changed');
+      audit(ctx.db, {
+        userId: actor.userId,
+        action: 'inbox.type_change',
+        ip: actor.ip,
+        meta: { inboxId: id, from, to: type },
+      });
+      changed();
+      return toInbox(repo.get(id)!, true);
     },
 
     update(id, body, actor) {

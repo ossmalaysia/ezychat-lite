@@ -4,7 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
-import type { AiAgentSummary, Inbox, InboxListResponse, User, WaStatus } from '@ezychat/shared';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type AiAgentSummary,
+  type Inbox,
+  type InboxListResponse,
+  type User,
+  type WaStatus,
+} from '@ezychat/shared';
 import { qk } from '../api/queries';
 import { InboxesPage } from './InboxesPage';
 
@@ -51,6 +58,8 @@ const SALES: Inbox = {
   status: open,
   removed: false,
   aiAgentId: null,
+  type: 'linked_phone',
+  capabilities: DEFAULT_INBOX_CAPABILITIES,
   memberIds: [2],
 };
 const CATERING: Inbox = {
@@ -61,6 +70,8 @@ const CATERING: Inbox = {
   status: status('qr', 'QR-CATERING'),
   removed: false,
   aiAgentId: null,
+  type: 'linked_phone',
+  capabilities: DEFAULT_INBOX_CAPABILITIES,
   memberIds: [2],
 };
 

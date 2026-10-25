@@ -96,6 +96,7 @@ describe('inbox foundation', () => {
         tone: 'primary',
         auth_dir: 'wa-auth',
         own_jid: null,
+        type: 'linked_phone',
         created_at: expect.any(Number),
         removed_at: null,
       },

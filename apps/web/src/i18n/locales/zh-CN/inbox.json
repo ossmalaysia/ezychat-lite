@@ -225,7 +225,8 @@
       "ai_unavailable": "AI 暂不可用",
       "lookup_failed": "在已连接系统中的查询失败",
       "business_rule": "符合您的转交规则",
-      "confidential_leak": "回复会透露内部条目"
+      "confidential_leak": "回复会透露内部条目",
+      "window_closed": "回复窗口已关闭（只能发送模板）"
     },
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",
@@ -289,7 +290,8 @@
       "fromTeammate": "{{name}}（团队）",
       "remove": "移除",
       "fromTeammateUnknown": "某位成员"
-    }
+    },
+    "template": "模板 {{name}}"
   },
   "media": {
     "types": {
@@ -517,5 +519,43 @@
     "setUp": "设置",
     "add": "添加",
     "hide": "隐藏入门指南"
+  },
+  "window": {
+    "leftHours": "回复窗口：剩余 {{hours}} 小时 {{minutes}} 分钟",
+    "leftMinutes": "回复窗口：剩余 {{minutes}} 分钟",
+    "explain": "客户最后一条消息后的 {{hours}} 小时内可以自由回复。之后 WhatsApp 只接受已批准的模板。",
+    "closedTitle": "回复窗口已关闭",
+    "closedBody": "在 {{name}} 再次发消息之前，WhatsApp 只允许发送已批准的模板。对方回复后窗口会重新打开。",
+    "closedShort": "回复窗口已关闭：只能发送模板",
+    "sendTemplate": "发送模板",
+    "sent": "模板已发送。客户回复后即可自由回复。",
+    "dialogTitle": "发送模板",
+    "dialogDescription": "此号码的 WhatsApp Business 账户中已批准的模板。模板开启的对话可能会由 Meta 收费。",
+    "loading": "正在加载模板…",
+    "loadFailed": "无法加载模板。",
+    "choose": "模板",
+    "values": "填写变量",
+    "variable": "变量 {{n}}",
+    "required": "请填写此项。",
+    "preview": "预览",
+    "send": "发送模板",
+    "marketingNote": "营销模板只能发送给同意接收的客户。",
+    "category": {
+      "utility": "实用",
+      "marketing": "营销",
+      "authentication": "身份验证"
+    },
+    "unsupported": {
+      "image": "图片标题：暂不支持",
+      "document": "文档标题：暂不支持",
+      "video": "视频标题：暂不支持",
+      "buttons": "按钮：暂不支持",
+      "other": "暂不支持"
+    },
+    "emptyTitle": "还没有已批准的模板",
+    "emptyBody": "请在 WhatsApp Manager 中创建模板。Meta 通常会在几分钟内审核；批准的模板在同步后会显示在这里。",
+    "manage": "打开 WhatsApp Manager",
+    "sync": "同步",
+    "synced": "已从 WhatsApp 同步模板"
   }
 }

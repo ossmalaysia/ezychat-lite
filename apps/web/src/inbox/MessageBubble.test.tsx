@@ -249,4 +249,28 @@ describe('MessageBubble via AI assistant', () => {
     );
     expect(screen.queryByTestId('via-assistant')).toBeNull();
   });
+
+  it('marks a message sent as an approved template with its name', () => {
+    render(
+      <MessageBubble
+        message={{ ...outbound, template: { name: 'order_ready', language: 'en' } }}
+        showSender={false}
+        outboundLabel="Aisyah"
+        quoted={null}
+      />,
+    );
+    expect(screen.getByTestId('via-template').textContent).toBe('Template order_ready ·');
+  });
+
+  it('shows no template marker on an ordinary message', () => {
+    render(
+      <MessageBubble
+        message={{ ...outbound, template: null }}
+        showSender={false}
+        outboundLabel="Aisyah"
+        quoted={null}
+      />,
+    );
+    expect(screen.queryByTestId('via-template')).toBeNull();
+  });
 });
