@@ -562,6 +562,9 @@ into AGENTS.md.
 
 ## Security
 
+- A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
+  traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
+  ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
 - Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
   signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
