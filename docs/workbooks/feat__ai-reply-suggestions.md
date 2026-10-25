@@ -9,7 +9,7 @@ Branch: `feat/ai-reply-suggestions` · Every agent updates its stage with
 | Dev | done | Tasks 1-9 of docs/superpowers/plans/2026-10-26-ai-reply-suggestions.md; fresh-reviewer findings fixed (7) | e54623c | 2026-10-25 |
 | Unit tests | pass | CI green on 2c77735: Linux (tests + coverage gates + changed lines 98.1 %), Windows, macOS | e54623c | 2026-10-25 |
 | E2E | pass | npm run e2e on e54623c+: 90 passed, 0 failed, 16 skipped; reply-suggestions.spec on desktop, mobile, iphone; e2e:electron-links green in CI (Windows) | e54623c | 2026-10-25 |
-| Dev Build | pass | Mock model: e2e/devbuild-suggestions-check.mjs 9/9 on e54623c; real-model 15-chat check not run (needs owner sign-in and agreement) | e54623c | 2026-10-25 |
+| Dev Build | pass | Mock model 9/9 on e54623c; owner hand test with a real Claude key on test-env: 'look good' (2026-10-26); 15-chat pass-mark check not run | 005f3a6 | 2026-10-25 |
 | Screen review | done | 20 real-app shots (1280/360, light/dark) via e2e/reply-suggestions-screens.mjs match the confirmed mock; no findings; docs/screenshots/chat + ai-settings refreshed | e54623c | 2026-10-25 |
 
 ## Log
@@ -58,3 +58,4 @@ Decisions the executor took during the build (from the plan ledger), each with i
 - ghost overlay does not follow textarea scroll on messages taller than 160 px
 - one needless completion call after a chip pick when the draft ends with . or ?
 - rate limit counts before the 404 access check
+- 2026-10-25 Dev Build: pass — Mock model 9/9 on e54623c; owner hand test with a real Claude key on test-env: 'look good' (2026-10-26); 15-chat pass-mark check not run (005f3a6)

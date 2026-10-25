@@ -2,6 +2,7 @@
 // screen review and docs/screenshots/chat + ai-settings. The three AI calls are answered in the
 // browser with demo drafts, so no model is ever called.
 // Usage: node e2e/reply-suggestions-screens.mjs <port> <outDir>
+/* global document -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
