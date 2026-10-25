@@ -80,6 +80,16 @@ export interface ApiTokenService {
     },
     ip: string,
   ): CreateApiTokenResponse;
+  /**
+   * Issues a token to an AI assistant app the admin approved through the MCP sign-in (OAuth): never
+   * expires, may not send (the owner can allow it later in Settings), and replaces the app's earlier
+   * tokens for that admin so reconnecting never piles up tokens.
+   */
+  createForApp(
+    userId: number,
+    app: { clientId: string; name: string },
+    ip: string,
+  ): CreateApiTokenResponse;
   /** Tokens that are not revoked (expired ones included, so the admin can see them). */
   list(): ApiToken[];
   revoke(id: number, actorId: number, ip: string): void;
@@ -108,6 +118,7 @@ interface TokenRow {
   last_used_at: number | null;
   expires_at: number | null;
   revoked_at: number | null;
+  oauth_client_id: string | null;
 }
 
 /** Bearer secret from an Authorization header value, or null when it is not one of our tokens. */
@@ -125,8 +136,13 @@ export function createApiTokenService(
   const auth = getAuth(ctx);
   const q = {
     insert: ctx.db.prepare(
-      `INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at, expires_at, scopes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO api_tokens
+         (user_id, name, token_hash, prefix, created_at, expires_at, scopes, oauth_client_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ),
+    revokeForApp: ctx.db.prepare(
+      `UPDATE api_tokens SET revoked_at = ?
+       WHERE user_id = ? AND oauth_client_id = ? AND revoked_at IS NULL`,
     ),
     byId: ctx.db.prepare('SELECT * FROM api_tokens WHERE id = ?'),
     byHash: ctx.db.prepare('SELECT * FROM api_tokens WHERE token_hash = ?'),
@@ -179,39 +195,59 @@ export function createApiTokenService(
   ctx.bus.on('user:disabled', onDisabled);
   ctx.bus.on('user:role-changed', onRoleChanged);
 
+  const issue = (
+    userId: number,
+    name: string,
+    expiresInDays: number | null,
+    scopes: string,
+    oauthClientId: string | null,
+    ip: string,
+  ): CreateApiTokenResponse => {
+    const owner = auth.getUser(userId);
+    if (!owner || owner.role !== 'admin' || owner.disabled) throw errors.forbidden('Admin only');
+    const secret = TOKEN_PREFIX + randomToken(32);
+    const t = now();
+    const expiresAt = expiresInDays === null ? null : t + expiresInDays * DAY_MS;
+    const id = Number(
+      q.insert.run(
+        userId,
+        name,
+        sha256(secret),
+        secret.slice(0, DISPLAY_CHARS),
+        t,
+        expiresAt,
+        scopes,
+        oauthClientId,
+      ).lastInsertRowid,
+    );
+    const token = toApiToken(q.byId.get(id) as TokenRow);
+    audit(ctx.db, {
+      userId,
+      action: 'api_token.create',
+      ip,
+      meta: {
+        tokenId: id,
+        name: token.name,
+        prefix: token.prefix,
+        expiresAt,
+        canSend: token.canSend,
+        canMessageNewNumbers: token.canMessageNewNumbers,
+        ...(oauthClientId ? { oauthClientId } : {}),
+      },
+    });
+    return { token, secret };
+  };
+
   return {
     create(userId, body, ip) {
-      const owner = auth.getUser(userId);
-      if (!owner || owner.role !== 'admin' || owner.disabled) throw errors.forbidden('Admin only');
-      const secret = TOKEN_PREFIX + randomToken(32);
-      const t = now();
-      const expiresAt = body.expiresInDays === null ? null : t + body.expiresInDays * DAY_MS;
-      const id = Number(
-        q.insert.run(
-          userId,
-          body.name,
-          sha256(secret),
-          secret.slice(0, DISPLAY_CHARS),
-          t,
-          expiresAt,
-          newTokenScopes(body),
-        ).lastInsertRowid,
-      );
-      const token = toApiToken(q.byId.get(id) as TokenRow);
-      audit(ctx.db, {
-        userId,
-        action: 'api_token.create',
-        ip,
-        meta: {
-          tokenId: id,
-          name: token.name,
-          prefix: token.prefix,
-          expiresAt,
-          canSend: token.canSend,
-          canMessageNewNumbers: token.canMessageNewNumbers,
-        },
-      });
-      return { token, secret };
+      return issue(userId, body.name, body.expiresInDays, newTokenScopes(body), null, ip);
+    },
+
+    createForApp(userId, app, ip) {
+      return ctx.db.transaction(() => {
+        q.revokeForApp.run(now(), userId, app.clientId);
+        return issue(userId, app.name, null, NEW_TOKEN_SCOPES, app.clientId, ip);
+      })();
     },
 
     list() {

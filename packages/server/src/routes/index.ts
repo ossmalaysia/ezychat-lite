@@ -22,6 +22,7 @@ import clientErrors from './client-errors.js';
 import ai from './ai.js';
 import directory from './directory.js';
 import integrations from './integrations.js';
+import oauth from './oauth.js';
 import inboxes from './inboxes.js';
 
 export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<void>;
@@ -49,6 +50,7 @@ export const routeModules: RouteModule[] = [
   ai,
   directory,
   integrations,
+  oauth,
   inboxes,
 ];
 

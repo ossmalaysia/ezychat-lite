@@ -295,6 +295,13 @@
       "turnedOn": "Akses pembantu AI dihidupkan",
       "turnedOff": "Akses pembantu AI dimatikan"
     },
+    "connectApp": {
+      "title": "Sambungkan claude.ai, ChatGPT atau Claude Desktop",
+      "description": "Dalam aplikasi AI anda, tambah penyambung tersuai dan tampal alamat ini. Aplikasi itu kemudian membuka {{product}}: log masuk dan klik Luluskan. Anda tidak memerlukan token.",
+      "address": "Alamat penyambung",
+      "copy": "Salin alamat",
+      "needsTunnel": "claude.ai dan ChatGPT berjalan di awan, jadi ia memerlukan alamat terowong. Hidupkan Akses telefon dahulu."
+    },
     "noTunnel": {
       "title": "Tiada terowong yang berjalan",
       "body": "Pembantu pada komputer yang menjalankan {{product}} boleh menyambung sekarang. Untuk menyambung dari tempat lain, hidupkan Akses telefon dahulu.",
@@ -359,7 +366,7 @@
       "copyUrl": "Salin URL",
       "copyHeader": "Salin pengepala",
       "otherHint": "Gunakan ini dalam mana-mana aplikasi MCP yang menerima URL pelayan dan pengepala (contohnya Codex CLI, Cursor atau VS Code).",
-      "oauthHint": "Aplikasi yang hanya log masuk dengan OAuth, seperti ChatGPT dan penyambung claude.ai, belum disokong.",
+      "oauthHint": "Aplikasi yang log masuk sendiri, seperti penyambung claude.ai dan ChatGPT, tidak memerlukan token: gunakan “Sambungkan claude.ai, ChatGPT atau Claude Desktop”.",
       "localOnly": "Alamat ini hanya berfungsi pada komputer yang menjalankan {{product}}. Mulakan terowong untuk menyambung dari tempat lain.",
       "askHint": "Kemudian tanya soalan seperti “Sembang mana yang sedang menunggu balasan?”"
     },

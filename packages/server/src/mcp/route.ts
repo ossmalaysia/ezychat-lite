@@ -12,12 +12,14 @@ import { createInboxReadPort } from './inbox.js';
 import { createAiSetupPort } from './ai-setup.js';
 import { createInboxSendPort } from './send.js';
 import { createMcpServer } from './server.js';
+import { resourceMetadataUrl } from './oauth-routes.js';
 import { MCP_PATH, isMcpEnabled } from './settings.js';
 import { handleMcpRequest } from './transport.js';
 
-const unauthorized = () =>
+// resource_metadata tells an MCP client where to find the sign-in (RFC 9728, MCP authorization).
+const unauthorized = (req: FastifyRequest) =>
   new HttpError(401, ErrorCode.UNAUTHORIZED, 'A valid access token is required', {
-    'www-authenticate': 'Bearer realm="ezychat", error="invalid_token"',
+    'www-authenticate': `Bearer realm="ezychat", error="invalid_token", resource_metadata="${resourceMetadataUrl(req)}"`,
   });
 
 /**
@@ -76,7 +78,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
           });
         }
         log.warn({ reason: result.reason, tokenId: result.tokenId }, 'mcp auth failed');
-        throw unauthorized();
+        throw unauthorized(req);
       }
       limit(tokenLimiter, `token:${result.principal.tokenId}`);
       return result.principal;

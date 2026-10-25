@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { formatDate, formatRelative } from '@/lib/format';
-import { ConfirmDialog, ErrorState, ListSkeleton } from './adminUi';
+import { ConfirmDialog, CopyButton, ErrorState, ListSkeleton } from './adminUi';
 import { CreateTokenDialog } from './CreateTokenDialog';
 import { TokenPermissionsDialog } from './TokenPermissionsDialog';
 
@@ -118,6 +118,37 @@ export function IntegrationsSection() {
           {patch.error != null && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
         </CardContent>
       </Card>
+
+      {/* Apps that sign in themselves (MCP OAuth): one address, then Approve in this app. */}
+      {enabled && (
+        <Card className="gap-4" data-testid="connect-app-card">
+          <CardHeader>
+            <CardTitle>{t('integrations.connectApp.title')}</CardTitle>
+            <CardDescription className="mt-1.5">
+              {t('integrations.connectApp.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex min-w-0 flex-col gap-2">
+            <p className="text-sm font-medium">{t('integrations.connectApp.address')}</p>
+            <code
+              data-testid="connect-app-url"
+              className="rounded-md border bg-muted px-3 py-2.5 font-mono text-xs [overflow-wrap:anywhere]"
+            >
+              {endpoint}
+            </code>
+            <CopyButton
+              text={endpoint}
+              label={t('integrations.connectApp.copy')}
+              className="self-start"
+            />
+            {!publicUrl && (
+              <p className="text-sm text-muted-foreground">
+                {t('integrations.connectApp.needsTunnel')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {!publicUrl && (
         <Banner tone="warning" title={t('integrations.noTunnel.title')}>

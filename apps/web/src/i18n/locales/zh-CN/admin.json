@@ -294,6 +294,13 @@
       "turnedOn": "已开启 AI 助手访问",
       "turnedOff": "已关闭 AI 助手访问"
     },
+    "connectApp": {
+      "title": "连接 claude.ai、ChatGPT 或 Claude Desktop",
+      "description": "在您的 AI 应用中添加自定义连接器并粘贴此地址。然后该应用会打开 {{product}}：登录并点击“批准”。无需令牌。",
+      "address": "连接器地址",
+      "copy": "复制地址",
+      "needsTunnel": "claude.ai 和 ChatGPT 在云端运行，因此需要隧道地址。请先开启手机访问。"
+    },
     "noTunnel": {
       "title": "隧道未运行",
       "body": "运行 {{product}} 的电脑上的助手现在就可以连接。如需从其他地方连接，请先开启手机访问。",
@@ -358,7 +365,7 @@
       "copyUrl": "复制 URL",
       "copyHeader": "复制请求头",
       "otherHint": "可在任何接受服务器 URL 和请求头的 MCP 应用中使用（例如 Codex CLI、Cursor 或 VS Code）。",
-      "oauthHint": "仅支持 OAuth 登录的应用（如 ChatGPT 和 claude.ai 连接器）暂不支持。",
+      "oauthHint": "自行登录的应用（如 claude.ai 和 ChatGPT 连接器）无需令牌：请改用“连接 claude.ai、ChatGPT 或 Claude Desktop”。",
       "localOnly": "此地址仅在运行 {{product}} 的电脑上有效。启动隧道后即可从其他地方连接。",
       "askHint": "然后可以这样提问：“哪些聊天正在等待回复？”"
     },
