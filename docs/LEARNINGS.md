@@ -877,6 +877,9 @@ into AGENTS.md.
   on a freshly started mock, and restart the mock again before the owner opens it. Restart after a failed
   run too, and send server-side effects (messages) from one viewport only: every browser context starts
   from the mock's localStorage seed while the server keeps what earlier contexts sent.
+- A mock shot script ends by writing `mock/screenshots/results.json` (`ranAt`, `passed` shot names, `failed`
+  problems; a `--setup` run merges into it): reviewers and the e2e-shots pane read a run's outcome from it
+  without running the script again.
 - A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
   first multi-inbox mock showed only the new Business API type and dropped the QR-linked phone, and the
   owner caught it. List the replaced screen's flows in `design.md` and show each in the new screen. When

@@ -8,7 +8,7 @@
 // Reports page errors and horizontal overflow; the mock blocks every outside request.
 // Usage: node docs/features/business-api/mock/business-api-shots.mjs [baseUrl] [--setup]
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -20,6 +20,7 @@ const browser = await chromium
   .launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {})
   .catch(() => chromium.launch({ channel: 'chrome' }));
 const problems = [];
+const taken = [];
 const sizes = { desktop: { width: 1280, height: 860 }, mobile: { width: 360, height: 780 } };
 const PRIYA = '/chats/60128814455%40s.whatsapp.net';
 const JASON = '/chats/60129001234%40s.whatsapp.net';
@@ -47,6 +48,7 @@ async function shot(page, name) {
   );
   if (overflow) problems.push(`${name}: horizontal scroll`);
   await page.screenshot({ path: join(OUT, `${name}.png`) });
+  taken.push(name);
 }
 
 /** Screenshot of an open dialog's scroll area, whole (long forms scroll inside the dialog). */
@@ -54,6 +56,7 @@ async function dialogShot(page, name) {
   await page.waitForTimeout(250);
   const dialog = page.getByRole('dialog');
   await dialog.screenshot({ path: join(OUT, `${name}.png`) });
+  taken.push(name);
   const overflow = await dialog.evaluate((d) => d.scrollWidth > d.clientWidth + 1);
   if (overflow) problems.push(`${name}: dialog horizontal scroll`);
 }
@@ -256,6 +259,23 @@ if (SETUP) {
 }
 
 await browser.close();
+// results.json: what the e2e-shots pane (and anyone) reads; a --setup run adds to the seeded run's.
+const resultsFile = join(OUT, 'results.json');
+const earlier =
+  SETUP && existsSync(resultsFile) ? JSON.parse(readFileSync(resultsFile, 'utf8')) : null;
+writeFileSync(
+  resultsFile,
+  JSON.stringify(
+    {
+      ranAt: new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC',
+      feature: 'business-api',
+      passed: [...new Set([...(earlier?.passed ?? []), ...taken])].sort(),
+      failed: [...(earlier?.failed ?? []), ...problems],
+    },
+    null,
+    2,
+  ) + '\n',
+);
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
