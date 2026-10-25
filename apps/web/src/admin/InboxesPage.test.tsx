@@ -274,6 +274,13 @@ describe('InboxesPage', () => {
     expect(await within(next).findByTestId('inbox-qr-waiting')).toBeTruthy();
     expect(within(next).queryByRole('button', { name: 'Save' })).toBeNull();
     expect(within(next).getByLabelText(/whatsapp number/i).id).toBe('wa-phone-4');
+    // The pairing-code form is never nested in the inbox form (invalid HTML, a hydration error).
+    expect(next.querySelector('form form')).toBeNull();
+    expect(
+      within(next)
+        .getByLabelText(/whatsapp number/i)
+        .closest('form')?.id,
+    ).not.toBe('inbox-form');
 
     // The socket's `inbox:status` brings the QR code, then the linked number.
     act(() => {

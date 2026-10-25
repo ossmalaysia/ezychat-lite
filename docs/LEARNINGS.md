@@ -812,6 +812,10 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
+  inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
+  Put it after the outer `</form>` and point the footer button at the form with `form={id}`.
+  `apps/web/vitest.setup.ts` fails every web test that logs an invalid-nesting error.
 - Two ways to do one thing on a screen (sign-in vs access token): name the simple one **Recommended**
   with numbered steps and the apps it is for, and put the expert one behind a closed "For developer
   tools" section; a primary button for the expert way reads as "required" to non-technical owners.
