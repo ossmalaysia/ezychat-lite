@@ -5,7 +5,7 @@ Branch: `ccr-a66fc928-sne1tn` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | Round 2 owner answers 2026-10-25: Marketing templates allowed, switch inbox type both ways (mock added), media templates listed disabled; waits for the owner's confirmation of the mock | 50351f7 | 2026-10-25 |
+| Design | done | Owner confirmed the mock 2026-10-25 ("ok impelemnt"); latestConfirmed business-api 078de13 | 078de13 | 2026-10-25 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -16,3 +16,4 @@ Branch: `ccr-a66fc928-sne1tn` · Every agent updates its stage with
 
 - 2026-10-25 Design: doing — Business API inbox type (Enterprise): owner answered 8 scope questions 2026-10-25; design.md + mock docs/features/business-api (cloned from upgrade-enterprise 2fce4a7), 52 screenshots; waits for the owner's confirmation; 3 open questions (48008cf)
 - 2026-10-25 Design: doing — Round 2 owner answers 2026-10-25: Marketing templates allowed, switch inbox type both ways (mock added), media templates listed disabled; waits for the owner's confirmation of the mock (50351f7)
+- 2026-10-25 Design: done — Owner confirmed the mock 2026-10-25 ("ok impelemnt"); latestConfirmed business-api 078de13 (078de13)

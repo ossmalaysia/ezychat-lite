@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "upgrade-enterprise",
-    "gitRevision": "2fce4a709235d6ac4d8707c682d637a87bfd7087",
-    "mock": "docs/features/upgrade-enterprise/mock/index.html",
-    "design": "docs/features/upgrade-enterprise/design.md",
-    "confirmedAt": "2026-10-24",
-    "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
+    "feature": "business-api",
+    "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b",
+    "mock": "docs/features/business-api/mock/index.html",
+    "design": "docs/features/business-api/design.md",
+    "confirmedAt": "2026-10-25",
+    "confirmation": "Owner confirmed 2026-10-25 after round 2 answers (Marketing templates allowed, switch inbox type both ways, media templates listed disabled), the screenshots and the mock test run: \"ok impelemnt\""
   },
   "proposals": [
     {
@@ -20,11 +20,14 @@
       "createdAt": "2026-10-25",
       "design": "docs/features/business-api/design.md",
       "mock": "docs/features/business-api/mock/index.html",
-      "status": "proposed",
+      "status": "confirmed",
       "baselineFeature": "upgrade-enterprise",
       "baselineGitRevision": "2fce4a709235d6ac4d8707c682d637a87bfd7087",
       "baselineAppRevision": "48008cf",
-      "coverage": "Full app clone of the confirmed upgrade-enterprise reference; WhatsApp Business API (Meta Cloud API) inbox type in the Enterprise view: Admin -> Inboxes type choice, Meta form (Phone number ID, WABA ID, permanent token, App secret, guide, required/rejected/connected), card (quality, templates + Sync, AI window note), webhook over Phone access (off/on/failing), token rejected, Edit with Replace token, Business API remove text; setup wizard WhatsApp step choice (QR default / Business API) for inbox 1; Phone access note; 24-hour reply window (note, closed-window chat-list icon, Send a template dialog with variables, preview, marketing note, empty state, sent marker, simulated customer reply); Lite view without any of it; desktop 1280 / mobile 360, light/dark (business-api-shots.mjs)"
+      "coverage": "Full app clone of the confirmed upgrade-enterprise reference; WhatsApp Business API (Meta Cloud API) inbox type in the Enterprise view: Admin -> Inboxes type choice, Meta form (Phone number ID, WABA ID, permanent token, App secret, guide, required/rejected/connected), card (quality, templates + Sync, AI window note), webhook over Phone access (off/on/failing), token rejected, Edit with Replace token, Business API remove text; setup wizard WhatsApp step choice (QR default / Business API) for inbox 1; Phone access note; 24-hour reply window (note, closed-window chat-list icon, Send a template dialog with variables, preview, marketing note, empty state, sent marker, simulated customer reply); Lite view without any of it; desktop 1280 / mobile 360, light/dark (business-api-shots.mjs)",
+      "confirmedAt": "2026-10-25",
+      "confirmation": "Owner confirmed 2026-10-25 after round 2 answers (Marketing templates allowed, switch inbox type both ways, media templates listed disabled), the screenshots and the mock test run: \"ok impelemnt\"",
+      "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b"
     },
     {
       "feature": "upgrade-enterprise",

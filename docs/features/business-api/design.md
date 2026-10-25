@@ -145,4 +145,5 @@ order 7; clean and committed; last revision with the folder `48008cf`, recorded 
 
 ## Confirmation
 
-Pending. The owner reviews the screenshots/running mock; record the answer here and in `mock-index.json`.
+Confirmed by the owner 2026-10-25 after the round 2 answers, the screenshots and the clean mock test run:
+"ok impelemnt" (status `confirmed` in `mock-index.json`; mock revision `078de13`).
