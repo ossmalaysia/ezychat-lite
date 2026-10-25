@@ -186,3 +186,7 @@ Tier **core**, set by: apps/web/src/api/templates.ts, apps/web/src/extensions/in
 Hard stops: none
 
 Decision: **risk:human**
+
+## 2026-10-25 · PR #183 · `fc61d83` · approved by the owner
+
+> It is low risk as it's alternative than original inbox, merge it

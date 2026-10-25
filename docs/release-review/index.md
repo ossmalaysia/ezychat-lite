@@ -15,3 +15,4 @@ Every release review run, newest last. Never pruned.
 | 2026-10-24 | #138 | `e8fd796` | docs     | 100   | risk:auto  | docs/release-review/log.md |
 | 2026-10-24 | #167 | `b005c10` | critical | 85    | risk:auto  | docs/release-review/log.md |
 | 2026-10-25 | #183 | `c446d6c` | core | 45 | risk:human | docs/release-review/log.md |
+| 2026-10-25 | #183 | `fc61d83` | — | — | human-approved | docs/release-review/log.md |
