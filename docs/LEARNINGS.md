@@ -457,6 +457,10 @@ into AGENTS.md.
   segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
   instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
+- "No tsconfigRootDir was set, and multiple candidate TSConfigRootDirs" on thousands of files means ESLint
+  reads untracked repo copies (agent worktrees): ignore them in `eslint.config.js` (`.claude/worktrees/**`).
+- In the Bash tool, `\n` inside text that a heredoc passes to Python or sed can arrive as a real line
+  break: edit code that holds escapes (`'\n'`, regexes) with the Edit tool and check the result.
 - The context-mode hook blocks `fetch('http…` inside a Bash command: put Dev Build HTTP steps in a script
   file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration also moves `LATEST` and the table
   list in `src/db/migrate.test.ts`.

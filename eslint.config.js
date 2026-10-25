@@ -22,6 +22,8 @@ export default tseslint.config(
       'data/**',
       '.e2e-data/**',
       'graphify-out/**',
+      // Agent worktrees are full repo copies: their tsconfigs break typescript-eslint's root detection.
+      '.claude/worktrees/**',
       'docs/**',
     ],
   },
