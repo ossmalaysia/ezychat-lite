@@ -824,8 +824,9 @@ into AGENTS.md.
 - A route that calls an outside service takes its client from an optional `ctx.services.<name>` slot
   (e.g. `aiKeyTest`), set in `makeTestApp`'s `beforeBuild`, so tests never reach the network.
 - An API key test treats only a 401 as a bad key: a 403 (restricted key, region block), 429 or
-  network failure must still let the admin save. e2e that save a key answer
-  `POST /api/ai/connection/test` with `page.route`.
+  network failure must still let the admin save. e2e and screenshot scripts answer every model-backed
+  route in the browser with `page.route` and demo output (`POST /api/ai/connection/test`,
+  `/api/chats/:jid/ai/suggestions` and `/ai/complete`), so a real screen runs without any model call.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.
