@@ -18,11 +18,17 @@ const results = [];
 const step = (name, ok, detail = '') => {
   results.push({ name, ok });
   const suffix = detail ? '  (' + detail + ')' : '';
-  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + suffix);
+  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + suffix); // NOSONAR (jssecurity:S5145): local check output
 };
 
+/**
+ * Every request of this check: this machine's Dev Build (checked numeric port) or its own Quick
+ * Tunnel (address rebuilt from a checked trycloudflare name).
+ */
+const request = (url, init) => fetch(url, init); // NOSONAR (jssecurity:S5144): own server and own tunnel only, see above
+
 async function signIn(base) {
-  const res = await fetch(`${base}/api/auth/login`, {
+  const res = await request(`${base}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: base },
     body: JSON.stringify({ username: 'aisyah', password: 'demo-pass-123' }),
@@ -34,7 +40,7 @@ async function signIn(base) {
 }
 
 const adminCall = (base, cookie, path, init = {}) =>
-  fetch(`${base}/api${path}`, {
+  request(`${base}/api${path}`, {
     ...init,
     headers: {
       cookie,
@@ -65,7 +71,7 @@ if (useTunnel) {
   step('Quick Tunnel running', base !== local, base);
   // A fresh trycloudflare name can take a few seconds to resolve.
   for (let i = 0; i < 30; i++) {
-    const ok = await fetch(`${base}/api/health`)
+    const ok = await request(`${base}/api/health`)
       .then((r) => r.ok)
       .catch(() => false);
     if (ok) break;
@@ -85,7 +91,7 @@ const initialize = {
   },
 };
 const mcp = (token, body) =>
-  fetch(mcpUrl, {
+  request(mcpUrl, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -110,12 +116,12 @@ step(
   '401 names resource_metadata',
   unauth.status === 401 && wwwAuth.includes(`resource_metadata="${expected.resourceMetadata}"`),
 );
-const prm = await (await fetch(expected.resourceMetadata)).json();
+const prm = await (await request(expected.resourceMetadata)).json();
 step(
   'protected resource is this /mcp, on this server',
   prm.resource === mcpUrl && prm.authorization_servers?.[0] === base,
 );
-const as = await (await fetch(`${base}/.well-known/oauth-authorization-server`)).json();
+const as = await (await request(`${base}/.well-known/oauth-authorization-server`)).json();
 step(
   'authorization server metadata on the same origin, S256',
   as.issuer === base &&
@@ -127,7 +133,7 @@ step(
 
 // 2. The app registers itself (as claude.ai does).
 const redirect = 'https://claude.ai/api/mcp/auth_callback';
-const reg = await fetch(expected.registration, {
+const reg = await request(expected.registration, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
@@ -151,7 +157,7 @@ const params = new URLSearchParams({
   state: 'check-state',
   resource: mcpUrl,
 });
-const page = await fetch(`${expected.authorization}?${params}`);
+const page = await request(`${expected.authorization}?${params}`);
 step('approval page is served', page.ok && (await page.text()).includes('<div id="root"'));
 const cookie = base === local ? localCookie : await signIn(base);
 const info = await (await adminCall(base, cookie, `/oauth/request?${params}`)).json();
@@ -167,7 +173,7 @@ step(
 );
 
 // 4. The app swaps the code (from its server, no browser).
-const tokenRes = await fetch(expected.token, {
+const tokenRes = await request(expected.token, {
   method: 'POST',
   headers: { 'content-type': 'application/x-www-form-urlencoded' },
   body: new URLSearchParams({
@@ -216,5 +222,5 @@ if (!keep) {
 }
 const failed = results.filter((r) => !r.ok).length;
 console.log(failed ? `${failed} FAILED` : `all ${results.length} passed`);
-if (keep) console.log(`connector address: ${mcpUrl}`);
+if (keep) console.log(`connector address: ${mcpUrl}`); // NOSONAR (jssecurity:S5145): local check output
 process.exitCode = failed ? 1 : 0;

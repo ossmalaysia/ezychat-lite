@@ -316,7 +316,8 @@ into AGENTS.md.
   http) gets a `// NOSONAR (javascript:S5332): <reason>` on its line; everything else uses https.
   It treats `process.argv` in `e2e/` scripts as untrusted (SSRF S5144/S8703): parse the port with
   `Number()` and a range check, and `fetch` only addresses the script builds, comparing server-sent
-  URLs (metadata, tunnel status) instead of calling them.
+  URLs (metadata, tunnel status) instead of calling them. A script that must follow its own tunnel
+  sends every request through one helper with one reasoned `// NOSONAR (jssecurity:S5144)`.
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
   fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
