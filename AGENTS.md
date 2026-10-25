@@ -133,7 +133,13 @@ claims, answers, hands off or resolves a chat; `prompt.ts` builds the single pro
 and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (admin-only, Edit with AI:
 `ai/edit-prompt.ts` + `ai/agent/rewrite.ts`) only suggests a rewrite of one box — the page applies it to its
 draft and its Save persists it; its log line holds field, ok, ms and model only — never the request,
-the current text or the suggestion; closing the popup aborts the request and the model call; `resolution.ts` is the resolution guard;
+the current text or the suggestion; closing the popup aborts the request and the model call. Reply suggestions
+(design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
+(any user with inbox access, direct chats only, 20 and 60 a minute) draft from the chat's agent knowledge even when
+the agent is off (`AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
+`CORE_RULES`); `ai/draft-check.ts` drops ungrounded drafts, numbers not in the sources and Internal leaks; nothing
+is sent or stored; switch `ai_reply_suggestions` (admins, `PUT /api/ai/reply-suggestions`; status for everyone at
+`GET /api/reply-suggestions`), written off by migration 020 for installs that existed before; `resolution.ts` is the resolution guard;
 `knowledge.ts` selects knowledge. Provider modes: API key (`api`, public OpenAI Responses API), Claude API key
 (`claude`, Anthropic Messages API through `@ai-sdk/anthropic`, only in `ai/claude.ts`; 3 fixed models
 `CLAUDE_MODELS`, key in the encrypted `ai_claude_api_key` setting, kept beside the OpenAI key; cloud voice is
