@@ -33,6 +33,10 @@ into AGENTS.md.
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
   become unreadable; put long names on their own lines and keep one short line per item. Lead with
   the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
+- Before the owner hand-tests on `D:\dev\test-env\lite`, check that it runs (port 7491, started after the
+  branch build) and read the feature's state in its data: that data is an updated install, so a feature
+  that starts off after an update is hidden there until an admin turns it on. Its admin is `jazz`; the
+  password is only the owner's (reset needs the CLI `--reset-admin` with the server stopped).
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
