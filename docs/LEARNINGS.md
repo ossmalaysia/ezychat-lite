@@ -126,6 +126,11 @@ into AGENTS.md.
   push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
   those two through `gh api` (REST).
+- CI docs-only fast path: `ci.yml` checks right after checkout whether every changed file is `*.md`
+  (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
+  the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
+  check (matrix names stay unexpanded), so the PR waits forever. Any unreadable diff runs the full job.
+  A Markdown file a test reads (Lite `CHANGELOG.md`) counts as code.
 - A critical dependency update (Electron, argon2, SQLite, fastify, electron-builder) gets its real-part test
   from a packaged build: `npm run dist -w @ezychat/desktop -- --dir --config.directories.output=release-check`,
   `node scripts/smoke-packaged.mjs apps/desktop/release-check`, then the packaged server with

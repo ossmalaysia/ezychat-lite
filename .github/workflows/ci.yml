@@ -25,29 +25,54 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the changed-lines coverage gate diffs against the base branch
+      # Docs-only fast path: when every changed file is Markdown (except CHANGELOG.md, which a test reads),
+      # the remaining steps are skipped and the job still reports success, so the required check stays green
+      # without running the suite.
+      # Anything else, or a diff that cannot be read, runs the full job. Renames count both paths.
+      - name: Docs-only change?
+        id: scope
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          docs_only=false
+          if [ -n "${BASE//0/}" ]; then
+            git cat-file -e "$BASE^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$BASE" || true
+            if files="$(git diff --name-only --no-renames "$BASE" HEAD)" && [ -n "$files" ] \
+              && ! grep -qvE '\.md$' <<<"$files" && ! grep -qx 'CHANGELOG.md' <<<"$files"; then
+              docs_only=true
+            fi
+          fi
+          echo "docs_only=$docs_only" | tee -a "$GITHUB_OUTPUT"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.scope.outputs.docs_only != 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: steps.scope.outputs.docs_only != 'true'
       - run: npm run lint
+        if: steps.scope.outputs.docs_only != 'true'
       - run: npm run typecheck
+        if: steps.scope.outputs.docs_only != 'true'
       # Build the publishable core first, so the pack contract test never builds during the suite.
       - run: npm run build:core
-      - if: matrix.os != 'ubuntu-latest'
+        if: steps.scope.outputs.docs_only != 'true'
+      - if: steps.scope.outputs.docs_only != 'true' && matrix.os != 'ubuntu-latest'
         run: npm test
       # Coverage once (ubuntu): totals must stay above the floors in vitest.config.ts, and a PR must cover
       # at least 90 % of the executable lines it adds or changes (AGENTS.md, good to go).
-      - if: matrix.os == 'ubuntu-latest'
+      - if: steps.scope.outputs.docs_only != 'true' && matrix.os == 'ubuntu-latest'
         run: npm run test:coverage
-      - if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+      - if: steps.scope.outputs.docs_only != 'true' && matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
         run: npm run coverage:changed
         env:
           BASE_REF: origin/${{ github.base_ref }}
       - run: npm run build -w @ezychat/web
+        if: steps.scope.outputs.docs_only != 'true'
       # Desktop-only rules run only in the real Electron window, never in browser e2e: click every external
       # link on every screen there (e2e/electron-links.smoke.mjs). Windows runners have a desktop for it.
-      - if: matrix.os == 'windows-latest'
+      - if: steps.scope.outputs.docs_only != 'true' && matrix.os == 'windows-latest'
         run: npm run build -w @ezychat/desktop
-      - if: matrix.os == 'windows-latest'
+      - if: steps.scope.outputs.docs_only != 'true' && matrix.os == 'windows-latest'
         run: npm run e2e:electron-links
