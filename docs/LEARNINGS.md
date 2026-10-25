@@ -427,6 +427,9 @@ into AGENTS.md.
   segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
   instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
+- The context-mode hook blocks `fetch('http…` inside a Bash command: put Dev Build HTTP steps in a script
+  file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration also moves `LATEST` and the table
+  list in `src/db/migrate.test.ts`.
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
   and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
@@ -542,6 +545,13 @@ into AGENTS.md.
   mutation hands them to the showing component's state via a callback and returns metadata only;
   clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
+  because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
+  the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
+- Real-app OAuth checks run through a Quick Tunnel (claude.ai and ChatGPT reach only public https). An
+  agent never types a password on a tunnel host, even a demo one: the owner signs in there, the agent
+  clicks Approve and runs the rest. Keep guide screenshots cropped to the dialog (no sidebars) and blur
+  token prefixes.
 - Audit writes reachable without a session (failed token sign-ins) go through a per-IP-and-reason
   limiter, or anyone can flood `audit_log`.
 - Access checks for an endpoint that must stay hidden or limited (off → 404, peer, token, rate limit)
