@@ -288,7 +288,9 @@ into AGENTS.md.
   (about two days): plan the next release tag inside that window, or the connection must be set up again.
 - Core packages pin sibling `@ezychat/*` deps to the exact version: after merging a version bump from
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
-  version up on the registry (404).
+  version up on the registry (404). Different npm versions flip dozens of `"peer": true` lines in the
+  lockfile at each release: keep `main`'s lockfile and change only the `@ezychat/*` version strings
+  (check the rest is equal ignoring `peer` lines).
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
   `###` headings: two branches adding the same section merge cleanly into two copies. A branch rebased
   over a release can carry its entry into the released version's section: before a merge, check that
