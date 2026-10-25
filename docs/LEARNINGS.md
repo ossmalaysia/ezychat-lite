@@ -62,6 +62,8 @@ into AGENTS.md.
   a baseline for the next feature. Fetch and re-read `latestConfirmed` and the folder list on
   `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
   retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
+  Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
+  hash of the mock commit, and the recorded revision must exist on the pushed branch.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
