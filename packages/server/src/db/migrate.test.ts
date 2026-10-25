@@ -252,4 +252,38 @@ describe('migrate', () => {
       db.close();
     }
   });
+
+  it('019 keeps inboxes as phones and starts each chat window at its newest customer message', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 18)
+        .sort())
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 18');
+      db.exec(`
+        INSERT INTO chats (jid, type, name, updated_at) VALUES
+          ('a@s.whatsapp.net', 'dm', 'A', 1), ('b@s.whatsapp.net', 'dm', 'B', 1);
+        INSERT INTO messages (id, chat_jid, type, timestamp, created_at, from_me) VALUES
+          ('in1', 'a@s.whatsapp.net', 'text', 100, 100, 0),
+          ('in2', 'a@s.whatsapp.net', 'text', 300, 300, 0),
+          ('out', 'a@s.whatsapp.net', 'text', 500, 500, 1),
+          ('mine', 'b@s.whatsapp.net', 'text', 200, 200, 1);
+      `);
+      migrate(db);
+      expect(db.pragma('user_version', { simple: true })).toBe(LATEST);
+      expect(db.prepare('SELECT jid, last_inbound_at FROM chats ORDER BY jid').all()).toEqual([
+        { jid: 'a@s.whatsapp.net', last_inbound_at: 300 },
+        { jid: 'b@s.whatsapp.net', last_inbound_at: null },
+      ]);
+      expect(db.prepare('SELECT id, type FROM inboxes').all()).toEqual([
+        { id: 1, type: 'linked_phone' },
+      ]);
+      expect(
+        db.prepare("SELECT template_name, template_params FROM messages WHERE id = 'in1'").get(),
+      ).toEqual({ template_name: null, template_params: null });
+    } finally {
+      db.close();
+    }
+  });
 });
