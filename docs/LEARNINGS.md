@@ -986,6 +986,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Internationalization
 
+- Searchable catalog content (template gallery `keywords`) keeps the English words beside the
+  translated ones, so a search works in either language; Malaysian users mix them ("aircond", "gigi").
+  Translate large catalog batches with a field-by-field checker (same keys, lines, list items, colons).
 - Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`, including prefilled editable
   content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.
