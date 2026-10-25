@@ -128,6 +128,9 @@ into AGENTS.md.
 
 - A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
   or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
+- After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
+  GitHub can drop push events (no CI for the merge either). Then start it on the tag,
+  `gh workflow run <file> --ref v<version>`; `refs/tags/v…` conditions (publish jobs) still pass.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
@@ -541,6 +544,8 @@ into AGENTS.md.
 
 ## Security
 
+- Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
+  signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
   the current limit (an older run, a dev flag). Shortcuts like "one inbox → everyone sees all" check the
   stored rows too, and rows over the limit are never connected.
