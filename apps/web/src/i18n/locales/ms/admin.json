@@ -1045,7 +1045,44 @@
       "rule3": "Peranan dan peraturannya tidak boleh ditukar daripada sembang.",
       "rule4": "Tidak pernah mereka fakta, harga atau janji; item dalaman hanya membantunya membuat keputusan."
     },
-    "openAgents": "Buka ejen AI"
+    "openAgents": "Buka ejen AI",
+    "businessTemplates": {
+      "title": "Mula daripada templat perniagaan",
+      "hint": "Pilih jenis perniagaan anda dan gunakannya: ejen mendapat nama, jenis, arahan dan peraturan serahan yang dibuat untuk perniagaan itu. Anda boleh mengubah semuanya sebelum menyimpan.",
+      "applyHint": "Templat mengisi kotak di bawah. Tiada apa-apa disimpan sehingga anda klik Simpan.",
+      "apply": "Gunakan templat",
+      "applied": "Templat {{name}} digunakan. Semak teks, kemudian simpan.",
+      "pendingItem": "Simpan juga menambah item Konteks perniagaan “{{item}}”. Isi barisnya selepas itu.",
+      "confirmTitle": "Gunakan templat {{name}}?",
+      "confirmBody": "Ini menggantikan arahan dan peraturan serahan dalam kotak di bawah dengan templat. Ejen yang disimpan berubah hanya apabila anda klik Simpan.",
+      "clinic": {
+        "name": "Klinik",
+        "description": "Menjawab soalan tentang waktu operasi, doktor, perkhidmatan, yuran dan panel. Tidak pernah memberi nasihat perubatan.",
+        "agentName": "Pembantu klinik",
+        "focus": "PERNIAGAAN\nAnda menjawab bagi pihak sebuah klinik. Bantu pesakit tentang waktu operasi, doktor bertugas, perkhidmatan dan yuran, panel dan insurans, serta cara membuat temu janji.\n- Jangan sekali-kali mendiagnosis, mencadangkan ubat atau dos, atau menyatakan sama ada sesuatu simptom serius.\n- Jika pelanggan menerangkan kecemasan (contohnya sakit dada, sukar bernafas atau pendarahan teruk), suruh mereka menghubungi 999 atau pergi ke jabatan kecemasan terdekat sekarang, kemudian serahkan sembang.",
+        "handoffRules": "- Pelanggan menerangkan simptom atau meminta nasihat perubatan\n- Pelanggan menerangkan kecemasan\n- Pelanggan mahu membuat, menukar atau membatalkan temu janji\n- Pelanggan bertanya tentang keputusan ujian, rekod perubatan, sijil cuti sakit atau bil mereka\n- Pelanggan bertanya tentang tuntutan panel, insurans atau syarikat yang tiada dalam konteks perniagaan\n- Pelanggan marah atau membuat aduan",
+        "contextName": "Butiran klinik",
+        "contextText": "Isi setiap baris selepas titik bertindih dan padam baris yang tidak berkaitan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nNama klinik:\nAlamat dan tempat letak kereta:\nWaktu operasi:\nCuti umum:\nDoktor dan hari bertugas:\nPerkhidmatan dan yuran:\nPanel dan insurans yang diterima:\nCara membuat temu janji:\nApa yang perlu dibawa:\nKaedah pembayaran:\nBahasa lalai untuk balasan:"
+      },
+      "carWorkshop": {
+        "name": "Bengkel kereta",
+        "description": "Menjawab tentang pakej servis, harga dan pembaikan, serta membantu pelanggan menempah slot.",
+        "agentName": "Pembantu bengkel",
+        "focus": "PERNIAGAAN\nAnda menjawab bagi pihak sebuah bengkel kereta. Bantu pelanggan tentang pakej servis dan harga, pembaikan, alat ganti, tempahan slot, ambil kereta dan masa menunggu.\n- Beri hanya harga yang tertulis dalam konteks perniagaan. Pembaikan memerlukan pemeriksaan dahulu: tawarkan untuk menempah pemeriksaan dan jangan meneka harga.\n- Tanya model dan tahun kereta apabila ia mengubah jawapan.",
+        "handoffRules": "- Pelanggan memerlukan sebut harga pembaikan atau keputusan pemeriksaan\n- Pelanggan melaporkan kerosakan atau kemalangan, atau memerlukan tunda\n- Pelanggan bertanya tentang tuntutan insurans atau waranti\n- Pelanggan mahu menempah, menukar atau membatalkan slot servis\n- Pelanggan mengadu tentang kerja atau bil sebelum ini",
+        "contextName": "Butiran bengkel",
+        "contextText": "Isi setiap baris selepas titik bertindih dan padam baris yang tidak berkaitan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nNama bengkel:\nAlamat:\nWaktu operasi:\nJenama kereta yang kami servis:\nPakej servis dan harga:\nPerkhidmatan lain (tayar, bateri, penghawa dingin, badan dan cat):\nPerkhidmatan tunda:\nCara menempah slot:\nRuang menunggu dan masa menunggu:\nWaranti kerja kami:\nKaedah pembayaran:\nBahasa lalai untuk balasan:"
+      },
+      "tuition": {
+        "name": "Pusat tuisyen",
+        "description": "Menjawab ibu bapa tentang subjek, tahap, waktu kelas, yuran dan kelas percubaan, serta membantu mereka mendaftar.",
+        "agentName": "Pembantu tuisyen",
+        "focus": "PERNIAGAAN\nAnda menjawab bagi pihak sebuah pusat tuisyen. Bantu ibu bapa dan pelajar tentang subjek, tahap, waktu kelas, yuran, kelas percubaan dan cara mendaftar.\n- Tanya tahap pelajar (contohnya Tahun 5, Tingkatan 4 atau IGCSE) apabila ia mengubah jawapan.\n- Beri hanya yuran dan waktu yang tertulis dalam konteks perniagaan.",
+        "handoffRules": "- Ibu bapa mahu mendaftar, membayar atau meminta bayaran balik\n- Ibu bapa bertanya tentang kemajuan, kehadiran atau keputusan anak mereka\n- Ibu bapa mahu menukar kelas atau tutor\n- Ibu bapa bertanya tentang keperluan pembelajaran khas\n- Ibu bapa atau pelajar marah atau membuat aduan",
+        "contextName": "Butiran pusat tuisyen",
+        "contextText": "Isi setiap baris selepas titik bertindih dan padam baris yang tidak berkaitan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nNama pusat:\nAlamat dan tempat letak kereta:\nSubjek dan tahap:\nJadual kelas:\nSaiz kelas:\nYuran (sebulan atau setiap subjek):\nYuran pendaftaran dan deposit:\nKelas percubaan:\nKelas dalam talian atau fizikal:\nCara mendaftar:\nCuti dan kelas gantian:\nBahasa lalai untuk balasan:"
+      }
+    }
   },
   "enrichment": {
     "title": "Pelengkapan maklumat pelanggan",

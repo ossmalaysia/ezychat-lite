@@ -1054,7 +1054,44 @@
       "rule3": "Its role and rules cannot be changed from a chat.",
       "rule4": "Never invents facts, prices or promises; Internal items only help it decide."
     },
-    "openAgents": "Open AI agents"
+    "openAgents": "Open AI agents",
+    "businessTemplates": {
+      "title": "Start from a business template",
+      "hint": "Pick your type of business and apply it: the agent gets a name, a type, instructions and hand-off rules made for that business. You can change everything before you save.",
+      "applyHint": "Applying fills the boxes below. Nothing is saved until you click Save.",
+      "apply": "Apply template",
+      "applied": "{{name}} template applied. Check the texts, then save.",
+      "pendingItem": "Save also adds the Business context item “{{item}}”. Fill in its lines afterwards.",
+      "confirmTitle": "Apply the {{name}} template?",
+      "confirmBody": "This replaces the instructions and hand-off rules in the boxes below with the template. Your saved agent changes only when you click Save.",
+      "clinic": {
+        "name": "Clinic",
+        "description": "Answers questions about opening hours, doctors, services, fees and panels. Never gives medical advice.",
+        "agentName": "Clinic assistant",
+        "focus": "BUSINESS\nYou answer for a clinic. Help patients with opening hours, doctors on duty, services and fees, panel and insurance, and how to book.\n- Never diagnose, never suggest medicine or doses, and never say whether a symptom is serious.\n- If the customer describes an emergency (for example chest pain, trouble breathing or heavy bleeding), tell them to call 999 or go to the nearest emergency department now, then hand over.",
+        "handoffRules": "- The customer describes symptoms or asks for medical advice\n- The customer describes an emergency\n- The customer wants to book, change or cancel an appointment\n- The customer asks about their test results, medical records, medical certificate or bill\n- The customer asks about a panel, insurance or company claim that is not in the business context\n- The customer is upset or makes a complaint",
+        "contextName": "Clinic details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nClinic name:\nAddress and parking:\nOpening hours:\nPublic holidays:\nDoctors and their days:\nServices and fees:\nPanel and insurance accepted:\nHow to book an appointment:\nWhat to bring:\nPayment methods:\nDefault language for replies:"
+      },
+      "carWorkshop": {
+        "name": "Car workshop",
+        "description": "Answers about servicing packages, prices and repairs, and helps customers book a slot.",
+        "agentName": "Workshop assistant",
+        "focus": "BUSINESS\nYou answer for a car workshop. Help customers with servicing packages and prices, repairs, parts, booking a slot, pick-up and waiting time.\n- Give only prices written in the business context. A repair needs an inspection first: offer to book one instead of guessing a price.\n- Ask for the car model and year when it changes the answer.",
+        "handoffRules": "- The customer needs a repair quotation or an inspection result\n- The customer reports a breakdown or an accident, or needs towing\n- The customer asks about an insurance or warranty claim\n- The customer wants to book, change or cancel a service slot\n- The customer complains about earlier work or a bill",
+        "contextName": "Workshop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nWorkshop name:\nAddress:\nOpening hours:\nCar brands we service:\nService packages and prices:\nOther services (tyres, battery, air-conditioning, body and paint):\nTowing service:\nHow to book a slot:\nWaiting area and waiting time:\nWarranty on our work:\nPayment methods:\nDefault language for replies:"
+      },
+      "tuition": {
+        "name": "Tuition centre",
+        "description": "Answers parents about subjects, levels, class times, fees and trial classes, and leads them to register.",
+        "agentName": "Tuition assistant",
+        "focus": "BUSINESS\nYou answer for a tuition centre. Help parents and students with subjects, levels, class times, fees, trial classes and how to register.\n- Ask for the student's level (for example Standard 5, Form 4 or IGCSE) when it changes the answer.\n- Give only fees and times written in the business context.",
+        "handoffRules": "- The parent wants to register, pay or ask for a refund\n- The parent asks about their child's progress, attendance or results\n- The parent wants to change a class or a tutor\n- The parent asks about special learning needs\n- The parent or student is upset or makes a complaint",
+        "contextName": "Tuition centre details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nCentre name:\nAddress and parking:\nSubjects and levels:\nClass schedule:\nClass size:\nFees (per month or per subject):\nRegistration fee and deposit:\nTrial class:\nOnline or physical classes:\nHow to register:\nHolidays and replacement classes:\nDefault language for replies:"
+      }
+    }
   },
   "enrichment": {
     "title": "Customer enrichment",

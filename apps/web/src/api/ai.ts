@@ -339,3 +339,19 @@ export function useAiAgentAction(agentId: number | null) {
     onError: () => refreshAgents(qc),
   });
 }
+
+/**
+ * Adds a Business context text item to an agent by id: a business template's item, sent once the
+ * agent exists (right after create, or after the Save that applies the template).
+ */
+export function useAddAgentText() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ agentId, body }: { agentId: number; body: AiContextTextBody }) =>
+      api(`/ai/agents/${agentId}/documents/text`, { body, schema: AiAgentStatus }),
+    onSuccess: (result) => {
+      qc.setQueryData(aiAgentKey(result.agent.id), result);
+      refreshAgents(qc);
+    },
+  });
+}
