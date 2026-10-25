@@ -103,7 +103,9 @@
       "src/i18n/locales/ms/common.json",
       "src/i18n/locales/zh-CN/common.json"
     ],
-    "added": ["src/components/app/UpgradeEnterprise.tsx"]
+    "added": [
+      "src/components/app/UpgradeEnterprise.tsx"
+    ]
   },
   "olderProposals": [
     {
@@ -117,7 +119,10 @@
         "src/i18n/locales/ms/inbox.json",
         "src/i18n/locales/zh-CN/inbox.json"
       ],
-      "added": ["src/inbox/ReactionPicker.tsx", "src/mock/useSendReaction.ts"]
+      "added": [
+        "src/inbox/ReactionPicker.tsx",
+        "src/mock/useSendReaction.ts"
+      ]
     },
     {
       "feature": "emoji-reactions",
@@ -130,7 +135,10 @@
         "src/i18n/locales/ms/inbox.json",
         "src/i18n/locales/zh-CN/inbox.json"
       ],
-      "added": ["src/inbox/ReactionBadges.tsx", "src/mock/ReactionSimulator.tsx"]
+      "added": [
+        "src/inbox/ReactionBadges.tsx",
+        "src/mock/ReactionSimulator.tsx"
+      ]
     },
     {
       "feature": "claude-provider",
@@ -143,7 +151,9 @@
         "src/i18n/locales/ms/admin.json",
         "src/i18n/locales/zh-CN/admin.json"
       ],
-      "added": ["src/mock/claude.ts"]
+      "added": [
+        "src/mock/claude.ts"
+      ]
     },
     {
       "feature": "multi-inbox",
@@ -346,7 +356,11 @@
   "baselineDriftFixes": {
     "reason": "The confirmed mock no longer compiled against the current packages: @wa-team-inbox/* was renamed to @ezychat/*, and newer server types added an AI decision (no_reply), a hand-off reason and chat event types.",
     "renamedImports": "@wa-team-inbox/ -> @ezychat/ in every file that imported it (mechanical)",
-    "typeFixes": ["src/admin/AiTryIt.tsx", "src/inbox/EventItem.tsx", "src/lib/ai-handoff.ts"],
+    "typeFixes": [
+      "src/admin/AiTryIt.tsx",
+      "src/inbox/EventItem.tsx",
+      "src/lib/ai-handoff.ts"
+    ],
     "runner": "run.ts keeps the web config resolve (ezychat-source condition) and seeds the MCP-send demo token and reply; seed.ts adds them",
     "emojiReactions": "src/api/queries.ts: optimisticMessage gains `reactions: []` (Message.reactions is required by the new contract); src/api/socket.ts: the message:reactions handler"
   },
@@ -357,7 +371,7 @@
     },
     "localStorage": [
       "mock.customAgents.v2",
-      "mock.businessApi.inboxes.v1",
+      "mock.businessApi.inboxes.v2",
       "mock.customAgents.edition.v1",
       "mock.claudeProvider.v1"
     ],

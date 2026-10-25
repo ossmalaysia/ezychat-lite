@@ -40,7 +40,7 @@ the runner blocks every outside request; Meta's checks are simulated.
    or template anywhere.
 
 Reset the demo data: restart the runner and use a fresh browser profile (state is in localStorage
-`mock.businessApi.inboxes.v1`).
+`mock.businessApi.inboxes.v2`).
 
 ## Checks
 

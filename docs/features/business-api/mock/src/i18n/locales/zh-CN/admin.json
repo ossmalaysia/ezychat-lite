@@ -1219,6 +1219,20 @@
     "setupSkip": "Skip for now",
     "setupContinue": "Continue",
     "tunnelNoteTitle": "Business API messages arrive through Phone access",
-    "tunnelNoteBody": "Keep Phone access running for {{names}}: Meta delivers its messages to this address. EzyChat registers the address with Meta whenever it changes."
+    "tunnelNoteBody": "Keep Phone access running for {{names}}: Meta delivers its messages to this address. EzyChat registers the address with Meta whenever it changes.",
+    "switchTitle": "Connection type",
+    "switchToApi": "Move to the Business API",
+    "switchToApiTitle": "Before you move this number",
+    "switchToApi1": "Register this same number on the WhatsApp Business API in your Meta app first. Meta then removes it from the WhatsApp app on the phone.",
+    "switchToApi2": "EzyChat unlinks the phone and connects the number through Meta. The inbox, its chats, notes, tags and assignments stay as they are.",
+    "switchToApi3": "After the move, the 24-hour reply window and templates apply to this inbox.",
+    "switchCheck": "Check and move",
+    "switchedToApi": "The inbox now uses the Business API. Its chats stay.",
+    "switchToPhone": "Switch back to the WhatsApp app (QR)",
+    "switchToPhoneTitle": "Switch to the WhatsApp app?",
+    "switchToPhoneBody": "EzyChat removes the webhook and stops using the Business API for this number. Remove the number from the Business API in Meta, then scan the QR code with the phone. The chats stay in this inbox.",
+    "switchToPhoneConfirm": "Switch and show the QR code",
+    "switchedToPhone": "Switched. Scan the QR code with the phone.",
+    "errorOtherNumber": "This phone number ID belongs to another number. This inbox is {{number}}: its chats stay together only with the same number."
   }
 }

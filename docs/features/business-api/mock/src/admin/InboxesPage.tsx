@@ -287,6 +287,8 @@ function InboxDialog({
   // Proposed (business-api): the type of a new inbox, and Replace token on an existing one.
   const [type, setType] = useState<MockInbox['type']>('linked_phone');
   const [replacingToken, setReplacingToken] = useState(false);
+  // Proposed (business-api, owner 2026-10-25): move an existing inbox between the two types.
+  const [switching, setSwitching] = useState(false);
 
   const admins = people.filter((u) => u.role === 'admin');
   const agents = people.filter((u) => u.role !== 'admin');
@@ -309,6 +311,7 @@ function InboxDialog({
     setRelink(false);
     setType(current?.type ?? 'linked_phone');
     setReplacingToken(false);
+    setSwitching(false);
   }, [inbox]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleMember = (id: number, on: boolean) =>
@@ -378,6 +381,28 @@ function InboxDialog({
     setSaved({ ...saved, ...patch });
     setReplacingToken(false);
     toast.success(t('mockApi.tokenReplaced'));
+  };
+  /** Linked phone → Business API: same inbox, same number; chats, notes and assignments stay. */
+  const switchToApi = ({ api }: { api: MockApiConnection }) => {
+    if (!saved) return;
+    const patch: Partial<MockInbox> = { type: 'business_api', api, status: 'connected' };
+    updateInbox(saved.id, patch);
+    setSaved({ ...saved, ...patch });
+    setSwitching(false);
+    toast.success(t('mockApi.switchedToApi'));
+  };
+  /** Business API → linked phone: the inbox waits for a QR scan of the same number. */
+  const switchToPhone = () => {
+    if (!saved) return;
+    const patch: Partial<MockInbox> = {
+      type: 'linked_phone',
+      api: undefined,
+      status: 'waiting_scan',
+    };
+    updateInbox(saved.id, patch);
+    setSaved({ ...saved, ...patch });
+    setSwitching(false);
+    toast.success(t('mockApi.switchedToPhone'));
   };
   const inboxName = (id: string | null) => state.inboxes.find((i) => i.id === id)?.name ?? '';
   const chosen = agentState.agents.find((a) => a.id === agentId);
@@ -582,6 +607,59 @@ function InboxDialog({
         )}
       </form>
 
+      {!isApi && !isNew && saved && (
+        <section
+          className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
+          aria-labelledby="switch-type"
+          data-testid="switch-to-api"
+        >
+          <h3 id="switch-type" className="text-sm font-medium">
+            {t('mockApi.switchTitle')}
+          </h3>
+          {!switching ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Smartphone className="size-4" aria-hidden />
+                {t('mockInbox.typeLinkedPhone')}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => setSwitching(true)}
+              >
+                <Cloud aria-hidden />
+                {t('mockApi.switchToApi')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Banner tone="warning" title={t('mockApi.switchToApiTitle')}>
+                <ol className="list-decimal space-y-1 pl-5">
+                  <li>{t('mockApi.switchToApi1')}</li>
+                  <li>{t('mockApi.switchToApi2')}</li>
+                  <li>{t('mockApi.switchToApi3')}</li>
+                </ol>
+              </Banner>
+              <BusinessApiForm
+                expectNumber={saved.number || undefined}
+                submitLabel={t('mockApi.switchCheck')}
+                onConnected={switchToApi}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="touch"
+                className="self-start md:min-h-9"
+                onClick={() => setSwitching(false)}
+              >
+                {t('common:actions.cancel')}
+              </Button>
+            </>
+          )}
+        </section>
+      )}
       {isApi && isNew && !saved && (
         <section
           className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
@@ -626,6 +704,39 @@ function InboxDialog({
               submitLabel={t('mockApi.replaceCheck')}
               onConnected={replaceToken}
             />
+          )}
+          {!isNew && !switching && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="touch"
+              className="self-start px-0 md:min-h-9"
+              onClick={() => setSwitching(true)}
+            >
+              <Smartphone aria-hidden />
+              {t('mockApi.switchToPhone')}
+            </Button>
+          )}
+          {!isNew && switching && (
+            <Banner tone="warning" title={t('mockApi.switchToPhoneTitle')}>
+              <span className="flex flex-col gap-2">
+                <span>{t('mockApi.switchToPhoneBody')}</span>
+                <span className="flex flex-wrap gap-2">
+                  <Button type="button" size="touch" className="md:min-h-9" onClick={switchToPhone}>
+                    {t('mockApi.switchToPhoneConfirm')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    className="md:min-h-9"
+                    onClick={() => setSwitching(false)}
+                  >
+                    {t('common:actions.cancel')}
+                  </Button>
+                </span>
+              </span>
+            </Banner>
           )}
           {!isNew && (
             <div className="flex flex-col gap-2 rounded-lg border border-dashed p-3">

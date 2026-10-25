@@ -86,7 +86,7 @@ step), `Conversation`/`Composer` (composer unchanged inside the window), `Messag
   `http://localhost:7487/` (API `7486`), sign in as `aisyah` / `demo-pass-123`. `--fresh` for the setup wizard.
   Walkthrough: `mock/README.md`.
 - Screenshots: `node docs/features/business-api/mock/business-api-shots.mjs` (seeded) and `… <url> --setup`
-  (fresh mock on another port); 52 files in `mock/screenshots/`.
+  (fresh mock on another port); 62 files in `mock/screenshots/`.
 
 ## Screen and state checklist
 
@@ -106,6 +106,9 @@ step), `Conversation`/`Composer` (composer unchanged inside the window), `Messag
 | Conversation    | Window closed: banner + Send a template; template sent marker; customer reply reopens the window     | yes  |
 | Template dialog | List (name, language, category), variables (first name prefilled), required, preview, marketing note | yes  |
 | Template dialog | No approved templates (WhatsApp Manager link, Sync)                                                  | yes  |
+| Template dialog | Media-header template listed but disabled ("not supported yet")                                      | yes  |
+| Edit inbox      | Linked phone → Move to the Business API (steps, form, same-number check), moved                      | yes  |
+| Edit inbox      | Business API → Switch back to the WhatsApp app (confirm, QR scan)                                    | yes  |
 | Lite view       | No Business API inbox, type, window or template anywhere                                             | yes  |
 | Desktop / phone | 1280 px and 360 px; light and dark for Inboxes, Edit, conversation, template dialog                  | yes  |
 
@@ -119,13 +122,16 @@ step), `Conversation`/`Composer` (composer unchanged inside the window), `Messag
   `business-api-shots.mjs`.
 - Runner: ports 7487/7486, temp-folder prefix, banner text.
 
-## Open questions for the owner
+## Owner answers, round 2 (2026-10-25)
 
-1. Template **categories**: v1 sends Utility and Marketing (marketing note shown). Hide Marketing, or allow?
-2. Switching an existing **linked-phone inbox 1 to the Business API** later (keeping its chats): v1 only at
-   setup or for added inboxes; a later "Change connection" flow could follow.
-3. **Media templates** (header image/document) and buttons: v1 sends body-variable templates only; others are
-   listed but disabled with "not supported yet". OK?
+1. **Marketing templates: allowed** (with the marketing opt-in note) next to Utility.
+2. **Switching an existing inbox between types: yes**, in v1. Edit → Connection type: "Move to the Business
+   API" (warning steps, the same Meta form, Meta must report the inbox's own number, else
+   `errorOtherNumber`) and "Switch back to the WhatsApp app (QR)" (webhook removed, inbox waits for a QR
+   scan). Same inbox id, chat keys, chats, notes, tags and assignments; works for inbox 1 too. Server: the
+   type change swaps the adapter in `InboxConnections`, logs the phone out on the way to the API (wa-auth
+   wiped as on unlink), keeps `jid_aliases` so LID-keyed chats still route by phone number (`wa_id`).
+3. **Media/button templates: listed but disabled** ("Image header: not supported yet") in v1.
 
 ## Later (not in v1)
 

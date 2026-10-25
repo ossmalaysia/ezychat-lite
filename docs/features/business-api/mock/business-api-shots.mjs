@@ -165,6 +165,25 @@ if (SETUP) {
         await card.scrollIntoViewIfNeeded();
         await shot(page, `inboxes-token-rejected-${suffix}`);
 
+        // Owner 2026-10-25: move a linked-phone inbox to the Business API and back.
+        await page.goto('/admin/inboxes');
+        await page.getByTestId('inbox-card').nth(0).getByRole('button', { name: 'Edit' }).click();
+        await page.getByRole('button', { name: 'Move to the Business API' }).click();
+        await page.getByTestId('switch-to-api').scrollIntoViewIfNeeded();
+        await dialogShot(page, `switch-to-api-${suffix}`);
+        await fillApiForm(page, 'EAAGm0PX4ZCpsBAKZz9f');
+        await page.getByRole('button', { name: 'Check and move' }).click();
+        await page.getByTestId('api-connection').waitFor();
+        await page.getByTestId('api-connection').scrollIntoViewIfNeeded();
+        await dialogShot(page, `switched-to-api-${suffix}`);
+        await page.getByRole('button', { name: 'Switch back to the WhatsApp app (QR)' }).click();
+        await page.getByText('Switch to the WhatsApp app?').scrollIntoViewIfNeeded();
+        await dialogShot(page, `switch-to-phone-${suffix}`);
+        await page.getByRole('button', { name: 'Switch and show the QR code' }).click();
+        await page.getByTestId('inbox-qr').scrollIntoViewIfNeeded();
+        await dialogShot(page, `switched-to-phone-${suffix}`);
+        await page.keyboard.press('Escape');
+
         await page.goto('/admin/tunnel');
         await page.getByText('Business API messages arrive through Phone access').waitFor();
         await shot(page, `phone-access-note-${suffix}`);
@@ -183,6 +202,10 @@ if (SETUP) {
       await page.getByRole('button', { name: 'Send template' }).click();
       await page.getByText('Fill this in.').waitFor();
       await page.getByLabel('Variable 3').fill('on its way');
+      if (scheme === 'light') {
+        await page.getByRole('button', { name: /weekend_menu/ }).scrollIntoViewIfNeeded();
+        await dialogShot(page, `template-unsupported-${suffix}`);
+      }
       await page.getByTestId('template-preview').scrollIntoViewIfNeeded();
       await dialogShot(page, `template-dialog-${suffix}`);
       // Sent once: messages live on the one mock server, the window per browser.
@@ -196,7 +219,7 @@ if (SETUP) {
       }
       if (sizeName === 'desktop' && scheme === 'light') {
         await page.evaluate(() => {
-          const key = 'mock.businessApi.inboxes.v1';
+          const key = 'mock.businessApi.inboxes.v2';
           const s = JSON.parse(localStorage.getItem(key));
           s.lastInbound['60129001234@s.whatsapp.net'] = 0;
           localStorage.setItem(key, JSON.stringify(s));
@@ -206,7 +229,7 @@ if (SETUP) {
         await shot(page, 'chat-list-closed-icon-desktop');
         // No approved templates.
         await page.evaluate(() => {
-          const key = 'mock.businessApi.inboxes.v1';
+          const key = 'mock.businessApi.inboxes.v2';
           const s = JSON.parse(localStorage.getItem(key));
           s.templates = [];
           s.lastInbound['60129001234@s.whatsapp.net'] = 0;

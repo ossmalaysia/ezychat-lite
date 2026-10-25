@@ -546,6 +546,11 @@
     "sync": "Sync",
     "synced": "Templates synced from Meta",
     "templateLabel": "Template {{name}}",
-    "closedShort": "Reply window closed: template only"
+    "closedShort": "Reply window closed: template only",
+    "unsupported": {
+      "image": "Image header: not supported yet",
+      "document": "Document header: not supported yet",
+      "video": "Video header: not supported yet"
+    }
   }
 }

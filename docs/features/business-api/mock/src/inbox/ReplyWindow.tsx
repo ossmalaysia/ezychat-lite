@@ -258,6 +258,7 @@ function TemplateDialog({
                 type="button"
                 variant="outline"
                 aria-pressed={selected === template}
+                disabled={!!template.header}
                 onClick={() => choose(template)}
                 className={cn(
                   'h-auto min-h-11 w-full min-w-0 flex-col items-start gap-1 px-3 py-2.5 text-left whitespace-normal',
@@ -274,6 +275,11 @@ function TemplateDialog({
                 <span className="line-clamp-2 text-xs font-normal text-muted-foreground">
                   {template.body}
                 </span>
+                {template.header && (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t(`mockWindow.unsupported.${template.header}`)}
+                  </span>
+                )}
               </Button>
             ))}
           </fieldset>

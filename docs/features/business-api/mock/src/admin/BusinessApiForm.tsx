@@ -28,12 +28,15 @@ export function BusinessApiForm({
   onConnected,
   submitLabel,
   replacing,
+  expectNumber,
 }: Readonly<{
   onConnected(result: CheckedNumber): void;
   /** Defaults to "Check and connect". */
   submitLabel?: string;
   /** Edit: only a new token and App secret for the same number (the IDs stay). */
   replacing?: MockApiConnection;
+  /** Switching a linked-phone inbox: Meta must report this same number, or its chats would mix. */
+  expectNumber?: string;
 }>) {
   const { t } = useTranslation('admin');
   const [phoneNumberId, setPhoneNumberId] = useState(replacing?.phoneNumberId ?? '');
@@ -64,6 +67,9 @@ export function BusinessApiForm({
       setChecking(false);
       if (/bad|invalid|expired/i.test(token)) return setError(t('mockApi.errorToken'));
       if (ids[0] === ids[1] || ids[0]!.startsWith('000')) return setError(t('mockApi.errorNumber'));
+      // Mock: a phone number ID starting with 999 is another number than the inbox's.
+      if (expectNumber && ids[0]!.startsWith('999'))
+        return setError(t('mockApi.errorOtherNumber', { number: expectNumber }));
       onConnected({
         api: {
           phoneNumberId: ids[0]!,
@@ -73,7 +79,7 @@ export function BusinessApiForm({
           limit: replacing?.limit ?? '250',
           tokenEnd: token.trim().slice(-4),
         },
-        number: '+60 3-2785 6000',
+        number: expectNumber ?? '+60 3-2785 6000',
       });
     }, 1100);
   };
@@ -173,7 +179,7 @@ export function BusinessApiForm({
         )}
       </div>
 
-      {!replacing && <Banner tone="info">{t('mockApi.phoneAppNote')}</Banner>}
+      {!replacing && !expectNumber && <Banner tone="info">{t('mockApi.phoneAppNote')}</Banner>}
       {error && (
         <Banner tone="danger" title={t('mockApi.errorTitle')}>
           {error}

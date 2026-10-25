@@ -40,6 +40,8 @@ export interface MockTemplate {
   body: string;
   /** Example value for each variable (Meta keeps one per variable). */
   examples: string[];
+  /** A media header or buttons: listed, not sendable from EzyChat in v1 (owner 2026-10-25). */
+  header?: 'image' | 'document' | 'video';
 }
 
 export interface MockInbox {
@@ -80,7 +82,7 @@ interface State {
 }
 
 // Bump the key whenever the seed changes, so open browsers load the new demo data.
-const KEY = 'mock.businessApi.inboxes.v1';
+const KEY = 'mock.businessApi.inboxes.v2';
 
 const HOUR = 3_600_000;
 export const WINDOW_MS = 24 * HOUR;
@@ -159,6 +161,14 @@ const seed = (): State => ({
       category: 'utility',
       body: 'Hai {{1}}, tempahan anda untuk {{2}} pada {{3}} telah disahkan. Balas mesej ini jika ada pertanyaan.',
       examples: ['Jason', '2 orang', '7 malam'],
+    },
+    {
+      name: 'weekend_menu',
+      language: 'en',
+      category: 'marketing',
+      body: 'Hi {{1}}, our weekend menu is out! Durian cendol is back.',
+      examples: ['Jason'],
+      header: 'image',
     },
   ],
 });
