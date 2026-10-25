@@ -7,7 +7,8 @@ ALTER TABLE inboxes ADD COLUMN type TEXT NOT NULL DEFAULT 'linked_phone';
 ALTER TABLE chats ADD COLUMN last_inbound_at INTEGER;
 UPDATE chats SET last_inbound_at = (
   SELECT MAX(m.timestamp) FROM messages m WHERE m.chat_jid = chats.jid AND m.from_me = 0
-);
+)
+WHERE EXISTS (SELECT 1 FROM messages m WHERE m.chat_jid = chats.jid AND m.from_me = 0);
 
 -- A message sent as an approved template: its name, language and body values (JSON array, kept so
 -- a queued send survives a restart or a retry). NULL for every other message.
