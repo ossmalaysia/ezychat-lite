@@ -210,6 +210,15 @@ async function cards() {
 }
 
 describe('InboxesPage with extension inbox types', () => {
+  it('describes the page by the connection types this build offers', async () => {
+    setup();
+    expect(await screen.findByText(/connect the number another way/)).toBeTruthy();
+    cleanup();
+    setup({ extensions: [], inboxes: [PHONE] });
+    expect(await screen.findByText(/by a QR scan, as you do today/)).toBeTruthy();
+    expect(screen.queryByText(/connect the number another way/)).toBeNull();
+  });
+
   it('Lite: Add inbox has no type choice and goes straight to Save', async () => {
     const { user } = setup({ extensions: [], inboxes: [PHONE] });
     await user.click(await screen.findByRole('button', { name: 'Add inbox' }));

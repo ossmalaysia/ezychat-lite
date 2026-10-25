@@ -1287,6 +1287,7 @@
     "emptyTitle": "还没有收件箱",
     "emptyBody": "添加您的第一个 WhatsApp 号码：为它命名，然后用它的手机扫描二维码。",
     "description": "每个 WhatsApp 号码一个收件箱。像现在一样，用手机上的 WhatsApp 应用扫描二维码来关联每个号码。",
+    "descriptionTypes": "每个 WhatsApp 号码一个收件箱：用二维码扫描关联手机，或通过其他方式连接该号码，例如 WhatsApp Business API。",
     "edit": "编辑",
     "remove": "移除",
     "status": "状态",

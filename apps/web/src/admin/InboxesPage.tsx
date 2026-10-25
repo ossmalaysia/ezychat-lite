@@ -100,7 +100,7 @@ export function InboxesPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t('inboxes.title')}
-        description={t('inboxes.description')}
+        description={types.length > 0 ? t('inboxes.descriptionTypes') : t('inboxes.description')}
         actions={
           <Button
             type="button"

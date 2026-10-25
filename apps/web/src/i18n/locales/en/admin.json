@@ -1297,6 +1297,7 @@
     "emptyTitle": "No inbox yet",
     "emptyBody": "Add your first WhatsApp number: give it a name, then scan the QR code with its phone.",
     "description": "One inbox for each WhatsApp number. Link each number with the WhatsApp app on its phone, by a QR scan, as you do today.",
+    "descriptionTypes": "One inbox for each WhatsApp number: link a phone with a QR scan, or connect the number another way, such as the WhatsApp Business API.",
     "edit": "Edit",
     "remove": "Remove",
     "status": "Status",

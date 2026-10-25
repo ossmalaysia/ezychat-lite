@@ -1288,6 +1288,7 @@
     "emptyTitle": "Belum ada peti masuk",
     "emptyBody": "Tambah nombor WhatsApp pertama anda: beri nama, kemudian imbas kod QR dengan telefonnya.",
     "description": "Satu peti masuk untuk setiap nombor WhatsApp. Paut setiap nombor dengan aplikasi WhatsApp pada telefonnya, melalui imbasan QR, seperti yang anda lakukan sekarang.",
+    "descriptionTypes": "Satu peti masuk untuk setiap nombor WhatsApp: pautkan telefon dengan imbasan kod QR, atau sambungkan nombor itu dengan cara lain, seperti WhatsApp Business API.",
     "edit": "Sunting",
     "remove": "Buang",
     "status": "Status",
