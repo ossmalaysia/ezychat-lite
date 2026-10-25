@@ -1,5 +1,24 @@
 import type { TFunction } from 'i18next';
-import { Car, GraduationCap, Stethoscope, type LucideIcon } from 'lucide-react';
+import {
+  CakeSlice,
+  Car,
+  ChefHat,
+  Dumbbell,
+  GraduationCap,
+  House,
+  PawPrint,
+  Plane,
+  Scissors,
+  ShieldCheck,
+  ShoppingBag,
+  Smartphone,
+  Smile,
+  Stethoscope,
+  Store,
+  UtensilsCrossed,
+  Building2,
+  type LucideIcon,
+} from 'lucide-react';
 import type { AiAgentPreset, AiContextTextBody } from '@ezychat/shared';
 import { presetDefaults } from './ai-status';
 
@@ -9,11 +28,33 @@ import { presetDefaults } from './ai-status';
  * fill-in lines (a blank line gives the AI no fact, so it hands the chat over instead of guessing).
  * Texts live in the catalogs (`ai.businessTemplates.<id>.*`), so each language gets its own copy.
  */
+export const TEMPLATE_CATEGORIES = ['health', 'food', 'services', 'shops', 'education'] as const;
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
+
 export const BUSINESS_TEMPLATES = [
-  { id: 'clinic', preset: 'faq', icon: Stethoscope },
-  { id: 'carWorkshop', preset: 'sales', icon: Car },
-  { id: 'tuition', preset: 'sales', icon: GraduationCap },
-] as const satisfies ReadonlyArray<{ id: string; preset: AiAgentPreset; icon: LucideIcon }>;
+  { id: 'clinic', preset: 'faq', category: 'health', icon: Stethoscope },
+  { id: 'dental', preset: 'faq', category: 'health', icon: Smile },
+  { id: 'salon', preset: 'sales', category: 'health', icon: Scissors },
+  { id: 'gym', preset: 'sales', category: 'health', icon: Dumbbell },
+  { id: 'vet', preset: 'faq', category: 'health', icon: PawPrint },
+  { id: 'restaurant', preset: 'sales', category: 'food', icon: UtensilsCrossed },
+  { id: 'bakery', preset: 'sales', category: 'food', icon: CakeSlice },
+  { id: 'catering', preset: 'sales', category: 'food', icon: ChefHat },
+  { id: 'carWorkshop', preset: 'sales', category: 'services', icon: Car },
+  { id: 'homeServices', preset: 'sales', category: 'services', icon: House },
+  { id: 'property', preset: 'sales', category: 'services', icon: Building2 },
+  { id: 'insurance', preset: 'faq', category: 'services', icon: ShieldCheck },
+  { id: 'travel', preset: 'sales', category: 'services', icon: Plane },
+  { id: 'onlineShop', preset: 'sales', category: 'shops', icon: ShoppingBag },
+  { id: 'retail', preset: 'sales', category: 'shops', icon: Store },
+  { id: 'phoneRepair', preset: 'sales', category: 'shops', icon: Smartphone },
+  { id: 'tuition', preset: 'sales', category: 'education', icon: GraduationCap },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  preset: AiAgentPreset;
+  category: TemplateCategory;
+  icon: LucideIcon;
+}>;
 
 export type BusinessTemplateId = (typeof BUSINESS_TEMPLATES)[number]['id'];
 
@@ -38,4 +79,22 @@ export function businessTemplate(
     handoffRules: t(`${key}.handoffRules`),
     contextItem: { name: t(`${key}.contextName`), text: t(`${key}.contextText`) },
   };
+}
+
+/**
+ * True when every word of `query` appears in the template's name, description or search words
+ * (the catalogs keep English words beside the translated ones, so either language finds it).
+ */
+export function templateMatches(
+  id: BusinessTemplateId,
+  query: string,
+  t: TFunction<'admin'>,
+): boolean {
+  const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const key = `ai.businessTemplates.${id}` as const;
+  const haystack = [t(`${key}.name`), t(`${key}.description`), t(`${key}.keywords`)]
+    .join(' ')
+    .toLocaleLowerCase();
+  return words.every((word) => haystack.includes(word));
 }

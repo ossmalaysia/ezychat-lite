@@ -530,10 +530,16 @@ describe('AI agent page', () => {
   });
 
   describe('business templates', () => {
+    /** Browse templates → select one in the gallery → Apply template. */
     const applyTemplate = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
       const card = await screen.findByTestId('business-templates');
-      await user.click(within(card).getByRole('radio', { name: new RegExp(name) }));
-      await user.click(within(card).getByRole('button', { name: 'Apply template' }));
+      await user.click(within(card).getByRole('button', { name: 'Browse templates' }));
+      const gallery = await screen.findByRole('dialog', { name: 'Business templates' });
+      await user.click(within(gallery).getByRole('radio', { name }));
+      await user.click(within(gallery).getByRole('button', { name: 'Apply template' }));
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Business templates' })).toBeNull(),
+      );
       return card;
     };
 
@@ -542,11 +548,6 @@ describe('AI agent page', () => {
       const { fetchMock } = setup(w, '/admin/members/ai/new?preset=sales');
       const user = userEvent.setup();
       const card = await screen.findByTestId('business-templates');
-      // Apply waits for a choice.
-      expect(within(card).getByRole('button', { name: 'Apply template' })).toHaveProperty(
-        'disabled',
-        true,
-      );
       await applyTemplate(user, 'Clinic');
       // Unedited starting texts are replaced at once: no question.
       expect(screen.queryByRole('alertdialog')).toBeNull();

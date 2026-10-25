@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Business templates for AI agents:** on the AI agent page, pick **Clinic**, **Car workshop** or
-  **Tuition centre** and click **Apply template**. The agent gets a name, a type, instructions and
-  hand-off rules made for that business, and Save adds a Business context item with lines to fill in
-  (opening hours, services and fees, how to book, and more). You can change everything before you save.
+- **Business templates for AI agents:** on the AI agent page, click **Browse templates** to open a
+  gallery of 17 ready-made agents (for example clinic, dental clinic, restaurant, bakery, car workshop,
+  home services, property agent, online shop and tuition centre). Search or pick a category, select your
+  business and click **Apply template**: the agent gets a name, a type, instructions and hand-off rules
+  made for that business, and Save adds a Business context item with lines to fill in. You can change
+  everything before you save.
 
 ## [0.1.54] - 2026-10-25
 
