@@ -11,17 +11,18 @@ may change with feedback from businesses using the inbox. Last reviewed: October
 | Stage                               | Status               | What it covers                                                                                                                                                                                        |
 | ----------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Team inbox                          | Available; improving | One linked WhatsApp number, shared conversations, assignments, internal notes, quick replies, member roles, mobile access, notifications, voice notes, emoji reactions, group info and local backups. |
-| Security and easy setup             | Ongoing              | Setup wizard, clear connection status, guided remote access, dependable updates, recovery and accessible desktop/mobile workflows.                                                                    |
+| Security and easy setup             | Ongoing              | Setup wizard, clear connection status, guided remote access, dependable updates, recovery, control over how long AI apps stay connected, and accessible desktop/mobile workflows.                     |
 | AI agents                           | In preview           | Sales, FAQ or custom AI agents that answer from your business context, hand off to people and close chats only after the customer confirms. Your own OpenAI or Claude API key, or ChatGPT sign-in.    |
-| AI assistant access (MCP)           | Available; improving | Let an AI assistant such as Claude or ChatGPT read the inbox, review and tune the AI agent, and send replies only with a token you allowed to send.                                                   |
+| AI assistant access (MCP)           | Available; improving | Let an AI assistant such as Claude or ChatGPT read the inbox, review and tune the AI agent, and send replies only when you allowed it. Connect with sign-in (no token) or an access token.            |
 | Light CRM                           | In progress          | Customer profiles, tags and optional profile suggestions are available. Next: follow-up reminders, simple stages and owners.                                                                          |
 | Business workflows and integrations | Exploring            | Saved views, basic reporting, import/export, webhooks and integrations with tools businesses already use.                                                                                             |
 
 ## Next: easier to start, safer to run
 
 - **Signed installers**, so Windows and macOS stop warning on the first install.
-- **Connect an AI assistant in one step:** approve the connection in EzyChat instead of copying a
-  token, with the same permission choices (read only, or also send).
+- **Choose how long an AI app stays connected:** set an expiry (for example 30, 90 or 365 days) for
+  apps that connect with sign-in, such as claude.ai and ChatGPT, the same choices as access tokens. See
+  when each connection ends, and sign in again to renew it.
 - **WhatsApp usernames:** as WhatsApp introduces usernames, customers may write without showing a
   phone number. The inbox, customer profiles and search will keep working for these chats.
 - **Lighter on your computer:** less memory use while the window is closed and the app runs in the
