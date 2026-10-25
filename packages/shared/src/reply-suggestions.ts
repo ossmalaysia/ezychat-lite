@@ -10,7 +10,7 @@ import { z } from 'zod';
 export const ReplySuggestionsState = z.enum(['on', 'off', 'unavailable']);
 export type ReplySuggestionsState = z.infer<typeof ReplySuggestionsState>;
 
-/** `GET /api/ai/reply-suggestions` (any signed-in user) and the admin `PUT` answer. */
+/** `GET /api/reply-suggestions` (any signed-in user) and the admin `PUT /api/ai/reply-suggestions` answer. */
 export const ReplySuggestionsStatus = z.object({
   /** The team-wide admin switch (setting `ai_reply_suggestions`). */
   enabled: z.boolean(),
