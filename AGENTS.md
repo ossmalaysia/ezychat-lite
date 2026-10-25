@@ -502,6 +502,9 @@ Conventional Commits; LF line endings; Prettier formatting; add user-visible cha
 Stage the files a change names (`git add <paths>`), never `git add -A` / `git add .`: a branch cut before an
 ignore rule landed still tracks local test data.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
+**No tracking in Lite** (owner rule): the open-source app never sends usage data or analytics. Measure
+the funnel outside the app (website analytics, GitHub download counts, the Enterprise download server,
+the licence portal); app links to our website may carry campaign tags (`utm_*`) only.
 **GitHub issues are for external reports only** (owner rule): never open an issue for our own work;
 track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
