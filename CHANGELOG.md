@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hands such a chat to the team when the window has closed. EzyChat Lite itself still links one phone by QR
   code, unchanged.
 
+## [0.1.56] - 2026-10-25
+
 ### Fixed
 
 - **Phone notifications no longer go missing.** When the AI handed a chat to a teammate, or a new
