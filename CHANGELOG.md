@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.53] - 2026-10-25
+
 ### Added
 
 - **Connect claude.ai, ChatGPT or Claude Desktop without a token:** turn on AI assistant access in
   Settings → Integrations, copy the connector address and add it as a custom connector in your AI app.
   The app opens EzyChat: sign in and click **Approve**. The connection shows in the Access tokens list,
-  where you can let it send messages or disconnect it.
+  where you can let it send messages or disconnect it. claude.ai and ChatGPT need Phone access (the
+  tunnel) turned on, because they connect from the internet.
 
 ## [0.1.52] - 2026-10-25
 
