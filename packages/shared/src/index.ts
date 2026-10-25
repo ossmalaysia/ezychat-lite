@@ -10,6 +10,7 @@ export * from './enrichment.js';
 export * from './groups.js';
 export * from './mcp.js';
 export * from './inboxes.js';
+export * from './reply-suggestions.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,
