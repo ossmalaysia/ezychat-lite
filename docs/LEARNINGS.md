@@ -787,6 +787,11 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Two ways to do one thing on a screen (sign-in vs access token): name the simple one **Recommended**
+  with numbered steps and the apps it is for, and put the expert one behind a closed "For developer
+  tools" section; a primary button for the expert way reads as "required" to non-technical owners.
+- A `flex` `<li>` loses its list number: keep the `<li>` plain and put the flex box inside it. Check
+  numbered steps in a real screenshot, not only in tests.
 - Measure desktop memory per process with `app.getAppMetrics()` in an Electron harness that forks the real
   `dist/server-host.cjs` + `server.cjs` as a utility process and opens the real `createMainWindow` (temp data
   and profile, `--fake-wa`). Read GPU and renderer separately: the GPU process keeps its memory after the
