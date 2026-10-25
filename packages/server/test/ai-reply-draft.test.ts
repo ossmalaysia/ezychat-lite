@@ -123,6 +123,10 @@ describe('draftReply', () => {
     expect(input.businessKnowledge).toBe('');
     expect(input.internalKnowledge).toBe('');
     expect(prompt.cacheId).toMatch(/#agent:0$/);
+    // No agent: no preset instructions or hand-off rules that nobody configured.
+    expect(prompt.instructions).toContain('(none: follow the rules above)');
+    expect(prompt.instructions).toContain('(none: only the system hand-offs apply)');
+    expect(prompt.instructions).not.toContain('Be warm.');
   });
 
   it('completes with the fast model and the typed text', async () => {
@@ -180,6 +184,50 @@ describe('draftReply', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('keeps a draft that states a fact from the admin instructions', async () => {
+    t.ctx.services.ai!.saveMember(
+      { displayName: 'Aina', enabled: false, instructions: 'Be warm. We open 9am to 6pm.' },
+      actor,
+    );
+    vi.mocked(provider.draft!).mockResolvedValueOnce({
+      output: {
+        suggestions: [{ label: 'Hours', text: 'We open at 9am.', grounded: true }],
+        noAnswer: false,
+        handoffRule: null,
+      },
+      model: 'gpt-test',
+    });
+    const result = await t.ctx.services.ai!.draftReply(
+      JID,
+      { kind: 'suggest' },
+      new AbortController().signal,
+    );
+    expect(result.suggestions.map((s) => s.text)).toEqual(['We open at 9am.']);
+  });
+
+  it('logs the cause of a failed call, never its text', async () => {
+    const failure = Object.assign(new Error('Too many requests for Nasi Lemak'), {
+      name: 'AI_APICallError',
+      statusCode: 429,
+    });
+    vi.mocked(provider.draft!).mockRejectedValueOnce(failure);
+    await expect(
+      t.ctx.services.ai!.draftReply(JID, { kind: 'suggest' }, new AbortController().signal),
+    ).rejects.toMatchObject({ status: 503 });
+    vi.mocked(provider.draft!).mockRejectedValueOnce(failure);
+    await t.ctx.services.ai!.draftReply(
+      JID,
+      { kind: 'complete', typed: 'Two Nasi ' },
+      new AbortController().signal,
+    );
+    const lines = logLines.map((l) => JSON.parse(l)).filter((l) => l.event === 'ai_draft');
+    expect(lines.map((l) => [l.kind, l.ok, l.causeName, l.status])).toEqual([
+      ['suggest', false, 'AI_APICallError', 429],
+      ['complete', false, 'AI_APICallError', 429],
+    ]);
+    expect(logLines.join('\n')).not.toContain('Nasi Lemak');
   });
 
   it('logs kind, ok, ms, model and count only', async () => {

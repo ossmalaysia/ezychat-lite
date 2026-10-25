@@ -31,7 +31,7 @@ const TABLES = [
   'message_reactions',
   'oauth_clients',
 ];
-const LATEST = 19;
+const LATEST = 20;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -250,6 +250,43 @@ describe('migrate', () => {
       expect(() => migrate(db)).not.toThrow();
     } finally {
       db.close();
+    }
+  });
+
+  it('020 turns reply suggestions off only for an install that already has users', () => {
+    const upTo19 = (db: Database.Database) => {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 19)
+        .sort())
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 19');
+    };
+    const settings = (db: Database.Database) =>
+      db
+        .prepare(
+          "SELECT key, value FROM settings WHERE key LIKE 'ai_reply_suggestions%' ORDER BY key",
+        )
+        .all();
+    const existing = new Database(':memory:');
+    const fresh = new Database(':memory:');
+    try {
+      upTo19(existing);
+      existing
+        .prepare(
+          "INSERT INTO users (username, display_name, password_hash, role, created_at) VALUES ('a', 'A', 'x', 'admin', 1)",
+        )
+        .run();
+      migrate(existing);
+      expect(settings(existing)).toEqual([
+        { key: 'ai_reply_suggestions', value: 'false' },
+        { key: 'ai_reply_suggestions_upgraded', value: 'true' },
+      ]);
+      upTo19(fresh);
+      migrate(fresh);
+      expect(settings(fresh)).toEqual([]);
+    } finally {
+      existing.close();
+      fresh.close();
     }
   });
 

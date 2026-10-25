@@ -29,6 +29,18 @@ describe('ungroundedNumbers', () => {
     expect(ungroundedNumbers('RM12 and RM3.50, order #1042, within 5 km', SOURCES)).toEqual([]);
   });
 
+  it('accepts the same value written another way', () => {
+    expect(
+      ungroundedNumbers('RM1500 and RM15.00', 'Catering from RM 1,500. Nasi Lemak RM15.'),
+    ).toEqual([]);
+  });
+
+  it('derives sums and products only from the business prices', () => {
+    // 3 × 5 = 15, but those numbers come from the chat, not from a price list.
+    expect(ungroundedNumbers('RM15 each', 'Call me at 3 or 5', 'Nasi Lemak RM12')).toEqual(['15']);
+    expect(ungroundedNumbers('RM24 for two', 'Two please', 'Nasi Lemak RM12')).toEqual([]);
+  });
+
   it('accepts a sum or a product of two source numbers', () => {
     expect(ungroundedNumbers('Two for RM24, or RM15.50 with a Kopi O.', SOURCES)).toEqual([]);
   });
@@ -79,6 +91,27 @@ describe('acceptDrafts', () => {
     expect(
       acceptDrafts(output([leak, exact]), SOURCES, INTERNAL).suggestions.map((s) => s.text),
     ).toEqual([leak.text]);
+  });
+
+  it('drops a draft that copies a short Internal item, ignoring very short ones', () => {
+    const internal = ['Supplier: Ah Seng Trading Klang', 'VIP'];
+    expect(
+      acceptDrafts(
+        output([draft('We buy from SUPPLIER:  ah seng trading klang.')]),
+        SOURCES,
+        internal,
+      ).suggestions,
+    ).toEqual([]);
+    expect(
+      acceptDrafts(output([draft('Hi! You are a VIP to us.')]), SOURCES, internal).suggestions,
+    ).toHaveLength(1);
+  });
+
+  it('drops a draft longer than 4,096 characters', () => {
+    expect(
+      acceptDrafts(output([draft(`Hi! ${'Nasi Lemak Ayam. '.repeat(300)}`)]), SOURCES, INTERNAL)
+        .suggestions,
+    ).toEqual([]);
   });
 
   it('returns a note instead of drafts when a hand-off rule matches', () => {

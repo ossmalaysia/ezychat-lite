@@ -62,7 +62,7 @@ import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
-import { AgentTurnFailure } from './agent/models.js';
+import { AgentTurnFailure, errorNameOf } from './agent/models.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
 import {
   extensionAgentTools,
@@ -1917,17 +1917,22 @@ export function createAiService(
           .join('\n'),
       );
       const customer = aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
+      // No agent: no preset texts that nobody configured (only the conversation and the customer).
+      const instructions = agent
+        ? administratorInstructions({ ...current, preset: agent.preset })
+        : '(none: follow the rules above)';
       // Facts a draft may state: what the model was shown, never the Internal items.
       const sources = [
         business,
+        agent ? instructions : '',
         ...turns.map((turn) => turn.text),
         JSON.stringify(customer ?? {}),
       ].join('\n');
       const prompt = {
         ...buildDraftPrompt({
           kind: request.kind,
-          instructions: administratorInstructions({ ...current, preset: agent?.preset ?? 'sales' }),
-          handoffRules: current.handoffRules,
+          instructions,
+          handoffRules: agent ? current.handoffRules : '',
           internalKnowledge: items.internal,
           businessKnowledge: business,
           conversation: turns,
@@ -1942,6 +1947,13 @@ export function createAiService(
       let model: string | null = null;
       let count = 0;
       let ok = false;
+      /** The failure's class name and HTTP status (never its message: it can echo the prompt). */
+      let cause: { causeName: string | null; status: number | null } | null = null;
+      const noteFailure = (error: unknown) => {
+        const status = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = status.statusCode ?? status.status;
+        cause = { causeName: errorNameOf(error), status: typeof code === 'number' ? code : null };
+      };
       try {
         if (request.kind === 'suggest') {
           try {
@@ -1953,11 +1965,12 @@ export function createAiService(
               AbortSignal.any([signal, AbortSignal.timeout(AI_SUGGESTION_TIMEOUT_MS)]),
             );
             model = answer.model;
-            const result = acceptDrafts(answer.output, sources, internalTexts);
+            const result = acceptDrafts(answer.output, sources, internalTexts, business);
             count = result.suggestions.length;
             ok = true;
             return result;
           } catch (error) {
+            noteFailure(error);
             if (signal.aborted) throw error;
             throw new HttpError(
               503,
@@ -1978,11 +1991,18 @@ export function createAiService(
             AbortSignal.any([signal, bound.signal]),
           );
           model = answer.model;
-          const completion = acceptCompletion(answer.output, request.typed, sources, internalTexts);
+          const completion = acceptCompletion(
+            answer.output,
+            request.typed,
+            sources,
+            internalTexts,
+            business,
+          );
           count = completion ? 1 : 0;
           ok = true;
           return { completion };
-        } catch {
+        } catch (error) {
+          noteFailure(error);
           return { completion: null };
         } finally {
           clearTimeout(timer);
@@ -1990,7 +2010,15 @@ export function createAiService(
       } finally {
         // Never the typed text, the drafts, the conversation or the customer.
         log.info(
-          { event: 'ai_draft', kind: request.kind, ok, ms: Date.now() - started, model, count },
+          {
+            event: 'ai_draft',
+            kind: request.kind,
+            ok,
+            ms: Date.now() - started,
+            model,
+            count,
+            ...(cause ?? {}),
+          },
           'AI draft',
         );
       }
