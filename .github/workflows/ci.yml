@@ -44,20 +44,20 @@ jobs:
             fi
           fi
           echo "docs_only=$docs_only" | tee -a "$GITHUB_OUTPUT"
-      - if: steps.scope.outputs.docs_only != 'true'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.scope.outputs.docs_only != 'true'
         with:
           node-version: 22
           cache: npm
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npm ci
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npm run lint
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npm run typecheck
+      - run: npm ci
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: npm run lint
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: npm run typecheck
+        if: steps.scope.outputs.docs_only != 'true'
       # Build the publishable core first, so the pack contract test never builds during the suite.
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npm run build:core
+      - run: npm run build:core
+        if: steps.scope.outputs.docs_only != 'true'
       - if: steps.scope.outputs.docs_only != 'true' && matrix.os != 'ubuntu-latest'
         run: npm test
       # Coverage once (ubuntu): totals must stay above the floors in vitest.config.ts, and a PR must cover
@@ -68,8 +68,8 @@ jobs:
         run: npm run coverage:changed
         env:
           BASE_REF: origin/${{ github.base_ref }}
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: npm run build -w @ezychat/web
+      - run: npm run build -w @ezychat/web
+        if: steps.scope.outputs.docs_only != 'true'
       # Desktop-only rules run only in the real Electron window, never in browser e2e: click every external
       # link on every screen there (e2e/electron-links.smoke.mjs). Windows runners have a desktop for it.
       - if: steps.scope.outputs.docs_only != 'true' && matrix.os == 'windows-latest'
