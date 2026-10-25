@@ -56,6 +56,9 @@ with optional **AI agents** on your own AI account (in preview) and a growing **
 - **Messaging**: text, replies (quotes), images, video, audio and documents in both directions, group chats,
   typing indicators, delivery and read ticks, a send queue that survives short disconnects, and retry for failed sends.
 - **Quick replies** with a `/` picker.
+- **AI assistant access (MCP)**: connect claude.ai, ChatGPT, Claude Desktop or developer tools to read
+  the inbox and refine the AI agent; sending stays off unless an admin allows it.
+  See [Connect an AI assistant](#connect-an-ai-assistant-mcp).
 - **Installable PWA**, fully responsive down to 360px, with **web push notifications** for new messages
   (sent to the assignee, or to everyone when a chat is unassigned).
 - **Access anywhere**: on the same computer, over your LAN, or from anywhere through a Cloudflare
@@ -147,6 +150,46 @@ so installed background services can still start it.
 5. **On each phone:** open the URL, sign in, then **Add to Home Screen** (Safari share menu on
    iOS, browser menu on Android) and allow notifications. On iOS, push notifications only work from
    the installed Home Screen app, not from a Safari tab.
+
+## Connect an AI assistant (MCP)
+
+EzyChat Lite has a built-in [MCP](https://modelcontextprotocol.io) server at `/mcp`. Connect
+claude.ai, ChatGPT, Claude Desktop or a developer tool, then ask it about your inbox in plain words.
+
+**claude.ai, ChatGPT or Claude Desktop (no token):**
+
+1. In **Admin → Settings → Integrations**, turn on **Let AI assistants read this inbox**.
+2. Under **Connect an AI app**, click **Copy address**.
+3. In your AI app, add a custom connector and paste the address.
+4. EzyChat Lite opens. Sign in and click **Approve**. The app shows under **Connected apps**.
+
+claude.ai and ChatGPT run in the cloud, so turn on **Phone access** (the tunnel) first. Claude
+Desktop on the computer that runs EzyChat Lite can use the local address.
+
+**Developer tools** (Claude Code, Gemini CLI, Cursor, scripts): open **For developer tools**,
+create an access token and give your tool the address and the token as an `Authorization` header.
+
+**What an assistant can do:**
+
+| Area              | Tools                                                                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read              | `get_stats`, `list_chats`, `get_chat`, `get_messages`, `get_activity`                                                                                    |
+| AI agent          | `list_ai_agents`, `get_ai_agent_setup`, `get_ai_context_item`, `try_ai_reply`, `update_ai_setup`, `get_ai_setup_history`, `get_ai_setup_version`         |
+| Send (off)        | `send_message`: only for an app or token set to **Can send WhatsApp messages**                                                                           |
+| New numbers (off) | `send_to_new_number`: only with **Can also message new numbers** as well, up to 20 a day; WhatsApp can ban a number that messages people who did not ask |
+
+- Access is off until an admin turns it on. **Remove** in **Connected apps** disconnects an app.
+- Every change through MCP is kept in the audit log.
+- Chats that an assistant reads go to the company that runs it (for example Anthropic, OpenAI or
+  Google), under the account you connect.
+- Sending is for replies that a person checks. Do not use it for bulk messages or marketing.
+
+Step-by-step guides with screenshots are on the EzyChat website:
+[connect Claude or ChatGPT](https://ezychat.ai/guides/connect-ai-assistant),
+[set up the AI agent](https://ezychat.ai/guides/set-up-ai-agent) and
+[WhatsApp automation with Claude](https://ezychat.ai/features/whatsapp-automation-claude).
+To compare EzyChat Lite with other inbox tools, see the
+[comparison pages](https://ezychat.ai/compare/sleekflow-alternative).
 
 ## Run modes
 
