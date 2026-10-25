@@ -1054,7 +1054,202 @@
       "rule3": "Its role and rules cannot be changed from a chat.",
       "rule4": "Never invents facts, prices or promises; Internal items only help it decide."
     },
-    "openAgents": "Open AI agents"
+    "openAgents": "Open AI agents",
+    "businessTemplates": {
+      "title": "Start from a business template",
+      "hint": "Ready-made AI agents for {{count}} kinds of business. Pick yours and apply it: the agent gets a name, a type, instructions and hand-off rules made for that business. You can change everything before you save.",
+      "applyHint": "Applying fills the boxes below. Nothing is saved until you click Save.",
+      "apply": "Apply template",
+      "applied": "{{name}} template applied. Check the texts, then save.",
+      "pendingItem": "Save also adds the Business context item “{{item}}”. Fill in its lines afterwards.",
+      "confirmTitle": "Apply the {{name}} template?",
+      "confirmBody": "This replaces the instructions and hand-off rules in the boxes below with the template. Your saved agent changes only when you click Save.",
+      "clinic": {
+        "name": "Clinic",
+        "description": "Answers questions about opening hours, doctors, services, fees and panels. Never gives medical advice.",
+        "agentName": "Clinic assistant",
+        "focus": "BUSINESS\nYou answer for a clinic. Help patients with opening hours, doctors on duty, services and fees, panel and insurance, and how to book.\n- Never diagnose, never suggest medicine or doses, and never say whether a symptom is serious.\n- If the customer describes an emergency (for example chest pain, trouble breathing or heavy bleeding), tell them to call 999 or go to the nearest emergency department now, then hand over.",
+        "handoffRules": "- The customer describes symptoms or asks for medical advice\n- The customer describes an emergency\n- The customer wants to book, change or cancel an appointment\n- The customer asks about their test results, medical records, medical certificate or bill\n- The customer asks about a panel, insurance or company claim that is not in the business context\n- The customer is upset or makes a complaint",
+        "contextName": "Clinic details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nClinic name:\nAddress and parking:\nOpening hours:\nPublic holidays:\nDoctors and their days:\nServices and fees:\nPanel and insurance accepted:\nHow to book an appointment:\nWhat to bring:\nPayment methods:\nDefault language for replies:",
+        "keywords": "doctor GP medical klinik"
+      },
+      "carWorkshop": {
+        "name": "Car workshop",
+        "description": "Answers about servicing packages, prices and repairs, and helps customers book a slot.",
+        "agentName": "Workshop assistant",
+        "focus": "BUSINESS\nYou answer for a car workshop. Help customers with servicing packages and prices, repairs, parts, booking a slot, pick-up and waiting time.\n- Give only prices written in the business context. A repair needs an inspection first: offer to book one instead of guessing a price.\n- Ask for the car model and year when it changes the answer.",
+        "handoffRules": "- The customer needs a repair quotation or an inspection result\n- The customer reports a breakdown or an accident, or needs towing\n- The customer asks about an insurance or warranty claim\n- The customer wants to book, change or cancel a service slot\n- The customer complains about earlier work or a bill",
+        "contextName": "Workshop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nWorkshop name:\nAddress:\nOpening hours:\nCar brands we service:\nService packages and prices:\nOther services (tyres, battery, air-conditioning, body and paint):\nTowing service:\nHow to book a slot:\nWaiting area and waiting time:\nWarranty on our work:\nPayment methods:\nDefault language for replies:",
+        "keywords": "car service mechanic tyre workshop"
+      },
+      "tuition": {
+        "name": "Tuition centre",
+        "description": "Answers parents about subjects, levels, class times, fees and trial classes, and leads them to register.",
+        "agentName": "Tuition assistant",
+        "focus": "BUSINESS\nYou answer for a tuition centre. Help parents and students with subjects, levels, class times, fees, trial classes and how to register.\n- Ask for the student's level (for example Standard 5, Form 4 or IGCSE) when it changes the answer.\n- Give only fees and times written in the business context.",
+        "handoffRules": "- The parent wants to register, pay or ask for a refund\n- The parent asks about their child's progress, attendance or results\n- The parent wants to change a class or a tutor\n- The parent asks about special learning needs\n- The parent or student is upset or makes a complaint",
+        "contextName": "Tuition centre details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nCentre name:\nAddress and parking:\nSubjects and levels:\nClass schedule:\nClass size:\nFees (per month or per subject):\nRegistration fee and deposit:\nTrial class:\nOnline or physical classes:\nHow to register:\nHolidays and replacement classes:\nDefault language for replies:",
+        "keywords": "tuition class exam SPM teacher"
+      },
+      "browse": "Browse templates",
+      "galleryTitle": "Business templates",
+      "galleryHint": "Search or pick a category, select your business, then apply it.",
+      "search": "Search templates",
+      "searchPlaceholder": "For example dental, cake or aircond",
+      "categories": "Categories",
+      "category": {
+        "all": "All",
+        "health": "Health and beauty",
+        "food": "Food",
+        "services": "Services",
+        "shops": "Shops",
+        "education": "Education"
+      },
+      "noMatch": "No template matches. Try another word, or start from a type below.",
+      "dental": {
+        "name": "Dental clinic",
+        "description": "Answers about treatments, fees, dentists and opening hours. Never gives dental or medical advice.",
+        "keywords": "dentist teeth scaling braces filling",
+        "agentName": "Dental clinic assistant",
+        "focus": "BUSINESS\nYou answer for a dental clinic. Help patients with treatments and fees, dentists and their days, opening hours, panel and insurance, and how to book.\n- Never diagnose, never suggest medicine and never say whether pain or swelling is serious.\n- For severe pain, heavy bleeding or swelling of the face, tell them to see a dentist or go to an emergency department today, then hand over.",
+        "handoffRules": "- The patient describes pain, swelling or another symptom, or asks for dental advice\n- The patient wants to book, change or cancel an appointment\n- The patient asks for a treatment quote that is not in the business context\n- The patient asks about their records, X-rays or bill\n- The patient is upset or makes a complaint",
+        "contextName": "Dental clinic details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nClinic name:\nAddress and parking:\nOpening hours:\nDentists and their days:\nTreatments and fees (scaling, filling, extraction, braces, whitening):\nPanel and insurance accepted:\nHow to book an appointment:\nPayment methods and instalments:\nDefault language for replies:"
+      },
+      "salon": {
+        "name": "Beauty salon and spa",
+        "description": "Answers about treatments, packages and prices, and helps customers book.",
+        "keywords": "hair facial nails massage spa beauty",
+        "agentName": "Salon assistant",
+        "focus": "BUSINESS\nYou answer for a beauty salon and spa. Help customers with treatments, packages and prices, staff, opening hours and how to book.\n- Give only prices and promotions written in the business context.\n- Never give medical advice about skin conditions or allergies.",
+        "handoffRules": "- The customer wants to book, change or cancel a slot\n- The customer asks about an allergy, a skin condition or a reaction after a treatment\n- The customer asks to buy or use a package or voucher\n- The customer is upset or makes a complaint",
+        "contextName": "Salon details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nSalon name:\nAddress and parking:\nOpening hours:\nTreatments and prices:\nPackages and memberships:\nCurrent promotions:\nStaff and their days:\nHow to book:\nCancellation policy:\nPayment methods:\nDefault language for replies:"
+      },
+      "gym": {
+        "name": "Gym and fitness",
+        "description": "Answers about memberships, classes and trial passes, and helps people sign up.",
+        "keywords": "fitness gym yoga class membership trainer",
+        "agentName": "Gym assistant",
+        "focus": "BUSINESS\nYou answer for a gym and fitness centre. Help people with memberships and prices, class schedules, personal training, trial passes and opening hours.\n- Give only prices and schedules written in the business context.\n- Never give medical or injury advice.",
+        "handoffRules": "- The person wants to sign up, pay, freeze or cancel a membership\n- The person asks about an injury or a health condition\n- The person asks for a personal training plan or a price that is not in the business context\n- The person is upset or makes a complaint",
+        "contextName": "Gym details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nGym name:\nAddress and parking:\nOpening hours:\nMembership plans and prices:\nClasses and schedule:\nPersonal training:\nTrial pass:\nFacilities (showers, lockers, parking):\nHow to sign up:\nCancellation and freeze policy:\nDefault language for replies:"
+      },
+      "vet": {
+        "name": "Vet and pet shop",
+        "description": "Answers about vet services, grooming, products and opening hours. Never gives medical advice for pets.",
+        "keywords": "veterinary pet dog cat grooming",
+        "agentName": "Pet care assistant",
+        "focus": "BUSINESS\nYou answer for a vet clinic and pet shop. Help pet owners with services and fees, vaccinations, grooming, products, opening hours and how to book.\n- Never diagnose a pet and never suggest medicine or doses.\n- If the owner describes an emergency (for example poisoning, trouble breathing or a serious injury), tell them to bring the pet in now or go to the nearest 24-hour vet, then hand over.",
+        "handoffRules": "- The owner describes symptoms or asks for medical advice for a pet\n- The owner describes an emergency\n- The owner wants to book, change or cancel an appointment or grooming slot\n- The owner asks about a pet's records or bill\n- The owner is upset or makes a complaint",
+        "contextName": "Vet and pet shop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nBusiness name:\nAddress and parking:\nOpening hours:\nVets and their days:\nVet services and fees:\nVaccinations:\nGrooming services and prices:\nProducts we sell:\nEmergency or after-hours service:\nHow to book:\nPayment methods:\nDefault language for replies:"
+      },
+      "restaurant": {
+        "name": "Restaurant or cafe",
+        "description": "Answers about the menu, prices, opening hours and delivery, and takes reservation requests.",
+        "keywords": "food cafe menu restaurant delivery reservation halal",
+        "agentName": "Restaurant assistant",
+        "focus": "BUSINESS\nYou answer for a restaurant or cafe. Help customers with the menu and prices, opening hours, location, delivery, reservations and events.\n- Give only dishes, prices and promotions written in the business context.\n- For allergies or dietary needs, share only what the business context says and let our team confirm.",
+        "handoffRules": "- The customer wants to make, change or cancel a reservation\n- The customer wants to place a large or event order\n- The customer asks about allergies or ingredients that are not in the business context\n- The customer reports a problem with an order or a delivery\n- The customer is upset or makes a complaint",
+        "contextName": "Restaurant details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nRestaurant name:\nAddress and parking:\nOpening hours:\nMenu and prices:\nHalal status:\nDelivery areas and fees:\nReservations:\nPrivate events and large orders:\nPayment methods:\nDefault language for replies:"
+      },
+      "bakery": {
+        "name": "Bakery and cake shop",
+        "description": "Answers about cakes, prices and order lead times, and collects order details.",
+        "keywords": "cake bakery cookies birthday order",
+        "agentName": "Bakery assistant",
+        "focus": "BUSINESS\nYou answer for a bakery and cake shop. Help customers with cakes and prices, sizes and flavours, custom orders, order lead times, pick-up and delivery.\n- Give only prices and lead times written in the business context.\n- For a custom order, collect the date, size, flavour and message, then let our team confirm.",
+        "handoffRules": "- The customer wants to confirm or pay for an order\n- The customer asks for a custom design or a price that is not in the business context\n- The customer asks about allergies or ingredients that are not in the business context\n- The customer reports a problem with an order\n- The customer is upset or makes a complaint",
+        "contextName": "Bakery details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nAddress:\nOpening hours:\nCakes, sizes and prices:\nFlavours:\nCustom cakes:\nOrder lead time:\nPick-up and delivery:\nHalal status:\nDeposit and payment:\nDefault language for replies:"
+      },
+      "catering": {
+        "name": "Catering and events",
+        "description": "Answers about menus, packages and minimum orders, and collects event details for a quote.",
+        "keywords": "catering event wedding buffet party",
+        "agentName": "Catering assistant",
+        "focus": "BUSINESS\nYou answer for a catering and events business. Help customers with menus and packages, prices per person, minimum orders, areas served and booking.\n- Give only prices written in the business context.\n- For a quote, collect the date, place, number of guests and type of event, then let our team confirm.",
+        "handoffRules": "- The customer wants a quote, a booking or a deposit\n- The customer asks for a custom menu or a price that is not in the business context\n- The customer asks about allergies or ingredients that are not in the business context\n- The customer wants to change or cancel a booking\n- The customer is upset or makes a complaint",
+        "contextName": "Catering details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nBusiness name:\nAreas served:\nMenus and packages:\nPrice per person:\nMinimum order:\nHalal status:\nSetup, tables and staff:\nBooking lead time:\nDeposit and payment:\nCancellation policy:\nDefault language for replies:"
+      },
+      "homeServices": {
+        "name": "Home services",
+        "description": "Answers about aircond, plumbing, cleaning and repair services and prices, and collects job details.",
+        "keywords": "aircond plumber cleaning repair electrician handyman",
+        "agentName": "Home services assistant",
+        "focus": "BUSINESS\nYou answer for a home services business (for example aircond, plumbing, electrical or cleaning). Help customers with services and prices, areas served, available slots and how to book.\n- Give only prices written in the business context. A repair needs an inspection first: offer to book one instead of guessing a price.\n- Collect the address area, the problem and a preferred time, then let our team confirm.",
+        "handoffRules": "- The customer wants to book, change or cancel a job\n- The customer needs a quote after an inspection\n- The customer reports a gas leak, an electrical danger or flooding\n- The customer asks about a warranty claim\n- The customer is upset or makes a complaint",
+        "contextName": "Home services details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nBusiness name:\nServices and prices:\nAreas served:\nWorking hours:\nInspection or transport fee:\nHow to book:\nWarranty on our work:\nPayment methods:\nDefault language for replies:"
+      },
+      "property": {
+        "name": "Property agent",
+        "description": "Answers about listings, prices and viewing, and collects buyer and tenant needs.",
+        "keywords": "property house rent sale condo agent",
+        "agentName": "Property assistant",
+        "focus": "BUSINESS\nYou answer for a property agent. Help buyers and tenants with listings, prices, locations, viewing and the next steps.\n- Give only listings, prices and terms written in the business context.\n- Ask for budget, area, property type and move-in date when it helps, then let our team follow up.\n- Never give legal, loan or tax advice.",
+        "handoffRules": "- The customer wants to book a viewing\n- The customer wants to make an offer, pay a deposit or sign an agreement\n- The customer asks about loans, legal matters or taxes\n- The customer asks about a listing that is not in the business context\n- The customer is upset or makes a complaint",
+        "contextName": "Property agent details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nAgent or agency name:\nAreas covered:\nCurrent listings (sale):\nCurrent listings (rent):\nViewing times:\nDocuments needed:\nAgent fee:\nDefault language for replies:"
+      },
+      "insurance": {
+        "name": "Insurance agent",
+        "description": "Answers general questions about plans and the next steps. Never gives personal financial advice.",
+        "keywords": "insurance takaful medical life car policy",
+        "agentName": "Insurance assistant",
+        "focus": "BUSINESS\nYou answer for an insurance or takaful agent. Help customers with the types of plans offered, what information the agent needs and how to arrange a meeting.\n- Never recommend a plan for a person, never quote a premium and never promise what a policy covers.\n- Collect the type of cover they want and a good time to call, then let our team follow up.",
+        "handoffRules": "- The customer asks which plan is right for them or for a premium\n- The customer wants to buy, change or cancel a policy\n- The customer wants to make or follow up a claim\n- The customer asks about their own policy or payment\n- The customer is upset or makes a complaint",
+        "contextName": "Insurance agent details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nAgent name:\nCompany:\nTypes of plans offered:\nAreas covered:\nWorking hours:\nHow to arrange a meeting:\nDocuments needed:\nDefault language for replies:"
+      },
+      "travel": {
+        "name": "Travel agency",
+        "description": "Answers about tour packages, dates and prices, and collects booking details.",
+        "keywords": "travel tour holiday umrah flight package",
+        "agentName": "Travel assistant",
+        "focus": "BUSINESS\nYou answer for a travel agency. Help customers with tour packages, dates and prices, what is included, visas and documents, and how to book.\n- Give only packages, dates and prices written in the business context.\n- Collect the destination, dates, number of travellers and budget, then let our team confirm.",
+        "handoffRules": "- The customer wants to book, pay a deposit, change or cancel\n- The customer asks for a custom trip or a price that is not in the business context\n- The customer asks about a visa or a document problem\n- The customer reports a problem during a trip\n- The customer is upset or makes a complaint",
+        "contextName": "Travel agency details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nAgency name and licence:\nAddress:\nOpening hours:\nTour packages, dates and prices:\nWhat is included:\nVisa and document help:\nDeposit and payment:\nCancellation policy:\nDefault language for replies:"
+      },
+      "onlineShop": {
+        "name": "Online shop",
+        "description": "Answers about products, prices, stock and shipping, and helps customers order.",
+        "keywords": "online shop ecommerce shopee shipping order",
+        "agentName": "Shop assistant",
+        "focus": "BUSINESS\nYou answer for an online shop. Help customers with products and prices, sizes and variants, stock, shipping, returns and how to order.\n- Give only products, prices and promotions written in the business context; never promise stock.\n- Ask for the product and variant when it changes the answer.",
+        "handoffRules": "- The customer wants to confirm or pay for an order\n- The customer asks where their order is\n- The customer wants a return, an exchange or a refund\n- The customer asks about a product that is not in the business context\n- The customer is upset or makes a complaint",
+        "contextName": "Online shop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nProducts and prices:\nSizes and variants:\nHow to order:\nShipping areas, fees and times:\nReturns and exchanges:\nPayment methods:\nDefault language for replies:"
+      },
+      "retail": {
+        "name": "Retail shop",
+        "description": "Answers about products, prices, stock and opening hours for a physical shop.",
+        "keywords": "shop store retail outlet stock",
+        "agentName": "Store assistant",
+        "focus": "BUSINESS\nYou answer for a retail shop. Help customers with products and prices, opening hours, location, promotions and whether they can reserve an item.\n- Give only products, prices and promotions written in the business context; never promise stock.",
+        "handoffRules": "- The customer wants to reserve or buy an item\n- The customer asks if an item is in stock today\n- The customer wants a return, an exchange or a refund\n- The customer is upset or makes a complaint",
+        "contextName": "Shop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nAddress and parking:\nOpening hours:\nProducts and prices:\nCurrent promotions:\nReturns and exchanges:\nPayment methods:\nDefault language for replies:"
+      },
+      "phoneRepair": {
+        "name": "Phone and electronics repair",
+        "description": "Answers about repairs, prices and turnaround times, and collects device details.",
+        "keywords": "phone repair screen battery laptop electronics",
+        "agentName": "Repair shop assistant",
+        "focus": "BUSINESS\nYou answer for a phone and electronics repair shop. Help customers with repair services and prices, turnaround time, parts, warranty and opening hours.\n- Give only prices written in the business context. Other faults need a check first: offer to check the device instead of guessing a price.\n- Ask for the brand, model and the problem when it changes the answer.",
+        "handoffRules": "- The customer needs a quote after a check\n- The customer asks about the status of their repair\n- The customer asks about a warranty claim\n- The customer asks about data recovery\n- The customer is upset or makes a complaint",
+        "contextName": "Repair shop details",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nAddress:\nOpening hours:\nBrands we repair:\nRepairs and prices (screen, battery, charging port):\nTurnaround time:\nWarranty on repairs:\nPayment methods:\nDefault language for replies:"
+      }
+    }
   },
   "enrichment": {
     "title": "Customer enrichment",

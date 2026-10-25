@@ -21,9 +21,11 @@ import {
   AiAgentPreset,
   AiEditField,
   type AiAgentStatus,
+  type AiContextTextBody,
   type AiMemberStatus,
 } from '@ezychat/shared';
 import {
+  useAddAgentText,
   useAiAgent,
   useAiAgentAction,
   useAiAgents,
@@ -63,6 +65,8 @@ import { AiContextPanel, agentErrorMessage } from './AiContextPanel';
 import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
+import { BusinessTemplateCard } from './BusinessTemplateCard';
+import { businessTemplate, type BusinessTemplateId } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import {
@@ -251,6 +255,11 @@ function AgentEditor({
   );
   const [submitted, setSubmitted] = useState(false);
   const [templateFor, setTemplateFor] = useState<AiAgentPreset | null>(null);
+  // A business template asks first when the texts are the admin's own; its Business context item
+  // is added by the next successful Save (the agent may not exist yet).
+  const [businessFor, setBusinessFor] = useState<BusinessTemplateId | null>(null);
+  const [pendingItem, setPendingItem] = useState<AiContextTextBody | null>(null);
+  const addText = useAddAgentText();
   const [deleting, setDeleting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // The field stays set while the dialog closes so its content doesn't vanish mid-animation.
@@ -270,7 +279,10 @@ function AgentEditor({
     setDraft((old) => (old.inboxId === saved.inboxId ? { ...old, inboxId: serverInbox } : old));
   }, [serverInbox]); // eslint-disable-line react-hooks/exhaustive-deps -- only a server change
 
-  const changed = !same(draft, saved) || preset !== (agent?.agent.preset ?? initialPreset);
+  const changed =
+    !same(draft, saved) ||
+    preset !== (agent?.agent.preset ?? initialPreset) ||
+    pendingItem !== null;
   useEffect(() => {
     writeStoredDraft(storeKey, changed ? { preset, draft } : null);
   }, [changed, draft, preset, storeKey]);
@@ -287,7 +299,7 @@ function AgentEditor({
       : undefined;
   // Moving onto an inbox that has another agent frees that inbox first (one agent per inbox).
   const freeOther = useAiAgentAction(otherOnInbox?.id ?? null);
-  const busy = action.isPending || freeOther.isPending;
+  const busy = action.isPending || freeOther.isPending || addText.isPending;
   const dirty = isNew || changed;
 
   const template = presetDefaults(preset, t);
@@ -347,6 +359,36 @@ function AgentEditor({
     if (onTemplate) applyTemplate(p);
     else if (isNew) setTemplateFor(p);
     else setPreset(p);
+  };
+  const applyBusiness = (templateId: BusinessTemplateId) => {
+    const tpl = businessTemplate(templateId, t);
+    setPreset(tpl.preset);
+    setDraft((old) => ({
+      ...old,
+      displayName: old.displayName.trim() ? old.displayName : tpl.agentName,
+      instructions: tpl.instructions,
+      handoffRules: tpl.handoffRules,
+    }));
+    setPendingItem(tpl.contextItem);
+    toast.success(
+      t('ai.businessTemplates.applied', { name: t(`ai.businessTemplates.${templateId}.name`) }),
+    );
+  };
+  /** Replaces unedited starting texts at once; the admin's own texts are replaced only after asking. */
+  const chooseBusiness = (templateId: BusinessTemplateId) => {
+    if (onTemplate || (!draft.instructions.trim() && !draft.handoffRules.trim()))
+      applyBusiness(templateId);
+    else setBusinessFor(templateId);
+  };
+  /** Adds the applied template's Business context item once the agent is saved. */
+  const addPendingItem = async (agentId: number) => {
+    if (!pendingItem) return;
+    try {
+      await addText.mutateAsync({ agentId, body: pendingItem });
+      setPendingItem(null);
+    } catch (error) {
+      toast.error(agentErrorMessage(error, t));
+    }
   };
   const [typeOpen, setTypeOpen] = useState(false);
   const presetPicker = (labelledBy: string) => (
@@ -411,6 +453,7 @@ function AgentEditor({
         isNew ? { kind: 'create', body: parsed.data } : { kind: 'save', body: parsed.data },
       );
       if (!('agent' in result)) return;
+      await addPendingItem(result.agent.id);
       if (isNew) {
         writeStoredDraft(storeKey, null);
         toast.success(t('ai.agents.created', { name }));
@@ -590,6 +633,12 @@ function AgentEditor({
           </CardContent>
         </Card>
       )}
+
+      <BusinessTemplateCard
+        disabled={busy}
+        pendingItem={pendingItem?.name ?? null}
+        onApply={chooseBusiness}
+      />
 
       {isNew && (
         <Card className="gap-4">
@@ -944,6 +993,20 @@ function AgentEditor({
         onClose={() => setTemplateFor(null)}
       >
         {t('ai.agents.templateBody', { preset: presetName(templateFor ?? preset) })}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={businessFor !== null}
+        title={t('ai.businessTemplates.confirmTitle', {
+          name: businessFor ? t(`ai.businessTemplates.${businessFor}.name`) : '',
+        })}
+        confirmLabel={t('ai.businessTemplates.apply')}
+        onConfirm={() => {
+          if (businessFor) applyBusiness(businessFor);
+          setBusinessFor(null);
+        }}
+        onClose={() => setBusinessFor(null)}
+      >
+        {t('ai.businessTemplates.confirmBody')}
       </ConfirmDialog>
       {agent && (
         <ConfirmDialog

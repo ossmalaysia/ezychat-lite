@@ -635,6 +635,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Ready-made Business context (templates) uses blank fill-in lines (`Opening hours:`), never sample
+  values or `[your price]` placeholders: the AI repeats a placeholder as a fact, but a blank line is no
+  fact, so it hands over. Build template instructions as the type's tested text plus a short business
+  part, and test the length limits in every language.
 - An MCP tool that writes text a person reads in a box must say the format: AI assistants hard-wrap long
   text at about 60–80 characters, and the box shows every line break, so rules looked cut short. The
   `update_ai_setup` description and `text` field say "one line per paragraph or list item".
@@ -792,6 +796,9 @@ into AGENTS.md.
   tools" section; a primary button for the expert way reads as "required" to non-technical owners.
 - A `flex` `<li>` loses its list number: keep the `<li>` plain and put the flex box inside it. Check
   numbered steps in a real screenshot, not only in tests.
+- A radio card whose label repeats another control's word (a template card showing its type "FAQ")
+  makes `getByRole('radio', { name: /FAQ/ })` ambiguous: give such radios an `aria-label` of their own
+  name only.
 - Measure desktop memory per process with `app.getAppMetrics()` in an Electron harness that forks the real
   `dist/server-host.cjs` + `server.cjs` as a utility process and opens the real `createMainWindow` (temp data
   and profile, `--fake-wa`). Read GPU and renderer separately: the GPU process keeps its memory after the
@@ -979,6 +986,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Internationalization
 
+- Searchable catalog content (template gallery `keywords`) keeps the English words beside the
+  translated ones, so a search works in either language; Malaysian users mix them ("aircond", "gigi").
+  Translate large catalog batches with a field-by-field checker (same keys, lines, list items, colons).
 - Every string goes through `t()` with keys in `en`, `ms` and `zh-CN`, including prefilled editable
   content such as default AI instructions (catalog `ai.defaults.*`, English pinned to the server's
   canonical constant by a test); cross-namespace keys need `useTranslation(['ns', 'common'])`.

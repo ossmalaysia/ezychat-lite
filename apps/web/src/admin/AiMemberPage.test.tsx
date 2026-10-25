@@ -339,6 +339,7 @@ describe('AI agent page', () => {
     await screen.findByText('Business context');
     expect(cardTitles()).toEqual([
       'Next steps',
+      'Start from a business template',
       'Agent type',
       'Name',
       'Business context',
@@ -528,6 +529,99 @@ describe('AI agent page', () => {
     expect(screen.queryByRole('button', { name: 'Use the Sales template' })).toBeNull();
   });
 
+  describe('business templates', () => {
+    /** Browse templates → select one in the gallery → Apply template. */
+    const applyTemplate = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+      const card = await screen.findByTestId('business-templates');
+      await user.click(within(card).getByRole('button', { name: 'Browse templates' }));
+      const gallery = await screen.findByRole('dialog', { name: 'Business templates' });
+      await user.click(within(gallery).getByRole('radio', { name }));
+      await user.click(within(gallery).getByRole('button', { name: 'Apply template' }));
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Business templates' })).toBeNull(),
+      );
+      return card;
+    };
+
+    it('creates a clinic agent from the template and adds its Business context item', async () => {
+      const w = world({ maxAgents: 2, agents: [agentStatus()] });
+      const { fetchMock } = setup(w, '/admin/members/ai/new?preset=sales');
+      const user = userEvent.setup();
+      const card = await screen.findByTestId('business-templates');
+      await applyTemplate(user, 'Clinic');
+      // Unedited starting texts are replaced at once: no question.
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Clinic assistant',
+      );
+      const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
+      expect(role.startsWith(FAQ.instructions)).toBe(true);
+      expect(role).toContain('You answer for a clinic');
+      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toContain(
+        'describes symptoms',
+      );
+      const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
+      expect(
+        (within(picker).getByRole('radio', { name: /FAQ/ }) as HTMLButtonElement).dataset.state,
+      ).toBe('checked');
+      expect(within(card).getByText(/Save also adds the Business context item/)).toBeTruthy();
+
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+      ]);
+      const itemBody = lastBody(fetchMock) as { name: string; text: string };
+      expect(itemBody.name).toBe('Clinic details');
+      expect(itemBody.text.split('\n')).toContain('Opening hours:');
+    });
+
+    it('asks before replacing own texts, keeps the name, and adds the item on Save', async () => {
+      const own = agentStatus(5, {}, { instructions: 'Only answer in haiku.' });
+      const { fetchMock } = setup(world({ agents: [own] }));
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Car workshop');
+      const confirm = await screen.findByRole('alertdialog');
+      expect(within(confirm).getByText('Apply the Car workshop template?')).toBeTruthy();
+      await user.click(within(confirm).getByRole('button', { name: 'Apply template' }));
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Sales Assistant',
+      );
+      expect((screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value).toContain(
+        'You answer for a car workshop',
+      );
+      expect(writes(fetchMock)).toHaveLength(0);
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() =>
+        expect(writeLines(fetchMock)).toEqual([
+          'PUT /api/ai/agents/5',
+          'POST /api/ai/agents/5/documents/text',
+        ]),
+      );
+      expect((lastBody(fetchMock) as { name: string }).name).toBe('Workshop details');
+      // Added once: the note goes away and a second Save sends nothing new for the item.
+      await waitFor(() =>
+        expect(screen.queryByText(/Save also adds the Business context item/)).toBeNull(),
+      );
+    });
+
+    it('keeps the texts when the admin declines', async () => {
+      setup(world({ agents: [agentStatus(5, {}, { instructions: 'Only answer in haiku.' })] }));
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Tuition centre');
+      const confirm = await screen.findByRole('alertdialog');
+      await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+      expect((screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value).toBe(
+        'Only answer in haiku.',
+      );
+      expect(screen.queryByText(/Save also adds the Business context item/)).toBeNull();
+    });
+  });
+
   it('Try it sends the agent id and the unsaved name and texts', async () => {
     const { fetchMock } = setup(world(), undefined, (url, init) =>
       url === '/api/ai/agents/5/try' && init?.method === 'POST'
@@ -710,7 +804,13 @@ describe('AI agent page', () => {
         (within(picker).getByRole('radio', { name: /FAQ/ }) as HTMLButtonElement).dataset.state,
       ).toBe('checked');
       // A short page: Business context, Try it, Next steps and the safety rules come after Create.
-      expect(cardTitles()).toEqual(['Starting point', 'Name', 'Role', 'Hand-over rules']);
+      expect(cardTitles()).toEqual([
+        'Start from a business template',
+        'Starting point',
+        'Name',
+        'Role',
+        'Hand-over rules',
+      ]);
       expect(screen.getByRole('heading', { name: 'New AI agent' })).toBeTruthy();
       expect(
         screen.getByText(
