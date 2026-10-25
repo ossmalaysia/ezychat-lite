@@ -40,8 +40,6 @@ export type PushSender = (
 
 export interface PushDeps {
   sender?: PushSender;
-  /** defaults to ctx.services.realtime?.isOnline (missing → nobody online) */
-  isOnline?: (userId: number) => boolean;
 }
 
 export type LocalizedText = (locale: Locale | null) => { title: string; body: string };
@@ -135,11 +133,6 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   const log = ctx.log.child({ mod: 'push' });
   const vapid = loadOrCreateVapid(ctx.settings);
   const sender = deps.sender ?? defaultSender;
-  const isOnline = (id: number): boolean => {
-    if (deps.isOnline) return deps.isOnline(id);
-    const rt = ctx.services.realtime as { isOnline?: (id: number) => boolean } | undefined;
-    return typeof rt?.isOnline === 'function' ? rt.isOnline(id) : false;
-  };
 
   const q = {
     upsert: db.prepare(
@@ -174,8 +167,21 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   /** Push is paused while an edition has closed the access gate (nothing is queued for later). */
   const paused = () => !ctx.access.state().open;
 
-  async function sendTo(userIds: number[], payload: NotificationPayload): Promise<void> {
-    if (paused()) return;
+  interface SendCounts {
+    devices: number;
+    sent: number;
+    failed: number;
+    removed: number;
+  }
+
+  /**
+   * Pushes to every subscribed device of each user, also while the user is online elsewhere: an
+   * open desktop window or a phone app still connected in the background must not swallow the
+   * phone notification. The desktop app has no push subscription, so it never gets a second copy.
+   */
+  async function sendTo(userIds: number[], payload: NotificationPayload): Promise<SendCounts> {
+    const counts: SendCounts = { devices: 0, sent: 0, failed: 0, removed: 0 };
+    if (paused()) return counts;
     const json = JSON.stringify(payload);
     const jobs: Array<Promise<void>> = [];
     for (const uid of userIds) {
@@ -184,15 +190,20 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
           endpoint: row.endpoint,
           keys: { p256dh: row.p256dh, auth: row.auth },
         };
+        counts.devices++;
         jobs.push(
           sender(sub, json, vapid).then(
-            () => undefined,
+            () => {
+              counts.sent++;
+            },
             (err: unknown) => {
               const code = statusCodeOf(err);
               if (code === 404 || code === 410) {
                 q.delById.run(row.id);
+                counts.removed++;
                 log.info({ userId: uid, code }, 'push subscription expired; removed');
               } else {
+                counts.failed++;
                 log.warn({ err, userId: uid, code }, 'push send failed');
               }
             },
@@ -201,6 +212,31 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       }
     }
     await Promise.all(jobs);
+    return counts;
+  }
+
+  /** Live notification for open desktop windows plus web push to every device, then one count line. */
+  async function deliver(
+    kind: 'inbound' | 'handoff' | 'admin',
+    groups: Map<Locale | null, number[]>,
+    payloadFor: (locale: Locale | null) => NotificationPayload,
+  ): Promise<void> {
+    const total: SendCounts = { devices: 0, sent: 0, failed: 0, removed: 0 };
+    let recipients = 0;
+    await Promise.all(
+      [...groups].map(async ([locale, group]) => {
+        const payload = payloadFor(locale);
+        recipients += group.length;
+        notifyConnected(group, payload);
+        const c = await sendTo(group, payload);
+        total.devices += c.devices;
+        total.sent += c.sent;
+        total.failed += c.failed;
+        total.removed += c.removed;
+      }),
+    );
+    // counts only: never the chat, the contact or the push endpoints
+    log.info({ event: 'push_result', kind, recipients, ...total }, 'Push notification delivered');
   }
 
   const ids = (rows: unknown[]) => (rows as Array<{ id: number }>).map((r) => r.id);
@@ -243,24 +279,15 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     async notifyInbound(chat, message) {
       const targets = recipients(chat);
       if (!targets.length) return;
-      const jobs: Array<Promise<void>> = [];
-      for (const [locale, group] of byLocale(targets)) {
+      await deliver('inbound', byLocale(targets), (locale) => {
         const preview = chat.lastMessagePreview ?? message.body ?? t(locale, 'push.newMessage');
-        const payload: NotificationPayload = {
+        return {
           title: (chat.name || t(locale, 'push.unknownContact')).slice(0, 200),
           body: preview.slice(0, 1000),
           url: `/chats/${encodeURIComponent(chat.jid)}`,
           tag: chat.jid,
         };
-        notifyConnected(group, payload);
-        jobs.push(
-          sendTo(
-            group.filter((id) => !isOnline(id)),
-            payload,
-          ),
-        );
-      }
-      await Promise.all(jobs);
+      });
     },
 
     async notifyHandoff(chat) {
@@ -273,43 +300,28 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
         },
         'Dispatching AI handover notification',
       );
-      const jobs: Promise<void>[] = [];
-      for (const [locale, group] of byLocale(targets)) {
-        const payload: NotificationPayload = {
-          title: t(locale, 'push.aiHandoff.title'),
-          body: t(locale, 'push.aiHandoff.body', {
-            name: chat.name || t(locale, 'push.unknownContact'),
-          }).slice(0, 1000),
-          url: `/chats/${encodeURIComponent(chat.jid)}`,
-          tag: chat.jid,
-        };
-        notifyConnected(group, payload);
-        jobs.push(
-          sendTo(
-            group.filter((id) => !isOnline(id)),
-            payload,
-          ),
-        );
-      }
-      await Promise.all(jobs);
+      await deliver('handoff', byLocale(targets), (locale) => ({
+        title: t(locale, 'push.aiHandoff.title'),
+        body: t(locale, 'push.aiHandoff.body', {
+          name: chat.name || t(locale, 'push.unknownContact'),
+        }).slice(0, 1000),
+        url: `/chats/${encodeURIComponent(chat.jid)}`,
+        tag: chat.jid,
+      }));
     },
 
     async notifyAdmins(text, link = { url: '/admin/whatsapp', tag: 'wa-status' }) {
       const targets = ids(q.activeAdmins.all());
       if (!targets.length) return;
-      const jobs: Array<Promise<void>> = [];
-      for (const [locale, group] of byLocale(targets)) {
+      await deliver('admin', byLocale(targets), (locale) => {
         const { title, body } = text(locale);
-        const payload = {
+        return {
           title: title.slice(0, 200),
           body: body.slice(0, 1000),
           url: link.url,
           tag: link.tag,
         };
-        notifyConnected(group, payload);
-        jobs.push(sendTo(group, payload));
-      }
-      await Promise.all(jobs);
+      });
     },
 
     shutdown() {

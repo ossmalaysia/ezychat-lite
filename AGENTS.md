@@ -165,7 +165,9 @@ Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fan
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and
 `push/service.ts` sends notifications for `inbound:notify` and committed `ai:handoff` events to the
 human assignee (or every active human user if unassigned). Connected recipients receive
-`notification:new`; offline recipients receive web push. Handover is distinct from the earlier inbound
+`notification:new` (shown only by the desktop app, which has no push subscription), and every
+subscribed phone or browser of each recipient receives web push, online or not; each send logs
+`push_result` counts only. Handover is distinct from the earlier inbound
 message, which may have arrived while the AI owned the chat.
 
 **Customer profiles.** `packages/server/src/customers/`: one profile per direct chat

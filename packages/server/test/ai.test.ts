@@ -482,7 +482,6 @@ it.each([
       sender: async (_subscription, payload) => {
         notified.push(payload);
       },
-      isOnline: () => false,
     });
     const push = t.ctx.services.push;
     for (const id of [actor.userId, online.id])

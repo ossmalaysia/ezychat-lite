@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Phone notifications no longer go missing.** When the AI handed a chat to a teammate, or a new
+  message arrived, the phone got no notification if the same person also had EzyChat open somewhere
+  else (for example the desktop app in the tray, or a browser tab). Now every phone and browser with
+  notifications turned on gets the notification.
+
 ## [0.1.55] - 2026-10-25
 
 ### Added

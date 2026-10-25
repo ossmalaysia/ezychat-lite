@@ -534,6 +534,10 @@ into AGENTS.md.
 - Treat an AI handover as its own committed notification event: the last inbound message may have
   belonged to the AI. Route to the new human assignee or active human team, and cover connected,
   offline, disabled and AI recipients separately.
+- Never skip web push because a user is "online": online counts sockets per user, not per device, so
+  a hidden desktop window or a phone app still connected in the background swallowed every phone
+  push (the AI even assigns hand-offs to online agents). Push to every subscribed device; only the
+  desktop app shows `notification:new`, and it has no push subscription. Log counts per send.
 
 - Code that walks an uploaded file (Ogg pages, packets) keeps fixed memory: aggregate into a bounded
   result as you go, never collect one entry per item, and cap the upload size for that file kind.
