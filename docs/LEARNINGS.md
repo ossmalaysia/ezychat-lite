@@ -139,6 +139,9 @@ into AGENTS.md.
   (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
   the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
   check (matrix names stay unexpanded), so the PR waits forever. Any unreadable diff runs the full job.
+- A green `Test (*)` check can be the fast path: read the steps (`gh run view <id> --json jobs`). On a PR
+  the diff is against the base, so a docs-only last commit still runs everything. CI covers lint,
+  typecheck, tests, the coverage gates (Linux) and `e2e:electron-links` (Windows), not the browser e2e.
   A Markdown file a test reads (Lite `CHANGELOG.md`) counts as code.
 - A critical dependency update (Electron, argon2, SQLite, fastify, electron-builder) gets its real-part test
   from a packaged build: `npm run dist -w @ezychat/desktop -- --dir --config.directories.output=release-check`,
