@@ -129,6 +129,23 @@
       "tryAgain": "重试",
       "cancel": "取消",
       "previewUnavailable": "此浏览器无法回放，但你仍然可以发送。"
+    },
+    "suggest": {
+      "button": "建议回复",
+      "region": "AI 回复建议",
+      "loading": "正在写 2 条建议…",
+      "retry": "重试",
+      "close": "关闭建议",
+      "noAnswer": "业务资料中没有答案。",
+      "addContext": "添加到业务资料",
+      "handoff": "转人工规则“{{rule}}”：请您亲自回复。",
+      "replaceTitle": "用这条建议替换您的文字？",
+      "replace": "替换",
+      "keep": "保留我的文字",
+      "accept": "接受建议",
+      "tabHint": "按 Tab 接受 · 按 Esc 忽略",
+      "completionStatus": "建议的结尾：{{text}}",
+      "unavailable": "AI 建议暂时不可用"
     }
   },
   "quickReplies": {

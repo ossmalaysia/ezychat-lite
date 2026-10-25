@@ -9,6 +9,7 @@ import {
   claudeKeyModel,
   extractCustomerClaude,
   generateClaude,
+  draftClaude,
   rewriteClaude,
 } from './claude.js';
 
@@ -325,5 +326,40 @@ describe('claudeKeyModel', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0]![1]!.redirect).toBe('error');
     expect(global).not.toHaveBeenCalled();
+  });
+});
+
+describe('draftClaude', () => {
+  const Schema = z.object({ completion: z.string().nullable(), grounded: z.boolean() });
+
+  it('completes with the fast model even when a larger one is saved', async () => {
+    const fetcher = stubFetch(() =>
+      message(JSON.stringify({ completion: 'Lemak Ayam is RM12.', grounded: true })),
+    );
+    const result = await draftClaude(
+      { ...settings, model: 'claude-opus-5-5' },
+      KEY,
+      { instructions: 'Draft', input: '{}' },
+      { schema: Schema, fast: true, maxOutputTokens: 300 },
+      signal(),
+    );
+    expect(result).toEqual({
+      output: { completion: 'Lemak Ayam is RM12.', grounded: true },
+      model: 'claude-haiku-5-5',
+    });
+    expect(call(fetcher).body.model).toBe('claude-haiku-5-5');
+    expect(call(fetcher).body.max_tokens).toBe(300);
+  });
+
+  it('writes suggestions with the saved model', async () => {
+    const fetcher = stubFetch(() => message(JSON.stringify({ completion: null, grounded: false })));
+    await draftClaude(
+      { ...settings, model: 'claude-opus-5-5' },
+      KEY,
+      { instructions: 'Draft', input: '{}' },
+      { schema: Schema, fast: false, maxOutputTokens: 2000 },
+      signal(),
+    );
+    expect(call(fetcher).body.model).toBe('claude-opus-5-5');
   });
 });

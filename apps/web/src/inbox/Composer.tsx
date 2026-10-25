@@ -1,12 +1,24 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock, MessageSquareText, Mic, Paperclip, SendHorizontal, X } from 'lucide-react';
-import type { QuickReply } from '@ezychat/shared';
+import {
+  Check,
+  Lock,
+  MessageSquareText,
+  Mic,
+  Paperclip,
+  SendHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import { completionReady, type QuickReply, type ReplySuggestion } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { errorMessage } from '@/api/client';
+import { fetchCompletion, fetchSuggestions } from '@/api/reply-suggestions';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
+import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
 import { EmojiPicker } from './EmojiPicker';
 import { VoiceNoteBar, useVoiceNote } from './VoiceNote';
 import { voiceSupport } from '@/lib/voice-recorder';
@@ -34,9 +46,21 @@ export interface ComposerProps {
   /** The message being replied to: shown in a bar above the box until sent or cancelled. */
   replyTo?: { id: string; author: string; preview: string } | null;
   onCancelReply?(): void;
+  /**
+   * AI reply suggestions in this chat (direct chats only; null = off). `unavailable` shows the
+   * button disabled. The chips clear when `lastCustomerMessageId` changes (a new customer message).
+   */
+  aiSuggest?: {
+    chatJid: string;
+    lastCustomerMessageId: string | null;
+    isAdmin: boolean;
+    state: 'on' | 'unavailable';
+  } | null;
 }
 
 const TYPING_THROTTLE_MS = 2_000;
+/** Completion waits for a short pause after a full word, so typing makes no model calls. */
+const COMPLETION_PAUSE_MS = 500;
 const MAX_HEIGHT_PX = 160;
 
 /** Touch devices: Enter inserts a newline, the Send button sends. */
@@ -65,6 +89,7 @@ export function Composer({
   placeholder,
   replyTo = null,
   onCancelReply,
+  aiSuggest = null,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
   const [text, setText] = useState('');
@@ -80,6 +105,7 @@ export function Composer({
   const emojiSelection = useRef({ start: 0, end: 0 });
   const pendingCaret = useRef<number | null>(null);
   const pickerId = useId();
+  const unavailableId = useId();
   const [coarsePointer] = useState(isCoarsePointer);
   const [voiceSupported] = useState(voiceSupport);
   const voice = useVoiceNote(async (file, clientId) => {
@@ -87,6 +113,90 @@ export function Composer({
     await onVoiceNote(file, clientId);
     return true;
   });
+
+  // AI reply suggestions: chips after "Suggest reply" and grey completion text.
+  const aiMode = aiSuggest?.state ?? 'off';
+  const [strip, setStrip] = useState<SuggestionStrip | null>(null);
+  const [pendingPick, setPendingPick] = useState<ReplySuggestion | null>(null);
+  const [ghost, setGhost] = useState<{ for: string; text: string } | null>(null);
+  const suggestAbort = useRef<AbortController | null>(null);
+  const completeAbort = useRef<AbortController | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const ghostText = ghost && ghost.for === text ? ghost.text : '';
+
+  function closeSuggestions() {
+    suggestAbort.current?.abort();
+    setStrip(null);
+    setPendingPick(null);
+  }
+
+  async function suggest() {
+    if (!aiSuggest) return;
+    suggestAbort.current?.abort();
+    const cancel = new AbortController();
+    suggestAbort.current = cancel;
+    setPendingPick(null);
+    setStrip({ phase: 'loading' });
+    try {
+      const result = await fetchSuggestions(aiSuggest.chatJid, cancel.signal);
+      if (!cancel.signal.aborted) setStrip({ phase: 'ready', result });
+    } catch (err) {
+      if (!cancel.signal.aborted) setStrip({ phase: 'error', message: errorMessage(err) });
+    }
+  }
+
+  function applyDraft(s: ReplySuggestion) {
+    setPendingPick(null);
+    setGhost(null);
+    pendingCaret.current = s.text.length;
+    setText(s.text);
+    setBrowseReplies(false);
+    setPickerDismissed(true);
+  }
+
+  function pick(s: ReplySuggestion) {
+    // Typed work is never lost: replacing it needs a confirm.
+    if (text.trim()) setPendingPick(s);
+    else applyDraft(s);
+  }
+
+  function acceptGhost() {
+    if (!ghostText) return;
+    const next = text + ghostText;
+    pendingCaret.current = next.length;
+    setGhost(null);
+    setText(next);
+  }
+
+  // A new customer message makes the chips out of date.
+  const lastCustomer = aiSuggest?.lastCustomerMessageId ?? null;
+  useEffect(() => {
+    closeSuggestions();
+  }, [lastCustomer]);
+
+  // Completion: after a full word and a short pause; a new keystroke aborts the request.
+  const suggestJid = aiSuggest?.chatJid ?? null;
+  useEffect(() => {
+    completeAbort.current?.abort();
+    if (aiMode !== 'on' || !suggestJid || !completionReady(text)) return;
+    const el = areaRef.current;
+    if (el && el.selectionStart !== text.length) return;
+    const cancel = new AbortController();
+    completeAbort.current = cancel;
+    const typed = text;
+    const timer = setTimeout(() => {
+      fetchCompletion(suggestJid, typed, cancel.signal)
+        .then(({ completion }) => {
+          // A completion for older text is discarded.
+          if (!cancel.signal.aborted && completion) setGhost({ for: typed, text: completion });
+        })
+        .catch(() => undefined);
+    }, COMPLETION_PAUSE_MS);
+    return () => {
+      clearTimeout(timer);
+      cancel.abort();
+    };
+  }, [text, aiMode, suggestJid]);
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -112,7 +222,9 @@ export function Composer({
       el.style.height = 'auto';
       const style = getComputedStyle(el);
       const borders = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
-      const height = el.scrollHeight + (Number.isFinite(borders) ? borders : 0);
+      const ghostHeight = ghostRef.current?.scrollHeight ?? 0;
+      const height =
+        Math.max(el.scrollHeight, ghostHeight) + (Number.isFinite(borders) ? borders : 0);
       el.style.height = `${Math.min(height, MAX_HEIGHT_PX)}px`;
       el.style.overflowY = height > MAX_HEIGHT_PX ? 'auto' : 'hidden';
     }
@@ -133,7 +245,7 @@ export function Composer({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [text]);
+  }, [text, ghostText]);
 
   function insertEmoji(emoji: string) {
     const { start, end } = emojiSelection.current;
@@ -183,6 +295,8 @@ export function Composer({
       if (!(await confirmed())) return;
       onSend(value);
       setText('');
+      setGhost(null);
+      closeSuggestions();
       setBrowseReplies(false);
       setPickerDismissed(false);
     } finally {
@@ -221,6 +335,16 @@ export function Composer({
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing) return;
+    if (ghostText && e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      acceptGhost();
+      return;
+    }
+    if (ghostText && e.key === 'Escape') {
+      e.preventDefault();
+      setGhost(null);
+      return;
+    }
     if (pickerOpen && matches.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -310,6 +434,55 @@ export function Composer({
           {t('composer.voice.insecure')}
         </p>
       )}
+      {strip && (
+        <ReplySuggestions
+          strip={strip}
+          isAdmin={!!aiSuggest?.isAdmin}
+          onPick={pick}
+          onRetry={() => void suggest()}
+          onClose={closeSuggestions}
+        />
+      )}
+      {pendingPick && (
+        <div
+          role="alertdialog"
+          aria-label={t('composer.suggest.replaceTitle')}
+          className="mb-1.5 flex flex-wrap items-center gap-2 rounded-lg border bg-muted px-3 py-1.5 text-sm"
+          data-testid="replace-confirm"
+        >
+          <span className="min-w-0 flex-1">{t('composer.suggest.replaceTitle')}</span>
+          <Button
+            size="sm"
+            className="pointer-coarse:min-h-11"
+            onClick={() => applyDraft(pendingPick)}
+          >
+            {t('composer.suggest.replace')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="pointer-coarse:min-h-11"
+            onClick={() => setPendingPick(null)}
+          >
+            {t('composer.suggest.keep')}
+          </Button>
+        </div>
+      )}
+      {ghostText && coarsePointer && (
+        <div className="mb-1.5 flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-h-11 rounded-full border-primary/40"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={acceptGhost}
+            data-testid="accept-completion"
+          >
+            <Check className="text-primary" aria-hidden="true" />
+            {t('composer.suggest.accept')}
+          </Button>
+        </div>
+      )}
       <Popover
         open={pickerOpen}
         onOpenChange={(o) => {
@@ -353,22 +526,43 @@ export function Composer({
               }}
               onPick={insertEmoji}
             />
-            <Textarea
-              ref={areaRef}
-              aria-label={t('composer.message')}
-              aria-autocomplete="list"
-              aria-expanded={pickerOpen}
-              aria-controls={pickerOpen ? pickerId : undefined}
-              rows={1}
-              value={text}
-              disabled={disabled}
-              placeholder={placeholder ?? t('composer.placeholder')}
-              onChange={onChange}
-              onKeyDown={onKeyDown}
-              // Enter inserts a newline on touch keyboards, so label the key accordingly.
-              enterKeyHint={coarsePointer ? 'enter' : 'send'}
-              className="composer-input field-sizing-fixed min-h-11 min-w-0 flex-1 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
-            />
+            <div className="relative min-w-0 flex-1">
+              <Textarea
+                ref={areaRef}
+                aria-label={t('composer.message')}
+                aria-autocomplete="list"
+                aria-expanded={pickerOpen}
+                aria-controls={pickerOpen ? pickerId : undefined}
+                rows={1}
+                value={text}
+                disabled={disabled}
+                placeholder={placeholder ?? t('composer.placeholder')}
+                onChange={onChange}
+                onKeyDown={onKeyDown}
+                // Enter inserts a newline on touch keyboards, so label the key accordingly.
+                enterKeyHint={coarsePointer ? 'enter' : 'send'}
+                className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+              />
+              {/* The grey text is drawn over the box, never put in it: Send can never send it. */}
+              <div
+                ref={ghostRef}
+                aria-hidden="true"
+                className={
+                  ghostText
+                    ? 'pointer-events-none absolute inset-0 overflow-hidden rounded-2xl border border-transparent px-3.5 py-2.5 text-base leading-6 break-words whitespace-pre-wrap'
+                    : 'hidden'
+                }
+                data-testid="completion-ghost"
+              >
+                <span className="invisible">{text}</span>
+                <span className="text-muted-foreground">{ghostText}</span>
+              </div>
+              {ghostText && (
+                <span className="sr-only" role="status">
+                  {t('composer.suggest.completionStatus', { text: ghostText })}
+                </span>
+              )}
+            </div>
             {offerVoice ? (
               <Button
                 size="icon-touch"
@@ -397,25 +591,51 @@ export function Composer({
             )}
           </div>
         </PopoverAnchor>
-        {quickReplies.length > 0 && (
-          <Button
-            ref={repliesButtonRef}
-            variant="ghost"
-            size="touch"
-            disabled={disabled}
-            aria-expanded={pickerOpen}
-            aria-controls={pickerOpen ? pickerId : undefined}
-            onClick={() => {
-              setBrowseReplies(!pickerOpen);
-              setPickerDismissed(pickerOpen);
-              areaRef.current?.focus();
-            }}
-            className="mt-1 text-muted-foreground"
-          >
-            <MessageSquareText aria-hidden="true" />
-            {t('composer.quickReplies')}
-          </Button>
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5">
+          {quickReplies.length > 0 && (
+            <Button
+              ref={repliesButtonRef}
+              variant="ghost"
+              size="touch"
+              disabled={disabled}
+              aria-expanded={pickerOpen}
+              aria-controls={pickerOpen ? pickerId : undefined}
+              onClick={() => {
+                setBrowseReplies(!pickerOpen);
+                setPickerDismissed(pickerOpen);
+                areaRef.current?.focus();
+              }}
+              className="text-muted-foreground"
+            >
+              <MessageSquareText aria-hidden="true" />
+              {t('composer.quickReplies')}
+            </Button>
+          )}
+          {aiMode !== 'off' && (
+            <Button
+              variant="ghost"
+              size="touch"
+              disabled={disabled || aiMode === 'unavailable' || strip?.phase === 'loading'}
+              aria-describedby={aiMode === 'unavailable' ? unavailableId : undefined}
+              onClick={() => void suggest()}
+              className="text-primary"
+              data-testid="suggest-reply"
+            >
+              <Sparkles aria-hidden="true" />
+              {t('composer.suggest.button')}
+            </Button>
+          )}
+          {aiMode === 'unavailable' && (
+            <span id={unavailableId} className="text-xs text-muted-foreground">
+              {t('composer.suggest.unavailable')}
+            </span>
+          )}
+          {ghostText && !coarsePointer && (
+            <span className="ml-auto text-xs text-muted-foreground" data-testid="completion-hint">
+              {t('composer.suggest.tabHint')}
+            </span>
+          )}
+        </div>
         <PopoverContent
           id={pickerId}
           side="top"

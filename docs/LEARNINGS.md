@@ -33,12 +33,18 @@ into AGENTS.md.
 - Console output meant for the owner (and pasted into chat) fits ~80 columns: wider tables wrap and
   become unreadable; put long names on their own lines and keep one short line per item. Lead with
   the decision (ready / needs you) but never hide the evidence: show every checkpoint, even when green.
+- Before the owner hand-tests on `D:\dev\test-env\lite`, check that it runs (port 7491, started after the
+  branch build) and read the feature's state in its data: that data is an updated install, so a feature
+  that starts off after an update is hidden there until an admin turns it on. Its admin is `jazz`; the
+  password is only the owner's (reset needs the CLI `--reset-admin` with the server stopped).
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
   log), never from an agent's memory of the session: record each stage when it finishes, mark
   stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
-  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose.
+  and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose. Stage keys are
+  `design|dev|unit|e2e|devbuild|screen`. A plan ledger under `.superpowers/` is git-ignored and deleted
+  at the end: copy its rulings and deferred findings into the workbook first.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
@@ -59,7 +65,11 @@ into AGENTS.md.
 - Feature mocks evolve cumulatively: clone the latest owner-confirmed interactive app mock from
   `docs/features/mock-index.json`, preserve existing flows, record the source revision, and advance
   the baseline only after the owner confirms the complete enhancement; an unconfirmed demo is not
-  a baseline for the next feature.
+  a baseline for the next feature. Fetch and re-read `latestConfirmed` and the folder list on
+  `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
+  retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
+  Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
+  hash of the mock commit, and the recorded revision must exist on the pushed branch.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -122,6 +132,11 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
+  or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
+- After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
+  GitHub can drop push events (no CI for the merge either). Then start it on the tag,
+  `gh workflow run <file> --ref v<version>`; `refs/tags/v…` conditions (publish jobs) still pass.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
@@ -130,6 +145,9 @@ into AGENTS.md.
   (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
   the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
   check (matrix names stay unexpanded), so the PR waits forever. Any unreadable diff runs the full job.
+- A green `Test (*)` check can be the fast path: read the steps (`gh run view <id> --json jobs`). On a PR
+  the diff is against the base, so a docs-only last commit still runs everything. CI covers lint,
+  typecheck, tests, the coverage gates (Linux) and `e2e:electron-links` (Windows), not the browser e2e.
   A Markdown file a test reads (Lite `CHANGELOG.md`) counts as code.
 - A critical dependency update (Electron, argon2, SQLite, fastify, electron-builder) gets its real-part test
   from a packaged build: `npm run dist -w @ezychat/desktop -- --dir --config.directories.output=release-check`,
@@ -448,6 +466,13 @@ into AGENTS.md.
   segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
   instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
+- "No tsconfigRootDir was set, and multiple candidate TSConfigRootDirs" on thousands of files means ESLint
+  reads untracked repo copies (agent worktrees): ignore them in `eslint.config.js` (`.claude/worktrees/**`).
+- In the Bash tool, `\n` or `\t` inside text that a heredoc passes to Python or sed can arrive as a real
+  line break or tab (`D:\dev\test-env` → `D:\dev<TAB>est-env`): write text with escapes, regexes or
+  Windows paths with the Edit tool and check the result.
+- Run `npm run lint` again after the last code change, also for a script added late: e2e scripts that
+  touch `document`/`window` inside `page.evaluate` need `/* global document, window -- … */` (Node globals only).
 - The context-mode hook blocks `fetch('http…` inside a Bash command: put Dev Build HTTP steps in a script
   file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration also moves `LATEST` and the table
   list in `src/db/migrate.test.ts`.
@@ -525,7 +550,9 @@ into AGENTS.md.
   one chained command: on this dev machine the chain can be stopped for low memory, losing every result.
   A "stopped for low memory" notice for a background server stops only its shell: the server usually
   keeps running. Check the port (and the process command line) before you report it stopped or delete
-  its data folder; stop finished servers of your own to free memory.
+  its data folder; stop finished servers of your own to free memory. A suite cut short this way leaves
+  a partial coverage report: its threshold errors and 20 s timeouts are not findings (rerun the failed
+  files alone); push and read the PR CI run for the full-suite result.
   Web tests time out under load: rerun failures alone and the web suite with `--maxWorkers=2`
   before treating them as real.
 - After rebuilding `apps/web/dist`, restart the server (it lists the static files at start) and
@@ -535,6 +562,8 @@ into AGENTS.md.
 
 ## Security
 
+- Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
+  signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
   the current limit (an older run, a dev flag). Shortcuts like "one inbox → everyone sees all" check the
   stored rows too, and rows over the limit are never connected.
@@ -763,6 +792,8 @@ into AGENTS.md.
   as live replies (minus chat-bound ones), or it stops testing what customers get.
 - Tests that ingest many messages under frozen fake timers must tick the clock between them: equal
   timestamps reorder by id and can push the message being answered out of the last 20.
+- Vitest fake timers do not control `AbortSignal.timeout`: bound a call that a test must time out with a
+  `setTimeout` that aborts an `AbortController` (cleared in `finally`).
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
   Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so
@@ -775,7 +806,9 @@ into AGENTS.md.
 - When the AI promises a human follow-up, the code hands the chat to the team. Questions about X stay with
   the AI; requests to do X (order, book, pay, cancel) are handed off and never resolved.
 - Prompt caching: instructions stay static; per-call facts (date, time, state) go in the last input block;
-  cache keys come from a stable install id + model, never customer data.
+  cache keys come from a stable install id + model, never customer data. Only `GUARDRAILS` is a shared
+  prefix for a new kind of AI call: `CORE_RULES` holds the agent's decision format and hand-off rules, so a
+  call with another output (drafts, rewrites) needs its own fixed rules block instead.
 - A human takeover can land mid-generation: abort, invalidate queued replies, and recheck ownership and
   the latest customer message right before sending. Notify automation on live receipt, before media
   downloads.
@@ -800,8 +833,9 @@ into AGENTS.md.
 - A route that calls an outside service takes its client from an optional `ctx.services.<name>` slot
   (e.g. `aiKeyTest`), set in `makeTestApp`'s `beforeBuild`, so tests never reach the network.
 - An API key test treats only a 401 as a bad key: a 403 (restricted key, region block), 429 or
-  network failure must still let the admin save. e2e that save a key answer
-  `POST /api/ai/connection/test` with `page.route`.
+  network failure must still let the admin save. e2e and screenshot scripts answer every model-backed
+  route in the browser with `page.route` and demo output (`POST /api/ai/connection/test`,
+  `/api/chats/:jid/ai/suggestions` and `/ai/complete`), so a real screen runs without any model call.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.

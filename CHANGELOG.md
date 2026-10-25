@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **AI reply suggestions.** In a direct chat, press **Suggest reply** to get two drafts that answer the
+  customer in two different ways; tap one to put it in the message box, edit it and send it. When you
+  type yourself, the AI completes your sentence in grey text: press Tab (or tap **Accept suggestion**)
+  to use it. Drafts use only facts from the chat and your business context, and the AI never sends
+  anything. Admins turn it on or off for the team in Settings → AI; after this update it starts off.
+
 ## [0.1.57] - 2026-10-25
 
 ### Fixed

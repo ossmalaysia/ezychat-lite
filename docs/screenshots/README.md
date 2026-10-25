@@ -6,10 +6,10 @@ demo data only: the fictional "Kopi Apong" coffee shop on fake WhatsApp. No real
 | Folder                 | What it shows                                                                                                                                |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `inbox/`               | Shared inbox list with owner chips and unread counts                                                                                         |
-| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info, reactions and the emoji bar (`react-bar-*`)               |
+| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info, reactions and the emoji bar (`react-bar-*`), AI reply suggestions (`suggest-*`) |
 | `admin-members/`       | Team members                                                                                                                                 |
 | `ai-member/`           | AI Sales Agent page (instructions, hand-off rules, Business context)                                                                         |
-| `ai-settings/`         | AI connection settings                                                                                                                       |
+| `ai-settings/`         | AI connection settings; the team-wide reply suggestions switch (`reply-suggestions-settings-*`)                                              |
 | `quick-replies/`       | Quick replies                                                                                                                                |
 | `whatsapp-link/`       | WhatsApp page (fake WhatsApp shows "Fake": internal use only)                                                                                |
 | `remote-access/`       | Cloudflare remote access                                                                                                                     |
@@ -33,6 +33,12 @@ node e2e/marketing-screenshots.mjs 7477 docs/screenshots
 
 `--mode standalone` keeps the "Dev Build" badge out of the shots. The script saves a placeholder AI key and
 leaves the AI member off, so it never calls OpenAI or ChatGPT.
+
+## AI reply suggestions
+
+`chat/suggest-*` and `ai-settings/reply-suggestions-settings-*` come from
+`node e2e/reply-suggestions-screens.mjs <port> <out dir>` on the standalone server above (fresh data). The
+script seeds two chats and answers the three AI calls in the browser with demo drafts, so no model is called.
 
 ## Customer enrichment
 

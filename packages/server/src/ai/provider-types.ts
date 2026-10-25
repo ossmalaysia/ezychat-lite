@@ -1,4 +1,5 @@
 import type { ToolSet } from 'ai';
+import type { z } from 'zod';
 import type {
   AiConnection,
   AiDecision,
@@ -38,6 +39,13 @@ export interface AgentTurnTiming {
   retries: number;
 }
 export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
+
+/** A reply-draft call: its output format, the fast model for completions, the output bound. */
+export interface AiDraftOptions<T> {
+  schema: z.ZodType<T>;
+  fast: boolean;
+  maxOutputTokens: number;
+}
 export interface AiPromptImage {
   mime: string;
   base64: string;
@@ -80,6 +88,14 @@ export interface AiProvider {
     prompt: AiRewritePrompt,
     signal: AbortSignal,
   ): Promise<{ text: string; model: string }>;
+  /** Reply suggestions and completions: one tool-free structured call (`agent/draft.ts`). */
+  draft?<T>(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    options: AiDraftOptions<T>,
+    signal: AbortSignal,
+  ): Promise<{ output: T; model: string }>;
   connection(): AiConnection;
   login(): Promise<AiConnection>;
   /** Finishes a pending sign-in with the redirect address pasted from another computer. */

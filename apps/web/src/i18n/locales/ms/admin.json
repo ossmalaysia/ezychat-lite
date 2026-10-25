@@ -435,6 +435,14 @@
     "account": {
       "title": "Akaun anda",
       "description": "Disimpan pada akaun anda, jadi ia mengikut anda di setiap peranti."
+    },
+    "replySuggestions": {
+      "title": "Cadangan balasan",
+      "description": "Ahli pasukan menekan Cadang balasan dalam sembang untuk mendapat 2 draf AI, dan AI melengkapkan ayat yang mereka taip. AI tidak pernah menghantar mesej.",
+      "enable": "Cadang balasan untuk pasukan",
+      "cost": "Setiap cadangan dan setiap pelengkapan ialah satu permintaan kepada penyedia AI anda, yang mungkin mengenakan caj.",
+      "noConnection": "Sambungkan penyedia AI di atas untuk menggunakan cadangan balasan.",
+      "upgraded": "Baharu: cadangan balasan. Ia dimatikan selepas kemas kini supaya tiada kos baharu tanpa pilihan anda."
     }
   },
   "resolveAll": {

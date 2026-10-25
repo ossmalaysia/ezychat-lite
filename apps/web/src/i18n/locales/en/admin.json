@@ -437,6 +437,14 @@
     "account": {
       "title": "Your account",
       "description": "Saved to your account, so it follows you on every device."
+    },
+    "replySuggestions": {
+      "title": "Reply suggestions",
+      "description": "Teammates press Suggest reply in a chat to get 2 AI drafts, and the AI completes the sentence they type. The AI never sends a message.",
+      "enable": "Suggest replies for the team",
+      "cost": "Each suggestion and each completion is one request to your AI provider, which may charge for it.",
+      "noConnection": "Connect an AI provider above to use reply suggestions.",
+      "upgraded": "New: reply suggestions. They are off after the update so that nothing new costs money without your choice."
     }
   },
   "resolveAll": {

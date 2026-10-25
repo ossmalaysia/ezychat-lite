@@ -207,6 +207,27 @@ for it there; source runs load `transcribe-worker.ts` through tsx). `ogg-opus-de
 WASM in JavaScript; the bundle script resolves `simple-yenc` to its ESM build (its CommonJS file
 in a `"type": "module"` package bundles without exports).
 
+## Reply suggestions for the team
+
+A teammate who handles a direct chat presses **Suggest reply** in the composer and gets up to two
+chips: two drafts that answer the customer's request in two different ways. A tap puts the full draft
+in the composer; the teammate edits it and sends it. When the teammate types instead, the AI completes
+the sentence as grey text after a full word and a short pause (Tab or **Accept suggestion**). The AI
+never sends anything, and suggestions are never stored.
+
+- Drafts use the business context, instructions and hand-off rules of the chat's AI agent, also while
+  the agent is off; they need only the AI connection. Without an agent they use the conversation and
+  the customer details only.
+- A draft states only facts from the conversation, the customer details and the business context. The
+  server drops a draft the model did not mark grounded, a draft with a number (price, time, order
+  number) that no source contains, and a draft that copies an Internal item. When the business context
+  has no answer, the strip says so; when a hand-off rule matches, it shows that rule instead of drafts.
+- Completions use a fast model of the saved provider (Claude: Haiku; OpenAI key: the default small
+  model; ChatGPT sign-in: the saved model) and are dropped after 3 seconds.
+- Admins turn the feature on or off for the team in Settings → AI. It is on for a new install with an
+  AI connection and off after an update from an older version, because completions are requests to
+  the AI provider while people type, and the provider may charge for them.
+
 ## Implementation and validation
 
 AI members are assignment identities, not sign-in accounts: no passwords, sessions, role

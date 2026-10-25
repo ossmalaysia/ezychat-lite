@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type {
   AiAgentBody,
   AiAgentPreset,
+  ReplyCompleteResult,
+  ReplySuggestionsResult,
   AiAgentStatus,
   AiAgentSummary,
   AiContextPatchBody,
@@ -60,7 +62,7 @@ import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
-import { AgentTurnFailure } from './agent/models.js';
+import { AgentTurnFailure, errorNameOf } from './agent/models.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
 import {
   extensionAgentTools,
@@ -75,6 +77,7 @@ import {
   AI_TIMEZONE_SETTING,
   HANDOFF_REPLY,
   VOICE_RETRY_REPLY,
+  administratorInstructions,
   aiCustomer,
   buildAiPrompt,
   resolveAiTimeZone,
@@ -98,6 +101,9 @@ import {
   secretKeyFor,
 } from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
+import { CompletionOutput, DraftOutput, buildDraftPrompt } from './draft-prompt.js';
+import { acceptCompletion, acceptDrafts } from './draft-check.js';
+import { replySuggestionsEnabled } from './reply-suggestions-setting.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 
 /**
@@ -247,8 +253,32 @@ export interface AiService {
   /** `agentId`: whose business items inform the edit (null/absent = the default agent). */
   editText(body: AiEditBody, signal?: AbortSignal, agentId?: number | null): Promise<AiEditResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
+  /**
+   * AI reply suggestions: `ready` = drafts can run now, `unavailable` = a saved connection that
+   * does not work now (expired, blocked, service closing), `none` = no saved connection.
+   */
+  draftConnection(): 'ready' | 'unavailable' | 'none';
+  /**
+   * Suggest reply (up to 2 grounded drafts) or a completion of the typed text for one chat, from
+   * the chat's agent knowledge whether the agent is on or off. Nothing is sent or stored. Throws
+   * 409 `ai_suggestions_off` / 503 `ai_unavailable`; a slow or failed completion is `null`.
+   */
+  draftReply(
+    jid: string,
+    request: { kind: 'suggest' },
+    signal: AbortSignal,
+  ): Promise<ReplySuggestionsResult>;
+  draftReply(
+    jid: string,
+    request: { kind: 'complete'; typed: string },
+    signal: AbortSignal,
+  ): Promise<ReplyCompleteResult>;
   shutdown(): Promise<void>;
 }
+
+/** A completion that takes longer arrives after the teammate moved on: it is dropped. */
+export const AI_COMPLETION_TIMEOUT_MS = 3_000;
+const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 
 declare module '../context.js' {
   interface Services {
@@ -1851,6 +1881,148 @@ export function createAiService(
       );
       return result;
     },
+    draftConnection() {
+      if (!provider.draft) return 'none';
+      const mode = aiProviderSettings(ctx.settings).mode;
+      if (mode !== 'chatgpt') {
+        if (!aiApiKey(ctx.settings)) return 'none';
+        return closed ? 'unavailable' : 'ready';
+      }
+      const state = provider.connection().state;
+      if (state === 'signed_out' || state === 'signing_in') return 'none';
+      return state === 'connected' && !closed ? 'ready' : 'unavailable';
+    },
+    draftReply: (async (
+      jid: string,
+      request: { kind: 'suggest' } | { kind: 'complete'; typed: string },
+      signal: AbortSignal,
+    ) => {
+      if (!replySuggestionsEnabled(ctx.settings))
+        throw new HttpError(409, 'ai_suggestions_off', 'Reply suggestions are off');
+      if (service.draftConnection() !== 'ready' || !gateOpen())
+        throw new HttpError(503, 'ai_unavailable', 'AI suggestions are not available now');
+      const agent = agentOfChat(jid);
+      const current = settingsFor(agent);
+      const saved = agent ? contextItems(agent.id) : [];
+      const items = splitKnowledge(saved);
+      const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
+      const history = messages.list(jid, { limit: 20 }).messages;
+      const turns = conversation(history, aiUserIds());
+      const business = relevantKnowledge(
+        items.business,
+        history
+          .filter((message) => !message.fromMe)
+          .slice(-3)
+          .map(customerText)
+          .join('\n'),
+      );
+      const customer = aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
+      // No agent: no preset texts that nobody configured (only the conversation and the customer).
+      const instructions = agent
+        ? administratorInstructions({ ...current, preset: agent.preset })
+        : '(none: follow the rules above)';
+      // Facts a draft may state: what the model was shown, never the Internal items.
+      const sources = [
+        business,
+        agent ? instructions : '',
+        ...turns.map((turn) => turn.text),
+        JSON.stringify(customer ?? {}),
+      ].join('\n');
+      const prompt = {
+        ...buildDraftPrompt({
+          kind: request.kind,
+          instructions,
+          handoffRules: agent ? current.handoffRules : '',
+          internalKnowledge: items.internal,
+          businessKnowledge: business,
+          conversation: turns,
+          customer,
+          now: new Date(),
+          timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
+          ...(request.kind === 'complete' ? { typed: request.typed } : {}),
+        }),
+        cacheId: `${installId()}#agent:${agent?.id ?? 0}`,
+      };
+      const started = Date.now();
+      let model: string | null = null;
+      let count = 0;
+      let ok = false;
+      /** The failure's class name and HTTP status (never its message: it can echo the prompt). */
+      let cause: { causeName: string | null; status: number | null } | null = null;
+      const noteFailure = (error: unknown) => {
+        const status = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = status.statusCode ?? status.status;
+        cause = { causeName: errorNameOf(error), status: typeof code === 'number' ? code : null };
+      };
+      try {
+        if (request.kind === 'suggest') {
+          try {
+            const answer = await provider.draft!(
+              current,
+              aiApiKey(ctx.settings),
+              prompt,
+              { schema: DraftOutput, fast: false, maxOutputTokens: 2_000 },
+              AbortSignal.any([signal, AbortSignal.timeout(AI_SUGGESTION_TIMEOUT_MS)]),
+            );
+            model = answer.model;
+            const result = acceptDrafts(answer.output, sources, internalTexts, business);
+            count = result.suggestions.length;
+            ok = true;
+            return result;
+          } catch (error) {
+            noteFailure(error);
+            if (signal.aborted) throw error;
+            throw new HttpError(
+              503,
+              'ai_unavailable',
+              'The AI could not suggest a reply. Try again.',
+            );
+          }
+        }
+        // Completions: bounded by a timer (dropped after 3 s) and the client's own cancel.
+        const bound = new AbortController();
+        const timer = setTimeout(() => bound.abort(), AI_COMPLETION_TIMEOUT_MS);
+        try {
+          const answer = await provider.draft!(
+            current,
+            aiApiKey(ctx.settings),
+            prompt,
+            { schema: CompletionOutput, fast: true, maxOutputTokens: 300 },
+            AbortSignal.any([signal, bound.signal]),
+          );
+          model = answer.model;
+          const completion = acceptCompletion(
+            answer.output,
+            request.typed,
+            sources,
+            internalTexts,
+            business,
+          );
+          count = completion ? 1 : 0;
+          ok = true;
+          return { completion };
+        } catch (error) {
+          noteFailure(error);
+          return { completion: null };
+        } finally {
+          clearTimeout(timer);
+        }
+      } finally {
+        // Never the typed text, the drafts, the conversation or the customer.
+        log.info(
+          {
+            event: 'ai_draft',
+            kind: request.kind,
+            ok,
+            ms: Date.now() - started,
+            model,
+            count,
+            ...(cause ?? {}),
+          },
+          'AI draft',
+        );
+      }
+    }) as AiService['draftReply'],
     canSend(jid, userId, quotedId) {
       return (
         eligible(jid) &&

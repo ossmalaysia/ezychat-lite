@@ -3,13 +3,15 @@
 // The mock model answers from what it was given, so a check can read the prompt back from the reply:
 //   "[<name>] guard=<yes|no> business=<MARK-… words seen> internal=<MARK-… words seen>"
 // A customer message containing LEAK makes it repeat its internalKnowledge (the leak check must stop it).
-// Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs.
+// Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
+// Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
+// e2e/devbuild-suggestions-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { FakeWaAdapter } from '@ezychat/wa';
 import type { AiDecision } from '@ezychat/shared';
-import type { AiPrompt } from '../packages/server/src/ai/provider-types.js';
+import type { AiPrompt, AiRewritePrompt } from '../packages/server/src/ai/provider-types.js';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
@@ -77,10 +79,61 @@ function mockDecision(prompt: AiPrompt, signal: AbortSignal): AiDecision {
   };
 }
 
+/**
+ * The mock draft model (reply suggestions): the business-context sentence that shares the most words
+ * with the customer's last message, as two drafts; a completion continues that sentence after the
+ * last typed word. A customer message with LEAK makes it copy internalKnowledge (must be dropped).
+ */
+function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
+  signal.throwIfAborted();
+  const input = JSON.parse(prompt.input) as {
+    internalKnowledge: string;
+    businessKnowledge: string;
+    conversation: Array<{ speaker: string; text: string }>;
+    currentSituation: { task: 'suggest' | 'complete'; typed?: string };
+  };
+  const words = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? []);
+  const asked = words(
+    [...input.conversation].reverse().find((turn) => turn.speaker === 'customer')?.text ?? '',
+  );
+  const leak = prompt.input.includes('LEAK');
+  const sentences = input.businessKnowledge
+    .split(/(?<=[.!?])\s+|\n/)
+    .map((line) => line.replace(/^\[[^\]]*\]\s*/, '').trim());
+  const best = sentences
+    .filter(Boolean)
+    .map((line) => ({ line, score: [...words(line)].filter((w) => asked.has(w)).length }))
+    .sort((a, b) => b.score - a.score)[0];
+  const fact = leak ? input.internalKnowledge : best && best.score > 0 ? best.line : null;
+  if (input.currentSituation.task === 'complete') {
+    const last = [...words(input.currentSituation.typed ?? '')].pop();
+    const line = sentences.find((l) => (last ? l.toLowerCase().includes(last) : false));
+    const at = line && last ? line.toLowerCase().indexOf(last) + last.length : -1;
+    return { completion: line && at > 0 ? line.slice(at).trim() : null, grounded: !!line };
+  }
+  if (!fact) return { suggestions: [], noAnswer: true, handoffRule: null };
+  return {
+    suggestions: [
+      { label: 'Answer now', text: fact, grounded: true },
+      {
+        label: 'Answer and ask what else',
+        text: `${fact} What else can we prepare for you?`,
+        grounded: true,
+      },
+    ],
+    noAnswer: false,
+    handoffRule: null,
+  };
+}
+
 await ctx.services.ai!.shutdown();
 ctx.services.ai = createAiService(ctx, {
   provider: {
     generate: (_settings, _key, prompt, signal) => Promise.resolve(mockDecision(prompt, signal)),
+    draft: async (_settings, _key, prompt, options, signal) => ({
+      output: options.schema.parse(mockDraft(prompt, signal)),
+      model: 'mock-model',
+    }),
     connection: () => ({ state: 'connected', loginUrl: null, error: null }),
     login: async () => ({ state: 'connected', loginUrl: null, error: null }),
     logout: async () => {},

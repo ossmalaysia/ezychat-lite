@@ -39,6 +39,7 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/voice/download' },
   { method: 'POST', url: '/api/ai/voice/cancel' },
   { method: 'DELETE', url: '/api/ai/voice/model' },
+  { method: 'PUT', url: '/api/ai/reply-suggestions' },
 ] as const;
 
 let t: TestApp;

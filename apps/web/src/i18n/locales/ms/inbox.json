@@ -129,6 +129,23 @@
       "tryAgain": "Cuba lagi",
       "cancel": "Batal",
       "previewUnavailable": "Pelayar ini tidak dapat memainkannya semula, tetapi anda masih boleh menghantarnya."
+    },
+    "suggest": {
+      "button": "Cadang balasan",
+      "region": "Cadangan balasan AI",
+      "loading": "Menulis 2 cadangan…",
+      "retry": "Cuba lagi",
+      "close": "Tutup cadangan",
+      "noAnswer": "Tiada jawapan dalam konteks perniagaan.",
+      "addContext": "Tambah ke Konteks perniagaan",
+      "handoff": "Peraturan serahan \"{{rule}}\": balas sendiri.",
+      "replaceTitle": "Gantikan teks anda dengan cadangan ini?",
+      "replace": "Gantikan",
+      "keep": "Kekalkan teks saya",
+      "accept": "Terima cadangan",
+      "tabHint": "Tab untuk terima · Esc untuk tolak",
+      "completionStatus": "Penghujung dicadangkan: {{text}}",
+      "unavailable": "Cadangan AI tidak tersedia sekarang"
     }
   },
   "quickReplies": {
