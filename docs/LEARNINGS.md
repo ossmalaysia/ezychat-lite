@@ -281,7 +281,8 @@ into AGENTS.md.
 - Right after a push, `gh pr checks --watch` can see no checks yet and exit 1 ("no checks reported"):
   wait on the run instead (`gh run list --branch <b> --limit 1`, then `gh run watch <id>`).
 - `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
-  still queued (seen with macOS CI and a queued self-hosted job): read the final status after the wait,
+  still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
+  `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
 - Before you start a new run or a rerun, stop every old watcher or retry task: a leftover one can start an old
   run again, and that attempt can still publish. Report a release from the live files (feed, sizes,

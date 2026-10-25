@@ -7,10 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- The **Upgrade to Enterprise** link carries a campaign tag, so the website can count visits that come
-  from the app. The app itself still sends no data.
+## [0.1.55] - 2026-10-25
 
 ### Added
 
@@ -20,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   business and click **Apply template**: the agent gets a name, a type, instructions and hand-off rules
   made for that business, and Save adds a Business context item with lines to fill in. You can change
   everything before you save.
+
+### Changed
+
+- The **Upgrade to Enterprise** link carries a campaign tag, so the website can count visits that come
+  from the app. The app itself still sends no data.
 
 ## [0.1.54] - 2026-10-25
 
