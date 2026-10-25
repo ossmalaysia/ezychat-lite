@@ -38,6 +38,10 @@ export interface MessageRow {
   voice_note?: number;
   /** Access token whose AI assistant sent it through MCP (013); optional so inserts need not name it. */
   sent_via_token_id?: number | null;
+  /** Sent as an approved template (019): name, language and JSON body values; NULL otherwise. */
+  template_name?: string | null;
+  template_language?: string | null;
+  template_params?: string | null;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -67,6 +71,9 @@ export function rowToMessage(r: MessageRow): Message {
     reactions: [],
     ...(r.voice_note === 1 ? { voiceNote: true } : {}),
     ...(r.sent_via_token_id != null ? { viaAssistant: true } : {}),
+    ...(r.template_name
+      ? { template: { name: r.template_name, language: r.template_language ?? '' } }
+      : {}),
     // Only voice notes that went through transcription carry these fields.
     ...(r.transcript_status
       ? {
@@ -144,15 +151,20 @@ export class MessageRepo {
       .prepare(
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
-           wa_remote_jid, voice_note, mentioned_jids, sent_via_token_id)
+           wa_remote_jid, voice_note, mentioned_jids, sent_via_token_id, template_name, template_language,
+           template_params)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
-           @wa_remote_jid, @voice_note, @mentioned_jids, @sent_via_token_id)`,
+           @wa_remote_jid, @voice_note, @mentioned_jids, @sent_via_token_id, @template_name, @template_language,
+           @template_params)`,
       )
       .run({
         ...r,
         voice_note: r.voice_note ?? 0,
         sent_via_token_id: r.sent_via_token_id ?? null,
+        template_name: r.template_name ?? null,
+        template_language: r.template_language ?? null,
+        template_params: r.template_params ?? null,
         mentioned_jids: r.mentioned_jids === undefined ? '[]' : r.mentioned_jids,
       });
     return info.changes > 0;

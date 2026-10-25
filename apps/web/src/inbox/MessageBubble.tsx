@@ -3,7 +3,17 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Bot, Check, CheckCheck, Clock, Mic, Reply, RotateCw } from 'lucide-react';
+import {
+  AlertCircle,
+  Bot,
+  Check,
+  CheckCheck,
+  Clock,
+  FileText,
+  Mic,
+  Reply,
+  RotateCw,
+} from 'lucide-react';
 import type { Message } from '@ezychat/shared';
 import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
@@ -339,6 +349,13 @@ export function MessageBubble({
             <span className="flex items-center gap-0.5" data-testid="via-assistant">
               <Bot className="size-3" aria-hidden="true" />
               {t('message.viaAssistant')} ·
+            </span>
+          )}
+          {m.template && (
+            <span className="flex min-w-0 items-center gap-0.5" data-testid="via-template">
+              <FileText className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{t('message.template', { name: m.template.name })}</span>
+              {' ·'}
             </span>
           )}
           {m.voiceNote && (

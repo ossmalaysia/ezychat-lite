@@ -32,6 +32,10 @@ function oldestDataDir(): string {
   db.prepare(
     "INSERT INTO messages (id, chat_jid, sender_jid, from_me, type, body, status, timestamp, created_at) VALUES ('OLD-1', ?, ?, 0, 'text', 'Kopi for two?', 'read', ?, ?)",
   ).run(CUSTOMER, CUSTOMER, now, now);
+  // our own later reply: not the customer's last message (019 backfills from inbound only)
+  db.prepare(
+    "INSERT INTO messages (id, chat_jid, sender_jid, from_me, type, body, status, timestamp, created_at) VALUES ('OLD-2', ?, NULL, 1, 'text', 'Sure!', 'read', ?, ?)",
+  ).run(CUSTOMER, now + 5000, now + 5000);
   db.prepare(
     "INSERT INTO notes (chat_jid, user_id, body, created_at) VALUES (?, 1, 'Regular customer', ?)",
   ).run(CUSTOMER, now);
@@ -104,19 +108,28 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
       await t.app.inject({ method: 'GET', url: '/api/chats', headers: { cookie } })
     ).json().chats as Array<{ jid: string; name: string; assignedTo: number | null }>;
     // 014: the chat keeps its key and becomes part of inbox 1 (the number linked today).
+    // 019: the customer's last message starts the reply window (ignored by a linked phone).
     expect(chats.find((c) => c.jid === CUSTOMER)).toMatchObject({
       name: 'Ahmad',
       assignedTo: 1,
       inboxId: 1,
       waJid: CUSTOMER,
+      lastInboundAt: 1_700_000_000_000,
     });
-    expect(t.ctx.inboxes.repo.active().map((i) => [i.id, i.auth_dir])).toEqual([[1, 'wa-auth']]);
+    expect(t.ctx.inboxes.repo.active().map((i) => [i.id, i.auth_dir, i.type])).toEqual([
+      [1, 'wa-auth', 'linked_phone'],
+    ]);
+    const inboxes = (
+      await t.app.inject({ method: 'GET', url: '/api/inboxes', headers: { cookie } })
+    ).json().inboxes as Array<{ type: string; capabilities: { qrLink: boolean } }>;
+    expect(inboxes.map((i) => [i.type, i.capabilities.qrLink])).toEqual([['linked_phone', true]]);
 
     const chatUrl = `/api/chats/${encodeURIComponent(CUSTOMER)}`;
     const messages = (
       await t.app.inject({ method: 'GET', url: `${chatUrl}/messages`, headers: { cookie } })
-    ).json().messages as Array<{ id: string; body: string }>;
+    ).json().messages as Array<{ id: string; body: string; template?: unknown }>;
     expect(messages.map((m) => m.body)).toContain('Kopi for two?');
+    expect(messages.every((m) => m.template === undefined)).toBe(true);
     const notes = (
       await t.app.inject({ method: 'GET', url: `${chatUrl}/notes`, headers: { cookie } })
     ).json() as unknown;

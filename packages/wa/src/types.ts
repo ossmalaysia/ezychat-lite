@@ -162,8 +162,68 @@ export interface WaSendFile {
   voiceNote?: { seconds: number; waveform: Uint8Array };
 }
 
+/**
+ * What a connection type can do, so the core shows only what works (never by type name). An adapter
+ * without `capabilities` is a linked phone: QR/pairing, history import, groups, no reply window.
+ */
+export interface WaCapabilities {
+  /** Linked by a QR scan or a pairing code (`requestPairingCode`). */
+  qrLink: boolean;
+  /** Imports recent history when linked. */
+  history: boolean;
+  /** Takes part in groups. */
+  groups: boolean;
+  /**
+   * Free-form messages only within this many hours of the customer's last message (WhatsApp
+   * Business API: 24); after that only an approved template (`sendTemplate`). null: no window.
+   */
+  replyWindowHours: number | null;
+  /** Lists and sends approved message templates (`listTemplates`, `sendTemplate`). */
+  templates: boolean;
+  /** Receives messages at a public https address (a webhook over Phone access / the tunnel). */
+  needsPublicUrl: boolean;
+}
+
+/** The capabilities of an adapter that declares none: a phone linked by QR (Baileys, the fake). */
+export const LINKED_PHONE_CAPABILITIES: WaCapabilities = Object.freeze({
+  qrLink: true,
+  history: true,
+  groups: true,
+  replyWindowHours: null,
+  templates: false,
+  needsPublicUrl: false,
+});
+
+/** An approved message template of the number's business account. */
+export interface WaTemplate {
+  name: string;
+  /** Meta language code, e.g. `en`, `ms`, `zh_CN`. */
+  language: string;
+  category: 'utility' | 'marketing' | 'authentication';
+  /** Body text with {{1}}, {{2}} … variables. */
+  body: string;
+  /** Example value for each body variable, in order (may be shorter than the variable count). */
+  examples: string[];
+  /** A media header (image/document/video) or buttons: listed, not sent by EzyChat (v1). */
+  header: 'text' | 'image' | 'document' | 'video' | null;
+  buttons: boolean;
+}
+
+/** One template message to send: the template and its body variable values, in order. */
+export interface WaTemplateSend {
+  name: string;
+  language: string;
+  params: string[];
+}
+
 export interface WaAdapter {
   readonly status: WaStatus;
+  /** What this connection can do; absent: a linked phone (`LINKED_PHONE_CAPABILITIES`). */
+  readonly capabilities?: WaCapabilities;
+  /** Approved templates (adapters with `capabilities.templates`). Throws WaUnavailableError offline. */
+  listTemplates?(): Promise<WaTemplate[]>;
+  /** Sends a template message (adapters with `capabilities.templates`). */
+  sendTemplate?(chatJid: string, template: WaTemplateSend): Promise<SendResult>;
   on<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this;
   off<K extends keyof WaAdapterEvents>(ev: K, fn: (...a: WaAdapterEvents[K]) => void): this;
   /** idempotent */

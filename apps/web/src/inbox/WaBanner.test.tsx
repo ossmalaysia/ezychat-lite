@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { Inbox, User, WaStatus } from '@ezychat/shared';
+import { DEFAULT_INBOX_CAPABILITIES, type Inbox, type User, type WaStatus } from '@ezychat/shared';
 import { WaBanner } from './WaBanner';
 
 const admin: User = {
@@ -28,6 +28,8 @@ function inbox(id: number, name: string, state: WaStatus['state'], removed = fal
     number: null,
     removed,
     aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
     status: status(state),
   };
 }

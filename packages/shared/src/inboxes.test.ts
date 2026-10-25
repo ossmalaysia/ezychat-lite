@@ -2,12 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   ChatSchema,
   CreateInboxBody,
+  DEFAULT_INBOX_CAPABILITIES,
   DirectoryUserSchema,
+  InboxCapabilitiesSchema,
   InboxListResponse,
   InboxSchema,
   InboxStatusPayload,
   InboxTone,
+  InboxType,
+  LINKED_PHONE,
+  MessageTemplateSchema,
+  SendTemplateBody,
   SetUserInboxesBody,
+  TemplateListResponse,
   UpdateInboxBody,
   UserSchema,
 } from './index.js';
@@ -46,7 +53,12 @@ describe('inbox contract', () => {
       removed: false,
       aiAgentId: null,
     } as const;
-    expect(InboxSchema.parse(inbox)).toEqual(inbox);
+    // an older server's inbox (no type or capabilities) reads as a linked phone
+    expect(InboxSchema.parse(inbox)).toEqual({
+      ...inbox,
+      type: LINKED_PHONE,
+      capabilities: DEFAULT_INBOX_CAPABILITIES,
+    });
     expect(InboxSchema.safeParse({ ...inbox, id: 0 }).success).toBe(false);
     expect(InboxSchema.safeParse({ ...inbox, tone: 'danger' }).success).toBe(false);
     expect(InboxSchema.parse({ ...inbox, memberIds: [4] }).memberIds).toEqual([4]);
@@ -102,5 +114,60 @@ describe('inbox contract', () => {
     expect(DirectoryUserSchema.parse({ ...dir, inboxIds: 'all' }).inboxIds).toBe('all');
     expect(DirectoryUserSchema.parse({ ...dir, inboxIds: [2] }).inboxIds).toEqual([2]);
     expect(DirectoryUserSchema.safeParse({ ...dir, inboxIds: 'some' }).success).toBe(false);
+  });
+});
+
+describe('inbox types and templates', () => {
+  it('carries a type and what its connection can do', () => {
+    const capabilities = {
+      qrLink: false,
+      history: false,
+      groups: false,
+      replyWindowHours: 24,
+      templates: true,
+      needsPublicUrl: true,
+    };
+    const parsed = InboxSchema.parse({
+      id: 3,
+      name: 'Online orders',
+      tone: 'info',
+      number: '60327855000',
+      status: { state: 'open', me: null, qr: null, lastError: null },
+      removed: false,
+      type: 'wa-cloud',
+      capabilities,
+    });
+    expect(parsed.type).toBe('wa-cloud');
+    expect(parsed.capabilities).toEqual(capabilities);
+    expect(InboxType.safeParse('Linked Phone').success).toBe(false);
+    expect(
+      InboxCapabilitiesSchema.parse({ ...capabilities, needsPublicUrl: undefined }).needsPublicUrl,
+    ).toBe(false);
+    expect(
+      InboxCapabilitiesSchema.safeParse({ ...capabilities, replyWindowHours: 0 }).success,
+    ).toBe(false);
+  });
+
+  it('describes templates and the send body', () => {
+    const template = {
+      name: 'order_update',
+      language: 'en',
+      category: 'utility',
+      body: 'Hi {{1}}, your order {{2}} is {{3}}.',
+      variables: 3,
+      examples: ['Jason', '#1042', 'on its way'],
+      header: null,
+      buttons: false,
+      sendable: true,
+    } as const;
+    expect(TemplateListResponse.parse({ templates: [template] }).templates[0]).toEqual(template);
+    expect(MessageTemplateSchema.safeParse({ ...template, category: 'promo' }).success).toBe(false);
+    expect(
+      SendTemplateBody.parse({ name: 'order_update', language: 'en', clientId: 'c1' }).params,
+    ).toEqual([]);
+    expect(
+      SendTemplateBody.safeParse({ name: 'x', language: 'en', params: ['  '], clientId: 'c1' })
+        .success,
+    ).toBe(false);
   });
 });

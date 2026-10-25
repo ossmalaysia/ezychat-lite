@@ -330,6 +330,8 @@ export const AiHandoffReason = z.enum([
   'lookup_failed',
   /** The reply quoted an Internal item; it was not sent. */
   'confidential_leak',
+  /** WhatsApp Business API: the 24-hour reply window closed; only a template may be sent. */
+  'window_closed',
 ]);
 export type AiHandoffReason = z.infer<typeof AiHandoffReason>;
 

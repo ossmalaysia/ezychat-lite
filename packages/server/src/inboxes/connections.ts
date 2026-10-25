@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { WaStatus } from '@ezychat/shared';
+import { LINKED_PHONE, type WaStatus } from '@ezychat/shared';
 import { FakeWaAdapter, type WaAdapter, type WaAdapterOptions } from '@ezychat/wa';
 import type { Logger } from 'pino';
 import { PRIMARY_INBOX_ID, inboxOfKey } from './keys.js';
@@ -53,7 +53,8 @@ export function defaultAdapterFactory(opts: {
 
 interface ConnectionEvents {
   added: [inboxId: number, wa: WaAdapter];
-  removed: [inboxId: number, wa: WaAdapter];
+  /** `replaced`: the inbox stays and an `added` with its new adapter follows (a type change). */
+  removed: [inboxId: number, wa: WaAdapter, reason: 'removed' | 'replaced'];
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -73,6 +74,7 @@ export class InboxConnections {
   private readonly create: InboxAdapterFactory;
   private readonly overrides: Readonly<Record<number, WaAdapter>>;
   private readonly dataDir: string | null;
+  private readonly detachType: (type: string, inboxId: number) => Promise<void>;
   private started = false;
   private stopped = false;
 
@@ -81,8 +83,8 @@ export class InboxConnections {
     /** Most inboxes this build may have (Lite 1). */
     maxInboxes: number;
     log: Logger;
-    /** The adapter of inbox 1. */
-    primary: WaAdapter;
+    /** The adapter of inbox 1; built by `create` in init() when absent. */
+    primary?: WaAdapter;
     create: InboxAdapterFactory;
     /** Adapters to use instead of `create` for these inbox ids (tests, other editions). */
     adapters?: Readonly<Record<number, WaAdapter>>;
@@ -90,6 +92,8 @@ export class InboxConnections {
     dataDir?: string;
     /** Pause between two inboxes in connectAll (default 500 ms). */
     staggerMs?: number;
+    /** The inbox stops using a type other than linked_phone (removed or switched): its `detach`. */
+    detachType?: (type: string, inboxId: number) => Promise<void>;
   }) {
     if (!Number.isInteger(opts.maxInboxes) || opts.maxInboxes < 1)
       throw new Error(`invalid maxInboxes: ${opts.maxInboxes}`);
@@ -100,14 +104,21 @@ export class InboxConnections {
     this.create = opts.create;
     this.overrides = opts.adapters ?? {};
     this.dataDir = opts.dataDir ?? null;
-    this.adapters.set(PRIMARY_INBOX_ID, opts.primary);
+    this.detachType = opts.detachType ?? (async () => undefined);
+    if (opts.primary) this.adapters.set(PRIMARY_INBOX_ID, opts.primary);
   }
 
   /**
-   * Creates the adapters of the active inboxes other than inbox 1 (does not connect them), at most
-   * maxInboxes in all: rows beyond the limit (a data dir from a bigger build) get no connection.
+   * Creates the adapters of the active inboxes (does not connect them), inbox 1 first unless it was
+   * given, at most maxInboxes in all: rows beyond the limit (a data dir from a bigger build) get no
+   * connection.
    */
   async init(): Promise<void> {
+    if (!this.adapters.has(PRIMARY_INBOX_ID)) {
+      const primary = this.repo.get(PRIMARY_INBOX_ID);
+      if (!primary) throw new Error('inbox 1 is missing');
+      this.adapters.set(PRIMARY_INBOX_ID, await this.build(primary));
+    }
     const skipped: number[] = [];
     for (const row of this.repo.active()) {
       if (this.adapters.has(row.id)) continue;
@@ -172,25 +183,58 @@ export class InboxConnections {
   }
 
   /**
-   * Unlinks an inbox's phone (logout wipes its session), drops its adapter and deletes its own
-   * folder under wa-auth-inboxes/. Never touches wa-auth/: inbox 1 cannot be removed.
-   * The caller marks the row removed.
+   * Unlinks an inbox's phone (logout wipes its session) or, for another type, disconnects it and
+   * calls the type's detach; drops its adapter and deletes its own folder under wa-auth-inboxes/.
+   * Never touches wa-auth/: inbox 1 cannot be removed. The caller marks the row removed.
    */
   async remove(inboxId: number): Promise<void> {
     if (inboxId === PRIMARY_INBOX_ID) throw new Error('primary_inbox');
     const wa = this.adapters.get(inboxId);
     if (!wa) return;
     this.adapters.delete(inboxId);
-    try {
-      await wa.logout();
-    } catch (err) {
-      this.log.warn({ err, inboxId }, 'wa logout failed');
-      await wa.disconnect().catch(() => undefined);
-    }
     const row = this.repo.get(inboxId);
+    await this.release(inboxId, wa, row?.type ?? LINKED_PHONE);
     if (this.dataDir && row && row.auth_dir === inboxAuthDir(inboxId))
       await rm(join(this.dataDir, row.auth_dir), { recursive: true, force: true });
-    this.emit('removed', inboxId, wa);
+    this.emit('removed', inboxId, wa, 'removed');
+  }
+
+  /**
+   * The inbox's type changed (its row already says the new one): builds the new adapter first (a
+   * failure changes nothing), then lets go of the old one (`logout()` for a linked phone, which
+   * wipes its auth folder, `wa-auth/` for inbox 1, as an unlink does; else `disconnect()` and the
+   * old type's detach), emits `removed` ('replaced') then `added`, and connects the new adapter when
+   * the server already started. Chats, keys and queued sends stay with the inbox.
+   */
+  async replace(inboxId: number, fromType: string): Promise<WaAdapter> {
+    const old = this.adapters.get(inboxId);
+    const row = this.repo.get(inboxId);
+    if (!old || !row) throw new Error(`inbox ${inboxId} has no WhatsApp connection`);
+    const wa = await this.create(row);
+    this.adapters.delete(inboxId);
+    await this.release(inboxId, old, fromType);
+    this.emit('removed', inboxId, old, 'replaced');
+    this.adapters.set(inboxId, wa);
+    this.emit('added', inboxId, wa);
+    if (this.started && !this.stopped) await this.connectOne(inboxId, wa);
+    return wa;
+  }
+
+  /** Lets go of an adapter the inbox no longer uses (best effort, logged). */
+  private async release(inboxId: number, wa: WaAdapter, type: string): Promise<void> {
+    if (type === LINKED_PHONE) {
+      try {
+        await wa.logout();
+      } catch (err) {
+        this.log.warn({ err, inboxId }, 'wa logout failed');
+        await wa.disconnect().catch(() => undefined);
+      }
+      return;
+    }
+    await wa.disconnect().catch((err: unknown) => {
+      this.log.warn({ err, inboxId }, 'wa disconnect failed');
+    });
+    await this.detachType(type, inboxId);
   }
 
   /** Connects every inbox, one after another (staggerMs apart); stops when disconnectAll runs. */

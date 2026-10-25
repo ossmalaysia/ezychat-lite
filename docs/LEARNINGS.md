@@ -122,6 +122,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
+  push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
+  `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
+  those two through `gh api` (REST).
 - CI docs-only fast path: `ci.yml` checks right after checkout whether every changed file is `*.md`
   (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
   the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
@@ -336,6 +340,13 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
+  `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
+  the Playwright config for it. The document-reader worker (`knowledge-worker.ts`, `--import tsx`) only resolves
+  under Node 24: on Node 22 every upload says "Cannot read this document" (4 unit tests, ai-member e2e), not a
+  regression of the change under test.
+- Stop a background mock or server by its pid (`ps -eo pid,args | grep "[n]ode.*run.ts"`), never
+  `pkill -f <pattern>`: the pattern also matches the shell running the command and kills it (exit 144).
 - After an electron-builder update, check the Windows sign hook with a fake command, not the build log
   (26.18 stopped printing "signing with signtool.exe" but still calls the hook):
   `WIN_SIGN_MODE=command WIN_SIGN_COMMAND="node <script that appends {file} to a list> {file}"` and
@@ -877,7 +888,12 @@ into AGENTS.md.
   `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
   before and after: a drop in inherited files means the check got weaker and still passes.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
-  on a freshly started mock, and restart the mock again before the owner opens it.
+  on a freshly started mock, and restart the mock again before the owner opens it. Restart after a failed
+  run too, and send server-side effects (messages) from one viewport only: every browser context starts
+  from the mock's localStorage seed while the server keeps what earlier contexts sent.
+- A mock shot script ends by writing `mock/screenshots/results.json` (`ranAt`, `passed` shot names, `failed`
+  problems; a `--setup` run merges into it): reviewers and the e2e-shots pane read a run's outcome from it
+  without running the script again.
 - A mock that replaces a screen (Admin → WhatsApp → Inboxes) must carry the old flow into the new one: the
   first multi-inbox mock showed only the new Business API type and dropped the QR-linked phone, and the
   owner caught it. List the replaced screen's flows in `design.md` and show each in the new screen. When

@@ -22,6 +22,8 @@ export function handoffReasonLabel(reason: AiHandoffReason): string {
       return i18n.t('inbox:events.handoffReason.lookup_failed');
     case 'confidential_leak':
       return i18n.t('inbox:events.handoffReason.confidential_leak');
+    case 'window_closed':
+      return i18n.t('inbox:events.handoffReason.window_closed');
   }
 }
 

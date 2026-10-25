@@ -98,6 +98,7 @@ import {
   secretKeyFor,
 } from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
+import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 
 /**
  * The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. Every
@@ -678,14 +679,18 @@ export function createAiService(
         ctx.bus.off('message:status', onStatus);
         signal.removeEventListener('abort', onAbort);
       };
-      const onStatus = (event: { clientId: string | null; status: string }) => {
+      const onStatus = (event: {
+        clientId: string | null;
+        status: string;
+        error?: string | null;
+      }) => {
         if (event.clientId !== clientId) return;
         if (['sent', 'delivered', 'read'].includes(event.status)) {
           cleanup();
           resolve();
         } else if (event.status === 'failed') {
           cleanup();
-          reject(new Error('AI send failed'));
+          reject(new Error(event.error === WINDOW_CLOSED ? WINDOW_CLOSED : 'AI send failed'));
         }
       };
       const onAbort = () => {
@@ -758,6 +763,13 @@ export function createAiService(
     try {
       if (chats.get(jid)!.assignedTo === null) chats.patch(jid, { assignedTo: user.id }, user.id);
       if (!owned()) return;
+      // WhatsApp Business API: past the reply window only a template may go out, which the AI
+      // never sends; the team takes over (no model call, no message).
+      if (!replyWindowOpen(ctx, jid)) {
+        log.info({ jid, agentId: agent.id, reason: 'window_closed' }, 'AI reply window closed');
+        handoff(jid, user.id, 'window_closed');
+        return;
+      }
       const current = settingsFor(agentById(ctx.db, agent.id) ?? agent);
       const knowledgeOf = { ...current, preset: agent.preset };
       // This agent's items only: Internal ones in full, business ones selected per question.
@@ -1060,10 +1072,15 @@ export function createAiService(
           meta: { chatJid: jid, agentId: agent.id },
         });
       }
-    } catch {
+    } catch (error) {
       if (owned()) {
-        log.warn({ jid, reason: 'send_failed' }, 'AI reply could not be sent');
-        handoff(jid, user.id, 'ai_unavailable');
+        // the window closed while the reply was written or queued
+        const closed = isWindowClosed(error);
+        log.warn(
+          { jid, reason: closed ? 'window_closed' : 'send_failed' },
+          'AI reply could not be sent',
+        );
+        handoff(jid, user.id, closed ? 'window_closed' : 'ai_unavailable');
       }
     } finally {
       if (generations.get(jid) === controller) generations.delete(jid);

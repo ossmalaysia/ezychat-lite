@@ -9,6 +9,8 @@ export interface InboxRow {
   auth_dir: string;
   /** The linked account's own JID, kept after a disconnect (alias learning ignores it). */
   own_jid: string | null;
+  /** Connection type (migration 019): `linked_phone` or a type an extension registers. */
+  type: string;
   created_at: number;
   removed_at: number | null;
 }
@@ -48,22 +50,26 @@ export class InboxRepo {
   }
 
   /** Adds an inbox; ids are never reused (removed rows stay), so its folder is always new. */
-  insert(name: string, tone: InboxTone, now: number): InboxRow {
+  insert(name: string, tone: InboxTone, now: number, type = 'linked_phone'): InboxRow {
     return this.db.transaction(() => {
       const { next } = this.db
         .prepare('SELECT COALESCE(MAX(id), 0) + 1 AS next FROM inboxes')
         .get() as { next: number };
       this.db
         .prepare(
-          'INSERT INTO inboxes (id, name, tone, auth_dir, own_jid, created_at, removed_at) VALUES (?, ?, ?, ?, NULL, ?, NULL)',
+          'INSERT INTO inboxes (id, name, tone, auth_dir, own_jid, type, created_at, removed_at) VALUES (?, ?, ?, ?, NULL, ?, ?, NULL)',
         )
-        .run(next, name, tone, inboxAuthDir(next), now);
+        .run(next, name, tone, inboxAuthDir(next), type, now);
       return this.get(next)!;
     })();
   }
 
   rename(id: number, name: string): void {
     this.db.prepare('UPDATE inboxes SET name = ? WHERE id = ?').run(name, id);
+  }
+
+  setType(id: number, type: string): void {
+    this.db.prepare('UPDATE inboxes SET type = ? WHERE id = ?').run(type, id);
   }
 
   markRemoved(id: number, now: number): void {

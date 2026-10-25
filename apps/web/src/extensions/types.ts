@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { LOCALE_CODES, type Locale } from '@ezychat/shared';
+import { LOCALE_CODES, type Inbox, type Locale } from '@ezychat/shared';
 
 /**
  * Web extension API: lets another product build (e.g. Enterprise) add UI without forking Lite.
@@ -103,6 +103,45 @@ export interface WebExtensionLockScreenProps {
 
 export type WebExtensionCatalogs = Partial<Record<Locale, Record<string, string>>>;
 
+/** The draft of the Add inbox dialog that a type's CreateForm receives. */
+export interface WebExtensionInboxDraft {
+  name: string;
+  memberIds: number[];
+  aiAgentId: number | null;
+}
+
+/**
+ * The screens of an inbox connection type an extension adds on the server (`ServerExtension.inboxTypes`),
+ * e.g. the WhatsApp Business API. The core shows a type choice in Add inbox (linked phone first) and in
+ * the setup wizard's WhatsApp step, and places these components; the type's own routes do the work.
+ */
+export interface WebExtensionInboxType {
+  /** The server inbox type id (`Inbox.type`). */
+  type: string;
+  /** Catalog keys (`ext.<name>.…`) of the choice card. */
+  labelKey: string;
+  descriptionKey: string;
+  icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  /**
+   * Add inbox, after the core's name/members/AI agent fields: collects the type's details, creates the
+   * inbox through the extension's route, then calls `onCreated`. `validate()` checks the core fields
+   * first (shows their errors) and says whether they are valid.
+   */
+  CreateForm: ComponentType<{
+    draft: WebExtensionInboxDraft;
+    validate: () => boolean;
+    onCreated: (inbox: Inbox) => void;
+  }>;
+  /** Rows under an inbox of this type on its Admin → Inboxes card. */
+  CardDetails?: ComponentType<{ inbox: Inbox }>;
+  /** Edit dialog section for an inbox of this type (details, replace credentials, switch back). */
+  EditSection?: ComponentType<{ inbox: Inbox; onChanged: () => void }>;
+  /** Edit dialog of a linked-phone inbox: the flow that moves it to this type. */
+  SwitchFromPhone?: ComponentType<{ inbox: Inbox; onChanged: () => void; onCancel: () => void }>;
+  /** Setup wizard WhatsApp step: connects inbox 1 with this type instead of the QR scan. */
+  SetupForm?: ComponentType<{ onConnected: () => void }>;
+}
+
 export interface WebExtension {
   /** Lowercase id, 2–32 characters: `/^[a-z][a-z0-9-]{1,31}$/`; not `lite` or `core`. */
   name: string;
@@ -114,6 +153,8 @@ export interface WebExtension {
   banners?: ComponentType[];
   /** Full-page screen while access is closed; the first extension that has one wins. */
   lockScreen?: ComponentType<WebExtensionLockScreenProps>;
+  /** Inbox connection types (Admin → Inboxes, setup wizard); the first extension wins a duplicate. */
+  inboxTypes?: WebExtensionInboxType[];
   catalogs?: WebExtensionCatalogs;
 }
 

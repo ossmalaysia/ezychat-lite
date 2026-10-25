@@ -151,3 +151,67 @@ test('admin removes the second number; the first inbox cannot be removed', async
   const res = await admin.request.delete('/api/inboxes/1', { headers: { Origin: ORIGIN } });
   expect(res.status()).toBe(409);
 });
+
+// WhatsApp Business API inboxes (core part): the dev-only `fake-api` inbox type has a 24-hour reply
+// window and templates, so the reply-window note, the closed panel and Send a template run here.
+const API_CUSTOMER = `6013${String(Date.now()).slice(-7)}@s.whatsapp.net`;
+let apiChat = '';
+
+test('a Business API inbox shows the reply window and allows replies inside it', async () => {
+  const inbox = await post(admin.request, '/api/dev/fake-api-inbox', { name: 'Online orders' });
+  apiChat = `${API_CUSTOMER}#${inbox.id}`;
+  await post(admin.request, '/api/dev/fake-incoming', {
+    inboxId: inbox.id,
+    chatJid: API_CUSTOMER,
+    senderName: 'Jason Lim',
+    text: 'How much is a large Kopi Peng?',
+  });
+  await admin.goto(chatHref(apiChat));
+  await expect(admin.getByText(/^Reply window: 2[34] h \d+ min left$/)).toBeVisible();
+  const box = admin.getByRole('textbox', { name: /message/i }).first();
+  await box.fill('RM5.50 for a large one.');
+  await box.press('Enter');
+  await expect(admin.getByText('RM5.50 for a large one.')).toBeVisible();
+});
+
+test('after 24 hours only an approved template can be sent', async () => {
+  await post(admin.request, '/api/dev/fake-window', { chatJid: apiChat, hoursAgo: 30 });
+  // a free-form send is refused by the server too
+  const refused = await admin.request.post(`/api/chats/${encodeURIComponent(apiChat)}/messages`, {
+    data: { text: 'too late', clientId: 'e2e-late' },
+    headers: { Origin: ORIGIN },
+  });
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).error.code).toBe('window_closed');
+
+  await admin.goto(chatHref(apiChat));
+  await expect(admin.getByText('The reply window has closed')).toBeVisible();
+  await expect(
+    chatItem(admin, apiChat).getByText('Reply window closed: template only'),
+  ).toHaveCount(1);
+  await admin.getByRole('button', { name: 'Send a template' }).click();
+  const dialog = admin.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: /new_menu/ })).toBeDisabled();
+  await dialog.getByRole('button', { name: /order_update/ }).click();
+  await expect(dialog.getByLabel('Variable 1')).toHaveValue('Jason');
+  await dialog.getByRole('button', { name: 'Send template' }).click();
+  await expect(dialog.getByText('Fill this in.')).toBeVisible();
+  await dialog.getByLabel('Variable 2').fill('A-1024');
+  await expect(dialog.getByText('Hi Jason, your order A-1024 is ready for pickup.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Send template' }).click();
+  await expect(admin.getByRole('dialog')).toHaveCount(0);
+  const messages = admin.getByLabel('Messages');
+  await expect(
+    messages.getByText('Hi Jason, your order A-1024 is ready for pickup.'),
+  ).toBeVisible();
+  await expect(messages.getByText(/Template order_update/)).toBeVisible();
+
+  // the customer writes again: the window opens and the composer is back
+  await post(admin.request, '/api/dev/fake-incoming', {
+    inboxId: Number(apiChat.split('#')[1]),
+    chatJid: API_CUSTOMER,
+    senderName: 'Jason Lim',
+    text: 'Thanks!',
+  });
+  await expect(admin.getByText(/^Reply window: 2[34] h \d+ min left$/)).toBeVisible();
+});

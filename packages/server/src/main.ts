@@ -17,6 +17,7 @@ import { createLogger } from './logger.js';
 import { InboxConnections, defaultAdapterFactory } from './inboxes/connections.js';
 import { PRIMARY_INBOX_ID } from './inboxes/keys.js';
 import { InboxRepo } from './inboxes/repo.js';
+import { createInboxAdapterFactory, detachInboxType } from './inboxes/types.js';
 import { initializers } from './services.js';
 import { attachRealtime } from './realtime/index.js';
 import { DEFAULT_HISTORY_DAYS, SETTINGS_KEYS } from './admin/settings-service.js';
@@ -63,41 +64,58 @@ export async function createContext(
   // a getter: a changed history_days applies on the next (re)link without a restart
   const historyDays = () => settings.get<number>(SETTINGS_KEYS.historyDays, DEFAULT_HISTORY_DAYS);
   const inboxRepo = new InboxRepo(db);
-  const create = defaultAdapterFactory({
-    dataDir: cfg.dataDir,
-    fakeWa: cfg.fakeWa,
-    historyDays,
+  // Inbox adapters by type: extension types get the context, which is complete before init().
+  let ctx: AppContext | null = null;
+  const context = (): AppContext => {
+    if (!ctx) throw new Error('context not ready');
+    return ctx;
+  };
+  const create = createInboxAdapterFactory({
+    linkedPhone: defaultAdapterFactory({
+      dataDir: cfg.dataDir,
+      fakeWa: cfg.fakeWa,
+      historyDays,
+      log,
+      fakeScan: cfg.maxInboxes !== undefined,
+    }),
+    ctx: context,
     log,
-    fakeScan: cfg.maxInboxes !== undefined,
   });
-  const primaryRow = inboxRepo.get(PRIMARY_INBOX_ID)!;
-  const wa = deps.wa ?? deps.inboxAdapters?.[PRIMARY_INBOX_ID] ?? (await create(primaryRow));
   const connections = new InboxConnections({
     repo: inboxRepo,
     maxInboxes: cfg.maxInboxes ?? deps.maxInboxes ?? 1,
     log,
-    primary: wa,
+    primary: deps.wa ?? deps.inboxAdapters?.[PRIMARY_INBOX_ID],
     create,
     adapters: deps.inboxAdapters,
     dataDir: cfg.dataDir,
     staggerMs: deps.connectStaggerMs,
+    detachType: (type, inboxId) => detachInboxType(context(), type, inboxId),
   });
-  await connections.init();
   const access = createAccessGate({ db, bus, log });
-  return {
+  const built: AppContext = {
     config: cfg,
     db,
     bus,
     log,
     secret,
     settings,
-    wa,
+    // set below, once init() has built (or adopted) inbox 1's adapter
+    wa: undefined as unknown as WaAdapter,
     inboxes: { repo: inboxRepo, connections },
     services: {},
     edition,
     extensions,
     access,
   };
+  ctx = built;
+  await connections.init();
+  built.wa = connections.adapter(PRIMARY_INBOX_ID);
+  // inbox 1 changed type: `ctx.wa` follows its new adapter
+  connections.on('added', (inboxId, wa) => {
+    if (inboxId === PRIMARY_INBOX_ID) built.wa = wa;
+  });
+  return built;
 }
 
 /** Runs the initializers registered in services.ts, in order, then each extension's init. */

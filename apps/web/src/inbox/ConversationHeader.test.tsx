@@ -19,6 +19,7 @@ const base: Chat = {
   assignedTo: null,
   updatedAt: 0,
   phone: null,
+  lastInboundAt: null,
 };
 
 function renderHeader(

@@ -11,6 +11,35 @@ const UserId = z.number().int().positive();
 const InboxName = z.string().trim().min(1).max(40);
 const AiAgentId = z.number().int().positive();
 
+/**
+ * How an inbox is connected: `linked_phone` (the WhatsApp app on a phone, QR scan; the core's own)
+ * or a type an edition's extension registers (e.g. `wa-cloud`, the WhatsApp Business API).
+ */
+export const InboxType = z.string().regex(/^[a-z][a-z0-9_-]{1,31}$/);
+export type InboxType = z.infer<typeof InboxType>;
+export const LINKED_PHONE: InboxType = 'linked_phone';
+
+/** What an inbox's connection can do (see `WaCapabilities` in @ezychat/wa). */
+export const InboxCapabilitiesSchema = z.object({
+  qrLink: z.boolean(),
+  history: z.boolean(),
+  groups: z.boolean(),
+  /** Free-form replies only this many hours after the customer's last message; null: no window. */
+  replyWindowHours: z.number().positive().nullable(),
+  templates: z.boolean(),
+  /** Receives messages through Phone access (a public webhook address). */
+  needsPublicUrl: z.boolean().default(false),
+});
+export type InboxCapabilities = z.infer<typeof InboxCapabilitiesSchema>;
+export const DEFAULT_INBOX_CAPABILITIES: InboxCapabilities = {
+  qrLink: true,
+  history: true,
+  groups: true,
+  replyWindowHours: null,
+  templates: false,
+  needsPublicUrl: false,
+};
+
 /** One linked WhatsApp number (an inbox). Inbox 1 is the number linked before multi-inbox. */
 export const InboxSchema = z.object({
   id: InboxId,
@@ -25,6 +54,8 @@ export const InboxSchema = z.object({
   memberIds: z.array(UserId).optional(),
   /** The AI agent that answers this inbox; null = no AI agent. */
   aiAgentId: z.number().int().nullable().default(null),
+  type: InboxType.default(LINKED_PHONE),
+  capabilities: InboxCapabilitiesSchema.default(DEFAULT_INBOX_CAPABILITIES),
 });
 export type Inbox = z.infer<typeof InboxSchema>;
 
@@ -78,3 +109,32 @@ export const DirectoryUserSchema = z.object({
   inboxIds: z.union([z.literal('all'), z.array(InboxId)]),
 });
 export type DirectoryUser = z.infer<typeof DirectoryUserSchema>;
+
+/** An approved message template of a Business API number (`GET /api/inboxes/:id/templates`). */
+export const MessageTemplateSchema = z.object({
+  name: z.string().min(1).max(512),
+  language: z.string().min(1).max(15),
+  category: z.enum(['utility', 'marketing', 'authentication']),
+  body: z.string(),
+  /** Number of {{n}} body variables. */
+  variables: z.number().int().min(0),
+  examples: z.array(z.string()),
+  header: z.enum(['text', 'image', 'document', 'video']).nullable(),
+  buttons: z.boolean(),
+  /** EzyChat sends body-variable templates only (v1); media headers and buttons are listed, not sent. */
+  sendable: z.boolean(),
+});
+export type MessageTemplate = z.infer<typeof MessageTemplateSchema>;
+
+export const TemplateListResponse = z.object({ templates: z.array(MessageTemplateSchema) });
+export type TemplateListResponse = z.infer<typeof TemplateListResponse>;
+
+/** `POST /api/chats/:jid/template`: send an approved template (also outside the reply window). */
+export const SendTemplateBody = z.object({
+  name: z.string().min(1).max(512),
+  language: z.string().min(1).max(15),
+  params: z.array(z.string().trim().min(1).max(1024)).max(20).default([]),
+  clientId: z.string().min(1).max(64),
+});
+export type SendTemplateBody = z.infer<typeof SendTemplateBody>;
+export type SendTemplateBodyInput = z.input<typeof SendTemplateBody>;

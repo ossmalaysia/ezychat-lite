@@ -2,7 +2,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { Chat, Inbox, InboxListResponse } from '@ezychat/shared';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type Chat,
+  type Inbox,
+  type InboxListResponse,
+} from '@ezychat/shared';
 import type { ChatsData } from '../api/queries';
 import type * as QueriesModule from '../api/queries';
 import type * as ChatListItemModule from './ChatListItem';
@@ -65,6 +70,7 @@ function chat(index: number): Chat {
     assignedTo: null,
     updatedAt: 0,
     phone: null,
+    lastInboundAt: null,
   };
 }
 
@@ -261,6 +267,8 @@ function inbox(id: number, name: string, tone: Inbox['tone'], removed = false): 
     number: null,
     removed,
     aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
     status: { state: 'open', me: null, qr: null, lastError: null },
   };
 }

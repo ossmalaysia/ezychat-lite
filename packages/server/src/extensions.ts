@@ -1,5 +1,7 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { WaAdapter } from '@ezychat/wa';
 import type { AppContext } from './context.js';
+import type { InboxRow } from './inboxes/repo.js';
 import type { AgentKind, AgentToolsInput, AgentToolsResult } from './ai/agent/extension-tools.js';
 
 /** Lowercase id used for the route prefix (/api/ext/<name>) and the migration track. */
@@ -10,6 +12,34 @@ const RESERVED = new Set(['lite', 'core']);
  * A feature added by another product build (e.g. EzyChat Enterprise) without changing core code.
  * Lite itself passes no extensions.
  */
+/**
+ * An inbox connection type an extension adds next to the core's `linked_phone` (e.g. `wa-cloud`,
+ * the WhatsApp Business API). The extension keeps the type's own settings (credentials) per inbox
+ * id and creates or switches inboxes of its type through `InboxService.create`/`changeType`.
+ */
+export interface InboxTypeDefinition {
+  /** Stored in `inboxes.type`; `[a-z][a-z0-9_-]{1,31}`, never `linked_phone`. */
+  id: string;
+  /** The adapter of one inbox of this type (not connected yet; the core connects it). */
+  createAdapter(ctx: AppContext, row: InboxRow): Promise<WaAdapter>;
+  /**
+   * The inbox stops using this type (removed, or switched to another type) after its adapter was
+   * disconnected: drop what the type keeps for it (a webhook registration, stored secrets).
+   */
+  detach?(ctx: AppContext, inboxId: number): Promise<void>;
+}
+
+/**
+ * Routes a third party calls with no session and no browser Origin (a webhook), mounted at
+ * `/api/ext/<name>/public`. `verify` runs before the handler (raw body available as `rawBody`)
+ * and must reject anything it cannot authenticate (e.g. an HMAC signature); the Host allowlist and
+ * the access gate still apply.
+ */
+export interface PublicRoutes {
+  verify(request: FastifyRequest & { rawBody?: Buffer }): boolean | Promise<boolean>;
+  routes(api: FastifyInstance, ctx: AppContext): Promise<void>;
+}
+
 export interface ServerExtension {
   name: string;
   /** Folder of NNN_*.sql files, applied once each and tracked in extension_migrations. */
@@ -18,6 +48,10 @@ export interface ServerExtension {
   init?(ctx: AppContext): void | Promise<void>;
   /** Mounted at /api/ext/<name> after core routes; add requireUser/requireAdmin yourself. */
   routes?(api: FastifyInstance, ctx: AppContext): Promise<void>;
+  /** Unauthenticated, signature-checked routes at /api/ext/<name>/public (webhooks). */
+  publicRoutes?: PublicRoutes;
+  /** Inbox connection types this extension adds (first extension wins a duplicate id). */
+  inboxTypes?: readonly InboxTypeDefinition[];
   /**
    * Extra read tools for one AI turn (live reply or Try it), merged with the core tools within
    * the same step limit and abort/timeout. Return null to add none. A tool that throws (e.g.
@@ -40,6 +74,9 @@ export function validateExtensions(list: readonly ServerExtension[]): void {
       throw new Error(`invalid extension name ${JSON.stringify(ext.name)}`);
     if (seen.has(ext.name)) throw new Error(`duplicate extension "${ext.name}"`);
     seen.add(ext.name);
+    for (const t of ext.inboxTypes ?? [])
+      if (!/^[a-z][a-z0-9_-]{1,31}$/.test(t.id) || t.id === 'linked_phone')
+        throw new Error(`invalid inbox type ${JSON.stringify(t.id)} in extension "${ext.name}"`);
   }
 }
 

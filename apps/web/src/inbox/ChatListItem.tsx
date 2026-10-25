@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { UserRound, Users } from 'lucide-react';
+import { TimerOff, UserRound, Users } from 'lucide-react';
 import type { Chat, Inbox } from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ export interface ChatListItemProps {
   assignedToMe?: boolean;
   /** The chat's inbox, only while the user sees two or more inboxes. */
   inbox?: Pick<Inbox, 'name' | 'tone'>;
+  /** The chat's reply window has closed (WhatsApp Business API): only a template may be sent. */
+  windowClosed?: boolean;
 }
 
 export function GroupIcon({ className }: { className?: string }) {
@@ -34,6 +36,7 @@ export function ChatListItem({
   assigneeName,
   assignedToMe = false,
   inbox,
+  windowClosed = false,
 }: ChatListItemProps) {
   // Subscribes to language changes so the localized list time re-renders.
   const { t } = useTranslation('inbox');
@@ -76,6 +79,16 @@ export function ChatListItem({
               {name}
             </span>
             {inbox && <InboxChip inbox={inbox} className="ml-1 shrink-0" />}
+            {windowClosed && (
+              <span
+                className="flex shrink-0 items-center text-muted-foreground"
+                title={t('window.closedShort')}
+                data-testid="window-closed-icon"
+              >
+                <TimerOff className="size-3.5" aria-hidden="true" />
+                <span className="sr-only">{t('window.closedShort')}</span>
+              </span>
+            )}
           </span>
           <time
             className={cn(

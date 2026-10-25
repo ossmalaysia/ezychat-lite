@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Inbox } from '@ezychat/shared';
+import { DEFAULT_INBOX_CAPABILITIES, type Inbox } from '@ezychat/shared';
 import type { ChatFilters as Filters } from '../api/queries';
 import { ChatFilters } from './ChatFilters';
 
@@ -146,6 +146,8 @@ function inbox(id: number, name: string, number: string | null): Inbox {
     number,
     removed: false,
     aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
     status: { state: 'open', me: null, qr: null, lastError: null },
   };
 }

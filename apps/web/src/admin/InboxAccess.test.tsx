@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Inbox, User } from '@ezychat/shared';
+import { DEFAULT_INBOX_CAPABILITIES, type Inbox, type User } from '@ezychat/shared';
 import { InboxAccessCell } from './InboxAccess';
 
 const base: User = {
@@ -24,6 +24,8 @@ const SALES: Inbox = {
   status,
   removed: false,
   aiAgentId: null,
+  type: 'linked_phone',
+  capabilities: DEFAULT_INBOX_CAPABILITIES,
 };
 
 function show(user: User, inboxes: Inbox[] = [SALES]) {

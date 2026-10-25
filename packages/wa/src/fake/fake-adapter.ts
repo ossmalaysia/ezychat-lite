@@ -5,6 +5,7 @@ import {
   type SendResult,
   type WaAdapter,
   type WaAdapterEvents,
+  type WaCapabilities,
   type WaContactAlias,
   type WaGroupInfo,
   type WaIncomingMessage,
@@ -12,6 +13,8 @@ import {
   type WaReactionTarget,
   type WaSendFile,
   type WaSendOptions,
+  type WaTemplate,
+  type WaTemplateSend,
 } from '../types.js';
 
 const FAKE_ME = { jid: '60000000000@s.whatsapp.net', name: 'Fake' } as const;
@@ -52,20 +55,55 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   readonly reactions: Array<{ chatJid: string; target: WaReactionTarget; emoji: string }> = [];
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
   readonly presences: Array<{ chatJid: string; presence: 'composing' | 'paused' }> = [];
+  /** Every template sent (adapters given `templates`). */
+  readonly templateSends: Array<{ chatJid: string; template: WaTemplateSend; id: string }> = [];
+  /** What this fake connection can do; absent (a linked phone) unless given. */
+  readonly capabilities?: WaCapabilities;
+  /** Set when `templates` is given: the approved templates (offline → WaUnavailableError). */
+  readonly listTemplates?: () => Promise<WaTemplate[]>;
+  /** Set when `templates` is given: records the send like `sendText`. */
+  readonly sendTemplate?: (chatJid: string, template: WaTemplateSend) => Promise<SendResult>;
+  /** The templates `listTemplates` answers (tests may change them). */
+  templates: WaTemplate[] = [];
+  /** Number of listTemplates calls, for tests that check caching. */
+  templateListCalls = 0;
 
   /**
    * `me`: the linked account (default the fake number 60000000000); `idPrefix`: start of every
    * message id (default `FAKE`), so adapters of different inboxes never share an id.
    * `awaitScan`: a phone that was never linked — `connect()` shows a QR code and stays there
    * until `setConnected(true)` (the dev stand-in for the scan).
+   * `capabilities`: what the connection reports (e.g. a Business API stand-in); `templates`: its
+   * approved templates, which also turn on `listTemplates`/`sendTemplate`.
    */
   constructor(opts?: {
     autoOpen?: boolean;
     me?: { jid: string; name: string };
     idPrefix?: string;
     awaitScan?: boolean;
+    capabilities?: WaCapabilities;
+    templates?: WaTemplate[];
   }) {
     super();
+    if (opts?.capabilities) this.capabilities = { ...opts.capabilities };
+    if (opts?.templates) {
+      this.templates = opts.templates.map((t) => ({ ...t, examples: [...t.examples] }));
+      this.listTemplates = async () => {
+        if (this._status.state !== 'open') throw new WaUnavailableError();
+        this.templateListCalls++;
+        return this.templates.map((t) => ({ ...t, examples: [...t.examples] }));
+      };
+      this.sendTemplate = async (chatJid, template) => {
+        this.beforeSend();
+        const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
+        this.templateSends.push({
+          chatJid,
+          template: { ...template, params: [...template.params] },
+          id,
+        });
+        return this.afterSend(chatJid, id);
+      };
+    }
     this.autoOpen = opts?.autoOpen ?? true;
     this.awaitScan = opts?.awaitScan ?? false;
     this.me = { ...(opts?.me ?? FAKE_ME) };

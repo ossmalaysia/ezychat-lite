@@ -165,3 +165,28 @@ Tier **critical**, set by: package.json dependencies
 Hard stops: none
 
 Decision: **risk:auto**
+
+## 2026-10-25 · PR #183 · `c446d6c` · risk:human (45)
+
+Tier **core**, set by: apps/web/src/api/templates.ts, apps/web/src/extensions/inbox-types.ts, apps/web/src/extensions/index.ts, apps/web/src/extensions/types.ts, apps/web/src/inbox/ChatList.tsx, apps/web/src/inbox/ChatListItem.tsx, apps/web/src/inbox/Conversation.tsx, apps/web/src/inbox/MessageBubble.tsx and 4 more
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 1327 code lines | -35 | ✓ |
+| Changed-lines coverage 95.6 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | 0 | ✗ missing |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **45** | |
+
+Hard stops: none
+
+Decision: **risk:human**
+
+## 2026-10-25 · PR #183 · `fc61d83` · approved by the owner
+
+> It is low risk as it's alternative than original inbox, merge it

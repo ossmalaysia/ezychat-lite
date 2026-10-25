@@ -1,5 +1,8 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
+import type { ServerExtension } from '../extensions.js';
+import { errors } from '../http/errors.js';
+import { publicRoutesPrefix } from '../http/origin.js';
 import health from './health.js';
 import access from './access.js';
 import setup from './setup.js';
@@ -24,6 +27,7 @@ import directory from './directory.js';
 import integrations from './integrations.js';
 import oauth from './oauth.js';
 import inboxes from './inboxes.js';
+import templates from './templates.js';
 
 export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<void>;
 
@@ -52,6 +56,7 @@ export const routeModules: RouteModule[] = [
   integrations,
   oauth,
   inboxes,
+  templates,
 ];
 
 /**
@@ -68,9 +73,66 @@ export async function registerRoutes(app: FastifyInstance, ctx: AppContext): Pro
     },
     { prefix: '/api' },
   );
+  for (const ext of ctx.extensions) await registerPublicRoutes(app, ctx, ext);
   for (const ext of ctx.extensions) {
     const routes = ext.routes;
     if (!routes) continue;
     await app.register(async (scope) => routes(scope, ctx), { prefix: `/api/ext/${ext.name}` });
   }
+}
+
+type RawRequest = FastifyRequest & { rawBody?: Buffer };
+
+/**
+ * An extension's public routes at /api/ext/<name>/public: no session and no Origin check (see
+ * createOriginHook), the raw body kept as `request.rawBody`, and `verify` before every handler
+ * (401 `{ error: 'unauthorized' }`). The Host allowlist and the access gate still apply. Neither
+ * the body nor the headers are logged.
+ */
+async function registerPublicRoutes(
+  app: FastifyInstance,
+  ctx: AppContext,
+  ext: ServerExtension,
+): Promise<void> {
+  const pub = ext.publicRoutes;
+  if (!pub) return;
+  const log = ctx.log.child({ mod: 'ext', extension: ext.name });
+  await app.register(
+    async (scope) => {
+      scope.removeAllContentTypeParsers();
+      scope.addContentTypeParser(
+        '*',
+        { parseAs: 'buffer' },
+        (req: RawRequest, body: Buffer, done: (err: Error | null, body?: unknown) => void) => {
+          req.rawBody = body;
+          if (!body.length) return done(null, undefined);
+          const type = String(req.headers['content-type'] ?? '').toLowerCase();
+          if (!type.startsWith('application/json') && !/\+json\b/.test(type))
+            return done(null, body);
+          try {
+            done(null, JSON.parse(body.toString('utf8')));
+          } catch {
+            done(errors.validation('Invalid JSON body'));
+          }
+        },
+      );
+      scope.addHook('preHandler', async (req, reply) => {
+        let ok = false;
+        try {
+          ok = (await pub.verify(req as RawRequest)) === true;
+        } catch (err) {
+          log.warn(
+            { errName: err instanceof Error ? err.name : typeof err, url: req.routeOptions?.url },
+            'public route verify failed',
+          );
+        }
+        if (!ok) {
+          log.warn({ url: req.routeOptions?.url, method: req.method }, 'public route refused');
+          return reply.status(401).send({ error: 'unauthorized' });
+        }
+      });
+      await pub.routes(scope, ctx);
+    },
+    { prefix: publicRoutesPrefix(ext.name) },
+  );
 }

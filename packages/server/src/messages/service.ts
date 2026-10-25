@@ -8,7 +8,9 @@ import type {
   MessageListQuery,
   MessageReaction,
   MessageStatus,
+  MessageTemplate,
   MessageType,
+  SendTemplateBody,
   SendTextBody,
 } from '@ezychat/shared';
 import type {
@@ -39,6 +41,9 @@ import { DownloadLimiter } from './download-limiter.js';
 import { createMentionPresenter } from './mentions.js';
 import { OWN_REACTOR, createReactionPresenter, reactionRow } from './reactions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
+import { TemplateCatalog, fillTemplate, templatesUnsupported } from './templates.js';
+import { WINDOW_CLOSED, replyWindowOpen, windowClosedError } from '../inboxes/reply-window.js';
+import { capabilitiesOf } from '../inboxes/types.js';
 
 export interface MediaFile {
   path: string;
@@ -68,6 +73,15 @@ export interface MessageService {
     userId: number,
     opts?: { viaTokenId?: number },
   ): Message;
+  /**
+   * Sends an approved template (also outside the reply window): the stored message is the filled
+   * body with the template's name and language, sent through the queue in order. 409
+   * `templates_unsupported`, 400 `template_not_found` / `template_not_sendable` / `template_params`,
+   * 503 offline (the template list is read from the connection).
+   */
+  sendTemplate(jid: string, body: SendTemplateBody, userId: number): Promise<Message>;
+  /** `GET /inboxes/:id/templates`: the inbox's approved templates (cached 5 minutes). */
+  listTemplates(inboxId: number, refresh?: boolean): Promise<MessageTemplate[]>;
   /** The message sent earlier with this clientId (send idempotency), or null. */
   byClientId(clientId: string): Message | null;
   sendMedia(
@@ -258,6 +272,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const wa = connections.adapter(inboxId);
     const row = repo.get(job.localId);
     if (!row || row.status !== 'pending') throw new Error('Message is no longer pending');
+    // a free-form message whose reply window closed while it waited is never sent (not retried)
+    if (job.kind !== 'template' && !replyWindowOpen(ctx, job.chatJid, now()))
+      throw new Error(WINDOW_CLOSED);
     if (
       row.sent_by_user_id &&
       ctx.services.auth?.getUser(row.sent_by_user_id)?.kind === 'ai' &&
@@ -277,6 +294,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const p = (async () => {
       if (job.kind === 'text') {
         return wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
+      }
+      if (job.kind === 'template') {
+        if (!wa.sendTemplate || !job.template) throw new Error('templates_unsupported');
+        return wa.sendTemplate(job.targetJid, job.template);
       }
       const buffer = readFileSync(media.abs(job.mediaPath!));
       const seconds = job.voiceNote ? voiceNoteSeconds(buffer) : null;
@@ -354,15 +375,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const queueFor = (inboxId: number): SendQueue => {
     const existing = queues.get(inboxId);
     if (existing) return existing;
-    const wa = connections.adapter(inboxId); // throws for a removed or unknown inbox
+    connections.adapter(inboxId); // throws for a removed or unknown inbox
+    // read the adapter on every use: a type change swaps it and the queue keeps its jobs
     const q = new SendQueue({
       send: sendJob,
       onSent,
       onFailed,
-      isConnected: () => wa.status.state === 'open',
+      isConnected: () => adapterOf(inboxId)?.status.state === 'open',
       // Access gate closed: nothing is sent and nothing expires; jobs stay pending.
       isPaused: () => !ctx.access.state().open,
-      presence: (job) => wa.sendPresence(job.targetJid, 'composing'),
+      presence: async (job) => adapterOf(inboxId)?.sendPresence(job.targetJid, 'composing'),
       now,
       ...(deps?.queue ?? {}),
     });
@@ -383,7 +405,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     }
   };
 
-  const onInboxRemoved = (inboxId: number): void => {
+  const onInboxRemoved = (inboxId: number, _wa: unknown, reason: 'removed' | 'replaced'): void => {
+    // a type change keeps the inbox: its queue goes on with the new adapter
+    if (reason === 'replaced') return;
     const q = queues.get(inboxId);
     queues.delete(inboxId);
     q?.stop();
@@ -448,6 +472,20 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       createdAt: r.created_at,
       ...(r.quoted_id ? { quotedId: r.quoted_id } : {}),
     };
+    if (r.template_name) {
+      let params: string[] = [];
+      try {
+        const parsed = JSON.parse(r.template_params ?? '[]') as unknown;
+        if (Array.isArray(parsed)) params = parsed.map(String);
+      } catch {
+        // a damaged row sends no values; the connection refuses it and the message fails
+      }
+      return {
+        ...base,
+        kind: 'template',
+        template: { name: r.template_name, language: r.template_language ?? '', params },
+      };
+    }
     if (r.media_path) {
       return {
         ...base,
@@ -483,6 +521,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     refuseSend(inboxOfKey(jid));
     return c;
   };
+
+  /** Free-form messages only while the chat's reply window is open (409 `window_closed`). */
+  const requireWindow = (jid: string) => {
+    if (!replyWindowOpen(ctx, jid, now())) throw windowClosedError();
+  };
+
+  const templates = new TemplateCatalog(now);
 
   /**
    * A reply may quote only a message of the same chat that WhatsApp knows: pending and failed
@@ -671,9 +716,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       ctx.db.transaction(() => {
         touchChat(row, t);
         if (isNewLiveInbound) {
+          // the customer wrote: a reply window (Business API) runs from this message
           ctx.db
-            .prepare('UPDATE chats SET unread_count = unread_count + 1 WHERE jid = ?')
-            .run(chatJid);
+            .prepare(
+              'UPDATE chats SET unread_count = unread_count + 1, last_inbound_at = MAX(COALESCE(last_inbound_at, 0), ?) WHERE jid = ?',
+            )
+            .run(m.timestamp, chatJid);
           const cur = chats.get(chatJid)!;
           if (cur.status === 'resolved') {
             chats.update(chatJid, { status: 'open', updated_at: t });
@@ -742,6 +790,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (existing) return present(existing);
       requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      requireWindow(jid);
       const quotedId = checkQuote(jid, body.quotedId);
       const t = now();
       claimOnReply(jid, userId, t);
@@ -769,11 +818,78 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       });
     },
 
+    async listTemplates(inboxId, refresh = false) {
+      const wa = adapterOf(inboxId);
+      if (!wa) throw errors.notFound('Inbox');
+      return templates.list(inboxId, wa, refresh);
+    },
+
+    async sendTemplate(jid, body, userId) {
+      const existing = repo.byClientId(body.clientId);
+      if (existing) return present(existing);
+      requireSendable(jid);
+      if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      const inboxId = inboxOfKey(jid);
+      const wa = connections.adapter(inboxId);
+      if (!capabilitiesOf(wa).templates) throw templatesUnsupported();
+      const template = (await templates.list(inboxId, wa)).find(
+        (t) => t.name === body.name && t.language === body.language,
+      );
+      if (!template)
+        throw new HttpError(
+          400,
+          'template_not_found',
+          'This template is not approved for this inbox',
+        );
+      if (!template.sendable)
+        throw new HttpError(
+          400,
+          'template_not_sendable',
+          'Templates with a media header or buttons cannot be sent yet',
+        );
+      if (body.params.length !== template.variables)
+        throw new HttpError(
+          400,
+          'template_params',
+          `This template needs ${template.variables} value(s), got ${body.params.length}`,
+        );
+      // the list was read asynchronously: another request may have stored this clientId meanwhile
+      const raced = repo.byClientId(body.clientId);
+      if (raced) return present(raced);
+      const t = now();
+      claimOnReply(jid, userId, t);
+      return insertOutgoing({
+        id: `local-${body.clientId}`,
+        chat_jid: jid,
+        sender_jid: ownJidOf(jid),
+        sender_name: null,
+        from_me: 1,
+        sent_by_user_id: userId,
+        type: 'text',
+        body: fillTemplate(template.body, body.params),
+        media_path: null,
+        media_mime: null,
+        media_name: null,
+        media_status: 'none',
+        quoted_id: null,
+        status: 'pending',
+        error: null,
+        timestamp: t,
+        created_at: t,
+        client_id: body.clientId,
+        wa_remote_jid: replyTarget(jid),
+        template_name: template.name,
+        template_language: template.language,
+        template_params: JSON.stringify(body.params),
+      });
+    },
+
     async sendMedia(jid, file, userId, clientId) {
       const existing = repo.byClientId(clientId);
       if (existing) return present(existing);
       requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      requireWindow(jid);
       if (!file.buffer.length) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);
       const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
@@ -820,6 +936,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (r.status !== 'failed' || !r.from_me)
         throw errors.conflict('Only failed outgoing messages can be retried');
       refuseSend(inboxOfKey(r.chat_jid));
+      if (!r.template_name) requireWindow(r.chat_jid);
       const t = now();
       if (!r.id.startsWith('local-')) {
         // Failed after reaching WhatsApp (ERROR ack, row already renamed to the WA id): turn it back into
@@ -906,6 +1023,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         throw errors.validation('This message cannot get a reaction');
       requireSendable(r.chat_jid);
       if (chatNumberMoved(r.chat_jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
+      requireWindow(r.chat_jid);
       const wa = connections.adapter(inboxOfKey(r.chat_jid));
       // The reaction goes to the chat address the message lives in (phone number or WhatsApp ID).
       const stored = r.wa_remote_jid ?? waJidOf(r.chat_jid);

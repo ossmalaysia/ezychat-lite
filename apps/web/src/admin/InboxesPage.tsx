@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
+import { Cable, Inbox as InboxIcon, Plus, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,7 +16,14 @@ import {
   useUpdateInbox,
 } from '../api/inbox-mutations';
 import { PRIMARY_INBOX_ID, qk, useInboxStatus, useInboxes, useUsers } from '../api/queries';
+import {
+  ExtensionBoundary,
+  useExtensionTranslation,
+  useInboxTypes,
+  type WebExtensionInboxType,
+} from '../extensions';
 import { InboxChip } from '../inbox/InboxChip';
+import { inboxCapabilities, inboxTypeOf } from '../inbox/reply-window';
 import { PhoneLink } from '../wa/PhoneLink';
 import { Banner, PageHeader, ResponsiveDialog, StatusDot } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
@@ -34,11 +41,33 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton } from './adminUi';
 import { formatInboxNumber, inboxCardStatus } from './inbox-status';
+import { cn } from '@/lib/utils';
 
 /** While a phone is being linked, ask for the status this often (the socket usually is faster). */
 const LINK_POLL_MS = 5_000;
 /** The AI agent select's value for "no AI agent". */
 const NO_AGENT = 'none';
+/** The core's own connection type: the WhatsApp app on a phone, linked by QR scan. */
+const LINKED_PHONE = 'linked_phone';
+
+/** The extension screens of an inbox's connection type; undefined for a linked phone. */
+function typeOfInbox(
+  types: readonly WebExtensionInboxType[],
+  inbox: Inbox,
+): WebExtensionInboxType | undefined {
+  const type = inboxTypeOf(inbox);
+  return type === LINKED_PHONE ? undefined : types.find((x) => x.type === type);
+}
+
+/** Invalidates what an extension's create/change can move: the inbox list, members and the audit. */
+function refreshAfterExtension(qc: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.inboxes }),
+    qc.invalidateQueries({ queryKey: qk.wa }),
+    qc.invalidateQueries({ queryKey: qk.users }),
+    qc.invalidateQueries({ queryKey: qk.audit }),
+  ]);
+}
 
 /** Every linked WhatsApp number (inbox), with who may open it. Admin only; shown when maxInboxes > 1. */
 export function InboxesPage() {
@@ -48,6 +77,7 @@ export function InboxesPage() {
   const agentList = useAiAgents();
   const qc = useQueryClient();
   const remove = useRemoveInbox();
+  const types = useInboxTypes();
   const [editing, setEditing] = useState<number | 'new' | null>(null);
   const [removing, setRemoving] = useState<Inbox | null>(null);
 
@@ -70,7 +100,7 @@ export function InboxesPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t('inboxes.title')}
-        description={t('inboxes.description')}
+        description={types.length > 0 ? t('inboxes.descriptionTypes') : t('inboxes.description')}
         actions={
           <Button
             type="button"
@@ -106,6 +136,7 @@ export function InboxesPage() {
           inbox={inbox}
           openers={whoCanOpen(inbox)}
           agent={agentOf(inbox)}
+          type={typeOfInbox(types, inbox)}
           onEdit={() => setEditing(inbox.id)}
           onRemove={() => {
             remove.reset();
@@ -143,7 +174,9 @@ export function InboxesPage() {
         }}
         onClose={() => setRemoving(null)}
       >
-        {t('inboxes.removeBodyPhone')}
+        {removing && !inboxCapabilities(removing).qrLink
+          ? t('inboxes.removeBodyOther')
+          : t('inboxes.removeBodyPhone')}
         {removingAgent && (
           <span className="mt-2 block">
             {t('inboxes.aiAgentRemove', { agent: removingAgent.displayName })}
@@ -158,6 +191,7 @@ function InboxCard({
   inbox,
   openers,
   agent,
+  type,
   onEdit,
   onRemove,
 }: Readonly<{
@@ -165,12 +199,15 @@ function InboxCard({
   openers: User[];
   /** The AI agent that answers this inbox, if any. */
   agent: AiAgentSummary | undefined;
+  /** The extension connection type of this inbox; undefined for a linked phone. */
+  type: WebExtensionInboxType | undefined;
   onEdit: () => void;
   onRemove: () => void;
 }>) {
   const { t } = useTranslation('admin');
   const status = useInboxStatus(inbox.id) ?? inbox.status;
   const card = inboxCardStatus(status.state);
+  const caps = inboxCapabilities(inbox);
   return (
     <Card className="gap-4" data-testid="inbox-card">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
@@ -178,12 +215,11 @@ function InboxCard({
           <CardTitle className="flex flex-wrap items-center gap-2">
             <InboxChip inbox={inbox} />
             <span className="text-base font-normal break-all text-muted-foreground tabular-nums">
-              {formatInboxNumber(inbox.number) ?? t('inboxes.numberAfterScan')}
+              {formatInboxNumber(inbox.number) ?? (caps.qrLink ? t('inboxes.numberAfterScan') : '')}
             </span>
           </CardTitle>
-          <CardDescription className="flex items-center gap-1.5">
-            <Smartphone className="size-4" aria-hidden />
-            {t('inboxes.typeLinkedPhone')}
+          <CardDescription className="flex items-center gap-1.5" data-testid="inbox-type">
+            <InboxTypeLabel inbox={inbox} type={type} />
           </CardDescription>
         </div>
         <div className="flex items-center gap-1">
@@ -249,7 +285,12 @@ function InboxCard({
             ))}
           </dd>
         </dl>
-        {card.notice === 'scan' && (
+        {type?.CardDetails && (
+          <ExtensionBoundary>
+            <type.CardDetails inbox={inbox} />
+          </ExtensionBoundary>
+        )}
+        {card.notice === 'scan' && caps.qrLink && (
           <Banner tone="warning" title={t('inboxes.scanTitle')}>
             {t('inboxes.scanBody')}
           </Banner>
@@ -264,9 +305,37 @@ function InboxCard({
             {t('whatsapp.replacedBody')}
           </Banner>
         )}
+        {agent && caps.replyWindowHours !== null && (
+          <p className="text-sm text-muted-foreground" data-testid="inbox-ai-window">
+            {t('inboxes.aiWindowNote', { hours: caps.replyWindowHours })}
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">{t('inboxes.accessHint')}</p>
       </CardContent>
     </Card>
+  );
+}
+
+/** Icon and name of an inbox's connection type (an extension's type names itself). */
+function InboxTypeLabel({
+  inbox,
+  type,
+}: Readonly<{ inbox: Inbox; type: WebExtensionInboxType | undefined }>) {
+  const { t } = useTranslation('admin');
+  const tx = useExtensionTranslation();
+  if (inboxTypeOf(inbox) === LINKED_PHONE)
+    return (
+      <>
+        <Smartphone className="size-4 shrink-0" aria-hidden />
+        {t('inboxes.typeLinkedPhone')}
+      </>
+    );
+  const Icon = type?.icon ?? Cable;
+  return (
+    <>
+      <Icon className="size-4 shrink-0" aria-hidden />
+      {type ? tx(type.labelKey) : t('inboxes.typeOther')}
+    </>
   );
 }
 
@@ -297,10 +366,18 @@ function InboxDialog({
   onClose: () => void;
 }>) {
   const { t } = useTranslation(['admin', 'common']);
+  const tx = useExtensionTranslation();
+  const types = useInboxTypes();
   const create = useCreateInbox();
   const update = useUpdateInbox();
   const qc = useQueryClient();
   const isNew = target === 'new';
+  /** Add inbox: the connection type chosen (linked phone unless an extension's type is picked). */
+  const [newType, setNewType] = useState(LINKED_PHONE);
+  /** An inbox an extension's CreateForm just created (until the list has it). */
+  const [extCreated, setExtCreated] = useState<Inbox | null>(null);
+  /** Edit of a linked phone: the type whose SwitchFromPhone flow is open. */
+  const [switching, setSwitching] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [members, setMembers] = useState<number[]>([]);
   /** True once the admin changed a tick box; only then does Save send memberIds. */
@@ -314,7 +391,8 @@ function InboxDialog({
   const inboxId = isNew ? createdId : target;
   const inbox =
     inboxes.find((i) => i.id === inboxId) ??
-    (create.data && create.data.id === inboxId ? create.data : undefined);
+    (create.data && create.data.id === inboxId ? create.data : undefined) ??
+    (extCreated && extCreated.id === inboxId ? extCreated : undefined);
   const saved = isNew ? createdId !== null : true;
   const admins = people.filter((u) => u.role === 'admin');
   const agents = people.filter((u) => u.role !== 'admin');
@@ -327,6 +405,9 @@ function InboxDialog({
     setAgentChoice(current?.aiAgentId == null ? NO_AGENT : String(current.aiAgentId));
     setSubmitted(false);
     setCreatedId(null);
+    setNewType(LINKED_PHONE);
+    setExtCreated(null);
+    setSwitching(null);
     create.reset();
     update.reset();
   }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -353,16 +434,47 @@ function InboxDialog({
       : '';
   const refreshAgentQueries = () => refreshAgents(qc);
 
+  // Only the agents shown can be ticked (admins always see every inbox). Members the dialog
+  // cannot show (a disabled agent) keep their access.
+  const shown = (id: number) => agents.some((u) => u.id === id);
+  const hidden = isNew ? [] : (inbox?.memberIds ?? []).filter((id) => !shown(id));
+  const memberIds = [...members.filter(shown), ...hidden];
+
+  /** The extension type of the inbox (edit) or the one chosen for a new inbox. */
+  const extType = inbox
+    ? typeOfInbox(types, inbox)
+    : isNew
+      ? types.find((x) => x.type === newType)
+      : undefined;
+  /** A new inbox of an extension's type: its CreateForm creates it instead of Save. */
+  const extCreating = isNew && !saved && extType !== undefined;
+  const qrLink = inbox ? inboxCapabilities(inbox).qrLink : !extCreating;
+  const switchTypes = types.filter((x) => x.SwitchFromPhone);
+  const switchType = switchTypes.find((x) => x.type === switching);
+
+  /** The core fields checked for a type's CreateForm (shows their errors). */
+  const validate = () => {
+    setSubmitted(true);
+    return name.trim() !== '' && peopleReady;
+  };
+  const onExtCreated = (created: Inbox) => {
+    setExtCreated(created);
+    setCreatedId(created.id);
+    void refreshAfterExtension(qc);
+    if (chosenAgentId !== null) refreshAgentQueries();
+    toast.success(t('inboxes.createdOther'));
+  };
+  const onExtChanged = () => {
+    setSwitching(null);
+    void refreshAfterExtension(qc);
+    refreshAgentQueries();
+  };
+
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitted(true);
     const trimmed = name.trim();
     if (!trimmed || !peopleReady) return;
-    // Only the agents shown can be ticked (admins always see every inbox). Members the dialog
-    // cannot show (a disabled agent) keep their access.
-    const shown = (id: number) => agents.some((u) => u.id === id);
-    const hidden = isNew ? [] : (inbox?.memberIds ?? []).filter((id) => !shown(id));
-    const memberIds = [...members.filter(shown), ...hidden];
     if (isNew) {
       create.mutate(
         {
@@ -412,7 +524,7 @@ function InboxDialog({
           ? t('inboxes.addTitle')
           : t('inboxes.editTitle', { name: inbox?.name ?? name })
       }
-      description={t('inboxes.dialogDescription')}
+      description={qrLink ? t('inboxes.dialogDescription') : t('inboxes.dialogDescriptionOther')}
       size="medium"
       footer={
         <>
@@ -426,7 +538,7 @@ function InboxDialog({
             {saved && isNew ? t('common:actions.done') : t('common:actions.cancel')}
           </Button>
           {/* After a new inbox is saved only Done remains: the next step is on the phone. */}
-          {!(saved && isNew) && (
+          {!(saved && isNew) && !extCreating && (
             <Button
               type="submit"
               form={formId}
@@ -442,6 +554,30 @@ function InboxDialog({
       }
     >
       <form id={formId} onSubmit={save} noValidate className="flex min-w-0 flex-col gap-5 pb-1">
+        {isNew && !saved && types.length > 0 && (
+          <fieldset className="flex min-w-0 flex-col gap-2" data-testid="inbox-type-choice">
+            <legend className="mb-1 text-sm font-medium">{t('inboxes.typeField')}</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <TypeChoice
+                selected={newType === LINKED_PHONE}
+                icon={Smartphone}
+                label={t('inboxes.typeLinkedPhone')}
+                description={t('inboxes.typePhoneHint')}
+                onSelect={() => setNewType(LINKED_PHONE)}
+              />
+              {types.map((x) => (
+                <TypeChoice
+                  key={x.type}
+                  selected={newType === x.type}
+                  icon={x.icon ?? Cable}
+                  label={tx(x.labelKey)}
+                  description={tx(x.descriptionKey)}
+                  onSelect={() => setNewType(x.type)}
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
         <Field label={t('inboxes.name')} hint={t('inboxes.nameHint')} error={nameError}>
           {(p) => (
             <Input
@@ -538,9 +674,129 @@ function InboxDialog({
           </Banner>
         )}
 
-        {inbox && <InboxLink inbox={inbox} justCreated={isNew} />}
+        {inbox && qrLink && <InboxLink inbox={inbox} justCreated={isNew} />}
       </form>
+
+      {/* Extension forms sit outside the core form: they may hold forms of their own. */}
+      {extCreating && extType && (
+        <section
+          className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
+          aria-labelledby="inbox-type-create"
+          data-testid="inbox-type-create"
+        >
+          <h3 id="inbox-type-create" className="text-sm font-medium">
+            {tx(extType.labelKey)}
+          </h3>
+          <ExtensionBoundary>
+            <extType.CreateForm
+              draft={{ name: name.trim(), memberIds, aiAgentId: chosenAgentId }}
+              validate={validate}
+              onCreated={onExtCreated}
+            />
+          </ExtensionBoundary>
+        </section>
+      )}
+      {isNew && saved && inbox && extType?.CardDetails && (
+        <div className="mt-5 min-w-0 border-t pt-5">
+          <ExtensionBoundary>
+            <extType.CardDetails inbox={inbox} />
+          </ExtensionBoundary>
+        </div>
+      )}
+      {!isNew && inbox && inboxTypeOf(inbox) === LINKED_PHONE && switchTypes.length > 0 && (
+        <section
+          className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
+          aria-labelledby="inbox-connection-type"
+          data-testid="inbox-connection-type"
+        >
+          <h3 id="inbox-connection-type" className="text-sm font-medium">
+            {t('inboxes.connectionType')}
+          </h3>
+          {switchType?.SwitchFromPhone ? (
+            <ExtensionBoundary>
+              <switchType.SwitchFromPhone
+                inbox={inbox}
+                onChanged={onExtChanged}
+                onCancel={() => setSwitching(null)}
+              />
+            </ExtensionBoundary>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Smartphone className="size-4 shrink-0" aria-hidden />
+                {t('inboxes.typeLinkedPhone')}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {switchTypes.map((x) => {
+                  const Icon = x.icon ?? Cable;
+                  return (
+                    <Button
+                      key={x.type}
+                      type="button"
+                      variant="outline"
+                      size="touch"
+                      className="md:min-h-9"
+                      onClick={() => setSwitching(x.type)}
+                    >
+                      <Icon aria-hidden />
+                      {t('inboxes.switchTo', { type: tx(x.labelKey) })}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {!isNew && inbox && extType?.EditSection && (
+        <section
+          className="mt-5 flex min-w-0 flex-col gap-3 border-t pt-5"
+          aria-labelledby="inbox-type-edit"
+          data-testid="inbox-type-edit"
+        >
+          <h3 id="inbox-type-edit" className="text-sm font-medium">
+            {tx(extType.labelKey)}
+          </h3>
+          <ExtensionBoundary>
+            <extType.EditSection inbox={inbox} onChanged={onExtChanged} />
+          </ExtensionBoundary>
+        </section>
+      )}
     </ResponsiveDialog>
+  );
+}
+
+/** One card of the Add inbox type choice (pressed = chosen). */
+function TypeChoice({
+  selected,
+  icon: Icon,
+  label,
+  description,
+  onSelect,
+}: Readonly<{
+  selected: boolean;
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  label: string;
+  description: string;
+  onSelect: () => void;
+}>) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        'h-auto min-h-11 min-w-0 flex-col items-start gap-1 px-3 py-2.5 text-left whitespace-normal',
+        selected && 'border-primary bg-primary/5 ring-1 ring-primary',
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-2 font-medium break-words">
+        <Icon className="size-4 shrink-0" aria-hidden />
+        {label}
+      </span>
+      <span className="text-xs font-normal break-words text-muted-foreground">{description}</span>
+    </Button>
   );
 }
 

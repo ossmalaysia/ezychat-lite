@@ -62,6 +62,11 @@ export const ChatSchema = z.object({
   tags: z.array(z.string()).optional(),
   /** WhatsApp/saved name, shown under a customer profile name (direct chats only). */
   whatsappName: z.string().nullable().optional(),
+  /**
+   * epoch ms of the customer's last live message; with the inbox's `replyWindowHours` it says when
+   * free-form replies are allowed (WhatsApp Business API). null: none yet.
+   */
+  lastInboundAt: z.number().nullable().default(null),
 });
 export type Chat = z.infer<typeof ChatSchema>;
 
@@ -107,6 +112,8 @@ export const MessageSchema = z.object({
   clientId: z.string().nullable(),
   /** A WhatsApp voice note recorded in the inbox (audio sent as a voice note, not as a file). */
   voiceNote: z.boolean().optional(),
+  /** Sent as an approved template (WhatsApp Business API): its name and language. */
+  template: z.object({ name: z.string(), language: z.string() }).nullable().optional(),
   /** Sent by the token owner's AI assistant through MCP (shown as "via AI assistant"). */
   viaAssistant: z.boolean().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */

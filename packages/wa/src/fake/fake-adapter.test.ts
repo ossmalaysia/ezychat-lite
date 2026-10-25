@@ -304,4 +304,60 @@ describe('FakeWaAdapter options for several inboxes', () => {
       /^FAKE2-OUT-[0-9a-z]+-\d+$/,
     );
   });
+
+  it('declares no capabilities and no templates unless given', () => {
+    const wa = new FakeWaAdapter();
+    expect(wa.capabilities).toBeUndefined();
+    expect(wa.listTemplates).toBeUndefined();
+    expect(wa.sendTemplate).toBeUndefined();
+  });
+
+  it('with capabilities and templates: lists them, records template sends, refuses offline', async () => {
+    const caps = {
+      qrLink: false,
+      history: false,
+      groups: false,
+      replyWindowHours: 24,
+      templates: true,
+      needsPublicUrl: true,
+    };
+    const template = {
+      name: 'hello',
+      language: 'en',
+      category: 'utility' as const,
+      body: 'Hi {{1}}',
+      examples: ['Ann'],
+      header: null,
+      buttons: false,
+    };
+    const wa = new FakeWaAdapter({ capabilities: caps, templates: [template], idPrefix: 'API' });
+    expect(wa.capabilities).toEqual(caps);
+    await expect(wa.listTemplates!()).rejects.toBeInstanceOf(WaUnavailableError);
+    await expect(
+      wa.sendTemplate!('601@s.whatsapp.net', { name: 'hello', language: 'en', params: ['Ann'] }),
+    ).rejects.toBeInstanceOf(WaUnavailableError);
+    await wa.connect();
+    const listed = await wa.listTemplates!();
+    expect(listed).toEqual([template]);
+    listed[0]!.examples.push('changed');
+    expect((await wa.listTemplates!())[0]!.examples).toEqual(['Ann']);
+    expect(wa.templateListCalls).toBe(2);
+    const statuses: string[] = [];
+    wa.on('messageStatus', (u) => statuses.push(u.status));
+    const r = await wa.sendTemplate!('601@s.whatsapp.net', {
+      name: 'hello',
+      language: 'en',
+      params: ['Ann'],
+    });
+    expect(r.id).toMatch(/^API-OUT-/);
+    expect(wa.templateSends).toEqual([
+      {
+        chatJid: '601@s.whatsapp.net',
+        template: { name: 'hello', language: 'en', params: ['Ann'] },
+        id: r.id,
+      },
+    ]);
+    await tick();
+    expect(statuses).toEqual(['sent', 'delivered']);
+  });
 });

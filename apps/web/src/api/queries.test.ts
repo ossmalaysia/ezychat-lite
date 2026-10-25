@@ -2,7 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type default as React } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Inbox, InboxListResponse, Message, WaStatus } from '@ezychat/shared';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type Inbox,
+  type InboxListResponse,
+  type Message,
+  type WaStatus,
+} from '@ezychat/shared';
 import {
   patchInboxStatusInCache,
   patchMessageInCache,
@@ -273,6 +279,8 @@ describe('inboxes', () => {
     number: null,
     removed: false,
     aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
     status,
   });
   const list: InboxListResponse = {

@@ -1288,6 +1288,7 @@
     "emptyTitle": "Belum ada peti masuk",
     "emptyBody": "Tambah nombor WhatsApp pertama anda: beri nama, kemudian imbas kod QR dengan telefonnya.",
     "description": "Satu peti masuk untuk setiap nombor WhatsApp. Paut setiap nombor dengan aplikasi WhatsApp pada telefonnya, melalui imbasan QR, seperti yang anda lakukan sekarang.",
+    "descriptionTypes": "Satu peti masuk untuk setiap nombor WhatsApp: pautkan telefon dengan imbasan kod QR, atau sambungkan nombor itu dengan cara lain, seperti WhatsApp Business API.",
     "edit": "Sunting",
     "remove": "Buang",
     "status": "Status",
@@ -1341,6 +1342,15 @@
     "aiAgentOption": "{{agent}} (di {{inbox}})",
     "aiAgentMove": "{{agent}} menjawab {{inbox}} sekarang. Apabila anda menyimpan, {{agent}} berpindah ke peti masuk ini dan berhenti menjawab {{inbox}}.",
     "aiAgentReplace": "{{agent}} menjawab peti masuk ini sekarang. Apabila anda menyimpan, {{agent}} dikeluarkan.",
-    "aiAgentRemove": "Ejen AI-nya {{agent}} dikeluarkan dan berhenti menjawab."
+    "aiAgentRemove": "Ejen AI-nya {{agent}} dikeluarkan dan berhenti menjawab.",
+    "typeField": "Bagaimanakah nombor ini disambungkan?",
+    "typePhoneHint": "Imbas kod QR dengan aplikasi WhatsApp pada telefon, seperti yang anda lakukan sekarang.",
+    "typeOther": "Sambungan lain",
+    "dialogDescriptionOther": "Beri nama peti masuk, pilih siapa boleh membukanya, kemudian sambungkan nombor di bawah.",
+    "connectionType": "Jenis sambungan",
+    "switchTo": "Pindah ke {{type}}",
+    "removeBodyOther": "EzyChat berhenti menerima dan menghantar untuk nombor ini. Sembangnya kekal, baca sahaja, untuk pentadbir.",
+    "aiWindowNote": "Pada nombor ini ejen AI membalas hanya dalam masa {{hours}} jam selepas mesej terakhir pelanggan; selepas itu ia menyerahkan sembang kepada pasukan.",
+    "createdOther": "Peti masuk ditambah. Nombor ini telah disambungkan."
   }
 }

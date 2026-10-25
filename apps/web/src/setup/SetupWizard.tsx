@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { WaLinkStep } from './WaLinkStep';
 import { AiAssistantStep } from './AiAssistantStep';
 import { usernameFrom, usernameFromName } from './username';
+import { WhatsAppStepChoice } from './WhatsAppStepChoice';
 
 /** Account → WhatsApp → AI assistant (skippable) → Ready. */
 type Step = 'account' | 'whatsapp' | 'ai' | 'ready';
@@ -283,7 +284,11 @@ export function SetupWizard() {
         />
       )}
       {step === 'whatsapp' && (
-        <WaLinkStep onContinue={() => setStep('ai')} onSkip={() => setStep('ai')} />
+        <WhatsAppStepChoice
+          phoneStep={<WaLinkStep onContinue={() => setStep('ai')} onSkip={() => setStep('ai')} />}
+          onContinue={() => setStep('ai')}
+          onSkip={() => setStep('ai')}
+        />
       )}
       {step === 'ai' && (
         <AiAssistantStep

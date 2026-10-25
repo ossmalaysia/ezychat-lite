@@ -3,7 +3,12 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import type { AiAgentSummary, InboxListResponse, User } from '@ezychat/shared';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type AiAgentSummary,
+  type InboxListResponse,
+  type User,
+} from '@ezychat/shared';
 import { MembersPage } from './MembersPage';
 
 function Location() {
@@ -89,6 +94,8 @@ const multiInbox: InboxListResponse = {
       status,
       removed: false,
       aiAgentId: null,
+      type: 'linked_phone',
+      capabilities: DEFAULT_INBOX_CAPABILITIES,
     },
     {
       id: 2,
@@ -98,8 +105,20 @@ const multiInbox: InboxListResponse = {
       status,
       removed: false,
       aiAgentId: null,
+      type: 'linked_phone',
+      capabilities: DEFAULT_INBOX_CAPABILITIES,
     },
-    { id: 3, name: 'Old', tone: 'info', number: null, status, removed: true, aiAgentId: null },
+    {
+      id: 3,
+      name: 'Old',
+      tone: 'info',
+      number: null,
+      status,
+      removed: true,
+      aiAgentId: null,
+      type: 'linked_phone',
+      capabilities: DEFAULT_INBOX_CAPABILITIES,
+    },
   ],
 };
 
