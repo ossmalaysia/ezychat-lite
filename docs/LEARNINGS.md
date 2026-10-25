@@ -126,6 +126,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
+  or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
@@ -767,6 +769,8 @@ into AGENTS.md.
   as live replies (minus chat-bound ones), or it stops testing what customers get.
 - Tests that ingest many messages under frozen fake timers must tick the clock between them: equal
   timestamps reorder by id and can push the message being answered out of the last 20.
+- Vitest fake timers do not control `AbortSignal.timeout`: bound a call that a test must time out with a
+  `setTimeout` that aborts an `AbortController` (cleared in `finally`).
 - Prompt/AI-behaviour changes are proven by mock-provider tests only: report them as "untested against
   a real model" and offer the owner a Dev Build check (fake WhatsApp, demo data, the owner's own key).
   Use `e2e/devbuild-ai-check.mjs` (demo chats belong to people and a hand-off ends the AI's turn, so
