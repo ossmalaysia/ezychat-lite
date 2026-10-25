@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "61e6bb9",
   "appVersionAtProposal": "0.1.56",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposed",
+  "status": "confirmed",
   "feature": "ai-reply-suggestions",
   "createdAt": "2026-10-25",
   "baselineFeature": "business-api",

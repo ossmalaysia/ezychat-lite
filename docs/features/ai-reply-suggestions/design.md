@@ -3,7 +3,7 @@
 Owner request 2026-10-25 ("Explore how to do ai auto draft, like how to trigger it and human select one?"),
 worked out in a brainstorm the same day. A teammate who handles a chat asks the AI for help: the AI suggests
 **2 replies** to choose from, or completes the sentence the teammate is typing. The AI never sends anything.
-Status: **mock ready for the owner's confirmation** (design answers recorded 2026-10-25; see Mock and Confirmation).
+Status: **confirmed** 2026-10-26 (see Confirmation); next: implementation plan.
 
 ## Why
 
@@ -161,4 +161,4 @@ change; its last revision stays in `mock-index.json` (`archived`).
 
 ## Confirmation
 
-Not yet confirmed. Screenshots sent to the owner 2026-10-26 (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI).
+Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 ("ok"). Reference revision `e7bf307` (`mock-index.json` → `latestConfirmed`).

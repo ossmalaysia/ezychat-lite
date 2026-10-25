@@ -5,7 +5,7 @@ Branch: `feat/ai-reply-suggestions` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | Design docs/features/ai-reply-suggestions/design.md (owner answers 2026-10-25) + interactive mock on business-api 078de13; screenshots sent 2026-10-26; waiting for owner confirmation | 61e6bb9 | 2026-10-25 |
+| Design | done | Owner confirmed the mock 2026-10-26 ("ok"); latestConfirmed e7bf307 | e7bf307 | 2026-10-25 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `feat/ai-reply-suggestions` · Every agent updates its stage with
 ## Log
 
 - 2026-10-25 Design: doing — Design docs/features/ai-reply-suggestions/design.md (owner answers 2026-10-25) + interactive mock on business-api 078de13; screenshots sent 2026-10-26; waiting for owner confirmation (61e6bb9)
+- 2026-10-25 Design: done — Owner confirmed the mock 2026-10-26 ("ok"); latestConfirmed e7bf307 (e7bf307)

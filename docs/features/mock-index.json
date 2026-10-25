@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "business-api",
-    "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b",
-    "mock": "docs/features/business-api/mock/index.html",
-    "design": "docs/features/business-api/design.md",
-    "confirmedAt": "2026-10-25",
-    "confirmation": "Owner confirmed 2026-10-25 after round 2 answers (Marketing templates allowed, switch inbox type both ways, media templates listed disabled), the screenshots and the mock test run: \"ok impelemnt\""
+    "feature": "ai-reply-suggestions",
+    "gitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be",
+    "mock": "docs/features/ai-reply-suggestions/mock/index.html",
+    "design": "docs/features/ai-reply-suggestions/design.md",
+    "confirmedAt": "2026-10-26",
+    "confirmation": "Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 (\"ok\")"
   },
   "proposals": [
     {
@@ -20,11 +20,13 @@
       "createdAt": "2026-10-25",
       "design": "docs/features/ai-reply-suggestions/design.md",
       "mock": "docs/features/ai-reply-suggestions/mock/index.html",
-      "status": "proposed",
+      "status": "confirmed",
       "baselineFeature": "business-api",
       "baselineGitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b",
       "baselineAppRevision": "61e6bb9",
-      "coverage": "Full app clone of the confirmed business-api reference; AI reply suggestions in direct chats: a Suggest reply button beside Quick replies, a strip of up to 2 chips (short label, tap = full draft in the composer; stacked on phones), \"Replace your text?\" confirm over typed text, grey completion after a full word with Tab / Esc on desktop and an Accept pill on touch, notes for no answer (admin link to Business context) and a matching hand-off rule, Chinese and Malay drafts, loading, error with Try again, disabled button when the connection expired; Settings → AI card with the team-wide switch, cost note, no-connection hint and the updated-install note; mock-only routes POST /api/mock/suggestions, POST /api/mock/complete, GET/PUT /api/mock/reply-suggestions (install kind and AI behaviour); desktop 1280 / mobile 360 touch, light/dark (suggest-shots.mjs)"
+      "coverage": "Full app clone of the confirmed business-api reference; AI reply suggestions in direct chats: a Suggest reply button beside Quick replies, a strip of up to 2 chips (short label, tap = full draft in the composer; stacked on phones), \"Replace your text?\" confirm over typed text, grey completion after a full word with Tab / Esc on desktop and an Accept pill on touch, notes for no answer (admin link to Business context) and a matching hand-off rule, Chinese and Malay drafts, loading, error with Try again, disabled button when the connection expired; Settings → AI card with the team-wide switch, cost note, no-connection hint and the updated-install note; mock-only routes POST /api/mock/suggestions, POST /api/mock/complete, GET/PUT /api/mock/reply-suggestions (install kind and AI behaviour); desktop 1280 / mobile 360 touch, light/dark (suggest-shots.mjs)",
+      "confirmedAt": "2026-10-26",
+      "confirmation": "Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 (\"ok\")"
     },
     {
       "feature": "business-api",
