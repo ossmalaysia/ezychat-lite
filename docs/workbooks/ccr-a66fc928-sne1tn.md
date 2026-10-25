@@ -7,7 +7,7 @@ Branch: `ccr-a66fc928-sne1tn` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | Owner confirmed the mock 2026-10-25 ("ok impelemnt"); latestConfirmed business-api 078de13 | 078de13 | 2026-10-25 |
 | Dev | done | Lite core: inbox types + capabilities, changeType/beforeConnect, reply window (409 window_closed), template routes, AI window_closed, MCP refusals, public extension routes, dev fake-api type; web: type choice/slots, setup choice, reply window, Send a template, chat-list icon, template marker | 80cd677 | 2026-10-25 |
-| Unit tests | todo |  |  |  |
+| Unit tests | pass | 3195 passed; 4 document-reader tests fail on Node 22 here and on main too (env); changed-lines coverage 95.6 % (498/521) | bd87277 | 2026-10-25 |
 | E2E | pass | 84 passed + multi-inbox 6/6 incl. 2 new Business API window/template tests; ai-member upload fails on Node 22 (env, same on main); e2e:electron-links not run (Windows only) | 80cd677 | 2026-10-25 |
 | Dev Build | todo |  |  |  |
 | Screen review | todo |  |  |  |
@@ -19,3 +19,4 @@ Branch: `ccr-a66fc928-sne1tn` · Every agent updates its stage with
 - 2026-10-25 Design: done — Owner confirmed the mock 2026-10-25 ("ok impelemnt"); latestConfirmed business-api 078de13 (078de13)
 - 2026-10-25 Dev: done — Lite core: inbox types + capabilities, changeType/beforeConnect, reply window (409 window_closed), template routes, AI window_closed, MCP refusals, public extension routes, dev fake-api type; web: type choice/slots, setup choice, reply window, Send a template, chat-list icon, template marker (80cd677)
 - 2026-10-25 E2E: pass — 84 passed + multi-inbox 6/6 incl. 2 new Business API window/template tests; ai-member upload fails on Node 22 (env, same on main); e2e:electron-links not run (Windows only) (80cd677)
+- 2026-10-25 Unit tests: pass — 3195 passed; 4 document-reader tests fail on Node 22 here and on main too (env); changed-lines coverage 95.6 % (498/521) (bd87277)
