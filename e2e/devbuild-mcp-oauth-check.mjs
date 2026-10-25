@@ -7,14 +7,18 @@
 // Needs demo data (node e2e/marketing-screenshots.mjs <port> <dir>): signs in as aisyah.
 import { createHash, randomBytes } from 'node:crypto';
 
-const port = process.argv[2] ?? '7490';
+const PORT = Number(process.argv[2] ?? 7490);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('usage: <port>');
 const useTunnel = process.argv.includes('--tunnel');
 const keep = process.argv.includes('--keep');
-const local = `http://127.0.0.1:${port}`;
+const local = `http://127.0.0.1:${PORT}`;
+/** A Quick Tunnel address, rebuilt from its checked name (never a raw server value). */
+const QUICK_TUNNEL = /^https:\/\/([a-z0-9-]{1,80})\.trycloudflare\.com\/?$/;
 const results = [];
 const step = (name, ok, detail = '') => {
   results.push({ name, ok });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`);
+  const suffix = detail ? '  (' + detail + ')' : '';
+  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + suffix);
 };
 
 async function signIn(base) {
@@ -55,7 +59,8 @@ if (useTunnel) {
   for (let i = 0; i < 60 && base === local; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const s = await (await adminCall(local, localCookie, '/tunnel')).json();
-    if (s.state === 'running' && s.url) base = s.url.replace(/\/+$/, '');
+    const name = s.state === 'running' ? QUICK_TUNNEL.exec(s.url ?? '')?.[1] : undefined;
+    if (name) base = `https://${name}.trycloudflare.com`;
   }
   step('Quick Tunnel running', base !== local, base);
   // A fresh trycloudflare name can take a few seconds to resolve.
@@ -90,25 +95,39 @@ const mcp = (token, body) =>
     body: JSON.stringify(body),
   });
 
+// The addresses an app must find; the check calls these, after comparing them with the metadata.
+const expected = {
+  resourceMetadata: `${base}/.well-known/oauth-protected-resource/mcp`,
+  authorization: `${base}/oauth/authorize`,
+  token: `${base}/mcp/oauth/token`,
+  registration: `${base}/mcp/oauth/register`,
+};
+
 // 1. The 401 points at the metadata.
 const unauth = await mcp(null, initialize);
 const wwwAuth = unauth.headers.get('www-authenticate') ?? '';
-const prmUrl = /resource_metadata="([^"]+)"/.exec(wwwAuth)?.[1];
-step('401 names resource_metadata', unauth.status === 401 && Boolean(prmUrl), prmUrl);
-const prm = await (await fetch(prmUrl)).json();
-step('protected resource is this /mcp', prm.resource === mcpUrl, prm.resource);
-const as = await (
-  await fetch(`${prm.authorization_servers[0]}/.well-known/oauth-authorization-server`)
-).json();
+step(
+  '401 names resource_metadata',
+  unauth.status === 401 && wwwAuth.includes(`resource_metadata="${expected.resourceMetadata}"`),
+);
+const prm = await (await fetch(expected.resourceMetadata)).json();
+step(
+  'protected resource is this /mcp, on this server',
+  prm.resource === mcpUrl && prm.authorization_servers?.[0] === base,
+);
+const as = await (await fetch(`${base}/.well-known/oauth-authorization-server`)).json();
 step(
   'authorization server metadata on the same origin, S256',
-  as.issuer === base && as.code_challenge_methods_supported?.includes('S256'),
-  as.authorization_endpoint,
+  as.issuer === base &&
+    as.authorization_endpoint === expected.authorization &&
+    as.token_endpoint === expected.token &&
+    as.registration_endpoint === expected.registration &&
+    as.code_challenge_methods_supported?.includes('S256'),
 );
 
 // 2. The app registers itself (as claude.ai does).
 const redirect = 'https://claude.ai/api/mcp/auth_callback';
-const reg = await fetch(as.registration_endpoint, {
+const reg = await fetch(expected.registration, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
@@ -132,7 +151,7 @@ const params = new URLSearchParams({
   state: 'check-state',
   resource: mcpUrl,
 });
-const page = await fetch(`${as.authorization_endpoint}?${params}`);
+const page = await fetch(`${expected.authorization}?${params}`);
 step('approval page is served', page.ok && (await page.text()).includes('<div id="root"'));
 const cookie = base === local ? localCookie : await signIn(base);
 const info = await (await adminCall(base, cookie, `/oauth/request?${params}`)).json();
@@ -148,7 +167,7 @@ step(
 );
 
 // 4. The app swaps the code (from its server, no browser).
-const tokenRes = await fetch(as.token_endpoint, {
+const tokenRes = await fetch(expected.token, {
   method: 'POST',
   headers: { 'content-type': 'application/x-www-form-urlencoded' },
   body: new URLSearchParams({
