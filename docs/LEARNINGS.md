@@ -122,6 +122,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
+  push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
+  `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
+  those two through `gh api` (REST).
 - A critical dependency update (Electron, argon2, SQLite, fastify, electron-builder) gets its real-part test
   from a packaged build: `npm run dist -w @ezychat/desktop -- --dir --config.directories.output=release-check`,
   `node scripts/smoke-packaged.mjs apps/desktop/release-check`, then the packaged server with
