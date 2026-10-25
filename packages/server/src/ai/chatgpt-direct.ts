@@ -18,11 +18,12 @@ import {
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';
-import type { AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
-import { extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
-import { extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
+import type { AiDraftOptions, AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
+import { draftOpenAi, extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
+import { draftClaude, extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
+import { runDraft } from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
@@ -544,6 +545,22 @@ export class DirectChatGptProvider implements AiProvider {
     if (settings.mode === 'claude') return rewriteClaude(settings, apiKey, prompt, signal);
     return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal, id) => ({
       ...(await runRewrite({ model, prompt, signal: turnSignal })),
+      model: id,
+    }));
+  }
+
+  /** Reply suggestions and completions: one tool-free structured call (ChatGPT keeps the saved model). */
+  async draft<T>(
+    settings: AiSettings,
+    apiKey: string | null,
+    prompt: AiRewritePrompt,
+    options: AiDraftOptions<T>,
+    signal: AbortSignal,
+  ): Promise<{ output: T; model: string }> {
+    if (settings.mode === 'api') return draftOpenAi(settings, apiKey, prompt, options, signal);
+    if (settings.mode === 'claude') return draftClaude(settings, apiKey, prompt, options, signal);
+    return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal, id) => ({
+      output: await runDraft({ ...options, model, prompt, signal: turnSignal }),
       model: id,
     }));
   }

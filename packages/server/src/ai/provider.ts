@@ -2,10 +2,11 @@ import type { LanguageModel } from 'ai';
 import type { AiDecision, AiSettings, EnrichmentExtraction } from '@ezychat/shared';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, errorNameOf, openAiKeyModel } from './agent/models.js';
+import { draftModelSettings, runDraft } from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import { promptCacheKey } from './prompt.js';
-import type { AiPrompt, AiRewritePrompt } from './provider-types.js';
+import type { AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
 
@@ -70,6 +71,26 @@ export function generateOpenAi(
     });
     return turn.decision;
   });
+}
+
+/** API key mode: one reply-draft call (completions use the fast model). */
+export function draftOpenAi<T>(
+  settings: AiSettings,
+  apiKey: string | null,
+  prompt: AiRewritePrompt,
+  options: AiDraftOptions<T>,
+  signal: AbortSignal,
+): Promise<{ output: T; model: string }> {
+  return withOpenAiKey(
+    draftModelSettings(settings, options.fast),
+    apiKey,
+    prompt.cacheId,
+    signal,
+    async (model, id, bounded) => ({
+      output: await runDraft({ ...options, model, prompt, signal: bounded }),
+      model: id,
+    }),
+  );
 }
 
 /** API key mode: Edit with AI's single rewrite call. */
