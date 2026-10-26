@@ -7,7 +7,7 @@
   },
   "latestConfirmed": {
     "feature": "ai-phrase-dictionary",
-    "gitRevision": "360997a48d5f6d271f3faef6fa5cdbf72007eef9",
+    "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
     "mock": "docs/features/ai-phrase-dictionary/mock/index.html",
     "design": "docs/features/ai-phrase-dictionary/design.md",
     "confirmedAt": "2026-10-26",
@@ -27,7 +27,7 @@
       "coverage": "Full app clone of the confirmed ai-reply-suggestions reference with the PR #188 composer (type-through, half-word trigger); an AI-built phrase list matched in the browser for instant grey text (English, half-typed word, Malay, Chinese; model completion when no phrase matches; Tab counts a phrase); Settings → AI: Model for suggestions (Fast, Same as the AI agent, each model of the connection) and the Phrase list card (ready, building, empty, error, switched off) with the phrase list dialog (search, language filter, add, edit, delete); mock-only routes /api/mock/phrases*, /api/mock/phrase-list, /api/mock/suggest-model; desktop 1280 / mobile 360 touch, light/dark (phrase-shots.mjs)",
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the review page (instant phrase grey text in English, half-typed word, Malay, Chinese; model completion when no phrase matches; Settings → AI model choice; Phrase list card ready / off / building / empty; phrase list, Malay filter, add, phone) and confirmed 2026-10-26 (\"ok implement it\")",
-      "gitRevision": "360997a48d5f6d271f3faef6fa5cdbf72007eef9"
+      "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb"
     },
     {
       "feature": "ai-reply-suggestions",

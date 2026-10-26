@@ -1,6 +1,6 @@
 # AI phrase list (instant grey text) and the model for suggestions
 
-Status: **confirmed** 2026-10-26 (mock revision `360997a`).
+Status: **confirmed** 2026-10-26 (mock revision `db1df77`).
 Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots: `mock/screenshots/` (`phrase-shots.mjs`).
 
 ## Baseline
@@ -86,4 +86,4 @@ each pause: "build the autocomplete dictionary using AI".
 The owner viewed the review page with the screenshots (phrase grey text in English, a half-typed word, Malay and
 Chinese; the model completion when no phrase matches; the model choice; the Phrase list card ready, switched off,
 building and empty; the list, the Malay filter, Add phrase, the phone layout) and confirmed on 2026-10-26: "ok
-implement it". Confirmed mock revision: `360997a`.
+implement it". Confirmed mock revision: `db1df77`.
