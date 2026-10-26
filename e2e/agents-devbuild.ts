@@ -86,6 +86,26 @@ function mockDecision(prompt: AiPrompt, signal: AbortSignal): AiDecision {
  */
 function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
   signal.throwIfAborted();
+  // A phrase-list build: each business-context sentence as a fact phrase, the team's replies as
+  // their own phrases (a cleaned reply with [name] must be dropped), and two greetings.
+  const build = JSON.parse(prompt.input) as { teamReplies?: string[]; businessKnowledge: string };
+  if (build.teamReplies)
+    return {
+      phrases: [
+        ...build.businessKnowledge
+          .split(/(?<=[.!?])\s+|\n/)
+          .map((line) => line.replace(/^\[[^\]]*\]\s*/, '').trim())
+          .filter((line) => line.length >= 3)
+          .map((text) => ({ text, language: 'en', source: 'context' })),
+        ...build.teamReplies.map((text) => ({ text, language: 'en', source: 'team' })),
+        {
+          text: 'Thank you for your message! We will get back to you shortly.',
+          language: 'en',
+          source: 'team',
+        },
+        { text: 'Terima kasih atas mesej anda!', language: 'ms', source: 'team' },
+      ],
+    };
   const input = JSON.parse(prompt.input) as {
     internalKnowledge: string;
     businessKnowledge: string;
