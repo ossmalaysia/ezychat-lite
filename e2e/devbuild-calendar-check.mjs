@@ -3,7 +3,15 @@
 //   node e2e/devbuild-calendar-check.mjs <port>
 // Prints PASS/FAIL per step; never calls Google, a model or a real WhatsApp number.
 const PORT = Number(process.argv[2] ?? 7491);
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
+  throw new Error('The port must be an integer between 1024 and 65535.');
 const BASE = `http://127.0.0.1:${PORT}`;
+/** Only this local Dev Build: links the server hands back must point at it. */
+const local = (link) => {
+  const url = new URL(link, BASE);
+  if (url.origin !== BASE) throw new Error('Refusing a link outside the local Dev Build');
+  return url.href;
+};
 let failed = 0;
 const oneLine = (value) => String(value).replace(/[\r\n]+/g, ' ');
 const check = (ok, step, detail = '') => {
@@ -99,10 +107,10 @@ check(
   status.state,
 );
 const start = (await api('POST', '/connectors/google-calendar/connect')).json;
-const consent = await (await fetch(start.authorizationUrl)).text();
+const consent = await (await fetch(local(start.authorizationUrl))).text();
 const allow = /id="allow" href="([^"]+)"/.exec(consent)?.[1]?.replaceAll('&#38;', '&');
 check(!!allow, 'the consent page offers Allow', start.authorizationUrl);
-const back = await fetch(allow);
+const back = await fetch(local(allow));
 check(back.status === 200, 'Google returns to the loopback callback', back.status);
 const progress = (await api('GET', `/connectors/google-calendar/connect/${start.requestId}`)).json;
 check(
@@ -120,7 +128,7 @@ check(
   JSON.stringify({ state: status.state, n: status.calendars.length }),
 );
 check(!JSON.stringify(status).includes('token'), 'no token reaches the browser');
-const replay = await fetch(allow);
+const replay = await fetch(local(allow));
 check(replay.status >= 400, 'the same callback link cannot be used twice', replay.status);
 
 // 2. Booking rules; booking with a read-only calendar or without free times is refused.

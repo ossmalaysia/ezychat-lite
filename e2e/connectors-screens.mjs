@@ -10,7 +10,15 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, relative, resolve, join } from 'node:path';
 
 const PORT = Number(process.argv[2] ?? 7491);
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
+  throw new Error('The port must be an integer between 1024 and 65535.');
 const BASE = `http://127.0.0.1:${PORT}`;
+/** Only this local Dev Build: links the server hands back must point at it. */
+const local = (link) => {
+  const url = new URL(link, BASE);
+  if (url.origin !== BASE) throw new Error('Refusing a link outside the local Dev Build');
+  return url.href;
+};
 const inside = (base, path) => {
   const rel = relative(base, path);
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
@@ -56,9 +64,9 @@ for (const scheme of ['light', 'dark'])
       )
         return;
       const start = await (await req('POST', '/api/connectors/google-calendar/connect')).json();
-      const consent = await (await ctx.request.get(start.authorizationUrl)).text();
+      const consent = await (await ctx.request.get(local(start.authorizationUrl))).text();
       const allow = /id="allow" href="([^"]+)"/.exec(consent)[1].replaceAll('&#38;', '&');
-      await ctx.request.get(allow);
+      await ctx.request.get(local(allow));
     };
     await connect();
     await fakeState('ok');
