@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-phrase-dictionary",
-    "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
-    "mock": "docs/features/ai-phrase-dictionary/mock/index.html",
-    "design": "docs/features/ai-phrase-dictionary/design.md",
+    "feature": "reports",
+    "gitRevision": "ce564681e48c10454f8b610c92d5d6ebfcb6379d",
+    "mock": "docs/features/reports/mock/index.html",
+    "design": "docs/features/reports/design.md",
     "confirmedAt": "2026-10-26",
-    "confirmation": "Owner viewed the review page (instant phrase grey text in English, half-typed word, Malay, Chinese; model completion when no phrase matches; Settings → AI model choice; Phrase list card ready / off / building / empty; phrase list, Malay filter, add, phone) and confirmed 2026-10-26 (\"ok implement it\")"
+    "confirmation": "Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of data, no messages yet) and confirmed 2026-10-26 (\"look fine, implement it\"); open questions unanswered, proposals stand (admins only, missed after 1 hour, inbox hand-off warning not in scope)"
   },
   "proposals": [
     {
@@ -26,7 +26,8 @@
       "baselineAppRevision": "027a03e",
       "coverage": "Full app clone of the confirmed ai-phrase-dictionary reference; Admin -> Reports (first admin nav item, admins only): 7/30/90 days, six totals with change vs the previous period (new customers, messages from customers and replies, median first reply, missed new customers, waiting after AI hand-off with Open chats, chats the AI answered), Busy days (weekday averages, busiest highlighted), Busy times (weekday x hour heatmap with readout), messages from customers per day (weekend shading, busiest day, pointer/tap readout), new customers per day (line), AI hand-off reasons with a Business context link, Team table; Show as table on every chart; states: 4 months, 5 days (too early note), no messages yet, loading, error; mock-only routes GET /api/mock/reports and GET/PUT /api/mock/reports/scenario with seeded demo numbers; desktop 1280 / mobile 360 touch, light/dark (reports-shots.mjs)",
       "confirmedAt": "2026-10-26",
-      "confirmation": "Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of data, no messages yet) and confirmed 2026-10-26 (\"look fine, implement it\"); open questions unanswered, proposals stand (admins only, missed after 1 hour, inbox hand-off warning not in scope)"
+      "confirmation": "Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of data, no messages yet) and confirmed 2026-10-26 (\"look fine, implement it\"); open questions unanswered, proposals stand (admins only, missed after 1 hour, inbox hand-off warning not in scope)",
+      "gitRevision": "ce564681e48c10454f8b610c92d5d6ebfcb6379d"
     },
     {
       "feature": "ai-phrase-dictionary",

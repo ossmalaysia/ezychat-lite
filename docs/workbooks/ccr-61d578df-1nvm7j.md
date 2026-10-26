@@ -5,7 +5,7 @@ Branch: `ccr-61d578df-1nvm7j` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | Reports mock (docs/features/reports): Admin → Reports with busy days, busy times, per-day, new customers, hand-off reasons, team; 44 screenshots desktop/mobile light/dark; waiting for owner confirmation | 149b5b9 | 2026-10-26 |
+| Design | done | Mock confirmed by the owner 2026-10-26 ("look fine, implement it"); reference ce56468 on the ai-phrase-dictionary baseline | ce56468 | 2026-10-26 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `ccr-61d578df-1nvm7j` · Every agent updates its stage with
 ## Log
 
 - 2026-10-26 Design: doing — Reports mock (docs/features/reports): Admin → Reports with busy days, busy times, per-day, new customers, hand-off reasons, team; 44 screenshots desktop/mobile light/dark; waiting for owner confirmation (149b5b9)
+- 2026-10-26 Design: done — Mock confirmed by the owner 2026-10-26 ("look fine, implement it"); reference ce56468 on the ai-phrase-dictionary baseline (ce56468)

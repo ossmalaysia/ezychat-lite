@@ -114,3 +114,5 @@ Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of
 confirmed 2026-10-26 ("look fine, implement it"). The three questions were not answered, so the proposals stand:
 **admins only**, **missed = no reply within 1 hour (fixed)**, and the inbox warning for chats waiting after a
 hand-off is **not part of this feature** (a separate small feature later).
+
+Reference revision `ce56468` (`mock-index.json` → `latestConfirmed`).
