@@ -1543,7 +1543,7 @@
         "name": "Google Calendar",
         "short": "Check free times and book appointments.",
         "long": "Your AI agent offers free times from your Google Calendar and, if you allow it, books the time the customer confirms. Sign in with Google: no link to paste.",
-        "privacy": "{{product}} reads busy times of the calendar you choose and writes only the events it books: title, customer name and WhatsApp number. No chat text goes to Google. The sign-in is stored encrypted on this computer."
+        "privacy": "{{product}} reads busy times of the calendar you choose and writes only the events it books: title, and the customer’s name, phone and email. No chat text goes to Google. The sign-in is stored encrypted on this computer."
       },
       "google-sheets": {
         "name": "Google Sheets",

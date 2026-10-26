@@ -1534,7 +1534,7 @@
         "name": "Google Calendar",
         "short": "Semak masa lapang dan tempah janji temu.",
         "long": "Ejen AI anda menawarkan masa lapang daripada Google Calendar anda dan, jika anda benarkan, menempah masa yang disahkan oleh pelanggan. Log masuk dengan Google: tiada pautan untuk ditampal.",
-        "privacy": "{{product}} membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, nama pelanggan dan nombor WhatsApp. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
+        "privacy": "{{product}} membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, serta nama, nombor telefon dan e-mel pelanggan. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
       },
       "google-sheets": {
         "name": "Google Sheets",

@@ -1533,7 +1533,7 @@
         "name": "Google Calendar",
         "short": "查看空闲时间并预约。",
         "long": "AI 代理会根据您的 Google Calendar 提供空闲时间，并在您允许时预约客户确认的时间。使用 Google 登录：无需粘贴链接。",
-        "privacy": "{{product}} 读取您所选日历的忙碌时间，只写入它预约的日程：标题、客户姓名和 WhatsApp 号码。聊天内容不会发送到 Google。登录信息加密保存在这台电脑上。"
+        "privacy": "{{product}} 读取您所选日历的忙碌时间，只写入它预约的日程：标题，以及客户的姓名、电话号码和电子邮件。聊天内容不会发送到 Google。登录信息加密保存在这台电脑上。"
       },
       "google-sheets": {
         "name": "Google Sheets",
