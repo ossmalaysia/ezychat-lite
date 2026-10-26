@@ -309,13 +309,23 @@ describe('write tools behind the guards', () => {
     r = await turn();
     // valueFrom: the SKU must come from Check stock in this chat.
     expect(await r.call(QUOTE, quote())).toBe(
-      `Not done: "sku" must be a value that ${STOCK} returned in this chat in the last 24 hours. Call ${STOCK} first and use one of its values unchanged.`,
+      `Not done: "sku" must be a value that ${STOCK} returned in this chat in the last 24 hours. Call ${STOCK} first and pass one of its values unchanged.`,
     );
     await r.call(STOCK, { query: 'kaya' });
-    // fromCustomer: the name and email must be the customer's.
+    // fromCustomer: the name and email must be the customer's (whole words, 3+ characters); an
+    // omitted or renamed one is refused (the renamed key is dropped before the guards).
     expect(await r.call(QUOTE, quote({ customer_name: 'Someone Else' }))).toContain(
-      'pass only the "customer_name"',
+      'pass the "customer_name"',
     );
+    expect(await r.call(QUOTE, quote({ customer_name: 'Yin' }))).toContain(
+      'pass the "customer_name"',
+    );
+    expect(
+      await r.call(QUOTE, quote({ customer_email: undefined, customerEmail: 'x@example.com' })),
+    ).toContain('pass the "customer_email"');
+    // Arguments must match the partner's fields and types.
+    expect(await r.call(QUOTE, quote({ quantity: '2' }))).toContain('do not match the fields');
+    expect(await r.call(QUOTE, quote({ sku: undefined }))).toContain('do not match the fields');
     // within: the delivery time must be in the agent's hours.
     expect(await r.call(QUOTE, quote({ delivery_at: '2026-11-02T22:00:00+08:00' }))).toContain(
       '"delivery_at" is outside',
@@ -337,6 +347,11 @@ describe('write tools behind the guards', () => {
     // The chat line is written at once; the turn's used() leaves the change out.
     expect(toolEvents()).toEqual([{ title: 'Create quotation', sourceLabel: 'Kedai CRM (test)' }]);
     expect(r.used()).toEqual([{ title: 'Check stock', sourceLabel: 'Kedai CRM (test)' }]);
+    // One confirmation, one change: a regenerated reply (a new turn, no new message) is refused.
+    expect(await (await turn()).call(QUOTE, quote())).toContain('the customer has not confirmed');
+    aiReplies('Done: Q-2001. Anything else?');
+    await customerSays('Yes, one more for my company please');
+    r = await turn();
     // The saved contact counts as the customer's (fromCustomer).
     t.ctx.services.customers!.save(
       jid,
@@ -365,9 +380,12 @@ describe('write tools behind the guards', () => {
       ['refused', 'create_quotation', 'value_from'],
       ['checked', 'check_stock', null],
       ['refused', 'create_quotation', 'from_customer'],
+      ['refused', 'create_quotation', 'from_customer'],
+      ['refused', 'create_quotation', 'from_customer'],
       ['refused', 'create_quotation', 'within'],
       ['refused', 'create_quotation', 'within'],
       ['done', 'create_quotation', null],
+      ['refused', 'create_quotation', 'confirm_first'],
       ['done', 'create_quotation', null],
       ['refused', 'create_quotation', 'limit'],
     ]);
@@ -402,6 +420,45 @@ describe('write tools behind the guards', () => {
     };
     expect(await r.call(QUOTE, input)).toContain('"sku" must be a value');
     expect(kit.state.quotations.filter((q) => q.quantity === 1)).toEqual([]);
+  });
+});
+
+describe('reservations', () => {
+  it('lets only one of two parallel calls pass a limit, and frees the call when it fails', async () => {
+    await setUp();
+    entries[1]!.tools![0]!.guards = { limits: { perChat: 1 } };
+    await customerSays('Invoice INV-1001?');
+    kit.setState('api-key', 'down');
+    let r = await turn();
+    await expect(r.call(FIND, { invoice_number: 'INV-1001' })).rejects.toThrow();
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM connector_calls').get()).toEqual({ n: 0 });
+    kit.setState('api-key', 'ok');
+    r = await turn();
+    const both = await Promise.all([
+      r.call(FIND, { invoice_number: 'INV-1001' }),
+      r.call(FIND, { invoice_number: 'INV-1002' }),
+    ]);
+    expect(both.filter((out) => out.includes('limit for this action was reached'))).toHaveLength(1);
+    expect(both.filter((out) => out.startsWith('Result from'))).toHaveLength(1);
+  });
+
+  it('lets only one of two parallel writes use one confirmation', async () => {
+    await setUp();
+    await customerSays('I am Mei Ying, mei@example.com. Quote 2 kaya jams?');
+    aiReplies('Shall I create the quotation?');
+    await customerSays('Yes');
+    const r = await turn();
+    await r.call(STOCK, { query: 'KA-KY-400' });
+    const input = {
+      customer_name: 'Mei Ying',
+      customer_email: 'mei@example.com',
+      sku: 'KA-KY-400',
+      quantity: 3,
+      delivery_at: DELIVERY,
+    };
+    const both = await Promise.all([r.call(QUOTE, input), r.call(QUOTE, input)]);
+    expect(both.filter((out) => out.includes('has not confirmed'))).toHaveLength(1);
+    expect(kit.state.quotations.filter((q) => q.quantity === 3)).toHaveLength(1);
   });
 });
 

@@ -8,6 +8,8 @@ import type { PartnerTool } from './mcp.js';
 export const VALUE_TTL_MS = 24 * 3_600_000;
 /** Calls counted by the guard `limits` (per chat and per day: the last 24 hours). */
 export const LIMIT_WINDOW_MS = 24 * 3_600_000;
+/** A customer message that confirmed a write is remembered this long (never confirms twice). */
+export const CONSENT_TTL_MS = 30 * 24 * 3_600_000;
 export const ACTIVITY_LIMIT = 50;
 /** Values recorded per read result. */
 const MAX_VALUES_PER_RESULT = 500;
@@ -131,9 +133,18 @@ export function clearConnection(db: DB, id: string, now: number): void {
 
 // ── per-agent settings ──────────────────────────────────────────────────────────────────────
 
+/**
+ * One tool switch as an admin left it, with the access the tool had then: a switch set while the
+ * tool was a look-up never turns on a tool the list later made a write tool.
+ */
+export interface StoredToolSwitch {
+  on: boolean;
+  access: 'read' | 'write';
+}
+
 export interface StoredAgentSettings {
   settings: Record<string, unknown>;
-  tools: Record<string, boolean>;
+  tools: Record<string, StoredToolSwitch>;
 }
 
 export function readAgentSettings(db: DB, id: string, agentId: number): StoredAgentSettings | null {
@@ -145,7 +156,7 @@ export function readAgentSettings(db: DB, id: string, agentId: number): StoredAg
   if (!row) return null;
   return {
     settings: json<Record<string, unknown>>(row.settings_json, {}),
-    tools: json<Record<string, boolean>>(row.tools_json, {}),
+    tools: json<Record<string, StoredToolSwitch>>(row.tools_json, {}),
   };
 }
 
@@ -258,19 +269,62 @@ export function hasValue(
     .get(id, chatJid, tool, value.toLowerCase(), now - VALUE_TTL_MS);
 }
 
+/**
+ * Reserves one call (guard `limits`) and, for a write behind `confirmFirst`, the customer message
+ * that confirmed it. Synchronous, so a parallel call of the same step sees it. Returns the row id
+ * (removed again with `releaseCall` when the call is refused or fails).
+ */
 export function recordCall(
   db: DB,
   id: string,
   tool: string,
   chatJid: string | null,
   now: number,
-): void {
-  db.transaction(() => {
-    db.prepare('DELETE FROM connector_calls WHERE at < ?').run(now - LIMIT_WINDOW_MS);
+  consentMessageId: string | null = null,
+): number {
+  return db.transaction(() => {
+    // Plain counts last a day; a used consent is kept long enough never to be reused.
     db.prepare(
-      'INSERT INTO connector_calls (connector_id, tool, chat_jid, at) VALUES (?, ?, ?, ?)',
-    ).run(id, tool, chatJid, now);
+      'DELETE FROM connector_calls WHERE at < ? AND (consent_message_id IS NULL OR at < ?)',
+    ).run(now - LIMIT_WINDOW_MS, now - CONSENT_TTL_MS);
+    return Number(
+      db
+        .prepare(
+          'INSERT INTO connector_calls (connector_id, tool, chat_jid, consent_message_id, at) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(id, tool, chatJid, consentMessageId, now).lastInsertRowid,
+    );
   })();
+}
+
+export function releaseCall(db: DB, rowId: number): void {
+  db.prepare('DELETE FROM connector_calls WHERE id = ?').run(rowId);
+}
+
+/** True when this tool already ran in this chat on the consent of this customer message. */
+export function consentUsed(
+  db: DB,
+  id: string,
+  tool: string,
+  chatJid: string,
+  messageId: string,
+): boolean {
+  return !!db
+    .prepare(
+      'SELECT 1 FROM connector_calls WHERE connector_id = ? AND tool = ? AND chat_jid = ? AND consent_message_id = ? LIMIT 1',
+    )
+    .get(id, tool, chatJid, messageId);
+}
+
+/** The customer's latest message in this chat after `since` (the confirming message), or null. */
+export function customerMessageSince(db: DB, chatJid: string, since: number): string | null {
+  const row = db
+    .prepare(
+      `SELECT id FROM messages WHERE chat_jid = ? AND from_me = 0 AND timestamp > ?
+       ORDER BY timestamp DESC, id DESC LIMIT 1`,
+    )
+    .get(chatJid, since) as { id: string } | undefined;
+  return row?.id ?? null;
 }
 
 export function countCalls(

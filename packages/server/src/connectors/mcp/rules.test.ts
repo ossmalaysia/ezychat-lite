@@ -11,7 +11,7 @@ import {
   fillUrl,
   headerNameProblem,
 } from './credentials.js';
-import { argAt, customerGave, fitsSetting, localTime, refusalText } from './guards.js';
+import { argAt, cleanArgs, customerGave, fitsSetting, localTime, refusalText } from './guards.js';
 import {
   boundedInputSchema,
   capText,
@@ -116,10 +116,10 @@ describe('connectorUrlProblem', () => {
 
 describe('testAllowance', () => {
   const on = { CONNECTORS_TEST_ALLOW_LOCAL: '1' };
-  it('needs the env switch and a fake-WhatsApp or dev run, never the service', () => {
-    expect(testAllowance({ mode: 'dev', fakeWa: false }, on)).toBe(true);
-    expect(testAllowance({ mode: 'standalone', fakeWa: true }, on)).toBe(true);
-    expect(testAllowance({ mode: 'standalone', fakeWa: false }, on)).toBe(false);
+  it('needs the env switch, dev mode and fake WhatsApp together', () => {
+    expect(testAllowance({ mode: 'dev', fakeWa: true }, on)).toBe(true);
+    expect(testAllowance({ mode: 'dev', fakeWa: false }, on)).toBe(false);
+    expect(testAllowance({ mode: 'standalone', fakeWa: true }, on)).toBe(false);
     expect(testAllowance({ mode: 'service', fakeWa: true }, on)).toBe(false);
     expect(testAllowance({ mode: 'dev', fakeWa: true }, {})).toBe(false);
     expect(
@@ -354,6 +354,9 @@ describe('guards', () => {
     expect(argAt({ a: { b: 'x' } }, 'a.b')).toBe('x');
     expect(argAt({ a: ['x'] }, 'a.0')).toBeUndefined();
     expect(argAt(null, 'a')).toBeUndefined();
+    expect(argAt({ a: [{ b: 'x' }] }, 'a.b')).toBeUndefined();
+    expect(argAt({}, 'toString')).toBeUndefined();
+    expect(argAt({ a: {} }, 'a.b')).toBeUndefined();
   });
 
   it('checks times against hours and days in the AI time zone', () => {
@@ -371,15 +374,83 @@ describe('guards', () => {
     expect(fitsSetting('2026-11-02T10:30:00Z', { ...hours, type: 'text' }, 'x', zone)).toBe(false);
   });
 
-  it('accepts what the customer wrote or the saved contact, never anything else', () => {
-    const texts = () => ['Hi, I am Mei Ying, call me on +60 12-345 6789'];
+  it('accepts what the customer wrote as whole words or the saved contact, never anything else', () => {
+    const texts = () => ['Hi, I am Mei Ying (mei.ying@example.com), call me on +60 12-345 6789.'];
     const saved = () => ['Mei Ying Tan', 'tan@example.com', '60111111111'];
     expect(customerGave('mei ying', texts, saved)).toBe(true);
-    expect(customerGave('0123456789', texts, saved)).toBe(true);
+    expect(customerGave('Mei.Ying@example.com', texts, saved)).toBe(true);
+    expect(customerGave('+60 12-345 6789', texts, saved)).toBe(true);
+    expect(customerGave('60123456789', texts, saved)).toBe(true);
     expect(customerGave('TAN@example.com', texts, saved)).toBe(true);
     expect(customerGave('+60 11-111 1111', texts, saved)).toBe(true);
+    // Part of a word or of a number, short values and other people never match.
+    expect(customerGave('ying@example.com', texts, saved)).toBe(false);
+    expect(customerGave('Yin', texts, saved)).toBe(false);
+    expect(customerGave('ei', texts, saved)).toBe(false);
+    expect(customerGave('0123456789', texts, saved)).toBe(false);
+    expect(customerGave('6789', texts, saved)).toBe(false);
+    expect(customerGave('12345', () => ['my code is 12345'], saved)).toBe(false);
     expect(customerGave('Someone', texts, saved)).toBe(false);
     expect(customerGave('', texts, saved)).toBe(false);
+    expect(customerGave('...', texts, saved)).toBe(false);
+  });
+
+  it('keeps only the declared fields of the arguments, with their types', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        qty: { type: 'integer' },
+        size: { type: 'string', enum: ['S', 'M'] },
+        tags: { type: 'array', items: { type: 'string' } },
+        who: { type: 'object', properties: { email: { type: 'string' } }, required: ['email'] },
+        loose: { type: 'object' },
+        any: {},
+      },
+      required: ['name'],
+      additionalProperties: false,
+    };
+    expect(
+      cleanArgs(schema, {
+        name: 'a',
+        qty: 2,
+        size: 'S',
+        tags: ['x'],
+        who: { email: 'e', alias: 'x' },
+        loose: { k: 1 },
+        any: 5,
+        extra: 'dropped',
+      }),
+    ).toEqual({
+      name: 'a',
+      qty: 2,
+      size: 'S',
+      tags: ['x'],
+      who: { email: 'e' },
+      loose: { k: 1 },
+      any: 5,
+    });
+    expect(cleanArgs(schema, { qty: 1 })).toBeNull();
+    expect(cleanArgs(schema, { name: 'a', qty: 1.5 })).toBeNull();
+    expect(cleanArgs(schema, { name: 'a', size: 'L' })).toBeNull();
+    expect(cleanArgs(schema, { name: 'a', tags: [1] })).toBeNull();
+    expect(cleanArgs(schema, { name: 'a', who: { alias: 'x' } })).toBeNull();
+    expect(cleanArgs(schema, ['a'])).toBeNull();
+    expect(cleanArgs(schema, null)).toBeNull();
+    const types = {
+      type: 'object',
+      properties: { n: { type: ['number', 'null'] }, b: { type: 'boolean' }, x: { type: 'date' } },
+    };
+    expect(cleanArgs(types, { n: null, b: true })).toEqual({ n: null, b: true });
+    expect(cleanArgs(types, { n: Number.NaN })).toBeNull();
+    expect(cleanArgs(types, { x: 'today' })).toBeNull();
+    let deep: Record<string, unknown> = { type: 'object', properties: {} };
+    let value: Record<string, unknown> = {};
+    for (let i = 0; i < 10; i++) {
+      deep = { type: 'object', properties: { n: deep } };
+      value = { n: value };
+    }
+    expect(cleanArgs(deep, value)).toBeNull();
   });
 
   it('tells the AI what to do on each refusal', () => {

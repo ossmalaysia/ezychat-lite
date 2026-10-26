@@ -27,7 +27,7 @@ node e2e/partner-mcp/cli.mjs --port 7611 --dir <folder> --ttl 60 --quiet
 ```
 
 The certificate and the list signing key stay in `--dir` (default `<tmp>/ezychat-partner-mcp`), so
-the app keeps trusting restarts. Start the app (Dev Build, `--fake-wa` or `--mode dev`) with the
+the app keeps trusting restarts. Start the app with `--mode dev --fake-wa` (both: the allowance needs a dev run with fake WhatsApp) with the
 printed lines, also written to `<dir>/env.txt`:
 
 ```text

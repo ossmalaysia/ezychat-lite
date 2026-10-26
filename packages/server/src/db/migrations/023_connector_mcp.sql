@@ -56,12 +56,14 @@ CREATE INDEX idx_connector_values ON connector_values(connector_id, chat_jid, to
 CREATE INDEX idx_connector_values_at ON connector_values(at);
 CREATE INDEX idx_connector_values_chat ON connector_values(chat_jid);
 
--- Calls that ran (guard `limits`: per chat and per day).
+-- Calls that ran (guard `limits`: per chat and per day), reserved before the partner call. A write
+-- behind `confirmFirst` keeps the customer message that confirmed it: one consent, one change.
 CREATE TABLE connector_calls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   connector_id TEXT NOT NULL,
   tool TEXT NOT NULL,
   chat_jid TEXT,
+  consent_message_id TEXT,
   at INTEGER NOT NULL
 );
 CREATE INDEX idx_connector_calls ON connector_calls(connector_id, tool, at);

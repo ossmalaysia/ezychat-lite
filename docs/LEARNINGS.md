@@ -141,6 +141,8 @@ into AGENTS.md.
   that needs them: parallel agents with disjoint files otherwise each write a private copy.
 - A scripted rename to a shared function's name can make a same-named local wrapper call itself
   (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
+- Every response shape that two parallel agents share goes in `packages/shared` before they start: a zod schema
+  written only on the web side hid a server/web mismatch (`tools` as a count vs a list of names).
 
 ## Git, GitHub and CI
 
@@ -685,6 +687,11 @@ into AGENTS.md.
 - Never trust a media file's self-declared length or size (Ogg granule, headers): count the real
   packets before decoding or uploading, and cap decoded output, because customers send crafted files.
   Test such limits with genuinely oversized input, not by editing the header (that is the attack).
+- Guards in front of AI tools fail closed: an argument path that does not resolve refuses the call, and arguments
+  are checked against the tool's schema first (extra keys are dropped). A per-chat or per-day limit reserves its
+  slot synchronously with the check, before any `await`: the AI SDK runs the tool calls of one step in parallel.
+- A signed list that the app downloads is trusted only after the signature over the exact bytes, a sequence that
+  never goes down, and the hash of every referenced file pass; one bad file rejects the whole list.
 
 ## WhatsApp / Baileys
 
@@ -936,6 +943,10 @@ into AGENTS.md.
   never override them; editable instructions hold role, scope and style only, company facts go in the
   Business context, and hand-offs are structured actions, never text markers (they would reach the
   customer).
+- Data shipped inside the app (a built-in fallback list) uses `minAppVersion: '0.0.0'`: unit tests run as
+  `0.0.0-test`, so any higher minimum marks the built-in entries "needs update" in tests and Dev Builds.
+- Server unit tests may import an `e2e/` helper only as `.mjs` with a `.d.mts` type file: a `.ts` file outside
+  `packages/server` breaks its typecheck (TS6059 rootDir).
 
 ## Desktop and web UI
 

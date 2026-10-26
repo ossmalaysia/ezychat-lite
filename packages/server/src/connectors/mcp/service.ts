@@ -66,6 +66,7 @@ import {
   listConnections,
   readAgentSettings,
   recordCall,
+  releaseCall,
   recordValues,
   saveConnection,
   setSecret,
@@ -88,16 +89,14 @@ export const TEST_ALLOW_LOCAL_ENV = 'CONNECTORS_TEST_ALLOW_LOCAL';
 const MAX_CHOICES = 100;
 
 /**
- * The test-only loopback allowance: the env switch AND a fake-WhatsApp or dev run, never the
- * installed service. Nothing in the UI or the API can turn it on. (Enterprise `testAllowance`.)
+ * The test-only loopback allowance: the env switch AND a dev run with fake WhatsApp (as the list's
+ * dev switches), never a packaged or installed app. Nothing in the UI or the API can turn it on.
  */
 export function testAllowance(
   config: Pick<ServerConfig, 'mode' | 'fakeWa'>,
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  if (env[TEST_ALLOW_LOCAL_ENV] !== '1') return false;
-  if (config.mode === 'service') return false;
-  return config.fakeWa === true || config.mode === 'dev';
+  return env[TEST_ALLOW_LOCAL_ENV] === '1' && config.mode === 'dev' && config.fakeWa === true;
 }
 
 /** What is stored encrypted per connection. */
@@ -509,8 +508,13 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
     const settingIds = new Set((entry.settings ?? []).map((s) => s.id));
     for (const [key, value] of Object.entries(stored.settings))
       if (settingIds.has(key)) base.settings[key] = value;
-    for (const [key, value] of Object.entries(stored.tools))
-      if (key in base.tools && typeof value === 'boolean') base.tools[key] = value;
+    // A switch counts only for the access it was set for: a look-up the list later turns into a
+    // write tool starts off again until an admin switches it on as a write tool.
+    for (const tool of entry.tools!) {
+      const saved = stored.tools[tool.name];
+      if (saved && typeof saved.on === 'boolean' && saved.access === tool.access)
+        base.tools[tool.name] = saved.on;
+    }
     return base;
   }
 
@@ -614,7 +618,21 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
       const toggled = Object.keys(next.tools).filter(
         (key) => before.tools[key] !== next.tools[key],
       );
-      writeAgentSettings(ctx.db, entry.id, agentId, next, now());
+      writeAgentSettings(
+        ctx.db,
+        entry.id,
+        agentId,
+        {
+          settings: next.settings,
+          tools: Object.fromEntries(
+            entry.tools!.map((t) => [
+              t.name,
+              { on: next.tools[t.name] === true, access: t.access },
+            ]),
+          ),
+        },
+        now(),
+      );
       if (changed.length || toggled.length)
         audit(ctx.db, {
           userId: actor.userId,
@@ -795,6 +813,23 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
         return failed('refused');
       }
       delete p.data.codeVerifier;
+      // Disconnect or a new sign-in while the partner answered: this grant is not wanted any more.
+      const discarded = async () => {
+        if (pending.get(p.requestId) === p) return false;
+        p.result = { status: 'failed', problem: 'cancelled' };
+        await revoke(p.data).catch(() => undefined);
+        log.info(
+          { event: 'connector_sign_in_discarded', connector: p.connectorId },
+          'Partner sign-in discarded',
+        );
+        return true;
+      };
+      if (await discarded())
+        return callbackPage(
+          400,
+          'Sign-in cancelled',
+          'You can close this window and try again from EzyChat.',
+        );
       let tools: PartnerTool[];
       try {
         tools = await verify(
@@ -805,6 +840,12 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
       } catch (e) {
         return failed((e as HttpError).code as ConnectorProblem);
       }
+      if (await discarded())
+        return callbackPage(
+          400,
+          'Sign-in cancelled',
+          'You can close this window and try again from EzyChat.',
+        );
       store(
         p.connectorId,
         p.entry,
@@ -882,10 +923,11 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
 
     /** Disconnect: revokes an OAuth grant when the partner offers it, deletes the secrets. */
     async disconnect(id: string, actor: { userId: number; ip: string | null }) {
+      // A sign-in still waiting for the partner is cancelled too (its callback is then discarded).
+      pending.forget(id);
       const row = getConnection(ctx.db, id);
       if (!row) throw errors.notFound('Connection');
       const secret = readSecret(row);
-      pending.forget(id);
       clearConnection(ctx.db, id, now());
       if (secret && (secret.type === 'oauth' || secret.type === 'oauth_own_app'))
         await revoke(secret.oauth).catch(() => undefined);
@@ -986,8 +1028,18 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
       if (values.length) recordValues(ctx.db, id, chatJid, tool, values, now());
     },
 
-    recordCall(id: string, tool: string, chatJid: string | null) {
-      recordCall(ctx.db, id, tool, chatJid, now());
+    /** Reserves a call (limits, confirmFirst consent); returns the reservation to release on failure. */
+    recordCall(
+      id: string,
+      tool: string,
+      chatJid: string | null,
+      consentMessageId: string | null = null,
+    ) {
+      return recordCall(ctx.db, id, tool, chatJid, now(), consentMessageId);
+    },
+
+    releaseCall(reservation: number) {
+      releaseCall(ctx.db, reservation);
     },
 
     customerTexts: (chatJid: string) => customerTexts(ctx.db, chatJid),

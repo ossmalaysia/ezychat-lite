@@ -656,6 +656,61 @@ describe('disconnect, settings, activity and choices', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('keeps a look-up switch from turning on a tool the list later makes a write tool', async () => {
+    await setUp();
+    await connect('test-kedai', { key: PARTNER_CREDENTIALS.apiKey });
+    const agentId = makeAgent();
+    // Saved while find_invoice was a look-up (on by default).
+    expect((await api('PUT', `/test-kedai/agents/${agentId}`, { settings: {} })).statusCode).toBe(
+      200,
+    );
+    const stored = t.ctx.db.prepare('SELECT tools_json FROM connector_agent_settings').get() as {
+      tools_json: string;
+    };
+    expect(JSON.parse(stored.tools_json).find_invoice).toEqual({ on: true, access: 'read' });
+    const kedai = entries[1]!;
+    kedai.tools = kedai.tools!.map((tool) =>
+      tool.name === 'find_invoice' ? { ...tool, access: 'write' } : tool,
+    );
+    expect((await api('GET', `/test-kedai/agents/${agentId}`)).json().tools.find_invoice).toBe(
+      false,
+    );
+    expect(
+      svc()
+        .turnConnectors(agentId)[0]!
+        .tools.map((tool) => tool.def.name),
+    ).not.toContain('find_invoice');
+    // The admin switches it on as a write tool.
+    const on = await api('PUT', `/test-kedai/agents/${agentId}`, { tools: { find_invoice: true } });
+    expect(on.json().tools.find_invoice).toBe(true);
+    expect(
+      svc()
+        .turnConnectors(agentId)[0]!
+        .tools.map((tool) => tool.def.name),
+    ).toContain('find_invoice');
+  });
+
+  it('discards a sign-in that finishes after Disconnect, and revokes its grant', async () => {
+    await setUp();
+    const start = (await connect('test-lejar')).json() as ConnectorConnectResult;
+    const back = await completeConsent(start.authorizationUrl!, 'allow', kit.cert);
+    const revokedBefore = kit.oauth.oauth.revoked;
+    const finishing = svc().callback(Object.fromEntries(back.searchParams));
+    // Disconnect while the partner exchange is under way (no saved connection yet: 404).
+    await expect(svc().disconnect('test-lejar', { userId: 1, ip: null })).rejects.toThrow(
+      /not found/,
+    );
+    const page = await finishing;
+    expect(page).toMatchObject({ status: 400, title: 'Sign-in cancelled' });
+    expect(svc().port.view('test-lejar')).toBeNull();
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM connector_connections').get()).toEqual({
+      n: 0,
+    });
+    expect(kit.oauth.oauth.revoked).toBe(revokedBefore + 1);
+  });
+});
+
 describe('test connector list', () => {
   const get = (url: string) =>
     new Promise<Buffer>((resolve, reject) => {
