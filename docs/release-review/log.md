@@ -211,3 +211,24 @@ Tier **core**, set by: apps/web/src/api/queries.ts, apps/web/src/extensions/type
 Hard stops: none
 
 Decision: **risk:human**
+
+## 2026-10-26 · PR #191 · `8577733` · risk:human (50)
+
+Tier **core**, set by: apps/web/src/api/queries.ts, apps/web/src/extensions/types.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 1186 code lines | -35 | ✓ |
+| Changed-lines coverage 97.8 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **50** | |
+
+Hard stops: none
+
+Decision: **risk:human**
