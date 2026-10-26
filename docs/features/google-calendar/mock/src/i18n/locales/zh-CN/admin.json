@@ -1414,7 +1414,9 @@
       "data": "表格",
       "payments": "付款",
       "commerce": "网店",
-      "custom": "自定义"
+      "custom": "自定义",
+      "accounting": "会计",
+      "crm": "CRM"
     },
     "status": {
       "connected": "已连接",
@@ -1427,7 +1429,7 @@
     "more": "更多连接器",
     "noMatch": "没有匹配的连接器",
     "noMatchHint": "试试其他关键词或类别。",
-    "missing": "没有您用的系统？请通过“帮助与反馈”告诉我们。",
+    "missing": "没有您用的系统？在 WhatsApp 上问我们。",
     "breadcrumb": "导航路径",
     "notFound": "此连接器不存在。",
     "backToGallery": "全部连接器",
@@ -1446,7 +1448,7 @@
     "privacyTitle": "您的数据",
     "enterpriseOnly": "此连接器属于 EzyChat Enterprise。",
     "comingSoonTitle": "即将推出",
-    "comingSoonBody": "尚未推出。此页面介绍它将提供的功能。",
+    "comingSoonBody": "尚未推出。为它投票：请求最多的连接器会优先推出。",
     "custom": {
       "setUpTitle": "连接任何系统",
       "setUpBody": "粘贴系统或开发人员提供的 MCP 服务器链接并登录，然后为每个 AI 助手选择可以使用的工具。",
@@ -1534,7 +1536,143 @@
         "short": "连接任何提供 MCP 服务器的系统。",
         "long": "适用于您自己的系统：粘贴 MCP 服务器链接并登录，然后为每个 AI 助手选择可以使用的工具。会修改数据的工具默认关闭。",
         "privacy": "EzyChat 只向系统发送某个工具在一次对话中需要的内容。"
+      },
+      "autocount": {
+        "name": "AutoCount",
+        "short": "来自 AutoCount Accounting 的库存、价格和报价单。",
+        "long": "AI 根据 AutoCount 回答库存和价格问题，并起草报价单供团队发送。",
+        "tools": {
+          "stock": "库存和价格",
+          "stockHint": "查询商品的库存和售价。",
+          "quotation": "创建报价单",
+          "quotationHint": "为客户起草报价单，由您的团队发送。"
+        },
+        "privacy": "EzyChat 只向 AutoCount 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "来自 SQL Account 的库存、价格和客户余额。",
+        "long": "AI 在 SQL Account 中查询库存和价格，并告诉客户未付余额。",
+        "tools": {
+          "stock": "库存和价格",
+          "stockHint": "查询商品的库存和售价。",
+          "outstanding": "未付余额",
+          "outstandingHint": "查询客户尚欠的金额。"
+        },
+        "privacy": "EzyChat 只向 SQL Account 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "bukku": {
+        "name": "Bukku",
+        "short": "来自 Bukku 的发票和报价单。",
+        "long": "AI 告诉客户发票是否已付款，并在 Bukku 中起草报价单。",
+        "tools": {
+          "invoice": "发票状态",
+          "invoiceHint": "查找发票以及是否已付款。",
+          "quotation": "创建报价单",
+          "quotationHint": "为客户起草报价单，由您的团队发送。"
+        },
+        "privacy": "EzyChat 只向 Bukku 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "xero": {
+        "name": "Xero",
+        "short": "Xero 中的发票状态和联系人。",
+        "long": "AI 在 Xero 中查询发票状态，并把新客户添加为联系人。",
+        "tools": {
+          "invoice": "发票状态",
+          "invoiceHint": "查找发票以及是否已付款。",
+          "contact": "添加联系人",
+          "contactHint": "把客户添加为联系人。"
+        },
+        "privacy": "EzyChat 只向 Xero 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "zoho-books": {
+        "name": "Zoho Books",
+        "short": "来自 Zoho Books 的发票和报价单。",
+        "long": "AI 在 Zoho Books 中查询发票并起草报价单。",
+        "tools": {
+          "invoice": "发票状态",
+          "invoiceHint": "查找发票以及是否已付款。",
+          "quotation": "创建报价单",
+          "quotationHint": "为客户起草报价单，由您的团队发送。"
+        },
+        "privacy": "EzyChat 只向 Zoho Books 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "在 Zoho CRM 中查找客户并添加潜在客户。",
+        "long": "AI 回答前先在 Zoho CRM 中查找客户，并把新咨询添加为潜在客户。",
+        "tools": {
+          "findContact": "查找客户",
+          "findContactHint": "按电话号码查找客户记录。",
+          "addLead": "添加潜在客户",
+          "addLeadHint": "根据客户需求添加新的潜在客户。"
+        },
+        "privacy": "EzyChat 只向 Zoho CRM 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "hubspot": {
+        "name": "HubSpot",
+        "short": "在 HubSpot 中查找客户并添加潜在客户。",
+        "long": "AI 在 HubSpot 中查找客户，并把新咨询添加为潜在客户。",
+        "tools": {
+          "findContact": "查找客户",
+          "findContactHint": "按电话号码查找客户记录。",
+          "addLead": "添加潜在客户",
+          "addLeadHint": "根据客户需求添加新的潜在客户。"
+        },
+        "privacy": "EzyChat 只向 HubSpot 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "woocommerce": {
+        "name": "WooCommerce",
+        "short": "WooCommerce 网店的订单状态和库存。",
+        "long": "客户询问订单在哪里时，AI 会在您的 WooCommerce 网店中查询。",
+        "tools": {
+          "orderStatus": "订单状态",
+          "orderStatusHint": "按订单号和客户电话查找订单。",
+          "productStock": "商品库存",
+          "productStockHint": "查看商品价格和库存。"
+        },
+        "privacy": "EzyChat 只向 WooCommerce 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "easystore": {
+        "name": "EasyStore",
+        "short": "来自 EasyStore 的订单状态和库存。",
+        "long": "AI 根据您的 EasyStore 网店回答订单和库存问题。",
+        "tools": {
+          "orderStatus": "订单状态",
+          "orderStatusHint": "按订单号和客户电话查找订单。",
+          "productStock": "商品库存",
+          "productStockHint": "查看商品价格和库存。"
+        },
+        "privacy": "EzyChat 只向 EasyStore 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "storehub": {
+        "name": "StoreHub",
+        "short": "来自 StoreHub POS 的库存和会员积分。",
+        "long": "AI 在 StoreHub 中查询库存和会员积分。",
+        "tools": {
+          "productStock": "商品库存",
+          "productStockHint": "查看商品价格和库存。",
+          "member": "会员积分",
+          "memberHint": "查看会员积分和等级。"
+        },
+        "privacy": "EzyChat 只向 StoreHub 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
+      },
+      "billplz": {
+        "name": "Billplz",
+        "short": "发送 Billplz 付款链接（FPX）。",
+        "long": "AI 为订单发送 Billplz 付款链接，付款后通知您的团队。",
+        "tools": {
+          "paymentLink": "创建付款链接",
+          "paymentLinkHint": "按团队或价目表设定的金额创建链接。",
+          "paymentStatus": "查看付款",
+          "paymentStatusHint": "查看链接是否已付款。"
+        },
+        "privacy": "EzyChat 只向 Billplz 发送一次对话中查询或操作所需的内容，从不发送对话内容。"
       }
-    }
+    },
+    "vote": "为此连接器投票",
+    "voteMessage": "EzyChat 团队您好，请在 EzyChat 中加入 {{name}} 连接器。我们会用它来：",
+    "request": "申请连接器",
+    "requestMessage": "EzyChat 团队您好，我们想要一个连接器用于："
   }
 }

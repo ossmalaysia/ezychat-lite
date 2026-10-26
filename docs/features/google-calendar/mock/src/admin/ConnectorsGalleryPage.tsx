@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ExternalLink, MessageCircle, ThumbsUp } from 'lucide-react';
 import { EmptyState, PageHeader } from '@/components/app';
 import { SearchField } from '@/components/app/SearchField';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   listedCategories,
+  voteUrl,
   listedConnectors,
   connectorStatus,
   type CatalogConnector,
@@ -37,6 +38,33 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
     >
       {tc(`mockConnectors.status.${status}`)}
     </Badge>
+  );
+}
+
+/**
+ * "Vote for this connector": opens WhatsApp with a ready message to the EzyChat team. Nothing is
+ * counted in the app (Lite sends no usage data); the team counts the requests it receives.
+ */
+export function VoteButton({ name, size = 'touch' }: { name: string; size?: 'sm' | 'touch' }) {
+  const { t } = useTranslation('admin');
+  return (
+    <Button
+      asChild
+      variant="outline"
+      size={size}
+      className={cn('self-start', size === 'sm' && 'min-h-9 pointer-coarse:min-h-11')}
+    >
+      <a
+        href={voteUrl(t('mockConnectors.voteMessage', { name }))}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="vote-connector"
+      >
+        <ThumbsUp aria-hidden />
+        {t('mockConnectors.vote')}
+        <ExternalLink aria-hidden />
+      </a>
+    </Button>
   );
 }
 
@@ -97,23 +125,29 @@ export function ConnectorsGalleryPage() {
   const grid = (list: typeof rows) => (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {list.map((r) => (
-        <li key={r.c.id}>
+        <li
+          key={r.c.id}
+          className={cn(
+            'flex h-full flex-col rounded-xl border',
+            // Lite: Enterprise-only connectors are greyed out; the page still explains them.
+            r.status === 'enterprise'
+              ? 'border-dashed bg-muted/40 text-muted-foreground'
+              : 'bg-card',
+          )}
+          data-testid={`connector-card-${r.c.id}`}
+        >
           <Link
             to={`/admin/connectors/${r.c.id}`}
-            className={cn(
-              'flex h-full min-h-11 items-start gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-              // Lite: Enterprise-only connectors are greyed out; the page still explains them.
-              r.status === 'enterprise'
-                ? 'border-dashed bg-muted/40 text-muted-foreground hover:bg-muted/60'
-                : 'bg-card hover:bg-muted/50',
-            )}
-            data-testid={`connector-card-${r.c.id}`}
+            className="flex min-h-11 flex-1 items-start gap-3 rounded-xl p-4 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <ConnectorIcon c={r.c} muted={r.status === 'enterprise'} />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium break-words">{r.name}</span>
                 <ConnectorStatusBadge status={r.status} />
+                {r.status === 'enterprise' && !r.c.available && (
+                  <ConnectorStatusBadge status="comingSoon" />
+                )}
               </span>
               <span className="text-sm text-muted-foreground">{r.short}</span>
               <span className="text-xs text-muted-foreground">
@@ -122,6 +156,11 @@ export function ConnectorsGalleryPage() {
             </span>
             <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
+          {!r.c.available && (
+            <div className="px-4 pb-4">
+              <VoteButton name={r.name} size="sm" />
+            </div>
+          )}
         </li>
       ))}
     </ul>
@@ -182,7 +221,21 @@ export function ConnectorsGalleryPage() {
           {grid(others)}
         </section>
       )}
-      <p className="text-sm text-muted-foreground">{t('mockConnectors.missing')}</p>
+      <div className="flex flex-col items-start gap-2 rounded-lg border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">{t('mockConnectors.missing')}</p>
+        <Button asChild variant="outline" size="touch" className="shrink-0">
+          <a
+            href={voteUrl(t('mockConnectors.requestMessage'))}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="request-connector"
+          >
+            <MessageCircle aria-hidden />
+            {t('mockConnectors.request')}
+            <ExternalLink aria-hidden />
+          </a>
+        </Button>
+      </div>
     </div>
   );
 }

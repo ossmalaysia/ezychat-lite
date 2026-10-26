@@ -38,6 +38,14 @@ Calendar card in Settings → Integrations and the Bookings card on the agent pa
 - **Enterprise-only connectors in Lite** (owner, 2026-10-26: "ok to add in custom connector but grey out and
   mark enterprise only"): Custom connector (MCP), HitPay and Shopify stay listed in Lite, greyed out (dashed card,
   faded icon) with the badge **Enterprise only**; their page explains them and shows Upgrade to Enterprise.
+- **More business connectors, coming soon** (owner, 2026-10-26): AutoCount, SQL Account, Bukku, Xero, Zoho Books
+  (Accounting), Zoho CRM, HubSpot (CRM), WooCommerce, EasyStore, StoreHub (Online shop), Billplz (Payments). Listed as
+  Enterprise (the roadmap's local systems), coming soon; in Lite greyed out with Enterprise only + Coming soon.
+- **Vote for this connector** on every coming-soon card and page: opens WhatsApp to the EzyChat team
+  (`wa.me/601159246128`, the website's contact number) with a ready message naming the connector, in the UI
+  language. Nothing is counted inside the app (no tracking in Lite); the team counts the requests. The gallery footer
+  has **Ask for a connector** (same WhatsApp, open message). In the app the number is a `useAppLinks()` link an
+  edition may change or hide.
 - **Agent page → Connectors**: a short summary row per connected connector ("Checks free times; your team
   books") that opens the connector's Settings tab, and Browse connectors.
 - **Settings → Integrations**: a pointer to Admin → Connectors.

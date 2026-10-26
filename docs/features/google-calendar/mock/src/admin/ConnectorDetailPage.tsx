@@ -23,7 +23,7 @@ import { useMockEdition } from '@/mock/edition';
 import { useGoogleCalendar } from '@/mock/googleCalendar';
 import { useShownAgents } from '@/mock/useAgents';
 import { AgentBookingsCard } from './AgentBookingsCard';
-import { ConnectorIcon, ConnectorStatusBadge } from './ConnectorsGalleryPage';
+import { ConnectorIcon, ConnectorStatusBadge, VoteButton } from './ConnectorsGalleryPage';
 import { GoogleCalendarSection } from './GoogleCalendarSection';
 
 const TABS = ['overview', 'settings', 'activity'] as const;
@@ -128,9 +128,12 @@ export function ConnectorDetailPage() {
               <UpgradeButton className="shrink-0 self-start sm:self-auto" />
             </div>
           )}
-          {status === 'comingSoon' && (
+          {!c.available && (
             <Banner tone="info" title={t('mockConnectors.comingSoonTitle')}>
-              {t('mockConnectors.comingSoonBody')}
+              <span className="flex flex-col items-start gap-2">
+                {t('mockConnectors.comingSoonBody')}
+                <VoteButton name={tc(`mockConnectors.items.${c.id}.name`)} />
+              </span>
             </Banner>
           )}
           <About c={c} />

@@ -1415,7 +1415,9 @@
       "data": "Hamparan",
       "payments": "Bayaran",
       "commerce": "Kedai dalam talian",
-      "custom": "Tersuai"
+      "custom": "Tersuai",
+      "accounting": "Perakaunan",
+      "crm": "CRM"
     },
     "status": {
       "connected": "Disambung",
@@ -1428,7 +1430,7 @@
     "more": "Penyambung lain",
     "noMatch": "Tiada penyambung sepadan",
     "noMatchHint": "Cuba perkataan atau kategori lain.",
-    "missing": "Sistem anda tiada? Beritahu kami melalui Bantuan & maklum balas.",
+    "missing": "Sistem anda tiada? Tanya kami di WhatsApp.",
     "breadcrumb": "Laluan",
     "notFound": "Penyambung ini tidak wujud.",
     "backToGallery": "Semua penyambung",
@@ -1447,7 +1449,7 @@
     "privacyTitle": "Data anda",
     "enterpriseOnly": "Penyambung ini sebahagian daripada EzyChat Enterprise.",
     "comingSoonTitle": "Akan datang",
-    "comingSoonBody": "Ia belum sedia. Halaman ini menunjukkan apa yang akan dilakukannya.",
+    "comingSoonBody": "Ia belum sedia. Undi untuknya: penyambung dengan permintaan paling banyak didahulukan.",
     "custom": {
       "setUpTitle": "Sambung mana-mana sistem",
       "setUpBody": "Tampal pautan pelayan MCP yang diberi oleh sistem atau pembangun anda, log masuk, kemudian pilih alat yang boleh digunakan oleh setiap ejen AI.",
@@ -1535,7 +1537,143 @@
         "short": "Sambung mana-mana sistem yang menawarkan pelayan MCP.",
         "long": "Untuk sistem anda sendiri: tampal pautan pelayan MCP, log masuk, dan pilih alat yang boleh digunakan oleh setiap ejen AI. Alat yang mengubah data bermula dimatikan.",
         "privacy": "EzyChat hanya menghantar kepada sistem apa yang diminta oleh alat dalam satu giliran sembang."
+      },
+      "autocount": {
+        "name": "AutoCount",
+        "short": "Stok, harga dan sebut harga daripada AutoCount Accounting.",
+        "long": "AI menjawab soalan stok dan harga daripada AutoCount dan menyediakan draf sebut harga untuk dihantar oleh pasukan anda.",
+        "tools": {
+          "stock": "Stok dan harga",
+          "stockHint": "Menyemak stok dan harga jualan barang.",
+          "quotation": "Cipta sebut harga",
+          "quotationHint": "Menyediakan draf sebut harga; pasukan anda menghantarnya."
+        },
+        "privacy": "EzyChat hanya menghantar kepada AutoCount apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "Stok, harga dan baki pelanggan daripada SQL Account.",
+        "long": "AI menyemak stok dan harga dalam SQL Account dan memberitahu pelanggan baki tertunggak mereka.",
+        "tools": {
+          "stock": "Stok dan harga",
+          "stockHint": "Menyemak stok dan harga jualan barang.",
+          "outstanding": "Baki tertunggak",
+          "outstandingHint": "Menyemak baki yang masih perlu dibayar pelanggan."
+        },
+        "privacy": "EzyChat hanya menghantar kepada SQL Account apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "bukku": {
+        "name": "Bukku",
+        "short": "Invois dan sebut harga daripada Bukku.",
+        "long": "AI memberitahu pelanggan sama ada invois telah dibayar dan menyediakan draf sebut harga dalam Bukku.",
+        "tools": {
+          "invoice": "Status invois",
+          "invoiceHint": "Mencari invois dan sama ada ia telah dibayar.",
+          "quotation": "Cipta sebut harga",
+          "quotationHint": "Menyediakan draf sebut harga; pasukan anda menghantarnya."
+        },
+        "privacy": "EzyChat hanya menghantar kepada Bukku apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "xero": {
+        "name": "Xero",
+        "short": "Status invois dan kenalan dalam Xero.",
+        "long": "AI menyemak status invois dalam Xero dan menambah pelanggan baharu sebagai kenalan.",
+        "tools": {
+          "invoice": "Status invois",
+          "invoiceHint": "Mencari invois dan sama ada ia telah dibayar.",
+          "contact": "Tambah kenalan",
+          "contactHint": "Menambah pelanggan sebagai kenalan."
+        },
+        "privacy": "EzyChat hanya menghantar kepada Xero apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "zoho-books": {
+        "name": "Zoho Books",
+        "short": "Invois dan sebut harga daripada Zoho Books.",
+        "long": "AI menyemak invois dan menyediakan draf sebut harga dalam Zoho Books.",
+        "tools": {
+          "invoice": "Status invois",
+          "invoiceHint": "Mencari invois dan sama ada ia telah dibayar.",
+          "quotation": "Cipta sebut harga",
+          "quotationHint": "Menyediakan draf sebut harga; pasukan anda menghantarnya."
+        },
+        "privacy": "EzyChat hanya menghantar kepada Zoho Books apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "Cari pelanggan dan tambah petunjuk dalam Zoho CRM.",
+        "long": "AI mencari pelanggan dalam Zoho CRM sebelum menjawab dan menambah pertanyaan baharu sebagai petunjuk.",
+        "tools": {
+          "findContact": "Cari pelanggan",
+          "findContactHint": "Mencari rekod pelanggan mengikut nombor telefon.",
+          "addLead": "Tambah petunjuk",
+          "addLeadHint": "Menambah petunjuk baharu dengan permintaan pelanggan."
+        },
+        "privacy": "EzyChat hanya menghantar kepada Zoho CRM apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "hubspot": {
+        "name": "HubSpot",
+        "short": "Cari pelanggan dan tambah petunjuk dalam HubSpot.",
+        "long": "AI mencari pelanggan dalam HubSpot dan menambah pertanyaan baharu sebagai petunjuk.",
+        "tools": {
+          "findContact": "Cari pelanggan",
+          "findContactHint": "Mencari rekod pelanggan mengikut nombor telefon.",
+          "addLead": "Tambah petunjuk",
+          "addLeadHint": "Menambah petunjuk baharu dengan permintaan pelanggan."
+        },
+        "privacy": "EzyChat hanya menghantar kepada HubSpot apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "woocommerce": {
+        "name": "WooCommerce",
+        "short": "Status pesanan dan stok daripada kedai WooCommerce anda.",
+        "long": "Pelanggan bertanya di mana pesanan mereka; AI menyemaknya dalam kedai WooCommerce anda.",
+        "tools": {
+          "orderStatus": "Status pesanan",
+          "orderStatusHint": "Mencari pesanan mengikut nombor dan telefon pelanggan.",
+          "productStock": "Stok produk",
+          "productStockHint": "Menyemak harga dan stok produk."
+        },
+        "privacy": "EzyChat hanya menghantar kepada WooCommerce apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "easystore": {
+        "name": "EasyStore",
+        "short": "Status pesanan dan stok daripada EasyStore.",
+        "long": "AI menjawab soalan pesanan dan stok daripada kedai EasyStore anda.",
+        "tools": {
+          "orderStatus": "Status pesanan",
+          "orderStatusHint": "Mencari pesanan mengikut nombor dan telefon pelanggan.",
+          "productStock": "Stok produk",
+          "productStockHint": "Menyemak harga dan stok produk."
+        },
+        "privacy": "EzyChat hanya menghantar kepada EasyStore apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "storehub": {
+        "name": "StoreHub",
+        "short": "Stok dan mata ahli daripada POS StoreHub.",
+        "long": "AI menyemak stok dan mata ahli dalam StoreHub.",
+        "tools": {
+          "productStock": "Stok produk",
+          "productStockHint": "Menyemak harga dan stok produk.",
+          "member": "Mata ahli",
+          "memberHint": "Menyemak mata dan tahap ahli."
+        },
+        "privacy": "EzyChat hanya menghantar kepada StoreHub apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "billplz": {
+        "name": "Billplz",
+        "short": "Hantar pautan bayaran Billplz (FPX).",
+        "long": "AI menghantar pautan bayaran Billplz untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
+        "tools": {
+          "paymentLink": "Cipta pautan bayaran",
+          "paymentLinkHint": "Mencipta pautan untuk jumlah yang ditetapkan pasukan atau senarai harga anda.",
+          "paymentStatus": "Semak bayaran",
+          "paymentStatusHint": "Menyemak sama ada pautan telah dibayar."
+        },
+        "privacy": "EzyChat hanya menghantar kepada Billplz apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
       }
-    }
+    },
+    "vote": "Undi penyambung ini",
+    "voteMessage": "Hai pasukan EzyChat, sila tambah penyambung {{name}} dalam EzyChat. Kami akan menggunakannya untuk: ",
+    "request": "Minta penyambung",
+    "requestMessage": "Hai pasukan EzyChat, kami mahu penyambung untuk: "
   }
 }

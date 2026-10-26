@@ -125,6 +125,12 @@ for (const scheme of ['light', 'dark'])
     await page.goto('/admin/connectors/hitpay?edition=lite');
     await page.getByTestId('connector-page-hitpay').waitFor();
     await shot('13b-hitpay-lite', { fullPage: true });
+    await page.goto('/admin/connectors/autocount?edition=lite');
+    await page.getByTestId('connector-page-autocount').waitFor();
+    const vote = await page.getByTestId('vote-connector').getAttribute('href');
+    if (!vote?.startsWith('https://wa.me/601159246128?text=') || !vote.includes('AutoCount'))
+      problems.push(`${suffix} vote link: ${vote}`);
+    await shot('13d-autocount-lite', { fullPage: true });
     await page.goto('/admin/connectors/custom-mcp?edition=lite');
     await page.getByTestId('connector-page-custom-mcp').waitFor();
     await shot('13c-custom-lite', { fullPage: true });

@@ -1,4 +1,19 @@
-import { CalendarDays, CreditCard, Plug, ShoppingBag, Table2, type LucideIcon } from 'lucide-react';
+import {
+  BookOpenCheck,
+  Calculator,
+  CalendarDays,
+  ContactRound,
+  CreditCard,
+  Plug,
+  Receipt,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Table2,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import type { GoogleState } from './googleCalendar';
 
 /**
@@ -7,14 +22,26 @@ import type { GoogleState } from './googleCalendar';
  * Shopify, its custom MCP connector) through a web extension slot. Texts are catalog keys under
  * `mockConnectors.items.<id>`.
  */
-export type ConnectorCategory = 'booking' | 'data' | 'payments' | 'commerce' | 'custom';
+export type ConnectorCategory =
+  'booking' | 'accounting' | 'crm' | 'data' | 'payments' | 'commerce' | 'custom';
 export const CONNECTOR_CATEGORIES: readonly ConnectorCategory[] = [
   'booking',
+  'accounting',
+  'crm',
   'data',
   'payments',
   'commerce',
   'custom',
 ];
+
+/**
+ * Proposed: "Vote for this connector" opens a chat with the EzyChat team on WhatsApp (the number the
+ * website uses). In the app it is a `useAppLinks()` link an edition can change or hide (`null`).
+ */
+export const CONNECTOR_REQUEST_WHATSAPP = '601159246128';
+export function voteUrl(message: string): string {
+  return `https://wa.me/${CONNECTOR_REQUEST_WHATSAPP}?text=${encodeURIComponent(message)}`;
+}
 
 export interface CatalogConnector {
   id: string;
@@ -71,6 +98,127 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     tools: [
       { key: 'orderStatus', access: 'read' },
       { key: 'productStock', access: 'read' },
+    ],
+  },
+  {
+    id: 'autocount',
+    icon: Calculator,
+    category: 'accounting',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'stock', access: 'read' },
+      { key: 'quotation', access: 'write' },
+    ],
+  },
+  {
+    id: 'sql-account',
+    icon: Receipt,
+    category: 'accounting',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'stock', access: 'read' },
+      { key: 'outstanding', access: 'read' },
+    ],
+  },
+  {
+    id: 'bukku',
+    icon: BookOpenCheck,
+    category: 'accounting',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'invoice', access: 'read' },
+      { key: 'quotation', access: 'write' },
+    ],
+  },
+  {
+    id: 'xero',
+    icon: Wallet,
+    category: 'accounting',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'invoice', access: 'read' },
+      { key: 'contact', access: 'write' },
+    ],
+  },
+  {
+    id: 'zoho-books',
+    icon: Receipt,
+    category: 'accounting',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'invoice', access: 'read' },
+      { key: 'quotation', access: 'write' },
+    ],
+  },
+  {
+    id: 'zoho-crm',
+    icon: ContactRound,
+    category: 'crm',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'findContact', access: 'read' },
+      { key: 'addLead', access: 'write' },
+    ],
+  },
+  {
+    id: 'hubspot',
+    icon: Users,
+    category: 'crm',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'findContact', access: 'read' },
+      { key: 'addLead', access: 'write' },
+    ],
+  },
+  {
+    id: 'woocommerce',
+    icon: ShoppingCart,
+    category: 'commerce',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'orderStatus', access: 'read' },
+      { key: 'productStock', access: 'read' },
+    ],
+  },
+  {
+    id: 'easystore',
+    icon: Store,
+    category: 'commerce',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'orderStatus', access: 'read' },
+      { key: 'productStock', access: 'read' },
+    ],
+  },
+  {
+    id: 'storehub',
+    icon: Store,
+    category: 'commerce',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'productStock', access: 'read' },
+      { key: 'member', access: 'read' },
+    ],
+  },
+  {
+    id: 'billplz',
+    icon: CreditCard,
+    category: 'payments',
+    edition: 'enterprise',
+    available: false,
+    tools: [
+      { key: 'paymentLink', access: 'write' },
+      { key: 'paymentStatus', access: 'read' },
     ],
   },
   {

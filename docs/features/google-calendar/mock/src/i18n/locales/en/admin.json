@@ -1423,7 +1423,9 @@
       "data": "Spreadsheets",
       "payments": "Payments",
       "commerce": "Online shop",
-      "custom": "Custom"
+      "custom": "Custom",
+      "accounting": "Accounting",
+      "crm": "CRM"
     },
     "status": {
       "connected": "Connected",
@@ -1436,7 +1438,7 @@
     "more": "More connectors",
     "noMatch": "No connector matches",
     "noMatchHint": "Try another word or category.",
-    "missing": "Missing a system you use? Tell us through Help & feedback.",
+    "missing": "Missing a system you use? Ask us on WhatsApp.",
     "breadcrumb": "Breadcrumb",
     "notFound": "This connector does not exist.",
     "backToGallery": "All connectors",
@@ -1455,7 +1457,7 @@
     "privacyTitle": "Your data",
     "enterpriseOnly": "This connector is part of EzyChat Enterprise.",
     "comingSoonTitle": "Coming soon",
-    "comingSoonBody": "It is not ready yet. This page shows what it will do.",
+    "comingSoonBody": "It is not ready yet. Vote for it: the connectors with the most requests come first.",
     "custom": {
       "setUpTitle": "Connect any system",
       "setUpBody": "Paste the MCP server link your system or developer gave you, sign in, then choose per AI agent which tools it may use.",
@@ -1543,7 +1545,143 @@
         "short": "Connect any system that offers an MCP server.",
         "long": "For your own systems: paste an MCP server link, sign in, and choose per AI agent which of its tools the AI may use. Tools that change data start off.",
         "privacy": "EzyChat sends the system only what a tool asks for in one chat turn."
+      },
+      "autocount": {
+        "name": "AutoCount",
+        "short": "Stock, prices and quotations from AutoCount Accounting.",
+        "long": "The AI answers stock and price questions from AutoCount and drafts quotations for your team to send.",
+        "tools": {
+          "stock": "Stock and price",
+          "stockHint": "Looks up an item's stock and selling price.",
+          "quotation": "Create a quotation",
+          "quotationHint": "Drafts a quotation for the customer; your team sends it."
+        },
+        "privacy": "EzyChat sends AutoCount only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "Stock, prices and customer balances from SQL Account.",
+        "long": "The AI checks stock and prices in SQL Account and tells customers their outstanding balance.",
+        "tools": {
+          "stock": "Stock and price",
+          "stockHint": "Looks up an item's stock and selling price.",
+          "outstanding": "Outstanding balance",
+          "outstandingHint": "Checks what a customer still owes."
+        },
+        "privacy": "EzyChat sends SQL Account only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "bukku": {
+        "name": "Bukku",
+        "short": "Invoices and quotations from Bukku.",
+        "long": "The AI tells customers whether an invoice is paid and drafts quotations in Bukku.",
+        "tools": {
+          "invoice": "Invoice status",
+          "invoiceHint": "Finds an invoice and whether it is paid.",
+          "quotation": "Create a quotation",
+          "quotationHint": "Drafts a quotation for the customer; your team sends it."
+        },
+        "privacy": "EzyChat sends Bukku only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "xero": {
+        "name": "Xero",
+        "short": "Invoice status and contacts in Xero.",
+        "long": "The AI checks invoice status in Xero and adds new customers as contacts.",
+        "tools": {
+          "invoice": "Invoice status",
+          "invoiceHint": "Finds an invoice and whether it is paid.",
+          "contact": "Add a contact",
+          "contactHint": "Adds the customer as a contact."
+        },
+        "privacy": "EzyChat sends Xero only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "zoho-books": {
+        "name": "Zoho Books",
+        "short": "Invoices and quotations from Zoho Books.",
+        "long": "The AI checks invoices and drafts quotations in Zoho Books.",
+        "tools": {
+          "invoice": "Invoice status",
+          "invoiceHint": "Finds an invoice and whether it is paid.",
+          "quotation": "Create a quotation",
+          "quotationHint": "Drafts a quotation for the customer; your team sends it."
+        },
+        "privacy": "EzyChat sends Zoho Books only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "Find customers and add leads in Zoho CRM.",
+        "long": "The AI finds the customer in Zoho CRM before it answers and adds new enquiries as leads.",
+        "tools": {
+          "findContact": "Find the customer",
+          "findContactHint": "Finds the customer's record by phone number.",
+          "addLead": "Add a lead",
+          "addLeadHint": "Adds a new lead with the customer's request."
+        },
+        "privacy": "EzyChat sends Zoho CRM only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "hubspot": {
+        "name": "HubSpot",
+        "short": "Find customers and add leads in HubSpot.",
+        "long": "The AI finds the customer in HubSpot and adds new enquiries as leads.",
+        "tools": {
+          "findContact": "Find the customer",
+          "findContactHint": "Finds the customer's record by phone number.",
+          "addLead": "Add a lead",
+          "addLeadHint": "Adds a new lead with the customer's request."
+        },
+        "privacy": "EzyChat sends HubSpot only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "woocommerce": {
+        "name": "WooCommerce",
+        "short": "Order status and stock from your WooCommerce shop.",
+        "long": "Customers ask where their order is; the AI looks it up in your WooCommerce shop.",
+        "tools": {
+          "orderStatus": "Order status",
+          "orderStatusHint": "Finds an order by number and the customer's phone.",
+          "productStock": "Product stock",
+          "productStockHint": "Checks price and stock of a product."
+        },
+        "privacy": "EzyChat sends WooCommerce only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "easystore": {
+        "name": "EasyStore",
+        "short": "Order status and stock from EasyStore.",
+        "long": "The AI answers order and stock questions from your EasyStore shop.",
+        "tools": {
+          "orderStatus": "Order status",
+          "orderStatusHint": "Finds an order by number and the customer's phone.",
+          "productStock": "Product stock",
+          "productStockHint": "Checks price and stock of a product."
+        },
+        "privacy": "EzyChat sends EasyStore only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "storehub": {
+        "name": "StoreHub",
+        "short": "Stock and member points from StoreHub POS.",
+        "long": "The AI checks stock and a member's points in StoreHub.",
+        "tools": {
+          "productStock": "Product stock",
+          "productStockHint": "Checks price and stock of a product.",
+          "member": "Member points",
+          "memberHint": "Checks a member's points and tier."
+        },
+        "privacy": "EzyChat sends StoreHub only what a look-up or action needs in one chat, and never the chat text."
+      },
+      "billplz": {
+        "name": "Billplz",
+        "short": "Send Billplz payment links (FPX).",
+        "long": "The AI sends a Billplz payment link for an order and tells your team when it is paid.",
+        "tools": {
+          "paymentLink": "Create a payment link",
+          "paymentLinkHint": "Creates a link for the amount your team or price list sets.",
+          "paymentStatus": "Check payment",
+          "paymentStatusHint": "Checks whether a link was paid."
+        },
+        "privacy": "EzyChat sends Billplz only what a look-up or action needs in one chat, and never the chat text."
       }
-    }
+    },
+    "vote": "Vote for this connector",
+    "voteMessage": "Hi EzyChat team, please add the {{name}} connector to EzyChat. We would use it for: ",
+    "request": "Ask for a connector",
+    "requestMessage": "Hi EzyChat team, we would like a connector for: "
   }
 }
