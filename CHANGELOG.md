@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Connectors.** Admin → Connectors is a gallery of systems your AI agents can use, each with its own page
+  (overview, settings and activity). Connectors that are not ready yet show **Vote for this connector**, which
+  opens a WhatsApp chat with the EzyChat team; the app itself counts nothing.
+- **Google Calendar: free times and bookings.** Sign in with Google (no link to paste), choose the calendar and
+  booking hours per AI agent, and the AI offers free times from that calendar. With **Book appointments** on
+  (off by default) it adds the event once the customer confirms one of the offered times; EzyChat checks the time
+  is still free just before it books. The chat shows "AI checked free times" and "AI booked …", Try it never
+  books, and the AI never cancels or moves a booking (it hands those chats to your team).
+
 ## [0.1.59] - 2026-10-26
 
 ### Added
