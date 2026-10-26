@@ -80,7 +80,13 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
   const phrases = () => ctx.services.phrases!;
   const feedbackLimiter = new WindowLimiter({ windowMs: 60_000, max: 120 });
   const PhraseId = z.object({ id: z.coerce.number().int().positive() });
-  const AgentQuery = z.object({ agentId: z.coerce.number().int().positive().optional() });
+  const AgentQuery = z.object({
+    // `?agentId=` (empty) = the agent of inbox 1.
+    agentId: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.coerce.number().int().positive().optional(),
+    ),
+  });
   const actorOf = (req: FastifyRequest) => ({ userId: req.user!.id, ip: clientIp(req) });
   app.get('/chats/:jid/ai/phrases', async (req) => {
     const jid = chatJidParam(ctx, req);

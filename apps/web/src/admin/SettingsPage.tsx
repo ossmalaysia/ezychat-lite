@@ -23,6 +23,7 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { ReplySuggestionsSection } from './ReplySuggestionsSection';
+import { PhraseDictionarySection } from './PhraseDictionarySection';
 import { AiVoiceSection } from './AiVoiceSection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
@@ -288,6 +289,7 @@ export function SettingsPage() {
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
           <ReplySuggestionsSection />
+          <PhraseDictionarySection />
           {/* Optional features collapsed under one heading, closed by default. */}
           <details className="group rounded-lg border bg-card">
             <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">

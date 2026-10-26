@@ -442,7 +442,60 @@
       "enable": "Cadang balasan untuk pasukan",
       "cost": "Setiap cadangan dan setiap pelengkapan ialah satu permintaan kepada penyedia AI anda, yang mungkin mengenakan caj.",
       "noConnection": "Sambungkan penyedia AI di atas untuk menggunakan cadangan balasan.",
-      "upgraded": "Baharu: cadangan balasan. Ia dimatikan selepas kemas kini supaya tiada kos baharu tanpa pilihan anda."
+      "upgraded": "Baharu: cadangan balasan. Ia dimatikan selepas kemas kini supaya tiada kos baharu tanpa pilihan anda.",
+      "model": "Model untuk cadangan",
+      "modelFast": "Pantas (disyorkan): {{model}}",
+      "modelAgent": "Sama seperti sambungan AI: {{model}}",
+      "modelFastHint": "Cadang balasan dalam kira-kira 1–2 saat dan teks kelabu semasa anda menaip. {{model}} ialah model pantas sambungan ini.",
+      "modelSlowHint": "Model yang lebih besar menulis lebih perlahan: teks kelabu selalunya sampai terlalu lewat untuk membantu, dan setiap permintaan mungkin lebih mahal."
+    },
+    "phrases": {
+      "title": "Senarai frasa",
+      "description": "Teks kelabu serta-merta daripada frasa yang pasukan anda guna. AI membina senarai ini di latar belakang daripada konteks perniagaan, arahan AI dan balasan yang dihantar oleh pasukan, dan sentiasa mengemas kininya.",
+      "agent": "Ejen AI",
+      "off": "Cadangan balasan dimatikan, jadi senarai frasa tidak dikemas kini dan tidak digunakan.",
+      "building": "Sedang membina senarai frasa. AI membaca konteks perniagaan dan balasan pasukan anda…",
+      "empty": "Belum ada senarai frasa. Ia dibina sendiri beberapa minit selepas aplikasi bermula, atau tekan Bina sekarang.",
+      "error": "Senarai frasa tidak dapat dibina: AI tidak menjawab. Ia akan cuba lagi dalam sejam, atau tekan Bina semula sekarang.",
+      "count": "Frasa: {{count}}",
+      "updated": "Dikemas kini {{when}}",
+      "trigger": {
+        "start": "semasa aplikasi bermula.",
+        "context": "selepas konteks perniagaan berubah.",
+        "replies": "selepas balasan baharu pasukan.",
+        "manual": "oleh admin.",
+        "weekly": "dalam binaan semula mingguan."
+      },
+      "next": "Kemas kini seterusnya selepas {{count}} lagi balasan pasukan, atau apabila konteks perniagaan berubah.",
+      "calls": "Panggilan AI untuk senarai hari ini: {{used}} daripada maksimum {{limit}}.",
+      "view": "Lihat frasa",
+      "build": "Bina sekarang",
+      "rebuild": "Bina semula sekarang",
+      "privacy": "Senarai ini kekal dalam aplikasi ini. Nama dan nombor telefon pelanggan dibuang. Tab dan Esc pada frasa hanya dikira di sini.",
+      "listTitle": "Senarai frasa",
+      "listDescription": "Frasa muncul sebagai teks kelabu apabila perkataan terakhir rakan sepasukan sepadan. Yang paling kerap digunakan dahulu. Fakta (harga, waktu) disemak dengan konteks perniagaan.",
+      "search": "Cari frasa",
+      "language": "Bahasa",
+      "all": "Semua",
+      "lang": {
+        "en": "English",
+        "ms": "Bahasa Melayu",
+        "zh": "中文"
+      },
+      "add": "Tambah frasa",
+      "edit": "Sunting frasa",
+      "delete": "Padam frasa",
+      "cancel": "Batal",
+      "save": "Simpan frasa",
+      "text": "Frasa",
+      "noMatch": "Tiada frasa yang sepadan.",
+      "source": {
+        "context": "Daripada konteks perniagaan",
+        "team": "Daripada balasan pasukan",
+        "admin": "Ditambah oleh admin"
+      },
+      "uses": "Digunakan {{count}} kali",
+      "fact": "Fakta disemak dengan konteks perniagaan"
     }
   },
   "resolveAll": {

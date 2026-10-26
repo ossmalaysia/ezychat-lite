@@ -339,6 +339,9 @@ describe('phrase routes', () => {
   it('lets only admins manage phrases; edits become the admin’s and are audited without text', async () => {
     const s = await setup();
     expect((await inject(s.t, s.agentCookie, 'GET', '/api/ai/phrases')).statusCode).toBe(403);
+    // An empty agentId means the agent of inbox 1.
+    const byDefault = await inject(s.t, s.adminCookie, 'GET', '/api/ai/phrases?agentId=');
+    expect(byDefault.json().agentId).toBe(s.phrases.admin().agentId);
     const added = await inject(s.t, s.adminCookie, 'POST', '/api/ai/phrases', {
       text: 'We open at 8am daily.',
       language: 'en',

@@ -3,13 +3,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ReplySuggestionsStatus } from '@ezychat/shared';
 import { api, errorMessage } from '../api/client';
-import { replySuggestionsKey, useReplySuggestionsStatus } from '../api/reply-suggestions';
+import {
+  replySuggestionsKey,
+  suggestModelKey,
+  useReplySuggestionsStatus,
+  useSuggestModel,
+} from '../api/reply-suggestions';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { SaveBar } from './adminUi';
+import { Field, SaveBar } from './adminUi';
 
 /**
  * Settings → AI: the team-wide switch for AI reply suggestions. On by default on a new install with
@@ -22,19 +34,37 @@ export function ReplySuggestionsSection() {
   const [draft, setDraft] = useState<boolean>();
   const connected = query.data?.connected ?? false;
   const enabled = draft ?? query.data?.enabled ?? false;
-  const dirty = draft !== undefined && draft !== query.data?.enabled;
+  // Which model answers Suggest reply, the grey text and the phrase build.
+  const model = useSuggestModel(connected);
+  const [modelDraft, setModelDraft] = useState<string>();
+  const savedModel = model.data?.model ?? 'fast';
+  // A model the connection no longer lists (the mode changed) answers as Fast on the server too.
+  const shownModel =
+    modelDraft ??
+    (savedModel === 'fast' || savedModel === 'agent' || model.data?.models.includes(savedModel)
+      ? savedModel
+      : 'fast');
+  const switchDirty = draft !== undefined && draft !== query.data?.enabled;
+  const modelDirty = modelDraft !== undefined && modelDraft !== model.data?.model;
+  const dirty = switchDirty || modelDirty;
   const save = useMutation({
-    mutationFn: (next: boolean) =>
+    mutationFn: () =>
       api('/ai/reply-suggestions', {
         method: 'PUT',
-        body: { enabled: next },
+        body: {
+          ...(switchDirty ? { enabled } : {}),
+          ...(modelDirty ? { model: shownModel } : {}),
+        },
         schema: ReplySuggestionsStatus,
       }),
     onSuccess: (data) => {
       client.setQueryData(replySuggestionsKey, data);
+      void client.invalidateQueries({ queryKey: suggestModelKey });
       setDraft(undefined);
+      setModelDraft(undefined);
     },
   });
+  const info = model.data;
   return (
     <Card data-testid="reply-suggestions-settings">
       <CardHeader>
@@ -69,15 +99,44 @@ export function ReplySuggestionsSection() {
         {query.data && !connected && (
           <Banner tone="warning">{t('settings.replySuggestions.noConnection')}</Banner>
         )}
-        {(save.error || query.error) && (
-          <Banner tone="danger">{errorMessage(save.error || query.error)}</Banner>
+        {connected && info && (
+          <Field
+            label={t('settings.replySuggestions.model')}
+            hint={
+              shownModel === 'fast'
+                ? t('settings.replySuggestions.modelFastHint', { model: info.fastModel })
+                : t('settings.replySuggestions.modelSlowHint')
+            }
+          >
+            {(p) => (
+              <Select value={shownModel} onValueChange={setModelDraft}>
+                <SelectTrigger {...p} className="min-h-11 w-full" data-testid="suggest-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fast">
+                    {t('settings.replySuggestions.modelFast', { model: info.fastModel })}
+                  </SelectItem>
+                  <SelectItem value="agent">
+                    {t('settings.replySuggestions.modelAgent', { model: info.agentModel })}
+                  </SelectItem>
+                  {info.models
+                    .filter((id) => id !== info.fastModel)
+                    .map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+        )}
+        {(save.error || query.error || model.error) && (
+          <Banner tone="danger">{errorMessage(save.error || query.error || model.error)}</Banner>
         )}
         <SaveBar dirty={dirty}>
-          <Button
-            size="touch"
-            disabled={!dirty || save.isPending}
-            onClick={() => save.mutate(enabled)}
-          >
+          <Button size="touch" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
             {t('settings.save')}
           </Button>
         </SaveBar>
