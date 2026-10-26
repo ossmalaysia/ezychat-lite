@@ -15,6 +15,15 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Booking reminders** (2026-10-26, owner asked how; not in the first Google Calendar round): part of the
+  Google Calendar connector, per agent: on/off, 1 day / 3 h / 1 h before, editable text; only bookings EzyChat
+  made, re-read the event before sending (deleted → none, moved → new time), one per booking, not 10 pm–8 am;
+  Business API inboxes need an approved template. Later a general "skills" layer can reuse the scheduled send.
+- **Google app verification** (2026-10-26): project `ezychat-prod` is in production with verified branding;
+  data access (sensitive `calendar.events.owned`) needs the demo video and submission in the Verification Center.
+  Until then users see Google's unverified-app screen (100-user cap). Release bundles carry the client since this PR.
+- **Connector gallery: Enterprise custom connector tile** (2026-10-26): Enterprise registers its custom MCP
+  connector page for the core gallery tile (web extension `connectorLinks`) and drops its own Connectors nav item.
 - **Docs-only CI fast path** (2026-10-24): `main` requires the three `Test (*)` checks, so a doc PR cannot
   use `[skip ci]`. Add a first step in `ci.yml` that detects a change of `*.md` files only and reports the
   test jobs as passed without installing or testing.

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
-import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
+import { AI_TRY_QUESTION_CHARACTERS, type AiTryLookup } from '@ezychat/shared';
+import { formatTimeRange } from '@/lib/format';
 import { useAiTry } from '../api/ai';
 import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
@@ -59,6 +60,26 @@ export function AiTryIt({
         },
       },
     );
+  };
+  /** One look-up of the answer; Try it never changes data, so a booking is shown as not run. */
+  const lookupLine = (lookup: AiTryLookup) => {
+    const source = lookup.sourceLabel;
+    if (lookup.notRun) {
+      if (lookup.calendar) {
+        const { start, end } = lookup.calendar;
+        const when = start && end ? formatTimeRange(start, end) : '';
+        return when
+          ? t('ai.try.wouldBook', { when, source })
+          : t('ai.try.wouldBookSlot', { source });
+      }
+      return t('ai.try.wouldRun', { title: lookup.title, source });
+    }
+    if (lookup.ok && lookup.calendar?.action === 'checked')
+      return t('ai.try.calendarChecked', { source });
+    return t(lookup.ok ? 'ai.try.lookedUp' : 'ai.try.lookupFailed', {
+      title: lookup.title,
+      source,
+    });
   };
   const leak = ask.data?.action === 'handoff' && ask.data.handoffReason === 'confidential_leak';
   return (
@@ -137,10 +158,7 @@ export function AiTryIt({
                 >
                   {ask.data.lookups.map((lookup, index) => (
                     <li key={index} className="break-words [overflow-wrap:anywhere]">
-                      {t(lookup.ok ? 'ai.try.lookedUp' : 'ai.try.lookupFailed', {
-                        title: lookup.title,
-                        source: lookup.sourceLabel,
-                      })}
+                      {lookupLine(lookup)}
                     </li>
                   ))}
                 </ul>

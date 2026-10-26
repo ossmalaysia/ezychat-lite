@@ -89,3 +89,20 @@ export function initials(name: string): string {
 export function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }
+
+/**
+ * A booked time in the browser's time zone and the UI language: "Fri, 30 Oct, 7:30–9:00 pm".
+ * Empty when either end is not a valid date.
+ */
+export function formatTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '';
+  const day = new Intl.DateTimeFormat(tag(), {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(start);
+  const time = new Intl.DateTimeFormat(tag(), { hour: 'numeric', minute: '2-digit' });
+  return `${day}, ${time.format(start)}–${time.format(end)}`;
+}

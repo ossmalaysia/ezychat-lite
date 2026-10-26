@@ -40,3 +40,6 @@ initializers.push(initEnrichment);
 
 import { initPhrases } from './ai/phrases/service.js';
 initializers.push(initPhrases);
+
+import { initGoogleCalendar } from './connectors/google-calendar/service.js';
+initializers.push(initGoogleCalendar);

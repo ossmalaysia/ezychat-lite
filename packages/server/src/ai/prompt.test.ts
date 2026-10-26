@@ -37,6 +37,21 @@ it('answers order questions but hands requests it cannot carry out to the team',
   );
 });
 
+it('lets the AI act only through an offered tool that makes a change, and never undo one', () => {
+  const { instructions } = buildAiPrompt(knowledge, '', 'Delivery RM10', [], situation);
+  // One rule for every connector: no tool or connector name in the core rules.
+  expect(instructions).toContain(
+    'When such a tool is offered, you may use it, but only exactly as its description says',
+  );
+  expect(instructions).toContain('tell the customer it is done only when the tool reports it done');
+  expect(instructions).toContain(
+    'Never undo, cancel or move something done earlier unless a tool offered for exactly that allows it: hand over with needs_action',
+  );
+  expect(instructions).not.toMatch(/book_appointment|check_free_times/);
+  // Without the tool the general rule still stands.
+  expect(instructions).toContain('You cannot place, change or cancel orders, book, reserve');
+});
+
 it('asks "Does that answer your question?" in the customer language without inviting more', () => {
   const { instructions } = buildAiPrompt(knowledge, '', 'Delivery RM10', [], situation);
   expect(instructions).toContain(

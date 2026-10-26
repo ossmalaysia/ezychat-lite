@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Plug,
   Puzzle,
   ScrollText,
   Settings,
@@ -59,6 +60,8 @@ import {
 } from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
+import { ConnectorDetailPage } from './connectors/ConnectorDetailPage';
+import { ConnectorsGalleryPage } from './connectors/ConnectorsGalleryPage';
 import { ReportsPage } from './ReportsPage';
 import { ListSkeleton } from './adminUi';
 import { InboxesPage } from './InboxesPage';
@@ -77,6 +80,7 @@ export const ADMIN_NAV = [
   { to: 'reports', labelKey: 'nav.reports', icon: BarChart3 },
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
+  { to: 'connectors', labelKey: 'nav.connectors', icon: Plug },
   { to: 'whatsapp', labelKey: 'nav.whatsapp', icon: Smartphone },
   { to: 'inboxes', labelKey: 'inboxes.title', icon: Inbox },
   { to: 'tunnel', labelKey: 'nav.tunnel', icon: Globe },
@@ -432,6 +436,8 @@ export function AdminLayout() {
             <Route path="members/ai/new" element={<AiMemberPage />} />
             <Route path="members/ai/:agentId" element={<AiAgentRoute />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
+            <Route path="connectors" element={<ConnectorsGalleryPage />} />
+            <Route path="connectors/:id" element={<ConnectorDetailPage />} />
             <Route path="whatsapp" element={<WhatsAppRoute />} />
             <Route path="inboxes" element={<InboxesRoute />} />
             <Route path="tunnel" element={<TunnelPage />} />

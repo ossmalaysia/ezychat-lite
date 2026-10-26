@@ -95,4 +95,44 @@ describe('Try it', () => {
     expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('lists look-ups: calendar checks, a booking Try it did not make, and other tools', async () => {
+    const start = new Date(2026, 9, 30, 19, 30).toISOString();
+    const end = new Date(2026, 9, 30, 21, 0).toISOString();
+    const lookup = { tool: 'calendar', source: 'core', ms: 5, sourceLabel: 'Google Calendar' };
+    setup(
+      { agentId: 5 },
+      answer({
+        lookups: [
+          { ...lookup, title: 'Check free times', ok: true, calendar: { action: 'checked' } },
+          {
+            ...lookup,
+            title: 'Book',
+            ok: true,
+            notRun: true,
+            calendar: { action: 'booked', start, end },
+          },
+          { ...lookup, title: 'Book', ok: true, notRun: true, calendar: { action: 'booked' } },
+          { ...lookup, title: 'Add a lead', sourceLabel: 'CRM', ok: true, notRun: true },
+          { ...lookup, title: 'Order status', sourceLabel: 'Shop', ok: true },
+          { ...lookup, title: 'Order status', sourceLabel: 'Shop', ok: false },
+        ],
+      }),
+    );
+    await ask();
+    const items = (
+      await screen.findByRole('list', { name: 'What the AI looked up' })
+    ).querySelectorAll('li');
+    const lines = [...items].map((li) => li.textContent);
+    expect(lines[0]).toBe('AI checked free times · Google Calendar');
+    expect(lines[1]).toMatch(
+      /^AI would book Fri,? 30 Oct, 19:30–21:00 · Google Calendar \(Try it doesn't book\)$/,
+    );
+    expect(lines.slice(2)).toEqual([
+      "AI would book the chosen time · Google Calendar (Try it doesn't book)",
+      "AI would use Add a lead · CRM (Try it doesn't change data)",
+      'AI looked up Order status · Shop',
+      'Could not look up Order status · Shop',
+    ]);
+  });
 });

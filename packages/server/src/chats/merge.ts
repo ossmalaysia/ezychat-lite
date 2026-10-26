@@ -1,3 +1,4 @@
+import { mergeCalendarRows } from '../connectors/google-calendar/repo.js';
 import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
@@ -196,6 +197,8 @@ export function mergeChat(
       aiState: mergeAiState(db, from, to, fromNewer),
       ...mergeCustomerProfile(db, from, to),
     };
+    // Google Calendar offers, bookings and activity lines (no foreign key: moved explicitly).
+    mergeCalendarRows(db, from, to);
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.
       db.prepare(

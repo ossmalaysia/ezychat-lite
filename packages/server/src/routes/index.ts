@@ -29,6 +29,7 @@ import oauth from './oauth.js';
 import inboxes from './inboxes.js';
 import templates from './templates.js';
 import replySuggestions from './reply-suggestions.js';
+import connectors from './connectors.js';
 import reports from './reports.js';
 
 export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<void>;
@@ -60,6 +61,7 @@ export const routeModules: RouteModule[] = [
   inboxes,
   templates,
   replySuggestions,
+  connectors,
   reports,
 ];
 

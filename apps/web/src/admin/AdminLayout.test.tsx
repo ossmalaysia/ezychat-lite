@@ -48,6 +48,12 @@ vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
 vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Phone access</h1> }));
 vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
+vi.mock('./connectors/ConnectorsGalleryPage', () => ({
+  ConnectorsGalleryPage: () => <h1>Connectors</h1>,
+}));
+vi.mock('./connectors/ConnectorDetailPage', () => ({
+  ConnectorDetailPage: () => <h1>Connector page</h1>,
+}));
 vi.mock('./ReportsPage', () => ({ ReportsPage: () => <h1>Reports</h1> }));
 
 const ADMIN_NAV = visibleAdminNav(false).map((n) => ({

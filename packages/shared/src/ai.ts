@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AiToolCalendarDetail } from './connectors.js';
 import { UserSchema } from './models.js';
 
 /** EXPERIMENTAL direct ChatGPT sign-in: documented fallback when the live model list is unavailable
@@ -414,6 +415,8 @@ export const AI_TOOL_LABEL_CHARACTERS = 120;
 export const AiToolUsedPayload = z.object({
   title: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
   sourceLabel: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
+  /** Google Calendar (core connector): what the AI checked or booked. */
+  calendar: AiToolCalendarDetail.optional(),
 });
 export type AiToolUsedPayload = z.infer<typeof AiToolUsedPayload>;
 /** One extension tool call of a Try it answer: names and timing only, never input or output. */
@@ -422,6 +425,8 @@ export const AiTryLookup = AiToolUsedPayload.extend({
   source: z.string(),
   ok: z.boolean(),
   ms: z.number().int().nonnegative(),
+  /** Try it never changes data: a tool that would (e.g. a booking) is reported as not run. */
+  notRun: z.boolean().optional(),
 });
 export type AiTryLookup = z.infer<typeof AiTryLookup>;
 export const AiTryResult = z.object({

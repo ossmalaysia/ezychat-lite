@@ -249,7 +249,10 @@
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",
     "reopened": "{{actor}} membuka semula sembang ini",
     "aiToolUsed": "AI menyemak {{title}} · {{source}}",
-    "internalNote": "Nota dalaman"
+    "internalNote": "Nota dalaman",
+    "calendarChecked": "AI menyemak masa lapang · {{source}}",
+    "calendarBooked": "AI menempah {{when}} · {{source}}",
+    "calendarBookedNoTime": "AI menempah satu masa · {{source}}"
   },
   "messageList": {
     "label": "Mesej",

@@ -6,14 +6,31 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "reports",
-    "gitRevision": "ce564681e48c10454f8b610c92d5d6ebfcb6379d",
-    "mock": "docs/features/reports/mock/index.html",
-    "design": "docs/features/reports/design.md",
+    "feature": "google-calendar",
+    "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
+    "mock": "docs/features/google-calendar/mock/index.html",
+    "design": "docs/features/google-calendar/design.md",
     "confirmedAt": "2026-10-26",
-    "confirmation": "Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of data, no messages yet) and confirmed 2026-10-26 (\"look fine, implement it\"); open questions unanswered, proposals stand (admins only, missed after 1 hour, inbox hand-off warning not in scope)"
+    "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
+    "note": "Built in parallel with reports (confirmed the same day from the same ai-phrase-dictionary baseline): this mock has no Admin -> Reports. The next clone adds the reports screens from docs/features/reports/mock before its own change."
   },
   "proposals": [
+    {
+      "feature": "google-calendar",
+      "creationOrder": 16,
+      "createdAt": "2026-10-26",
+      "design": "docs/features/google-calendar/design.md",
+      "mock": "docs/features/google-calendar/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "ai-phrase-dictionary",
+      "baselineGitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
+      "baselineAppRevision": "027a03e",
+      "coverage": "Full app clone of the confirmed ai-phrase-dictionary reference; a connector gallery (Admin → Connectors: search, category chips, Your connectors first, statuses Connected / Needs attention / Not connected / Coming soon / Enterprise; Google Calendar, Google Sheets, HitPay, Shopify, Custom MCP) and one page per connector with Overview (what it does, what the AI can do, Google account card with stand-in sign-in, expired, unavailable, Disconnect, Your data), Settings (per AI agent: calendar, Check free times, Book appointments off by default, booking rules) and Activity; coming-soon and Enterprise-only pages with Upgrade; agent page Connectors summary; Try it (free times, would book, hand-over); a booked chat with AI checked / AI booked lines; mock-only routes /api/mock/google-calendar*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise views (calendar-shots.mjs)",
+      "confirmedAt": "2026-10-26",
+      "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
+      "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
+      "parallelFeatures": ["reports"]
+    },
     {
       "feature": "reports",
       "creationOrder": 15,
@@ -85,7 +102,12 @@
       "baselineAppRevision": "eb6cc65",
       "coverage": "Full app clone of the confirmed send-reactions reference; Upgrade to Enterprise links (https://ezychat.ai/#enterprise, new tab) in the Lite view only: Admin -> Members note and the AI agent limit page, Admin -> WhatsApp Connection card note, account menu item (admins only), About dialog text and button; Enterprise view and an agent menu without links; desktop 1280 / mobile 360, light/dark (upgrade-shots.mjs)",
       "confirmedAt": "2026-10-24",
-      "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")"
+      "confirmation": "Owner viewed the screenshots (Members note, AI agent limit, WhatsApp card, account menu, About; desktop and phone) and confirmed 2026-10-24 (\"Ok implement it\")",
+      "archived": {
+        "folderRemovedAt": "2026-10-26",
+        "lastRevision": "67bcaf0aa7274beafc3aa7ee7f33766bfb520cdb",
+        "reason": "retention: sixth feature folder (google-calendar)"
+      }
     },
     {
       "feature": "send-reactions",

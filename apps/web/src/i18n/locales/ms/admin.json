@@ -9,6 +9,7 @@
     "tunnel": "Akses telefon",
     "settings": "Tetapan",
     "audit": "Audit",
+    "connectors": "Penyambung",
     "reports": "Laporan"
   },
   "layout": {
@@ -808,7 +809,11 @@
       "answeredAs": "Dijawab sebagai {{name}}",
       "needsConnection": "Sambungkan AI di Tetapan → AI untuk mencuba ejen.",
       "noRole": "Peranan kosong: ejen menjawab dengan hanya peraturan keselamatan dan konteks perniagaannya.",
-      "confidentialLeak": "Akan diserahkan: balasan memetik item dalaman, jadi balasan itu tidak akan dihantar kepada pelanggan."
+      "confidentialLeak": "Akan diserahkan: balasan memetik item dalaman, jadi balasan itu tidak akan dihantar kepada pelanggan.",
+      "calendarChecked": "AI menyemak masa lapang · {{source}}",
+      "wouldBook": "AI akan menempah {{when}} · {{source}} (Cuba tidak menempah)",
+      "wouldBookSlot": "AI akan menempah masa yang dipilih · {{source}} (Cuba tidak menempah)",
+      "wouldRun": "AI akan menggunakan {{title}} · {{source}} (Cuba tidak mengubah data)"
     },
     "voice": {
       "title": "Mesej suara",
@@ -1414,6 +1419,315 @@
     "removeBodyOther": "EzyChat berhenti menerima dan menghantar untuk nombor ini. Sembangnya kekal, baca sahaja, untuk pentadbir.",
     "aiWindowNote": "Pada nombor ini ejen AI membalas hanya dalam masa {{hours}} jam selepas mesej terakhir pelanggan; selepas itu ia menyerahkan sembang kepada pasukan.",
     "createdOther": "Peti masuk ditambah. Nombor ini telah disambungkan."
+  },
+  "connectors": {
+    "title": "Penyambung",
+    "description": "Sambungkan kalendar dan sistem lain supaya ejen AI anda boleh menyemak dan membuat lebih banyak perkara sendiri. Setiap penyambung mempunyai halamannya sendiri dengan tetapan dan aktivitinya.",
+    "searchLabel": "Cari penyambung",
+    "searchPlaceholder": "Cari mengikut nama atau fungsinya",
+    "categoryLabel": "Kategori",
+    "category": {
+      "all": "Semua",
+      "booking": "Kalendar & tempahan",
+      "accounting": "Perakaunan",
+      "crm": "CRM",
+      "data": "Hamparan",
+      "payments": "Pembayaran",
+      "commerce": "Kedai dalam talian",
+      "custom": "Tersuai"
+    },
+    "status": {
+      "connected": "Disambungkan",
+      "attention": "Perlu perhatian",
+      "notConnected": "Tidak disambungkan",
+      "comingSoon": "Akan datang",
+      "enterprise": "Enterprise sahaja"
+    },
+    "yours": "Penyambung anda",
+    "more": "Lebih banyak penyambung",
+    "noMatch": "Tiada penyambung yang sepadan",
+    "noMatchHint": "Cuba perkataan atau kategori lain.",
+    "missing": "Sistem yang anda guna tiada? Minta daripada kami.",
+    "vote": "Undi penyambung ini",
+    "voteMessage": "Hai pasukan EzyChat, sila tambah penyambung {{name}}. Kami akan menggunakannya untuk: ",
+    "request": "Minta penyambung",
+    "requestMessage": "Hai pasukan EzyChat, kami mahukan penyambung untuk: ",
+    "breadcrumb": "Laluan navigasi",
+    "notFound": "Penyambung ini tidak wujud.",
+    "backToGallery": "Semua penyambung",
+    "byCore": "Terbina dalam {{product}}",
+    "byEnterprise": "EzyChat Enterprise",
+    "tabs": {
+      "overview": "Gambaran",
+      "settings": "Tetapan",
+      "activity": "Aktiviti",
+      "bookings": "Tempahan"
+    },
+    "aboutTitle": "Fungsinya",
+    "aiCan": "Apa yang AI boleh buat",
+    "lookUp": "Semakan",
+    "changes": "Mengubah data",
+    "switchNote": "Alat yang mengubah data bermula dalam keadaan mati. Anda menghidupkannya untuk setiap ejen AI dalam Tetapan.",
+    "privacyTitle": "Data anda",
+    "enterpriseOnly": "Penyambung ini sebahagian daripada EzyChat Enterprise.",
+    "comingSoonTitle": "Akan datang",
+    "comingSoonBody": "Ia belum sedia. Undi untuknya: penyambung dengan permintaan terbanyak didahulukan.",
+    "forAgent": "Tetapan untuk",
+    "noAgent": "Tambah ejen AI dahulu.",
+    "addAgent": "Tambah ejen AI",
+    "activityTitle": "Aktiviti terkini",
+    "activityHint": "Apa yang AI semak dan tempah. Teks sembang tidak pernah disimpan di sini.",
+    "activityEmpty": "Belum ada apa-apa.",
+    "act": {
+      "checked": "{{agent}} menyemak masa lapang untuk {{customer}}",
+      "booked": "{{agent}} menempah {{when}} untuk {{customer}}",
+      "bookedNoTime": "{{agent}} menempah satu masa untuk {{customer}}",
+      "handed_over": "{{agent}} menyerahkan tempahan {{customer}} kepada pasukan",
+      "failed": "{{agent}} tidak dapat menghubungi Google Calendar untuk {{customer}}"
+    },
+    "agentCard": {
+      "description": "Sistem yang {{name}} boleh gunakan semasa bersembang. Tetapan ada di halaman setiap penyambung.",
+      "checkAndBook": "Menyemak masa lapang dan menempah",
+      "checkOnly": "Menyemak masa lapang; pasukan anda menempah",
+      "off": "Dimatikan untuk ejen ini",
+      "none": "Belum ada penyambung.",
+      "browse": "Lihat penyambung"
+    },
+    "settingsPointerTitle": "Penyambung",
+    "settingsPointer": "Google Calendar dan sistem lain yang digunakan oleh ejen AI anda ada di Pentadbir → Penyambung.",
+    "tools": {
+      "checkFree": "Semak masa lapang",
+      "checkFreeHint": "Membaca bila kalendar yang dipilih sibuk.",
+      "book": "Tempah janji temu",
+      "bookHint": "Menambah acara selepas pelanggan mengesahkan masa.",
+      "readRows": "Baca baris",
+      "readRowsHint": "Mencari baris yang sepadan dengan soalan pelanggan.",
+      "addRow": "Tambah prospek",
+      "addRowHint": "Menambah nama, nombor dan permintaan pelanggan sebagai satu baris.",
+      "paymentLink": "Cipta pautan pembayaran",
+      "paymentLinkHint": "Mencipta pautan untuk jumlah yang ditetapkan oleh pasukan atau senarai harga anda.",
+      "paymentStatus": "Semak pembayaran",
+      "paymentStatusHint": "Menyemak sama ada pautan sudah dibayar.",
+      "orderStatus": "Status pesanan",
+      "orderStatusHint": "Mencari pesanan mengikut nombor dan telefon pelanggan.",
+      "productStock": "Stok produk",
+      "productStockHint": "Menyemak harga dan stok produk.",
+      "stock": "Stok dan harga",
+      "stockHint": "Mencari stok dan harga jualan sesuatu item.",
+      "quotation": "Cipta sebut harga",
+      "quotationHint": "Mendraf sebut harga untuk pelanggan; pasukan anda menghantarnya.",
+      "outstanding": "Baki tertunggak",
+      "outstandingHint": "Menyemak jumlah yang masih terhutang oleh pelanggan.",
+      "invoice": "Status invois",
+      "invoiceHint": "Mencari invois dan sama ada ia sudah dibayar.",
+      "contact": "Tambah kenalan",
+      "contactHint": "Menambah pelanggan sebagai kenalan.",
+      "findContact": "Cari pelanggan",
+      "findContactHint": "Mencari rekod pelanggan mengikut nombor telefon.",
+      "addLead": "Tambah prospek",
+      "addLeadHint": "Menambah prospek baharu dengan permintaan pelanggan.",
+      "member": "Mata ahli",
+      "memberHint": "Menyemak mata dan tahap ahli."
+    },
+    "items": {
+      "google-calendar": {
+        "name": "Google Calendar",
+        "short": "Semak masa lapang dan tempah janji temu.",
+        "long": "Ejen AI anda menawarkan masa lapang daripada Google Calendar anda dan, jika anda benarkan, menempah masa yang disahkan oleh pelanggan. Log masuk dengan Google: tiada pautan untuk ditampal.",
+        "privacy": "{{product}} membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, serta nama, nombor telefon dan e-mel pelanggan. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
+      },
+      "google-sheets": {
+        "name": "Google Sheets",
+        "short": "Baca harga atau stok daripada helaian; tambah prospek baharu.",
+        "long": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan AI membacanya. Ia juga boleh menambah setiap prospek baharu sebagai satu baris.",
+        "privacy": "{{product}} hanya membaca helaian yang anda pilih dan hanya menulis baris prospek yang ditambahnya."
+      },
+      "hitpay": {
+        "name": "HitPay",
+        "short": "Hantar pautan pembayaran (FPX, DuitNow, PayNow).",
+        "long": "AI menghantar pautan pembayaran HitPay untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
+        "privacy": "{{product}} menghantar jumlah, rujukan dan nama pelanggan kepada HitPay; butiran kad dan bank kekal dengan HitPay."
+      },
+      "shopify": {
+        "name": "Shopify",
+        "short": "Status pesanan dan stok daripada kedai dalam talian anda.",
+        "long": "Pelanggan bertanya di mana pesanan mereka atau sama ada item ada stok; AI menyemaknya di kedai Shopify anda.",
+        "privacy": "{{product}} hanya membaca pesanan dan produk; ia tidak pernah mengubah kedai anda."
+      },
+      "autocount": {
+        "name": "AutoCount",
+        "short": "Stok, harga dan sebut harga daripada AutoCount Accounting.",
+        "long": "AI menjawab soalan stok dan harga daripada AutoCount dan mendraf sebut harga untuk dihantar oleh pasukan anda.",
+        "privacy": "{{product}} hanya menghantar kepada AutoCount apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "Stok, harga dan baki pelanggan daripada SQL Account.",
+        "long": "AI menyemak stok dan harga dalam SQL Account dan memberitahu pelanggan baki tertunggak mereka.",
+        "privacy": "{{product}} hanya menghantar kepada SQL Account apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "bukku": {
+        "name": "Bukku",
+        "short": "Invois dan sebut harga daripada Bukku.",
+        "long": "AI memberitahu pelanggan sama ada invois sudah dibayar dan mendraf sebut harga dalam Bukku.",
+        "privacy": "{{product}} hanya menghantar kepada Bukku apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "xero": {
+        "name": "Xero",
+        "short": "Status invois dan kenalan dalam Xero.",
+        "long": "AI menyemak status invois dalam Xero dan menambah pelanggan baharu sebagai kenalan.",
+        "privacy": "{{product}} hanya menghantar kepada Xero apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "zoho-books": {
+        "name": "Zoho Books",
+        "short": "Invois dan sebut harga daripada Zoho Books.",
+        "long": "AI menyemak invois dan mendraf sebut harga dalam Zoho Books.",
+        "privacy": "{{product}} hanya menghantar kepada Zoho Books apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "Cari pelanggan dan tambah prospek dalam Zoho CRM.",
+        "long": "AI mencari pelanggan dalam Zoho CRM sebelum menjawab dan menambah pertanyaan baharu sebagai prospek.",
+        "privacy": "{{product}} hanya menghantar kepada Zoho CRM apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "hubspot": {
+        "name": "HubSpot",
+        "short": "Cari pelanggan dan tambah prospek dalam HubSpot.",
+        "long": "AI mencari pelanggan dalam HubSpot dan menambah pertanyaan baharu sebagai prospek.",
+        "privacy": "{{product}} hanya menghantar kepada HubSpot apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "woocommerce": {
+        "name": "WooCommerce",
+        "short": "Status pesanan dan stok daripada kedai WooCommerce anda.",
+        "long": "Pelanggan bertanya di mana pesanan mereka; AI menyemaknya di kedai WooCommerce anda.",
+        "privacy": "{{product}} hanya menghantar kepada WooCommerce apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "easystore": {
+        "name": "EasyStore",
+        "short": "Status pesanan dan stok daripada EasyStore.",
+        "long": "AI menjawab soalan pesanan dan stok daripada kedai EasyStore anda.",
+        "privacy": "{{product}} hanya menghantar kepada EasyStore apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "storehub": {
+        "name": "StoreHub",
+        "short": "Stok dan mata ahli daripada POS StoreHub.",
+        "long": "AI menyemak stok dan mata ahli dalam StoreHub.",
+        "privacy": "{{product}} hanya menghantar kepada StoreHub apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "billplz": {
+        "name": "Billplz",
+        "short": "Hantar pautan pembayaran Billplz (FPX).",
+        "long": "AI menghantar pautan pembayaran Billplz untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
+        "privacy": "{{product}} hanya menghantar kepada Billplz apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
+      },
+      "custom-mcp": {
+        "name": "Penyambung tersuai (MCP)",
+        "short": "Sambungkan mana-mana sistem yang menawarkan pelayan MCP.",
+        "long": "Untuk sistem anda sendiri: tampal pautan pelayan MCP, log masuk, dan pilih untuk setiap ejen AI alat mana yang boleh digunakan oleh AI. Alat yang mengubah data bermula dalam keadaan mati.",
+        "privacy": "{{product}} hanya menghantar kepada sistem itu apa yang diminta oleh alat dalam satu giliran sembang."
+      }
+    },
+    "gc": {
+      "accountTitle": "Akaun Google",
+      "accountDescription": "Akaun Google yang digunakan oleh {{product}}. Satu akaun untuk seluruh pasukan.",
+      "what1": "AI hanya menawarkan masa yang lapang dalam kalendar yang anda pilih.",
+      "what2": "Ia hanya menempah selepas pelanggan mengesahkan masa, dan anda boleh mematikan tempahan.",
+      "what3": "Pasukan anda melihat setiap tempahan dalam sembang.",
+      "connect": "Sambungkan Google Calendar",
+      "connectHint": "Anda log masuk dengan Google dan membenarkan {{product}} melihat dan menambah acara. Anda boleh memutuskan sambungan bila-bila masa.",
+      "connectedToast": "Google Calendar disambungkan",
+      "notConfiguredTitle": "Tiada dalam binaan ini",
+      "notConfiguredBody": "Log masuk Google tidak disediakan dalam binaan {{product}} ini.",
+      "waiting": "Menunggu log masuk Google…",
+      "waitingHint": "Selesaikan log masuk dalam tetingkap yang dibuka. Halaman ini dikemas kini sendiri.",
+      "blocked": "Pelayar anda menyekat tetingkap log masuk. Buka halaman log masuk untuk meneruskan.",
+      "openSignIn": "Buka halaman log masuk",
+      "sameComputer": "Google kembali ke komputer yang menjalankan {{product}}: log masuk hanya selesai dalam pelayar di komputer itu.",
+      "cancelSignIn": "Batal",
+      "failed": {
+        "denied": "Log masuk Google dibatalkan. Tiada apa-apa disambungkan.",
+        "expired": "Log masuk mengambil masa terlalu lama. Cuba lagi.",
+        "error": "Log masuk Google tidak selesai. Cuba lagi."
+      },
+      "account": "Akaun Google",
+      "state": {
+        "connected": "Berfungsi",
+        "expired": "Log masuk semula",
+        "unavailable": "Tidak dapat menghubungi Google"
+      },
+      "expiredTitle": "Log masuk Google telah tamat",
+      "expiredBody": "Sehingga anda log masuk semula, AI tidak menyemak atau menempah masa; ia menyerahkan sembang tempahan kepada pasukan anda.",
+      "signInAgain": "Log masuk semula",
+      "unavailableTitle": "Tidak dapat menghubungi Google Calendar",
+      "unavailableBody": "{{product}} mencuba lagi dengan sendirinya. Sementara itu AI menyerahkan sembang tempahan kepada pasukan anda.",
+      "calendars": "Kalendar dalam akaun ini",
+      "noCalendars": "Tiada kalendar ditemui.",
+      "readOnly": "Baca sahaja",
+      "perAgent": "Pilih kalendar dan waktu tempahan untuk setiap ejen AI dalam Tetapan.",
+      "openSettings": "Buka Tetapan",
+      "disconnect": "Putuskan sambungan",
+      "disconnectTitle": "Putuskan sambungan Google Calendar?",
+      "disconnectBody": "AI berhenti menyemak dan menempah masa serta-merta. Acara yang sudah ada dalam kalendar anda kekal. Tetapan tempahan disimpan untuk apabila anda menyambung semula.",
+      "disconnected": "Sambungan Google Calendar diputuskan"
+    },
+    "booking": {
+      "title": "Tempahan",
+      "description": "{{name}} boleh menyemak masa lapang dan menempah janji temu dalam Google Calendar.",
+      "notConnected": "Sambungkan Google Calendar dahulu. Ia hanya perlukan satu log masuk dengan Google.",
+      "paused": {
+        "expired": "Dijeda: log masuk Google telah tamat",
+        "unavailable": "Dijeda: tidak dapat menghubungi Google Calendar"
+      },
+      "pausedBody": "Sehingga ia berfungsi semula, {{name}} menyerahkan sembang tempahan kepada pasukan anda.",
+      "openAccount": "Buka akaun Google",
+      "calendar": "Kalendar",
+      "calendarHint": "Tempahan dimasukkan ke dalam kalendar ini, dan hanya masa sibuknya dikira.",
+      "chooseCalendar": "Pilih kalendar",
+      "calendarRequired": "Pilih kalendar untuk tempahan.",
+      "checkFreeHint": "AI boleh membaca bila kalendar ini sibuk dan menawarkan masa lapang.",
+      "changesCalendar": "Mengubah kalendar anda",
+      "bookHint": "AI menambah acara selepas pelanggan mengesahkan masa. Mati: AI menawarkan masa dan pasukan anda menempah.",
+      "bookNeedsFree": "Hidupkan Semak masa lapang dahulu.",
+      "eventTitle": "Tajuk acara",
+      "eventTitleHint": "Nama pelanggan ditambah, cth. \"Tempahan meja · Mei Ying\".",
+      "titleRequired": "Masukkan tajuk acara.",
+      "length": "Tempoh tempahan",
+      "minutes_other": "{{count}} minit",
+      "hours": "Waktu tempahan",
+      "daysRequired": "Pilih sekurang-kurangnya satu hari.",
+      "from": "Dari",
+      "to": "Hingga",
+      "toAfterFrom": "Masa tamat mesti selepas masa mula.",
+      "hoursHint": "Masa di luar waktu ini, dan masa yang sudah sibuk dalam kalendar, tidak pernah ditawarkan.",
+      "gap": "Jarak antara tempahan",
+      "noGap": "Tiada jarak",
+      "notice": "Tempahan paling awal",
+      "noNotice": "Bila-bila masa",
+      "hoursAhead_other": "{{count}} jam dari sekarang",
+      "ahead": "Tempahan paling lewat",
+      "daysAhead_other": "{{count}} hari ke hadapan",
+      "rulesTitle": "Sentiasa",
+      "rule1": "AI hanya menempah selepas pelanggan mengesahkan satu masa dengan kata-kata mereka sendiri.",
+      "rule2": "{{product}} menyemak masa itu masih lapang sejurus sebelum menempah.",
+      "rule3": "AI tidak pernah membatalkan atau mengalihkan tempahan; ia menyerahkan sembang itu kepada pasukan anda.",
+      "rule4": "Cuba tidak pernah menempah: ia menunjukkan apa yang akan ditempah oleh AI.",
+      "save": "Simpan tempahan",
+      "saved": "Tetapan tempahan disimpan"
+    },
+    "bookings": {
+      "title": "Tempahan oleh AI",
+      "hint": "Acara yang AI tambah ke Google Calendar. Perubahan yang dibuat dalam Google Calendar tidak dipaparkan di sini.",
+      "upcoming": "Akan datang",
+      "past": "30 hari lepas",
+      "noneUpcoming": "Tiada tempahan akan datang.",
+      "empty": "Belum ada tempahan.",
+      "emptyHint": "Apabila AI menempah masa yang disahkan oleh pelanggan, tempahan itu dipaparkan di sini.",
+      "by": "Ditempah oleh {{agent}}",
+      "openChat": "Buka sembang",
+      "openEvent": "Buka dalam Google Calendar",
+      "openCalendar": "Buka Google Calendar",
+      "unknownCustomer": "Pelanggan"
+    }
   },
   "reports": {
     "title": "Laporan",

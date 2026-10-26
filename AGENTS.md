@@ -219,6 +219,31 @@ atomic profile/audit commit, and ensure the JID still routes to that same chat a
 Audit stores scores, field names and message references, never values
 or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
 
+**Connectors** (design `docs/features/google-calendar/design.md`). Admin → Connectors (`admin/connectors/`) is a
+gallery (`catalog.ts`) with one page per connector; every ready connector is core, only the custom MCP connector is
+Enterprise (greyed out in Lite; an edition points a connector at its own page with `WebExtension.connectorLinks`).
+Coming-soon connectors have Vote / Ask for a connector: a WhatsApp link (`useAppLinks().connectorRequest`, `null`
+hides it); nothing is counted in the app. Google Calendar (`connectors/google-calendar/`, routes
+`/api/connectors/google-calendar/*`, admins; migration 022): one Google account per install, sign-in with PKCE and a
+loopback callback on the server's own port (`…/callback`, host-only, so it finishes only on that computer), tokens
+only in the encrypted `google_calendar_tokens` setting; the app (Google "Desktop app" client of project `ezychat-prod`,
+org anchorsprint.com) is `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET` from the environment, else the one the release bundle carries
+(`scripts/google-oauth-define.mjs`: esbuild `define` of `__EZYCHAT_GOOGLE_OAUTH__` from repository secrets in `release.yml`;
+Enterprise does the same), without either the state is `not_configured`. With `--fake-wa` the fake Google is used only
+when no app is configured (a Dev Build with the env pair signs in to real Google). Per AI agent (`calendar_agent_settings`): calendar, Check free times (on), Book
+appointments (off; needs free times) and the rules. AI tools `check_free_times` / `book_appointment` (`tools.ts`,
+offered through `ai/agent/turn-tools.ts`; core names reserved for extensions): the server books only a time it
+offered in that chat (`calendar_offers`), after a newer customer message, inside the rules and still free (re-checked
+just before the insert, idempotent event id) and only with a name, email and phone (`contact.ts`: the saved
+contact or the WhatsApp name/number, else what the customer wrote in this chat, checked against their own messages;
+`check_free_times` says which to ask for); never cancels or moves (hand-over); Try it never books (`notRun`).
+`CORE_RULES` has one connector-neutral rule for tools that make a change (use only as the tool's description says,
+report done only when it says so, never undo): no tool or connector name in the core rules, so a new connector
+brings its own instructions (tool descriptions and result notes) and server guards. Google expired or unreachable: the AI stops
+using it and hands booking chats over. Chat lines are `ai_tool_used` events with `calendar`; Activity keeps who and
+when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
+`/api/dev/fake-google-calendar`); tests never call Google.
+
 **Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
 zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
 only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a
@@ -415,7 +440,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   `--fake-wa`, exercising the feature itself, not only server start-up.
 - After a base PR is squash-merged, replay only your own commits with
   `git rebase --onto origin/main <old-base>` and typecheck even when the rebase is clean. Never chain
-  `git add` or `rebase --continue` after edits that may have failed: search for conflict markers first.
+  `git add` or `rebase --continue` after edits that may have failed: search for conflict markers first
+  (`git grep -nE '^(<{7,8}|>{7,8})( |$)'`: a rename conflict writes 8-character markers;
+  `scripts/no-conflict-markers.test.mjs` fails CI on any left in a tracked file, mock folders included).
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.

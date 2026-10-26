@@ -40,6 +40,11 @@ export interface AppLinks {
   supportEmail: string | null;
   /** "Upgrade to Enterprise" page (Lite's limits, account menu, About); null hides every upgrade link. */
   upgrade: string | null;
+  /**
+   * Admin → Connectors "Vote for this connector" / "Ask for a connector": the address that opens a
+   * ready message (in the UI language) to the team. Nothing is counted in the app. null hides them.
+   */
+  connectorRequest: ((message: string) => string) | null;
 }
 
 /**
@@ -48,6 +53,14 @@ export interface AppLinks {
  */
 export const ENTERPRISE_UPGRADE_URL =
   'https://ezychat.ai/?utm_source=ezychat-lite&utm_medium=app&utm_campaign=upgrade#enterprise';
+
+/** The EzyChat team's WhatsApp number (the website's contact number) for connector requests. */
+export const CONNECTOR_REQUEST_WHATSAPP = '601159246128';
+
+/** A WhatsApp chat with the EzyChat team, with `message` ready to send. */
+export function connectorRequestUrl(message: string): string {
+  return `https://wa.me/${CONNECTOR_REQUEST_WHATSAPP}?text=${encodeURIComponent(message)}`;
+}
 
 const liteReleaseNotes = (version: string): string =>
   `${GITHUB_REPO_URL}/releases/tag/v${encodeURIComponent(version)}`;
@@ -61,6 +74,7 @@ export const LITE_APP_LINKS: Readonly<AppLinks> = Object.freeze({
   feedback: feedbackUrl,
   supportEmail: null,
   upgrade: ENTERPRISE_UPGRADE_URL,
+  connectorRequest: connectorRequestUrl,
 });
 
 /** Lite's links with the given overrides (an explicit `null` hides that link). */

@@ -249,7 +249,10 @@
     "reopenedByMessage": "新消息重新打开了此聊天",
     "reopened": "{{actor}} 重新打开了此聊天",
     "aiToolUsed": "AI 查询了 {{title}} · {{source}}",
-    "internalNote": "内部备注"
+    "internalNote": "内部备注",
+    "calendarChecked": "AI 查看了空闲时间 · {{source}}",
+    "calendarBooked": "AI 预约了 {{when}} · {{source}}",
+    "calendarBookedNoTime": "AI 预约了一个时间 · {{source}}"
   },
   "messageList": {
     "label": "消息",

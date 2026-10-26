@@ -71,6 +71,10 @@ into AGENTS.md.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
+- Mock seeds that show AI replies: the seeded AI member is off, so the AI service cancels its queued replies
+  ("AI reply cancelled"); set the chat's `assigned_to` in the database (an assignment event triggers the same
+  cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
+  `PW_CHROMIUM=/opt/pw-browsers/chromium` (no Edge there).
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -99,6 +103,11 @@ into AGENTS.md.
   (`/api/dev/fake-incoming` `media`), or the owner cannot test it end to end on a Dev Build.
 - Record protocol facts from the package that really implements them, with the source file; never copy
   tokens from local caches.
+- A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
+  we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
+  both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
+  parallel feature's screens the next clone must add.
 
 ## Multi-agent process
 
@@ -108,6 +117,8 @@ into AGENTS.md.
   orchestrator commits; agents don't `npm install` unless they own that package.json.
   A hub file two agents of one wave both need (e.g. `apps/web/src/api/queries.ts`) stays with one owner;
   the other puts its new code in a new file that imports from the hub.
+- Never `git stash` in a checkout another agent is editing (to compare with HEAD): it removes their
+  uncommitted work until the pop. Compare with `git show HEAD:<file>` or a separate worktree.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
@@ -133,6 +144,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Merging main into a branch where two feature mocks were cloned from the same baseline can produce
+  rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
+  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
+  mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
 - Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
@@ -380,6 +395,13 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A build-time value for the packaged server (e.g. the Google "Desktop app" OAuth client) goes in as an
+  esbuild `define` of a global that the code reads with `typeof X === 'undefined'`, from repository secrets
+  passed only to the bundle step; the environment still wins, so Dev Builds and forks need no rebuild.
+  Prove it on a real bundle by printing counts of the values, never the values.
+- Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
+  A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
+  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
 - In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
   appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
   find the PID first, then kill it in a separate call.
@@ -732,6 +754,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
+  server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
+  that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
+  or the saved contact, so the model cannot invent them.
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
@@ -850,6 +876,9 @@ into AGENTS.md.
   `maxRetries: 0` (it retries twice by default); pass only our fixed error messages (HTTP ≥ 400).
 - Agent turns: bound the whole turn (all steps), not each model call; and give Try it the same tools
   as live replies (minus chat-bound ones), or it stops testing what customers get.
+- A time a model passes to a tool is checked for ISO shape before `Date.parse`: V8 parses loose text
+  ("tomorrow at 10") to a number, so a guessed time slips past a NaN check. Book only a time the server
+  itself offered in that chat (stored offer + a customer reply after it), never the model's own pick.
 - Tests that ingest many messages under frozen fake timers must tick the clock between them: equal
   timestamps reorder by id and can push the message being answered out of the last 20.
 - Vitest fake timers do not control `AbortSignal.timeout`: bound a call that a test must time out with a
@@ -899,6 +928,10 @@ into AGENTS.md.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.
+- A server guard that compares a tool's earlier result with "the customer wrote since" must accept any
+  earlier offer, not only the newest: real models call the read tool again in the turn that acts
+  (check free times, then book), which records a newer offer after the customer's answer. Mock-model
+  scripts must include that re-check, and test against real Google/model in the owner test env.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the
   Business context, and hand-offs are structured actions, never text markers (they would reach the
@@ -906,6 +939,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A button inside shadcn `CardHeader` stretches to the card width (the header is a grid, so `self-start` does
+  nothing): put it in `CardContent` (a flex column) or the `CardAction` slot; check the screenshot, not the code.
 - Review a chart with one data point too (a new install's first day): a flex bar fills the whole chart and an
   SVG area becomes a triangle. Cap bar widths and draw a single point as a bar or dot.
 - Hover readouts on charts (or any pointer-driven detail) clear only on a `pointerType === 'mouse'` leave: on
@@ -1117,6 +1152,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
 - Badges inside a `SegmentedControl` option label get `pointer-events-none`, so a click anywhere on
   the option selects it.
+- OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
+  then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 
 ## Internationalization
 

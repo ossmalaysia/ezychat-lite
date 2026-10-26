@@ -3,9 +3,12 @@
 // The mock model answers from what it was given, so a check can read the prompt back from the reply:
 //   "[<name>] guard=<yes|no> business=<MARK-… words seen> internal=<MARK-… words seen>"
 // A customer message containing LEAK makes it repeat its internalKnowledge (the leak check must stop it).
+// Google Calendar (fake Google): BOOK calls check_free_times and offers the first time; CONFIRM checks
+// the free times again, then calls book_appointment with the first time offered in that chat (and an
+// email written in the same message) and repeats what the tool said.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
-// e2e/devbuild-suggestions-check.mjs.
+// e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -56,13 +59,50 @@ const ctx = await createContext(
 );
 await runInitializers(ctx);
 
+/** Runs one offered tool the way the AI SDK would. */
+async function runTool(prompt: AiPrompt, name: string, input: object, signal: AbortSignal) {
+  const execute = prompt.tools?.[name]?.execute as
+    ((input: object, options: object) => Promise<string>) | undefined;
+  if (!execute) return null;
+  return execute(input, { toolCallId: `mock-${name}`, messages: [], abortSignal: signal });
+}
+
+/** The first free time each chat was offered (the mock's memory of its own BOOK replies). */
+const offered = new Map<string, string>();
+
 /** The mock model: answers with what it was given (see the header). */
-function mockDecision(prompt: AiPrompt, signal: AbortSignal): AiDecision {
+async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDecision> {
   signal.throwIfAborted();
   const input = JSON.parse(prompt.input) as {
     internalKnowledge: string;
     businessKnowledge: string;
+    conversation: Array<{ speaker: string; text: string }>;
   };
+  const last =
+    [...(input.conversation ?? [])].reverse().find((turn) => turn.speaker === 'customer')?.text ??
+    '';
+  const chatKey = JSON.stringify(input.conversation?.[0] ?? '');
+  if (last.includes('BOOK')) {
+    const output = await runTool(prompt, 'check_free_times', {}, signal);
+    if (output === null) return { reply: 'calendar=not-offered', action: 'answer' };
+    const first = (JSON.parse(output) as { freeTimes?: Array<{ start: string; time: string }> })
+      .freeTimes?.[0];
+    if (!first) return { reply: 'calendar=no-free-times', action: 'answer' };
+    offered.set(chatKey, first.start);
+    return { reply: `Free: ${first.time}. Shall I book it?`, action: 'answer' };
+  }
+  if (last.includes('CONFIRM')) {
+    const start = offered.get(chatKey);
+    // Like real models: check the free times again in the turn that books (a newer offer after the
+    // customer's answer must not block the booking).
+    if (start) await runTool(prompt, 'check_free_times', {}, signal);
+    // An email the customer wrote in this message goes with the booking (a real model does the same).
+    const email = /[^\s@]+@[^\s@]+\.[^\s@]+/.exec(last)?.[0];
+    const output = start
+      ? await runTool(prompt, 'book_appointment', { start, ...(email ? { email } : {}) }, signal)
+      : null;
+    return { reply: output === null ? 'book=not-offered' : output, action: 'answer' };
+  }
   const name = /Your name: (.+)/.exec(prompt.instructions)?.[1] ?? '?';
   if (prompt.input.includes('LEAK'))
     return { reply: `Sure: ${input.internalKnowledge}`, action: 'answer' };
@@ -149,7 +189,7 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
 await ctx.services.ai!.shutdown();
 ctx.services.ai = createAiService(ctx, {
   provider: {
-    generate: (_settings, _key, prompt, signal) => Promise.resolve(mockDecision(prompt, signal)),
+    generate: (_settings, _key, prompt, signal) => mockDecision(prompt, signal),
     draft: async (_settings, _key, prompt, options, signal) => ({
       output: options.schema.parse(mockDraft(prompt, signal)),
       model: 'mock-model',

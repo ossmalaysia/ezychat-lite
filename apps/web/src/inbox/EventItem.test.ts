@@ -83,4 +83,22 @@ describe('describeEvent', () => {
       describeEvent(event('unassigned', 2, { previous: 2, handoff: 'lookup_failed' }), dir),
     ).toBe('Jee Fong handed this chat to the team: a look-up in a connected system failed');
   });
+
+  it('names Google Calendar checks and bookings with the booked time', () => {
+    const source = { title: 'Check free times', sourceLabel: 'Google Calendar' };
+    expect(
+      describeEvent(event('ai_tool_used', 3, { ...source, calendar: { action: 'checked' } }), dir),
+    ).toBe('AI checked free times · Google Calendar');
+    const start = new Date(2026, 9, 30, 19, 30).toISOString();
+    const end = new Date(2026, 9, 30, 21, 0).toISOString();
+    expect(
+      describeEvent(
+        event('ai_tool_used', 3, { ...source, calendar: { action: 'booked', start, end } }),
+        dir,
+      ),
+    ).toMatch(/^AI booked Fri,? 30 Oct, 19:30–21:00 · Google Calendar$/);
+    expect(
+      describeEvent(event('ai_tool_used', 3, { ...source, calendar: { action: 'booked' } }), dir),
+    ).toBe('AI booked a time · Google Calendar');
+  });
 });
