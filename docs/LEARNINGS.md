@@ -370,6 +370,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
+  appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
+  find the PID first, then kill it in a separate call.
 - In a cloud container whose Playwright browser build is older than the package expects, point
   `PLAYWRIGHT_BROWSERS_PATH` at a scratch folder with symlinks named for the expected build (e.g.
   `chromium-1248` → `/opt/pw-browsers/chromium-1243`); otherwise `playwright.config.ts` falls back to the
