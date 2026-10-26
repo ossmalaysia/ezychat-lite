@@ -9,11 +9,22 @@ import {
   type BookingSettings,
   type CalendarActivity,
   type CalendarBookingList,
+  type ConnectorActivity,
+  type ConnectorAgentSettings,
+  type ConnectorConnectionView,
+  type ConnectorConnectProgress,
+  type ConnectorConnectResult,
+  type ConnectorEntry,
+  type ConnectorGallery,
+  type ConnectorListStatus,
+  type ConnectorProblem,
+  type GalleryConnector,
   type GoogleCalendarConnectProgress,
   type GoogleCalendarStatus,
 } from '@ezychat/shared';
 import { AppLinksProvider } from '@/lib/app-links';
 import { resolveAppLinks, type AppLinks } from '@/lib/links';
+import type { ConnectorChoices, ConnectorTestResult } from '@ezychat/shared';
 import { WebExtensionsProvider, type WebExtension } from '../../extensions';
 
 export const json = (body: unknown, code = 200) =>
@@ -53,6 +64,114 @@ export const agent = (id: number, displayName: string): AiAgentSummary => ({
   documentCount: 0,
 });
 
+const HOUR = 3_600_000;
+
+export const listStatus = (
+  state: ConnectorListStatus['state'] = 'loaded',
+  patch: Partial<ConnectorListStatus> = {},
+): ConnectorListStatus => ({
+  state,
+  generatedAt: new Date(Date.now() - 5 * HOUR).toISOString(),
+  sequence: 42,
+  checkedAt: Date.now() - 2 * HOUR,
+  appVersion: '0.1.62',
+  hidden: 0,
+  ...patch,
+});
+
+/** A list entry: a partner (MCP) connector with an API key unless the patch says otherwise. */
+export const entry = (id: string, patch: Partial<ConnectorEntry> = {}): ConnectorEntry => ({
+  id,
+  schemaVersion: 1,
+  minAppVersion: '0.1.0',
+  kind: 'mcp',
+  editions: ['lite', 'enterprise'],
+  name: id,
+  summary: { en: `${id} summary` },
+  description: { en: `${id} description` },
+  category: 'other',
+  mcp: { url: `https://${id}.example/mcp` },
+  auth: {
+    type: 'api_key',
+    label: { en: 'API key' },
+    header: { name: 'Authorization', value: 'Bearer {key}' },
+  },
+  tools: [
+    {
+      name: 'look',
+      title: { en: 'Look it up' },
+      description: { en: 'Finds things.' },
+      access: 'read',
+    },
+  ],
+  ...patch,
+});
+
+export const soon = (
+  id: string,
+  name: string,
+  category: ConnectorEntry['category'],
+  summary: string,
+): ConnectorEntry =>
+  entry(id, {
+    kind: 'coming_soon',
+    name,
+    category,
+    summary: { en: summary },
+    mcp: undefined,
+    auth: undefined,
+    tools: [
+      {
+        name: 'one',
+        title: { en: `${name} look-up` },
+        description: { en: `Reads ${name}.` },
+        access: 'read',
+      },
+    ],
+  });
+
+export const connection = (
+  state: ConnectorConnectionView['state'] = 'connected',
+  patch: Partial<ConnectorConnectionView> = {},
+): ConnectorConnectionView => ({
+  state,
+  account: null,
+  keyEnd: null,
+  connectedAt: state === 'connected' ? Date.now() - 3 * HOUR : null,
+  fields: {},
+  ...patch,
+});
+
+export const listed = (
+  e: ConnectorEntry,
+  patch: Partial<Omit<GalleryConnector, 'entry'>> = {},
+): GalleryConnector => ({ entry: e, fit: 'ok', delisted: false, connection: null, ...patch });
+
+/** The list the server ships with the app: Google Calendar (built in) and coming-soon entries. */
+export const DEFAULT_LIST: GalleryConnector[] = [
+  listed(
+    entry('google-calendar', {
+      kind: 'builtin',
+      builtinId: 'google-calendar',
+      name: 'Google Calendar',
+      category: 'calendar',
+      mcp: undefined,
+      auth: undefined,
+      tools: undefined,
+    }),
+  ),
+  listed(soon('autocount', 'AutoCount', 'accounting', 'Stock and quotations from AutoCount.')),
+  listed(soon('xero', 'Xero', 'accounting', 'Invoices and contacts in Xero.')),
+  listed(soon('shopify', 'Shopify', 'online_shop', 'Order status and stock from Shopify.')),
+  listed(soon('hitpay', 'HitPay', 'payments', 'Send a payment link with HitPay.')),
+  listed(soon('billplz', 'Billplz', 'payments', 'Send a payment link with Billplz.')),
+];
+
+export const gallery = (
+  connectors: GalleryConnector[] = DEFAULT_LIST,
+  listState: ConnectorListStatus = listStatus(),
+): ConnectorGallery => ({ status: listState, connectors });
+
 /** The server as the connector pages see it; every write is recorded. */
 export interface World {
   google: GoogleCalendarStatus;
@@ -63,8 +182,24 @@ export interface World {
   calendarBookings: CalendarBookingList;
   /** Answers to the sign-in polls, in order (the last one repeats). */
   progress: GoogleCalendarConnectProgress[];
+  /** Admin → Connectors: the list as the server keeps it. */
+  gallery: ConnectorGallery;
+  /** What `POST /connectors/list/refresh` answers (default: the same list). */
+  refreshed?: ConnectorGallery;
+  /** Partner settings by `<id>:<agentId>`. */
+  mcpSettings: Record<string, ConnectorAgentSettings>;
+  mcpActivity: Record<string, ConnectorActivity[]>;
+  /** Answers to a partner's sign-in polls, in order (the last one repeats). */
+  mcpProgress: ConnectorConnectProgress[];
+  /** What Connect answers; default: OAuth gives a sign-in page, the others connect at once. */
+  mcpConnect?: (id: string, fields: Record<string, string>) => ConnectorConnectResult;
+  /** What Test answers. */
+  mcpTest?: (id: string, fields: Record<string, string>) => ConnectorTestResult;
+  choices: ConnectorChoices;
   /** Fail a path with this status (e.g. 500). */
   fail?: Partial<Record<string, number>>;
+  /** Fail a path the way the partner module does: 400 with the problem as the error code. */
+  problems?: Partial<Record<string, ConnectorProblem>>;
 }
 
 export function world(patch: Partial<World> = {}): World {
@@ -79,16 +214,107 @@ export function world(patch: Partial<World> = {}): World {
       calendarUrl: 'https://calendar.google.com/calendar/r?authuser=kopiapong%40gmail.com',
     },
     progress: [{ status: 'done', error: null }],
+    gallery: gallery(),
+    mcpSettings: {},
+    mcpActivity: {},
+    mcpProgress: [{ status: 'done', problem: null }],
+    choices: {
+      options: [
+        { value: 'main', label: 'Main calendar' },
+        { value: 'team', label: 'Team calendar' },
+      ],
+    },
     ...patch,
   };
+}
+
+/** Puts a partner connection into the world's list. */
+function setConnection(w: World, id: string, view: ConnectorConnectionView) {
+  w.gallery = {
+    ...w.gallery,
+    connectors: w.gallery.connectors.map((c) =>
+      c.entry.id === id ? { ...c, connection: view } : c,
+    ),
+  };
+}
+
+/** `/connectors/mcp/:id/*` of the partner connections module. */
+function mcpRoute(w: World, method: string, path: string, init?: RequestInit): Response | null {
+  const m = /^\/connectors\/mcp\/([^/]+)\/(.+)$/.exec(path);
+  if (!m) return null;
+  const id = decodeURIComponent(m[1]!);
+  const rest = m[2]!;
+  const body = init?.body
+    ? (JSON.parse(String(init.body)) as { fields?: Record<string, string> })
+    : {};
+  const fields = body.fields ?? {};
+  const e = w.gallery.connectors.find((c) => c.entry.id === id)?.entry;
+  if (rest === 'connect' && method === 'POST') {
+    const oauth = e?.auth?.type === 'oauth' || e?.auth?.type === 'oauth_own_app';
+    const result: ConnectorConnectResult =
+      w.mcpConnect?.(id, fields) ??
+      (oauth
+        ? {
+            authorizationUrl: 'https://partner.example/authorize?x=1',
+            requestId: 'req-9',
+            connection: connection('waiting'),
+          }
+        : {
+            authorizationUrl: null,
+            requestId: null,
+            connection: connection('connected', {
+              keyEnd: (fields.key ?? Object.values(fields).at(-1) ?? '').slice(-4) || null,
+            }),
+          });
+    setConnection(w, id, result.connection);
+    return json(result);
+  }
+  if (rest.startsWith('connect/')) {
+    const next = w.mcpProgress.length > 1 ? w.mcpProgress.shift()! : w.mcpProgress[0]!;
+    if (next.status === 'done')
+      setConnection(w, id, connection('connected', { account: 'owner@kopiapong.my' }));
+    return json(next);
+  }
+  if (rest === 'test' && method === 'POST')
+    return json(
+      w.mcpTest?.(id, fields) ?? {
+        ok: true,
+        tools: ['find_invoice', 'check_stock', 'create_quotation'],
+        problem: null,
+      },
+    );
+  if (rest === 'disconnect' && method === 'POST') {
+    const view = connection('disconnected');
+    setConnection(w, id, view);
+    return json(view);
+  }
+  const agentMatch = /^agents\/(\d+)$/.exec(rest);
+  if (agentMatch) {
+    const key = `${id}:${agentMatch[1]}`;
+    if (method === 'PUT')
+      w.mcpSettings[key] = JSON.parse(String(init!.body)) as ConnectorAgentSettings;
+    return json(w.mcpSettings[key] ?? { settings: {}, tools: {} });
+  }
+  if (rest === 'activity') return json({ activity: w.mcpActivity[id] ?? [] });
+  if (rest.startsWith('choices/')) return json(w.choices);
+  return null;
 }
 
 export function stubServer(w: World) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
-    const path = url.replace(/^\/api/, '');
+    const path = url.replace(/^\/api/, '').split('?')[0]!;
     const failCode = w.fail?.[`${method} ${path}`];
     if (failCode) return json({ error: { code: 'internal', message: 'Boom' } }, failCode);
+    const problem = w.problems?.[`${method} ${path}`];
+    if (problem) return json({ error: { code: problem, message: 'Partner said no' } }, 400);
+    if (path === '/connectors/list') return json(w.gallery);
+    if (path === '/connectors/list/refresh' && method === 'POST') {
+      if (w.refreshed) w.gallery = w.refreshed;
+      return json(w.gallery);
+    }
+    const mcp = mcpRoute(w, method, path, init);
+    if (mcp) return mcp;
     if (path === '/connectors/google-calendar') return json(w.google);
     if (path === '/connectors/google-calendar/connect' && method === 'POST')
       return json({

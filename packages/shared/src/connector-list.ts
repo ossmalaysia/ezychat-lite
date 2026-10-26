@@ -376,3 +376,17 @@ export const ConnectorActivity = z.object({
 });
 export type ConnectorActivity = z.infer<typeof ConnectorActivity>;
 export const ConnectorActivityList = z.object({ activity: z.array(ConnectorActivity) });
+
+/** `POST /connectors/mcp/:id/test`: whether the server answered, the names of its tools, and why not. */
+export const ConnectorTestResult = z.object({
+  ok: z.boolean(),
+  tools: z.array(z.string()),
+  problem: ConnectorProblem.nullable(),
+});
+export type ConnectorTestResult = z.infer<typeof ConnectorTestResult>;
+
+/** `GET /connectors/mcp/:id/choices/:settingId`: the choices of a picker setting (e.g. calendars). */
+export const ConnectorChoices = z.object({
+  options: z.array(z.object({ value: z.string(), label: z.string() })),
+});
+export type ConnectorChoices = z.infer<typeof ConnectorChoices>;

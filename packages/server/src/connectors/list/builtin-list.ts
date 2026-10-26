@@ -1,0 +1,895 @@
+/**
+ * The connector list shipped in the app: used until a signed list was downloaded and saved once
+ * (state `builtin`). Same entries as anchorsprint/ezychat-connectors at its first publish (today's
+ * gallery: the built-in Google Calendar and the coming-soon connectors), without icons (the web
+ * shows category icons). Sequence 0, so any downloaded list replaces it. Texts: en, ms, zh-CN.
+ */
+export const BUILTIN_CONNECTOR_LIST: { sequence: 0; entries: readonly unknown[] } = {
+  sequence: 0,
+  entries: [
+    {
+      id: 'google-calendar',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'builtin',
+      editions: ['lite', 'enterprise'],
+      builtinId: 'google-calendar',
+      name: 'Google Calendar',
+      summary: {
+        en: 'Check free times and book appointments.',
+        ms: 'Semak masa lapang dan tempah janji temu.',
+        'zh-CN': '查看空闲时间并预约。',
+      },
+      description: {
+        en: 'Your AI agent offers free times from your Google Calendar and, if you allow it, books the time the customer confirms. Sign in with Google: no link to paste.',
+        ms: 'Ejen AI anda menawarkan masa lapang daripada Google Calendar anda dan, jika anda benarkan, menempah masa yang disahkan oleh pelanggan. Log masuk dengan Google: tiada pautan untuk ditampal.',
+        'zh-CN':
+          'AI 代理会根据您的 Google Calendar 提供空闲时间，并在您允许时预约客户确认的时间。使用 Google 登录：无需粘贴链接。',
+      },
+      category: 'calendar',
+      privacy: {
+        en: 'EzyChat reads busy times of the calendar you choose and writes only the events it books: title, and the customer’s name, phone and email. No chat text goes to Google. The sign-in is stored encrypted on this computer.',
+        ms: 'EzyChat membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, serta nama, nombor telefon dan e-mel pelanggan. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini.',
+        'zh-CN':
+          'EzyChat 读取您所选日历的忙碌时间，只写入它预约的日程：标题，以及客户的姓名、电话号码和电子邮件。聊天内容不会发送到 Google。登录信息加密保存在这台电脑上。',
+      },
+      tools: [
+        {
+          name: 'check_free_times',
+          title: {
+            en: 'Check free times',
+            ms: 'Semak masa lapang',
+            'zh-CN': '查看空闲时间',
+          },
+          description: {
+            en: 'Reads when the chosen calendar is busy.',
+            ms: 'Membaca bila kalendar yang dipilih sibuk.',
+            'zh-CN': '读取所选日历的忙碌时间。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'book_appointment',
+          title: {
+            en: 'Book appointments',
+            ms: 'Tempah janji temu',
+            'zh-CN': '预约',
+          },
+          description: {
+            en: 'Adds an event after the customer confirms a time.',
+            ms: 'Menambah acara selepas pelanggan mengesahkan masa.',
+            'zh-CN': '客户确认时间后添加日程。',
+          },
+          access: 'write',
+        },
+      ],
+    },
+    {
+      id: 'google-sheets',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Google Sheets',
+      summary: {
+        en: 'Read prices or stock from a sheet; add new leads.',
+        ms: 'Baca harga atau stok daripada helaian; tambah prospek baharu.',
+        'zh-CN': '从表格读取价格或库存；添加新的潜在客户。',
+      },
+      description: {
+        en: 'Keep prices, stock or a FAQ in a Google Sheet and let the AI read it. It can also add each new lead as a row.',
+        ms: 'Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan AI membacanya. Ia juga boleh menambah setiap prospek baharu sebagai satu baris.',
+        'zh-CN':
+          '把价格、库存或常见问题放在 Google 表格中，让 AI 读取。它还可以把每个新的潜在客户添加为一行。',
+      },
+      category: 'spreadsheets',
+      privacy: {
+        en: 'EzyChat reads only the sheet you choose and writes only the lead rows it adds.',
+        ms: 'EzyChat hanya membaca helaian yang anda pilih dan hanya menulis baris prospek yang ditambahnya.',
+        'zh-CN': 'EzyChat 只读取您选择的表格，只写入它添加的潜在客户行。',
+      },
+      tools: [
+        {
+          name: 'read_rows',
+          title: {
+            en: 'Read rows',
+            ms: 'Baca baris',
+            'zh-CN': '读取行',
+          },
+          description: {
+            en: "Looks up the rows that match the customer's question.",
+            ms: 'Mencari baris yang sepadan dengan soalan pelanggan.',
+            'zh-CN': '查找与客户问题匹配的行。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'add_row',
+          title: {
+            en: 'Add a lead',
+            ms: 'Tambah prospek',
+            'zh-CN': '添加潜在客户',
+          },
+          description: {
+            en: "Adds the customer's name, number and request as a row.",
+            ms: 'Menambah nama, nombor dan permintaan pelanggan sebagai satu baris.',
+            'zh-CN': '将客户的姓名、号码和需求添加为一行。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Google Sheets connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Google Sheets. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Google Sheets 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'hitpay',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'HitPay',
+      summary: {
+        en: 'Send payment links (FPX, DuitNow, PayNow).',
+        ms: 'Hantar pautan pembayaran (FPX, DuitNow, PayNow).',
+        'zh-CN': '发送付款链接（FPX、DuitNow、PayNow）。',
+      },
+      description: {
+        en: 'The AI sends a HitPay payment link for an order and tells your team when it is paid.',
+        ms: 'AI menghantar pautan pembayaran HitPay untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.',
+        'zh-CN': 'AI 为订单发送 HitPay 付款链接，并在付款后通知团队。',
+      },
+      category: 'payments',
+      privacy: {
+        en: "EzyChat sends HitPay the amount, a reference and the customer's name; card and bank details stay with HitPay.",
+        ms: 'EzyChat menghantar jumlah, rujukan dan nama pelanggan kepada HitPay; butiran kad dan bank kekal dengan HitPay.',
+        'zh-CN': 'EzyChat 向 HitPay 发送金额、参考号和客户姓名；银行卡和银行信息由 HitPay 保管。',
+      },
+      tools: [
+        {
+          name: 'payment_link',
+          title: {
+            en: 'Create a payment link',
+            ms: 'Cipta pautan pembayaran',
+            'zh-CN': '创建付款链接',
+          },
+          description: {
+            en: 'Creates a link for the amount your team or price list sets.',
+            ms: 'Mencipta pautan untuk jumlah yang ditetapkan oleh pasukan atau senarai harga anda.',
+            'zh-CN': '按团队或价目表设定的金额创建链接。',
+          },
+          access: 'write',
+        },
+        {
+          name: 'payment_status',
+          title: {
+            en: 'Check payment',
+            ms: 'Semak pembayaran',
+            'zh-CN': '查询付款',
+          },
+          description: {
+            en: 'Checks whether a link was paid.',
+            ms: 'Menyemak sama ada pautan sudah dibayar.',
+            'zh-CN': '查询链接是否已付款。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the HitPay connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung HitPay. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 HitPay 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'shopify',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Shopify',
+      summary: {
+        en: 'Order status and stock from your online shop.',
+        ms: 'Status pesanan dan stok daripada kedai dalam talian anda.',
+        'zh-CN': '网店的订单状态和库存。',
+      },
+      description: {
+        en: 'Customers ask where their order is or whether an item is in stock; the AI looks it up in your Shopify shop.',
+        ms: 'Pelanggan bertanya di mana pesanan mereka atau sama ada item ada stok; AI menyemaknya di kedai Shopify anda.',
+        'zh-CN': '客户询问订单在哪里或商品是否有货；AI 在您的 Shopify 网店中查询。',
+      },
+      category: 'online_shop',
+      privacy: {
+        en: 'EzyChat only reads orders and products; it never changes your shop.',
+        ms: 'EzyChat hanya membaca pesanan dan produk; ia tidak pernah mengubah kedai anda.',
+        'zh-CN': 'EzyChat 只读取订单和产品；从不更改您的网店。',
+      },
+      tools: [
+        {
+          name: 'order_status',
+          title: {
+            en: 'Order status',
+            ms: 'Status pesanan',
+            'zh-CN': '订单状态',
+          },
+          description: {
+            en: "Finds an order by number and the customer's phone.",
+            ms: 'Mencari pesanan mengikut nombor dan telefon pelanggan.',
+            'zh-CN': '按订单号和客户电话查找订单。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'product_stock',
+          title: {
+            en: 'Product stock',
+            ms: 'Stok produk',
+            'zh-CN': '产品库存',
+          },
+          description: {
+            en: 'Checks price and stock of a product.',
+            ms: 'Menyemak harga dan stok produk.',
+            'zh-CN': '查询产品的价格和库存。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Shopify connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Shopify. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Shopify 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'autocount',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'AutoCount',
+      summary: {
+        en: 'Stock, prices and quotations from AutoCount Accounting.',
+        ms: 'Stok, harga dan sebut harga daripada AutoCount Accounting.',
+        'zh-CN': '来自 AutoCount Accounting 的库存、价格和报价单。',
+      },
+      description: {
+        en: 'The AI answers stock and price questions from AutoCount and drafts quotations for your team to send.',
+        ms: 'AI menjawab soalan stok dan harga daripada AutoCount dan mendraf sebut harga untuk dihantar oleh pasukan anda.',
+        'zh-CN': 'AI 根据 AutoCount 回答库存和价格问题，并起草报价单供团队发送。',
+      },
+      category: 'accounting',
+      privacy: {
+        en: 'EzyChat sends AutoCount only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada AutoCount apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 AutoCount 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'stock',
+          title: {
+            en: 'Stock and price',
+            ms: 'Stok dan harga',
+            'zh-CN': '库存和价格',
+          },
+          description: {
+            en: "Looks up an item's stock and selling price.",
+            ms: 'Mencari stok dan harga jualan sesuatu item.',
+            'zh-CN': '查询商品的库存和售价。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'quotation',
+          title: {
+            en: 'Create a quotation',
+            ms: 'Cipta sebut harga',
+            'zh-CN': '创建报价单',
+          },
+          description: {
+            en: 'Drafts a quotation for the customer; your team sends it.',
+            ms: 'Mendraf sebut harga untuk pelanggan; pasukan anda menghantarnya.',
+            'zh-CN': '为客户起草报价单；由团队发送。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the AutoCount connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung AutoCount. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 AutoCount 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'sql-account',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'SQL Account',
+      summary: {
+        en: 'Stock, prices and customer balances from SQL Account.',
+        ms: 'Stok, harga dan baki pelanggan daripada SQL Account.',
+        'zh-CN': '来自 SQL Account 的库存、价格和客户余额。',
+      },
+      description: {
+        en: 'The AI checks stock and prices in SQL Account and tells customers their outstanding balance.',
+        ms: 'AI menyemak stok dan harga dalam SQL Account dan memberitahu pelanggan baki tertunggak mereka.',
+        'zh-CN': 'AI 在 SQL Account 中查询库存和价格，并告诉客户未付余额。',
+      },
+      category: 'accounting',
+      privacy: {
+        en: 'EzyChat sends SQL Account only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada SQL Account apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 SQL Account 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'stock',
+          title: {
+            en: 'Stock and price',
+            ms: 'Stok dan harga',
+            'zh-CN': '库存和价格',
+          },
+          description: {
+            en: "Looks up an item's stock and selling price.",
+            ms: 'Mencari stok dan harga jualan sesuatu item.',
+            'zh-CN': '查询商品的库存和售价。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'outstanding',
+          title: {
+            en: 'Outstanding balance',
+            ms: 'Baki tertunggak',
+            'zh-CN': '未付余额',
+          },
+          description: {
+            en: 'Checks what a customer still owes.',
+            ms: 'Menyemak jumlah yang masih terhutang oleh pelanggan.',
+            'zh-CN': '查询客户尚欠的金额。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the SQL Account connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung SQL Account. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 SQL Account 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'bukku',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Bukku',
+      summary: {
+        en: 'Invoices and quotations from Bukku.',
+        ms: 'Invois dan sebut harga daripada Bukku.',
+        'zh-CN': '来自 Bukku 的发票和报价单。',
+      },
+      description: {
+        en: 'The AI tells customers whether an invoice is paid and drafts quotations in Bukku.',
+        ms: 'AI memberitahu pelanggan sama ada invois sudah dibayar dan mendraf sebut harga dalam Bukku.',
+        'zh-CN': 'AI 告诉客户发票是否已付款，并在 Bukku 中起草报价单。',
+      },
+      category: 'accounting',
+      privacy: {
+        en: 'EzyChat sends Bukku only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada Bukku apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 Bukku 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'invoice',
+          title: {
+            en: 'Invoice status',
+            ms: 'Status invois',
+            'zh-CN': '发票状态',
+          },
+          description: {
+            en: 'Finds an invoice and whether it is paid.',
+            ms: 'Mencari invois dan sama ada ia sudah dibayar.',
+            'zh-CN': '查找发票及其是否已付款。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'quotation',
+          title: {
+            en: 'Create a quotation',
+            ms: 'Cipta sebut harga',
+            'zh-CN': '创建报价单',
+          },
+          description: {
+            en: 'Drafts a quotation for the customer; your team sends it.',
+            ms: 'Mendraf sebut harga untuk pelanggan; pasukan anda menghantarnya.',
+            'zh-CN': '为客户起草报价单；由团队发送。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Bukku connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Bukku. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Bukku 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'xero',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Xero',
+      summary: {
+        en: 'Invoice status and contacts in Xero.',
+        ms: 'Status invois dan kenalan dalam Xero.',
+        'zh-CN': 'Xero 中的发票状态和联系人。',
+      },
+      description: {
+        en: 'The AI checks invoice status in Xero and adds new customers as contacts.',
+        ms: 'AI menyemak status invois dalam Xero dan menambah pelanggan baharu sebagai kenalan.',
+        'zh-CN': 'AI 在 Xero 中查询发票状态，并将新客户添加为联系人。',
+      },
+      category: 'accounting',
+      privacy: {
+        en: 'EzyChat sends Xero only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada Xero apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 Xero 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'invoice',
+          title: {
+            en: 'Invoice status',
+            ms: 'Status invois',
+            'zh-CN': '发票状态',
+          },
+          description: {
+            en: 'Finds an invoice and whether it is paid.',
+            ms: 'Mencari invois dan sama ada ia sudah dibayar.',
+            'zh-CN': '查找发票及其是否已付款。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'contact',
+          title: {
+            en: 'Add a contact',
+            ms: 'Tambah kenalan',
+            'zh-CN': '添加联系人',
+          },
+          description: {
+            en: 'Adds the customer as a contact.',
+            ms: 'Menambah pelanggan sebagai kenalan.',
+            'zh-CN': '将客户添加为联系人。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Xero connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Xero. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Xero 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'zoho-books',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Zoho Books',
+      summary: {
+        en: 'Invoices and quotations from Zoho Books.',
+        ms: 'Invois dan sebut harga daripada Zoho Books.',
+        'zh-CN': '来自 Zoho Books 的发票和报价单。',
+      },
+      description: {
+        en: 'The AI checks invoices and drafts quotations in Zoho Books.',
+        ms: 'AI menyemak invois dan mendraf sebut harga dalam Zoho Books.',
+        'zh-CN': 'AI 在 Zoho Books 中查询发票并起草报价单。',
+      },
+      category: 'accounting',
+      privacy: {
+        en: 'EzyChat sends Zoho Books only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada Zoho Books apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 Zoho Books 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'invoice',
+          title: {
+            en: 'Invoice status',
+            ms: 'Status invois',
+            'zh-CN': '发票状态',
+          },
+          description: {
+            en: 'Finds an invoice and whether it is paid.',
+            ms: 'Mencari invois dan sama ada ia sudah dibayar.',
+            'zh-CN': '查找发票及其是否已付款。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'quotation',
+          title: {
+            en: 'Create a quotation',
+            ms: 'Cipta sebut harga',
+            'zh-CN': '创建报价单',
+          },
+          description: {
+            en: 'Drafts a quotation for the customer; your team sends it.',
+            ms: 'Mendraf sebut harga untuk pelanggan; pasukan anda menghantarnya.',
+            'zh-CN': '为客户起草报价单；由团队发送。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Zoho Books connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Zoho Books. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Zoho Books 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'zoho-crm',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Zoho CRM',
+      summary: {
+        en: 'Find customers and add leads in Zoho CRM.',
+        ms: 'Cari pelanggan dan tambah prospek dalam Zoho CRM.',
+        'zh-CN': '在 Zoho CRM 中查找客户并添加潜在客户。',
+      },
+      description: {
+        en: 'The AI finds the customer in Zoho CRM before it answers and adds new enquiries as leads.',
+        ms: 'AI mencari pelanggan dalam Zoho CRM sebelum menjawab dan menambah pertanyaan baharu sebagai prospek.',
+        'zh-CN': 'AI 在回答前先在 Zoho CRM 中查找客户，并将新询问添加为潜在客户。',
+      },
+      category: 'crm',
+      privacy: {
+        en: 'EzyChat sends Zoho CRM only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada Zoho CRM apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 Zoho CRM 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'find_contact',
+          title: {
+            en: 'Find the customer',
+            ms: 'Cari pelanggan',
+            'zh-CN': '查找客户',
+          },
+          description: {
+            en: "Finds the customer's record by phone number.",
+            ms: 'Mencari rekod pelanggan mengikut nombor telefon.',
+            'zh-CN': '按电话号码查找客户记录。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'add_lead',
+          title: {
+            en: 'Add a lead',
+            ms: 'Tambah prospek',
+            'zh-CN': '添加潜在客户',
+          },
+          description: {
+            en: "Adds a new lead with the customer's request.",
+            ms: 'Menambah prospek baharu dengan permintaan pelanggan.',
+            'zh-CN': '根据客户需求添加新的潜在客户。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Zoho CRM connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Zoho CRM. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Zoho CRM 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'hubspot',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'HubSpot',
+      summary: {
+        en: 'Find customers and add leads in HubSpot.',
+        ms: 'Cari pelanggan dan tambah prospek dalam HubSpot.',
+        'zh-CN': '在 HubSpot 中查找客户并添加潜在客户。',
+      },
+      description: {
+        en: 'The AI finds the customer in HubSpot and adds new enquiries as leads.',
+        ms: 'AI mencari pelanggan dalam HubSpot dan menambah pertanyaan baharu sebagai prospek.',
+        'zh-CN': 'AI 在 HubSpot 中查找客户，并将新询问添加为潜在客户。',
+      },
+      category: 'crm',
+      privacy: {
+        en: 'EzyChat sends HubSpot only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada HubSpot apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 HubSpot 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'find_contact',
+          title: {
+            en: 'Find the customer',
+            ms: 'Cari pelanggan',
+            'zh-CN': '查找客户',
+          },
+          description: {
+            en: "Finds the customer's record by phone number.",
+            ms: 'Mencari rekod pelanggan mengikut nombor telefon.',
+            'zh-CN': '按电话号码查找客户记录。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'add_lead',
+          title: {
+            en: 'Add a lead',
+            ms: 'Tambah prospek',
+            'zh-CN': '添加潜在客户',
+          },
+          description: {
+            en: "Adds a new lead with the customer's request.",
+            ms: 'Menambah prospek baharu dengan permintaan pelanggan.',
+            'zh-CN': '根据客户需求添加新的潜在客户。',
+          },
+          access: 'write',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the HubSpot connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung HubSpot. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 HubSpot 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'woocommerce',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'WooCommerce',
+      summary: {
+        en: 'Order status and stock from your WooCommerce shop.',
+        ms: 'Status pesanan dan stok daripada kedai WooCommerce anda.',
+        'zh-CN': 'WooCommerce 网店的订单状态和库存。',
+      },
+      description: {
+        en: 'Customers ask where their order is; the AI looks it up in your WooCommerce shop.',
+        ms: 'Pelanggan bertanya di mana pesanan mereka; AI menyemaknya di kedai WooCommerce anda.',
+        'zh-CN': '客户询问订单在哪里；AI 在您的 WooCommerce 网店中查询。',
+      },
+      category: 'online_shop',
+      privacy: {
+        en: 'EzyChat sends WooCommerce only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada WooCommerce apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 WooCommerce 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'order_status',
+          title: {
+            en: 'Order status',
+            ms: 'Status pesanan',
+            'zh-CN': '订单状态',
+          },
+          description: {
+            en: "Finds an order by number and the customer's phone.",
+            ms: 'Mencari pesanan mengikut nombor dan telefon pelanggan.',
+            'zh-CN': '按订单号和客户电话查找订单。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'product_stock',
+          title: {
+            en: 'Product stock',
+            ms: 'Stok produk',
+            'zh-CN': '产品库存',
+          },
+          description: {
+            en: 'Checks price and stock of a product.',
+            ms: 'Menyemak harga dan stok produk.',
+            'zh-CN': '查询产品的价格和库存。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the WooCommerce connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung WooCommerce. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 WooCommerce 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'easystore',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'EasyStore',
+      summary: {
+        en: 'Order status and stock from EasyStore.',
+        ms: 'Status pesanan dan stok daripada EasyStore.',
+        'zh-CN': '来自 EasyStore 的订单状态和库存。',
+      },
+      description: {
+        en: 'The AI answers order and stock questions from your EasyStore shop.',
+        ms: 'AI menjawab soalan pesanan dan stok daripada kedai EasyStore anda.',
+        'zh-CN': 'AI 根据您的 EasyStore 网店回答订单和库存问题。',
+      },
+      category: 'online_shop',
+      privacy: {
+        en: 'EzyChat sends EasyStore only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada EasyStore apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 EasyStore 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'order_status',
+          title: {
+            en: 'Order status',
+            ms: 'Status pesanan',
+            'zh-CN': '订单状态',
+          },
+          description: {
+            en: "Finds an order by number and the customer's phone.",
+            ms: 'Mencari pesanan mengikut nombor dan telefon pelanggan.',
+            'zh-CN': '按订单号和客户电话查找订单。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'product_stock',
+          title: {
+            en: 'Product stock',
+            ms: 'Stok produk',
+            'zh-CN': '产品库存',
+          },
+          description: {
+            en: 'Checks price and stock of a product.',
+            ms: 'Menyemak harga dan stok produk.',
+            'zh-CN': '查询产品的价格和库存。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the EasyStore connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung EasyStore. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 EasyStore 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'storehub',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'StoreHub',
+      summary: {
+        en: 'Stock and member points from StoreHub POS.',
+        ms: 'Stok dan mata ahli daripada POS StoreHub.',
+        'zh-CN': '来自 StoreHub POS 的库存和会员积分。',
+      },
+      description: {
+        en: "The AI checks stock and a member's points in StoreHub.",
+        ms: 'AI menyemak stok dan mata ahli dalam StoreHub.',
+        'zh-CN': 'AI 在 StoreHub 中查询库存和会员积分。',
+      },
+      category: 'online_shop',
+      privacy: {
+        en: 'EzyChat sends StoreHub only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada StoreHub apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 StoreHub 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'product_stock',
+          title: {
+            en: 'Product stock',
+            ms: 'Stok produk',
+            'zh-CN': '产品库存',
+          },
+          description: {
+            en: 'Checks price and stock of a product.',
+            ms: 'Menyemak harga dan stok produk.',
+            'zh-CN': '查询产品的价格和库存。',
+          },
+          access: 'read',
+        },
+        {
+          name: 'member',
+          title: {
+            en: 'Member points',
+            ms: 'Mata ahli',
+            'zh-CN': '会员积分',
+          },
+          description: {
+            en: "Checks a member's points and tier.",
+            ms: 'Menyemak mata dan tahap ahli.',
+            'zh-CN': '查询会员的积分和等级。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the StoreHub connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung StoreHub. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 StoreHub 连接器。我们会用它来：',
+      },
+    },
+    {
+      id: 'billplz',
+      schemaVersion: 1,
+      minAppVersion: '0.0.0',
+      kind: 'coming_soon',
+      editions: ['lite', 'enterprise'],
+      name: 'Billplz',
+      summary: {
+        en: 'Send Billplz payment links (FPX).',
+        ms: 'Hantar pautan pembayaran Billplz (FPX).',
+        'zh-CN': '发送 Billplz 付款链接（FPX）。',
+      },
+      description: {
+        en: 'The AI sends a Billplz payment link for an order and tells your team when it is paid.',
+        ms: 'AI menghantar pautan pembayaran Billplz untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.',
+        'zh-CN': 'AI 为订单发送 Billplz 付款链接，并在付款后通知团队。',
+      },
+      category: 'payments',
+      privacy: {
+        en: 'EzyChat sends Billplz only what a look-up or action needs in one chat, and never the chat text.',
+        ms: 'EzyChat hanya menghantar kepada Billplz apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.',
+        'zh-CN': 'EzyChat 只向 Billplz 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。',
+      },
+      tools: [
+        {
+          name: 'payment_link',
+          title: {
+            en: 'Create a payment link',
+            ms: 'Cipta pautan pembayaran',
+            'zh-CN': '创建付款链接',
+          },
+          description: {
+            en: 'Creates a link for the amount your team or price list sets.',
+            ms: 'Mencipta pautan untuk jumlah yang ditetapkan oleh pasukan atau senarai harga anda.',
+            'zh-CN': '按团队或价目表设定的金额创建链接。',
+          },
+          access: 'write',
+        },
+        {
+          name: 'payment_status',
+          title: {
+            en: 'Check payment',
+            ms: 'Semak pembayaran',
+            'zh-CN': '查询付款',
+          },
+          description: {
+            en: 'Checks whether a link was paid.',
+            ms: 'Menyemak sama ada pautan sudah dibayar.',
+            'zh-CN': '查询链接是否已付款。',
+          },
+          access: 'read',
+        },
+      ],
+      vote: {
+        en: 'Hi EzyChat team, please add the Billplz connector. We would use it for:',
+        ms: 'Hai pasukan EzyChat, sila tambah penyambung Billplz. Kami akan menggunakannya untuk:',
+        'zh-CN': '您好 EzyChat 团队，请添加 Billplz 连接器。我们会用它来：',
+      },
+    },
+  ],
+};
