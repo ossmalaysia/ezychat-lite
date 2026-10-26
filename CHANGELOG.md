@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Reports for admins.** Admin → Reports shows how busy your WhatsApp is and how fast your team and AI
+  answer, for the last 7, 30 or 90 days: new customers, messages from customers, first reply time, new
+  customers missed (no reply within 1 hour), chats still waiting after the AI handed them to the team (with
+  **Open chats**), and chats the AI answered, each compared with the period before. Charts show your busy
+  days, your busy times (day by hour), messages and new customers per day, why the AI handed chats over (with a
+  link to fill the Business context) and each team member's replies. Every chart can be shown as a table.
+  Everything is counted on your own computer; nothing is sent anywhere. AI assistants connected through MCP see
+  new and missed customers and the waiting chats in `get_stats`.
+
 ## [0.1.59] - 2026-10-26
 
 ### Added
