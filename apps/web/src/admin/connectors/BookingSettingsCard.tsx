@@ -264,7 +264,9 @@ export function BookingSettingsCard({
                           set({
                             days:
                               on === true
-                                ? [...value.days.filter((d) => d !== day), day].sort((a, b) => a - b)
+                                ? [...value.days.filter((d) => d !== day), day].sort(
+                                    (a, b) => a - b,
+                                  )
                                 : value.days.filter((d) => d !== day),
                           })
                         }
