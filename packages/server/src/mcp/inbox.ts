@@ -13,6 +13,7 @@ import { getAuth } from '../auth/guards.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { computeInboxStats, type InboxStats } from '../chats/stats.js';
+import { computeReport } from '../reports/report.js';
 import { canOpen, scopeFor, scopeIds, type InboxScope } from '../inboxes/access.js';
 import { chatKey } from '../inboxes/keys.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
@@ -26,6 +27,15 @@ export interface InboxInfo {
   id: number;
   name: string;
   removed: boolean;
+}
+
+/** New and missed customers and the silent hand-offs, as on Admin → Reports (`get_stats`). */
+export interface CustomerStats {
+  newCustomers: number;
+  /** New customers with no reply within 1 hour. */
+  missedNewCustomers: number;
+  /** Open chats the AI handed over where no person has written since. */
+  waitingAfterAiHandoff: { count: number; oldestHandoffAt: number | null };
 }
 
 /** Counts of one active inbox, in `get_stats` when the reader has more than one. */
@@ -72,7 +82,11 @@ export interface InboxReadPort {
     reader: Reader,
   ): { messages: Message[]; nextBefore: string | null } | null;
   /** `byInbox` when no inbox is chosen and the reader has more than one active inbox. */
-  stats(days: number, reader: Reader, inboxId?: number): InboxStats & { byInbox?: InboxStatsRow[] };
+  stats(
+    days: number,
+    reader: Reader,
+    inboxId?: number,
+  ): InboxStats & { customers: CustomerStats; byInbox?: InboxStatsRow[] };
   activity(
     days: number,
     reader: Reader,
@@ -191,7 +205,23 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
     },
     stats(days, reader, inboxId) {
       const { inboxIds, breakdown } = cover(reader, inboxId);
-      const total = statsOf(days, inboxIds);
+      const report = computeReport(ctx.db, {
+        days,
+        timeZone: timeZone(),
+        now: Date.now(),
+        inboxIds,
+      });
+      const total = {
+        ...statsOf(days, inboxIds),
+        customers: {
+          newCustomers: report.totals.newCustomers,
+          missedNewCustomers: report.totals.missedLeads,
+          waitingAfterAiHandoff: {
+            count: report.waitingAfterHandoff.count,
+            oldestHandoffAt: report.waitingAfterHandoff.oldestAt,
+          },
+        },
+      };
       if (!breakdown.length) return total;
       const byInbox = breakdown.map((id): InboxStatsRow => {
         const s = statsOf(days, [id]);

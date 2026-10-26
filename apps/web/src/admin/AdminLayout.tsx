@@ -1,6 +1,7 @@
 import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useEffect, useState } from 'react';
 import {
+  BarChart3,
   ChevronLeft,
   Inbox,
   Loader2,
@@ -58,6 +59,7 @@ import {
 } from '../extensions';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
+import { ReportsPage } from './ReportsPage';
 import { ListSkeleton } from './adminUi';
 import { InboxesPage } from './InboxesPage';
 import { MembersPage } from './MembersPage';
@@ -71,6 +73,8 @@ import { WhatsAppPage } from './WhatsAppPage';
  * Inboxes never show together: see `visibleAdminNav`.
  */
 export const ADMIN_NAV = [
+  // First: the page an owner opens most (design: docs/features/reports/design.md).
+  { to: 'reports', labelKey: 'nav.reports', icon: BarChart3 },
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
   { to: 'whatsapp', labelKey: 'nav.whatsapp', icon: Smartphone },
@@ -422,6 +426,7 @@ export function AdminLayout() {
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/ai" element={<AiAgentIndexRoute />} />
             <Route path="members/ai/new" element={<AiMemberPage />} />

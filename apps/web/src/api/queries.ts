@@ -7,6 +7,8 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import {
+  Report,
+  type ReportPeriod,
   type Locale,
   type SendMediaFields,
   type ApiToken,
@@ -85,6 +87,7 @@ export const qk = {
   chats: (f: ChatFilters) => ['chats', f] as const,
   chatsAll: ['chats'] as const,
   openChatCount: ['open-chat-count'] as const,
+  report: (days: number) => ['report', days] as const,
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
@@ -475,6 +478,15 @@ export function useChat(jid: string | null | undefined) {
     queryKey: qk.chat(jid ?? ''),
     queryFn: ({ signal }) => api<ChatDetailResponse>(`/chats/${enc(jid ?? '')}`, { signal }),
     enabled: !!jid,
+  });
+}
+
+/** Admin → Reports for the last 7, 30 or 90 days (admins only). */
+export function useReport(days: ReportPeriod) {
+  return useQuery({
+    queryKey: qk.report(days),
+    queryFn: ({ signal }) => api(`/reports?days=${days}`, { schema: Report, signal }),
+    staleTime: 60_000,
   });
 }
 
