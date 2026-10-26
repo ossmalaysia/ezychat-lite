@@ -871,6 +871,12 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Screenshot scripts wait ~400–500 ms after opening a `Dialog`/`Select` and after enabling a filled button: the
+  open animation shows the page through the dialog, and `transition-colors` keeps a just-enabled button in the
+  grey "disabled" colour. Check `button.disabled` before calling a grey button a bug.
+- Word matching on mixed text puts `\p{Script=Han}` before `[\p{L}\p{N}]+` in the alternation: Han is also
+  `\p{L}`, so the other order makes `谢谢您` one "word" and any "at least 2 words" rule never fires for Chinese.
+
 - Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
   inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
   Put it after the outer `</form>` and point the footer button at the form with `form={id}`.
