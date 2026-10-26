@@ -1,6 +1,6 @@
 # Connector list: connectors managed outside the app
 
-Status: **proposal** (mock in `mock/`, waiting for the owner's confirmation). Branch `feat/connector-list`, stacked on
+Status: **confirmed** 2026-10-27 (mock revision `9a56439`; see Confirmation). Branch `feat/connector-list`, stacked on
 `claude/sleepy-fermat-ahpoii` (ossmalaysia/ezychat-lite#192, Google Calendar connector).
 
 ## Owner decisions (2026-10-27)
@@ -250,3 +250,44 @@ dark, into `mock/screenshots/`).
   OAuth); Try it and the chat do not show partner tool calls (the AI's refusals show only in Activity); the
   Google Calendar (MCP) settings are separate from the built-in connector's (no migration shown); icons are stand-in
   Lucide icons, not the list's `icons/<id>.svg`; mock-only and partner texts are English in all catalogs.
+
+## Sign-in types (owner, 2026-10-27: "support few common auth method like oauth, secret key, and others")
+
+Each entry declares one `auth.type`. The list never holds a secret: the admin enters it in EzyChat, which keeps it
+encrypted in the data folder, never logs it and shows only its last 4 characters after Save.
+
+| `auth.type`     | For                                                                                                              | The admin                                            | EzyChat sends                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| `oauth`         | MCP authorization (discovery, dynamic client registration, or a public `clientId`), PKCE S256, loopback redirect | Connect, sign in on the partner's page               | `Authorization: Bearer <token>`, refreshed                                  |
+| `oauth_own_app` | OAuth without self-registration that needs a client secret                                                       | pastes their own client ID and secret, then signs in | as above                                                                    |
+| `api_key`       | one key or token                                                                                                 | pastes the key, Test, Save                           | a declared header, e.g. `Authorization: Bearer {key}` or `X-API-Key: {key}` |
+| `credentials`   | several fields (account ID + key, username + password)                                                           | fills the declared form                              | headers from templates, e.g. `Authorization: Basic {username:password}`     |
+| `none`          | public read-only servers                                                                                         | Connect                                              | nothing                                                                     |
+
+- `mcp.url` may use a non-secret field (`https://{tenant}.partner.example/mcp`); the result must be `https`.
+- **Test connection** (lists the server's tools) before Save; a refused key shows the reason in plain words.
+- A new `auth.type` is added with a new schema version; an older app does not show such an entry.
+
+## Confirmation
+
+Confirmed by the owner 2026-10-27: after the review page (https://claude.ai/artifact/7LRhQpYTRKRfPDB1o71irs,
+version 2: gallery from the list, partner page, OAuth and API key connect, per-agent settings and rules, Activity,
+No longer available) and the answers above, "yes, build it" (mock revision `9a56439`, plus the sign-in types table).
+
+## Build plan
+
+1. **Contract** (`packages/shared/src/connector-list.ts`): list format 1, entry schemaVersion 1, auth types, tools,
+   guards, settings fields; the app's supported range (`SUPPORTED_SCHEMA_VERSIONS`).
+2. **List** (`packages/server/src/connectors/list/`): download at start and when the gallery opens, Ed25519 check
+   with two embedded public keys, `sequence` check, icon hashes, local copy in `<data>/connectors/`, built-in copy as
+   fallback; routes `GET /api/connectors/list`, `POST /api/connectors/list/refresh`, `GET /api/connectors/icons/:file`.
+3. **Connections** (`packages/server/src/connectors/mcp/`): MCP client (Streamable HTTP), the five sign-in types,
+   encrypted secrets, Test connection, Disconnect; routes under `/api/connectors/mcp/:id/*`.
+4. **AI bridge and guards** (`packages/server/src/connectors/mcp/tools.ts`, `guards.ts`): per-agent tool switches and
+   settings (migration), tools offered to the agent turn, the declared guards, Activity, Try it never runs write tools.
+5. **Web**: gallery from the list (status line, Check for new connectors, needs update, No longer available), partner
+   page, connect dialogs, settings form, Activity; i18n en/ms/zh-CN.
+6. **Repo** `anchorsprint/ezychat-connectors`: schema, folders (`connector.yaml`, `skill.md`, `icon.svg`), build +
+   sign + publish to `dl.ezychat.ai/connectors/`; first entries = today's gallery (built-in Google Calendar, coming
+   soon) plus a test partner for e2e and Dev Builds (never shown in production lists).
+7. Tests, e2e, screen review against this mock, Dev Build check with a local test MCP server, release.
