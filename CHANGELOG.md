@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **AI completions now appear while you type.** With ChatGPT sign-in, the grey text used your main
+  model and often took longer than the 3-second limit, so nothing showed. Suggest reply and completions
+  now use a fast model (ChatGPT: GPT-6 Luna when your account has it; OpenAI key: GPT-4.1 mini; Claude:
+  Claude Haiku). Completions read only the last messages of the chat and what you type, so they are
+  quicker; Suggest reply still uses your business context. Grey text also appears when you stop inside
+  a word, and it stays while you type the same letters.
+
 ## [0.1.58] - 2026-10-26
 
 ### Added

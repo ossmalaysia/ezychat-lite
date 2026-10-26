@@ -63,6 +63,16 @@ const TYPING_THROTTLE_MS = 2_000;
 const COMPLETION_PAUSE_MS = 500;
 const MAX_HEIGHT_PX = 160;
 
+/**
+ * The grey text still ahead of the caret: the completion asked for `ghost.for`, minus what was
+ * typed since. Typing other letters, or deleting into the asked-for text, hides it.
+ */
+function ghostAhead(ghost: { for: string; text: string } | null, text: string): string {
+  if (!ghost || !text.startsWith(ghost.for)) return '';
+  const full = ghost.for + ghost.text;
+  return full.length > text.length && full.startsWith(text) ? full.slice(text.length) : '';
+}
+
 /** Touch devices: Enter inserts a newline, the Send button sends. */
 function isCoarsePointer(): boolean {
   try {
@@ -120,9 +130,14 @@ export function Composer({
   const [pendingPick, setPendingPick] = useState<ReplySuggestion | null>(null);
   const [ghost, setGhost] = useState<{ for: string; text: string } | null>(null);
   const suggestAbort = useRef<AbortController | null>(null);
-  const completeAbort = useRef<AbortController | null>(null);
+  /** The one completion request in flight, for the text it was asked for. */
+  const completing = useRef<{ typed: string; jid: string; cancel: AbortController } | null>(null);
+  /** Bumped when a request ends, so the next one can start for the text typed meanwhile. */
+  const [completionDone, setCompletionDone] = useState(0);
+  /** Text whose grey text was dismissed with Esc: not asked again until the text changes. */
+  const dismissedFor = useRef<string | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
-  const ghostText = ghost && ghost.for === text ? ghost.text : '';
+  const ghostText = ghostAhead(ghost, text);
 
   function closeSuggestions() {
     suggestAbort.current?.abort();
@@ -174,29 +189,48 @@ export function Composer({
     closeSuggestions();
   }, [lastCustomer]);
 
-  // Completion: after a full word and a short pause; a new keystroke aborts the request.
+  // Completion: after a full word and a short pause, one request at a time. People type on while
+  // it runs, so a request stays alive while the text still extends what it was asked for; its
+  // answer then shows the part still ahead (type-through). Other edits cancel it.
   const suggestJid = aiSuggest?.chatJid ?? null;
+  const hasGhost = ghostText !== '';
   useEffect(() => {
-    completeAbort.current?.abort();
+    const running = completing.current;
+    if (
+      running &&
+      (aiMode !== 'on' || running.jid !== suggestJid || !text.startsWith(running.typed))
+    ) {
+      running.cancel.abort();
+      completing.current = null;
+    }
+    if (completing.current || hasGhost) return;
     if (aiMode !== 'on' || !suggestJid || !completionReady(text)) return;
+    if (dismissedFor.current === text) return;
     const el = areaRef.current;
     if (el && el.selectionStart !== text.length) return;
-    const cancel = new AbortController();
-    completeAbort.current = cancel;
-    const typed = text;
     const timer = setTimeout(() => {
+      const cancel = new AbortController();
+      const typed = text;
+      completing.current = { typed, jid: suggestJid, cancel };
       fetchCompletion(suggestJid, typed, cancel.signal)
         .then(({ completion }) => {
-          // A completion for older text is discarded.
           if (!cancel.signal.aborted && completion) setGhost({ for: typed, text: completion });
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          if (completing.current?.cancel !== cancel) return;
+          completing.current = null;
+          setCompletionDone((n) => n + 1);
+        });
     }, COMPLETION_PAUSE_MS);
-    return () => {
-      clearTimeout(timer);
-      cancel.abort();
-    };
-  }, [text, aiMode, suggestJid]);
+    return () => clearTimeout(timer);
+  }, [text, aiMode, suggestJid, hasGhost, completionDone]);
+  useEffect(() => () => completing.current?.cancel.abort(), []);
+  // Grey text belongs to one chat: another chat starts without it.
+  useEffect(() => {
+    setGhost(null);
+    dismissedFor.current = null;
+  }, [suggestJid]);
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -342,6 +376,7 @@ export function Composer({
     }
     if (ghostText && e.key === 'Escape') {
       e.preventDefault();
+      dismissedFor.current = text;
       setGhost(null);
       return;
     }

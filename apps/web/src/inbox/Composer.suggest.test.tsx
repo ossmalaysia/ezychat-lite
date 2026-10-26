@@ -137,15 +137,90 @@ describe('Composer reply suggestions', () => {
 
   it('requests a completion only after a full word and a 500 ms pause', async () => {
     const { user, box } = setup();
-    await user.type(box, 'Hi Nu');
+    await user.type(box, 'Hi');
     await act(() => vi.advanceTimersByTimeAsync(800));
     expect(fetchCompletion).not.toHaveBeenCalled();
-    await user.type(box, 'rul ');
+    await user.type(box, ' Nurul ');
     await act(() => vi.advanceTimersByTimeAsync(400));
     expect(fetchCompletion).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(200));
     expect(fetchCompletion).toHaveBeenCalledTimes(1);
     expect(fetchCompletion).toHaveBeenCalledWith(JID, 'Hi Nurul ', expect.any(AbortSignal));
+  });
+
+  it('completes a half-typed word after a pause', async () => {
+    vi.mocked(fetchCompletion).mockResolvedValue({ completion: 'e any other questions?' });
+    const { user, box } = setup();
+    await user.type(box, 'do you hav');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(fetchCompletion).toHaveBeenCalledWith(JID, 'do you hav', expect.any(AbortSignal));
+    expect(screen.getByTestId('completion-ghost').textContent).toBe(
+      'do you have any other questions?',
+    );
+  });
+
+  it('keeps one request running while typing on, and shows the part still ahead', async () => {
+    let resolve!: (value: { completion: string | null }) => void;
+    vi.mocked(fetchCompletion).mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    const { user, box } = setup();
+    await user.type(box, 'do you ');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    // Typing on, longer than the pause, sends no second request while the first one runs.
+    await user.type(box, 'ha');
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    expect(fetchCompletion).toHaveBeenCalledTimes(1);
+    const [, , signal] = vi.mocked(fetchCompletion).mock.calls[0]!;
+    expect(signal.aborted).toBe(false);
+    await act(async () => resolve({ completion: 'have any other questions?' }));
+    const ghost = () => screen.getByTestId('completion-ghost').textContent;
+    expect(ghost()).toBe('do you have any other questions?');
+    // Typing the same letters keeps the grey text, shorter.
+    await user.type(box, 've an');
+    expect(ghost()).toBe('do you have any other questions?');
+    expect(fetchCompletion).toHaveBeenCalledTimes(1);
+    await user.keyboard('{Tab}');
+    expect(box.value).toBe('do you have any other questions?');
+  });
+
+  it('cancels the request when the text no longer extends it, then asks again', async () => {
+    vi.mocked(fetchCompletion).mockImplementationOnce(() => new Promise(() => undefined));
+    const { user, box } = setup();
+    await user.type(box, 'do you ');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    const [, , first] = vi.mocked(fetchCompletion).mock.calls[0]!;
+    await user.type(box, '{Backspace}{Backspace}{Backspace}{Backspace}we ');
+    expect(first.aborted).toBe(true);
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(fetchCompletion).toHaveBeenLastCalledWith(JID, 'do we ', expect.any(AbortSignal));
+  });
+
+  it('drops the grey text when the chat changes', async () => {
+    vi.mocked(fetchCompletion).mockResolvedValue({ completion: 'any other questions?' });
+    const { user, box, rerender } = setup();
+    await user.type(box, 'do you have ');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(screen.getByTestId('completion-ghost').textContent).toContain('questions');
+    vi.mocked(fetchCompletion).mockResolvedValue({ completion: null });
+    rerender(
+      <Composer
+        quickReplies={[]}
+        onSend={vi.fn()}
+        onAttach={vi.fn()}
+        aiSuggest={ai({ chatJid: '60120000000@s.whatsapp.net' })}
+      />,
+    );
+    expect(screen.getByTestId('completion-ghost').textContent).not.toContain('questions');
+  });
+
+  it('does not ask again for the same text after Esc', async () => {
+    vi.mocked(fetchCompletion).mockResolvedValue({ completion: 'any other questions?' });
+    const { user, box } = setup();
+    await user.type(box, 'do you have ');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    await user.keyboard('{Escape}');
+    await act(() => vi.advanceTimersByTimeAsync(1_500));
+    expect(fetchCompletion).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('completion-ghost').textContent).not.toContain('questions');
   });
 
   it('accepts the grey text with Tab, never sends it, and dismisses it with Esc', async () => {

@@ -102,7 +102,7 @@ import {
 } from './settings-keys.js';
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 import { CompletionOutput, DraftOutput, buildDraftPrompt } from './draft-prompt.js';
-import { acceptCompletion, acceptDrafts } from './draft-check.js';
+import { acceptDrafts, checkCompletion, type CompletionDrop } from './draft-check.js';
 import { replySuggestionsEnabled } from './reply-suggestions-setting.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 
@@ -278,6 +278,8 @@ export interface AiService {
 
 /** A completion that takes longer arrives after the teammate moved on: it is dropped. */
 export const AI_COMPLETION_TIMEOUT_MS = 3_000;
+/** A completion sees only this many of the last chat messages (plus the typed text). */
+export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 
 declare module '../context.js' {
@@ -1907,15 +1909,21 @@ export function createAiService(
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const history = messages.list(jid, { limit: 20 }).messages;
-      const turns = conversation(history, aiUserIds());
-      const business = relevantKnowledge(
-        items.business,
-        history
-          .filter((message) => !message.fromMe)
-          .slice(-3)
-          .map(customerText)
-          .join('\n'),
-      );
+      // A completion predicts the next words like a keyboard: only the last messages and the typed
+      // text, never the knowledge (smaller and faster; its facts may only come from the chat).
+      const completing = request.kind === 'complete';
+      const allTurns = conversation(history, aiUserIds());
+      const turns = completing ? allTurns.slice(-AI_COMPLETION_TURNS) : allTurns;
+      const business = completing
+        ? ''
+        : relevantKnowledge(
+            items.business,
+            history
+              .filter((message) => !message.fromMe)
+              .slice(-3)
+              .map(customerText)
+              .join('\n'),
+          );
       const customer = aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
       // No agent: no preset texts that nobody configured (only the conversation and the customer).
       const instructions = agent
@@ -1933,7 +1941,7 @@ export function createAiService(
           kind: request.kind,
           instructions,
           handoffRules: agent ? current.handoffRules : '',
-          internalKnowledge: items.internal,
+          internalKnowledge: completing ? '' : items.internal,
           businessKnowledge: business,
           conversation: turns,
           customer,
@@ -1949,6 +1957,9 @@ export function createAiService(
       let ok = false;
       /** The failure's class name and HTTP status (never its message: it can echo the prompt). */
       let cause: { causeName: string | null; status: number | null } | null = null;
+      /** Completions only: why no grey text showed, and whether the 3 s limit cut the call. */
+      let dropped: CompletionDrop | null = null;
+      let timedOut = false;
       const noteFailure = (error: unknown) => {
         const status = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
         const code = status.statusCode ?? status.status;
@@ -1961,7 +1972,7 @@ export function createAiService(
               current,
               aiApiKey(ctx.settings),
               prompt,
-              { schema: DraftOutput, fast: false, maxOutputTokens: 2_000 },
+              { schema: DraftOutput, fast: true, maxOutputTokens: 2_000 },
               AbortSignal.any([signal, AbortSignal.timeout(AI_SUGGESTION_TIMEOUT_MS)]),
             );
             model = answer.model;
@@ -1991,18 +2002,21 @@ export function createAiService(
             AbortSignal.any([signal, bound.signal]),
           );
           model = answer.model;
-          const completion = acceptCompletion(
+          const checked = checkCompletion(
             answer.output,
             request.typed,
             sources,
             internalTexts,
             business,
           );
-          count = completion ? 1 : 0;
+          count = checked.completion ? 1 : 0;
+          dropped = checked.dropped;
           ok = true;
-          return { completion };
+          return { completion: checked.completion };
         } catch (error) {
           noteFailure(error);
+          // Both cancels are an AbortError: tell the 3 s limit apart from the app's own cancel.
+          timedOut = bound.signal.aborted && !signal.aborted;
           return { completion: null };
         } finally {
           clearTimeout(timer);
@@ -2018,6 +2032,8 @@ export function createAiService(
             model,
             count,
             ...(cause ?? {}),
+            ...(dropped ? { dropped } : {}),
+            ...(timedOut ? { timedOut } : {}),
           },
           'AI draft',
         );

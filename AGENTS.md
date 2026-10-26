@@ -137,7 +137,9 @@ the current text or the suggestion; closing the popup aborts the request and the
 (design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
 (any user with inbox access, direct chats only, 20 and 60 a minute) draft from the chat's agent knowledge even when
 the agent is off (`AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
-`CORE_RULES`); `ai/draft-check.ts` drops ungrounded drafts, numbers not in the sources and Internal leaks; nothing
+`CORE_RULES`); both use the connection's fast model (`agent/draft.ts`: ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with
+reasoning `low`, `DRAFT_FAST_MODELS` for the API-key modes); a completion sees only the last 6 messages and the typed
+text, never the knowledge; `ai/draft-check.ts` drops ungrounded drafts, numbers not in the sources and Internal leaks; nothing
 is sent or stored; switch `ai_reply_suggestions` (admins, `PUT /api/ai/reply-suggestions`; status for everyone at
 `GET /api/reply-suggestions`), written off by migration 020 for installs that existed before; `resolution.ts` is the resolution guard;
 `knowledge.ts` selects knowledge. Provider modes: API key (`api`, public OpenAI Responses API), Claude API key
