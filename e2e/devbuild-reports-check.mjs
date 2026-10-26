@@ -108,9 +108,10 @@ for (const scheme of ['light', 'dark'])
     await page.goto('/admin/reports');
     await page.getByTestId('report-totals').waitFor();
     await page.waitForTimeout(400);
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-    );
+    const overflow = await page.evaluate(() => {
+      const root = globalThis.document.documentElement;
+      return root.scrollWidth > root.clientWidth + 1;
+    });
     if (overflow) problems.push(`${name}-${scheme}: horizontal overflow`);
     await page.screenshot({ path: join(outDir, `reports-${name}-${scheme}.png`), fullPage: true });
     if (scheme === 'light') {

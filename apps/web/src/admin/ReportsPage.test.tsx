@@ -213,6 +213,16 @@ describe('ReportsPage', () => {
     expect(query.days.at(-1)).toBe(7);
   });
 
+  it('draws a single day as one narrow bar and labels it once', () => {
+    query.current = ready(report({ daily: [day('2026-10-26', 12)], previous: null }));
+    renderPage();
+    const bar = screen.getByTestId('daily-bar');
+    expect(bar.className).toContain('max-w-10');
+    const daily = within(screen.getByTestId('card-daily'));
+    expect(daily.getAllByText(/Oct 26|26 Oct/)).toHaveLength(2); // the readout and one axis label
+    expect(screen.getByTestId('new-single-day')).toBeTruthy();
+  });
+
   it('waits for 2 weeks of messages before naming patterns', () => {
     const few = daily().slice(-5);
     query.current = ready(

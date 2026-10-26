@@ -370,6 +370,11 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In a cloud container whose Playwright browser build is older than the package expects, point
+  `PLAYWRIGHT_BROWSERS_PATH` at a scratch folder with symlinks named for the expected build (e.g.
+  `chromium-1248` → `/opt/pw-browsers/chromium-1243`); otherwise `playwright.config.ts` falls back to the
+  `chrome` channel and every e2e fails at launch. The PDF/Word parser worker tests also fail there on clean
+  `main`: compare with `main` before blaming a change.
 - An app window that Windows marks "not responding" while its server log stays fast is first a PC-load
   question: read `Get-WinEvent` (Application Hang 1002, service timeouts, Kernel-General 12/13 restarts) and the
   WER `ReportArchive` before reading code. On the owner's PC, never run the full suite or e2e beside the live apps
@@ -882,6 +887,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Review a chart with one data point too (a new install's first day): a flex bar fills the whole chart and an
+  SVG area becomes a triangle. Cap bar widths and draw a single point as a bar or dot.
 - Hover readouts on charts (or any pointer-driven detail) clear only on a `pointerType === 'mouse'` leave: on
   touch a tap fires `pointerleave` right after `pointerdown`, so the tapped value vanishes. Check the 360 px touch
   shot, not only desktop hover.

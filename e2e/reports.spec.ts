@@ -18,7 +18,7 @@ test('Admin → Reports counts a new customer and shows busy days, busy times an
 
   await expect(page.getByRole('heading', { level: 1, name: 'Reports' })).toBeVisible();
   const totals = page.getByTestId('report-totals');
-  await expect(totals.getByText('New customers')).toBeVisible();
+  await expect(totals.getByText('New customers', { exact: true })).toBeVisible();
   await expect(
     totals.getByText(String(report.totals.newCustomers), { exact: true }).first(),
   ).toBeVisible();

@@ -150,7 +150,10 @@ export function DailyChart({ daily }: { daily: ReportDay[] }) {
   const busiest = daily.reduce((a, b) => (b.inbound > a.inbound ? b : a), daily[0]!);
   const [selected, setSelected] = useState<ReportDay | null>(null);
   const shown = selected ?? busiest;
-  const ticks = [daily[0]!, daily[Math.floor(daily.length / 2)]!, daily[daily.length - 1]!];
+  // First, middle and last day, each once (a short period has fewer).
+  const ticks = [
+    ...new Set([daily[0]!, daily[Math.floor(daily.length / 2)]!, daily[daily.length - 1]!]),
+  ];
   return (
     <div className="flex flex-col gap-2" onPointerLeave={onMouseLeave(() => setSelected(null))}>
       <p className="min-h-5 text-sm" aria-live="polite" data-testid="daily-readout">
@@ -176,7 +179,7 @@ export function DailyChart({ daily }: { daily: ReportDay[] }) {
           {daily.map((d) => (
             <div
               key={d.date}
-              className="flex h-full min-w-0 flex-1 cursor-pointer items-end"
+              className="flex h-full max-w-10 min-w-0 flex-1 cursor-pointer items-end"
               onPointerEnter={() => setSelected(d)}
               onPointerDown={() => setSelected(d)}
               data-testid="daily-bar"
@@ -379,7 +382,7 @@ export function NewCustomersChart({ daily }: { daily: ReportDay[] }) {
             preserveAspectRatio="none"
             className="size-full overflow-visible"
           >
-            <polygon points={`0,40 ${line} 100,40`} className="fill-primary/15" />
+            {n > 1 && <polygon points={`0,40 ${line} 100,40`} className="fill-primary/15" />}
             <polyline
               points={line}
               fill="none"
@@ -388,6 +391,18 @@ export function NewCustomersChart({ daily }: { daily: ReportDay[] }) {
               vectorEffect="non-scaling-stroke"
               strokeLinejoin="round"
             />
+            {n === 1 && (
+              <line
+                x1={50}
+                x2={50}
+                y1={40}
+                y2={y(daily[0]!.newCustomers)}
+                className="stroke-primary"
+                strokeWidth={8}
+                vectorEffect="non-scaling-stroke"
+                data-testid="new-single-day"
+              />
+            )}
             {index !== null && (
               <line
                 x1={x(index)}
@@ -404,7 +419,7 @@ export function NewCustomersChart({ daily }: { daily: ReportDay[] }) {
       </div>
       <div className="flex justify-between pl-9 text-xs text-muted-foreground" aria-hidden>
         <span>{f.day(daily[0]!.date)}</span>
-        <span>{f.day(daily[n - 1]!.date)}</span>
+        {n > 1 && <span>{f.day(daily[n - 1]!.date)}</span>}
       </div>
     </div>
   );
