@@ -3,7 +3,7 @@
 Owner request 2026-10-26 ("can we look at basic analytics for ezychat lite? So we know how many basic info like
 lead per day, and other useful data for small business", then "can we build chart or graph so we can see the busy
 days?"). Today the numbers exist only for AI assistants through the MCP tool `get_stats`; the app has no screen
-for them. This adds **Admin → Reports**. Status: **mock ready, waiting for the owner's confirmation**.
+for them. This adds **Admin → Reports**. Status: **confirmed** 2026-10-26 (see Confirmation); next: implementation.
 
 ## Why
 
@@ -40,7 +40,7 @@ shown only there. Nothing is sent to us.
 | MCP                    | `get_stats` gets the same new numbers (new customers, missed, first reply, waiting after hand-off, weekday and hour averages), so an AI assistant reads what the page shows.                                                                                    | Our call |
 | Not in Lite            | CSV export, scheduled e-mail reports and comparing inboxes side by side: candidates for Enterprise.                                                                                                                                                             | Our call |
 
-## Questions for the owner
+## Questions for the owner (asked 2026-10-26; unanswered, so the proposals stand)
 
 1. Admins only, or may agents see Reports too (maybe without the Team table)?
 2. "Missed" after 1 hour: right for most shops, or should the admin set it?
@@ -60,10 +60,11 @@ shown only there. Nothing is sent to us.
 
 ## Source baseline
 
-- Feature **ai-reply-suggestions**, `latestConfirmed` revision `e7bf3070eddd5d2bb90416f96e66c36b7637e6be`
-  (squash-merged as `76d3e8d`; copied from the folder on `main` `149b5b9`, which differs only in the
-  `reference.json` status). Copied without its `screenshots/`. `snapshot.mjs --check` verifies the frozen app
-  files and the inherited files.
+- Feature **ai-phrase-dictionary**, path `docs/features/ai-phrase-dictionary/mock/`, `latestConfirmed` revision
+  `db1df77f0821c978729f7d616762b5a00b67a8cb` (copied from the folder on `main` `027a03e`), without its
+  `screenshots/`. The page was first drafted on the ai-reply-suggestions reference (`e7bf307`, commit `09c32a0`
+  of PR #191); ai-phrase-dictionary was confirmed on `main` meanwhile, so the same Reports files were moved onto it
+  unchanged before implementation. `snapshot.mjs --check` verifies the frozen app files and the inherited files.
 - Reused: `AdminLayout` nav and phone menu, `PageHeader`, `SegmentedControl`, `Card`, `Banner`, `ErrorState`,
   `Skeleton`, `Select`, the token colours (`primary` with opacity steps, `warning`, `danger`, `success`), the
   hand-off reason list of `get_stats` and the inbox event texts.
@@ -103,9 +104,13 @@ shown only there. Nothing is sent to us.
 
 ## Retention
 
-This is the 6th feature folder, so the oldest, `emoji-reactions` (creation order 9), is removed in the same
-change; its last revision stays in `mock-index.json` (`archived`).
+This is the 6th feature folder, so the oldest, `send-reactions` (creation order 10), is removed in the same
+change; its last revision stays in `mock-index.json` (`archived`). (The first draft removed `emoji-reactions`,
+which `main` had already removed for ai-phrase-dictionary.)
 
 ## Confirmation
 
-Pending: waiting for the owner's review of the mock and screenshots.
+Owner viewed the screenshots (30 days desktop and phone, 90 days dark, 5 days of data, no messages yet) and
+confirmed 2026-10-26 ("look fine, implement it"). The three questions were not answered, so the proposals stand:
+**admins only**, **missed = no reply within 1 hour (fixed)**, and the inbox warning for chats waiting after a
+hand-off is **not part of this feature** (a separate small feature later).

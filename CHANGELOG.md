@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.59] - 2026-10-26
+
+### Added
+
+- **Instant grey text from your team's phrase list.** The AI builds a list of the phrases your team really
+  writes, from your business context, the AI instructions and the team's sent replies, in each language the
+  team uses. While you type, a matching phrase shows in grey at once, with no AI call; the AI completion runs
+  only when no phrase matches. Tab moves a phrase up the list, Esc moves it down. The list updates by itself
+  (when the app starts, after business context changes, after every 30 team replies and weekly), at most 24
+  AI calls a day, and stops while reply suggestions are off. Admins see, add, edit and delete phrases in
+  Settings → AI → Phrase list. Customer names and phone numbers never go into a phrase.
+- **Model for suggestions** in Settings → AI: Fast (recommended), the same model as the AI connection, or any
+  model of the connection, for Suggest reply, the grey text and the phrase list.
+
+### Fixed
+
+- **AI completions now appear while you type.** With ChatGPT sign-in, the grey text used your main
+  model and often took longer than the 3-second limit, so nothing showed. Suggest reply and completions
+  now use a fast model (ChatGPT: GPT-6 Luna when your account has it; OpenAI key: GPT-4.1 mini; Claude:
+  Claude Haiku). Completions read only the last messages of the chat and what you type, so they are
+  quicker; Suggest reply still uses your business context. Grey text also appears when you stop inside
+  a word, and it stays while you type the same letters.
+
 ## [0.1.58] - 2026-10-26
 
 ### Added

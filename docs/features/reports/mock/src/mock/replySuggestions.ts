@@ -46,10 +46,19 @@ export function fetchSuggestions(chatJid: string, signal: AbortSignal) {
 
 /** The rest of the sentence being typed (the app: `POST /api/chats/:jid/ai/complete`). */
 export function fetchCompletion(chatJid: string, text: string, signal: AbortSignal) {
-  return api<{ completion: string | null }>('/mock/complete', { body: { chatJid, text }, signal });
+  return api<{ completion: string | null; phraseId?: number; source?: 'phrase' | 'model' }>(
+    '/mock/complete',
+    { body: { chatJid, text }, signal },
+  );
 }
 
-/** Completion starts only after at least one full word: the text ends with a word, then a space or punctuation. */
+/**
+ * Completion starts after at least one full word, also while the next word is half typed
+ * ("Hi Nu" counts, "Hi" does not); the app's shared `completionReady` since the speed fix.
+ */
 export function completionReady(text: string): boolean {
-  return /[\p{L}\p{N}][\s,.!?，。？]$/u.test(text) && !text.trimStart().startsWith('/');
+  return (
+    /[\p{L}\p{N}][\s,.!?;:，。？！、]+[^\s,.!?;:，。？！、]*$/u.test(text) &&
+    !text.trimStart().startsWith('/')
+  );
 }

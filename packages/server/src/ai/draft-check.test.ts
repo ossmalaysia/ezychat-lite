@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   acceptCompletion,
+  checkCompletion,
   acceptDrafts,
   ungroundedNumbers,
   type DraftOutput,
@@ -174,5 +175,26 @@ describe('acceptCompletion', () => {
     expect(
       acceptCompletion(done(INTERNAL[0]!.slice(0, 60)), 'By the way, ', SOURCES, INTERNAL),
     ).toBeNull();
+  });
+});
+
+describe('checkCompletion', () => {
+  const done = (completion: string | null, grounded = true) => ({ completion, grounded });
+  const reason = (completion: string | null, grounded = true, typed = 'Two Nasi ') =>
+    checkCompletion(done(completion, grounded), typed, SOURCES, INTERNAL).dropped;
+
+  it('names why a completion was dropped, for the log', () => {
+    expect(reason(null)).toBe('empty');
+    expect(reason('  ')).toBe('empty');
+    expect(reason('Lemak is RM12.', false)).toBe('ungrounded');
+    expect(reason(`Lemak ${'very '.repeat(30)}good`)).toBe('too_long');
+    expect(reason('Lemak is RM19.')).toBe('number');
+    expect(reason(INTERNAL[0]!.slice(0, 60), true, 'By the way, ')).toBe('internal');
+  });
+
+  it('keeps a wording-only completion and reports no drop', () => {
+    expect(
+      checkCompletion(done('any other questions?'), 'Do you have ', SOURCES, INTERNAL),
+    ).toEqual({ completion: 'any other questions?', dropped: null });
   });
 });

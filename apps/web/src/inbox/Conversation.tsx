@@ -22,7 +22,8 @@ import {
   useSendText,
   type MessagesData,
 } from '../api/queries';
-import { useReplySuggestionsStatus } from '../api/reply-suggestions';
+import type { ReplyPhraseListItem } from '@ezychat/shared';
+import { usePhraseList, useReplySuggestionsStatus } from '../api/reply-suggestions';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
@@ -70,6 +71,9 @@ function toastError(e: unknown) {
 
 /** Chats where the user already agreed to reply despite another assignee (this session). */
 const confirmedChats = new Set<string>();
+
+/** One empty list, so the composer's completion effect does not restart on every render. */
+const NO_PHRASES: readonly ReplyPhraseListItem[] = [];
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const { t } = useTranslation(['inbox', 'common']);
@@ -126,6 +130,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const me = directory.me;
   const replySuggestions = useReplySuggestionsStatus();
   const suggestState = replySuggestions.data?.state ?? 'off';
+  // The team's phrase list for instant grey text (direct chats while suggestions are on).
+  const phraseList = usePhraseList(jid, suggestState === 'on' && chat?.type === 'dm');
 
   const messages = useMemo(
     () => flattenMessages(messagesQ.data as MessagesData | undefined),
@@ -427,6 +433,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                         lastCustomerMessageId: lastInboundId,
                         isAdmin: me?.role === 'admin',
                         state: suggestState,
+                        phrases: phraseList.data?.phrases ?? NO_PHRASES,
                       }
                     : null
                 }

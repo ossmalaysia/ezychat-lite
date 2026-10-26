@@ -23,7 +23,7 @@ import { draftOpenAi, extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } fro
 import { draftClaude, extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
-import { runDraft } from './agent/draft.js';
+import { CHATGPT_DRAFT_REASONING, CHATGPT_FAST_DRAFT_MODELS, runDraft } from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
@@ -549,7 +549,10 @@ export class DirectChatGptProvider implements AiProvider {
     }));
   }
 
-  /** Reply suggestions and completions: one tool-free structured call (ChatGPT keeps the saved model). */
+  /**
+   * Reply suggestions and completions: one tool-free structured call with reasoning `low`.
+   * `fast` uses the account's fast model; otherwise the saved model.
+   */
   async draft<T>(
     settings: AiSettings,
     apiKey: string | null,
@@ -559,10 +562,25 @@ export class DirectChatGptProvider implements AiProvider {
   ): Promise<{ output: T; model: string }> {
     if (settings.mode === 'api') return draftOpenAi(settings, apiKey, prompt, options, signal);
     if (settings.mode === 'claude') return draftClaude(settings, apiKey, prompt, options, signal);
-    return this.turn(settings, prompt.cacheId, signal, async (model, turnSignal, id) => ({
-      output: await runDraft({ ...options, model, prompt, signal: turnSignal }),
+    const chosen = options.fast
+      ? { ...settings, model: this.fastDraftModel(settings.model) }
+      : settings;
+    return this.turn(chosen, prompt.cacheId, signal, async (model, turnSignal, id) => ({
+      output: await runDraft({
+        ...options,
+        model,
+        prompt,
+        signal: turnSignal,
+        reasoningEffort: CHATGPT_DRAFT_REASONING,
+      }),
       model: id,
     }));
+  }
+
+  /** The first fast model this account lists (live list once read, else the fallback list), else the saved one. */
+  private fastDraftModel(saved: string): string {
+    const listed = this.knownModels();
+    return CHATGPT_FAST_DRAFT_MODELS.find((id) => listed.includes(id)) ?? saved;
   }
 
   /** One ChatGPT turn: the resolved model, a single bound for all its calls, fixed error messages. */

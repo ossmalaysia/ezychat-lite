@@ -8,7 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { suggestModelKey, useSuggestModel } from '@/mock/phrases';
 import {
   replySuggestionsKey,
   useReplySuggestionsState,
@@ -16,7 +24,7 @@ import {
   type MockSuggestMode,
   type ReplySuggestionsState,
 } from '@/mock/replySuggestions';
-import { SaveBar } from './adminUi';
+import { Field, SaveBar } from './adminUi';
 
 /**
  * Proposed (ai-reply-suggestions): Settings → AI card with the team-wide switch. On by default on a
@@ -29,7 +37,12 @@ export function ReplySuggestionsSection() {
   const query = useReplySuggestionsState();
   const [draft, setDraft] = useState<boolean>();
   const enabled = draft ?? query.data?.enabled ?? false;
-  const dirty = draft !== undefined && draft !== query.data?.enabled;
+  // Proposed (ai-phrase-dictionary): which model answers Suggest reply and the grey text.
+  const model = useSuggestModel();
+  const [modelDraft, setModelDraft] = useState<string>();
+  const shownModel = modelDraft ?? model.data?.model ?? 'fast';
+  const modelDirty = modelDraft !== undefined && modelDraft !== model.data?.model;
+  const dirty = (draft !== undefined && draft !== query.data?.enabled) || modelDirty;
   const connected = query.data?.connected ?? false;
   const installId = useId();
   const modeId = useId();
@@ -39,6 +52,14 @@ export function ReplySuggestionsSection() {
     onSuccess: (data) => {
       client.setQueryData(replySuggestionsKey, data);
       setDraft(undefined);
+    },
+  });
+  const saveModel = useMutation({
+    mutationFn: (value: string) =>
+      api('/mock/suggest-model', { method: 'PUT', body: { model: value } }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: suggestModelKey });
+      setModelDraft(undefined);
     },
   });
   return (
@@ -71,15 +92,53 @@ export function ReplySuggestionsSection() {
             />
           </Label>
         </div>
-        {query.data && !connected && <Banner tone="warning">{t('mockSuggest.noConnection')}</Banner>}
+        {query.data && !connected && (
+          <Banner tone="warning">{t('mockSuggest.noConnection')}</Banner>
+        )}
+        {connected && model.data && (
+          <Field
+            label={t('mockPhrases.model')}
+            hint={
+              shownModel === 'fast'
+                ? t('mockPhrases.modelFastHint', { model: model.data.fastModel })
+                : t('mockPhrases.modelSlowHint')
+            }
+          >
+            {(p) => (
+              <Select value={shownModel} onValueChange={setModelDraft}>
+                <SelectTrigger {...p} className="min-h-11 w-full" data-testid="suggest-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fast">
+                    {t('mockPhrases.modelFast', { model: model.data.fastModel })}
+                  </SelectItem>
+                  <SelectItem value="agent">
+                    {t('mockPhrases.modelAgent', { model: model.data.agentModel })}
+                  </SelectItem>
+                  {model.data.models
+                    .filter((id) => id !== model.data.fastModel)
+                    .map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+        )}
         {(save.error || query.error) && (
           <Banner tone="danger">{errorMessage(save.error || query.error)}</Banner>
         )}
         <SaveBar dirty={dirty}>
           <Button
             size="touch"
-            disabled={!dirty || save.isPending}
-            onClick={() => save.mutate({ enabled })}
+            disabled={!dirty || save.isPending || saveModel.isPending}
+            onClick={() => {
+              if (draft !== undefined && draft !== query.data?.enabled) save.mutate({ enabled });
+              if (modelDirty) saveModel.mutate(shownModel);
+            }}
           >
             {t('settings.save')}
           </Button>

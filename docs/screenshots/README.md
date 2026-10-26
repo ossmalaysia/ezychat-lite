@@ -3,20 +3,20 @@
 Product screenshots for the website, release notes and docs, one folder per module. Every shot uses
 demo data only: the fictional "Kopi Apong" coffee shop on fake WhatsApp. No real customers or numbers.
 
-| Folder                 | What it shows                                                                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inbox/`               | Shared inbox list with owner chips and unread counts                                                                                         |
-| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info, reactions and the emoji bar (`react-bar-*`), AI reply suggestions (`suggest-*`) |
-| `admin-members/`       | Team members                                                                                                                                 |
-| `ai-member/`           | AI Sales Agent page (instructions, hand-off rules, Business context)                                                                         |
-| `ai-settings/`         | AI connection settings; the team-wide reply suggestions switch (`reply-suggestions-settings-*`)                                              |
-| `quick-replies/`       | Quick replies                                                                                                                                |
-| `whatsapp-link/`       | WhatsApp page (fake WhatsApp shows "Fake": internal use only)                                                                                |
-| `remote-access/`       | Cloudflare remote access                                                                                                                     |
-| `settings/`            | Admin settings                                                                                                                               |
-| `customer-enrichment/` | Customer enrichment Settings, Audit, score details and source customer                                                                       |
-| `ai-assistant/`        | AI assistant access: tokens with send badges, Permissions, the new-number warning, assistant replies                                         |
-| `inboxes/`             | Several WhatsApp numbers (Enterprise): unified list with inbox chips and filter, Admin → Inboxes, Edit inbox, QR, Members access, agent view |
+| Folder                 | What it shows                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inbox/`               | Shared inbox list with owner chips and unread counts                                                                                                                                                                |
+| `chat/`                | Conversations: team replies, take-over event, notes, Chinese customer, Group info, reactions and the emoji bar (`react-bar-*`), AI reply suggestions (`suggest-*`), instant phrase grey text (`phrase-completion*`) |
+| `admin-members/`       | Team members                                                                                                                                                                                                        |
+| `ai-member/`           | AI Sales Agent page (instructions, hand-off rules, Business context)                                                                                                                                                |
+| `ai-settings/`         | AI connection settings; the team-wide reply suggestions switch (`reply-suggestions-settings-*`), the model for suggestions (`suggest-model-settings-*`) and the phrase list (`phrase-*`)                            |
+| `quick-replies/`       | Quick replies                                                                                                                                                                                                       |
+| `whatsapp-link/`       | WhatsApp page (fake WhatsApp shows "Fake": internal use only)                                                                                                                                                       |
+| `remote-access/`       | Cloudflare remote access                                                                                                                                                                                            |
+| `settings/`            | Admin settings                                                                                                                                                                                                      |
+| `customer-enrichment/` | Customer enrichment Settings, Audit, score details and source customer                                                                                                                                              |
+| `ai-assistant/`        | AI assistant access: tokens with send badges, Permissions, the new-number warning, assistant replies                                                                                                                |
+| `inboxes/`             | Several WhatsApp numbers (Enterprise): unified list with inbox chips and filter, Admin → Inboxes, Edit inbox, QR, Members access, agent view                                                                        |
 
 File names are `<screen>-<desktop|mobile>[-dark].png`: desktop is 1280×800, mobile 360×780, both at 2× pixel
 density. Dark variants exist for the inbox, the conversation and the chat an AI assistant started. `inboxes/` comes from `node e2e/inbox-screens.mjs <url> <dir>` on a `--max-inboxes 3` Dev Build, so it shows the Dev Build badge.
@@ -39,6 +39,10 @@ leaves the AI member off, so it never calls OpenAI or ChatGPT.
 `chat/suggest-*` and `ai-settings/reply-suggestions-settings-*` come from
 `node e2e/reply-suggestions-screens.mjs <port> <out dir>` on the standalone server above (fresh data). The
 script seeds two chats and answers the three AI calls in the browser with demo drafts, so no model is called.
+
+`chat/phrase-completion*`, `ai-settings/suggest-model-settings-*` and `ai-settings/phrase-*` come from
+`node e2e/reply-phrases-screens.mjs <port> <out dir>` on the same kind of server: the status, the phrase lists
+and the model info are answered in the browser with demo phrases (English, Malay, Chinese).
 
 ## Customer enrichment
 

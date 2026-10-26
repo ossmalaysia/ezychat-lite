@@ -8,6 +8,7 @@ import { CustomerProfileBody } from '@ezychat/shared';
 import type { FakeWaAdapter } from '@ezychat/wa';
 import { registerSendReactions } from './send-reactions.js';
 import { registerReplySuggestions } from './reply-suggestions.js';
+import { registerPhraseDictionary } from './phrase-dictionary.js';
 import { registerReports } from './reports.js';
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
@@ -18,7 +19,7 @@ const INTRODUCTION =
 export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: FakeWaAdapter): void {
   registerFirstSetup(app, ctx, wa);
   registerSendReactions(app, ctx, wa);
-  registerReplySuggestions(app, ctx);
+  registerReplySuggestions(app, ctx, registerPhraseDictionary(app, ctx));
   registerReports(app, ctx);
   let enabled = false;
   const setting = () => ({

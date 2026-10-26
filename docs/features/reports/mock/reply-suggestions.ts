@@ -4,6 +4,7 @@ import type { AppContext } from '../../../../packages/server/src/context.js';
 import { requireAdmin, requireUser } from '../../../../packages/server/src/auth/guards.js';
 import { HttpError, errors, parse } from '../../../../packages/server/src/http/errors.js';
 import { parseChatKey } from '../../../../packages/server/src/inboxes/keys.js';
+import type { PhraseStore } from './phrase-dictionary.js';
 
 /** A suggestion chip: a short label and the full draft that fills the composer. */
 export interface MockSuggestion {
@@ -181,7 +182,11 @@ const delay = (ms: number, signal: AbortSignal) =>
  * Deterministic canned drafts per demo chat; no model is called. `mode` and `install` are mock-only
  * controls in Settings → AI to show the slow, error, expired-connection and upgraded-install states.
  */
-export function registerReplySuggestions(app: FastifyInstance, ctx: AppContext): void {
+export function registerReplySuggestions(
+  app: FastifyInstance,
+  ctx: AppContext,
+  phrases?: PhraseStore,
+): void {
   let install: MockInstall = 'new';
   let enabled = true;
   let mode: MockMode = 'normal';
@@ -198,7 +203,8 @@ export function registerReplySuggestions(app: FastifyInstance, ctx: AppContext):
   const guard = () => {
     const current = state();
     if (current.composer === 'off') throw errors.conflict('Reply suggestions are off');
-    if (current.composer === 'unavailable') throw unavailable('AI suggestions are not available now');
+    if (current.composer === 'unavailable')
+      throw unavailable('AI suggestions are not available now');
   };
   const abortOnClose = (raw: { once(event: 'close', cb: () => void): unknown }) => {
     const cancel = new AbortController();
@@ -225,16 +231,26 @@ export function registerReplySuggestions(app: FastifyInstance, ctx: AppContext):
     guard();
     await delay(mode === 'slow' ? 4_000 : 900, abortOnClose(req.raw));
     if (mode === 'error') throw unavailable('The AI provider did not answer');
-    return (
-      SUGGESTIONS[waJidOf(chatJid)] ?? { suggestions: [], noAnswer: true, handoffRule: null }
-    ) satisfies MockSuggestionsResult;
+    return (SUGGESTIONS[waJidOf(chatJid)] ?? {
+      suggestions: [],
+      noAnswer: true,
+      handoffRule: null,
+    }) satisfies MockSuggestionsResult;
   });
 
   app.post('/api/mock/complete', { preHandler: requireUser(ctx) }, async (req) => {
     const { chatJid, text } = parse(CompleteBody, req.body ?? {});
     guard();
-    await delay(mode === 'slow' ? 2_500 : 350, abortOnClose(req.raw));
+    // Proposed (ai-phrase-dictionary): the team's phrase list answers at once, without a model.
+    const phrase = phrases?.complete(text);
+    if (phrase) return { completion: phrase.rest, phraseId: phrase.id, source: 'phrase' };
+    // The fast model (~1.5 s, as measured on gpt-6-luna); "Same as the AI agent" is slower.
+    const slowModel =
+      phrases &&
+      phrases.suggestModel() !== 'gpt-6-luna' &&
+      /sol|astra|opus|sonnet|5\.5/.test(phrases.suggestModel());
+    await delay(mode === 'slow' || slowModel ? 2_500 : 1_200, abortOnClose(req.raw));
     if (mode === 'error') return { completion: null };
-    return { completion: complete(waJidOf(chatJid), text) };
+    return { completion: complete(waJidOf(chatJid), text), source: 'model' };
   });
 }

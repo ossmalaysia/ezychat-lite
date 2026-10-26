@@ -39,7 +39,7 @@ export function ungroundedNumbers(text: string, sources: string, prices = source
 const SHORT_INTERNAL_MIN = 8;
 
 /** True when `text` copies an Internal item: a 40-character run, or a whole short item. */
-function copiesInternal(text: string, internalTexts: readonly string[]): boolean {
+export function copiesInternal(text: string, internalTexts: readonly string[]): boolean {
   if (findLeak(text, internalTexts)) return true;
   const haystack = normalise(text);
   return internalTexts.some((raw) => {
@@ -95,15 +95,32 @@ export function acceptCompletion(
   internalTexts: readonly string[],
   prices = sources,
 ): string | null {
-  if (!output.grounded || !output.completion?.trim()) return null;
+  return checkCompletion(output, typed, sources, internalTexts, prices).completion;
+}
+
+/** Why a completion shows no grey text (logged as a name only, never the text). */
+export type CompletionDrop = 'empty' | 'ungrounded' | 'too_long' | 'number' | 'internal';
+
+/** `acceptCompletion` plus the reason a dropped completion was dropped. */
+export function checkCompletion(
+  output: CompletionOutput,
+  typed: string,
+  sources: string,
+  internalTexts: readonly string[],
+  prices = sources,
+): { completion: string | null; dropped: CompletionDrop | null } {
+  const drop = (dropped: CompletionDrop) => ({ completion: null, dropped });
+  if (!output.completion?.trim()) return drop('empty');
+  if (!output.grounded) return drop('ungrounded');
   const end = output.completion.search(/[.!?。？](\s|$)/u);
   const completion = end >= 0 ? output.completion.slice(0, end + 1) : output.completion;
-  if (completion.length > REPLY_COMPLETION_CHARACTERS) return null;
+  if (completion.length > REPLY_COMPLETION_CHARACTERS) return drop('too_long');
+  if (ungroundedNumbers(completion, sources, prices).length > 0) return drop('number');
   // The leak check sees the whole sentence: a run may start in the typed text.
   if (
-    !safe(completion, sources, internalTexts, prices) ||
+    copiesInternal(completion, internalTexts) ||
     copiesInternal(typed + completion, internalTexts)
   )
-    return null;
-  return completion;
+    return drop('internal');
+  return { completion, dropped: null };
 }

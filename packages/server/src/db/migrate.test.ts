@@ -30,8 +30,9 @@ const TABLES = [
   'ai_agents',
   'message_reactions',
   'oauth_clients',
+  'reply_phrases',
 ];
-const LATEST = 20;
+const LATEST = 21;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -287,6 +288,35 @@ describe('migrate', () => {
     } finally {
       existing.close();
       fresh.close();
+    }
+  });
+
+  it('021 adds the phrase list, removed with its agent', () => {
+    const db = new Database(':memory:');
+    try {
+      db.pragma('foreign_keys = ON');
+      migrate(db);
+      const now = 1;
+      db.prepare(
+        "INSERT INTO users (username, display_name, password_hash, role, created_at, kind) VALUES ('ai', 'AI', '', 'agent', 1, 'ai')",
+      ).run();
+      const userId = (
+        db.prepare("SELECT id FROM users WHERE username = 'ai'").get() as { id: number }
+      ).id;
+      db.prepare(
+        "INSERT INTO ai_agents (user_id, preset, created_at, updated_at) VALUES (?, 'sales', ?, ?)",
+      ).run(userId, now, now);
+      const agentId = (db.prepare('SELECT id FROM ai_agents').get() as { id: number }).id;
+      const add = db.prepare(
+        'INSERT INTO reply_phrases (agent_id, language, text, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      );
+      add.run(agentId, 'en', 'Thank you for your message.', 'team', now, now);
+      expect(() => add.run(agentId, 'fr', 'Merci.', 'team', now, now)).toThrow();
+      expect(() => add.run(agentId, 'en', 'Hello there.', 'robot', now, now)).toThrow();
+      db.prepare('DELETE FROM ai_agents WHERE id = ?').run(agentId);
+      expect(db.prepare('SELECT COUNT(*) AS n FROM reply_phrases').get()).toEqual({ n: 0 });
+    } finally {
+      db.close();
     }
   });
 

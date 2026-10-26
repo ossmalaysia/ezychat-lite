@@ -113,13 +113,13 @@ describe('reply suggestion routes', () => {
       handoffRule: null,
     });
     vi.mocked(provider.draft!).mockResolvedValueOnce({
-      output: { completion: 'Lemak Ayam is RM12.', grounded: true },
+      output: { completion: 'Lemak Ayam, thank you for asking.', grounded: true },
       model: 'gpt-mini',
     });
     const done = await inject(t, agentCookie, 'POST', `/api/chats/${enc(JID)}/ai/complete`, {
       text: 'Two Nasi ',
     });
-    expect(done.json()).toEqual({ completion: 'Lemak Ayam is RM12.' });
+    expect(done.json()).toEqual({ completion: 'Lemak Ayam, thank you for asking.' });
     expect(
       (await inject(t, agentCookie, 'POST', `/api/chats/${enc(JID)}/ai/complete`, { text: '' }))
         .statusCode,

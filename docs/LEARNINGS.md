@@ -69,7 +69,8 @@ into AGENTS.md.
   `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
   retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
-  hash of the mock commit, and the recorded revision must exist on the pushed branch.
+  hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
+  an open PR rewrites it again when the base merges: update the revision after that last rebase.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -138,9 +139,14 @@ into AGENTS.md.
   GitHub can drop push events (no CI for the merge either). Then start it on the tag,
   `gh workflow run <file> --ref v<version>`; `refs/tags/v…` conditions (publish jobs) still pass.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
-  push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
+  push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
+  writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
+  older commit (or "uncommitted") count as ✗ missing in the release review. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
   those two through `gh api` (REST).
+- `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
+  already done): wait with `gh run watch <run id>` on the CI run of the head commit, then read every
+  required check by name before a merge.
 - CI docs-only fast path: `ci.yml` checks right after checkout whether every changed file is `*.md`
   (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
   the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
@@ -218,7 +224,9 @@ into AGENTS.md.
   before reporting readiness, and leave the PR open until the owner requests merging.
 - CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
   package mid-suite and starves slow Windows runners into timeouts. Do the same locally after adding a
-  file to a package (e.g. a migration): a stale `dist/` fails "ships the build output". A test that is ~0.4 s on `main` and
+  file to a package (e.g. a migration): a stale `dist/` fails "ships the build output". The owner test env
+  (`D:\dev\test-env\lite\start.ps1`) also loads `@ezychat/shared` from `dist/`: after adding a shared export,
+  `npm run build:core` first, or the server stops with "does not provide an export named …". A test that is ~0.4 s on `main` and
   times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
 - Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
   as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
@@ -290,7 +298,9 @@ into AGENTS.md.
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404). Different npm versions flip dozens of `"peer": true` lines in the
   lockfile at each release: keep `main`'s lockfile and change only the `@ezychat/*` version strings
-  (check the rest is equal ignoring `peer` lines).
+  (check the rest is equal ignoring `peer` lines). Stop the owner test env Dev Build (and every process
+  running from `node_modules`) before `npm ci`: a locked `esbuild.exe` makes it fail with EPERM after it
+  deleted half of `node_modules`.
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
   `###` headings: two branches adding the same section merge cleanly into two copies. A branch rebased
   over a release can carry its entry into the released version's section: before a merge, check that
@@ -359,6 +369,13 @@ into AGENTS.md.
   write `UPDATE` statements with an explicit `WHERE`.
 
 ## Build, tooling and Windows
+
+- An app window that Windows marks "not responding" while its server log stays fast is first a PC-load
+  question: read `Get-WinEvent` (Application Hang 1002, service timeouts, Kernel-General 12/13 restarts) and the
+  WER `ReportArchive` before reading code. On the owner's PC, never run the full suite or e2e beside the live apps
+  without asking; run checks one at a time with low workers (`npm run e2e -- --workers=1`, `vitest --maxWorkers=2`).
+- Stopping a background `npx tsx …` task on Windows can leave its node child listening: free the port by
+  stopping the process that owns it (`Get-NetTCPConnection -LocalPort`), then delete the runner's temp data.
 
 - In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
   `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
@@ -493,7 +510,8 @@ into AGENTS.md.
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
-  Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
+  Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
+  `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
@@ -690,6 +708,19 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
+  from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
+  elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
+- Anything that must answer while a person types (completions) needs the connection's fast model, never the
+  saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
+  `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
+  and reasoning levels; measure options with direct timed calls before choosing.
+- Test typing features with person-like timing (120–260 ms a letter, pauses after words, stops inside a word),
+  not `fill()` plus a long wait: people type on during a 1.5 s model call, so a design that cancels on every
+  key never shows anything. Keep the request while the text extends it and show the part still ahead.
+- When a grey-text check "never" sees the overlay, check the check: `className.includes('hidden')` also
+  matches `overflow-hidden`. Look at the screenshot before believing a timing table.
+
 - Ready-made Business context (templates) uses blank fill-in lines (`Opening hours:`), never sample
   values or `[your price]` placeholders: the AI repeats a placeholder as a fact, but a blank line is no
   fact, so it hands over. Build template instructions as the type's tested text plus a short business
@@ -851,7 +882,14 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
-- Hover readouts on charts (or any pointer-driven detail) must clear only on `pointerType === 'mouse'` leave: on touch a tap fires `pointerleave` right after `pointerdown`, so the tapped value vanishes. Check the 360 px touch shot, not only desktop hover.
+- Hover readouts on charts (or any pointer-driven detail) clear only on a `pointerType === 'mouse'` leave: on
+  touch a tap fires `pointerleave` right after `pointerdown`, so the tapped value vanishes. Check the 360 px touch
+  shot, not only desktop hover.
+- Screenshot scripts wait ~400–500 ms after opening a `Dialog`/`Select` and after enabling a filled button: the
+  open animation shows the page through the dialog, and `transition-colors` keeps a just-enabled button in the
+  grey "disabled" colour. Check `button.disabled` before calling a grey button a bug.
+- Word matching on mixed text puts `\p{Script=Han}` before `[\p{L}\p{N}]+` in the alternation: Han is also
+  `\p{L}`, so the other order makes `谢谢您` one "word" and any "at least 2 words" rule never fires for Chinese.
 - Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
   inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
   Put it after the outer `</form>` and point the footer button at the form with `form={id}`.

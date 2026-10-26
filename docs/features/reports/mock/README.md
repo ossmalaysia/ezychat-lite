@@ -1,7 +1,7 @@
 # Reports interactive app proposal
 
-A clone of the owner-confirmed **ai-reply-suggestions** reference (the whole app, `latestConfirmed` revision
-`e7bf307`), with a new **Admin → Reports** page: busy days, busy times, messages and new customers per day,
+A clone of the owner-confirmed **ai-phrase-dictionary** reference (the whole app, `latestConfirmed` revision
+`db1df77`), with a new **Admin → Reports** page: busy days, busy times, messages and new customers per day,
 reply times, the AI's hand-off reasons and the team. Scope, decisions and the screen checklist:
 [../design.md](../design.md). Mock-only texts are English in all three catalogs.
 

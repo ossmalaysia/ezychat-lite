@@ -180,6 +180,7 @@ export function deleteAgentRow(db: DB, id: number, now = Date.now()): void {
       { userId: number } | undefined;
     if (!row) throw new AgentError('agent_not_found');
     db.prepare('DELETE FROM ai_documents WHERE agent_id = ?').run(id);
+    db.prepare('DELETE FROM reply_phrases WHERE agent_id = ?').run(id);
     db.prepare('DELETE FROM ai_agents WHERE id = ?').run(id);
     db.prepare(
       'UPDATE users SET disabled_at = coalesce(disabled_at, ?), ai_deleted_at = ? WHERE id = ?',

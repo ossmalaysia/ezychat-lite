@@ -1,7 +1,16 @@
 import type React from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Lock, MessageSquareText, Mic, Paperclip, SendHorizontal, Sparkles, X } from 'lucide-react';
+import {
+  Check,
+  Lock,
+  MessageSquareText,
+  Mic,
+  Paperclip,
+  SendHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import type { QuickReply } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -14,6 +23,7 @@ import {
   useReplySuggestionsState,
   type ReplySuggestion,
 } from '@/mock/replySuggestions';
+import { matchPhrase, notePhraseUsed, usePhraseList } from '@/mock/phrases';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
 import { EmojiPicker } from './EmojiPicker';
@@ -54,6 +64,13 @@ const TYPING_THROTTLE_MS = 2_000;
 /** Completion waits for a short pause after a full word, so typing makes no model calls. */
 const COMPLETION_PAUSE_MS = 500;
 const MAX_HEIGHT_PX = 160;
+
+/** The grey text still ahead of the caret (type-through, PR #188). */
+function ghostAhead(ghost: { for: string; text: string } | null, text: string): string {
+  if (!ghost || !text.startsWith(ghost.for)) return '';
+  const full = ghost.for + ghost.text;
+  return full.length > text.length && full.startsWith(text) ? full.slice(text.length) : '';
+}
 
 /** Touch devices: Enter inserts a newline, the Send button sends. */
 function isCoarsePointer(): boolean {
@@ -111,11 +128,16 @@ export function Composer({
   const aiMode = aiSuggest ? (suggestState.data?.composer ?? 'off') : 'off';
   const [strip, setStrip] = useState<SuggestionStrip | null>(null);
   const [pendingPick, setPendingPick] = useState<ReplySuggestion | null>(null);
-  const [ghost, setGhost] = useState<{ for: string; text: string } | null>(null);
+  const [ghost, setGhost] = useState<{ for: string; text: string; phraseId?: number } | null>(null);
   const suggestAbort = useRef<AbortController | null>(null);
-  const completeAbort = useRef<AbortController | null>(null);
+  /** The one completion request in flight (the app since the speed fix, PR #188). */
+  const completing = useRef<{ typed: string; cancel: AbortController } | null>(null);
+  const [completionDone, setCompletionDone] = useState(0);
+  const dismissedFor = useRef<string | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
-  const ghostText = ghost && ghost.for === text ? ghost.text : '';
+  const ghostText = ghostAhead(ghost, text);
+  // Proposed (ai-phrase-dictionary): the team's phrase list, matched locally on every key.
+  const phraseList = usePhraseList(aiMode === 'on');
 
   function closeSuggestions() {
     suggestAbort.current?.abort();
@@ -155,6 +177,7 @@ export function Composer({
 
   function acceptGhost() {
     if (!ghostText) return;
+    if (ghost?.phraseId) notePhraseUsed(ghost.phraseId);
     const next = text + ghostText;
     pendingCaret.current = next.length;
     setGhost(null);
@@ -167,28 +190,50 @@ export function Composer({
     closeSuggestions();
   }, [lastCustomer]);
 
-  // Completion: after a full word and a short pause; a new keystroke aborts the request.
+  // Completion. 1) Proposed (ai-phrase-dictionary): a phrase from the team's list shows at once
+  // (local match, no model, no pause). 2) Otherwise the fast model after a full word and a short
+  // pause, one request at a time that survives typing while the text still extends it
+  // (type-through, PR #188).
+  const suggestJid = aiSuggest?.chatJid ?? null;
+  const hasGhost = ghostText !== '';
   useEffect(() => {
-    completeAbort.current?.abort();
-    if (aiMode !== 'on' || !aiSuggest || !completionReady(text)) return;
+    const running = completing.current;
+    if (running && (aiMode !== 'on' || !text.startsWith(running.typed))) {
+      running.cancel.abort();
+      completing.current = null;
+    }
+    if (hasGhost || aiMode !== 'on' || !suggestJid || dismissedFor.current === text) return;
     const el = areaRef.current;
     if (el && el.selectionStart !== text.length) return;
-    const cancel = new AbortController();
-    completeAbort.current = cancel;
-    const typed = text;
+    const phrase = phraseList.data ? matchPhrase(phraseList.data, text) : null;
+    if (phrase) {
+      setGhost({ for: text, text: phrase.rest, phraseId: phrase.id });
+      return;
+    }
+    if (completing.current || !completionReady(text)) return;
     const timer = setTimeout(() => {
-      fetchCompletion(aiSuggest.chatJid, typed, cancel.signal)
-        .then(({ completion }) => {
-          // A completion for older text is discarded.
-          if (!cancel.signal.aborted && completion) setGhost({ for: typed, text: completion });
+      const cancel = new AbortController();
+      const typed = text;
+      completing.current = { typed, cancel };
+      fetchCompletion(suggestJid, typed, cancel.signal)
+        .then(({ completion, phraseId }) => {
+          if (!cancel.signal.aborted && completion)
+            setGhost({ for: typed, text: completion, phraseId });
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          if (completing.current?.cancel !== cancel) return;
+          completing.current = null;
+          setCompletionDone((n) => n + 1);
+        });
     }, COMPLETION_PAUSE_MS);
-    return () => {
-      clearTimeout(timer);
-      cancel.abort();
-    };
-  }, [text, aiMode, aiSuggest?.chatJid]);
+    return () => clearTimeout(timer);
+  }, [text, aiMode, suggestJid, hasGhost, completionDone, phraseList.data]);
+  useEffect(() => () => completing.current?.cancel.abort(), []);
+  useEffect(() => {
+    setGhost(null);
+    dismissedFor.current = null;
+  }, [suggestJid]);
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
@@ -334,6 +379,7 @@ export function Composer({
     }
     if (ghostText && e.key === 'Escape') {
       e.preventDefault();
+      dismissedFor.current = text;
       setGhost(null);
       return;
     }
@@ -443,7 +489,11 @@ export function Composer({
           data-testid="replace-confirm"
         >
           <span className="min-w-0 flex-1">{t('mockSuggest.replaceTitle')}</span>
-          <Button size="sm" className="pointer-coarse:min-h-11" onClick={() => applyDraft(pendingPick)}>
+          <Button
+            size="sm"
+            className="pointer-coarse:min-h-11"
+            onClick={() => applyDraft(pendingPick)}
+          >
             {t('mockSuggest.replace')}
           </Button>
           <Button
@@ -515,41 +565,41 @@ export function Composer({
               onPick={insertEmoji}
             />
             <div className="relative min-w-0 flex-1">
-            <Textarea
-              ref={areaRef}
-              aria-label={t('composer.message')}
-              aria-autocomplete="list"
-              aria-expanded={pickerOpen}
-              aria-controls={pickerOpen ? pickerId : undefined}
-              rows={1}
-              value={text}
-              disabled={disabled}
-              placeholder={placeholder ?? t('composer.placeholder')}
-              onChange={onChange}
-              onKeyDown={onKeyDown}
-              // Enter inserts a newline on touch keyboards, so label the key accordingly.
-              enterKeyHint={coarsePointer ? 'enter' : 'send'}
-              className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
-            />
-            {/* The grey text is drawn over the box, never put in it: Send can never send it. */}
-            <div
-              ref={ghostRef}
-              aria-hidden="true"
-              className={
-                ghostText
-                  ? 'pointer-events-none absolute inset-0 overflow-hidden rounded-2xl border border-transparent px-3.5 py-2.5 text-base leading-6 break-words whitespace-pre-wrap'
-                  : 'hidden'
-              }
-              data-testid="completion-ghost"
-            >
-              <span className="invisible">{text}</span>
-              <span className="text-muted-foreground">{ghostText}</span>
-            </div>
-            {ghostText && (
-              <span className="sr-only" role="status">
-                {t('mockSuggest.completionStatus', { text: ghostText })}
-              </span>
-            )}
+              <Textarea
+                ref={areaRef}
+                aria-label={t('composer.message')}
+                aria-autocomplete="list"
+                aria-expanded={pickerOpen}
+                aria-controls={pickerOpen ? pickerId : undefined}
+                rows={1}
+                value={text}
+                disabled={disabled}
+                placeholder={placeholder ?? t('composer.placeholder')}
+                onChange={onChange}
+                onKeyDown={onKeyDown}
+                // Enter inserts a newline on touch keyboards, so label the key accordingly.
+                enterKeyHint={coarsePointer ? 'enter' : 'send'}
+                className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
+              />
+              {/* The grey text is drawn over the box, never put in it: Send can never send it. */}
+              <div
+                ref={ghostRef}
+                aria-hidden="true"
+                className={
+                  ghostText
+                    ? 'pointer-events-none absolute inset-0 overflow-hidden rounded-2xl border border-transparent px-3.5 py-2.5 text-base leading-6 break-words whitespace-pre-wrap'
+                    : 'hidden'
+                }
+                data-testid="completion-ghost"
+              >
+                <span className="invisible">{text}</span>
+                <span className="text-muted-foreground">{ghostText}</span>
+              </div>
+              {ghostText && (
+                <span className="sr-only" role="status">
+                  {t('mockSuggest.completionStatus', { text: ghostText })}
+                </span>
+              )}
             </div>
             {offerVoice ? (
               <Button
@@ -580,49 +630,49 @@ export function Composer({
           </div>
         </PopoverAnchor>
         <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5">
-        {quickReplies.length > 0 && (
-          <Button
-            ref={repliesButtonRef}
-            variant="ghost"
-            size="touch"
-            disabled={disabled}
-            aria-expanded={pickerOpen}
-            aria-controls={pickerOpen ? pickerId : undefined}
-            onClick={() => {
-              setBrowseReplies(!pickerOpen);
-              setPickerDismissed(pickerOpen);
-              areaRef.current?.focus();
-            }}
-            className="text-muted-foreground"
-          >
-            <MessageSquareText aria-hidden="true" />
-            {t('composer.quickReplies')}
-          </Button>
-        )}
-        {aiMode !== 'off' && (
-          <Button
-            variant="ghost"
-            size="touch"
-            disabled={disabled || aiMode === 'unavailable' || strip?.phase === 'loading'}
-            aria-describedby={aiMode === 'unavailable' ? unavailableId : undefined}
-            onClick={() => void suggest()}
-            className="text-primary"
-            data-testid="suggest-reply"
-          >
-            <Sparkles aria-hidden="true" />
-            {t('mockSuggest.button')}
-          </Button>
-        )}
-        {aiMode === 'unavailable' && (
-          <span id={unavailableId} className="text-xs text-muted-foreground">
-            {t('mockSuggest.unavailable')}
-          </span>
-        )}
-        {ghostText && !coarsePointer && (
-          <span className="ml-auto text-xs text-muted-foreground" data-testid="completion-hint">
-            {t('mockSuggest.tabHint')}
-          </span>
-        )}
+          {quickReplies.length > 0 && (
+            <Button
+              ref={repliesButtonRef}
+              variant="ghost"
+              size="touch"
+              disabled={disabled}
+              aria-expanded={pickerOpen}
+              aria-controls={pickerOpen ? pickerId : undefined}
+              onClick={() => {
+                setBrowseReplies(!pickerOpen);
+                setPickerDismissed(pickerOpen);
+                areaRef.current?.focus();
+              }}
+              className="text-muted-foreground"
+            >
+              <MessageSquareText aria-hidden="true" />
+              {t('composer.quickReplies')}
+            </Button>
+          )}
+          {aiMode !== 'off' && (
+            <Button
+              variant="ghost"
+              size="touch"
+              disabled={disabled || aiMode === 'unavailable' || strip?.phase === 'loading'}
+              aria-describedby={aiMode === 'unavailable' ? unavailableId : undefined}
+              onClick={() => void suggest()}
+              className="text-primary"
+              data-testid="suggest-reply"
+            >
+              <Sparkles aria-hidden="true" />
+              {t('mockSuggest.button')}
+            </Button>
+          )}
+          {aiMode === 'unavailable' && (
+            <span id={unavailableId} className="text-xs text-muted-foreground">
+              {t('mockSuggest.unavailable')}
+            </span>
+          )}
+          {ghostText && !coarsePointer && (
+            <span className="ml-auto text-xs text-muted-foreground" data-testid="completion-hint">
+              {t('mockSuggest.tabHint')}
+            </span>
+          )}
         </div>
         <PopoverContent
           id={pickerId}

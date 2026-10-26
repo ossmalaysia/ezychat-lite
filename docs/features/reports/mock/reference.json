@@ -1,19 +1,19 @@
 {
   "sourceRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
   "appVersion": "0.1.34",
-  "appRevisionAtProposal": "149b5b9",
-  "appVersionAtProposal": "0.1.58",
+  "appRevisionAtProposal": "027a03e",
+  "appVersionAtProposal": "0.1.59",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "owner-confirmation-pending",
+  "status": "confirmed",
   "feature": "reports",
   "createdAt": "2026-10-26",
-  "baselineFeature": "ai-reply-suggestions",
-  "baselineGitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be",
-  "baselineMock": "docs/features/ai-reply-suggestions/mock/index.html",
-  "baselineConfirmation": "Owner confirmed ai-reply-suggestions 2026-10-26 (\"ok\"); latestConfirmed revision e7bf307 (squash-merged as 76d3e8d; copied from the folder on main 149b5b9, which differs only in reference.json status)",
+  "baselineFeature": "ai-phrase-dictionary",
+  "baselineGitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
+  "baselineMock": "docs/features/ai-phrase-dictionary/mock/index.html",
+  "baselineConfirmation": "Owner confirmed ai-phrase-dictionary 2026-10-26 (\"ok implement it\"); latestConfirmed revision db1df77, copied from the folder on main 027a03e. The Reports page was first drafted on the ai-reply-suggestions reference (e7bf307, PR #191 commit 09c32a0) and moved onto this newer baseline unchanged before implementation.",
   "previousBaseline": {
-    "feature": "business-api",
-    "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b"
+    "feature": "ai-reply-suggestions",
+    "gitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be"
   },
   "allowedDelta": [
     "src/admin/CreateTokenDialog.tsx",
@@ -47,7 +47,9 @@
     "src/admin/TunnelPage.tsx",
     "src/setup/SetupWizard.tsx",
     "src/inbox/Composer.tsx",
-    "src/admin/SettingsPage.tsx"
+    "src/admin/SettingsPage.tsx",
+    "src/admin/ReplySuggestionsSection.tsx",
+    "src/mock/replySuggestions.ts"
   ],
   "proposalChanged": [
     "src/admin/AdminLayout.tsx",
@@ -81,6 +83,8 @@
     "src/inbox/ReplySuggestions.tsx",
     "src/admin/ReplySuggestionsSection.tsx",
     "src/mock/replySuggestions.ts",
+    "src/admin/PhraseDictionarySection.tsx",
+    "src/mock/phrases.ts",
     "src/admin/ReportsPage.tsx",
     "src/admin/ReportCharts.tsx",
     "src/mock/reports.ts"
@@ -91,25 +95,38 @@
     "src/mock/reports.ts"
   ],
   "baselineProposal": {
-    "feature": "ai-reply-suggestions",
+    "feature": "ai-phrase-dictionary",
     "changed": [
       "src/inbox/Composer.tsx",
-      "src/inbox/Conversation.tsx",
       "src/admin/SettingsPage.tsx",
-      "src/i18n/locales/en/inbox.json",
+      "src/admin/ReplySuggestionsSection.tsx",
+      "src/mock/replySuggestions.ts",
       "src/i18n/locales/en/admin.json",
-      "src/i18n/locales/ms/inbox.json",
       "src/i18n/locales/ms/admin.json",
-      "src/i18n/locales/zh-CN/inbox.json",
       "src/i18n/locales/zh-CN/admin.json"
     ],
-    "added": [
-      "src/inbox/ReplySuggestions.tsx",
-      "src/admin/ReplySuggestionsSection.tsx",
-      "src/mock/replySuggestions.ts"
-    ]
+    "added": ["src/admin/PhraseDictionarySection.tsx", "src/mock/phrases.ts"]
   },
   "olderProposals": [
+    {
+      "feature": "ai-reply-suggestions",
+      "changed": [
+        "src/inbox/Composer.tsx",
+        "src/inbox/Conversation.tsx",
+        "src/admin/SettingsPage.tsx",
+        "src/i18n/locales/en/inbox.json",
+        "src/i18n/locales/en/admin.json",
+        "src/i18n/locales/ms/inbox.json",
+        "src/i18n/locales/ms/admin.json",
+        "src/i18n/locales/zh-CN/inbox.json",
+        "src/i18n/locales/zh-CN/admin.json"
+      ],
+      "added": [
+        "src/inbox/ReplySuggestions.tsx",
+        "src/admin/ReplySuggestionsSection.tsx",
+        "src/mock/replySuggestions.ts"
+      ]
+    },
     {
       "feature": "business-api",
       "changed": [
@@ -296,12 +313,16 @@
       "sha256": "bab7a20229a21f5075f61848122ee0e2508379944da5c35686752514ea8d38ea"
     },
     {
+      "path": "src/admin/PhraseDictionarySection.tsx",
+      "sha256": "b8d957a45b606ce0ed48dd135e9edffa252ce63efd44dd04af5e9746b689cac1"
+    },
+    {
       "path": "src/admin/ReplySuggestionsSection.tsx",
-      "sha256": "245f9320980bea5f430c149d1caed854ca96a7837c3d692ce27d94b2c5dd94b1"
+      "sha256": "3825b8d806a7ac37b789f70d221974a0c880793b545903f57279d61264724dd2"
     },
     {
       "path": "src/admin/SettingsPage.tsx",
-      "sha256": "a7c99b4959a2466c86e155a56a256a179d25ac4d4a7b9859406479b22f12548f"
+      "sha256": "561decf34f026870f865a94edce2a8e9c92e3b61ab39cde717b233806918a240"
     },
     {
       "path": "src/admin/TokenPermissionsDialog.tsx",
@@ -365,7 +386,7 @@
     },
     {
       "path": "src/inbox/Composer.tsx",
-      "sha256": "bf3b14a849a27256d11e5200fad8ed754e7164dc2fd3498efb1a4153979d7651"
+      "sha256": "b6dddc7415835be1aba63311f8198b87be432c7f8bc41fdde7bd7d1d39a5045c"
     },
     {
       "path": "src/inbox/Conversation.tsx",
@@ -432,8 +453,12 @@
       "sha256": "832b06e2e0d2b87b7d1acd6f8ccb4bb9cbb6f4524f560ba1f2aab2b05cad9481"
     },
     {
+      "path": "src/mock/phrases.ts",
+      "sha256": "68dae32929054396ce23cca3a432b8e4bef63732079a94f41ada6d3c74221f26"
+    },
+    {
       "path": "src/mock/replySuggestions.ts",
-      "sha256": "9803736267bab26d693da42c4473a6432ca91a764a19ef464d87d1e285891c2f"
+      "sha256": "9cbf4ff9f187aa890cf8c8280210d2f56c16c2fc3d7db94930c2e33719153bc5"
     },
     {
       "path": "src/mock/useAgents.ts",
