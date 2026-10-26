@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-phrase-dictionary",
-    "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
-    "mock": "docs/features/ai-phrase-dictionary/mock/index.html",
-    "design": "docs/features/ai-phrase-dictionary/design.md",
+    "feature": "google-calendar",
+    "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
+    "mock": "docs/features/google-calendar/mock/index.html",
+    "design": "docs/features/google-calendar/design.md",
     "confirmedAt": "2026-10-26",
-    "confirmation": "Owner viewed the review page (instant phrase grey text in English, half-typed word, Malay, Chinese; model completion when no phrase matches; Settings → AI model choice; Phrase list card ready / off / building / empty; phrase list, Malay filter, add, phone) and confirmed 2026-10-26 (\"ok implement it\")"
+    "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog)."
   },
   "proposals": [
     {
@@ -20,11 +20,14 @@
       "createdAt": "2026-10-26",
       "design": "docs/features/google-calendar/design.md",
       "mock": "docs/features/google-calendar/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "ai-phrase-dictionary",
       "baselineGitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
       "baselineAppRevision": "027a03e",
-      "coverage": "Full app clone of the confirmed ai-phrase-dictionary reference; a connector gallery (Admin → Connectors: search, category chips, Your connectors first, statuses Connected / Needs attention / Not connected / Coming soon / Enterprise; Google Calendar, Google Sheets, HitPay, Shopify, Custom MCP) and one page per connector with Overview (what it does, what the AI can do, Google account card with stand-in sign-in, expired, unavailable, Disconnect, Your data), Settings (per AI agent: calendar, Check free times, Book appointments off by default, booking rules) and Activity; coming-soon and Enterprise-only pages with Upgrade; agent page Connectors summary; Try it (free times, would book, hand-over); a booked chat with AI checked / AI booked lines; mock-only routes /api/mock/google-calendar*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise views (calendar-shots.mjs)"
+      "coverage": "Full app clone of the confirmed ai-phrase-dictionary reference; a connector gallery (Admin → Connectors: search, category chips, Your connectors first, statuses Connected / Needs attention / Not connected / Coming soon / Enterprise; Google Calendar, Google Sheets, HitPay, Shopify, Custom MCP) and one page per connector with Overview (what it does, what the AI can do, Google account card with stand-in sign-in, expired, unavailable, Disconnect, Your data), Settings (per AI agent: calendar, Check free times, Book appointments off by default, booking rules) and Activity; coming-soon and Enterprise-only pages with Upgrade; agent page Connectors summary; Try it (free times, would book, hand-over); a booked chat with AI checked / AI booked lines; mock-only routes /api/mock/google-calendar*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise views (calendar-shots.mjs)",
+      "confirmedAt": "2026-10-26",
+      "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
+      "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0"
     },
     {
       "feature": "ai-phrase-dictionary",

@@ -1,6 +1,6 @@
 # Connector gallery and Google Calendar connector (AI checks free times and books)
 
-Status: **proposal**, waiting for the owner's confirmation.
+Status: **confirmed** 2026-10-26 (mock revision `f46aab9`).
 Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots: `mock/screenshots/` (`calendar-shots.mjs`).
 
 ## Baseline
@@ -108,4 +108,8 @@ Calendar card in Settings → Integrations and the Bookings card on the agent pa
 
 ## Confirmation
 
-Not yet confirmed.
+Confirmed by the owner 2026-10-26 ("Implement it") after the round 2–4 screenshots (gallery, Google Calendar page,
+Lite view, business connectors with Vote, agent summary, Try it, booked chat); mock revision `f46aab9`.
+Open questions without an answer take the defaults: **Book appointments off by default**; the event holds the
+customer's name and WhatsApp number; **reminders are not in this round** (proposal: part of the Google Calendar
+connector, see `docs/backlog.md`); the vote number `601159246128` is confirmed.
