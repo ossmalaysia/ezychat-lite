@@ -26,8 +26,17 @@ if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
   throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
 
 let cookie = '';
+/** One API path of the local Dev Build: plain segments only (ids from the server are data). */
+function apiUrl(path) {
+  if (
+    !/^(\/[\w%@.:-]+)+$/.test(path) ||
+    path.split('/').some((part) => part === '..' || part === '.')
+  )
+    throw new Error(`Unexpected API path: ${path}`);
+  return local(`/api${path}`);
+}
 async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
+  const res = await fetch(apiUrl(path), {
     method,
     headers: {
       origin: BASE,
