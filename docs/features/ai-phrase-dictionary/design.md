@@ -64,6 +64,23 @@ each pause: "build the autocomplete dictionary using AI".
   composer; admin `GET/POST/PUT/DELETE /api/ai/phrases…`, `POST /api/ai/phrases/rebuild`; `POST /api/reply-phrases/:id/used`.
 - Setting `ai_reply_suggestions_model` (`fast` | `agent` | model id), validated against the connection.
 
+## Implementation notes (2026-10-26)
+
+- Built as planned in "Server plan", with these choices made while building:
+  - The conversation screen loads the chat's list (`GET /api/chats/:jid/ai/phrases`) and passes it to the composer
+    in `aiSuggest.phrases`; the composer stays free of data queries.
+  - Names that no phrase may hold come from every direct chat of the agent's inbox (newest 2,000), not only from
+    the chats the team replies came from: a build with no team replies still never keeps "Hi Nurul".
+  - A model answer never replaces a phrase already showing for the current text (no flicker).
+  - "Same as the AI agent" reads "Same as the AI connection" on the screen: the model is the connection's saved
+    model. A chosen model that the connection no longer lists answers as Fast on the server and shows as Fast.
+  - The build prompt asks for each fact as a sentence the team would send; a copied note line ("Kopi O RM2.50,
+    Kopi C RM3.00, …") from the first real build was the reason.
+- Dev Build check on the owner's test data with ChatGPT sign-in: the start build ran by itself (6.2 s on
+  `gpt-6-luna`, 17 phrases); Rebuild now (3.7 s) removed the 3 note-line phrases and kept 14; person-like typing
+  showed phrase grey text 4–15 ms after the last key with no model call, and the model 1.6 s when no phrase
+  matched (`docs/dev-build-checks.md`).
+
 ## Confirmation
 
 The owner viewed the review page with the screenshots (phrase grey text in English, a half-typed word, Malay and

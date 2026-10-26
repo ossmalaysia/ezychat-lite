@@ -137,11 +137,20 @@ the current text or the suggestion; closing the popup aborts the request and the
 (design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
 (any user with inbox access, direct chats only, 20 and 60 a minute) draft from the chat's agent knowledge even when
 the agent is off (`AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
-`CORE_RULES`); both use the connection's fast model (`agent/draft.ts`: ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with
-reasoning `low`, `DRAFT_FAST_MODELS` for the API-key modes); a completion sees only the last 6 messages and the typed
-text, never the knowledge; `ai/draft-check.ts` drops ungrounded drafts, numbers not in the sources and Internal leaks; nothing
-is sent or stored; switch `ai_reply_suggestions` (admins, `PUT /api/ai/reply-suggestions`; status for everyone at
-`GET /api/reply-suggestions`), written off by migration 020 for installs that existed before; `resolution.ts` is the resolution guard;
+`CORE_RULES`); both use the "Model for suggestions" (`ai_reply_suggestions_model`: `fast` default = the connection's
+fast model, `agent/draft.ts` ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with reasoning `low`, `DRAFT_FAST_MODELS` for the
+API-key modes; `agent`; or a model of the connection, `GET /api/ai/reply-suggestions/model`); a completion sees only
+the last 6 messages and the typed text, never the knowledge; `ai/draft-check.ts` drops ungrounded drafts, numbers not
+in the sources and Internal leaks; nothing is sent or stored; switch `ai_reply_suggestions` (admins,
+`PUT /api/ai/reply-suggestions` {enabled?, model?}; status for everyone at `GET /api/reply-suggestions`), written off by
+migration 020 for installs that existed before. Phrase list (design `docs/features/ai-phrase-dictionary/design.md`):
+table `reply_phrases` per agent (migration 021, `ai/phrases/repo.ts` is its only SQL); `ai/phrases/service.ts` builds it
+in the background (start, a business context change stable for one round, 30 team replies, weekly, Rebuild now; at most
+24 AI calls a day; nothing while the switch is off, without a connection or with the gate closed) through
+`AiService.buildPhrases`; team replies are cleaned of emails, long numbers and every customer name of the inbox
+(`ai/phrases/check.ts`), phrases pass the draft fact and leak checks; the composer loads `GET /api/chats/:jid/ai/phrases`
+and matches it locally (shared `matchPhrase`), Tab/Esc go to `…/phrases/:id/feedback`; admins use `/api/ai/phrases*`;
+logs carry counts only (`phrase_build`). `resolution.ts` is the resolution guard;
 `knowledge.ts` selects knowledge. Provider modes: API key (`api`, public OpenAI Responses API), Claude API key
 (`claude`, Anthropic Messages API through `@ai-sdk/anthropic`, only in `ai/claude.ts`; 3 fixed models
 `CLAUDE_MODELS`, key in the encrypted `ai_claude_api_key` setting, kept beside the OpenAI key; cloud voice is
