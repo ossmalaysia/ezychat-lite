@@ -133,6 +133,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- The release-review score credits the desktop link check whenever the E2E workbook detail contains the
+  command name `e2e:electron-links`: write it only when it ran ("desktop-window link check not run" otherwise).
+  In a cloud session where `gh` GraphQL is blocked, point `GH_PATH` at a small wrapper that answers
+  `gh repo view` / `gh pr view --json …` from the REST API and passes every other call through.
 - A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
   or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
 - After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
