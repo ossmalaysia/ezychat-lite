@@ -141,6 +141,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- The release-review score credits the desktop link check whenever the E2E workbook detail contains the
+  command name `e2e:electron-links`: write it only when it ran ("desktop-window link check not run" otherwise).
+  In a cloud session where `gh` GraphQL is blocked, point `GH_PATH` at a small wrapper that answers
+  `gh repo view` / `gh pr view --json …` from the REST API and passes every other call through.
 - A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
   or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
 - After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
@@ -378,6 +382,14 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
+  appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
+  find the PID first, then kill it in a separate call.
+- In a cloud container whose Playwright browser build is older than the package expects, point
+  `PLAYWRIGHT_BROWSERS_PATH` at a scratch folder with symlinks named for the expected build (e.g.
+  `chromium-1248` → `/opt/pw-browsers/chromium-1243`); otherwise `playwright.config.ts` falls back to the
+  `chrome` channel and every e2e fails at launch. The PDF/Word parser worker tests also fail there on clean
+  `main`: compare with `main` before blaming a change.
 - An app window that Windows marks "not responding" while its server log stays fast is first a PC-load
   question: read `Get-WinEvent` (Application Hang 1002, service timeouts, Kernel-General 12/13 restarts) and the
   WER `ReportArchive` before reading code. On the owner's PC, never run the full suite or e2e beside the live apps
@@ -893,12 +905,16 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Review a chart with one data point too (a new install's first day): a flex bar fills the whole chart and an
+  SVG area becomes a triangle. Cap bar widths and draw a single point as a bar or dot.
+- Hover readouts on charts (or any pointer-driven detail) clear only on a `pointerType === 'mouse'` leave: on
+  touch a tap fires `pointerleave` right after `pointerdown`, so the tapped value vanishes. Check the 360 px touch
+  shot, not only desktop hover.
 - Screenshot scripts wait ~400–500 ms after opening a `Dialog`/`Select` and after enabling a filled button: the
   open animation shows the page through the dialog, and `transition-colors` keeps a just-enabled button in the
   grey "disabled" colour. Check `button.disabled` before calling a grey button a bug.
 - Word matching on mixed text puts `\p{Script=Han}` before `[\p{L}\p{N}]+` in the alternation: Han is also
   `\p{L}`, so the other order makes `谢谢您` one "word" and any "at least 2 words" rule never fires for Chinese.
-
 - Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
   inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
   Put it after the outer `</form>` and point the footer button at the form with `form={id}`.

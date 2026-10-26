@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  BarChart3,
   ChevronLeft,
   Loader2,
   LogOut,
@@ -44,11 +45,18 @@ import { SettingsPage } from './SettingsPage';
 import { TunnelPage } from './TunnelPage';
 import { WhatsAppPage } from './WhatsAppPage';
 import { InboxesPage } from './InboxesPage';
+<<<<<<<< HEAD:docs/features/google-calendar/mock/src/admin/AdminLayout.tsx
 import { ConnectorsGalleryPage } from './ConnectorsGalleryPage';
 import { ConnectorDetailPage } from './ConnectorDetailPage';
+========
+// Proposed (reports): Admin → Reports (busy days, busy times, reply times).
+import { ReportsPage } from './ReportsPage';
+>>>>>>>> origin/main:docs/features/reports/mock/src/admin/AdminLayout.tsx
 
 /** `labelKey` is a translation key in the `admin` namespace. */
 export const ADMIN_NAV = [
+  // Proposed (reports): first, the page an owner opens most.
+  { to: 'reports', labelKey: 'mockReports.nav', icon: BarChart3 },
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
   // Proposed (google-calendar): a gallery of ready connectors, one page each.
@@ -247,6 +255,7 @@ export function AdminLayout() {
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/ai" element={<AgentRedirect />} />
             <Route path="members/ai/:agentId" element={<AgentPage />} />

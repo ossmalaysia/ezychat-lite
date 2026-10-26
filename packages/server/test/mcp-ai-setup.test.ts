@@ -372,4 +372,33 @@ describe('AI setup over MCP', () => {
     expect(stats.ai.totals.handoffs).toBe(3);
     expect(stats.ai.daily).toHaveLength(2);
   });
+
+  it('get_stats adds new customers and the chats still waiting after an AI hand-off', async () => {
+    const now = Date.now();
+    t.ctx.db
+      .prepare(
+        `INSERT INTO chats (jid, type, name, unread_count, status, updated_at)
+         VALUES ('w@s.whatsapp.net', 'dm', 'W', 0, 'open', 0)`,
+      )
+      .run();
+    t.ctx.db
+      .prepare(
+        `INSERT INTO messages (id, chat_jid, from_me, type, body, status, timestamp, created_at)
+         VALUES ('w1', 'w@s.whatsapp.net', 0, 'text', 'hi', 'sent', ?, ?)`,
+      )
+      .run(now - 2 * 3_600_000, now - 2 * 3_600_000);
+    audit(t.ctx.db, {
+      userId: null,
+      action: 'ai.handoff',
+      ip: null,
+      meta: { chatJid: 'w@s.whatsapp.net', assignedTo: null, reason: 'missing_facts' },
+    });
+    const stats = (await call('get_stats', { days: 1 })).data();
+    expect(stats.customers).toMatchObject({
+      newCustomers: 1,
+      missedNewCustomers: 1,
+      waitingAfterAiHandoff: { count: 1 },
+    });
+    expect(typeof stats.customers.waitingAfterAiHandoff.oldestHandoffAt).toBe('string');
+  });
 });

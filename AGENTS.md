@@ -237,6 +237,15 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
+zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
+only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a
+chat whose first message is the customer's and is not older than WhatsApp's link time (the inbox's first stored
+`created_at`, i.e. the history import); missed = no reply within `MISSED_LEAD_MS` (1 h); "waiting after AI
+hand-off" = open chats whose last `ai.handoff` audit row has no later reply from a person (teammate or phone).
+MCP `get_stats` carries `customers` from the same function. Web: `admin/ReportsPage.tsx` + `ReportCharts.tsx`
+(HTML/SVG in colour tokens, no chart library; every chart has Show as table).
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links

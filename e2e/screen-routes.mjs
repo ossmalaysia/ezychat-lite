@@ -10,6 +10,7 @@ export const SCREEN_ROUTES = [
   ['inbox', '/'],
   ['conversation', `/chats/${encodeURIComponent(SMOKE_CHAT)}`],
   ['conversation-customer', `/chats/${encodeURIComponent(SMOKE_CHAT)}?customer=1`],
+  ['admin-reports', '/admin/reports'],
   ['admin-members', '/admin/members'],
   ['admin-members-ai', '/admin/members/ai'],
   ['admin-quick-replies', '/admin/quick-replies'],

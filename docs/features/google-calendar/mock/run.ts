@@ -27,11 +27,19 @@ const fresh = process.argv.includes('--fresh');
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../../..');
 const metadata = JSON.parse(await readFile(join(here, 'reference.json'), 'utf8'));
+<<<<<<<< HEAD:docs/features/google-calendar/mock/run.ts
 const port = Number(process.env.MOCK_UI_PORT ?? 7489);
 const apiPort = Number(process.env.MOCK_API_PORT ?? 7488);
 if (![port, apiPort].every((value) => Number.isInteger(value) && value > 1023 && value < 65536))
   throw new Error('Mock ports must be integers between 1024 and 65535.');
 const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-google-calendar-mock-'));
+========
+const port = Number(process.env.MOCK_UI_PORT ?? 7485);
+const apiPort = Number(process.env.MOCK_API_PORT ?? 7484);
+if (![port, apiPort].every((value) => Number.isInteger(value) && value > 1023 && value < 65536))
+  throw new Error('Mock ports must be integers between 1024 and 65535.');
+const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-reports-mock-'));
+>>>>>>>> origin/main:docs/features/reports/mock/run.ts
 const logger = await createLogger({ dataDir, stdout: false });
 const log = logger.log.child({ mod: 'mock', sourceRevision: metadata.sourceRevision });
 
@@ -285,7 +293,11 @@ const vite = await createServer({
 await vite.listen();
 log.info({ port, apiPort, dataDir }, 'interactive app mock ready');
 process.stdout.write(
+<<<<<<<< HEAD:docs/features/google-calendar/mock/run.ts
   `Proposed google-calendar mock (${fresh ? 'fresh install' : 'seeded demo'}): http://localhost:${port}/\nTemporary demo data: ${dataDir}\n`,
+========
+  `Proposed reports mock (${fresh ? 'fresh install' : 'seeded demo'}): http://localhost:${port}/\nTemporary demo data: ${dataDir}\n`,
+>>>>>>>> origin/main:docs/features/reports/mock/run.ts
 );
 let closing = false;
 const close = async () => {

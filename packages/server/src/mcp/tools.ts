@@ -221,7 +221,7 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
   name: 'get_stats',
   title: 'Inbox statistics',
   description:
-    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. With AI setup access, `ai` adds the AI agents (all agents together): hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered. With more than one inbox (WhatsApp number), byInbox gives open, resolved and waiting chats and the messages in and out per inbox; pass inboxId for one inbox (the `ai` counts too).',
+    'Counts for the whole inbox: open and resolved chats, open chats per assignee, chats waiting for a team reply, and daily activity (active chats, inbound and outbound messages) in the business time zone. customers (direct chats, as on Admin → Reports): newCustomers (chats whose first message came from the customer in the period, after WhatsApp was linked), missedNewCustomers (no reply within 1 hour) and waitingAfterAiHandoff (open chats the AI handed to the team where no person has written since; current, not per period). With AI setup access, `ai` adds the AI agents (all agents together): hand-offs per reason (asked_for_human, missing_facts, sensitive, needs_action, business_rule = matched a hand-off rule, unsupported_message, ai_unavailable, lookup_failed = a look-up in a connected system failed) and per day, chats it resolved, chats and messages it answered. With more than one inbox (WhatsApp number), byInbox gives open, resolved and waiting chats and the messages in and out per inbox; pass inboxId for one inbox (the `ai` counts too).',
   scope: 'inbox:read',
   input: McpGetStatsInput,
   run(args, { inbox, aiSetup, principal }) {
@@ -242,6 +242,13 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
         waitingForReply: {
           count: stats.waitingForReply.count,
           oldestCustomerMessageAt: iso(stats.waitingForReply.oldestCustomerMessageAt),
+        },
+        customers: {
+          ...stats.customers,
+          waitingAfterAiHandoff: {
+            count: stats.customers.waitingAfterAiHandoff.count,
+            oldestHandoffAt: iso(stats.customers.waitingAfterAiHandoff.oldestHandoffAt),
+          },
         },
       },
       count: stats.daily.length,

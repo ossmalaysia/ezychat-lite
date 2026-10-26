@@ -190,3 +190,49 @@ Decision: **risk:human**
 ## 2026-10-25 · PR #183 · `fc61d83` · approved by the owner
 
 > It is low risk as it's alternative than original inbox, merge it
+
+## 2026-10-26 · PR #191 · `b171aa0` · risk:human (45)
+
+Tier **core**, set by: apps/web/src/api/queries.ts, apps/web/src/extensions/types.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 1186 code lines | -35 | ✓ |
+| Changed-lines coverage 97.8 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | 0 | ✗ missing |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **45** | |
+
+Hard stops: none
+
+Decision: **risk:human**
+
+## 2026-10-26 · PR #191 · `8577733` · risk:human (50)
+
+Tier **core**, set by: apps/web/src/api/queries.ts, apps/web/src/extensions/types.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 1186 code lines | -35 | ✓ |
+| Changed-lines coverage 97.8 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **50** | |
+
+Hard stops: none
+
+Decision: **risk:human**
+
+## 2026-10-26 · PR #191 · `c98e06b` · approved by the owner
+
+> Merge, this is not core feature
