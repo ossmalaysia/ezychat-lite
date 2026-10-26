@@ -16,6 +16,22 @@
   },
   "proposals": [
     {
+      "feature": "connector-list",
+      "creationOrder": 17,
+      "createdAt": "2026-10-27",
+      "design": "docs/features/connector-list/design.md",
+      "mock": "docs/features/connector-list/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "google-calendar",
+      "baselineGitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
+      "baselineAppRevision": "846775d",
+      "baselineAdditions": [
+        "reports (confirmed; Admin -> Reports copied unchanged from docs/features/reports/mock on origin/main 8b09a9e)",
+        "google-calendar Bookings tab, Open Google Calendar links and the Your data text (built in PR #192 without a mock, owner waived it 2026-10-27)"
+      ],
+      "coverage": "Full app clone of the confirmed google-calendar reference plus Admin -> Reports and the PR #192 Bookings tab; the connector gallery read from a signed connector list (format 1; entries with schemaVersion, minAppVersion, kind mcp/builtin/coming_soon, editions): status line \"Connector list updated 2 hours ago · Check for new connectors\", list loaded / offline (last copy) / bad signature (warning, last good copy), an entry for a newer EzyChat greyed with \"Update EzyChat to use this connector\", a schema-2 entry never shown, an Enterprise-only entry in Lite, coming-soon entries with Vote, Google Calendar (MCP) beside the built-in one behind a mock-only switch; partner (MCP) pages (publisher and website, tools with Look-up / Changes data, privacy line before Connect, details for your developer); Connect with a stand-in partner sign-in tab (waiting, cancelled, connected) or an API key dialog (Test, Save, key refused), partner server unreachable; Settings per AI agent from the entry's form (select, toggle, text, days, time range, calendar picker), one switch per tool (changes-data tools off), Rules the AI always follows from the declared guards; Activity (looked up, done, refused with reason, failed); connected but no longer listed; agent page Connectors card rows; mock-only routes /api/mock/connector-list*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise (connector-list-shots.mjs)"
+    },
+    {
       "feature": "google-calendar",
       "creationOrder": 16,
       "createdAt": "2026-10-26",
@@ -88,7 +104,12 @@
       "coverage": "Full app clone of the confirmed upgrade-enterprise reference; WhatsApp Business API (Meta Cloud API) inbox type in the Enterprise view: Admin -> Inboxes type choice, Meta form (Phone number ID, WABA ID, permanent token, App secret, guide, required/rejected/connected), card (quality, templates + Sync, AI window note), webhook over Phone access (off/on/failing), token rejected, Edit with Replace token, Business API remove text; setup wizard WhatsApp step choice (QR default / Business API) for inbox 1; Phone access note; 24-hour reply window (note, closed-window chat-list icon, Send a template dialog with variables, preview, marketing note, empty state, sent marker, simulated customer reply); Lite view without any of it; desktop 1280 / mobile 360, light/dark (business-api-shots.mjs)",
       "confirmedAt": "2026-10-25",
       "confirmation": "Owner confirmed 2026-10-25 after round 2 answers (Marketing templates allowed, switch inbox type both ways, media templates listed disabled), the screenshots and the mock test run: \"ok impelemnt\"",
-      "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b"
+      "gitRevision": "078de13510059504a6e7cb6ac78c381e5936dd4b",
+      "archived": {
+        "folderRemovedAt": "2026-10-27",
+        "lastRevision": "846775dabfaf59e3dad19261192f6e18eeb6fd81",
+        "reason": "retention: sixth feature folder (connector-list)"
+      }
     },
     {
       "feature": "upgrade-enterprise",
