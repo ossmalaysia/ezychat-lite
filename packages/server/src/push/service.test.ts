@@ -348,7 +348,9 @@ describe('AI handover notifications', () => {
     t.ctx.bus.emit('ai:handoff', chat(user.id));
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     push.shutdown();
-    expect(t.ctx.bus.emit('ai:handoff', chat(user.id))).toBe(false);
+    // Other services (the calendar's hand-over line) may still listen: push must not send again.
+    t.ctx.bus.emit('ai:handoff', chat(user.id));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(sent).toHaveLength(1);
   });
 });

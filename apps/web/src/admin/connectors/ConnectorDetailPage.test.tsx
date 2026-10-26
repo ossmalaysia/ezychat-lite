@@ -103,6 +103,14 @@ describe('Google Calendar: Overview', () => {
     page(GC);
     expect(await screen.findByText('Google sign-in expired')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign in again' })).toBeTruthy();
+    expect(screen.getByText('Calendars in this account')).toBeTruthy();
+    cleanup();
+    // Expired with no calendar list: no misleading "No calendars found".
+    stubServer(world({ google: status('expired', { calendars: [] }) }));
+    page(GC);
+    expect(await screen.findByText('Google sign-in expired')).toBeTruthy();
+    expect(screen.queryByText('Calendars in this account')).toBeNull();
+    expect(screen.queryByText('No calendars found.')).toBeNull();
     cleanup();
     stubServer(world({ google: status('unavailable') }));
     page(GC);

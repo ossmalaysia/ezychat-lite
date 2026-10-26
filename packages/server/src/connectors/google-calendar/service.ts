@@ -573,14 +573,31 @@ export function createGoogleCalendarService(
         return { ok: false, reason: 'no_reply_since' };
       if (!withinRules(slot, settings, timeZone(), at))
         return { ok: false, reason: 'outside_rules' };
+      const eventId = sha(`${agentId}|${chatJid}|${slot.start}`);
+      const calendarId = settings.calendarId!;
+      const ours = async () => {
+        const status = await withToken((token) =>
+          client!.eventStatus(token, calendarId, eventId, signal),
+        );
+        return status !== null && status !== 'cancelled';
+      };
+      const record = (created: boolean): BookResult => {
+        insertBooking(ctx.db, { agentId, chatJid, eventId, calendarId, ...slot }, now());
+        addActivity(ctx.db, { kind: 'booked', agentId, chatJid, ...slot }, now());
+        log.info(
+          { event: 'google_calendar_booked', agentId, created },
+          'AI booked a calendar event',
+        );
+        return { ok: true, ...slot, already: false };
+      };
       const busy = await busyTimes(settings, slot.start, slot.end, signal);
-      if (isBusy(slot, busy, settings.gapMin)) return { ok: false, reason: 'busy' };
+      // A retry after a lost answer: the busy time may be our own event (same id) already in Google.
+      if (isBusy(slot, busy, settings.gapMin))
+        return (await ours()) ? record(false) : { ok: false, reason: 'busy' };
       const chat = getChats(ctx).get(chatJid);
       const name = chat?.name?.trim() || 'Customer';
       const phone =
         chat?.phone ?? (chat?.waJid.endsWith('@s.whatsapp.net') ? chat.waJid.split('@')[0]! : null);
-      const eventId = sha(`${agentId}|${chatJid}|${slot.start}`);
-      const calendarId = settings.calendarId!;
       const zone = timeZone();
       const created = await withToken((token) =>
         client!.insertEvent(
@@ -599,17 +616,9 @@ export function createGoogleCalendarService(
           signal,
         ),
       );
-      if (!created) {
-        // Our own id exists already (a retry): confirm it is still there.
-        const status = await withToken((token) =>
-          client!.eventStatus(token, calendarId, eventId, signal),
-        );
-        if (status === null || status === 'cancelled') return { ok: false, reason: 'busy' };
-      }
-      insertBooking(ctx.db, { agentId, chatJid, eventId, calendarId, ...slot }, now());
-      addActivity(ctx.db, { kind: 'booked', agentId, chatJid, ...slot }, now());
-      log.info({ event: 'google_calendar_booked', agentId, created }, 'AI booked a calendar event');
-      return { ok: true, ...slot, already: false };
+      // Our own id exists already (a retry): confirm it is still there.
+      if (!created && !(await ours())) return { ok: false, reason: 'busy' };
+      return record(created);
     },
 
     shutdown() {

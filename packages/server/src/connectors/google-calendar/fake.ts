@@ -132,7 +132,15 @@ export class FakeGoogle {
       const calendars: Record<string, unknown> = {};
       for (const item of request.items)
         calendars[item.id] = CALENDARS.some((c) => c.id === item.id)
-          ? { busy: this.busy }
+          ? {
+              // Like Google: events in the calendar (also the ones we added) count as busy.
+              busy: [
+                ...this.busy,
+                ...this.events
+                  .filter((e) => e.calendarId === item.id)
+                  .map((e) => ({ start: e.start, end: e.end })),
+              ],
+            }
           : { errors: [{ reason: 'notFound' }], busy: [] };
       return json(200, { calendars });
     }

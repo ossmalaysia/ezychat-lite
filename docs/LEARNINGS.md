@@ -103,6 +103,8 @@ into AGENTS.md.
   (`/api/dev/fake-incoming` `media`), or the owner cannot test it end to end on a Dev Build.
 - Record protocol facts from the package that really implements them, with the source file; never copy
   tokens from local caches.
+- A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
+  we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
 
 ## Multi-agent process
 

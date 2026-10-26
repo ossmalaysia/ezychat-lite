@@ -168,23 +168,26 @@ export function GoogleCalendarAccountCard({
                 {t('connectors.gc.unavailableBody')}
               </Banner>
             )}
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium">{t('connectors.gc.calendars')}</span>
-              {data.calendars.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('connectors.gc.noCalendars')}</p>
-              ) : (
-                <ul className="flex flex-col gap-1 text-sm">
-                  {data.calendars.map((c) => (
-                    <li key={c.id} className="flex flex-wrap items-center gap-2">
-                      <span className="break-all">{c.name}</span>
-                      {c.readOnly && (
-                        <Badge variant="secondary">{t('connectors.gc.readOnly')}</Badge>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            {/* While the sign-in does not work the list is unknown: no "No calendars found". */}
+            {(state === 'connected' || data.calendars.length > 0) && (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{t('connectors.gc.calendars')}</span>
+                {data.calendars.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t('connectors.gc.noCalendars')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {data.calendars.map((c) => (
+                      <li key={c.id} className="flex flex-wrap items-center gap-2">
+                        <span className="break-all">{c.name}</span>
+                        {c.readOnly && (
+                          <Badge variant="secondary">{t('connectors.gc.readOnly')}</Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
               {t('connectors.gc.perAgent')}{' '}
               {onOpenSettings && (
