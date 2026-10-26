@@ -391,6 +391,13 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A build-time value for the packaged server (e.g. the Google "Desktop app" OAuth client) goes in as an
+  esbuild `define` of a global that the code reads with `typeof X === 'undefined'`, from repository secrets
+  passed only to the bundle step; the environment still wins, so Dev Builds and forks need no rebuild.
+  Prove it on a real bundle by printing counts of the values, never the values.
+- Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
+  A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
+  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
 - In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
   appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
   find the PID first, then kill it in a separate call.

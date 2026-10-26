@@ -27,6 +27,21 @@ export interface ServerConfig {
 
 const MODES = ['standalone', 'service', 'dev'] as const;
 
+/**
+ * The Google sign-in app a release bundle carries (esbuild `define` from repository secrets in
+ * scripts/google-oauth-define.mjs, Lite and Enterprise). Undeclared in source runs and forks.
+ */
+declare const __EZYCHAT_GOOGLE_OAUTH__: { clientId?: unknown; clientSecret?: unknown } | undefined;
+
+function bundledGoogleOAuth(): { clientId?: string; clientSecret?: string } {
+  const app =
+    typeof __EZYCHAT_GOOGLE_OAUTH__ === 'undefined' ? undefined : __EZYCHAT_GOOGLE_OAUTH__;
+  return {
+    clientId: typeof app?.clientId === 'string' ? app.clientId : undefined,
+    clientSecret: typeof app?.clientSecret === 'string' ? app.clientSecret : undefined,
+  };
+}
+
 function readVersion(): string {
   if (process.env.WATI_VERSION) return process.env.WATI_VERSION;
   try {
@@ -51,7 +66,7 @@ function defaultWebDist(): string | null {
  * Flags: --data <dir> (required unless WATI_DATA env), --port <n>, --host <h>, --mode <m>,
  * --fake-wa, --web-dist <dir>, --reset-admin, --max-inboxes <n>. Also accepts --flag=value.
  * Env fallbacks: WATI_DATA, WATI_PORT, WATI_HOST, WATI_MODE, WATI_WEB_DIST. Google sign-in app:
- * GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET (both or neither).
+ * GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET (both or neither), else the release bundle's.
  * Fake WhatsApp is enabled ONLY by the explicit --fake-wa flag (never by env), and never in service mode.
  * --max-inboxes is accepted only together with --mode dev and --fake-wa (never by env).
  */
@@ -123,8 +138,13 @@ export function parseArgs(
   }
 
   const hostRaw = str('host') ?? env.WATI_HOST;
-  const googleClientId = env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-  const googleClientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  // The environment (Dev Builds, own builds) wins over the app the release bundle carries.
+  const bundled = bundledGoogleOAuth();
+  const envGoogle = env.GOOGLE_OAUTH_CLIENT_ID?.trim() && env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  const googleClientId = envGoogle ? env.GOOGLE_OAUTH_CLIENT_ID?.trim() : bundled.clientId;
+  const googleClientSecret = envGoogle
+    ? env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()
+    : bundled.clientSecret;
   const webDist = str('web-dist') ?? env.WATI_WEB_DIST;
 
   return {

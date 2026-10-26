@@ -59,7 +59,12 @@ jobs:
       - run: node apps/desktop/scripts/fetch-winsw.mjs
         if: runner.os == 'Windows'
       - run: npm run build -w @ezychat/web
+      # The server bundle carries the Google sign-in app (Google Calendar connector; a "Desktop app"
+      # client of project ezychat-prod). Forks have no secrets: their builds show "Not available".
       - run: node scripts/bundle-server.mjs
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
       - run: npm run build -w @ezychat/desktop
       # Windows signing with Azure Artifact Signing (Anchor Sprint Pte. Ltd.) when the repository
       # variables exist; without them the installer stays unsigned (forks, first setup).

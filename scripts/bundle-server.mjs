@@ -9,6 +9,7 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { googleOAuthDefine } from './google-oauth-define.mjs';
 
 // The 'import' condition below makes require('ws') resolve to ws/wrapper.mjs, whose namespace
 // has no `Server` export, so engine.io's `require('ws').Server` (wsEngine) was undefined at
@@ -86,8 +87,9 @@ const result = await build({
   metafile: true,
   mainFields: ['module', 'main'],
   conditions,
-  // ESM sources use import.meta.url (e.g. migrations lookup); map it to this file's URL.
-  define: { 'import.meta.url': '__wati_import_meta_url' },
+  // ESM sources use import.meta.url (e.g. migrations lookup); map it to this file's URL. The
+  // release build also carries the Google sign-in app (repository secrets; none locally).
+  define: { 'import.meta.url': '__wati_import_meta_url', ...googleOAuthDefine() },
   banner: {
     js: "const __wati_import_meta_url = require('node:url').pathToFileURL(__filename).href;",
   },

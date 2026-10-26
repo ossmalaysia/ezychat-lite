@@ -226,8 +226,11 @@ Coming-soon connectors have Vote / Ask for a connector: a WhatsApp link (`useApp
 hides it); nothing is counted in the app. Google Calendar (`connectors/google-calendar/`, routes
 `/api/connectors/google-calendar/*`, admins; migration 022): one Google account per install, sign-in with PKCE and a
 loopback callback on the server's own port (`…/callback`, host-only, so it finishes only on that computer), tokens
-only in the encrypted `google_calendar_tokens` setting; the app is `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, without them
-the state is `not_configured`. Per AI agent (`calendar_agent_settings`): calendar, Check free times (on), Book
+only in the encrypted `google_calendar_tokens` setting; the app (Google "Desktop app" client of project `ezychat-prod`,
+org anchorsprint.com) is `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET` from the environment, else the one the release bundle carries
+(`scripts/google-oauth-define.mjs`: esbuild `define` of `__EZYCHAT_GOOGLE_OAUTH__` from repository secrets in `release.yml`;
+Enterprise does the same), without either the state is `not_configured`. With `--fake-wa` the fake Google is used only
+when no app is configured (a Dev Build with the env pair signs in to real Google). Per AI agent (`calendar_agent_settings`): calendar, Check free times (on), Book
 appointments (off; needs free times) and the rules. AI tools `check_free_times` / `book_appointment` (`tools.ts`,
 offered through `ai/agent/turn-tools.ts`; core names reserved for extensions): the server books only a time it
 offered in that chat (`calendar_offers`), after a newer customer message, inside the rules and still free (re-checked
