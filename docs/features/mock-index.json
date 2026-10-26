@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "reports",
+      "creationOrder": 14,
+      "createdAt": "2026-10-26",
+      "design": "docs/features/reports/design.md",
+      "mock": "docs/features/reports/mock/index.html",
+      "status": "owner-confirmation-pending",
+      "baselineFeature": "ai-reply-suggestions",
+      "baselineGitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be",
+      "baselineAppRevision": "149b5b9",
+      "coverage": "Full app clone of the confirmed ai-reply-suggestions reference; Admin -> Reports (first admin nav item, admins only): 7/30/90 days, six totals with change vs the previous period (new customers, messages from customers and replies, median first reply, missed new customers, waiting after AI hand-off with Open chats, chats the AI answered), Busy days (weekday averages, busiest highlighted), Busy times (weekday x hour heatmap with readout), messages from customers per day (weekend shading, busiest day, pointer/tap readout), new customers per day (line), AI hand-off reasons with a Business context link, Team table; Show as table on every chart; states: 4 months, 5 days (too early note), no messages yet, loading, error; mock-only routes GET /api/mock/reports and GET/PUT /api/mock/reports/scenario with seeded demo numbers; desktop 1280 / mobile 360 touch, light/dark (reports-shots.mjs)"
+    },
+    {
       "feature": "ai-reply-suggestions",
       "creationOrder": 13,
       "createdAt": "2026-10-25",
@@ -81,7 +93,12 @@
       "baselineGitRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
       "baselineAppRevision": "21d9718",
       "coverage": "Full app clone of the confirmed claude-provider reference (as on main 21d9718, with its round 2); emoji reactions received from WhatsApp and shown in the conversation: a badge under the inner corner of inbound and outbound bubbles, several emojis grouped (at most three, most used first) with the total, a click/tap list of who reacted (profile/contact/WhatsApp names, long names truncate, the phone as \"You (phone)\"), live change and removal; a mock-only \"Simulate reactions from WhatsApp\" panel and seeded reactions through the fake-WhatsApp dev route POST /api/dev/fake-reaction; desktop 1280 / mobile 360, light/dark (reaction-shots.mjs)",
-      "confirmation": "Owner saw the mock screenshots and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review 2026-10-23 recorded in design.md"
+      "confirmation": "Owner saw the mock screenshots and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review 2026-10-23 recorded in design.md",
+      "archived": {
+        "folderRemovedAt": "2026-10-26",
+        "lastRevision": "149b5b96a9b6a42a4f0be7f45afd6064b56faf99",
+        "reason": "retention: sixth feature folder (reports)"
+      }
     },
     {
       "feature": "claude-provider",

@@ -851,6 +851,7 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Hover readouts on charts (or any pointer-driven detail) must clear only on `pointerType === 'mouse'` leave: on touch a tap fires `pointerleave` right after `pointerdown`, so the tapped value vanishes. Check the 360 px touch shot, not only desktop hover.
 - Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
   inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
   Put it after the outer `</form>` and point the footer button at the form with `form={id}`.
