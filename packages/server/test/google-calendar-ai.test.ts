@@ -129,6 +129,15 @@ async function customerSays(id: string, text: string) {
   await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1500);
 }
 
+/** The team saved this customer's email (and name) in the contact. */
+function saveContact(email: string, name = 'Mei Ying') {
+  t.ctx.services.customers!.save(
+    jid,
+    { name, company: '', email, otherPhone: '', address: '', tags: [] },
+    { userId: adminId, ip: null },
+  );
+}
+
 const offeredTools = () =>
   vi.mocked(provider.generate).mock.calls.map((c) => Object.keys(c[2].tools ?? {}).sort());
 const activity = () =>
@@ -194,9 +203,25 @@ describe('Google Calendar AI tools (live)', () => {
     let booked = '';
     script = async (tools, signal) => {
       booked = await call(tools, 'book_appointment', { start: offered[1]!.start }, signal);
+      return { reply: 'What is your email?', action: 'answer' };
+    };
+    // the name and number are known (WhatsApp), the email is not: nothing is booked, the AI asks
+    await customerSays('in-2', 'The 1 pm one please');
+    expect(booked).toBe(
+      'Not booked yet: ask the customer for their email address, then call book_appointment again with the same "start" and what they wrote.',
+    );
+    expect(fake().events).toEqual([]);
+
+    script = async (tools, signal) => {
+      booked = await call(
+        tools,
+        'book_appointment',
+        { start: offered[1]!.start, email: 'mei.ying@example.com' },
+        signal,
+      );
       return { reply: 'Booked for 1 pm.', action: 'answer' };
     };
-    await customerSays('in-2', 'The 1 pm one please');
+    await customerSays('in-2b', 'Sure, it is Mei.Ying@example.com');
     expect(booked).toBe(
       'Booked: Monday 2026-10-26 13:00–14:00. Confirm this time to the customer.',
     );
@@ -205,7 +230,8 @@ describe('Google Calendar AI tools (live)', () => {
         calendarId: BOOKINGS,
         id: expect.stringMatching(/^[0-9a-f]{64}$/),
         summary: 'Booking · Mei Ying',
-        description: 'Booked by the EzyChat AI\nWhatsApp: +60123456789',
+        description:
+          'Booked by the EzyChat AI\nName: Mei Ying\nPhone: +60123456789\nEmail: mei.ying@example.com',
         start: '2026-10-26T05:00:00.000Z',
         end: '2026-10-26T06:00:00.000Z',
         timeZone: 'Asia/Kuala_Lumpur',
@@ -227,7 +253,12 @@ describe('Google Calendar AI tools (live)', () => {
 
     // the same time again: no second event
     script = async (tools, signal) => {
-      booked = await call(tools, 'book_appointment', { start: offered[1]!.start }, signal);
+      booked = await call(
+        tools,
+        'book_appointment',
+        { start: offered[1]!.start, email: 'mei.ying@example.com' },
+        signal,
+      );
       return { reply: 'Already booked.', action: 'answer' };
     };
     await customerSays('in-3', 'Did you book it?');
@@ -245,6 +276,45 @@ describe('Google Calendar AI tools (live)', () => {
     expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM calendar_bookings').get()).toEqual({ n: 1 });
   });
 
+  it('tells the AI which booking details to ask for, and refuses an email the customer never wrote', async () => {
+    const actor = await setUp({ booking: { book: true } });
+    t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);
+    let checked: { bookingDetails?: object; note?: string; freeTimes: Array<{ start: string }> } = {
+      freeTimes: [],
+    };
+    script = async (tools, signal) => {
+      checked = JSON.parse(await call(tools, 'check_free_times', {}, signal)) as typeof checked;
+      return { reply: 'Free at 12. Your email?', action: 'answer' };
+    };
+    await customerSays('in-1', 'Can I book a table today?');
+    expect(checked.bookingDetails).toEqual({ name: 'saved', email: 'ask', phone: 'saved' });
+    expect(checked.note).toContain('Booking also needs their email address');
+
+    let booked = '';
+    script = async (tools, signal) => {
+      booked = await call(
+        tools,
+        'book_appointment',
+        { start: checked.freeTimes[0]!.start, email: 'invented@example.com' },
+        signal,
+      );
+      return { reply: 'One moment.', action: 'answer' };
+    };
+    await customerSays('in-2', '12 please');
+    expect(booked).toContain('pass only the email address the customer wrote in this chat');
+    expect(fake().events).toEqual([]);
+
+    // with the email saved by the team, nothing is left to ask
+    saveContact('mei@example.com');
+    script = async (tools, signal) => {
+      checked = JSON.parse(await call(tools, 'check_free_times', {}, signal)) as typeof checked;
+      return { reply: 'Free at 12.', action: 'answer' };
+    };
+    await customerSays('in-3', 'Other times?');
+    expect(checked.bookingDetails).toEqual({ name: 'saved', email: 'saved', phone: 'saved' });
+    expect(checked.note).not.toContain('Booking also needs');
+  });
+
   it('books a confirmed time when the AI checks free times again in the booking turn', async () => {
     const actor = await setUp({ booking: { book: true } });
     t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);
@@ -254,6 +324,7 @@ describe('Google Calendar AI tools (live)', () => {
       return { reply: `Free: ${offered[0]!.time}`, action: 'answer' };
     };
     await customerSays('in-1', 'Can I book a table today?');
+    saveContact('mei@example.com');
 
     // the re-check records the same times again, after the customer's answer
     let booked = '';
@@ -278,6 +349,7 @@ describe('Google Calendar AI tools (live)', () => {
       return { reply: 'Here are times.', action: 'answer' };
     };
     await customerSays('in-1', 'Tomorrow?');
+    saveContact('mei@example.com');
     expect(offered[0]!.start).toBe('2026-10-27T02:00:00.000Z');
     const outputs: string[] = [];
     fake().busy = [{ start: offered[0]!.start, end: offered[1]!.start }];

@@ -130,3 +130,29 @@ reference: `docs/screenshots/connectors/google-calendar-bookings-*.png`.
   call, no event details read, so the privacy policy and the Google review stay true. Changes made in Google
   Calendar (moved or deleted events) do not show; the tab says so.
 - Full calendar view: not built (it would read every event title: new privacy text and Google review).
+
+## Round 6: who the booking is for (owner, 2026-10-27)
+
+Owner: "name, email and phone, if can derive from contact will be good, if not AI should ask". No screen change.
+
+- A booking needs the customer's **name, email and phone** (`connectors/google-calendar/contact.ts`). Each comes
+  from the saved contact (profile name and email; the WhatsApp name and number), else from what the customer wrote
+  in this chat: a value the AI passes must appear in the customer's own messages (text or voice transcript; phones
+  compared by digits), so the AI cannot invent one. `check_free_times` returns `bookingDetails` (saved / ask) and a
+  note to ask for the missing details together with the time choice; `book_appointment` refuses without them.
+- The event description lists Name, Phone, Email (and the WhatsApp number when the phone differs). No invite is
+  sent to the customer (no attendee). The privacy policy on ezychat.ai names the email too.
+- The core prompt has one connector-neutral rule for tools that make a change (replacing the Google Calendar
+  sentence): a new connector brings its own instructions and server guards, never a core rule.
+
+## Later: connector list from ezychat.ai (owner decisions, 2026-10-27; separate design)
+
+- The gallery and detail pages of partner connectors load from a signed list published by the public repo
+  `anchorsprint/ezychat-connectors` to `dl.ezychat.ai/connectors/`; Lite and Enterprise. The user connects from
+  their own EzyChat directly to the partner's MCP server (never through an EzyChat server).
+- Each entry has a `schemaVersion`; an app shows only entries whose schema it supports (plus an optional minimum
+  EzyChat version). Additive fields only within a schema version; the list has its own format version and keeps the
+  last good copy.
+- The list is public: no secrets in it. Sign-in by OAuth with dynamic client registration, a public client id with
+  PKCE, or the user's own API key (encrypted locally). The signing key lives only in that repo's protected CI; the
+  app holds two public keys (rotation). Built-in connectors (Google Calendar) stay in the app.

@@ -169,7 +169,15 @@ check(
   offer?.body,
 );
 await say(jid, 'Yes please, CONFIRM that time');
-const booked = await aiReply(jid, agent.userId, 1);
+const ask = await aiReply(jid, agent.userId, 1);
+check(
+  /^Not booked yet: ask the customer for their email address/.test(ask?.body ?? '') &&
+    (await events()).length === 0,
+  'no saved email: nothing is booked, the AI asks for it (name and phone come from WhatsApp)',
+  ask?.body,
+);
+await say(jid, 'CONFIRM, my email is Mei.Ying@example.com');
+const booked = await aiReply(jid, agent.userId, 2);
 check(/^Booked: /.test(booked?.body ?? ''), 'the AI books the confirmed time', booked?.body);
 let list = await events();
 check(
@@ -178,6 +186,11 @@ check(
     String(list[0].summary).startsWith('Table booking'),
   'one event in the Bookings calendar, titled from the rules',
   JSON.stringify(list.map((e) => ({ c: e.calendarId, s: e.summary }))),
+);
+check(
+  /Name: Mei Ying\nPhone: \+\d+\nEmail: Mei\.Ying@example\.com/.test(String(list[0]?.description)),
+  'the event lists the name, phone and the email the customer wrote',
+  JSON.stringify(list[0]?.description),
 );
 const detail = (await api('GET', `/chats/${encodeURIComponent(jid)}`)).json;
 const lines = (detail.events ?? [])
@@ -189,7 +202,7 @@ check(
   lines.length,
 );
 await say(jid, 'CONFIRM again just to be sure');
-const again = await aiReply(jid, agent.userId, 2);
+const again = await aiReply(jid, agent.userId, 3);
 check(
   /^Already booked: /.test(again?.body ?? '') && (await events()).length === 1,
   'a second confirm books nothing new',
@@ -219,7 +232,7 @@ const offers = (await api('GET', '/dev/fake-google-calendar')).json;
 const busyFrom = new Date(Date.now()).toISOString();
 const busyTo = new Date(Date.now() + 30 * 24 * 3600_000).toISOString();
 await api('POST', '/dev/fake-google-calendar', { busy: [{ start: busyFrom, end: busyTo }] });
-await say(jid2, 'CONFIRM');
+await say(jid2, 'CONFIRM, tan@example.com');
 const refused = await aiReply(jid2, agent.userId, 1);
 check(
   !/^Booked/.test(refused?.body ?? '') && (await events()).length === offers.events.length,

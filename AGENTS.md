@@ -234,8 +234,12 @@ when no app is configured (a Dev Build with the env pair signs in to real Google
 appointments (off; needs free times) and the rules. AI tools `check_free_times` / `book_appointment` (`tools.ts`,
 offered through `ai/agent/turn-tools.ts`; core names reserved for extensions): the server books only a time it
 offered in that chat (`calendar_offers`), after a newer customer message, inside the rules and still free (re-checked
-just before the insert, idempotent event id); never cancels or moves (hand-over); Try it never books (`notRun`).
-The fixed `CORE_RULES` sentence allows booking only through that tool. Google expired or unreachable: the AI stops
+just before the insert, idempotent event id) and only with a name, email and phone (`contact.ts`: the saved
+contact or the WhatsApp name/number, else what the customer wrote in this chat, checked against their own messages;
+`check_free_times` says which to ask for); never cancels or moves (hand-over); Try it never books (`notRun`).
+`CORE_RULES` has one connector-neutral rule for tools that make a change (use only as the tool's description says,
+report done only when it says so, never undo): no tool or connector name in the core rules, so a new connector
+brings its own instructions (tool descriptions and result notes) and server guards. Google expired or unreachable: the AI stops
 using it and hands booking chats over. Chat lines are `ai_tool_used` events with `calendar`; Activity keeps who and
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.

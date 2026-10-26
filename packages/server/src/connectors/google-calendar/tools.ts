@@ -12,6 +12,7 @@ import type {
 import type { AppContext } from '../../context.js';
 import { getChats } from '../../wa-bridge/index.js';
 import { GoogleError } from './google.js';
+import { CONTACT_FIELDS, type ContactField } from './contact.js';
 import type { BookResult } from './service.js';
 import { parseDate, slotLabel } from './slots.js';
 
@@ -28,7 +29,24 @@ export function calendarLookupsAvailable(ctx: AppContext, agentId?: number | nul
   return !!ctx.services.googleCalendar?.usable(agentId);
 }
 
-const REFUSALS: Record<Exclude<BookResult, { ok: true }>['reason'], string> = {
+const FIELD_WORDS: Record<ContactField, string> = {
+  name: 'name',
+  email: 'email address',
+  phone: 'phone number',
+};
+
+/** What the tool tells the model when the server refused a booking. */
+function refusal(result: Exclude<BookResult, { ok: true }>): string {
+  if (result.reason === 'missing_details')
+    return `Not booked yet: ask the customer for their ${result.missing.map((f) => FIELD_WORDS[f]).join(' and ')}, then call book_appointment again with the same "start" and what they wrote.`;
+  if (result.reason === 'not_from_customer')
+    return `Not booked: pass only the ${FIELD_WORDS[result.field]} the customer wrote in this chat, exactly as they wrote it, or leave it out to use the saved one.`;
+  if (result.reason === 'invalid_email')
+    return 'Not booked: that email address does not look valid. Ask the customer to check it.';
+  return REFUSALS[result.reason];
+}
+
+const REFUSALS = {
   not_offered:
     'Not booked: that time was not one of the free times offered in this chat in the last 24 hours. Call check_free_times and offer times again.',
   no_reply_since:
@@ -36,7 +54,7 @@ const REFUSALS: Record<Exclude<BookResult, { ok: true }>['reason'], string> = {
   outside_rules:
     'Not booked: the booking rules no longer allow that time. Call check_free_times and offer other times.',
   busy: 'Not booked: that time was just taken. Call check_free_times and offer other times.',
-};
+} as const;
 
 /**
  * The Google Calendar tools for one AI agent turn: `check_free_times` when the agent may check, and
@@ -144,6 +162,9 @@ export function calendarAgentTools(
         if (chatJid && slots.length) service.recordOffers(agentId, chatJid, slots);
         if (chatJid && !checked) service.addActivity({ kind: 'checked', agentId, chatJid });
         checked = true;
+        // Booking needs a name, email and phone: say which are saved, so the AI asks only for the rest.
+        const saved = current.book && chatJid ? service.savedContact(chatJid) : null;
+        const ask = saved ? CONTACT_FIELDS.filter((field) => !saved[field]) : [];
         return {
           output: JSON.stringify({
             timeZone,
@@ -152,8 +173,18 @@ export function calendarAgentTools(
               start: new Date(slot.start).toISOString(),
               time: slotLabel(slot, timeZone),
             })),
+            ...(saved
+              ? {
+                  bookingDetails: Object.fromEntries(
+                    CONTACT_FIELDS.map((field) => [field, saved[field] ? 'saved' : 'ask']),
+                  ),
+                }
+              : {}),
             note: slots.length
-              ? 'Offer only these times. To book, the customer must choose one of them in their own words.'
+              ? 'Offer only these times. To book, the customer must choose one of them in their own words.' +
+                (ask.length
+                  ? ` Booking also needs their ${ask.map((f) => FIELD_WORDS[f]).join(' and ')}: ask for it together with the time choice.`
+                  : '')
               : 'No free times match. Ask about another day, or hand the chat to the team.',
           }),
           calendar: { action: 'checked' },
@@ -167,13 +198,29 @@ export function calendarAgentTools(
         "Add the customer's appointment to the business's Google Calendar. When this tool is offered, " +
         'booking through it is allowed and is the only way you may book. Book only the exact time the ' +
         'customer chose from the times check_free_times returned in this chat, after they confirmed it in ' +
-        'their own words; pass that time\'s "start" value unchanged. Never guess a time. You cannot cancel ' +
-        'or move a booking: for that, hand the chat to the team. Tell the customer it is booked only when ' +
-        'this tool says so.',
+        'their own words; pass that time\'s "start" value unchanged. Never guess a time. A booking needs ' +
+        "the customer's name, email and phone: leave a field out to use the saved contact, or pass exactly " +
+        'what the customer wrote in this chat; never invent one. You cannot cancel or move a booking: for ' +
+        'that, hand the chat to the team. Tell the customer it is booked only when this tool says so.',
       inputSchema: z.object({
         start: z.string().min(1).max(40).describe('The "start" value of the chosen free time'),
+        name: z
+          .string()
+          .max(100)
+          .optional()
+          .describe("The customer's name, only as they wrote it in this chat"),
+        email: z
+          .string()
+          .max(254)
+          .optional()
+          .describe("The customer's email address, only as they wrote it in this chat"),
+        phone: z
+          .string()
+          .max(32)
+          .optional()
+          .describe('A phone number the customer wrote in this chat (else their WhatsApp number)'),
       }),
-      execute: ({ start }) =>
+      execute: ({ start, name, email, phone }) =>
         run(BOOK_APPOINTMENT, BOOK_TITLE, async () => {
           const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(start) ? Date.parse(start) : Number.NaN;
           if (!Number.isFinite(at))
@@ -190,8 +237,14 @@ export function calendarAgentTools(
               calendar: { action: 'booked', start: iso, end },
               notRun: true,
             };
-          const result = await service.book(agentId, chatJid, at, input.signal);
-          if (!result.ok) return { output: REFUSALS[result.reason] };
+          const result = await service.book(
+            agentId,
+            chatJid,
+            at,
+            { name, email, phone },
+            input.signal,
+          );
+          if (!result.ok) return { output: refusal(result) };
           const detail: AiToolCalendarDetail = {
             action: 'booked',
             start: new Date(result.start).toISOString(),

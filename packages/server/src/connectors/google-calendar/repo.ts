@@ -130,6 +130,18 @@ export function lastOffer(
   return row ?? null;
 }
 
+/** The customer's own recent messages in this chat (text and voice transcripts), newest first. */
+export function customerTexts(db: DB, chatJid: string, limit = 200): string[] {
+  return (
+    db
+      .prepare(
+        `SELECT COALESCE(body, '') || ' ' || COALESCE(transcript, '') AS text FROM messages
+         WHERE chat_jid = ? AND from_me = 0 ORDER BY timestamp DESC LIMIT ?`,
+      )
+      .all(chatJid, limit) as Array<{ text: string }>
+  ).map((row) => row.text);
+}
+
 export function customerRepliedSince(db: DB, chatJid: string, since: number): boolean {
   return !!db
     .prepare('SELECT 1 FROM messages WHERE chat_jid = ? AND from_me = 0 AND timestamp > ? LIMIT 1')

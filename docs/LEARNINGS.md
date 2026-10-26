@@ -750,6 +750,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
+  server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
+  that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
+  or the saved contact, so the model cannot invent them.
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).

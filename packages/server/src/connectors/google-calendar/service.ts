@@ -26,6 +26,12 @@ import type { AppContext } from '../../context.js';
 import { audit } from '../../db/audit.js';
 import { HttpError, errors } from '../../http/errors.js';
 import { getChats } from '../../wa-bridge/index.js';
+import {
+  eventDescription,
+  resolveContact,
+  type BookingContact,
+  type ContactField,
+} from './contact.js';
 import { FAKE_GOOGLE_APP, FAKE_GOOGLE_ENDPOINTS, FakeGoogle } from './fake.js';
 import {
   GOOGLE_ENDPOINTS,
@@ -40,6 +46,7 @@ import {
   addActivity,
   bookedSince,
   customerRepliedSince,
+  customerTexts,
   findOffers,
   handedOverSince,
   hasBooking,
@@ -105,7 +112,12 @@ export interface CallbackPage {
 
 export type BookResult =
   | { ok: true; start: number; end: number; already: boolean }
-  | { ok: false; reason: 'not_offered' | 'no_reply_since' | 'outside_rules' | 'busy' };
+  | {
+      ok: false;
+      reason: 'not_offered' | 'no_reply_since' | 'outside_rules' | 'busy' | 'invalid_email';
+    }
+  | { ok: false; reason: 'missing_details'; missing: ContactField[] }
+  | { ok: false; reason: 'not_from_customer'; field: ContactField };
 
 const WRITABLE = new Set(['owner', 'writer']);
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -597,14 +609,36 @@ export function createGoogleCalendarService(
     },
 
     /**
+     * The contact a booking would get without asking: the team's saved name and email, else the
+     * WhatsApp name; the WhatsApp number (the saved other phone only without one).
+     */
+    savedContact(chatJid: string): BookingContact {
+      const chat = getChats(ctx).get(chatJid);
+      const profile = ctx.services.customers?.profile(chatJid).profile ?? null;
+      // A chat named after its number has no real name.
+      const named = (value: string | null | undefined) =>
+        value?.trim() && /\p{L}/u.test(value) ? value.trim() : null;
+      const whatsapp =
+        chat?.phone ?? (chat?.waJid.endsWith('@s.whatsapp.net') ? chat.waJid.split('@')[0]! : null);
+      const other = profile?.otherPhone?.replace(/\D/g, '') || null;
+      return {
+        name: named(profile?.name) ?? named(chat?.name) ?? named(chat?.whatsappName),
+        email: profile?.email?.trim() || null,
+        phone: whatsapp ?? other,
+      };
+    },
+
+    /**
      * Books `start` for this chat. Guards: it was offered in this chat in the last 24 h, the
-     * customer wrote after that offer, the rules still allow it, Google still shows it free, and the
-     * same chat and time is never booked twice. Google errors are thrown (the tool hands over).
+     * customer wrote after that offer, the rules still allow it, the booking has a name, email and
+     * phone (saved, or written by the customer in this chat: `given`), Google still shows it free,
+     * and the same chat and time is never booked twice. Google errors are thrown (the tool hands over).
      */
     async book(
       agentId: number,
       chatJid: string,
       start: number,
+      given: Partial<Record<ContactField, string>> = {},
       signal?: AbortSignal,
     ): Promise<BookResult> {
       const settings = usable(agentId);
@@ -620,6 +654,10 @@ export function createGoogleCalendarService(
         return { ok: false, reason: 'no_reply_since' };
       if (!withinRules(slot, settings, timeZone(), at))
         return { ok: false, reason: 'outside_rules' };
+      // Name, email and phone: saved, or written by the customer in this chat.
+      const saved = service.savedContact(chatJid);
+      const resolved = resolveContact(saved, given, customerTexts(ctx.db, chatJid));
+      if (!resolved.ok) return resolved;
       const eventId = sha(`${agentId}|${chatJid}|${slot.start}`);
       const calendarId = settings.calendarId!;
       const ours = async () => {
@@ -641,9 +679,9 @@ export function createGoogleCalendarService(
       // A retry after a lost answer: the busy time may be our own event (same id) already in Google.
       if (isBusy(slot, busy, settings.gapMin))
         return (await ours()) ? record(false) : { ok: false, reason: 'busy' };
+      const { contact } = resolved;
       const chat = getChats(ctx).get(chatJid);
-      const name = chat?.name?.trim() || 'Customer';
-      const phone =
+      const whatsapp =
         chat?.phone ?? (chat?.waJid.endsWith('@s.whatsapp.net') ? chat.waJid.split('@')[0]! : null);
       const zone = timeZone();
       const created = await withToken((token) =>
@@ -652,10 +690,8 @@ export function createGoogleCalendarService(
           calendarId,
           {
             id: eventId,
-            summary: `${settings.title} · ${name}`.slice(0, 200),
-            description: ['Booked by the EzyChat AI', phone ? `WhatsApp: +${phone}` : null]
-              .filter(Boolean)
-              .join('\n'),
+            summary: `${settings.title} · ${contact.name}`.slice(0, 200),
+            description: eventDescription(contact, whatsapp),
             start: slot.start,
             end: slot.end,
             timeZone: zone,
