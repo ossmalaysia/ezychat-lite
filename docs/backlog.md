@@ -19,6 +19,10 @@ are listed here until they get a branch. Newest first; remove an item when its P
   Google Calendar connector, per agent: on/off, 1 day / 3 h / 1 h before, editable text; only bookings EzyChat
   made, re-read the event before sending (deleted → none, moved → new time), one per booking, not 10 pm–8 am;
   Business API inboxes need an approved template. Later a general "skills" layer can reuse the scheduled send.
+- **Google sign-in app in release builds** (2026-10-26): the server reads `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET` from
+  the environment, so installed apps show "Not available in this build" until the release build bakes in the
+  Google "Desktop app" client (esbuild `define` in the server bundle, both editions) once the owner has created it
+  and Google has verified the app (sensitive scopes `calendar.events.owned`, `calendar.freebusy`).
 - **Connector gallery: Enterprise custom connector tile** (2026-10-26): Enterprise registers its custom MCP
   connector page for the core gallery tile (web extension `connectorLinks`) and drops its own Connectors nav item.
 - **Docs-only CI fast path** (2026-10-24): `main` requires the three `Test (*)` checks, so a doc PR cannot

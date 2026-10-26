@@ -219,6 +219,24 @@ atomic profile/audit commit, and ensure the JID still routes to that same chat a
 Audit stores scores, field names and message references, never values
 or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
 
+**Connectors** (design `docs/features/google-calendar/design.md`). Admin → Connectors (`admin/connectors/`) is a
+gallery (`catalog.ts`) with one page per connector; every ready connector is core, only the custom MCP connector is
+Enterprise (greyed out in Lite; an edition points a connector at its own page with `WebExtension.connectorLinks`).
+Coming-soon connectors have Vote / Ask for a connector: a WhatsApp link (`useAppLinks().connectorRequest`, `null`
+hides it); nothing is counted in the app. Google Calendar (`connectors/google-calendar/`, routes
+`/api/connectors/google-calendar/*`, admins; migration 022): one Google account per install, sign-in with PKCE and a
+loopback callback on the server's own port (`…/callback`, host-only, so it finishes only on that computer), tokens
+only in the encrypted `google_calendar_tokens` setting; the app is `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, without them
+the state is `not_configured`. Per AI agent (`calendar_agent_settings`): calendar, Check free times (on), Book
+appointments (off; needs free times) and the rules. AI tools `check_free_times` / `book_appointment` (`tools.ts`,
+offered through `ai/agent/turn-tools.ts`; core names reserved for extensions): the server books only a time it
+offered in that chat (`calendar_offers`), after a newer customer message, inside the rules and still free (re-checked
+just before the insert, idempotent event id); never cancels or moves (hand-over); Try it never books (`notRun`).
+The fixed `CORE_RULES` sentence allows booking only through that tool. Google expired or unreachable: the AI stops
+using it and hands booking chats over. Chat lines are `ai_tool_used` events with `calendar`; Activity keeps who and
+when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
+`/api/dev/fake-google-calendar`); tests never call Google.
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links
