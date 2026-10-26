@@ -991,7 +991,7 @@ function GuardRules({
   settings: ListSetting[];
   language: string;
 }) {
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const tc = t as unknown as (key: string, options?: Record<string, unknown>) => string;
   const tools = entry.tools ?? [];
   const title = (name: string) => {
@@ -1034,7 +1034,10 @@ function GuardRules({
           if (g.fromCustomer?.length)
             lines.push(
               t('mockConnectorList.rule.fromCustomer', {
-                fields: [...new Set(g.fromCustomer.map(field))].join(', '),
+                // "name and email", "name, email, and phone": the list format of the UI language.
+                fields: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format([
+                  ...new Set(g.fromCustomer.map(field)),
+                ]),
               }),
             );
           if (g.within)

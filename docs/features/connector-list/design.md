@@ -45,17 +45,34 @@ app needs no update.
 
 ## The repository `anchorsprint/ezychat-connectors` (public)
 
+Flow (owner, 2026-10-27): the repo publishes icons, texts, data and skills; the app loads them and keeps them locally.
+
 ```text
-schema/connector-v1.json      JSON Schema of one entry (schemaVersion 1)
-connectors/<id>.json          one file per connector (partners send a pull request)
-icons/<id>.svg                square icon, 64 px or larger
-scripts/build.mjs             validates every entry, builds the list, signs it
-.github/workflows/publish.yml on merge to main: validate → build → sign → upload to R2 (dl.ezychat.ai)
+schema/connector-v1.json             JSON Schema of one entry (schemaVersion 1)
+connectors/<id>/connector.yaml       the entry: texts (en/ms/zh-CN), category, publisher, MCP address, sign-in,
+                                     tools, guards, settings (YAML: comments and long text are easy to review)
+connectors/<id>/skill.md             instructions for the AI (skill.ms.md, skill.zh-CN.md optional; English fallback)
+connectors/<id>/icon.svg             square icon, 64 px or larger
+scripts/build.mjs                    validates every entry, builds the list, signs it
+.github/workflows/publish.yml        on merge to main: validate → build → sign → upload to R2 (dl.ezychat.ai)
 ```
 
-- Published files: `https://dl.ezychat.ai/connectors/list-v1.json` and `list-v1.json.sig`, plus `icons/`.
+- **Build**: YAML and Markdown become one JSON list (`skill` text inlined; each icon listed with its SHA-256 and size),
+  signed once, so one signature covers every text, skill and icon. The app reads JSON only (exact signed bytes, no
+  YAML parser in the app).
+- **Load**: at start and when Admin → Connectors opens (and on Check for new connectors) the app downloads the list
+  and its signature, verifies them, refuses a lower `sequence`, downloads each new or changed icon and checks its
+  hash, then saves list and icons in the data folder (`connectors/list-v1.json`, `connectors/icons/`). Anything that
+  fails a check is not saved; the last good copy stays.
+- **Use**: the gallery, detail pages, settings forms, skills and guards always read the local copy, so they work
+  offline and the app contacts no partner before the user connects.
+
+- Published files: `https://dl.ezychat.ai/connectors/list-v1.json` and `list-v1.json.sig`, plus `icons/` in the same
+  place (owner, 2026-10-27): the app never loads anything from a partner before the user connects.
 - The signing key (Ed25519) is only in the repo's protected `release` environment secret; it never appears in the repo.
-- A partner adds or changes its file through a pull request; Anchor Sprint reviews and merges (only the owner merges).
+- **Anyone** may send an entry (owner, 2026-10-27): a pull request with its connector folder (`connector.yaml`, `skill.md`, `icon.svg`); Anchor Sprint
+  reviews every one and merges (only the owner merges). CI checks the schema, the `https` MCP address, the icon and
+  the texts before review.
 
 ## List file (format 1)
 
@@ -70,8 +87,9 @@ scripts/build.mjs             validates every entry, builds the list, signs it
 
 - `list-v1.json.sig` = Ed25519 signature of the exact bytes. The app holds **two public keys** (current and next,
   for rotation) and accepts the list only when one of them verifies it.
-- The app reads the list at start and every 24 hours (and on **Check for new connectors**), keeps the last good copy
-  in the data folder, and falls back to the copy shipped in the app (the built-in catalog) when it has none.
+- The app reads the list **at start and when an admin opens Admin → Connectors** (owner, 2026-10-27; no timer), and
+  on **Check for new connectors**; it keeps the last good copy in the data folder and falls back to the copy shipped
+  in the app (the built-in catalog) when it has none.
 - Lists are public: no secret, no token, no customer data.
 
 ## Connector entry (schemaVersion 1)
@@ -168,8 +186,9 @@ returns a fixed text that tells the AI what to ask, as `book_appointment` does t
 4. **Settings per AI agent**: the entry's form (calendar picker, hours, days, length) and one switch per tool
    (Changes data tools off by default), with a **Rules the AI always follows** box listing the guards in plain words.
 5. **Activity**: tool calls (checked, booked, refused with the reason, failed), never chat text.
-6. **Connected but no longer listed**: keeps working; note "No longer in the connector list; disconnect when you
-   no longer need it".
+6. **Connected but removed from the list** (owner, 2026-10-27: keep working, flag it): badge **No longer available**
+   on the card and a warning on its page ("This connector is no longer available": it keeps working with the details
+   saved at connect time, gets no more updates or fixes; disconnect it when no longer needed).
 7. **Google Calendar** shown as an MCP connector (publisher Google) next to the built-in one only in a mock-only
    switch, to compare; the built-in pages (Overview, Settings, Activity, Bookings) stay as in the app.
 8. Desktop 1280 px and mobile 360 px, light and dark, Lite and Enterprise.
@@ -182,13 +201,12 @@ returns a fixed text that tells the AI what to ask, as `book_appointment` does t
 - Moving Google Calendar from built-in to its MCP entry (next step after this design, once Google's tool names
   and behaviour are checked against the guards).
 
-## Open questions for the owner
+## Owner answers (2026-10-27)
 
-1. Who may send entries: only partners we invite (we review every pull request), or anyone (we still review)?
-2. A connector removed from the list while connected: keep working with the note (proposal), or stop?
-3. List refresh: at start and every 24 hours (proposal), or only at start?
-4. Icons: hosted with the list on dl.ezychat.ai (proposal), or the partner's own address (privacy: the app would
-   call the partner before the user connects)?
+1. Who may send entries: **anyone**; we review every pull request.
+2. Removed from the list while connected: **keep working, flagged "No longer available"**.
+3. List refresh: **at start and when the connector page opens** (no 24-hour timer).
+4. Icons: **in the same place as the list** (dl.ezychat.ai).
 
 ## Mock coverage
 

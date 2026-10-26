@@ -1799,7 +1799,7 @@
   "mockConnectorList": {
     "status": {
       "needsUpdate": "Needs a newer EzyChat",
-      "delisted": "No longer listed"
+      "delisted": "No longer available"
     },
     "needsUpdateShort": "Update EzyChat to use this connector.",
     "byPublisher": "By {{publisher}} · {{category}}",
@@ -1830,8 +1830,8 @@
     "needsUpdateBody": "This connector needs EzyChat {{need}} or later. This computer has {{have}}.",
     "checkUpdates": "Check for updates",
     "updateToast": "Mock only: in the app this opens the update check (About → Check for updates).",
-    "delistedTitle": "No longer in the connector list",
-    "delistedBody": "This connector keeps working with the details saved when you connected it. Disconnect it when you no longer need it.",
+    "delistedTitle": "This connector is no longer available",
+    "delistedBody": "It was removed from the connector list. It keeps working with the details saved when you connected it, but gets no more updates or fixes. Disconnect it when you no longer need it.",
     "connectFirst": "Connect {{name}} first",
     "connectFirstHint": "Then choose here what each AI agent may do with it.",
     "goToOverview": "Go to Overview",
