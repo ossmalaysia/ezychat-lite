@@ -59,10 +59,10 @@ export const ReplyCompleteResult = z.object({
 export type ReplyCompleteResult = z.infer<typeof ReplyCompleteResult>;
 
 /**
- * A full word, then one or more spaces or punctuation marks ("Hi Nurul, " counts). Chinese has no
- * spaces: its punctuation is the boundary.
+ * At least one full word: a word, then spaces or punctuation, then at most a half-typed word
+ * ("Hi Nurul, " and "Hi Nu" count, "Hi" does not). Chinese has no spaces: its punctuation is the boundary.
  */
-export const REPLY_COMPLETION_READY = /[\p{L}\p{N}][\s,.!?;:，。？！、]+$/u;
+export const REPLY_COMPLETION_READY = /[\p{L}\p{N}][\s,.!?;:，。？！、]+[^\s,.!?;:，。？！、]*$/u;
 
 /** Completion runs only after at least one full word, never for a quick-reply command (`/…`). */
 export function completionReady(text: string): boolean {

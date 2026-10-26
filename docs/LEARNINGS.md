@@ -141,6 +141,9 @@ into AGENTS.md.
   push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
   those two through `gh api` (REST).
+- `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
+  already done): wait with `gh run watch <run id>` on the CI run of the head commit, then read every
+  required check by name before a merge.
 - CI docs-only fast path: `ci.yml` checks right after checkout whether every changed file is `*.md`
   (`git diff --no-renames` against the PR base or the push's `before`) and skips the later steps, never
   the job: a job skipped with `if` or a workflow filtered by `paths-ignore` never reports its required
@@ -359,6 +362,13 @@ into AGENTS.md.
   write `UPDATE` statements with an explicit `WHERE`.
 
 ## Build, tooling and Windows
+
+- An app window that Windows marks "not responding" while its server log stays fast is first a PC-load
+  question: read `Get-WinEvent` (Application Hang 1002, service timeouts, Kernel-General 12/13 restarts) and the
+  WER `ReportArchive` before reading code. On the owner's PC, never run the full suite or e2e beside the live apps
+  without asking; run checks one at a time with low workers (`npm run e2e -- --workers=1`, `vitest --maxWorkers=2`).
+- Stopping a background `npx tsx …` task on Windows can leave its node child listening: free the port by
+  stopping the process that owns it (`Get-NetTCPConnection -LocalPort`), then delete the runner's temp data.
 
 - In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
   `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
@@ -689,6 +699,16 @@ into AGENTS.md.
   "Name on WhatsApp" row).
 
 ## AI sales agent
+
+- Anything that must answer while a person types (completions) needs the connection's fast model, never the
+  saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
+  `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
+  and reasoning levels; measure options with direct timed calls before choosing.
+- Test typing features with person-like timing (120–260 ms a letter, pauses after words, stops inside a word),
+  not `fill()` plus a long wait: people type on during a 1.5 s model call, so a design that cancels on every
+  key never shows anything. Keep the request while the text extends it and show the part still ahead.
+- When a grey-text check "never" sees the overlay, check the check: `className.includes('hidden')` also
+  matches `overflow-hidden`. Look at the screenshot before believing a timing table.
 
 - Ready-made Business context (templates) uses blank fill-in lines (`Opening hours:`), never sample
   values or `[your price]` placeholders: the AI repeats a placeholder as a fact, but a blank line is no

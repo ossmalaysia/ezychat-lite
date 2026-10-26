@@ -2,19 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { ReplySuggestionsResult, ReplySuggestionsStatus, completionReady } from './index.js';
 
 describe('completionReady', () => {
-  it('is true only after a full word and a space or punctuation', () => {
+  it('is true after at least one full word, also while the next word is half typed', () => {
     expect(completionReady('Hi Nurul ')).toBe(true);
     expect(completionReady('Hi Nurul,')).toBe(true);
     expect(completionReady('Hi Nurul, ')).toBe(true);
     expect(completionReady('Yes! ')).toBe(true);
     expect(completionReady('Hi Nurul, , ')).toBe(true);
-    expect(completionReady('Hi Nu')).toBe(false);
+    // People stop inside a word too: one full word is enough.
+    expect(completionReady('Hi Nu')).toBe(true);
+    expect(completionReady('do you hav')).toBe(true);
+    expect(completionReady('Hi')).toBe(false);
+    expect(completionReady('Nurul')).toBe(false);
     expect(completionReady('')).toBe(false);
     expect(completionReady('   ')).toBe(false);
   });
 
   it('uses punctuation as the word boundary for Chinese text', () => {
     expect(completionReady('你好，')).toBe(true);
+    expect(completionReady('你好，我')).toBe(true);
     expect(completionReady('你好')).toBe(false);
   });
 

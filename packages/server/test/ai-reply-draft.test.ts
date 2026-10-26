@@ -96,7 +96,7 @@ describe('draftReply', () => {
     expect(input.internalKnowledge).toContain('MARK-internal');
     expect(prompt.instructions).toContain('Be warm.');
     expect(prompt.cacheId).toMatch(/#agent:\d+$/);
-    expect(options).toMatchObject({ fast: false, maxOutputTokens: 2000 });
+    expect(options).toMatchObject({ fast: true, maxOutputTokens: 2000 });
   });
 
   it('sends the conversation and the saved customer details last', async () => {
@@ -131,6 +131,27 @@ describe('draftReply', () => {
 
   it('completes with the fast model and the typed text', async () => {
     vi.mocked(provider.draft!).mockResolvedValueOnce({
+      output: { completion: 'Lemak for pickup at 1pm.', grounded: true },
+      model: 'gpt-mini',
+    });
+    const result = await t.ctx.services.ai!.draftReply(
+      JID,
+      { kind: 'complete', typed: 'Two Nasi ' },
+      new AbortController().signal,
+    );
+    expect(result).toEqual({ completion: 'Lemak for pickup at 1pm.' });
+    const { options, input } = sentPrompt();
+    expect(options).toMatchObject({ fast: true, maxOutputTokens: 300 });
+    expect(input.currentSituation.typed).toBe('Two Nasi ');
+  });
+
+  it('completes from the last 6 messages and the typed text only, never the knowledge', async () => {
+    for (let i = 1; i <= 7; i++) t.wa.simulateIncoming({ chatJid: JID, body: `Follow-up ${i}` });
+    await vi.waitFor(() =>
+      expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages').get()).toEqual({ n: 8 }),
+    );
+    // RM12 is only in the business context, which a completion never sees.
+    vi.mocked(provider.draft!).mockResolvedValueOnce({
       output: { completion: 'Lemak Ayam at RM12 each.', grounded: true },
       model: 'gpt-mini',
     });
@@ -139,10 +160,15 @@ describe('draftReply', () => {
       { kind: 'complete', typed: 'Two Nasi ' },
       new AbortController().signal,
     );
-    expect(result).toEqual({ completion: 'Lemak Ayam at RM12 each.' });
-    const { options, input } = sentPrompt();
-    expect(options).toMatchObject({ fast: true, maxOutputTokens: 300 });
-    expect(input.currentSituation.typed).toBe('Two Nasi ');
+    expect(result).toEqual({ completion: null });
+    const { input } = sentPrompt();
+    expect(input.businessKnowledge).toBe('');
+    expect(input.internalKnowledge).toBe('');
+    expect(input.conversation.map((turn: { text: string }) => turn.text)).toEqual(
+      [2, 3, 4, 5, 6, 7].map((i) => `Follow-up ${i}`),
+    );
+    const line = logLines.map((l) => JSON.parse(l)).findLast((l) => l.event === 'ai_draft');
+    expect(line).toMatchObject({ kind: 'complete', ok: true, count: 0, dropped: 'number' });
   });
 
   it('throws ai_suggestions_off when switched off, without a model call', async () => {
@@ -184,6 +210,45 @@ describe('draftReply', () => {
     } finally {
       vi.useRealTimers();
     }
+    const line = logLines.map((l) => JSON.parse(l)).find((l) => l.event === 'ai_draft');
+    expect(line).toMatchObject({
+      kind: 'complete',
+      ok: false,
+      causeName: 'AbortError',
+      timedOut: true,
+    });
+  });
+
+  it("logs the app's own cancel without timedOut, and why a completion was dropped", async () => {
+    vi.mocked(provider.draft!).mockImplementationOnce(
+      (_s, _k, _p, _o, signal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(signal.reason)),
+        ),
+    );
+    const cancel = new AbortController();
+    const pending = t.ctx.services.ai!.draftReply(
+      JID,
+      { kind: 'complete', typed: 'Two Nasi ' },
+      cancel.signal,
+    );
+    cancel.abort();
+    await expect(pending).resolves.toEqual({ completion: null });
+    vi.mocked(provider.draft!).mockResolvedValueOnce({
+      output: { completion: 'Lemak Ayam at RM19 each.', grounded: true },
+      model: 'gpt-mini',
+    });
+    await t.ctx.services.ai!.draftReply(
+      JID,
+      { kind: 'complete', typed: 'Two Nasi ' },
+      new AbortController().signal,
+    );
+    const lines = logLines.map((l) => JSON.parse(l)).filter((l) => l.event === 'ai_draft');
+    expect(lines.map((l) => [l.ok, l.timedOut, l.dropped, l.count])).toEqual([
+      [false, undefined, undefined, 0],
+      [true, undefined, 'number', 0],
+    ]);
+    expect(logLines.join('\n')).not.toContain('RM19');
   });
 
   it('keeps a draft that states a fact from the admin instructions', async () => {

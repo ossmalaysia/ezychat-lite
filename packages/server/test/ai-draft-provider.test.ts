@@ -58,26 +58,60 @@ describe('provider draft (network mocked)', () => {
     expect(JSON.parse(String(fetcher.mock.calls[0]![1]!.body)).model).toBe('gpt-4.1-mini');
   });
 
-  it('ChatGPT mode: one tool-free Codex request with the saved model', async () => {
+  /** One ChatGPT draft call; returns the result and the one Codex request body it sent. */
+  const chatGptDraft = async (fast: boolean, liveIds?: string[]) => {
     seedTokens(t.ctx);
-    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) =>
-      answerText(JSON.stringify(OUTPUT)),
+    const fetchMock = vi.fn(async (url: unknown, _init?: RequestInit) =>
+      String(url).startsWith(CODEX_BACKEND.modelsUrl)
+        ? new Response(
+            JSON.stringify({
+              models: (liveIds ?? []).map((slug, priority) => ({
+                slug,
+                visibility: 'list',
+                priority,
+              })),
+            }),
+          )
+        : answerText(JSON.stringify(OUTPUT)),
     );
     const real = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    if (liveIds) expect((await real.models()).source).toBe('live');
     const result = await real.draft(
       { ...CHATGPT_SETTINGS, model: 'gpt-6-astra' },
       null,
       prompt,
-      { schema: Schema, fast: true, maxOutputTokens: 300 },
+      { schema: Schema, fast, maxOutputTokens: 300 },
       new AbortController().signal,
     );
-    expect(result).toEqual({ output: OUTPUT, model: 'gpt-6-astra' });
     const calls = fetchMock.mock.calls.filter((c) => c[0] === CODEX_BACKEND.responsesUrl);
     expect(calls).toHaveLength(1);
-    const sent = JSON.parse(String(calls[0]![1]!.body));
+    await real.shutdown();
+    return { result, sent: JSON.parse(String(calls[0]![1]!.body)) };
+  };
+
+  it('ChatGPT mode: a completion is one tool-free request on the fast model, reasoning low', async () => {
+    const { result, sent } = await chatGptDraft(true);
+    expect(result).toEqual({ output: OUTPUT, model: 'gpt-6-luna' });
+    expect(sent.model).toBe('gpt-6-luna');
+    expect(sent.reasoning).toMatchObject({ effort: 'low' });
+    expect(sent.store).toBe(false);
     expect(sent.instructions).toBe('Write drafts.');
     expect(sent.tools ?? []).toEqual([]);
-    await real.shutdown();
+  });
+
+  it('ChatGPT mode: without fast the saved model answers, also with reasoning low', async () => {
+    const { result, sent } = await chatGptDraft(false);
+    expect(result.model).toBe('gpt-6-astra');
+    expect(sent.reasoning).toMatchObject({ effort: 'low' });
+  });
+
+  it('ChatGPT mode: an account without a fast model completes with the saved model', async () => {
+    expect((await chatGptDraft(true, ['gpt-6-astra', 'gpt-6.1-sol'])).result.model).toBe(
+      'gpt-6-astra',
+    );
+    expect((await chatGptDraft(true, ['gpt-6-astra', 'gpt-5.6-luna'])).result.model).toBe(
+      'gpt-5.6-luna',
+    );
   });
 
   it('dispatches API key and Claude modes to their own clients', async () => {
