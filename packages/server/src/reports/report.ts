@@ -1,7 +1,7 @@
 import { MISSED_LEAD_MS, type Report, type ReportPeriod, type ReportTotals } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
-import { inboxCondition, localDate, localMidnight } from '../chats/stats.js';
+import { inboxCondition, localClock, localDate, localMidnight } from '../chats/stats.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 
 /**
@@ -11,7 +11,6 @@ import { inboxOfKey } from '../inboxes/keys.js';
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 /** Messages that reached (or came from) the customer: no system lines, no failed or unsent replies. */
 const COUNTED = `m.type != 'system' AND NOT (m.from_me = 1 AND m.status IN ('failed', 'pending'))`;
 
@@ -76,28 +75,29 @@ export function computeReport(db: DB, opts: Options): Report {
     .all(previousFrom, now) as Array<{ chat: string; fromMe: 0 | 1; at: number }>;
 
   // Each chat's first message and the first reply after it, for chats that started in either period.
-  const starters = (
-    db
-      .prepare(
-        `WITH ordered AS (
-           SELECT m.chat_jid AS chat, c.inbox_id AS inbox, m.from_me AS fromMe, m.timestamp AS at,
-                  ROW_NUMBER() OVER (PARTITION BY m.chat_jid ORDER BY m.timestamp, m.rowid) AS n
-           FROM messages m JOIN chats c ON c.jid = m.chat_jid
-           WHERE c.type = 'dm' AND ${scope} AND ${COUNTED}
-         )
-         SELECT o.chat, o.inbox, o.at,
-                (SELECT MIN(r.timestamp) FROM messages r WHERE r.chat_jid = o.chat AND r.from_me = 1
-                   AND r.type != 'system' AND r.status NOT IN ('failed', 'pending')
-                   AND r.timestamp >= o.at) AS repliedAt
-         FROM ordered o WHERE o.n = 1 AND o.fromMe = 0 AND o.at >= ? AND o.at <= ?`,
-      )
-      .all(previousFrom, now) as Array<{
-      chat: string;
-      inbox: number;
-      at: number;
-      repliedAt: number | null;
-    }>
-  ).filter((s) => s.at >= (linkedAt.get(s.inbox) ?? Infinity));
+  // A chat that started in either period has messages in them, so only those chats are looked up,
+  // each through the (chat_jid, timestamp) index instead of a pass over the whole history.
+  const firstMessage = db.prepare(
+    `SELECT c.inbox_id AS inbox, m.from_me AS fromMe, m.timestamp AS at
+     FROM messages m JOIN chats c ON c.jid = m.chat_jid
+     WHERE m.chat_jid = ? AND ${COUNTED} ORDER BY m.timestamp, m.rowid LIMIT 1`,
+  );
+  const firstReply = db.prepare(
+    `SELECT MIN(m.timestamp) AS at FROM messages m
+     WHERE m.chat_jid = ? AND m.from_me = 1 AND ${COUNTED} AND m.timestamp >= ?`,
+  );
+  const starters: Array<{ chat: string; at: number; repliedAt: number | null }> = [];
+  for (const chat of new Set(messages.map((m) => m.chat))) {
+    const first = firstMessage.get(chat) as { inbox: number; fromMe: 0 | 1; at: number };
+    if (
+      first.fromMe !== 0 ||
+      first.at < previousFrom ||
+      first.at < (linkedAt.get(first.inbox) ?? Infinity)
+    )
+      continue;
+    const reply = firstReply.get(chat, first.at) as { at: number | null };
+    starters.push({ chat, at: first.at, repliedAt: reply.at });
+  }
 
   const aiReplies = db.prepare(
     `SELECT COUNT(DISTINCT m.chat_jid) AS n FROM messages m JOIN chats c ON c.jid = m.chat_jid
@@ -173,6 +173,28 @@ export function computeReport(db: DB, opts: Options): Report {
   };
 }
 
+/** How long a counted report is reused: opening Reports or asking `get_stats` again costs nothing. */
+export const REPORT_CACHE_MS = 60_000;
+const reportCache = new WeakMap<DB, Map<string, { at: number; report: Report }>>();
+
+/**
+ * `computeReport` with a short cache per database, period, time zone and inbox scope. Counting reads
+ * the whole period on the server's only thread, so repeated views within a minute reuse the result.
+ */
+export function cachedReport(db: DB, opts: Options, ttlMs = REPORT_CACHE_MS): Report {
+  let byKey = reportCache.get(db);
+  if (!byKey) {
+    byKey = new Map();
+    reportCache.set(db, byKey);
+  }
+  const key = `${opts.days}|${opts.timeZone}|${opts.inboxIds?.join(',') ?? '*'}`;
+  const hit = byKey.get(key);
+  if (hit && opts.now - hit.at >= 0 && opts.now - hit.at < ttlMs) return hit.report;
+  const report = computeReport(db, opts);
+  byKey.set(key, { at: opts.now, report });
+  return report;
+}
+
 /**
  * The days shown (from the period start or the first stored message, whichever is later), with
  * messages, new customers and active chats per day; per weekday and hour the average messages from
@@ -191,26 +213,18 @@ function dayBuckets(
     while (shownFrom < starts.length - 2 && starts[shownFrom + 1]! <= firstAt) shownFrom++;
   }
   const shown = starts.slice(shownFrom, -1);
+  /** Index of the shown day that holds `t` (binary search; `t` is never before the first day). */
   const dayIndex = (t: number) => {
-    let i = shown.length - 1;
-    while (i > 0 && shown[i]! > t) i--;
-    return i;
-  };
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour: 'numeric',
-    weekday: 'short',
-    hourCycle: 'h23',
-  });
-  const local = (t: number) => {
-    let hour = 0;
-    let weekday = 0;
-    for (const p of parts.formatToParts(t)) {
-      if (p.type === 'hour') hour = Number(p.value);
-      else if (p.type === 'weekday') weekday = WEEKDAYS.indexOf(p.value);
+    let lo = 0;
+    let hi = shown.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (shown[mid]! <= t) lo = mid;
+      else hi = mid - 1;
     }
-    return { hour, weekday };
+    return lo;
   };
+  const local = localClock(timeZone);
   const daily = shown.map((start) => ({
     date: localDate(start + DAY_MS / 2, timeZone),
     inbound: 0,

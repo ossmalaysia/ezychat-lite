@@ -592,6 +592,10 @@ into AGENTS.md.
 - nvm4w switches Node machine-wide: check `node -v` (22+) before tests or a server start when
   `better-sqlite3` suddenly fails to load; never switch it back from inside one agent's run.
 
+- Count reports on request only with indexed per-chat look-ups (`messages (chat_jid, timestamp, id)`) for the
+  chats in the period, never a window function over the whole history: SQLite runs on the server's only thread,
+  so a slow count freezes every inbox. Benchmark with 100k–300k messages and cache the result briefly.
+
 ## Security
 
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path

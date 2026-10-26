@@ -13,7 +13,7 @@ import { getAuth } from '../auth/guards.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { computeInboxStats, type InboxStats } from '../chats/stats.js';
-import { computeReport } from '../reports/report.js';
+import { cachedReport } from '../reports/report.js';
 import { canOpen, scopeFor, scopeIds, type InboxScope } from '../inboxes/access.js';
 import { chatKey } from '../inboxes/keys.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
@@ -86,7 +86,7 @@ export interface InboxReadPort {
     days: number,
     reader: Reader,
     inboxId?: number,
-  ): InboxStats & { customers: CustomerStats; byInbox?: InboxStatsRow[] };
+  ): InboxStats & { customers?: CustomerStats; byInbox?: InboxStatsRow[] };
   activity(
     days: number,
     reader: Reader,
@@ -185,6 +185,30 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
   const nameOf = (id: number) => ctx.inboxes.repo.get(id)?.name ?? `inbox ${id}`;
   const statsOf = (days: number, inboxIds?: readonly number[]) =>
     computeInboxStats(ctx.db, { days, timeZone: timeZone(), now: Date.now(), inboxIds });
+  /** The Reports numbers for `get_stats`; a failure leaves them out instead of failing the tool. */
+  const customersOf = (days: number, inboxIds?: readonly number[]): CustomerStats | undefined => {
+    try {
+      const report = cachedReport(ctx.db, {
+        days,
+        timeZone: timeZone(),
+        now: Date.now(),
+        inboxIds,
+      });
+      return {
+        newCustomers: report.totals.newCustomers,
+        missedNewCustomers: report.totals.missedLeads,
+        waitingAfterAiHandoff: {
+          count: report.waitingAfterHandoff.count,
+          oldestHandoffAt: report.waitingAfterHandoff.oldestAt,
+        },
+      };
+    } catch (err) {
+      ctx.log
+        .child({ mod: 'mcp' })
+        .warn({ err, days }, 'customer numbers unavailable for get_stats');
+      return undefined;
+    }
+  };
   const activityOf = (days: number, inboxIds?: readonly number[]) =>
     computeInboxActivity(ctx.db, { days, timeZone: timeZone(), now: Date.now(), inboxIds });
 
@@ -205,23 +229,7 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
     },
     stats(days, reader, inboxId) {
       const { inboxIds, breakdown } = cover(reader, inboxId);
-      const report = computeReport(ctx.db, {
-        days,
-        timeZone: timeZone(),
-        now: Date.now(),
-        inboxIds,
-      });
-      const total = {
-        ...statsOf(days, inboxIds),
-        customers: {
-          newCustomers: report.totals.newCustomers,
-          missedNewCustomers: report.totals.missedLeads,
-          waitingAfterAiHandoff: {
-            count: report.waitingAfterHandoff.count,
-            oldestHandoffAt: report.waitingAfterHandoff.oldestAt,
-          },
-        },
-      };
+      const total = { ...statsOf(days, inboxIds), customers: customersOf(days, inboxIds) };
       if (!breakdown.length) return total;
       const byInbox = breakdown.map((id): InboxStatsRow => {
         const s = statsOf(days, [id]);

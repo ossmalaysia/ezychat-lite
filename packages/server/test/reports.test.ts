@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Report } from '@ezychat/shared';
 import { openDb, type DB } from '../src/db/index.js';
-import { computeReport } from '../src/reports/report.js';
+import { REPORT_CACHE_MS, cachedReport, computeReport } from '../src/reports/report.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 
@@ -208,6 +208,24 @@ describe('computeReport', () => {
     const all = computeReport(db, { days: 7, timeZone: TZ, now: NOW });
     expect(all.totals).toMatchObject({ messagesIn: 2, newCustomers: 2, aiHandoffs: 2 });
     expect(all.waitingAfterHandoff.count).toBe(2);
+  });
+});
+
+describe('cachedReport', () => {
+  it('reuses a report for a minute per period and scope, then counts again', () => {
+    chat('a@s.whatsapp.net');
+    msg('a@s.whatsapp.net', at(20, '10:00'), 'customer');
+    const opts = { days: 7 as const, timeZone: TZ, now: NOW };
+    const first = cachedReport(db, opts);
+    expect(first.totals.messagesIn).toBe(1);
+    msg('a@s.whatsapp.net', at(20, '11:00'), 'customer');
+    expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS - 1 })).toBe(first);
+    // Another period or scope is counted on its own.
+    expect(cachedReport(db, { ...opts, days: 30 }).totals.messagesIn).toBe(2);
+    expect(cachedReport(db, { ...opts, inboxIds: [1] }).totals.messagesIn).toBe(2);
+    // After a minute (or with a clock that went back) it counts again.
+    expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS }).totals.messagesIn).toBe(2);
+    expect(cachedReport(db, { ...opts, now: NOW - 1 }).totals.messagesIn).toBe(2);
   });
 });
 
