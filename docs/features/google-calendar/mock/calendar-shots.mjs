@@ -125,6 +125,9 @@ for (const scheme of ['light', 'dark'])
     await page.goto('/admin/connectors/hitpay?edition=lite');
     await page.getByTestId('connector-page-hitpay').waitFor();
     await shot('13b-hitpay-lite', { fullPage: true });
+    await page.goto('/admin/connectors/custom-mcp?edition=lite');
+    await page.getByText('This connector does not exist.').waitFor();
+    await shot('13c-custom-not-in-lite');
     await page.goto('/admin/connectors?edition=enterprise');
     await page.getByTestId('connectors-gallery').waitFor();
 

@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  CONNECTOR_CATEGORIES,
-  CONNECTORS,
+  listedCategories,
+  listedConnectors,
   connectorStatus,
   type CatalogConnector,
   type ConnectorCategory,
@@ -70,16 +70,18 @@ export function ConnectorsGalleryPage() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ConnectorCategory | 'all'>('all');
   const q = query.trim().toLowerCase();
-  const rows = CONNECTORS.map((c) => ({
-    c,
-    status: connectorStatus(c, edition, google.data?.state),
-    name: tc(`mockConnectors.items.${c.id}.name`),
-    short: tc(`mockConnectors.items.${c.id}.short`),
-  })).filter(
-    (r) =>
-      (category === 'all' || r.c.category === category) &&
-      (!q || r.name.toLowerCase().includes(q) || r.short.toLowerCase().includes(q)),
-  );
+  const rows = listedConnectors(edition)
+    .map((c) => ({
+      c,
+      status: connectorStatus(c, edition, google.data?.state),
+      name: tc(`mockConnectors.items.${c.id}.name`),
+      short: tc(`mockConnectors.items.${c.id}.short`),
+    }))
+    .filter(
+      (r) =>
+        (category === 'all' || r.c.category === category) &&
+        (!q || r.name.toLowerCase().includes(q) || r.short.toLowerCase().includes(q)),
+    );
   const mine = rows.filter((r) => r.status === 'connected' || r.status === 'attention');
   const others = rows.filter((r) => !mine.includes(r));
 
@@ -128,7 +130,7 @@ export function ConnectorsGalleryPage() {
         role="group"
         aria-label={t('mockConnectors.categoryLabel')}
       >
-        {(['all', ...CONNECTOR_CATEGORIES] as const).map((id) => (
+        {(['all', ...listedCategories(edition)] as const).map((id) => (
           <Button
             key={id}
             type="button"

@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatRelative } from '@/lib/format';
-import { CONNECTORS, connectorStatus, type CatalogConnector } from '@/mock/connectorCatalog';
+import { connectorStatus, listedConnectors, type CatalogConnector } from '@/mock/connectorCatalog';
 import { useMockEdition } from '@/mock/edition';
 import { useGoogleCalendar } from '@/mock/googleCalendar';
 import { useShownAgents } from '@/mock/useAgents';
@@ -42,7 +42,7 @@ export function ConnectorDetailPage() {
   const [params, setParams] = useSearchParams();
   const edition = useMockEdition();
   const google = useGoogleCalendar();
-  const c = CONNECTORS.find((x) => x.id === id);
+  const c = listedConnectors(edition).find((x) => x.id === id);
   if (!c)
     return (
       <EmptyState
