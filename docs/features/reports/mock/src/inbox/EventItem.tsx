@@ -50,31 +50,8 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       return e.actorId == null
         ? i18n.t('inbox:events.reopenedByMessage')
         : i18n.t('inbox:events.reopened', { actor });
-    case 'ai_tool_used': {
-      // Proposed (google-calendar): "AI checked free times" / "AI booked Fri 31 Oct, 7:30–9:00 pm".
-      const source = String(e.payload.sourceLabel ?? '');
-      const booking = e.payload.booking as { start?: string; end?: string } | undefined;
-      if (booking?.start && booking.end) {
-        const day = new Intl.DateTimeFormat(i18n.language, {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        }).format(new Date(booking.start));
-        const time = (iso: string) =>
-          new Intl.DateTimeFormat(i18n.language, { hour: 'numeric', minute: '2-digit' }).format(
-            new Date(iso),
-          );
-        return i18n.t('inbox:events.mockBooked', {
-          when: `${day}, ${time(booking.start)}–${time(booking.end)}`,
-          source,
-        });
-      }
-      if (e.payload.calendar === 'free_times')
-        return i18n.t('inbox:events.mockCheckedFree', { source });
-      return i18n.t('inbox:events.mockLookedUp', { title: String(e.payload.title ?? ''), source });
-    }
     default:
-      // Other event types added after this reference are not part of this mock.
+      // Event types added after this reference (e.g. ai_tool_used) are not part of this mock.
       return String(e.type);
   }
 }

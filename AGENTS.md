@@ -440,7 +440,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   `--fake-wa`, exercising the feature itself, not only server start-up.
 - After a base PR is squash-merged, replay only your own commits with
   `git rebase --onto origin/main <old-base>` and typecheck even when the rebase is clean. Never chain
-  `git add` or `rebase --continue` after edits that may have failed: search for conflict markers first.
+  `git add` or `rebase --continue` after edits that may have failed: search for conflict markers first
+  (`git grep -nE '^(<{7,8}|>{7,8})( |$)'`: a rename conflict writes 8-character markers;
+  `scripts/no-conflict-markers.test.mjs` fails CI on any left in a tracked file, mock folders included).
 - Run only the unit tests for files you changed (`npx vitest run <paths>`) plus the typecheck of the
   package you touched. **Don't run e2e or the full suite** unless you are the single, final
   verification step.

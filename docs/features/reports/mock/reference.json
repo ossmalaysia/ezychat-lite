@@ -5,20 +5,12 @@
   "appVersionAtProposal": "0.1.59",
   "hashNormalization": "text LF; binary unchanged",
   "status": "confirmed",
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-  "feature": "google-calendar",
-========
   "feature": "reports",
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
   "createdAt": "2026-10-26",
   "baselineFeature": "ai-phrase-dictionary",
   "baselineGitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
   "baselineMock": "docs/features/ai-phrase-dictionary/mock/index.html",
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-  "baselineConfirmation": "Owner confirmed ai-phrase-dictionary 2026-10-26 (\"ok implement it\"); latestConfirmed revision db1df77",
-========
   "baselineConfirmation": "Owner confirmed ai-phrase-dictionary 2026-10-26 (\"ok implement it\"); latestConfirmed revision db1df77, copied from the folder on main 027a03e. The Reports page was first drafted on the ai-reply-suggestions reference (e7bf307, PR #191 commit 09c32a0) and moved onto this newer baseline unchanged before implementation.",
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
   "previousBaseline": {
     "feature": "ai-reply-suggestions",
     "gitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be"
@@ -57,23 +49,6 @@
     "src/inbox/Composer.tsx",
     "src/admin/SettingsPage.tsx",
     "src/admin/ReplySuggestionsSection.tsx",
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-    "src/mock/replySuggestions.ts",
-    "src/inbox/EventItem.tsx"
-  ],
-  "proposalChanged": [
-    "src/admin/SettingsPage.tsx",
-    "src/admin/AgentPage.tsx",
-    "src/admin/AgentTryIt.tsx",
-    "src/inbox/EventItem.tsx",
-    "src/i18n/locales/en/admin.json",
-    "src/i18n/locales/ms/admin.json",
-    "src/i18n/locales/zh-CN/admin.json",
-    "src/i18n/locales/en/inbox.json",
-    "src/i18n/locales/ms/inbox.json",
-    "src/i18n/locales/zh-CN/inbox.json",
-    "src/admin/AdminLayout.tsx"
-========
     "src/mock/replySuggestions.ts"
   ],
   "proposalChanged": [
@@ -81,7 +56,6 @@
     "src/i18n/locales/en/admin.json",
     "src/i18n/locales/ms/admin.json",
     "src/i18n/locales/zh-CN/admin.json"
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
   ],
   "addedFrontend": [
     "src/admin/InboxAccess.tsx",
@@ -111,24 +85,6 @@
     "src/mock/replySuggestions.ts",
     "src/admin/PhraseDictionarySection.tsx",
     "src/mock/phrases.ts",
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-    "src/admin/GoogleCalendarSection.tsx",
-    "src/admin/AgentBookingsCard.tsx",
-    "src/mock/googleCalendar.ts",
-    "src/admin/AgentConnectorsCard.tsx",
-    "src/admin/ConnectorsGalleryPage.tsx",
-    "src/admin/ConnectorDetailPage.tsx",
-    "src/mock/connectorCatalog.ts"
-  ],
-  "proposalAdded": [
-    "src/admin/GoogleCalendarSection.tsx",
-    "src/admin/AgentBookingsCard.tsx",
-    "src/admin/AgentConnectorsCard.tsx",
-    "src/admin/ConnectorsGalleryPage.tsx",
-    "src/admin/ConnectorDetailPage.tsx",
-    "src/mock/googleCalendar.ts",
-    "src/mock/connectorCatalog.ts"
-========
     "src/admin/ReportsPage.tsx",
     "src/admin/ReportCharts.tsx",
     "src/mock/reports.ts"
@@ -137,7 +93,6 @@
     "src/admin/ReportsPage.tsx",
     "src/admin/ReportCharts.tsx",
     "src/mock/reports.ts"
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
   ],
   "baselineProposal": {
     "feature": "ai-phrase-dictionary",
@@ -154,8 +109,6 @@
   },
   "olderProposals": [
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "feature": "ai-reply-suggestions",
       "changed": [
         "src/inbox/Composer.tsx",
@@ -175,7 +128,6 @@
       ]
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "feature": "business-api",
       "changed": [
         "src/admin/InboxesPage.tsx",
@@ -297,25 +249,6 @@
         "src/mock/EditionSwitch.tsx",
         "src/mock/useAgents.ts"
       ]
-    },
-    {
-      "feature": "ai-reply-suggestions",
-      "changed": [
-        "src/inbox/Composer.tsx",
-        "src/inbox/Conversation.tsx",
-        "src/admin/SettingsPage.tsx",
-        "src/i18n/locales/en/inbox.json",
-        "src/i18n/locales/en/admin.json",
-        "src/i18n/locales/ms/inbox.json",
-        "src/i18n/locales/ms/admin.json",
-        "src/i18n/locales/zh-CN/inbox.json",
-        "src/i18n/locales/zh-CN/admin.json"
-      ],
-      "added": [
-        "src/inbox/ReplySuggestions.tsx",
-        "src/admin/ReplySuggestionsSection.tsx",
-        "src/mock/replySuggestions.ts"
-      ]
     }
   ],
   "inheritedUnchanged": [
@@ -324,8 +257,6 @@
       "sha256": "4e23a733671474c5edcdc9cdfad4ce54ea2f2ee030abeb5169314693d1961e92"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/admin/AgentPage.tsx",
       "sha256": "69890782fdd49d0cbf2db00961479e1c40b427b84e5ada3500e693e05ef6c05d"
     },
@@ -334,7 +265,6 @@
       "sha256": "481dbb1a631467863ca5ba96fd96d62f939dde2ff759d8a9937c9b1e69146710"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/admin/AiConnectionSection.tsx",
       "sha256": "e7d09187f592446d3e67870c940bbdcec89b22598908603aac1c878cdb9deb98"
     },
@@ -383,8 +313,6 @@
       "sha256": "bab7a20229a21f5075f61848122ee0e2508379944da5c35686752514ea8d38ea"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/admin/PhraseDictionarySection.tsx",
       "sha256": "b8d957a45b606ce0ed48dd135e9edffa252ce63efd44dd04af5e9746b689cac1"
     },
@@ -397,7 +325,6 @@
       "sha256": "561decf34f026870f865a94edce2a8e9c92e3b61ab39cde717b233806918a240"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/admin/TokenPermissionsDialog.tsx",
       "sha256": "fda3b5ba65a309c71ba5d21704c6ee949921b8a31b6053ea89ff9f03dba395a3"
     },
@@ -426,35 +353,26 @@
       "sha256": "0da80c687455ab524f23edb29aafb66664b4d1bcddc07ebd9c42fc57709093f3"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/i18n/locales/en/inbox.json",
       "sha256": "6c3adc0f12d0fddec90be83a3f469ceb69bf96fc8833fc391dcfd11b0dd32e0b"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/i18n/locales/ms/common.json",
       "sha256": "9189aec1cc07996418f17e23e36cf1aa9e55cd2189382c08ac073b12473469ee"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/i18n/locales/ms/inbox.json",
       "sha256": "16e75026d13d8e5b0929e65dfeabed992ee1b10d064534317c24094c56c43584"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/i18n/locales/zh-CN/common.json",
       "sha256": "323c28d2e0dc827fb20448ffd29a6c4c9e8b3f9343149f20becc856e201b196a"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/i18n/locales/zh-CN/inbox.json",
       "sha256": "5c527656556863952ddf3b9f8623522aa01d1260341b951ab81d0fe1c2281d53"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/inbox/ChatFilters.tsx",
       "sha256": "01770e08902e033ad4e7e1b1d114bf18f47253e90a1517dc4cd80586a5d5d737"
     },
@@ -467,8 +385,6 @@
       "sha256": "4c56cb4224505506ed587ce12dde6cd56f8870447180b31001a63d730a5be3b9"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/inbox/Composer.tsx",
       "sha256": "b6dddc7415835be1aba63311f8198b87be432c7f8bc41fdde7bd7d1d39a5045c"
     },
@@ -477,7 +393,6 @@
       "sha256": "0f97af2c60f53d2bbce2c546f2699648b5926871df56d190f0c9dba12d46f5d7"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/inbox/ConversationHeader.tsx",
       "sha256": "d4709907b26bdc75b0953455b816819208529ddab7b50acf7f557be24477eb03"
     },
@@ -498,13 +413,10 @@
       "sha256": "5b6c43bbe85a486a9936a680deaa2b7a118ed71043f249a3bb2af593c446a490"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/inbox/ReplySuggestions.tsx",
       "sha256": "10f95f9ad5e854ba371665998240d9bc0e10b420a654d94e2b523f4fc7f19aef"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/inbox/ReplyWindow.tsx",
       "sha256": "e76be5e6ce135f5be75c36f60971c0b7e3c41f8966826292f2bc2ec1a274a581"
     },
@@ -541,8 +453,6 @@
       "sha256": "832b06e2e0d2b87b7d1acd6f8ccb4bb9cbb6f4524f560ba1f2aab2b05cad9481"
     },
     {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-========
       "path": "src/mock/phrases.ts",
       "sha256": "68dae32929054396ce23cca3a432b8e4bef63732079a94f41ada6d3c74221f26"
     },
@@ -551,7 +461,6 @@
       "sha256": "9cbf4ff9f187aa890cf8c8280210d2f56c16c2fc3d7db94930c2e33719153bc5"
     },
     {
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
       "path": "src/mock/useAgents.ts",
       "sha256": "1feaaea3b7ba4076c12e513d7a8af7043195adb99aefeade24fcdc6db45a20d6"
     },
@@ -566,17 +475,6 @@
     {
       "path": "src/setup/WhatsAppStepChoice.tsx",
       "sha256": "c9574332428414c40e428fcf68bbb684e5ed2d4f3e88f2986485c6b499d44421"
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-    },
-    {
-      "path": "src/inbox/Conversation.tsx",
-      "sha256": "0f97af2c60f53d2bbce2c546f2699648b5926871df56d190f0c9dba12d46f5d7"
-    },
-    {
-      "path": "src/inbox/ReplySuggestions.tsx",
-      "sha256": "10f95f9ad5e854ba371665998240d9bc0e10b420a654d94e2b523f4fc7f19aef"
-========
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
     }
   ],
   "baselineDriftFixes": {
@@ -588,13 +486,8 @@
   },
   "runner": {
     "ports": {
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-      "ui": 7489,
-      "api": 7488
-========
       "ui": 7485,
       "api": 7484
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
     },
     "localStorage": [
       "mock.customAgents.v2",
@@ -602,11 +495,7 @@
       "mock.customAgents.edition.v1",
       "mock.claudeProvider.v1"
     ],
-<<<<<<<< HEAD:docs/features/google-calendar/mock/reference.json
-    "changes": "run.ts: ports 7485/7484, temp-folder prefix ezychat-upgrade-enterprise-mock-, ready line; shot scripts default to port 7485; upgrade-shots.mjs added ai-reply-suggestions: run.ts ports 7489/7488 and temp-folder name; proposal.ts registers reply-suggestions.ts; seed.ts adds the Malay chat (Siti Rahman). google-calendar: run.ts temp-folder name and ready line; proposal.ts registers google-calendar.ts (stand-in Google routes); seed.ts adds the booked chat (Lim Mei Ying); calendar-shots.mjs added."
-========
     "changes": "run.ts: ports 7485/7484, temp-folder prefix ezychat-upgrade-enterprise-mock-, ready line; shot scripts default to port 7485; upgrade-shots.mjs added ai-reply-suggestions: run.ts ports 7489/7488 and temp-folder name; proposal.ts registers reply-suggestions.ts; seed.ts adds the Malay chat (Siti Rahman). reports: run.ts ports 7485/7484 and temp-folder name; proposal.ts registers reports.ts (GET /api/mock/reports, GET/PUT /api/mock/reports/scenario); reports-shots.mjs added."
->>>>>>>> origin/main:docs/features/reports/mock/reference.json
   },
   "files": [
     {

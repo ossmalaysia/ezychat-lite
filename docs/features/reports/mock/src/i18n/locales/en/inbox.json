@@ -228,10 +228,7 @@
     "resolved": "{{actor}} resolved this chat",
     "reopenedByMessage": "Chat reopened by a new message",
     "reopened": "{{actor}} reopened this chat",
-    "internalNote": "Internal note",
-    "mockBooked": "AI booked {{when}} · {{source}}",
-    "mockLookedUp": "AI used {{title}} · {{source}}",
-    "mockCheckedFree": "AI checked free times · {{source}}"
+    "internalNote": "Internal note"
   },
   "messageList": {
     "label": "Messages",

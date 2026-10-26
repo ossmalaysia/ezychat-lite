@@ -11,7 +11,6 @@ import {
   Globe,
   Inbox,
   Smartphone,
-  Plug,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -45,13 +44,8 @@ import { SettingsPage } from './SettingsPage';
 import { TunnelPage } from './TunnelPage';
 import { WhatsAppPage } from './WhatsAppPage';
 import { InboxesPage } from './InboxesPage';
-<<<<<<<< HEAD:docs/features/google-calendar/mock/src/admin/AdminLayout.tsx
-import { ConnectorsGalleryPage } from './ConnectorsGalleryPage';
-import { ConnectorDetailPage } from './ConnectorDetailPage';
-========
 // Proposed (reports): Admin → Reports (busy days, busy times, reply times).
 import { ReportsPage } from './ReportsPage';
->>>>>>>> origin/main:docs/features/reports/mock/src/admin/AdminLayout.tsx
 
 /** `labelKey` is a translation key in the `admin` namespace. */
 export const ADMIN_NAV = [
@@ -59,8 +53,6 @@ export const ADMIN_NAV = [
   { to: 'reports', labelKey: 'mockReports.nav', icon: BarChart3 },
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
-  // Proposed (google-calendar): a gallery of ready connectors, one page each.
-  { to: 'connectors', labelKey: 'mockConnectors.title', icon: Plug },
   // Proposed (multi-inbox): one inbox per WhatsApp number replaces the single WhatsApp page.
   { to: 'inboxes', labelKey: 'mockInbox.title', icon: Inbox },
   { to: 'tunnel', labelKey: 'nav.tunnel', icon: Globe },
@@ -265,8 +257,6 @@ export function AdminLayout() {
             <Route path="tunnel" element={<TunnelPage />} />
             <Route path="settings/*" element={<SettingsPage />} />
             <Route path="audit" element={<AuditPage />} />
-            <Route path="connectors" element={<ConnectorsGalleryPage />} />
-            <Route path="connectors/:id" element={<ConnectorDetailPage />} />
             <Route path="*" element={<UnknownAdminRoute />} />
           </Routes>
         </div>

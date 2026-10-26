@@ -9,11 +9,7 @@ import type { FakeWaAdapter } from '@ezychat/wa';
 import { registerSendReactions } from './send-reactions.js';
 import { registerReplySuggestions } from './reply-suggestions.js';
 import { registerPhraseDictionary } from './phrase-dictionary.js';
-<<<<<<<< HEAD:docs/features/google-calendar/mock/proposal.ts
 import { registerGoogleCalendar } from './google-calendar.js';
-========
-import { registerReports } from './reports.js';
->>>>>>>> origin/main:docs/features/reports/mock/proposal.ts
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
 const INTRODUCTION =
@@ -24,11 +20,7 @@ export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: Fake
   registerFirstSetup(app, ctx, wa);
   registerSendReactions(app, ctx, wa);
   registerReplySuggestions(app, ctx, registerPhraseDictionary(app, ctx));
-<<<<<<<< HEAD:docs/features/google-calendar/mock/proposal.ts
   registerGoogleCalendar(app, ctx);
-========
-  registerReports(app, ctx);
->>>>>>>> origin/main:docs/features/reports/mock/proposal.ts
   let enabled = false;
   const setting = () => ({
     enabled,

@@ -226,10 +226,7 @@
     "resolved": "{{actor}} menyelesaikan sembang ini",
     "reopenedByMessage": "Sembang dibuka semula oleh mesej baharu",
     "reopened": "{{actor}} membuka semula sembang ini",
-    "internalNote": "Nota dalaman",
-    "mockBooked": "AI menempah {{when}} · {{source}}",
-    "mockLookedUp": "AI menggunakan {{title}} · {{source}}",
-    "mockCheckedFree": "AI menyemak masa lapang · {{source}}"
+    "internalNote": "Nota dalaman"
   },
   "messageList": {
     "label": "Mesej",

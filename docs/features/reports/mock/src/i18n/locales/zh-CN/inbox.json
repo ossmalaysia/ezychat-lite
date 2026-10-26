@@ -226,10 +226,7 @@
     "resolved": "{{actor}} 解决了此聊天",
     "reopenedByMessage": "新消息重新打开了此聊天",
     "reopened": "{{actor}} 重新打开了此聊天",
-    "internalNote": "内部备注",
-    "mockBooked": "AI 已预约 {{when}} · {{source}}",
-    "mockLookedUp": "AI 使用了 {{title}} · {{source}}",
-    "mockCheckedFree": "AI 查看了空闲时间 · {{source}}"
+    "internalNote": "内部备注"
   },
   "messageList": {
     "label": "消息",

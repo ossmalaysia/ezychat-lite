@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarCheck, CalendarSearch, Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
 import { useAiMember } from '../api/ai';
 import { Banner } from '@/components/app';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
 import type { AgentPreset, MockAgentItem } from '../mock/agents';
-import { bookingFor, demoFreeSlots, useGoogleCalendar } from '../mock/googleCalendar';
 import { connectionReady } from './ai-status';
 import { Field, Pending } from './adminUi';
 
@@ -21,13 +20,7 @@ interface Result {
   /** The hand-over rule line (from this page's texts, also unsaved) that decided. */
   rule?: string;
   safety?: boolean;
-  /** Proposed (google-calendar): calendar steps shown as the chat's system lines. */
-  calendar?: { checked: boolean; wouldBook: Date | null; offered: Date[]; bookOff: boolean };
 }
-
-// Proposed (google-calendar): a customer asks to book (English, Malay, Chinese).
-const BOOKING =
-  /\b(book|booking|reserve|reservation|appointment|table for|tempah|temujanji)\b|预约|订位|预订/i;
 
 // Words that say nothing about the topic (and the "The customer …" frame of every hand-over rule).
 const STOP_WORDS = new Set(
@@ -78,7 +71,6 @@ const PROBE =
  * guardrails first and the Internal items marked.
  */
 export function AgentTryIt({
-  agentId,
   name,
   preset,
   instructions,
@@ -86,8 +78,6 @@ export function AgentTryIt({
   items,
   onAnswered,
 }: Readonly<{
-  /** Proposed (google-calendar): the agent whose Bookings settings Try it uses. */
-  agentId?: string;
   name: string;
   preset: AgentPreset;
   instructions: string;
@@ -102,49 +92,13 @@ export function AgentTryIt({
   const [question, setQuestion] = useState('');
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
-  const calendar = useGoogleCalendar();
-  const booking = agentId === undefined ? null : bookingFor(calendar.data, agentId);
-  const calendarOn = booking !== null && calendar.data?.state === 'connected' && booking.checkFree;
-  const when = (date: Date) =>
-    new Intl.DateTimeFormat(undefined, {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
   const decisionLabels: Record<Decision, string> = {
     answer: t('ai.try.decision.answer'),
     ask_resolution: t('ai.try.decision.ask_resolution'),
     handoff: t('ai.try.decision.handoff'),
   };
 
-  /** Proposed (google-calendar): offer 3 free times; "pick" = the customer took the first one. */
-  const bookingAnswer = (pick: boolean): Result => {
-    const offered = demoFreeSlots(booking!);
-    if (!pick)
-      return {
-        action: 'answer',
-        reply: t('mockCalendar.try.offer', {
-          times: offered.map(when).join(', '),
-        }),
-        calendar: { checked: true, wouldBook: null, offered, bookOff: !booking!.book },
-      };
-    if (!booking!.book)
-      return {
-        action: 'handoff',
-        reply: t('mockCalendar.try.teamConfirms'),
-        calendar: { checked: false, wouldBook: null, offered, bookOff: true },
-      };
-    return {
-      action: 'answer',
-      reply: t('mockCalendar.try.booked', { time: when(offered[0]!) }),
-      calendar: { checked: false, wouldBook: offered[0]!, offered, bookOff: false },
-    };
-  };
-
   const answer = (text: string): Result => {
-    if (calendarOn && BOOKING.test(text)) return bookingAnswer(false);
     if (PROBE.test(text))
       return {
         action: 'answer',
@@ -240,9 +194,7 @@ export function AgentTryIt({
             </div>
             {result.action === 'handoff' && !result.usedInternal && !result.rule && (
               <p className="mb-2 text-xs text-muted-foreground">
-                {t('ai.try.handoffReason', {
-                  reason: handoffReasonLabel(result.calendar ? 'needs_action' : 'missing_facts'),
-                })}
+                {t('ai.try.handoffReason', { reason: handoffReasonLabel('missing_facts') })}
               </p>
             )}
             {result.rule && (
@@ -250,39 +202,7 @@ export function AgentTryIt({
                 {t('mockAgents.try.ruleMatched', { rule: result.rule })}
               </p>
             )}
-            {result.calendar?.checked && (
-              <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CalendarSearch aria-hidden className="size-3.5 shrink-0" />
-                {t('mockCalendar.try.checked')}
-              </p>
-            )}
-            {result.calendar?.wouldBook && (
-              <p
-                className="mb-2 flex items-start gap-1.5 text-xs text-muted-foreground"
-                data-testid="try-would-book"
-              >
-                <CalendarCheck aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                {t('mockCalendar.try.wouldBook', { time: when(result.calendar.wouldBook) })}
-              </p>
-            )}
             <p className="break-words whitespace-pre-wrap">{result.reply}</p>
-            {result.calendar && !result.calendar.wouldBook && result.calendar.checked && (
-              <div className="mt-3 flex flex-col items-start gap-1">
-                <Button
-                  type="button"
-                  size="touch"
-                  variant="outline"
-                  onClick={() => setResult(bookingAnswer(true))}
-                >
-                  {t('mockCalendar.try.pickFirst')}
-                </Button>
-                {result.calendar.bookOff && (
-                  <span className="text-xs text-muted-foreground">
-                    {t('mockCalendar.try.bookOffNote')}
-                  </span>
-                )}
-              </div>
-            )}
             {result.usedInternal && (
               <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
                 <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
