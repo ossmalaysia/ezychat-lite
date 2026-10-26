@@ -35,9 +35,9 @@ Calendar card in Settings → Integrations and the Bookings card on the agent pa
   (per AI agent: calendar, Check free times, Book appointments, booking rules; an agent picker when there are
   several) and **Activity** (what the AI checked, booked or handed over; never chat text). Coming-soon and
   Enterprise-only connectors show the overview with a Coming soon note or the Upgrade to Enterprise button.
-- **Lite has no custom connector** (owner, 2026-10-26: "Ezychat lite no custom connector, only enterprise"): the
-  Custom connector (MCP) tile and the Custom category are not listed in Lite at all (no upgrade tile); its page
-  answers "This connector does not exist" there. Enterprise lists it.
+- **Enterprise-only connectors in Lite** (owner, 2026-10-26: "ok to add in custom connector but grey out and
+  mark enterprise only"): Custom connector (MCP), HitPay and Shopify stay listed in Lite, greyed out (dashed card,
+  faded icon) with the badge **Enterprise only**; their page explains them and shows Upgrade to Enterprise.
 - **Agent page → Connectors**: a short summary row per connected connector ("Checks free times; your team
   books") that opens the connector's Settings tab, and Browse connectors.
 - **Settings → Integrations**: a pointer to Admin → Connectors.

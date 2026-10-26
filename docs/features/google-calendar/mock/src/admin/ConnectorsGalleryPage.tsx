@@ -41,12 +41,21 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
 }
 
 /** The connector's icon in a calm tile (brand logos are not used in the mock). */
-export function ConnectorIcon({ c, size = 'md' }: { c: CatalogConnector; size?: 'md' | 'lg' }) {
+export function ConnectorIcon({
+  c,
+  size = 'md',
+  muted = false,
+}: {
+  c: CatalogConnector;
+  size?: 'md' | 'lg';
+  muted?: boolean;
+}) {
   const Icon = c.icon;
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-lg border bg-muted text-foreground',
+        'flex shrink-0 items-center justify-center rounded-lg border bg-muted',
+        muted ? 'text-muted-foreground opacity-60' : 'text-foreground',
         size === 'lg' ? 'size-14' : 'size-11',
       )}
       aria-hidden
@@ -91,10 +100,16 @@ export function ConnectorsGalleryPage() {
         <li key={r.c.id}>
           <Link
             to={`/admin/connectors/${r.c.id}`}
-            className="flex h-full min-h-11 items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className={cn(
+              'flex h-full min-h-11 items-start gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              // Lite: Enterprise-only connectors are greyed out; the page still explains them.
+              r.status === 'enterprise'
+                ? 'border-dashed bg-muted/40 text-muted-foreground hover:bg-muted/60'
+                : 'bg-card hover:bg-muted/50',
+            )}
             data-testid={`connector-card-${r.c.id}`}
           >
-            <ConnectorIcon c={r.c} />
+            <ConnectorIcon c={r.c} muted={r.status === 'enterprise'} />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium break-words">{r.name}</span>

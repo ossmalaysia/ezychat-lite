@@ -18,8 +18,6 @@ export const CONNECTOR_CATEGORIES: readonly ConnectorCategory[] = [
 
 export interface CatalogConnector {
   id: string;
-  /** Only in Enterprise: not listed in Lite at all (no upgrade tile). */
-  enterpriseOnlyListing?: boolean;
   icon: LucideIcon;
   category: ConnectorCategory;
   /** `core`: Lite and Enterprise. `enterprise`: shown in Lite with an upgrade note. */
@@ -77,8 +75,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
   },
   {
     id: 'custom-mcp',
-    // Owner (2026-10-26): Lite has no custom connector; it is not listed there.
-    enterpriseOnlyListing: true,
+    // Owner (2026-10-26): listed in Lite greyed out, marked Enterprise only.
     icon: Plug,
     category: 'custom',
     edition: 'enterprise',
@@ -105,9 +102,9 @@ export function connectorStatus(
   return 'notConnected';
 }
 
-/** The connectors an edition lists: Lite never shows the custom MCP connector. */
-export function listedConnectors(edition: 'lite' | 'enterprise'): readonly CatalogConnector[] {
-  return CONNECTORS.filter((c) => edition === 'enterprise' || !c.enterpriseOnlyListing);
+/** The connectors an edition lists: every edition lists all; Lite greys out Enterprise ones. */
+export function listedConnectors(_edition: 'lite' | 'enterprise'): readonly CatalogConnector[] {
+  return CONNECTORS;
 }
 
 /** Categories with at least one listed connector. */

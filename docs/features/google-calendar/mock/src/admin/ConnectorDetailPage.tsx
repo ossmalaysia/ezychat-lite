@@ -81,7 +81,7 @@ export function ConnectorDetailPage() {
         <span className="min-w-0 truncate">{tc(`mockConnectors.items.${c.id}.name`)}</span>
       </nav>
       <div className="flex items-start gap-4">
-        <ConnectorIcon c={c} size="lg" />
+        <ConnectorIcon c={c} size="lg" muted={status === 'enterprise'} />
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">
