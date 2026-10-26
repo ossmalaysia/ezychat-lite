@@ -1,8 +1,8 @@
 // Dev Build check for Admin → Reports (docs/dev-build-checks.md): on a Dev Build seeded by
 // e2e/marketing-screenshots.mjs (fake WhatsApp, temp data), a message from a new number counts as a
-// new customer and a message from customers, a quick team reply keeps it from being "missed", agents
-// get 403, and the page renders at 1280 / 360 px in light and dark with no page errors or sideways
-// scroll. Screenshots go to <outDir>.
+// new customer and a message from customers, a quick team reply keeps it from being "missed", a report
+// is reused for a minute, agents get 403, and the page renders at 1280 / 360 px in light and dark with
+// no page errors or sideways scroll. Screenshots go to <outDir>.
 // Usage: node e2e/devbuild-reports-check.mjs <port> <outDir>
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -48,6 +48,10 @@ const check = (label, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${suffix}`); // NOSONAR (jssecurity:S5145): local check output, line breaks removed
 };
 
+const CACHE_WAIT_MS = 61_000; // REPORT_CACHE_MS + 1 s
+// An earlier run (or the page) may have cached the report: start from a fresh count.
+await call('GET', '/reports?days=7');
+await new Promise((r) => setTimeout(r, CACHE_WAIT_MS));
 const before = (await call('GET', '/reports?days=7')).body;
 check('admin gets the report', before?.days === 7, JSON.stringify(before?.totals));
 const jid = `6019${String(Date.now()).slice(-7)}@s.whatsapp.net`;
@@ -61,6 +65,14 @@ await call('POST', `/chats/${encodeURIComponent(jid)}/messages`, {
   clientId: `report-check-${Date.now()}`,
 });
 await new Promise((r) => setTimeout(r, 2500)); // the send queue waits ≥1 s and sends "composing" first
+// A report is reused for 60 s (REPORT_CACHE_MS): right away the numbers stay the same, a minute later
+// they include the new customer.
+const cached = (await call('GET', '/reports?days=7')).body;
+check(
+  'within a minute the cached report is reused',
+  cached.totals.messagesIn === before.totals.messagesIn,
+);
+await new Promise((r) => setTimeout(r, CACHE_WAIT_MS));
 const after = (await call('GET', '/reports?days=7')).body;
 check(
   'a new number is one more new customer',

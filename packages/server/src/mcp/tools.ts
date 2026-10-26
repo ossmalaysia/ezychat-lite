@@ -243,13 +243,17 @@ const getStats: ToolDef<typeof McpGetStatsInput> = {
           count: stats.waitingForReply.count,
           oldestCustomerMessageAt: iso(stats.waitingForReply.oldestCustomerMessageAt),
         },
-        customers: {
-          ...stats.customers,
-          waitingAfterAiHandoff: {
-            count: stats.customers.waitingAfterAiHandoff.count,
-            oldestHandoffAt: iso(stats.customers.waitingAfterAiHandoff.oldestHandoffAt),
-          },
-        },
+        ...(stats.customers
+          ? {
+              customers: {
+                ...stats.customers,
+                waitingAfterAiHandoff: {
+                  count: stats.customers.waitingAfterAiHandoff.count,
+                  oldestHandoffAt: iso(stats.customers.waitingAfterAiHandoff.oldestHandoffAt),
+                },
+              },
+            }
+          : {}),
       },
       count: stats.daily.length,
     };
