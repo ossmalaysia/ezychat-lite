@@ -232,3 +232,7 @@ Tier **core**, set by: apps/web/src/api/queries.ts, apps/web/src/extensions/type
 Hard stops: none
 
 Decision: **risk:human**
+
+## 2026-10-26 · PR #191 · `c98e06b` · approved by the owner
+
+> Merge, this is not core feature
