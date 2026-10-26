@@ -71,6 +71,10 @@ into AGENTS.md.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
+- Mock seeds that show AI replies: the seeded AI member is off, so the AI service cancels its queued replies
+  ("AI reply cancelled"); set the chat's `assigned_to` in the database (an assignment event triggers the same
+  cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
+  `PW_CHROMIUM=/opt/pw-browsers/chromium` (no Edge there).
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
