@@ -7,9 +7,9 @@ Branch: `ccr-61d578df-1nvm7j` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | Mock confirmed by the owner 2026-10-26 ("look fine, implement it"); reference ce56468 on the ai-phrase-dictionary baseline | ce56468 | 2026-10-26 |
 | Dev | done | Speed follow-up: per-chat index look-ups for open waits and first messages, quarter-hour clock cache, binary-search days, 60 s report cache; get_stats leaves out customer numbers if counting fails | 000ba08 | 2026-10-26 |
-| Unit tests | pass | reports.test.ts cache, stats.test.ts localClock, inbox-activity open-wait case (same result on the old code), mcp-stats-reports-fallback.test.ts; changed-lines coverage 100 % (62/62); full suite: only the 4 PDF/Word parser tests that fail on clean main in this container | 000ba08 | 2026-10-26 |
-| E2E | pass | reports.spec.ts on desktop, mobile and iphone (no screen changed); the Windows desktop-window link check runs in CI | 000ba08 | 2026-10-26 |
-| Dev Build | pass | devbuild-reports-check.mjs 10/10 incl. the one-minute cache (port 7490, fresh temp data) | 000ba08 | 2026-10-26 |
+| Unit tests | pass | 2d87ec4: 3370 pass; 4 PDF/Word worker tests fail in this container on main too; changed-lines coverage 100 % (64/64) | 2d87ec4 | 2026-10-26 |
+| E2E | pass | 2d87ec4: e2e/reports.spec.ts 4/4 (desktop, mobile, iphone) | 2d87ec4 | 2026-10-26 |
+| Dev Build | pass | 2d87ec4: devbuild-reports-check.mjs PASS 10/10 (docs/dev-build-checks.md) | 2d87ec4 | 2026-10-26 |
 | Screen review | skip | No screen changed (server-only speed fix) | 000ba08 | 2026-10-26 |
 
 ## Log
@@ -31,3 +31,6 @@ Branch: `ccr-61d578df-1nvm7j` · Every agent updates its stage with
 - 2026-10-26 E2E: pass — reports.spec.ts on desktop, mobile and iphone (no screen changed); the Windows desktop-window link check runs in CI (000ba08)
 - 2026-10-26 Dev Build: pass — devbuild-reports-check.mjs 10/10 incl. the one-minute cache (port 7490, fresh temp data) (000ba08)
 - 2026-10-26 Screen review: skip — No screen changed (server-only speed fix) (000ba08)
+- 2026-10-26 E2E: pass — 2d87ec4: e2e/reports.spec.ts 4/4 (desktop, mobile, iphone) (2d87ec4)
+- 2026-10-26 Unit tests: pass — 2d87ec4: 3370 pass; 4 PDF/Word worker tests fail in this container on main too; changed-lines coverage 100 % (64/64) (2d87ec4)
+- 2026-10-26 Dev Build: pass — 2d87ec4: devbuild-reports-check.mjs PASS 10/10 (docs/dev-build-checks.md) (2d87ec4)
