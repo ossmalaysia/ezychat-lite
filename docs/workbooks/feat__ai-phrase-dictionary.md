@@ -7,8 +7,8 @@ Branch: `feat/ai-phrase-dictionary` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | pass | Mock confirmed by the owner 2026-10-26 ("ok implement it"), revision 360997a; latestConfirmed updated | 8512abb | 2026-10-26 |
 | Dev | done | Phrase list: migration 021, phrase service (build worker, triggers, limits, checks), routes, model for suggestions; web: local phrase match in the composer, Settings model choice and Phrase list card; en/ms/zh-CN | 31150a5 | 2026-10-26 |
-| Unit tests | todo |  |  |  |
-| E2E | todo |  |  |  |
+| Unit tests | pass | Full suite (2 workers): 293 files, 3360 passed, 1 skipped; typecheck and lint clean | 8db8058 | 2026-10-26 |
+| E2E | pass | npm run e2e --workers=1: 95 passed, 0 failed, 17 skipped; e2e:electron-links 16/16 | 8db8058 | 2026-10-26 |
 | Dev Build | pass | Owner test env 7491, ChatGPT: start build 6.2 s gpt-6-luna 17 phrases; Rebuild now 3.7 s; phrase grey text 4-15 ms after the last key, no model call | 31150a5 | 2026-10-26 |
 | Screen review | pass | 36 shots (1280/360, light/dark): completion EN/MS, model choice, card ready/building/empty/off, list, add; no page errors or overflow; matches the confirmed mock; docs/screenshots refreshed | 31150a5 | 2026-10-26 |
 
@@ -19,3 +19,5 @@ Branch: `feat/ai-phrase-dictionary` · Every agent updates its stage with
 - 2026-10-26 Dev: done — Phrase list: migration 021, phrase service (build worker, triggers, limits, checks), routes, model for suggestions; web: local phrase match in the composer, Settings model choice and Phrase list card; en/ms/zh-CN (31150a5)
 - 2026-10-26 Dev Build: pass — Owner test env 7491, ChatGPT: start build 6.2 s gpt-6-luna 17 phrases; Rebuild now 3.7 s; phrase grey text 4-15 ms after the last key, no model call (31150a5)
 - 2026-10-26 Screen review: pass — 36 shots (1280/360, light/dark): completion EN/MS, model choice, card ready/building/empty/off, list, add; no page errors or overflow; matches the confirmed mock; docs/screenshots refreshed (31150a5)
+- 2026-10-26 Unit tests: pass — Full suite (2 workers): 293 files, 3360 passed, 1 skipped; typecheck and lint clean (8db8058)
+- 2026-10-26 E2E: pass — npm run e2e --workers=1: 95 passed, 0 failed, 17 skipped; e2e:electron-links 16/16 (8db8058)
