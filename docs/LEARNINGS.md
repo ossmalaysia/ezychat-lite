@@ -112,6 +112,8 @@ into AGENTS.md.
   orchestrator commits; agents don't `npm install` unless they own that package.json.
   A hub file two agents of one wave both need (e.g. `apps/web/src/api/queries.ts`) stays with one owner;
   the other puts its new code in a new file that imports from the hub.
+- Never `git stash` in a checkout another agent is editing (to compare with HEAD): it removes their
+  uncommitted work until the pop. Compare with `git show HEAD:<file>` or a separate worktree.
 - Subagents run only their own unit tests and package typecheck; one consolidated
   typecheck/test/lint/build/e2e run at the end. Prefer few wide waves and one integration pass.
 - Agents use temp data dirs (`--data <scratchpad>`), never the real app data folder.
@@ -830,6 +832,9 @@ into AGENTS.md.
   `maxRetries: 0` (it retries twice by default); pass only our fixed error messages (HTTP ≥ 400).
 - Agent turns: bound the whole turn (all steps), not each model call; and give Try it the same tools
   as live replies (minus chat-bound ones), or it stops testing what customers get.
+- A time a model passes to a tool is checked for ISO shape before `Date.parse`: V8 parses loose text
+  ("tomorrow at 10") to a number, so a guessed time slips past a NaN check. Book only a time the server
+  itself offered in that chat (stored offer + a customer reply after it), never the model's own pick.
 - Tests that ingest many messages under frozen fake timers must tick the clock between them: equal
   timestamps reorder by id and can push the message being answered out of the last 20.
 - Vitest fake timers do not control `AbortSignal.timeout`: bound a call that a test must time out with a

@@ -65,11 +65,8 @@ import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AgentTurnFailure, errorNameOf } from './agent/models.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
-import {
-  extensionAgentTools,
-  extensionLookupsAvailable,
-  type AgentToolInfo,
-} from './agent/extension-tools.js';
+import type { AgentToolInfo } from './agent/extension-tools.js';
+import { agentLookupsAvailable, agentTurnTools } from './agent/turn-tools.js';
 import { OAuthError } from './chatgpt-oauth.js';
 import { migrateAiKnowledge, sliceCodePoints } from './migrate.js';
 import { buildEditPrompt } from './edit-prompt.js';
@@ -964,7 +961,7 @@ export function createAiService(
         // A failed extension look-up ends the turn at once; the catch below hands over.
         const lookupAbort = new AbortController();
         const signal = AbortSignal.any([controller.signal, lookupAbort.signal]);
-        const extension = await extensionAgentTools(
+        const extension = await agentTurnTools(
           ctx,
           log,
           { agent: 'sales', agentId: agent.id, chatJid: jid, signal },
@@ -1038,7 +1035,7 @@ export function createAiService(
                   .some((reply) => reply.fromMe && reply.sentByUserId === user.id),
             );
         // Facts come from the Business context or from extension look-ups the agent may call.
-        const hasFacts = !!knowledge.trim() || extensionLookupsAvailable(ctx, 'sales', agent.id);
+        const hasFacts = !!knowledge.trim() || agentLookupsAvailable(ctx, 'sales', agent.id);
         decision =
           !readable || !understood || !hasFacts || voiceRepeat
             ? {
@@ -1304,7 +1301,7 @@ export function createAiService(
           'SELECT 1 FROM ai_documents WHERE agent_id IS ? AND internal = 0 AND length(trim(text)) > 0 LIMIT 1',
         )
         .get(agentId);
-    if (!hasContext && !extensionLookupsAvailable(ctx, 'sales', agentId ?? undefined))
+    if (!hasContext && !agentLookupsAvailable(ctx, 'sales', agentId))
       throw errors.validation('Add business context before turning on the AI member');
   };
   /** A new `kind = 'ai'` team member and its agent row (409 `agent_limit` / `inbox_has_agent`). */
@@ -1791,7 +1788,7 @@ export function createAiService(
       const knowledge = relevantKnowledge(items.business, body.question);
       // Same rule as live replies: with no relevant knowledge and no extension look-ups the AI hands
       // the chat to a human.
-      if (!knowledge.trim() && !extensionLookupsAvailable(ctx, 'sales', agent?.id))
+      if (!knowledge.trim() && !agentLookupsAvailable(ctx, 'sales', agent?.id))
         return {
           ok: true,
           reply: HANDOFF_REPLY,
@@ -1804,7 +1801,7 @@ export function createAiService(
       // Extension look-ups run in Try it too (no chat); a failed one ends it with a hand-over.
       const lookupAbort = new AbortController();
       const signal = AbortSignal.any([AbortSignal.timeout(60_000), lookupAbort.signal]);
-      let extension: Awaited<ReturnType<typeof extensionAgentTools>> | null = null;
+      let extension: Awaited<ReturnType<typeof agentTurnTools>> | null = null;
       const lookups = () => {
         const calls = extension?.calls() ?? [];
         return calls.length ? { lookups: calls } : {};
@@ -1816,7 +1813,7 @@ export function createAiService(
             : current.mode === 'claude'
               ? claudeModelId(current)
               : ((await provider.resolveModel?.(current.model)) ?? current.model);
-        extension = await extensionAgentTools(
+        extension = await agentTurnTools(
           ctx,
           log,
           { agent: 'sales', agentId: agent?.id, chatJid: null, signal },

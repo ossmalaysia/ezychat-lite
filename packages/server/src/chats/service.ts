@@ -254,7 +254,11 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
             chatJid: jid,
             type: 'ai_tool_used',
             actorId,
-            payload: { title: lookup.title, sourceLabel: lookup.sourceLabel },
+            payload: {
+              title: lookup.title,
+              sourceLabel: lookup.sourceLabel,
+              ...(lookup.calendar ? { calendar: lookup.calendar } : {}),
+            },
             at,
           }),
         ),

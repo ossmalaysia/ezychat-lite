@@ -37,6 +37,15 @@ it('answers order questions but hands requests it cannot carry out to the team',
   );
 });
 
+it('lets the AI book only through book_appointment and never cancel or move a booking', () => {
+  const { instructions } = buildAiPrompt(knowledge, '', 'Delivery RM10', [], situation);
+  expect(instructions).toContain('when the book_appointment tool is offered, you may book with it');
+  expect(instructions).toContain('only a time check_free_times offered in this conversation');
+  expect(instructions).toContain('Never cancel or move a booking: hand over with needs_action');
+  // Without the tool the general rule still stands.
+  expect(instructions).toContain('You cannot place, change or cancel orders, book, reserve');
+});
+
 it('asks "Does that answer your question?" in the customer language without inviting more', () => {
   const { instructions } = buildAiPrompt(knowledge, '', 'Delivery RM10', [], situation);
   expect(instructions).toContain(

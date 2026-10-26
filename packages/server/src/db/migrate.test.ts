@@ -31,8 +31,12 @@ const TABLES = [
   'message_reactions',
   'oauth_clients',
   'reply_phrases',
+  'calendar_agent_settings',
+  'calendar_offers',
+  'calendar_bookings',
+  'calendar_activity',
 ];
-const LATEST = 21;
+const LATEST = 22;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -315,6 +319,52 @@ describe('migrate', () => {
       expect(() => add.run(agentId, 'en', 'Hello there.', 'robot', now, now)).toThrow();
       db.prepare('DELETE FROM ai_agents WHERE id = ?').run(agentId);
       expect(db.prepare('SELECT COUNT(*) AS n FROM reply_phrases').get()).toEqual({ n: 0 });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('022 adds the calendar tables: settings and offers go with their agent, history stays', () => {
+    const db = new Database(':memory:');
+    try {
+      db.pragma('foreign_keys = ON');
+      migrate(db);
+      db.prepare(
+        "INSERT INTO users (username, display_name, password_hash, role, created_at, kind) VALUES ('ai', 'AI', '', 'agent', 1, 'ai')",
+      ).run();
+      db.prepare(
+        "INSERT INTO ai_agents (user_id, preset, created_at, updated_at) VALUES ((SELECT id FROM users WHERE username = 'ai'), 'sales', 1, 1)",
+      ).run();
+      const agentId = (db.prepare('SELECT id FROM ai_agents').get() as { id: number }).id;
+      db.prepare(
+        'INSERT INTO calendar_agent_settings (agent_id, settings, updated_at) VALUES (?, ?, 1)',
+      ).run(agentId, '{}');
+      db.prepare(
+        "INSERT INTO calendar_offers (agent_id, chat_jid, start_at, end_at, offered_at) VALUES (?, 'c@s.whatsapp.net', 10, 20, 1)",
+      ).run(agentId);
+      const book = db.prepare(
+        "INSERT INTO calendar_bookings (agent_id, chat_jid, event_id, calendar_id, start_at, end_at, created_at) VALUES (?, 'c@s.whatsapp.net', 'e1', 'cal', 10, 20, 1)",
+      );
+      book.run(agentId);
+      // one booking per chat and start time
+      expect(() => book.run(agentId)).toThrow();
+      expect(() =>
+        db
+          .prepare(
+            "INSERT INTO calendar_activity (kind, agent_id, chat_jid, at) VALUES ('sent', ?, NULL, 1)",
+          )
+          .run(agentId),
+      ).toThrow();
+      db.prepare(
+        "INSERT INTO calendar_activity (kind, agent_id, chat_jid, at) VALUES ('booked', ?, 'c@s.whatsapp.net', 1)",
+      ).run(agentId);
+      db.prepare('DELETE FROM ai_agents WHERE id = ?').run(agentId);
+      const count = (table: string) =>
+        (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+      expect(count('calendar_agent_settings')).toBe(0);
+      expect(count('calendar_offers')).toBe(0);
+      expect(count('calendar_bookings')).toBe(1);
+      expect(count('calendar_activity')).toBe(1);
     } finally {
       db.close();
     }

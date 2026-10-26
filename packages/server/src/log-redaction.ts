@@ -35,6 +35,10 @@ const SECRET_FIELDS = [
   'codeChallenge',
   'code_challenge',
   'verifier',
+  // Google Calendar connector (OAuth app secret).
+  'clientSecret',
+  'client_secret',
+  'googleOAuth',
 ];
 
 const OAUTH_URL =
@@ -59,6 +63,7 @@ const QUERY_SECRET_KEYS = new Set([
   'access_token',
   'id_token',
   'token',
+  'client_secret',
 ]);
 const OAUTH_PARAM =
   /\b(code_verifier|code_challenge|access_token|refresh_token|id_token)=[^&\s"']+/gi;

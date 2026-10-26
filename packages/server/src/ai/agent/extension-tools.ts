@@ -63,9 +63,21 @@ export const AGENT_TOOL_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 export const CORE_AGENT_TOOL_NAMES: readonly string[] = [
   'search_business_context',
   'get_older_messages',
+  // Google Calendar connector (connectors/google-calendar/tools.ts)
+  'check_free_times',
+  'book_appointment',
 ];
 /** An extension that has not handed over its tools by then is left out of the turn. */
 export const AGENT_TOOLS_SETUP_MS = 10_000;
+
+/** One finished tool call (Try it shows them). `notRun`: Try it reported it without changing data. */
+export type ExtensionToolCall = AgentToolInfo & {
+  tool: string;
+  source: string;
+  ok: boolean;
+  ms: number;
+  notRun?: boolean;
+};
 
 export interface ExtensionToolsTurn {
   tools: ToolSet;
@@ -74,7 +86,7 @@ export interface ExtensionToolsTurn {
   /** Successful look-ups, first call of each title/source pair, in call order. */
   used(): AgentToolInfo[];
   /** Every finished call (Try it shows them). */
-  calls(): Array<AgentToolInfo & { tool: string; source: string; ok: boolean; ms: number }>;
+  calls(): ExtensionToolCall[];
   dispose(): Promise<void>;
 }
 
@@ -167,8 +179,7 @@ export async function extensionAgentTools(
   const tools: ToolSet = {};
   const taken = new Set([...CORE_AGENT_TOOL_NAMES, ...(options.reserved ?? [])]);
   const disposers: Array<() => Promise<void>> = [];
-  const calls: Array<AgentToolInfo & { tool: string; source: string; ok: boolean; ms: number }> =
-    [];
+  const calls: ExtensionToolCall[] = [];
   let failed = false;
   for (const ext of ctx.extensions) {
     if (!ext.agentTools || input.signal.aborted) continue;
