@@ -40,6 +40,12 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/voice/cancel' },
   { method: 'DELETE', url: '/api/ai/voice/model' },
   { method: 'PUT', url: '/api/ai/reply-suggestions' },
+  { method: 'GET', url: '/api/ai/reply-suggestions/model' },
+  { method: 'GET', url: '/api/ai/phrases' },
+  { method: 'POST', url: '/api/ai/phrases' },
+  { method: 'PUT', url: '/api/ai/phrases/1' },
+  { method: 'DELETE', url: '/api/ai/phrases/1' },
+  { method: 'POST', url: '/api/ai/phrases/rebuild' },
 ] as const;
 
 let t: TestApp;

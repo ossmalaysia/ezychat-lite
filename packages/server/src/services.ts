@@ -37,3 +37,6 @@ initializers.push(initAi);
 
 import { initEnrichment } from './customers/enrichment.js';
 initializers.push(initEnrichment);
+
+import { initPhrases } from './ai/phrases/service.js';
+initializers.push(initPhrases);

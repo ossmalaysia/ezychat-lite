@@ -2,12 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { fetchCompletion, fetchSuggestions } from '@/api/reply-suggestions';
+import { fetchCompletion, fetchSuggestions, sendPhraseFeedback } from '@/api/reply-suggestions';
 import { Composer, type ComposerProps } from './Composer';
 
 vi.mock('@/api/reply-suggestions', () => ({
   fetchSuggestions: vi.fn(),
   fetchCompletion: vi.fn(),
+  sendPhraseFeedback: vi.fn(),
 }));
 
 const JID = '60126677889@s.whatsapp.net';
@@ -210,6 +211,46 @@ describe('Composer reply suggestions', () => {
       />,
     );
     expect(screen.getByTestId('completion-ghost').textContent).not.toContain('questions');
+  });
+
+  const PHRASES = [
+    { id: 7, text: 'Thank you for your message! We will reply soon.', language: 'en' as const },
+    { id: 8, text: 'Our opening hours are 8am to 10pm daily.', language: 'en' as const },
+  ];
+  const ghostText = () => screen.getByTestId('completion-ghost').textContent;
+
+  it('shows a phrase from the list at once, without the model and without a pause', async () => {
+    const { user, box } = setup({ aiSuggest: ai({ phrases: PHRASES }) });
+    await user.type(box, 'Thank you for ');
+    expect(ghostText()).toBe('Thank you for your message! We will reply soon.');
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    expect(fetchCompletion).not.toHaveBeenCalled();
+    await user.keyboard('{Tab}');
+    expect(box.value).toBe('Thank you for your message! We will reply soon.');
+    expect(sendPhraseFeedback).toHaveBeenCalledWith(JID, 7, true);
+  });
+
+  it('finishes a half-typed word from a phrase, and Esc counts the phrase down', async () => {
+    const { user, box } = setup({ aiSuggest: ai({ phrases: PHRASES }) });
+    await user.type(box, 'Our open');
+    expect(ghostText()).toBe('Our opening hours are 8am to 10pm daily.');
+    await user.keyboard('{Escape}');
+    expect(sendPhraseFeedback).toHaveBeenCalledWith(JID, 8, false);
+    expect(ghostText()).not.toContain('hours');
+  });
+
+  it('asks the model when no phrase matches, and keeps a phrase that shows when it answers', async () => {
+    let resolve!: (value: { completion: string | null }) => void;
+    vi.mocked(fetchCompletion).mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    const { user, box } = setup({ aiSuggest: ai({ phrases: PHRASES }) });
+    await user.type(box, 'Hi Nurul, ');
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    expect(fetchCompletion).toHaveBeenCalledWith(JID, 'Hi Nurul, ', expect.any(AbortSignal));
+    await user.type(box, 'thank you for ');
+    expect(ghostText()).toContain('your message!');
+    await act(async () => resolve({ completion: 'two Nasi Lemak are ready.' }));
+    expect(ghostText()).toContain('your message!');
+    expect(ghostText()).not.toContain('Nasi');
   });
 
   it('does not ask again for the same text after Esc', async () => {

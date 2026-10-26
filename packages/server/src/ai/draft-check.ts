@@ -39,7 +39,7 @@ export function ungroundedNumbers(text: string, sources: string, prices = source
 const SHORT_INTERNAL_MIN = 8;
 
 /** True when `text` copies an Internal item: a 40-character run, or a whole short item. */
-function copiesInternal(text: string, internalTexts: readonly string[]): boolean {
+export function copiesInternal(text: string, internalTexts: readonly string[]): boolean {
   if (findLeak(text, internalTexts)) return true;
   const haystack = normalise(text);
   return internalTexts.some((raw) => {

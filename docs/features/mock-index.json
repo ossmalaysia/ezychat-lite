@@ -6,14 +6,29 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-reply-suggestions",
-    "gitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be",
-    "mock": "docs/features/ai-reply-suggestions/mock/index.html",
-    "design": "docs/features/ai-reply-suggestions/design.md",
+    "feature": "ai-phrase-dictionary",
+    "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb",
+    "mock": "docs/features/ai-phrase-dictionary/mock/index.html",
+    "design": "docs/features/ai-phrase-dictionary/design.md",
     "confirmedAt": "2026-10-26",
-    "confirmation": "Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 (\"ok\")"
+    "confirmation": "Owner viewed the review page (instant phrase grey text in English, half-typed word, Malay, Chinese; model completion when no phrase matches; Settings → AI model choice; Phrase list card ready / off / building / empty; phrase list, Malay filter, add, phone) and confirmed 2026-10-26 (\"ok implement it\")"
   },
   "proposals": [
+    {
+      "feature": "ai-phrase-dictionary",
+      "creationOrder": 14,
+      "createdAt": "2026-10-26",
+      "design": "docs/features/ai-phrase-dictionary/design.md",
+      "mock": "docs/features/ai-phrase-dictionary/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "ai-reply-suggestions",
+      "baselineGitRevision": "e7bf3070eddd5d2bb90416f96e66c36b7637e6be",
+      "baselineAppRevision": "149b5b9",
+      "coverage": "Full app clone of the confirmed ai-reply-suggestions reference with the PR #188 composer (type-through, half-word trigger); an AI-built phrase list matched in the browser for instant grey text (English, half-typed word, Malay, Chinese; model completion when no phrase matches; Tab counts a phrase); Settings → AI: Model for suggestions (Fast, Same as the AI agent, each model of the connection) and the Phrase list card (ready, building, empty, error, switched off) with the phrase list dialog (search, language filter, add, edit, delete); mock-only routes /api/mock/phrases*, /api/mock/phrase-list, /api/mock/suggest-model; desktop 1280 / mobile 360 touch, light/dark (phrase-shots.mjs)",
+      "confirmedAt": "2026-10-26",
+      "confirmation": "Owner viewed the review page (instant phrase grey text in English, half-typed word, Malay, Chinese; model completion when no phrase matches; Settings → AI model choice; Phrase list card ready / off / building / empty; phrase list, Malay filter, add, phone) and confirmed 2026-10-26 (\"ok implement it\")",
+      "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb"
+    },
     {
       "feature": "ai-reply-suggestions",
       "creationOrder": 13,
@@ -81,7 +96,12 @@
       "baselineGitRevision": "21d97187bf30e6921658ee1fcd95c6109dd0b712",
       "baselineAppRevision": "21d9718",
       "coverage": "Full app clone of the confirmed claude-provider reference (as on main 21d9718, with its round 2); emoji reactions received from WhatsApp and shown in the conversation: a badge under the inner corner of inbound and outbound bubbles, several emojis grouped (at most three, most used first) with the total, a click/tap list of who reacted (profile/contact/WhatsApp names, long names truncate, the phone as \"You (phone)\"), live change and removal; a mock-only \"Simulate reactions from WhatsApp\" panel and seeded reactions through the fake-WhatsApp dev route POST /api/dev/fake-reaction; desktop 1280 / mobile 360, light/dark (reaction-shots.mjs)",
-      "confirmation": "Owner saw the mock screenshots and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review 2026-10-23 recorded in design.md"
+      "confirmation": "Owner saw the mock screenshots and asked to complete the feature 2026-10-23 (\"yes complet it\"); self-review 2026-10-23 recorded in design.md",
+      "archived": {
+        "folderRemovedAt": "2026-10-26",
+        "lastRevision": "149b5b96a9b6a42a4f0be7f45afd6064b56faf99",
+        "reason": "retention: sixth feature folder (ai-phrase-dictionary)"
+      }
     },
     {
       "feature": "claude-provider",

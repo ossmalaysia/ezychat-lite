@@ -11,6 +11,7 @@ export * from './groups.js';
 export * from './mcp.js';
 export * from './inboxes.js';
 export * from './reply-suggestions.js';
+export * from './reply-phrases.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,

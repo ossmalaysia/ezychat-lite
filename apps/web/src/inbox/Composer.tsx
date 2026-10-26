@@ -11,12 +11,18 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { completionReady, type QuickReply, type ReplySuggestion } from '@ezychat/shared';
+import {
+  completionReady,
+  matchPhrase,
+  type QuickReply,
+  type ReplyPhraseListItem,
+  type ReplySuggestion,
+} from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { errorMessage } from '@/api/client';
-import { fetchCompletion, fetchSuggestions } from '@/api/reply-suggestions';
+import { fetchCompletion, fetchSuggestions, sendPhraseFeedback } from '@/api/reply-suggestions';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
 import { EmojiPicker } from './EmojiPicker';
@@ -55,6 +61,8 @@ export interface ComposerProps {
     lastCustomerMessageId: string | null;
     isAdmin: boolean;
     state: 'on' | 'unavailable';
+    /** The team's phrase list, matched on every key (docs/features/ai-phrase-dictionary). */
+    phrases?: readonly ReplyPhraseListItem[];
   } | null;
 }
 
@@ -126,9 +134,11 @@ export function Composer({
 
   // AI reply suggestions: chips after "Suggest reply" and grey completion text.
   const aiMode = aiSuggest?.state ?? 'off';
+  const suggestJid = aiSuggest?.chatJid ?? null;
   const [strip, setStrip] = useState<SuggestionStrip | null>(null);
   const [pendingPick, setPendingPick] = useState<ReplySuggestion | null>(null);
-  const [ghost, setGhost] = useState<{ for: string; text: string } | null>(null);
+  /** The grey text: what it was asked for, the rest, and the phrase it came from (if any). */
+  const [ghost, setGhost] = useState<{ for: string; text: string; phraseId?: number } | null>(null);
   const suggestAbort = useRef<AbortController | null>(null);
   /** The one completion request in flight, for the text it was asked for. */
   const completing = useRef<{ typed: string; jid: string; cancel: AbortController } | null>(null);
@@ -177,6 +187,7 @@ export function Composer({
 
   function acceptGhost() {
     if (!ghostText) return;
+    if (ghost?.phraseId && suggestJid) sendPhraseFeedback(suggestJid, ghost.phraseId, true);
     const next = text + ghostText;
     pendingCaret.current = next.length;
     setGhost(null);
@@ -189,11 +200,13 @@ export function Composer({
     closeSuggestions();
   }, [lastCustomer]);
 
-  // Completion: after a full word and a short pause, one request at a time. People type on while
-  // it runs, so a request stays alive while the text still extends what it was asked for; its
-  // answer then shows the part still ahead (type-through). Other edits cancel it.
-  const suggestJid = aiSuggest?.chatJid ?? null;
+  // Completion. First the team's phrase list, matched here on every key: a phrase shows at once,
+  // with no model call and no pause (docs/features/ai-phrase-dictionary). Otherwise the model, after
+  // a full word and a short pause, one request at a time. People type on while it runs, so a
+  // request stays alive while the text still extends what it was asked for; its answer then shows
+  // the part still ahead (type-through). Other edits cancel it.
   const hasGhost = ghostText !== '';
+  const phrases = aiSuggest?.phrases;
   useEffect(() => {
     const running = completing.current;
     if (
@@ -203,18 +216,29 @@ export function Composer({
       running.cancel.abort();
       completing.current = null;
     }
-    if (completing.current || hasGhost) return;
-    if (aiMode !== 'on' || !suggestJid || !completionReady(text)) return;
+    if (hasGhost || aiMode !== 'on' || !suggestJid) return;
     if (dismissedFor.current === text) return;
     const el = areaRef.current;
     if (el && el.selectionStart !== text.length) return;
+    const phrase = phrases?.length ? matchPhrase(phrases, text) : null;
+    if (phrase) {
+      setGhost({ for: text, text: phrase.rest, phraseId: phrase.id });
+      return;
+    }
+    if (completing.current || !completionReady(text)) return;
     const timer = setTimeout(() => {
       const cancel = new AbortController();
       const typed = text;
       completing.current = { typed, jid: suggestJid, cancel };
       fetchCompletion(suggestJid, typed, cancel.signal)
         .then(({ completion }) => {
-          if (!cancel.signal.aborted && completion) setGhost({ for: typed, text: completion });
+          if (cancel.signal.aborted || !completion) return;
+          // A phrase already showing for the current text stays (no flicker).
+          setGhost((shown) =>
+            shown && ghostAhead(shown, areaRef.current?.value ?? typed)
+              ? shown
+              : { for: typed, text: completion },
+          );
         })
         .catch(() => undefined)
         .finally(() => {
@@ -224,7 +248,7 @@ export function Composer({
         });
     }, COMPLETION_PAUSE_MS);
     return () => clearTimeout(timer);
-  }, [text, aiMode, suggestJid, hasGhost, completionDone]);
+  }, [text, aiMode, suggestJid, hasGhost, completionDone, phrases]);
   useEffect(() => () => completing.current?.cancel.abort(), []);
   // Grey text belongs to one chat: another chat starts without it.
   useEffect(() => {
@@ -377,6 +401,7 @@ export function Composer({
     if (ghostText && e.key === 'Escape') {
       e.preventDefault();
       dismissedFor.current = text;
+      if (ghost?.phraseId && suggestJid) sendPhraseFeedback(suggestJid, ghost.phraseId, false);
       setGhost(null);
       return;
     }

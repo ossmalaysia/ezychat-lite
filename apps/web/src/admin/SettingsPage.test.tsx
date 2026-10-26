@@ -15,6 +15,7 @@ vi.mock('./ResolveAllChatsCard', () => ({ ResolveAllChatsCard: () => <p>Resolve 
 vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
+vi.mock('./PhraseDictionarySection', () => ({ PhraseDictionarySection: () => null }));
 vi.mock('./ReplySuggestionsSection', () => ({
   ReplySuggestionsSection: () => <p>Reply suggestions card</p>,
 }));

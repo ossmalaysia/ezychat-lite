@@ -221,7 +221,9 @@ into AGENTS.md.
   before reporting readiness, and leave the PR open until the owner requests merging.
 - CI runs `npm run build:core` before `npm test`: otherwise the pack contract test builds every core
   package mid-suite and starves slow Windows runners into timeouts. Do the same locally after adding a
-  file to a package (e.g. a migration): a stale `dist/` fails "ships the build output". A test that is ~0.4 s on `main` and
+  file to a package (e.g. a migration): a stale `dist/` fails "ships the build output". The owner test env
+  (`D:\dev\test-env\lite\start.ps1`) also loads `@ezychat/shared` from `dist/`: after adding a shared export,
+  `npm run build:core` first, or the server stops with "does not provide an export named …". A test that is ~0.4 s on `main` and
   times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
 - Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
   as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
@@ -503,7 +505,8 @@ into AGENTS.md.
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
-  Bash; prefix `git show ref:path` with `MSYS_NO_PATHCONV=1` in Git Bash. The user profile path has a
+  Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
+  `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
@@ -700,6 +703,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
+  from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
+  elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
 - Anything that must answer while a person types (completions) needs the connection's fast model, never the
   saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
   `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
@@ -870,6 +876,12 @@ into AGENTS.md.
   customer).
 
 ## Desktop and web UI
+
+- Screenshot scripts wait ~400–500 ms after opening a `Dialog`/`Select` and after enabling a filled button: the
+  open animation shows the page through the dialog, and `transition-colors` keeps a just-enabled button in the
+  grey "disabled" colour. Check `button.disabled` before calling a grey button a bug.
+- Word matching on mixed text puts `\p{Script=Han}` before `[\p{L}\p{N}]+` in the alternation: Han is also
+  `\p{L}`, so the other order makes `谢谢您` one "word" and any "at least 2 words" rule never fires for Chinese.
 
 - Never render a component that has its own `<form>` (pairing code, extension slots, dialogs with a form)
   inside another form: invalid HTML, React logs a hydration error and the browser drops the inner form.
