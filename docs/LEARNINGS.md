@@ -69,7 +69,8 @@ into AGENTS.md.
   `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
   retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
-  hash of the mock commit, and the recorded revision must exist on the pushed branch.
+  hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
+  an open PR rewrites it again when the base merges: update the revision after that last rebase.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -138,7 +139,9 @@ into AGENTS.md.
   GitHub can drop push events (no CI for the merge either). Then start it on the tag,
   `gh workflow run <file> --ref v<version>`; `refs/tags/v…` conditions (publish jobs) still pass.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
-  push shows only SonarCloud, check the merge state and merge `main` first. The release-review script needs
+  push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
+  writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
+  older commit (or "uncommitted") count as ✗ missing in the release review. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
   those two through `gh api` (REST).
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
@@ -295,7 +298,9 @@ into AGENTS.md.
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404). Different npm versions flip dozens of `"peer": true` lines in the
   lockfile at each release: keep `main`'s lockfile and change only the `@ezychat/*` version strings
-  (check the rest is equal ignoring `peer` lines).
+  (check the rest is equal ignoring `peer` lines). Stop the owner test env Dev Build (and every process
+  running from `node_modules`) before `npm ci`: a locked `esbuild.exe` makes it fail with EPERM after it
+  deleted half of `node_modules`.
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
   `###` headings: two branches adding the same section merge cleanly into two copies. A branch rebased
   over a release can carry its entry into the released version's section: before a merge, check that

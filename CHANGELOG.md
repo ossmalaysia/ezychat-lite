@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.59] - 2026-10-26
+
 ### Added
 
 - **Instant grey text from your team's phrase list.** The AI builds a list of the phrases your team really
