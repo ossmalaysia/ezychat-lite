@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { SettingsPatchBody } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
@@ -28,7 +28,6 @@ import { PhraseDictionarySection } from './PhraseDictionarySection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { AiVoiceSection } from './AiVoiceSection';
 import { IntegrationsSection } from './IntegrationsSection';
-import { GoogleCalendarSection } from './GoogleCalendarSection';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -297,8 +296,15 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="integrations" className="flex flex-col gap-4">
-          {/* Proposed (google-calendar): a ready connector, no link to paste. */}
-          <GoogleCalendarSection />
+          {/* Proposed (google-calendar): ready connectors have their own gallery. */}
+          <Banner tone="info" title={t('mockConnectors.settingsPointerTitle')}>
+            <Link
+              to="/admin/connectors"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              {t('mockConnectors.settingsPointer')}
+            </Link>
+          </Banner>
           <IntegrationsSection />
         </TabsContent>
 

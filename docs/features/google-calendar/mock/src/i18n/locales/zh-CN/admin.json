@@ -1332,7 +1332,7 @@
     "unavailableBody": "EzyChat 会自动重试。在此期间，AI 会把预约对话转交给您的团队。",
     "calendars": "此账号中的日历",
     "readOnly": "只读",
-    "perAgent": "在每个 AI 助手的页面中选择日历和可预约时间。",
+    "perAgent": "在“设置”中为每个 AI 助手选择日历和可预约时间。",
     "openAgent": "打开 AI 助手",
     "disconnect": "断开连接",
     "disconnectTitle": "断开 Google 日历？",
@@ -1401,5 +1401,140 @@
     "mockExpired": "Sign-in expired",
     "mockDown": "Google unavailable",
     "consentMock": "Mock only: in the app this is Google's own sign-in page in a new window. Nothing is sent to Google here."
+  },
+  "mockConnectors": {
+    "title": "连接器",
+    "description": "连接您的日历和其他系统，让 AI 助手能自行查询和处理更多事情。每个连接器都有自己的页面，包含设置和活动记录。",
+    "searchLabel": "搜索连接器",
+    "searchPlaceholder": "按名称或功能搜索",
+    "categoryLabel": "类别",
+    "category": {
+      "all": "全部",
+      "booking": "日历与预约",
+      "data": "表格",
+      "payments": "付款",
+      "commerce": "网店",
+      "custom": "自定义"
+    },
+    "status": {
+      "connected": "已连接",
+      "attention": "需要处理",
+      "notConnected": "未连接",
+      "comingSoon": "即将推出",
+      "enterprise": "Enterprise"
+    },
+    "yours": "您的连接器",
+    "more": "更多连接器",
+    "noMatch": "没有匹配的连接器",
+    "noMatchHint": "试试其他关键词或类别。",
+    "missing": "没有您用的系统？请通过“帮助与反馈”告诉我们。",
+    "breadcrumb": "导航路径",
+    "notFound": "此连接器不存在。",
+    "backToGallery": "全部连接器",
+    "byCore": "EzyChat 内置",
+    "byEnterprise": "EzyChat Enterprise",
+    "tabs": {
+      "overview": "概览",
+      "settings": "设置",
+      "activity": "活动"
+    },
+    "aboutTitle": "功能介绍",
+    "aiCan": "AI 可以做什么",
+    "lookUp": "查询",
+    "changes": "会修改数据",
+    "switchNote": "会修改数据的工具默认关闭，需要在“设置”中为每个 AI 助手开启。",
+    "privacyTitle": "您的数据",
+    "enterpriseOnly": "此连接器属于 EzyChat Enterprise。",
+    "comingSoonTitle": "即将推出",
+    "comingSoonBody": "尚未推出。此页面介绍它将提供的功能。",
+    "custom": {
+      "setUpTitle": "连接任何系统",
+      "setUpBody": "粘贴系统或开发人员提供的 MCP 服务器链接并登录，然后为每个 AI 助手选择可以使用的工具。",
+      "add": "添加自定义连接器",
+      "mockToast": "Mock only: in Enterprise this opens Admin → Connectors → Add a system (the custom MCP connector)."
+    },
+    "forAgent": "设置对象",
+    "noAgent": "请先添加 AI 助手。",
+    "addAgent": "添加 AI 助手",
+    "activityTitle": "最近活动",
+    "activityHint": "AI 查看和预约的记录。这里从不保存对话内容。",
+    "activityEmpty": "暂无记录。",
+    "act": {
+      "checked": "{{agent}} 为 {{customer}} 查看了空闲时间",
+      "booked": "{{agent}} 为 {{customer}} 预约了 {{when}}",
+      "handed_over": "{{agent}} 把 {{customer}} 的预约转交给了团队"
+    },
+    "agentCard": {
+      "description": "{{name}} 在对话中可以使用的系统。设置位于每个连接器的页面。",
+      "checkAndBook": "查看空闲时间并预约",
+      "checkOnly": "查看空闲时间，由团队预约",
+      "off": "此助手已关闭",
+      "none": "还没有连接器。",
+      "browse": "浏览连接器"
+    },
+    "settingsPointerTitle": "连接器已移动",
+    "settingsPointer": "Google 日历和其他系统位于 管理 → 连接器。",
+    "gc": {
+      "accountTitle": "Google 账号",
+      "accountDescription": "EzyChat 使用的 Google 账号，整个团队共用一个。",
+      "openSettings": "打开设置",
+      "openAccount": "打开 Google 日历页面"
+    },
+    "items": {
+      "google-calendar": {
+        "name": "Google 日历",
+        "short": "查看空闲时间并预约。",
+        "long": "AI 助手根据您的 Google 日历提供空闲时间，并在您允许时预约客户确认的时间。用 Google 登录即可，无需粘贴链接。",
+        "tools": {
+          "checkFree": "查看空闲时间",
+          "checkFreeHint": "读取所选日历的忙碌时间。",
+          "book": "预约",
+          "bookHint": "客户确认时间后添加日程。"
+        },
+        "privacy": "EzyChat 只读取您所选日历的忙碌时间，只写入它预约的日程：标题、客户姓名和 WhatsApp 号码。不会把对话内容发送给 Google。登录信息加密保存在这台电脑上。"
+      },
+      "google-sheets": {
+        "name": "Google 表格",
+        "short": "从表格读取价格或库存；添加新潜在客户。",
+        "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 读取。它也可以把每个新潜在客户添加为一行。",
+        "tools": {
+          "readRows": "读取行",
+          "readRowsHint": "查找与客户问题匹配的行。",
+          "addLead": "添加潜在客户",
+          "addLeadHint": "把客户姓名、号码和需求添加为一行。"
+        },
+        "privacy": "EzyChat 只读取您选择的表格，只写入它添加的潜在客户行。"
+      },
+      "hitpay": {
+        "name": "HitPay",
+        "short": "发送付款链接（FPX、DuitNow、PayNow）。",
+        "long": "AI 为订单发送 HitPay 付款链接，付款后通知您的团队。",
+        "tools": {
+          "paymentLink": "创建付款链接",
+          "paymentLinkHint": "按团队或价目表设定的金额创建链接。",
+          "paymentStatus": "查看付款",
+          "paymentStatusHint": "查看链接是否已付款。"
+        },
+        "privacy": "EzyChat 向 HitPay 发送金额、参考编号和客户姓名；卡和银行资料只保存在 HitPay。"
+      },
+      "shopify": {
+        "name": "Shopify",
+        "short": "网店的订单状态和库存。",
+        "long": "客户询问订单在哪里或商品是否有货时，AI 会在您的 Shopify 网店中查询。",
+        "tools": {
+          "orderStatus": "订单状态",
+          "orderStatusHint": "按订单号和客户电话查找订单。",
+          "productStock": "商品库存",
+          "productStockHint": "查看商品价格和库存。"
+        },
+        "privacy": "EzyChat 只读取订单和商品，从不修改您的网店。"
+      },
+      "custom-mcp": {
+        "name": "自定义连接器（MCP）",
+        "short": "连接任何提供 MCP 服务器的系统。",
+        "long": "适用于您自己的系统：粘贴 MCP 服务器链接并登录，然后为每个 AI 助手选择可以使用的工具。会修改数据的工具默认关闭。",
+        "privacy": "EzyChat 只向系统发送某个工具在一次对话中需要的内容。"
+      }
+    }
   }
 }

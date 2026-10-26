@@ -1,6 +1,5 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { CalendarDays, Check, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
@@ -18,7 +17,9 @@ const DEMO_ACCOUNT = 'kopiapong.penang@gmail.com';
  * install; "Connect Google Calendar" opens Google's sign-in (in the mock: a stand-in consent dialog),
  * nothing to paste. Which calendar each AI agent uses and its booking hours live on the agent page.
  */
-export function GoogleCalendarSection() {
+export function GoogleCalendarSection({
+  onOpenSettings,
+}: Readonly<{ onOpenSettings?: () => void }>) {
   const { t } = useTranslation('admin');
   const query = useGoogleCalendar();
   const action = useGoogleCalendarAction();
@@ -42,13 +43,10 @@ export function GoogleCalendarSection() {
     <Card data-testid="google-calendar-settings">
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="size-5 text-muted-foreground" aria-hidden />
-            {t('mockCalendar.title')}
-          </CardTitle>
+          <CardTitle>{t('mockConnectors.gc.accountTitle')}</CardTitle>
           <Badge variant="outline">{t('mockSuggest.proposed')}</Badge>
         </div>
-        <CardDescription>{t('mockCalendar.description')}</CardDescription>
+        <CardDescription>{t('mockConnectors.gc.accountDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {query.isPending && <ListSkeleton rows={2} />}
@@ -109,12 +107,15 @@ export function GoogleCalendarSection() {
             </div>
             <p className="text-sm text-muted-foreground">
               {t('mockCalendar.perAgent')}{' '}
-              <Link
-                to="/admin/members/ai/a1#bookings"
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                {t('mockCalendar.openAgent')}
-              </Link>
+              {onOpenSettings && (
+                <Button
+                  variant="link"
+                  className="h-auto p-0 align-baseline"
+                  onClick={onOpenSettings}
+                >
+                  {t('mockConnectors.gc.openSettings')}
+                </Button>
+              )}
             </p>
             <Button
               size="touch"

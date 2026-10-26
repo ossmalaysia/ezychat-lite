@@ -28,11 +28,21 @@ export interface AgentBooking {
   maxDays: number;
 }
 
+export interface CalendarActivity {
+  at: number;
+  kind: 'checked' | 'booked' | 'handed_over';
+  agent: string;
+  customer: string;
+  start?: string;
+  end?: string;
+}
+
 export interface GoogleCalendarState {
   state: GoogleState;
   account: string | null;
   calendars: GoogleCalendar[];
   agents: Record<string, AgentBooking>;
+  activity: CalendarActivity[];
 }
 
 export const DEFAULT_BOOKING: AgentBooking = {

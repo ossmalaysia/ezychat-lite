@@ -1,9 +1,9 @@
 # Google Calendar connector interactive app proposal
 
 A clone of the owner-confirmed **ai-phrase-dictionary** reference (the whole app, `latestConfirmed` revision
-`db1df77`), with a ready **Google Calendar** connector: Settings → Integrations → **Connect Google Calendar**
-(no link to paste), a **Bookings** card on the AI agent page (calendar, Check free times, Book appointments,
-booking hours and rules), Try it with free times and "AI would book", and a chat where the AI booked a table.
+`db1df77`), with a **connector gallery** (Admin → Connectors) and a ready **Google Calendar** connector with its own page
+(Overview, Settings, Activity; sign in with Google, no link to paste), a Connectors summary on the AI agent page,
+Try it with free times and "AI would book", and a chat where the AI booked a table.
 Scope, decisions and the screen checklist: [../design.md](../design.md). Mock-only texts are English in all
 three catalogs.
 
@@ -19,17 +19,16 @@ the runner blocks every outside request; Google is a stand-in (`google-calendar.
 
 ## Walkthrough
 
-1. Sign in as `aisyah`. Open **Lim Mei Ying**: "AI checked free times · Google Calendar", the AI's offer, the
-   customer's choice, then "AI booked Fri, … 7:30–9:00 pm · Google Calendar" and the AI's confirmation.
-2. **Admin → Settings → Integrations**: the Google Calendar card (account, Working, calendars). The dashed
-   **Mock only** box: **Sign-in expired** (Sign in again) and **Google unavailable**. **Disconnect** (confirm),
-   then **Connect Google Calendar**: the stand-in Google sign-in, **Allow**.
-3. **Admin → Members → Aina → Bookings**: the calendar, **Check free times** (on), **Book appointments** (off
-   by default, "Changes your calendar"), event title, length, days and hours, gap, earliest and latest booking,
-   the "Always" rules, **Save bookings**. Disconnected: the card asks to connect first.
-4. **Try it** on the same page: ask "Can I book a table for 4?": "AI checked free times" and three free times.
-   **Customer picks the first time**: with booking on, "AI would book … (Try it doesn't book)"; with booking off,
-   a hand-over to the team.
+1. Sign in as `aisyah`. **Admin → Connectors**: the gallery (Google Calendar under Your connectors; Google
+   Sheets, HitPay, Shopify, Custom connector). Try the category chips and the search. Add `?edition=lite` to the
+   address for the Lite view (HitPay and Shopify show Enterprise).
+2. Open **Google Calendar**: **Overview** (what it does, what the AI can do, the Google account, Your data; the
+   dashed **Mock only** box shows Sign-in expired and Google unavailable; **Disconnect**, then **Connect Google
+   Calendar** for the stand-in Google sign-in), **Settings** (calendar, Check free times, Book appointments off by
+   default, booking rules, Save bookings), **Activity**.
+3. **Admin → Members → Aina**: the **Connectors** summary row opens the Settings tab. **Try it**: ask "Can I book
+   a table for 4?" → free times; **Customer picks the first time** → "AI would book …" or a hand-over.
+4. Open the chat **Lim Mei Ying**: "AI checked free times" and "AI booked …" lines with the AI's replies.
 
 ## Checks
 

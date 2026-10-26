@@ -69,41 +69,71 @@ for (const scheme of ['light', 'dark'])
       if (overflow) problems.push(`${suffix} ${name}: horizontal overflow`);
       await page.screenshot({ path: join(OUT, `${name}-${suffix}.png`), ...opts });
     };
-    const settings = async () => {
-      await page.goto('/admin/settings/integrations');
-      await page.getByTestId('google-calendar-settings').waitFor();
+    const gallery = async () => {
+      await page.goto('/admin/connectors');
+      await page.getByTestId('connectors-gallery').waitFor();
     };
-    const agentPage = async () => {
-      await page.goto('/admin/members/ai/a1');
-      const card = page.getByTestId('agent-bookings');
-      await card.waitFor();
-      await card.scrollIntoViewIfNeeded();
-      return card;
+    const gcPage = async (tab = 'overview') => {
+      await page.goto(`/admin/connectors/google-calendar?tab=${tab}`);
+      await page.getByTestId('connector-page-google-calendar').waitFor();
+      await page.waitForTimeout(300);
     };
 
-    // Settings → Integrations.
-    await settings();
-    await shot('01-settings-connected', { fullPage: true });
+    // Admin → Connectors: the gallery (connected first), a category, no match.
+    await gallery();
+    await shot('01-gallery', { fullPage: true });
+    await page.getByRole('button', { name: 'Calendar & booking' }).click();
+    await shot('02-gallery-category');
+    await page.getByRole('searchbox', { name: 'Search connectors' }).fill('zzz');
+    await shot('03-gallery-no-match');
+
+    // Google Calendar page: Overview, Settings, Activity; states.
+    await gcPage();
+    await shot('04-gc-overview', { fullPage: true });
+    await gcPage('settings');
+    await shot('05-gc-settings', { fullPage: true });
+    await gcPage('activity');
+    await shot('06-gc-activity');
     await post(ctx, '/api/mock/google-calendar/state', { state: 'expired' }, 'put');
-    await settings();
-    await shot('02-settings-expired');
-    await post(ctx, '/api/mock/google-calendar/state', { state: 'unavailable' }, 'put');
-    await settings();
-    await shot('03-settings-unavailable');
+    await gcPage();
+    await page.getByTestId('google-calendar-settings').scrollIntoViewIfNeeded();
+    await shot('07-gc-expired');
+    await gallery();
+    await shot('08-gallery-attention');
     await post(ctx, '/api/mock/google-calendar/disconnect', {});
-    await settings();
-    await shot('04-settings-not-connected');
+    await gcPage();
+    await shot('09-gc-not-connected', { fullPage: true });
     await page.getByRole('button', { name: 'Connect Google Calendar' }).click();
     await page.getByTestId('google-consent').waitFor();
-    await shot('05-google-sign-in');
+    await shot('10-google-sign-in');
     await page.keyboard.press('Escape');
+    await gcPage('settings');
+    await shot('11-gc-settings-not-connected');
 
-    // Agent page → Bookings.
-    await agentPage();
-    await shot('06-agent-not-connected');
+    // Other connectors: coming soon and Enterprise-only (Lite view).
+    await page.goto('/admin/connectors/google-sheets');
+    await page.getByTestId('connector-page-google-sheets').waitFor();
+    await shot('12-sheets-coming-soon', { fullPage: true });
+    await page.goto('/admin/connectors/hitpay');
+    await page.getByTestId('connector-page-hitpay').waitFor();
+    await shot('13-hitpay-enterprise', { fullPage: true });
+
+    // Lite view: Enterprise connectors carry an Enterprise badge and an upgrade note.
+    await page.goto('/admin/connectors?edition=lite');
+    await page.getByTestId('connectors-gallery').waitFor();
+    await shot('12b-gallery-lite', { fullPage: true });
+    await page.goto('/admin/connectors/hitpay?edition=lite');
+    await page.getByTestId('connector-page-hitpay').waitFor();
+    await shot('13b-hitpay-lite', { fullPage: true });
+    await page.goto('/admin/connectors?edition=enterprise');
+    await page.getByTestId('connectors-gallery').waitFor();
+
+    // Agent page → Connectors summary.
     await reset('connected', { ...BOOKING, book: false });
-    const card = await agentPage();
-    await card.screenshot({ path: join(OUT, `07-agent-bookings-${suffix}.png`) });
+    await page.goto('/admin/members/ai/a1');
+    const card = page.getByTestId('agent-connectors');
+    await card.waitFor();
+    await card.screenshot({ path: join(OUT, `14-agent-connectors-${suffix}.png`) });
 
     // Try it: free times, then booking off (team books).
     const tryIt = async (pick) => {
@@ -118,13 +148,13 @@ for (const scheme of ['light', 'dark'])
       return box;
     };
     await tryIt(false);
-    await shot('08-try-free-times');
+    await shot('15-try-free-times');
     await tryIt(true);
-    await shot('09-try-booking-off-handoff');
+    await shot('16-try-booking-off-handoff');
     await reset();
     await tryIt(true);
     await page.getByTestId('try-would-book').waitFor();
-    await shot('10-try-would-book');
+    await shot('17-try-would-book');
 
     // The chat where the AI booked a table.
     await page.goto(`/chats/${encodeURIComponent(MEI_YING)}`);
@@ -132,7 +162,7 @@ for (const scheme of ['light', 'dark'])
       .getByText(/AI booked/)
       .first()
       .waitFor();
-    await shot('11-chat-booked');
+    await shot('18-chat-booked');
     await ctx.close();
   }
 await browser.close();

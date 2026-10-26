@@ -1,4 +1,4 @@
-# Google Calendar connector (AI checks free times and books)
+# Connector gallery and Google Calendar connector (AI checks free times and books)
 
 Status: **proposal**, waiting for the owner's confirmation.
 Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots: `mock/screenshots/` (`calendar-shots.mjs`).
@@ -20,6 +20,27 @@ A request for Google Calendar. Owner (2026-10-26): Lite gets **ready connectors*
 ("ezychat lite also can connect to calender without fill in the link"); Enterprise keeps the custom MCP
 connector with read and write tools ([anchorsprint/ezychat-enterprise#41](https://github.com/anchorsprint/ezychat-enterprise/pull/41)).
 
+## Round 2 (owner, 2026-10-26)
+
+"We need better connector Gallery, and each connector has its own details and configuration." The Google
+Calendar card in Settings → Integrations and the Bookings card on the agent page are replaced by:
+
+- **Admin → Connectors** (new nav item): a gallery of ready connectors with search and category chips
+  (Calendar & booking, Spreadsheets, Payments, Online shop, Custom). Connected ones first ("Your connectors").
+  Each card: icon, name, one line, category, status (Connected, Needs attention, Not connected, Coming soon,
+  Enterprise). Listed: Google Calendar (core, ready), Google Sheets (core, coming soon), HitPay and Shopify
+  (Enterprise, coming soon), Custom connector (MCP) (Enterprise, ready there).
+- **One page per connector** (`/admin/connectors/:id`): header with status; tabs **Overview** (what it does,
+  what the AI can do with Look-up / Changes data badges, the Google account card, Your data), **Settings**
+  (per AI agent: calendar, Check free times, Book appointments, booking rules; an agent picker when there are
+  several) and **Activity** (what the AI checked, booked or handed over; never chat text). Coming-soon and
+  Enterprise-only connectors show the overview with a Coming soon note or the Upgrade to Enterprise button.
+- **Agent page → Connectors**: a short summary row per connected connector ("Checks free times; your team
+  books") that opens the connector's Settings tab, and Browse connectors.
+- **Settings → Integrations**: a pointer to Admin → Connectors.
+- Editions: the gallery is core; an edition adds its connectors to the list through a web extension slot
+  (Enterprise: payments, Shopify and its custom MCP connector, whose page is today's Enterprise Connectors).
+
 ## Decisions
 
 | Item            | Decision                                                                                                                                                                                                                      | From                        |
@@ -36,15 +57,16 @@ connector with read and write tools ([anchorsprint/ezychat-enterprise#41](https:
 
 ## Screens and states (mock checklist)
 
-- Settings → Integrations → Google Calendar: not connected (what it does, Connect), Google sign-in (stand-in
-  consent dialog), connected (account, Working, calendars with Read only, link to the agent, Disconnect + confirm),
-  sign-in expired (Sign in again), Google unavailable.
-- Agent page → Bookings: not connected (Connect), connected with booking off, booking on, paused (expired /
-  unavailable banner), Save bar.
+- Admin → Connectors gallery: all, a category, no match, a connector needing attention, the Lite view (Enterprise
+  badges).
+- Google Calendar page: Overview (connected, sign-in expired, Google unavailable, not connected), Google sign-in
+  (stand-in consent dialog), Disconnect + confirm; Settings (booking off / on, not connected); Activity.
+- Coming soon (Google Sheets) and Enterprise-only (HitPay in Lite, with Upgrade to Enterprise) pages.
+- Agent page → Connectors summary.
 - Try it: free times offered ("AI checked free times"), customer picks a time → booking on: "AI would book …
   (Try it doesn't book)"; booking off: hand-over to the team.
 - Chat: a booking conversation with the two calendar lines and the AI's replies.
-- Desktop 1280 px and mobile 360 px touch, light and dark: `calendar-shots.mjs` (44 shots, no page errors, no
+- Desktop 1280 px and mobile 360 px touch, light and dark: `calendar-shots.mjs` (80 shots, no page errors, no
   horizontal overflow).
 
 ## Not in this round

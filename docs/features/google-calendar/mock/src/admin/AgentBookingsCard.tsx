@@ -89,7 +89,7 @@ export function AgentBookingsCard({ agentId, name }: Readonly<{ agentId: string;
           <div className="flex flex-col items-start gap-3">
             <p className="text-sm text-muted-foreground">{t('mockCalendar.agentNotConnected')}</p>
             <Button asChild size="touch">
-              <Link to="/admin/settings/integrations">{t('mockCalendar.connect')}</Link>
+              <Link to="/admin/connectors/google-calendar">{t('mockCalendar.connect')}</Link>
             </Button>
           </div>
         )}
@@ -99,10 +99,10 @@ export function AgentBookingsCard({ agentId, name }: Readonly<{ agentId: string;
               <Banner tone="warning" title={t(`mockCalendar.agentPaused.${state}`)}>
                 {t('mockCalendar.agentPausedBody', { name })}{' '}
                 <Link
-                  to="/admin/settings/integrations"
+                  to="/admin/connectors/google-calendar"
                   className="text-primary underline-offset-4 hover:underline"
                 >
-                  {t('mockCalendar.openSettings')}
+                  {t('mockConnectors.gc.openAccount')}
                 </Link>
               </Banner>
             )}
@@ -236,7 +236,7 @@ export function AgentBookingsCard({ agentId, name }: Readonly<{ agentId: string;
                     id={ids.from}
                     type="time"
                     value={value.from}
-                    className="min-h-11 w-32"
+                    className="min-h-11 w-36"
                     onChange={(e) => set({ from: e.target.value })}
                   />
                 </div>
@@ -246,7 +246,7 @@ export function AgentBookingsCard({ agentId, name }: Readonly<{ agentId: string;
                     id={ids.to}
                     type="time"
                     value={value.to}
-                    className="min-h-11 w-32"
+                    className="min-h-11 w-36"
                     onChange={(e) => set({ to: e.target.value })}
                   />
                 </div>

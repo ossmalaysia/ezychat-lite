@@ -69,7 +69,7 @@ import { useSaveAgentMember, useShownAgents } from '../mock/useAgents';
 import { InboxChip } from '../inbox/InboxChip';
 import { AgentContextPanel } from './AgentContextPanel';
 import { AgentTryIt } from './AgentTryIt';
-import { AgentBookingsCard } from './AgentBookingsCard';
+import { AgentConnectorsCard } from './AgentConnectorsCard';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiEditDialog } from './AiEditDialog';
 import { AiQuickConnect } from './AiQuickConnect';
@@ -719,8 +719,8 @@ function AgentEditor({
         </div>
       )}
 
-      {/* Proposed (google-calendar): which calendar this agent books into, and its booking rules. */}
-      {agent && <AgentBookingsCard agentId={agent.id} name={draft.name.trim() || title} />}
+      {/* Proposed (google-calendar): this agent's connectors; settings live on each connector's page. */}
+      {agent && <AgentConnectorsCard agentId={agent.id} name={draft.name.trim() || title} />}
 
       {agent && (
         <Card id={SECTION_TRY} tabIndex={-1} className="scroll-mt-4 gap-4 outline-none">

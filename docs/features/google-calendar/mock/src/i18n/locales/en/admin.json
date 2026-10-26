@@ -1341,7 +1341,7 @@
     "unavailableBody": "EzyChat tries again on its own. Meanwhile the AI hands booking chats to your team.",
     "calendars": "Calendars in this account",
     "readOnly": "Read only",
-    "perAgent": "Choose the calendar and booking hours for each AI agent on its page.",
+    "perAgent": "Choose the calendar and booking hours for each AI agent in Settings.",
     "openAgent": "Open the AI agent",
     "disconnect": "Disconnect",
     "disconnectTitle": "Disconnect Google Calendar?",
@@ -1410,5 +1410,140 @@
     "mockExpired": "Sign-in expired",
     "mockDown": "Google unavailable",
     "consentMock": "Mock only: in the app this is Google's own sign-in page in a new window. Nothing is sent to Google here."
+  },
+  "mockConnectors": {
+    "title": "Connectors",
+    "description": "Connect your calendar and other systems so your AI agents can check and do more on their own. Each connector has its own page with its settings and activity.",
+    "searchLabel": "Search connectors",
+    "searchPlaceholder": "Search by name or what it does",
+    "categoryLabel": "Category",
+    "category": {
+      "all": "All",
+      "booking": "Calendar & booking",
+      "data": "Spreadsheets",
+      "payments": "Payments",
+      "commerce": "Online shop",
+      "custom": "Custom"
+    },
+    "status": {
+      "connected": "Connected",
+      "attention": "Needs attention",
+      "notConnected": "Not connected",
+      "comingSoon": "Coming soon",
+      "enterprise": "Enterprise"
+    },
+    "yours": "Your connectors",
+    "more": "More connectors",
+    "noMatch": "No connector matches",
+    "noMatchHint": "Try another word or category.",
+    "missing": "Missing a system you use? Tell us through Help & feedback.",
+    "breadcrumb": "Breadcrumb",
+    "notFound": "This connector does not exist.",
+    "backToGallery": "All connectors",
+    "byCore": "Built into EzyChat",
+    "byEnterprise": "EzyChat Enterprise",
+    "tabs": {
+      "overview": "Overview",
+      "settings": "Settings",
+      "activity": "Activity"
+    },
+    "aboutTitle": "What it does",
+    "aiCan": "What the AI can do",
+    "lookUp": "Look-up",
+    "changes": "Changes data",
+    "switchNote": "Tools that change data start off. You switch them on for each AI agent in Settings.",
+    "privacyTitle": "Your data",
+    "enterpriseOnly": "This connector is part of EzyChat Enterprise.",
+    "comingSoonTitle": "Coming soon",
+    "comingSoonBody": "It is not ready yet. This page shows what it will do.",
+    "custom": {
+      "setUpTitle": "Connect any system",
+      "setUpBody": "Paste the MCP server link your system or developer gave you, sign in, then choose per AI agent which tools it may use.",
+      "add": "Add a custom connector",
+      "mockToast": "Mock only: in Enterprise this opens Admin → Connectors → Add a system (the custom MCP connector)."
+    },
+    "forAgent": "Settings for",
+    "noAgent": "Add an AI agent first.",
+    "addAgent": "Add an AI agent",
+    "activityTitle": "Recent activity",
+    "activityHint": "What the AI checked and booked. Chat text is never kept here.",
+    "activityEmpty": "Nothing yet.",
+    "act": {
+      "checked": "{{agent}} checked free times for {{customer}}",
+      "booked": "{{agent}} booked {{when}} for {{customer}}",
+      "handed_over": "{{agent}} handed {{customer}}'s booking to the team"
+    },
+    "agentCard": {
+      "description": "Systems {{name}} can use while it chats. Settings are on each connector's page.",
+      "checkAndBook": "Checks free times and books",
+      "checkOnly": "Checks free times; your team books",
+      "off": "Off for this agent",
+      "none": "No connector yet.",
+      "browse": "Browse connectors"
+    },
+    "settingsPointerTitle": "Connectors moved",
+    "settingsPointer": "Google Calendar and other systems are in Admin → Connectors.",
+    "gc": {
+      "accountTitle": "Google account",
+      "accountDescription": "The Google account EzyChat uses. One account for the whole team.",
+      "openSettings": "Open Settings",
+      "openAccount": "Open the Google Calendar page"
+    },
+    "items": {
+      "google-calendar": {
+        "name": "Google Calendar",
+        "short": "Check free times and book appointments.",
+        "long": "Your AI agent offers free times from your Google Calendar and, if you allow it, books the time the customer confirms. Sign in with Google: no link to paste.",
+        "tools": {
+          "checkFree": "Check free times",
+          "checkFreeHint": "Reads when the chosen calendar is busy.",
+          "book": "Book appointments",
+          "bookHint": "Adds an event after the customer confirms a time."
+        },
+        "privacy": "EzyChat reads busy times of the calendar you choose and writes only the events it books: title, customer name and WhatsApp number. No chat text goes to Google. The sign-in is stored encrypted on this computer."
+      },
+      "google-sheets": {
+        "name": "Google Sheets",
+        "short": "Read prices or stock from a sheet; add new leads.",
+        "long": "Keep prices, stock or a FAQ in a Google Sheet and let the AI read it. It can also add each new lead as a row.",
+        "tools": {
+          "readRows": "Read rows",
+          "readRowsHint": "Looks up the rows that match the customer's question.",
+          "addLead": "Add a lead",
+          "addLeadHint": "Adds the customer's name, number and request as a row."
+        },
+        "privacy": "EzyChat reads only the sheet you choose and writes only the lead rows it adds."
+      },
+      "hitpay": {
+        "name": "HitPay",
+        "short": "Send payment links (FPX, DuitNow, PayNow).",
+        "long": "The AI sends a HitPay payment link for an order and tells your team when it is paid.",
+        "tools": {
+          "paymentLink": "Create a payment link",
+          "paymentLinkHint": "Creates a link for the amount your team or price list sets.",
+          "paymentStatus": "Check payment",
+          "paymentStatusHint": "Checks whether a link was paid."
+        },
+        "privacy": "EzyChat sends HitPay the amount, a reference and the customer's name; card and bank details stay with HitPay."
+      },
+      "shopify": {
+        "name": "Shopify",
+        "short": "Order status and stock from your online shop.",
+        "long": "Customers ask where their order is or whether an item is in stock; the AI looks it up in your Shopify shop.",
+        "tools": {
+          "orderStatus": "Order status",
+          "orderStatusHint": "Finds an order by number and the customer's phone.",
+          "productStock": "Product stock",
+          "productStockHint": "Checks price and stock of a product."
+        },
+        "privacy": "EzyChat only reads orders and products; it never changes your shop."
+      },
+      "custom-mcp": {
+        "name": "Custom connector (MCP)",
+        "short": "Connect any system that offers an MCP server.",
+        "long": "For your own systems: paste an MCP server link, sign in, and choose per AI agent which of its tools the AI may use. Tools that change data start off.",
+        "privacy": "EzyChat sends the system only what a tool asks for in one chat turn."
+      }
+    }
   }
 }

@@ -1333,7 +1333,7 @@
     "unavailableBody": "EzyChat cuba lagi dengan sendirinya. Sementara itu AI menyerahkan sembang tempahan kepada pasukan anda.",
     "calendars": "Kalendar dalam akaun ini",
     "readOnly": "Baca sahaja",
-    "perAgent": "Pilih kalendar dan waktu tempahan untuk setiap ejen AI di halamannya.",
+    "perAgent": "Pilih kalendar dan waktu tempahan untuk setiap ejen AI dalam Tetapan.",
     "openAgent": "Buka ejen AI",
     "disconnect": "Putuskan sambungan",
     "disconnectTitle": "Putuskan sambungan Google Calendar?",
@@ -1402,5 +1402,140 @@
     "mockExpired": "Sign-in expired",
     "mockDown": "Google unavailable",
     "consentMock": "Mock only: in the app this is Google's own sign-in page in a new window. Nothing is sent to Google here."
+  },
+  "mockConnectors": {
+    "title": "Penyambung",
+    "description": "Sambungkan kalendar dan sistem lain supaya ejen AI anda boleh menyemak dan melakukan lebih banyak sendiri. Setiap penyambung ada halamannya sendiri dengan tetapan dan aktiviti.",
+    "searchLabel": "Cari penyambung",
+    "searchPlaceholder": "Cari ikut nama atau fungsi",
+    "categoryLabel": "Kategori",
+    "category": {
+      "all": "Semua",
+      "booking": "Kalendar & tempahan",
+      "data": "Hamparan",
+      "payments": "Bayaran",
+      "commerce": "Kedai dalam talian",
+      "custom": "Tersuai"
+    },
+    "status": {
+      "connected": "Disambung",
+      "attention": "Perlu perhatian",
+      "notConnected": "Tidak disambung",
+      "comingSoon": "Akan datang",
+      "enterprise": "Enterprise"
+    },
+    "yours": "Penyambung anda",
+    "more": "Penyambung lain",
+    "noMatch": "Tiada penyambung sepadan",
+    "noMatchHint": "Cuba perkataan atau kategori lain.",
+    "missing": "Sistem anda tiada? Beritahu kami melalui Bantuan & maklum balas.",
+    "breadcrumb": "Laluan",
+    "notFound": "Penyambung ini tidak wujud.",
+    "backToGallery": "Semua penyambung",
+    "byCore": "Terbina dalam EzyChat",
+    "byEnterprise": "EzyChat Enterprise",
+    "tabs": {
+      "overview": "Gambaran",
+      "settings": "Tetapan",
+      "activity": "Aktiviti"
+    },
+    "aboutTitle": "Apa fungsinya",
+    "aiCan": "Apa yang AI boleh lakukan",
+    "lookUp": "Semakan",
+    "changes": "Mengubah data",
+    "switchNote": "Alat yang mengubah data bermula dimatikan. Anda menghidupkannya untuk setiap ejen AI dalam Tetapan.",
+    "privacyTitle": "Data anda",
+    "enterpriseOnly": "Penyambung ini sebahagian daripada EzyChat Enterprise.",
+    "comingSoonTitle": "Akan datang",
+    "comingSoonBody": "Ia belum sedia. Halaman ini menunjukkan apa yang akan dilakukannya.",
+    "custom": {
+      "setUpTitle": "Sambung mana-mana sistem",
+      "setUpBody": "Tampal pautan pelayan MCP yang diberi oleh sistem atau pembangun anda, log masuk, kemudian pilih alat yang boleh digunakan oleh setiap ejen AI.",
+      "add": "Tambah penyambung tersuai",
+      "mockToast": "Mock only: in Enterprise this opens Admin → Connectors → Add a system (the custom MCP connector)."
+    },
+    "forAgent": "Tetapan untuk",
+    "noAgent": "Tambah ejen AI dahulu.",
+    "addAgent": "Tambah ejen AI",
+    "activityTitle": "Aktiviti terkini",
+    "activityHint": "Apa yang AI semak dan tempah. Teks sembang tidak pernah disimpan di sini.",
+    "activityEmpty": "Belum ada apa-apa.",
+    "act": {
+      "checked": "{{agent}} menyemak masa lapang untuk {{customer}}",
+      "booked": "{{agent}} menempah {{when}} untuk {{customer}}",
+      "handed_over": "{{agent}} menyerahkan tempahan {{customer}} kepada pasukan"
+    },
+    "agentCard": {
+      "description": "Sistem yang boleh digunakan oleh {{name}} semasa bersembang. Tetapan ada di halaman setiap penyambung.",
+      "checkAndBook": "Menyemak masa lapang dan menempah",
+      "checkOnly": "Menyemak masa lapang; pasukan anda menempah",
+      "off": "Dimatikan untuk ejen ini",
+      "none": "Belum ada penyambung.",
+      "browse": "Lihat penyambung"
+    },
+    "settingsPointerTitle": "Penyambung telah dipindahkan",
+    "settingsPointer": "Google Calendar dan sistem lain ada di Pentadbir → Penyambung.",
+    "gc": {
+      "accountTitle": "Akaun Google",
+      "accountDescription": "Akaun Google yang digunakan oleh EzyChat. Satu akaun untuk seluruh pasukan.",
+      "openSettings": "Buka Tetapan",
+      "openAccount": "Buka halaman Google Calendar"
+    },
+    "items": {
+      "google-calendar": {
+        "name": "Google Calendar",
+        "short": "Semak masa lapang dan buat tempahan.",
+        "long": "Ejen AI anda menawarkan masa lapang daripada Google Calendar anda dan, jika anda benarkan, menempah masa yang disahkan pelanggan. Log masuk dengan Google: tiada pautan untuk ditampal.",
+        "tools": {
+          "checkFree": "Semak masa lapang",
+          "checkFreeHint": "Membaca bila kalendar yang dipilih sibuk.",
+          "book": "Buat tempahan",
+          "bookHint": "Menambah acara selepas pelanggan mengesahkan masa."
+        },
+        "privacy": "EzyChat membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, nama pelanggan dan nombor WhatsApp. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara disulitkan di komputer ini."
+      },
+      "google-sheets": {
+        "name": "Google Sheets",
+        "short": "Baca harga atau stok daripada hamparan; tambah petunjuk baharu.",
+        "long": "Simpan harga, stok atau Soalan Lazim dalam Google Sheet dan biar AI membacanya. Ia juga boleh menambah setiap petunjuk baharu sebagai baris.",
+        "tools": {
+          "readRows": "Baca baris",
+          "readRowsHint": "Mencari baris yang sepadan dengan soalan pelanggan.",
+          "addLead": "Tambah petunjuk",
+          "addLeadHint": "Menambah nama, nombor dan permintaan pelanggan sebagai baris."
+        },
+        "privacy": "EzyChat hanya membaca hamparan yang anda pilih dan hanya menulis baris petunjuk yang ditambahnya."
+      },
+      "hitpay": {
+        "name": "HitPay",
+        "short": "Hantar pautan bayaran (FPX, DuitNow, PayNow).",
+        "long": "AI menghantar pautan bayaran HitPay untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
+        "tools": {
+          "paymentLink": "Cipta pautan bayaran",
+          "paymentLinkHint": "Mencipta pautan untuk jumlah yang ditetapkan pasukan atau senarai harga anda.",
+          "paymentStatus": "Semak bayaran",
+          "paymentStatusHint": "Menyemak sama ada pautan telah dibayar."
+        },
+        "privacy": "EzyChat menghantar jumlah, rujukan dan nama pelanggan kepada HitPay; butiran kad dan bank kekal dengan HitPay."
+      },
+      "shopify": {
+        "name": "Shopify",
+        "short": "Status pesanan dan stok daripada kedai dalam talian anda.",
+        "long": "Pelanggan bertanya di mana pesanan mereka atau sama ada barang ada stok; AI menyemaknya dalam kedai Shopify anda.",
+        "tools": {
+          "orderStatus": "Status pesanan",
+          "orderStatusHint": "Mencari pesanan mengikut nombor dan telefon pelanggan.",
+          "productStock": "Stok produk",
+          "productStockHint": "Menyemak harga dan stok produk."
+        },
+        "privacy": "EzyChat hanya membaca pesanan dan produk; ia tidak pernah mengubah kedai anda."
+      },
+      "custom-mcp": {
+        "name": "Penyambung tersuai (MCP)",
+        "short": "Sambung mana-mana sistem yang menawarkan pelayan MCP.",
+        "long": "Untuk sistem anda sendiri: tampal pautan pelayan MCP, log masuk, dan pilih alat yang boleh digunakan oleh setiap ejen AI. Alat yang mengubah data bermula dimatikan.",
+        "privacy": "EzyChat hanya menghantar kepada sistem apa yang diminta oleh alat dalam satu giliran sembang."
+      }
+    }
   }
 }

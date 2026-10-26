@@ -5,7 +5,7 @@ Branch: `claude/sleepy-fermat-ahpoii` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | HTML mock docs/features/google-calendar (44 shots, drift check ok); waiting for owner confirmation | 027a03e | 2026-10-26 |
+| Design | doing | Round 2: connector gallery + one page per connector (80 shots, drift check ok); waiting for owner confirmation | 31f4838 | 2026-10-26 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `claude/sleepy-fermat-ahpoii` · Every agent updates its stage with
 ## Log
 
 - 2026-10-26 Design: doing — HTML mock docs/features/google-calendar (44 shots, drift check ok); waiting for owner confirmation (027a03e)
+- 2026-10-26 Design: doing — Round 2: connector gallery + one page per connector (80 shots, drift check ok); waiting for owner confirmation (31f4838)

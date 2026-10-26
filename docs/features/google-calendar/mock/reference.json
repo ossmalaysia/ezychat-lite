@@ -62,7 +62,8 @@
     "src/i18n/locales/zh-CN/admin.json",
     "src/i18n/locales/en/inbox.json",
     "src/i18n/locales/ms/inbox.json",
-    "src/i18n/locales/zh-CN/inbox.json"
+    "src/i18n/locales/zh-CN/inbox.json",
+    "src/admin/AdminLayout.tsx"
   ],
   "addedFrontend": [
     "src/admin/InboxAccess.tsx",
@@ -94,12 +95,20 @@
     "src/mock/phrases.ts",
     "src/admin/GoogleCalendarSection.tsx",
     "src/admin/AgentBookingsCard.tsx",
-    "src/mock/googleCalendar.ts"
+    "src/mock/googleCalendar.ts",
+    "src/admin/AgentConnectorsCard.tsx",
+    "src/admin/ConnectorsGalleryPage.tsx",
+    "src/admin/ConnectorDetailPage.tsx",
+    "src/mock/connectorCatalog.ts"
   ],
   "proposalAdded": [
     "src/admin/GoogleCalendarSection.tsx",
     "src/admin/AgentBookingsCard.tsx",
-    "src/mock/googleCalendar.ts"
+    "src/admin/AgentConnectorsCard.tsx",
+    "src/admin/ConnectorsGalleryPage.tsx",
+    "src/admin/ConnectorDetailPage.tsx",
+    "src/mock/googleCalendar.ts",
+    "src/mock/connectorCatalog.ts"
   ],
   "baselineProposal": {
     "feature": "ai-phrase-dictionary",
@@ -259,10 +268,6 @@
     }
   ],
   "inheritedUnchanged": [
-    {
-      "path": "src/admin/AdminLayout.tsx",
-      "sha256": "86a0e75d266feaddb014bf989ba052b5678203ecbb5ea6438fba367d343fb1a8"
-    },
     {
       "path": "src/admin/AgentContextPanel.tsx",
       "sha256": "4e23a733671474c5edcdc9cdfad4ce54ea2f2ee030abeb5169314693d1961e92"

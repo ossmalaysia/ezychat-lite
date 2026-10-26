@@ -45,12 +45,24 @@ export interface MockBookingRecord {
   title: string;
 }
 
+/** One line of the connector's Activity tab (never the chat text). */
+export interface MockCalendarActivity {
+  at: number;
+  kind: 'checked' | 'booked' | 'handed_over';
+  agent: string;
+  customer: string;
+  /** booked: the event's start and end. */
+  start?: string;
+  end?: string;
+}
+
 export interface MockGoogleCalendarState {
   state: MockGoogleState;
   account: string | null;
   calendars: MockCalendar[];
   agents: Record<string, MockAgentBooking>;
   bookings: MockBookingRecord[];
+  activity: MockCalendarActivity[];
 }
 
 const ACCOUNT = 'kopiapong.penang@gmail.com';
@@ -82,6 +94,7 @@ export function registerGoogleCalendar(app: FastifyInstance, ctx: AppContext) {
     calendars: CALENDARS,
     agents: { a1: { ...DEFAULT_BOOKING, book: true } },
     bookings: [],
+    activity: demoActivity(),
   };
   const view = (): MockGoogleCalendarState => ({
     ...store,
@@ -127,4 +140,27 @@ export function registerGoogleCalendar(app: FastifyInstance, ctx: AppContext) {
       store.bookings.push(booking);
     },
   };
+}
+
+/** Demo Activity: the booked chat of the seed (Lim Mei Ying) and two earlier lines. */
+function demoActivity(): MockCalendarActivity[] {
+  const now = Date.now();
+  const friday = new Date(now);
+  friday.setUTCDate(friday.getUTCDate() + ((5 - friday.getUTCDay() + 7) % 7 || 7));
+  const start = new Date(
+    Date.UTC(friday.getUTCFullYear(), friday.getUTCMonth(), friday.getUTCDate(), 11, 30),
+  );
+  const end = new Date(start.getTime() + 90 * 60_000);
+  return [
+    {
+      at: now - 60_000,
+      kind: 'booked',
+      agent: 'Aina',
+      customer: 'Lim Mei Ying',
+      start: start.toISOString(),
+      end: end.toISOString(),
+    },
+    { at: now - 120_000, kind: 'checked', agent: 'Aina', customer: 'Lim Mei Ying' },
+    { at: now - 26 * 3_600_000, kind: 'handed_over', agent: 'Aina', customer: 'Farah Aziz' },
+  ];
 }
