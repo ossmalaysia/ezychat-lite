@@ -22,8 +22,16 @@ export const ReplySuggestionsStatus = z.object({
 });
 export type ReplySuggestionsStatus = z.infer<typeof ReplySuggestionsStatus>;
 
-/** `PUT /api/ai/reply-suggestions` (admins only). */
-export const ReplySuggestionsBody = z.strictObject({ enabled: z.boolean() });
+/** `PUT /api/ai/reply-suggestions` (admins only): the switch and/or the model for suggestions. */
+export const ReplySuggestionsBody = z
+  .strictObject({
+    enabled: z.boolean().optional(),
+    /** `fast`, `agent` or one model id of the connection (see `ReplySuggestModelInfo`). */
+    model: z.string().trim().min(1).max(64).optional(),
+  })
+  .refine((body) => body.enabled !== undefined || body.model !== undefined, {
+    message: 'Send enabled or model',
+  });
 export type ReplySuggestionsBody = z.infer<typeof ReplySuggestionsBody>;
 
 export const REPLY_SUGGESTION_LABEL_CHARACTERS = 40;

@@ -3,6 +3,7 @@ import type {
   AiAgentBody,
   AiAgentPreset,
   ReplyCompleteResult,
+  ReplySuggestModelInfo,
   ReplySuggestionsResult,
   AiAgentStatus,
   AiAgentSummary,
@@ -103,7 +104,14 @@ import {
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 import { CompletionOutput, DraftOutput, buildDraftPrompt } from './draft-prompt.js';
 import { acceptDrafts, checkCompletion, type CompletionDrop } from './draft-check.js';
-import { replySuggestionsEnabled } from './reply-suggestions-setting.js';
+import {
+  AGENT_SUGGEST_MODEL,
+  FAST_SUGGEST_MODEL,
+  replySuggestionsEnabled,
+  replySuggestionsModel,
+} from './reply-suggestions-setting.js';
+import { CHATGPT_FAST_DRAFT_MODELS, DRAFT_FAST_MODELS } from './agent/draft.js';
+import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 
 /**
@@ -273,6 +281,23 @@ export interface AiService {
     request: { kind: 'complete'; typed: string },
     signal: AbortSignal,
   ): Promise<ReplyCompleteResult>;
+  /** The "Model for suggestions" choice: the saved value, the models it may name, what calls use. */
+  suggestModelInfo(): ReplySuggestModelInfo;
+  /** `fast`, `agent` or a model of the current connection. */
+  isSuggestModel(model: string): boolean;
+  /**
+   * One phrase-list build for an agent (the phrase worker calls it): its business context, AI
+   * instructions, the cleaned team replies and the stored phrases into one structured call on the
+   * "Model for suggestions" model. Returns the AI's candidates and what the checks need.
+   */
+  buildPhrases(
+    agentId: number,
+    input: {
+      teamReplies: readonly string[];
+      existing: readonly { text: string; language: string }[];
+    },
+    signal: AbortSignal,
+  ): Promise<{ output: PhraseOutput; model: string; business: string; internalTexts: string[] }>;
   shutdown(): Promise<void>;
 }
 
@@ -281,6 +306,8 @@ export const AI_COMPLETION_TIMEOUT_MS = 3_000;
 /** A completion sees only this many of the last chat messages (plus the typed text). */
 export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
+/** One phrase-list build (a larger structured answer, in the background). */
+const AI_PHRASE_BUILD_TIMEOUT_MS = 120_000;
 
 declare module '../context.js' {
   interface Services {
@@ -390,6 +417,47 @@ export function createAiService(
   };
   /** The shared connection (mode, model) as the provider reads it. */
   const settings = (): AiSettings => settingsFor(defaultAgent(ctx.db));
+  /** Models the "Model for suggestions" choice may name, for the current connection. */
+  const suggestModels = (current: AiSettings): string[] => {
+    if (current.mode === 'claude') return [...CLAUDE_MODELS];
+    if (current.mode === 'api')
+      return [
+        ...new Set([
+          DRAFT_FAST_MODELS.api,
+          current.model || OPENAI_DEFAULT_MODEL,
+          'gpt-4.1',
+          'gpt-5.5',
+        ]),
+      ];
+    return [...(provider.knownModels?.() ?? CHATGPT_FALLBACK_MODELS)];
+  };
+  /** The saved model of the connection (Auto = the first listed ChatGPT model). */
+  const agentModel = (current: AiSettings): string =>
+    current.mode === 'claude'
+      ? claudeModelId(current)
+      : current.mode === 'api'
+        ? current.model || OPENAI_DEFAULT_MODEL
+        : current.model || suggestModels(current)[0]!;
+  const fastModel = (current: AiSettings): string =>
+    current.mode === 'chatgpt'
+      ? (CHATGPT_FAST_DRAFT_MODELS.find((id) => suggestModels(current).includes(id)) ??
+        agentModel(current))
+      : DRAFT_FAST_MODELS[current.mode];
+  /**
+   * The settings and `fast` flag a draft call uses, from the "Model for suggestions" choice. A model
+   * that the connection no longer lists (the mode changed) falls back to the fast model.
+   */
+  const draftChoice = (current: AiSettings): { settings: AiSettings; fast: boolean } => {
+    const choice = replySuggestionsModel(ctx.settings);
+    if (choice === AGENT_SUGGEST_MODEL) return { settings: current, fast: false };
+    if (choice !== FAST_SUGGEST_MODEL && suggestModels(current).includes(choice))
+      return { settings: { ...current, model: choice }, fast: false };
+    return { settings: current, fast: true };
+  };
+  const resolvedSuggestModel = (current: AiSettings): string => {
+    const { settings: chosen, fast } = draftChoice(current);
+    return fast ? fastModel(current) : agentModel(chosen);
+  };
   const installId = () => {
     let id = ctx.settings.get<string | null>(INSTALL_ID_KEY, null);
     if (typeof id !== 'string' || !id) {
@@ -1883,6 +1951,59 @@ export function createAiService(
       );
       return result;
     },
+    suggestModelInfo() {
+      const current = settings();
+      return {
+        model: replySuggestionsModel(ctx.settings),
+        fastModel: fastModel(current),
+        agentModel: agentModel(current),
+        models: suggestModels(current),
+        resolved: resolvedSuggestModel(current),
+      };
+    },
+    isSuggestModel(model) {
+      return (
+        model === FAST_SUGGEST_MODEL ||
+        model === AGENT_SUGGEST_MODEL ||
+        suggestModels(settings()).includes(model)
+      );
+    },
+    async buildPhrases(agentId, input, signal) {
+      if (service.draftConnection() !== 'ready' || !gateOpen())
+        throw new HttpError(503, 'ai_unavailable', 'The AI connection is not available now');
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      const current = settingsFor(agent);
+      const saved = contextItems(agent.id);
+      const items = splitKnowledge(saved);
+      const business = relevantKnowledge(items.business, '');
+      const prompt = {
+        ...buildPhrasePrompt({
+          instructions: administratorInstructions({ ...current, preset: agent.preset }),
+          businessKnowledge: business,
+          teamReplies: input.teamReplies,
+          existingPhrases: input.existing,
+        }),
+        cacheId: `${installId()}#agent:${agent.id}#phrases`,
+      };
+      const choice = draftChoice(current);
+      const answer = await provider.draft!(
+        choice.settings,
+        aiApiKey(ctx.settings),
+        prompt,
+        { schema: PhraseOutput, fast: choice.fast, maxOutputTokens: 8_000 },
+        AbortSignal.any([signal, AbortSignal.timeout(AI_PHRASE_BUILD_TIMEOUT_MS)]),
+      );
+      return {
+        output: answer.output,
+        model: answer.model,
+        // Facts may come from the business context and the administrator instructions.
+        business: [business, administratorInstructions({ ...current, preset: agent.preset })].join(
+          '\n',
+        ),
+        internalTexts: saved.filter((item) => item.internal).map((item) => item.text),
+      };
+    },
     draftConnection() {
       if (!provider.draft) return 'none';
       const mode = aiProviderSettings(ctx.settings).mode;
@@ -1951,6 +2072,7 @@ export function createAiService(
         }),
         cacheId: `${installId()}#agent:${agent?.id ?? 0}`,
       };
+      const choice = draftChoice(current);
       const started = Date.now();
       let model: string | null = null;
       let count = 0;
@@ -1969,10 +2091,10 @@ export function createAiService(
         if (request.kind === 'suggest') {
           try {
             const answer = await provider.draft!(
-              current,
+              choice.settings,
               aiApiKey(ctx.settings),
               prompt,
-              { schema: DraftOutput, fast: true, maxOutputTokens: 2_000 },
+              { schema: DraftOutput, fast: choice.fast, maxOutputTokens: 2_000 },
               AbortSignal.any([signal, AbortSignal.timeout(AI_SUGGESTION_TIMEOUT_MS)]),
             );
             model = answer.model;
@@ -1995,10 +2117,10 @@ export function createAiService(
         const timer = setTimeout(() => bound.abort(), AI_COMPLETION_TIMEOUT_MS);
         try {
           const answer = await provider.draft!(
-            current,
+            choice.settings,
             aiApiKey(ctx.settings),
             prompt,
-            { schema: CompletionOutput, fast: true, maxOutputTokens: 300 },
+            { schema: CompletionOutput, fast: choice.fast, maxOutputTokens: 300 },
             AbortSignal.any([signal, bound.signal]),
           );
           model = answer.model;
