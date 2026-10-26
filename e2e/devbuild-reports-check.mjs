@@ -40,9 +40,12 @@ const call = async (method, path, body, cookie = admin) => {
 };
 
 let failed = 0;
+/** Server values on one line (a line break could fake an extra result line). */
+const oneLine = (value) => String(value).replace(/[\r\n]+/g, ' ');
 const check = (label, ok, detail = '') => {
   if (!ok) failed++;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}`);
+  const suffix = detail ? `: ${oneLine(detail)}` : '';
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${suffix}`); // NOSONAR (jssecurity:S5145): local check output, line breaks removed
 };
 
 const before = (await call('GET', '/reports?days=7')).body;
