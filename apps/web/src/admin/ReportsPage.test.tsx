@@ -95,7 +95,13 @@ function report(overrides: Partial<Report> = {}): Report {
   };
 }
 
-const ready = (data: Report) => ({ data, isPending: false, isError: false, refetch: vi.fn() });
+const ready = (data: Report) => ({
+  data,
+  isPending: false,
+  isError: false,
+  isSuccess: true,
+  refetch: vi.fn(),
+});
 
 function renderPage() {
   return render(

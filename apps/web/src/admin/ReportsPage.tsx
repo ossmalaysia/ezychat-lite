@@ -75,13 +75,9 @@ export function ReportsPage() {
           </>
         }
       />
-      {report.isPending ? (
-        <ReportSkeleton />
-      ) : report.isError ? (
-        <ErrorState error={report.error} onRetry={() => void report.refetch()} />
-      ) : (
-        <ReportBody report={report.data} />
-      )}
+      {report.isPending && <ReportSkeleton />}
+      {report.isError && <ErrorState error={report.error} onRetry={() => void report.refetch()} />}
+      {report.isSuccess && <ReportBody report={report.data} />}
     </div>
   );
 }
@@ -366,7 +362,7 @@ function Stat({
       >
         {value}
       </p>
-      {delta && delta.pct === 0 && (
+      {delta?.pct === 0 && (
         <p className="text-xs text-muted-foreground">{t('reports.same', { count: delta.days })}</p>
       )}
       {delta && delta.pct !== 0 && (

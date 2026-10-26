@@ -151,9 +151,7 @@ export function DailyChart({ daily }: { daily: ReportDay[] }) {
   const [selected, setSelected] = useState<ReportDay | null>(null);
   const shown = selected ?? busiest;
   // First, middle and last day, each once (a short period has fewer).
-  const ticks = [
-    ...new Set([daily[0]!, daily[Math.floor(daily.length / 2)]!, daily[daily.length - 1]!]),
-  ];
+  const ticks = [...new Set([daily[0]!, daily[Math.floor(daily.length / 2)]!, daily.at(-1)!])];
   return (
     <div className="flex flex-col gap-2" onPointerLeave={onMouseLeave(() => setSelected(null))}>
       <p className="min-h-5 text-sm" aria-live="polite" data-testid="daily-readout">
@@ -186,12 +184,9 @@ export function DailyChart({ daily }: { daily: ReportDay[] }) {
             >
               <div
                 className={cn(
-                  'w-full rounded-t-[2px] transition-colors',
-                  d.date === shown.date
-                    ? 'bg-foreground'
-                    : weekdayOf(d.date) >= 5
-                      ? 'bg-primary/40'
-                      : 'bg-primary',
+                  'w-full rounded-t-[2px] bg-primary transition-colors',
+                  weekdayOf(d.date) >= 5 && 'bg-primary/40',
+                  d.date === shown.date && 'bg-foreground',
                 )}
                 style={{ height: `${Math.max(d.inbound ? 2 : 0, (d.inbound / max) * 100)}%` }}
               />

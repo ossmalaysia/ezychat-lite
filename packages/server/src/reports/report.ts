@@ -1,6 +1,6 @@
 import { MISSED_LEAD_MS, type Report, type ReportPeriod, type ReportTotals } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
-import { computeInboxActivity } from '../chats/activity.js';
+import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { inboxCondition, localDate, localMidnight } from '../chats/stats.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 
@@ -151,7 +151,40 @@ export function computeReport(db: DB, opts: Options): Report {
         )
       : null;
 
-  // Days shown: from the period start or the first stored message, whichever is later.
+  const reasons = new Map<string, number>();
+  for (const h of auditRows('ai.handoff', from, now + 1)) {
+    const reason = typeof h.reason === 'string' ? h.reason : 'unknown';
+    reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+
+  return {
+    days,
+    timeZone,
+    firstDate: firstAt === null ? null : localDate(firstAt, timeZone),
+    linkedDate: linked === null ? null : localDate(linked, timeZone),
+    totals,
+    previous,
+    waitingAfterHandoff: waitingAfterHandoff(db, scope, only),
+    ...dayBuckets(starts, firstAt, timeZone, messages, starters),
+    handoffReasons: [...reasons]
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
+    team: teamRows(db, activity.responders),
+  };
+}
+
+/**
+ * The days shown (from the period start or the first stored message, whichever is later), with
+ * messages, new customers and active chats per day; per weekday and hour the average messages from
+ * customers over the days of that weekday shown.
+ */
+function dayBuckets(
+  starts: readonly number[],
+  firstAt: number | null,
+  timeZone: string,
+  messages: ReadonlyArray<{ chat: string; fromMe: 0 | 1; at: number }>,
+  starters: ReadonlyArray<{ at: number }>,
+): Pick<Report, 'daily' | 'weekdays' | 'hours'> {
   let shownFrom = starts.length - 1; // no messages yet: no days
   if (firstAt !== null) {
     shownFrom = 0;
@@ -163,6 +196,21 @@ export function computeReport(db: DB, opts: Options): Report {
     while (i > 0 && shown[i]! > t) i--;
     return i;
   };
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    weekday: 'short',
+    hourCycle: 'h23',
+  });
+  const local = (t: number) => {
+    let hour = 0;
+    let weekday = 0;
+    for (const p of parts.formatToParts(t)) {
+      if (p.type === 'hour') hour = Number(p.value);
+      else if (p.type === 'weekday') weekday = WEEKDAYS.indexOf(p.value);
+    }
+    return { hour, weekday };
+  };
   const daily = shown.map((start) => ({
     date: localDate(start + DAY_MS / 2, timeZone),
     inbound: 0,
@@ -171,53 +219,45 @@ export function computeReport(db: DB, opts: Options): Report {
     activeChats: 0,
   }));
   const chatsPerDay = shown.map(() => new Set<string>());
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour: 'numeric',
-    weekday: 'short',
-    hourCycle: 'h23',
-  });
   const hours = Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
-  const weekdayTotals = Array.from({ length: 7 }, () => ({ inbound: 0, chats: 0 }));
-  if (shown.length) {
-    for (const m of messages) {
-      if (m.at < shown[0]!) continue;
-      const i = dayIndex(m.at);
-      const day = daily[i]!;
-      chatsPerDay[i]!.add(m.chat);
-      if (m.fromMe === 1) {
-        day.outbound++;
-        continue;
-      }
-      day.inbound++;
-      let hour = 0;
-      let weekday = 0;
-      for (const p of parts.formatToParts(m.at)) {
-        if (p.type === 'hour') hour = Number(p.value);
-        else if (p.type === 'weekday') weekday = WEEKDAYS.indexOf(p.value);
-      }
+  const first = shown[0] ?? Infinity;
+  for (const m of messages) {
+    if (m.at < first) continue;
+    const i = dayIndex(m.at);
+    chatsPerDay[i]!.add(m.chat);
+    if (m.fromMe === 1) {
+      daily[i]!.outbound++;
+    } else {
+      daily[i]!.inbound++;
+      const { weekday, hour } = local(m.at);
       hours[weekday]![hour]!++;
     }
-    for (const s of starters) if (s.at >= shown[0]!) daily[dayIndex(s.at)]!.newCustomers++;
   }
+  for (const s of starters) if (s.at >= first) daily[dayIndex(s.at)]!.newCustomers++;
+
   const weekdayDays = new Array<number>(7).fill(0);
+  const weekdayTotals = Array.from({ length: 7 }, () => ({ inbound: 0, chats: 0 }));
   daily.forEach((day, i) => {
     day.activeChats = chatsPerDay[i]!.size;
-    const wd = WEEKDAYS.indexOf(
-      parts.formatToParts(shown[i]! + DAY_MS / 2).find((p) => p.type === 'weekday')!.value,
-    );
-    weekdayDays[wd]!++;
-    weekdayTotals[wd]!.inbound += day.inbound;
-    weekdayTotals[wd]!.chats += day.activeChats;
+    const { weekday } = local(shown[i]! + DAY_MS / 2);
+    weekdayDays[weekday]!++;
+    weekdayTotals[weekday]!.inbound += day.inbound;
+    weekdayTotals[weekday]!.chats += day.activeChats;
   });
   const average = (sum: number, n: number) => (n ? Math.round((sum / n) * 10) / 10 : 0);
+  return {
+    daily,
+    weekdays: weekdayTotals.map((w, weekday) => ({
+      weekday,
+      avgInbound: average(w.inbound, weekdayDays[weekday]!),
+      avgChats: average(w.chats, weekdayDays[weekday]!),
+    })),
+    hours: hours.map((row, wd) => row.map((n) => average(n, weekdayDays[wd]!))),
+  };
+}
 
-  const reasons = new Map<string, number>();
-  for (const h of auditRows('ai.handoff', from, now + 1)) {
-    const reason = typeof h.reason === 'string' ? h.reason : 'unknown';
-    reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
-  }
-
+/** Team rows from the responders of `computeInboxActivity`: members, AI agents and the phone. */
+function teamRows(db: DB, responders: InboxActivity['responders']): Report['team'] {
   const users = new Map(
     (
       db.prepare('SELECT id, display_name AS name, kind FROM users').all() as Array<{
@@ -227,44 +267,20 @@ export function computeReport(db: DB, opts: Options): Report {
       }>
     ).map((u) => [u.id, u]),
   );
-
-  return {
-    days,
-    timeZone,
-    firstDate: firstAt === null ? null : localDate(firstAt, timeZone),
-    linkedDate: linked === null ? null : localDate(linked, timeZone),
-    totals,
-    previous,
-    waitingAfterHandoff: waitingAfterHandoff(db, scope, only),
-    daily,
-    weekdays: weekdayTotals.map((w, weekday) => ({
-      weekday,
-      avgInbound: average(w.inbound, weekdayDays[weekday]!),
-      avgChats: average(w.chats, weekdayDays[weekday]!),
-    })),
-    hours: hours.map((row, wd) => row.map((n) => average(n, weekdayDays[wd]!))),
-    handoffReasons: [...reasons]
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
-    team: activity.responders
-      .filter((r) => r.messages > 0)
-      .map((r) => {
-        const user = r.userId === null ? undefined : users.get(r.userId);
-        return {
-          userId: r.userId,
-          name: user?.name ?? '',
-          kind:
-            r.userId === null
-              ? ('phone' as const)
-              : user?.kind === 'ai'
-                ? ('ai' as const)
-                : ('human' as const),
-          chats: r.chats,
-          replies: r.messages,
-          medianReplyMinutes: r.firstReplyMinutes.median,
-        };
-      }),
+  const kindOf = (userId: number | null): Report['team'][number]['kind'] => {
+    if (userId === null) return 'phone';
+    return users.get(userId)?.kind === 'ai' ? 'ai' : 'human';
   };
+  return responders
+    .filter((r) => r.messages > 0)
+    .map((r) => ({
+      userId: r.userId,
+      name: (r.userId === null ? undefined : users.get(r.userId)?.name) ?? '',
+      kind: kindOf(r.userId),
+      chats: r.chats,
+      replies: r.messages,
+      medianReplyMinutes: r.firstReplyMinutes.median,
+    }));
 }
 
 /**
