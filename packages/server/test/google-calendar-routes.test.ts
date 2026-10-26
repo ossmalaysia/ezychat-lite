@@ -480,4 +480,18 @@ describe('without the fake Google', () => {
     expect(url.searchParams.get('client_id')).toBe('cid.apps.googleusercontent.com');
     expect(start.authorizationUrl).not.toContain('shh');
   });
+
+  it('uses real Google with --fake-wa when a Google app is configured (Dev Build)', async () => {
+    t = await makeTestApp({
+      config: {
+        fakeWa: true,
+        port: 7420,
+        googleOAuth: { clientId: 'cid.apps.googleusercontent.com', clientSecret: 'shh' },
+      },
+    });
+    const admin = await createUserAndLogin(t, { role: 'admin' });
+    const start = (await post('/api/connectors/google-calendar/connect', admin.cookie)).json();
+    expect(new URL(start.authorizationUrl).origin).toBe('https://accounts.google.com');
+    expect((await post('/api/dev/fake-google-calendar', admin.cookie, {})).statusCode).toBe(404);
+  });
 });

@@ -49,23 +49,28 @@ export function recordOffers(
   })();
 }
 
-/** The latest still-valid offer of this exact time in this chat by this agent. */
-export function findOffer(
+/**
+ * The still-valid offers of this exact time in this chat by this agent, newest first. The AI may
+ * check free times again in the turn that books, so a newer offer can follow the customer's answer.
+ */
+export function findOffers(
   db: DB,
   agentId: number,
   chatJid: string,
   start: number,
   now: number,
-): { start: number; end: number; offeredAt: number } | null {
-  const row = db
+): { start: number; end: number; offeredAt: number }[] {
+  return db
     .prepare(
       `SELECT start_at AS start, end_at AS end, offered_at AS offeredAt FROM calendar_offers
        WHERE agent_id = ? AND chat_jid = ? AND start_at = ? AND offered_at >= ?
-       ORDER BY offered_at DESC, id DESC LIMIT 1`,
+       ORDER BY offered_at DESC, id DESC`,
     )
-    .get(agentId, chatJid, start, now - OFFER_TTL_MS) as
-    { start: number; end: number; offeredAt: number } | undefined;
-  return row ?? null;
+    .all(agentId, chatJid, start, now - OFFER_TTL_MS) as {
+    start: number;
+    end: number;
+    offeredAt: number;
+  }[];
 }
 
 /** The customer's latest offer time in this chat within 24 h (for the hand-over line), or null. */

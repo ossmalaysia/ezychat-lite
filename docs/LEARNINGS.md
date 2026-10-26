@@ -901,6 +901,10 @@ into AGENTS.md.
 - Voice notes are transcribed before the AI decides (bounded wait on `pending`); an untranscribed
   one gets one "please type it" reply, and the code, not the model, hands off a repeat. The
   model's structured output has no `unsupported_message` reason, so the server maps it.
+- A server guard that compares a tool's earlier result with "the customer wrote since" must accept any
+  earlier offer, not only the newest: real models call the read tool again in the turn that acts
+  (check free times, then book), which records a newer offer after the customer's answer. Mock-model
+  scripts must include that re-check, and test against real Google/model in the owner test env.
 - Prompt layers: safety rules live in the fixed system prompt and state that administrator instructions
   never override them; editable instructions hold role, scope and style only, company facts go in the
   Business context, and hand-offs are structured actions, never text markers (they would reach the

@@ -245,6 +245,30 @@ describe('Google Calendar AI tools (live)', () => {
     expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM calendar_bookings').get()).toEqual({ n: 1 });
   });
 
+  it('books a confirmed time when the AI checks free times again in the booking turn', async () => {
+    const actor = await setUp({ booking: { book: true } });
+    t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);
+    let offered: Array<{ start: string; time: string }> = [];
+    script = async (tools, signal) => {
+      offered = freeTimes(await call(tools, 'check_free_times', {}, signal));
+      return { reply: `Free: ${offered[0]!.time}`, action: 'answer' };
+    };
+    await customerSays('in-1', 'Can I book a table today?');
+
+    // the re-check records the same times again, after the customer's answer
+    let booked = '';
+    script = async (tools, signal) => {
+      await call(tools, 'check_free_times', {}, signal);
+      booked = await call(tools, 'book_appointment', { start: offered[0]!.start }, signal);
+      return { reply: 'Booked for 12.', action: 'answer' };
+    };
+    await customerSays('in-2', '12 please, book it');
+    expect(booked).toBe(
+      'Booked: Monday 2026-10-26 12:00–13:00. Confirm this time to the customer.',
+    );
+    expect(fake().events).toHaveLength(1);
+  });
+
   it('refuses times that were not offered, became busy or break the rules, and garbage input', async () => {
     const actor = await setUp({ booking: { book: true }, context: true });
     t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);

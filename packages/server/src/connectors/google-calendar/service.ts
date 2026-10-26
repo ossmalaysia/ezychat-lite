@@ -37,7 +37,7 @@ import {
   addActivity,
   bookedSince,
   customerRepliedSince,
-  findOffer,
+  findOffers,
   handedOverSince,
   hasBooking,
   insertBooking,
@@ -127,11 +127,12 @@ export function createGoogleCalendarService(
 ) {
   const log = ctx.log.child({ mod: 'google-calendar' });
   const now = options.now ?? Date.now;
-  // The fake replaces Google only with --fake-wa (never in service mode: parseArgs refuses it).
+  // The fake replaces Google only with --fake-wa (never in service mode: parseArgs refuses it) and
+  // no Google app configured: a Dev Build with GOOGLE_OAUTH_CLIENT_ID/_SECRET talks to real Google.
   const fake =
     options.fake !== undefined
       ? options.fake
-      : ctx.config.fakeWa && ctx.config.mode !== 'service'
+      : ctx.config.fakeWa && ctx.config.mode !== 'service' && !ctx.config.googleOAuth
         ? new FakeGoogle()
         : null;
   const client: GoogleClient | null =
@@ -565,11 +566,13 @@ export function createGoogleCalendarService(
       const settings = usable(agentId);
       if (!settings?.book) return { ok: false, reason: 'outside_rules' };
       const at = now();
-      const offer = findOffer(ctx.db, agentId, chatJid, start, at);
-      if (!offer) return { ok: false, reason: 'not_offered' };
-      const slot = { start: offer.start, end: offer.start + settings.lengthMin * 60_000 };
+      const offers = findOffers(ctx.db, agentId, chatJid, start, at);
+      if (!offers.length) return { ok: false, reason: 'not_offered' };
+      const slot = { start, end: start + settings.lengthMin * 60_000 };
       if (hasBooking(ctx.db, chatJid, slot.start)) return { ok: true, ...slot, already: true };
-      if (!customerRepliedSince(ctx.db, chatJid, offer.offeredAt))
+      // The customer must have written after one of the offers of this time (not only after the
+      // newest: the AI may re-check free times in the same turn, after the customer's answer).
+      if (!offers.some((offer) => customerRepliedSince(ctx.db, chatJid, offer.offeredAt)))
         return { ok: false, reason: 'no_reply_since' };
       if (!withinRules(slot, settings, timeZone(), at))
         return { ok: false, reason: 'outside_rules' };
