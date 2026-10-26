@@ -83,7 +83,13 @@ describe('Google Calendar: Overview', () => {
       'Overview',
       'Settings',
       'Activity',
+      'Bookings',
     ]);
+    const open = screen.getByRole('link', { name: 'Open Google Calendar' });
+    expect(open.getAttribute('href')).toBe(
+      'https://calendar.google.com/calendar/r?authuser=kopiapong%40gmail.com',
+    );
+    expect(open.getAttribute('target')).toBe('_blank');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Open Settings' }));
     expect(location()).toBe(`${GC}?tab=settings`);
@@ -365,5 +371,82 @@ describe('Google Calendar: Activity', () => {
     stubServer(world());
     page(`${GC}?tab=activity`);
     expect(await screen.findByText('Nothing yet.')).toBeTruthy();
+  });
+});
+
+describe('Google Calendar: Bookings', () => {
+  const booking = (id: number, day: number, customer: string) => ({
+    id,
+    agentId: 1,
+    agentName: 'Aina',
+    chatJid: `6012345678${id}@s.whatsapp.net`,
+    customer,
+    start: new Date(2026, 9, day, 14).toISOString(),
+    end: new Date(2026, 9, day, 15).toISOString(),
+    createdAt: Date.now(),
+    eventUrl: `https://calendar.google.com/calendar/event?eid=e${id}&authuser=kopiapong%40gmail.com`,
+  });
+
+  it('lists upcoming and past bookings with the chat and the Google Calendar event', async () => {
+    stubServer(
+      world({
+        calendarBookings: {
+          upcoming: [booking(2, 30, 'Mei Ying'), booking(3, 31, '')],
+          past: [booking(1, 20, 'Ahmad')],
+          calendarUrl: 'https://calendar.google.com/calendar/r?authuser=kopiapong%40gmail.com',
+        },
+      }),
+    );
+    page(`${GC}?tab=bookings`);
+    const upcoming = await screen.findByTestId('bookings-upcoming');
+    const rows = within(upcoming).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByText(/^Fri,? 30 Oct, 14:00–15:00$/)).toBeTruthy();
+    expect(within(rows[0]!).getByText('Mei Ying')).toBeTruthy();
+    expect(within(rows[0]!).getByText('Booked by Aina')).toBeTruthy();
+    // no saved name: a neutral label, never an empty line
+    expect(within(rows[1]!).getByText('Customer')).toBeTruthy();
+    expect(within(rows[0]!).getByRole('link', { name: 'Open chat' }).getAttribute('href')).toBe(
+      '/chats/60123456782%40s.whatsapp.net',
+    );
+    const event = within(rows[0]!).getByRole('link', { name: 'Open in Google Calendar' });
+    expect(event.getAttribute('href')).toBe(booking(2, 30, '').eventUrl);
+    expect(event.getAttribute('target')).toBe('_blank');
+    expect(event.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(within(screen.getByTestId('bookings-past')).getByText('Ahmad')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open Google Calendar' })).toBeTruthy();
+  });
+
+  it('says when nothing is upcoming, and has no past list without past bookings', async () => {
+    stubServer(
+      world({
+        calendarBookings: { upcoming: [], past: [booking(1, 20, 'Ahmad')], calendarUrl: null },
+      }),
+    );
+    page(`${GC}?tab=bookings`);
+    expect(await screen.findByText('No upcoming bookings.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Open Google Calendar' })).toBeNull();
+    cleanup();
+    stubServer(
+      world({
+        calendarBookings: { upcoming: [booking(2, 30, 'Mei Ying')], past: [], calendarUrl: null },
+      }),
+    );
+    page(`${GC}?tab=bookings`);
+    await screen.findByTestId('bookings-upcoming');
+    expect(screen.queryByTestId('bookings-past')).toBeNull();
+  });
+
+  it('explains the empty tab and still opens Google Calendar', async () => {
+    stubServer(world());
+    page(`${GC}?tab=bookings`);
+    expect(await screen.findByText('No bookings yet.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open Google Calendar' })).toBeTruthy();
+  });
+
+  it('shows a load error with Retry', async () => {
+    stubServer(world({ fail: { 'GET /connectors/google-calendar/bookings': 500 } }));
+    page(`${GC}?tab=bookings`);
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 });

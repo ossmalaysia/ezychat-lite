@@ -113,3 +113,20 @@ Lite view, business connectors with Vote, agent summary, Try it, booked chat); m
 Open questions without an answer take the defaults: **Book appointments off by default**; the event holds the
 customer's name and WhatsApp number; **reminders are not in this round** (proposal: part of the Google Calendar
 connector, see `docs/backlog.md`); the vote number `601159246128` is confirmed.
+
+## Round 5: Bookings tab (owner, 2026-10-27, built without a mock)
+
+After the first real booking the owner asked for a simple way to see the bookings and open Google Calendar, chose
+"Bookings tab + links" over "links only" and "full calendar view", and **waived the mock for this round** ("no need
+mock, just build"). The confirmed mock (`f46aab9`) therefore has no Bookings tab; the real screens are the
+reference: `docs/screenshots/connectors/google-calendar-bookings-*.png`.
+
+- **Bookings** tab after Activity: "Bookings by the AI", **Open Google Calendar**, Upcoming (soonest first, not
+  ended yet) and Past 30 days (newest first); each row: time, customer, "Booked by <agent>", **Open chat** and
+  **Open in Google Calendar** (the event's link, `eid` = base64url("<event id> <calendar id>"), `authuser` =
+  the connected account).
+- The account card on Overview also has **Open Google Calendar**.
+- Data: EzyChat's own `calendar_bookings` rows (`GET /api/connectors/google-calendar/bookings`, admins); no Google
+  call, no event details read, so the privacy policy and the Google review stay true. Changes made in Google
+  Calendar (moved or deleted events) do not show; the tab says so.
+- Full calendar view: not built (it would read every event title: new privacy text and Google review).

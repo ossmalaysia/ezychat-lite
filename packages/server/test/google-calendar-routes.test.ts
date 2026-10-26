@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_BOOKING_SETTINGS } from '@ezychat/shared';
+import { CalendarBookingList, DEFAULT_BOOKING_SETTINGS, googleCalendarUrl } from '@ezychat/shared';
 import { listAgents } from '../src/ai/agents.js';
 import {
   createGoogleCalendarService,
   TOKENS_SETTING,
 } from '../src/connectors/google-calendar/service.js';
 import { FakeGoogle } from '../src/connectors/google-calendar/fake.js';
-import { addActivity } from '../src/connectors/google-calendar/repo.js';
+import { addActivity, insertBooking } from '../src/connectors/google-calendar/repo.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -82,6 +82,7 @@ describe('Google Calendar routes', () => {
       ['GET', `/api/connectors/google-calendar/agents/${agentId}`],
       ['PUT', `/api/connectors/google-calendar/agents/${agentId}`],
       ['GET', '/api/connectors/google-calendar/activity'],
+      ['GET', '/api/connectors/google-calendar/bookings'],
       ['POST', '/api/dev/fake-google-calendar'],
     ] as const;
     for (const [method, url] of urls) {
@@ -438,6 +439,58 @@ describe('Google Calendar routes', () => {
       end: new Date(6000).toISOString(),
     });
     expect(activity[0]).toMatchObject({ agentName: '', customer: '', start: null });
+  });
+
+  it('lists the bookings: upcoming soonest first, the past 30 days newest first, with Google links', async () => {
+    const DAY = 86_400_000;
+    const clock = { now: Date.UTC(2026, 9, 27, 6) };
+    const { admin, agentId } = await setUp({}, clock);
+    const url = '/api/connectors/google-calendar/bookings';
+    expect((await get(url, admin)).json()).toEqual({ upcoming: [], past: [], calendarUrl: null });
+
+    const jid = '60123456789@s.whatsapp.net';
+    t.ctx.services.chats!.upsertFromWa({ jid, type: 'dm', name: 'Mei Ying' });
+    const add = (eventId: string, start: number) =>
+      insertBooking(
+        t.ctx.db,
+        { agentId, chatJid: jid, eventId, calendarId: BOOKINGS, start, end: start + 3_600_000 },
+        clock.now - DAY,
+      );
+    add('later', clock.now + 2 * DAY);
+    add('soon', clock.now + 3_600_000);
+    add('now', clock.now - 1_800_000); // still running: upcoming
+    add('yesterday', clock.now - DAY);
+    add('lastWeek', clock.now - 7 * DAY);
+    add('tooOld', clock.now - 31 * DAY);
+
+    const list = CalendarBookingList.parse((await get(url, admin)).json());
+    const ids = (rows: typeof list.upcoming) =>
+      rows.map((b) =>
+        Buffer.from(new URL(b.eventUrl).searchParams.get('eid')!, 'base64url').toString(),
+      );
+    expect(ids(list.upcoming)).toEqual([
+      `now ${BOOKINGS}`,
+      `soon ${BOOKINGS}`,
+      `later ${BOOKINGS}`,
+    ]);
+    expect(ids(list.past)).toEqual([`yesterday ${BOOKINGS}`, `lastWeek ${BOOKINGS}`]);
+    expect(list.upcoming[0]).toMatchObject({
+      agentId,
+      agentName: 'Aina',
+      chatJid: jid,
+      customer: 'Mei Ying',
+      start: new Date(clock.now - 1_800_000).toISOString(),
+      createdAt: clock.now - DAY,
+    });
+    // not connected: no account to open, so the links carry no authuser
+    expect(list.calendarUrl).toBeNull();
+    expect(new URL(list.upcoming[0]!.eventUrl).searchParams.has('authuser')).toBe(false);
+
+    await connect(admin);
+    const connected = CalendarBookingList.parse((await get(url, admin)).json());
+    const account = (await get('/api/connectors/google-calendar', admin)).json().account as string;
+    expect(connected.calendarUrl).toBe(googleCalendarUrl(account));
+    expect(new URL(connected.past[0]!.eventUrl).searchParams.get('authuser')).toBe(account);
   });
 });
 

@@ -52,8 +52,8 @@ function redirectUri(req: FastifyRequest, ctx: AppContext): string {
 }
 
 /**
- * Core connectors (Admin → Connectors). Google Calendar: sign-in, per-agent booking settings and
- * the activity list (admins), and Google's redirect back (this computer only, no session).
+ * Core connectors (Admin → Connectors). Google Calendar: sign-in, per-agent booking settings, the
+ * activity and bookings lists (admins), and Google's redirect back (this computer only, no session).
  */
 export default async function connectorsRoutes(app: FastifyInstance, ctx: AppContext) {
   const calendar = getGoogleCalendar(ctx);
@@ -109,6 +109,8 @@ export default async function connectorsRoutes(app: FastifyInstance, ctx: AppCon
   app.get('/connectors/google-calendar/activity', admin, async () => ({
     activity: calendar.activity(),
   }));
+
+  app.get('/connectors/google-calendar/bookings', admin, async () => calendar.bookings());
 
   // Fake Google (--fake-wa only): the consent page and a switch for the connector's states.
   const fake = calendar.fake;

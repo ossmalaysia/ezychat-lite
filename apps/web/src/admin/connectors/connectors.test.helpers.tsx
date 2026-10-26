@@ -8,6 +8,7 @@ import {
   type AiAgentSummary,
   type BookingSettings,
   type CalendarActivity,
+  type CalendarBookingList,
   type GoogleCalendarConnectProgress,
   type GoogleCalendarStatus,
 } from '@ezychat/shared';
@@ -58,6 +59,8 @@ export interface World {
   agents: AiAgentSummary[];
   bookings: Record<number, BookingSettings>;
   activity: CalendarActivity[];
+  /** The Bookings tab's list. */
+  calendarBookings: CalendarBookingList;
   /** Answers to the sign-in polls, in order (the last one repeats). */
   progress: GoogleCalendarConnectProgress[];
   /** Fail a path with this status (e.g. 500). */
@@ -70,6 +73,11 @@ export function world(patch: Partial<World> = {}): World {
     agents: [agent(1, 'Aina')],
     bookings: {},
     activity: [],
+    calendarBookings: {
+      upcoming: [],
+      past: [],
+      calendarUrl: 'https://calendar.google.com/calendar/r?authuser=kopiapong%40gmail.com',
+    },
     progress: [{ status: 'done', error: null }],
     ...patch,
   };
@@ -103,6 +111,7 @@ export function stubServer(w: World) {
       return json(w.bookings[id] ?? DEFAULT_BOOKING_SETTINGS);
     }
     if (path === '/connectors/google-calendar/activity') return json({ activity: w.activity });
+    if (path === '/connectors/google-calendar/bookings') return json(w.calendarBookings);
     if (path === '/ai/agents') return json({ agents: w.agents, maxAgents: 5 });
     return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
   });

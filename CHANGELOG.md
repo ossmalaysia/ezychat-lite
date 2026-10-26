@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   booking hours per AI agent, and the AI offers free times from that calendar. With **Book appointments** on
   (off by default) it adds the event once the customer confirms one of the offered times; EzyChat checks the time
   is still free just before it books. The chat shows "AI checked free times" and "AI booked …", Try it never
-  books, and the AI never cancels or moves a booking (it hands those chats to your team).
+  books, and the AI never cancels or moves a booking (it hands those chats to your team). The **Bookings** tab
+  lists the upcoming and recent bookings the AI made, each with **Open chat** and **Open in Google Calendar**;
+  **Open Google Calendar** is also on the connector's Overview.
 - **Reports for admins.** Admin → Reports shows how busy your WhatsApp is and how fast your team and AI
   answer, for the last 7, 30 or 90 days: new customers, messages from customers, first reply time, new
   customers missed (no reply within 1 hour), chats still waiting after the AI handed them to the team (with

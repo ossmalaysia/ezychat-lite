@@ -931,6 +931,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A button inside shadcn `CardHeader` stretches to the card width (the header is a grid, so `self-start` does
+  nothing): put it in `CardContent` (a flex column) or the `CardAction` slot; check the screenshot, not the code.
 - Review a chart with one data point too (a new install's first day): a flex bar fills the whole chart and an
   SVG area becomes a triangle. Cap bar widths and draw a single point as a bar or dot.
 - Hover readouts on charts (or any pointer-driven detail) clear only on a `pointerType === 'mouse'` leave: on

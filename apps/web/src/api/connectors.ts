@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BookingSettings,
   CalendarActivityList,
+  CalendarBookingList,
   GoogleCalendarConnectProgress,
   GoogleCalendarConnectStart,
   GoogleCalendarStatus,
@@ -13,6 +14,7 @@ export const googleCalendarKey = ['connectors', 'google-calendar'] as const;
 export const bookingSettingsKey = (agentId: number) =>
   [...googleCalendarKey, 'agent', agentId] as const;
 export const calendarActivityKey = [...googleCalendarKey, 'activity'] as const;
+export const calendarBookingsKey = [...googleCalendarKey, 'bookings'] as const;
 
 export function useGoogleCalendar(enabled = true) {
   return useQuery({
@@ -77,6 +79,16 @@ export function useSaveBookingSettings(agentId: number) {
         schema: BookingSettings,
       }),
     onSuccess: (saved) => qc.setQueryData(bookingSettingsKey(agentId), saved),
+  });
+}
+
+/** Bookings tab: the events the AI added (EzyChat's own records) and links into Google Calendar. */
+export function useCalendarBookings(enabled = true) {
+  return useQuery({
+    queryKey: calendarBookingsKey,
+    queryFn: ({ signal }) =>
+      api('/connectors/google-calendar/bookings', { signal, schema: CalendarBookingList }),
+    enabled,
   });
 }
 

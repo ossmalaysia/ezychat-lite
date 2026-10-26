@@ -1469,7 +1469,8 @@
     "tabs": {
       "overview": "Overview",
       "settings": "Settings",
-      "activity": "Activity"
+      "activity": "Activity",
+      "bookings": "Bookings"
     },
     "aboutTitle": "What it does",
     "aiCan": "What the AI can do",
@@ -1724,6 +1725,20 @@
       "rule4": "Try it never books: it shows what the AI would book.",
       "save": "Save bookings",
       "saved": "Booking settings saved"
+    },
+    "bookings": {
+      "title": "Bookings by the AI",
+      "hint": "Events the AI added to Google Calendar. Changes made in Google Calendar do not show here.",
+      "upcoming": "Upcoming",
+      "past": "Past 30 days",
+      "noneUpcoming": "No upcoming bookings.",
+      "empty": "No bookings yet.",
+      "emptyHint": "When the AI books a time that a customer confirms, the booking shows here.",
+      "by": "Booked by {{agent}}",
+      "openChat": "Open chat",
+      "openEvent": "Open in Google Calendar",
+      "openCalendar": "Open Google Calendar",
+      "unknownCustomer": "Customer"
     }
   },
   "reports": {

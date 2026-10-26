@@ -9,7 +9,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
   BookingSettings,
+  googleCalendarUrl,
   type CalendarActivity,
+  type CalendarBooking,
+  type CalendarBookingList,
   type Chat,
   type GoogleCalendarConnectProgress,
   type GoogleCalendarConnectStart,
@@ -43,7 +46,9 @@ import {
   insertBooking,
   lastOffer,
   listActivity,
+  listBookings,
   readSettings,
+  type BookingRow,
   recordOffers,
   writeSettings,
 } from './repo.js';
@@ -104,6 +109,20 @@ export type BookResult =
 
 const WRITABLE = new Set(['owner', 'writer']);
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
+
+/**
+ * Google Calendar's link to one event: `eid` is base64url("<event id> <calendar id>"), the form of
+ * the event's `htmlLink`; `authuser` picks the account when the browser has several.
+ */
+export function googleEventUrl(
+  eventId: string,
+  calendarId: string,
+  account: string | null,
+): string {
+  const eid = Buffer.from(`${eventId} ${calendarId}`).toString('base64url');
+  const user = account ? `&authuser=${encodeURIComponent(account)}` : '';
+  return `https://calendar.google.com/calendar/event?eid=${eid}${user}`;
+}
 
 export function toItem(entry: GoogleCalendarEntry): GoogleCalendarItem {
   return {
@@ -519,6 +538,31 @@ export function createGoogleCalendarService(
 
     activity(): CalendarActivity[] {
       return listActivity(ctx.db);
+    },
+
+    /**
+     * Bookings tab: EzyChat's own records of the events the AI added (no Google call). Links open
+     * the connected account (`authuser`); after a disconnect the event links stay, without it.
+     */
+    bookings(): CalendarBookingList {
+      const account = (configured() ? loadTokens()?.account : null) ?? null;
+      const toBooking = (row: BookingRow): CalendarBooking => ({
+        id: row.id,
+        agentId: row.agentId,
+        agentName: row.agentName,
+        chatJid: row.chatJid,
+        customer: row.customer,
+        start: new Date(row.start).toISOString(),
+        end: new Date(row.end).toISOString(),
+        createdAt: row.createdAt,
+        eventUrl: googleEventUrl(row.eventId, row.calendarId, account),
+      });
+      const { upcoming, past } = listBookings(ctx.db, now());
+      return {
+        upcoming: upcoming.map(toBooking),
+        past: past.map(toBooking),
+        calendarUrl: account ? googleCalendarUrl(account) : null,
+      };
     },
 
     /** Re-reads the account (dev route: after the fake's state changed). */

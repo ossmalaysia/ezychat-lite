@@ -127,6 +127,40 @@ export type CalendarActivity = z.infer<typeof CalendarActivity>;
 export const CalendarActivityList = z.object({ activity: z.array(CalendarActivity) });
 export type CalendarActivityList = z.infer<typeof CalendarActivityList>;
 
+/** One event the AI added (Bookings tab): EzyChat's own record, never read back from Google. */
+export const CalendarBooking = z.object({
+  id: z.number().int(),
+  agentId: z.number().int(),
+  agentName: z.string(),
+  chatJid: z.string(),
+  /** The customer's saved or WhatsApp name (shown to admins only). */
+  customer: z.string(),
+  start: z.string(),
+  end: z.string(),
+  /** When the AI booked it (ms). */
+  createdAt: z.number().int(),
+  /** Opens this event in Google Calendar, in the connected account. */
+  eventUrl: z.string().url(),
+});
+export type CalendarBooking = z.infer<typeof CalendarBooking>;
+
+/**
+ * `GET /api/connectors/google-calendar/bookings` (admins): `upcoming` soonest first (at most 100),
+ * `past` of the last 30 days newest first (at most 50); `calendarUrl` opens the connected account's
+ * Google Calendar (null when no account is connected).
+ */
+export const CalendarBookingList = z.object({
+  upcoming: z.array(CalendarBooking),
+  past: z.array(CalendarBooking),
+  calendarUrl: z.string().url().nullable(),
+});
+export type CalendarBookingList = z.infer<typeof CalendarBookingList>;
+
+/** Google Calendar of `account` (`authuser` picks it when the browser has several Google accounts). */
+export function googleCalendarUrl(account: string): string {
+  return `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(account)}`;
+}
+
 /**
  * The calendar part of an `ai_tool_used` chat event ("AI checked free times · Google Calendar",
  * "AI booked Fri, 30 Oct, 7:30–9:00 pm · Google Calendar").

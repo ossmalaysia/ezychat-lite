@@ -1460,7 +1460,8 @@
     "tabs": {
       "overview": "Gambaran",
       "settings": "Tetapan",
-      "activity": "Aktiviti"
+      "activity": "Aktiviti",
+      "bookings": "Tempahan"
     },
     "aboutTitle": "Fungsinya",
     "aiCan": "Apa yang AI boleh buat",
@@ -1712,6 +1713,20 @@
       "rule4": "Cuba tidak pernah menempah: ia menunjukkan apa yang akan ditempah oleh AI.",
       "save": "Simpan tempahan",
       "saved": "Tetapan tempahan disimpan"
+    },
+    "bookings": {
+      "title": "Tempahan oleh AI",
+      "hint": "Acara yang AI tambah ke Google Calendar. Perubahan yang dibuat dalam Google Calendar tidak dipaparkan di sini.",
+      "upcoming": "Akan datang",
+      "past": "30 hari lepas",
+      "noneUpcoming": "Tiada tempahan akan datang.",
+      "empty": "Belum ada tempahan.",
+      "emptyHint": "Apabila AI menempah masa yang disahkan oleh pelanggan, tempahan itu dipaparkan di sini.",
+      "by": "Ditempah oleh {{agent}}",
+      "openChat": "Buka sembang",
+      "openEvent": "Buka dalam Google Calendar",
+      "openCalendar": "Buka Google Calendar",
+      "unknownCustomer": "Pelanggan"
     }
   },
   "reports": {

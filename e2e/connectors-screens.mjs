@@ -99,6 +99,9 @@ for (const scheme of ['light', 'dark'])
     await gc('activity');
     await page.getByTestId('calendar-activity').waitFor();
     await shot('05-gc-activity');
+    await gc('bookings');
+    await page.getByText('Bookings by the AI').or(page.getByText('No bookings yet.')).waitFor();
+    await shot('15-gc-bookings', { fullPage: true });
     await fakeState('expired');
     await gc();
     await shot('06-gc-expired', { fullPage: true });

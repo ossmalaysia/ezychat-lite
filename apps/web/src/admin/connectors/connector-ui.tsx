@@ -91,3 +91,28 @@ export function VoteButton({ name, size = 'touch' }: { name: string; size?: 'sm'
     </Button>
   );
 }
+
+/** "Open Google Calendar" / "Open in Google Calendar": opens Google in the browser (outside the app). */
+export function GoogleCalendarLink({
+  href,
+  label,
+  variant = 'outline',
+}: {
+  href: string;
+  label: string;
+  variant?: 'outline' | 'ghost';
+}) {
+  return (
+    <Button
+      asChild
+      variant={variant}
+      size="sm"
+      className="min-h-9 self-start pointer-coarse:min-h-11"
+    >
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {label}
+        <ExternalLink aria-hidden />
+      </a>
+    </Button>
+  );
+}

@@ -1459,7 +1459,8 @@
     "tabs": {
       "overview": "概览",
       "settings": "设置",
-      "activity": "活动"
+      "activity": "活动",
+      "bookings": "预约记录"
     },
     "aboutTitle": "功能说明",
     "aiCan": "AI 可以做什么",
@@ -1711,6 +1712,20 @@
       "rule4": "试一试从不预约：只显示 AI 会预约的内容。",
       "save": "保存预约设置",
       "saved": "预约设置已保存"
+    },
+    "bookings": {
+      "title": "AI 完成的预约",
+      "hint": "AI 添加到 Google Calendar 的日程。在 Google Calendar 中所做的更改不会显示在这里。",
+      "upcoming": "即将到来",
+      "past": "过去 30 天",
+      "noneUpcoming": "没有即将到来的预约。",
+      "empty": "暂无预约。",
+      "emptyHint": "AI 预约了客户确认的时间后，预约会显示在这里。",
+      "by": "由 {{agent}} 预约",
+      "openChat": "打开聊天",
+      "openEvent": "在 Google Calendar 中打开",
+      "openCalendar": "打开 Google Calendar",
+      "unknownCustomer": "客户"
     }
   },
   "reports": {

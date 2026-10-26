@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Check, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { GoogleCalendarConnectProgress, GoogleCalendarStatus } from '@ezychat/shared';
+import {
+  googleCalendarUrl,
+  type GoogleCalendarConnectProgress,
+  type GoogleCalendarStatus,
+} from '@ezychat/shared';
 import { errorMessage } from '../../api/client';
 import {
   googleCalendarKey,
@@ -17,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog, ErrorState, ListSkeleton, Pending } from '../adminUi';
+import { GoogleCalendarLink } from './connector-ui';
 
 interface Signing {
   requestId: string;
@@ -200,14 +205,22 @@ export function GoogleCalendarAccountCard({
                 </Button>
               )}
             </p>
-            <Button
-              size="touch"
-              variant="outline"
-              className="self-start"
-              onClick={() => setConfirmDisconnect(true)}
-            >
-              {t('connectors.gc.disconnect')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {data.account && (
+                <GoogleCalendarLink
+                  href={googleCalendarUrl(data.account)}
+                  label={t('connectors.bookings.openCalendar')}
+                />
+              )}
+              <Button
+                size="touch"
+                variant="outline"
+                className="self-start"
+                onClick={() => setConfirmDisconnect(true)}
+              >
+                {t('connectors.gc.disconnect')}
+              </Button>
+            </div>
           </>
         )}
         {flow.signing && (

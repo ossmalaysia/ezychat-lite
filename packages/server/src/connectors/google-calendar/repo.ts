@@ -11,6 +11,48 @@ import type { DB } from '../../db/index.js';
 /** An offer stays bookable this long. */
 export const OFFER_TTL_MS = 24 * 3_600_000;
 export const ACTIVITY_LIMIT = 50;
+/** Bookings tab: the next 100 bookings and the past 30 days (at most 50). */
+export const UPCOMING_LIMIT = 100;
+export const PAST_LIMIT = 50;
+export const PAST_DAYS_MS = 30 * 86_400_000;
+
+export interface BookingRow {
+  id: number;
+  agentId: number;
+  agentName: string;
+  chatJid: string;
+  customer: string;
+  eventId: string;
+  calendarId: string;
+  start: number;
+  end: number;
+  createdAt: number;
+}
+
+/**
+ * The events the AI added: `upcoming` (not ended yet) soonest first, `past` (ended in the last 30
+ * days) newest first. Names from the agent's user row and the chat (saved name first).
+ */
+export function listBookings(db: DB, now: number): { upcoming: BookingRow[]; past: BookingRow[] } {
+  const select = `SELECT b.id, b.agent_id AS agentId, COALESCE(u.display_name, '') AS agentName,
+         b.chat_jid AS chatJid, COALESCE(NULLIF(TRIM(p.name), ''), c.name, '') AS customer,
+         b.event_id AS eventId, b.calendar_id AS calendarId, b.start_at AS start, b.end_at AS end,
+         b.created_at AS createdAt
+       FROM calendar_bookings b
+       LEFT JOIN ai_agents g ON g.id = b.agent_id
+       LEFT JOIN users u ON u.id = g.user_id
+       LEFT JOIN chats c ON c.jid = b.chat_jid
+       LEFT JOIN customer_profiles p ON p.chat_jid = b.chat_jid`;
+  const upcoming = db
+    .prepare(`${select} WHERE b.end_at > ? ORDER BY b.start_at, b.id LIMIT ?`)
+    .all(now, UPCOMING_LIMIT) as BookingRow[];
+  const past = db
+    .prepare(
+      `${select} WHERE b.end_at <= ? AND b.end_at > ? ORDER BY b.start_at DESC, b.id DESC LIMIT ?`,
+    )
+    .all(now, now - PAST_DAYS_MS, PAST_LIMIT) as BookingRow[];
+  return { upcoming, past };
+}
 
 export function readSettings(db: DB, agentId: number): BookingSettings {
   const row = db

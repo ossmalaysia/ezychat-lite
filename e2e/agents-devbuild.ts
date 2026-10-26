@@ -3,8 +3,9 @@
 // The mock model answers from what it was given, so a check can read the prompt back from the reply:
 //   "[<name>] guard=<yes|no> business=<MARK-… words seen> internal=<MARK-… words seen>"
 // A customer message containing LEAK makes it repeat its internalKnowledge (the leak check must stop it).
-// Google Calendar (fake Google): BOOK calls check_free_times and offers the first time; CONFIRM calls
-// book_appointment with the first time offered in that chat and repeats what the tool said.
+// Google Calendar (fake Google): BOOK calls check_free_times and offers the first time; CONFIRM checks
+// the free times again, then calls book_appointment with the first time offered in that chat and
+// repeats what the tool said.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
@@ -92,6 +93,9 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
   }
   if (last.includes('CONFIRM')) {
     const start = offered.get(chatKey);
+    // Like real models: check the free times again in the turn that books (a newer offer after the
+    // customer's answer must not block the booking).
+    if (start) await runTool(prompt, 'check_free_times', {}, signal);
     const output = start ? await runTool(prompt, 'book_appointment', { start }, signal) : null;
     return { reply: output === null ? 'book=not-offered' : output, action: 'answer' };
   }
