@@ -1,5 +1,5 @@
 import type { DB } from '../db/index.js';
-import { inboxCondition, localDate, localMidnight } from './stats.js';
+import { inboxCondition, localClock, localDate, localMidnight } from './stats.js';
 
 /** A customer message after this much silence in its chat starts a new conversation. */
 export const CONVERSATION_GAP_MS = 12 * 60 * 60 * 1000;
@@ -106,44 +106,30 @@ export function computeInboxActivity(
     )
     .all(lookback, opts.now) as Row[];
   // A wait can be open for longer than the lookback: per chat, the first customer message after
-  // the last team reply before it (from the whole history).
-  const openWaits = new Map(
-    (
-      db
-        .prepare(
-          `WITH last_reply AS (
-             SELECT chat_jid, timestamp AS t, rowid AS r FROM (
-               SELECT m.chat_jid, m.timestamp, m.rowid, ROW_NUMBER() OVER (
-                 PARTITION BY m.chat_jid ORDER BY m.timestamp DESC, m.rowid DESC) AS n
-               FROM messages m WHERE m.from_me = 1 AND ${counted} AND m.timestamp < ?
-             ) WHERE n = 1
-           )
-           SELECT m.chat_jid AS chat, MIN(m.timestamp) AS since FROM messages m
-           LEFT JOIN last_reply lr ON lr.chat_jid = m.chat_jid
-           WHERE m.from_me = 0 AND ${counted} AND m.timestamp < ?
-             AND (lr.t IS NULL OR m.timestamp > lr.t OR (m.timestamp = lr.t AND m.rowid > lr.r))
-           GROUP BY m.chat_jid`,
-        )
-        .all(lookback, lookback) as Array<{ chat: string; since: number }>
-    ).map((w) => [w.chat, w.since]),
+  // the last team reply before it (from the whole history). Only chats with messages in the period
+  // need it, and each look-up walks the (chat_jid, timestamp) index instead of the whole history.
+  const lastReply = db.prepare(
+    `SELECT m.timestamp AS t, m.rowid AS r FROM messages m
+     WHERE m.chat_jid = ? AND m.from_me = 1 AND ${counted} AND m.timestamp < ?
+     ORDER BY m.timestamp DESC, m.rowid DESC LIMIT 1`,
   );
+  // The lower bound (the last reply's time, or -1) lets SQLite walk only that slice of the index.
+  const firstWaiting = db.prepare(
+    `SELECT MIN(m.timestamp) AS since FROM messages m
+     WHERE m.chat_jid = ? AND m.from_me = 0 AND ${counted} AND m.timestamp >= ? AND m.timestamp < ?
+       AND (? IS NULL OR m.timestamp > ? OR (m.timestamp = ? AND m.rowid > ?))`,
+  );
+  const openWaits = new Map<string, number>();
+  for (const chat of new Set(rows.map((r) => r.chat_jid))) {
+    const reply = lastReply.get(chat, lookback) as { t: number; r: number } | undefined;
+    const t = reply?.t ?? null;
+    const { since } = firstWaiting.get(chat, t ?? -1, lookback, t, t, t, reply?.r ?? null) as {
+      since: number | null;
+    };
+    if (since !== null) openWaits.set(chat, since);
+  }
 
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: opts.timeZone,
-    hour: 'numeric',
-    weekday: 'short',
-    hourCycle: 'h23',
-  });
-  const local = (t: number) => {
-    let hour = 0;
-    let weekday = 0;
-    for (const p of parts.formatToParts(t)) {
-      if (p.type === 'hour') hour = Number(p.value);
-      else if (p.type === 'weekday')
-        weekday = WEEKDAYS.indexOf(p.value as (typeof WEEKDAYS)[number]);
-    }
-    return { hour, weekday };
-  };
+  const local = localClock(opts.timeZone);
 
   const byHour = Array.from({ length: 24 }, zeroCounts);
   const byWeekday = Array.from({ length: 7 }, zeroCounts);

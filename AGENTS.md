@@ -543,6 +543,18 @@ cover navigation from every admin section and recovery from malformed URLs.
 - **One consolidated verification at the end** runs `npm run typecheck`, `npm test`, `npm run lint`,
   web build and `npm run e2e` once — nothing else runs e2e.
 
+## Session end (required, owner rule)
+
+Before you end a session or hand work back to the owner:
+
+1. **Reflect.** Add the session's real lessons to `docs/LEARNINGS.md` (see Learnings loop; Enterprise-only lessons
+   go to that repo's) and say in one line which rules you added or sharpened, or that there were none.
+2. **Score.** For every PR you opened or pushed to in the session, run the release review on its current
+   head (`node scripts/release-review.mjs <pr>`; in a cloud session without `gh` GraphQL use the `GH_PATH`
+   REST wrapper described in `docs/LEARNINGS.md`) and end your last message with a score summary:
+   PR, head commit, score, decision, hard stops, and each `✗ missing` item with who must do it. A PR whose
+   last code change has no fresh score is not reported as ready.
+
 ## Learnings loop (required)
 
 `docs/LEARNINGS.md` is a compact, topic-grouped list of rules. Before finishing a run that changed code,

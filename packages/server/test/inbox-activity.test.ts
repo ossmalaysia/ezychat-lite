@@ -136,3 +136,24 @@ it('keeps a wait opened long before the period, and same-second replies in store
   // 10:00 still starts a new conversation: the chat was silent for 26 h.
   expect(a.byHour[10]!.newConversations).toBe(1);
 });
+
+it('a wait opened long before the period is not timed; one closed before it starts afresh', () => {
+  const A = 'a@s.whatsapp.net';
+  const B = 'b@s.whatsapp.net';
+  // A: Ali answered on the 1st, the customer wrote again on the 2nd and nobody answered until the
+  // 7th: that wait began before the period, so Ali's reply on the 7th is not a timed first reply.
+  msg(A, at(1, '09:00'), 'customer');
+  msg(A, at(1, '09:05'), 1);
+  msg(A, at(2, '10:00'), 'customer');
+  msg(A, at(7, '10:00'), 'customer');
+  msg(A, at(7, '10:30'), 1);
+  // B: the old wait was closed on the 1st, so the customer's message on the 7th starts a new one.
+  msg(B, at(1, '09:00'), 'customer');
+  msg(B, at(1, '09:10'), 'phone');
+  msg(B, at(7, '11:00'), 'customer');
+  msg(B, at(7, '11:20'), 1);
+
+  const a = computeInboxActivity(db, { days: 2, timeZone: TZ, now: at(7, '12:00') });
+
+  expect(a.firstReply).toMatchObject({ answered: 1, unanswered: 0, median: 20 });
+});

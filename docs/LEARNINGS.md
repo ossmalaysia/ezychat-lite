@@ -144,6 +144,12 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
+  hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
+  the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
+  has finished; a second failure is real.
+- `AGENTS.md`, `CLAUDE.md` and other docs outside the release-review neutral list reset a PR's test evidence:
+  put rule changes in their own PR instead of a scored feature PR.
 - The release-review score credits the desktop link check whenever the E2E workbook detail contains the
   command name `e2e:electron-links`: write it only when it ran ("desktop-window link check not run" otherwise).
   In a cloud session where `gh` GraphQL is blocked, point `GH_PATH` at a small wrapper that answers
@@ -602,6 +608,12 @@ into AGENTS.md.
   unregister the browser's service worker; otherwise the page goes blank with `text/html` MIME errors.
 - nvm4w switches Node machine-wide: check `node -v` (22+) before tests or a server start when
   `better-sqlite3` suddenly fails to load; never switch it back from inside one agent's run.
+
+- Count reports on request only with indexed per-chat look-ups (`messages (chat_jid, timestamp, id)`) for the
+  chats in the period, never a window function over the whole history: SQLite runs on the server's only thread,
+  so a slow count freezes every inbox. Benchmark with 100k–300k messages and cache the result briefly.
+  Bound every per-chat look-up from below too (`timestamp >= <last reply>`), or it still reads the chat's whole
+  history; when rewriting a count for speed, fuzz the new query against the old one on random data.
 
 ## Security
 

@@ -236,3 +236,24 @@ Decision: **risk:human**
 ## 2026-10-26 · PR #191 · `c98e06b` · approved by the owner
 
 > Merge, this is not core feature
+
+## 2026-10-26 · PR #193 · `c53fde8` · risk:human (60)
+
+Tier **critical**, set by: packages/server/src/chats/activity.ts, packages/server/src/chats/stats.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: critical | -30 | ✓ |
+| Size: 256 code lines | -10 | ✓ |
+| Changed-lines coverage 100 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check (not needed) | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review (not needed) | +5 | ✓ |
+| Real-part test | 0 | ✗ missing |
+| **Score** | **60** | |
+
+Hard stops: 1. critical change without a real-part test
+
+Decision: **risk:human**

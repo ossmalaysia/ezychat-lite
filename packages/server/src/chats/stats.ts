@@ -51,6 +51,39 @@ export function localDate(t: number, timeZone: string): string {
   }).format(t);
 }
 
+const CLOCK_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** Every time-zone offset is a multiple of 15 minutes, so one lookup serves each quarter hour. */
+const QUARTER_HOUR_MS = 15 * 60 * 1000;
+
+/**
+ * Local hour (0–23) and weekday (0 = Monday) of an instant in `timeZone`. `Intl` formatting is slow,
+ * so results are kept per quarter hour: a report over many messages formats each quarter hour once.
+ */
+export function localClock(timeZone: string): (t: number) => { hour: number; weekday: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    weekday: 'short',
+    hourCycle: 'h23',
+  });
+  const seen = new Map<number, { hour: number; weekday: number }>();
+  return (t) => {
+    const key = Math.floor(t / QUARTER_HOUR_MS);
+    let hit = seen.get(key);
+    if (!hit) {
+      let hour = 0;
+      let weekday = 0;
+      for (const p of parts.formatToParts(key * QUARTER_HOUR_MS)) {
+        if (p.type === 'hour') hour = Number(p.value);
+        else if (p.type === 'weekday') weekday = CLOCK_WEEKDAYS.indexOf(p.value);
+      }
+      hit = { hour, weekday };
+      seen.set(key, hit);
+    }
+    return hit;
+  };
+}
+
 /** UTC instant of local midnight starting `date` (`YYYY-MM-DD`) in `timeZone`. */
 export function localMidnight(date: string, timeZone: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number];
