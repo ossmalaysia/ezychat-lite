@@ -17,9 +17,9 @@ import {
 import type { GoogleState } from './googleCalendar';
 
 /**
- * Proposed (google-calendar → connector gallery): the ready connectors the app knows about. In the
- * app this list is the core's built-in connectors plus any an edition adds (Enterprise: payments,
- * Shopify, its custom MCP connector) through a web extension slot. Texts are catalog keys under
+ * Proposed (google-calendar → connector gallery): the ready connectors the app knows about. Owner
+ * (2026-10-26): every ready connector is offered in Lite and Enterprise; only the custom MCP connector
+ * is Enterprise (added to the list by the Enterprise web extension). Texts are catalog keys under
  * `mockConnectors.items.<id>`.
  */
 export type ConnectorCategory =
@@ -82,7 +82,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'hitpay',
     icon: CreditCard,
     category: 'payments',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'paymentLink', access: 'write' },
@@ -93,7 +93,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'shopify',
     icon: ShoppingBag,
     category: 'commerce',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'orderStatus', access: 'read' },
@@ -104,7 +104,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'autocount',
     icon: Calculator,
     category: 'accounting',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'stock', access: 'read' },
@@ -115,7 +115,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'sql-account',
     icon: Receipt,
     category: 'accounting',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'stock', access: 'read' },
@@ -126,7 +126,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'bukku',
     icon: BookOpenCheck,
     category: 'accounting',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'invoice', access: 'read' },
@@ -137,7 +137,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'xero',
     icon: Wallet,
     category: 'accounting',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'invoice', access: 'read' },
@@ -148,7 +148,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'zoho-books',
     icon: Receipt,
     category: 'accounting',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'invoice', access: 'read' },
@@ -159,7 +159,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'zoho-crm',
     icon: ContactRound,
     category: 'crm',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'findContact', access: 'read' },
@@ -170,7 +170,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'hubspot',
     icon: Users,
     category: 'crm',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'findContact', access: 'read' },
@@ -181,7 +181,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'woocommerce',
     icon: ShoppingCart,
     category: 'commerce',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'orderStatus', access: 'read' },
@@ -192,7 +192,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'easystore',
     icon: Store,
     category: 'commerce',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'orderStatus', access: 'read' },
@@ -203,7 +203,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'storehub',
     icon: Store,
     category: 'commerce',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'productStock', access: 'read' },
@@ -214,7 +214,7 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     id: 'billplz',
     icon: CreditCard,
     category: 'payments',
-    edition: 'enterprise',
+    edition: 'core',
     available: false,
     tools: [
       { key: 'paymentLink', access: 'write' },

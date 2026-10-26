@@ -122,9 +122,6 @@ for (const scheme of ['light', 'dark'])
     await page.goto('/admin/connectors?edition=lite');
     await page.getByTestId('connectors-gallery').waitFor();
     await shot('12b-gallery-lite', { fullPage: true });
-    await page.goto('/admin/connectors/hitpay?edition=lite');
-    await page.getByTestId('connector-page-hitpay').waitFor();
-    await shot('13b-hitpay-lite', { fullPage: true });
     await page.goto('/admin/connectors/autocount?edition=lite');
     await page.getByTestId('connector-page-autocount').waitFor();
     const vote = await page.getByTestId('vote-connector').getAttribute('href');

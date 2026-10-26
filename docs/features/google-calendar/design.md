@@ -29,18 +29,20 @@ Calendar card in Settings → Integrations and the Bookings card on the agent pa
   (Calendar & booking, Spreadsheets, Payments, Online shop, Custom). Connected ones first ("Your connectors").
   Each card: icon, name, one line, category, status (Connected, Needs attention, Not connected, Coming soon,
   Enterprise). Listed: Google Calendar (core, ready), Google Sheets (core, coming soon), HitPay and Shopify
-  (Enterprise, coming soon), Custom connector (MCP) (Enterprise, ready there).
+  (core, coming soon), Custom connector (MCP) (Enterprise, ready there).
 - **One page per connector** (`/admin/connectors/:id`): header with status; tabs **Overview** (what it does,
   what the AI can do with Look-up / Changes data badges, the Google account card, Your data), **Settings**
   (per AI agent: calendar, Check free times, Book appointments, booking rules; an agent picker when there are
   several) and **Activity** (what the AI checked, booked or handed over; never chat text). Coming-soon and
   Enterprise-only connectors show the overview with a Coming soon note or the Upgrade to Enterprise button.
 - **Enterprise-only connectors in Lite** (owner, 2026-10-26: "ok to add in custom connector but grey out and
-  mark enterprise only"): Custom connector (MCP), HitPay and Shopify stay listed in Lite, greyed out (dashed card,
-  faded icon) with the badge **Enterprise only**; their page explains them and shows Upgrade to Enterprise.
+  mark enterprise only"): the Custom connector (MCP) stays listed in Lite, greyed out (dashed card,
+  faded icon) with the badge **Enterprise only**; its page explains it and shows Upgrade to Enterprise.
 - **More business connectors, coming soon** (owner, 2026-10-26): AutoCount, SQL Account, Bukku, Xero, Zoho Books
-  (Accounting), Zoho CRM, HubSpot (CRM), WooCommerce, EasyStore, StoreHub (Online shop), Billplz (Payments). Listed as
-  Enterprise (the roadmap's local systems), coming soon; in Lite greyed out with Enterprise only + Coming soon.
+  (Accounting), Zoho CRM, HubSpot (CRM), WooCommerce, EasyStore, StoreHub (Online shop), Billplz (Payments). Coming soon.
+- **Every ready connector is offered in Lite and Enterprise** (owner, 2026-10-26: "All connector can be offer for
+  all"): Google Calendar, Google Sheets, the accounting, CRM, online-shop and payment connectors are core. Only the
+  Custom connector (MCP) is Enterprise only (greyed out in Lite). The vote number `601159246128` is confirmed.
 - **Vote for this connector** on every coming-soon card and page: opens WhatsApp to the EzyChat team
   (`wa.me/601159246128`, the website's contact number) with a ready message naming the connector, in the UI
   language. Nothing is counted inside the app (no tracking in Lite); the team counts the requests. The gallery footer
@@ -72,7 +74,7 @@ Calendar card in Settings → Integrations and the Bookings card on the agent pa
   badges).
 - Google Calendar page: Overview (connected, sign-in expired, Google unavailable, not connected), Google sign-in
   (stand-in consent dialog), Disconnect + confirm; Settings (booking off / on, not connected); Activity.
-- Coming soon (Google Sheets) and Enterprise-only (HitPay in Lite, with Upgrade to Enterprise) pages.
+- Coming soon pages with Vote (Google Sheets, AutoCount) and the Enterprise-only Custom connector page in Lite (Upgrade to Enterprise).
 - Agent page → Connectors summary.
 - Try it: free times offered ("AI checked free times"), customer picks a time → booking on: "AI would book …
   (Try it doesn't book)"; booking off: hand-over to the team.
