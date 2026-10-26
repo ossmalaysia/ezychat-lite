@@ -105,6 +105,9 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
+  both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
+  parallel feature's screens the next clone must add.
 
 ## Multi-agent process
 
