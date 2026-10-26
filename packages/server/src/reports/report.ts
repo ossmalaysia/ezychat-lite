@@ -187,10 +187,13 @@ export function cachedReport(db: DB, opts: Options, ttlMs = REPORT_CACHE_MS): Re
     byKey = new Map();
     reportCache.set(db, byKey);
   }
-  const key = `${opts.days}|${opts.timeZone}|${opts.inboxIds?.join(',') ?? '*'}`;
+  const scope = opts.inboxIds ? [...opts.inboxIds].sort((a, b) => a - b).join(',') : '*';
+  const key = `${opts.days}|${opts.timeZone}|${scope}`;
   const hit = byKey.get(key);
   if (hit && opts.now - hit.at >= 0 && opts.now - hit.at < ttlMs) return hit.report;
   const report = computeReport(db, opts);
+  // Drop expired entries so the cache never holds more than the reports of the last minute.
+  for (const [k, entry] of byKey) if (opts.now - entry.at >= ttlMs) byKey.delete(k);
   byKey.set(key, { at: opts.now, report });
   return report;
 }

@@ -57,6 +57,9 @@ shown only there. Nothing is sent to us.
   on the import day. Extend `upgrade-from-oldest.test.ts`'s seed.
 - Hour and weekday buckets use the business time zone; hours with no messages are 0, not missing.
 - Logs: route, days, ms only.
+- Speed (follow-up, PR #193): results are cached for 60 s per period, time zone and inbox scope
+  (`cachedReport`), so numbers, the days around midnight and the "waiting after hand-off" count can be up to a
+  minute old; counting uses per-chat index look-ups only for chats with messages in the period.
 
 ## Source baseline
 

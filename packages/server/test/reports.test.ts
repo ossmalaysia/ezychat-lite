@@ -226,6 +226,9 @@ describe('cachedReport', () => {
     // After a minute (or with a clock that went back) it counts again.
     expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS }).totals.messagesIn).toBe(2);
     expect(cachedReport(db, { ...opts, now: NOW - 1 }).totals.messagesIn).toBe(2);
+    // The same inboxes in another order share one entry.
+    const two = cachedReport(db, { ...opts, inboxIds: [2, 1] });
+    expect(cachedReport(db, { ...opts, inboxIds: [1, 2] })).toBe(two);
   });
 });
 

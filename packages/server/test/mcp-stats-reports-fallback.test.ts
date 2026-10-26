@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { setMcpEnabled } from '../src/mcp/settings.js';
+import type * as ReportModule from '../src/reports/report.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { data, mcpClient } from './mcp-helpers.js';
 
 // The Reports counting fails: get_stats must still answer, only without its `customers` numbers.
 vi.mock('../src/reports/report.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/reports/report.js')>()),
+  ...(await importOriginal<typeof ReportModule>()),
   cachedReport: () => {
     throw new Error('counting failed');
   },
@@ -35,7 +36,13 @@ it('get_stats answers without the customer numbers when the report cannot be cou
     { name: 'stats', expiresInDays: 90 },
     'ip',
   ).secret;
-  const warn = vi.spyOn(t.ctx.log, 'child');
+  const warn = vi.fn();
+  const child = t.ctx.log.child.bind(t.ctx.log);
+  vi.spyOn(t.ctx.log, 'child').mockImplementation((bindings, options) => {
+    const logger = child(bindings, options);
+    if (bindings.mod === 'mcp') logger.warn = warn as typeof logger.warn;
+    return logger;
+  });
 
   const result = await mcp.call('get_stats', { days: 7 }, secret);
 
@@ -43,5 +50,8 @@ it('get_stats answers without the customer numbers when the report cannot be cou
   const stats = data(result);
   expect(stats.chats).toEqual({ open: 0, resolved: 0 });
   expect(stats).not.toHaveProperty('customers');
-  expect(warn).toHaveBeenCalledWith({ mod: 'mcp' });
+  expect(warn).toHaveBeenCalledWith(
+    expect.objectContaining({ days: 7 }),
+    'customer numbers unavailable for get_stats',
+  );
 });

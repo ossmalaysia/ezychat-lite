@@ -113,16 +113,17 @@ export function computeInboxActivity(
      WHERE m.chat_jid = ? AND m.from_me = 1 AND ${counted} AND m.timestamp < ?
      ORDER BY m.timestamp DESC, m.rowid DESC LIMIT 1`,
   );
+  // The lower bound (the last reply's time, or -1) lets SQLite walk only that slice of the index.
   const firstWaiting = db.prepare(
     `SELECT MIN(m.timestamp) AS since FROM messages m
-     WHERE m.chat_jid = ? AND m.from_me = 0 AND ${counted} AND m.timestamp < ?
+     WHERE m.chat_jid = ? AND m.from_me = 0 AND ${counted} AND m.timestamp >= ? AND m.timestamp < ?
        AND (? IS NULL OR m.timestamp > ? OR (m.timestamp = ? AND m.rowid > ?))`,
   );
   const openWaits = new Map<string, number>();
   for (const chat of new Set(rows.map((r) => r.chat_jid))) {
     const reply = lastReply.get(chat, lookback) as { t: number; r: number } | undefined;
     const t = reply?.t ?? null;
-    const { since } = firstWaiting.get(chat, lookback, t, t, t, reply?.r ?? null) as {
+    const { since } = firstWaiting.get(chat, t ?? -1, lookback, t, t, t, reply?.r ?? null) as {
       since: number | null;
     };
     if (since !== null) openWaits.set(chat, since);
