@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type React from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { ChevronRight, Plug } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SettingsPatchBody } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
@@ -308,6 +308,18 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="integrations" className="flex flex-col gap-4">
+          {/* Ready connectors (Google Calendar, …) live in Admin → Connectors. */}
+          <Banner tone="info" title={t('connectors.settingsPointerTitle')}>
+            <span className="flex flex-col items-start gap-2">
+              {t('connectors.settingsPointer')}
+              <Button asChild variant="outline" size="touch">
+                <Link to="/admin/connectors">
+                  <Plug aria-hidden />
+                  {t('connectors.agentCard.browse')}
+                </Link>
+              </Button>
+            </span>
+          </Banner>
           <IntegrationsSection />
           <ExtensionSettingsSections />
         </TabsContent>

@@ -251,7 +251,10 @@
     "reopenedByMessage": "Chat reopened by a new message",
     "reopened": "{{actor}} reopened this chat",
     "aiToolUsed": "AI looked up {{title}} · {{source}}",
-    "internalNote": "Internal note"
+    "internalNote": "Internal note",
+    "calendarChecked": "AI checked free times · {{source}}",
+    "calendarBooked": "AI booked {{when}} · {{source}}",
+    "calendarBookedNoTime": "AI booked a time · {{source}}"
   },
   "messageList": {
     "label": "Messages",

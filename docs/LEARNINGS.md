@@ -1098,6 +1098,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
 - Badges inside a `SegmentedControl` option label get `pointer-events-none`, so a click anywhere on
   the option selects it.
+- OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
+  then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 
 ## Internationalization
 

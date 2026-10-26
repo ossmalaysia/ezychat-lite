@@ -379,8 +379,39 @@ describe('validateWebExtensions', () => {
         ],
       },
     ],
+    ['connector links that are not an object', { name: 'demo', connectorLinks: 'x' }],
+    ['connector links set to null', { name: 'demo', connectorLinks: null }],
+    ['a bad connector id', { name: 'demo', connectorLinks: { 'Custom MCP': '/admin/ext/demo/x' } }],
+    ['a relative connector link', { name: 'demo', connectorLinks: { 'custom-mcp': 'connectors' } }],
+    [
+      "another extension's connector link",
+      { name: 'demo', connectorLinks: { 'custom-mcp': '/admin/ext/other/connectors' } },
+    ],
+    ['a bare prefix', { name: 'demo', connectorLinks: { 'custom-mcp': '/admin/ext/demo/' } }],
+    [
+      'a link that climbs out',
+      { name: 'demo', connectorLinks: { 'custom-mcp': '/admin/ext/demo/../members' } },
+    ],
+    [
+      'a link with a query',
+      { name: 'demo', connectorLinks: { 'custom-mcp': '/admin/ext/demo/c?x=1' } },
+    ],
+    ['an outside link', { name: 'demo', connectorLinks: { 'custom-mcp': 'https://evil.test' } }],
   ])('rejects %s', (_label, ext) => {
-    expect(() => validateWebExtensions([ext as WebExtension])).toThrow(WebExtensionError);
+    expect(() => validateWebExtensions([ext as unknown as WebExtension])).toThrow(
+      WebExtensionError,
+    );
+  });
+
+  it('accepts connector links to the extension admin pages', () => {
+    const ext: WebExtension = {
+      name: 'demo',
+      connectorLinks: {
+        'custom-mcp': '/admin/ext/demo/connectors',
+        shopify: '/admin/ext/demo/a/b',
+      },
+    };
+    expect(validateWebExtensions([ext])).toEqual([ext]);
   });
 
   it('lists exactly the core admin sections as allowed sections', () => {

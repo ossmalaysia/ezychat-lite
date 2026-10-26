@@ -343,6 +343,7 @@ describe('AI agent page', () => {
       'Agent type',
       'Name',
       'Business context',
+      'Connectors',
       'Try it',
       'Role',
       'Hand-over rules',

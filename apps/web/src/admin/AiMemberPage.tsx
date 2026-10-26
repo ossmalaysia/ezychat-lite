@@ -65,6 +65,7 @@ import { AiContextPanel, agentErrorMessage } from './AiContextPanel';
 import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
+import { AgentConnectorsCard } from './connectors/AgentConnectorsCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
 import { businessTemplate, type BusinessTemplateId } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
@@ -794,6 +795,12 @@ function AgentEditor({
           >
             <AiContextPanel agentId={agent.agent.id} documents={documents} disabled={busy} />
           </div>
+
+          {/* Connectors this agent uses; their settings live on each connector's page. */}
+          <AgentConnectorsCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
+          />
 
           {/* Every agent is a customer-facing agent for extensions ('sales'). */}
           <AgentExtensionSections

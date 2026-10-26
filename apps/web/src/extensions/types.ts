@@ -41,6 +41,7 @@ export interface WebExtensionRoute {
 export const WEB_EXTENSION_ADMIN_SECTIONS = [
   'members',
   'quick-replies',
+  'connectors',
   'whatsapp',
   'inboxes',
   'tunnel',
@@ -155,12 +156,20 @@ export interface WebExtension {
   lockScreen?: ComponentType<WebExtensionLockScreenProps>;
   /** Inbox connection types (Admin → Inboxes, setup wizard); the first extension wins a duplicate. */
   inboxTypes?: WebExtensionInboxType[];
+  /**
+   * Admin → Connectors: connectors this extension provides, by catalog id (e.g. `custom-mcp`), each
+   * pointing at one of its admin pages (`/admin/ext/<name>/…`). The gallery card and the
+   * connector's page then open that page; the first extension wins a duplicate id.
+   */
+  connectorLinks?: Partial<Record<string, string>>;
   catalogs?: WebExtensionCatalogs;
 }
 
 export const EXTENSION_NAME_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
 const RESERVED_NAMES = new Set(['lite', 'core']);
 const SECTION_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
+/** One plain segment of a connector link (no params, no `..`). */
+const LINK_SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
 /** One route segment: a name, a `:param` or a final `*` splat. No `..`, no leading slash. */
 const SEGMENT_PATTERN = /^(?:[A-Za-z0-9_-]+|:[A-Za-z][A-Za-z0-9_]*|\*)$/;
 
@@ -287,6 +296,29 @@ export function validateWebExtensions(
       for (const banner of ext.banners)
         if (!isComponent(banner))
           throw new WebExtensionError(`Web extension "${name}": every banner must be a component`);
+    }
+    if (ext.connectorLinks !== undefined) {
+      if (typeof ext.connectorLinks !== 'object' || ext.connectorLinks === null)
+        throw new WebExtensionError(`Web extension "${name}": connectorLinks must be an object`);
+      const linkPrefix = `/admin/ext/${name}/`;
+      for (const [id, href] of Object.entries(ext.connectorLinks)) {
+        if (!SECTION_ID_PATTERN.test(id))
+          throw new WebExtensionError(
+            `Web extension "${name}": invalid connector id ${JSON.stringify(id)}`,
+          );
+        const rest =
+          typeof href === 'string' && href.startsWith(linkPrefix)
+            ? href.slice(linkPrefix.length)
+            : '';
+        if (
+          !rest ||
+          rest.length > 200 ||
+          !rest.split('/').every((s) => LINK_SEGMENT_PATTERN.test(s))
+        )
+          throw new WebExtensionError(
+            `Web extension "${name}": connector link for "${id}" must be an absolute "${linkPrefix}…" path`,
+          );
+      }
     }
     if (ext.lockScreen !== undefined && !isComponent(ext.lockScreen))
       throw new WebExtensionError(`Web extension "${name}": lockScreen must be a component`);

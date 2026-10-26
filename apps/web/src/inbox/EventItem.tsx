@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { AiToolUsedPayload, type ChatEvent, type Note } from '@ezychat/shared';
 import { i18n } from '@/i18n';
-import { formatTime } from '../lib/format';
+import { formatTime, formatTimeRange } from '../lib/format';
 import { handoffReasonLabel, isHandoffReason } from '../lib/ai-handoff';
 import type { Directory } from './useDirectory';
 
@@ -53,12 +53,19 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
     case 'ai_tool_used': {
       // Title and source come from the extension; anything else in the payload is ignored.
       const used = AiToolUsedPayload.safeParse(e.payload);
-      return used.success
-        ? i18n.t('inbox:events.aiToolUsed', {
-            title: used.data.title,
-            source: used.data.sourceLabel,
-          })
-        : '';
+      if (!used.success) return '';
+      const source = used.data.sourceLabel;
+      // Google Calendar: "AI checked free times" / "AI booked Fri, 30 Oct, 7:30–9:00 pm".
+      const calendar = used.data.calendar;
+      if (calendar?.action === 'checked') return i18n.t('inbox:events.calendarChecked', { source });
+      if (calendar?.action === 'booked') {
+        const when =
+          calendar.start && calendar.end ? formatTimeRange(calendar.start, calendar.end) : '';
+        return when
+          ? i18n.t('inbox:events.calendarBooked', { when, source })
+          : i18n.t('inbox:events.calendarBookedNoTime', { source });
+      }
+      return i18n.t('inbox:events.aiToolUsed', { title: used.data.title, source });
     }
   }
 }

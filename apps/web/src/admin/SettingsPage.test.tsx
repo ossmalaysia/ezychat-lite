@@ -254,3 +254,11 @@ it('changes theme and language from compact segmented controls', async () => {
   expect(device.textContent).toContain('Appearance');
   expect(device.textContent).not.toContain('Language');
 });
+
+it('points Integrations to Admin → Connectors', () => {
+  renderAt('/admin/settings/integrations');
+  expect(screen.getByText(/are in Admin → Connectors/)).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Browse connectors' }).getAttribute('href')).toBe(
+    '/admin/connectors',
+  );
+});

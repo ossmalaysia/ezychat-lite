@@ -302,6 +302,11 @@ describe('ExtensionBannerSlot', () => {
 describe('app links', () => {
   it("keeps Lite's links by default and applies overrides, with null hiding a link", () => {
     expect(resolveAppLinks()).toEqual(LITE_APP_LINKS);
+    // Connector requests open a WhatsApp chat with the EzyChat team, message ready.
+    expect(LITE_APP_LINKS.connectorRequest?.('Add Xero & co')).toBe(
+      'https://wa.me/601159246128?text=Add%20Xero%20%26%20co',
+    );
+    expect(resolveAppLinks({ connectorRequest: null }).connectorRequest).toBeNull();
     const links = resolveAppLinks({
       website: 'https://ezychat.ai/',
       reportIssue: null,

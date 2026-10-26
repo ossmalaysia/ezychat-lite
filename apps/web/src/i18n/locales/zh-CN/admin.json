@@ -8,7 +8,8 @@
     "whatsapp": "WhatsApp",
     "tunnel": "手机访问",
     "settings": "设置",
-    "audit": "审计日志"
+    "audit": "审计日志",
+    "connectors": "连接器"
   },
   "layout": {
     "inbox": "收件箱",
@@ -806,7 +807,11 @@
       "answeredAs": "以 {{name}} 的身份回答",
       "needsConnection": "请在“设置 → AI”中连接 AI，以试用该客服。",
       "noRole": "角色为空：客服只会依据安全规则和其业务背景回答。",
-      "confidentialLeak": "将转交：回复引用了内部条目，因此不会发送给客户。"
+      "confidentialLeak": "将转交：回复引用了内部条目，因此不会发送给客户。",
+      "calendarChecked": "AI 查看了空闲时间 · {{source}}",
+      "wouldBook": "AI 将预约 {{when}} · {{source}}（试一试不会预约）",
+      "wouldBookSlot": "AI 将预约所选时间 · {{source}}（试一试不会预约）",
+      "wouldRun": "AI 将使用 {{title}} · {{source}}（试一试不会更改数据）"
     },
     "voice": {
       "title": "语音消息",
@@ -1412,5 +1417,299 @@
     "removeBodyOther": "EzyChat 会停止为此号码收发消息。它的聊天会保留，供管理员只读查看。",
     "aiWindowNote": "在此号码上，AI 客服只在客户最后一条消息后的 {{hours}} 小时内回复；之后会把聊天交给团队。",
     "createdOther": "收件箱已添加，号码已连接。"
+  },
+  "connectors": {
+    "title": "连接器",
+    "description": "连接您的日历和其他系统，让 AI 代理能自行查看和处理更多事情。每个连接器都有自己的页面，包含设置和活动记录。",
+    "searchLabel": "搜索连接器",
+    "searchPlaceholder": "按名称或用途搜索",
+    "categoryLabel": "类别",
+    "category": {
+      "all": "全部",
+      "booking": "日历与预约",
+      "accounting": "会计",
+      "crm": "CRM",
+      "data": "电子表格",
+      "payments": "付款",
+      "commerce": "网店",
+      "custom": "自定义"
+    },
+    "status": {
+      "connected": "已连接",
+      "attention": "需要处理",
+      "notConnected": "未连接",
+      "comingSoon": "即将推出",
+      "enterprise": "仅限 Enterprise"
+    },
+    "yours": "您的连接器",
+    "more": "更多连接器",
+    "noMatch": "没有匹配的连接器",
+    "noMatchHint": "试试其他关键词或类别。",
+    "missing": "没有您使用的系统？向我们提出。",
+    "vote": "为此连接器投票",
+    "voteMessage": "您好 EzyChat 团队，请添加 {{name}} 连接器。我们会用它来：",
+    "request": "申请连接器",
+    "requestMessage": "您好 EzyChat 团队，我们想要一个连接器，用于：",
+    "breadcrumb": "导航路径",
+    "notFound": "此连接器不存在。",
+    "backToGallery": "所有连接器",
+    "byCore": "{{product}} 内置",
+    "byEnterprise": "EzyChat Enterprise",
+    "tabs": {
+      "overview": "概览",
+      "settings": "设置",
+      "activity": "活动"
+    },
+    "aboutTitle": "功能说明",
+    "aiCan": "AI 可以做什么",
+    "lookUp": "查询",
+    "changes": "会更改数据",
+    "switchNote": "会更改数据的工具默认关闭。您在“设置”中为每个 AI 代理开启。",
+    "privacyTitle": "您的数据",
+    "enterpriseOnly": "此连接器属于 EzyChat Enterprise。",
+    "comingSoonTitle": "即将推出",
+    "comingSoonBody": "尚未就绪。为它投票：请求最多的连接器会优先推出。",
+    "forAgent": "设置对象",
+    "noAgent": "请先添加 AI 代理。",
+    "addAgent": "添加 AI 代理",
+    "activityTitle": "最近活动",
+    "activityHint": "AI 查看和预约的记录。这里从不保存聊天内容。",
+    "activityEmpty": "暂无记录。",
+    "act": {
+      "checked": "{{agent}} 为 {{customer}} 查看了空闲时间",
+      "booked": "{{agent}} 为 {{customer}} 预约了 {{when}}",
+      "bookedNoTime": "{{agent}} 为 {{customer}} 预约了一个时间",
+      "handed_over": "{{agent}} 将 {{customer}} 的预约转交给团队",
+      "failed": "{{agent}} 无法为 {{customer}} 连接 Google Calendar"
+    },
+    "agentCard": {
+      "description": "{{name}} 在聊天时可以使用的系统。设置在各连接器的页面中。",
+      "checkAndBook": "查看空闲时间并预约",
+      "checkOnly": "查看空闲时间；由团队预约",
+      "off": "此代理已关闭",
+      "none": "尚无连接器。",
+      "browse": "浏览连接器"
+    },
+    "settingsPointerTitle": "连接器",
+    "settingsPointer": "Google Calendar 及 AI 代理使用的其他系统位于 管理 → 连接器。",
+    "tools": {
+      "checkFree": "查看空闲时间",
+      "checkFreeHint": "读取所选日历的忙碌时间。",
+      "book": "预约",
+      "bookHint": "客户确认时间后添加日程。",
+      "readRows": "读取行",
+      "readRowsHint": "查找与客户问题匹配的行。",
+      "addRow": "添加潜在客户",
+      "addRowHint": "将客户的姓名、号码和需求添加为一行。",
+      "paymentLink": "创建付款链接",
+      "paymentLinkHint": "按团队或价目表设定的金额创建链接。",
+      "paymentStatus": "查询付款",
+      "paymentStatusHint": "查询链接是否已付款。",
+      "orderStatus": "订单状态",
+      "orderStatusHint": "按订单号和客户电话查找订单。",
+      "productStock": "产品库存",
+      "productStockHint": "查询产品的价格和库存。",
+      "stock": "库存和价格",
+      "stockHint": "查询商品的库存和售价。",
+      "quotation": "创建报价单",
+      "quotationHint": "为客户起草报价单；由团队发送。",
+      "outstanding": "未付余额",
+      "outstandingHint": "查询客户尚欠的金额。",
+      "invoice": "发票状态",
+      "invoiceHint": "查找发票及其是否已付款。",
+      "contact": "添加联系人",
+      "contactHint": "将客户添加为联系人。",
+      "findContact": "查找客户",
+      "findContactHint": "按电话号码查找客户记录。",
+      "addLead": "添加潜在客户",
+      "addLeadHint": "根据客户需求添加新的潜在客户。",
+      "member": "会员积分",
+      "memberHint": "查询会员的积分和等级。"
+    },
+    "items": {
+      "google-calendar": {
+        "name": "Google Calendar",
+        "short": "查看空闲时间并预约。",
+        "long": "AI 代理会根据您的 Google Calendar 提供空闲时间，并在您允许时预约客户确认的时间。使用 Google 登录：无需粘贴链接。",
+        "privacy": "{{product}} 读取您所选日历的忙碌时间，只写入它预约的日程：标题、客户姓名和 WhatsApp 号码。聊天内容不会发送到 Google。登录信息加密保存在这台电脑上。"
+      },
+      "google-sheets": {
+        "name": "Google Sheets",
+        "short": "从表格读取价格或库存；添加新的潜在客户。",
+        "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 读取。它还可以把每个新的潜在客户添加为一行。",
+        "privacy": "{{product}} 只读取您选择的表格，只写入它添加的潜在客户行。"
+      },
+      "hitpay": {
+        "name": "HitPay",
+        "short": "发送付款链接（FPX、DuitNow、PayNow）。",
+        "long": "AI 为订单发送 HitPay 付款链接，并在付款后通知团队。",
+        "privacy": "{{product}} 向 HitPay 发送金额、参考号和客户姓名；银行卡和银行信息由 HitPay 保管。"
+      },
+      "shopify": {
+        "name": "Shopify",
+        "short": "网店的订单状态和库存。",
+        "long": "客户询问订单在哪里或商品是否有货；AI 在您的 Shopify 网店中查询。",
+        "privacy": "{{product}} 只读取订单和产品；从不更改您的网店。"
+      },
+      "autocount": {
+        "name": "AutoCount",
+        "short": "来自 AutoCount Accounting 的库存、价格和报价单。",
+        "long": "AI 根据 AutoCount 回答库存和价格问题，并起草报价单供团队发送。",
+        "privacy": "{{product}} 只向 AutoCount 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "来自 SQL Account 的库存、价格和客户余额。",
+        "long": "AI 在 SQL Account 中查询库存和价格，并告诉客户未付余额。",
+        "privacy": "{{product}} 只向 SQL Account 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "bukku": {
+        "name": "Bukku",
+        "short": "来自 Bukku 的发票和报价单。",
+        "long": "AI 告诉客户发票是否已付款，并在 Bukku 中起草报价单。",
+        "privacy": "{{product}} 只向 Bukku 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "xero": {
+        "name": "Xero",
+        "short": "Xero 中的发票状态和联系人。",
+        "long": "AI 在 Xero 中查询发票状态，并将新客户添加为联系人。",
+        "privacy": "{{product}} 只向 Xero 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "zoho-books": {
+        "name": "Zoho Books",
+        "short": "来自 Zoho Books 的发票和报价单。",
+        "long": "AI 在 Zoho Books 中查询发票并起草报价单。",
+        "privacy": "{{product}} 只向 Zoho Books 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "在 Zoho CRM 中查找客户并添加潜在客户。",
+        "long": "AI 在回答前先在 Zoho CRM 中查找客户，并将新询问添加为潜在客户。",
+        "privacy": "{{product}} 只向 Zoho CRM 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "hubspot": {
+        "name": "HubSpot",
+        "short": "在 HubSpot 中查找客户并添加潜在客户。",
+        "long": "AI 在 HubSpot 中查找客户，并将新询问添加为潜在客户。",
+        "privacy": "{{product}} 只向 HubSpot 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "woocommerce": {
+        "name": "WooCommerce",
+        "short": "WooCommerce 网店的订单状态和库存。",
+        "long": "客户询问订单在哪里；AI 在您的 WooCommerce 网店中查询。",
+        "privacy": "{{product}} 只向 WooCommerce 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "easystore": {
+        "name": "EasyStore",
+        "short": "来自 EasyStore 的订单状态和库存。",
+        "long": "AI 根据您的 EasyStore 网店回答订单和库存问题。",
+        "privacy": "{{product}} 只向 EasyStore 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "storehub": {
+        "name": "StoreHub",
+        "short": "来自 StoreHub POS 的库存和会员积分。",
+        "long": "AI 在 StoreHub 中查询库存和会员积分。",
+        "privacy": "{{product}} 只向 StoreHub 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "billplz": {
+        "name": "Billplz",
+        "short": "发送 Billplz 付款链接（FPX）。",
+        "long": "AI 为订单发送 Billplz 付款链接，并在付款后通知团队。",
+        "privacy": "{{product}} 只向 Billplz 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      },
+      "custom-mcp": {
+        "name": "自定义连接器（MCP）",
+        "short": "连接任何提供 MCP 服务器的系统。",
+        "long": "用于您自己的系统：粘贴 MCP 服务器链接、登录，并为每个 AI 代理选择 AI 可以使用的工具。会更改数据的工具默认关闭。",
+        "privacy": "{{product}} 只向该系统发送工具在一轮聊天中所需的内容。"
+      }
+    },
+    "gc": {
+      "accountTitle": "Google 账号",
+      "accountDescription": "{{product}} 使用的 Google 账号。整个团队共用一个账号。",
+      "what1": "AI 只提供您所选日历中的空闲时间。",
+      "what2": "只有在客户确认时间后才会预约，您也可以保持预约关闭。",
+      "what3": "团队可以在聊天中看到每一次预约。",
+      "connect": "连接 Google Calendar",
+      "connectHint": "您使用 Google 登录，并允许 {{product}} 查看和添加日程。可以随时断开连接。",
+      "connectedToast": "已连接 Google Calendar",
+      "notConfiguredTitle": "此版本不可用",
+      "notConfiguredBody": "此版本的 {{product}} 未设置 Google 登录。",
+      "waiting": "正在等待 Google 登录…",
+      "waitingHint": "请在打开的窗口中完成登录。此页面会自动更新。",
+      "blocked": "浏览器阻止了登录窗口。请打开登录页面继续。",
+      "openSignIn": "打开登录页面",
+      "sameComputer": "Google 会返回到运行 {{product}} 的电脑：只有在那台电脑的浏览器中才能完成登录。",
+      "cancelSignIn": "取消",
+      "failed": {
+        "denied": "Google 登录已取消。未连接任何内容。",
+        "expired": "登录时间过长。请重试。",
+        "error": "Google 登录未完成。请重试。"
+      },
+      "account": "Google 账号",
+      "state": {
+        "connected": "正常",
+        "expired": "需要重新登录",
+        "unavailable": "无法连接 Google"
+      },
+      "expiredTitle": "Google 登录已过期",
+      "expiredBody": "在您重新登录之前，AI 不会查看或预约时间；它会把预约聊天转交给团队。",
+      "signInAgain": "重新登录",
+      "unavailableTitle": "无法连接 Google Calendar",
+      "unavailableBody": "{{product}} 会自动重试。在此期间，AI 会把预约聊天转交给团队。",
+      "calendars": "此账号中的日历",
+      "noCalendars": "未找到日历。",
+      "readOnly": "只读",
+      "perAgent": "在“设置”中为每个 AI 代理选择日历和预约时间。",
+      "openSettings": "打开设置",
+      "disconnect": "断开连接",
+      "disconnectTitle": "断开 Google Calendar？",
+      "disconnectBody": "AI 会立即停止查看和预约时间。日历中已有的日程会保留。预约设置会保留，以便重新连接时使用。",
+      "disconnected": "已断开 Google Calendar"
+    },
+    "booking": {
+      "title": "预约",
+      "description": "{{name}} 可以在 Google Calendar 中查看空闲时间并预约。",
+      "notConnected": "请先连接 Google Calendar。只需用 Google 登录一次。",
+      "paused": {
+        "expired": "已暂停：Google 登录已过期",
+        "unavailable": "已暂停：无法连接 Google Calendar"
+      },
+      "pausedBody": "恢复正常之前，{{name}} 会把预约聊天转交给团队。",
+      "openAccount": "打开 Google 账号",
+      "calendar": "日历",
+      "calendarHint": "预约会添加到此日历，且只计算此日历的忙碌时间。",
+      "chooseCalendar": "选择日历",
+      "calendarRequired": "请选择用于预约的日历。",
+      "checkFreeHint": "AI 可以读取此日历的忙碌时间并提供空闲时间。",
+      "changesCalendar": "会更改您的日历",
+      "bookHint": "客户确认时间后，AI 会添加日程。关闭时：AI 提供时间，由团队预约。",
+      "bookNeedsFree": "请先开启“查看空闲时间”。",
+      "eventTitle": "日程标题",
+      "eventTitleHint": "会加上客户姓名，例如“订座 · Mei Ying”。",
+      "titleRequired": "请输入日程标题。",
+      "length": "每次预约时长",
+      "minutes_other": "{{count}} 分钟",
+      "hours": "预约时间",
+      "daysRequired": "请至少选择一天。",
+      "from": "从",
+      "to": "到",
+      "toAfterFrom": "结束时间必须晚于开始时间。",
+      "hoursHint": "不在此时段内的时间，以及日历中已忙碌的时间，都不会提供。",
+      "gap": "预约间隔",
+      "noGap": "无间隔",
+      "notice": "最早预约",
+      "noNotice": "任何时间",
+      "hoursAhead_other": "{{count}} 小时后",
+      "ahead": "最晚预约",
+      "daysAhead_other": "{{count}} 天内",
+      "rulesTitle": "始终如此",
+      "rule1": "只有在客户用自己的话确认一个时间后，AI 才会预约。",
+      "rule2": "{{product}} 会在预约前一刻再次确认该时间仍然空闲。",
+      "rule3": "AI 从不取消或更改预约；这类聊天会转交给团队。",
+      "rule4": "试一试从不预约：只显示 AI 会预约的内容。",
+      "save": "保存预约设置",
+      "saved": "预约设置已保存"
+    }
   }
 }
