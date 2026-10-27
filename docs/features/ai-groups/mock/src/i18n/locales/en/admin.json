@@ -1937,7 +1937,7 @@
     "title": "Groups",
     "description": "{{name}} can answer in the WhatsApp groups of {{inbox}}.",
     "switch": "Answer in groups (when mentioned)",
-    "switchHint": "Answers when a member @mentions your number or quotes an AI message, and that member’s follow-ups. Other group messages get no reply.",
+    "switchHint": "Answers only when a member @mentions your number or quotes an AI message. Other group messages get no reply.",
     "offSummary_one": "{{inbox}} is in {{count}} group. Turn this on to choose where {{name}} answers.",
     "offSummary_other": "{{inbox}} is in {{count}} groups. Turn this on to choose where {{name}} answers.",
     "listLabel": "Groups of {{inbox}}",

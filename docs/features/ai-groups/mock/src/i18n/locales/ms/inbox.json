@@ -582,7 +582,7 @@
     "badgePaused": "AI dijeda",
     "info": {
       "title": "Ejen AI menjawab apabila disebut",
-      "hint": "{{name}} menjawab ahli yang @menyebut nombor anda atau memetik mesej AI, serta mesej susulan ahli itu.",
+      "hint": "{{name}} menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI.",
       "noAgent": "Tiada ejen AI dalam peti masuk ini.",
       "agentOff": "Jawab dalam kumpulan dimatikan untuk {{name}}. Hidupkan dahulu di halaman ejen.",
       "openAgent": "Buka {{name}}",
@@ -613,7 +613,7 @@
       "notADemoGroup": "Simulations work in the demo groups (Kopi Lovers Club, Reseller Group Penang, Family Day 2026).",
       "actions": {
         "question": "A member @mentions the business",
-        "followUp": "The same member replies to the AI",
+        "followUp": "A member quotes the AI's answer",
         "unrelated": "Another member writes (not to the AI)",
         "handover": "A member asks for a change",
         "teammate": "A teammate replies"

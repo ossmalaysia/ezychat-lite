@@ -582,7 +582,7 @@
     "badgePaused": "AI 已暂停",
     "info": {
       "title": "被提及时由 AI 助理回答",
-      "hint": "当成员 @提及您的号码或引用 AI 的消息时，{{name}} 会回答，并回答该成员的后续消息。",
+      "hint": "仅当成员 @提及您的号码或引用 AI 的消息时，{{name}} 才会回答。",
       "noAgent": "此收件箱没有 AI 助理。",
       "agentOff": "{{name}} 的“在群组中回答”已关闭。请先在助理页面开启。",
       "openAgent": "打开 {{name}}",
@@ -613,7 +613,7 @@
       "notADemoGroup": "Simulations work in the demo groups (Kopi Lovers Club, Reseller Group Penang, Family Day 2026).",
       "actions": {
         "question": "A member @mentions the business",
-        "followUp": "The same member replies to the AI",
+        "followUp": "A member quotes the AI's answer",
         "unrelated": "Another member writes (not to the AI)",
         "handover": "A member asks for a change",
         "teammate": "A teammate replies"

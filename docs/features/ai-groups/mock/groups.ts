@@ -7,9 +7,8 @@ import { requireAdmin, requireUser } from '../../../../packages/server/src/auth/
 
 /**
  * Proposed (ai-groups), mock only: the AI agent answers in a WhatsApp group when a member @mentions
- * the business number, only in groups an admin switched on. After an answer, follow-ups addressed to
- * the AI (a reply quoting its answer, or the same member's next messages until a teammate writes, at
- * most 10 minutes) reach it too; everything else gets silence. Loop guard: after 10 AI answers in a
+ * the business number or quotes a message the AI sent (any member, any time), only in groups an
+ * admin switched on; everything else gets silence (owner, 2026-10-28). Loop guard: after 10 AI answers in a
  * row without a teammate message the AI pauses in that group until a teammate writes.
  *
  * Stand-in state and routes `/api/mock/groups*`. The "answers" are fixed demo texts grounded in the
@@ -23,8 +22,6 @@ export const BUSINESS_JID = '60000000000@s.whatsapp.net';
 const MENTION = '@60000000000';
 /** Loop guard: AI answers in a row without a teammate message. */
 const LOOP_GUARD = 10;
-/** Follow-ups from the same member reach the AI for at most this long after its answer. */
-const FOLLOW_UP_MS = 10 * 60_000;
 
 interface Member {
   phone: string;
@@ -299,7 +296,7 @@ type Outcome = 'answered' | 'handover' | 'paused' | 'off' | 'silent';
 
 /**
  * What the agent does with one group message (the proposal's rules, deterministic). `addressed`:
- * an @mention, any member's quote of an AI message (any time), or the last answered member within 10 minutes.
+ * an @mention of the business or any member's quote of an AI message (owner, 2026-10-28). Nothing else.
  * `answer` null = hand over to the team.
  */
 async function onGroupMessage(
@@ -534,7 +531,8 @@ export function registerGroups(app: FastifyInstance, ctx: AppContext): void {
       return { outcome: 'teammate' as const, view: view() };
     }
     const humans = group.members.filter((m) => !m.name.includes('auto-reply'));
-    const last = s.lastAnswer && Date.now() - s.lastAnswer.at < FOLLOW_UP_MS ? s.lastAnswer : null;
+    // A quote of the AI's last answer (any member could quote it; the demo uses the member it answered).
+    const last = s.lastAnswer;
     let member = humans[s.next % humans.length]!;
     let outcome: Outcome;
     if (body.kind === 'followUp' && last) {

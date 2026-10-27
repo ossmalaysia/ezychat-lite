@@ -3,8 +3,8 @@
 A clone of the owner-confirmed **connector-list** reference (the whole app, `latestConfirmed` revision
 `9a564392`, cloned unchanged at `9c2b6007`) with the **ai-groups** proposal on top: an AI agent answers in a
 WhatsApp group when a member @mentions the business number, only in groups an admin switches on. Scope, rules and
-the screen checklist: [../design.md](../design.md) (including the owner's answers of 2026-10-28: follow-ups
-addressed to the AI, the loop guard instead of hourly limits, the hand-over line).
+the screen checklist: [../design.md](../design.md) (including the owner's answers of 2026-10-28: the AI answers only an @mention
+or a quote of an AI message, the loop guard instead of hourly limits, the hand-over line).
 
 Every inherited flow still works (connectors, Reports, Google Calendar, reply suggestions, phrase list, reactions,
 inboxes, AI agents). Mock-only control texts are English in all three catalogs; the new user-facing texts have
