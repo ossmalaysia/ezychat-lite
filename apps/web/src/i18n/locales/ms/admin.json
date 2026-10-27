@@ -1882,7 +1882,7 @@
   },
   "aiGroups": {
     "title": "Kumpulan",
-    "description": "{{name}} boleh menjawab dalam kumpulan WhatsApp {{inbox}}.",
+    "description": "{{name}} boleh menjawab dalam kumpulan nombor WhatsApp anda ({{inbox}}).",
     "switch": "Jawab dalam kumpulan (apabila ditanda atau dipetik)",
     "switchHint": "Menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI. Mesej kumpulan lain tidak dijawab.",
     "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",

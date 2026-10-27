@@ -1909,7 +1909,7 @@
   },
   "aiGroups": {
     "title": "Groups",
-    "description": "{{name}} can answer in the WhatsApp groups of {{inbox}}.",
+    "description": "{{name}} can answer in the groups of your WhatsApp number ({{inbox}}).",
     "switch": "Answer in groups (when tagged or quoted)",
     "switchHint": "Answers only when a member @mentions your number or quotes an AI message. Other group messages get no reply.",
     "offSummary_one": "{{inbox}} is in {{count}} group. Turn this on to choose where {{name}} answers.",

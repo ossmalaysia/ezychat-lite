@@ -254,7 +254,7 @@
     "calendarBooked": "AI menempah {{when}} · {{source}}",
     "calendarBookedNoTime": "AI menempah satu masa · {{source}}",
     "aiGroupAnswered": "{{actor}} menjawab {{member}}",
-    "aiGroupQuoted": "{{actor}} menjawab susulan {{member}}",
+    "aiGroupQuoted": "{{actor}} menjawab balasan {{member}} kepada AI",
     "aiGroupHandover": "{{actor}} menyerahkan soalan {{member}} kepada pasukan: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} menyerahkan soalan {{member}} kepada pasukan",
     "aiGroupPaused": "AI dijeda: terlalu banyak jawapan berturut-turut",

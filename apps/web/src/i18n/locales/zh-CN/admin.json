@@ -1881,7 +1881,7 @@
   },
   "aiGroups": {
     "title": "群组",
-    "description": "{{name}} 可以在 {{inbox}} 的 WhatsApp 群组中回答。",
+    "description": "{{name}} 可以在您的 WhatsApp 号码（{{inbox}}）的群组中回答。",
     "switch": "在群组中回答（被标记或引用时）",
     "switchHint": "仅当成员 @提及您的号码或引用 AI 的消息时回答。其他群组消息不回复。",
     "offSummary_other": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",

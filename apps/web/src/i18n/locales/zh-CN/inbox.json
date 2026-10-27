@@ -254,7 +254,7 @@
     "calendarBooked": "AI 预约了 {{when}} · {{source}}",
     "calendarBookedNoTime": "AI 预约了一个时间 · {{source}}",
     "aiGroupAnswered": "{{actor}} 回答了 {{member}}",
-    "aiGroupQuoted": "{{actor}} 回答了 {{member}} 的后续消息",
+    "aiGroupQuoted": "{{actor}} 回答了 {{member}} 对 AI 的回复",
     "aiGroupHandover": "{{actor}} 将 {{member}} 的问题转交给团队：{{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} 将 {{member}} 的问题转交给团队",
     "aiGroupPaused": "AI 已暂停：连续回答过多",

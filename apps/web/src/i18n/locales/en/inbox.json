@@ -256,7 +256,7 @@
     "calendarBooked": "AI booked {{when}} · {{source}}",
     "calendarBookedNoTime": "AI booked a time · {{source}}",
     "aiGroupAnswered": "{{actor}} answered {{member}}",
-    "aiGroupQuoted": "{{actor}} answered {{member}}’s follow-up",
+    "aiGroupQuoted": "{{actor}} answered {{member}}’s reply to the AI",
     "aiGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} handed {{member}}’s question to the team",
     "aiGroupPaused": "AI paused: many answers in a row",

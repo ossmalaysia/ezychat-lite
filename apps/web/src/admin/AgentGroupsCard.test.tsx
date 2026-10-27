@@ -104,7 +104,9 @@ describe('Agent page → Groups', () => {
     stubServer(data());
     renderCard();
     const list = await screen.findByRole('list', { name: 'Groups of Kopi Apong' });
-    expect(screen.getByText('Aina can answer in the WhatsApp groups of Kopi Apong.')).toBeTruthy();
+    expect(
+      screen.getByText('Aina can answer in the groups of your WhatsApp number (Kopi Apong).'),
+    ).toBeTruthy();
     expect(
       (
         screen.getByRole('switch', {
@@ -141,7 +143,9 @@ describe('Agent page → Groups', () => {
     const calls = stubServer(data({ inboxName: 'Sales line' }));
     renderCard({ inboxName: 'WhatsApp' });
     expect(await screen.findByRole('list', { name: 'Groups of Sales line' })).toBeTruthy();
-    expect(screen.getByText('Aina can answer in the WhatsApp groups of Sales line.')).toBeTruthy();
+    expect(
+      screen.getByText('Aina can answer in the groups of your WhatsApp number (Sales line).'),
+    ).toBeTruthy();
     expect(calls.some((c) => c.url.startsWith('/api/inboxes'))).toBe(false);
   });
 

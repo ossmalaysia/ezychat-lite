@@ -111,7 +111,7 @@ describe('describeEvent in WhatsApp groups', () => {
   it('names the member the AI answered, by a tag or a quote', () => {
     expect(line({ kind: 'answered', member: 'Nurul Huda' })).toBe('Jee Fong answered Nurul Huda');
     expect(line({ kind: 'answered', member: 'Nurul Huda', quoted: true })).toBe(
-      'Jee Fong answered Nurul Huda’s follow-up',
+      'Jee Fong answered Nurul Huda’s reply to the AI',
     );
     expect(line({ kind: 'answered', member: null })).toBe('Jee Fong answered a member');
   });
