@@ -193,10 +193,19 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
     .sort((a, b) => b.score - a.score)[0];
   const fact = leak ? input.internalKnowledge : best && best.score > 0 ? best.line : null;
   if (input.currentSituation.task === 'complete') {
+    // A completion sees only the last messages (never the knowledge): complete from what was said.
+    const said = input.conversation.flatMap((turn) =>
+      turn.text.split(/(?<=[.!?])\s+/u).map((line) => line.trim()),
+    );
     const last = [...words(input.currentSituation.typed ?? '')].pop();
-    const line = sentences.find((l) => (last ? l.toLowerCase().includes(last) : false));
+    const line = said.findLast((l) => (last ? l.toLowerCase().includes(last) : false));
     const at = line && last ? line.toLowerCase().indexOf(last) + last.length : -1;
-    return { completion: line && at > 0 ? line.slice(at).trim() : null, grounded: !!line };
+    // Like the prompt asks (and real models do): the whole current sentence as typed, then its end.
+    const sentence = (input.currentSituation.typed ?? '')
+      .split(/(?<=[.!?])\s+/u)
+      .pop()!
+      .trimEnd();
+    return { completion: line && at > 0 ? sentence + line.slice(at) : null, grounded: !!line };
   }
   if (!fact) return { suggestions: [], noAnswer: true, handoffRule: null };
   return {
