@@ -118,6 +118,10 @@ const UNRELATED = [
   'Who is joining the meet-up on Saturday?',
   'Nice photo Siti!',
 ];
+/** Another member quotes an earlier AI answer (no @mention): it is addressed to the AI. */
+const QUOTE_ASK = 'same time on Sunday?';
+const QUOTE_ANSWER = (first: string) =>
+  `Hi ${first}! Yes, on Sunday the kitchen also closes at 9.30pm.`;
 const HANDOVER_ASK = 'can you change my order #1088 to pickup at 3pm instead?';
 const HANDOVER_REPLY = 'A team member will reply soon.';
 const BOT_TEXT = 'Thank you for your message! Ah Seng Trading will reply soon 🙏';
@@ -295,7 +299,7 @@ type Outcome = 'answered' | 'handover' | 'paused' | 'off' | 'silent';
 
 /**
  * What the agent does with one group message (the proposal's rules, deterministic). `addressed`:
- * an @mention, a quote of the AI's answer, or the last answered member within 10 minutes.
+ * an @mention, any member's quote of an AI message (any time), or the last answered member within 10 minutes.
  * `answer` null = hand over to the team.
  */
 async function onGroupMessage(
@@ -411,6 +415,7 @@ export async function seedGroups(
   const first = QUESTIONS[0]!;
   asked = await incoming(ctx, club, nurul, first.ask, { mention: true });
   await onGroupMessage(ctx, club, nurul, asked, first.ask, true, first.answer('Nurul'));
+  const firstAnswer = groupState(club.jid).lastAnswer!.messageId;
   const follow = FOLLOW_UPS[0]!;
   asked = await incoming(ctx, club, nurul, follow.ask, {
     quotedId: groupState(club.jid).lastAnswer!.messageId,
@@ -418,6 +423,11 @@ export async function seedGroups(
   await onGroupMessage(ctx, club, nurul, asked, follow.ask, true, follow.answer('Nurul'), true);
   asked = await incoming(ctx, club, club.members[3]!, UNRELATED[0]!);
   await onGroupMessage(ctx, club, club.members[3]!, asked, UNRELATED[0]!, false, null);
+  // (d) Owner, 2026-10-28: any member who quotes a message the AI sent gets an answer, without an
+  // @mention and at any time: Arjun quotes the AI's first answer.
+  const arjun = club.members[4]!;
+  asked = await incoming(ctx, club, arjun, QUOTE_ASK, { quotedId: firstAnswer });
+  await onGroupMessage(ctx, club, arjun, asked, QUOTE_ASK, true, QUOTE_ANSWER('Arjun'));
   const farah = club.members[1]!;
   asked = await incoming(ctx, club, farah, HANDOVER_ASK, { mention: true });
   await onGroupMessage(ctx, club, farah, asked, HANDOVER_ASK, true, null);

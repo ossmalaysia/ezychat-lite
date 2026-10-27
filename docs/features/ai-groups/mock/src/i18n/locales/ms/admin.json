@@ -1929,7 +1929,7 @@
     "title": "Kumpulan",
     "description": "{{name}} boleh menjawab dalam kumpulan WhatsApp {{inbox}}.",
     "switch": "Jawab dalam kumpulan (apabila disebut)",
-    "switchHint": "Menjawab ahli yang @menyebut nombor anda, dan mesej susulan ahli itu. Mesej kumpulan lain tidak dijawab.",
+    "switchHint": "Menjawab apabila ahli @menyebut nombor anda atau memetik mesej AI, serta mesej susulan ahli itu. Mesej kumpulan lain tidak dijawab.",
     "offSummary_one": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
     "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
     "listLabel": "Kumpulan {{inbox}}",

@@ -130,6 +130,9 @@ for (const scheme of ['light', 'dark'])
       await chat(CLUB);
       await page.getByTestId('group-ai-badge').waitFor();
       await shot('06-club-chat');
+      // Arjun quotes the AI's first answer (no @mention) and gets an answer (owner, 2026-10-28).
+      await page.getByText('same time on Sunday?').last().scrollIntoViewIfNeeded();
+      await shot('06b-quote-answered');
       await chat(RESELLERS);
       await shot('07-resellers-loop-guard');
       await chat(FAMILY);

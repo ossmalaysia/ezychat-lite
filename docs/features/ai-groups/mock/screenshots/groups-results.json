@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-27T17:51:56.728Z",
+  "ranAt": "2026-10-27T18:02:27.239Z",
   "passed": [
     "01-groups-card-desktop-light",
     "02-groups-card-off-desktop-light",
@@ -7,6 +7,7 @@
     "04-groups-card-no-groups-desktop-light",
     "05-agent-page-desktop-light",
     "06-club-chat-desktop-light",
+    "06b-quote-answered-desktop-light",
     "07-resellers-loop-guard-desktop-light",
     "08-family-day-off-desktop-light",
     "09-group-info-admin-desktop-light",
@@ -25,6 +26,7 @@
     "04-groups-card-no-groups-mobile-light",
     "05-agent-page-mobile-light",
     "06-club-chat-mobile-light",
+    "06b-quote-answered-mobile-light",
     "07-resellers-loop-guard-mobile-light",
     "08-family-day-off-mobile-light",
     "09-group-info-admin-mobile-light",
@@ -43,6 +45,7 @@
     "04-groups-card-no-groups-desktop-dark",
     "05-agent-page-desktop-dark",
     "06-club-chat-desktop-dark",
+    "06b-quote-answered-desktop-dark",
     "07-resellers-loop-guard-desktop-dark",
     "08-family-day-off-desktop-dark",
     "09-group-info-admin-desktop-dark",
@@ -61,6 +64,7 @@
     "04-groups-card-no-groups-mobile-dark",
     "05-agent-page-mobile-dark",
     "06-club-chat-mobile-dark",
+    "06b-quote-answered-mobile-dark",
     "07-resellers-loop-guard-mobile-dark",
     "08-family-day-off-mobile-dark",
     "09-group-info-admin-mobile-dark",

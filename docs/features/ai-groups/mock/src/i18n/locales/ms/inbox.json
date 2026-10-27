@@ -582,7 +582,7 @@
     "badgePaused": "AI dijeda",
     "info": {
       "title": "Ejen AI menjawab apabila disebut",
-      "hint": "{{name}} menjawab ahli yang @menyebut nombor anda, dan mesej susulan ahli itu.",
+      "hint": "{{name}} menjawab ahli yang @menyebut nombor anda atau memetik mesej AI, serta mesej susulan ahli itu.",
       "noAgent": "Tiada ejen AI dalam peti masuk ini.",
       "agentOff": "Jawab dalam kumpulan dimatikan untuk {{name}}. Hidupkan dahulu di halaman ejen.",
       "openAgent": "Buka {{name}}",

@@ -1928,7 +1928,7 @@
     "title": "群组",
     "description": "{{name}} 可以在 {{inbox}} 的 WhatsApp 群组中回答。",
     "switch": "在群组中回答（被提及时）",
-    "switchHint": "回答 @提及您号码的成员，以及该成员的后续消息。其他群组消息不回复。",
+    "switchHint": "当成员 @提及您的号码或引用 AI 的消息时回答，并回答该成员的后续消息。其他群组消息不回复。",
     "offSummary_one": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
     "offSummary_other": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
     "listLabel": "{{inbox}} 的群组",
