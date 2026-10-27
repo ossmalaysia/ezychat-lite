@@ -23,16 +23,16 @@ endpoint also accepts the public client ID `ezychat-public-test` (an entry's `au
 
 ```bash
 node e2e/partner-mcp/cli.mjs                 # https on :7610, prints endpoints, keys and env lines
-node e2e/partner-mcp/cli.mjs --port 7611 --dir <folder> --ttl 60 --quiet
+node e2e/partner-mcp/cli.mjs --port 7611 --ttl 60 --control-token <token> --quiet
 ```
 
-The certificate and the list signing key stay in `--dir` (default `<tmp>/ezychat-partner-mcp`), so
+The certificate and the list signing key stay in the fixed folder `<tmp>/ezychat-partner-mcp`, so
 the app keeps trusting restarts. Start the app with `--mode dev --fake-wa` (both: the allowance needs a dev run with fake WhatsApp) with the
-printed lines, also written to `<dir>/env.txt`:
+printed lines, also written to `<tmp>/ezychat-partner-mcp/env.txt`:
 
 ```text
 CONNECTORS_TEST_ALLOW_LOCAL=1                    # partner servers on this computer (test only)
-NODE_EXTRA_CA_CERTS=<dir>/cert.pem               # trust the self-signed certificate
+NODE_EXTRA_CA_CERTS=<tmp>/ezychat-partner-mcp/cert.pem            # trust the self-signed certificate
 EZYCHAT_CONNECTOR_LIST_URL=https://127.0.0.1:7610/connectors/
 EZYCHAT_CONNECTOR_LIST_TEST_KEY=<base64 Ed25519 public key>
 ```

@@ -1,6 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -29,20 +27,13 @@ describe('connector entry JSON Schema', () => {
     expect(JSON.parse(schemaText())).toEqual(schema);
   });
 
-  it('the documented command writes the same JSON file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'connector-schema-'));
-    try {
-      const file = join(dir, 'connector-v1.json');
-      execFileSync(
-        process.execPath,
-        ['--conditions=ezychat-source', '--import', 'tsx', 'scripts/connector-schema.mjs', file],
-        { cwd: root, stdio: 'pipe' },
-      );
-      const text = readFileSync(file, 'utf8');
-      expect(text).toBe(schemaText());
-      expect(JSON.parse(text).properties).toHaveProperty('tools');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+  it('the documented command prints the same JSON', () => {
+    const text = execFileSync(
+      process.execPath,
+      ['--conditions=ezychat-source', '--import', 'tsx', 'scripts/connector-schema.mjs'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    expect(text).toBe(schemaText());
+    expect(JSON.parse(text).properties).toHaveProperty('tools');
   });
 });

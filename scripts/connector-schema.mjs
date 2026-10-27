@@ -6,9 +6,8 @@
 //
 // Run from the repository root (npx passes --conditions=ezychat-source from .npmrc, so
 // @ezychat/shared resolves to its TypeScript source):
-//   npx tsx scripts/connector-schema.mjs [<out file>]     (no file: print to stdout)
-// then copy the file to <ezychat-connectors>/schema/connector-v1.json.
-import { writeFileSync } from 'node:fs';
+//   npx tsx scripts/connector-schema.mjs > <ezychat-connectors>/schema/connector-v1.json
+// (it only prints; it never writes a file).
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { ConnectorEntry } from '@ezychat/shared';
@@ -45,7 +44,5 @@ export function connectorSchema() {
 export const schemaText = () => `${JSON.stringify(connectorSchema(), null, 2)}\n`;
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const out = process.argv[2];
-  if (out) writeFileSync(out, schemaText());
-  else process.stdout.write(schemaText());
+  process.stdout.write(schemaText());
 }
