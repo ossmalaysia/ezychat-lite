@@ -40,7 +40,7 @@ overlay and one hover button; screen review and mock confirmation are open items
 | Design | skip | Owner asked for the change directly; no HTML mock (see Design section) | af8d1ea | 2026-10-27 |
 | Dev | done | Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu | 2f74993 | 2026-10-27 |
 | Unit tests | pass | changed-lines coverage 91.2 %; only the 4 container-only document-worker tests fail (untouched) | af8d1ea | 2026-10-27 |
-| E2E | pass | e2e/file-transfer.spec.ts passes; full run 104 passed, ai-member (document worker, container-only) and pwa-resume (clock flake, 3/4 on repeat) fail, both untouched | 2f74993 | 2026-10-27 |
+| E2E | pass | On head: file-transfer, responsive (360 px), reply specs 21 passed. Full run earlier 104 passed; ai-member (container-only document worker) and pwa-resume (clock flake) fail, untouched. Desktop-window link check not run (no Windows here) | 2f989e0 | 2026-10-27 |
 | Dev Build | todo | Not yet: real desktop window on Windows (Electron drag-out, right-click menu, Explorer paste) | af8d1ea | 2026-10-27 |
 | Screen review | doing | 16 shots in docs/screenshots/file-transfer (1280/360, light/dark); overlay made more opaque; owner review pending | af8d1ea | 2026-10-27 |
 
@@ -52,3 +52,4 @@ overlay and one hover button; screen review and mock confirmation are open items
 - 2026-10-27 Unit tests: pass — changed-lines coverage 91.2 %; only the 4 container-only document-worker tests fail (untouched) (af8d1ea)
 - 2026-10-27 Screen review: doing — 16 shots in docs/screenshots/file-transfer (1280/360, light/dark); overlay made more opaque; owner review pending (af8d1ea)
 - 2026-10-27 Dev Build: todo — Not yet: real desktop window on Windows (Electron drag-out, right-click menu, Explorer paste) (af8d1ea)
+- 2026-10-27 E2E: pass — On head: file-transfer, responsive (360 px), reply specs 21 passed. Full run earlier 104 passed; ai-member (container-only document worker) and pwa-resume (clock flake) fail, untouched. Desktop-window link check not run (no Windows here) (2f989e0)
