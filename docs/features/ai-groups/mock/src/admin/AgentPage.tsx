@@ -70,6 +70,7 @@ import { InboxChip } from '../inbox/InboxChip';
 import { AgentContextPanel } from './AgentContextPanel';
 import { AgentTryIt } from './AgentTryIt';
 import { AgentConnectorsCard } from './AgentConnectorsCard';
+import { AgentGroupsCard } from './AgentGroupsCard';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiEditDialog } from './AiEditDialog';
 import { AiQuickConnect } from './AiQuickConnect';
@@ -721,6 +722,9 @@ function AgentEditor({
 
       {/* Proposed (google-calendar): this agent's connectors; settings live on each connector's page. */}
       {agent && <AgentConnectorsCard agentId={agent.id} name={draft.name.trim() || title} />}
+
+      {/* Proposed (ai-groups): answer in WhatsApp groups when mentioned, and in which groups. */}
+      {agent && <AgentGroupsCard agent={agent} name={draft.name.trim() || title} />}
 
       {agent && (
         <Card id={SECTION_TRY} tabIndex={-1} className="scroll-mt-4 gap-4 outline-none">

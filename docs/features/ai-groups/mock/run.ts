@@ -27,11 +27,11 @@ const fresh = process.argv.includes('--fresh');
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../../..');
 const metadata = JSON.parse(await readFile(join(here, 'reference.json'), 'utf8'));
-const port = Number(process.env.MOCK_UI_PORT ?? 7487);
-const apiPort = Number(process.env.MOCK_API_PORT ?? 7486);
+const port = Number(process.env.MOCK_UI_PORT ?? 7489);
+const apiPort = Number(process.env.MOCK_API_PORT ?? 7488);
 if (![port, apiPort].every((value) => Number.isInteger(value) && value > 1023 && value < 65536))
   throw new Error('Mock ports must be integers between 1024 and 65535.');
-const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-connector-list-mock-'));
+const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-ai-groups-mock-'));
 const logger = await createLogger({ dataDir, stdout: false });
 const log = logger.log.child({ mod: 'mock', sourceRevision: metadata.sourceRevision });
 
@@ -44,7 +44,12 @@ globalThis.fetch = async (input, init) => {
   return localFetch(input, init);
 };
 
-const fakeWa = new FakeWaAdapter({ autoOpen: !fresh });
+// Proposed (ai-groups): the linked number is named like the business, so a group @mention of it
+// reads "@Kopi Apong" (the app names the own number from the WhatsApp session).
+const fakeWa = new FakeWaAdapter({
+  autoOpen: !fresh,
+  me: { jid: '60000000000@s.whatsapp.net', name: 'Kopi Apong' },
+});
 const ctx = await createContext(
   {
     dataDir,
@@ -285,7 +290,7 @@ const vite = await createServer({
 await vite.listen();
 log.info({ port, apiPort, dataDir }, 'interactive app mock ready');
 process.stdout.write(
-  `Proposed connector-list mock (${fresh ? 'fresh install' : 'seeded demo'}): http://localhost:${port}/\nTemporary demo data: ${dataDir}\n`,
+  `Proposed ai-groups mock (${fresh ? 'fresh install' : 'seeded demo'}): http://localhost:${port}/\nTemporary demo data: ${dataDir}\n`,
 );
 let closing = false;
 const close = async () => {

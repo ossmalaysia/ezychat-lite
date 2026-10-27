@@ -8,12 +8,12 @@
 // entry that needs a newer EzyChat, an Enterprise-only entry in Lite, a coming-soon entry, and the
 // baseline additions (Google Calendar Bookings tab and Open Google Calendar, Admin → Reports, the
 // agent page Connectors card). Reports page errors and horizontal overflow; ends with results.json.
-// Usage: node docs/features/connector-list/mock/connector-list-shots.mjs [baseUrl]
+// Usage: node docs/features/ai-groups/mock/connector-list-shots.mjs [baseUrl]
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BASE = process.argv[2] ?? 'http://localhost:7487';
+const BASE = process.argv[2] ?? 'http://localhost:7489';
 const OUT = join(import.meta.dirname, 'screenshots');
 mkdirSync(OUT, { recursive: true });
 // This PC has no Playwright Chromium: use PW_CHROMIUM when set, else the installed Chrome.

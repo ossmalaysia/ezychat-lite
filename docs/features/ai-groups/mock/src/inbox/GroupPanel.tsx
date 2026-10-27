@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { ChatAvatar } from './ChatAvatar';
+import { GroupAiRow } from './GroupAiRow';
 import { PanelHeader } from './PanelHeader';
 
 /** Rows rendered at a time; large groups show more on request instead of rendering all at once. */
@@ -155,6 +156,8 @@ function MemberList({
           </p>
         )}
       </div>
+      {/* Proposed (ai-groups): whether the AI agent answers in this group when mentioned. */}
+      <GroupAiRow jid={group.jid} />
       <div className="relative mx-4 mt-2 mb-1.5">
         <Search
           className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"

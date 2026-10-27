@@ -5,20 +5,25 @@
   "appVersionAtProposal": "0.1.59",
   "hashNormalization": "text LF; binary unchanged",
   "status": "proposal",
-  "feature": "connector-list",
-  "createdAt": "2026-10-27",
-  "baselineFeature": "google-calendar",
-  "baselineGitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-  "baselineMock": "docs/features/google-calendar/mock/index.html",
-  "baselineConfirmation": "Owner confirmed google-calendar 2026-10-26 (\"Implement it\"); latestConfirmed revision f46aab96. Copied from that revision with git archive: the working-tree folder on this branch carries merge conflict markers from 049226a.",
+  "feature": "ai-groups",
+  "createdAt": "2026-10-28",
+  "branchBase": "ecbb092c (main, 0.1.60)",
+  "baselineFeature": "connector-list",
+  "baselineGitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06",
+  "baselineMock": "docs/features/connector-list/mock/index.html",
+  "baselineConfirmation": "Owner confirmed connector-list 2026-10-27 (\"yes, build it\"); latestConfirmed revision 9a564392. Cloned unchanged at 9c2b6007.",
   "previousBaseline": {
-    "feature": "ai-phrase-dictionary",
-    "gitRevision": "db1df77f0821c978729f7d616762b5a00b67a8cb"
+    "feature": "google-calendar",
+    "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0"
   },
   "baselineAdditions": {
     "reports": {
       "note": "Admin → Reports, confirmed 2026-10-26 (reports, ce56468); copied unchanged from docs/features/reports/mock on origin/main 8b09a9e (clean; the branch copy has conflict markers). Runner: reports.ts, reports-shots.mjs, proposal.ts registers it.",
-      "added": ["src/admin/ReportCharts.tsx", "src/admin/ReportsPage.tsx", "src/mock/reports.ts"],
+      "added": [
+        "src/admin/ReportCharts.tsx",
+        "src/admin/ReportsPage.tsx",
+        "src/mock/reports.ts"
+      ],
       "changed": [
         "src/admin/AdminLayout.tsx",
         "src/i18n/locales/en/admin.json",
@@ -74,15 +79,22 @@
     "src/admin/SettingsPage.tsx",
     "src/admin/ReplySuggestionsSection.tsx",
     "src/mock/replySuggestions.ts",
-    "src/inbox/EventItem.tsx"
+    "src/inbox/EventItem.tsx",
+    "src/inbox/GroupPanel.tsx"
   ],
   "proposalChanged": [
-    "src/admin/ConnectorsGalleryPage.tsx",
-    "src/admin/ConnectorDetailPage.tsx",
-    "src/admin/AgentConnectorsCard.tsx",
+    "src/admin/AgentPage.tsx",
+    "src/admin/AgentTryIt.tsx",
+    "src/inbox/Conversation.tsx",
+    "src/inbox/ConversationHeader.tsx",
+    "src/inbox/GroupPanel.tsx",
+    "src/inbox/EventItem.tsx",
     "src/i18n/locales/en/admin.json",
     "src/i18n/locales/ms/admin.json",
-    "src/i18n/locales/zh-CN/admin.json"
+    "src/i18n/locales/zh-CN/admin.json",
+    "src/i18n/locales/en/inbox.json",
+    "src/i18n/locales/ms/inbox.json",
+    "src/i18n/locales/zh-CN/inbox.json"
   ],
   "addedFrontend": [
     "src/admin/InboxAccess.tsx",
@@ -123,35 +135,59 @@
     "src/admin/ReportsPage.tsx",
     "src/mock/reports.ts",
     "src/admin/PartnerConnectorPage.tsx",
-    "src/mock/connectorList.ts"
+    "src/mock/connectorList.ts",
+    "src/admin/AgentGroupsCard.tsx",
+    "src/inbox/GroupAiRow.tsx",
+    "src/mock/groups.ts",
+    "src/mock/GroupsMockControls.tsx"
   ],
-  "proposalAdded": ["src/admin/PartnerConnectorPage.tsx", "src/mock/connectorList.ts"],
+  "proposalAdded": [
+    "src/admin/AgentGroupsCard.tsx",
+    "src/inbox/GroupAiRow.tsx",
+    "src/mock/groups.ts",
+    "src/mock/GroupsMockControls.tsx"
+  ],
   "baselineProposal": {
-    "feature": "google-calendar",
+    "feature": "connector-list",
     "changed": [
-      "src/admin/SettingsPage.tsx",
-      "src/admin/AgentPage.tsx",
-      "src/admin/AgentTryIt.tsx",
-      "src/inbox/EventItem.tsx",
-      "src/i18n/locales/en/admin.json",
-      "src/i18n/locales/ms/admin.json",
-      "src/i18n/locales/zh-CN/admin.json",
-      "src/i18n/locales/en/inbox.json",
-      "src/i18n/locales/ms/inbox.json",
-      "src/i18n/locales/zh-CN/inbox.json",
-      "src/admin/AdminLayout.tsx"
-    ],
-    "added": [
-      "src/admin/GoogleCalendarSection.tsx",
-      "src/admin/AgentBookingsCard.tsx",
-      "src/admin/AgentConnectorsCard.tsx",
       "src/admin/ConnectorsGalleryPage.tsx",
       "src/admin/ConnectorDetailPage.tsx",
-      "src/mock/googleCalendar.ts",
-      "src/mock/connectorCatalog.ts"
+      "src/admin/AgentConnectorsCard.tsx",
+      "src/i18n/locales/en/admin.json",
+      "src/i18n/locales/ms/admin.json",
+      "src/i18n/locales/zh-CN/admin.json"
+    ],
+    "added": [
+      "src/admin/PartnerConnectorPage.tsx",
+      "src/mock/connectorList.ts"
     ]
   },
   "olderProposals": [
+    {
+      "feature": "google-calendar",
+      "changed": [
+        "src/admin/SettingsPage.tsx",
+        "src/admin/AgentPage.tsx",
+        "src/admin/AgentTryIt.tsx",
+        "src/inbox/EventItem.tsx",
+        "src/i18n/locales/en/admin.json",
+        "src/i18n/locales/ms/admin.json",
+        "src/i18n/locales/zh-CN/admin.json",
+        "src/i18n/locales/en/inbox.json",
+        "src/i18n/locales/ms/inbox.json",
+        "src/i18n/locales/zh-CN/inbox.json",
+        "src/admin/AdminLayout.tsx"
+      ],
+      "added": [
+        "src/admin/GoogleCalendarSection.tsx",
+        "src/admin/AgentBookingsCard.tsx",
+        "src/admin/AgentConnectorsCard.tsx",
+        "src/admin/ConnectorsGalleryPage.tsx",
+        "src/admin/ConnectorDetailPage.tsx",
+        "src/mock/googleCalendar.ts",
+        "src/mock/connectorCatalog.ts"
+      ]
+    },
     {
       "feature": "business-api",
       "changed": [
@@ -187,7 +223,9 @@
         "src/i18n/locales/ms/common.json",
         "src/i18n/locales/zh-CN/common.json"
       ],
-      "added": ["src/components/app/UpgradeEnterprise.tsx"]
+      "added": [
+        "src/components/app/UpgradeEnterprise.tsx"
+      ]
     },
     {
       "feature": "send-reactions",
@@ -200,7 +238,10 @@
         "src/i18n/locales/ms/inbox.json",
         "src/i18n/locales/zh-CN/inbox.json"
       ],
-      "added": ["src/inbox/ReactionPicker.tsx", "src/mock/useSendReaction.ts"]
+      "added": [
+        "src/inbox/ReactionPicker.tsx",
+        "src/mock/useSendReaction.ts"
+      ]
     },
     {
       "feature": "emoji-reactions",
@@ -213,7 +254,10 @@
         "src/i18n/locales/ms/inbox.json",
         "src/i18n/locales/zh-CN/inbox.json"
       ],
-      "added": ["src/inbox/ReactionBadges.tsx", "src/mock/ReactionSimulator.tsx"]
+      "added": [
+        "src/inbox/ReactionBadges.tsx",
+        "src/mock/ReactionSimulator.tsx"
+      ]
     },
     {
       "feature": "claude-provider",
@@ -226,7 +270,9 @@
         "src/i18n/locales/ms/admin.json",
         "src/i18n/locales/zh-CN/admin.json"
       ],
-      "added": ["src/mock/claude.ts"]
+      "added": [
+        "src/mock/claude.ts"
+      ]
     },
     {
       "feature": "multi-inbox",
@@ -305,7 +351,10 @@
         "src/i18n/locales/ms/admin.json",
         "src/i18n/locales/zh-CN/admin.json"
       ],
-      "added": ["src/admin/PhraseDictionarySection.tsx", "src/mock/phrases.ts"]
+      "added": [
+        "src/admin/PhraseDictionarySection.tsx",
+        "src/mock/phrases.ts"
+      ]
     }
   ],
   "inheritedUnchanged": [
@@ -410,10 +459,6 @@
       "sha256": "4c56cb4224505506ed587ce12dde6cd56f8870447180b31001a63d730a5be3b9"
     },
     {
-      "path": "src/inbox/ConversationHeader.tsx",
-      "sha256": "d4709907b26bdc75b0953455b816819208529ddab7b50acf7f557be24477eb03"
-    },
-    {
       "path": "src/inbox/InboxChip.tsx",
       "sha256": "2e613aa0c2dc7e4a69f2a6d6c0c6baa37a8acdeb99d0ba24eef27e4b9f86b7b3"
     },
@@ -482,20 +527,8 @@
       "sha256": "c9574332428414c40e428fcf68bbb684e5ed2d4f3e88f2986485c6b499d44421"
     },
     {
-      "path": "src/inbox/Conversation.tsx",
-      "sha256": "0f97af2c60f53d2bbce2c546f2699648b5926871df56d190f0c9dba12d46f5d7"
-    },
-    {
       "path": "src/inbox/ReplySuggestions.tsx",
       "sha256": "10f95f9ad5e854ba371665998240d9bc0e10b420a654d94e2b523f4fc7f19aef"
-    },
-    {
-      "path": "src/admin/AgentPage.tsx",
-      "sha256": "39ce8e54778d2f8654daf69c3a287428f852793f43b9cddbb99ccc0baae5890a"
-    },
-    {
-      "path": "src/admin/AgentTryIt.tsx",
-      "sha256": "08f02ace5f41a65298272d93fe9c4d16cf2c68c6e359f399a6c6f6164fd4beb2"
     },
     {
       "path": "src/admin/ReplySuggestionsSection.tsx",
@@ -532,19 +565,43 @@
     {
       "path": "src/mock/reports.ts",
       "sha256": "a6bfaec891658e20fae60ec3025824f92b5b5a20b8e259864851989d3be6abaf"
+    },
+    {
+      "path": "src/admin/ConnectorsGalleryPage.tsx",
+      "sha256": "04acb7ba91fa9a65e031e93fcd7d15df1956ca4437e1bc7cb359f0b2a9b4dc26"
+    },
+    {
+      "path": "src/admin/ConnectorDetailPage.tsx",
+      "sha256": "3a246cf23ad34f9a9a34d688298b7f8aa0baf5af5616500680d2f95ade8ec92a"
+    },
+    {
+      "path": "src/admin/AgentConnectorsCard.tsx",
+      "sha256": "940cfdb640ba56de50f660a33aba80c4299947938e6b380a02441838eedd5234"
+    },
+    {
+      "path": "src/admin/PartnerConnectorPage.tsx",
+      "sha256": "8b7bb604cce2841e0033fe7484fde8713027ce22adfe78663f15dd0ea509a9ab"
+    },
+    {
+      "path": "src/mock/connectorList.ts",
+      "sha256": "07d29cb81716ee346ce70746514f4c8aea480fdb8a47eeed965195ea11bf81e4"
     }
   ],
   "baselineDriftFixes": {
     "reason": "The confirmed mock no longer compiled against the current packages: @wa-team-inbox/* was renamed to @ezychat/*, and newer server types added an AI decision (no_reply), a hand-off reason and chat event types.",
     "renamedImports": "@wa-team-inbox/ -> @ezychat/ in every file that imported it (mechanical)",
-    "typeFixes": ["src/admin/AiTryIt.tsx", "src/inbox/EventItem.tsx", "src/lib/ai-handoff.ts"],
+    "typeFixes": [
+      "src/admin/AiTryIt.tsx",
+      "src/inbox/EventItem.tsx",
+      "src/lib/ai-handoff.ts"
+    ],
     "runner": "run.ts keeps the web config resolve (ezychat-source condition) and seeds the MCP-send demo token and reply; seed.ts adds them",
     "emojiReactions": "src/api/queries.ts: optimisticMessage gains `reactions: []` (Message.reactions is required by the new contract); src/api/socket.ts: the message:reactions handler"
   },
   "runner": {
     "ports": {
-      "ui": 7487,
-      "api": 7486
+      "ui": 7489,
+      "api": 7488
     },
     "localStorage": [
       "mock.customAgents.v2",
@@ -552,7 +609,7 @@
       "mock.customAgents.edition.v1",
       "mock.claudeProvider.v1"
     ],
-    "changes": "run.ts: ports 7485/7484, temp-folder prefix ezychat-upgrade-enterprise-mock-, ready line; shot scripts default to port 7485; upgrade-shots.mjs added ai-reply-suggestions: run.ts ports 7489/7488 and temp-folder name; proposal.ts registers reply-suggestions.ts; seed.ts adds the Malay chat (Siti Rahman). google-calendar: run.ts temp-folder name and ready line; proposal.ts registers google-calendar.ts (stand-in Google routes); seed.ts adds the booked chat (Lim Mei Ying); calendar-shots.mjs added. connector-list: run.ts ports 7487/7486 (business-api's, pruned in this change), temp-folder name and ready line; every shot script defaults to port 7487; proposal.ts registers reports.ts (baseline addition) and connector-list.ts (the list, partner sign-in stand-in and API-key check: /api/mock/connector-list*); google-calendar.ts seeds bookings (baseline addition); connector-list-shots.mjs added."
+    "changes": "run.ts: ports 7485/7484, temp-folder prefix ezychat-upgrade-enterprise-mock-, ready line; shot scripts default to port 7485; upgrade-shots.mjs added ai-reply-suggestions: run.ts ports 7489/7488 and temp-folder name; proposal.ts registers reply-suggestions.ts; seed.ts adds the Malay chat (Siti Rahman). google-calendar: run.ts temp-folder name and ready line; proposal.ts registers google-calendar.ts (stand-in Google routes); seed.ts adds the booked chat (Lim Mei Ying); calendar-shots.mjs added. connector-list: run.ts ports 7487/7486 (business-api's, pruned in this change), temp-folder name and ready line; every shot script defaults to port 7487; proposal.ts registers reports.ts (baseline addition) and connector-list.ts (the list, partner sign-in stand-in and API-key check: /api/mock/connector-list*); google-calendar.ts seeds bookings (baseline addition); connector-list-shots.mjs added. ai-groups: run.ts ports 7489/7488 (ai-reply-suggestions’ ports, pruned at 9c2b6007), temp-folder name, ready line, the fake phone’s own number named \"Kopi Apong\" (group @mentions read \"@Kopi Apong\"); every shot script defaults to port 7489; proposal.ts registers groups.ts (routes /api/mock/groups*); seed.ts calls seedGroups (three demo groups); groups-shots.mjs added."
   },
   "files": [
     {

@@ -16,6 +16,7 @@ import { ChatAvatar } from './ChatAvatar';
 import { GroupIcon } from './ChatListItem';
 import type { Directory } from './useDirectory';
 import { InboxChip } from './InboxChip';
+import { GroupAiBadge } from './GroupAiRow';
 import { inboxOfChat, useMockInboxes } from '../mock/inboxes';
 
 export interface ConversationHeaderProps {
@@ -127,10 +128,12 @@ export function ConversationHeader({
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
             {/* Proposed (multi-inbox): the number this chat uses; replies always leave from it. */}
             {inbox && <InboxChip inbox={inbox} className="shrink-0" />}
-            <span className="truncate">
+            <span className="shrink-0 truncate">
               {subtitle}
               {resolved && ` · ${t('header.resolved')}`}
             </span>
+            {/* Proposed (ai-groups): the AI answers in this group when mentioned. */}
+            {chat.type === 'group' && <GroupAiBadge jid={chat.jid} />}
           </span>
         </span>
       </Button>

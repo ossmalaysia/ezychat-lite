@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarCheck, CalendarSearch, Lock, ShieldCheck } from 'lucide-react';
+import { CalendarCheck, CalendarSearch, Lock, ShieldCheck, Users } from 'lucide-react';
 import { AI_TRY_QUESTION_CHARACTERS } from '@ezychat/shared';
 import { useAiMember } from '../api/ai';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
 import type { AgentPreset, MockAgentItem } from '../mock/agents';
@@ -23,6 +25,8 @@ interface Result {
   safety?: boolean;
   /** Proposed (google-calendar): calendar steps shown as the chat's system lines. */
   calendar?: { checked: boolean; wouldBook: Date | null; offered: Date[]; bookOff: boolean };
+  /** Proposed (ai-groups): answered as a group mention (the question it quotes). */
+  group?: { question: string };
 }
 
 // Proposed (google-calendar): a customer asks to book (English, Malay, Chinese).
@@ -102,6 +106,10 @@ export function AgentTryIt({
   const [question, setQuestion] = useState('');
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  // Proposed (ai-groups): ask as a member who @mentioned the business in a group.
+  const [asGroup, setAsGroup] = useState(false);
+  const groupSwitchId = useId();
+  const groupMember = t('mockGroups.try.member');
   const calendar = useGoogleCalendar();
   const booking = agentId === undefined ? null : bookingFor(calendar.data, agentId);
   const calendarOn = booking !== null && calendar.data?.state === 'connected' && booking.checkFree;
@@ -179,13 +187,33 @@ export function AgentTryIt({
     return { action: 'handoff', reply: t('mockAgents.try.missing') };
   };
 
+  /**
+   * Proposed (ai-groups): the same decision, said as a group answer: it names the member, never asks
+   * "Does that answer your question?" (the AI does not own the group), hands over with the group
+   * line, and only looks things up (no booking from a group).
+   */
+  const groupAnswer = (text: string): Result => {
+    const r = answer(text);
+    const first = groupMember.split(/\s+/)[0] ?? groupMember;
+    const group = { question: text };
+    if (r.action === 'handoff') return { ...r, reply: t('mockGroups.try.handover'), group };
+    const plain = r.reply.replace(t('mockAgents.try.resolve'), '').trim();
+    return {
+      ...r,
+      action: 'answer',
+      reply: t('mockGroups.try.greeting', { first, answer: plain }),
+      calendar: r.calendar ? { ...r.calendar, bookOff: true } : undefined,
+      group,
+    };
+  };
+
   const submit = () => {
     const text = question.trim();
     if (!text || pending) return;
     setPending(true);
     setResult(null);
     window.setTimeout(() => {
-      setResult(answer(text));
+      setResult(asGroup ? groupAnswer(text) : answer(text));
       setPending(false);
       onAnswered?.();
     }, 600);
@@ -219,6 +247,26 @@ export function AgentTryIt({
           />
         )}
       </Field>
+      <div className="flex items-start justify-between gap-4 rounded-lg border px-3 py-2">
+        <div className="min-w-0">
+          <Label htmlFor={groupSwitchId}>{t('mockGroups.try.group')}</Label>
+          <p className="mt-1 text-sm text-muted-foreground">{t('mockGroups.try.groupHint')}</p>
+        </div>
+        <Label
+          htmlFor={groupSwitchId}
+          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
+        >
+          <Switch
+            id={groupSwitchId}
+            data-testid="try-group"
+            checked={asGroup}
+            onCheckedChange={(on) => {
+              setAsGroup(on);
+              setResult(null);
+            }}
+          />
+        </Label>
+      </div>
       <Button
         type="button"
         size="touch"
@@ -265,24 +313,48 @@ export function AgentTryIt({
                 {t('mockCalendar.try.wouldBook', { time: when(result.calendar.wouldBook) })}
               </p>
             )}
-            <p className="break-words whitespace-pre-wrap">{result.reply}</p>
-            {result.calendar && !result.calendar.wouldBook && result.calendar.checked && (
-              <div className="mt-3 flex flex-col items-start gap-1">
-                <Button
-                  type="button"
-                  size="touch"
-                  variant="outline"
-                  onClick={() => setResult(bookingAnswer(true))}
+            {result.group && (
+              <>
+                <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Users aria-hidden className="size-3.5 shrink-0" />
+                  {t('mockGroups.try.inGroup', { member: groupMember })} ·{' '}
+                  {t('mockGroups.try.notSent')}
+                </p>
+                <div
+                  className="mb-2 rounded-md border-l-2 border-primary bg-surface px-2 py-1 text-xs"
+                  data-testid="try-group-quote"
                 >
-                  {t('mockCalendar.try.pickFirst')}
-                </Button>
-                {result.calendar.bookOff && (
-                  <span className="text-xs text-muted-foreground">
-                    {t('mockCalendar.try.bookOffNote')}
-                  </span>
-                )}
-              </div>
+                  <p className="font-semibold text-primary">{groupMember}</p>
+                  <p className="break-words text-muted-foreground">{result.group.question}</p>
+                </div>
+              </>
             )}
+            <p className="break-words whitespace-pre-wrap">{result.reply}</p>
+            {result.group && result.calendar?.checked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('mockGroups.try.lookupsOnly', { name })}
+              </p>
+            )}
+            {!result.group &&
+              result.calendar &&
+              !result.calendar.wouldBook &&
+              result.calendar.checked && (
+                <div className="mt-3 flex flex-col items-start gap-1">
+                  <Button
+                    type="button"
+                    size="touch"
+                    variant="outline"
+                    onClick={() => setResult(bookingAnswer(true))}
+                  >
+                    {t('mockCalendar.try.pickFirst')}
+                  </Button>
+                  {result.calendar.bookOff && (
+                    <span className="text-xs text-muted-foreground">
+                      {t('mockCalendar.try.bookOffNote')}
+                    </span>
+                  )}
+                </div>
+              )}
             {result.usedInternal && (
               <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
                 <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />

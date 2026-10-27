@@ -12,6 +12,7 @@ import { registerPhraseDictionary } from './phrase-dictionary.js';
 import { registerGoogleCalendar } from './google-calendar.js';
 import { registerReports } from './reports.js';
 import { registerConnectorList } from './connector-list.js';
+import { registerGroups } from './groups.js';
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
 const INTRODUCTION =
@@ -27,6 +28,8 @@ export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: Fake
   registerReports(app, ctx);
   // Proposed (connector-list): the connector list and partner (MCP) connectors.
   registerConnectorList(app, ctx);
+  // Proposed (ai-groups): the agent answers in WhatsApp groups when mentioned.
+  registerGroups(app, ctx);
   let enabled = false;
   const setting = () => ({
     enabled,

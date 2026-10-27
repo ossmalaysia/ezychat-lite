@@ -13,7 +13,7 @@ import { join } from 'node:path';
 
 const args = process.argv.slice(2);
 const SETUP = args.includes('--setup');
-const BASE = args.find((a) => a.startsWith('http')) ?? 'http://localhost:7487';
+const BASE = args.find((a) => a.startsWith('http')) ?? 'http://localhost:7489';
 const OUT = join(import.meta.dirname, 'screenshots');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium

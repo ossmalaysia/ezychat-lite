@@ -231,7 +231,11 @@
     "internalNote": "Internal note",
     "mockBooked": "AI booked {{when}} · {{source}}",
     "mockLookedUp": "AI used {{title}} · {{source}}",
-    "mockCheckedFree": "AI checked free times · {{source}}"
+    "mockCheckedFree": "AI checked free times · {{source}}",
+    "mockGroupAnswered": "{{actor}} answered {{member}}",
+    "mockGroupFollowUp": "{{actor}} answered {{member}}’s follow-up",
+    "mockGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
+    "mockGroupPaused": "AI paused: many answers in a row"
   },
   "messageList": {
     "label": "Messages",
@@ -575,5 +579,59 @@
     "tabHint": "Tab to accept · Esc to dismiss",
     "completionStatus": "Suggested ending: {{text}}",
     "unavailable": "AI suggestions are not available now"
+  },
+  "mockGroups": {
+    "badge": "AI answers when mentioned",
+    "badgePaused": "AI paused",
+    "info": {
+      "title": "AI agent answers when mentioned",
+      "hint": "{{name}} answers a member who @mentions your number, and that member’s follow-ups.",
+      "noAgent": "No AI agent works in this inbox.",
+      "agentOff": "Answer in groups is off for {{name}}. Turn it on on the agent page first.",
+      "openAgent": "Open {{name}}",
+      "readOnly": "Only admins can change this.",
+      "on": "On",
+      "off": "Off",
+      "paused": "Paused: many answers in a row. A teammate’s message starts it again."
+    },
+    "notification": {
+      "title": "{{agent}} needs you in {{group}}",
+      "body": "{{member}}: {{question}}",
+      "to": "To {{name}} (assigned to the group)",
+      "toAll": "To everyone with access to the inbox"
+    },
+    "control": {
+      "title": "Simulate AI in groups",
+      "proposed": "Mock only",
+      "agentSwitch": "Answer in groups ({{name}})",
+      "loopGuard": "Loop guard reached",
+      "viewAs": "View as",
+      "admin": "Admin",
+      "agent": "Agent",
+      "on": "On",
+      "off": "Off",
+      "no": "No",
+      "yes": "Yes",
+      "simulate": "Something happens in this group",
+      "notADemoGroup": "Simulations work in the demo groups (Kopi Lovers Club, Reseller Group Penang, Family Day 2026).",
+      "actions": {
+        "question": "A member @mentions the business",
+        "followUp": "The same member replies to the AI",
+        "unrelated": "Another member writes (not to the AI)",
+        "handover": "A member asks for a change",
+        "teammate": "A teammate replies"
+      },
+      "outcome": {
+        "answered": "The AI answered in the group.",
+        "handover": "The AI handed it to the team. See the notification below.",
+        "paused": "The loop guard holds: the AI stays quiet until a teammate writes.",
+        "off": "The AI did not answer: answering is off for this group.",
+        "silent": "The message was not to the AI: nothing was sent.",
+        "teammate": "A teammate replied: the loop guard starts again from 0."
+      },
+      "notificationTitle": "Last group hand-over notification",
+      "noNotification": "No group hand-over yet.",
+      "reset": "Reset the groups demo"
+    }
   }
 }

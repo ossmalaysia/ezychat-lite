@@ -229,7 +229,11 @@
     "internalNote": "内部备注",
     "mockBooked": "AI 已预约 {{when}} · {{source}}",
     "mockLookedUp": "AI 使用了 {{title}} · {{source}}",
-    "mockCheckedFree": "AI 查看了空闲时间 · {{source}}"
+    "mockCheckedFree": "AI 查看了空闲时间 · {{source}}",
+    "mockGroupAnswered": "{{actor}} 回答了 {{member}}",
+    "mockGroupFollowUp": "{{actor}} 回答了 {{member}} 的后续消息",
+    "mockGroupHandover": "{{actor}} 将 {{member}} 的问题转交给团队：{{reason}}",
+    "mockGroupPaused": "AI 已暂停：连续回答过多"
   },
   "messageList": {
     "label": "消息",
@@ -572,5 +576,59 @@
     "tabHint": "Tab to accept · Esc to dismiss",
     "completionStatus": "Suggested ending: {{text}}",
     "unavailable": "AI suggestions are not available now"
+  },
+  "mockGroups": {
+    "badge": "被提及时 AI 回答",
+    "badgePaused": "AI 已暂停",
+    "info": {
+      "title": "被提及时由 AI 助理回答",
+      "hint": "{{name}} 回答 @提及您号码的成员，以及该成员的后续消息。",
+      "noAgent": "此收件箱没有 AI 助理。",
+      "agentOff": "{{name}} 的“在群组中回答”已关闭。请先在助理页面开启。",
+      "openAgent": "打开 {{name}}",
+      "readOnly": "只有管理员可以更改。",
+      "on": "开启",
+      "off": "关闭",
+      "paused": "已暂停：连续回答过多。同事发言后会重新开始。"
+    },
+    "notification": {
+      "title": "{{agent}} 需要您处理 {{group}}",
+      "body": "{{member}}：{{question}}",
+      "to": "发送给 {{name}}（群组负责人）",
+      "toAll": "发送给所有可访问此收件箱的人"
+    },
+    "control": {
+      "title": "Simulate AI in groups",
+      "proposed": "Mock only",
+      "agentSwitch": "Answer in groups ({{name}})",
+      "loopGuard": "Loop guard reached",
+      "viewAs": "View as",
+      "admin": "Admin",
+      "agent": "Agent",
+      "on": "On",
+      "off": "Off",
+      "no": "No",
+      "yes": "Yes",
+      "simulate": "Something happens in this group",
+      "notADemoGroup": "Simulations work in the demo groups (Kopi Lovers Club, Reseller Group Penang, Family Day 2026).",
+      "actions": {
+        "question": "A member @mentions the business",
+        "followUp": "The same member replies to the AI",
+        "unrelated": "Another member writes (not to the AI)",
+        "handover": "A member asks for a change",
+        "teammate": "A teammate replies"
+      },
+      "outcome": {
+        "answered": "The AI answered in the group.",
+        "handover": "The AI handed it to the team. See the notification below.",
+        "paused": "The loop guard holds: the AI stays quiet until a teammate writes.",
+        "off": "The AI did not answer: answering is off for this group.",
+        "silent": "The message was not to the AI: nothing was sent.",
+        "teammate": "A teammate replied: the loop guard starts again from 0."
+      },
+      "notificationTitle": "Last group hand-over notification",
+      "noNotification": "No group hand-over yet.",
+      "reset": "Reset the groups demo"
+    }
   }
 }

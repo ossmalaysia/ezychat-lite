@@ -3,12 +3,12 @@
 // Integrations (connected, not connected, Google sign-in, sign-in expired, Google unavailable), the
 // agent page Bookings card (connected, booking off, not connected), Try it (free times, would book,
 // booking off) and the chat with the "AI booked" line. Reports page errors and horizontal overflow.
-// Usage: node docs/features/connector-list/mock/calendar-shots.mjs [baseUrl]
+// Usage: node docs/features/ai-groups/mock/calendar-shots.mjs [baseUrl]
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BASE = process.argv[2] ?? 'http://localhost:7487';
+const BASE = process.argv[2] ?? 'http://localhost:7489';
 const OUT = join(import.meta.dirname, 'screenshots');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium

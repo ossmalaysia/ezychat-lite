@@ -2,12 +2,12 @@
 // desktop 1280 px and mobile 360 px (touch), light and dark: 30 / 90 / 7 days, a day under the
 // pointer, the busy times readout, Show as table, the admin menu with Reports, 5 days of data, no
 // messages yet, loading and error. Reports page errors and horizontal overflow.
-// Usage: node docs/features/connector-list/mock/reports-shots.mjs [baseUrl]
+// Usage: node docs/features/ai-groups/mock/reports-shots.mjs [baseUrl]
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BASE = process.argv[2] ?? 'http://localhost:7487';
+const BASE = process.argv[2] ?? 'http://localhost:7489';
 const OUT = join(import.meta.dirname, 'screenshots');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium

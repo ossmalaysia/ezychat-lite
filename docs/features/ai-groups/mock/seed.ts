@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../../../../packages/server/src/context.js';
 import { createInboxSendPort } from '../../../../packages/server/src/mcp/send.js';
+import { seedGroups } from './groups.js';
 
 /** Fictional data through the existing services and API, never a real linked WhatsApp account. */
 export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -155,6 +156,8 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
     requestId: 'seed-assistant-new-0001',
   });
   await seedBooking(ctx, call);
+  // Proposed (ai-groups): three groups where the agent answers when mentioned (or stays off).
+  await seedGroups(ctx, call);
 }
 
 /**

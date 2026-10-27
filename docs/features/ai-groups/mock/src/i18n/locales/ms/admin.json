@@ -1924,5 +1924,38 @@
       "unreachable": "Unreachable",
       "keyRule": "A key like kd_demo12345 works; any other key is refused."
     }
+  },
+  "mockGroups": {
+    "title": "Kumpulan",
+    "description": "{{name}} boleh menjawab dalam kumpulan WhatsApp {{inbox}}.",
+    "switch": "Jawab dalam kumpulan (apabila disebut)",
+    "switchHint": "Menjawab ahli yang @menyebut nombor anda, dan mesej susulan ahli itu. Mesej kumpulan lain tidak dijawab.",
+    "offSummary_one": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
+    "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
+    "listLabel": "Kumpulan {{inbox}}",
+    "noneOn": "Belum ada kumpulan yang dihidupkan, jadi {{name}} tidak menjawab dalam mana-mana kumpulan.",
+    "noGroups": "{{inbox}} belum berada dalam mana-mana kumpulan WhatsApp. Kumpulan dipaparkan di sini apabila nombor ini ditambah ke dalam kumpulan.",
+    "noInbox": "Pilih peti masuk untuk {{name}} dahulu.",
+    "loopGuard": "Pengawal gelung: selepas {{count}} jawapan berturut-turut tanpa mesej rakan sepasukan, {{name}} berhenti dalam kumpulan itu sehingga rakan sepasukan menulis.",
+    "lookupsOnly": "Dalam kumpulan, {{name}} hanya menyemak maklumat. Tempahan dan perubahan lain tidak dibuat dari kumpulan.",
+    "agentOff": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
+    "members_one": "{{count}} ahli",
+    "members_other": "{{count}} ahli",
+    "answers": "Menjawab apabila disebut",
+    "off": "Mati",
+    "paused": "Dijeda: terlalu banyak jawapan berturut-turut",
+    "answerIn": "Jawab dalam {{group}}",
+    "openGroup": "Buka {{group}}",
+    "saveFailed": "Tidak dapat menyimpan. Cuba lagi.",
+    "try": {
+      "group": "Soalan kumpulan",
+      "groupHint": "Tanya seolah-olah ahli @menyebut nombor anda dalam kumpulan.",
+      "member": "Nurul Huda",
+      "inGroup": "Dalam kumpulan · balas kepada {{member}}",
+      "greeting": "Hai {{first}}! {{answer}}",
+      "handover": "Ahli pasukan kami akan membalas sebentar lagi.",
+      "lookupsOnly": "Dalam kumpulan {{name}} hanya menyemak maklumat; rakan sepasukan membuat tempahan.",
+      "notSent": "Tiada apa-apa dihantar ke kumpulan."
+    }
   }
 }

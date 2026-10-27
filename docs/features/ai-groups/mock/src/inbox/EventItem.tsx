@@ -51,6 +51,21 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
         ? i18n.t('inbox:events.reopenedByMessage')
         : i18n.t('inbox:events.reopened', { actor });
     case 'ai_tool_used': {
+      // Proposed (ai-groups): the agent's lines in a group (answered, hand-over, loop guard).
+      const group = e.payload.group;
+      if (group === 'paused') return i18n.t('inbox:events.mockGroupPaused');
+      if (group === 'answered' || group === 'handover') {
+        const member = String(e.payload.member ?? '');
+        if (group === 'handover')
+          return i18n.t('inbox:events.mockGroupHandover', {
+            actor,
+            member,
+            reason: handoff ?? handoffReasonLabel('needs_action'),
+          });
+        return e.payload.followUp
+          ? i18n.t('inbox:events.mockGroupFollowUp', { actor, member })
+          : i18n.t('inbox:events.mockGroupAnswered', { actor, member });
+      }
       // Proposed (google-calendar): "AI checked free times" / "AI booked Fri 31 Oct, 7:30–9:00 pm".
       const source = String(e.payload.sourceLabel ?? '');
       const booking = e.payload.booking as { start?: string; end?: string } | undefined;

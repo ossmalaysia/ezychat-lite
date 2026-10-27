@@ -48,6 +48,7 @@ import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { ReactionSimulator } from '../mock/ReactionSimulator';
+import { GroupChatMockControls } from '../mock/GroupsMockControls';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
 import { NotesPanel } from './NotesPanel';
 import { GroupPanel } from './GroupPanel';
@@ -335,6 +336,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         )}
         {/* Proposed (emoji-reactions): mock-only panel that simulates reactions from WhatsApp. */}
         <ReactionSimulator messages={messages} isGroup={chat.type === 'group'} />
+        {/* Proposed (ai-groups): mock-only panel that simulates the AI in this group. */}
+        {chat.type === 'group' && <GroupChatMockControls jid={chat.jid} />}
         <MessageList
           items={items}
           messagesById={messagesById}

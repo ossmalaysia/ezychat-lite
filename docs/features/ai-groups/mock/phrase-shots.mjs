@@ -9,7 +9,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const BASE = process.argv[2] ?? 'http://localhost:7487';
+const BASE = process.argv[2] ?? 'http://localhost:7489';
 const OUT = join(import.meta.dirname, 'screenshots');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium
