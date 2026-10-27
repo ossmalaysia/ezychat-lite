@@ -31,7 +31,7 @@ export function FileDropZone({
   className,
   children,
   ...rest
-}: FileDropZoneProps) {
+}: Readonly<FileDropZoneProps>) {
   const { t } = useTranslation('inbox');
   const [active, setActive] = useState(false);
   // dragenter/dragleave fire for every child crossed: count them so the overlay does not flicker.

@@ -135,12 +135,12 @@ export function Composer({
   const [pickerDismissed, setPickerDismissed] = useState(false);
   const [browseReplies, setBrowseReplies] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [files, setFilesState] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   // Several drops or pastes can land before a render: count against what is already queued.
   const filesRef = useRef<File[]>([]);
-  const setFiles = (next: File[]) => {
+  const queueFiles = (next: File[]) => {
     filesRef.current = next;
-    setFilesState(next);
+    setFiles(next);
   };
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -170,7 +170,7 @@ export function Composer({
           limit: formatBytes(MEDIA_UPLOAD_LIMIT_BYTES),
         }),
       );
-    if (accepted.length) setFiles([...filesRef.current, ...accepted]);
+    if (accepted.length) queueFiles([...filesRef.current, ...accepted]);
     areaRef.current?.focus();
   }
   useImperativeHandle(ref, () => ({ addFiles }));
@@ -396,7 +396,7 @@ export function Composer({
       if (!(await confirmed())) return;
       if (files.length > 0) sendFiles(files, value);
       else onSend(value);
-      setFiles([]);
+      queueFiles([]);
       setText('');
       setGhost(null);
       closeSuggestions();
@@ -554,8 +554,8 @@ export function Composer({
       {files.length > 0 && (
         <AttachmentTray
           files={files}
-          onRemove={(i) => setFiles(files.filter((_, j) => j !== i))}
-          onClear={() => setFiles([])}
+          onRemove={(i) => queueFiles(files.filter((_, j) => j !== i))}
+          onClear={() => queueFiles([])}
         />
       )}
       {voiceInsecure && (
@@ -634,7 +634,7 @@ export function Composer({
               className="hidden"
               tabIndex={-1}
               aria-hidden="true"
-              onChange={(e) => void onFile(e)}
+              onChange={onFile}
             />
             <Button
               variant="ghost"
@@ -806,7 +806,7 @@ export function Composer({
 }
 
 /** Thumbnail of an image file waiting in the tray (object URL freed on removal). */
-function FileThumb({ file }: { file: File }) {
+function FileThumb({ file }: Readonly<{ file: File }>) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!file.type.startsWith('image/') || typeof URL.createObjectURL !== 'function') return;
@@ -834,11 +834,11 @@ function AttachmentTray({
   files,
   onRemove,
   onClear,
-}: {
+}: Readonly<{
   files: readonly File[];
   onRemove(index: number): void;
   onClear(): void;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   return (
     <div

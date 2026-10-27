@@ -42,7 +42,8 @@ export function mediaFileName(m: Pick<Message, 'id' | 'type' | 'mediaName' | 'me
   const mime = (m.mediaMime ?? '').split(';')[0]?.trim() ?? '';
   const ext = MIME_EXT[mime] ?? mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') ?? '';
   const id = m.id.replace(/[^a-z0-9]/gi, '').slice(-8) || 'file';
-  return `whatsapp-${m.type}-${id}${ext ? `.${ext}` : ''}`;
+  const suffix = ext ? `.${ext}` : '';
+  return `whatsapp-${m.type}-${id}${suffix}`;
 }
 
 /** Dragging this media out of the window saves it as a file (Chromium browsers, desktop app). */
