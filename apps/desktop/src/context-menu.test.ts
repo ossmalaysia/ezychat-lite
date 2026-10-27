@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuItemConstructorOptions } from 'electron';
-import { contextMenuTemplate, type ContextMenuInput } from './context-menu.js';
+import {
+  contextMenuTemplate,
+  registerContextMenu,
+  type ContextMenuContents,
+  type ContextMenuInput,
+} from './context-menu.js';
 
 const BASE = 'http://127.0.0.1:7420';
 const isInbox = (url: string) => url.startsWith(`${BASE}/`);
@@ -144,5 +149,52 @@ describe('inbox window context menu', () => {
     expect(
       labels(contextMenuTemplate(input({ selectionText: 'a' }), actions(), isInbox, 'zh-CN')),
     ).toEqual(['复制']);
+  });
+
+  it('pops the menu up on right-click and wires each item to the window', () => {
+    let listener: ((e: unknown, p: ContextMenuInput) => void) | undefined;
+    const wc = {
+      on: vi.fn((_: string, l: typeof listener) => (listener = l)),
+      replaceMisspelling: vi.fn(),
+      copyImageAt: vi.fn(),
+      downloadURL: vi.fn(),
+      session: { addWordToSpellCheckerDictionary: vi.fn(() => true) },
+    };
+    const popup = vi.fn();
+    const writeText = vi.fn();
+    registerContextMenu(wc as unknown as ContextMenuContents, {
+      isInboxUrl: isInbox,
+      locale: 'en',
+      writeText,
+      popup,
+    });
+    expect(wc.on).toHaveBeenCalledWith('context-menu', expect.any(Function));
+    listener!({}, input());
+    expect(popup).not.toHaveBeenCalled();
+    listener!(
+      {},
+      input({
+        isEditable: true,
+        misspelledWord: 'teh',
+        dictionarySuggestions: ['the'],
+        mediaType: 'image',
+        srcURL: `${BASE}/api/media/1`,
+        linkURL: 'https://a.example',
+      }),
+    );
+    const items = popup.mock.calls[0]![0] as MenuItemConstructorOptions[];
+    for (const label of [
+      'the',
+      'Add to dictionary',
+      'Copy image',
+      'Save image as…',
+      'Copy link address',
+    ])
+      click(items, label);
+    expect(wc.replaceMisspelling).toHaveBeenCalledWith('the');
+    expect(wc.session.addWordToSpellCheckerDictionary).toHaveBeenCalledWith('teh');
+    expect(wc.copyImageAt).toHaveBeenCalledWith(10, 20);
+    expect(wc.downloadURL).toHaveBeenCalledWith(`${BASE}/api/media/1`);
+    expect(writeText).toHaveBeenCalledWith('https://a.example');
   });
 });

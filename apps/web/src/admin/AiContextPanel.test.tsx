@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AiAgentStatus, AiDocument } from '@ezychat/shared';
@@ -481,6 +481,23 @@ describe('Business context panel', () => {
     expect(
       await within(dialog).findByText(/Shorten an Internal item or make it customer-facing/),
     ).toBeTruthy();
+  });
+
+  it('takes a file dropped on Business context into the add dialog', async () => {
+    const { fetchMock } = setup();
+    await table();
+    const card = screen
+      .getByTestId('ai-context-file')
+      .closest('[data-slot="card"]')!.parentElement!;
+    const file = new File(['Open 9am'], 'hours.md', { type: 'text/markdown' });
+    fireEvent.dragEnter(card, { dataTransfer: { types: ['Files'], files: [file] } });
+    expect(screen.getByTestId('file-drop-overlay').textContent).toContain(
+      'Drop a file to add it to Business context',
+    );
+    fireEvent.drop(card, { dataTransfer: { types: ['Files'], files: [file] } });
+    const fileDialog = await screen.findByRole('dialog');
+    expect(within(fileDialog).getByText('hours.md')).toBeTruthy();
+    expect(writes(fetchMock)).toEqual([]);
   });
 
   it('rejects an unsupported file type before uploading', async () => {
