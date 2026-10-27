@@ -30,6 +30,11 @@ const ADMIN_STATE = 'e2e/.auth/admin.json';
 // Several WhatsApp numbers: its own server (port 7498, --max-inboxes) and its own project.
 const MULTI_INBOX_SPEC = /multi-inbox\.spec\.ts/;
 const MULTI_INBOX_URL = 'http://127.0.0.1:7498';
+// Partner connectors from a signed test list: its own server (port 7497) next to the partner MCP
+// test server (e2e/start-partners.mjs) and its own project.
+const PARTNERS_SPEC = /partner-connectors\.spec\.ts/;
+const PARTNERS_URL = 'http://127.0.0.1:7497';
+const OWN_SERVER_SPECS = [MULTI_INBOX_SPEC, PARTNERS_SPEC];
 
 export default defineConfig({
   testDir: './e2e',
@@ -59,7 +64,7 @@ export default defineConfig({
     {
       name: 'desktop-chromium',
       testMatch: /.*\.spec\.ts/,
-      testIgnore: MULTI_INBOX_SPEC,
+      testIgnore: OWN_SERVER_SPECS,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -74,14 +79,14 @@ export default defineConfig({
     {
       name: 'mobile',
       testMatch: /.*\.spec\.ts/,
-      testIgnore: MULTI_INBOX_SPEC,
+      testIgnore: OWN_SERVER_SPECS,
       dependencies: ['setup'],
       use: { ...devices['Pixel 7'], ...chromiumEngine, storageState: ADMIN_STATE },
     },
     {
       name: 'iphone',
       testMatch: /.*\.spec\.ts/,
-      testIgnore: MULTI_INBOX_SPEC,
+      testIgnore: OWN_SERVER_SPECS,
       dependencies: ['setup'],
       use: { ...devices['iPhone 14'], ...chromiumEngine, storageState: ADMIN_STATE },
     },
@@ -89,6 +94,17 @@ export default defineConfig({
       name: 'multi-inbox',
       testMatch: MULTI_INBOX_SPEC,
       use: { ...devices['Desktop Chrome'], ...chromiumEngine, baseURL: MULTI_INBOX_URL },
+    },
+    {
+      name: 'partners',
+      testMatch: PARTNERS_SPEC,
+      // The partner's OAuth consent page uses the test server's self-signed certificate.
+      use: {
+        ...devices['Desktop Chrome'],
+        ...chromiumEngine,
+        baseURL: PARTNERS_URL,
+        ignoreHTTPSErrors: true,
+      },
     },
   ],
   webServer: [
@@ -107,6 +123,15 @@ export default defineConfig({
       // Waits for the server above (it builds apps/web/dist), then starts on port 7498.
       command: 'node e2e/start-multi-inbox.mjs',
       url: `${MULTI_INBOX_URL}/api/health`,
+      reuseExistingServer: false,
+      timeout: 300_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      // Waits for the main server too, then starts the partner MCP test server and port 7497.
+      command: 'node e2e/start-partners.mjs',
+      url: `${PARTNERS_URL}/api/health`,
       reuseExistingServer: false,
       timeout: 300_000,
       stdout: 'ignore',

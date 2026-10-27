@@ -38,6 +38,8 @@ const PACKAGES = [
       'dist/extensions.d.ts',
       'dist/ai/document-worker.js',
       'dist/voice/transcribe-worker.js',
+      // Data imported by the connector list (tsc copies imported JSON).
+      'dist/connectors/list/builtin-list.json',
       ...readdirSync(join(root, 'packages/server/src/db/migrations'))
         .filter((f) => f.endsWith('.sql'))
         .map((f) => `dist/db/migrations/${f}`),

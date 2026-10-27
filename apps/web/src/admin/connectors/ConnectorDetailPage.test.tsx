@@ -31,20 +31,22 @@ describe('connector pages', () => {
   it('says an unknown connector does not exist and links back to the gallery', async () => {
     stubServer(world());
     page('/admin/connectors/nope');
-    expect(screen.getByText('This connector does not exist.')).toBeTruthy();
+    expect(await screen.findByText('This connector does not exist.')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'All connectors' }).getAttribute('href')).toBe(
       '/admin/connectors',
     );
   });
 
-  it('shows a coming-soon connector with its tools and Vote', () => {
+  it('shows a coming-soon connector of the list with its tools and Vote', async () => {
     stubServer(world());
     page('/admin/connectors/autocount');
-    expect(screen.getByRole('heading', { name: 'AutoCount' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'AutoCount' })).toBeTruthy();
     expect(screen.getAllByText('Coming soon').length).toBeGreaterThan(0);
-    expect(screen.getByText('Create a quotation')).toBeTruthy();
-    expect(screen.getByText('Changes data')).toBeTruthy();
+    expect(screen.getByText('autocount description')).toBeTruthy();
+    expect(screen.getByText('AutoCount look-up')).toBeTruthy();
+    expect(screen.getByText('Reads AutoCount.')).toBeTruthy();
     expect(screen.getByText('Look-up')).toBeTruthy();
+    expect(screen.queryByText('Changes data')).toBeNull();
     expect(
       decodeURIComponent(screen.getByTestId('vote-connector').getAttribute('href')!),
     ).toContain('AutoCount');
@@ -227,7 +229,9 @@ describe('Google Calendar: Settings', () => {
     ).toBeTruthy();
     // No agent picker with one agent; Save waits for a change.
     expect(screen.queryByText('Settings for')).toBeNull();
-    const save = screen.getByRole('button', { name: 'Save bookings' }) as HTMLButtonElement;
+    const save = (await screen.findByRole('button', {
+      name: 'Save bookings',
+    })) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     // Booking needs a calendar; read-only calendars are not offered.
     await user.click(screen.getByRole('switch', { name: 'Book appointments' }));

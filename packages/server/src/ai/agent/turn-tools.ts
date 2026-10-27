@@ -5,6 +5,10 @@ import {
   calendarLookupsAvailable,
 } from '../../connectors/google-calendar/tools.js';
 import {
+  mcpConnectorAgentTools,
+  mcpConnectorLookupsAvailable,
+} from '../../connectors/mcp/tools.js';
+import {
   extensionAgentTools,
   extensionLookupsAvailable,
   type AgentKind,
@@ -23,6 +27,7 @@ export function agentLookupsAvailable(
 ): boolean {
   return (
     calendarLookupsAvailable(ctx, agentId) ||
+    mcpConnectorLookupsAvailable(ctx, agentId) ||
     extensionLookupsAvailable(ctx, agent, agentId ?? undefined)
   );
 }
@@ -38,14 +43,16 @@ export async function agentTurnTools(
   options: { onFailure: () => void; onCall?: (name: string) => void },
 ): Promise<ExtensionToolsTurn> {
   const calendar = calendarAgentTools(ctx, log, input, options);
+  const listed = await mcpConnectorAgentTools(ctx, log, input, options);
   const extension = await extensionAgentTools(ctx, log, input, options);
   return {
-    tools: { ...extension.tools, ...calendar.tools },
-    failed: () => calendar.failed() || extension.failed(),
-    used: () => [...calendar.used(), ...extension.used()],
-    calls: () => [...calendar.calls(), ...extension.calls()],
+    tools: { ...extension.tools, ...listed.tools, ...calendar.tools },
+    failed: () => calendar.failed() || listed.failed() || extension.failed(),
+    used: () => [...calendar.used(), ...listed.used(), ...extension.used()],
+    calls: () => [...calendar.calls(), ...listed.calls(), ...extension.calls()],
     dispose: async () => {
       await calendar.dispose();
+      await listed.dispose();
       await extension.dispose();
     },
   };

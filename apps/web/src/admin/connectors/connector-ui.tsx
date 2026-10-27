@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, ThumbsUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, ExternalLink, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAppLinks } from '@/lib/app-links';
 import { cn } from '@/lib/utils';
 import { useWebExtensions } from '../../extensions';
-import type { CatalogConnector, ConnectorStatus } from './catalog';
+import type { ConnectorStatus } from './catalog';
 
 /** Connector pages that web extensions provide, by catalog id (the first extension wins). */
 export function useConnectorLinks(): Partial<Record<string, string>> {
@@ -24,13 +25,15 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
   const variant =
     status === 'connected'
       ? 'default'
-      : status === 'comingSoon' || status === 'enterprise'
+      : status === 'comingSoon' || status === 'enterprise' || status === 'needsUpdate'
         ? 'secondary'
         : 'outline';
   return (
     <Badge
       variant={variant}
-      className={status === 'attention' ? 'border-warning text-warning' : undefined}
+      className={
+        status === 'attention' || status === 'delisted' ? 'border-warning text-warning' : undefined
+      }
       data-testid={`connector-status-${status}`}
     >
       {t(`connectors.status.${status}`)}
@@ -38,13 +41,16 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
   );
 }
 
-/** The connector's icon in a calm tile (no brand logos). */
+/**
+ * The connector's icon in a calm tile: the icon file from the connector list (served by the
+ * server, checked against the list's hash) or a Lucide icon (no brand logos in the app).
+ */
 export function ConnectorIcon({
   c,
   size = 'md',
   muted = false,
 }: {
-  c: CatalogConnector;
+  c: { icon: LucideIcon; image?: string };
   size?: 'md' | 'lg';
   muted?: boolean;
 }) {
@@ -52,14 +58,40 @@ export function ConnectorIcon({
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-lg border bg-muted',
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted',
         muted ? 'text-muted-foreground opacity-60' : 'text-foreground',
         size === 'lg' ? 'size-14' : 'size-11',
       )}
       aria-hidden
     >
-      <Icon className={size === 'lg' ? 'size-7' : 'size-5'} />
+      {c.image ? (
+        <img
+          src={c.image}
+          alt=""
+          className={size === 'lg' ? 'size-9' : 'size-7'}
+          data-testid="connector-icon-image"
+        />
+      ) : (
+        <Icon className={size === 'lg' ? 'size-7' : 'size-5'} />
+      )}
     </span>
+  );
+}
+
+/** "Connectors › <name>" above a connector page. */
+export function ConnectorBreadcrumb({ name }: { name: string }) {
+  const { t } = useTranslation('admin');
+  return (
+    <nav aria-label={t('connectors.breadcrumb')} className="flex items-center gap-1 text-sm">
+      <Link
+        to="/admin/connectors"
+        className="text-muted-foreground underline-offset-4 hover:underline"
+      >
+        {t('connectors.title')}
+      </Link>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 truncate">{name}</span>
+    </nav>
   );
 }
 
