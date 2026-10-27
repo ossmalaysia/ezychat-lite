@@ -8,6 +8,10 @@ export const sourceResolve = {
   ssr: { resolve: { conditions: ['ezychat-source', ...defaultServerConditions] } },
 };
 
+// Server tests build a real app (`makeTestApp()`: data dir, every migration, Fastify) and the Windows CI
+// runner is several times slower than a local run: 30 s per test and hook instead of Vitest's 5 s.
+export const SERVER_TIMEOUTS = { testTimeout: 30_000, hookTimeout: 30_000 };
+
 // Root config: every workspace is a Vitest project. A workspace may add its own
 // vitest.config.ts (e.g. apps/web uses jsdom); the core packages inherit this file here, and their
 // own vitest.config.ts reuses `sourceResolve` for `npm test -w @ezychat/<pkg>` runs.
@@ -18,7 +22,7 @@ export default defineConfig({
       ...['shared', 'wa', 'server'].map((name) => ({
         extends: true,
         root: `packages/${name}`,
-        test: { name: `@ezychat/${name}` },
+        test: { name: `@ezychat/${name}`, ...(name === 'server' ? SERVER_TIMEOUTS : {}) },
       })),
       'apps/*',
       { extends: true, test: { name: 'scripts', include: ['scripts/**/*.test.{mjs,ts}'] } },

@@ -593,9 +593,10 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
-  migrates a data dir inside itself (`describe(name, { timeout: 30_000 }, …)`; put it in subagent and
-  reviewer prompts: five agent-written files missed it and failed only on Windows CI), and
+  several times slower than local runs. The server test project now defaults to 30 s per test and hook
+  (`SERVER_TIMEOUTS` in `vitest.config.ts`), because a branch that only adds test files pushed old
+  `makeTestApp()` tests past Vitest's 5 s on Windows CI three runs in a row; other projects still set
+  `describe(name, { timeout: 30_000 }, …)` when a test builds an app or migrates a data dir, and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
