@@ -952,6 +952,9 @@ into AGENTS.md.
   `0.0.0-test`, so any higher minimum marks the built-in entries "needs update" in tests and Dev Builds.
 - Server unit tests may import an `e2e/` helper only as `.mjs` with a `.d.mts` type file: a `.ts` file outside
   `packages/server` breaks its typecheck (TS6059 rootDir).
+- Never trust a model to continue "exactly where the text stops": ask for the whole current sentence and cut the
+  typed part on the server (`continuationOf`: longest typed end from a word start, case and spaces ignored), so the
+  grey text never repeats what was typed and the space after a finished word comes from the model's own sentence.
 
 ## Desktop and web UI
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Beta mark for connectors.** A connector can show **Beta** on its card and page, with a short note above Connect. Google Calendar is Beta while Google reviews the sign-in: the note explains the warning Google shows when you sign in. The mark goes away by itself when the connector list drops it, with no update.
+
+### Fixed
+
+- The grey text no longer repeats what you typed. When you type "hi what", it shows only the rest (" would you like to know?"), with the space in the right place, so Tab gives a correct sentence.
+
 ## [0.1.60] - 2026-10-27
 
 ### Added

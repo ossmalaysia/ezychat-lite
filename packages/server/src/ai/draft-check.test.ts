@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptCompletion,
   checkCompletion,
+  continuationOf,
   acceptDrafts,
   ungroundedNumbers,
   type DraftOutput,
@@ -147,8 +148,56 @@ describe('acceptDrafts', () => {
   });
 });
 
+describe('continuationOf (the grey text never repeats what was typed)', () => {
+  it('cuts a full echo and keeps the space after the finished word', () => {
+    expect(continuationOf('hi what', 'hi what would you like to know?')).toBe(
+      ' would you like to know?',
+    );
+    // Case and extra spaces do not matter; a leading space in the answer is ignored.
+    expect(continuationOf('Hi  What', ' hi what would you like?')).toBe(' would you like?');
+  });
+
+  it('cuts an echo of only the current sentence or the last words', () => {
+    expect(continuationOf('Thanks Jazz. sure do', 'sure do drop us a message early.')).toBe(
+      ' drop us a message early.',
+    );
+    expect(continuationOf('hi what', 'what would you like?')).toBe(' would you like?');
+  });
+
+  it('finishes a half-typed word without a space', () => {
+    expect(continuationOf('Hi Nu', 'Hi Nurul, how can we help?')).toBe('rul, how can we help?');
+    expect(continuationOf('Hi Nu', 'Nurul, how can we help?')).toBe('rul, how can we help?');
+  });
+
+  it('after a typed space the grey text starts without one', () => {
+    expect(continuationOf('Two Nasi ', 'Two Nasi Lemak Ayam')).toBe('Lemak Ayam');
+    expect(continuationOf('Two Nasi ', ' Lemak Ayam')).toBe('Lemak Ayam');
+  });
+
+  it('keeps an answer that holds only the new words', () => {
+    expect(continuationOf('Two Nasi ', 'Lemak Ayam')).toBe('Lemak Ayam');
+    expect(continuationOf('hi what', ' would you like?')).toBe(' would you like?');
+    // A word inside a typed word is no word start: "at" in "what" is not cut.
+    expect(continuationOf('hi what', 'at the shop')).toBe('at the shop');
+  });
+
+  it('works for Chinese (every character is a word start)', () => {
+    expect(continuationOf('您好，请问', '请问您需要什么？')).toBe('您需要什么？');
+  });
+});
+
 describe('acceptCompletion', () => {
   const done = (completion: string | null, grounded = true) => ({ completion, grounded });
+
+  it('shows only what comes after the typed text, and nothing for a pure echo', () => {
+    expect(
+      acceptCompletion(done('hi what would you like to know?'), 'hi what', SOURCES, INTERNAL),
+    ).toBe(' would you like to know?');
+    expect(checkCompletion(done('Hi what'), 'hi what', SOURCES, INTERNAL)).toEqual({
+      completion: null,
+      dropped: 'empty',
+    });
+  });
 
   it('cuts at the end of the sentence', () => {
     expect(

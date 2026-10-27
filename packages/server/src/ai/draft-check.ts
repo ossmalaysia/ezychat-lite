@@ -98,6 +98,50 @@ export function acceptCompletion(
   return checkCompletion(output, typed, sources, internalTexts, prices).completion;
 }
 
+// Where a typed word may start: after a space or punctuation, or at any Chinese character.
+const WORD_START = /(?<=[\s,.!?;:，。？！、])\S|\p{Script=Han}/gu;
+
+/**
+ * Characters of `text` (from its start) that spell `prefix`, ignoring case and treating any run
+ * of spaces as one space; -1 when `text` does not start with it.
+ */
+function spelledLength(text: string, prefix: string): number {
+  let i = 0;
+  for (let p = 0; p < prefix.length; p++) {
+    if (/\s/u.test(prefix[p]!)) {
+      if (!/\s/u.test(text[i] ?? '')) return -1;
+      while (/\s/u.test(text[i] ?? '')) i++;
+      while (/\s/u.test(prefix[p + 1] ?? '')) p++;
+    } else {
+      if ((text[i] ?? '').toLowerCase() !== prefix[p]!.toLowerCase()) return -1;
+      i++;
+    }
+  }
+  return i;
+}
+
+/**
+ * The grey text must continue the typed text, never repeat it: models often send the whole
+ * sentence ("hi what would you like to know?" for "hi what"). Cuts the longest end of the typed
+ * text that starts at a word start and that the completion starts with ("Hi Nu" + "Nurul, how…" →
+ * "rul, how…"), so the space after a finished word stays. After a typed space, no leading space.
+ */
+export function continuationOf(typed: string, completion: string): string {
+  const body = typed.replace(/\s+$/u, '');
+  const starts = [0, ...[...body.matchAll(WORD_START)].map((m) => m.index)];
+  let rest = completion;
+  for (const at of starts) {
+    const tail = body.slice(at);
+    const head = completion.replace(/^\s+/u, '');
+    const used = tail ? spelledLength(head, tail) : -1;
+    if (used > 0) {
+      rest = head.slice(used);
+      break;
+    }
+  }
+  return /\s$/u.test(typed) ? rest.replace(/^\s+/u, '') : rest;
+}
+
 /** Why a completion shows no grey text (logged as a name only, never the text). */
 export type CompletionDrop = 'empty' | 'ungrounded' | 'too_long' | 'number' | 'internal';
 
@@ -112,8 +156,11 @@ export function checkCompletion(
   const drop = (dropped: CompletionDrop) => ({ completion: null, dropped });
   if (!output.completion?.trim()) return drop('empty');
   if (!output.grounded) return drop('ungrounded');
-  const end = output.completion.search(/[.!?。？](\s|$)/u);
-  const completion = end >= 0 ? output.completion.slice(0, end + 1) : output.completion;
+  // Only what comes after the typed text, however much of it the model repeated.
+  const continued = continuationOf(typed, output.completion);
+  if (!continued.trim()) return drop('empty');
+  const end = continued.search(/[.!?。？](\s|$)/u);
+  const completion = end >= 0 ? continued.slice(0, end + 1) : continued;
   if (completion.length > REPLY_COMPLETION_CHARACTERS) return drop('too_long');
   if (ungroundedNumbers(completion, sources, prices).length > 0) return drop('number');
   // The leak check sees the whole sentence: a run may start in the typed text.
