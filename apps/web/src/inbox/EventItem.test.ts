@@ -102,3 +102,30 @@ describe('describeEvent', () => {
     ).toBe('AI booked a time · Google Calendar');
   });
 });
+
+describe('describeEvent in WhatsApp groups', () => {
+  const source = { title: 'Group answer', sourceLabel: 'WhatsApp group' };
+  const line = (group: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    describeEvent(event('ai_tool_used', 2, { ...source, ...extra, group }), dir);
+
+  it('names the member the AI answered, by a tag or a quote', () => {
+    expect(line({ kind: 'answered', member: 'Nurul Huda' })).toBe('Jee Fong answered Nurul Huda');
+    expect(line({ kind: 'answered', member: 'Nurul Huda', quoted: true })).toBe(
+      'Jee Fong answered Nurul Huda’s follow-up',
+    );
+    expect(line({ kind: 'answered', member: null })).toBe('Jee Fong answered a member');
+  });
+
+  it('says a question went to the team, with the reason when there is one', () => {
+    expect(line({ kind: 'handover', member: 'Farah Aziz' }, { handoff: 'needs_action' })).toMatch(
+      /^Jee Fong handed Farah Aziz’s question to the team: .+/,
+    );
+    expect(line({ kind: 'handover', member: 'Farah Aziz' })).toBe(
+      'Jee Fong handed Farah Aziz’s question to the team',
+    );
+  });
+
+  it('says the loop guard paused the AI', () => {
+    expect(line({ kind: 'paused', member: null })).toBe('AI paused: many answers in a row');
+  });
+});

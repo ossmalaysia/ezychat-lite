@@ -54,6 +54,19 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       // Title and source come from the extension; anything else in the payload is ignored.
       const used = AiToolUsedPayload.safeParse(e.payload);
       if (!used.success) return '';
+      // A WhatsApp group: the AI answered a tag or a quote, handed it over, or the loop guard paused it.
+      const group = used.data.group;
+      if (group) {
+        if (group.kind === 'paused') return i18n.t('inbox:events.aiGroupPaused');
+        const member = group.member ?? i18n.t('inbox:events.aiGroupMember');
+        if (group.kind === 'handover')
+          return handoff
+            ? i18n.t('inbox:events.aiGroupHandover', { actor, member, reason: handoff })
+            : i18n.t('inbox:events.aiGroupHandoverNoReason', { actor, member });
+        return group.quoted
+          ? i18n.t('inbox:events.aiGroupQuoted', { actor, member })
+          : i18n.t('inbox:events.aiGroupAnswered', { actor, member });
+      }
       const source = used.data.sourceLabel;
       // Google Calendar: "AI checked free times" / "AI booked Fri, 30 Oct, 7:30–9:00 pm".
       const calendar = used.data.calendar;

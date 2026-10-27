@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
-import type { Chat, Inbox } from '@ezychat/shared';
+import type { AiGroupChat, Chat, Inbox } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -14,6 +14,7 @@ import { formatPhone } from '../lib/jid';
 import { chatTitle } from './chat-title';
 import { ChatAvatar } from './ChatAvatar';
 import { GroupIcon } from './ChatListItem';
+import { GroupAiBadge, groupAiActive } from './GroupAiRow';
 import { InboxChip } from './InboxChip';
 import type { Directory } from './useDirectory';
 
@@ -39,6 +40,8 @@ export interface ConversationHeaderProps {
   memberCount?: number | null;
   /** The chat's inbox, only while the user sees two or more inboxes (replies leave from it). */
   inbox?: Pick<Inbox, 'name' | 'tone'>;
+  /** Group chats: whether the AI agent answers when tagged or quoted (the header badge). */
+  groupAi?: AiGroupChat | null;
   busy?: boolean;
 }
 
@@ -59,6 +62,7 @@ export function ConversationHeader({
   onOpenInfo,
   memberCount = null,
   inbox,
+  groupAi = null,
   busy,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
@@ -70,6 +74,9 @@ export function ConversationHeader({
         : t('chatListItem.group')
       : (formatPhone(chat) ?? t('header.phoneHidden'));
   const resolved = chat.status === 'resolved';
+  // The AI answers in this group when tagged or quoted (or the loop guard paused it).
+  const badge =
+    chat.type === 'group' && groupAiActive(groupAi) ? <GroupAiBadge ai={groupAi} /> : null;
 
   // Options: active team members who may open this chat's inbox + current assignee.
   const options = [...directory.assignableFor(chat.inboxId)];
@@ -124,13 +131,14 @@ export function ConversationHeader({
               {name}
             </span>
           </span>
-          {inbox ? (
+          {inbox || badge ? (
             <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-              <InboxChip inbox={inbox} className="shrink-0" />
-              <span className="truncate">
+              {inbox && <InboxChip inbox={inbox} className="shrink-0" />}
+              <span className={cn('truncate', badge && 'shrink-0')}>
                 {subtitle}
                 {resolved && ` · ${t('header.resolved')}`}
               </span>
+              {badge}
             </span>
           ) : (
             <span className="block truncate text-xs text-muted-foreground tabular-nums">

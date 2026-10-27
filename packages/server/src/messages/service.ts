@@ -574,8 +574,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    * owner is kept when another teammate replies; replies from the linked phone (no user) change nothing.
    */
   const claimOnReply = (jid: string, userId: number, t: number) => {
-    const owner = requireChat(jid).assigned_to;
+    const chat = requireChat(jid);
+    const owner = chat.assigned_to;
     if (owner === userId) return;
+    // An AI answer in a WhatsApp group never takes the group: it keeps its assignee (or none).
+    if (chat.type === 'group' && isAiUser(userId)) return;
     if (owner !== null && !(isAiUser(owner) && !isAiUser(userId))) return;
     chats.update(jid, { assigned_to: userId, updated_at: t });
     const ev = chats.insertEvent({

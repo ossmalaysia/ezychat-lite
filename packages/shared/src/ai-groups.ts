@@ -27,12 +27,16 @@ export const AiGroupRow = z.object({
   name: z.string(),
   memberCount: z.number().int().nonnegative().nullable(),
   enabled: z.boolean(),
+  /** The loop guard holds now in this group (the AI waits for a teammate message). */
+  paused: z.boolean().default(false),
 });
 export type AiGroupRow = z.infer<typeof AiGroupRow>;
 
 /** `GET /api/ai/agents/:agentId/groups` (admins): the switch, the inbox's groups and the guard. */
 export const AiAgentGroups = z.object({
   enabled: z.boolean(),
+  /** The agent's inbox (its WhatsApp number's name), null when the agent serves no inbox. */
+  inboxName: z.string().nullable().default(null),
   groups: z.array(AiGroupRow),
   loopGuard: z.number().int().positive(),
 });
@@ -52,6 +56,8 @@ export const AiGroupChat = z.object({
   /** The agent of the group's inbox, if any. */
   agentId: z.number().int().positive().nullable(),
   agentName: z.string().nullable(),
+  /** The agent itself is on (else nothing is answered, whatever the switches say). */
+  agentEnabled: z.boolean().default(false),
   /** The agent is on and its "Answer in groups" is on (else the group switch has no effect). */
   agentAnswersGroups: z.boolean(),
   /** The loop guard holds now: the AI waits for a teammate message in this group. */

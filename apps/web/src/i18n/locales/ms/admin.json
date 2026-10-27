@@ -1879,5 +1879,33 @@
     "colReplies": "Balasan",
     "colReplyTime": "Balasan pertama",
     "hourRange": "{{day}} {{from}}–{{to}}"
+  },
+  "aiGroups": {
+    "title": "Kumpulan",
+    "description": "{{name}} boleh menjawab dalam kumpulan WhatsApp {{inbox}}.",
+    "switch": "Jawab dalam kumpulan (apabila ditanda atau dipetik)",
+    "switchHint": "Menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI. Mesej kumpulan lain tidak dijawab.",
+    "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
+    "listLabel": "Kumpulan {{inbox}}",
+    "noneOn": "Belum ada kumpulan yang dihidupkan, jadi {{name}} tidak menjawab dalam mana-mana kumpulan.",
+    "noGroups": "{{inbox}} belum berada dalam mana-mana kumpulan WhatsApp. Kumpulan dipaparkan di sini apabila nombor ini ditambah ke dalam kumpulan.",
+    "noInbox": "Pilih peti masuk untuk {{name}} dahulu.",
+    "loopGuard": "Pengawal gelung: selepas {{count}} jawapan berturut-turut tanpa mesej rakan sepasukan, {{name}} berhenti dalam kumpulan itu sehingga rakan sepasukan menulis.",
+    "lookupsOnly": "Dalam kumpulan, {{name}} hanya menyemak maklumat. Tempahan dan perubahan lain tidak dibuat dari kumpulan.",
+    "agentOff": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
+    "members_other": "{{count}} ahli",
+    "answers": "Menjawab apabila ditanda atau dipetik",
+    "off": "Mati",
+    "paused": "Dijeda: terlalu banyak jawapan berturut-turut",
+    "answerIn": "Jawab dalam {{group}}",
+    "openGroup": "Buka {{group}}",
+    "saveFailed": "Tidak dapat menyimpan. Cuba lagi.",
+    "try": {
+      "group": "Soalan kumpulan",
+      "groupHint": "Tanya seolah-olah ahli @menyebut nombor anda dalam kumpulan.",
+      "inGroup": "Dalam kumpulan",
+      "lookupsOnly": "Dalam kumpulan {{name}} hanya menyemak maklumat; rakan sepasukan membuat tempahan.",
+      "notSent": "Tiada apa-apa dihantar ke kumpulan."
+    }
   }
 }

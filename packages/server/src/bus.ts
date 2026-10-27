@@ -27,6 +27,12 @@ export interface BusEvents {
   'ai:connection-changed': [];
   /** Committed Sales Agent handover, delivered through the existing notification channels. */
   'ai:handoff': [Chat];
+  /**
+   * The AI handed a question in a WhatsApp group to the team (the group keeps its assignee).
+   * `member`: the asking member's display name; `question`: their message (notification text only,
+   * never logged).
+   */
+  'ai:group_handoff': [{ chat: Chat; agentName: string; member: string | null; question: string }];
   /** One finished extension tool call of the AI (live or Try it); never its input or output. */
   'ai:tool_call': [AiToolCallEvent];
   'chat:updated': [Chat];
