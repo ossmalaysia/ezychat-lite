@@ -30,7 +30,13 @@ import {
   type ConnectorCategory,
   type ConnectorStatus,
 } from './catalog';
-import { ConnectorIcon, ConnectorStatusBadge, VoteButton, useConnectorLinks } from './connector-ui';
+import {
+  BetaBadge,
+  ConnectorIcon,
+  ConnectorStatusBadge,
+  VoteButton,
+  useConnectorLinks,
+} from './connector-ui';
 import { entryIcon, isLinked, listStatus } from './list';
 
 const ALL = 'all' as const;
@@ -45,6 +51,8 @@ interface GalleryRow {
   icon: { icon: LucideIcon; image?: string };
   status: ConnectorStatus;
   publisher?: string;
+  /** The connector list marks it Beta. */
+  beta: boolean;
 }
 
 /**
@@ -82,6 +90,11 @@ export function ConnectorsGalleryPage() {
       category: c.category,
       icon: c,
       status: connectorStatus(c, google.data?.state, links[c.id]),
+      beta:
+        list.data?.connectors.some(
+          (g) =>
+            g.entry.kind === 'builtin' && g.entry.builtinId === c.id && g.entry.stage === 'beta',
+        ) ?? false,
     };
   };
   const all: GalleryRow[] = [app('google-calendar')];
@@ -100,6 +113,7 @@ export function ConnectorsGalleryPage() {
       icon: entryIcon(g.entry),
       status: listStatus(g),
       publisher: g.entry.kind === 'mcp' ? g.entry.publisher : undefined,
+      beta: g.entry.stage === 'beta',
     });
   }
   all.push(app('custom-mcp'));
@@ -142,6 +156,7 @@ export function ConnectorsGalleryPage() {
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="font-medium break-words">{r.name}</span>
                   <ConnectorStatusBadge status={r.status} />
+                  <BetaBadge show={r.beta} />
                 </span>
                 <span className="text-sm break-words text-muted-foreground">{r.short}</span>
                 {r.status === 'needsUpdate' && (

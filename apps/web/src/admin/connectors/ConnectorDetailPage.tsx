@@ -7,7 +7,7 @@ import {
   TriangleAlert,
   UserRound,
 } from 'lucide-react';
-import type { CalendarActivity, CalendarBooking } from '@ezychat/shared';
+import type { CalendarActivity, CalendarBooking, ConnectorEntry } from '@ezychat/shared';
 import { useCalendarActivity, useCalendarBookings, useGoogleCalendar } from '../../api/connectors';
 import { encodeJid } from '../../lib/jid';
 import { EmptyState } from '@/components/app';
@@ -22,10 +22,13 @@ import { AgentPicker } from './AgentPicker';
 import { BookingSettingsCard } from './BookingSettingsCard';
 import { connectorStatus, findConnector, type CatalogConnector } from './catalog';
 import {
+  BetaBadge,
   ConnectorBreadcrumb,
   ConnectorIcon,
+  ConnectorNotice,
   ConnectorStatusBadge,
   GoogleCalendarLink,
+  useBuiltinEntry,
   useConnectorLinks,
 } from './connector-ui';
 import { GoogleCalendarAccountCard } from './GoogleCalendarAccountCard';
@@ -54,6 +57,8 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
   const { t } = useTranslation('admin');
   const links = useConnectorLinks();
   const google = useGoogleCalendar(c.id === 'google-calendar');
+  // The connector list may mark the app's own connector Beta and add a notice (e.g. Google review).
+  const entry = useBuiltinEntry(c.id);
   const link = links[c.id];
   if (link) return <Navigate to={link} replace />;
   const status = connectorStatus(c, google.data?.state, undefined);
@@ -68,6 +73,7 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight break-words">{name}</h1>
             <ConnectorStatusBadge status={status} />
+            <BetaBadge show={entry?.stage === 'beta'} />
           </div>
           <p className="text-sm text-muted-foreground">
             {t(c.edition === 'core' ? 'connectors.byCore' : 'connectors.byEnterprise')} ·{' '}
@@ -77,7 +83,7 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
       </div>
 
       {c.id === 'google-calendar' ? (
-        <GoogleCalendarTabs c={c} />
+        <GoogleCalendarTabs c={c} entry={entry} />
       ) : (
         <div className="flex flex-col gap-4">
           {status === 'enterprise' && (
@@ -97,7 +103,7 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
   );
 }
 
-function GoogleCalendarTabs({ c }: { c: CatalogConnector }) {
+function GoogleCalendarTabs({ c, entry }: { c: CatalogConnector; entry: ConnectorEntry | null }) {
   const { t } = useTranslation('admin');
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
@@ -123,6 +129,7 @@ function GoogleCalendarTabs({ c }: { c: CatalogConnector }) {
       </div>
       <TabsContent value="overview" className="flex flex-col gap-4">
         <About c={c} />
+        <ConnectorNotice entry={entry} />
         <GoogleCalendarAccountCard onOpenSettings={() => setTab('settings')} />
         <Privacy c={c} />
       </TabsContent>

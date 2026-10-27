@@ -1443,7 +1443,8 @@
       "comingSoon": "即将推出",
       "enterprise": "仅限 Enterprise",
       "needsUpdate": "需要更新 EzyChat",
-      "delisted": "已不再提供"
+      "delisted": "已不再提供",
+      "beta": "测试版"
     },
     "yours": "您的连接器",
     "more": "更多连接器",
