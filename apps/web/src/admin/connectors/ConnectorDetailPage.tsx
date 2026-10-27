@@ -3,41 +3,36 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   CalendarCheck,
   CalendarSearch,
-  ChevronRight,
   MessageSquare,
   TriangleAlert,
   UserRound,
 } from 'lucide-react';
-import type { CalendarActivity, CalendarBooking } from '@ezychat/shared';
-import { useAiAgents } from '../../api/ai';
+import type { CalendarActivity, CalendarBooking, ConnectorEntry } from '@ezychat/shared';
 import { useCalendarActivity, useCalendarBookings, useGoogleCalendar } from '../../api/connectors';
 import { encodeJid } from '../../lib/jid';
-import { Banner, EmptyState } from '@/components/app';
+import { EmptyState } from '@/components/app';
 import { UpgradeButton } from '@/components/app/UpgradeEnterprise';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatRelative, formatTimeRange } from '@/lib/format';
 import { ErrorState, ListSkeleton } from '../adminUi';
+import { AgentPicker } from './AgentPicker';
 import { BookingSettingsCard } from './BookingSettingsCard';
 import { connectorStatus, findConnector, type CatalogConnector } from './catalog';
 import {
+  BetaBadge,
+  ConnectorBreadcrumb,
   ConnectorIcon,
+  ConnectorNotice,
   ConnectorStatusBadge,
   GoogleCalendarLink,
-  VoteButton,
+  useBuiltinEntry,
   useConnectorLinks,
 } from './connector-ui';
 import { GoogleCalendarAccountCard } from './GoogleCalendarAccountCard';
+import { ListConnectorPage } from './PartnerConnectorPage';
 
 const TABS = ['overview', 'settings', 'activity', 'bookings'] as const;
 type Tab = (typeof TABS)[number];
@@ -45,29 +40,25 @@ const isTab = (value: string | null): value is Tab =>
   (TABS as readonly string[]).includes(value ?? '');
 
 /**
- * `/admin/connectors/:id`: one page per connector. Google Calendar has Overview (what it does, the
- * Google account, your data), Settings (per AI agent), Activity and Bookings tabs (`?tab=`, `&agent=`);
- * connectors that are coming or need Enterprise show their overview only. A connector an extension
+ * `/admin/connectors/:id`: one page per connector. The app's own connectors come first: Google
+ * Calendar has Overview (what it does, the Google account, your data), Settings (per AI agent),
+ * Activity and Bookings tabs (`?tab=`, `&agent=`); the custom connector needs Enterprise. Every
+ * other page is built from the connector's entry in the connector list. A connector an extension
  * provides opens the extension's page.
  */
 export function ConnectorDetailPage() {
-  const { t } = useTranslation('admin');
   const { id } = useParams();
-  const links = useConnectorLinks();
-  const google = useGoogleCalendar(id === 'google-calendar');
   const c = findConnector(id);
-  if (!c)
-    return (
-      <EmptyState
-        illustration="/illustrations/no-results.png"
-        title={t('connectors.notFound')}
-        action={
-          <Button asChild size="touch">
-            <Link to="/admin/connectors">{t('connectors.backToGallery')}</Link>
-          </Button>
-        }
-      />
-    );
+  if (!c) return <ListConnectorPage id={id ?? ''} />;
+  return <AppConnectorPage c={c} />;
+}
+
+function AppConnectorPage({ c }: { c: CatalogConnector }) {
+  const { t } = useTranslation('admin');
+  const links = useConnectorLinks();
+  const google = useGoogleCalendar(c.id === 'google-calendar');
+  // The connector list may mark the app's own connector Beta and add a notice (e.g. Google review).
+  const entry = useBuiltinEntry(c.id);
   const link = links[c.id];
   if (link) return <Navigate to={link} replace />;
   const status = connectorStatus(c, google.data?.state, undefined);
@@ -75,22 +66,14 @@ export function ConnectorDetailPage() {
 
   return (
     <div className="flex flex-col gap-4" data-testid={`connector-page-${c.id}`}>
-      <nav aria-label={t('connectors.breadcrumb')} className="flex items-center gap-1 text-sm">
-        <Link
-          to="/admin/connectors"
-          className="text-muted-foreground underline-offset-4 hover:underline"
-        >
-          {t('connectors.title')}
-        </Link>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="min-w-0 truncate">{name}</span>
-      </nav>
+      <ConnectorBreadcrumb name={name} />
       <div className="flex items-start gap-4">
         <ConnectorIcon c={c} size="lg" muted={status === 'enterprise'} />
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight break-words">{name}</h1>
             <ConnectorStatusBadge status={status} />
+            <BetaBadge show={entry?.stage === 'beta'} />
           </div>
           <p className="text-sm text-muted-foreground">
             {t(c.edition === 'core' ? 'connectors.byCore' : 'connectors.byEnterprise')} ·{' '}
@@ -100,7 +83,7 @@ export function ConnectorDetailPage() {
       </div>
 
       {c.id === 'google-calendar' ? (
-        <GoogleCalendarTabs c={c} />
+        <GoogleCalendarTabs c={c} entry={entry} />
       ) : (
         <div className="flex flex-col gap-4">
           {status === 'enterprise' && (
@@ -108,14 +91,6 @@ export function ConnectorDetailPage() {
               <p className="text-sm text-muted-foreground">{t('connectors.enterpriseOnly')}</p>
               <UpgradeButton className="shrink-0 self-start sm:self-auto" />
             </div>
-          )}
-          {!c.available && (
-            <Banner tone="info" title={t('connectors.comingSoonTitle')}>
-              <span className="flex flex-col items-start gap-2">
-                {t('connectors.comingSoonBody')}
-                <VoteButton name={name} />
-              </span>
-            </Banner>
           )}
           <About c={c} />
           <Privacy c={c} />
@@ -128,7 +103,10 @@ export function ConnectorDetailPage() {
   );
 }
 
-function GoogleCalendarTabs({ c }: { c: CatalogConnector }) {
+function GoogleCalendarTabs({
+  c,
+  entry,
+}: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
   const { t } = useTranslation('admin');
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
@@ -154,6 +132,7 @@ function GoogleCalendarTabs({ c }: { c: CatalogConnector }) {
       </div>
       <TabsContent value="overview" className="flex flex-col gap-4">
         <About c={c} />
+        <ConnectorNotice entry={entry} />
         <GoogleCalendarAccountCard onOpenSettings={() => setTab('settings')} />
         <Privacy c={c} />
       </TabsContent>
@@ -220,67 +199,22 @@ function Privacy({ c }: { c: CatalogConnector }) {
 
 /** Settings tab: one AI agent at a time (`&agent=<id>` picks it; a picker with 2+ agents). */
 function AgentSettings({ onConnect }: { onConnect: () => void }) {
-  const { t } = useTranslation('admin');
-  const [params, setParams] = useSearchParams();
-  const agents = useAiAgents();
   const google = useGoogleCalendar();
-  if (agents.isPending || google.isPending) return <ListSkeleton rows={3} />;
-  if (agents.error)
-    return <ErrorState error={agents.error} onRetry={() => void agents.refetch()} />;
+  if (google.isPending) return <ListSkeleton rows={3} />;
   if (google.error)
     return <ErrorState error={google.error} onRetry={() => void google.refetch()} />;
-  const list = agents.data.agents;
-  const picked = Number(params.get('agent'));
-  const agent = list.find((a) => a.id === picked) ?? list[0];
-  if (!agent)
-    return (
-      <EmptyState
-        title={t('connectors.noAgent')}
-        action={
-          <Button asChild size="touch">
-            <Link to="/admin/members/ai/new">{t('connectors.addAgent')}</Link>
-          </Button>
-        }
-      />
-    );
-  const pick = (id: string) =>
-    setParams(
-      (p) => {
-        p.set('agent', id);
-        return p;
-      },
-      { replace: true },
-    );
   return (
-    <>
-      {list.length > 1 && (
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="connector-agent">{t('connectors.forAgent')}</Label>
-          <Select value={String(agent.id)} onValueChange={pick}>
-            <SelectTrigger
-              id="connector-agent"
-              className="min-h-11 w-full sm:w-80 *:data-[slot=select-value]:block *:data-[slot=select-value]:truncate"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {list.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <AgentPicker
+      render={(agent) => (
+        <BookingSettingsCard
+          key={agent.id}
+          agentId={agent.id}
+          name={agent.displayName}
+          status={google.data}
+          onConnect={onConnect}
+        />
       )}
-      <BookingSettingsCard
-        key={agent.id}
-        agentId={agent.id}
-        name={agent.displayName}
-        status={google.data}
-        onConnect={onConnect}
-      />
-    </>
+    />
   );
 }
 

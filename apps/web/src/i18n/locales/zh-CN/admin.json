@@ -1435,14 +1435,18 @@
       "data": "电子表格",
       "payments": "付款",
       "commerce": "网店",
-      "custom": "自定义"
+      "custom": "自定义",
+      "other": "其他"
     },
     "status": {
       "connected": "已连接",
       "attention": "需要处理",
       "notConnected": "未连接",
       "comingSoon": "即将推出",
-      "enterprise": "仅限 Enterprise"
+      "enterprise": "仅限 Enterprise",
+      "needsUpdate": "需要更新 EzyChat",
+      "delisted": "已不再提供",
+      "beta": "测试版"
     },
     "yours": "您的连接器",
     "more": "更多连接器",
@@ -1500,35 +1504,7 @@
       "checkFree": "查看空闲时间",
       "checkFreeHint": "读取所选日历的忙碌时间。",
       "book": "预约",
-      "bookHint": "客户确认时间后添加日程。",
-      "readRows": "读取行",
-      "readRowsHint": "查找与客户问题匹配的行。",
-      "addRow": "添加潜在客户",
-      "addRowHint": "将客户的姓名、号码和需求添加为一行。",
-      "paymentLink": "创建付款链接",
-      "paymentLinkHint": "按团队或价目表设定的金额创建链接。",
-      "paymentStatus": "查询付款",
-      "paymentStatusHint": "查询链接是否已付款。",
-      "orderStatus": "订单状态",
-      "orderStatusHint": "按订单号和客户电话查找订单。",
-      "productStock": "产品库存",
-      "productStockHint": "查询产品的价格和库存。",
-      "stock": "库存和价格",
-      "stockHint": "查询商品的库存和售价。",
-      "quotation": "创建报价单",
-      "quotationHint": "为客户起草报价单；由团队发送。",
-      "outstanding": "未付余额",
-      "outstandingHint": "查询客户尚欠的金额。",
-      "invoice": "发票状态",
-      "invoiceHint": "查找发票及其是否已付款。",
-      "contact": "添加联系人",
-      "contactHint": "将客户添加为联系人。",
-      "findContact": "查找客户",
-      "findContactHint": "按电话号码查找客户记录。",
-      "addLead": "添加潜在客户",
-      "addLeadHint": "根据客户需求添加新的潜在客户。",
-      "member": "会员积分",
-      "memberHint": "查询会员的积分和等级。"
+      "bookHint": "客户确认时间后添加日程。"
     },
     "items": {
       "google-calendar": {
@@ -1536,90 +1512,6 @@
         "short": "查看空闲时间并预约。",
         "long": "AI 代理会根据您的 Google Calendar 提供空闲时间，并在您允许时预约客户确认的时间。使用 Google 登录：无需粘贴链接。",
         "privacy": "{{product}} 读取您所选日历的忙碌时间，只写入它预约的日程：标题，以及客户的姓名、电话号码和电子邮件。聊天内容不会发送到 Google。登录信息加密保存在这台电脑上。"
-      },
-      "google-sheets": {
-        "name": "Google Sheets",
-        "short": "从表格读取价格或库存；添加新的潜在客户。",
-        "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 读取。它还可以把每个新的潜在客户添加为一行。",
-        "privacy": "{{product}} 只读取您选择的表格，只写入它添加的潜在客户行。"
-      },
-      "hitpay": {
-        "name": "HitPay",
-        "short": "发送付款链接（FPX、DuitNow、PayNow）。",
-        "long": "AI 为订单发送 HitPay 付款链接，并在付款后通知团队。",
-        "privacy": "{{product}} 向 HitPay 发送金额、参考号和客户姓名；银行卡和银行信息由 HitPay 保管。"
-      },
-      "shopify": {
-        "name": "Shopify",
-        "short": "网店的订单状态和库存。",
-        "long": "客户询问订单在哪里或商品是否有货；AI 在您的 Shopify 网店中查询。",
-        "privacy": "{{product}} 只读取订单和产品；从不更改您的网店。"
-      },
-      "autocount": {
-        "name": "AutoCount",
-        "short": "来自 AutoCount Accounting 的库存、价格和报价单。",
-        "long": "AI 根据 AutoCount 回答库存和价格问题，并起草报价单供团队发送。",
-        "privacy": "{{product}} 只向 AutoCount 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "sql-account": {
-        "name": "SQL Account",
-        "short": "来自 SQL Account 的库存、价格和客户余额。",
-        "long": "AI 在 SQL Account 中查询库存和价格，并告诉客户未付余额。",
-        "privacy": "{{product}} 只向 SQL Account 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "bukku": {
-        "name": "Bukku",
-        "short": "来自 Bukku 的发票和报价单。",
-        "long": "AI 告诉客户发票是否已付款，并在 Bukku 中起草报价单。",
-        "privacy": "{{product}} 只向 Bukku 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "xero": {
-        "name": "Xero",
-        "short": "Xero 中的发票状态和联系人。",
-        "long": "AI 在 Xero 中查询发票状态，并将新客户添加为联系人。",
-        "privacy": "{{product}} 只向 Xero 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "zoho-books": {
-        "name": "Zoho Books",
-        "short": "来自 Zoho Books 的发票和报价单。",
-        "long": "AI 在 Zoho Books 中查询发票并起草报价单。",
-        "privacy": "{{product}} 只向 Zoho Books 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "zoho-crm": {
-        "name": "Zoho CRM",
-        "short": "在 Zoho CRM 中查找客户并添加潜在客户。",
-        "long": "AI 在回答前先在 Zoho CRM 中查找客户，并将新询问添加为潜在客户。",
-        "privacy": "{{product}} 只向 Zoho CRM 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "hubspot": {
-        "name": "HubSpot",
-        "short": "在 HubSpot 中查找客户并添加潜在客户。",
-        "long": "AI 在 HubSpot 中查找客户，并将新询问添加为潜在客户。",
-        "privacy": "{{product}} 只向 HubSpot 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "woocommerce": {
-        "name": "WooCommerce",
-        "short": "WooCommerce 网店的订单状态和库存。",
-        "long": "客户询问订单在哪里；AI 在您的 WooCommerce 网店中查询。",
-        "privacy": "{{product}} 只向 WooCommerce 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "easystore": {
-        "name": "EasyStore",
-        "short": "来自 EasyStore 的订单状态和库存。",
-        "long": "AI 根据您的 EasyStore 网店回答订单和库存问题。",
-        "privacy": "{{product}} 只向 EasyStore 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "storehub": {
-        "name": "StoreHub",
-        "short": "来自 StoreHub POS 的库存和会员积分。",
-        "long": "AI 在 StoreHub 中查询库存和会员积分。",
-        "privacy": "{{product}} 只向 StoreHub 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
-      },
-      "billplz": {
-        "name": "Billplz",
-        "short": "发送 Billplz 付款链接（FPX）。",
-        "long": "AI 为订单发送 Billplz 付款链接，并在付款后通知团队。",
-        "privacy": "{{product}} 只向 Billplz 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
       },
       "custom-mcp": {
         "name": "自定义连接器（MCP）",
@@ -1728,6 +1620,179 @@
       "openEvent": "在 Google Calendar 中打开",
       "openCalendar": "打开 Google Calendar",
       "unknownCustomer": "客户"
+    },
+    "list": {
+      "updated": "连接器列表更新于{{when}}",
+      "copyFrom": "连接器列表（{{when}}的版本）",
+      "builtin": "EzyChat 自带的连接器列表",
+      "saved": "已保存的连接器列表",
+      "check": "检查新连接器",
+      "checking": "正在检查…",
+      "checkedUpToDate": "您的连接器列表已是最新。",
+      "checkedNew": "连接器列表已更新。",
+      "checkedOffline": "无法获取连接器列表。请稍后重试。",
+      "checkedRejected": "新的连接器列表未通过安全检查。已保留上一个可用版本。",
+      "offlineTitle": "无法检查新连接器",
+      "offlineBody": "EzyChat 无法获取连接器列表，因此显示上次保存的版本。已连接的连接器会继续正常工作。",
+      "rejectedTitle": "未使用新的连接器列表",
+      "rejectedBody": "EzyChat 收到的列表未通过安全检查，因此保留了上一个可用版本。已连接的连接器会继续正常工作。如果此消息一直出现，请告知 EzyChat 团队。",
+      "needsUpdateShort": "请更新 EzyChat 以使用此连接器。",
+      "byPublisher": "{{publisher}} 提供 · {{category}}"
+    },
+    "partner": {
+      "website": "{{publisher}} 网站",
+      "showDetails": "显示给开发人员的详细信息",
+      "hideDetails": "隐藏给开发人员的详细信息",
+      "detail": {
+        "server": "服务器地址",
+        "signIn": "登录方式",
+        "entry": "连接器列表条目",
+        "entryValue": "{{id}}，架构版本 {{schema}}"
+      },
+      "signInType": {
+        "oauth": "在合作方页面登录（OAuth）",
+        "oauth_own_app": "使用您在合作方的自有应用，然后登录（OAuth）",
+        "api_key": "API 密钥",
+        "credentials": "账号信息表单",
+        "none": "无"
+      },
+      "needsUpdateTitle": "请更新 EzyChat 以使用此连接器",
+      "needsUpdateBody": "此连接器需要 EzyChat {{need}} 或更高版本。此电脑的版本是 {{have}}。",
+      "delistedTitle": "此连接器已不再提供",
+      "delistedBody": "它已从连接器列表中移除。它会继续使用连接时保存的信息工作，但不会再获得更新或修复。不再需要时，请断开连接。",
+      "connectFirst": "请先连接 {{name}}",
+      "connectFirstHint": "然后在这里选择每个 AI 代理可以用它做什么。",
+      "goToOverview": "前往概览",
+      "connectionTitle": "连接",
+      "connection": {
+        "oauth": "您在 {{publisher}} 自己的页面登录。之后此电脑上的 EzyChat 会直接连接到 {{publisher}}。",
+        "oauth_own_app": "您使用自己在 {{name}} 账号中创建的应用，并在 {{publisher}} 的页面登录。之后此电脑上的 EzyChat 会直接连接到 {{publisher}}。",
+        "api_key": "粘贴您 {{name}} 账号的 API 密钥。之后此电脑上的 EzyChat 会直接连接到 {{name}}。",
+        "credentials": "输入您 {{name}} 账号的信息。之后此电脑上的 EzyChat 会直接连接到 {{name}}。",
+        "none": "无需登录。此电脑上的 EzyChat 会直接连接到 {{publisher}}。"
+      },
+      "hint": {
+        "oauth": "会打开一个新标签页，显示 {{publisher}} 的登录页面。EzyChat 从不会看到您的密码。",
+        "oauth_own_app": "客户端密钥会加密保存在此电脑上。之后会打开一个新标签页，显示 {{publisher}} 的登录页面。",
+        "api_key": "密钥会加密保存在此电脑上，并且只发送给 {{name}}。",
+        "credentials": "您的信息会加密保存在此电脑上，并且只发送给 {{name}}。",
+        "none": "EzyChat 不会为 {{name}} 保存任何机密信息。"
+      },
+      "cancelledTitle": "登录已取消",
+      "cancelledBody": "未连接任何内容。准备好后请重试。",
+      "unreachableTitle": "无法连接 {{name}}",
+      "unreachableBody": "EzyChat 无法连接 {{publisher}} 的服务器。请检查此电脑的网络连接，然后重试。",
+      "problem": {
+        "refused": "{{name}} 拒绝了这些信息。请确认已完整复制，然后重试。",
+        "expired": "登录时间过长。请重试。",
+        "not_https": "{{name}} 的服务器地址不安全（不是 https），因此 EzyChat 没有连接。",
+        "private_address": "{{name}} 的服务器地址指向私有网络，因此 EzyChat 没有连接。",
+        "missing_tools": "{{name}} 的服务器没有提供此连接器需要的工具。请告知 {{publisher}}。",
+        "error": "连接失败。请重试。"
+      },
+      "needsSignInTitle": "请重新登录",
+      "needsSignInBody": "{{name}} 不再接受当前的登录。重新登录前，AI 不会使用 {{name}}。",
+      "waitingTitle": "正在等待您登录",
+      "waitingBody": "请在另一个标签页中完成 {{name}} 的登录。完成后此页面会自动更新。",
+      "blocked": "浏览器阻止了登录标签页。请打开登录页面继续。",
+      "openSignIn": "打开登录页面",
+      "cancel": "取消",
+      "account": "账号",
+      "key": "API 密钥",
+      "keyEnding": "密钥结尾为 {{end}}",
+      "connectedSince": "连接于{{when}}。",
+      "openSettings": "打开设置",
+      "signInAgain": "重新登录",
+      "tryAgain": "重试",
+      "connect": "连接 {{name}}",
+      "connectKey": "使用 API 密钥连接",
+      "connectForm": "使用您的账号信息连接",
+      "connectOwnApp": "使用您自己的应用连接",
+      "testConnection": "测试连接",
+      "testOk_other": "连接正常。{{count}} 个工具可以使用。",
+      "replaceKey": "更换密钥",
+      "changeDetails": "更改信息",
+      "disconnect": "断开连接",
+      "disconnectTitle": "断开 {{name}}？",
+      "disconnectBody": "AI 会立即停止使用 {{name}}。每个 AI 代理的设置会保留，以便重新连接时使用。",
+      "disconnected": "已断开 {{name}}",
+      "connectedToast": "已连接 {{name}}",
+      "dialogTitle": "连接 {{name}}",
+      "ownAppTitle": "使用您自己的应用连接 {{name}}",
+      "replaceKeyTitle": "更换 {{name}} 密钥",
+      "changeDetailsTitle": "更改 {{name}} 信息",
+      "dialogBody": {
+        "api_key": "粘贴密钥，测试后保存。",
+        "credentials": "填写您 {{name}} 账号中的信息，测试后保存。",
+        "oauth_own_app": "请在您的 {{name}} 账号中创建一个应用，然后把它的客户端 ID 和客户端密钥粘贴到这里。保存后，在 {{publisher}} 的页面登录。"
+      },
+      "help": {
+        "api_key": "在哪里找到我的 {{name}} 密钥？",
+        "credentials": "在哪里找到这些信息？",
+        "oauth_own_app": "如何创建这个应用？"
+      },
+      "clientId": "客户端 ID",
+      "clientSecret": "客户端密钥",
+      "keyStored": "加密保存在此电脑上。",
+      "keyRefused": "{{name}} 拒绝了此密钥。请确认已完整复制。",
+      "required": "请填写此项。",
+      "test": "测试",
+      "save": "保存",
+      "saveAndSignIn": "保存并登录",
+      "agentTitle": "{{agent}} 的 {{name}}",
+      "agentHint": "{{agent}} 可以用此连接器做什么，以及它遵守的设置。",
+      "toolsTitle": "{{agent}} 可以做什么",
+      "toolsNote": "会更改数据的工具默认关闭。查询工具默认开启。",
+      "choose": "请选择",
+      "choicesError": "无法加载选项。",
+      "retry": "重试",
+      "from": "从",
+      "to": "到",
+      "settingProblem": {
+        "required": "请填写此设置。",
+        "number": "请输入数字。",
+        "timeOrder": "结束时间必须晚于开始时间。"
+      },
+      "saved": "已保存",
+      "field": {
+        "name": "姓名",
+        "email": "电子邮件",
+        "phone": "电话"
+      },
+      "rulesTitle": "AI 始终遵守的规则",
+      "rule": {
+        "asDescribed": "只按说明使用每个工具，并且只有在 {{publisher}} 确认后才会说已完成。",
+        "noUndo": "从不撤销任何操作：取消、删除或更改的请求会转交给您的团队。",
+        "writeOff": "会更改数据的工具在您开启前一直关闭。“试一试”只会显示 AI 将会做什么。",
+        "confirmFirst": "先请客户确认，并且只在客户回复后才执行。",
+        "valueFrom": "只使用“{{lookUp}}”在此聊天中找到的值。",
+        "fromCustomer": "客户的{{fields}}只取自已保存的联系人或客户自己的消息，从不猜测。",
+        "within": "只在上面设置的{{settings}}范围内。",
+        "limitsBoth": "每个聊天最多 {{perChat}} 次，每天最多 {{perDay}} 次。",
+        "limitsChat_other": "每个聊天最多 {{count}} 次。",
+        "limitsDay_other": "每天最多 {{count}} 次。"
+      },
+      "rulesFor": "{{tool}}：",
+      "activityHint": "AI 在 {{name}} 中查询和执行的记录。这里从不保存聊天内容。",
+      "actLine": "{{tool}} · {{customer}}",
+      "act": {
+        "checked": "已查询",
+        "done": "已完成",
+        "refused": "已拒绝",
+        "failed": "失败"
+      },
+      "actBy": "{{agent}} · {{when}}",
+      "reason": {
+        "confirm_first": "客户尚未确认。AI 先询问了客户。",
+        "value_from": "该值不是此聊天中查询到的值。AI 先重新查询了一次。",
+        "from_customer": "缺少部分客户信息。AI 向客户询问了这些信息。",
+        "within": "超出了您选择的设置范围。AI 遵守了这些设置。",
+        "limit": "已达到次数上限。AI 将聊天转交给您的团队。",
+        "unreachable": "{{publisher}} 没有响应。AI 将聊天转交给您的团队。",
+        "partner_error": "{{publisher}} 返回了错误。AI 将聊天转交给您的团队。",
+        "needs_sign_in": "{{publisher}} 不再接受当前的登录。AI 将聊天转交给您的团队。"
+      },
+      "agentCardTools_other": "已开启 {{count}}/{{total}} 个工具"
     }
   },
   "reports": {

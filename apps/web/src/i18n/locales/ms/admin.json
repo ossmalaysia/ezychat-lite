@@ -1436,14 +1436,18 @@
       "data": "Hamparan",
       "payments": "Pembayaran",
       "commerce": "Kedai dalam talian",
-      "custom": "Tersuai"
+      "custom": "Tersuai",
+      "other": "Lain-lain"
     },
     "status": {
       "connected": "Disambungkan",
       "attention": "Perlu perhatian",
       "notConnected": "Tidak disambungkan",
       "comingSoon": "Akan datang",
-      "enterprise": "Enterprise sahaja"
+      "enterprise": "Enterprise sahaja",
+      "needsUpdate": "Perlu EzyChat lebih baharu",
+      "delisted": "Tidak lagi tersedia",
+      "beta": "Beta"
     },
     "yours": "Penyambung anda",
     "more": "Lebih banyak penyambung",
@@ -1501,35 +1505,7 @@
       "checkFree": "Semak masa lapang",
       "checkFreeHint": "Membaca bila kalendar yang dipilih sibuk.",
       "book": "Tempah janji temu",
-      "bookHint": "Menambah acara selepas pelanggan mengesahkan masa.",
-      "readRows": "Baca baris",
-      "readRowsHint": "Mencari baris yang sepadan dengan soalan pelanggan.",
-      "addRow": "Tambah prospek",
-      "addRowHint": "Menambah nama, nombor dan permintaan pelanggan sebagai satu baris.",
-      "paymentLink": "Cipta pautan pembayaran",
-      "paymentLinkHint": "Mencipta pautan untuk jumlah yang ditetapkan oleh pasukan atau senarai harga anda.",
-      "paymentStatus": "Semak pembayaran",
-      "paymentStatusHint": "Menyemak sama ada pautan sudah dibayar.",
-      "orderStatus": "Status pesanan",
-      "orderStatusHint": "Mencari pesanan mengikut nombor dan telefon pelanggan.",
-      "productStock": "Stok produk",
-      "productStockHint": "Menyemak harga dan stok produk.",
-      "stock": "Stok dan harga",
-      "stockHint": "Mencari stok dan harga jualan sesuatu item.",
-      "quotation": "Cipta sebut harga",
-      "quotationHint": "Mendraf sebut harga untuk pelanggan; pasukan anda menghantarnya.",
-      "outstanding": "Baki tertunggak",
-      "outstandingHint": "Menyemak jumlah yang masih terhutang oleh pelanggan.",
-      "invoice": "Status invois",
-      "invoiceHint": "Mencari invois dan sama ada ia sudah dibayar.",
-      "contact": "Tambah kenalan",
-      "contactHint": "Menambah pelanggan sebagai kenalan.",
-      "findContact": "Cari pelanggan",
-      "findContactHint": "Mencari rekod pelanggan mengikut nombor telefon.",
-      "addLead": "Tambah prospek",
-      "addLeadHint": "Menambah prospek baharu dengan permintaan pelanggan.",
-      "member": "Mata ahli",
-      "memberHint": "Menyemak mata dan tahap ahli."
+      "bookHint": "Menambah acara selepas pelanggan mengesahkan masa."
     },
     "items": {
       "google-calendar": {
@@ -1537,90 +1513,6 @@
         "short": "Semak masa lapang dan tempah janji temu.",
         "long": "Ejen AI anda menawarkan masa lapang daripada Google Calendar anda dan, jika anda benarkan, menempah masa yang disahkan oleh pelanggan. Log masuk dengan Google: tiada pautan untuk ditampal.",
         "privacy": "{{product}} membaca masa sibuk kalendar yang anda pilih dan hanya menulis acara yang ditempahnya: tajuk, serta nama, nombor telefon dan e-mel pelanggan. Tiada teks sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
-      },
-      "google-sheets": {
-        "name": "Google Sheets",
-        "short": "Baca harga atau stok daripada helaian; tambah prospek baharu.",
-        "long": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan AI membacanya. Ia juga boleh menambah setiap prospek baharu sebagai satu baris.",
-        "privacy": "{{product}} hanya membaca helaian yang anda pilih dan hanya menulis baris prospek yang ditambahnya."
-      },
-      "hitpay": {
-        "name": "HitPay",
-        "short": "Hantar pautan pembayaran (FPX, DuitNow, PayNow).",
-        "long": "AI menghantar pautan pembayaran HitPay untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
-        "privacy": "{{product}} menghantar jumlah, rujukan dan nama pelanggan kepada HitPay; butiran kad dan bank kekal dengan HitPay."
-      },
-      "shopify": {
-        "name": "Shopify",
-        "short": "Status pesanan dan stok daripada kedai dalam talian anda.",
-        "long": "Pelanggan bertanya di mana pesanan mereka atau sama ada item ada stok; AI menyemaknya di kedai Shopify anda.",
-        "privacy": "{{product}} hanya membaca pesanan dan produk; ia tidak pernah mengubah kedai anda."
-      },
-      "autocount": {
-        "name": "AutoCount",
-        "short": "Stok, harga dan sebut harga daripada AutoCount Accounting.",
-        "long": "AI menjawab soalan stok dan harga daripada AutoCount dan mendraf sebut harga untuk dihantar oleh pasukan anda.",
-        "privacy": "{{product}} hanya menghantar kepada AutoCount apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "sql-account": {
-        "name": "SQL Account",
-        "short": "Stok, harga dan baki pelanggan daripada SQL Account.",
-        "long": "AI menyemak stok dan harga dalam SQL Account dan memberitahu pelanggan baki tertunggak mereka.",
-        "privacy": "{{product}} hanya menghantar kepada SQL Account apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "bukku": {
-        "name": "Bukku",
-        "short": "Invois dan sebut harga daripada Bukku.",
-        "long": "AI memberitahu pelanggan sama ada invois sudah dibayar dan mendraf sebut harga dalam Bukku.",
-        "privacy": "{{product}} hanya menghantar kepada Bukku apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "xero": {
-        "name": "Xero",
-        "short": "Status invois dan kenalan dalam Xero.",
-        "long": "AI menyemak status invois dalam Xero dan menambah pelanggan baharu sebagai kenalan.",
-        "privacy": "{{product}} hanya menghantar kepada Xero apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "zoho-books": {
-        "name": "Zoho Books",
-        "short": "Invois dan sebut harga daripada Zoho Books.",
-        "long": "AI menyemak invois dan mendraf sebut harga dalam Zoho Books.",
-        "privacy": "{{product}} hanya menghantar kepada Zoho Books apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "zoho-crm": {
-        "name": "Zoho CRM",
-        "short": "Cari pelanggan dan tambah prospek dalam Zoho CRM.",
-        "long": "AI mencari pelanggan dalam Zoho CRM sebelum menjawab dan menambah pertanyaan baharu sebagai prospek.",
-        "privacy": "{{product}} hanya menghantar kepada Zoho CRM apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "hubspot": {
-        "name": "HubSpot",
-        "short": "Cari pelanggan dan tambah prospek dalam HubSpot.",
-        "long": "AI mencari pelanggan dalam HubSpot dan menambah pertanyaan baharu sebagai prospek.",
-        "privacy": "{{product}} hanya menghantar kepada HubSpot apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "woocommerce": {
-        "name": "WooCommerce",
-        "short": "Status pesanan dan stok daripada kedai WooCommerce anda.",
-        "long": "Pelanggan bertanya di mana pesanan mereka; AI menyemaknya di kedai WooCommerce anda.",
-        "privacy": "{{product}} hanya menghantar kepada WooCommerce apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "easystore": {
-        "name": "EasyStore",
-        "short": "Status pesanan dan stok daripada EasyStore.",
-        "long": "AI menjawab soalan pesanan dan stok daripada kedai EasyStore anda.",
-        "privacy": "{{product}} hanya menghantar kepada EasyStore apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "storehub": {
-        "name": "StoreHub",
-        "short": "Stok dan mata ahli daripada POS StoreHub.",
-        "long": "AI menyemak stok dan mata ahli dalam StoreHub.",
-        "privacy": "{{product}} hanya menghantar kepada StoreHub apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
-      },
-      "billplz": {
-        "name": "Billplz",
-        "short": "Hantar pautan pembayaran Billplz (FPX).",
-        "long": "AI menghantar pautan pembayaran Billplz untuk pesanan dan memberitahu pasukan anda apabila ia dibayar.",
-        "privacy": "{{product}} hanya menghantar kepada Billplz apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang."
       },
       "custom-mcp": {
         "name": "Penyambung tersuai (MCP)",
@@ -1729,6 +1621,179 @@
       "openEvent": "Buka dalam Google Calendar",
       "openCalendar": "Buka Google Calendar",
       "unknownCustomer": "Pelanggan"
+    },
+    "list": {
+      "updated": "Senarai penyambung dikemas kini {{when}}",
+      "copyFrom": "Senarai penyambung dari {{when}}",
+      "builtin": "Senarai penyambung yang disertakan dengan EzyChat",
+      "saved": "Senarai penyambung yang disimpan",
+      "check": "Semak penyambung baharu",
+      "checking": "Menyemak…",
+      "checkedUpToDate": "Anda sudah ada senarai penyambung terkini.",
+      "checkedNew": "Senarai penyambung telah dikemas kini.",
+      "checkedOffline": "Tidak dapat menghubungi senarai penyambung. Cuba lagi nanti.",
+      "checkedRejected": "Senarai penyambung baharu tidak lulus semakan keselamatan. Salinan baik terakhir dikekalkan.",
+      "offlineTitle": "Tidak dapat menyemak penyambung baharu",
+      "offlineBody": "EzyChat tidak dapat menghubungi senarai penyambung, jadi ia menunjukkan salinan terakhir yang disimpan. Penyambung yang sudah disambungkan terus berfungsi.",
+      "rejectedTitle": "Senarai penyambung baharu tidak digunakan",
+      "rejectedBody": "Senarai yang diterima EzyChat tidak lulus semakan keselamatan, jadi EzyChat mengekalkan salinan baik terakhir. Penyambung yang sudah disambungkan terus berfungsi. Jika mesej ini kekal, beritahu pasukan EzyChat.",
+      "needsUpdateShort": "Kemas kini EzyChat untuk menggunakan penyambung ini.",
+      "byPublisher": "Oleh {{publisher}} · {{category}}"
+    },
+    "partner": {
+      "website": "Laman web {{publisher}}",
+      "showDetails": "Tunjukkan butiran untuk pembangun anda",
+      "hideDetails": "Sembunyikan butiran untuk pembangun anda",
+      "detail": {
+        "server": "Alamat pelayan",
+        "signIn": "Log masuk",
+        "entry": "Entri senarai penyambung",
+        "entryValue": "{{id}}, skema {{schema}}"
+      },
+      "signInType": {
+        "oauth": "Log masuk di halaman rakan kongsi (OAuth)",
+        "oauth_own_app": "Aplikasi anda sendiri di pihak rakan kongsi, kemudian log masuk (OAuth)",
+        "api_key": "Kunci API",
+        "credentials": "Borang butiran akaun",
+        "none": "Tiada"
+      },
+      "needsUpdateTitle": "Kemas kini EzyChat untuk menggunakan penyambung ini",
+      "needsUpdateBody": "Penyambung ini memerlukan EzyChat {{need}} atau lebih baharu. Komputer ini ada {{have}}.",
+      "delistedTitle": "Penyambung ini tidak lagi tersedia",
+      "delistedBody": "Ia telah dibuang daripada senarai penyambung. Ia terus berfungsi dengan butiran yang disimpan semasa anda menyambungkannya, tetapi tidak lagi menerima kemas kini atau pembaikan. Putuskan sambungannya apabila anda tidak memerlukannya lagi.",
+      "connectFirst": "Sambungkan {{name}} dahulu",
+      "connectFirstHint": "Kemudian pilih di sini apa yang setiap ejen AI boleh buat dengannya.",
+      "goToOverview": "Pergi ke Gambaran",
+      "connectionTitle": "Sambungan",
+      "connection": {
+        "oauth": "Anda log masuk di halaman {{publisher}} sendiri. EzyChat pada komputer ini kemudian terus menyambung ke {{publisher}}.",
+        "oauth_own_app": "Anda menggunakan aplikasi anda sendiri dalam akaun {{name}} dan log masuk di halaman {{publisher}}. EzyChat pada komputer ini kemudian terus menyambung ke {{publisher}}.",
+        "api_key": "Tampal kunci API daripada akaun {{name}} anda. EzyChat pada komputer ini kemudian terus menyambung ke {{name}}.",
+        "credentials": "Masukkan butiran akaun {{name}} anda. EzyChat pada komputer ini kemudian terus menyambung ke {{name}}.",
+        "none": "Tiada log masuk diperlukan. EzyChat pada komputer ini terus menyambung ke {{publisher}}."
+      },
+      "hint": {
+        "oauth": "Tab baharu dibuka dengan halaman log masuk {{publisher}}. EzyChat tidak pernah melihat kata laluan anda.",
+        "oauth_own_app": "Rahsia klien disimpan secara tersulit pada komputer ini. Kemudian tab baharu dibuka dengan halaman log masuk {{publisher}}.",
+        "api_key": "Kunci disimpan secara tersulit pada komputer ini dan hanya dihantar kepada {{name}}.",
+        "credentials": "Butiran anda disimpan secara tersulit pada komputer ini dan hanya dihantar kepada {{name}}.",
+        "none": "EzyChat tidak menyimpan apa-apa rahsia untuk {{name}}."
+      },
+      "cancelledTitle": "Log masuk dibatalkan",
+      "cancelledBody": "Tiada apa-apa disambungkan. Cuba lagi apabila anda bersedia.",
+      "unreachableTitle": "Tidak dapat menghubungi {{name}}",
+      "unreachableBody": "EzyChat tidak dapat menghubungi pelayan {{publisher}}. Semak sambungan internet komputer ini dan cuba lagi.",
+      "problem": {
+        "refused": "{{name}} menolak butiran ini. Pastikan anda menyalin semuanya dengan lengkap, kemudian cuba lagi.",
+        "expired": "Log masuk mengambil masa terlalu lama. Cuba lagi.",
+        "not_https": "Alamat pelayan {{name}} tidak selamat (https), jadi EzyChat tidak menyambung.",
+        "private_address": "Alamat pelayan {{name}} menghala ke rangkaian peribadi, jadi EzyChat tidak menyambung.",
+        "missing_tools": "Pelayan {{name}} tidak menyediakan alat yang diperlukan oleh penyambung ini. Beritahu {{publisher}}.",
+        "error": "Sambungan tidak berjaya. Cuba lagi."
+      },
+      "needsSignInTitle": "Log masuk semula",
+      "needsSignInBody": "{{name}} tidak lagi menerima log masuk ini. AI tidak menggunakan {{name}} sehingga anda log masuk semula.",
+      "waitingTitle": "Menunggu anda log masuk",
+      "waitingBody": "Selesaikan log masuk ke {{name}} dalam tab yang satu lagi. Halaman ini dikemas kini sendiri apabila anda selesai.",
+      "blocked": "Pelayar anda menyekat tab log masuk. Buka halaman log masuk untuk meneruskan.",
+      "openSignIn": "Buka halaman log masuk",
+      "cancel": "Batal",
+      "account": "Akaun",
+      "key": "Kunci API",
+      "keyEnding": "Kunci berakhir dengan {{end}}",
+      "connectedSince": "Disambungkan {{when}}.",
+      "openSettings": "Buka Tetapan",
+      "signInAgain": "Log masuk semula",
+      "tryAgain": "Cuba lagi",
+      "connect": "Sambungkan {{name}}",
+      "connectKey": "Sambung dengan kunci API",
+      "connectForm": "Sambung dengan butiran akaun anda",
+      "connectOwnApp": "Sambung dengan aplikasi anda sendiri",
+      "testConnection": "Uji sambungan",
+      "testOk_other": "Sambungan berfungsi. {{count}} alat sedia digunakan.",
+      "replaceKey": "Tukar kunci",
+      "changeDetails": "Tukar butiran",
+      "disconnect": "Putuskan sambungan",
+      "disconnectTitle": "Putuskan sambungan {{name}}?",
+      "disconnectBody": "AI berhenti menggunakan {{name}} serta-merta. Tetapan setiap ejen AI dikekalkan, sekiranya anda menyambung semula.",
+      "disconnected": "Sambungan {{name}} diputuskan",
+      "connectedToast": "{{name}} disambungkan",
+      "dialogTitle": "Sambungkan {{name}}",
+      "ownAppTitle": "Sambungkan {{name}} dengan aplikasi anda sendiri",
+      "replaceKeyTitle": "Tukar kunci {{name}}",
+      "changeDetailsTitle": "Tukar butiran {{name}}",
+      "dialogBody": {
+        "api_key": "Tampal kunci, uji, kemudian simpan.",
+        "credentials": "Isi butiran daripada akaun {{name}} anda, uji, kemudian simpan.",
+        "oauth_own_app": "Cipta aplikasi dalam akaun {{name}} anda, kemudian tampal ID klien dan rahsia kliennya di sini. Selepas Simpan, log masuk di halaman {{publisher}}."
+      },
+      "help": {
+        "api_key": "Di mana saya boleh dapatkan kunci {{name}}?",
+        "credentials": "Di mana saya boleh dapatkan butiran ini?",
+        "oauth_own_app": "Bagaimana untuk mencipta aplikasi itu?"
+      },
+      "clientId": "ID klien",
+      "clientSecret": "Rahsia klien",
+      "keyStored": "Disimpan secara tersulit pada komputer ini.",
+      "keyRefused": "{{name}} menolak kunci ini. Pastikan anda menyalin semuanya.",
+      "required": "Isi medan ini.",
+      "test": "Uji",
+      "save": "Simpan",
+      "saveAndSignIn": "Simpan dan log masuk",
+      "agentTitle": "{{name}} untuk {{agent}}",
+      "agentHint": "Apa yang {{agent}} boleh buat dengan penyambung ini, dan tetapan yang dipatuhinya.",
+      "toolsTitle": "Apa yang {{agent}} boleh buat",
+      "toolsNote": "Alat yang mengubah data bermula dalam keadaan mati. Semakan bermula dalam keadaan hidup.",
+      "choose": "Pilih",
+      "choicesError": "Tidak dapat memuatkan pilihan.",
+      "retry": "Cuba semula",
+      "from": "Dari",
+      "to": "Hingga",
+      "settingProblem": {
+        "required": "Isi tetapan ini.",
+        "number": "Masukkan nombor.",
+        "timeOrder": "Masa tamat mesti selepas masa mula."
+      },
+      "saved": "Disimpan",
+      "field": {
+        "name": "nama",
+        "email": "e-mel",
+        "phone": "telefon"
+      },
+      "rulesTitle": "Peraturan yang sentiasa dipatuhi AI",
+      "rule": {
+        "asDescribed": "Menggunakan setiap alat hanya seperti yang diterangkan, dan mengatakan sesuatu sudah selesai hanya apabila {{publisher}} mengesahkannya.",
+        "noUndo": "Tidak pernah membatalkan apa-apa: permintaan untuk membatal, memadam atau mengubah diserahkan kepada pasukan anda.",
+        "writeOff": "Alat yang mengubah data kekal mati sehingga anda menghidupkannya. Cuba ia hanya menunjukkan apa yang AI akan buat.",
+        "confirmFirst": "Meminta pelanggan mengesahkan dahulu, dan bertindak hanya selepas pelanggan membalas.",
+        "valueFrom": "Menggunakan hanya nilai yang ditemui oleh “{{lookUp}}” dalam sembang ini.",
+        "fromCustomer": "Mengambil {{fields}} pelanggan daripada kenalan yang disimpan atau mesej pelanggan sendiri, tidak pernah meneka.",
+        "within": "Hanya dalam {{settings}} yang ditetapkan di atas.",
+        "limitsBoth": "Paling banyak {{perChat}} bagi setiap sembang dan {{perDay}} sehari.",
+        "limitsChat_other": "Paling banyak {{count}} bagi setiap sembang.",
+        "limitsDay_other": "Paling banyak {{count}} sehari."
+      },
+      "rulesFor": "{{tool}}:",
+      "activityHint": "Apa yang AI semak dan buat dalam {{name}}. Teks sembang tidak pernah disimpan di sini.",
+      "actLine": "{{tool}} · {{customer}}",
+      "act": {
+        "checked": "Disemak",
+        "done": "Selesai",
+        "refused": "Ditolak",
+        "failed": "Gagal"
+      },
+      "actBy": "{{agent}} · {{when}}",
+      "reason": {
+        "confirm_first": "Pelanggan belum mengesahkan. AI bertanya kepada pelanggan dahulu.",
+        "value_from": "Nilai itu bukan nilai yang ditemui oleh semakan dalam sembang ini. AI menyemak semula dahulu.",
+        "from_customer": "Beberapa butiran pelanggan tiada. AI meminta butiran itu daripada pelanggan.",
+        "within": "Ia di luar tetapan yang anda pilih. AI mematuhi tetapan itu.",
+        "limit": "Had telah dicapai. AI menyerahkan sembang kepada pasukan anda.",
+        "unreachable": "{{publisher}} tidak menjawab. AI menyerahkan sembang kepada pasukan anda.",
+        "partner_error": "{{publisher}} memulangkan ralat. AI menyerahkan sembang kepada pasukan anda.",
+        "needs_sign_in": "{{publisher}} tidak lagi menerima log masuk. AI menyerahkan sembang kepada pasukan anda."
+      },
+      "agentCardTools_other": "{{count}} daripada {{total}} alat dihidupkan"
     }
   },
   "reports": {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptCompletion,
   checkCompletion,
+  continuationOf,
   acceptDrafts,
   ungroundedNumbers,
   type DraftOutput,
@@ -147,8 +148,68 @@ describe('acceptDrafts', () => {
   });
 });
 
+describe('continuationOf (the grey text never repeats what was typed)', () => {
+  // [why, typed, model answer, grey text]
+  it.each([
+    [
+      'a full echo keeps the space after the finished word',
+      'hi what',
+      'hi what would you like to know?',
+      ' would you like to know?',
+    ],
+    [
+      'case, extra spaces and a leading space do not matter',
+      'Hi  What',
+      ' hi what would you like?',
+      ' would you like?',
+    ],
+    [
+      'an echo of only the current sentence',
+      'Thanks Jazz. sure do',
+      'sure do drop us a message early.',
+      ' drop us a message early.',
+    ],
+    ['an echo of only the last word', 'hi what', 'what would you like?', ' would you like?'],
+    [
+      'a half-typed word is finished without a space',
+      'Hi Nu',
+      'Hi Nurul, how can we help?',
+      'rul, how can we help?',
+    ],
+    [
+      'a half-typed word, only that word echoed',
+      'Hi Nu',
+      'Nurul, how can we help?',
+      'rul, how can we help?',
+    ],
+    [
+      'after a typed space: no leading space (echo)',
+      'Two Nasi ',
+      'Two Nasi Lemak Ayam',
+      'Lemak Ayam',
+    ],
+    ['after a typed space: no leading space (new words)', 'Two Nasi ', ' Lemak Ayam', 'Lemak Ayam'],
+    ['only new words stay as they are', 'Two Nasi ', 'Lemak Ayam', 'Lemak Ayam'],
+    ['only new words with their space stay', 'hi what', ' would you like?', ' would you like?'],
+    ['a word inside a typed word is no word start', 'hi what', 'at the shop', 'at the shop'],
+    ['Chinese: every character is a word start', '您好，请问', '请问您需要什么？', '您需要什么？'],
+  ])('%s', (_why, typed, answer, grey) => {
+    expect(continuationOf(typed, answer)).toBe(grey);
+  });
+});
+
 describe('acceptCompletion', () => {
   const done = (completion: string | null, grounded = true) => ({ completion, grounded });
+
+  it('shows only what comes after the typed text, and nothing for a pure echo', () => {
+    expect(
+      acceptCompletion(done('hi what would you like to know?'), 'hi what', SOURCES, INTERNAL),
+    ).toBe(' would you like to know?');
+    expect(checkCompletion(done('Hi what'), 'hi what', SOURCES, INTERNAL)).toEqual({
+      completion: null,
+      dropped: 'empty',
+    });
+  });
 
   it('cuts at the end of the sentence', () => {
     expect(

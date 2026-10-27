@@ -1445,14 +1445,18 @@
       "data": "Spreadsheets",
       "payments": "Payments",
       "commerce": "Online shop",
-      "custom": "Custom"
+      "custom": "Custom",
+      "other": "Other"
     },
     "status": {
       "connected": "Connected",
       "attention": "Needs attention",
       "notConnected": "Not connected",
       "comingSoon": "Coming soon",
-      "enterprise": "Enterprise only"
+      "enterprise": "Enterprise only",
+      "needsUpdate": "Needs a newer EzyChat",
+      "delisted": "No longer available",
+      "beta": "Beta"
     },
     "yours": "Your connectors",
     "more": "More connectors",
@@ -1510,35 +1514,7 @@
       "checkFree": "Check free times",
       "checkFreeHint": "Reads when the chosen calendar is busy.",
       "book": "Book appointments",
-      "bookHint": "Adds an event after the customer confirms a time.",
-      "readRows": "Read rows",
-      "readRowsHint": "Looks up the rows that match the customer's question.",
-      "addRow": "Add a lead",
-      "addRowHint": "Adds the customer's name, number and request as a row.",
-      "paymentLink": "Create a payment link",
-      "paymentLinkHint": "Creates a link for the amount your team or price list sets.",
-      "paymentStatus": "Check payment",
-      "paymentStatusHint": "Checks whether a link was paid.",
-      "orderStatus": "Order status",
-      "orderStatusHint": "Finds an order by number and the customer's phone.",
-      "productStock": "Product stock",
-      "productStockHint": "Checks price and stock of a product.",
-      "stock": "Stock and price",
-      "stockHint": "Looks up an item's stock and selling price.",
-      "quotation": "Create a quotation",
-      "quotationHint": "Drafts a quotation for the customer; your team sends it.",
-      "outstanding": "Outstanding balance",
-      "outstandingHint": "Checks what a customer still owes.",
-      "invoice": "Invoice status",
-      "invoiceHint": "Finds an invoice and whether it is paid.",
-      "contact": "Add a contact",
-      "contactHint": "Adds the customer as a contact.",
-      "findContact": "Find the customer",
-      "findContactHint": "Finds the customer's record by phone number.",
-      "addLead": "Add a lead",
-      "addLeadHint": "Adds a new lead with the customer's request.",
-      "member": "Member points",
-      "memberHint": "Checks a member's points and tier."
+      "bookHint": "Adds an event after the customer confirms a time."
     },
     "items": {
       "google-calendar": {
@@ -1546,90 +1522,6 @@
         "short": "Check free times and book appointments.",
         "long": "Your AI agent offers free times from your Google Calendar and, if you allow it, books the time the customer confirms. Sign in with Google: no link to paste.",
         "privacy": "{{product}} reads busy times of the calendar you choose and writes only the events it books: title, and the customer’s name, phone and email. No chat text goes to Google. The sign-in is stored encrypted on this computer."
-      },
-      "google-sheets": {
-        "name": "Google Sheets",
-        "short": "Read prices or stock from a sheet; add new leads.",
-        "long": "Keep prices, stock or a FAQ in a Google Sheet and let the AI read it. It can also add each new lead as a row.",
-        "privacy": "{{product}} reads only the sheet you choose and writes only the lead rows it adds."
-      },
-      "hitpay": {
-        "name": "HitPay",
-        "short": "Send payment links (FPX, DuitNow, PayNow).",
-        "long": "The AI sends a HitPay payment link for an order and tells your team when it is paid.",
-        "privacy": "{{product}} sends HitPay the amount, a reference and the customer's name; card and bank details stay with HitPay."
-      },
-      "shopify": {
-        "name": "Shopify",
-        "short": "Order status and stock from your online shop.",
-        "long": "Customers ask where their order is or whether an item is in stock; the AI looks it up in your Shopify shop.",
-        "privacy": "{{product}} only reads orders and products; it never changes your shop."
-      },
-      "autocount": {
-        "name": "AutoCount",
-        "short": "Stock, prices and quotations from AutoCount Accounting.",
-        "long": "The AI answers stock and price questions from AutoCount and drafts quotations for your team to send.",
-        "privacy": "{{product}} sends AutoCount only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "sql-account": {
-        "name": "SQL Account",
-        "short": "Stock, prices and customer balances from SQL Account.",
-        "long": "The AI checks stock and prices in SQL Account and tells customers their outstanding balance.",
-        "privacy": "{{product}} sends SQL Account only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "bukku": {
-        "name": "Bukku",
-        "short": "Invoices and quotations from Bukku.",
-        "long": "The AI tells customers whether an invoice is paid and drafts quotations in Bukku.",
-        "privacy": "{{product}} sends Bukku only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "xero": {
-        "name": "Xero",
-        "short": "Invoice status and contacts in Xero.",
-        "long": "The AI checks invoice status in Xero and adds new customers as contacts.",
-        "privacy": "{{product}} sends Xero only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "zoho-books": {
-        "name": "Zoho Books",
-        "short": "Invoices and quotations from Zoho Books.",
-        "long": "The AI checks invoices and drafts quotations in Zoho Books.",
-        "privacy": "{{product}} sends Zoho Books only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "zoho-crm": {
-        "name": "Zoho CRM",
-        "short": "Find customers and add leads in Zoho CRM.",
-        "long": "The AI finds the customer in Zoho CRM before it answers and adds new enquiries as leads.",
-        "privacy": "{{product}} sends Zoho CRM only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "hubspot": {
-        "name": "HubSpot",
-        "short": "Find customers and add leads in HubSpot.",
-        "long": "The AI finds the customer in HubSpot and adds new enquiries as leads.",
-        "privacy": "{{product}} sends HubSpot only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "woocommerce": {
-        "name": "WooCommerce",
-        "short": "Order status and stock from your WooCommerce shop.",
-        "long": "Customers ask where their order is; the AI looks it up in your WooCommerce shop.",
-        "privacy": "{{product}} sends WooCommerce only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "easystore": {
-        "name": "EasyStore",
-        "short": "Order status and stock from EasyStore.",
-        "long": "The AI answers order and stock questions from your EasyStore shop.",
-        "privacy": "{{product}} sends EasyStore only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "storehub": {
-        "name": "StoreHub",
-        "short": "Stock and member points from StoreHub POS.",
-        "long": "The AI checks stock and a member's points in StoreHub.",
-        "privacy": "{{product}} sends StoreHub only what a look-up or action needs in one chat, and never the chat text."
-      },
-      "billplz": {
-        "name": "Billplz",
-        "short": "Send Billplz payment links (FPX).",
-        "long": "The AI sends a Billplz payment link for an order and tells your team when it is paid.",
-        "privacy": "{{product}} sends Billplz only what a look-up or action needs in one chat, and never the chat text."
       },
       "custom-mcp": {
         "name": "Custom connector (MCP)",
@@ -1741,6 +1633,183 @@
       "openEvent": "Open in Google Calendar",
       "openCalendar": "Open Google Calendar",
       "unknownCustomer": "Customer"
+    },
+    "list": {
+      "updated": "Connector list updated {{when}}",
+      "copyFrom": "Connector list from {{when}}",
+      "builtin": "Connector list that came with EzyChat",
+      "saved": "Saved connector list",
+      "check": "Check for new connectors",
+      "checking": "Checking…",
+      "checkedUpToDate": "You have the newest connector list.",
+      "checkedNew": "The connector list is updated.",
+      "checkedOffline": "Could not reach the connector list. Try again later.",
+      "checkedRejected": "The new connector list did not pass its safety check. The last good copy stays.",
+      "offlineTitle": "Could not check for new connectors",
+      "offlineBody": "EzyChat could not reach the connector list, so it shows the last copy it saved. Connected connectors keep working.",
+      "rejectedTitle": "The new connector list was not used",
+      "rejectedBody": "The list EzyChat received did not pass its safety check, so EzyChat kept the last good copy. Connected connectors keep working. If this message stays, tell the EzyChat team.",
+      "needsUpdateShort": "Update EzyChat to use this connector.",
+      "byPublisher": "By {{publisher}} · {{category}}"
+    },
+    "partner": {
+      "website": "{{publisher}} website",
+      "showDetails": "Show details for your developer",
+      "hideDetails": "Hide details for your developer",
+      "detail": {
+        "server": "Server address",
+        "signIn": "Sign-in",
+        "entry": "Connector list entry",
+        "entryValue": "{{id}}, schema {{schema}}"
+      },
+      "signInType": {
+        "oauth": "Sign in on the partner’s page (OAuth)",
+        "oauth_own_app": "Your own app at the partner, then sign in (OAuth)",
+        "api_key": "API key",
+        "credentials": "Account details form",
+        "none": "None"
+      },
+      "needsUpdateTitle": "Update EzyChat to use this connector",
+      "needsUpdateBody": "This connector needs EzyChat {{need}} or later. This computer has {{have}}.",
+      "delistedTitle": "This connector is no longer available",
+      "delistedBody": "It was removed from the connector list. It keeps working with the details saved when you connected it, but gets no more updates or fixes. Disconnect it when you no longer need it.",
+      "connectFirst": "Connect {{name}} first",
+      "connectFirstHint": "Then choose here what each AI agent may do with it.",
+      "goToOverview": "Go to Overview",
+      "connectionTitle": "Connection",
+      "connection": {
+        "oauth": "You sign in on {{publisher}}’s own page. EzyChat on this computer then connects straight to {{publisher}}.",
+        "oauth_own_app": "You use your own app in your {{name}} account and sign in on {{publisher}}’s page. EzyChat on this computer then connects straight to {{publisher}}.",
+        "api_key": "Paste an API key from your {{name}} account. EzyChat on this computer then connects straight to {{name}}.",
+        "credentials": "Enter the details of your {{name}} account. EzyChat on this computer then connects straight to {{name}}.",
+        "none": "No sign-in is needed. EzyChat on this computer connects straight to {{publisher}}."
+      },
+      "hint": {
+        "oauth": "A new tab opens with {{publisher}}’s sign-in. EzyChat never sees your password.",
+        "oauth_own_app": "The client secret is stored encrypted on this computer. A new tab then opens with {{publisher}}’s sign-in.",
+        "api_key": "The key is stored encrypted on this computer and goes only to {{name}}.",
+        "credentials": "Your details are stored encrypted on this computer and go only to {{name}}.",
+        "none": "EzyChat stores nothing secret for {{name}}."
+      },
+      "cancelledTitle": "Sign-in cancelled",
+      "cancelledBody": "Nothing was connected. Try again when you are ready.",
+      "unreachableTitle": "Could not reach {{name}}",
+      "unreachableBody": "EzyChat could not reach {{publisher}}’s server. Check the internet connection of this computer and try again.",
+      "problem": {
+        "refused": "{{name}} refused these details. Check that you copied all of them and try again.",
+        "expired": "The sign-in took too long. Try again.",
+        "not_https": "The server address of {{name}} is not secure (https), so EzyChat did not connect.",
+        "private_address": "The server address of {{name}} points into a private network, so EzyChat did not connect.",
+        "missing_tools": "The server of {{name}} does not offer the tools this connector needs. Tell {{publisher}}.",
+        "error": "The connection did not work. Try again."
+      },
+      "needsSignInTitle": "Sign in again",
+      "needsSignInBody": "{{name}} no longer accepts the sign-in. The AI does not use {{name}} until you sign in again.",
+      "waitingTitle": "Waiting for you to sign in",
+      "waitingBody": "Finish signing in to {{name}} in the other tab. This page updates by itself when you are done.",
+      "blocked": "Your browser blocked the sign-in tab. Open the sign-in page to continue.",
+      "openSignIn": "Open the sign-in page",
+      "cancel": "Cancel",
+      "account": "Account",
+      "key": "API key",
+      "keyEnding": "Key ending in {{end}}",
+      "connectedSince": "Connected {{when}}.",
+      "openSettings": "Open Settings",
+      "signInAgain": "Sign in again",
+      "tryAgain": "Try again",
+      "connect": "Connect {{name}}",
+      "connectKey": "Connect with an API key",
+      "connectForm": "Connect with your account details",
+      "connectOwnApp": "Connect with your own app",
+      "testConnection": "Test connection",
+      "testOk_one": "The connection works. {{count}} tool is ready.",
+      "testOk_other": "The connection works. {{count}} tools are ready.",
+      "replaceKey": "Replace key",
+      "changeDetails": "Change details",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect {{name}}?",
+      "disconnectBody": "The AI stops using {{name}} at once. The settings of each AI agent stay, in case you connect again.",
+      "disconnected": "{{name}} disconnected",
+      "connectedToast": "{{name}} connected",
+      "dialogTitle": "Connect {{name}}",
+      "ownAppTitle": "Connect {{name}} with your own app",
+      "replaceKeyTitle": "Replace the {{name}} key",
+      "changeDetailsTitle": "Change the {{name}} details",
+      "dialogBody": {
+        "api_key": "Paste the key, test it, then save.",
+        "credentials": "Fill in the details from your {{name}} account, test them, then save.",
+        "oauth_own_app": "Create an app in your {{name}} account, then paste its client ID and client secret here. After Save, sign in on {{publisher}}’s page."
+      },
+      "help": {
+        "api_key": "Where do I find my {{name}} key?",
+        "credentials": "Where do I find these details?",
+        "oauth_own_app": "How do I create the app?"
+      },
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "keyStored": "Stored encrypted on this computer.",
+      "keyRefused": "{{name}} refused this key. Check that you copied all of it.",
+      "required": "Fill in this field.",
+      "test": "Test",
+      "save": "Save",
+      "saveAndSignIn": "Save and sign in",
+      "agentTitle": "{{name}} for {{agent}}",
+      "agentHint": "What {{agent}} may do with this connector, and the settings it follows.",
+      "toolsTitle": "What {{agent}} may do",
+      "toolsNote": "Tools that change data start off. Look-ups start on.",
+      "choose": "Choose",
+      "choicesError": "Could not load the choices.",
+      "retry": "Retry",
+      "from": "From",
+      "to": "To",
+      "settingProblem": {
+        "required": "Fill in this setting.",
+        "number": "Enter a number.",
+        "timeOrder": "The end time must be after the start time."
+      },
+      "saved": "Saved",
+      "field": {
+        "name": "name",
+        "email": "email",
+        "phone": "phone"
+      },
+      "rulesTitle": "Rules the AI always follows",
+      "rule": {
+        "asDescribed": "Uses each tool only as described, and says something is done only when {{publisher}} confirms it.",
+        "noUndo": "Never undoes anything: requests to cancel, delete or change go to your team.",
+        "writeOff": "Tools that change data stay off until you switch them on. Try it only shows what the AI would do.",
+        "confirmFirst": "Asks the customer to confirm first, and acts only after the customer replies.",
+        "valueFrom": "Uses only values that “{{lookUp}}” found in this chat.",
+        "fromCustomer": "Takes the customer’s {{fields}} from the saved contact or the customer’s own messages, never a guess.",
+        "within": "Only within the {{settings}} set above.",
+        "limitsBoth": "At most {{perChat}} per chat and {{perDay}} a day.",
+        "limitsChat_one": "At most {{count}} per chat.",
+        "limitsChat_other": "At most {{count}} per chat.",
+        "limitsDay_one": "At most {{count}} a day.",
+        "limitsDay_other": "At most {{count}} a day."
+      },
+      "rulesFor": "{{tool}}:",
+      "activityHint": "What the AI looked up and did in {{name}}. Chat text is never kept here.",
+      "actLine": "{{tool}} · {{customer}}",
+      "act": {
+        "checked": "Looked up",
+        "done": "Done",
+        "refused": "Refused",
+        "failed": "Failed"
+      },
+      "actBy": "{{agent}} · {{when}}",
+      "reason": {
+        "confirm_first": "The customer had not confirmed yet. The AI asked the customer first.",
+        "value_from": "The value was not one a look-up found in this chat. The AI checked again first.",
+        "from_customer": "Some customer details were missing. The AI asked the customer for them.",
+        "within": "It was outside the settings you chose. The AI kept to them.",
+        "limit": "The limit was reached. The AI handed the chat to your team.",
+        "unreachable": "{{publisher}} did not answer. The AI handed the chat to your team.",
+        "partner_error": "{{publisher}} returned an error. The AI handed the chat to your team.",
+        "needs_sign_in": "{{publisher}} no longer accepts the sign-in. The AI handed the chat to your team."
+      },
+      "agentCardTools_one": "{{count}} of {{total}} tools on",
+      "agentCardTools_other": "{{count}} of {{total}} tools on"
     }
   },
   "reports": {

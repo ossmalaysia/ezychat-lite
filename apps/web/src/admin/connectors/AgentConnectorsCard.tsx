@@ -1,11 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plug } from 'lucide-react';
+import { useConnectorGallery, useConnectorsAgentSettings } from '../../api/connector-list';
 import { useBookingSettings, useGoogleCalendar } from '../../api/connectors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { findConnector } from './catalog';
 import { ConnectorIcon, ConnectorStatusBadge } from './connector-ui';
+import { entryIcon, isLinked, withToolDefaults } from './list';
+
+const ROW =
+  'flex min-h-11 items-center gap-3 rounded-lg border px-3 py-3 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 
 /**
  * Agent page → Connectors: one summary row per connected connector (what this agent may do there)
@@ -20,6 +25,14 @@ export function AgentConnectorsCard({
   const state = google.data?.state;
   const connected = state === 'connected' || state === 'expired' || state === 'unavailable';
   const booking = useBookingSettings(agentId, connected);
+  const gallery = useConnectorGallery();
+  const partners = (gallery.data?.connectors ?? []).filter(
+    (c) => c.entry.kind === 'mcp' && isLinked(c.connection),
+  );
+  const partnerSettings = useConnectorsAgentSettings(
+    partners.map((c) => c.entry.id),
+    agentId,
+  );
   const gc = findConnector('google-calendar')!;
   const summary = !booking.data
     ? null
@@ -35,10 +48,10 @@ export function AgentConnectorsCard({
         <CardDescription>{t('connectors.agentCard.description', { name })}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {connected ? (
+        {connected && (
           <Link
             to={`/admin/connectors/google-calendar?tab=settings&agent=${agentId}`}
-            className="flex min-h-11 items-center gap-3 rounded-lg border px-3 py-3 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className={ROW}
             data-testid="agent-connector-google-calendar"
           >
             <ConnectorIcon c={gc} />
@@ -51,7 +64,40 @@ export function AgentConnectorsCard({
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
-        ) : (
+        )}
+        {partners.map((c, i) => {
+          const tools = c.entry.tools ?? [];
+          const saved = partnerSettings[i]?.data;
+          const on = saved
+            ? Object.values(withToolDefaults(tools, saved.tools)).filter(Boolean).length
+            : null;
+          return (
+            <Link
+              key={c.entry.id}
+              to={`/admin/connectors/${c.entry.id}?tab=settings&agent=${agentId}`}
+              className={ROW}
+              data-testid={`agent-connector-${c.entry.id}`}
+            >
+              <ConnectorIcon c={entryIcon(c.entry)} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex flex-wrap items-center gap-2 font-medium break-words">
+                  {c.entry.name}
+                  {c.connection?.state !== 'connected' && (
+                    <ConnectorStatusBadge status="attention" />
+                  )}
+                  {c.delisted && <ConnectorStatusBadge status="delisted" />}
+                </span>
+                {on !== null && (
+                  <span className="text-sm text-muted-foreground">
+                    {t('connectors.partner.agentCardTools', { count: on, total: tools.length })}
+                  </span>
+                )}
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          );
+        })}
+        {!connected && partners.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('connectors.agentCard.none')}</p>
         )}
         <Button asChild variant="outline" size="touch" className="self-start">

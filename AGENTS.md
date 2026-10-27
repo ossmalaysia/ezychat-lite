@@ -244,6 +244,26 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Connector list** (design `docs/features/connector-list/design.md`). The gallery comes from a signed list published
+by the public repo `anchorsprint/ezychat-connectors` (one folder per connector: `connector.yaml`, `skill.md`,
+`icon.svg`; its CI validates, builds `list-v1.json`, signs it with Ed25519 and uploads it with the icons to
+`dl.ezychat.ai/connectors/`). Contract `packages/shared/src/connector-list.ts` (`ConnectorEntry` `schemaVersion` 1,
+`minAppVersion`, editions, kinds `mcp` / `builtin` / `coming_soon`, sign-in `oauth` / `oauth_own_app` / `api_key` /
+`credentials` / `none`, declared guards; JSON Schema for the repo from `scripts/connector-schema.mjs`). Server
+`connectors/list/` (`ctx.services.connectorList`): downloads at start and when Admin → Connectors opens
+(`POST /api/connectors/list/refresh`, one download per 30 s, no timer), accepts the list only when one of the two keys
+in `keys.ts` verifies it, its `sequence` is not lower than the saved one and every icon matches its hash (SVG without
+script); keeps the last good copy in `<data>/connectors/`, else the built-in list (`builtin-list.ts`, `minAppVersion`
+0.0.0). Entries with an unknown schema are hidden, newer `minAppVersion` shows "Needs a newer EzyChat", a saved
+connection whose entry left the list keeps working flagged "No longer available". `EZYCHAT_CONNECTOR_LIST_URL` /
+`_TEST_KEY` are read only with `--mode dev --fake-wa`. Partner (MCP) connections `connectors/mcp/` (migration 023,
+routes `/api/connectors/mcp/*`, admins; engine ported from Enterprise `ent-connectors`): SSRF-guarded https only
+(`net.ts`; loopback only with `CONNECTORS_TEST_ALLOW_LOCAL=1` in dev with fake WhatsApp), secrets encrypted, only the
+key end returned, OAuth callback host-only. Per agent, look-ups start on and tools that change data off; the core
+enforces the entry's guards before every call (`guards.ts`: confirmFirst, valueFrom, fromCustomer, within, limits;
+fail closed; Try it never runs a write tool) and logs ids, tool names, outcome and ms only. Test partners:
+`e2e/partner-mcp/` (`node e2e/partner-mcp/cli.mjs`; e2e project `partners` on port 7497 via `e2e/start-partners.mjs`).
+
 **Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
 zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
 only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a

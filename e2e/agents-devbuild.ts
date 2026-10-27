@@ -6,6 +6,8 @@
 // Google Calendar (fake Google): BOOK calls check_free_times and offers the first time; CONFIRM checks
 // the free times again, then calls book_appointment with the first time offered in that chat (and an
 // email written in the same message) and repeats what the tool said.
+// Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
+// QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
@@ -103,6 +105,31 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
       : null;
     return { reply: output === null ? 'book=not-offered' : output, action: 'answer' };
   }
+  // Partner connectors (signed test list of e2e/partner-mcp): STOCK <sku> calls check_stock, INVOICE
+  // <number> calls find_invoice, QUOTE <sku> x<qty> @<iso time> NAME <first last> calls
+  // create_quotation with the email of the same message; the reply is what the tool said.
+  const partner = (suffix: string) =>
+    Object.keys(prompt.tools ?? {}).find((tool) => tool.endsWith(`__${suffix}`));
+  const partnerCall = async (suffix: string, args: object) => {
+    const tool = partner(suffix);
+    const output = tool ? await runTool(prompt, tool, args, signal) : null;
+    return { reply: output === null ? `${suffix}=not-offered` : output, action: 'answer' as const };
+  };
+  const stock = /STOCK (\S+)/.exec(last);
+  if (stock) return partnerCall('check_stock', { query: stock[1] });
+  const invoice = /INVOICE (\S+)/.exec(last);
+  if (invoice) return partnerCall('find_invoice', { invoice_number: invoice[1] });
+  const quote = /QUOTE (\S+) x(\d+) @(\S+)(?: NAME (\S+ \S+))?/.exec(last);
+  if (quote) {
+    const email = /[^\s@]+@[^\s@]+\.[^\s@]+/.exec(last)?.[0];
+    return partnerCall('create_quotation', {
+      sku: quote[1],
+      quantity: Number(quote[2]),
+      delivery_at: quote[3],
+      ...(quote[4] ? { customer_name: quote[4] } : {}),
+      ...(email ? { customer_email: email } : {}),
+    });
+  }
   const name = /Your name: (.+)/.exec(prompt.instructions)?.[1] ?? '?';
   if (prompt.input.includes('LEAK'))
     return { reply: `Sure: ${input.internalKnowledge}`, action: 'answer' };
@@ -166,10 +193,19 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
     .sort((a, b) => b.score - a.score)[0];
   const fact = leak ? input.internalKnowledge : best && best.score > 0 ? best.line : null;
   if (input.currentSituation.task === 'complete') {
+    // A completion sees only the last messages (never the knowledge): complete from what was said.
+    const said = input.conversation.flatMap((turn) =>
+      turn.text.split(/(?<=[.!?])\s+/u).map((line) => line.trim()),
+    );
     const last = [...words(input.currentSituation.typed ?? '')].pop();
-    const line = sentences.find((l) => (last ? l.toLowerCase().includes(last) : false));
+    const line = said.findLast((l) => (last ? l.toLowerCase().includes(last) : false));
     const at = line && last ? line.toLowerCase().indexOf(last) + last.length : -1;
-    return { completion: line && at > 0 ? line.slice(at).trim() : null, grounded: !!line };
+    // Like the prompt asks (and real models do): the whole current sentence as typed, then its end.
+    const sentence = (input.currentSituation.typed ?? '')
+      .split(/(?<=[.!?])\s+/u)
+      .pop()!
+      .trimEnd();
+    return { completion: line && at > 0 ? sentence + line.slice(at) : null, grounded: !!line };
   }
   if (!fact) return { suggestions: [], noAnswer: true, handoffRule: null };
   return {

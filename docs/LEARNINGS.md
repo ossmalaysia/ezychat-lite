@@ -141,6 +141,8 @@ into AGENTS.md.
   that needs them: parallel agents with disjoint files otherwise each write a private copy.
 - A scripted rename to a shared function's name can make a same-named local wrapper call itself
   (`const f = () => f(qc)`); grep the new name in each touched file before typechecking.
+- Every response shape that two parallel agents share goes in `packages/shared` before they start: a zod schema
+  written only on the web side hid a server/web mismatch (`tools` as a count vs a list of names).
 
 ## Git, GitHub and CI
 
@@ -591,9 +593,10 @@ into AGENTS.md.
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
   Heavy end-to-end unit tests (hundreds of chats) set an explicit timeout: the Windows CI runner is
-  several times slower than local runs. So does any test that builds `makeTestApp()` or opens and
-  migrates a data dir inside itself (`describe(name, { timeout: 30_000 }, …)`; put it in subagent and
-  reviewer prompts: five agent-written files missed it and failed only on Windows CI), and
+  several times slower than local runs. The server test project now defaults to 30 s per test and hook
+  (`SERVER_TIMEOUTS` in `vitest.config.ts`), because a branch that only adds test files pushed old
+  `makeTestApp()` tests past Vitest's 5 s on Windows CI three runs in a row; other projects still set
+  `describe(name, { timeout: 30_000 }, …)` when a test builds an app or migrates a data dir, and
   `vi.waitFor` around real async work gets `{ timeout }` (its default gives up after 1 s).
 - Radix RadioGroup arrow-key tests: `{ArrowRight>}`, `waitFor`, `{/ArrowRight}`.
 - Case-insensitive filesystem: move legacy files before adding same-name shadcn files.
@@ -625,6 +628,10 @@ into AGENTS.md.
   so a slow count freezes every inbox. Benchmark with 100k–300k messages and cache the result briefly.
   Bound every per-chat look-up from below too (`timestamp >= <last reply>`), or it still reads the chat's whole
   history; when rewriting a count for speed, fuzz the new query against the old one on random data.
+- Stopping a background shell does not stop the node server it started: before a restart, stop the process that
+  listens on the port (`Get-NetTCPConnection -LocalPort <p>`), or the next check runs against the old server.
+- A screenshot or check script that connects many times must pace itself under the app's rate limits (connect and
+  test: 10 a minute per admin); a "Too many attempts" screen is the limit working, not a bug.
 
 ## Security
 
@@ -685,6 +692,11 @@ into AGENTS.md.
 - Never trust a media file's self-declared length or size (Ogg granule, headers): count the real
   packets before decoding or uploading, and cap decoded output, because customers send crafted files.
   Test such limits with genuinely oversized input, not by editing the header (that is the attack).
+- Guards in front of AI tools fail closed: an argument path that does not resolve refuses the call, and arguments
+  are checked against the tool's schema first (extra keys are dropped). A per-chat or per-day limit reserves its
+  slot synchronously with the check, before any `await`: the AI SDK runs the tool calls of one step in parallel.
+- A signed list that the app downloads is trusted only after the signature over the exact bytes, a sequence that
+  never goes down, and the hash of every referenced file pass; one bad file rejects the whole list.
 
 ## WhatsApp / Baileys
 
@@ -936,6 +948,13 @@ into AGENTS.md.
   never override them; editable instructions hold role, scope and style only, company facts go in the
   Business context, and hand-offs are structured actions, never text markers (they would reach the
   customer).
+- Data shipped inside the app (a built-in fallback list) uses `minAppVersion: '0.0.0'`: unit tests run as
+  `0.0.0-test`, so any higher minimum marks the built-in entries "needs update" in tests and Dev Builds.
+- Server unit tests may import an `e2e/` helper only as `.mjs` with a `.d.mts` type file: a `.ts` file outside
+  `packages/server` breaks its typecheck (TS6059 rootDir).
+- Never trust a model to continue "exactly where the text stops": ask for the whole current sentence and cut the
+  typed part on the server (`continuationOf`: longest typed end from a word start, case and spaces ignored), so the
+  grey text never repeats what was typed and the space after a finished word comes from the model's own sentence.
 
 ## Desktop and web UI
 

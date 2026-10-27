@@ -43,3 +43,9 @@ initializers.push(initPhrases);
 
 import { initGoogleCalendar } from './connectors/google-calendar/service.js';
 initializers.push(initGoogleCalendar);
+
+import { initConnectorList } from './connectors/list/service.js';
+initializers.push(initConnectorList);
+
+import { initConnectorMcp } from './connectors/mcp/service.js';
+initializers.push(initConnectorMcp);

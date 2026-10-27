@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (hover, or press and hold on a phone), **Copy image** in the image viewer, and drag an image or document from
   a chat to your desktop or a folder to save it. The desktop app now has a right-click menu: Cut, Copy, Paste,
   Paste as plain text, Select all, spelling suggestions, Copy image, Save image as… and Copy link address.
+- **Beta mark for connectors.** A connector can show **Beta** on its card and page, with a short note above Connect. Google Calendar is Beta while Google reviews the sign-in: the note explains the warning Google shows when you sign in. The mark goes away by itself when the connector list drops it, with no update.
+
+### Fixed
+
+- The grey text no longer repeats what you typed. When you type "hi what", it shows only the rest (" would you like to know?"), with the space in the right place, so Tab gives a correct sentence.
+
+## [0.1.60] - 2026-10-27
+
+### Added
+
 - **Connectors.** Admin → Connectors is a gallery of systems your AI agents can use, each with its own page
   (overview, settings and activity). Connectors that are not ready yet show **Vote for this connector**, which
   opens a WhatsApp chat with the EzyChat team; the app itself counts nothing.
@@ -29,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Each booking has the customer's name, phone and email: the AI takes them from the saved contact and the
   WhatsApp name and number, and asks the customer only for what is missing (usually the email).
   **Open Google Calendar** is also on the connector's Overview.
+- **New connectors without an app update.** EzyChat downloads a signed connector list when it starts and when you
+  open Admin → Connectors (**Check for new connectors**). It checks the signature before it uses the list and keeps
+  the last good copy, so the gallery also works offline. A connector that needs a newer EzyChat says so, and one
+  that leaves the list keeps working, marked **No longer available**.
+- **Partner connectors.** Connect a partner's system by signing in on its page, with an API key or with your
+  account details; secrets stay encrypted on your computer. Per AI agent you choose what the AI may do: look-ups
+  start on, tools that change data start off. EzyChat enforces each connector's rules (for example "ask the
+  customer to confirm first" and daily limits), and Try it never changes data.
 - **Reports for admins.** Admin → Reports shows how busy your WhatsApp is and how fast your team and AI
   answer, for the last 7, 30 or 90 days: new customers, messages from customers, first reply time, new
   customers missed (no reply within 1 hour), chats still waiting after the AI handed them to the team (with
