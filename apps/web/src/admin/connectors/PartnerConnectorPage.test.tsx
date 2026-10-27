@@ -50,7 +50,13 @@ const TOOLS: ConnectorTool[] = [
     guards: {
       confirmFirst: true,
       valueFrom: { item: 'find_invoice' },
-      fromCustomer: ['customer.name', 'customer.email', 'buyer.name'],
+      fromCustomer: [
+        'customer_name',
+        'customerEmail',
+        'buyer.name',
+        'phone_number',
+        'delivery_note',
+      ],
       within: { start: 'hours', day: 'days' },
       limits: { perChat: 2, perDay: 20 },
     },
@@ -617,7 +623,9 @@ describe('Partner connector: Settings', () => {
     expect(text).toContain('Create quotations:');
     expect(text).toContain('Asks the customer to confirm first');
     expect(text).toContain('Uses only values that “Find invoices” found in this chat.');
-    expect(text).toContain('Takes the customer’s name and email from the saved contact');
+    expect(text).toContain(
+      'Takes the customer’s name, email, phone, and delivery note from the saved contact',
+    );
     expect(text).toContain('Only within the Working hours and Working days set above.');
     expect(text).toContain('At most 2 per chat and 20 a day.');
     expect(text).toContain('Add notes:');

@@ -533,11 +533,15 @@ export function GuardRules({ entry, language }: { entry: ConnectorEntry; languag
     const tool = tools.find((x) => x.name === name);
     return tool ? connectorText(tool.title, language) : name;
   };
+  // `customer_name`, `customerEmail`, `phone_number` → the plain word; other names lose `_` and camel case.
   const field = (path: string) => {
-    const last = path.split('.').pop() ?? path;
-    return last === 'name' || last === 'email' || last === 'phone'
-      ? t(`connectors.partner.field.${last}`)
-      : last;
+    const words = (path.split('.').pop() ?? path)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .toLowerCase()
+      .trim();
+    const known = (['name', 'email', 'phone'] as const).find((w) => words.split(' ').includes(w));
+    return known ? t(`connectors.partner.field.${known}`) : words;
   };
   const settingLabel = (ref: string) => {
     const id = ref.replace(/^settings\./, '');

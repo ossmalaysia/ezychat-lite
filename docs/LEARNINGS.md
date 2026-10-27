@@ -627,6 +627,10 @@ into AGENTS.md.
   so a slow count freezes every inbox. Benchmark with 100k–300k messages and cache the result briefly.
   Bound every per-chat look-up from below too (`timestamp >= <last reply>`), or it still reads the chat's whole
   history; when rewriting a count for speed, fuzz the new query against the old one on random data.
+- Stopping a background shell does not stop the node server it started: before a restart, stop the process that
+  listens on the port (`Get-NetTCPConnection -LocalPort <p>`), or the next check runs against the old server.
+- A screenshot or check script that connects many times must pace itself under the app's rate limits (connect and
+  test: 10 a minute per admin); a "Too many attempts" screen is the limit working, not a bug.
 
 ## Security
 
