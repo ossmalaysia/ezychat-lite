@@ -1453,7 +1453,8 @@
       "comingSoon": "Coming soon",
       "enterprise": "Enterprise only",
       "needsUpdate": "Needs a newer EzyChat",
-      "delisted": "No longer available"
+      "delisted": "No longer available",
+      "beta": "Beta"
     },
     "yours": "Your connectors",
     "more": "More connectors",

@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ExternalLink, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { connectorText, type ConnectorEntry } from '@ezychat/shared';
+import { useConnectorGallery } from '../../api/connector-list';
+import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAppLinks } from '@/lib/app-links';
@@ -38,6 +41,37 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
     >
       {t(`connectors.status.${status}`)}
     </Badge>
+  );
+}
+
+/** "Beta" next to the status on cards and page headers, when the connector list marks the entry. */
+export function BetaBadge({ show }: Readonly<{ show: boolean }>) {
+  const { t } = useTranslation('admin');
+  if (!show) return null;
+  return (
+    <Badge variant="outline" data-testid="connector-beta">
+      {t('connectors.status.beta')}
+    </Badge>
+  );
+}
+
+/** The entry's notice from the connector list, above Connect; titled Beta for a beta entry. */
+export function ConnectorNotice({ entry }: Readonly<{ entry: ConnectorEntry | null }>) {
+  const { t, i18n } = useTranslation('admin');
+  if (!entry?.notice) return null;
+  return (
+    <Banner tone="info" title={entry.stage === 'beta' ? t('connectors.status.beta') : undefined}>
+      <span data-testid="connector-notice">{connectorText(entry.notice, i18n.language)}</span>
+    </Banner>
+  );
+}
+
+/** The connector list's entry for one of the app's own connectors (e.g. its Beta mark and notice). */
+export function useBuiltinEntry(builtinId: string): ConnectorEntry | null {
+  const list = useConnectorGallery();
+  return (
+    list.data?.connectors.find((g) => g.entry.kind === 'builtin' && g.entry.builtinId === builtinId)
+      ?.entry ?? null
   );
 }
 

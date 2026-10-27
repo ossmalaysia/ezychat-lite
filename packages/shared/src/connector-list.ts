@@ -204,6 +204,13 @@ export const ConnectorEntry = z
     settings: z.array(ConnectorSetting).max(12).optional(),
     /** coming_soon: the ready message of Vote for this connector. */
     vote: ConnectorTexts(300).optional(),
+    /**
+     * `beta`: the app shows a Beta badge on the card and the page (e.g. while Google reviews the
+     * sign-in app). Removed from the list, the badge goes without an app update.
+     */
+    stage: z.enum(['beta']).optional(),
+    /** A short note on the connector page above Connect (e.g. the warning a sign-in page shows). */
+    notice: ConnectorTexts(400).optional(),
   })
   .superRefine((entry, ctx) => {
     if (entry.kind === 'mcp' && (!entry.mcp || !entry.auth || !entry.tools?.length))

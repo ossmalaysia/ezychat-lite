@@ -89,6 +89,8 @@ check(
   JSON.stringify(drafts.json),
 );
 
+// A completion sees only the last messages (never the knowledge): the price must be in the chat.
+await customer(PRICE, 'I saw Nasi Lemak Ayam RM12 on your menu.');
 const done = await api('POST', `/chats/${enc(PRICE)}/ai/complete`, { text: 'Our Nasi Lemak ' });
 check(
   done.status === 200 &&
@@ -96,6 +98,18 @@ check(
     done.json.completion.includes('RM12'),
   'completion continues the sentence from the menu',
   JSON.stringify(done.json),
+);
+check(
+  !/\b(our|nasi)\b/i.test(done.json.completion ?? 'our') &&
+    !/^\s/.test(done.json.completion ?? ' '),
+  'the grey text never repeats the typed words (after a typed space: no leading space)',
+  JSON.stringify(done.json),
+);
+const word = await api('POST', `/chats/${enc(PRICE)}/ai/complete`, { text: 'Our Nasi Lemak' });
+check(
+  /^ \S/.test(word.json.completion ?? '') && !/nasi/i.test(word.json.completion ?? 'nasi'),
+  'after a finished word the grey text starts with one space',
+  JSON.stringify(word.json),
 );
 
 const HOURS = '60120000002@s.whatsapp.net';

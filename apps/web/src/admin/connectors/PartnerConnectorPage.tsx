@@ -20,8 +20,10 @@ import { ErrorState, ListSkeleton } from '../adminUi';
 import { AgentPicker } from './AgentPicker';
 import { LIST_CATEGORY, type ConnectorStatus } from './catalog';
 import {
+  BetaBadge,
   ConnectorBreadcrumb,
   ConnectorIcon,
+  ConnectorNotice,
   ConnectorStatusBadge,
   VoteButton,
 } from './connector-ui';
@@ -75,6 +77,7 @@ function EntryHeader({ entry, status }: { entry: ConnectorEntry; status: Connect
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold tracking-tight break-words">{entry.name}</h1>
           <ConnectorStatusBadge status={status} />
+          <BetaBadge show={entry.stage === 'beta'} />
         </div>
         <p className="text-sm break-words text-muted-foreground">
           {entry.publisher
@@ -284,6 +287,7 @@ function PartnerConnectorPage({ g, status }: { g: GalleryConnector; status: Conn
         </div>
         <TabsContent value="overview" className="flex flex-col gap-4">
           <EntryAbout entry={entry} />
+          <ConnectorNotice entry={entry} />
           <PartnerConnectionCard g={g} onOpenSettings={() => setTab('settings')} />
           <EntryPrivacy entry={entry} />
         </TabsContent>
