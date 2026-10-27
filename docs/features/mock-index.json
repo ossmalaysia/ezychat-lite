@@ -16,6 +16,17 @@
   },
   "proposals": [
     {
+      "feature": "ai-groups",
+      "status": "proposal",
+      "createdAt": "2026-10-28",
+      "mock": "docs/features/ai-groups/mock/index.html",
+      "design": "docs/features/ai-groups/design.md",
+      "source": {
+        "feature": "connector-list",
+        "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06"
+      }
+    },
+    {
       "feature": "connector-list",
       "creationOrder": 17,
       "createdAt": "2026-10-27",
@@ -48,7 +59,9 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": ["reports"]
+      "parallelFeatures": [
+        "reports"
+      ]
     },
     {
       "feature": "reports",
@@ -92,7 +105,12 @@
       "baselineAppRevision": "61e6bb9",
       "coverage": "Full app clone of the confirmed business-api reference; AI reply suggestions in direct chats: a Suggest reply button beside Quick replies, a strip of up to 2 chips (short label, tap = full draft in the composer; stacked on phones), \"Replace your text?\" confirm over typed text, grey completion after a full word with Tab / Esc on desktop and an Accept pill on touch, notes for no answer (admin link to Business context) and a matching hand-off rule, Chinese and Malay drafts, loading, error with Try again, disabled button when the connection expired; Settings → AI card with the team-wide switch, cost note, no-connection hint and the updated-install note; mock-only routes POST /api/mock/suggestions, POST /api/mock/complete, GET/PUT /api/mock/reply-suggestions (install kind and AI behaviour); desktop 1280 / mobile 360 touch, light/dark (suggest-shots.mjs)",
       "confirmedAt": "2026-10-26",
-      "confirmation": "Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 (\"ok\")"
+      "confirmation": "Owner viewed the screenshots (chips, draft, replace confirm, completion on phone and desktop, no answer, hand-off rule, Chinese, Malay, connection expired, Settings → AI) and confirmed 2026-10-26 (\"ok\")",
+      "pruned": {
+        "at": "2026-10-28",
+        "lastRevision": "ec780545d2a221a551c3a710a7dba5c18e434878",
+        "reason": "retention: keep the five newest feature folders"
+      }
     },
     {
       "feature": "business-api",
