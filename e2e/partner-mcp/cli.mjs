@@ -51,6 +51,12 @@ function loadOrCreateListKeys(dir) {
   return keys;
 }
 
+/** One printable line: control characters (CR, LF, ESC, …) become spaces. */
+const printable = (text) =>
+  Array.from(String(text), (c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c)).join(
+    '',
+  );
+
 const cert = loadOrCreateCert(DIR);
 const kit = await startPartnerMcp({
   port,
@@ -58,7 +64,8 @@ const kit = await startPartnerMcp({
   accessTokenTtlSeconds: Number(values.ttl),
   controlToken: givenToken,
   list: loadOrCreateListKeys(DIR),
-  log: values.quiet ? undefined : (line) => console.log(`[partner-mcp] ${line}`),
+  // Request log lines hold values from HTTP requests: one printed line each, no control characters.
+  log: values.quiet ? undefined : (line) => console.log(`[partner-mcp] ${printable(line)}`),
 });
 
 const env = [
