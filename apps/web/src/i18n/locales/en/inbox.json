@@ -148,6 +148,19 @@
       "tabHint": "Tab to accept · Esc to dismiss",
       "completionStatus": "Suggested ending: {{text}}",
       "unavailable": "AI suggestions are not available now"
+    },
+    "files": {
+      "title_one": "{{count}} file to send",
+      "title_other": "{{count}} files to send",
+      "clear": "Remove all",
+      "remove": "Remove {{name}}",
+      "caption": "Add a caption (optional)",
+      "too_large": "{{name}} is larger than {{limit}} and can’t be sent.",
+      "empty": "{{name}} is empty and can’t be sent.",
+      "too_many": "Up to {{max}} files at a time: {{name}} was not added.",
+      "drop": "Drop files to send them in this chat",
+      "dropHint": "They wait above the message box until you press Send.",
+      "dropBlocked": "Files can’t be sent in this chat right now."
     }
   },
   "quickReplies": {
@@ -313,7 +326,15 @@
       "remove": "Remove",
       "fromTeammateUnknown": "Someone"
     },
-    "template": "Template {{name}}"
+    "template": "Template {{name}}",
+    "copy": {
+      "text": "Copy text",
+      "image": "Copy image",
+      "done": "Copied",
+      "imageDone": "Image copied",
+      "failed": "Couldn’t copy. Select the text and press Ctrl+C instead.",
+      "imageFailed": "Couldn’t copy the image. Use Download instead."
+    }
   },
   "media": {
     "types": {

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Files and text in and out of the app.** Drag files from your desktop onto a chat, paste a screenshot or
+  files copied in Explorer or Finder into the message box, or pick several files at once: they wait above the
+  message box (with a preview, size and Remove) until you press **Send**, go out in the order you added them, and
+  the text you typed becomes the first file's caption. Files over 64 MB and more than 10 at a time are refused
+  before uploading. Business context takes a dropped file too. Out of the app: **Copy text** on every message
+  (hover, or press and hold on a phone), **Copy image** in the image viewer, and drag an image or document from
+  a chat to your desktop or a folder to save it. The desktop app now has a right-click menu: Cut, Copy, Paste,
+  Paste as plain text, Select all, spelling suggestions, Copy image, Save image as… and Copy link address.
 - **Connectors.** Admin → Connectors is a gallery of systems your AI agents can use, each with its own page
   (overview, settings and activity). Connectors that are not ready yet show **Vote for this connector**, which
   opens a WhatsApp chat with the EzyChat team; the app itself counts nothing.

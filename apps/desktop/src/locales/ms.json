@@ -189,5 +189,19 @@
       "manualHelp": "Muat turun pemasang dan tutup aplikasi ini sebelum memasang. Hentikan perkhidmatan Windows sebelum memasang, kemudian mulakannya semula. Pada Mac, buang perkhidmatan sebelum memasang dan dayakannya semula selepas itu untuk menyegarkan salinan aplikasi yang dilindungi. Akaun, sembang dan tetapan anda dikekalkan.",
       "openFailed": "Kemas kini tidak dapat dibuka."
     }
+  },
+  "contextMenu": {
+    "cut": "Potong",
+    "copy": "Salin",
+    "paste": "Tampal",
+    "pastePlain": "Tampal sebagai teks biasa",
+    "undo": "Buat asal",
+    "redo": "Buat semula",
+    "selectAll": "Pilih semua",
+    "copyImage": "Salin imej",
+    "saveImage": "Simpan imej sebagai…",
+    "copyLink": "Salin alamat pautan",
+    "addToDictionary": "Tambah ke kamus",
+    "noSuggestions": "Tiada cadangan ejaan"
   }
 }

@@ -189,5 +189,19 @@
       "manualHelp": "请下载安装程序，并在安装前退出此应用。安装前先停止 Windows 服务，安装后再启动。在 Mac 上，请在安装前移除服务，安装后重新启用，以刷新受保护的应用副本。你的账号、聊天和设置都会保留。",
       "openFailed": "无法打开更新。"
     }
+  },
+  "contextMenu": {
+    "cut": "剪切",
+    "copy": "复制",
+    "paste": "粘贴",
+    "pastePlain": "粘贴为纯文本",
+    "undo": "撤销",
+    "redo": "重做",
+    "selectAll": "全选",
+    "copyImage": "复制图片",
+    "saveImage": "图片另存为…",
+    "copyLink": "复制链接地址",
+    "addToDictionary": "添加到词典",
+    "noSuggestions": "没有拼写建议"
   }
 }

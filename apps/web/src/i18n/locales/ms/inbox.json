@@ -146,6 +146,18 @@
       "tabHint": "Tab untuk terima · Esc untuk tolak",
       "completionStatus": "Penghujung dicadangkan: {{text}}",
       "unavailable": "Cadangan AI tidak tersedia sekarang"
+    },
+    "files": {
+      "title_other": "{{count}} fail untuk dihantar",
+      "clear": "Buang semua",
+      "remove": "Buang {{name}}",
+      "caption": "Tambah kapsyen (pilihan)",
+      "too_large": "{{name}} melebihi {{limit}} dan tidak boleh dihantar.",
+      "empty": "{{name}} kosong dan tidak boleh dihantar.",
+      "too_many": "Maksimum {{max}} fail sekali hantar: {{name}} tidak ditambah.",
+      "drop": "Lepaskan fail untuk menghantarnya dalam sembang ini",
+      "dropHint": "Fail menunggu di atas kotak mesej sehingga anda tekan Hantar.",
+      "dropBlocked": "Fail tidak boleh dihantar dalam sembang ini sekarang."
     }
   },
   "quickReplies": {
@@ -311,7 +323,15 @@
       "remove": "Buang",
       "fromTeammateUnknown": "Seseorang"
     },
-    "template": "Templat {{name}}"
+    "template": "Templat {{name}}",
+    "copy": {
+      "text": "Salin teks",
+      "image": "Salin imej",
+      "done": "Disalin",
+      "imageDone": "Imej disalin",
+      "failed": "Tidak dapat menyalin. Pilih teks dan tekan Ctrl+C.",
+      "imageFailed": "Tidak dapat menyalin imej. Gunakan Muat turun."
+    }
   },
   "media": {
     "types": {

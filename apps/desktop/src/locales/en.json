@@ -189,5 +189,19 @@
       "manualHelp": "Download the installer and quit this app before installing. Stop a Windows service before installing, then start it afterward. On Mac, remove the service before installing and enable it again afterward to refresh its protected app copy. Your accounts, chats and settings are preserved.",
       "openFailed": "Could not open update."
     }
+  },
+  "contextMenu": {
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "pastePlain": "Paste as plain text",
+    "undo": "Undo",
+    "redo": "Redo",
+    "selectAll": "Select all",
+    "copyImage": "Copy image",
+    "saveImage": "Save image as…",
+    "copyLink": "Copy link address",
+    "addToDictionary": "Add to dictionary",
+    "noSuggestions": "No spelling suggestions"
   }
 }

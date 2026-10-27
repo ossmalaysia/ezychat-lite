@@ -146,6 +146,18 @@
       "tabHint": "按 Tab 接受 · 按 Esc 忽略",
       "completionStatus": "建议的结尾：{{text}}",
       "unavailable": "AI 建议暂时不可用"
+    },
+    "files": {
+      "title_other": "{{count}} 个文件待发送",
+      "clear": "全部移除",
+      "remove": "移除 {{name}}",
+      "caption": "添加说明（可选）",
+      "too_large": "{{name}} 超过 {{limit}}，无法发送。",
+      "empty": "{{name}} 是空文件，无法发送。",
+      "too_many": "每次最多 {{max}} 个文件：未添加 {{name}}。",
+      "drop": "松开即可在此聊天中发送文件",
+      "dropHint": "文件会停在输入框上方，按“发送”后才发出。",
+      "dropBlocked": "当前无法在此聊天中发送文件。"
     }
   },
   "quickReplies": {
@@ -311,7 +323,15 @@
       "remove": "移除",
       "fromTeammateUnknown": "某位成员"
     },
-    "template": "模板 {{name}}"
+    "template": "模板 {{name}}",
+    "copy": {
+      "text": "复制文字",
+      "image": "复制图片",
+      "done": "已复制",
+      "imageDone": "图片已复制",
+      "failed": "无法复制。请选中文字后按 Ctrl+C。",
+      "imageFailed": "无法复制图片，请改用“下载”。"
+    }
   },
   "media": {
     "types": {

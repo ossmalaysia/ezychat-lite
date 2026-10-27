@@ -939,6 +939,14 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Electron shows no right-click menu of its own: any copy/paste/spelling/image action the desktop window needs
+  comes from a `context-menu` handler (`apps/desktop/src/context-menu.ts`, a pure template builder with tests).
+  Offer image and link items only for inbox URLs / http(s) links, never `blob:` previews or `javascript:`.
+- Files dragged or pasted into the page: check `dataTransfer.types` for `Files` (text and link drags must stay
+  native), let a clipboard with `text/html` paste as text (Office and browsers add a picture of copied text), and
+  keep the page-wide drop guard so a missed drop never opens the file in place of the app.
+- e2e files that the page renders as images must be real images (a 1×1 PNG): fake bytes behind an image type
+  produce a CSP `connect-src blob:` console error in the built app and fail `pageHealth`.
 - A button inside shadcn `CardHeader` stretches to the card width (the header is a grid, so `self-start` does
   nothing): put it in `CardContent` (a flex column) or the `CardAction` slot; check the screenshot, not the code.
 - Review a chart with one data point too (a new install's first day): a flex bar fills the whole chart and an

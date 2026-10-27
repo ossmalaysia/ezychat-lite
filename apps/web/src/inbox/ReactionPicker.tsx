@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, Plus, Reply, SmilePlus } from 'lucide-react';
+import { ChevronLeft, Copy, Plus, Reply, SmilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,8 @@ export interface ReactionPickerProps {
   disabledReason: string | null;
   /** Touch screens open the bar by press-and-hold, so it offers Reply as well. */
   onReply?(): void;
+  /** …and Copy text, for a message with text. */
+  onCopy?(): void;
 }
 
 /**
@@ -49,6 +51,7 @@ export function ReactionPicker({
   onReact,
   disabledReason,
   onReply,
+  onCopy,
 }: ReactionPickerProps) {
   const { t } = useTranslation('inbox');
   const [more, setMore] = useState(false);
@@ -186,6 +189,23 @@ export function ReactionPicker({
           >
             <Reply aria-hidden="true" />
             {t('message.reply')}
+          </Button>
+        )}
+        {onCopy && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              onOpenChange(false);
+              onCopy();
+            }}
+            className={cn(
+              'hidden min-h-11 w-full justify-start gap-2 pointer-coarse:flex',
+              !onReply && 'mt-1 border-t',
+            )}
+          >
+            <Copy aria-hidden="true" />
+            {t('message.copy.text')}
           </Button>
         )}
       </PopoverContent>

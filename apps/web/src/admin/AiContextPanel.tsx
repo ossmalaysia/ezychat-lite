@@ -24,6 +24,7 @@ import {
 import { BatchDeleteError, useAiAgentAction, useAiAgentDocument } from '../api/ai';
 import { ApiError, errorMessage } from '../api/client';
 import { Banner, ResponsiveDialog, SegmentedControl } from '@/components/app';
+import { FileDropZone } from '@/components/app/FileDropZone';
 import { SearchField } from '@/components/app/SearchField';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -279,340 +280,351 @@ export function AiContextPanel({
   };
 
   return (
-    <Card className="gap-4">
-      <CardHeader>
-        <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
-        <CardDescription>
-          {t('ai.contextPanel.hint')}
-          <span className="mt-1 block">{t('ai.contextPanel.internalIntro')}</span>
-          <span className="mt-1 block text-xs">{t('ai.contextPanel.limits')}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex min-w-0 flex-col gap-3">
-        <input
-          ref={fileInput}
-          type="file"
-          hidden
-          accept={UPLOAD_ACCEPT}
-          data-testid="ai-context-file"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (file) pickFile(file);
-          }}
-        />
-        {documents.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-6 text-center">
-            <p className="max-w-sm text-sm text-muted-foreground">{t('ai.contextPanel.empty')}</p>
-            {addMenu}
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span id={filterId} className="text-sm text-muted-foreground">
-                  {t('ai.contextPanel.internalFilterLabel')}
-                </span>
-                <SegmentedControl<Filter>
-                  size="sm"
-                  aria-labelledby={filterId}
-                  value={filter}
-                  onValueChange={(next) => {
-                    setFilter(next);
-                    setSelected(new Set());
-                  }}
-                  options={[
-                    {
-                      value: 'all',
-                      label: t('ai.contextPanel.internalFilterAll', { count: documents.length }),
-                    },
-                    {
-                      value: 'customer',
-                      label: t('ai.contextPanel.internalFilterCustomer', {
-                        count: documents.length - internalDocs.length,
-                      }),
-                    },
-                    {
-                      value: 'internal',
-                      label: t('ai.contextPanel.internalFilterInternal', {
-                        count: internalDocs.length,
-                      }),
-                    },
-                  ]}
-                  // Phones: three equal cells across the card, a long label takes two lines.
-                  className="grid w-full grid-cols-3 sm:inline-flex sm:w-fit [&>label]:h-auto [&>label]:min-h-11 [&>label]:py-1.5 [&>label]:text-center [&>label]:whitespace-normal sm:[&>label]:min-h-8 sm:[&>label]:whitespace-nowrap"
-                />
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {selecting ? (
-                  <>
-                    <Button
-                      variant="destructive"
-                      size="touch"
-                      className="md:min-h-9"
-                      disabled={busy || selected.size === 0}
-                      onClick={() => setConfirm(documents.filter((doc) => selected.has(doc.id)))}
-                    >
-                      {t('ai.contextPanel.deleteSelected', { count: selected.size })}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="touch"
-                      className="md:min-h-9"
-                      onClick={() => {
-                        setSelecting(false);
-                        setSelected(new Set());
-                      }}
-                    >
-                      {t('ai.contextPanel.cancel')}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant={searching ? 'secondary' : 'ghost'}
-                      size="icon-touch"
-                      className="md:size-9"
-                      aria-label={t('ai.contextPanel.search')}
-                      aria-pressed={searching}
-                      onClick={() => {
-                        setSearching((on) => !on);
-                        setQuery('');
-                      }}
-                    >
-                      <Search aria-hidden />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="touch"
-                      className="md:min-h-9"
-                      disabled={busy}
-                      onClick={() => {
-                        // Hidden (filtered-out) items must never be selectable for deletion.
-                        setSearching(false);
-                        setQuery('');
-                        setSelecting(true);
-                      }}
-                    >
-                      {t('ai.contextPanel.select')}
-                    </Button>
-                    {addMenu}
-                  </>
-                )}
-              </div>
+    <FileDropZone
+      as="div"
+      enabled
+      title={t('ai.contextPanel.drop')}
+      hint={t('ai.contextPanel.dropHint')}
+      onFiles={(files) => {
+        // One file at a time: the add dialog names and files each item.
+        if (files[0]) pickFile(files[0]);
+      }}
+    >
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
+          <CardDescription>
+            {t('ai.contextPanel.hint')}
+            <span className="mt-1 block">{t('ai.contextPanel.internalIntro')}</span>
+            <span className="mt-1 block text-xs">{t('ai.contextPanel.limits')}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex min-w-0 flex-col gap-3">
+          <input
+            ref={fileInput}
+            type="file"
+            hidden
+            accept={UPLOAD_ACCEPT}
+            data-testid="ai-context-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) pickFile(file);
+            }}
+          />
+          {documents.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-6 text-center">
+              <p className="max-w-sm text-sm text-muted-foreground">{t('ai.contextPanel.empty')}</p>
+              {addMenu}
             </div>
-            {searching && (
-              <SearchField
-                value={query}
-                onChange={setQuery}
-                label={t('ai.contextPanel.search')}
-                placeholder={t('ai.contextPanel.searchPlaceholder')}
-              />
-            )}
-            {internalDocs.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t('ai.contextPanel.internalTotal', {
-                  count: formatNumber(internalCharacters),
-                  max: formatNumber(AI_INTERNAL_CHARACTERS),
-                })}
-              </p>
-            )}
-            {full && (
-              <p className="text-sm text-muted-foreground">{t('ai.contextPanel.limitReached')}</p>
-            )}
-            {shown.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                {needle
-                  ? t('ai.contextPanel.noMatches', { query: query.trim() })
-                  : t('ai.contextPanel.internalFilterEmpty')}
-              </p>
-            ) : (
-              <>
-                <div data-slot="context-table" className="hidden rounded-lg border sm:block">
-                  <Table className="table-fixed">
-                    <TableHeader>
-                      <TableRow>
-                        {selecting && <TableHead className="w-12" />}
-                        <TableHead className="w-10">
-                          <span className="sr-only">{t('ai.contextPanel.type')}</span>
-                        </TableHead>
-                        <TableHead>{t('ai.contextPanel.name')}</TableHead>
-                        <TableHead className="w-24">{t('ai.contextPanel.size')}</TableHead>
-                        <TableHead className="w-44">{t('ai.contextPanel.details')}</TableHead>
-                        {!selecting && (
-                          <TableHead className="w-14">
-                            <span className="sr-only">{t('ai.contextPanel.actions')}</span>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span id={filterId} className="text-sm text-muted-foreground">
+                    {t('ai.contextPanel.internalFilterLabel')}
+                  </span>
+                  <SegmentedControl<Filter>
+                    size="sm"
+                    aria-labelledby={filterId}
+                    value={filter}
+                    onValueChange={(next) => {
+                      setFilter(next);
+                      setSelected(new Set());
+                    }}
+                    options={[
+                      {
+                        value: 'all',
+                        label: t('ai.contextPanel.internalFilterAll', { count: documents.length }),
+                      },
+                      {
+                        value: 'customer',
+                        label: t('ai.contextPanel.internalFilterCustomer', {
+                          count: documents.length - internalDocs.length,
+                        }),
+                      },
+                      {
+                        value: 'internal',
+                        label: t('ai.contextPanel.internalFilterInternal', {
+                          count: internalDocs.length,
+                        }),
+                      },
+                    ]}
+                    // Phones: three equal cells across the card, a long label takes two lines.
+                    className="grid w-full grid-cols-3 sm:inline-flex sm:w-fit [&>label]:h-auto [&>label]:min-h-11 [&>label]:py-1.5 [&>label]:text-center [&>label]:whitespace-normal sm:[&>label]:min-h-8 sm:[&>label]:whitespace-nowrap"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {selecting ? (
+                    <>
+                      <Button
+                        variant="destructive"
+                        size="touch"
+                        className="md:min-h-9"
+                        disabled={busy || selected.size === 0}
+                        onClick={() => setConfirm(documents.filter((doc) => selected.has(doc.id)))}
+                      >
+                        {t('ai.contextPanel.deleteSelected', { count: selected.size })}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="touch"
+                        className="md:min-h-9"
+                        onClick={() => {
+                          setSelecting(false);
+                          setSelected(new Set());
+                        }}
+                      >
+                        {t('ai.contextPanel.cancel')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant={searching ? 'secondary' : 'ghost'}
+                        size="icon-touch"
+                        className="md:size-9"
+                        aria-label={t('ai.contextPanel.search')}
+                        aria-pressed={searching}
+                        onClick={() => {
+                          setSearching((on) => !on);
+                          setQuery('');
+                        }}
+                      >
+                        <Search aria-hidden />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="touch"
+                        className="md:min-h-9"
+                        disabled={busy}
+                        onClick={() => {
+                          // Hidden (filtered-out) items must never be selectable for deletion.
+                          setSearching(false);
+                          setQuery('');
+                          setSelecting(true);
+                        }}
+                      >
+                        {t('ai.contextPanel.select')}
+                      </Button>
+                      {addMenu}
+                    </>
+                  )}
+                </div>
+              </div>
+              {searching && (
+                <SearchField
+                  value={query}
+                  onChange={setQuery}
+                  label={t('ai.contextPanel.search')}
+                  placeholder={t('ai.contextPanel.searchPlaceholder')}
+                />
+              )}
+              {internalDocs.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t('ai.contextPanel.internalTotal', {
+                    count: formatNumber(internalCharacters),
+                    max: formatNumber(AI_INTERNAL_CHARACTERS),
+                  })}
+                </p>
+              )}
+              {full && (
+                <p className="text-sm text-muted-foreground">{t('ai.contextPanel.limitReached')}</p>
+              )}
+              {shown.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  {needle
+                    ? t('ai.contextPanel.noMatches', { query: query.trim() })
+                    : t('ai.contextPanel.internalFilterEmpty')}
+                </p>
+              ) : (
+                <>
+                  <div data-slot="context-table" className="hidden rounded-lg border sm:block">
+                    <Table className="table-fixed">
+                      <TableHeader>
+                        <TableRow>
+                          {selecting && <TableHead className="w-12" />}
+                          <TableHead className="w-10">
+                            <span className="sr-only">{t('ai.contextPanel.type')}</span>
                           </TableHead>
-                        )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {shown.map((doc) => (
-                        <TableRow
-                          key={doc.id}
-                          data-state={selected.has(doc.id) ? 'selected' : undefined}
-                          className="cursor-pointer"
-                          onClick={(e) => {
-                            // Controls inside the row handle their own clicks.
-                            if ((e.target as HTMLElement).closest('button,label')) return;
-                            activate(doc);
-                          }}
-                        >
-                          {selecting && <TableCell>{selectBox(doc)}</TableCell>}
-                          <TableCell>{kindIcon(doc)}</TableCell>
-                          <TableCell className="min-w-0">
-                            <span className="flex min-w-0 items-center gap-2">
-                              <Button
-                                variant="link"
-                                className="h-auto min-w-0 shrink justify-start p-0 font-medium text-foreground pointer-coarse:min-h-11"
-                                onClick={() => activate(doc)}
-                              >
-                                <span className="truncate" title={doc.name}>
-                                  {doc.name}
-                                </span>
-                              </Button>
-                              {doc.internal && <InternalBadge />}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatBytes(doc.size)}
-                          </TableCell>
-                          <TableCell
-                            className="truncate text-muted-foreground"
-                            title={formatDateTime(doc.createdAt)}
-                          >
-                            {added(doc)}
-                          </TableCell>
+                          <TableHead>{t('ai.contextPanel.name')}</TableHead>
+                          <TableHead className="w-24">{t('ai.contextPanel.size')}</TableHead>
+                          <TableHead className="w-44">{t('ai.contextPanel.details')}</TableHead>
                           {!selecting && (
-                            <TableCell className="text-right">{internalToggle(doc)}</TableCell>
+                            <TableHead className="w-14">
+                              <span className="sr-only">{t('ai.contextPanel.actions')}</span>
+                            </TableHead>
                           )}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                <ul aria-labelledby={titleId} className="flex flex-col gap-2 sm:hidden">
-                  {shown.map((doc) => (
-                    <li
-                      key={doc.id}
-                      className={cn(
-                        'flex min-w-0 items-center gap-1 rounded-lg border bg-card',
-                        selected.has(doc.id) && 'border-primary',
-                      )}
-                    >
-                      {selecting && selectBox(doc)}
-                      <Button
-                        variant="ghost"
-                        className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left font-normal"
-                        onClick={() => activate(doc)}
+                      </TableHeader>
+                      <TableBody>
+                        {shown.map((doc) => (
+                          <TableRow
+                            key={doc.id}
+                            data-state={selected.has(doc.id) ? 'selected' : undefined}
+                            className="cursor-pointer"
+                            onClick={(e) => {
+                              // Controls inside the row handle their own clicks.
+                              if ((e.target as HTMLElement).closest('button,label')) return;
+                              activate(doc);
+                            }}
+                          >
+                            {selecting && <TableCell>{selectBox(doc)}</TableCell>}
+                            <TableCell>{kindIcon(doc)}</TableCell>
+                            <TableCell className="min-w-0">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <Button
+                                  variant="link"
+                                  className="h-auto min-w-0 shrink justify-start p-0 font-medium text-foreground pointer-coarse:min-h-11"
+                                  onClick={() => activate(doc)}
+                                >
+                                  <span className="truncate" title={doc.name}>
+                                    {doc.name}
+                                  </span>
+                                </Button>
+                                {doc.internal && <InternalBadge />}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatBytes(doc.size)}
+                            </TableCell>
+                            <TableCell
+                              className="truncate text-muted-foreground"
+                              title={formatDateTime(doc.createdAt)}
+                            >
+                              {added(doc)}
+                            </TableCell>
+                            {!selecting && (
+                              <TableCell className="text-right">{internalToggle(doc)}</TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <ul aria-labelledby={titleId} className="flex flex-col gap-2 sm:hidden">
+                    {shown.map((doc) => (
+                      <li
+                        key={doc.id}
+                        className={cn(
+                          'flex min-w-0 items-center gap-1 rounded-lg border bg-card',
+                          selected.has(doc.id) && 'border-primary',
+                        )}
                       >
-                        {kindIcon(doc)}
-                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="truncate font-medium" title={doc.name}>
-                            {doc.name}
-                          </span>
-                          <span className="truncate text-xs text-muted-foreground">
-                            {t('ai.contextPanel.meta', {
-                              size: formatBytes(doc.size),
-                              added: added(doc),
-                            })}
-                          </span>
-                          {doc.internal && (
-                            <span>
-                              <InternalBadge />
+                        {selecting && selectBox(doc)}
+                        <Button
+                          variant="ghost"
+                          className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-3 px-3 py-2 text-left font-normal"
+                          onClick={() => activate(doc)}
+                        >
+                          {kindIcon(doc)}
+                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="truncate font-medium" title={doc.name}>
+                              {doc.name}
                             </span>
-                          )}
-                        </span>
-                      </Button>
-                      {!selecting && internalToggle(doc)}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </>
-        )}
-        {(localError || (actionError && !confirm && !open)) && (
-          <Banner tone="danger">{localError ?? actionError}</Banner>
-        )}
-      </CardContent>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {t('ai.contextPanel.meta', {
+                                size: formatBytes(doc.size),
+                                added: added(doc),
+                              })}
+                            </span>
+                            {doc.internal && (
+                              <span>
+                                <InternalBadge />
+                              </span>
+                            )}
+                          </span>
+                        </Button>
+                        {!selecting && internalToggle(doc)}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+          {(localError || (actionError && !confirm && !open)) && (
+            <Banner tone="danger">{localError ?? actionError}</Banner>
+          )}
+        </CardContent>
 
-      {open?.kind === 'addText' && (
-        <TextItemDialog
-          title={t('ai.contextPanel.addTextTitle')}
-          initial={{ name: '', text: '', internal: false }}
-          pending={action.isPending}
-          error={actionError}
-          onClose={() => setOpen(null)}
-          onSave={async (body) => {
-            await action.mutateAsync({ kind: 'addText', body });
-            toast.success(t('ai.contextPanel.textAdded'));
-            setOpen(null);
+        {open?.kind === 'addText' && (
+          <TextItemDialog
+            title={t('ai.contextPanel.addTextTitle')}
+            initial={{ name: '', text: '', internal: false }}
+            pending={action.isPending}
+            error={actionError}
+            onClose={() => setOpen(null)}
+            onSave={async (body) => {
+              await action.mutateAsync({ kind: 'addText', body });
+              toast.success(t('ai.contextPanel.textAdded'));
+              setOpen(null);
+            }}
+          />
+        )}
+        {open?.kind === 'addFile' && (
+          <FileItemDialog
+            title={t('ai.contextPanel.addFileTitle')}
+            name={open.file.name}
+            initialInternal={false}
+            pending={action.isPending}
+            error={actionError}
+            onClose={() => setOpen(null)}
+            onSave={async (internal) => {
+              await action.mutateAsync({ kind: 'upload', file: open.file, internal });
+              toast.success(t('ai.contextPanel.fileAdded'));
+              setOpen(null);
+            }}
+          />
+        )}
+        {open?.kind === 'item' && (
+          <ItemDialog
+            agentId={agentId}
+            id={open.id}
+            internal={current?.internal ?? false}
+            pending={action.isPending}
+            error={actionError}
+            onClose={() => setOpen(null)}
+            onSaveText={async (body) => {
+              await action.mutateAsync({ kind: 'updateText', id: open.id, body });
+              toast.success(t('ai.contextPanel.changesSaved'));
+              setOpen(null);
+            }}
+            onSaveInternal={async (internal) => {
+              await action.mutateAsync({ kind: 'updateText', id: open.id, body: { internal } });
+              toast.success(t('ai.contextPanel.itemSaved'));
+              setOpen(null);
+            }}
+            onDelete={() => askDelete(current)}
+          />
+        )}
+        <ConfirmDialog
+          open={!!confirm}
+          danger
+          title={
+            confirm?.length === 1
+              ? t('ai.contextPanel.confirmOne', { name: confirm[0]!.name })
+              : t('ai.contextPanel.confirmMany', { count: confirm?.length ?? 0 })
+          }
+          confirmLabel={t('ai.contextPanel.delete')}
+          loading={action.isPending}
+          error={
+            failedNames
+              ? new Error(t('ai.contextPanel.deleteFailed', { names: failedNames }))
+              : (action.error ?? undefined)
+          }
+          onConfirm={() => confirm && void remove(confirm)}
+          onClose={() => {
+            setConfirm(null);
+            setFailedNames(null);
+            action.reset();
           }}
-        />
-      )}
-      {open?.kind === 'addFile' && (
-        <FileItemDialog
-          title={t('ai.contextPanel.addFileTitle')}
-          name={open.file.name}
-          initialInternal={false}
-          pending={action.isPending}
-          error={actionError}
-          onClose={() => setOpen(null)}
-          onSave={async (internal) => {
-            await action.mutateAsync({ kind: 'upload', file: open.file, internal });
-            toast.success(t('ai.contextPanel.fileAdded'));
-            setOpen(null);
-          }}
-        />
-      )}
-      {open?.kind === 'item' && (
-        <ItemDialog
-          agentId={agentId}
-          id={open.id}
-          internal={current?.internal ?? false}
-          pending={action.isPending}
-          error={actionError}
-          onClose={() => setOpen(null)}
-          onSaveText={async (body) => {
-            await action.mutateAsync({ kind: 'updateText', id: open.id, body });
-            toast.success(t('ai.contextPanel.changesSaved'));
-            setOpen(null);
-          }}
-          onSaveInternal={async (internal) => {
-            await action.mutateAsync({ kind: 'updateText', id: open.id, body: { internal } });
-            toast.success(t('ai.contextPanel.itemSaved'));
-            setOpen(null);
-          }}
-          onDelete={() => askDelete(current)}
-        />
-      )}
-      <ConfirmDialog
-        open={!!confirm}
-        danger
-        title={
-          confirm?.length === 1
-            ? t('ai.contextPanel.confirmOne', { name: confirm[0]!.name })
-            : t('ai.contextPanel.confirmMany', { count: confirm?.length ?? 0 })
-        }
-        confirmLabel={t('ai.contextPanel.delete')}
-        loading={action.isPending}
-        error={
-          failedNames
-            ? new Error(t('ai.contextPanel.deleteFailed', { names: failedNames }))
-            : (action.error ?? undefined)
-        }
-        onConfirm={() => confirm && void remove(confirm)}
-        onClose={() => {
-          setConfirm(null);
-          setFailedNames(null);
-          action.reset();
-        }}
-      >
-        {confirm && confirm.length > 1 && <p className="mb-2 break-words">{namesOf(confirm)}</p>}
-        {t('ai.contextPanel.confirmText')}
-      </ConfirmDialog>
-    </Card>
+        >
+          {confirm && confirm.length > 1 && <p className="mb-2 break-words">{namesOf(confirm)}</p>}
+          {t('ai.contextPanel.confirmText')}
+        </ConfirmDialog>
+      </Card>
+    </FileDropZone>
   );
 }
 

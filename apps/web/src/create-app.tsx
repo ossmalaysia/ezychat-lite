@@ -16,6 +16,7 @@ import {
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { installGlobalErrorReporting } from '@/lib/error-reporter';
+import { installFileDropGuard } from '@/lib/file-transfer';
 import { AppLinksProvider } from '@/lib/app-links';
 import { resolveAppLinks, type AppLinks } from '@/lib/links';
 import { setProductName } from '@/i18n';
@@ -68,6 +69,8 @@ export async function createInboxApp({
 
   // Uncaught errors / unhandled rejections → server log (structured `mod: "web"` entries).
   installGlobalErrorReporting();
+  // Files dropped outside a drop zone never replace the app with the file.
+  installFileDropGuard();
 
   const queryClient = createQueryClient();
   const render = () =>

@@ -1,0 +1,41 @@
+# Workbook: files and text in and out of the app (Lite core, inherited by Enterprise)
+
+Branch: `claude/optimistic-rubin-d3llzl` · Every agent updates its stage with
+`node scripts/build-summary.mjs record <stage> <status> "<detail>"` and commits it with the work.
+
+## Design
+
+Owner request (2026-10-27): "allow file drop, copy paste on text, and object in and out the app" for Lite and
+Enterprise. Enterprise uses the core web app and desktop shell, so all of it lands in Lite and reaches
+Enterprise through the next `@ezychat/*` release (no Enterprise code change; bump the pinned core).
+
+Reused: Composer attach button and `onAttach` → `useSendMedia` (`POST /chats/:jid/media`, 64 MB limit, now
+`MEDIA_UPLOAD_LIMIT_BYTES` in shared), the hover Reply/React buttons and the press-and-hold reaction bar
+(Reply row), the image Lightbox (Download), the desktop `t()` catalogs and `isInboxUrl`.
+
+In:
+- Conversation is a drop zone (`components/app/FileDropZone.tsx`): files from the OS show an overlay; dropped
+  files go to the composer tray. Blocked sending or a closed reply window shows "Files can't be sent…" and
+  refuses the drop. Business context (Admin → AI agent) takes a dropped file into its existing add dialog.
+- Composer: picker takes several files; paste of files (screenshots, Explorer/Finder copies) joins the tray,
+  text from Office/web pages (clipboard with `text/html`) pastes as text. Tray: thumbnail or file icon, name,
+  size, Remove, Remove all; placeholder becomes "Add a caption (optional)"; Send uploads one by one in order,
+  caption and quote on the first file only. Refused before upload: empty, > 64 MB, more than 10.
+- A page-wide guard stops a stray file drop from replacing the app (browser) or navigating (desktop).
+
+Out:
+- Copy text button on every message with text (hover; touch: press-and-hold bar), WhatsApp marks kept.
+  LAN http falls back to a selection copy (Clipboard API needs a secure context).
+- Copy image in the Lightbox where the browser allows images on the clipboard (converted to PNG).
+- Drag an image or document out of a chat: `DownloadURL` drag (Chromium browsers and Electron) saves it.
+- Desktop right-click menu (`apps/desktop/src/context-menu.ts`): spelling suggestions + Add to dictionary,
+  Copy image / Save image as… (inbox media only), Copy link address (http(s)/mailto, not app links),
+  Undo/Redo/Cut/Copy/Paste/Paste as plain text/Select all in editable fields, Copy for selected text.
+
+No HTML mock was made: the owner asked for the change directly. The UI adds a tray above the composer, a drop
+overlay and one hover button; screen review and mock confirmation are open items for the owner.
+
+| Stage | Status | Detail | Commit | Updated |
+| --- | --- | --- | --- | --- |
+
+## Log

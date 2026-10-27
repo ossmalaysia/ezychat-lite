@@ -2,12 +2,21 @@
 // local status/control window (file:// + preload IPC).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  Menu,
+  shell,
+  type NativeImage,
+  type Session,
+} from 'electron';
 import type { Locale } from '@ezychat/shared';
 import { t } from './i18n.js';
 import { registerInboxNotifications } from './notifications.js';
 import { externalLinkToOpen, inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 import { activeProduct } from './product.js';
+import { contextMenuTemplate } from './context-menu.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -102,6 +111,7 @@ export function createMainWindow(o: {
   baseUrl: () => string | null;
   title: string;
   preload: string;
+  locale: Locale;
 }): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
@@ -122,6 +132,22 @@ export function createMainWindow(o: {
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);
     return { action: 'deny' };
+  });
+  win.webContents.on('context-menu', (_e, params) => {
+    const wc = win.webContents;
+    const template = contextMenuTemplate(
+      params,
+      {
+        replaceMisspelling: (word) => wc.replaceMisspelling(word),
+        addToDictionary: (word) => wc.session.addWordToSpellCheckerDictionary(word),
+        copyImageAt: (x, y) => wc.copyImageAt(x, y),
+        downloadURL: (url) => wc.downloadURL(url),
+        writeText: (text) => clipboard.writeText(text),
+      },
+      (url) => isInboxUrl(url, o.baseUrl()),
+      o.locale,
+    );
+    if (template.length > 0) Menu.buildFromTemplate(template).popup({ window: win });
   });
   win.webContents.on('will-navigate', (e, url) => {
     const base = o.baseUrl();
