@@ -37,5 +37,14 @@ overlay and one hover button; screen review and mock confirmation are open items
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
+| Design | todo |  |  |  |
+| Dev | done | Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu | 2f74993 | 2026-10-27 |
+| Unit tests | todo |  |  |  |
+| E2E | pass | e2e/file-transfer.spec.ts passes; full run 104 passed, ai-member (document worker, container-only) and pwa-resume (clock flake, 3/4 on repeat) fail, both untouched | 2f74993 | 2026-10-27 |
+| Dev Build | todo |  |  |  |
+| Screen review | todo |  |  |  |
 
 ## Log
+
+- 2026-10-27 Dev: done — Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu (2f74993)
+- 2026-10-27 E2E: pass — e2e/file-transfer.spec.ts passes; full run 104 passed, ai-member (document worker, container-only) and pwa-resume (clock flake, 3/4 on repeat) fail, both untouched (2f74993)

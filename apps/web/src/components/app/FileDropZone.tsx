@@ -78,7 +78,7 @@ export function FileDropZone({
         >
           <div
             className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-background/90 p-6 text-center',
+              'flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-background/95 p-6 text-center',
               enabled ? 'border-primary text-foreground' : 'border-border text-muted-foreground',
             )}
           >
