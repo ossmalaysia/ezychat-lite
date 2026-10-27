@@ -171,7 +171,8 @@ test('a Business API inbox shows the reply window and allows replies inside it',
   const box = admin.getByRole('textbox', { name: /message/i }).first();
   await box.fill('RM5.50 for a large one.');
   await box.press('Enter');
-  await expect(admin.getByText('RM5.50 for a large one.')).toBeVisible();
+  // In the message log only: the chat list preview shows the same text once it updates.
+  await expect(admin.getByRole('log').getByText('RM5.50 for a large one.')).toBeVisible();
 });
 
 test('after 24 hours only an approved template can be sent', async () => {

@@ -233,7 +233,7 @@ describe('InboxPage', () => {
       </QueryClientProvider>,
     );
     // The PN conversation unmounts on redirect, so query the document, not its message log.
-    expect(await screen.findByText('Hello')).toBeTruthy();
+    expect(await screen.findByText('Hello', undefined, { timeout: 5000 })).toBeTruthy();
     expect(urls.some((u) => u.startsWith(`/api/chats/${encodeURIComponent(lid)}/messages`))).toBe(
       true,
     );

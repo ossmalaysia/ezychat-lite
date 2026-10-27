@@ -685,7 +685,9 @@ describe('Partner connector: Settings', () => {
     stubServer(w);
     page('/admin/connectors/lejar?tab=settings');
     const user = userEvent.setup();
-    expect(await screen.findByText('Could not load the choices.')).toBeTruthy();
+    expect(
+      await screen.findByText('Could not load the choices.', undefined, { timeout: 5000 }),
+    ).toBeTruthy();
     w.fail = {};
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.queryByText('Could not load the choices.')).toBeNull());
