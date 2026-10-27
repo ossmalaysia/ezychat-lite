@@ -40,20 +40,20 @@ as if Aina were on. The fake phone's own number is named "Kopi Apong", so mentio
 ## Walkthrough
 
 1. Sign in as `aisyah`. **Admin → Members → Aina** (`/admin/members/ai/a1`): the **Groups** card under Connectors:
-   the switch _Answer in groups (when mentioned)_ with its explanation, the "Aina is off" hint, the groups of Kopi
+   the switch _Answer in groups (when tagged or quoted)_ with its explanation, the "Aina is off" hint, the groups of Kopi
    Apong with a switch each and a link to the chat (the long reseller name wraps; it shows "Paused: many answers in
    a row"), the loop-guard line and "only looks things up". Switch it off: one line "Kopi Apong is in 4 groups…".
    Switch it on and every group off: "No group is switched on yet". **Sofia** (`/admin/members/ai/a2?edition=enterprise`):
    "Catering is not in any WhatsApp group yet". The dashed **Mock only** panel at the bottom of the card switches
    Answer in groups, **Loop guard reached**, **View as** Admin / Agent, shows the last group hand-over
    notification and resets the demo.
-2. **Inbox → Kopi Lovers Club**: header badge "AI answers when mentioned"; the mention, the answer bubble labelled
+2. **Inbox → Kopi Lovers Club**: header badge "AI answers when tagged or quoted"; the mention, the answer bubble labelled
    "Aina (AI)" quoting Nurul, the follow-up and its answer, the unrelated message (no reply), the lines "Aina
    answered Nurul Huda" / "…'s follow-up" / "handed Farah Aziz's question to the team", and "A team member will
    reply soon.".
 3. **Reseller Group Penang…**: the badge reads "AI paused"; scroll down for the bot loop and the paused line.
    **Family Day 2026**: no badge, the mention is not answered.
-4. **Group info** (click the group name): the row _AI agent answers when mentioned_ with a switch. Mock only
+4. **Group info** (click the group name): the row _AI agent answers when tagged or quoted_ with a switch. Mock only
    panel → View as **Agent**: the row shows On/Off and "Only admins can change this." Turn Answer in groups off: the
    switch is disabled with "Answer in groups is off for Aina…" and a link to the agent page. (Signing in as
    `daniel` shows the agent view for real.)

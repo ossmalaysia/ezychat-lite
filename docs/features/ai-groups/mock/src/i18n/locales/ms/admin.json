@@ -1928,7 +1928,7 @@
   "mockGroups": {
     "title": "Kumpulan",
     "description": "{{name}} boleh menjawab dalam kumpulan WhatsApp {{inbox}}.",
-    "switch": "Jawab dalam kumpulan (apabila disebut)",
+    "switch": "Jawab dalam kumpulan (apabila ditanda atau dipetik)",
     "switchHint": "Menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI. Mesej kumpulan lain tidak dijawab.",
     "offSummary_one": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
     "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
@@ -1941,7 +1941,7 @@
     "agentOff": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
     "members_one": "{{count}} ahli",
     "members_other": "{{count}} ahli",
-    "answers": "Menjawab apabila disebut",
+    "answers": "Menjawab apabila ditanda atau dipetik",
     "off": "Mati",
     "paused": "Dijeda: terlalu banyak jawapan berturut-turut",
     "answerIn": "Jawab dalam {{group}}",

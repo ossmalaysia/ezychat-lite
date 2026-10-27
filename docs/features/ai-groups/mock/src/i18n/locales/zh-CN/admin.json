@@ -1927,7 +1927,7 @@
   "mockGroups": {
     "title": "群组",
     "description": "{{name}} 可以在 {{inbox}} 的 WhatsApp 群组中回答。",
-    "switch": "在群组中回答（被提及时）",
+    "switch": "在群组中回答（被标记或引用时）",
     "switchHint": "仅当成员 @提及您的号码或引用 AI 的消息时回答。其他群组消息不回复。",
     "offSummary_one": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
     "offSummary_other": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
@@ -1940,7 +1940,7 @@
     "agentOff": "{{name}} 已关闭。开启 {{name}} 之前，群组中不会有回答。",
     "members_one": "{{count}} 位成员",
     "members_other": "{{count}} 位成员",
-    "answers": "被提及时回答",
+    "answers": "被标记或引用时回答",
     "off": "关闭",
     "paused": "已暂停：连续回答过多",
     "answerIn": "在 {{group}} 中回答",

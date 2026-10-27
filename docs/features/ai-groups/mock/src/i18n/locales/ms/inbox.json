@@ -578,10 +578,10 @@
     "unavailable": "AI suggestions are not available now"
   },
   "mockGroups": {
-    "badge": "AI menjawab apabila disebut",
+    "badge": "AI menjawab apabila ditanda atau dipetik",
     "badgePaused": "AI dijeda",
     "info": {
-      "title": "Ejen AI menjawab apabila disebut",
+      "title": "Ejen AI menjawab apabila ditanda atau dipetik",
       "hint": "{{name}} menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI.",
       "noAgent": "Tiada ejen AI dalam peti masuk ini.",
       "agentOff": "Jawab dalam kumpulan dimatikan untuk {{name}}. Hidupkan dahulu di halaman ejen.",

@@ -1,6 +1,6 @@
 # AI agents in WhatsApp groups
 
-Status: **proposal** (mock for the owner's review). Branch `feat/ai-groups` from `main` (`ecbb092`).
+Status: **confirmed** 2026-10-28 (see Confirmation). Branch `feat/ai-groups` from `main` (`ecbb092`).
 
 ## Owner request (2026-10-28)
 
@@ -43,11 +43,11 @@ spam the group and talk to people who are not customers, so the default stays of
 
 ## Screens (mock checklist)
 
-1. **Agent page → Groups card** (`/admin/members/ai/:agentId`): switch _Answer in groups (when mentioned)_,
+1. **Agent page → Groups card** (`/admin/members/ai/:agentId`): switch _Answer in groups (when tagged or quoted)_,
    explanation, the list of the inbox's groups with a switch each, the limits, a link to each group. States: off,
    on with no group switched on, on with groups, inbox without groups, long group names, agent of another inbox.
-2. **Group chat header**: a small "AI answers when mentioned" badge on switched-on groups.
-3. **Group info panel** (members panel): row _AI agent answers when mentioned_ with a switch (admins) or the state
+2. **Group chat header**: a small "AI answers when tagged or quoted" badge on switched-on groups.
+3. **Group info panel** (members panel): row _AI agent answers when tagged or quoted_ with a switch (admins) or the state
    (agents); disabled with a hint when the agent's _Answer in groups_ is off.
 4. **Group conversation**: a member's message with an @mention of the business, the AI's quoted answer, the event
    line, a hand-over line + "A team member will reply soon.", the "AI paused" line after the limit.
@@ -71,3 +71,38 @@ spam the group and talk to people who are not customers, so the default stays of
 2. "why need this limit?": explained (loops between bots, WhatsApp ban risk, AI cost). Proposal: no hourly limit,
    only the loop guard (10 answers in a row without a teammate). **Owner to confirm on review.**
 3. "yes say a team member will reply": the hand-over line "A team member will reply soon." stays.
+
+## Confirmation
+
+The owner reviewed the review page (https://claude.ai/artifact/Eddq9tCzyufgzfLrSMyMJK, versions 1–3: Groups card, header
+badge, Group info switch, a tag answered, a quote of an AI message answered, an unrelated message not answered,
+hand-over line and notification, loop guard, Try it group question, phone and dark views), set the trigger to "when
+tagged or quote" (labels renamed to "when tagged or quoted") and confirmed on 2026-10-28 ("confirm"), including the
+loop guard as the only limit (10 AI answers in a row without a teammate; no hourly limit).
+
+## Build plan
+
+Contract: `packages/shared/src/ai-groups.ts` (`AiAgentGroups`, `AiGroupChat`, bodies, `AI_GROUP_LOOP_GUARD`),
+`AiToolUsedPayload.group` (`AiGroupEvent`: the group lines reuse the `ai_tool_used` event, no table change),
+`AiTryBody.group`.
+
+1. **Server** (`packages/server`):
+   - Migration 024: `ai_agents.answer_groups` (0/1, default 0) and table `ai_group_chats` (`chat_jid` primary key,
+     `enabled`, `updated_at`, `updated_by`; no foreign key to `chats`).
+   - `ai/groups.ts`: whether a live group message is addressed to the AI — `mentionedJids` holds one of the inbox's own
+     JIDs/LIDs (`ownJids()`), or `quotedId` points to a stored message sent by the agent's AI user. History imports,
+     the business's own messages and switched-off agents/groups never count. Loop guard from the messages table: the
+     AI's messages since the last teammate message ≥ `AI_GROUP_LOOP_GUARD` → paused (one "paused" line per run).
+   - `ai/service.ts` `onInbound`: groups go to a group turn (short debounce, never a claim or an assignment change).
+     The turn reuses the prompt with the last `AI_GROUP_CONTEXT_MESSAGES` group messages (sender display names, no
+     numbers) and the asking member in `currentSituation`; tools: look-ups only (no booking, no connector write
+     tool). answer → send quoting the asking message + event `answered`; handoff → send "A team member will reply
+     soon." quoting it + event `handover` + `ai:handoff` notification to the group's assignee, else everyone with
+     access to the inbox (push text names the group and the member); `no_reply` → nothing.
+   - Routes: `GET/PUT /api/ai/agents/:agentId/groups` (admins), `GET/PUT /api/chats/:jid/ai-group` (GET: inbox
+     access, 404 outside it; PUT: admins), audit rows for switches (names only). Try it with `group: true`.
+   - Logs: ids, counts and outcomes only; never message text.
+2. **Web** (`apps/web`): agent page Groups card, header badge, Group info row, the group event lines, Try it "Group
+   question", i18n en/ms/zh-CN (texts from the confirmed mock), tests.
+3. Tests, e2e (fake WhatsApp: `/api/dev/fake-incoming` with `mentionedJids`/quote), Dev Build check (mock model:
+   a tag, a quote, an unrelated message, a hand-over, the loop guard), screen review against the mock.

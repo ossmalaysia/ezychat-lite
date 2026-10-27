@@ -581,10 +581,10 @@
     "unavailable": "AI suggestions are not available now"
   },
   "mockGroups": {
-    "badge": "AI answers when mentioned",
+    "badge": "AI answers when tagged or quoted",
     "badgePaused": "AI paused",
     "info": {
-      "title": "AI agent answers when mentioned",
+      "title": "AI agent answers when tagged or quoted",
       "hint": "{{name}} answers only when a member @mentions your number or quotes an AI message.",
       "noAgent": "No AI agent works in this inbox.",
       "agentOff": "Answer in groups is off for {{name}}. Turn it on on the agent page first.",

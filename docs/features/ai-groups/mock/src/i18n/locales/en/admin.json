@@ -1936,7 +1936,7 @@
   "mockGroups": {
     "title": "Groups",
     "description": "{{name}} can answer in the WhatsApp groups of {{inbox}}.",
-    "switch": "Answer in groups (when mentioned)",
+    "switch": "Answer in groups (when tagged or quoted)",
     "switchHint": "Answers only when a member @mentions your number or quotes an AI message. Other group messages get no reply.",
     "offSummary_one": "{{inbox}} is in {{count}} group. Turn this on to choose where {{name}} answers.",
     "offSummary_other": "{{inbox}} is in {{count}} groups. Turn this on to choose where {{name}} answers.",
@@ -1949,7 +1949,7 @@
     "agentOff": "{{name}} is off. Nothing is answered in groups until you turn {{name}} on.",
     "members_one": "{{count}} member",
     "members_other": "{{count}} members",
-    "answers": "Answers when mentioned",
+    "answers": "Answers when tagged or quoted",
     "off": "Off",
     "paused": "Paused: many answers in a row",
     "answerIn": "Answer in {{group}}",

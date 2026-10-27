@@ -156,7 +156,7 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
     requestId: 'seed-assistant-new-0001',
   });
   await seedBooking(ctx, call);
-  // Proposed (ai-groups): three groups where the agent answers when mentioned (or stays off).
+  // Proposed (ai-groups): three groups where the agent answers when tagged or quoted (or stays off).
   await seedGroups(ctx, call);
 }
 
