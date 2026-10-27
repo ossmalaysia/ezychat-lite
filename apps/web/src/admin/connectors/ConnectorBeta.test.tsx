@@ -51,9 +51,9 @@ describe('Beta connectors (marked by the connector list)', () => {
     expect(
       within(screen.getByTestId('connector-card-google-calendar')).getByTestId('connector-beta'),
     ).toBeTruthy();
-    expect(within(screen.getByTestId('connector-card-xero')).queryByTestId('connector-beta')).toBe(
-      null,
-    );
+    expect(
+      within(screen.getByTestId('connector-card-xero')).queryByTestId('connector-beta'),
+    ).toBeNull();
   });
 
   it('shows no Beta for Google Calendar once the list drops the mark', async () => {
@@ -62,7 +62,7 @@ describe('Beta connectors (marked by the connector list)', () => {
     await screen.findByTestId('connector-card-lejar');
     expect(
       within(screen.getByTestId('connector-card-google-calendar')).queryByTestId('connector-beta'),
-    ).toBe(null);
+    ).toBeNull();
   });
 
   it('Google Calendar page: Beta in the header and the notice above the Google account', async () => {

@@ -45,7 +45,7 @@ export function ConnectorStatusBadge({ status }: { status: ConnectorStatus }) {
 }
 
 /** "Beta" next to the status on cards and page headers, when the connector list marks the entry. */
-export function BetaBadge({ show }: { show: boolean }) {
+export function BetaBadge({ show }: Readonly<{ show: boolean }>) {
   const { t } = useTranslation('admin');
   if (!show) return null;
   return (
@@ -56,7 +56,7 @@ export function BetaBadge({ show }: { show: boolean }) {
 }
 
 /** The entry's notice from the connector list, above Connect; titled Beta for a beta entry. */
-export function ConnectorNotice({ entry }: { entry: ConnectorEntry | null }) {
+export function ConnectorNotice({ entry }: Readonly<{ entry: ConnectorEntry | null }>) {
   const { t, i18n } = useTranslation('admin');
   if (!entry?.notice) return null;
   return (

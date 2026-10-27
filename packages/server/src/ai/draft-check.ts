@@ -106,18 +106,19 @@ const WORD_START = /(?<=[\s,.!?;:，。？！、])\S|\p{Script=Han}/gu;
  * of spaces as one space; -1 when `text` does not start with it.
  */
 function spelledLength(text: string, prefix: string): number {
+  const isSpace = (c: string | undefined) => c !== undefined && /\s/u.test(c);
+  // The prefix as words; between two words `text` needs at least one space.
+  const words = prefix.split(/\s+/u).filter(Boolean);
   let i = 0;
-  for (let p = 0; p < prefix.length; p++) {
-    if (/\s/u.test(prefix[p]!)) {
-      if (!/\s/u.test(text[i] ?? '')) return -1;
-      while (/\s/u.test(text[i] ?? '')) i++;
-      while (/\s/u.test(prefix[p + 1] ?? '')) p++;
-    } else {
-      if ((text[i] ?? '').toLowerCase() !== prefix[p]!.toLowerCase()) return -1;
-      i++;
+  for (const [n, word] of words.entries()) {
+    if (n > 0) {
+      if (!isSpace(text[i])) return -1;
+      while (isSpace(text[i])) i++;
     }
+    if (text.slice(i, i + word.length).toLowerCase() !== word.toLowerCase()) return -1;
+    i += word.length;
   }
-  return i;
+  return words.length ? i : -1;
 }
 
 /**
@@ -127,19 +128,18 @@ function spelledLength(text: string, prefix: string): number {
  * "rul, how…"), so the space after a finished word stays. After a typed space, no leading space.
  */
 export function continuationOf(typed: string, completion: string): string {
-  const body = typed.replace(/\s+$/u, '');
+  const body = typed.trimEnd();
+  const head = completion.trimStart();
   const starts = [0, ...[...body.matchAll(WORD_START)].map((m) => m.index)];
   let rest = completion;
   for (const at of starts) {
-    const tail = body.slice(at);
-    const head = completion.replace(/^\s+/u, '');
-    const used = tail ? spelledLength(head, tail) : -1;
+    const used = spelledLength(head, body.slice(at));
     if (used > 0) {
       rest = head.slice(used);
       break;
     }
   }
-  return /\s$/u.test(typed) ? rest.replace(/^\s+/u, '') : rest;
+  return body.length < typed.length ? rest.trimStart() : rest;
 }
 
 /** Why a completion shows no grey text (logged as a name only, never the text). */

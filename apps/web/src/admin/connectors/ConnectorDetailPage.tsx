@@ -103,7 +103,10 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
   );
 }
 
-function GoogleCalendarTabs({ c, entry }: { c: CatalogConnector; entry: ConnectorEntry | null }) {
+function GoogleCalendarTabs({
+  c,
+  entry,
+}: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
   const { t } = useTranslation('admin');
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
