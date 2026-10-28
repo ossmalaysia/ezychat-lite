@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.62] - 2026-10-28
+
 ### Added
 
 - **Files and text in and out of the app.** Drag files from your desktop onto a chat, paste a screenshot or
