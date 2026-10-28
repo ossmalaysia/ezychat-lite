@@ -776,6 +776,10 @@ into AGENTS.md.
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
   or the saved contact, so the model cannot invent them.
+- Before choosing a partner MCP entry for a vendor connector, check how the vendor's MCP server signs in: a
+  per-customer server URL that is itself the secret (Zoho MCP) cannot go in the public connector list (schema 1
+  fills `mcp.url` only from non-secret fields), and tools each customer configures cannot carry declared guards.
+  Build such a connector in, on the vendor's OAuth and REST API, like Google Calendar.
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
