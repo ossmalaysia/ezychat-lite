@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-groups",
-    "gitRevision": "ea63248ff0e7a529c95978a5ac82af464e5e0d70",
-    "mock": "docs/features/ai-groups/mock/index.html",
-    "design": "docs/features/ai-groups/design.md",
+    "feature": "grammar-fix",
+    "gitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
+    "mock": "docs/features/grammar-fix/mock/index.html",
+    "design": "docs/features/grammar-fix/design.md",
     "confirmedAt": "2026-10-28",
-    "confirmation": "Owner reviewed the review page (versions 1-3), set the trigger to when tagged or quoted, and confirmed 2026-10-28 (\"confirm\"), including the loop guard as the only limit."
+    "confirmation": "Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 (\"yes, impleemnt it\"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove."
   },
   "proposals": [
     {
@@ -20,11 +20,14 @@
       "createdAt": "2026-10-28",
       "design": "docs/features/grammar-fix/design.md",
       "mock": "docs/features/grammar-fix/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "ai-groups",
       "baselineGitRevision": "ea63248ff0e7a529c95978a5ac82af464e5e0d70",
       "baselineAppRevision": "8a3f44f",
-      "coverage": "Full app clone of the confirmed ai-groups reference; Fix English in the composer (every chat, every user). Round 2 (owner: option B): spelling marked on every key in the browser (stand-in for nspell + dictionary-en-gb, no AI, the word being typed left alone), grammar from the AI after a 700 ms pause; wavy underlines with a light tint (red spelling, blue grammar) drawn in a layer behind the box, a card per word (hover on desktop, tap on touch: original struck through -> the fix as one button, Ignore; unknown words: Not in the dictionary + Add to team words), Fix N button at the end of the composer row and Ctrl+J / Cmd+J to fix all, \"N fixed · Undo\" for 5 s, \"No mistakes\", checking spinner, Malay/Chinese not checked, numbers/prices/links/team words never marked, AI down: spelling still works with \"Grammar check unavailable\"; Settings -> AI -> Fix English card (team switch that works without AI, cost text with the dictionary size, updated-install note, spelling-only note) with Team words (Business context words, added by a teammate, add, remove) and a Mock only box (install kind, Normal/Slow/Error/Connection expired); mock-only routes GET/PUT /api/mock/grammar, POST /api/mock/grammar/check, GET/POST/DELETE /api/mock/grammar/words; desktop 1280 / mobile 360 touch, light/dark (grammar-shots.mjs)"
+      "coverage": "Full app clone of the confirmed ai-groups reference; Fix English in the composer (every chat, every user). Round 2 (owner: option B): spelling marked on every key in the browser (stand-in for nspell + dictionary-en-gb, no AI, the word being typed left alone), grammar from the AI after a 700 ms pause; wavy underlines with a light tint (red spelling, blue grammar) drawn in a layer behind the box, a card per word (hover on desktop, tap on touch: original struck through -> the fix as one button, Ignore; unknown words: Not in the dictionary + Add to team words), Fix N button at the end of the composer row and Ctrl+J / Cmd+J to fix all, \"N fixed · Undo\" for 5 s, \"No mistakes\", checking spinner, Malay/Chinese not checked, numbers/prices/links/team words never marked, AI down: spelling still works with \"Grammar check unavailable\"; Settings -> AI -> Fix English card (team switch that works without AI, cost text with the dictionary size, updated-install note, spelling-only note) with Team words (Business context words, added by a teammate, add, remove) and a Mock only box (install kind, Normal/Slow/Error/Connection expired); mock-only routes GET/PUT /api/mock/grammar, POST /api/mock/grammar/check, GET/POST/DELETE /api/mock/grammar/words; desktop 1280 / mobile 360 touch, light/dark (grammar-shots.mjs)",
+      "confirmedAt": "2026-10-28",
+      "confirmation": "Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 (\"yes, impleemnt it\"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove.",
+      "gitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec"
     },
     {
       "feature": "ai-groups",

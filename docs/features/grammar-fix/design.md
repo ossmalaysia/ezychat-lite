@@ -1,6 +1,6 @@
 # Fix English (grammar fix in the composer)
 
-Status: **proposal**, waiting for owner confirmation. Branch `claude/compassionate-euler-tpgs37` from `main` (`8a3f44f`).
+Status: **confirmed** 2026-10-28 (see Confirmation). Branch `claude/compassionate-euler-tpgs37` from `main` (`8a3f44f`).
 
 ## Owner request (2026-10-28)
 
@@ -99,11 +99,14 @@ check into a Web Worker.
 - Personal (per-user) word lists and a per-user switch.
 - Malay or Chinese spelling and grammar.
 
-## Open questions for the owner
+## Owner answers (2026-10-28, defaults)
 
-1. Lite (free, like Reply suggestions) or Enterprise-only? Proposal: **Lite** (AGENTS.md: free features go to Lite).
-2. On by default for new installs? Proposal: **yes**, off after an update with a note.
+The owner confirmed without answering the open questions, so the proposals stand:
+
+1. **Lite** (free, like Reply suggestions; AGENTS.md: free features go to Lite).
+2. **On for new installs**, off after an update with a note.
+3. **Any teammate adds** a team word from the underline card (audited); **admins remove** in Settings → AI.
 
 ## Confirmation
 
-Not confirmed yet.
+Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 ("yes, impleemnt it"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove. Mock revision `4a6cde7762f4aa1c1787896700d1d4c632615fec`.
