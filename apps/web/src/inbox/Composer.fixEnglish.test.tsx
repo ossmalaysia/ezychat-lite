@@ -160,6 +160,17 @@ describe('Composer Fix English: spelling', () => {
     expect(marked()).toEqual([]);
   });
 
+  it('keeps the card open, under its word, when the box scrolls (focus on a phone)', async () => {
+    const { box } = setup();
+    fireEvent.change(box, { target: { value: 'see you tommorow then ' } });
+    await settle();
+    everyMarkHit('tommorow');
+    fireEvent.click(box, { clientX: 10, clientY: 10 });
+    await screen.findByTestId('fix-english-card');
+    fireEvent.scroll(box);
+    expect(screen.getByTestId('fix-english-card')).toBeTruthy();
+  });
+
   it('offers Add to team words for a word the dictionary does not know', async () => {
     const { box, user, onAddWord } = setup();
     fireEvent.change(box, { target: { value: 'the zxqvbn is ready ' } });

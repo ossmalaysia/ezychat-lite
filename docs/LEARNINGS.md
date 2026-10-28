@@ -432,6 +432,11 @@ into AGENTS.md.
   regression of the change under test.
 - Stop a background mock or server by its pid (`ps -eo pid,args | grep "[n]ode.*run.ts"`), never
   `pkill -f <pattern>`: the pattern also matches the shell running the command and kills it (exit 144).
+- `mcp-ai-setup.test.ts` "get_stats adds new customers…" also failed on clean `main` at 00:40 Malaysia time
+  (2026-10-29): a run just after midnight in `ai_timezone` is not evidence against the change; compare with `main`.
+- An npm package that reads its data with `node:fs` (e.g. `dictionary-en-gb`) cannot be imported in the browser:
+  copy its files into `apps/web/public/<folder>` (Enterprise copies `@ezychat/web/public`, the PWA does not
+  precache unknown extensions), fetch them by a literal path, and pin the copy to the package with a hash test.
 - After an electron-builder update, check the Windows sign hook with a fake command, not the build log
   (26.18 stopped printing "signing with signtool.exe" but still calls the hook):
   `WIN_SIGN_MODE=command WIN_SIGN_COMMAND="node <script that appends {file} to a list> {file}"` and
@@ -1191,6 +1196,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   name stays the `<h2>`, screen-reader only): Group info for groups, Customer for direct chats.
 - Badges inside a `SegmentedControl` option label get `pointer-events-none`, so a click anywhere on
   the option selects it.
+- A `setState(updater)` that reads a ref must read it before the call (`const before = ref.current`): the updater
+  runs later, after the code that updates the ref. Shifting marks with `ref.current` inside the updater kept stale
+  grammar marks in "Fix N". A popover anchored to a word near the screen edge is `fixed` and measured after render,
+  then moved left to fit (an `absolute` card inside a narrow composer ran off a 360 px screen).
 - OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
   then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 - Marks drawn in a `pointer-events-none` layer over the composer (grey completion, Fix English underlines) are

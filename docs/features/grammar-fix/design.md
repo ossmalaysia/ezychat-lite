@@ -110,3 +110,23 @@ The owner confirmed without answering the open questions, so the proposals stand
 ## Confirmation
 
 Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 ("yes, impleemnt it"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove. Mock revision `4a6cde7762f4aa1c1787896700d1d4c632615fec`.
+
+## Implementation notes (2026-10-28)
+
+Built against the confirmed mock; where the real dictionary needed more than the stand-in:
+
+- **Spelling choices.** The card shows up to 3 dictionary suggestions, re-ranked for typing slips (swapped
+  letters first, then the closest, then common business words). **Fix all applies only a safe fix**
+  (`safeFix`: the only suggestion, or one clearly better than the next); an unsure word ("wich" → which / with)
+  is marked and fixed from the card only.
+- **Never marked**, beyond the mock: capitalised words inside a sentence (names), all-capital words (KLCC, RM),
+  US spellings (color, organize, canceled), a built-in list of Malaysian chat words, places and services
+  (`LOCAL_WORDS`: lah, ya, tq, nasi lemak, Penang, DuitNow…), the chat's name, and every word of the agents'
+  non-Internal Business context.
+- **Short forms** with a fixed fix: pls/plz → please, u → you, ur → your, i → I, dont → don't, thx → thanks,
+  tmr → tomorrow.
+- **Team words in Settings**: the team's own words can be removed by admins; the Business context words the
+  dictionary does not know are listed read-only under them (they change with the Business context).
+- **Dictionary**: `apps/web/public/dictionaries/en-GB` (copy of `dictionary-en-gb` 3.0.0, MIT AND BSD, pinned by a
+  hash test), fetched on first use and built at an idle moment on the main thread (about 0.3 s on a desktop CPU).
+- Dev Build check and screens: `docs/dev-build-checks.md` (2026-10-28), `docs/screenshots/fix-english/`.

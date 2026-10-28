@@ -817,7 +817,8 @@ export function Composer({
                 onPaste={onPaste}
                 onScroll={(e) => {
                   if (marksRef.current) marksRef.current.scrollTop = e.currentTarget.scrollTop;
-                  setCard(null);
+                  // Focusing the box can scroll it (phones): the card follows its word.
+                  if (card) openCard(card.id);
                 }}
                 // Fix English: hover (mouse) or tap/click a marked word for its card.
                 onMouseMove={(e) => {
