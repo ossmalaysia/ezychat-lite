@@ -39,8 +39,8 @@ overlay and one hover button; screen review and mock confirmation are open items
 | --- | --- | --- | --- | --- |
 | Design | skip | Owner asked for the change directly; no HTML mock (see Design section) | af8d1ea | 2026-10-27 |
 | Dev | done | Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu | 2f74993 | 2026-10-27 |
-| Unit tests | pass | changed-lines coverage 91.2 %; only the 4 container-only document-worker tests fail (untouched) | af8d1ea | 2026-10-27 |
-| E2E | pass | On merge head bd1c425: file-transfer, responsive (360 px), reply, reply-suggestions 25 passed. Desktop-window link check not run (no Windows here) | bd1c425 | 2026-10-27 |
+| Unit tests | pass | Taken over 2026-10-28: main merged; full suite 3803 passed with coverage (changed lines 94.2 %, total 90.45 %); review fixes with tests | 5116f716 | 2026-10-28 |
+| E2E | pass | Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens | 5116f716 | 2026-10-28 |
 | Dev Build | todo | Not yet: real desktop window on Windows (Electron drag-out, right-click menu, Explorer paste) | af8d1ea | 2026-10-27 |
 | Screen review | doing | 16 shots in docs/screenshots/file-transfer (1280/360, light/dark); overlay made more opaque; owner review pending | af8d1ea | 2026-10-27 |
 
@@ -55,3 +55,5 @@ overlay and one hover button; screen review and mock confirmation are open items
 - 2026-10-27 E2E: pass — On head: file-transfer, responsive (360 px), reply specs 21 passed. Full run earlier 104 passed; ai-member (container-only document worker) and pwa-resume (clock flake) fail, untouched. Desktop-window link check not run (no Windows here) (2f989e0)
 - 2026-10-27 E2E: pass — On head 53dfd7b: file-transfer, responsive (360 px), reply 21 passed; ai-member fails only at the server document reader ('Cannot read this document', container-only, CI unit tests green on all 3 OS). Desktop-window link check not run (no Windows here) (53dfd7b)
 - 2026-10-27 E2E: pass — On merge head bd1c425: file-transfer, responsive (360 px), reply, reply-suggestions 25 passed. Desktop-window link check not run (no Windows here) (bd1c425)
+- 2026-10-28 Unit tests: pass — Taken over 2026-10-28: main merged; full suite 3803 passed with coverage (changed lines 94.2 %, total 90.45 %); review fixes with tests (5116f716)
+- 2026-10-28 E2E: pass — Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens (5116f716)
