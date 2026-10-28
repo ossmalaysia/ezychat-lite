@@ -54,7 +54,9 @@ describe('component map', () => {
     );
   });
 
-  it('maps every tracked code file', () => {
+  // Classifies every tracked file (~2,800): under 1 s locally, but past the 5 s default on busy
+  // macOS and Windows CI runners.
+  it('maps every tracked code file', { timeout: 30_000 }, () => {
     const files = execFileSync(resolveTool('git'), ['ls-files'], { encoding: 'utf8' })
       .split('\n')
       .filter(Boolean);
