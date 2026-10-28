@@ -279,11 +279,11 @@ describe('Fix English routes', () => {
 
 describe('team words', () => {
   it('lists the Business context words (not Internal items) with the team words', async () => {
-    const { t, adminCookie, agentCookie } = await setup();
+    const { t, agentCookie } = await setup();
     t.ctx.services.ai!.addText(
       null,
       { name: 'Secret', text: 'Supplier Zarqonia margin', internal: true },
-      { userId: null, ip: null },
+      { userId: 1, ip: null },
     );
     const res = await inject(t, agentCookie, 'GET', '/api/fix-english/words');
     expect(res.statusCode).toBe(200);
@@ -293,7 +293,6 @@ describe('team words', () => {
     expect(body.businessWords).not.toContain('zarqonia');
     // Numbers and one-letter words are not words.
     expect(body.businessWords.some((w: string) => /\d/.test(w) || w.length < 2)).toBe(false);
-    void adminCookie;
   });
 
   it('lets any user add a word, keeps one per spelling, and audits it', async () => {
