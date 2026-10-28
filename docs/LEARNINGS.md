@@ -71,6 +71,9 @@ into AGENTS.md.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
+- Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
+  cloned baseline is frozen by hash (`snapshot.mjs --check`) and Prettier rewrites inherited shadcn files. If it
+  happens, restore every file outside your delta list with `git checkout -- <file>` and run the check again.
 - Mock seeds that show AI replies: the seeded AI member is off, so the AI service cancels its queued replies
   ("AI reply cancelled"); set the chat's `assigned_to` in the database (an assignment event triggers the same
   cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
