@@ -128,4 +128,13 @@ describe('describeEvent in WhatsApp groups', () => {
   it('says the loop guard paused the AI', () => {
     expect(line({ kind: 'paused', member: null })).toBe('AI paused: many answers in a row');
   });
+
+  it('names an Open chat answer and a declined sensitive topic', () => {
+    expect(line({ kind: 'answered', member: 'Siti Rahman', openChat: true })).toBe(
+      'Jee Fong answered Siti Rahman in open chat',
+    );
+    expect(line({ kind: 'declined', member: 'Arjun Pillai' })).toBe(
+      'Jee Fong did not discuss a sensitive topic with Arjun Pillai',
+    );
+  });
 });

@@ -87,3 +87,17 @@ the default mode and a choice per group; Kopi Lovers Club in Open chat; Group in
 question in Tag and quote, politics with a tag; dark, computer, Malay and Chinese), with the questions on religion as a
 sensitive topic and the defaults for existing and new agents (Selected groups only, Tag and quote), and confirmed on
 2026-10-28 ("confirm can implement"). Mock revision `8776f52b0cc054c3123459adc41f7c6f16e92aef`.
+
+## Build notes (calls made while building)
+
+- The Open-chat decision (`ai/group-gate.ts`) is one structured call on the **connection's fast model** (not the
+  "Model for suggestions" choice). It sees the agent's name, its instructions (first 1,000 characters), the last 8
+  group messages and the message; never the business knowledge. If it fails, the AI stays silent. A message that tags
+  another member makes no call.
+- The sensitive-topic check also runs (same call) for a tag or a quote with text; if it fails the AI still answers.
+- The no-politics/race/religion/gender rule is in the fixed `GUARDRAILS`, so it also applies in direct chats. Both the
+  guardrail and the gate say that factual business questions that only touch these words (halal food, opening hours
+  on a festive or prayer day, a product or class for women or men) are normal questions.
+- The polite line is fixed and generic: "Sorry, I can't discuss that topic here. I'm happy to help with questions
+  about our business." (English, like "A team member will reply soon.").
+- Follow-up: Try it has no Open-chat option yet (its group question acts as a tag).

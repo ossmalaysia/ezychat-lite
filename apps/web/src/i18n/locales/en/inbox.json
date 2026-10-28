@@ -273,7 +273,9 @@
     "aiGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} handed {{member}}’s question to the team",
     "aiGroupPaused": "AI paused: many answers in a row",
-    "aiGroupMember": "a member"
+    "aiGroupMember": "a member",
+    "aiGroupDeclined": "{{actor}} did not discuss a sensitive topic with {{member}}",
+    "aiGroupOpenChat": "{{actor}} answered {{member}} in open chat"
   },
   "messageList": {
     "label": "Messages",
@@ -609,19 +611,35 @@
     "synced": "Templates synced from WhatsApp"
   },
   "aiGroups": {
-    "badge": "AI answers when tagged or quoted",
+    "badge": {
+      "tag": "AI answers when tagged or quoted",
+      "open": "AI in open chat"
+    },
     "badgePaused": "AI paused",
     "info": {
-      "title": "AI agent answers when tagged or quoted",
-      "hint": "{{name}} answers only when a member @mentions your number or quotes an AI message.",
+      "title": "AI agent in this group",
+      "hint": {
+        "tag": "{{name}} answers only when a member @mentions your number or quotes an AI message.",
+        "open": "{{name}} answers questions about your business, tags, quotes, its name and follow-ups. It stays silent when a question is for someone else."
+      },
       "noAgent": "No AI agent works in this inbox.",
       "agentDisabled": "{{name}} is off. Nothing is answered in groups until you turn {{name}} on.",
       "agentOff": "Answer in groups is off for {{name}}. Turn it on on the agent page first.",
       "openAgent": "Open {{name}}",
       "readOnly": "Only admins can change this.",
-      "on": "On",
       "off": "Off",
-      "paused": "Paused: many answers in a row. A teammate’s message starts it again."
+      "paused": "Paused: many answers in a row. A teammate’s message starts it again.",
+      "hintOff": "{{name}} does not answer in this group.",
+      "setting": {
+        "default": "{{name}}'s default ({{mode}})",
+        "open": "Open chat",
+        "tag": "Tag and quote",
+        "off": "Off"
+      }
+    },
+    "mode": {
+      "tag": "Tag and quote",
+      "open": "Open chat"
     }
   }
 }

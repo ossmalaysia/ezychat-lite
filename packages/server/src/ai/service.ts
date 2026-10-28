@@ -61,14 +61,25 @@ import {
 import { findLeak } from './leak-check.js';
 import {
   addressedToAi,
-  groupEnabled,
   groupLine,
+  groupMode,
   groupText,
+  inConversationWithAi,
   loopGuard,
   memberName,
   pausedLineWritten,
+  tagsSomeone,
+  type GroupReach,
   type GroupTrigger,
 } from './groups.js';
+import {
+  GROUP_GATE_CONTEXT_MESSAGES,
+  GROUP_GATE_MAX_OUTPUT_TOKENS,
+  GROUP_GATE_TIMEOUT_MS,
+  GroupGateOutput,
+  buildGroupGatePrompt,
+  openChatReaches,
+} from './group-gate.js';
 import { HttpError, errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
@@ -85,6 +96,7 @@ import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
   GROUP_HANDOVER_REPLY,
+  GROUP_SENSITIVE_REPLY,
   HANDOFF_REPLY,
   VOICE_RETRY_REPLY,
   administratorInstructions,
@@ -665,7 +677,8 @@ export function createAiService(
   // WhatsApp groups (docs/features/ai-groups/design.md): addressed questions wait per group and are
   // answered one at a time; the AI never owns a group chat, so none of the direct-chat state applies.
   /** Addressed group messages waiting for an answer, per group, oldest first. */
-  const groupQueues = new Map<string, Array<{ id: string; trigger: GroupTrigger }>>();
+  /** `trigger` null: an untagged, unquoted message in an Open-chat group (the gate decides). */
+  const groupQueues = new Map<string, Array<{ id: string; trigger: GroupTrigger | null }>>();
   const groupTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const groupTurns = new Map<string, AbortController>();
   /** `<jid>\n<quoted message id>` of group answers being sent now: canSend lets only these out. */
@@ -912,7 +925,8 @@ export function createAiService(
     if (closed || !gateOpen() || !ready()) return null;
     if (chats.get(jid)?.type !== 'group') return null;
     const agent = agentOfChat(jid);
-    if (!agent?.enabled || !agent.answerGroups || !groupEnabled(ctx.db, jid)) return null;
+    if (!agent?.enabled || !agent.answerGroups || groupMode(ctx.db, jid, agent) === 'off')
+      return null;
     return agent;
   };
   /**
@@ -973,6 +987,104 @@ export function createAiService(
         text: groupText(turn.text),
       };
     });
+  /** Sends one AI line into the group quoting the member's message; false when it did not go out. */
+  async function sendGroupLine(
+    jid: string,
+    agent: AgentRow,
+    quotedId: string,
+    text: string,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const sending = `${jid}\n${quotedId}`;
+    groupSends.add(sending);
+    try {
+      await sendReply(jid, agent.userId, quotedId, text, signal);
+      return true;
+    } catch (error) {
+      if (!signal.aborted)
+        log.warn(
+          {
+            jid,
+            agentId: agent.id,
+            reason: isWindowClosed(error) ? 'window_closed' : 'send_failed',
+          },
+          'AI group answer could not be sent',
+        );
+      return false;
+    } finally {
+      groupSends.delete(sending);
+    }
+  }
+  /**
+   * The Open-chat decision and sensitive-topic check (`group-gate.ts`): one short call on the fast
+   * model, null when the connection has no draft call or it fails. Logs reach, ms and model only.
+   */
+  async function gateGroupMessage(
+    agent: AgentRow,
+    jid: string,
+    input: {
+      history: Message[];
+      member: string;
+      text: string;
+      groupName: string;
+      inConversation: boolean;
+      signal: AbortSignal;
+    },
+  ): Promise<GroupGateOutput | null> {
+    if (!provider.draft) return null;
+    const current = settingsFor(agent);
+    const started = Date.now();
+    try {
+      const answer = await provider.draft(
+        current,
+        aiApiKey(ctx.settings),
+        {
+          ...buildGroupGatePrompt({
+            agentName: agent.displayName,
+            role: administratorInstructions({ ...current, preset: agent.preset }),
+            groupName: input.groupName,
+            inConversation: input.inConversation,
+            conversation: groupConversation(
+              input.history.slice(-GROUP_GATE_CONTEXT_MESSAGES),
+              aiUserIds(),
+            ),
+            member: input.member,
+            text: input.text,
+          }),
+          cacheId: `${installId()}#agent:${agent.id}#group-gate`,
+        },
+        { schema: GroupGateOutput, fast: true, maxOutputTokens: GROUP_GATE_MAX_OUTPUT_TOKENS },
+        AbortSignal.any([input.signal, AbortSignal.timeout(GROUP_GATE_TIMEOUT_MS)]),
+      );
+      const output = GroupGateOutput.parse(answer.output);
+      log.info(
+        {
+          event: 'ai_group_gate',
+          jid,
+          agentId: agent.id,
+          reach: output.reach,
+          sensitive: output.sensitive,
+          model: answer.model,
+          ms: Date.now() - started,
+        },
+        'AI group gate',
+      );
+      return output;
+    } catch (error) {
+      if (!input.signal.aborted)
+        log.warn(
+          {
+            jid,
+            agentId: agent.id,
+            reason: 'gate_failed',
+            errName: errorNameOf(error),
+            ms: Date.now() - started,
+          },
+          'AI group gate failed',
+        );
+      return null;
+    }
+  }
   /**
    * One answer to an addressed group message: never a claim or an assignment change, look-up tools
    * only. answer → the reply quoting the member; handoff → "A team member will reply soon." quoting
@@ -980,13 +1092,14 @@ export function createAiService(
    */
   async function groupTurn(
     jid: string,
-    ask: { id: string; trigger: GroupTrigger },
+    ask: { id: string; trigger: GroupTrigger | null },
     signal: AbortSignal,
   ) {
     const agent = groupAgent(jid);
     if (!agent) return;
     const still = () => !signal.aborted && groupAgent(jid)?.id === agent.id;
-    if (holdForLoopGuard(jid, agent)) return;
+    // An untagged message reaches the guard only once the gate says it is for the AI.
+    if (ask.trigger && holdForLoopGuard(jid, agent)) return;
     if (!replyWindowOpen(ctx, jid)) {
       log.info({ jid, agentId: agent.id, reason: 'window_closed' }, 'AI group question skipped');
       return;
@@ -1000,6 +1113,63 @@ export function createAiService(
     }
     const member = memberName(ctx, asked);
     const question = groupText(customerText(asked)).trim();
+    // Open chat decides whether an untagged message is for the AI; every message with text also
+    // gets the sensitive-topic check (politics, race, religion, gender) when the connection has
+    // the fast draft call. Without it a tag or quote is still answered (GUARDRAILS keeps the model
+    // off those topics) and an untagged message gets nothing.
+    const inConversation =
+      !ask.trigger &&
+      inConversationWithAi(ctx.db, {
+        chatJid: jid,
+        senderJid: asked.senderJid,
+        aiUserId: agent.userId,
+      });
+    const gate =
+      asked.body?.trim() && question
+        ? await gateGroupMessage(agent, jid, {
+            history: history.filter((message) => message.id !== asked.id),
+            member: member ?? 'Member',
+            text: question,
+            groupName: chat.name?.trim() || 'WhatsApp group',
+            inConversation,
+            signal,
+          })
+        : null;
+    if (!still()) return;
+    let reach: GroupReach;
+    if (ask.trigger) reach = ask.trigger;
+    else {
+      const addressed =
+        !!gate &&
+        !gate.sensitive &&
+        openChatReaches(gate, inConversation) &&
+        groupMode(ctx.db, jid, agent) === 'open';
+      if (!addressed) {
+        log.info(
+          {
+            jid,
+            agentId: agent.id,
+            reach: gate?.reach ?? null,
+            sensitive: gate?.sensitive ?? null,
+            outcome: 'silent',
+          },
+          'AI group message not for the AI',
+        );
+        return;
+      }
+      reach = gate.reach as 'named' | 'continue' | 'open';
+      if (holdForLoopGuard(jid, agent)) return;
+    }
+    if (gate?.sensitive) {
+      // A direct tag or quote on a sensitive topic: one fixed polite line, no answer.
+      if (!(await sendGroupLine(jid, agent, ask.id, GROUP_SENSITIVE_REPLY, signal))) return;
+      chats.addAiToolUsed(jid, agent.userId, [groupLine(agent, { kind: 'declined', member })]);
+      log.info(
+        { jid, agentId: agent.id, reach, outcome: 'declined' },
+        'AI group question declined',
+      );
+      return;
+    }
     const quoted = asked.quotedId
       ? history.find((message) => message.id === asked.quotedId)
       : undefined;
@@ -1060,7 +1230,7 @@ export function createAiService(
                   {
                     name: chat.name?.trim() || 'WhatsApp group',
                     member: member ?? 'Member',
-                    trigger: ask.trigger,
+                    trigger: reach,
                     message: question,
                   },
                 ),
@@ -1118,7 +1288,7 @@ export function createAiService(
         jid,
         agentId: agent.id,
         group: true,
-        trigger: ask.trigger,
+        trigger: reach,
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
@@ -1130,36 +1300,25 @@ export function createAiService(
     if (decision.action === 'no_reply') return;
     const handedOver = decision.action === 'handoff';
     if (lookups.length) chats.addAiToolUsed(jid, agent.userId, lookups);
-    const sending = `${jid}\n${ask.id}`;
-    groupSends.add(sending);
-    try {
-      await sendReply(
-        jid,
-        agent.userId,
-        ask.id,
-        handedOver ? GROUP_HANDOVER_REPLY : decision.reply,
-        signal,
-      );
-    } catch (error) {
-      if (!signal.aborted)
-        log.warn(
-          {
-            jid,
-            agentId: agent.id,
-            reason: isWindowClosed(error) ? 'window_closed' : 'send_failed',
-          },
-          'AI group answer could not be sent',
-        );
-      return;
-    } finally {
-      groupSends.delete(sending);
-    }
+    const sent = await sendGroupLine(
+      jid,
+      agent,
+      ask.id,
+      handedOver ? GROUP_HANDOVER_REPLY : decision.reply,
+      signal,
+    );
+    if (!sent) return;
     chats.addAiToolUsed(jid, agent.userId, [
       groupLine(
         agent,
         handedOver
           ? { kind: 'handover', member }
-          : { kind: 'answered', member, ...(ask.trigger === 'quote' ? { quoted: true } : {}) },
+          : {
+              kind: 'answered',
+              member,
+              ...(reach === 'quote' ? { quoted: true } : {}),
+              ...(reach !== 'tag' && reach !== 'quote' ? { openChat: true } : {}),
+            },
       ),
     ]);
     if (!handedOver) return;
@@ -1189,7 +1348,10 @@ export function createAiService(
         question,
       });
   }
-  /** A live group message: queued for an answer only when every switch is on and it is addressed. */
+  /**
+   * A live group message: queued when every switch is on and it tags or quotes the AI, or, in an
+   * Open-chat group, when it has text and tags no member (the gate then decides in the turn).
+   */
   const onGroupInbound = (chat: Chat, message: Message) => {
     const agent = groupAgent(chat.jid);
     if (!agent) return;
@@ -1199,7 +1361,15 @@ export function createAiService(
       quotedId: message.quotedId,
       aiUserId: agent.userId,
     });
-    if (!trigger || holdForLoopGuard(chat.jid, agent)) return;
+    if (trigger) {
+      if (holdForLoopGuard(chat.jid, agent)) return;
+    } else if (
+      groupMode(ctx.db, chat.jid, agent) !== 'open' ||
+      !message.body?.trim() ||
+      // A tag of a member (not the business) is a question for that person: no call.
+      tagsSomeone(ctx.db, { chatJid: chat.jid, messageId: message.id })
+    )
+      return;
     const queue = groupQueues.get(chat.jid) ?? [];
     if (queue.length >= GROUP_QUEUE_MAX) {
       log.info(

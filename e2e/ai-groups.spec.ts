@@ -9,8 +9,8 @@ import {
 } from './helpers';
 
 /**
- * AI agents in WhatsApp groups (docs/features/ai-groups/design.md): the agent page Groups card and
- * the Group info row. No model is called: the agent stays off (a fresh e2e install has no AI
+ * AI agents in WhatsApp groups (docs/features/ai-groups/design.md, Open chat and group choices:
+ * docs/features/ai-groups-open-chat/design.md): the agent page Groups card and the Group info row. No model is called: the agent stays off (a fresh e2e install has no AI
  * connection), so Group info says so. Lite has one shared agent: its "Answer in groups" switch is
  * set through the API (idempotent) and toggled in the page only by the desktop project.
  */
@@ -37,10 +37,7 @@ async function agentId(page: Page): Promise<number> {
   return (await list())[0]!.id;
 }
 
-test('Groups card and Group info: switch a group on for the AI', async ({
-  page,
-  baseURL,
-}, info) => {
+test('Groups card and Group info: put a group in Open chat', async ({ page, baseURL }, info) => {
   const tag = projectTag(info).replace(/\D/g, '').padStart(2, '0').slice(-2);
   const groupJid = `1203630888000${tag}@g.us`;
   const group = `Kopi Lovers ${tag}`;
@@ -64,23 +61,28 @@ test('Groups card and Group info: switch a group on for the AI', async ({
   });
   const on = await page.request.put(`/api/ai/agents/${id}/groups`, {
     headers: origin,
-    data: { enabled: true },
+    // Selected groups only and Tag and quote: a new group starts off (idempotent; the agent is shared).
+    data: { enabled: true, scope: 'selected', mode: 'tag' },
   });
   expect(on.status(), await on.text()).toBe(200);
 
-  // Agent page: the group is listed, off; switch it on.
+  // Agent page: the group is listed, Off; put it in Open chat.
   await page.goto(`/admin/members/ai/${id}`);
   const card = page.getByTestId('agent-groups');
-  await expect(card.getByText('Answer in groups (when tagged or quoted)')).toBeVisible();
-  const groupSwitch = card.getByRole('switch', { name: `Answer in ${group}` });
-  await expect(groupSwitch).toBeVisible();
-  if ((await groupSwitch.getAttribute('aria-checked')) !== 'true') await groupSwitch.click();
-  await expect(groupSwitch).toHaveAttribute('aria-checked', 'true');
+  await expect(card.getByText('Which groups')).toBeVisible();
+  await expect(card.getByRole('radio', { name: /Selected groups only/ })).toBeChecked();
+  const choice = card.getByRole('combobox', { name: `AI in ${group}` });
+  await expect(choice).toHaveText('Off');
+  await choice.click();
+  await page.getByRole('option', { name: 'Open chat' }).click();
+  await expect(choice).toHaveText('Open chat');
+  await expect(card.getByRole('link', { name: `Open ${group}` })).toContainText('Open chat');
+  await expect(card.getByTestId('open-chat-cost')).toBeVisible();
   await expectNoHorizontalScroll(page, 'agent page groups card');
   const chat = (await (
     await page.request.get(`/api/chats/${encodeURIComponent(groupJid)}/ai-group`)
-  ).json()) as { enabled: boolean; agentEnabled: boolean };
-  expect(chat.enabled).toBe(true);
+  ).json()) as { enabled: boolean; setting: string; mode: string; agentEnabled: boolean };
+  expect(chat).toMatchObject({ enabled: true, setting: 'open', mode: 'open' });
 
   // Group info: the agent itself is off (no AI connection here), so the row says so.
   await page.goto(chatHref(groupJid));
@@ -89,7 +91,8 @@ test('Groups card and Group info: switch a group on for the AI', async ({
     .getByRole('complementary', { name: 'Group info' })
     .or(page.getByRole('dialog', { name: 'Group info' }));
   const row = panel.getByTestId('group-ai-row');
-  await expect(row.getByText('AI agent answers when tagged or quoted')).toBeVisible();
+  await expect(row.getByText('AI agent in this group')).toBeVisible();
+  await expect(row.getByRole('combobox', { name: 'AI agent in this group' })).toBeVisible();
   if (!chat.agentEnabled)
     await expect(row.getByText(/is off\. Nothing is answered in groups/)).toBeVisible();
   await expectNoHorizontalScroll(page, 'group info AI row');

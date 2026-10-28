@@ -3,22 +3,30 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AiGroupChat } from '@ezychat/shared';
+import type { AiGroupChat, AiGroupSetting } from '@ezychat/shared';
 import { useGroupChatAi, useSetGroupChatAi } from '../api/ai-groups';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '../api/client';
 
-/** The AI answers tags and quotes in this group now (its switch and the agent's are both on). */
+const SETTINGS: readonly AiGroupSetting[] = ['default', 'open', 'tag', 'off'];
+
+/** The AI answers in this group now (its choice is not Off and the agent answers in groups). */
 export const groupAiActive = (ai: AiGroupChat | null | undefined): boolean =>
-  Boolean(ai?.enabled && ai.agentAnswersGroups);
+  Boolean(ai?.agentAnswersGroups && ai.mode !== 'off');
 
 /**
- * Group info → "AI agent answers when tagged or quoted". Admins switch it; agents see the state.
- * Disabled with a hint while the agent's "Answer in groups" is off. Hidden when the server does not
- * answer (an older server, or no access).
+ * Group info → "AI agent in this group". Admins choose the agent's default, Open chat, Tag and
+ * quote or Off; agents see the mode. Disabled with a hint while the agent's "Answer in groups" is
+ * off. Hidden when the server does not answer (an older server, or no access).
  */
 export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: boolean }>) {
   const { t } = useTranslation('inbox');
@@ -39,7 +47,17 @@ export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: bo
           ? t('aiGroups.info.agentOff', { name: agentName })
           : active && ai.paused
             ? t('aiGroups.info.paused')
-            : t('aiGroups.info.hint', { name: agentName });
+            : ai.mode === 'off'
+              ? t('aiGroups.info.hintOff', { name: agentName })
+              : t(`aiGroups.info.hint.${ai.mode}`, { name: agentName });
+  const label = (s: AiGroupSetting) =>
+    s === 'default'
+      ? t('aiGroups.info.setting.default', {
+          name: agentName,
+          mode: t(`aiGroups.mode.${ai.agentMode}`),
+        })
+      : t(`aiGroups.info.setting.${s}`);
+  const selectId = `${id}-choice`;
 
   return (
     <section
@@ -47,37 +65,49 @@ export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: bo
       aria-labelledby={id}
       data-testid="group-ai-row"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Bot className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <Label
-          htmlFor={isAdmin ? id : undefined}
-          id={isAdmin ? undefined : id}
+          id={id}
+          htmlFor={isAdmin ? selectId : undefined}
           className="min-w-0 flex-1 text-sm leading-snug"
         >
           {t('aiGroups.info.title')}
         </Label>
         {isAdmin ? (
-          <Label
-            htmlFor={id}
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
+          <Select
+            value={ai.agentAnswersGroups ? ai.setting : 'off'}
+            disabled={ai.agentId === null || !ai.agentAnswersGroups || setGroup.isPending}
+            onValueChange={(setting) =>
+              setGroup.mutate(
+                { jid, setting: setting as AiGroupSetting },
+                { onError: (e) => toast.error(errorMessage(e)) },
+              )
+            }
           >
-            <Switch
-              id={id}
+            <SelectTrigger
+              id={selectId}
               aria-describedby={hintId}
-              checked={active}
-              disabled={ai.agentId === null || !ai.agentAnswersGroups || setGroup.isPending}
-              onCheckedChange={(enabled) =>
-                setGroup.mutate({ jid, enabled }, { onError: (e) => toast.error(errorMessage(e)) })
-              }
-            />
-          </Label>
+              className="min-h-11 w-full bg-surface sm:w-52"
+              data-testid="group-ai-setting"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SETTINGS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {label(s)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : (
           <Badge
             variant={active ? 'secondary' : 'outline'}
             className="shrink-0"
             data-testid="group-ai-state"
           >
-            {active ? t('aiGroups.info.on') : t('aiGroups.info.off')}
+            {active && ai.mode !== 'off' ? t(`aiGroups.mode.${ai.mode}`) : t('aiGroups.info.off')}
           </Badge>
         )}
       </div>
@@ -102,10 +132,10 @@ export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: bo
   );
 }
 
-/** Chat header badge on a group where the AI answers when tagged or quoted (or is paused there). */
+/** Chat header badge on a group where the AI answers (its mode), or is paused there. */
 export function GroupAiBadge({ ai }: Readonly<{ ai: AiGroupChat | null | undefined }>) {
   const { t } = useTranslation('inbox');
-  if (!ai || !groupAiActive(ai)) return null;
+  if (!ai || !groupAiActive(ai) || ai.mode === 'off') return null;
   return (
     <Badge
       variant="outline"
@@ -117,7 +147,7 @@ export function GroupAiBadge({ ai }: Readonly<{ ai: AiGroupChat | null | undefin
     >
       <Bot className="size-3 shrink-0" aria-hidden="true" />
       <span className="truncate">
-        {ai.paused ? t('aiGroups.badgePaused') : t('aiGroups.badge')}
+        {ai.paused ? t('aiGroups.badgePaused') : t(`aiGroups.badge.${ai.mode}`)}
       </span>
     </Badge>
   );

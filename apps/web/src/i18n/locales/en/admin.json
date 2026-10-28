@@ -1912,12 +1912,12 @@
   "aiGroups": {
     "title": "Groups",
     "description": "{{name}} can answer in the groups of your WhatsApp number ({{inbox}}).",
-    "switch": "Answer in groups (when tagged or quoted)",
-    "switchHint": "Answers only when a member @mentions your number or quotes an AI message. Other group messages get no reply.",
+    "switch": "Answer in groups",
+    "switchHint": "Choose which groups {{name}} answers in, and how.",
     "offSummary_one": "{{inbox}} is in {{count}} group. Turn this on to choose where {{name}} answers.",
     "offSummary_other": "{{inbox}} is in {{count}} groups. Turn this on to choose where {{name}} answers.",
     "listLabel": "Groups of {{inbox}}",
-    "noneOn": "No group is switched on yet, so {{name}} answers in no group.",
+    "noneOn": "No group is on yet, so {{name}} answers in no group.",
     "noGroups": "{{inbox}} is not in any WhatsApp group yet. Groups show here when the number is added to one.",
     "noInbox": "Choose an inbox for {{name}} first.",
     "loopGuard": "Loop guard: after {{count}} answers in a row with no teammate message, {{name}} pauses in that group until a teammate writes.",
@@ -1925,10 +1925,9 @@
     "agentOff": "{{name}} is off. Nothing is answered in groups until you turn {{name}} on.",
     "members_one": "{{count}} member",
     "members_other": "{{count}} members",
-    "answers": "Answers when tagged or quoted",
     "off": "Off",
     "paused": "Paused: many answers in a row",
-    "answerIn": "Answer in {{group}}",
+    "answerIn": "AI in {{group}}",
     "openGroup": "Open {{group}}",
     "saveFailed": "Could not save. Try again.",
     "try": {
@@ -1937,6 +1936,36 @@
       "inGroup": "In a group",
       "lookupsOnly": "In groups {{name}} only looks things up; a teammate makes the booking.",
       "notSent": "Nothing is sent to the group."
-    }
+    },
+    "scopeLabel": "Which groups",
+    "scope": {
+      "all": {
+        "title": "All groups",
+        "text": "Every group of {{inbox}}, new groups too. You can turn off a group below."
+      },
+      "selected": {
+        "title": "Selected groups only",
+        "text": "Only the groups you turn on below. New groups start off."
+      }
+    },
+    "modeLabel": "How {{name}} answers",
+    "mode": {
+      "tag": {
+        "title": "Tag and quote",
+        "text": "Answers only when a member @mentions your number or quotes an AI message."
+      },
+      "open": {
+        "title": "Open chat",
+        "text": "Also answers when a member names {{name}}, goes on talking with {{name}}, or asks the group a question about your business. Stays silent when a question is for someone else."
+      }
+    },
+    "openCost": "In open chat, {{name}} reads each new group message to decide if it should answer: one short AI call per message.",
+    "setting": {
+      "default": "Default ({{mode}})",
+      "open": "Open chat",
+      "tag": "Tag and quote",
+      "off": "Off"
+    },
+    "sensitive": "{{name}} never discusses politics, race, religion or gender. When tagged about them, it says so politely."
   }
 }

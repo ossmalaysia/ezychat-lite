@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (hover, or press and hold on a phone), **Copy image** in the image viewer, and drag an image or document from
   a chat to your desktop or a folder to save it. The desktop app now has a right-click menu: Cut, Copy, Paste,
   Paste as plain text, Select all, spelling suggestions, Copy image, Save image as… and Copy link address.
+- **AI in groups: Open chat and a choice per group.** On an AI agent's Groups card, choose **All groups** (new
+  groups too) or **Selected groups only**, and how the agent answers by default: **Tag and quote** (as before) or
+  **Open chat**, where it also answers its name, a member going on talking with it, and an open question about
+  your business, and stays silent when a question is for someone else. Each group can use the default, Open chat,
+  Tag and quote or Off, on the agent page or in Group info. In every group the AI never discusses politics, race,
+  religion or gender: a tag on these gets one polite line. Agents that answer in groups today keep their groups
+  and Tag and quote.
 
 ## [0.1.61] - 2026-10-28
 

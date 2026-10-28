@@ -1,8 +1,11 @@
 import {
   AI_GROUP_LOOP_GUARD,
   type AiAgentGroups,
+  type AiAgentGroupsBody,
   type AiGroupChat,
+  type AiGroupEffectiveMode,
   type AiGroupEvent,
+  type AiGroupSetting,
   type AiToolUsedPayload,
   type Message,
 } from '@ezychat/shared';
@@ -14,17 +17,24 @@ import { getAliases } from '../chats/aliases.js';
 import { HttpError, errors } from '../http/errors.js';
 import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
-import { agentById, agentForInbox, setAgentAnswerGroups, type AgentRow } from './agents.js';
+import { agentById, agentForInbox, setAgentGroupSettings, type AgentRow } from './agents.js';
 
 /**
- * AI agents in WhatsApp groups (design docs/features/ai-groups/design.md). The switches (the agent's
- * "Answer in groups", one row per group in `ai_group_chats`, migration 024), whether a live group
- * message is addressed to the AI (a tag of the business number or a quote of an AI answer) and the
- * loop guard. The turn itself runs in `ai/service.ts`.
+ * AI agents in WhatsApp groups (designs docs/features/ai-groups/design.md and
+ * docs/features/ai-groups-open-chat/design.md). The settings (the agent's "Answer in groups", scope and
+ * default mode, migrations 024/025; one choice per group in `ai_group_chats`), whether a live group
+ * message is addressed to the AI by a tag of the business number or a quote of an AI answer, who is in
+ * a conversation with the AI, and the loop guard. The Open-chat decision is `ai/group-gate.ts`; the
+ * turn itself runs in `ai/service.ts`.
  */
 
-/** How a member addressed the AI. */
+/** How a member addressed the AI directly (rule-based, both modes). */
 export type GroupTrigger = 'tag' | 'quote';
+/**
+ * How a group message reaches the AI: a direct trigger, or in Open chat (decided by the gate) its
+ * name, the member going on talking with it, or an open question in its role.
+ */
+export type GroupReach = GroupTrigger | 'named' | 'continue' | 'open';
 
 type Actor = { userId: number; ip: string | null };
 
@@ -93,19 +103,67 @@ export function addressedToAi(
   return null;
 }
 
-/** Whether an admin switched this group on (new groups start off). */
-export function groupEnabled(db: DB, jid: string): boolean {
-  const row = db.prepare('SELECT enabled FROM ai_group_chats WHERE chat_jid = ?').get(jid) as
-    { enabled: number } | undefined;
-  return row?.enabled === 1;
+/** Whether a stored message tags anyone (a message not tagging the business then tags a member). */
+export function tagsSomeone(db: DB, input: { chatJid: string; messageId: string }): boolean {
+  const row = db
+    .prepare('SELECT mentioned_jids FROM messages WHERE id = ? AND chat_jid = ?')
+    .get(input.messageId, input.chatJid) as { mentioned_jids: string | null } | undefined;
+  return storedMentions(row?.mentioned_jids).length > 0;
 }
 
-function writeGroupEnabled(db: DB, jid: string, enabled: boolean, userId: number) {
+/** A group's saved choice; null = never set. */
+function savedSetting(db: DB, jid: string): AiGroupSetting | null {
+  const row = db.prepare('SELECT setting FROM ai_group_chats WHERE chat_jid = ?').get(jid) as
+    { setting: AiGroupSetting } | undefined;
+  return row?.setting ?? null;
+}
+
+/** The choice a group shows: its own, else what the agent's scope gives it (all → default). */
+export const shownSetting = (
+  saved: AiGroupSetting | null,
+  agent: Pick<AgentRow, 'groupScope'> | null,
+): AiGroupSetting => saved ?? (agent?.groupScope === 'all' ? 'default' : 'off');
+
+/** How the AI behaves in a group with this choice, for this agent ('off' never answers). */
+export const effectiveMode = (
+  setting: AiGroupSetting,
+  agent: Pick<AgentRow, 'groupMode'> | null,
+): AiGroupEffectiveMode =>
+  setting === 'off' || !agent ? 'off' : setting === 'default' ? agent.groupMode : setting;
+
+/** How the agent behaves in this group now, its "Answer in groups" switch aside. */
+export function groupMode(db: DB, jid: string, agent: AgentRow): AiGroupEffectiveMode {
+  return effectiveMode(shownSetting(savedSetting(db, jid), agent), agent);
+}
+
+function writeGroupSetting(db: DB, jid: string, setting: AiGroupSetting, userId: number) {
   db.prepare(
-    `INSERT INTO ai_group_chats (chat_jid, enabled, updated_at, updated_by) VALUES (?, ?, ?, ?)
-     ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at,
-     updated_by = excluded.updated_by`,
-  ).run(jid, enabled ? 1 : 0, Date.now(), userId);
+    `INSERT INTO ai_group_chats (chat_jid, enabled, setting, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled, setting = excluded.setting,
+     updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+  ).run(jid, setting === 'off' ? 0 : 1, setting, Date.now(), userId);
+}
+
+/**
+ * Whether this member is in a conversation with the AI (Open chat's "goes on talking"): the AI's
+ * latest group message answered them (quoted their message) and no teammate wrote since.
+ */
+export function inConversationWithAi(
+  db: DB,
+  input: { chatJid: string; senderJid: string | null; aiUserId: number },
+): boolean {
+  if (!input.senderJid) return false;
+  const last = db
+    .prepare(
+      `SELECT m.timestamp AS at, q.sender_jid AS member FROM messages m
+       JOIN messages q ON q.id = m.quoted_id AND q.chat_jid = m.chat_jid
+       WHERE m.chat_jid = ? AND m.from_me = 1 AND m.sent_by_user_id = ? AND m.status <> 'failed'
+       ORDER BY m.timestamp DESC, m.rowid DESC LIMIT 1`,
+    )
+    .get(input.chatJid, input.aiUserId) as { at: number; member: string | null } | undefined;
+  if (!last?.member || normalizeContactJid(last.member) !== normalizeContactJid(input.senderJid))
+    return false;
+  return loopGuard(db, input.chatJid).since <= last.at;
 }
 
 /** The loop guard of one group: AI messages since the last teammate (or phone) message. */
@@ -182,23 +240,28 @@ export function groupLine(
   };
 }
 
-/** The group chats of an inbox with their switch, by name. */
-function inboxGroups(db: DB, inboxId: number) {
+/** The group chats of an inbox with their choice and mode for this agent, by name. */
+function inboxGroups(db: DB, inboxId: number, agent: AgentRow) {
   return (
     db
       .prepare(
-        `SELECT c.jid, c.name, coalesce(g.enabled, 0) AS enabled FROM chats c
+        `SELECT c.jid, c.name, g.setting FROM chats c
          LEFT JOIN ai_group_chats g ON g.chat_jid = c.jid
          WHERE c.type = 'group' AND c.inbox_id = ? ORDER BY lower(c.name), c.jid`,
       )
-      .all(inboxId) as Array<{ jid: string; name: string | null; enabled: number }>
-  ).map((row) => ({
-    jid: row.jid,
-    name: row.name?.trim() || parseChatKey(row.jid).waJid,
-    memberCount: null,
-    enabled: row.enabled === 1,
-    paused: loopGuard(db, row.jid).paused,
-  }));
+      .all(inboxId) as Array<{ jid: string; name: string | null; setting: AiGroupSetting | null }>
+  ).map((row) => {
+    const setting = shownSetting(row.setting, agent);
+    return {
+      jid: row.jid,
+      name: row.name?.trim() || parseChatKey(row.jid).waJid,
+      memberCount: null,
+      enabled: setting !== 'off',
+      setting,
+      mode: effectiveMode(setting, agent),
+      paused: loopGuard(db, row.jid).paused,
+    };
+  });
 }
 
 const agentNotFound = () => new HttpError(404, 'agent_not_found', 'AI agent not found');
@@ -209,33 +272,43 @@ const requireAgent = (ctx: AppContext, agentId: number): AgentRow => {
   return agent;
 };
 
-/** `GET /api/ai/agents/:agentId/groups`: the switch, the groups of the agent's inbox, the guard. */
+/** `GET /api/ai/agents/:agentId/groups`: the settings, the groups of the agent's inbox, the guard. */
 export function agentGroups(ctx: AppContext, agentId: number): AiAgentGroups {
   const agent = requireAgent(ctx, agentId);
   return {
     enabled: agent.answerGroups,
+    scope: agent.groupScope,
+    mode: agent.groupMode,
     inboxName: agent.inboxId === null ? null : (ctx.inboxes.repo.get(agent.inboxId)?.name ?? null),
-    groups: agent.inboxId === null ? [] : inboxGroups(ctx.db, agent.inboxId),
+    groups: agent.inboxId === null ? [] : inboxGroups(ctx.db, agent.inboxId, agent),
     loopGuard: AI_GROUP_LOOP_GUARD,
   };
 }
 
-/** `PUT /api/ai/agents/:agentId/groups`: the agent's "Answer in groups" switch (audited). */
+/**
+ * `PUT /api/ai/agents/:agentId/groups`: the agent's "Answer in groups" switch, scope and default mode
+ * (audited with the changed values). A change that can silence a group stops its waiting answers.
+ */
 export function setAgentGroups(
   ctx: AppContext,
   agentId: number,
-  enabled: boolean,
+  body: AiAgentGroupsBody,
   actor: Actor,
 ): AiAgentGroups {
   const agent = requireAgent(ctx, agentId);
-  setAgentAnswerGroups(ctx.db, agent.id, enabled);
+  setAgentGroupSettings(ctx.db, agent.id, {
+    ...(body.enabled === undefined ? {} : { answerGroups: body.enabled }),
+    ...(body.scope ? { scope: body.scope } : {}),
+    ...(body.mode ? { mode: body.mode } : {}),
+  });
   audit(ctx.db, {
     userId: actor.userId,
     action: 'ai.groups_switch',
     ip: actor.ip,
-    meta: { agentId: agent.id, agentName: agent.displayName, enabled },
+    meta: { agentId: agent.id, agentName: agent.displayName, ...body },
   });
-  if (!enabled) ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
+  if (body.enabled === false || body.scope === 'selected' || body.mode === 'tag')
+    ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
   return agentGroups(ctx, agent.id);
 }
 
@@ -246,12 +319,17 @@ const requireGroupChat = (ctx: AppContext, jid: string) => {
   return chat;
 };
 
-/** `GET /api/chats/:jid/ai-group`: the group's switch, its inbox's agent and the guard. */
+/** `GET /api/chats/:jid/ai-group`: the group's choice and mode, its inbox's agent and the guard. */
 export function groupChatStatus(ctx: AppContext, jid: string): AiGroupChat {
   requireGroupChat(ctx, jid);
   const agent = agentForInbox(ctx.db, inboxOfKey(jid));
+  const setting = shownSetting(savedSetting(ctx.db, jid), agent);
   return {
-    enabled: groupEnabled(ctx.db, jid),
+    enabled: setting !== 'off',
+    setting,
+    mode: effectiveMode(setting, agent),
+    agentMode: agent?.groupMode ?? 'tag',
+    agentScope: agent?.groupScope ?? 'selected',
     agentId: agent?.id ?? null,
     agentName: agent?.displayName ?? null,
     agentEnabled: !!agent?.enabled,
@@ -260,21 +338,22 @@ export function groupChatStatus(ctx: AppContext, jid: string): AiGroupChat {
   };
 }
 
-/** `PUT /api/chats/:jid/ai-group` (admins): switches the AI on or off in one group (audited). */
+/** `PUT /api/chats/:jid/ai-group` (admins): one group's choice (audited). */
 export function setGroupChat(
   ctx: AppContext,
   jid: string,
-  enabled: boolean,
+  setting: AiGroupSetting,
   actor: Actor,
 ): AiGroupChat {
   const chat = requireGroupChat(ctx, jid);
-  writeGroupEnabled(ctx.db, jid, enabled, actor.userId);
+  writeGroupSetting(ctx.db, jid, setting, actor.userId);
   audit(ctx.db, {
     userId: actor.userId,
     action: 'ai.group_switch',
     ip: actor.ip,
-    meta: { chatJid: jid, groupName: chat.name, enabled },
+    meta: { chatJid: jid, groupName: chat.name, setting, enabled: setting !== 'off' },
   });
-  if (!enabled) ctx.services.ai?.stopGroupTurns({ jid });
+  // Off, or a mode that may not answer what is waiting: drop the waiting answers.
+  if (setting !== 'open') ctx.services.ai?.stopGroupTurns({ jid });
   return groupChatStatus(ctx, jid);
 }

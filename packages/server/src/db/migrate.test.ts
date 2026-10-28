@@ -36,7 +36,7 @@ const TABLES = [
   'calendar_bookings',
   'calendar_activity',
 ];
-const LATEST = 24;
+const LATEST = 25;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -253,6 +253,41 @@ describe('migrate', () => {
         ),
       ).toEqual(['alias_jid', 'canonical_jid', 'source', 'learned_at', 'repointed_from']);
       expect(() => migrate(db)).not.toThrow();
+    } finally {
+      db.close();
+    }
+  });
+
+  it('025 keeps each group switch as a choice and existing agents on selected groups, Tag and quote', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 24)
+        .sort())
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 24');
+      const insert = db.prepare(
+        'INSERT INTO ai_group_chats (chat_jid, enabled, updated_at) VALUES (?, ?, 1)',
+      );
+      insert.run('on@g.us', 1);
+      insert.run('off@g.us', 0);
+      migrate(db);
+      expect(
+        db.prepare('SELECT chat_jid, enabled, setting FROM ai_group_chats ORDER BY chat_jid').all(),
+      ).toEqual([
+        { chat_jid: 'off@g.us', enabled: 0, setting: 'off' },
+        { chat_jid: 'on@g.us', enabled: 1, setting: 'default' },
+      ]);
+      const columns = db.prepare('PRAGMA table_info(ai_agents)').all() as Array<{
+        name: string;
+        dflt_value: string | null;
+      }>;
+      expect(
+        columns.filter((c) => c.name.startsWith('group_')).map((c) => [c.name, c.dflt_value]),
+      ).toEqual([
+        ['group_scope', "'selected'"],
+        ['group_mode', "'tag'"],
+      ]);
     } finally {
       db.close();
     }
