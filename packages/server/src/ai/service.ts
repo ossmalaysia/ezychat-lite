@@ -2606,7 +2606,7 @@ export function createAiService(
       } finally {
         // Never the text or the corrections: counts and timing only.
         log.info(
-          { event: 'fix_grammar', ok, ms: Date.now() - started, model, count, ...(cause ?? {}) },
+          { event: 'fix_grammar', ok, ms: Date.now() - started, model, count, ...cause },
           'Fix English grammar check',
         );
       }

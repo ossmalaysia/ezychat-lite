@@ -81,6 +81,9 @@ describe('fixes', () => {
       expect.objectContaining({ original: 'i', replacement: 'I' }),
     ]);
     expect(issue('pls call. ')[0]).toMatchObject({ replacement: 'Please' });
+    // A new line starts a sentence too; "." without a space after it does not.
+    expect(issue('ok noted\nthx ')[0]).toMatchObject({ original: 'thx', replacement: 'Thanks' });
+    expect(issue('ok.thx ')[0]).toMatchObject({ original: 'thx', replacement: 'thanks' });
     expect(issue('I dont know ')[0]).toMatchObject({ original: 'dont', replacement: "don't" });
   });
 

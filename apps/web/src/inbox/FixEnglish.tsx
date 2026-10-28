@@ -290,11 +290,9 @@ export function FixEnglishCard({
 }) {
   const { t } = useTranslation('inbox');
   const unknown = issue.kind === 'spelling' && !issue.pending && issue.suggestions.length === 0;
-  const heading = unknown
-    ? t('composer.fixEnglish.unknown')
-    : issue.kind === 'spelling'
-      ? t('composer.fixEnglish.spelling')
-      : t('composer.fixEnglish.grammar');
+  let heading = t('composer.fixEnglish.grammar');
+  if (unknown) heading = t('composer.fixEnglish.unknown');
+  else if (issue.kind === 'spelling') heading = t('composer.fixEnglish.spelling');
   const small = cn(touch && 'min-h-11');
   // A fixed card, moved left until it fits the screen (a word near the right edge of a phone).
   const cardRef = useRef<HTMLDivElement>(null);

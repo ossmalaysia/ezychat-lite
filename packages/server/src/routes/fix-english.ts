@@ -34,11 +34,13 @@ export default async function fixEnglishRoutes(app: FastifyInstance, ctx: AppCon
   const status = (): FixEnglishStatus => {
     const enabled = fixEnglishEnabled(ctx.settings);
     const connection = ctx.services.ai?.draftConnection() ?? 'none';
+    let grammar: FixEnglishStatus['grammar'] = 'off';
+    if (enabled) grammar = connection === 'ready' ? 'on' : connection;
     return {
       enabled,
       connected: connection === 'ready',
       spelling: enabled ? 'on' : 'off',
-      grammar: !enabled ? 'off' : connection === 'ready' ? 'on' : connection,
+      grammar,
       upgraded: fixEnglishUpgraded(ctx.settings),
     };
   };

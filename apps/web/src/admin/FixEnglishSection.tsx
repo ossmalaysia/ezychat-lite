@@ -218,7 +218,12 @@ function useUnknownWords(words: readonly string[]): string[] {
     };
   }, [words.length, speller]);
   return useMemo(
-    () => (speller ? words.filter((w) => !LOCAL_WORDS.has(w) && !speller.correct(w)).sort() : []),
+    () =>
+      speller
+        ? words
+            .filter((w) => !LOCAL_WORDS.has(w) && !speller.correct(w))
+            .sort((a, b) => a.localeCompare(b))
+        : [],
     [speller, words],
   );
 }

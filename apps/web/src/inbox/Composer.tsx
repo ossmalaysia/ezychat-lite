@@ -18,6 +18,7 @@ import {
   MEDIA_UPLOAD_LIMIT_BYTES,
   type QuickReply,
   type ReplyPhraseListItem,
+  type FixEnglishStatus,
   type ReplySuggestion,
 } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,6 @@ import {
   filesFromTransfer,
   formatBytes,
 } from '@/lib/file-transfer';
-import type { FixEnglishStatus } from '@ezychat/shared';
 import {
   FixEnglishButton,
   FixEnglishCard,

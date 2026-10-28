@@ -89,8 +89,17 @@ const textOf = (tokens: Token[], from: number, to: number) =>
 
 /** A number, link, email address or @mention in a change: never touched. */
 const PROTECTED = /[\p{N}@/]|https?:|www\./iu;
-/** Links, email addresses and @mentions in the original text: no change may touch them. */
-const PROTECTED_SPANS = /(?:https?:\/\/|www\.)\S+|[^\s@]+@\S+|@\S+/giu;
+/** Links, email addresses and @mentions in the original text (whole tokens): no change may touch them. */
+function protectedSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  for (const m of text.matchAll(/\S+/gu)) {
+    const token = m[0].toLowerCase();
+    if (/^(?:https?:\/\/|www\.)/u.test(token) || token.includes('@'))
+      spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+}
+const isSpaceChar = (c: string | undefined) => c !== undefined && c.trim() === '';
 
 /**
  * The marks for one message: each change between `text` and the model's `corrected` text, on the
@@ -104,7 +113,7 @@ export function grammarIssues(text: string, corrected: string): GrammarIssue[] {
   const a = tokenize(text);
   const b = tokenize(corrected);
   if (a.length * b.length > 4_000_000) return [];
-  const spans = [...text.matchAll(PROTECTED_SPANS)].map((m) => [m.index, m.index + m[0].length]);
+  const spans = protectedSpans(text);
   const issues: GrammarIssue[] = [];
   let changedWords = 0;
   for (const hunk of hunks(a, b)) {
@@ -128,7 +137,7 @@ export function grammarIssues(text: string, corrected: string): GrammarIssue[] {
     let replacement = textOf(b, bFrom, bTo);
     let start = a[aFrom]!.start;
     // Spaces at either end that both sides share are not part of the change.
-    while (original && replacement && /\s/u.test(original[0]!) && original[0] === replacement[0]) {
+    while (original && replacement && isSpaceChar(original[0]) && original[0] === replacement[0]) {
       original = original.slice(1);
       replacement = replacement.slice(1);
       start++;
@@ -136,7 +145,7 @@ export function grammarIssues(text: string, corrected: string): GrammarIssue[] {
     while (
       original &&
       replacement &&
-      /\s/u.test(original.at(-1)!) &&
+      isSpaceChar(original.at(-1)) &&
       original.at(-1) === replacement.at(-1)
     ) {
       original = original.slice(0, -1);
@@ -146,7 +155,7 @@ export function grammarIssues(text: string, corrected: string): GrammarIssue[] {
     if (original.replace(/\s+/gu, ' ') === replacement.replace(/\s+/gu, ' ')) continue;
     if (PROTECTED.test(original) || PROTECTED.test(replacement)) continue;
     const end = start + original.length;
-    if (spans.some(([from, to]) => start < to! && Math.max(end, start + 1) > from!)) continue;
+    if (spans.some(([from, to]) => start < to && Math.max(end, start + 1) > from)) continue;
     const words = (s: string) => s.match(/\p{L}+/gu)?.length ?? 0;
     if (words(original) > CHANGE_WORDS_MAX || words(replacement) > CHANGE_WORDS_MAX) continue;
     changedWords += Math.max(words(original), 1);

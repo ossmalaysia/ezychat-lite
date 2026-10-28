@@ -91,7 +91,10 @@ function usSpelling(word: string, speller: Speller): boolean {
 /** Damerau–Levenshtein distance (with one transposition), for "is this fix safe". */
 export function editDistance(a: string, b: string): number {
   const d = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+    Array.from({ length: b.length + 1 }, (_, j) => {
+      if (i === 0) return j;
+      return j === 0 ? i : 0;
+    }),
   );
   for (let i = 1; i <= a.length; i++)
     for (let j = 1; j <= b.length; j++) {
@@ -210,8 +213,24 @@ export interface MarkedWord {
   shortForm: string | null;
 }
 
-/** Links, email addresses, @mentions and #tags: never checked. */
-const SKIPPED_SPANS = /(?:https?:\/\/|www\.)\S+|[^\s@]+@\S+|[@#]\S+/giu;
+/** Links, email addresses, @mentions and #tags (whole space-separated tokens): never checked. */
+export function skippedSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  for (const m of text.matchAll(/\S+/gu)) {
+    const token = m[0].toLowerCase();
+    if (/^(?:https?:\/\/|www\.|[@#])/u.test(token) || token.includes('@'))
+      spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+}
+
+/** After a sentence end and a space, after a line break, or at the very start. */
+function atSentenceStart(before: string): boolean {
+  const trimmed = before.trimEnd();
+  if (trimmed === '') return true;
+  const gap = before.slice(trimmed.length);
+  return gap.includes('\n') || (gap !== '' && /[.!?]$/u.test(trimmed));
+}
 
 /**
  * The words to mark, at once on every key (`correct` only; suggestions are slower and come later).
@@ -225,21 +244,21 @@ export function findMisspelled(
   accepted: ReadonlySet<string>,
 ): MarkedWord[] {
   if (!text.trim() || notEnglish(text)) return [];
-  const skipped = [...text.matchAll(SKIPPED_SPANS)].map((m) => [m.index, m.index + m[0].length]);
+  const skipped = skippedSpans(text);
   const typing = /[\p{L}'’]$/u.test(text);
   const marked: MarkedWord[] = [];
   for (const m of text.matchAll(/\p{L}[\p{L}\p{M}'’]*/gu)) {
-    const raw = m[0].replace(/['’]+$/u, '');
+    let raw = m[0];
+    while (raw.endsWith("'") || raw.endsWith('’')) raw = raw.slice(0, -1);
     const start = m.index;
     const end = start + raw.length;
     if (typing && start + m[0].length === text.length) continue;
-    if (skipped.some(([from, to]) => start < to! && end > from!)) continue;
+    if (skipped.some(([from, to]) => start < to && end > from)) continue;
     if (/\p{N}/u.test(text.slice(Math.max(0, start - 1), end + 1))) continue;
-    const word = raw.replace(/’/gu, "'");
+    const word = raw.replaceAll('’', "'");
     const lower = word.toLowerCase();
     if (accepted.has(lower) || LOCAL_WORDS.has(lower)) continue;
-    const before = text.slice(0, start);
-    const sentenceStart = /^\s*$|[.!?]\s+$|\n\s*$/u.test(before);
+    const sentenceStart = atSentenceStart(text.slice(0, start));
     const shortForm = SHORT_FORMS[lower];
     if (shortForm !== undefined) {
       // "I" and "I'm" written correctly are not short forms.
