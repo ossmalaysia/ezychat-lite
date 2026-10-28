@@ -10,6 +10,12 @@ are listed here until they get a branch. Newest first; remove an item when its P
   mapping (`mapWAReaction`, `mapStoredReactions`: live, change, removal, group, history), still
   **untested against real WhatsApp**; (2) **let the team react** from EzyChat (send a `react` message,
   mock first); (3) optionally show "reacted 👍 to …" in the chat list preview.
+- **A failed file upload cannot be sent again** (code review of PR #196, 2026-10-28; older than that PR): the
+  failed bubble keeps the caption, but Retry does not resend a local upload and the tray is already empty.
+  Keep failed files (with caption and quote) in the composer tray, or let Retry upload the kept `File`.
+- **Desktop drag-out not checked in the real window** (PR #196): drag an image or document from a chat to the
+  desktop or a folder in the installed app (Electron `DownloadURL` drag; no `will-download` handler, so the
+  default save path or dialog applies). Hand check in the next test release.
 - **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
   no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
 
