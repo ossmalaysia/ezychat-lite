@@ -1066,6 +1066,9 @@ into AGENTS.md.
 - Cloning a mock for the next proposal: move the old proposal to `baselineProposal`, add its added files to
   `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
   before and after: a drop in inherited files means the check got weaker and still passes.
+- The cumulative mock seeds chats in different inbox types (Jason Lim and Priya Nair are in the WhatsApp Business
+  API inbox "Online orders"): demo a feature that depends on `WaCapabilities` in a Kopi Apong (linked-phone) chat
+  and gate the mock UI by `inboxOfChat(...).type` too, or the screenshots show it where it can never work.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it. Restart after a failed
   run too, and send server-side effects (messages) from one viewport only: every browser context starts
