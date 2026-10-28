@@ -498,6 +498,26 @@
       },
       "uses": "Digunakan {{count}} kali",
       "fact": "Fakta disemak dengan konteks perniagaan"
+    },
+    "fixEnglish": {
+      "title": "Betulkan Bahasa Inggeris",
+      "description": "Semasa ahli pasukan menaip balasan dalam bahasa Inggeris, kesilapan ejaan ditanda serta-merta dan kesilapan tatabahasa selepas jeda singkat. Satu ketikan membetulkannya; tiada apa diubah atau dihantar tanpa ahli pasukan.",
+      "enable": "Semak bahasa Inggeris untuk pasukan",
+      "cost": "Ejaan disemak pada setiap peranti dengan kamus bahasa Inggeris British terbina dalam (kira-kira 0.2 MB, dimuat turun sekali): percuma, tanpa AI. Tatabahasa ialah satu permintaan ringkas kepada pembekal AI anda selepas setiap jeda menaip (model untuk cadangan), yang mungkin dikenakan caj. Mesej Bahasa Melayu dan Cina tidak disemak.",
+      "rules": "Hanya ejaan dan tatabahasa dibetulkan. Nombor, harga, nama, pautan dan nombor pesanan tidak pernah diubah, dan nada ahli pasukan kekal (lah, ya).",
+      "noConnection": "Tiada sambungan AI: hanya ejaan disemak. Sambungkan pembekal AI di atas untuk menyemak tatabahasa juga.",
+      "upgraded": "Baharu: Betulkan Bahasa Inggeris. Ia dimatikan selepas kemas kini supaya tiada perkara baharu yang dikenakan caj tanpa pilihan anda.",
+      "wordsTitle": "Perkataan pasukan",
+      "wordsHint": "Tidak pernah ditanda: perkataan produk, tempat dan pelanggan yang tiada dalam kamus. Ahli pasukan menambahnya dari perkataan bertanda; perkataan Konteks perniagaan anda juga dikira.",
+      "wordsAdd": "Tambah perkataan",
+      "wordsLabel": "Perkataan pasukan baharu",
+      "wordsPlaceholder": "cth. cendol",
+      "wordsEmpty": "Belum ada perkataan pasukan.",
+      "wordsAddedBy": "ditambah oleh {{name}}",
+      "wordsRemove": "Buang {{word}}",
+      "businessTitle_one": "{{count}} perkataan daripada Konteks perniagaan anda tidak pernah ditanda",
+      "businessTitle_other": "{{count}} perkataan daripada Konteks perniagaan anda tidak pernah ditanda",
+      "businessHint": "Ia berubah mengikut Konteks perniagaan anda. Dipaparkan: perkataan yang tiada dalam kamus."
     }
   },
   "resolveAll": {

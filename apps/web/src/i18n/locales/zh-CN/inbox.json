@@ -158,6 +158,28 @@
       "drop": "松开即可在此聊天中发送文件",
       "dropHint": "文件会停在输入框上方，按“发送”后才发出。",
       "dropBlocked": "当前无法在此聊天中发送文件。"
+    },
+    "fixEnglish": {
+      "spelling": "拼写",
+      "grammar": "语法",
+      "unknown": "词典中没有这个词",
+      "cardLabel": "“{{word}}”的修改建议",
+      "ignore": "忽略",
+      "close": "关闭",
+      "remove": "删除",
+      "looking": "正在查找建议",
+      "addWord": "加入团队词汇",
+      "fixAll_one": "修正 {{count}} 处",
+      "fixAll_other": "修正 {{count}} 处",
+      "shortcut": "修正所有标出的错误 (Ctrl+J)",
+      "shortcutKey": "Ctrl J",
+      "fixed_one": "已修正 {{count}} 处",
+      "fixed_other": "已修正 {{count}} 处",
+      "undo": "撤销",
+      "checking": "正在检查英文…",
+      "clean": "没有错误",
+      "unavailable": "语法检查暂不可用",
+      "unavailableHint": "AI 连接需要处理。拼写仍会检查，消息也可以正常发送。"
     }
   },
   "quickReplies": {

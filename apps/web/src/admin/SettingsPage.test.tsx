@@ -16,6 +16,7 @@ vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
 vi.mock('./PhraseDictionarySection', () => ({ PhraseDictionarySection: () => null }));
+vi.mock('./FixEnglishSection', () => ({ FixEnglishSection: () => <p>Fix English card</p> }));
 vi.mock('./ReplySuggestionsSection', () => ({
   ReplySuggestionsSection: () => <p>Reply suggestions card</p>,
 }));

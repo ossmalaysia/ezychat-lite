@@ -22,8 +22,9 @@ import {
   useSendText,
   type MessagesData,
 } from '../api/queries';
-import type { ReplyPhraseListItem } from '@ezychat/shared';
+import { acceptedWords, type ReplyPhraseListItem } from '@ezychat/shared';
 import { usePhraseList, useReplySuggestionsStatus } from '../api/reply-suggestions';
+import { addTeamWord, teamWordsKey, useFixEnglishStatus, useTeamWords } from '../api/fix-english';
 import { useGroupChatAi } from '../api/ai-groups';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
@@ -134,6 +135,13 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const me = directory.me;
   const replySuggestions = useReplySuggestionsStatus();
   const suggestState = replySuggestions.data?.state ?? 'off';
+  // Fix English: spelling and grammar marks in the composer (every chat type).
+  const fixEnglish = useFixEnglishStatus();
+  const teamWords = useTeamWords(fixEnglish.data?.spelling === 'on');
+  const acceptedTeamWords = useMemo(
+    () => acceptedWords(teamWords.data?.words ?? [], teamWords.data?.businessWords ?? []),
+    [teamWords.data],
+  );
   // The team's phrase list for instant grey text (direct chats while suggestions are on).
   const phraseList = usePhraseList(jid, suggestState === 'on' && chat?.type === 'dm');
 
@@ -446,6 +454,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                       }
                     : null
                 }
+                fixEnglish={{
+                  chatJid: chat.jid,
+                  chatName: chat.name,
+                  status: fixEnglish.data,
+                  teamWords: acceptedTeamWords,
+                  onAddWord: (word) =>
+                    addTeamWord(word).then((data) => qc.setQueryData(teamWordsKey, data)),
+                }}
                 onSend={(text) => {
                   sendText.mutate(
                     { text, clientId: newClientId(), quotedId: replyTo?.id },
