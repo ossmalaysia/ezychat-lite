@@ -7,6 +7,8 @@ import {
   formatBytes,
   hasFiles,
   installFileDropGuard,
+  safeFileName,
+  safeMime,
   setDownloadDrag,
 } from './file-transfer';
 
@@ -92,6 +94,20 @@ describe('file transfer', () => {
     const other = fakeTransfer();
     setDownloadDrag(other.dt, { url: '/x', name: '', mime: null });
     expect(other.data.get('DownloadURL')).toMatch(/^application\/octet-stream:file:/);
+  });
+
+  it("cleans a sender's type and file name before they go into a drag", () => {
+    expect(safeMime('image/png')).toBe('image/png');
+    expect(safeMime('application/vnd.ms-excel')).toBe('application/vnd.ms-excel');
+    for (const bad of [null, '', 'text/html\nx', 'a:b/c', 'image', 'image/png; x=1'])
+      expect(safeMime(bad)).toBe('application/octet-stream');
+    expect(safeFileName('..\u0000evil<>|?*.exe')).toBe('_evil_____.exe');
+    expect(safeFileName(' . .hidden')).toBe('hidden');
+    expect(safeFileName('a:b/c\\d"e.pdf')).toBe('a_b_c_d_e.pdf');
+    expect(safeFileName('...')).toBe('file');
+    const { dt, data } = fakeTransfer();
+    setDownloadDrag(dt, { url: '/api/media/x', name: 'r\nport.pdf', mime: 'text/html\nx' });
+    expect(data.get('DownloadURL')).toMatch(/^application\/octet-stream:r_port\.pdf:http/);
   });
 
   it('stops a stray file drop from replacing the app, but leaves drop zones and text alone', () => {

@@ -24,9 +24,13 @@ beforeAll(() => {
 const pdf = () => new File(['%PDF'], 'price-list.pdf', { type: 'application/pdf' });
 const png = () => new File(['png'], 'image.png', { type: 'image/png' });
 
-function paste(box: HTMLElement, data: { files?: File[]; types?: string[] }) {
+function paste(box: HTMLElement, data: { files?: File[]; types?: string[]; text?: string }) {
   return fireEvent.paste(box, {
-    clipboardData: { files: data.files ?? [], types: data.types ?? ['Files'] },
+    clipboardData: {
+      files: data.files ?? [],
+      types: data.types ?? ['Files'],
+      getData: (type: string) => (type === 'text/plain' ? (data.text ?? '') : ''),
+    },
   });
 }
 
@@ -59,10 +63,22 @@ describe('Composer attachments', () => {
     const onAttach = vi.fn();
     render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={onAttach} />);
     const box = screen.getByRole('textbox', { name: 'Message' });
-    const event = paste(box, { files: [png()], types: ['text/html', 'text/plain', 'Files'] });
+    const event = paste(box, {
+      files: [png()],
+      types: ['text/html', 'text/plain', 'Files'],
+      text: 'Price list for October',
+    });
     expect(event).toBe(true);
-    paste(box, { files: [], types: ['text/plain'] });
+    paste(box, { files: [], types: ['text/plain'], text: 'hello' });
     expect(screen.queryByTestId('attachment-tray')).toBeNull();
+  });
+
+  it('attaches an image copied from a web page (HTML but no text)', () => {
+    render(<Composer quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const box = screen.getByRole('textbox', { name: 'Message' });
+    const event = paste(box, { files: [png()], types: ['text/html', 'Files'], text: '  ' });
+    expect(event).toBe(false);
+    expect(screen.getByTestId('attachment-tray').textContent).toContain('1 file to send');
   });
 
   it('sends several files one after another, in order, with the caption on the first', async () => {

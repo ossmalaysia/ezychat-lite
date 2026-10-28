@@ -40,9 +40,19 @@ function isWebLink(url: string): boolean {
   return /^(https?:|mailto:)/i.test(url);
 }
 
+/** The inbox's media route (`GET /api/media/:id`): the only images the menu copies or saves. */
+function isMediaPath(url: string): boolean {
+  try {
+    return new URL(url).pathname.startsWith('/api/media/');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The menu for one right-click; empty when there is nothing to offer (no menu then). Images are
- * offered only from the inbox server itself (`isInboxUrl`), never a blob: preview or another site.
+ * offered only for the inbox server's own media (`isInboxUrl` + `/api/media/`), never a blob: preview, another
+ * route of the app or another site.
  */
 export function contextMenuTemplate(
   p: ContextMenuInput,
@@ -70,7 +80,7 @@ export function contextMenuTemplate(
     ]);
   }
 
-  if (p.mediaType === 'image' && p.srcURL && isInboxUrl(p.srcURL)) {
+  if (p.mediaType === 'image' && p.srcURL && isInboxUrl(p.srcURL) && isMediaPath(p.srcURL)) {
     group([
       { label: t(locale, 'contextMenu.copyImage'), click: () => a.copyImageAt(p.x, p.y) },
       { label: t(locale, 'contextMenu.saveImage'), click: () => a.downloadURL(p.srcURL) },

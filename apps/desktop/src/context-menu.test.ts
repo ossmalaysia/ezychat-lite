@@ -84,7 +84,12 @@ describe('inbox window context menu', () => {
     expect(a.copyImageAt).toHaveBeenCalledWith(10, 20);
     click(items, 'Save image as…');
     expect(a.downloadURL).toHaveBeenCalledWith(src);
-    for (const other of ['blob:http://127.0.0.1:7420/x', 'https://evil.example/a.png'])
+    for (const other of [
+      'blob:http://127.0.0.1:7420/x',
+      'https://evil.example/a.png',
+      // Another route of the app itself is not chat media either.
+      `${BASE}/icons/logo.png`,
+    ])
       expect(
         contextMenuTemplate(input({ mediaType: 'image', srcURL: other }), a, isInbox, 'en'),
       ).toEqual([]);

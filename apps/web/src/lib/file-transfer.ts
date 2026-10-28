@@ -72,6 +72,25 @@ export function formatBytes(n: number): string {
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
 }
 
+/** The sender chose the type: only a plain `type/subtype` goes into the drag, else a neutral one. */
+export function safeMime(mime: string | null): string {
+  return mime && /^[\w.+-]+\/[\w.+-]+$/.test(mime) ? mime : 'application/octet-stream';
+}
+
+/**
+ * The sender chose the name: no control characters, nothing a desktop forbids in a file name
+ * (`<>:"/\|?*`; a colon would also end the drag's name field early) and no leading dots.
+ */
+export function safeFileName(name: string): string {
+  const cleaned = Array.from(name, (c) =>
+    c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 || '<>:"/\\|?*'.includes(c) ? '_' : c,
+  )
+    .join('')
+    .replace(/^[.\s]+/, '')
+    .trim();
+  return cleaned || 'file';
+}
+
 /**
  * Lets a media file be dragged out of the app onto the desktop or a folder (Chromium browsers and
  * the desktop app): the `DownloadURL` drag type is `mime:name:absolute-url`, saved like a download.
@@ -81,10 +100,8 @@ export function setDownloadDrag(
   file: { url: string; name: string; mime: string | null },
 ): void {
   const absolute = new URL(file.url, window.location.href).href;
-  // A colon in the name would end the name field early.
-  const name = file.name.replace(/[:\\/]/g, '_') || 'file';
   dt.effectAllowed = 'copy';
-  dt.setData('DownloadURL', `${file.mime || 'application/octet-stream'}:${name}:${absolute}`);
+  dt.setData('DownloadURL', `${safeMime(file.mime)}:${safeFileName(file.name)}:${absolute}`);
   dt.setData('text/uri-list', absolute);
 }
 

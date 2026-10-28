@@ -430,8 +430,10 @@ export function Composer({
   /** Pasted files (a screenshot, files copied in Explorer or Finder) join the tray; text pastes as text. */
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const dt = e.clipboardData;
-    // Office and browsers put a picture of copied text next to the text itself: keep the text.
-    if (!dt || dt.types.includes('text/html')) return;
+    if (!dt) return;
+    // Office and browsers put a picture of copied text next to the text itself: keep the text. An
+    // image copied from a web page also carries HTML but no text: then the image is the paste.
+    if (dt.types.includes('text/html') && dt.getData('text/plain').trim() !== '') return;
     const pasted = filesFromTransfer(dt);
     if (pasted.length === 0) return;
     e.preventDefault();

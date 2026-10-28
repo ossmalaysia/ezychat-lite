@@ -282,7 +282,8 @@ export function AiContextPanel({
   return (
     <FileDropZone
       as="div"
-      enabled
+      // Not while saving, nor while the add dialog is open (a drop would replace its file).
+      enabled={!busy && open === null}
       title={t('ai.contextPanel.drop')}
       hint={t('ai.contextPanel.dropHint')}
       onFiles={(files) => {
