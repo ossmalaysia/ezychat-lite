@@ -1190,6 +1190,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   the option selects it.
 - OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
   then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
+- Marks drawn in a `pointer-events-none` layer over the composer (grey completion, Fix English underlines) are
+  invisible to `document.elementsFromPoint`: hit-test them with each span's `getClientRects()` from the
+  textarea's own mouse/click events, and draw them with `text-transparent` (not `invisible`, which also hides
+  the underline). Give one-letter marks a tint as well; a wavy underline under "i" or "a" is unreadable.
 
 ## Internationalization
 
