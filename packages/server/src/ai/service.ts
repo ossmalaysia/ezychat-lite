@@ -947,6 +947,8 @@ export function createAiService(
   };
   /** Waiting questions of one group: at most this many (a burst beyond it gets no answer). */
   const GROUP_QUEUE_MAX = 5;
+  /** Of those, at most this many untagged Open-chat messages (each waits for a decision call). */
+  const GROUP_QUEUE_UNTAGGED_MAX = 3;
   const GROUP_DEBOUNCE_MS = 1000;
   function scheduleGroup(jid: string) {
     if (groupTimers.has(jid) || groupTurns.has(jid) || groupTimers.size >= 200) return;
@@ -1098,6 +1100,8 @@ export function createAiService(
     const agent = groupAgent(jid);
     if (!agent) return;
     const still = () => !signal.aborted && groupAgent(jid)?.id === agent.id;
+    // An untagged message waited while the group may have left Open chat: no decision call then.
+    if (!ask.trigger && groupMode(ctx.db, jid, agent) !== 'open') return;
     // An untagged message reaches the guard only once the gate says it is for the AI.
     if (ask.trigger && holdForLoopGuard(jid, agent)) return;
     if (!replyWindowOpen(ctx, jid)) {
@@ -1127,7 +1131,8 @@ export function createAiService(
     const gate =
       asked.body?.trim() && question
         ? await gateGroupMessage(agent, jid, {
-            history: history.filter((message) => message.id !== asked.id),
+            // Only what came before the message: a queued message is decided after later ones.
+            history: history.slice(0, history.indexOf(asked)),
             member: member ?? 'Member',
             text: question,
             groupName: chat.name?.trim() || 'WhatsApp group',
@@ -1367,10 +1372,26 @@ export function createAiService(
       groupMode(ctx.db, chat.jid, agent) !== 'open' ||
       !message.body?.trim() ||
       // A tag of a member (not the business) is a question for that person: no call.
-      tagsSomeone(ctx.db, { chatJid: chat.jid, messageId: message.id })
+      tagsSomeone(ctx.db, { chatJid: chat.jid, messageId: message.id }) ||
+      // Paused by the loop guard: no decision call that could never lead to an answer.
+      loopGuard(ctx.db, chat.jid).paused
     )
       return;
     const queue = groupQueues.get(chat.jid) ?? [];
+    // Untagged Open-chat messages may fill only part of the queue, so a tag or quote still fits;
+    // a tag or quote that finds the queue full takes the place of the oldest untagged one.
+    const untagged = queue.filter((item) => !item.trigger).length;
+    if (!trigger && untagged >= GROUP_QUEUE_UNTAGGED_MAX) {
+      log.info(
+        { jid: chat.jid, agentId: agent.id, reason: 'queue_full_untagged' },
+        'AI group message skipped',
+      );
+      return;
+    }
+    if (trigger && queue.length >= GROUP_QUEUE_MAX) {
+      const oldest = queue.findIndex((item) => !item.trigger);
+      if (oldest >= 0) queue.splice(oldest, 1);
+    }
     if (queue.length >= GROUP_QUEUE_MAX) {
       log.info(
         { jid: chat.jid, agentId: agent.id, reason: 'queue_full' },

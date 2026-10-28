@@ -18,6 +18,7 @@ import { HttpError, errors } from '../http/errors.js';
 import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
 import { agentById, agentForInbox, setAgentGroupSettings, type AgentRow } from './agents.js';
+import { GROUP_HANDOVER_REPLY, GROUP_SENSITIVE_REPLY } from './prompt.js';
 
 /**
  * AI agents in WhatsApp groups (designs docs/features/ai-groups/design.md and
@@ -146,7 +147,8 @@ function writeGroupSetting(db: DB, jid: string, setting: AiGroupSetting, userId:
 
 /**
  * Whether this member is in a conversation with the AI (Open chat's "goes on talking"): the AI's
- * latest group message answered them (quoted their message) and no teammate wrote since.
+ * latest group message answered them (quoted their message) and no teammate wrote since. A hand-over
+ * line or the sensitive-topic line ends the conversation: the question is the team's now.
  */
 export function inConversationWithAi(
   db: DB,
@@ -155,14 +157,16 @@ export function inConversationWithAi(
   if (!input.senderJid) return false;
   const last = db
     .prepare(
-      `SELECT m.timestamp AS at, q.sender_jid AS member FROM messages m
+      `SELECT m.timestamp AS at, m.body AS body, q.sender_jid AS member FROM messages m
        JOIN messages q ON q.id = m.quoted_id AND q.chat_jid = m.chat_jid
        WHERE m.chat_jid = ? AND m.from_me = 1 AND m.sent_by_user_id = ? AND m.status <> 'failed'
        ORDER BY m.timestamp DESC, m.rowid DESC LIMIT 1`,
     )
-    .get(input.chatJid, input.aiUserId) as { at: number; member: string | null } | undefined;
+    .get(input.chatJid, input.aiUserId) as
+    { at: number; body: string | null; member: string | null } | undefined;
   if (!last?.member || normalizeContactJid(last.member) !== normalizeContactJid(input.senderJid))
     return false;
+  if (last.body === GROUP_HANDOVER_REPLY || last.body === GROUP_SENSITIVE_REPLY) return false;
   return loopGuard(db, input.chatJid).since <= last.at;
 }
 
@@ -307,9 +311,14 @@ export function setAgentGroups(
     ip: actor.ip,
     meta: { agentId: agent.id, agentName: agent.displayName, ...body },
   });
-  if (body.enabled === false || body.scope === 'selected' || body.mode === 'tag')
-    ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
-  return agentGroups(ctx, agent.id);
+  const result = agentGroups(ctx, agent.id);
+  // Only groups that no longer answer lose their waiting answers; a group that still answers keeps
+  // its tags and quotes (an untagged message is checked against the mode again in its turn).
+  if (body.enabled === false) ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
+  else
+    for (const group of result.groups)
+      if (group.mode === 'off') ctx.services.ai?.stopGroupTurns({ jid: group.jid });
+  return result;
 }
 
 const requireGroupChat = (ctx: AppContext, jid: string) => {
@@ -353,7 +362,9 @@ export function setGroupChat(
     ip: actor.ip,
     meta: { chatJid: jid, groupName: chat.name, setting, enabled: setting !== 'off' },
   });
-  // Off, or a mode that may not answer what is waiting: drop the waiting answers.
-  if (setting !== 'open') ctx.services.ai?.stopGroupTurns({ jid });
-  return groupChatStatus(ctx, jid);
+  const status = groupChatStatus(ctx, jid);
+  // Off drops the waiting answers; Tag and quote still answers waiting tags and quotes (an untagged
+  // message is checked against the mode again in its turn).
+  if (status.mode === 'off') ctx.services.ai?.stopGroupTurns({ jid });
+  return status;
 }

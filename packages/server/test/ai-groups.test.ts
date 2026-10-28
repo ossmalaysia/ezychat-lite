@@ -483,6 +483,13 @@ describe('loop guard', { timeout: 60_000 }, () => {
     expect(groupLines().filter((l) => l.kind === 'paused')).toEqual([
       { kind: 'paused', member: null },
     ]);
+    // In Open chat while paused: no decision call for chatter that could never be answered.
+    setGroupChat(t.ctx, G, 'open', actor);
+    gate = () => ({ reach: 'open', sensitive: false });
+    const gateCalls = gatePrompts.length;
+    await inGroup('Anyone know the price of Kopi O?', { from: ARJUN, name: 'Arjun Pillai' });
+    await settle();
+    expect(gatePrompts).toHaveLength(gateCalls);
 
     await teammateWrites();
     expect(loopGuard(t.ctx.db, G).paused).toBe(false);
@@ -648,6 +655,49 @@ describe('Open chat and sensitive topics', { timeout: 30_000 }, () => {
     expect(groupLines().at(-1)).toEqual({ kind: 'declined', member: 'Farah Aziz' });
     expect(provider.generate).not.toHaveBeenCalled();
     expect(GUARDRAILS).toContain('Never discuss politics, race, religion or gender');
+    // The polite line ends the conversation: Farah's next untagged message is not a follow-up.
+    gate = () => ({ reach: 'continue', sensitive: false });
+    await inGroup('ok, then what time do you open?');
+    await settle();
+    expect(JSON.parse(gatePrompts.at(-1)!.input).inConversation).toBe(false);
+    expect(sentToGroup()).toHaveLength(1);
+  });
+
+  it('keeps room for tags when chatter fills the queue, and decides each message on what came before it', async () => {
+    await setUp();
+    openChat();
+    gate = () => ({ reach: 'chat', sensitive: false });
+    for (let i = 0; i < 6; i++) await inGroup(`hello ${i}`, { from: ARJUN, name: 'Arjun Pillai' });
+    for (let i = 0; i < 3; i++) await tag(`@60000000000 question ${i}`);
+    await settle();
+    await settle();
+    // At most 3 untagged messages wait; the third tag took the place of the oldest one.
+    expect(sentToGroup()).toHaveLength(3);
+    const decided = gatePrompts.map(
+      (p) => (JSON.parse(p.input) as { message: { text: string } }).message.text,
+    );
+    expect(decided.filter((text) => text.startsWith('hello'))).toEqual(['hello 1', 'hello 2']);
+    // The first decision sees only the messages before "hello 1", never the later ones.
+    const seen = (
+      JSON.parse(gatePrompts[0]!.input) as { conversation: Array<{ text: string }> }
+    ).conversation.map((turn) => turn.text);
+    expect(seen).toContain('hello 0');
+    expect(seen).not.toContain('hello 2');
+  });
+
+  it('still answers a waiting tag when the group goes from Open chat to Tag and quote', async () => {
+    await setUp();
+    openChat();
+    gate = () => ({ reach: 'open', sensitive: false });
+    await tag();
+    setGroupChat(t.ctx, G, 'tag', actor);
+    await settle();
+    expect(sentToGroup()).toHaveLength(1);
+    // Choosing the mode it already has stops nothing either.
+    await tag();
+    setAgentGroups(t.ctx, agentId, { mode: 'tag' }, actor);
+    await settle();
+    expect(sentToGroup()).toHaveLength(2);
   });
 
   it('answers a group never set in all groups, in the agent mode, and not in selected groups', async () => {

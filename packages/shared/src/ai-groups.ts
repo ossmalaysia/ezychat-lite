@@ -41,20 +41,36 @@ export const AiGroupEvent = z.object({
 });
 export type AiGroupEvent = z.infer<typeof AiGroupEvent>;
 
+/**
+ * An answer from a server before Open chat has `enabled` only: a group switched on was Tag and
+ * quote with the agent's default, a group switched off is Off.
+ */
+function fillFromEnabled<
+  T extends { enabled: boolean; setting?: AiGroupSetting; mode?: AiGroupEffectiveMode },
+>(value: T): T & { setting: AiGroupSetting; mode: AiGroupEffectiveMode } {
+  return {
+    ...value,
+    setting: value.setting ?? (value.enabled ? 'default' : 'off'),
+    mode: value.mode ?? (value.enabled ? 'tag' : 'off'),
+  };
+}
+
 /** One WhatsApp group of the agent's inbox on the agent page. */
-export const AiGroupRow = z.object({
-  jid: z.string(),
-  name: z.string(),
-  memberCount: z.number().int().nonnegative().nullable(),
-  /** The group's choice is not Off (a group never set follows the agent's scope). */
-  enabled: z.boolean(),
-  /** The group's choice as the list shows it. */
-  setting: AiGroupSetting.default('default'),
-  /** How the AI behaves there while the agent answers in groups. */
-  mode: AiGroupEffectiveMode.default('tag'),
-  /** The loop guard holds now in this group (the AI waits for a teammate message). */
-  paused: z.boolean().default(false),
-});
+export const AiGroupRow = z
+  .object({
+    jid: z.string(),
+    name: z.string(),
+    memberCount: z.number().int().nonnegative().nullable(),
+    /** The group's choice is not Off (a group never set follows the agent's scope). */
+    enabled: z.boolean(),
+    /** The group's choice as the list shows it. */
+    setting: AiGroupSetting.optional(),
+    /** How the AI behaves there while the agent answers in groups. */
+    mode: AiGroupEffectiveMode.optional(),
+    /** The loop guard holds now in this group (the AI waits for a teammate message). */
+    paused: z.boolean().default(false),
+  })
+  .transform(fillFromEnabled);
 export type AiGroupRow = z.infer<typeof AiGroupRow>;
 
 /** `GET /api/ai/agents/:agentId/groups` (admins): the settings, the inbox's groups and the guard. */
@@ -87,26 +103,28 @@ export type AiAgentGroupsBody = z.infer<typeof AiAgentGroupsBody>;
  * `GET /api/chats/:jid/ai-group` (anyone who may open the chat) and `PUT` (admins, body
  * `AiGroupChatBody`): the group's choice and how the AI behaves there.
  */
-export const AiGroupChat = z.object({
-  /** The group's choice is not Off. */
-  enabled: z.boolean(),
-  setting: AiGroupSetting.default('default'),
-  /** How the AI behaves here while the agent answers in groups ('off': never). */
-  mode: AiGroupEffectiveMode.default('tag'),
-  /** The agent of the group's inbox, if any. */
-  agentId: z.number().int().positive().nullable(),
-  agentName: z.string().nullable(),
-  /** The agent's default mode (what "default" means here). */
-  agentMode: AiGroupMode.default('tag'),
-  /** The agent's scope (what a group never set follows). */
-  agentScope: AiGroupScope.default('selected'),
-  /** The agent itself is on (else nothing is answered, whatever the switches say). */
-  agentEnabled: z.boolean().default(false),
-  /** The agent is on and its "Answer in groups" is on (else the group's choice has no effect). */
-  agentAnswersGroups: z.boolean(),
-  /** The loop guard holds now: the AI waits for a teammate message in this group. */
-  paused: z.boolean(),
-});
+export const AiGroupChat = z
+  .object({
+    /** The group's choice is not Off. */
+    enabled: z.boolean(),
+    setting: AiGroupSetting.optional(),
+    /** How the AI behaves here while the agent answers in groups ('off': never). */
+    mode: AiGroupEffectiveMode.optional(),
+    /** The agent of the group's inbox, if any. */
+    agentId: z.number().int().positive().nullable(),
+    agentName: z.string().nullable(),
+    /** The agent's default mode (what "default" means here). */
+    agentMode: AiGroupMode.default('tag'),
+    /** The agent's scope (what a group never set follows). */
+    agentScope: AiGroupScope.default('selected'),
+    /** The agent itself is on (else nothing is answered, whatever the switches say). */
+    agentEnabled: z.boolean().default(false),
+    /** The agent is on and its "Answer in groups" is on (else the group's choice has no effect). */
+    agentAnswersGroups: z.boolean(),
+    /** The loop guard holds now: the AI waits for a teammate message in this group. */
+    paused: z.boolean(),
+  })
+  .transform(fillFromEnabled);
 export type AiGroupChat = z.infer<typeof AiGroupChat>;
 /** `{ setting }`, or the earlier `{ enabled }` (true = the agent's default mode, false = Off). */
 export const AiGroupChatBody = z.union([
