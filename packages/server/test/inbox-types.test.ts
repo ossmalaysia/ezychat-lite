@@ -186,7 +186,12 @@ describe('adapter factory by inbox type', () => {
       replyWindowHours: null,
       templates: false,
       needsPublicUrl: false,
+      // a linked phone edits and deletes (an extension type reports what it can)
+      editMessage: true,
+      deleteForEveryone: true,
+      deleteForMe: true,
     });
+    expect(listed[1]!.capabilities.editMessage).toBeUndefined();
   });
 
   it('refuses a type no extension registered (400 unknown_inbox_type) and creates nothing', async () => {
