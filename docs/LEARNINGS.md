@@ -187,6 +187,9 @@ into AGENTS.md.
   `node scripts/smoke-packaged.mjs apps/desktop/release-check`, then the packaged server with
   `ELECTRON_RUN_AS_NODE=1` on temp data, `--fake-wa`, port 7432 and `e2e/marketing-screenshots.mjs 7432`.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
+  For `screens.smoke.mjs` against that server add `--web-dist resources/web` (else every page is 404) and
+  start it on fresh data (the smoke creates the admin once); its `oauth-authorize` FAIL there is the
+  expected 409 of AI assistant access being off, not a fault.
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
   (`compare.commits`), not just any commit in a log.

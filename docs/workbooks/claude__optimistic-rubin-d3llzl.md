@@ -41,8 +41,8 @@ overlay and one hover button; screen review and mock confirmation are open items
 | Dev | done | Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu | 2f74993 | 2026-10-27 |
 | Unit tests | pass | Taken over 2026-10-28: main merged; full suite 3803 passed with coverage (changed lines 94.2 %, total 90.45 %); review fixes with tests | 5116f716 | 2026-10-28 |
 | E2E | pass | Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens | 5116f716 | 2026-10-28 |
-| Dev Build | todo | Not yet: real desktop window on Windows (Electron drag-out, right-click menu, Explorer paste) | af8d1ea | 2026-10-27 |
-| Screen review | doing | 16 shots in docs/screenshots/file-transfer (1280/360, light/dark); overlay made more opaque; owner review pending | af8d1ea | 2026-10-27 |
+| Dev Build | pass | packaged build 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off) | 437883a3 | 2026-10-28 |
+| Screen review | pass | packaged build 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer | 437883a3 | 2026-10-28 |
 
 ## Log
 
@@ -57,3 +57,5 @@ overlay and one hover button; screen review and mock confirmation are open items
 - 2026-10-27 E2E: pass — On merge head bd1c425: file-transfer, responsive (360 px), reply, reply-suggestions 25 passed. Desktop-window link check not run (no Windows here) (bd1c425)
 - 2026-10-28 Unit tests: pass — Taken over 2026-10-28: main merged; full suite 3803 passed with coverage (changed lines 94.2 %, total 90.45 %); review fixes with tests (5116f716)
 - 2026-10-28 E2E: pass — Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens (5116f716)
+- 2026-10-28 Dev Build: pass — packaged build 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off) (437883a3)
+- 2026-10-28 Screen review: pass — packaged build 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer (437883a3)
