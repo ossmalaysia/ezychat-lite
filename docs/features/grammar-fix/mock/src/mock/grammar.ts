@@ -5,22 +5,34 @@ import { api } from '@/api/client';
 export type MockGrammarMode = 'normal' | 'slow' | 'error' | 'expired';
 export type MockGrammarInstall = 'new' | 'upgraded';
 
-/** The admin switch and what the composer shows: nothing, a quiet "unavailable" or on. */
+/**
+ * The admin switch and what the composer does. Spelling runs in the browser (no AI); grammar needs
+ * the AI connection: `none` = no connection (spelling only), `unavailable` = it needs attention.
+ */
 export interface GrammarState {
   enabled: boolean;
   mode: MockGrammarMode;
   install: MockGrammarInstall;
   connected: boolean;
-  composer: 'off' | 'unavailable' | 'on';
+  spelling: 'off' | 'on';
+  grammar: 'off' | 'none' | 'unavailable' | 'on';
 }
 
-/** One mistake: replace `text.slice(start, end)` with `replacement`. */
+/** A team word: never underlined. Learned from Business context, or added by a teammate. */
+export interface TeamWord {
+  word: string;
+  source: 'business' | 'team';
+  addedBy: string | null;
+  at: number;
+}
+
+/** One mistake: replace `text.slice(start, end)` with `replacement` (null: a word the dictionary does not know). */
 export interface GrammarIssue {
   id: string;
   start: number;
   end: number;
   original: string;
-  replacement: string;
+  replacement: string | null;
   kind: 'spelling' | 'grammar';
 }
 
@@ -39,7 +51,29 @@ export function useGrammarState() {
   });
 }
 
-/** The mistakes in the typed text (the app: `POST /api/chats/:jid/ai/fix-english`). */
+export const teamWordsKey = ['mock', 'grammar', 'words'] as const;
+
+/** The team word list (the app: `GET /api/fix-english/words`). */
+export function useTeamWords(enabled = true) {
+  return useQuery({
+    queryKey: teamWordsKey,
+    queryFn: () => api<{ words: TeamWord[] }>('/mock/grammar/words'),
+    enabled,
+    refetchInterval: 15_000,
+  });
+}
+
+export function addTeamWord(word: string) {
+  return api<{ words: TeamWord[] }>('/mock/grammar/words', { body: { word } });
+}
+
+export function removeTeamWord(word: string) {
+  return api<{ words: TeamWord[] }>(`/mock/grammar/words/${encodeURIComponent(word)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** The grammar mistakes in the typed text, from the AI (the app: `POST /api/chats/:jid/ai/fix-grammar`). */
 export function checkGrammar(text: string, signal: AbortSignal) {
   return api<GrammarResult>('/mock/grammar/check', { body: { text }, signal });
 }
@@ -73,7 +107,8 @@ export function shiftIssues(issues: GrammarIssue[], before: string, after: strin
 export function applyIssues(text: string, issues: GrammarIssue[]): string {
   let next = text;
   for (const issue of [...issues].sort((a, b) => b.start - a.start)) {
-    if (next.slice(issue.start, issue.end) !== issue.original) continue;
+    if (issue.replacement == null || next.slice(issue.start, issue.end) !== issue.original)
+      continue;
     next = next.slice(0, issue.start) + issue.replacement + next.slice(issue.end);
   }
   return next;

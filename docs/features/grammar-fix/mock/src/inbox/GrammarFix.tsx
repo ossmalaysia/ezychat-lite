@@ -1,37 +1,48 @@
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, CircleAlert, CircleCheck, Loader2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, BookPlus, CircleAlert, CircleCheck, Loader2, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { checkGrammar, shiftIssues, type GrammarIssue } from '@/mock/grammar';
+import { checkGrammar, shiftIssues, useTeamWords, type GrammarIssue } from '@/mock/grammar';
+import { checkSpelling, teamWordSet } from '@/mock/spelling';
 
-/** The check runs after this pause in typing, so typing itself makes no model calls. */
+/** The grammar check runs after this pause in typing, so typing itself makes no AI request. */
 const CHECK_PAUSE_MS = 700;
 
 export type GrammarStatus = 'idle' | 'checking' | 'done' | 'skipped' | 'error';
 
 /**
- * Proposed (grammar-fix): checks the typed English after a pause and keeps the underlines in place
- * while the teammate types on (an edited mistake disappears until the next check).
+ * Proposed (grammar-fix): spelling is checked in the browser on every key (dictionary, no AI);
+ * grammar goes to the AI after a pause and its underlines stay in place while the teammate types on
+ * (an edited mistake disappears until the next check). A spelling mark wins over a grammar mark on
+ * the same word.
  */
-export function useGrammarCheck(text: string, on: boolean) {
-  const [issues, setIssues] = useState<GrammarIssue[]>([]);
+export function useGrammarCheck(
+  text: string,
+  { spelling, grammar }: { spelling: boolean; grammar: boolean },
+) {
+  const words = useTeamWords(spelling);
+  const team = useMemo(
+    () => teamWordSet((words.data?.words ?? []).map((w) => w.word)),
+    [words.data],
+  );
+  const [grammarIssues, setGrammarIssues] = useState<GrammarIssue[]>([]);
   const [status, setStatus] = useState<GrammarStatus>('idle');
   const [checkedFor, setCheckedFor] = useState<string | null>(null);
   const previous = useRef(text);
-  /** "Ignore" hides that fix for the rest of this draft. */
-  const ignored = useRef(new Set<string>());
-  const keyOf = (issue: GrammarIssue) => `${issue.original}→${issue.replacement}`;
+  /** "Ignore" hides that mark for the rest of this draft. */
+  const [ignored, setIgnored] = useState<ReadonlySet<string>>(new Set());
+  const keyOf = (issue: GrammarIssue) => `${issue.original}→${issue.replacement ?? ''}`;
 
   useLayoutEffect(() => {
-    setIssues((current) => shiftIssues(current, previous.current, text));
+    setGrammarIssues((current) => shiftIssues(current, previous.current, text));
     previous.current = text;
-    if (!text.trim()) ignored.current.clear();
+    if (!text.trim()) setIgnored(new Set());
   }, [text]);
 
   useEffect(() => {
-    if (!on || !text.trim()) {
-      setIssues([]);
+    if (!grammar || !text.trim()) {
+      setGrammarIssues([]);
       setStatus('idle');
       setCheckedFor(null);
       return;
@@ -43,13 +54,8 @@ export function useGrammarCheck(text: string, on: boolean) {
       checkGrammar(text, cancel.signal)
         .then((result) => {
           if (cancel.signal.aborted) return;
-          if (result.status === 'skipped') {
-            setIssues([]);
-            setStatus('skipped');
-          } else {
-            setIssues(result.issues.filter((issue) => !ignored.current.has(keyOf(issue))));
-            setStatus('done');
-          }
+          setGrammarIssues(result.status === 'checked' ? result.issues : []);
+          setStatus(result.status === 'checked' ? 'done' : 'skipped');
           setCheckedFor(text);
         })
         .catch(() => {
@@ -60,14 +66,27 @@ export function useGrammarCheck(text: string, on: boolean) {
       clearTimeout(timer);
       cancel.abort();
     };
-  }, [text, on, checkedFor]);
+  }, [text, grammar, checkedFor]);
+
+  const spellingIssues = useMemo(
+    () => (spelling && text.trim() ? checkSpelling(text, team) : []),
+    [spelling, text, team],
+  );
+  const issues = useMemo(() => {
+    const visible = spellingIssues.filter((i) => !ignored.has(keyOf(i)));
+    for (const g of grammarIssues)
+      if (!ignored.has(keyOf(g)) && !visible.some((s) => g.start < s.end && g.end > s.start))
+        visible.push(g);
+    return visible.sort((a, b) => a.start - b.start);
+  }, [spellingIssues, grammarIssues, ignored]);
 
   return {
     issues,
+    /** What Fix all changes: every mark with a fix (unknown words have none). */
+    fixable: issues.filter((i) => i.replacement != null),
     status,
     ignore(issue: GrammarIssue) {
-      ignored.current.add(keyOf(issue));
-      setIssues((current) => current.filter((i) => i.id !== issue.id));
+      setIgnored((current) => new Set(current).add(keyOf(issue)));
     },
   };
 }
@@ -117,13 +136,17 @@ export const GrammarMarks = forwardRef<
   );
 });
 
-/** The card over one underlined word: the fix as one button, and Ignore. */
+/**
+ * The card over one underlined word: the fix as one button and Ignore; for a word the dictionary
+ * does not know (a product or place name), "Add to team words" instead of a fix.
+ */
 export function GrammarCard({
   issue,
   position,
   touch,
   onAccept,
   onIgnore,
+  onAddWord,
   onClose,
   onHover,
 }: {
@@ -132,10 +155,12 @@ export function GrammarCard({
   touch: boolean;
   onAccept(): void;
   onIgnore(): void;
+  onAddWord(): void;
   onClose(): void;
   onHover(inside: boolean): void;
 }) {
   const { t } = useTranslation('inbox');
+  const unknown = issue.replacement == null;
   return (
     <div
       role="dialog"
@@ -154,7 +179,11 @@ export function GrammarCard({
             issue.kind === 'spelling' ? 'text-destructive' : 'text-info',
           )}
         >
-          {issue.kind === 'spelling' ? t('mockGrammar.spelling') : t('mockGrammar.grammar')}
+          {unknown
+            ? t('mockGrammar.unknown')
+            : issue.kind === 'spelling'
+              ? t('mockGrammar.spelling')
+              : t('mockGrammar.grammar')}
         </span>
         {touch && (
           <Button
@@ -168,47 +197,75 @@ export function GrammarCard({
           </Button>
         )}
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <span className="px-1 text-sm text-muted-foreground line-through">{issue.original}</span>
-        <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
-        <Button
-          size="sm"
-          className={cn('font-semibold', touch && 'min-h-11 px-4')}
-          onClick={onAccept}
-          data-testid="grammar-accept"
-        >
-          {issue.replacement}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className={cn('text-muted-foreground', touch && 'min-h-11')}
-          onClick={onIgnore}
-          data-testid="grammar-ignore"
-        >
-          {t('mockGrammar.ignore')}
-        </Button>
-      </div>
+      {unknown ? (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span className="px-1 text-sm font-medium">{issue.original}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className={cn(touch && 'min-h-11')}
+            onClick={onAddWord}
+            data-testid="grammar-add-word"
+          >
+            <BookPlus aria-hidden="true" />
+            {t('mockGrammar.addWord')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={cn('text-muted-foreground', touch && 'min-h-11')}
+            onClick={onIgnore}
+            data-testid="grammar-ignore"
+          >
+            {t('mockGrammar.ignore')}
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span className="px-1 text-sm text-muted-foreground line-through">{issue.original}</span>
+          <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          <Button
+            size="sm"
+            className={cn('font-semibold', touch && 'min-h-11 px-4')}
+            onClick={onAccept}
+            data-testid="grammar-accept"
+          >
+            {issue.replacement}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={cn('text-muted-foreground', touch && 'min-h-11')}
+            onClick={onIgnore}
+            data-testid="grammar-ignore"
+          >
+            {t('mockGrammar.ignore')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * The one button in the composer's bottom row: "Fix 3" (all at once), a quiet check when nothing
- * is wrong, "3 fixed · Undo" for a few seconds after a fix.
+ * The composer's bottom-row status: "Fix 3" (every mark with a fix), the grammar check spinner,
+ * a quiet "No mistakes", "3 fixed · Undo" for a few seconds after a fix, and a short note when the
+ * AI grammar check is down (spelling keeps working: it needs no AI).
  */
 export function GrammarFixButton({
   count,
+  marks,
   status,
-  unavailable,
+  grammar,
   touch,
   undo,
   onFixAll,
   onUndo,
 }: {
   count: number;
+  marks: number;
   status: GrammarStatus;
-  unavailable: boolean;
+  grammar: 'off' | 'none' | 'unavailable' | 'on';
   touch: boolean;
   undo: { count: number } | null;
   onFixAll(): void;
@@ -235,19 +292,10 @@ export function GrammarFixButton({
         </Button>
       </span>
     );
-  if (unavailable || status === 'error')
-    return (
-      <span
-        className="flex items-center gap-1 text-xs text-muted-foreground"
-        title={t('mockGrammar.unavailableHint')}
-        data-testid="grammar-unavailable"
-      >
-        <CircleAlert className="size-3.5" aria-hidden="true" />
-        {t('mockGrammar.unavailable')}
-      </span>
-    );
+  const grammarDown = grammar === 'unavailable' || (grammar === 'on' && status === 'error');
+  let main: React.ReactNode = null;
   if (count > 0)
-    return (
+    main = (
       <Button
         variant="outline"
         size={touch ? 'touch' : 'sm'}
@@ -266,15 +314,15 @@ export function GrammarFixButton({
         )}
       </Button>
     );
-  if (status === 'checking')
-    return (
+  else if (status === 'checking')
+    main = (
       <span className="flex items-center text-muted-foreground" data-testid="grammar-checking">
         <Loader2 className="size-4 animate-spin" aria-hidden="true" />
         <span className="sr-only">{t('mockGrammar.checking')}</span>
       </span>
     );
-  if (status === 'done')
-    return (
+  else if (marks === 0 && (status === 'done' || grammar === 'none'))
+    main = (
       <span
         className="flex items-center gap-1 text-xs text-muted-foreground"
         data-testid="grammar-clean"
@@ -283,5 +331,19 @@ export function GrammarFixButton({
         {t('mockGrammar.clean')}
       </span>
     );
-  return null;
+  return (
+    <>
+      {grammarDown && (
+        <span
+          className="flex items-center gap-1 text-xs text-muted-foreground"
+          title={t('mockGrammar.unavailableHint')}
+          data-testid="grammar-unavailable"
+        >
+          <CircleAlert className="size-3.5" aria-hidden="true" />
+          {t('mockGrammar.unavailable')}
+        </span>
+      )}
+      {main}
+    </>
+  );
 }

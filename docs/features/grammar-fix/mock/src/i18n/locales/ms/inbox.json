@@ -645,7 +645,9 @@
     "undo": "Buat asal",
     "checking": "Menyemak bahasa Inggeris anda…",
     "clean": "Tiada kesilapan",
-    "unavailable": "Betulkan Bahasa Inggeris tidak tersedia",
-    "unavailableHint": "Sambungan AI perlu diperiksa. Mesej anda masih boleh dihantar."
+    "unavailable": "Semakan tatabahasa tidak tersedia",
+    "unavailableHint": "Sambungan AI perlu diperiksa. Ejaan masih disemak, dan mesej anda boleh dihantar.",
+    "unknown": "Tiada dalam kamus",
+    "addWord": "Tambah ke perkataan pasukan"
   }
 }

@@ -24,7 +24,14 @@ import {
   type ReplySuggestion,
 } from '@/mock/replySuggestions';
 import { matchPhrase, notePhraseUsed, usePhraseList } from '@/mock/phrases';
-import { applyIssues, useGrammarState, type GrammarIssue } from '@/mock/grammar';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  addTeamWord,
+  applyIssues,
+  teamWordsKey,
+  useGrammarState,
+  type GrammarIssue,
+} from '@/mock/grammar';
 import { GrammarCard, GrammarFixButton, GrammarMarks, useGrammarCheck } from './GrammarFix';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
 import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
@@ -145,8 +152,13 @@ export function Composer({
 
   // Proposed (grammar-fix): Fix English. Underlines after a pause, a card per word, Fix all.
   const grammarState = useGrammarState();
-  const grammarMode = grammarState.data?.composer ?? 'off';
-  const grammar = useGrammarCheck(text, grammarMode === 'on' && !disabled);
+  const spellingMode = grammarState.data?.spelling ?? 'off';
+  const grammarMode = grammarState.data?.grammar ?? 'off';
+  const grammar = useGrammarCheck(text, {
+    spelling: spellingMode === 'on' && !disabled,
+    grammar: grammarMode === 'on' && !disabled,
+  });
+  const queryClient = useQueryClient();
   const marksRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [card, setCard] = useState<{ id: string; left: number; bottom: number } | null>(null);
@@ -186,15 +198,20 @@ export function Composer({
 
   function acceptIssue(issue: GrammarIssue) {
     const next = applyIssues(text, [issue]);
-    pendingCaret.current = issue.start + issue.replacement.length;
+    pendingCaret.current = issue.start + (issue.replacement ?? issue.original).length;
     setCard(null);
     setText(next);
   }
 
+  function addWord(issue: GrammarIssue) {
+    setCard(null);
+    void addTeamWord(issue.original).then((data) => queryClient.setQueryData(teamWordsKey, data));
+  }
+
   function fixAll() {
-    const count = grammar.issues.length;
+    const count = grammar.fixable.length;
     if (!count) return;
-    const next = applyIssues(text, grammar.issues);
+    const next = applyIssues(text, grammar.fixable);
     pendingCaret.current = next.length;
     setCard(null);
     setUndo({ before: text, after: next, count });
@@ -692,6 +709,9 @@ export function Composer({
                 }}
                 // Enter inserts a newline on touch keyboards, so label the key accordingly.
                 enterKeyHint={coarsePointer ? 'enter' : 'send'}
+                // Proposed (grammar-fix): Fix English marks spelling itself, so the browser's own
+                // red underline would mark the same words twice.
+                spellCheck={spellingMode !== 'on'}
                 className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
               />
               <GrammarMarks
@@ -706,6 +726,7 @@ export function Composer({
                   position={card}
                   touch={coarsePointer}
                   onAccept={() => acceptIssue(cardIssue)}
+                  onAddWord={() => addWord(cardIssue)}
                   onIgnore={() => {
                     grammar.ignore(cardIssue);
                     setCard(null);
@@ -811,11 +832,12 @@ export function Composer({
                 {t('mockSuggest.tabHint')}
               </span>
             )}
-            {grammarMode !== 'off' && text.trim() !== '' && (
+            {spellingMode !== 'off' && text.trim() !== '' && (
               <GrammarFixButton
-                count={grammar.issues.length}
+                count={grammar.fixable.length}
+                marks={grammar.issues.length}
                 status={grammar.status}
-                unavailable={grammarMode === 'unavailable'}
+                grammar={grammarMode}
                 touch={coarsePointer}
                 undo={undo}
                 onFixAll={fixAll}

@@ -14,7 +14,7 @@ export interface MockGrammarIssue {
   kind: 'spelling' | 'grammar';
 }
 
-/** What `POST /api/mock/grammar/check` answers (the app's future `POST /api/chats/:jid/ai/fix-english`). */
+/** What `POST /api/mock/grammar/check` answers (the app's future `POST /api/chats/:jid/ai/fix-grammar`). */
 export type MockGrammarResult =
   | { status: 'checked'; issues: MockGrammarIssue[] }
   /** Malay, Chinese or mixed text: nothing is checked, nothing is shown. */
@@ -37,50 +37,12 @@ const keepCase = (word: string) => (match: string) =>
     ? word[0]!.toUpperCase() + word.slice(1)
     : word;
 
-const SPELLING: Record<string, string> = {
-  pls: 'please',
-  plz: 'please',
-  recieve: 'receive',
-  recieved: 'received',
-  teh: 'the',
-  tommorow: 'tomorrow',
-  tomorow: 'tomorrow',
-  alredy: 'already',
-  allready: 'already',
-  untill: 'until',
-  wil: 'will',
-  adress: 'address',
-  deliverd: 'delivered',
-  delievery: 'delivery',
-  delivey: 'delivery',
-  definately: 'definitely',
-  seperate: 'separate',
-  avaliable: 'available',
-  availabe: 'available',
-  thier: 'their',
-  becuase: 'because',
-  wich: 'which',
-  dont: "don't",
-  cant: "can't",
-  wont: "won't",
-  didnt: "didn't",
-  doesnt: "doesn't",
-  isnt: "isn't",
-  im: "I'm",
-  u: 'you',
-};
-
 /**
- * Deterministic stand-in for the model: a fixed list of the typos and grammar slips seen in the
- * team's replies. The app asks the fast model for the same JSON (positions, original, fix).
+ * Deterministic stand-in for the model: a fixed list of grammar slips seen in the team's replies.
+ * Spelling is not here: the browser checks it at once against the dictionary (`src/mock/spelling.ts`).
+ * The app asks the fast model for the same JSON (positions, original, fix), grammar only.
  */
 const RULES: Rule[] = [
-  ...Object.entries(SPELLING).map(([from, to]): Rule => ({
-    re: new RegExp(`\\b${from}\\b`, 'gid'),
-    kind: 'spelling',
-    // "I'm" and "I" stay capital wherever they are.
-    fix: to.startsWith('I') ? () => to : keepCase(to),
-  })),
   { re: /\bi\b(?!')/dg, kind: 'grammar', fix: () => 'I' },
   {
     re: /\b(?:order|parcel|item|payment|invoice|booking) (have)\b/dgi,
@@ -175,13 +137,24 @@ export function registerGrammarFix(app: FastifyInstance, ctx: AppContext): void 
   let install: MockInstall = 'new';
   let mode: MockMode = 'normal';
   const connected = () => ctx.services.ai?.status().connection.state === 'connected';
+  // Spelling runs in the browser and needs no AI; grammar needs the AI connection.
   const state = () => ({
     enabled,
     mode,
     install,
     connected: connected(),
-    composer: !enabled || !connected() ? 'off' : mode === 'expired' ? 'unavailable' : 'on',
+    spelling: enabled ? 'on' : 'off',
+    grammar: !enabled ? 'off' : !connected() ? 'none' : mode === 'expired' ? 'unavailable' : 'on',
   });
+  /** Team words: never underlined. Learned from Business context, or added by a teammate. */
+  type Word = { word: string; source: 'business' | 'team'; addedBy: string | null; at: number };
+  const words: Word[] = [
+    ...['Kopi Apong', 'Kopi O', 'Teh Tarik', 'nasi lemak', 'Georgetown', 'Bayan Lepas'].map(
+      (word): Word => ({ word, source: 'business', addedBy: null, at: Date.now() - 86_400_000 }),
+    ),
+    { word: 'kopitiam', source: 'team', addedBy: 'Mei Ling', at: Date.now() - 3_600_000 },
+  ];
+  const wordList = () => ({ words: [...words].sort((a, b) => a.word.localeCompare(b.word)) });
 
   app.get('/api/mock/grammar', { preHandler: requireUser(ctx) }, async () => state());
 
@@ -207,8 +180,9 @@ export function registerGrammarFix(app: FastifyInstance, ctx: AppContext): void 
   app.post('/api/mock/grammar/check', { preHandler: requireUser(ctx) }, async (req) => {
     const { text } = parse(z.object({ text: z.string().max(4_000) }), req.body);
     const current = state();
-    if (current.composer === 'off') throw errors.conflict('Fix English is off');
-    if (current.composer === 'unavailable')
+    if (current.grammar === 'off' || current.grammar === 'none')
+      throw errors.conflict('Grammar check is off');
+    if (current.grammar === 'unavailable')
       throw new HttpError(503, 'ai_unavailable', 'The AI connection needs attention');
     const cancel = new AbortController();
     req.raw.once('close', () => cancel.abort());
@@ -217,5 +191,24 @@ export function registerGrammarFix(app: FastifyInstance, ctx: AppContext): void 
     if (mode === 'error')
       throw new HttpError(503, 'ai_unavailable', 'The AI provider did not answer');
     return checkText(text);
+  });
+
+  app.get('/api/mock/grammar/words', { preHandler: requireUser(ctx) }, async () => wordList());
+
+  // Any teammate adds a word from the underline card; admins remove words in Settings → AI.
+  app.post('/api/mock/grammar/words', { preHandler: requireUser(ctx) }, async (req) => {
+    const { word } = parse(z.object({ word: z.string().trim().min(1).max(40) }), req.body);
+    if (/\d|\s{2,}|https?:/i.test(word)) throw errors.validation('Words only, no numbers or links');
+    if (words.length >= 500) throw errors.conflict('The team word list is full (500 words)');
+    if (!words.some((w) => w.word.toLowerCase() === word.toLowerCase()))
+      words.push({ word, source: 'team', addedBy: req.user?.displayName ?? null, at: Date.now() });
+    return wordList();
+  });
+
+  app.delete('/api/mock/grammar/words/:word', { preHandler: requireAdmin(ctx) }, async (req) => {
+    const { word } = parse(z.object({ word: z.string() }), req.params);
+    const at = words.findIndex((w) => w.word.toLowerCase() === word.toLowerCase());
+    if (at >= 0) words.splice(at, 1);
+    return wordList();
   });
 }

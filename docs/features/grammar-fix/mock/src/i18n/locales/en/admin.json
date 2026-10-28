@@ -1968,11 +1968,20 @@
   },
   "mockGrammar": {
     "title": "Fix English",
-    "description": "While a teammate types an English reply, the AI underlines spelling and grammar mistakes. One tap fixes them; nothing is changed or sent without the teammate.",
+    "description": "While a teammate types an English reply, spelling mistakes are underlined at once and grammar mistakes after a short pause. One tap fixes them; nothing is changed or sent without the teammate.",
     "enable": "Check English for the team",
-    "cost": "One short AI request after each pause in typing (the fast model). Malay and Chinese messages are not checked.",
+    "cost": "Spelling is checked on this device with a built-in British English dictionary (about 0.2 MB, loaded once): free, no AI. Grammar is one short AI request after each pause in typing (the fast model). Malay and Chinese messages are not checked.",
     "rules": "It fixes spelling and grammar only. Numbers, prices, names, links and order numbers are never changed, and the teammate's tone stays (lah, ya).",
-    "noConnection": "Connect AI above to use Fix English.",
-    "upgraded": "New: Fix English is off after the update. Switch it on to help the team write correct English."
+    "noConnection": "No AI connection: only spelling is checked. Connect AI above to check grammar too.",
+    "upgraded": "New: Fix English is off after the update. Switch it on to help the team write correct English.",
+    "wordsTitle_one": "Team words ({{count}})",
+    "wordsTitle_other": "Team words ({{count}})",
+    "wordsHint": "Never underlined: product, place and customer words that the dictionary does not know. Words from your Business context are added by themselves; teammates add more from the underline.",
+    "wordsAdd": "Add word",
+    "wordsPlaceholder": "e.g. cendol",
+    "wordsEmpty": "No team words yet.",
+    "wordsFromContext": "Business context",
+    "wordsAddedBy": "added by {{name}}",
+    "wordsRemove": "Remove {{word}}"
   }
 }

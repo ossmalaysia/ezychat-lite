@@ -648,7 +648,9 @@
     "undo": "Undo",
     "checking": "Checking your English…",
     "clean": "No mistakes",
-    "unavailable": "Fix English unavailable",
-    "unavailableHint": "The AI connection needs attention. Your message can still be sent."
+    "unavailable": "Grammar check unavailable",
+    "unavailableHint": "The AI connection needs attention. Spelling is still checked, and your message can be sent.",
+    "unknown": "Not in the dictionary",
+    "addWord": "Add to team words"
   }
 }

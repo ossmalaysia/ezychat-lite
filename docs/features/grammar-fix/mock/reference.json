@@ -132,6 +132,7 @@
     "src/mock/phrases.ts",
     "src/mock/replySuggestions.ts",
     "src/mock/reports.ts",
+    "src/mock/spelling.ts",
     "src/mock/useAgents.ts",
     "src/mock/useSendReaction.ts",
     "src/setup/WhatsAppStepChoice.tsx"
@@ -139,7 +140,8 @@
   "proposalAdded": [
     "src/inbox/GrammarFix.tsx",
     "src/admin/GrammarFixSection.tsx",
-    "src/mock/grammar.ts"
+    "src/mock/grammar.ts",
+    "src/mock/spelling.ts"
   ],
   "baselineProposal": {
     "feature": "ai-groups",

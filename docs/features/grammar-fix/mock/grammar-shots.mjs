@@ -1,9 +1,11 @@
 // Screenshots of the proposed Fix English (grammar-fix) in the running seeded mock (run.ts --fake-wa),
-// at desktop 1280 px and mobile 360 px (touch), light and dark: underlines in the composer (red =
-// spelling, blue = grammar) with "Fix 5", the card over one word (hover on desktop, tap on the phone),
-// one word accepted, Fix all with "5 fixed · Undo", Undo, "No mistakes", a Malay message (not
-// checked), a long multi-line draft, the unavailable state, and Settings → AI → Fix English (new and
-// updated install). Reports page errors and horizontal overflow; ends with grammar-results.json.
+// at desktop 1280 px and mobile 360 px (touch), light and dark: spelling underlined at once (red, from
+// the dictionary in the browser) before the grammar check, then grammar (blue) with "Fix 5", the card
+// over one word (hover on desktop, tap on the phone), one word accepted, Fix all with "5 fixed · Undo",
+// Undo, "No mistakes", a Malay message (not checked), a long multi-line draft with team words left
+// alone, an unknown word with "Add to team words", the AI grammar check down (spelling still checked),
+// and Settings → AI → Fix English (new and updated install, team words). Reports page errors and
+// horizontal overflow; ends with grammar-results.json.
 // Usage: node docs/features/grammar-fix/mock/grammar-shots.mjs [baseUrl]
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -30,6 +32,7 @@ const LONG =
   'and the delivery to Bayan Lepas is confirm for Saturday 10am. ' +
   'If you need a extra tray of nasi lemak, pls tell us before Thursday ya.';
 const MALAY = 'Boleh, saya check dulu ya. Nanti saya update you.';
+const UNKNOWN = 'Hi Farah, the cendol is RM4 today. ';
 
 const sizes = {
   desktop: { viewport: { width: 1280, height: 860 } },
@@ -101,8 +104,15 @@ for (const scheme of ['light', 'dark'])
     await page.goto(`/chats/${encodeURIComponent(FARAH)}`);
     await box().waitFor();
 
-    await step('underlines', async () => {
+    await step('spelling at once', async () => {
       await type(DRAFT);
+      // Before the 700 ms pause: only the dictionary's spelling mark, no AI request yet.
+      await marksReady(1);
+      const grammarMarks = await page.locator('[data-issue].decoration-info').count();
+      if (grammarMarks) throw new Error('grammar marks before the pause');
+      await shot('00-spelling-at-once');
+    });
+    await step('underlines', async () => {
       await marksReady(5);
       await page.getByTestId('grammar-fix-all').waitFor();
       await shot('01-underlines');
@@ -148,7 +158,7 @@ for (const scheme of ['light', 'dark'])
     await step('ignore', async () => {
       await type(DRAFT);
       await marksReady(5);
-      await pointAt('pls');
+      await pointAt('you');
       await page.getByTestId('grammar-ignore').click();
       await marksReady(4);
     });
@@ -163,7 +173,20 @@ for (const scheme of ['light', 'dark'])
     await step('long', async () => {
       await type(LONG);
       await marksReady(7);
+      // "nasi lemak" and "Bayan Lepas" are team words (from Business context): never marked.
+      const marked = await page.locator('[data-issue]').allTextContents();
+      if (marked.some((w) => /lemak|lepas|bayan|nasi/i.test(w)))
+        throw new Error(`team word marked: ${marked}`);
       await shot('07-long-draft');
+    });
+    await step('unknown word', async () => {
+      await type(UNKNOWN);
+      await marksReady(1);
+      await pointAt('cendol');
+      await page.getByTestId('grammar-add-word').waitFor();
+      await shot('11-unknown-word');
+      await page.getByTestId('grammar-add-word').click();
+      await marksReady(0);
     });
     await step('unavailable', async () => {
       await grammar({ mode: 'expired' });
@@ -171,7 +194,10 @@ for (const scheme of ['light', 'dark'])
       await box().waitFor();
       await type(DRAFT);
       await page.getByTestId('grammar-unavailable').waitFor({ timeout: 8_000 });
-      await shot('08-unavailable');
+      // Spelling needs no AI: "pls" is still marked and fixable.
+      await marksReady(1);
+      await page.getByTestId('grammar-fix-all').waitFor();
+      await shot('08-grammar-unavailable');
       await grammar({ mode: 'normal' });
     });
     await step('settings', async () => {
@@ -185,7 +211,15 @@ for (const scheme of ['light', 'dark'])
       await page.getByTestId('grammar-settings').scrollIntoViewIfNeeded();
       await shot('10-settings-updated-install');
       await grammar({ install: 'new' });
+      await page.reload();
+      const words = page.getByTestId('team-words');
+      await words.waitFor();
+      await words.getByText('cendol', { exact: true }).waitFor({ timeout: 5_000 });
+      await words.scrollIntoViewIfNeeded();
+      await shot('12-team-words');
     });
+    // Leave the list as seeded for the next context.
+    await send(ctx, `/api/mock/grammar/words/cendol`, undefined, 'delete');
     await ctx.close();
   }
 

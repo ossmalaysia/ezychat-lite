@@ -9,9 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { BookOpen, Plus, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import {
+  addTeamWord,
   grammarKey,
+  removeTeamWord,
+  teamWordsKey,
   useGrammarState,
+  useTeamWords,
   type GrammarState,
   type MockGrammarInstall,
   type MockGrammarMode,
@@ -19,10 +25,10 @@ import {
 import { SaveBar } from './adminUi';
 
 /**
- * Proposed (grammar-fix): Settings → AI card with the team-wide Fix English switch. On by default
- * on a new install with an AI connection, off after an update; disabled without a connection. It
- * uses the "Model for suggestions" of the Reply suggestions card. The dashed "Mock only" box
- * switches the mock's install kind and AI behaviour to show every state.
+ * Proposed (grammar-fix): Settings → AI card with the team-wide Fix English switch and the team
+ * word list. On by default on a new install, off after an update. Spelling needs no AI (dictionary
+ * in the browser); grammar uses the "Model for suggestions" and needs the AI connection. The dashed
+ * "Mock only" box switches the mock's install kind and AI behaviour to show every state.
  */
 export function GrammarFixSection() {
   const { t } = useTranslation('admin');
@@ -55,7 +61,7 @@ export function GrammarFixSection() {
         <CardDescription>{t('mockGrammar.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {query.data?.install === 'upgraded' && !query.data.enabled && connected && (
+        {query.data?.install === 'upgraded' && !query.data.enabled && (
           <Banner tone="info">{t('mockGrammar.upgraded')}</Banner>
         )}
         <div className="flex items-start justify-between gap-4">
@@ -70,14 +76,14 @@ export function GrammarFixSection() {
           >
             <Switch
               id="grammar-enabled"
-              checked={enabled && connected}
+              checked={enabled}
               onCheckedChange={setDraft}
-              disabled={query.isPending || !connected}
+              disabled={query.isPending}
             />
           </Label>
         </div>
-        {query.data && !connected && (
-          <Banner tone="warning">{t('mockGrammar.noConnection')}</Banner>
+        {query.data && !connected && enabled && (
+          <Banner tone="info">{t('mockGrammar.noConnection')}</Banner>
         )}
         {(save.error || query.error) && (
           <Banner tone="danger">{errorMessage(save.error || query.error)}</Banner>
@@ -91,6 +97,7 @@ export function GrammarFixSection() {
             {t('settings.save')}
           </Button>
         </SaveBar>
+        <TeamWords />
         <div
           className="flex flex-col gap-3 rounded-lg border border-dashed px-3 py-3"
           data-testid="mock-grammar-controls"
@@ -133,5 +140,106 @@ export function GrammarFixSection() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Team words: never underlined. Words of the Business context that no English dictionary knows are
+ * added by themselves; teammates add more from the underline card; admins remove them here.
+ */
+function TeamWords() {
+  const { t } = useTranslation('admin');
+  const client = useQueryClient();
+  const words = useTeamWords();
+  const [word, setWord] = useState('');
+  const inputId = useId();
+  const add = useMutation({
+    mutationFn: (value: string) => addTeamWord(value),
+    onSuccess: (data) => {
+      client.setQueryData(teamWordsKey, data);
+      setWord('');
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (value: string) => removeTeamWord(value),
+    onSuccess: (data) => client.setQueryData(teamWordsKey, data),
+  });
+  const list = words.data?.words ?? [];
+  return (
+    <section
+      className="space-y-3 border-t pt-5"
+      aria-labelledby={inputId + '-title'}
+      data-testid="team-words"
+    >
+      <div>
+        <h3 id={inputId + '-title'} className="flex items-center gap-2 text-sm font-medium">
+          <BookOpen className="size-4 text-muted-foreground" aria-hidden="true" />
+          {t('mockGrammar.wordsTitle', { count: list.length })}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">{t('mockGrammar.wordsHint')}</p>
+      </div>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (word.trim()) add.mutate(word.trim());
+        }}
+      >
+        <Label htmlFor={inputId} className="sr-only">
+          {t('mockGrammar.wordsAdd')}
+        </Label>
+        <Input
+          id={inputId}
+          value={word}
+          maxLength={40}
+          placeholder={t('mockGrammar.wordsPlaceholder')}
+          onChange={(e) => setWord(e.target.value)}
+          className="min-h-11 min-w-0 flex-1"
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          size="touch"
+          disabled={!word.trim() || add.isPending}
+        >
+          <Plus aria-hidden="true" />
+          {t('mockGrammar.wordsAdd')}
+        </Button>
+      </form>
+      {add.error && <Banner tone="danger">{errorMessage(add.error)}</Banner>}
+      {list.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('mockGrammar.wordsEmpty')}</p>
+      ) : (
+        <ul
+          className="flex flex-wrap gap-2"
+          aria-label={t('mockGrammar.wordsTitle', { count: list.length })}
+        >
+          {list.map((w) => (
+            <li
+              key={w.word}
+              className="flex max-w-full items-center gap-1 rounded-full border bg-muted py-0.5 pr-0.5 pl-3 text-sm"
+            >
+              <span className="min-w-0 truncate">{w.word}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                ·{' '}
+                {w.source === 'business'
+                  ? t('mockGrammar.wordsFromContext')
+                  : t('mockGrammar.wordsAddedBy', { name: w.addedBy ?? '—' })}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 rounded-full text-muted-foreground pointer-coarse:size-11"
+                aria-label={t('mockGrammar.wordsRemove', { word: w.word })}
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(w.word)}
+              >
+                <X aria-hidden="true" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

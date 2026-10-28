@@ -1960,11 +1960,20 @@
   },
   "mockGrammar": {
     "title": "Betulkan Bahasa Inggeris",
-    "description": "Semasa ahli pasukan menaip balasan dalam bahasa Inggeris, AI menggariskan kesilapan ejaan dan tatabahasa. Satu ketikan membetulkannya; tiada apa diubah atau dihantar tanpa ahli pasukan.",
+    "description": "Semasa ahli pasukan menaip balasan dalam bahasa Inggeris, kesilapan ejaan digariskan serta-merta dan kesilapan tatabahasa selepas jeda singkat. Satu ketikan membetulkannya; tiada apa diubah atau dihantar tanpa ahli pasukan.",
     "enable": "Semak bahasa Inggeris untuk pasukan",
-    "cost": "Satu permintaan AI yang ringkas selepas setiap jeda menaip (model pantas). Mesej Bahasa Melayu dan Cina tidak disemak.",
+    "cost": "Ejaan disemak pada peranti ini dengan kamus bahasa Inggeris British terbina dalam (kira-kira 0.2 MB, dimuat sekali): percuma, tanpa AI. Tatabahasa ialah satu permintaan AI yang ringkas selepas setiap jeda menaip (model pantas). Mesej Bahasa Melayu dan Cina tidak disemak.",
     "rules": "Ia membetulkan ejaan dan tatabahasa sahaja. Nombor, harga, nama, pautan dan nombor pesanan tidak pernah diubah, dan nada ahli pasukan kekal (lah, ya).",
-    "noConnection": "Sambungkan AI di atas untuk menggunakan Betulkan Bahasa Inggeris.",
-    "upgraded": "Baharu: Betulkan Bahasa Inggeris dimatikan selepas kemas kini. Hidupkannya untuk membantu pasukan menulis bahasa Inggeris yang betul."
+    "noConnection": "Tiada sambungan AI: hanya ejaan disemak. Sambungkan AI di atas untuk menyemak tatabahasa juga.",
+    "upgraded": "Baharu: Betulkan Bahasa Inggeris dimatikan selepas kemas kini. Hidupkannya untuk membantu pasukan menulis bahasa Inggeris yang betul.",
+    "wordsTitle_one": "Perkataan pasukan ({{count}})",
+    "wordsTitle_other": "Perkataan pasukan ({{count}})",
+    "wordsHint": "Tidak pernah digariskan: perkataan produk, tempat dan pelanggan yang tiada dalam kamus. Perkataan daripada Konteks perniagaan ditambah sendiri; ahli pasukan menambah lagi dari garisan.",
+    "wordsAdd": "Tambah perkataan",
+    "wordsPlaceholder": "cth. cendol",
+    "wordsEmpty": "Belum ada perkataan pasukan.",
+    "wordsFromContext": "Konteks perniagaan",
+    "wordsAddedBy": "ditambah oleh {{name}}",
+    "wordsRemove": "Buang {{word}}"
   }
 }

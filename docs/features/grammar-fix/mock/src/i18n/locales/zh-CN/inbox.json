@@ -645,7 +645,9 @@
     "undo": "撤销",
     "checking": "正在检查英文…",
     "clean": "没有错误",
-    "unavailable": "英文修正暂不可用",
-    "unavailableHint": "AI 连接需要处理。消息仍可正常发送。"
+    "unavailable": "语法检查暂不可用",
+    "unavailableHint": "AI 连接需要处理。拼写仍会检查，消息也可以正常发送。",
+    "unknown": "词典中没有这个词",
+    "addWord": "加入团队词汇"
   }
 }
