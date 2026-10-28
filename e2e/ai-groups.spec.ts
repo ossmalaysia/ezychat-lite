@@ -69,7 +69,7 @@ test('Groups card and Group info: put a group in Open chat', async ({ page, base
   // Agent page: the group is listed, Off; put it in Open chat.
   await page.goto(`/admin/members/ai/${id}`);
   const card = page.getByTestId('agent-groups');
-  await expect(card.getByText('Which groups')).toBeVisible();
+  await expect(card.getByText('Which groups', { exact: true })).toBeVisible();
   await expect(card.getByRole('radio', { name: /Selected groups only/ })).toBeChecked();
   const choice = card.getByRole('combobox', { name: `AI in ${group}` });
   await expect(choice).toHaveText('Off');
