@@ -1,6 +1,6 @@
 {
   "name": "@ezychat/shared",
-  "version": "0.1.60",
+  "version": "0.1.61",
   "type": "module",
   "description": "EzyChat core: zod schemas, shared types and i18n catalogs.",
   "license": "MIT",
