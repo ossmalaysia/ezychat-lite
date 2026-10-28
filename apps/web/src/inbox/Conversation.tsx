@@ -24,6 +24,7 @@ import {
 } from '../api/queries';
 import type { ReplyPhraseListItem } from '@ezychat/shared';
 import { usePhraseList, useReplySuggestionsStatus } from '../api/reply-suggestions';
+import { useGroupChatAi } from '../api/ai-groups';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
@@ -127,6 +128,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       refusedAt.lastInboundAt === (chat?.lastInboundAt ?? null));
   // Group chats: the member count under the name (same cached list the Group info panel uses).
   const groupMembers = useGroupMembers(jid, chat?.type === 'group');
+  // Group chats: whether the AI agent answers when tagged or quoted (header badge, Group info).
+  const groupAi = useGroupChatAi(chat?.type === 'group' ? jid : null);
   const events = chatQ.data?.events;
   const me = directory.me;
   const replySuggestions = useReplySuggestionsStatus();
@@ -344,6 +347,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setNotesOpen(false);
           }}
           memberCount={groupMembers.data?.group.size ?? null}
+          groupAi={chat.type === 'group' ? groupAi.data : null}
           onOpenInfo={() => {
             if (chat.type === 'group') {
               setGroupOpen(true);
@@ -492,7 +496,12 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         onClose={() => setNotesOpen(false)}
       />
       {chat.type === 'group' && (
-        <GroupPanel jid={jid} open={groupOpen} onClose={() => setGroupOpen(false)} />
+        <GroupPanel
+          jid={jid}
+          open={groupOpen}
+          isAdmin={me?.role === 'admin'}
+          onClose={() => setGroupOpen(false)}
+        />
       )}
       {chat.type === 'dm' && (
         <CustomerPanel

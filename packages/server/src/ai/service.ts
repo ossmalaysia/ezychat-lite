@@ -25,6 +25,7 @@ import type {
   Message,
 } from '@ezychat/shared';
 import {
+  AI_GROUP_CONTEXT_MESSAGES,
   AI_CONTEXT_CHARACTERS,
   AI_CONTEXT_ITEMS,
   AI_CONTEXT_PREVIEW_CHARACTERS,
@@ -58,6 +59,16 @@ import {
   type AgentRow,
 } from './agents.js';
 import { findLeak } from './leak-check.js';
+import {
+  addressedToAi,
+  groupEnabled,
+  groupLine,
+  groupText,
+  loopGuard,
+  memberName,
+  pausedLineWritten,
+  type GroupTrigger,
+} from './groups.js';
 import { HttpError, errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
@@ -73,6 +84,7 @@ import { buildEditPrompt } from './edit-prompt.js';
 import { createAiProvider } from './provider-factory.js';
 import {
   AI_TIMEZONE_SETTING,
+  GROUP_HANDOVER_REPLY,
   HANDOFF_REPLY,
   VOICE_RETRY_REPLY,
   administratorInstructions,
@@ -82,6 +94,7 @@ import {
   splitKnowledge,
   type AiContextItem,
   type AiConversationTurn,
+  type AiGroupSituation,
   type AiCustomer,
   type AiKnowledge,
 } from './prompt.js';
@@ -124,6 +137,17 @@ const conversation = (history: Message[], aiUserIds: ReadonlySet<number>): AiCon
       : 'customer',
     text: conversationLine(message),
   }));
+
+/**
+ * A Try it "Group question" decision as a group answer would go out (nothing is sent): every reply
+ * is an answer, a hand-over is the group line and an empty reply is no reply.
+ */
+const groupTryDecision = (decision: AiDecision): AiDecision =>
+  decision.action === 'handoff'
+    ? { ...decision, reply: GROUP_HANDOVER_REPLY }
+    : decision.action === 'no_reply' || !decision.reply.trim()
+      ? { action: 'no_reply', reply: '', handoffReason: null }
+      : { action: 'answer', reply: decision.reply, handoffReason: null };
 
 export const AI_FALLBACK_MS = 10_000;
 /** Names of the fixed Claude models (`GET /api/ai/models` in Claude mode). */
@@ -258,6 +282,8 @@ export interface AiService {
   /** `agentId`: whose business items inform the edit (null/absent = the default agent). */
   editText(body: AiEditBody, signal?: AbortSignal, agentId?: number | null): Promise<AiEditResult>;
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
+  /** Stops scheduled and running WhatsApp group answers of one agent or in one group. */
+  stopGroupTurns(filter: { agentId?: number; jid?: string }): void;
   /**
    * AI reply suggestions: `ready` = drafts can run now, `unavailable` = a saved connection that
    * does not work now (expired, blocked, service closing), `none` = no saved connection.
@@ -474,6 +500,8 @@ export function createAiService(
     awaitingConfirmation: boolean,
     images: readonly AiPromptImage[] = [],
     customer: AiCustomer | null = null,
+    /** A WhatsApp group answer (group rules and the group in the Current situation block). */
+    group?: AiGroupSituation,
   ) => ({
     ...buildAiPrompt(
       knowledge,
@@ -484,6 +512,7 @@ export function createAiService(
         now: new Date(),
         timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
         awaitingConfirmation,
+        ...(group ? { group } : {}),
       },
       images,
       customer,
@@ -608,6 +637,10 @@ export function createAiService(
     timers.delete(jid);
     generations.get(jid)?.abort();
     generations.delete(jid);
+    failPendingAi(jid);
+  };
+  /** AI messages of this chat still waiting in the send queue are never sent. */
+  const failPendingAi = (jid: string) => {
     const rows = ctx.db
       .prepare(
         `SELECT m.id, m.client_id FROM messages m JOIN users u ON u.id = m.sent_by_user_id
@@ -629,8 +662,30 @@ export function createAiService(
       });
     }
   };
+  // WhatsApp groups (docs/features/ai-groups/design.md): addressed questions wait per group and are
+  // answered one at a time; the AI never owns a group chat, so none of the direct-chat state applies.
+  /** Addressed group messages waiting for an answer, per group, oldest first. */
+  const groupQueues = new Map<string, Array<{ id: string; trigger: GroupTrigger }>>();
+  const groupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const groupTurns = new Map<string, AbortController>();
+  /** `<jid>\n<quoted message id>` of group answers being sent now: canSend lets only these out. */
+  const groupSends = new Set<string>();
+  const cancelGroup = (jid: string) => {
+    const timer = groupTimers.get(jid);
+    if (timer) clearTimeout(timer);
+    groupTimers.delete(jid);
+    groupQueues.delete(jid);
+    const turn = groupTurns.get(jid);
+    groupTurns.delete(jid);
+    if (turn) {
+      turn.abort();
+      failPendingAi(jid);
+    }
+  };
+  const groupJids = () => new Set([...groupTimers.keys(), ...groupTurns.keys()]);
   const cancelAll = () => {
     for (const jid of new Set([...timers.keys(), ...generations.keys()])) cancel(jid);
+    for (const jid of groupJids()) cancelGroup(jid);
   };
   /** Stops scheduled and running replies in the chats this agent answers or owns. */
   const cancelAgent = (agentId: number) => {
@@ -641,7 +696,16 @@ export function createAiService(
         (agent && chats.get(jid)?.assignedTo === agent.userId)
       )
         cancel(jid);
+    stopGroupTurns({ agentId });
   };
+  function stopGroupTurns(filter: { agentId?: number; jid?: string }) {
+    for (const jid of groupJids())
+      if (
+        (filter.jid === undefined || filter.jid === jid) &&
+        (filter.agentId === undefined || agentOfChat(jid)?.id === filter.agentId)
+      )
+        cancelGroup(jid);
+  }
   const pause = (jid: string) => {
     ctx.db
       .prepare(
@@ -842,6 +906,313 @@ export function createAiService(
     const handedOver = chats.get(jid);
     if (handedOver) ctx.bus.emit('ai:handoff', handedOver);
   }
+
+  /** The agent that may answer in this WhatsApp group now (every switch on), else null. */
+  const groupAgent = (jid: string): AgentRow | null => {
+    if (closed || !gateOpen() || !ready()) return null;
+    if (chats.get(jid)?.type !== 'group') return null;
+    const agent = agentOfChat(jid);
+    if (!agent?.enabled || !agent.answerGroups || !groupEnabled(ctx.db, jid)) return null;
+    return agent;
+  };
+  /**
+   * Loop guard: after AI_GROUP_LOOP_GUARD AI messages in a row without a teammate message the AI
+   * waits; the first held question of the run writes the one "AI paused" line.
+   */
+  const holdForLoopGuard = (jid: string, agent: AgentRow): boolean => {
+    const guard = loopGuard(ctx.db, jid);
+    if (!guard.paused) return false;
+    if (!pausedLineWritten(ctx.db, jid, guard.since)) {
+      chats.addAiToolUsed(jid, agent.userId, [groupLine(agent, { kind: 'paused', member: null })]);
+      log.info(
+        { jid, agentId: agent.id, inRow: guard.inRow, reason: 'loop_guard' },
+        'AI paused in group',
+      );
+    }
+    return true;
+  };
+  /** Waiting questions of one group: at most this many (a burst beyond it gets no answer). */
+  const GROUP_QUEUE_MAX = 5;
+  const GROUP_DEBOUNCE_MS = 1000;
+  function scheduleGroup(jid: string) {
+    if (groupTimers.has(jid) || groupTurns.has(jid) || groupTimers.size >= 200) return;
+    const timer = setTimeout(() => {
+      groupTimers.delete(jid);
+      if (running.size >= 3) {
+        scheduleGroup(jid);
+        return;
+      }
+      const promise = drainGroup(jid)
+        .catch(() => log.warn({ jid, reason: 'workflow_failed' }, 'AI group workflow failed'))
+        .finally(() => running.delete(promise));
+      running.add(promise);
+    }, GROUP_DEBOUNCE_MS);
+    timer.unref?.();
+    groupTimers.set(jid, timer);
+  }
+  async function drainGroup(jid: string) {
+    const controller = new AbortController();
+    groupTurns.set(jid, controller);
+    try {
+      for (let ask = groupQueues.get(jid)?.shift(); ask; ask = groupQueues.get(jid)?.shift()) {
+        if (controller.signal.aborted) return;
+        await groupTurn(jid, ask, controller.signal);
+      }
+    } finally {
+      if (groupTurns.get(jid) === controller) groupTurns.delete(jid);
+      if (!groupQueues.get(jid)?.length) groupQueues.delete(jid);
+    }
+  }
+  /** The group as the model sees it: who spoke (AI, a teammate, a named member) and what was said. */
+  const groupConversation = (history: Message[], aiUsers: ReadonlySet<number>) =>
+    history.map((message): AiConversationTurn => {
+      const turn = conversation([message], aiUsers)[0]!;
+      return {
+        speaker: turn.speaker,
+        ...(turn.speaker === 'customer' ? { name: memberName(ctx, message) ?? 'Member' } : {}),
+        text: groupText(turn.text),
+      };
+    });
+  /**
+   * One answer to an addressed group message: never a claim or an assignment change, look-up tools
+   * only. answer → the reply quoting the member; handoff → "A team member will reply soon." quoting
+   * them, plus a notification; no_reply → nothing. Logs carry ids, counts and outcomes, never text.
+   */
+  async function groupTurn(
+    jid: string,
+    ask: { id: string; trigger: GroupTrigger },
+    signal: AbortSignal,
+  ) {
+    const agent = groupAgent(jid);
+    if (!agent) return;
+    const still = () => !signal.aborted && groupAgent(jid)?.id === agent.id;
+    if (holdForLoopGuard(jid, agent)) return;
+    if (!replyWindowOpen(ctx, jid)) {
+      log.info({ jid, agentId: agent.id, reason: 'window_closed' }, 'AI group question skipped');
+      return;
+    }
+    const chat = chats.get(jid)!;
+    const history = messages.list(jid, { limit: AI_GROUP_CONTEXT_MESSAGES }).messages;
+    const asked = history.find((message) => message.id === ask.id);
+    if (!asked) {
+      log.info({ jid, agentId: agent.id, reason: 'question_too_old' }, 'AI group question skipped');
+      return;
+    }
+    const member = memberName(ctx, asked);
+    const question = groupText(customerText(asked)).trim();
+    const quoted = asked.quotedId
+      ? history.find((message) => message.id === asked.quotedId)
+      : undefined;
+    const current = settingsFor(agent);
+    const saved = contextItems(agent.id);
+    const items = splitKnowledge(saved);
+    const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
+    const knowledge = relevantKnowledge(
+      items.business,
+      [quoted ? customerText(quoted) : '', question].filter(Boolean).join('\n'),
+    );
+    const hasFacts = !!knowledge.trim() || agentLookupsAvailable(ctx, 'sales', agent.id);
+    const toolCalls: string[] = [];
+    let lookups: AgentToolInfo[] = [];
+    let lookupFailed = false;
+    const started = Date.now();
+    const handover = (handoffReason: AiHandoffReason): AiDecision => ({
+      action: 'handoff',
+      reply: GROUP_HANDOVER_REPLY,
+      handoffReason,
+    });
+    let decision: AiDecision;
+    try {
+      // A tag or quote without text (a sticker, a voice note, a photo without caption) goes to the team.
+      if (!asked.body?.trim() || !question) decision = handover('unsupported_message');
+      else if (!hasFacts) decision = handover('missing_facts');
+      else {
+        const lookupAbort = new AbortController();
+        const turnSignal = AbortSignal.any([signal, lookupAbort.signal]);
+        const extension = await agentTurnTools(
+          ctx,
+          log,
+          { agent: 'sales', agentId: agent.id, chatJid: jid, signal: turnSignal },
+          {
+            onFailure: () => {
+              lookupFailed = true;
+              lookupAbort.abort();
+            },
+            onCall: (name) => toolCalls.push(name),
+            lookupsOnly: true,
+          },
+        );
+        try {
+          decision = AiDecision.parse(
+            await provider.generate(
+              current,
+              aiApiKey(ctx.settings),
+              {
+                ...prompt(
+                  agent.id,
+                  { ...current, preset: agent.preset },
+                  items.internal,
+                  knowledge,
+                  groupConversation(history, aiUserIds()),
+                  false,
+                  [],
+                  null,
+                  {
+                    name: chat.name?.trim() || 'WhatsApp group',
+                    member: member ?? 'Member',
+                    trigger: ask.trigger,
+                    message: question,
+                  },
+                ),
+                tools: {
+                  ...chatTools({
+                    knowledge: items.business,
+                    onCall: (name) => toolCalls.push(name),
+                  }),
+                  ...extension.tools,
+                },
+                onTiming: (timing) =>
+                  log.info({ event: 'ai_turn', source: 'group', ...timing }, 'AI turn timing'),
+              },
+              turnSignal,
+            ),
+          );
+        } finally {
+          lookups = extension.used();
+          await extension.dispose();
+        }
+      }
+    } catch (error) {
+      if (signal.aborted) return;
+      if (lookupFailed) decision = handover('lookup_failed');
+      else if (!ready()) {
+        log.warn({ jid, reason: 'connection_unavailable' }, 'AI connection unavailable');
+        return;
+      } else {
+        const turnFailure = error instanceof AgentTurnFailure ? error : null;
+        log.warn(
+          {
+            jid,
+            reason: 'provider_failed',
+            kind: turnFailure?.kind ?? 'other',
+            errName: turnFailure?.causeName ?? errorNameOf(error),
+            status: turnFailure?.status ?? null,
+          },
+          'AI answer unavailable',
+        );
+        decision = handover('ai_unavailable');
+      }
+    }
+    if (!still()) return;
+    // In a group every reply is an answer: there is no resolution question and nothing to close.
+    if (decision.action !== 'handoff' && decision.action !== 'no_reply' && !decision.reply.trim())
+      decision = { action: 'no_reply', reply: '', handoffReason: null };
+    if (decision.action !== 'handoff' && decision.action !== 'no_reply') {
+      if (findLeak(decision.reply, internalTexts)) {
+        log.warn({ jid, agentId: agent.id, reason: 'confidential_leak' }, 'AI reply withheld');
+        decision = handover('confidential_leak');
+      }
+    }
+    log.info(
+      {
+        jid,
+        agentId: agent.id,
+        group: true,
+        trigger: ask.trigger,
+        action: decision.action,
+        handoffReason: decision.handoffReason ?? null,
+        toolCalls,
+        model: current.model ?? null,
+        ms: Date.now() - started,
+      },
+      'AI decision',
+    );
+    if (decision.action === 'no_reply') return;
+    const handedOver = decision.action === 'handoff';
+    if (lookups.length) chats.addAiToolUsed(jid, agent.userId, lookups);
+    const sending = `${jid}\n${ask.id}`;
+    groupSends.add(sending);
+    try {
+      await sendReply(
+        jid,
+        agent.userId,
+        ask.id,
+        handedOver ? GROUP_HANDOVER_REPLY : decision.reply,
+        signal,
+      );
+    } catch (error) {
+      if (!signal.aborted)
+        log.warn(
+          {
+            jid,
+            agentId: agent.id,
+            reason: isWindowClosed(error) ? 'window_closed' : 'send_failed',
+          },
+          'AI group answer could not be sent',
+        );
+      return;
+    } finally {
+      groupSends.delete(sending);
+    }
+    chats.addAiToolUsed(jid, agent.userId, [
+      groupLine(
+        agent,
+        handedOver
+          ? { kind: 'handover', member }
+          : { kind: 'answered', member, ...(ask.trigger === 'quote' ? { quoted: true } : {}) },
+      ),
+    ]);
+    if (!handedOver) return;
+    const reason = decision.handoffReason ?? null;
+    audit(ctx.db, {
+      userId: agent.userId,
+      action: 'ai.group_handoff',
+      ip: null,
+      meta: { chatJid: jid, agentId: agent.id, reason },
+    });
+    log.info(
+      {
+        event: 'ai_group_handoff',
+        jid,
+        agentId: agent.id,
+        reason,
+        assigned: chat.assignedTo != null,
+      },
+      'AI handed a group question to the team',
+    );
+    const now = chats.get(jid);
+    if (now)
+      ctx.bus.emit('ai:group_handoff', {
+        chat: now,
+        agentName: agent.displayName,
+        member,
+        question,
+      });
+  }
+  /** A live group message: queued for an answer only when every switch is on and it is addressed. */
+  const onGroupInbound = (chat: Chat, message: Message) => {
+    const agent = groupAgent(chat.jid);
+    if (!agent) return;
+    const trigger = addressedToAi(ctx, {
+      chatJid: chat.jid,
+      messageId: message.id,
+      quotedId: message.quotedId,
+      aiUserId: agent.userId,
+    });
+    if (!trigger || holdForLoopGuard(chat.jid, agent)) return;
+    const queue = groupQueues.get(chat.jid) ?? [];
+    if (queue.length >= GROUP_QUEUE_MAX) {
+      log.info(
+        { jid: chat.jid, agentId: agent.id, reason: 'queue_full' },
+        'AI group question skipped',
+      );
+      return;
+    }
+    queue.push({ id: message.id, trigger });
+    groupQueues.set(chat.jid, queue);
+    log.info({ jid: chat.jid, agentId: agent.id, trigger }, 'AI group question');
+    scheduleGroup(chat.jid);
+  };
 
   async function respond(jid: string) {
     if (!eligible(jid)) return;
@@ -1185,6 +1556,10 @@ export function createAiService(
   }
 
   const onInbound = ({ chat, message }: { chat: Chat; message: Message }) => {
+    if (chat.type === 'group') {
+      onGroupInbound(chat, message);
+      return;
+    }
     // Only the agent of the chat's inbox answers it.
     const agent = agentForInbox(ctx.db, chat.inboxId);
     const user = agent?.enabled ? { id: agent.userId } : null;
@@ -1221,6 +1596,8 @@ export function createAiService(
     else onInbound(event);
   };
   const onChat = (chat: Chat) => {
+    // A group keeps its assignee and status whatever the AI does: neither stops a group answer.
+    if (chat.type === 'group') return;
     if (chat.status === 'resolved') {
       cancel(chat.jid);
       ctx.db.prepare('DELETE FROM ai_chat_state WHERE chat_jid = ?').run(chat.jid);
@@ -1786,12 +2163,16 @@ export function createAiService(
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const knowledge = relevantKnowledge(items.business, body.question);
+      // "Group question": answered as a tag in a WhatsApp group (group rules, look-ups only, the
+      // group hand-over line). Nothing is sent.
+      const group = body.group === true;
+      const handoffText = group ? GROUP_HANDOVER_REPLY : HANDOFF_REPLY;
       // Same rule as live replies: with no relevant knowledge and no extension look-ups the AI hands
       // the chat to a human.
       if (!knowledge.trim() && !agentLookupsAvailable(ctx, 'sales', agent?.id))
         return {
           ok: true,
-          reply: HANDOFF_REPLY,
+          reply: handoffText,
           action: 'handoff',
           handoffReason: 'missing_facts',
           model: null,
@@ -1817,7 +2198,7 @@ export function createAiService(
           ctx,
           log,
           { agent: 'sales', agentId: agent?.id, chatJid: null, signal },
-          { onFailure: () => lookupAbort.abort() },
+          { onFailure: () => lookupAbort.abort(), lookupsOnly: group },
         );
         const decision = await provider.generate(
           { ...current, ...body.knowledge },
@@ -1834,8 +2215,20 @@ export function createAiService(
               },
               items.internal,
               knowledge,
-              [{ speaker: 'customer', text: body.question }],
+              group
+                ? [{ speaker: 'customer', name: 'Member', text: body.question }]
+                : [{ speaker: 'customer', text: body.question }],
               false,
+              [],
+              null,
+              group
+                ? {
+                    name: 'WhatsApp group',
+                    member: 'Member',
+                    trigger: 'tag',
+                    message: body.question,
+                  }
+                : undefined,
             ),
             tools: {
               ...chatTools({ knowledge: items.business }),
@@ -1846,14 +2239,17 @@ export function createAiService(
           },
           signal,
         );
-        // Same gate as live replies; Try it has never asked, so it can never resolve.
-        const guarded = guardResolution(decision, 0, body.question);
+        // Same gate as live replies; Try it has never asked, so it can never resolve. In a group every
+        // reply is an answer and a hand-over is the group line.
+        const guarded = group
+          ? groupTryDecision(decision)
+          : guardResolution(decision, 0, body.question);
         // Same leak check as live replies: Try it shows the hand-over, never the quoted item.
         if (guarded.action !== 'no_reply' && findLeak(guarded.reply, internalTexts)) {
           log.warn({ event: 'ai_try_leak', agentId: agent?.id ?? null }, 'AI reply withheld');
           return {
             ok: true,
-            reply: HANDOFF_REPLY,
+            reply: handoffText,
             action: 'handoff',
             handoffReason: 'confidential_leak',
             model,
@@ -1874,7 +2270,7 @@ export function createAiService(
         if (extension?.failed())
           return {
             ok: true,
-            reply: HANDOFF_REPLY,
+            reply: handoffText,
             action: 'handoff',
             handoffReason: 'lookup_failed',
             model,
@@ -2159,6 +2555,11 @@ export function createAiService(
       }
     }) as AiService['draftReply'],
     canSend(jid, userId, quotedId) {
+      // A group answer goes out only while its turn sends it, quoting the member's message.
+      if (chats.get(jid)?.type === 'group')
+        return (
+          !!quotedId && groupSends.has(`${jid}\n${quotedId}`) && groupAgent(jid)?.userId === userId
+        );
       return (
         eligible(jid) &&
         agentOfChat(jid)?.userId === userId &&
@@ -2167,6 +2568,7 @@ export function createAiService(
         state(jid)?.last_customer_message_id === quotedId
       );
     },
+    stopGroupTurns,
     async shutdown() {
       closed = true;
       ctx.bus.emit('ai:connection-changed');

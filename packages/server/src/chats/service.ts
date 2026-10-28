@@ -258,6 +258,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               title: lookup.title,
               sourceLabel: lookup.sourceLabel,
               ...(lookup.calendar ? { calendar: lookup.calendar } : {}),
+              ...(lookup.group ? { group: lookup.group } : {}),
             },
             at,
           }),

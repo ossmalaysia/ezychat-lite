@@ -264,7 +264,13 @@
     "internalNote": "内部备注",
     "calendarChecked": "AI 查看了空闲时间 · {{source}}",
     "calendarBooked": "AI 预约了 {{when}} · {{source}}",
-    "calendarBookedNoTime": "AI 预约了一个时间 · {{source}}"
+    "calendarBookedNoTime": "AI 预约了一个时间 · {{source}}",
+    "aiGroupAnswered": "{{actor}} 回答了 {{member}}",
+    "aiGroupQuoted": "{{actor}} 回答了 {{member}} 对 AI 的回复",
+    "aiGroupHandover": "{{actor}} 将 {{member}} 的问题转交给团队：{{reason}}",
+    "aiGroupHandoverNoReason": "{{actor}} 将 {{member}} 的问题转交给团队",
+    "aiGroupPaused": "AI 已暂停：连续回答过多",
+    "aiGroupMember": "一位成员"
   },
   "messageList": {
     "label": "消息",
@@ -597,5 +603,21 @@
     "manage": "打开 WhatsApp Manager",
     "sync": "同步",
     "synced": "已从 WhatsApp 同步模板"
+  },
+  "aiGroups": {
+    "badge": "被标记或引用时 AI 回答",
+    "badgePaused": "AI 已暂停",
+    "info": {
+      "title": "被标记或引用时由 AI 助理回答",
+      "hint": "仅当成员 @提及您的号码或引用 AI 的消息时，{{name}} 才会回答。",
+      "noAgent": "此收件箱没有 AI 助理。",
+      "agentDisabled": "{{name}} 已关闭。开启 {{name}} 之前，群组中不会有回答。",
+      "agentOff": "{{name}} 的“在群组中回答”已关闭。请先在助理页面开启。",
+      "openAgent": "打开 {{name}}",
+      "readOnly": "只有管理员可以更改。",
+      "on": "开启",
+      "off": "关闭",
+      "paused": "已暂停：连续回答过多。同事发言后会重新开始。"
+    }
   }
 }

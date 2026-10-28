@@ -1880,5 +1880,33 @@
     "colReplies": "回复",
     "colReplyTime": "首次回复",
     "hourRange": "{{day}} {{from}}–{{to}}"
+  },
+  "aiGroups": {
+    "title": "群组",
+    "description": "{{name}} 可以在您的 WhatsApp 号码（{{inbox}}）的群组中回答。",
+    "switch": "在群组中回答（被标记或引用时）",
+    "switchHint": "仅当成员 @提及您的号码或引用 AI 的消息时回答。其他群组消息不回复。",
+    "offSummary_other": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
+    "listLabel": "{{inbox}} 的群组",
+    "noneOn": "尚未开启任何群组，因此 {{name}} 不会在任何群组回答。",
+    "noGroups": "{{inbox}} 尚未加入任何 WhatsApp 群组。号码被加入群组后，群组会显示在这里。",
+    "noInbox": "请先为 {{name}} 选择收件箱。",
+    "loopGuard": "循环保护：连续回答 {{count}} 次且期间没有同事发言后，{{name}} 会在该群组暂停，直到同事发言。",
+    "lookupsOnly": "在群组中，{{name}} 只查询信息，不会在群组中预约或做其他更改。",
+    "agentOff": "{{name}} 已关闭。开启 {{name}} 之前，群组中不会有回答。",
+    "members_other": "{{count}} 位成员",
+    "answers": "被标记或引用时回答",
+    "off": "关闭",
+    "paused": "已暂停：连续回答过多",
+    "answerIn": "在 {{group}} 中回答",
+    "openGroup": "打开 {{group}}",
+    "saveFailed": "无法保存，请重试。",
+    "try": {
+      "group": "群组问题",
+      "groupHint": "模拟成员在群组中 @提及您的号码时提问。",
+      "inGroup": "在群组中",
+      "lookupsOnly": "在群组中 {{name}} 只查询信息；由同事完成预约。",
+      "notSent": "不会向群组发送任何消息。"
+    }
   }
 }

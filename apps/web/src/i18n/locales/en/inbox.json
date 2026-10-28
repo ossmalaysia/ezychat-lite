@@ -267,7 +267,13 @@
     "internalNote": "Internal note",
     "calendarChecked": "AI checked free times · {{source}}",
     "calendarBooked": "AI booked {{when}} · {{source}}",
-    "calendarBookedNoTime": "AI booked a time · {{source}}"
+    "calendarBookedNoTime": "AI booked a time · {{source}}",
+    "aiGroupAnswered": "{{actor}} answered {{member}}",
+    "aiGroupQuoted": "{{actor}} answered {{member}}’s reply to the AI",
+    "aiGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
+    "aiGroupHandoverNoReason": "{{actor}} handed {{member}}’s question to the team",
+    "aiGroupPaused": "AI paused: many answers in a row",
+    "aiGroupMember": "a member"
   },
   "messageList": {
     "label": "Messages",
@@ -601,5 +607,21 @@
     "manage": "Open WhatsApp Manager",
     "sync": "Sync",
     "synced": "Templates synced from WhatsApp"
+  },
+  "aiGroups": {
+    "badge": "AI answers when tagged or quoted",
+    "badgePaused": "AI paused",
+    "info": {
+      "title": "AI agent answers when tagged or quoted",
+      "hint": "{{name}} answers only when a member @mentions your number or quotes an AI message.",
+      "noAgent": "No AI agent works in this inbox.",
+      "agentDisabled": "{{name}} is off. Nothing is answered in groups until you turn {{name}} on.",
+      "agentOff": "Answer in groups is off for {{name}}. Turn it on on the agent page first.",
+      "openAgent": "Open {{name}}",
+      "readOnly": "Only admins can change this.",
+      "on": "On",
+      "off": "Off",
+      "paused": "Paused: many answers in a row. A teammate’s message starts it again."
+    }
   }
 }

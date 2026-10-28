@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
+import { Lock, Users } from 'lucide-react';
 import { handoffReasonLabel } from '@/lib/ai-handoff';
 import { AI_TRY_QUESTION_CHARACTERS, type AiTryLookup } from '@ezychat/shared';
 import { formatTimeRange } from '@/lib/format';
@@ -9,6 +9,8 @@ import { errorMessage } from '../api/client';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { AiKnowledgeDraft } from './ai-status';
 import { Field, Pending } from './adminUi';
@@ -33,6 +35,9 @@ export function AiTryIt({
   const { t } = useTranslation('admin');
   const ask = useAiTry();
   const [question, setQuestion] = useState('');
+  // Agent pages: ask as a member who tagged the business in a WhatsApp group (look-ups only).
+  const [asGroup, setAsGroup] = useState(false);
+  const groupSwitchId = useId();
   const decisionLabels = {
     answer: t('ai.try.decision.answer'),
     ask_resolution: t('ai.try.decision.ask_resolution'),
@@ -53,6 +58,7 @@ export function AiTryIt({
           handoffRules: draft.handoffRules,
         },
         ...(agentId === undefined ? {} : { agentId }),
+        ...(agentId !== undefined && asGroup ? { group: true } : {}),
       },
       {
         onSuccess: (result) => {
@@ -81,6 +87,8 @@ export function AiTryIt({
       source,
     });
   };
+  /** The answer shown was asked as a group question. */
+  const groupAnswer = ask.variables?.group === true;
   const leak = ask.data?.action === 'handoff' && ask.data.handoffReason === 'confidential_leak';
   return (
     <div className="flex flex-col gap-3">
@@ -109,6 +117,28 @@ export function AiTryIt({
           />
         )}
       </Field>
+      {agentId !== undefined && (
+        <div className="flex items-start justify-between gap-4 rounded-lg border px-3 py-2">
+          <div className="min-w-0">
+            <Label htmlFor={groupSwitchId}>{t('aiGroups.try.group')}</Label>
+            <p className="mt-1 text-sm text-muted-foreground">{t('aiGroups.try.groupHint')}</p>
+          </div>
+          <Label
+            htmlFor={groupSwitchId}
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
+          >
+            <Switch
+              id={groupSwitchId}
+              data-testid="try-group"
+              checked={asGroup}
+              onCheckedChange={(on) => {
+                setAsGroup(on);
+                ask.reset();
+              }}
+            />
+          </Label>
+        </div>
+      )}
       <Button
         type="button"
         size="touch"
@@ -138,6 +168,20 @@ export function AiTryIt({
                   </span>
                 )}
               </div>
+              {groupAnswer && (
+                <>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Users aria-hidden className="size-3.5 shrink-0" />
+                    {t('aiGroups.try.inGroup')} · {t('aiGroups.try.notSent')}
+                  </p>
+                  <div
+                    className="mb-2 rounded-md border-l-2 border-primary bg-surface px-2 py-1 text-xs break-words text-muted-foreground"
+                    data-testid="try-group-quote"
+                  >
+                    {ask.variables?.question}
+                  </div>
+                </>
+              )}
               {leak && (
                 <p className="mb-2 flex items-start gap-1.5 text-xs text-muted-foreground">
                   <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
@@ -168,6 +212,11 @@ export function AiTryIt({
               ) : (
                 <p className="break-words whitespace-pre-wrap">{ask.data.reply}</p>
               )}
+              {groupAnswer && ask.data.lookups?.length ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t('aiGroups.try.lookupsOnly', { name })}
+                </p>
+              ) : null}
               {ask.data.action === 'handoff' && !ask.data.model && (
                 <p className="mt-2 text-xs text-muted-foreground">{t('ai.try.noKnowledge')}</p>
               )}

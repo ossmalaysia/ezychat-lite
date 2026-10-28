@@ -235,6 +235,22 @@ describe('tools offered', () => {
     await second.dispose();
   });
 
+  it('leaves write tools out of a look-ups-only (WhatsApp group) turn', async () => {
+    await setUp();
+    expect(Object.keys((await turn()).tools)).toContain(QUOTE);
+    const group = await agentTurnTools(
+      t.ctx,
+      silentLogger(),
+      { agent: 'sales', agentId, chatJid: jid, signal: new AbortController().signal },
+      { onFailure: vi.fn(), lookupsOnly: true },
+    );
+    turns.push(group);
+    const names = Object.keys(group.tools);
+    expect(names).toContain(FIND);
+    expect(names).toContain(STOCK);
+    expect(names).not.toContain(QUOTE);
+  });
+
   it('offers nothing without an agent, a connection or the service', async () => {
     await setUp();
     const none = await agentTurnTools(

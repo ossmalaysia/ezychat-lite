@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (hover, or press and hold on a phone), **Copy image** in the image viewer, and drag an image or document from
   a chat to your desktop or a folder to save it. The desktop app now has a right-click menu: Cut, Copy, Paste,
   Paste as plain text, Select all, spelling suggestions, Copy image, Save image as… and Copy link address.
+
+## [0.1.61] - 2026-10-28
+
+### Added
+
+- **AI agents in WhatsApp groups.** Turn on **Answer in groups (when tagged or quoted)** on an AI agent's page and switch on the groups it may answer. The AI answers only when a member tags your number or quotes a message the AI sent, quoting the member; every other group message gets no reply. It only looks things up in groups, never takes the group chat, and hands over with "A team member will reply soon." After 10 answers in a row without a teammate, it pauses in that group.
+
 - **Beta mark for connectors.** A connector can show **Beta** on its card and page, with a short note above Connect. Google Calendar is Beta while Google reviews the sign-in: the note explains the warning Google shows when you sign in. The mark goes away by itself when the connector list drops it, with no update.
 
 ### Fixed

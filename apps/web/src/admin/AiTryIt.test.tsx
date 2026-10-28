@@ -136,3 +136,48 @@ describe('Try it', () => {
     ]);
   });
 });
+
+describe('Try it → Group question', () => {
+  const lookup = {
+    title: 'Check free times',
+    sourceLabel: 'Google Calendar',
+    tool: 'check_free',
+    source: 'google-calendar',
+    ok: true,
+    ms: 12,
+  };
+
+  it('asks as a group tag with group: true and shows the quoted question', async () => {
+    const { fetchMock } = setup({ agentId: 5 }, answer({ lookups: [lookup] }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('switch', { name: 'Group question' }));
+    await ask('@Kopi do you have a table at 8?');
+    await screen.findByText('We open at 9am.');
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({ agentId: 5, group: true });
+    expect(screen.getByText('In a group · Nothing is sent to the group.')).toBeTruthy();
+    expect(screen.getByTestId('try-group-quote').textContent).toBe(
+      '@Kopi do you have a table at 8?',
+    );
+    expect(
+      screen.getByText(
+        'In groups Clinic Helper only looks things up; a teammate makes the booking.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('asks a direct question while the switch is off, and has no switch without an agent', async () => {
+    const { fetchMock } = setup({ agentId: 5 });
+    await ask();
+    await screen.findByText('We open at 9am.');
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('group');
+    expect(screen.queryByTestId('try-group-quote')).toBeNull();
+    // Switching clears the shown answer: it was not a group answer.
+    await userEvent.setup().click(screen.getByRole('switch', { name: 'Group question' }));
+    expect(screen.queryByText('We open at 9am.')).toBeNull();
+    cleanup();
+    setup();
+    expect(screen.queryByRole('switch', { name: 'Group question' })).toBeNull();
+  });
+});

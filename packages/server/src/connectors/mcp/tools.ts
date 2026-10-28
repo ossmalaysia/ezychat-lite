@@ -110,7 +110,7 @@ export async function mcpConnectorAgentTools(
   ctx: AppContext,
   log: Logger,
   input: AgentToolsInput,
-  options: { onFailure: () => void; onCall?: (name: string) => void },
+  options: { onFailure: () => void; onCall?: (name: string) => void; lookupsOnly?: boolean },
 ): Promise<ExtensionToolsTurn> {
   const service = ctx.services.connectorMcp;
   const tools: ToolSet = {};
@@ -171,6 +171,8 @@ export async function mcpConnectorAgentTools(
     let firstName: string | null = null;
 
     for (const { def, partner } of connector.tools) {
+      // A group answer offers look-ups only: tools that change data are left out.
+      if (options.lookupsOnly && def.access === 'write') continue;
       const schema = partner.inputSchema!;
       const size = JSON.stringify(schema).length;
       if (schemaChars + size > MAX_TURN_SCHEMA_CHARS) {

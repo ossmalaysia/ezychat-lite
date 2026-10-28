@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { ChatAvatar } from './ChatAvatar';
+import { GroupAiRow } from './GroupAiRow';
 import { PanelHeader } from './PanelHeader';
 
 /** Rows rendered at a time; large groups show more on request instead of rendering all at once. */
@@ -36,6 +37,8 @@ export interface GroupPanelProps {
   jid: string;
   open: boolean;
   onClose(): void;
+  /** Admins switch whether the AI agent answers in this group; agents see the state. */
+  isAdmin?: boolean;
 }
 
 type T = ReturnType<typeof useTranslation<'inbox'>>['t'];
@@ -114,9 +117,11 @@ function MemberRow({
 function MemberList({
   data,
   onOpen,
+  isAdmin,
 }: {
   data: GroupInfoResponse;
   onOpen(member: GroupMember): void;
+  isAdmin: boolean;
 }) {
   const { t } = useTranslation('inbox');
   const [query, setQuery] = useState('');
@@ -155,6 +160,8 @@ function MemberList({
           </p>
         )}
       </div>
+      {/* Whether the AI agent answers in this group when tagged or quoted. */}
+      <GroupAiRow jid={group.jid} isAdmin={isAdmin} />
       <div className="relative mx-4 mt-2 mb-1.5">
         <Search
           className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -420,6 +427,7 @@ function GroupBody({
   onClose,
   title,
   description,
+  isAdmin = false,
 }: GroupPanelProps & { title: React.ReactNode; description: React.ReactNode }) {
   const { t } = useTranslation('inbox');
   const navigate = useNavigate();
@@ -463,7 +471,7 @@ function GroupBody({
           }}
         />
       ) : (
-        <MemberList data={q.data} onOpen={(m) => setSelected(m.jid)} />
+        <MemberList data={q.data} isAdmin={isAdmin} onOpen={(m) => setSelected(m.jid)} />
       )}
     </>
   );
@@ -473,7 +481,7 @@ function GroupBody({
  * Group info: the members of a WhatsApp group (read from WhatsApp, view-only), with search, an
  * admins filter and per-member details. Side panel on >= lg, full-height Sheet below.
  */
-export function GroupPanel({ jid, open, onClose }: GroupPanelProps) {
+export function GroupPanel({ jid, open, onClose, isAdmin = false }: GroupPanelProps) {
   const { t } = useTranslation('inbox');
   const desktop = useMediaQuery('(min-width: 1024px)');
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -489,6 +497,7 @@ export function GroupPanel({ jid, open, onClose }: GroupPanelProps) {
           jid={jid}
           open={open}
           onClose={onClose}
+          isAdmin={isAdmin}
           title={<h3>{t('groupInfo.title')}</h3>}
           description={<p>{t('groupInfo.description')}</p>}
         />
@@ -512,6 +521,7 @@ export function GroupPanel({ jid, open, onClose }: GroupPanelProps) {
           jid={jid}
           open={open}
           onClose={onClose}
+          isAdmin={isAdmin}
           title={
             <SheetTitle ref={titleRef} tabIndex={-1} className="text-sm outline-none">
               {t('groupInfo.title')}

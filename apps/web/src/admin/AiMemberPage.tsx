@@ -66,6 +66,7 @@ import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { AgentConnectorsCard } from './connectors/AgentConnectorsCard';
+import { AgentGroupsCard, LITE_INBOX_NAME } from './AgentGroupsCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
 import { businessTemplate, type BusinessTemplateId } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
@@ -800,6 +801,21 @@ function AgentEditor({
           <AgentConnectorsCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
+          />
+
+          {/* WhatsApp groups: answer when tagged or quoted, and in which groups. */}
+          <AgentGroupsCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
+            agentEnabled={agent.agent.enabled}
+            inboxName={
+              // Lite has one number and no inbox list: its inbox keeps the default name.
+              lite
+                ? LITE_INBOX_NAME
+                : agent.agent.inboxId === null
+                  ? null
+                  : inboxName(agent.agent.inboxId)
+            }
           />
 
           {/* Every agent is a customer-facing agent for extensions ('sales'). */}

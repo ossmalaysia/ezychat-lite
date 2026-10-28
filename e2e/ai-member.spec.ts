@@ -65,7 +65,7 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
       await page.getByRole('button', { name: 'Create agent', exact: true }).click();
     } else
       await page
-        .getByRole('link', { name: /^Edit /, includeHidden: false })
+        .getByRole('link', { name: /^Edit\b/, includeHidden: false })
         .filter({ visible: true })
         .first()
         .click();

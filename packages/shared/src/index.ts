@@ -4,6 +4,7 @@ export * from './api.js';
 export * from './errors.js';
 export * from './socket.js';
 export * from './ai.js';
+export * from './ai-groups.js';
 export * from './voice.js';
 export * from './customers.js';
 export * from './enrichment.js';

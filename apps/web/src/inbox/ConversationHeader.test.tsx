@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Chat } from '@ezychat/shared';
+import type { AiGroupChat, Chat } from '@ezychat/shared';
 import { ConversationHeader } from './ConversationHeader';
 import { buildDirectory } from './useDirectory';
 
@@ -29,6 +29,7 @@ function renderHeader(
     onToggleCustomer?: () => void;
     onOpenInfo?: () => void;
     memberCount?: number | null;
+    groupAi?: AiGroupChat | null;
   } = {},
 ) {
   return render(
@@ -46,6 +47,7 @@ function renderHeader(
       onToggleCustomer={customer.onToggleCustomer ?? vi.fn()}
       onOpenInfo={customer.onOpenInfo ?? vi.fn()}
       memberCount={customer.memberCount ?? null}
+      groupAi={customer.groupAi ?? null}
     />,
   );
 }
@@ -198,5 +200,50 @@ describe('ConversationHeader inboxes', () => {
     ]);
     await user.click(screen.getByRole('option', { name: 'Mei Ling' }));
     expect(onAssign).toHaveBeenCalledWith(3);
+  });
+});
+
+describe('ConversationHeader AI in groups badge', () => {
+  const group: Chat = {
+    ...base,
+    jid: '120363000000000001@g.us',
+    type: 'group',
+    name: 'Kopi Lovers Club',
+  };
+  const ai = (patch: Partial<AiGroupChat> = {}): AiGroupChat => ({
+    enabled: true,
+    agentId: 3,
+    agentName: 'Aina',
+    agentEnabled: true,
+    agentAnswersGroups: true,
+    paused: false,
+    ...patch,
+  });
+
+  it('shows on a switched-on group while the agent answers groups', () => {
+    renderHeader(group, { groupAi: ai(), memberCount: 24 });
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe(
+      'AI answers when tagged or quoted',
+    );
+    expect(screen.getByText('Group · 24 members')).toBeTruthy();
+  });
+
+  it('says when the loop guard paused the AI', () => {
+    renderHeader(group, { groupAi: ai({ paused: true }) });
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI paused');
+  });
+
+  it.each([
+    ['the group is off', ai({ enabled: false })],
+    ["the agent's Answer in groups is off", ai({ agentAnswersGroups: false })],
+    ['nothing is known yet', null],
+  ])('is hidden when %s', (_, groupAi) => {
+    renderHeader(group, { groupAi });
+    expect(screen.queryByTestId('group-ai-badge')).toBeNull();
+  });
+
+  it('never shows in a direct chat', () => {
+    renderHeader(base, { groupAi: ai() });
+    expect(screen.queryByTestId('group-ai-badge')).toBeNull();
   });
 });
