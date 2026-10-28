@@ -1,8 +1,8 @@
 // Screenshots of AI agents in WhatsApp groups in the real app, against e2e/agents-devbuild.ts (mock
 // model, fake WhatsApp) after e2e/devbuild-groups-check.mjs has run there (its admin, agent, group and
 // group lines). Desktop 1280 px and mobile 360 px, light and dark: the agent page Groups card, the
-// group chat (badge, quoted answers, lines, hand-over, paused), Group info and Try it with Group
-// question. Reports page errors and horizontal overflow. Never calls a model.
+// group chat (badge, quoted answers, lines, hand-over, paused; Open chat: open question, follow-up,
+// named, the polite line), Group info with its choice and Try it with Group question. Reports page errors and horizontal overflow. Never calls a model.
 // Usage: node e2e/groups-screens.mjs <port> <outDir>
 /* global document -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
@@ -52,8 +52,8 @@ for (const scheme of ['light', 'dark'])
       ctx.request.fetch(path, { method, data, headers: { origin: BASE } });
     await req('POST', '/api/auth/login', { username: 'checker', password: 'check-pass-123' });
     const agent = (await (await req('GET', '/api/ai')).json()).agents[0];
-    // The check left the group switched off; switch it on for the screens.
-    await req('PUT', `/api/chats/${encodeURIComponent(GROUP)}/ai-group`, { enabled: true });
+    // The check left the group switched off; put it in Open chat for the screens.
+    await req('PUT', `/api/chats/${encodeURIComponent(GROUP)}/ai-group`, { setting: 'open' });
 
     const page = await ctx.newPage();
     page.on('pageerror', (e) => problems.push(`${suffix} pageerror: ${e.message}`));
@@ -77,10 +77,18 @@ for (const scheme of ['light', 'dark'])
     await shot('02-group-chat-bottom');
     await page.getByText('what time does the kitchen close?').first().scrollIntoViewIfNeeded();
     await shot('03-group-chat-tag-and-quote');
+    await page.getByText('Anyone know if you deliver to Jelutong?').last().scrollIntoViewIfNeeded();
+    await shot('03b-group-chat-open-chat');
+    await page.getByText('who will win the election?').last().scrollIntoViewIfNeeded();
+    await shot('03c-group-chat-polite-line');
 
     await page.getByRole('button', { name: /Open group info for/ }).click();
     await page.getByTestId('group-ai-row').waitFor();
     await shot('04-group-info');
+    await page.getByTestId('group-ai-setting').click();
+    await page.getByRole('listbox').waitFor();
+    await shot('04b-group-info-choices');
+    await page.keyboard.press('Escape');
 
     await page.goto(`/admin/members/ai/${agent.id}`);
     await page.getByText('Group question').first().click();

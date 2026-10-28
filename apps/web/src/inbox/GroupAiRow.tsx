@@ -74,6 +74,7 @@ export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: bo
         >
           {t('aiGroups.info.title')}
         </Label>
+        {/* The choice goes on its own line: the Group info panel is narrow at every width. */}
         {isAdmin ? (
           <Select
             value={ai.agentAnswersGroups ? ai.setting : 'off'}
@@ -88,7 +89,7 @@ export function GroupAiRow({ jid, isAdmin }: Readonly<{ jid: string; isAdmin: bo
             <SelectTrigger
               id={selectId}
               aria-describedby={hintId}
-              className="min-h-11 w-full bg-surface sm:w-52"
+              className="ml-7 min-h-11 w-[calc(100%-1.75rem)] basis-full bg-surface"
               data-testid="group-ai-setting"
             >
               <SelectValue />

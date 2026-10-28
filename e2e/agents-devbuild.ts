@@ -9,6 +9,7 @@
 // Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
+// Groups in Open chat: the decision follows fixed rules (see mockGate); check: e2e/devbuild-groups-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -20,6 +21,7 @@ import type { AiPrompt, AiRewritePrompt } from '../packages/server/src/ai/provid
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
+import { GROUP_GATE_RULES } from '../packages/server/src/ai/group-gate.js';
 import { buildApp } from '../packages/server/src/app.js';
 import { attachRealtime } from '../packages/server/src/realtime/index.js';
 
@@ -158,8 +160,40 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
  * with the customer's last message, as two drafts; a completion continues that sentence after the
  * last typed word. A customer message with LEAK makes it copy internalKnowledge (must be dropped).
  */
+/**
+ * The mock Open-chat decision (ai/group-gate.ts), by fixed rules a check can predict: the agent's
+ * name → named; "@…" or a leading "Name," of someone else → person; the member the AI just answered →
+ * continue; "Anyone …?" / "Does anyone …?" → open; else chat. Sensitive: election, politics, race,
+ * religion or gender (never a halal question).
+ */
+function mockGate(prompt: AiRewritePrompt): unknown {
+  const input = JSON.parse(prompt.input) as {
+    agentName: string;
+    inConversation: boolean;
+    message: { text: string };
+  };
+  const text = input.message.text;
+  const lower = text.toLowerCase();
+  const sensitive =
+    /\b(election|politic\w*|race|racial|religion|religious|gender)\b/.test(lower) &&
+    !lower.includes('halal');
+  const named = lower.includes(input.agentName.toLowerCase());
+  const leading = /^([A-Z][\p{L}]+),/u.exec(text)?.[1];
+  const reach = named
+    ? 'named'
+    : text.includes('@') || (leading && leading.toLowerCase() !== input.agentName.toLowerCase())
+      ? 'person'
+      : input.inConversation
+        ? 'continue'
+        : /^(does )?anyone\b.*\?\s*$/i.test(text)
+          ? 'open'
+          : 'chat';
+  return { reach, sensitive };
+}
+
 function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
   signal.throwIfAborted();
+  if (prompt.instructions === GROUP_GATE_RULES) return mockGate(prompt);
   // A phrase-list build: each business-context sentence as a fact phrase, the team's replies as
   // their own phrases (a cleaned reply with [name] must be dropped), and two greetings.
   const build = JSON.parse(prompt.input) as { teamReplies?: string[]; businessKnowledge: string };
