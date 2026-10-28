@@ -23,6 +23,7 @@ import wa from './wa.js';
 import dev from './dev.js';
 import clientErrors from './client-errors.js';
 import ai from './ai.js';
+import aiGroups from './ai-groups.js';
 import directory from './directory.js';
 import integrations from './integrations.js';
 import oauth from './oauth.js';
@@ -57,6 +58,7 @@ export const routeModules: RouteModule[] = [
   dev,
   clientErrors,
   ai,
+  aiGroups,
   directory,
   integrations,
   oauth,

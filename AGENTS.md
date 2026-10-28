@@ -189,6 +189,15 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
+**AI in groups** (design `docs/features/ai-groups/design.md`). Off by default: `ai_agents.answer_groups` (agent page
+Groups card) and `ai_group_chats` per group (Group info switch), migration 024; routes `/api/ai/agents/:agentId/groups`,
+`/api/chats/:jid/ai-group`. `ai/groups.ts` answers only a live group message that tags the inbox's own JID/LID
+(`mentionedJids`) or quotes a message the agent's AI user sent; everything else gets no reply. A group turn never
+claims or assigns the chat (`claimOnReply` and `onChat` skip groups), offers look-ups only (no `book_appointment`, no
+connector write tool), quotes the asker, and hands over with "A team member will reply soon." + `ai:group_handoff`
+(push to the assignee, else everyone with inbox access; not counted in Reports' AI hand-overs). Loop guard: 10 AI
+messages since the last teammate message pause the AI in that group (`AI_GROUP_LOOP_GUARD`, one paused line).
+
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and

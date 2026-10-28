@@ -632,6 +632,9 @@ into AGENTS.md.
   listens on the port (`Get-NetTCPConnection -LocalPort <p>`), or the next check runs against the old server.
 - A screenshot or check script that connects many times must pace itself under the app's rate limits (connect and
   test: 10 a minute per admin); a "Too many attempts" screen is the limit working, not a bug.
+- A spec that creates shared state (Lite's single AI agent) changes which branch other specs take: run e2e with one
+  worker before reporting, because the order differs from the parallel run, and give each "already exists" branch its
+  own assertion that runs on desktop too.
 
 ## Security
 
@@ -955,6 +958,9 @@ into AGENTS.md.
 - Never trust a model to continue "exactly where the text stops": ask for the whole current sentence and cut the
   typed part on the server (`continuationOf`: longest typed end from a word start, case and spaces ignored), so the
   grey text never repeats what was typed and the space after a finished word comes from the model's own sentence.
+- Code that assumed "the AI only talks in direct chats" breaks when groups get AI answers: an AI send must not
+  claim a group (`claimOnReply`), pause/cancel logic keyed on the chat (`onChat`) must skip groups, and tools that read
+  the customer profile need an empty contact in a group. Grep for `type === 'dm'` assumptions before widening a path.
 
 ## Desktop and web UI
 

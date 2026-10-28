@@ -7,6 +7,12 @@ const en = {
     newMessage: 'New message',
     unknownContact: 'Unknown contact',
     aiHandoff: { title: 'Chat handed over', body: '{{name}} needs a teammate.' },
+    /** The AI handed a question in a WhatsApp group to the team. */
+    aiGroupHandoff: {
+      title: '{{agent}} needs you in {{group}}',
+      body: '{{member}}: {{question}}',
+      member: 'A member',
+    },
     /** An alert about one of several linked numbers: the inbox name, then the alert. */
     inboxAlertTitle: '{{inbox}}: {{title}}',
     waLoggedOut: {
@@ -31,6 +37,11 @@ const ms: typeof en = {
     newMessage: 'Mesej baharu',
     unknownContact: 'Kenalan tidak dikenali',
     aiHandoff: { title: 'Sembang diserahkan', body: '{{name}} memerlukan bantuan ahli pasukan.' },
+    aiGroupHandoff: {
+      title: '{{agent}} memerlukan anda dalam {{group}}',
+      body: '{{member}}: {{question}}',
+      member: 'Seorang ahli',
+    },
     inboxAlertTitle: '{{inbox}}: {{title}}',
     waLoggedOut: {
       title: 'WhatsApp terputus',
@@ -55,6 +66,11 @@ const zhCN: typeof en = {
     newMessage: '新消息',
     unknownContact: '未知联系人',
     aiHandoff: { title: '会话已转交', body: '{{name}}需要团队成员协助。' },
+    aiGroupHandoff: {
+      title: '{{agent}} 需要你在 {{group}} 中协助',
+      body: '{{member}}：{{question}}',
+      member: '一位成员',
+    },
     inboxAlertTitle: '{{inbox}}：{{title}}',
     waLoggedOut: {
       title: 'WhatsApp 已断开',

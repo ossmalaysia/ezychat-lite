@@ -470,3 +470,72 @@ it('replaces the reactions of a cached message when someone reacts, changes or r
   expect(cached()).toEqual([[], []]);
   qc.clear();
 });
+
+it('refreshes a group AI state on a group line and when a teammate writes during a pause', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const group = '120363000000000001@g.us';
+  const key = ['ai-groups', 'chat', group];
+  qc.setQueryData(key, {
+    enabled: true,
+    agentId: 3,
+    agentName: 'Aina',
+    agentAnswersGroups: true,
+    paused: false,
+  });
+  const invalidate = vi.spyOn(qc, 'invalidateQueries');
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  const groupCalls = () =>
+    invalidate.mock.calls.filter(([f]) => JSON.stringify(f?.queryKey) === JSON.stringify(key));
+
+  // Not paused: our own message does not refetch.
+  act(() =>
+    socket.listeners.get('message:new')!({
+      id: 'm1',
+      chatJid: group,
+      fromMe: true,
+      clientId: null,
+    }),
+  );
+  expect(groupCalls()).toHaveLength(0);
+  // A look-up line without a group part does not either.
+  act(() =>
+    socket.listeners.get('chat:event')!({
+      id: 1,
+      chatJid: group,
+      type: 'ai_tool_used',
+      actorId: 9,
+      payload: { title: 'Find', sourceLabel: 'Lejar' },
+      at: 0,
+    }),
+  );
+  expect(groupCalls()).toHaveLength(0);
+  act(() =>
+    socket.listeners.get('chat:event')!({
+      id: 2,
+      chatJid: group,
+      type: 'ai_tool_used',
+      actorId: 9,
+      payload: { title: 'Group', sourceLabel: 'WhatsApp', group: { kind: 'paused', member: null } },
+      at: 0,
+    }),
+  );
+  expect(groupCalls()).toHaveLength(1);
+  qc.setQueryData(key, { ...qc.getQueryData<object>(key), paused: true });
+  act(() =>
+    socket.listeners.get('message:new')!({
+      id: 'm2',
+      chatJid: group,
+      fromMe: true,
+      clientId: null,
+    }),
+  );
+  expect(groupCalls()).toHaveLength(2);
+  qc.clear();
+});

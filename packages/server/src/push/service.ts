@@ -23,6 +23,11 @@ export interface PushService {
   notifyInbound(chat: Chat, message: Message): Promise<void>;
   notifyHandoff(chat: Chat): Promise<void>;
   /**
+   * The AI handed a WhatsApp group question to the team: the group's assignee, else everyone who may
+   * open its inbox. The text names the agent, the group and the member.
+   */
+  notifyGroupHandoff(handoff: GroupHandoff): Promise<void>;
+  /**
    * `text` is rendered in each admin's preferred language. `link` overrides the URL and tag
    * (default Admin → WhatsApp, `wa-status`).
    */
@@ -43,6 +48,14 @@ export interface PushDeps {
 }
 
 export type LocalizedText = (locale: Locale | null) => { title: string; body: string };
+
+/** The `ai:group_handoff` bus event. */
+export interface GroupHandoff {
+  chat: Chat;
+  agentName: string;
+  member: string | null;
+  question: string;
+}
 
 interface SubRow {
   id: number;
@@ -310,6 +323,31 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
       }));
     },
 
+    async notifyGroupHandoff({ chat, agentName, member, question }) {
+      const targets = recipients(chat);
+      // counts only: never the group, the member or the question
+      log.info(
+        {
+          event: 'ai_group_handoff_notification',
+          assigned: chat.assignedTo != null,
+          recipients: targets.length,
+        },
+        'Dispatching AI group handover notification',
+      );
+      await deliver('handoff', byLocale(targets), (locale) => ({
+        title: t(locale, 'push.aiGroupHandoff.title', {
+          agent: agentName,
+          group: chat.name || t(locale, 'push.unknownContact'),
+        }).slice(0, 200),
+        body: t(locale, 'push.aiGroupHandoff.body', {
+          member: member ?? t(locale, 'push.aiGroupHandoff.member'),
+          question,
+        }).slice(0, 1000),
+        url: `/chats/${encodeURIComponent(chat.jid)}`,
+        tag: chat.jid,
+      }));
+    },
+
     async notifyAdmins(text, link = { url: '/admin/whatsapp', tag: 'wa-status' }) {
       const targets = ids(q.activeAdmins.all());
       if (!targets.length) return;
@@ -327,6 +365,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     shutdown() {
       ctx.bus.off('inbound:notify', onInbound);
       ctx.bus.off('ai:handoff', onHandoff);
+      ctx.bus.off('ai:group_handoff', onGroupHandoff);
       ctx.bus.off('wa:status', onWaStatus);
       ctx.bus.off('inbox:status', onInboxStatus);
     },
@@ -339,6 +378,11 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   };
   const onHandoff = (chat: Chat) => {
     service.notifyHandoff(chat).catch((err: unknown) => log.warn({ err }, 'notifyHandoff failed'));
+  };
+  const onGroupHandoff = (handoff: GroupHandoff) => {
+    service
+      .notifyGroupHandoff(handoff)
+      .catch((err: unknown) => log.warn({ err }, 'notifyGroupHandoff failed'));
   };
   // the last alert state of each inbox: one alert per outage, per number
   const lastAlertState = new Map<number, WaStatus['state']>();
@@ -367,6 +411,7 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
   };
   ctx.bus.on('inbound:notify', onInbound);
   ctx.bus.on('ai:handoff', onHandoff);
+  ctx.bus.on('ai:group_handoff', onGroupHandoff);
   ctx.bus.on('wa:status', onWaStatus);
   ctx.bus.on('inbox:status', onInboxStatus);
 

@@ -26,6 +26,11 @@ import { clientIp } from '../http/client-ip.js';
 import { FAKE_API_TYPE } from '../inboxes/fake-api.js';
 import { getInboxService } from '../inboxes/service.js';
 
+/** fake WA only: `quotedId` is a stored message id of the same chat (the member replies to it). */
+const FakeIncomingDevBody = FakeIncomingBody.extend({
+  quotedId: z.string().min(1).max(512).optional(),
+});
+
 const FakeWindowBody = z.object({
   chatJid: z.string().min(1).max(256),
   /** The customer's last live message this many hours ago (0 = now). */
@@ -63,7 +68,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
   };
 
   app.post('/dev/fake-incoming', { preHandler: requireUser(ctx) }, async (req) => {
-    const body = parse(FakeIncomingBody, req.body ?? {});
+    const body = parse(FakeIncomingDevBody, req.body ?? {});
     const inboxId = body.inboxId ?? PRIMARY_INBOX_ID;
     const wa = fakeOf(inboxId);
     const direct = chatKey(inboxId, body.chatJid);
@@ -103,6 +108,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         senderName: body.senderName ?? null,
         ...(body.senderJid ? { senderJid: body.senderJid } : {}),
         ...(body.mentionedJids !== undefined ? { mentionedJids: body.mentionedJids } : {}),
+        ...(body.quotedId ? { quotedId: waMessageId(body.quotedId) } : {}),
         type: body.type ?? 'text',
         // A simulated voice note or photo: the fake adapter serves these bytes as the download.
         media: body.media

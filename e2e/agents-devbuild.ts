@@ -130,6 +130,13 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
       ...(email ? { customer_email: email } : {}),
     });
   }
+  // A change request (e.g. in a WhatsApp group): hand over, as real models do (needs_action).
+  if (last.includes('CHANGE'))
+    return {
+      reply: 'A team member will reply soon.',
+      action: 'handoff',
+      handoffReason: 'needs_action',
+    };
   const name = /Your name: (.+)/.exec(prompt.instructions)?.[1] ?? '?';
   if (prompt.input.includes('LEAK'))
     return { reply: `Sure: ${input.internalKnowledge}`, action: 'answer' };

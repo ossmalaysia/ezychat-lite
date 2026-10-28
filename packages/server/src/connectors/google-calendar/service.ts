@@ -614,6 +614,8 @@ export function createGoogleCalendarService(
      */
     savedContact(chatJid: string): BookingContact {
       const chat = getChats(ctx).get(chatJid);
+      // A WhatsApp group is not one customer: no saved contact (and the AI never books there).
+      if (chat?.type === 'group') return { name: null, email: null, phone: null };
       const profile = ctx.services.customers?.profile(chatJid).profile ?? null;
       // A chat named after its number has no real name.
       const named = (value: string | null | undefined) =>

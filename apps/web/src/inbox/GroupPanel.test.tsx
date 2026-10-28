@@ -96,7 +96,7 @@ function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;
 }
 
-function renderPanel(onClose = vi.fn()) {
+function renderPanel(onClose = vi.fn(), isAdmin = false) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
@@ -106,7 +106,7 @@ function renderPanel(onClose = vi.fn()) {
             path="*"
             element={
               <>
-                <GroupPanel jid={GROUP} open onClose={onClose} />
+                <GroupPanel jid={GROUP} open onClose={onClose} isAdmin={isAdmin} />
                 <Where />
               </>
             }
@@ -124,6 +124,34 @@ afterEach(() => {
 });
 
 describe('GroupPanel', () => {
+  it('shows the AI agent row under the group name: a switch for admins, the state for agents', async () => {
+    mockApi(info());
+    const members = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) =>
+        url.endsWith('/ai-group')
+          ? json({
+              enabled: true,
+              agentId: 3,
+              agentName: 'Aina',
+              agentEnabled: true,
+              agentAnswersGroups: true,
+              paused: false,
+            })
+          : members(url, init),
+      ),
+    );
+    renderPanel(vi.fn(), true);
+    const sw = await screen.findByRole('switch', {
+      name: 'AI agent answers when tagged or quoted',
+    });
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    cleanup();
+    renderPanel();
+    expect((await screen.findByTestId('group-ai-state')).textContent).toBe('On');
+  });
+
   it('lists members with only what WhatsApp shared', async () => {
     mockApi(info());
     renderPanel();

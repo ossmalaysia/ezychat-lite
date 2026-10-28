@@ -38,7 +38,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private readonly autoOpen: boolean;
   private awaitScan: boolean;
-  private readonly me: { jid: string; name: string };
+  private readonly me: { jid: string; name: string; lid?: string };
   private readonly idPrefix: string;
   private inCounter = 0;
   private outCounter = 0;
@@ -69,7 +69,8 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   templateListCalls = 0;
 
   /**
-   * `me`: the linked account (default the fake number 60000000000); `idPrefix`: start of every
+   * `me`: the linked account (default the fake number 60000000000; `lid` its WhatsApp LID, as groups
+   * and mentions show it); `idPrefix`: start of every
    * message id (default `FAKE`), so adapters of different inboxes never share an id.
    * `awaitScan`: a phone that was never linked — `connect()` shows a QR code and stays there
    * until `setConnected(true)` (the dev stand-in for the scan).
@@ -78,7 +79,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
    */
   constructor(opts?: {
     autoOpen?: boolean;
-    me?: { jid: string; name: string };
+    me?: { jid: string; name: string; lid?: string };
     idPrefix?: string;
     awaitScan?: boolean;
     capabilities?: WaCapabilities;

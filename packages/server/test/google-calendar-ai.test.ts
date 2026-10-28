@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_BOOKING_SETTINGS, type AiTryResult, type BookingSettings } from '@ezychat/shared';
 import type { ToolSet } from 'ai';
 import { listAgents } from '../src/ai/agents.js';
+import { setAgentGroups, setGroupChat } from '../src/ai/groups.js';
 import { createAiService, AI_FALLBACK_MS } from '../src/ai/service.js';
 import { HANDOFF_REPLY } from '../src/ai/prompt.js';
 import type { AiPrompt, AiProvider } from '../src/ai/provider-types.js';
@@ -395,6 +396,46 @@ describe('Google Calendar AI tools (live)', () => {
     await t.ctx.services.googleCalendar!.disconnect(actor);
     await customerSays('in-3', 'Ok');
     expect(offeredTools()[2]).toEqual([]);
+  });
+
+  it('offers free times but never booking in a WhatsApp group answer', async () => {
+    const actor = await setUp({ booking: { book: true } });
+    t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);
+    const group = '120363000000009@g.us';
+    getChats(t.ctx).upsertFromWa({ jid: group, type: 'group', name: 'Kopi Lovers Club' });
+    setAgentGroups(t.ctx, agentId, true, actor);
+    setGroupChat(t.ctx, group, true, actor);
+    script = async (tools, signal) => {
+      const offered = freeTimes(await call(tools, 'check_free_times', {}, signal));
+      return { reply: `Free at ${offered[0]!.time}`, action: 'answer' };
+    };
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'g-1',
+        chatJid: group,
+        body: '@60000000000 any table free today?',
+        mentionedJids: ['60000000000@s.whatsapp.net'],
+        type: 'text',
+        fromMe: false,
+        senderJid: '60111111111@s.whatsapp.net',
+        senderName: 'Farah Aziz',
+        timestamp: Date.now(),
+        quotedId: null,
+        media: null,
+      },
+      'live',
+    );
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(offeredTools()).toEqual([['check_free_times']]);
+    const lines = getChats(t.ctx)
+      .events(group)
+      .filter((e) => e.type === 'ai_tool_used')
+      .map((e) => e.payload);
+    expect(lines).toEqual([
+      expect.objectContaining({ calendar: { action: 'checked' } }),
+      expect.objectContaining({ group: { kind: 'answered', member: 'Farah Aziz' } }),
+    ]);
+    expect(fake().events).toEqual([]);
   });
 
   it('counts the calendar as facts only with Check free times on and a calendar chosen', async () => {

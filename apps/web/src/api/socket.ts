@@ -12,6 +12,7 @@ import type React from 'react';
 import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import type {
+  AiGroupChat,
   ChatDetailResponse,
   ClientToServerEvents,
   Note,
@@ -29,6 +30,7 @@ import {
   useWaStatus,
 } from './queries';
 import { voiceStatusKey } from './voice';
+import { groupChatAiKey } from './ai-groups';
 import { dispatchAccessRecheck } from '../access/events';
 import { ProfileImageContext } from '../inbox/ProfileImageContext';
 import { registerResumeReconnect } from './resume-reconnect';
@@ -136,6 +138,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Load again once it ends (invalidating now would only reuse a first load still in flight).
       reloadAfterRunningLoad(qc, qk.messages(m.chatJid));
       refreshChats();
+      // A teammate's message ends the loop guard's pause in a group.
+      if (m.fromMe && qc.getQueryData<AiGroupChat>(groupChatAiKey(m.chatJid))?.paused)
+        void qc.invalidateQueries({ queryKey: groupChatAiKey(m.chatJid) });
     });
     // A transcript arrived for a voice note: update it in place (no chat list refresh needed).
     socket.on('message:updated', (m) => upsertMessageInCache(qc, m));
@@ -172,6 +177,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ? { ...old, events: [...old.events, e] }
           : old,
       );
+      // A group line (answered, hand-over, paused): the header badge may now say "AI paused".
+      if (e.type === 'ai_tool_used' && e.payload.group)
+        void qc.invalidateQueries({ queryKey: groupChatAiKey(e.chatJid) });
     });
     socket.on('note:new', (n) => {
       qc.setQueryData<Note[]>(qk.notes(n.chatJid), (old) =>

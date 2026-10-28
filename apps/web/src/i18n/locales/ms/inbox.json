@@ -252,7 +252,13 @@
     "internalNote": "Nota dalaman",
     "calendarChecked": "AI menyemak masa lapang · {{source}}",
     "calendarBooked": "AI menempah {{when}} · {{source}}",
-    "calendarBookedNoTime": "AI menempah satu masa · {{source}}"
+    "calendarBookedNoTime": "AI menempah satu masa · {{source}}",
+    "aiGroupAnswered": "{{actor}} menjawab {{member}}",
+    "aiGroupQuoted": "{{actor}} menjawab balasan {{member}} kepada AI",
+    "aiGroupHandover": "{{actor}} menyerahkan soalan {{member}} kepada pasukan: {{reason}}",
+    "aiGroupHandoverNoReason": "{{actor}} menyerahkan soalan {{member}} kepada pasukan",
+    "aiGroupPaused": "AI dijeda: terlalu banyak jawapan berturut-turut",
+    "aiGroupMember": "seorang ahli"
   },
   "messageList": {
     "label": "Mesej",
@@ -577,5 +583,21 @@
     "manage": "Buka WhatsApp Manager",
     "sync": "Segerakkan",
     "synced": "Templat disegerakkan daripada WhatsApp"
+  },
+  "aiGroups": {
+    "badge": "AI menjawab apabila ditanda atau dipetik",
+    "badgePaused": "AI dijeda",
+    "info": {
+      "title": "Ejen AI menjawab apabila ditanda atau dipetik",
+      "hint": "{{name}} menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI.",
+      "noAgent": "Tiada ejen AI dalam peti masuk ini.",
+      "agentDisabled": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
+      "agentOff": "Jawab dalam kumpulan dimatikan untuk {{name}}. Hidupkan dahulu di halaman ejen.",
+      "openAgent": "Buka {{name}}",
+      "readOnly": "Hanya pentadbir boleh menukar ini.",
+      "on": "Hidup",
+      "off": "Mati",
+      "paused": "Dijeda: terlalu banyak jawapan berturut-turut. Mesej rakan sepasukan memulakannya semula."
+    }
   }
 }

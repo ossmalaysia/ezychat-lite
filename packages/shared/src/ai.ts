@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AiGroupEvent } from './ai-groups.js';
 import { AiToolCalendarDetail } from './connectors.js';
 import { UserSchema } from './models.js';
 
@@ -408,6 +409,8 @@ export const AiTryBody = z.object({
   knowledge: AiMemberBody.pick({ displayName: true, instructions: true, handoffRules: true }),
   /** The agent whose saved items answer; omitted = the agent of inbox 1. */
   agentId: z.number().int().positive().optional(),
+  /** Answer as in a WhatsApp group (the question tags the business); look-ups only. */
+  group: z.boolean().optional(),
 });
 export type AiTryBody = z.infer<typeof AiTryBody>;
 /** Shown text of one look-up an extension tool made ("AI looked up {{title}} · {{source}}"). */
@@ -417,6 +420,8 @@ export const AiToolUsedPayload = z.object({
   sourceLabel: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
   /** Google Calendar (core connector): what the AI checked or booked. */
   calendar: AiToolCalendarDetail.optional(),
+  /** A WhatsApp group: the AI answered a tag or a quote, handed over, or paused (loop guard). */
+  group: AiGroupEvent.optional(),
 });
 export type AiToolUsedPayload = z.infer<typeof AiToolUsedPayload>;
 /** One extension tool call of a Try it answer: names and timing only, never input or output. */

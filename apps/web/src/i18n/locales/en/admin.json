@@ -1906,5 +1906,35 @@
     "colReplies": "Replies",
     "colReplyTime": "First reply",
     "hourRange": "{{day}} {{from}}–{{to}}"
+  },
+  "aiGroups": {
+    "title": "Groups",
+    "description": "{{name}} can answer in the groups of your WhatsApp number ({{inbox}}).",
+    "switch": "Answer in groups (when tagged or quoted)",
+    "switchHint": "Answers only when a member @mentions your number or quotes an AI message. Other group messages get no reply.",
+    "offSummary_one": "{{inbox}} is in {{count}} group. Turn this on to choose where {{name}} answers.",
+    "offSummary_other": "{{inbox}} is in {{count}} groups. Turn this on to choose where {{name}} answers.",
+    "listLabel": "Groups of {{inbox}}",
+    "noneOn": "No group is switched on yet, so {{name}} answers in no group.",
+    "noGroups": "{{inbox}} is not in any WhatsApp group yet. Groups show here when the number is added to one.",
+    "noInbox": "Choose an inbox for {{name}} first.",
+    "loopGuard": "Loop guard: after {{count}} answers in a row with no teammate message, {{name}} pauses in that group until a teammate writes.",
+    "lookupsOnly": "In groups, {{name}} only looks things up. Bookings and other changes are never made from a group.",
+    "agentOff": "{{name}} is off. Nothing is answered in groups until you turn {{name}} on.",
+    "members_one": "{{count}} member",
+    "members_other": "{{count}} members",
+    "answers": "Answers when tagged or quoted",
+    "off": "Off",
+    "paused": "Paused: many answers in a row",
+    "answerIn": "Answer in {{group}}",
+    "openGroup": "Open {{group}}",
+    "saveFailed": "Could not save. Try again.",
+    "try": {
+      "group": "Group question",
+      "groupHint": "Ask as if a member @mentioned your number in a group.",
+      "inGroup": "In a group",
+      "lookupsOnly": "In groups {{name}} only looks things up; a teammate makes the booking.",
+      "notSent": "Nothing is sent to the group."
+    }
   }
 }

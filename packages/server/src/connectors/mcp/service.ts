@@ -1047,6 +1047,8 @@ export function createConnectorMcpService(ctx: AppContext, options: ConnectorMcp
     /** The saved contact's name, email and phone numbers (for `fromCustomer`). */
     savedContact(chatJid: string): string[] {
       const chat = getChats(ctx).get(chatJid);
+      // A WhatsApp group is not one customer: nothing counts as its saved contact.
+      if (chat?.type === 'group') return [];
       const profile = ctx.services.customers?.profile(chatJid).profile ?? null;
       const whatsapp =
         chat?.phone ?? (chat?.waJid.endsWith('@s.whatsapp.net') ? chat.waJid.split('@')[0]! : null);
