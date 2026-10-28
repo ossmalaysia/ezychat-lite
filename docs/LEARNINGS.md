@@ -632,6 +632,9 @@ into AGENTS.md.
   listens on the port (`Get-NetTCPConnection -LocalPort <p>`), or the next check runs against the old server.
 - A screenshot or check script that connects many times must pace itself under the app's rate limits (connect and
   test: 10 a minute per admin); a "Too many attempts" screen is the limit working, not a bug.
+- A spec that creates shared state (Lite's single AI agent) changes which branch other specs take: run e2e with one
+  worker before reporting, because the order differs from the parallel run, and give each "already exists" branch its
+  own assertion that runs on desktop too.
 
 ## Security
 
