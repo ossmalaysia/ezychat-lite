@@ -54,7 +54,7 @@ Status: **proposal**, waiting for the owner's confirmation of the mock (see Conf
   `messageDeleted`; `mapWAProtocol` (`MESSAGE_EDIT` with `editedMessage`, `REVOKE`) in `ingest()` before
   `mapWAMessage`, plus `messages.update` `editedMessage`, deduplicated by target id and edit time;
   history applies changes inside the import window. Fake adapter: `simulateEdit`, `simulateRevoke`.
-- Migration 025: `messages.edited_at`, `deleted_at`, `deleted_by`, `deleted_by_user_id`, `hidden_at`;
+- Migration 029: `messages.edited_at`, `deleted_at`, `deleted_by`, `deleted_by_user_id`, `hidden_at`;
   table `message_edits` (previous text, at, by, user); `message_changes_pending` for a change that
   arrives before its message. `upgrade-from-oldest.test.ts` seed extended.
 - `MessageSchema`: `editedAt`, `deletedAt`, `deletedBy`, `deletedByName`, `editCount` (zod defaults);
