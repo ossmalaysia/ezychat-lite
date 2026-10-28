@@ -9,6 +9,7 @@
 // Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
+// Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals).
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -179,6 +180,21 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
         },
         { text: 'Terima kasih atas mesej anda!', language: 'ms', source: 'team' },
       ],
+    };
+  // Fix English grammar check: a fixed list of slips corrected; numbers and the rest left as typed.
+  const grammar = JSON.parse(prompt.input) as { text?: string };
+  if (typeof grammar.text === 'string' && !('conversation' in grammar))
+    return {
+      corrected: grammar.text
+        .replace(/\b(order|parcel|item|payment) have been\b/gi, '$1 has been')
+        .replace(/\bbeen ship\b/gi, 'been shipped')
+        .replace(/\b(check|confirm) you (email|order|address)\b/gi, '$1 your $2')
+        .replace(/\ba (update|order|email|invoice)\b/gi, 'an $1')
+        .replace(/\bi\b/g, 'I')
+        .replace(
+          /(^|[.!?]\s+)([a-z])/g,
+          (_, before: string, c: string) => before + c.toUpperCase(),
+        ),
     };
   const input = JSON.parse(prompt.input) as {
     internalKnowledge: string;

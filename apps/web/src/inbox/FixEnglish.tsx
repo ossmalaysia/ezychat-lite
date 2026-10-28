@@ -136,20 +136,21 @@ export function useFixEnglish(
   // Grammar: after a pause, from the AI; marks move with the text until the next answer.
   const [grammar, setGrammar] = useState<FixIssue[]>([]);
   const [grammarStatus, setGrammarStatus] = useState<GrammarStatus>('idle');
-  const [checkedFor, setCheckedFor] = useState<string | null>(null);
   const previous = useRef(text);
   useLayoutEffect(() => {
-    setGrammar((current) => shiftIssues(current, previous.current, text));
+    // Read the old text now: the updater runs later, after `previous` already holds the new text.
+    const before = previous.current;
     previous.current = text;
+    setGrammar((current) => shiftIssues(current, before, text));
   }, [text]);
   useEffect(() => {
     if (!grammarOn || !text.trim()) {
       setGrammar([]);
       setGrammarStatus('idle');
-      setCheckedFor(null);
       return;
     }
-    if (text === checkedFor) return;
+    // Every change is checked again after the pause, also a return to text checked before (Undo):
+    // its marks were dropped by the edit.
     const cancel = new AbortController();
     const timer = setTimeout(() => {
       setGrammarStatus('checking');
@@ -170,7 +171,6 @@ export function useFixEnglish(
               : [],
           );
           setGrammarStatus(result.status === 'checked' ? 'done' : 'skipped');
-          setCheckedFor(text);
         })
         .catch(() => {
           if (!cancel.signal.aborted) setGrammarStatus('error');
@@ -180,7 +180,7 @@ export function useFixEnglish(
       clearTimeout(timer);
       cancel.abort();
     };
-  }, [text, grammarOn, jid, checkedFor]);
+  }, [text, grammarOn, jid]);
 
   // "Ignore" hides that mark for the rest of this draft.
   const [ignored, setIgnored] = useState<ReadonlySet<string>>(new Set());
@@ -279,6 +279,7 @@ export function FixEnglishCard({
   onHover,
 }: {
   issue: FixIssue;
+  /** Viewport coordinates: the word's left edge, and the distance from the word's top to the bottom. */
   position: { left: number; bottom: number };
   touch: boolean;
   onPick(fix: string): void;
@@ -295,12 +296,21 @@ export function FixEnglishCard({
       ? t('composer.fixEnglish.spelling')
       : t('composer.fixEnglish.grammar');
   const small = cn(touch && 'min-h-11');
+  // A fixed card, moved left until it fits the screen (a word near the right edge of a phone).
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [left, setLeft] = useState(position.left);
+  useLayoutEffect(() => {
+    const width = cardRef.current?.offsetWidth ?? 0;
+    const room = (typeof window === 'undefined' ? 0 : window.innerWidth) - width - 8;
+    setLeft(Math.max(8, Math.min(position.left, room > 8 ? room : position.left)));
+  }, [position.left]);
   return (
     <div
+      ref={cardRef}
       role="dialog"
       aria-label={t('composer.fixEnglish.cardLabel', { word: issue.original })}
-      className="absolute z-20 w-max max-w-[min(22rem,calc(100vw-2rem))] rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg"
-      style={{ left: position.left, bottom: position.bottom }}
+      className="fixed z-50 w-max max-w-[min(22rem,calc(100vw-1rem))] rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg"
+      style={{ left, bottom: position.bottom }}
       onMouseDown={(e) => e.preventDefault()}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}

@@ -198,6 +198,22 @@ connector write tool), quotes the asker, and hands over with "A team member will
 (push to the assignee, else everyone with inbox access; not counted in Reports' AI hand-overs). Loop guard: 10 AI
 messages since the last teammate message pause the AI in that group (`AI_GROUP_LOOP_GUARD`, one paused line).
 
+**Fix English** (design `docs/features/grammar-fix/design.md`, mock `docs/features/grammar-fix/mock`). Team switch
+`fix_english` (missing = on; migration 025 writes it off + `fix_english_upgraded` for installs with users), status for
+everyone at `GET /api/fix-english` (`spelling` on/off, `grammar` on/off/`none`/`unavailable`), admins `PUT
+/api/ai/fix-english`. Spelling never reaches the server: `apps/web/src/lib/spelling.ts` checks each word with `nspell` and
+the British English Hunspell dictionary vendored in `apps/web/public/dictionaries/en-GB` (pinned to `dictionary-en-gb` by
+`spelling.test.ts`; fetched by `lib/dictionary.ts` on first use, never precached), skips links, numbers, all-caps,
+capitalised words inside a sentence, `LOCAL_WORDS` and the accepted words, and Fix all applies only a `safeFix`.
+Grammar: `POST /api/chats/:jid/ai/fix-grammar` (any chat type, 120 a minute per user) → `AiService.fixGrammar`: one
+structured `draft` call on the "Model for suggestions" with the fixed `FIX_GRAMMAR_RULES` and `{text}` only, then
+`fix-english/grammar.ts#grammarIssues` diffs the corrected text into marks and drops changes to numbers, links, emails,
+mentions, more than 4 words, or a rewrite; Malay/Chinese (`notEnglish`) is skipped before any call; logs counts only
+(`fix_grammar`). Team words (`fix_english_words`, ≤ 500): any user adds (`POST /api/fix-english/words`), admins remove;
+audited with the word; `GET` adds the words of every agent's non-Internal Business context. Web: `inbox/FixEnglish.tsx`
+(hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
+browser's own `spellCheck` off while it marks spelling.
+
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and

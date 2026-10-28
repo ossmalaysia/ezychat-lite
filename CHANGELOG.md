@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fix English.** While you type an English reply, spelling mistakes are underlined in red at once and grammar
+  mistakes in blue after a short pause. Hover a word (or tap it on a phone) to fix it, or press **Fix** (or
+  Ctrl+J) to fix them all, with **Undo**. Spelling uses a British English dictionary built into the app (about
+  0.2 MB, downloaded once): it is free and works without AI. Grammar uses your AI connection. Numbers, prices,
+  names, links and Malaysian chat words (lah, ya, nasi lemak) are never changed, Malay and Chinese messages are
+  not checked, and nothing changes or is sent without you. Words the dictionary does not know (product and
+  place names) can be added to the team's word list; words of your Business context count too. Admins switch
+  it in Settings → AI; it is off after the update, on for new installs.
+
 ## [0.1.62] - 2026-10-28
 
 ### Added

@@ -71,6 +71,18 @@ describe('FixEnglishCard', () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
+  it('stays inside the screen when the word is near an edge', () => {
+    const { rerender } = render(
+      <FixEnglishCard issue={issue()} {...props} position={{ left: 5000, bottom: 40 }} />,
+    );
+    const card = screen.getByTestId('fix-english-card');
+    // jsdom: the card has no width, so the room on a 1024 px window ends at 1016 px.
+    expect(card.style.left).toBe(`${window.innerWidth - 8}px`);
+    expect(card.style.bottom).toBe('40px');
+    rerender(<FixEnglishCard issue={issue()} {...props} position={{ left: -20, bottom: 40 }} />);
+    expect(screen.getByTestId('fix-english-card').style.left).toBe('8px');
+  });
+
   it('shows up to three spelling choices, and a spinner while they load', () => {
     const spelling = issue({
       kind: 'spelling',

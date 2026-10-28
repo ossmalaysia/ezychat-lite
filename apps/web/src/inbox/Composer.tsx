@@ -229,7 +229,6 @@ export function Composer({
     disabled,
   });
   const marksRef = useRef<HTMLDivElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
   const [card, setCard] = useState<{ id: string; left: number; bottom: number } | null>(null);
   const cardHover = useRef(false);
   const cardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -251,14 +250,13 @@ export function Composer({
     const span = [...(marksRef.current?.querySelectorAll<HTMLElement>('[data-issue]') ?? [])].find(
       (el) => el.dataset.issue === id,
     );
-    const box = boxRef.current?.getBoundingClientRect();
     const rect = span?.getClientRects()[0];
-    if (!box || !rect) return;
+    if (!rect) return;
     if (cardTimer.current) clearTimeout(cardTimer.current);
     setCard({
       id,
-      left: Math.max(0, Math.min(rect.left - box.left - 8, box.width - 240)),
-      bottom: box.bottom - rect.top + 6,
+      left: rect.left - 8,
+      bottom: window.innerHeight - rect.top + 6,
     });
   }
 
@@ -799,7 +797,7 @@ export function Composer({
               }}
               onPick={insertEmoji}
             />
-            <div ref={boxRef} className="relative min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
               <Textarea
                 ref={areaRef}
                 aria-label={t('composer.message')}
@@ -819,6 +817,7 @@ export function Composer({
                 onPaste={onPaste}
                 onScroll={(e) => {
                   if (marksRef.current) marksRef.current.scrollTop = e.currentTarget.scrollTop;
+                  setCard(null);
                 }}
                 // Fix English: hover (mouse) or tap/click a marked word for its card.
                 onMouseMove={(e) => {

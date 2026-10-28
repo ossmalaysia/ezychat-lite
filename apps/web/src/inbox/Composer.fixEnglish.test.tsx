@@ -212,6 +212,28 @@ describe('Composer Fix English: grammar', () => {
     expect(box.value).toBe('Your order has been ready. ');
   });
 
+  it('drops grammar marks the teammate typed over, before the next check', async () => {
+    const text = 'Your order have been ready. ';
+    vi.mocked(fetchGrammar).mockResolvedValue({
+      status: 'checked',
+      issues: [{ start: 11, end: 15, original: 'have', replacement: 'has' }],
+    });
+    const { box } = setup();
+    fireEvent.change(box, { target: { value: text } });
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    await waitFor(() => expect(marked()).toEqual(['have']));
+    fireEvent.change(box, { target: { value: 'Your parcel is ready. ' } });
+    expect(marked()).toEqual([]);
+    expect(screen.queryByTestId('fix-english-fix-all')).toBeNull();
+    // A mark after the edit moves with the text.
+    fireEvent.change(box, { target: { value: text } });
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    await waitFor(() => expect(marked()).toEqual(['have']));
+    fireEvent.change(box, { target: { value: `Hi! ${text}` } });
+    expect(marked()).toEqual(['have']);
+    expect(screen.getByTestId('fix-english-fix-all').textContent).toContain('Fix 1');
+  });
+
   it('shows "No mistakes" when both checks find nothing', async () => {
     const { box } = setup();
     fireEvent.change(box, { target: { value: 'Your order is ready. ' } });
