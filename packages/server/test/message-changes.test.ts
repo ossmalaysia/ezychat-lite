@@ -488,7 +488,7 @@ describe('edits and deletes WhatsApp reports', () => {
   it('the fake phone dev routes deliver edits and deletes', async () => {
     await incoming(DM, 'IN1');
     await incoming(GROUP, 'G1');
-    const post = (path: string, payload: unknown) =>
+    const post = (path: string, payload: Record<string, unknown>) =>
       t.app.inject({
         method: 'POST',
         url: `/api/dev/${path}`,
