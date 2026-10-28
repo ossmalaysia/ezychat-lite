@@ -40,9 +40,9 @@ overlay and one hover button; screen review and mock confirmation are open items
 | Design | skip | Owner asked for the change directly; no HTML mock (see Design section) | af8d1ea | 2026-10-27 |
 | Dev | done | Drop/paste/multi-pick into a tray, Copy text, Copy image, drag media out, Business context drop, desktop right-click menu | 2f74993 | 2026-10-27 |
 | Unit tests | pass | Taken over 2026-10-28: main merged; full suite 3803 passed with coverage (changed lines 94.2 %, total 90.45 %); review fixes with tests | 5116f716 | 2026-10-28 |
-| E2E | pass | Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens | 5116f716 | 2026-10-28 |
-| Dev Build | pass | packaged build 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off) | 437883a3 | 2026-10-28 |
-| Screen review | pass | packaged build 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer | 437883a3 | 2026-10-28 |
+| E2E | pass | Run on 5116f716, 1 worker: npm run e2e 117 passed, 0 failed; npm run e2e:electron-links 17/17 screens; app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) | 2e4c40fa | 2026-10-28 |
+| Dev Build | pass | Packaged build of 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off); app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) | 2e4c40fa | 2026-10-28 |
+| Screen review | pass | Packaged build of 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer; app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) | 2e4c40fa | 2026-10-28 |
 
 ## Log
 
@@ -59,3 +59,6 @@ overlay and one hover button; screen review and mock confirmation are open items
 - 2026-10-28 E2E: pass — Final 5116f716, 1 worker: npm run e2e 117 passed, 23 skipped, 0 failed; npm run e2e:electron-links 17/17 screens (5116f716)
 - 2026-10-28 Dev Build: pass — packaged build 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off) (437883a3)
 - 2026-10-28 Screen review: pass — packaged build 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer (437883a3)
+- 2026-10-28 E2E: pass — Run on 5116f716, 1 worker: npm run e2e 117 passed, 0 failed; npm run e2e:electron-links 17/17 screens; app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) (2e4c40fa)
+- 2026-10-28 Dev Build: pass — Packaged build of 437883a3: devbuild-file-transfer-check 5/5, Electron screens all PASS, browser screens 35/37 (oauth-authorize expected 409, AI access off); app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) (2e4c40fa)
+- 2026-10-28 Screen review: pass — Packaged build of 437883a3: screens.smoke + electron-screens.smoke; screenshots in docs/screenshots/file-transfer; app code unchanged up to 2e4c40fa (later commits: review-test timeout, this check script, docs) (2e4c40fa)
