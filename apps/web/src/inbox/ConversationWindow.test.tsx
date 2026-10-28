@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -83,11 +83,16 @@ function json(data: unknown, status = 200) {
 function setup(chat: Chat, opts: { inboxes?: Inbox[] | null; refuseSend?: boolean } = {}) {
   const { inboxes = [apiInbox], refuseSend = false } = opts;
   const sends: string[] = [];
+  const uploads: FormData[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       if (method !== 'GET') {
+        if (url.endsWith('/media')) {
+          uploads.push(init!.body as FormData);
+          return json({ ...message, id: `M${uploads.length}`, fromMe: true, status: 'sent' }, 201);
+        }
         if (url.endsWith('/messages')) {
           sends.push(url);
           return refuseSend
@@ -132,7 +137,7 @@ function setup(chat: Chat, opts: { inboxes?: Inbox[] | null; refuseSend?: boolea
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  return { sends };
+  return { sends, uploads };
 }
 
 afterEach(() => {
@@ -194,5 +199,49 @@ describe('Conversation reply window (WhatsApp Business API)', () => {
     expect(screen.queryByTestId('reply-window')).toBeNull();
     expect(screen.queryByTestId('window-closed')).toBeNull();
     expect(screen.queryByTestId('window-closed-icon')).toBeNull();
+  });
+});
+
+function drop(files: File[]) {
+  const region = screen.getByRole('region', { name: 'Conversation with Bob Customer' });
+  const dataTransfer = { types: ['Files'], files, dropEffect: '' };
+  fireEvent.dragEnter(region, { dataTransfer });
+  fireEvent.drop(region, { dataTransfer });
+}
+
+describe('Conversation file drop', () => {
+  it('sends dropped files in order, quoting the replied message and captioning only the first', async () => {
+    const { uploads } = setup(chatAt(Date.now() - HOUR), { inboxes: null });
+    const log = await screen.findByRole('log', { name: 'Messages' });
+    await within(log).findByText('Hello');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Reply' }));
+    expect(screen.getByTestId('reply-bar')).toBeTruthy();
+    const a = new File(['a'], 'invoice.pdf', { type: 'application/pdf' });
+    const b = new File(['b'], 'map.pdf', { type: 'application/pdf' });
+    drop([a, b]);
+    expect(screen.getByTestId('attachment-tray').textContent).toContain('2 files to send');
+    await user.type(screen.getByRole('textbox', { name: /message/i }), 'As promised{Enter}');
+    await waitFor(() => expect(uploads).toHaveLength(2));
+    expect((uploads[0]!.get('file') as File).name).toBe('invoice.pdf');
+    expect(uploads[0]!.get('caption')).toBe('As promised');
+    expect(uploads[0]!.get('quotedId')).toBe('A1');
+    expect((uploads[1]!.get('file') as File).name).toBe('map.pdf');
+    expect(uploads[1]!.get('caption')).toBeNull();
+    expect(uploads[1]!.get('quotedId')).toBeNull();
+    expect(screen.queryByTestId('reply-bar')).toBeNull();
+  });
+
+  it('refuses a drop once the reply window has closed', async () => {
+    const { uploads } = setup(chatAt(Date.now() - 25 * HOUR));
+    await screen.findByTestId('window-closed');
+    const region = screen.getByRole('region', { name: 'Conversation with Bob Customer' });
+    fireEvent.dragEnter(region, { dataTransfer: { types: ['Files'], files: [] } });
+    expect(screen.getByTestId('file-drop-overlay').textContent).toContain(
+      'Files can’t be sent in this chat right now.',
+    );
+    drop([new File(['a'], 'a.pdf')]);
+    expect(screen.queryByTestId('attachment-tray')).toBeNull();
+    expect(uploads).toHaveLength(0);
   });
 });

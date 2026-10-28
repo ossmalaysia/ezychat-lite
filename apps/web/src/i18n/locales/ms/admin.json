@@ -918,7 +918,9 @@
       "markInternalFor": "Tandakan {{name}} sebagai Dalaman",
       "markCustomerFor": "Tandakan {{name}} untuk pelanggan",
       "markedInternal": "{{name}} kini Dalaman.",
-      "markedCustomer": "{{name}} kini untuk pelanggan."
+      "markedCustomer": "{{name}} kini untuk pelanggan.",
+      "drop": "Lepaskan fail untuk menambahnya ke Konteks perniagaan",
+      "dropHint": "TXT, MD, PDF atau DOCX, sehingga 10 MB. Anda pilih nama dan kegunaannya selepas ini."
     },
     "defaults": {
       "sales": {

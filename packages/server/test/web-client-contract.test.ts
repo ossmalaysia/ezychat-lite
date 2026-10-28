@@ -154,6 +154,8 @@ describe('web client ↔ server routes', () => {
     const REVIEWED: Record<string, string> = {
       [join('api', 'client.ts')]:
         'the api() helper itself: fetch(`/api${path}`) for every call above',
+      [join('lib', 'clipboard.ts')]:
+        'copyImageFromUrl: GETs a Message.mediaUrl the server built (GET /api/media/:id, covered by messages.test.ts)',
     };
     const { unresolved } = scan;
     expect(unresolved.filter((at) => !(at.replace(/:\d+$/, '') in REVIEWED))).toEqual([]);

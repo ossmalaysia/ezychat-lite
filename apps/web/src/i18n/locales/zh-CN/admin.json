@@ -917,7 +917,9 @@
       "markInternalFor": "将 {{name}} 标为内部",
       "markCustomerFor": "将 {{name}} 标为面向客户",
       "markedInternal": "{{name}} 已标为内部。",
-      "markedCustomer": "{{name}} 已标为面向客户。"
+      "markedCustomer": "{{name}} 已标为面向客户。",
+      "drop": "松开即可将文件添加到业务资料",
+      "dropHint": "TXT、MD、PDF 或 DOCX，最大 10 MB。接下来可设置名称和用途。"
     },
     "defaults": {
       "sales": {

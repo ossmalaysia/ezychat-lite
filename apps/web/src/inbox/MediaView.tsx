@@ -1,11 +1,15 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
-import { Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
+import { Copy, Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Message } from '@ezychat/shared';
 import { api } from '../api/client';
 import { upsertMessageInCache } from '../api/queries';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { canCopyImage, copyImageFromUrl } from '@/lib/clipboard';
+import { setDownloadDrag } from '@/lib/file-transfer';
 import {
   Dialog,
   DialogClose,
@@ -18,6 +22,34 @@ export interface MediaViewProps {
   message: Message;
   /** Fired when an image/video finishes loading (lets the list keep its scroll anchored). */
   onLoad?(): void;
+}
+
+const MIME_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'video/mp4': 'mp4',
+  'audio/ogg': 'ogg',
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'application/pdf': 'pdf',
+};
+
+/** The file name a media file gets when dragged or saved out of the app. */
+export function mediaFileName(m: Pick<Message, 'id' | 'type' | 'mediaName' | 'mediaMime'>): string {
+  if (m.mediaName) return m.mediaName;
+  const mime = (m.mediaMime ?? '').split(';')[0]?.trim() ?? '';
+  const ext = MIME_EXT[mime] ?? mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') ?? '';
+  const id = m.id.replace(/[^a-z0-9]/gi, '').slice(-8) || 'file';
+  const suffix = ext ? `.${ext}` : '';
+  return `whatsapp-${m.type}-${id}${suffix}`;
+}
+
+/** Dragging this media out of the window saves it as a file (Chromium browsers, desktop app). */
+function dragOut(m: Message, url: string) {
+  return (e: React.DragEvent) =>
+    setDownloadDrag(e.dataTransfer, { url, name: mediaFileName(m), mime: m.mediaMime ?? null });
 }
 
 function useRedownload() {
@@ -36,13 +68,24 @@ function Lightbox({
   alt,
   open,
   onOpenChange,
+  downloadName,
 }: {
   src: string;
   alt: string;
+  downloadName?: string;
   open: boolean;
   onOpenChange(o: boolean): void;
 }) {
   const { t } = useTranslation(['inbox', 'common']);
+  const [copyable] = useState(canCopyImage);
+  async function copyImage() {
+    try {
+      await copyImageFromUrl(src);
+      toast.success(t('message.copy.imageDone'));
+    } catch {
+      toast.error(t('message.copy.imageFailed'));
+    }
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -53,8 +96,14 @@ function Lightbox({
         <DialogTitle className="sr-only">{t('media.preview')}</DialogTitle>
         <DialogDescription className="sr-only">{alt}</DialogDescription>
         <div className="flex justify-end gap-1 p-2">
+          {copyable && (
+            <Button variant="ghost" size="touch" onClick={() => void copyImage()}>
+              <Copy aria-hidden="true" />
+              {t('message.copy.image')}
+            </Button>
+          )}
           <Button asChild variant="ghost" size="touch">
-            <a href={src} download>
+            <a href={src} download={downloadName ?? true}>
               <Download aria-hidden="true" />
               {t('media.download')}
             </a>
@@ -179,6 +228,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
               alt={m.body ?? m.mediaName ?? t('media.imageAlt')}
               loading="lazy"
               onLoad={onLoad}
+              onDragStart={dragOut(m, url)}
               className={
                 m.type === 'sticker'
                   ? 'size-32 object-contain'
@@ -189,6 +239,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
           <Lightbox
             src={url}
             alt={m.body ?? t('media.imageAlt')}
+            downloadName={mediaFileName(m)}
             open={open}
             onOpenChange={setOpen}
           />
@@ -212,6 +263,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
         <a
           href={url}
           download={m.mediaName ?? true}
+          onDragStart={dragOut(m, url)}
           className="flex min-h-14 max-w-full items-center gap-3 rounded-lg border bg-muted/60 px-3 py-2 hover:bg-muted"
         >
           <FileText className="size-8 shrink-0 text-muted-foreground" aria-hidden="true" />

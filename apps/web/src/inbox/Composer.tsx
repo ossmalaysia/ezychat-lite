@@ -1,8 +1,9 @@
 import type React from 'react';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Check,
+  FileText,
   Lock,
   MessageSquareText,
   Mic,
@@ -14,6 +15,7 @@ import {
 import {
   completionReady,
   matchPhrase,
+  MEDIA_UPLOAD_LIMIT_BYTES,
   type QuickReply,
   type ReplyPhraseListItem,
   type ReplySuggestion,
@@ -21,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import { errorMessage } from '@/api/client';
 import { fetchCompletion, fetchSuggestions, sendPhraseFeedback } from '@/api/reply-suggestions';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
@@ -28,13 +31,28 @@ import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
 import { EmojiPicker } from './EmojiPicker';
 import { VoiceNoteBar, useVoiceNote } from './VoiceNote';
 import { voiceSupport } from '@/lib/voice-recorder';
+import {
+  MAX_ATTACHMENTS,
+  checkAttachments,
+  filesFromTransfer,
+  formatBytes,
+} from '@/lib/file-transfer';
 import './composer.css';
+
+/** Lets the conversation hand files dropped anywhere on it to the composer. */
+export interface ComposerHandle {
+  addFiles(files: readonly File[]): void;
+}
 
 export interface ComposerProps {
   quickReplies: QuickReply[];
   onSend(text: string): void;
-  /** Attach button: file + caption (current text, if any). */
-  onAttach(file: File, caption?: string): void;
+  /**
+   * One file to send, with the caption (the typed text goes with the first file). Files picked,
+   * pasted or dropped wait in the tray until Send; they are sent one after another, in order:
+   * resolve when this one is handed over. `index` is the file's place in that send (0 = first).
+   */
+  onAttach(file: File, caption?: string, index?: number): void | Promise<void>;
   /**
    * Mic button (shown while the box is empty): a recorded Ogg/Opus voice note with the clientId it
    * keeps across retries. Resolve once it is uploaded; reject to keep it in Review.
@@ -56,6 +74,7 @@ export interface ComposerProps {
    * AI reply suggestions in this chat (direct chats only; null = off). `unavailable` shows the
    * button disabled. The chips clear when `lastCustomerMessageId` changes (a new customer message).
    */
+  ref?: React.Ref<ComposerHandle>;
   aiSuggest?: {
     chatJid: string;
     lastCustomerMessageId: string | null;
@@ -108,6 +127,7 @@ export function Composer({
   replyTo = null,
   onCancelReply,
   aiSuggest = null,
+  ref,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
   const [text, setText] = useState('');
@@ -115,6 +135,13 @@ export function Composer({
   const [pickerDismissed, setPickerDismissed] = useState(false);
   const [browseReplies, setBrowseReplies] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  // Several drops or pastes can land before a render: count against what is already queued.
+  const filesRef = useRef<File[]>([]);
+  const queueFiles = (next: File[]) => {
+    filesRef.current = next;
+    setFiles(next);
+  };
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -131,6 +158,22 @@ export function Composer({
     await onVoiceNote(file, clientId);
     return true;
   });
+
+  function addFiles(incoming: readonly File[]) {
+    if (disabled || incoming.length === 0) return;
+    const { accepted, rejected } = checkAttachments(incoming, filesRef.current.length);
+    for (const r of rejected)
+      toast.error(
+        t(`composer.files.${r.reason}`, {
+          name: r.file.name,
+          max: MAX_ATTACHMENTS,
+          limit: formatBytes(MEDIA_UPLOAD_LIMIT_BYTES),
+        }),
+      );
+    if (accepted.length) queueFiles([...filesRef.current, ...accepted]);
+    areaRef.current?.focus();
+  }
+  useImperativeHandle(ref, () => ({ addFiles }));
 
   // AI reply suggestions: chips after "Suggest reply" and grey completion text.
   const aiMode = aiSuggest?.state ?? 'off';
@@ -347,11 +390,13 @@ export function Composer({
 
   async function submit() {
     const value = text.trim();
-    if (!value || disabled || busy) return;
+    if ((!value && files.length === 0) || disabled || busy) return;
     setBusy(true);
     try {
       if (!(await confirmed())) return;
-      onSend(value);
+      if (files.length > 0) sendFiles(files, value);
+      else onSend(value);
+      queueFiles([]);
       setText('');
       setGhost(null);
       closeSuggestions();
@@ -363,14 +408,36 @@ export function Composer({
     }
   }
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  /** Uploads one after another so WhatsApp gets them in the order they were added. */
+  function sendFiles(queued: readonly File[], caption: string) {
+    void (async () => {
+      for (const [i, file] of queued.entries()) {
+        try {
+          await onAttach(file, (i === 0 && caption) || undefined, i);
+        } catch {
+          // The conversation reports the failure on that file's bubble; the rest still go.
+        }
+      }
+    })();
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!file || disabled) return;
-    if (!(await confirmed())) return;
-    const caption = text.trim();
-    onAttach(file, caption || undefined);
-    setText('');
+    addFiles(picked);
+  }
+
+  /** Pasted files (a screenshot, files copied in Explorer or Finder) join the tray; text pastes as text. */
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const dt = e.clipboardData;
+    if (!dt) return;
+    // Office and browsers put a picture of copied text next to the text itself: keep the text. An
+    // image copied from a web page also carries HTML but no text: then the image is the paste.
+    if (dt.types.includes('text/html') && dt.getData('text/plain').trim() !== '') return;
+    const pasted = filesFromTransfer(dt);
+    if (pasted.length === 0) return;
+    e.preventDefault();
+    addFiles(pasted);
   }
 
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -440,9 +507,10 @@ export function Composer({
     }
   }
 
-  const canSend = text.trim().length > 0 && !disabled && !busy;
+  const canSend = (text.trim().length > 0 || files.length > 0) && !disabled && !busy;
   // An empty box offers the mic instead of Send, as WhatsApp does.
-  const offerVoice = !!onVoiceNote && voiceSupported !== 'unsupported' && !text.trim();
+  const offerVoice =
+    !!onVoiceNote && voiceSupported !== 'unsupported' && !text.trim() && files.length === 0;
   const voiceInsecure = offerVoice && voiceSupported === 'insecure';
 
   const replyBar = replyTo && (
@@ -485,6 +553,13 @@ export function Composer({
   return (
     <>
       {replyBar}
+      {files.length > 0 && (
+        <AttachmentTray
+          files={files}
+          onRemove={(i) => queueFiles(files.filter((_, j) => j !== i))}
+          onClear={() => queueFiles([])}
+        />
+      )}
       {voiceInsecure && (
         <p
           role="note"
@@ -557,10 +632,11 @@ export function Composer({
             <input
               ref={fileRef}
               type="file"
+              multiple
               className="hidden"
               tabIndex={-1}
               aria-hidden="true"
-              onChange={(e) => void onFile(e)}
+              onChange={onFile}
             />
             <Button
               variant="ghost"
@@ -596,9 +672,14 @@ export function Composer({
                 rows={1}
                 value={text}
                 disabled={disabled}
-                placeholder={placeholder ?? t('composer.placeholder')}
+                placeholder={
+                  files.length > 0
+                    ? t('composer.files.caption')
+                    : (placeholder ?? t('composer.placeholder'))
+                }
                 onChange={onChange}
                 onKeyDown={onKeyDown}
+                onPaste={onPaste}
                 // Enter inserts a newline on touch keyboards, so label the key accordingly.
                 enterKeyHint={coarsePointer ? 'enter' : 'send'}
                 className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
@@ -723,5 +804,90 @@ export function Composer({
         </PopoverContent>
       </Popover>
     </>
+  );
+}
+
+/** Thumbnail of an image file waiting in the tray (object URL freed on removal). */
+function FileThumb({ file }: Readonly<{ file: File }>) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file.type.startsWith('image/') || typeof URL.createObjectURL !== 'function') return;
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  return url ? (
+    <img
+      src={url}
+      alt=""
+      // A file named .png that is not one shows the file icon instead of a broken image.
+      onError={() => setUrl(null)}
+      className="size-10 shrink-0 rounded-md object-cover"
+    />
+  ) : (
+    <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+      <FileText className="size-5" aria-hidden="true" />
+    </span>
+  );
+}
+
+/** Files picked, pasted or dropped, waiting for Send. */
+function AttachmentTray({
+  files,
+  onRemove,
+  onClear,
+}: Readonly<{
+  files: readonly File[];
+  onRemove(index: number): void;
+  onClear(): void;
+}>) {
+  const { t } = useTranslation('inbox');
+  return (
+    <div
+      className="mb-1.5 rounded-lg border bg-muted/50 p-1.5"
+      role="group"
+      aria-label={t('composer.files.title', { count: files.length })}
+      data-testid="attachment-tray"
+    >
+      <div className="flex items-center justify-between gap-2 px-1 pb-1">
+        <p className="min-w-0 truncate text-xs font-medium text-muted-foreground">
+          {t('composer.files.title', { count: files.length })}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground pointer-coarse:min-h-11"
+        >
+          {t('composer.files.clear')}
+        </Button>
+      </div>
+      <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+        {files.map((file, i) => (
+          <li
+            key={`${i}-${file.name}-${file.size}-${file.lastModified}`}
+            className="flex min-w-0 items-center gap-2 rounded-md bg-surface p-1 pr-0.5"
+          >
+            <FileThumb file={file} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">{file.name}</span>
+              <span className="block text-xs text-muted-foreground">{formatBytes(file.size)}</span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t('composer.files.remove', { name: file.name })}
+              title={t('composer.files.remove', { name: file.name })}
+              onClick={() => onRemove(i)}
+              className="size-8 shrink-0 text-muted-foreground pointer-coarse:size-11"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -436,6 +436,7 @@ async function main(): Promise<void> {
         baseUrl: () => url,
         title: appTitle(version, { devBuild: !isPackaged }),
         preload: join(here, 'inbox-preload.cjs'),
+        locale,
       });
       mainWindow.on('close', (e) => {
         if (quitting) return;

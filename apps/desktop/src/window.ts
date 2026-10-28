@@ -2,12 +2,21 @@
 // local status/control window (file:// + preload IPC).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, BrowserWindow, shell, type NativeImage, type Session } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  Menu,
+  shell,
+  type NativeImage,
+  type Session,
+} from 'electron';
 import type { Locale } from '@ezychat/shared';
 import { t } from './i18n.js';
 import { registerInboxNotifications } from './notifications.js';
 import { externalLinkToOpen, inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 import { activeProduct } from './product.js';
+import { registerContextMenu } from './context-menu.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -102,6 +111,7 @@ export function createMainWindow(o: {
   baseUrl: () => string | null;
   title: string;
   preload: string;
+  locale: Locale;
 }): BrowserWindow {
   const win = new BrowserWindow({
     width: 1200,
@@ -122,6 +132,12 @@ export function createMainWindow(o: {
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);
     return { action: 'deny' };
+  });
+  registerContextMenu(win.webContents, {
+    isInboxUrl: (url) => isInboxUrl(url, o.baseUrl()),
+    locale: o.locale,
+    writeText: (text) => clipboard.writeText(text),
+    popup: (template) => Menu.buildFromTemplate(template).popup({ window: win }),
   });
   win.webContents.on('will-navigate', (e, url) => {
     const base = o.baseUrl();

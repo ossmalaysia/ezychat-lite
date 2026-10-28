@@ -300,3 +300,6 @@ export type FakeReactionBody = z.infer<typeof FakeReactionBody>;
 /** POST /api/dev/fake-link (fake WA only): the inbox's fake phone links, as a QR scan would. */
 export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
 export type FakeLinkBody = z.infer<typeof FakeLinkBody>;
+
+/** Largest file `POST /chats/:jid/media` accepts; the composer refuses bigger files before uploading. */
+export const MEDIA_UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;

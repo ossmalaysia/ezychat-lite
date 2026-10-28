@@ -9,17 +9,20 @@ import {
   Check,
   CheckCheck,
   Clock,
+  Copy,
   FileText,
   Mic,
   Reply,
   RotateCw,
 } from 'lucide-react';
 import type { Message } from '@ezychat/shared';
+import { toast } from 'sonner';
 import { useCustomerProfile } from '../api/queries';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { copyText } from '@/lib/clipboard';
 import { formatDateTime, formatTime, truncate } from '../lib/format';
 import { formatWhatsApp, plainWhatsApp } from '../lib/whatsapp-format';
 import { formatJid } from '../lib/jid';
@@ -224,6 +227,33 @@ export function MessageBubble({
     </Button>
   );
 
+  // Copies the text as written, WhatsApp's *bold* and _italic_ marks included, as WhatsApp does.
+  const body = m.body;
+  const copyBody = body
+    ? async () => {
+        try {
+          await copyText(body);
+          toast.success(t('message.copy.done'));
+        } catch {
+          toast.error(t('message.copy.failed'));
+        }
+      }
+    : undefined;
+  const copyButton = copyBody && (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      aria-label={t('message.copy.text')}
+      title={t('message.copy.text')}
+      onClick={() => void copyBody()}
+      data-testid="copy-message"
+      className="size-8 shrink-0 rounded-full text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:not-focus-visible:sr-only"
+    >
+      <Copy aria-hidden="true" />
+    </Button>
+  );
+
   // The linked number's reaction and the teammate who sent it from the inbox (null: the phone).
   const mine = reactions.find((r) => r.fromMe) ?? null;
   const sentBy = mine?.sentByUserId ?? null;
@@ -244,6 +274,7 @@ export function MessageBubble({
       onReact={(emoji) => onReact!(m, emoji)}
       disabledReason={reactDisabledReason}
       onReply={() => onReply!(m)}
+      onCopy={copyBody}
     />
   );
 
@@ -265,6 +296,7 @@ export function MessageBubble({
           <Reply className="size-4" />
         </span>
       )}
+      {out && copyButton}
       {out && replyButton}
       {out && reactButton}
       <div
@@ -398,6 +430,7 @@ export function MessageBubble({
       </div>
       {!out && reactButton}
       {!out && replyButton}
+      {!out && copyButton}
     </div>
   );
 }

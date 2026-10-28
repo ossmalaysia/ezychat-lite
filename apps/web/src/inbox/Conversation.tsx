@@ -29,6 +29,7 @@ import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
 import { Banner, EmptyState } from '@/components/app';
+import { FileDropZone } from '@/components/app/FileDropZone';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +43,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMediaQuery } from '@/lib/use-media-query';
-import { Composer } from './Composer';
+import { Composer, type ComposerHandle } from './Composer';
 import { CustomerPanel } from './CustomerPanel';
 import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
@@ -156,6 +157,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     return null;
   }, [messages]);
   const lastMarked = useRef<string | null | undefined>(undefined);
+  const composerRef = useRef<ComposerHandle>(null);
   const unread = chat?.unreadCount ?? 0;
   const { mutate: doMarkRead } = markRead;
   useEffect(() => {
@@ -309,9 +311,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
-      <section
+      <FileDropZone
         className="flex min-h-0 min-w-0 flex-1 flex-col"
         aria-label={t('conversation.label', { name: chatTitle(chat, t) })}
+        enabled={!blocked && !windowClosed}
+        onFiles={(files) => composerRef.current?.addFiles(files)}
       >
         <ConversationHeader
           chat={chat}
@@ -409,6 +413,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             <div className="px-2 py-2 sm:px-3">
               <Composer
                 key={jid}
+                ref={composerRef}
                 quickReplies={quickReplies.data ?? []}
                 disabled={blocked}
                 placeholder={
@@ -448,12 +453,20 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   );
                   setReplyTo(null);
                 }}
-                onAttach={(file, caption) => {
-                  sendMedia.mutate(
-                    { file, caption, clientId: newClientId(), quotedId: replyTo?.id },
-                    { onError: onSendError },
-                  );
-                  setReplyTo(null);
+                onAttach={async (file, caption, index = 0) => {
+                  // Only the first file of a send quotes the message being replied to.
+                  const quotedId = index === 0 ? replyTo?.id : undefined;
+                  if (index === 0) setReplyTo(null);
+                  try {
+                    await sendMedia.mutateAsync({
+                      file,
+                      caption,
+                      clientId: newClientId(),
+                      quotedId,
+                    });
+                  } catch (e) {
+                    onSendError(e);
+                  }
                 }}
                 onVoiceNote={async (file, clientId) => {
                   try {
@@ -473,7 +486,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             </div>
           )}
         </div>
-      </section>
+      </FileDropZone>
       <NotesPanel
         jid={jid}
         open={notesOpen}

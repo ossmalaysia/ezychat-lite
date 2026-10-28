@@ -925,7 +925,9 @@
       "markInternalFor": "Mark {{name}} as Internal",
       "markCustomerFor": "Mark {{name}} as customer-facing",
       "markedInternal": "{{name}} is Internal now.",
-      "markedCustomer": "{{name}} is customer-facing now."
+      "markedCustomer": "{{name}} is customer-facing now.",
+      "drop": "Drop a file to add it to Business context",
+      "dropHint": "TXT, MD, PDF or DOCX, up to 10 MB. You choose its name and who it is for next."
     },
     "defaults": {
       "sales": {

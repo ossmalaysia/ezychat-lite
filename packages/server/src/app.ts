@@ -4,7 +4,7 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { ErrorCode } from '@ezychat/shared';
+import { ErrorCode, MEDIA_UPLOAD_LIMIT_BYTES } from '@ezychat/shared';
 import type { AppContext } from './context.js';
 import { errorHandler, sendError } from './http/errors.js';
 import { contextHostPolicy, createHostHook } from './http/host.js';
@@ -16,7 +16,7 @@ import { registerRoutes } from './routes/index.js';
 import { registerMcp } from './mcp/route.js';
 import { registerMcpOAuth } from './mcp/oauth-routes.js';
 
-export const UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
+export const UPLOAD_LIMIT_BYTES = MEDIA_UPLOAD_LIMIT_BYTES;
 
 export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   const app = Fastify({
