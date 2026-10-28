@@ -43,6 +43,7 @@ const ROUTES = [
   { method: 'DELETE', url: '/api/ai/voice/model' },
   { method: 'PUT', url: '/api/ai/reply-suggestions' },
   { method: 'GET', url: '/api/ai/reply-suggestions/model' },
+  { method: 'PUT', url: '/api/ai/fix-english' },
   { method: 'GET', url: '/api/ai/phrases' },
   { method: 'POST', url: '/api/ai/phrases' },
   { method: 'PUT', url: '/api/ai/phrases/1' },
