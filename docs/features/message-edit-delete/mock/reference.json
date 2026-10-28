@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "5709439",
   "appVersionAtProposal": "0.1.62",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "message-edit-delete",
   "createdAt": "2026-10-28",
   "branchBase": "5709439 (main, 0.1.62)",

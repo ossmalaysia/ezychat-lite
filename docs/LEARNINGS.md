@@ -452,7 +452,9 @@ into AGENTS.md.
 - `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
   it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
   `packages/server` (the server build compiles against shared's `dist`, not `src`).
-- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
+- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`) or, on a type
+  that code builds by hand (`Message`, `InboxCapabilities`), `.optional()` read as "absent = off": a default
+  makes the inferred output type require the field and breaks every fixture here and in Enterprise. Never a
   bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
   the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
   contract change ships, then `npm ci` there to restore the npm core. First check port 7434: the owner's
@@ -641,6 +643,10 @@ into AGENTS.md.
 
 ## Security
 
+- A row the API redacts but keeps (a message deleted for everyone keeps its text for admins) needs every
+  reader of the raw columns guarded, not only `rowToMessage`: the mention presenter, chat previews, the media
+  route and redownload all read `body` / `media_path` directly.
+
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
@@ -705,6 +711,12 @@ into AGENTS.md.
   never goes down, and the hash of every referenced file pass; one bad file rejects the whole list.
 
 ## WhatsApp / Baileys
+
+- Edits and deletes arrive as a `protocolMessage` (`MESSAGE_EDIT` / `REVOKE`; `normalizeMessageContent`
+  unwraps the `editedMessage` wrapper) whose outer key is the author and whose `key.id` is the changed
+  message; Baileys also re-emits them as `messages.update`, so read one path only (`baileys/protocol.ts`).
+  Our own edit or delete echoes back `fromMe` like the phone's, during `sendMessage`: mark the target before
+  sending and skip that echo, and keep the core's apply step idempotent anyway (same text, already deleted).
 
 - Baileys emits the echo of our own send (`messages.upsert`, `fromMe`) before `sendMessage` resolves:
   data only the sender knows (e.g. which teammate sent a reaction) must be added after the send by an

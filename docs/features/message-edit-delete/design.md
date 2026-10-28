@@ -1,6 +1,6 @@
 # Edit and delete messages (linked phone)
 
-Status: **proposal**, waiting for the owner's confirmation of the mock (see Confirmation). Branch
+Status: **confirmed** 2026-10-28 and implemented (see Confirmation). Branch
 `claude/affectionate-heisenberg-tg7h6n` from `main` (`5709439`, 0.1.62).
 
 ## Owner request (2026-10-28)
@@ -100,4 +100,19 @@ Status: **proposal**, waiting for the owner's confirmation of the mock (see Conf
 
 ## Confirmation
 
-Not confirmed yet. The mock and screenshots are waiting for the owner's review.
+Owner, 2026-10-28, after the mock screenshots (desktop chat, menu after 15 minutes, phone menu, edit and delete
+dialogs, dark phone states) and the touch walkthrough question: "implement it". Mock revision
+`1460c1c6ccfcff64a199c4db8c78fd748b433f02`. The open question (show Edit greyed out with its reason on phones after
+15 minutes) was not answered: the default stands, as mocked (phones drop Edit from the press-and-hold bar once its
+window has passed; desktop keeps it disabled with the reason).
+
+## Implementation notes (differences from the outline)
+
+- The new `Message` fields and inbox capabilities are **optional** (absent = not edited / off) rather than zod
+  defaults: required output fields would break every `Message` fixture here and in Enterprise.
+- Desktop: Delete also stays visible, disabled with "only within 2 days", for a non-admin once the window passed.
+- A send that finishes after its teammate deleted it is deleted on WhatsApp too (`onSent` → `deleteSentLate`).
+- The chat list preview of a deleted newest message is the server text "This message was deleted" (like
+  `[Image]`); a hidden one falls back to the newest visible message.
+- WhatsApp's exact windows (15 minutes, about 2 days) come from third-party Baileys docs; they are confirmed in
+  the real-WhatsApp smoke before release.
