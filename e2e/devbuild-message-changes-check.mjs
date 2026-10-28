@@ -7,14 +7,16 @@
 // agent view (windows and offline are covered by unit tests). Saves
 // shots as docs/screenshots/chat/edit-delete-<step>-<desktop|mobile>[-dark].png and reports page errors and
 // horizontal overflow; exits 1 on any problem.
-// Usage: node e2e/devbuild-message-changes-check.mjs <port> [outDir]
+// Usage: node e2e/devbuild-message-changes-check.mjs <port>
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const PORT = process.argv[2] ?? '7477';
+const PORT = Number.parseInt(process.argv[2] ?? '7477', 10);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('Usage: <port>');
 const BASE = `http://127.0.0.1:${PORT}`;
-const OUT = process.argv[3] ?? join(import.meta.dirname, '..', 'docs', 'screenshots', 'chat');
+// Fixed folder: the shots belong to docs/screenshots/chat (no path from the command line).
+const OUT = join(import.meta.dirname, '..', 'docs', 'screenshots', 'chat');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch(
   process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},
