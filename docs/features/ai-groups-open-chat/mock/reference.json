@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "846775d",
   "appVersionAtProposal": "0.1.59",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "ai-groups-open-chat",
   "createdAt": "2026-10-28",
   "branchBase": "8a3f44f7 (main, 0.1.61 + #196)",

@@ -1,6 +1,6 @@
 # AI in groups: Open chat, all groups and per-group choices
 
-Status: **proposal** (mock ready for the owner's review). Branch `feat/ai-groups-open-chat` from `main` (`8a3f44f7`).
+Status: **confirmed** 2026-10-28 (see Confirmation). Branch `feat/ai-groups-open-chat` from `main` (`8a3f44f7`).
 
 ## Owner request (2026-10-28)
 
@@ -79,3 +79,11 @@ Status: **proposal** (mock ready for the owner's review). Branch `feat/ai-groups
 3. **Web**: Groups card, Group info choice, header badge texts, event lines, i18n en/ms/zh-CN from the mock, tests.
 4. Tests (mock model for the gate), e2e, Dev Build check (mock model), screen review against the mock, packaged
    smoke if the release review asks for it.
+
+## Confirmation
+
+The owner reviewed the review page (https://claude.ai/artifact/8kfxQKREzkGkX1VnThNwT2: Groups card with Which groups,
+the default mode and a choice per group; Kopi Lovers Club in Open chat; Group info choice and agent view; the open
+question in Tag and quote, politics with a tag; dark, computer, Malay and Chinese), with the questions on religion as a
+sensitive topic and the defaults for existing and new agents (Selected groups only, Tag and quote), and confirmed on
+2026-10-28 ("confirm can implement"). Mock revision `8776f52b0cc054c3123459adc41f7c6f16e92aef`.
