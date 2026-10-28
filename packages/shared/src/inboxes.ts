@@ -29,6 +29,12 @@ export const InboxCapabilitiesSchema = z.object({
   templates: z.boolean(),
   /** Receives messages through Phone access (a public webhook address). */
   needsPublicUrl: z.boolean().default(false),
+  /** Edits sent messages (linked phone: within 15 minutes). Absent = no. */
+  editMessage: z.boolean().optional(),
+  /** Deletes sent messages for everyone (linked phone: within about 2 days). */
+  deleteForEveryone: z.boolean().optional(),
+  /** Deletes a message on the linked phone too ("Delete for me"). */
+  deleteForMe: z.boolean().optional(),
 });
 export type InboxCapabilities = z.infer<typeof InboxCapabilitiesSchema>;
 export const DEFAULT_INBOX_CAPABILITIES: InboxCapabilities = {
@@ -38,6 +44,9 @@ export const DEFAULT_INBOX_CAPABILITIES: InboxCapabilities = {
   replyWindowHours: null,
   templates: false,
   needsPublicUrl: false,
+  editMessage: true,
+  deleteForEveryone: true,
+  deleteForMe: true,
 };
 
 /** One linked WhatsApp number (an inbox). Inbox 1 is the number linked before multi-inbox. */

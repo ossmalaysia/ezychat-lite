@@ -257,3 +257,24 @@ Tier **critical**, set by: packages/server/src/chats/activity.ts, packages/serve
 Hard stops: 1. critical change without a real-part test
 
 Decision: **risk:human**
+
+## 2026-10-28 · PR #204 · `489a1fb` · risk:human (60)
+
+Tier **core**, set by: apps/web/src/api/message-changes.ts, apps/web/src/api/queries.ts, apps/web/src/inbox/Conversation.tsx, apps/web/src/inbox/MessageActions.tsx, apps/web/src/inbox/MessageBubble.tsx, apps/web/src/inbox/MessageList.tsx, apps/web/src/inbox/ReactionPicker.tsx, apps/web/src/inbox/message-changes.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 737 code lines | -20 | ✓ |
+| Changed-lines coverage 97.3 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | 0 | ✗ missing |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **60** | |
+
+Hard stops: none
+
+Decision: **risk:human**

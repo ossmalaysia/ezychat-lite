@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Edit and delete messages.** Hover a message you sent (or press and hold it on a phone) and choose **Edit** to
+  fix the text or caption within 15 minutes: the customer sees it marked "Edited", and **Edited** in the inbox lists
+  the earlier versions. **Delete** removes it for everyone within 2 days; admins can also **Delete for me**, which
+  hides a message for the whole team and on the linked phone. Admins can change messages sent from the phone or by
+  the AI agent; agents change their own. When a customer edits or deletes a message, the inbox now shows it too
+  ("Edited", or "… deleted this message"); admins can still open the original. The AI agent ignores deleted
+  messages and answers the edited text. Linked-phone inboxes only (the WhatsApp Business API cannot edit or
+  delete); untested against real WhatsApp until the release check.
+
 ## [0.1.62] - 2026-10-28
 
 ### Added
