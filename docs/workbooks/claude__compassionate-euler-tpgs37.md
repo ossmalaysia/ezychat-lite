@@ -8,7 +8,7 @@ Branch: `claude/compassionate-euler-tpgs37` · Every agent updates its stage wit
 | Design | done | Fix English mock confirmed by the owner 2026-10-28 (mock revision 4a6cde77) | 77966fc | 2026-10-28 |
 | Dev | done | Server (fix-grammar route, words, switch, migration 025) and web (dictionary spelling, composer marks, Settings card) | 77966fc | 2026-10-28 |
 | Unit tests | pass | Changed-lines coverage 97.5% (541/555); new tests: fix-english routes 15, grammar diff 7, shared 8, spelling 11, composer 13, FixEnglish 8, Settings 4, dictionary 2; full suite: only 5 failures that also fail on clean main (document worker on Node 22, get_stats near MYT midnight) | 77966fc | 2026-10-28 |
-| E2E | pass | Full npm run e2e on 77966fc (119 passed; only ai-member upload failed: document worker on Node 22, also on main); after the scroll fix e2e/fix-english.spec.ts re-run on desktop, Android and iPhone: all pass. Desktop-window link check not run (Linux cloud, no Windows desktop). | 82e0eed | 2026-10-28 |
+| E2E | pass | after merging main (3364405): 120 passed, 1 flaky (reactions iPhone, 3/3 pass alone), 25 skipped; web unit 1235/1235 with 2 workers | 3364405 | 2026-10-29 |
 | Dev Build | pass | agents-devbuild :7491: devbuild-fix-english-check 11/11; fix-english-screens 36 shots, no errors/overflow after fixing the phone card and stale grammar marks | 77966fc | 2026-10-28 |
 | Screen review | pass | fix-english-screens.mjs re-run on 82e0eed: 36 shots at 1280/360, light/dark, no errors or overflow; reviewed: card kept on screen, stale Fix N fixed; docs/screenshots/fix-english refreshed | 82e0eed | 2026-10-28 |
 
@@ -24,3 +24,4 @@ Branch: `claude/compassionate-euler-tpgs37` · Every agent updates its stage wit
 - 2026-10-28 E2E: pass — npm run e2e: Fix English passes on desktop, Android and iPhone (iPhone first failed: the card closed when focus scrolled the box; it now follows the word). Other failure: ai-member upload (document worker on Node 22, recorded in LEARNINGS, fails on main too). 119 passed, 25 skipped. (77966fc)
 - 2026-10-28 E2E: pass — Full npm run e2e on 77966fc (119 passed; only ai-member upload failed: document worker on Node 22, also on main); after the scroll fix e2e/fix-english.spec.ts re-run on desktop, Android and iPhone: all pass. Desktop-window link check not run (Linux cloud, no Windows desktop). (82e0eed)
 - 2026-10-28 Screen review: pass — fix-english-screens.mjs re-run on 82e0eed: 36 shots at 1280/360, light/dark, no errors or overflow; reviewed: card kept on screen, stale Fix N fixed; docs/screenshots/fix-english refreshed (82e0eed)
+- 2026-10-29 E2E: pass — after merging main (3364405): 120 passed, 1 flaky (reactions iPhone, 3/3 pass alone), 25 skipped; web unit 1235/1235 with 2 workers (3364405)
