@@ -1504,7 +1504,11 @@
       "checkFree": "查看空闲时间",
       "checkFreeHint": "读取所选日历的忙碌时间。",
       "book": "预约",
-      "bookHint": "客户确认时间后添加日程。"
+      "bookHint": "客户确认时间后添加日程。",
+      "findCustomer": "查找客户",
+      "findCustomerHint": "在 Contacts 和 Leads 中查找聊天的 WhatsApp 号码，并把姓名、公司、负责人和潜在客户状态提供给 AI。",
+      "addLead": "添加潜在客户",
+      "addLeadHint": "号码尚未在 Zoho CRM 中时添加潜在客户，包含姓名、号码、公司和一行需求摘要。默认关闭，需你开启。"
     },
     "items": {
       "google-calendar": {
@@ -1518,6 +1522,12 @@
         "short": "连接任何提供 MCP 服务器的系统。",
         "long": "用于您自己的系统：粘贴 MCP 服务器链接、登录，并为每个 AI 代理选择 AI 可以使用的工具。会更改数据的工具默认关闭。",
         "privacy": "{{product}} 只向该系统发送工具在一轮聊天中所需的内容。"
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "在 Zoho CRM 中查找客户并添加潜在客户。",
+        "long": "AI 回答前会按 WhatsApp 号码在 Zoho CRM 中查找客户，了解对方是谁。如果你允许，它会把新咨询添加为潜在客户。团队可以在每个聊天旁看到 Zoho 记录。",
+        "privacy": "查询时，{{product}} 只向 Zoho CRM 发送聊天的 WhatsApp 号码；添加新潜在客户时，发送客户提供的姓名、号码、电子邮箱和公司，以及一行需求摘要。从不发送聊天内容。登录信息加密保存在这台电脑上。"
       }
     },
     "gc": {
@@ -1793,6 +1803,101 @@
         "needs_sign_in": "{{publisher}} 不再接受当前的登录。AI 将聊天转交给您的团队。"
       },
       "agentCardTools_other": "已开启 {{count}}/{{total}} 个工具"
+    },
+    "zoho": {
+      "accountTitle": "Zoho 账户",
+      "accountDescription": "用 Zoho 登录一次即可，无需粘贴链接或密钥。",
+      "what1": "AI 认得回头客：姓名、公司、负责人和潜在客户状态。",
+      "what2": "新咨询会成为 Zoho CRM 中的潜在客户（仅在你开启后）。",
+      "what3": "团队可以在每个聊天旁看到 Zoho 记录。",
+      "region": "你的 Zoho 账户在哪里？",
+      "regionHint": "你登录的 Zoho 网站，即浏览器地址栏中的网址（例如 crm.zoho.com）。",
+      "regions": {
+        "com": "zoho.com",
+        "eu": "zoho.eu（欧洲）",
+        "in": "zoho.in（印度）",
+        "comAu": "zoho.com.au（澳大利亚）",
+        "jp": "zoho.jp（日本）",
+        "ca": "zohocloud.ca（加拿大）",
+        "sa": "zoho.sa（沙特阿拉伯）"
+      },
+      "connect": "连接 Zoho CRM",
+      "connectHint": "你用 Zoho 登录，并允许 {{product}} 读取联系人和潜在客户、添加潜在客户。你可以随时断开连接。",
+      "account": "Zoho 账户",
+      "org": "组织",
+      "site": "Zoho 网站",
+      "state": {
+        "connected": "正常",
+        "expired": "请重新登录",
+        "unavailable": "无法连接 Zoho"
+      },
+      "expiredTitle": "Zoho 登录已过期",
+      "expiredBody": "重新登录前，AI 会在不使用 Zoho CRM 的情况下回答，也不会添加潜在客户。不会告知客户。",
+      "unavailableTitle": "无法连接 Zoho CRM",
+      "unavailableBody": "{{product}} 会自动重试。在此期间，AI 不使用 Zoho CRM 回答，也不添加潜在客户。",
+      "signInAgain": "重新登录",
+      "perAgent": "在设置中选择每个 AI 智能体可以做什么。",
+      "openZoho": "打开 Zoho CRM",
+      "disconnect": "断开连接",
+      "disconnectTitle": "断开 Zoho CRM？",
+      "disconnectBody": "AI 会立即停止查找客户和添加潜在客户。Zoho CRM 中的记录会保留。设置会保留，方便你再次连接。",
+      "disconnected": "已断开 Zoho CRM",
+      "agentDescription": "{{name}} 在 Zoho CRM 中可以做什么。",
+      "agentNotConnected": "请先在概览标签页连接 Zoho CRM。",
+      "agentPaused": "已暂停，直到 Zoho CRM 恢复正常：{{name}} 会在不使用它的情况下回答。",
+      "findHint": "回答前，在 Contacts 和 Leads 中查找聊天的 WhatsApp 号码。",
+      "addLeads": "添加新潜在客户",
+      "addLeadsHint": "号码尚未在 Zoho CRM 中且客户提出真实咨询时，将其添加为潜在客户。",
+      "changesBadge": "会更改 Zoho CRM",
+      "needsFind": "请先开启“查找客户”。",
+      "owner": "潜在客户负责人",
+      "ownerDefault": "Zoho 默认（{{account}}）",
+      "ownerHint": "Zoho 的分配规则仍可能更改负责人。",
+      "leadSource": "Lead Source",
+      "leadSourceHint": "写在 AI 添加的每个潜在客户上。",
+      "includeRequest": "添加一行需求摘要",
+      "includeRequestHint": "AI 会写入潜在客户的 Description，例如“办公室午餐外烩，约 80 人，11 月 15 日。”从不写入聊天内容。",
+      "rulesTitle": "AI 始终遵守的规则",
+      "rule1": "只为 Contacts 和 Leads 中都没有的号码添加潜在客户，并在添加前再次核对。",
+      "rule2": "需要客户姓名：已保存的联系人或 WhatsApp 名称，否则使用客户自己写的。",
+      "rule3": "每个聊天只添加一个潜在客户。从不更改或删除现有记录，而是交给团队。",
+      "rule4": "不在群组中使用，试一试也从不添加潜在客户。",
+      "save": "保存",
+      "saved": "已保存",
+      "activityHint": "AI 查找和添加了什么。只记录谁和何时，从不记录聊天内容。",
+      "act": {
+        "found": "{{agent}} 在 {{module}} 中找到了 {{customer}}",
+        "not_found": "{{agent}} 查找了 {{customer}}：不在 Zoho CRM 中",
+        "added": "{{agent}} 将 {{customer}} 添加为潜在客户",
+        "added_by_team": "{{agent}} 从聊天中将 {{customer}} 添加为潜在客户",
+        "not_added": "{{agent}} 未添加 {{customer}}：{{reason}}",
+        "failed": "{{agent}} 无法为 {{customer}} 连接 Zoho CRM"
+      },
+      "reason": {
+        "exists": "已在 Zoho CRM 中",
+        "no_name": "还没有姓名",
+        "unavailable": "Zoho CRM 不可用"
+      },
+      "module": {
+        "Contacts": "Contacts",
+        "Leads": "Leads"
+      },
+      "agentCard": {
+        "findAndAdd": "查找客户并添加新潜在客户",
+        "findOnly": "查找客户"
+      },
+      "connectedToast": "已连接 Zoho CRM",
+      "notConfiguredTitle": "此版本不可用",
+      "notConfiguredBody": "此版本的 {{product}} 未设置 Zoho 登录。",
+      "waiting": "正在等待 Zoho 登录…",
+      "sameComputer": "Zoho 会返回运行 {{product}} 的电脑：只能在那台电脑的浏览器中完成登录。",
+      "failed": {
+        "denied": "Zoho 登录已取消。未连接任何内容。",
+        "expired": "登录时间过长。请重试。",
+        "error": "Zoho 登录未完成。请重试。"
+      },
+      "ownerDefaultNoAccount": "Zoho 默认（已登录的用户）",
+      "leadSourceRequired": "请输入 Lead Source。"
     }
   },
   "reports": {

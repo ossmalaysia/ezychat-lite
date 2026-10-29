@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, Plug } from 'lucide-react';
 import { useConnectorGallery, useConnectorsAgentSettings } from '../../api/connector-list';
 import { useBookingSettings, useGoogleCalendar } from '../../api/connectors';
+import { useZohoCrm, useZohoCrmSettings } from '../../api/zoho-crm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { findConnector } from './catalog';
@@ -25,6 +26,11 @@ export function AgentConnectorsCard({
   const state = google.data?.state;
   const connected = state === 'connected' || state === 'expired' || state === 'unavailable';
   const booking = useBookingSettings(agentId, connected);
+  const zoho = useZohoCrm();
+  const zohoState = zoho.data?.state;
+  const zohoConnected =
+    zohoState === 'connected' || zohoState === 'expired' || zohoState === 'unavailable';
+  const crm = useZohoCrmSettings(agentId, zohoConnected);
   const gallery = useConnectorGallery();
   const partners = (gallery.data?.connectors ?? []).filter(
     (c) => c.entry.kind === 'mcp' && isLinked(c.connection),
@@ -34,6 +40,14 @@ export function AgentConnectorsCard({
     agentId,
   );
   const gc = findConnector('google-calendar')!;
+  const zc = findConnector('zoho-crm')!;
+  const zohoSummary = !crm.data
+    ? null
+    : !crm.data.find
+      ? t('connectors.agentCard.off')
+      : crm.data.addLeads
+        ? t('connectors.zoho.agentCard.findAndAdd')
+        : t('connectors.zoho.agentCard.findOnly');
   const summary = !booking.data
     ? null
     : !booking.data.checkFree
@@ -61,6 +75,23 @@ export function AgentConnectorsCard({
                 {state !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
               {summary && <span className="text-sm text-muted-foreground">{summary}</span>}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        )}
+        {zohoConnected && (
+          <Link
+            to={`/admin/connectors/zoho-crm?tab=settings&agent=${agentId}`}
+            className={ROW}
+            data-testid="agent-connector-zoho-crm"
+          >
+            <ConnectorIcon c={zc} />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex flex-wrap items-center gap-2 font-medium">
+                {t('connectors.items.zoho-crm.name')}
+                {zohoState !== 'connected' && <ConnectorStatusBadge status="attention" />}
+              </span>
+              {zohoSummary && <span className="text-sm text-muted-foreground">{zohoSummary}</span>}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -97,7 +128,7 @@ export function AgentConnectorsCard({
             </Link>
           );
         })}
-        {!connected && partners.length === 0 && (
+        {!connected && !zohoConnected && partners.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('connectors.agentCard.none')}</p>
         )}
         <Button asChild variant="outline" size="touch" className="self-start">

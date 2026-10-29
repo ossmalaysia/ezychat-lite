@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AiGroupEvent } from './ai-groups.js';
 import { AiToolCalendarDetail } from './connectors.js';
+import { AiToolCrmDetail } from './zoho-crm.js';
 import { UserSchema } from './models.js';
 
 /** EXPERIMENTAL direct ChatGPT sign-in: documented fallback when the live model list is unavailable
@@ -420,6 +421,8 @@ export const AiToolUsedPayload = z.object({
   sourceLabel: z.string().min(1).max(AI_TOOL_LABEL_CHARACTERS),
   /** Google Calendar (core connector): what the AI checked or booked. */
   calendar: AiToolCalendarDetail.optional(),
+  /** Zoho CRM (core connector): found the customer, not found, or added a lead. */
+  crm: AiToolCrmDetail.optional(),
   /** A WhatsApp group: the AI answered a tag or a quote, handed over, or paused (loop guard). */
   group: AiGroupEvent.optional(),
 });

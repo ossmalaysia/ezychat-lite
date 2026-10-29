@@ -270,7 +270,10 @@
     "aiGroupHandover": "{{actor}} menyerahkan soalan {{member}} kepada pasukan: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} menyerahkan soalan {{member}} kepada pasukan",
     "aiGroupPaused": "AI dijeda: terlalu banyak jawapan berturut-turut",
-    "aiGroupMember": "seorang ahli"
+    "aiGroupMember": "seorang ahli",
+    "crmFound": "AI menemui pelanggan · {{source}}",
+    "crmNotFound": "AI mencari pelanggan: tiada · {{source}}",
+    "crmLeadAdded": "AI menambah prospek · {{source}}"
   },
   "messageList": {
     "label": "Mesej",
@@ -618,6 +621,23 @@
       "on": "Hidup",
       "off": "Mati",
       "paused": "Dijeda: terlalu banyak jawapan berturut-turut. Mesej rakan sepasukan memulakannya semula."
+    }
+  },
+  "zohoCrm": {
+    "title": "Zoho CRM",
+    "owner": "Pemilik: {{owner}}",
+    "status": "Status prospek: {{status}}",
+    "addedByAi": "Ditambah oleh AI",
+    "addedByTeam": "Ditambah dari {{product}}",
+    "request": "Permintaan: {{request}}",
+    "open": "Buka dalam Zoho CRM",
+    "notFound": "Belum ada dalam Zoho CRM.",
+    "add": "Tambah sebagai prospek",
+    "added": "Ditambah ke Zoho CRM sebagai prospek",
+    "unavailable": "Zoho CRM tidak tersedia sekarang.",
+    "module": {
+      "Contacts": "Kenalan",
+      "Leads": "Petunjuk"
     }
   }
 }

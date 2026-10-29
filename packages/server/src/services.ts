@@ -44,6 +44,9 @@ initializers.push(initPhrases);
 import { initGoogleCalendar } from './connectors/google-calendar/service.js';
 initializers.push(initGoogleCalendar);
 
+import { initZohoCrm } from './connectors/zoho-crm/service.js';
+initializers.push(initZohoCrm);
+
 import { initConnectorList } from './connectors/list/service.js';
 initializers.push(initConnectorList);
 

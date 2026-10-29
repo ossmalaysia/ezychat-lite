@@ -36,7 +36,7 @@ const TABLES = [
   'calendar_bookings',
   'calendar_activity',
 ];
-const LATEST = 24;
+const LATEST = 25;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {

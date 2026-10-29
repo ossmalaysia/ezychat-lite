@@ -9,13 +9,13 @@ import {
   Table2,
   type LucideIcon,
 } from 'lucide-react';
-import type { ConnectorEntry, GoogleCalendarState } from '@ezychat/shared';
+import type { ConnectorEntry, GoogleCalendarState, ZohoCrmState } from '@ezychat/shared';
 
 /**
  * Admin → Connectors: what the app itself provides next to the connector list (design
  * docs/features/connector-list/design.md). The list (server, `GET /api/connectors/list`) gives
  * every partner and coming-soon connector; the app keeps only its own features here: the built-in
- * Google Calendar (its pages and tabs live in the app) and the custom MCP connector (Enterprise,
+ * Google Calendar and Zoho CRM (their pages and tabs live in the app) and the custom MCP connector (Enterprise,
  * linked by its web extension through `connectorLinks`). Texts are catalog keys under
  * `connectors.items.<id>` and `connectors.tools.<tool>` (admin namespace).
  */
@@ -55,10 +55,10 @@ export const CATEGORY_ICON: Record<ConnectorCategory, LucideIcon> = {
   other: Puzzle,
 };
 
-/** What the AI may do with the built-in Google Calendar. */
-export type ConnectorTool = 'checkFree' | 'book';
+/** What the AI may do with the built-in connectors (Google Calendar, Zoho CRM). */
+export type ConnectorTool = 'checkFree' | 'book' | 'findCustomer' | 'addLead';
 
-export const CONNECTOR_IDS = ['google-calendar', 'custom-mcp'] as const;
+export const CONNECTOR_IDS = ['google-calendar', 'zoho-crm', 'custom-mcp'] as const;
 export type ConnectorId = (typeof CONNECTOR_IDS)[number];
 
 export interface CatalogConnector {
@@ -80,6 +80,16 @@ export const CONNECTORS: readonly CatalogConnector[] = [
     tools: [
       { key: 'checkFree', access: 'read' },
       { key: 'book', access: 'write' },
+    ],
+  },
+  {
+    id: 'zoho-crm',
+    icon: ContactRound,
+    category: 'crm',
+    edition: 'core',
+    tools: [
+      { key: 'findCustomer', access: 'read' },
+      { key: 'addLead', access: 'write' },
     ],
   },
   { id: 'custom-mcp', icon: Plug, category: 'custom', edition: 'enterprise', tools: [] },
@@ -104,16 +114,15 @@ export type ConnectorStatus =
   | 'needsUpdate'
   | 'delisted';
 
+/** `state`: the built-in connector's own state (Google Calendar or Zoho CRM). */
 export function connectorStatus(
   c: CatalogConnector,
-  google: GoogleCalendarState | undefined,
+  state: GoogleCalendarState | ZohoCrmState | undefined,
   extensionLink: string | undefined,
 ): ConnectorStatus {
   if (extensionLink) return 'linked';
   if (c.edition === 'enterprise') return 'enterprise';
-  if (c.id === 'google-calendar') {
-    if (google === 'connected') return 'connected';
-    if (google === 'expired' || google === 'unavailable') return 'attention';
-  }
+  if (state === 'connected') return 'connected';
+  if (state === 'expired' || state === 'unavailable') return 'attention';
   return 'notConnected';
 }

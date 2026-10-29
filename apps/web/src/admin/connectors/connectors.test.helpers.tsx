@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import {
   DEFAULT_BOOKING_SETTINGS,
+  DEFAULT_ZOHO_CRM_SETTINGS,
   type AiAgentSummary,
   type BookingSettings,
   type CalendarActivity,
@@ -21,6 +22,10 @@ import {
   type GalleryConnector,
   type GoogleCalendarConnectProgress,
   type GoogleCalendarStatus,
+  type ZohoCrmActivity,
+  type ZohoCrmAgentSettings,
+  type ZohoCrmConnectProgress,
+  type ZohoCrmStatus,
 } from '@ezychat/shared';
 import { AppLinksProvider } from '@/lib/app-links';
 import { resolveAppLinks, type AppLinks } from '@/lib/links';
@@ -38,6 +43,30 @@ export const CALENDARS: GoogleCalendarStatus['calendars'] = [
   { id: 'bookings', name: 'Table bookings', primary: false, readOnly: false },
   { id: 'holidays', name: 'Holidays in Malaysia', primary: false, readOnly: true },
 ];
+
+/** Zoho CRM as GET /connectors/zoho-crm answers it. */
+export const zohoStatus = (
+  state: ZohoCrmStatus['state'],
+  patch: Partial<ZohoCrmStatus> = {},
+): ZohoCrmStatus => {
+  const on = state === 'connected' || state === 'expired' || state === 'unavailable';
+  return {
+    state,
+    region: on ? 'com' : null,
+    account: on ? 'aisyah@kopiapong.my' : null,
+    org: on ? 'Kopi Apong Sdn Bhd' : null,
+    users: on
+      ? [
+          { id: '111', name: 'Aisyah Rahman' },
+          { id: '222', name: 'Daniel Tan' },
+        ]
+      : [],
+    crmUrl: on ? 'https://crm.zoho.com/crm/org123/' : null,
+    connectedAt: null,
+    problemSince: null,
+    ...patch,
+  };
+};
 
 export const status = (
   state: GoogleCalendarStatus['state'],
@@ -175,6 +204,12 @@ export const gallery = (
 /** The server as the connector pages see it; every write is recorded. */
 export interface World {
   google: GoogleCalendarStatus;
+  /** Zoho CRM (default: not connected). */
+  zoho: ZohoCrmStatus;
+  zohoSettings: Record<number, ZohoCrmAgentSettings>;
+  zohoActivity: ZohoCrmActivity[];
+  /** Answers to the Zoho sign-in polls, in order (the last one repeats). */
+  zohoProgress: ZohoCrmConnectProgress[];
   agents: AiAgentSummary[];
   bookings: Record<number, BookingSettings>;
   activity: CalendarActivity[];
@@ -205,6 +240,10 @@ export interface World {
 export function world(patch: Partial<World> = {}): World {
   return {
     google: status('connected'),
+    zoho: zohoStatus('disconnected'),
+    zohoSettings: {},
+    zohoActivity: [],
+    zohoProgress: [{ status: 'done', error: null }],
     agents: [agent(1, 'Aina')],
     bookings: {},
     activity: [],
@@ -338,11 +377,41 @@ export function stubServer(w: World) {
     }
     if (path === '/connectors/google-calendar/activity') return json({ activity: w.activity });
     if (path === '/connectors/google-calendar/bookings') return json(w.calendarBookings);
+    const zoho = zohoRoute(w, method, path, init);
+    if (zoho) return zoho;
     if (path === '/ai/agents') return json({ agents: w.agents, maxAgents: 5 });
     return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
+}
+
+/** The Zoho CRM routes of the stub server. */
+function zohoRoute(w: World, method: string, path: string, init?: RequestInit): Response | null {
+  if (path === '/connectors/zoho-crm') return json(w.zoho);
+  if (path === '/connectors/zoho-crm/connect' && method === 'POST')
+    return json({
+      requestId: 'zreq-1',
+      authorizationUrl: 'https://accounts.zoho.com/oauth/v2/auth?x=1',
+    });
+  if (path.startsWith('/connectors/zoho-crm/connect/')) {
+    const next = w.zohoProgress.length > 1 ? w.zohoProgress.shift()! : w.zohoProgress[0]!;
+    if (next.status === 'done') w.zoho = zohoStatus('connected');
+    return json(next);
+  }
+  if (path === '/connectors/zoho-crm/disconnect' && method === 'POST') {
+    w.zoho = zohoStatus('disconnected');
+    return json({ ok: true });
+  }
+  const agentMatch = /^\/connectors\/zoho-crm\/agents\/(\d+)$/.exec(path);
+  if (agentMatch) {
+    const id = Number(agentMatch[1]);
+    if (method === 'PUT')
+      w.zohoSettings[id] = JSON.parse(String(init!.body)) as ZohoCrmAgentSettings;
+    return json(w.zohoSettings[id] ?? DEFAULT_ZOHO_CRM_SETTINGS);
+  }
+  if (path === '/connectors/zoho-crm/activity') return json({ activity: w.zohoActivity });
+  return null;
 }
 
 export const writes = (fetchMock: ReturnType<typeof stubServer>) =>

@@ -65,6 +65,8 @@ jobs:
         env:
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          ZOHO_OAUTH_CLIENT_ID: ${{ secrets.ZOHO_OAUTH_CLIENT_ID }}
+          ZOHO_OAUTH_CLIENT_SECRET: ${{ secrets.ZOHO_OAUTH_CLIENT_SECRET }}
       - run: npm run build -w @ezychat/desktop
       # Windows signing with Azure Artifact Signing (Anchor Sprint Pte. Ltd.) when the repository
       # variables exist; without them the installer stays unsigned (forks, first setup).

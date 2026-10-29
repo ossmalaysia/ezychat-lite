@@ -4,11 +4,19 @@ import {
   CalendarCheck,
   CalendarSearch,
   MessageSquare,
+  Search,
   TriangleAlert,
+  UserPlus,
   UserRound,
 } from 'lucide-react';
-import type { CalendarActivity, CalendarBooking, ConnectorEntry } from '@ezychat/shared';
+import type {
+  CalendarActivity,
+  CalendarBooking,
+  ConnectorEntry,
+  ZohoCrmActivity,
+} from '@ezychat/shared';
 import { useCalendarActivity, useCalendarBookings, useGoogleCalendar } from '../../api/connectors';
+import { useZohoCrm, useZohoCrmActivity } from '../../api/zoho-crm';
 import { encodeJid } from '../../lib/jid';
 import { EmptyState } from '@/components/app';
 import { UpgradeButton } from '@/components/app/UpgradeEnterprise';
@@ -33,16 +41,21 @@ import {
 } from './connector-ui';
 import { GoogleCalendarAccountCard } from './GoogleCalendarAccountCard';
 import { ListConnectorPage } from './PartnerConnectorPage';
+import { ZohoCrmAccountCard } from './ZohoCrmAccountCard';
+import { ZohoCrmSettingsCard } from './ZohoCrmSettingsCard';
 
 const TABS = ['overview', 'settings', 'activity', 'bookings'] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (value: string | null): value is Tab =>
   (TABS as readonly string[]).includes(value ?? '');
+/** Zoho CRM: no Bookings tab. */
+const ZOHO_TABS = ['overview', 'settings', 'activity'] as const;
 
 /**
  * `/admin/connectors/:id`: one page per connector. The app's own connectors come first: Google
  * Calendar has Overview (what it does, the Google account, your data), Settings (per AI agent),
- * Activity and Bookings tabs (`?tab=`, `&agent=`); the custom connector needs Enterprise. Every
+ * Activity and Bookings tabs (`?tab=`, `&agent=`); Zoho CRM the same without Bookings; the custom
+ * connector needs Enterprise. Every
  * other page is built from the connector's entry in the connector list. A connector an extension
  * provides opens the extension's page.
  */
@@ -57,11 +70,16 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
   const { t } = useTranslation('admin');
   const links = useConnectorLinks();
   const google = useGoogleCalendar(c.id === 'google-calendar');
+  const zoho = useZohoCrm(c.id === 'zoho-crm');
   // The connector list may mark the app's own connector Beta and add a notice (e.g. Google review).
   const entry = useBuiltinEntry(c.id);
   const link = links[c.id];
   if (link) return <Navigate to={link} replace />;
-  const status = connectorStatus(c, google.data?.state, undefined);
+  const status = connectorStatus(
+    c,
+    c.id === 'zoho-crm' ? zoho.data?.state : google.data?.state,
+    undefined,
+  );
   const name = t(`connectors.items.${c.id}.name`);
 
   return (
@@ -84,6 +102,8 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
 
       {c.id === 'google-calendar' ? (
         <GoogleCalendarTabs c={c} entry={entry} />
+      ) : c.id === 'zoho-crm' ? (
+        <ZohoCrmTabs c={c} entry={entry} />
       ) : (
         <div className="flex flex-col gap-4">
           {status === 'enterprise' && (
@@ -146,6 +166,129 @@ function GoogleCalendarTabs({
         <Bookings />
       </TabsContent>
     </Tabs>
+  );
+}
+
+function useTab<T extends string>(tabs: readonly T[]) {
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab');
+  const tab: T = (tabs as readonly string[]).includes(tabParam ?? '') ? (tabParam as T) : tabs[0]!;
+  const setTab = (next: string) =>
+    setParams(
+      (p) => {
+        p.set('tab', next);
+        return p;
+      },
+      { replace: true },
+    );
+  return [tab, setTab] as const;
+}
+
+function ZohoCrmTabs({
+  c,
+  entry,
+}: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
+  const { t } = useTranslation('admin');
+  const [tab, setTab] = useTab(ZOHO_TABS);
+  return (
+    <Tabs value={tab} onValueChange={setTab}>
+      <div className="-mx-4 scroll-px-4 overflow-x-auto px-4 pb-1">
+        <TabsList variant="line" className="w-max justify-start">
+          {ZOHO_TABS.map((id) => (
+            <TabsTrigger key={id} value={id} className="min-h-11 flex-none px-3 md:min-h-9">
+              {t(`connectors.tabs.${id}`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+      <TabsContent value="overview" className="flex flex-col gap-4">
+        <About c={c} />
+        <ConnectorNotice entry={entry} />
+        <ZohoCrmAccountCard onOpenSettings={() => setTab('settings')} />
+        <Privacy c={c} />
+      </TabsContent>
+      <TabsContent value="settings" className="flex flex-col gap-4">
+        <ZohoAgentSettings onConnect={() => setTab('overview')} />
+      </TabsContent>
+      <TabsContent value="activity" className="flex flex-col gap-4">
+        <ZohoActivity />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ZohoAgentSettings({ onConnect }: { onConnect: () => void }) {
+  const zoho = useZohoCrm();
+  if (zoho.isPending) return <ListSkeleton rows={3} />;
+  if (zoho.error) return <ErrorState error={zoho.error} onRetry={() => void zoho.refetch()} />;
+  return (
+    <AgentPicker
+      render={(agent) => (
+        <ZohoCrmSettingsCard
+          key={agent.id}
+          agentId={agent.id}
+          name={agent.displayName}
+          status={zoho.data}
+          onConnect={onConnect}
+        />
+      )}
+    />
+  );
+}
+
+const ZOHO_ACTIVITY_ICON = {
+  found: Search,
+  not_found: Search,
+  added: UserPlus,
+  added_by_team: UserPlus,
+  not_added: UserRound,
+  failed: TriangleAlert,
+} as const;
+
+/** Zoho CRM Activity: what the AI looked up and added (who and when, never the chat text). */
+function ZohoActivity() {
+  const { t } = useTranslation('admin');
+  const query = useZohoCrmActivity();
+  if (query.isPending) return <ListSkeleton rows={3} />;
+  if (query.error) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+  const rows = query.data.activity;
+  if (rows.length === 0)
+    return (
+      <EmptyState
+        title={t('connectors.activityEmpty')}
+        description={t('connectors.zoho.activityHint')}
+      />
+    );
+  const line = (r: ZohoCrmActivity) =>
+    t(`connectors.zoho.act.${r.kind}`, {
+      agent: r.actorName,
+      customer: r.customer,
+      module: r.module ? t(`connectors.zoho.module.${r.module}`) : '',
+      reason: r.reason ? t(`connectors.zoho.reason.${r.reason}`) : '',
+    });
+  return (
+    <Card className="gap-3">
+      <CardHeader>
+        <CardTitle>{t('connectors.activityTitle')}</CardTitle>
+        <CardDescription>{t('connectors.zoho.activityHint')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="flex flex-col divide-y" data-testid="zoho-activity">
+          {rows.map((r) => {
+            const Icon = ZOHO_ACTIVITY_ICON[r.kind];
+            return (
+              <li key={r.id} className="flex items-start gap-3 py-3 first:pt-0">
+                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm break-words">{line(r)}</span>
+                  <span className="text-xs text-muted-foreground">{formatRelative(r.at)}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -273,7 +273,10 @@
     "aiGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} handed {{member}}’s question to the team",
     "aiGroupPaused": "AI paused: many answers in a row",
-    "aiGroupMember": "a member"
+    "aiGroupMember": "a member",
+    "crmFound": "AI found the customer · {{source}}",
+    "crmNotFound": "AI looked up the customer: not found · {{source}}",
+    "crmLeadAdded": "AI added a lead · {{source}}"
   },
   "messageList": {
     "label": "Messages",
@@ -622,6 +625,23 @@
       "on": "On",
       "off": "Off",
       "paused": "Paused: many answers in a row. A teammate’s message starts it again."
+    }
+  },
+  "zohoCrm": {
+    "title": "Zoho CRM",
+    "owner": "Owner: {{owner}}",
+    "status": "Lead status: {{status}}",
+    "addedByAi": "Added by the AI",
+    "addedByTeam": "Added from {{product}}",
+    "request": "Request: {{request}}",
+    "open": "Open in Zoho CRM",
+    "notFound": "Not in Zoho CRM yet.",
+    "add": "Add as a lead",
+    "added": "Added to Zoho CRM as a lead",
+    "unavailable": "Zoho CRM is not available right now.",
+    "module": {
+      "Contacts": "Contact",
+      "Leads": "Lead"
     }
   }
 }

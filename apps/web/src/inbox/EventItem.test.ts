@@ -101,6 +101,14 @@ describe('describeEvent', () => {
       describeEvent(event('ai_tool_used', 3, { ...source, calendar: { action: 'booked' } }), dir),
     ).toBe('AI booked a time · Google Calendar');
   });
+  it('names Zoho CRM look-ups and leads', () => {
+    const source = { title: 'Find the customer', sourceLabel: 'Zoho CRM' };
+    const line = (action: string) =>
+      describeEvent(event('ai_tool_used', 3, { ...source, crm: { action } }), dir);
+    expect(line('found')).toBe('AI found the customer · Zoho CRM');
+    expect(line('not_found')).toBe('AI looked up the customer: not found · Zoho CRM');
+    expect(line('lead_added')).toBe('AI added a lead · Zoho CRM');
+  });
 });
 
 describe('describeEvent in WhatsApp groups', () => {

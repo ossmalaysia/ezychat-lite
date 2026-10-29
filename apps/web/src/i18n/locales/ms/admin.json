@@ -1505,7 +1505,11 @@
       "checkFree": "Semak masa lapang",
       "checkFreeHint": "Membaca bila kalendar yang dipilih sibuk.",
       "book": "Tempah janji temu",
-      "bookHint": "Menambah acara selepas pelanggan mengesahkan masa."
+      "bookHint": "Menambah acara selepas pelanggan mengesahkan masa.",
+      "findCustomer": "Cari pelanggan",
+      "findCustomerHint": "Mencari nombor WhatsApp sembang dalam Contacts dan Leads, dan memberi AI nama, syarikat, pemilik dan status petunjuk.",
+      "addLead": "Tambah prospek",
+      "addLeadHint": "Menambah prospek apabila nombor belum ada dalam Zoho CRM, dengan nama, nombor, syarikat dan ringkasan satu baris permintaan. Dimatikan sehingga anda menghidupkannya."
     },
     "items": {
       "google-calendar": {
@@ -1519,6 +1523,12 @@
         "short": "Sambungkan mana-mana sistem yang menawarkan pelayan MCP.",
         "long": "Untuk sistem anda sendiri: tampal pautan pelayan MCP, log masuk, dan pilih untuk setiap ejen AI alat mana yang boleh digunakan oleh AI. Alat yang mengubah data bermula dalam keadaan mati.",
         "privacy": "{{product}} hanya menghantar kepada sistem itu apa yang diminta oleh alat dalam satu giliran sembang."
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "Cari pelanggan dan tambah prospek dalam Zoho CRM.",
+        "long": "Sebelum menjawab, AI mencari pelanggan dalam Zoho CRM mengikut nombor WhatsApp mereka, jadi ia tahu dengan siapa ia bercakap. Jika anda benarkan, ia menambah pertanyaan baharu sebagai prospek. Pasukan anda melihat rekod Zoho di sebelah setiap sembang.",
+        "privacy": "{{product}} menghantar kepada Zoho CRM nombor WhatsApp sembang untuk semakan dan, untuk prospek baharu, nama, nombor, e-mel dan syarikat pelanggan jika diberi, serta ringkasan satu baris permintaan. Tidak pernah sembang itu sendiri. Log masuk disimpan secara tersulit di komputer ini."
       }
     },
     "gc": {
@@ -1794,6 +1804,101 @@
         "needs_sign_in": "{{publisher}} tidak lagi menerima log masuk. AI menyerahkan sembang kepada pasukan anda."
       },
       "agentCardTools_other": "{{count}} daripada {{total}} alat dihidupkan"
+    },
+    "zoho": {
+      "accountTitle": "Akaun Zoho",
+      "accountDescription": "Log masuk dengan Zoho sekali. Tiada pautan atau kunci untuk ditampal.",
+      "what1": "AI mengenali pelanggan yang kembali: nama, syarikat, pemilik dan status prospek.",
+      "what2": "Pertanyaan baharu menjadi prospek dalam Zoho CRM, hanya jika anda menghidupkannya.",
+      "what3": "Pasukan anda melihat rekod Zoho di sebelah setiap sembang.",
+      "region": "Di mana akaun Zoho anda?",
+      "regionHint": "Laman Zoho tempat anda log masuk, seperti di bar alamat pelayar (contohnya crm.zoho.com).",
+      "regions": {
+        "com": "zoho.com",
+        "eu": "zoho.eu (Eropah)",
+        "in": "zoho.in (India)",
+        "comAu": "zoho.com.au (Australia)",
+        "jp": "zoho.jp (Jepun)",
+        "ca": "zohocloud.ca (Kanada)",
+        "sa": "zoho.sa (Arab Saudi)"
+      },
+      "connect": "Sambung Zoho CRM",
+      "connectHint": "Anda log masuk dengan Zoho dan membenarkan {{product}} membaca kenalan dan prospek serta menambah prospek. Anda boleh memutuskan sambungan pada bila-bila masa.",
+      "account": "Akaun Zoho",
+      "org": "Organisasi",
+      "site": "Laman Zoho",
+      "state": {
+        "connected": "Berfungsi",
+        "expired": "Log masuk semula",
+        "unavailable": "Tidak dapat mencapai Zoho"
+      },
+      "expiredTitle": "Log masuk Zoho telah tamat",
+      "expiredBody": "Sehingga anda log masuk semula, AI menjawab tanpa Zoho CRM dan tidak menambah prospek. Pelanggan tidak diberitahu.",
+      "unavailableTitle": "Tidak dapat mencapai Zoho CRM",
+      "unavailableBody": "{{product}} mencuba semula sendiri. Sementara itu AI menjawab tanpa Zoho CRM dan tidak menambah prospek.",
+      "signInAgain": "Log masuk semula",
+      "perAgent": "Pilih apa yang boleh dilakukan oleh setiap ejen AI dalam Tetapan.",
+      "openZoho": "Buka Zoho CRM",
+      "disconnect": "Putuskan sambungan",
+      "disconnectTitle": "Putuskan sambungan Zoho CRM?",
+      "disconnectBody": "AI berhenti mencari pelanggan dan menambah prospek serta-merta. Rekod dalam Zoho CRM kekal. Tetapan disimpan untuk apabila anda menyambung semula.",
+      "disconnected": "Sambungan Zoho CRM diputuskan",
+      "agentDescription": "Apa yang boleh dilakukan oleh {{name}} dalam Zoho CRM.",
+      "agentNotConnected": "Sambung Zoho CRM dahulu di tab Gambaran keseluruhan.",
+      "agentPaused": "Dijeda sehingga Zoho CRM berfungsi semula: {{name}} menjawab tanpanya.",
+      "findHint": "Sebelum menjawab, cari nombor WhatsApp sembang dalam Contacts dan Leads.",
+      "addLeads": "Tambah prospek baharu",
+      "addLeadsHint": "Apabila nombor belum ada dalam Zoho CRM dan pelanggan membuat pertanyaan sebenar, tambah mereka sebagai prospek.",
+      "changesBadge": "Mengubah Zoho CRM",
+      "needsFind": "Hidupkan Cari pelanggan dahulu.",
+      "owner": "Pemilik prospek",
+      "ownerDefault": "Lalai Zoho ({{account}})",
+      "ownerHint": "Peraturan tugasan Zoho mungkin masih mengubahnya.",
+      "leadSource": "Lead Source",
+      "leadSourceHint": "Ditulis pada setiap prospek yang ditambah oleh AI.",
+      "includeRequest": "Tambah ringkasan satu baris permintaan",
+      "includeRequestHint": "AI menulisnya dalam Description prospek, contohnya “Katering makan tengah hari pejabat, kira-kira 80 orang, 15 Nov.” Tidak pernah sembang itu sendiri.",
+      "rulesTitle": "Peraturan yang sentiasa dipatuhi AI",
+      "rule1": "Menambah prospek hanya untuk nombor yang tiada dalam Contacts mahupun Leads, disemak semula sejurus sebelum menambah.",
+      "rule2": "Memerlukan nama pelanggan: nama kenalan yang disimpan atau nama WhatsApp, jika tiada, apa yang ditulis pelanggan.",
+      "rule3": "Satu prospek bagi setiap sembang. Tidak pernah mengubah atau memadam rekod sedia ada; ia meminta pasukan anda.",
+      "rule4": "Bukan dalam kumpulan, dan Cuba tidak pernah menambah prospek.",
+      "save": "Simpan",
+      "saved": "Disimpan",
+      "activityHint": "Apa yang dicari dan ditambah oleh AI. Siapa dan bila sahaja, tidak pernah teks sembang.",
+      "act": {
+        "found": "{{agent}} menemui {{customer}} dalam {{module}}",
+        "not_found": "{{agent}} mencari {{customer}}: tiada dalam Zoho CRM",
+        "added": "{{agent}} menambah {{customer}} sebagai prospek",
+        "added_by_team": "{{agent}} menambah {{customer}} sebagai prospek dari sembang",
+        "not_added": "{{agent}} tidak menambah {{customer}}: {{reason}}",
+        "failed": "{{agent}} tidak dapat mencapai Zoho CRM untuk {{customer}}"
+      },
+      "reason": {
+        "exists": "sudah ada dalam Zoho CRM",
+        "no_name": "belum ada nama",
+        "unavailable": "Zoho CRM tidak tersedia"
+      },
+      "module": {
+        "Contacts": "Contacts",
+        "Leads": "Leads"
+      },
+      "agentCard": {
+        "findAndAdd": "Mencari pelanggan dan menambah prospek baharu",
+        "findOnly": "Mencari pelanggan"
+      },
+      "connectedToast": "Zoho CRM disambungkan",
+      "notConfiguredTitle": "Tidak tersedia dalam binaan ini",
+      "notConfiguredBody": "Log masuk Zoho tidak disediakan dalam binaan {{product}} ini.",
+      "waiting": "Menunggu log masuk Zoho…",
+      "sameComputer": "Zoho kembali ke komputer yang menjalankan {{product}}: log masuk hanya selesai dalam pelayar pada komputer itu.",
+      "failed": {
+        "denied": "Log masuk Zoho dibatalkan. Tiada apa disambungkan.",
+        "expired": "Log masuk mengambil masa terlalu lama. Cuba lagi.",
+        "error": "Log masuk Zoho tidak selesai. Cuba lagi."
+      },
+      "ownerDefaultNoAccount": "Lalai Zoho (pengguna yang log masuk)",
+      "leadSourceRequired": "Masukkan Lead Source."
     }
   },
   "reports": {

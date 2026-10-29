@@ -78,6 +78,11 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
           ? i18n.t('inbox:events.calendarBooked', { when, source })
           : i18n.t('inbox:events.calendarBookedNoTime', { source });
       }
+      // Zoho CRM: "AI found the customer" / "…: not found" / "AI added a lead".
+      const crm = used.data.crm;
+      if (crm?.action === 'found') return i18n.t('inbox:events.crmFound', { source });
+      if (crm?.action === 'not_found') return i18n.t('inbox:events.crmNotFound', { source });
+      if (crm?.action === 'lead_added') return i18n.t('inbox:events.crmLeadAdded', { source });
       return i18n.t('inbox:events.aiToolUsed', { title: used.data.title, source });
     }
   }

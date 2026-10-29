@@ -56,7 +56,7 @@ describe('Connectors gallery', () => {
     cleanup();
     stubServer(world({ google: status('disconnected') }));
     gallery();
-    await screen.findByText('Not connected');
+    await screen.findByTestId('connector-card-google-calendar');
     expect(within(card('google-calendar')).getByText('Not connected')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Your connectors' })).toBeNull();
   });
@@ -291,7 +291,7 @@ describe('Connectors gallery: the connector list', () => {
     gallery();
     const user = userEvent.setup();
     await screen.findByTestId('connector-card-lejar');
-    expect(screen.queryByRole('button', { name: 'CRM' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Spreadsheets' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Online shop' })).toBeTruthy();
     await user.type(screen.getByRole('searchbox', { name: 'Search connectors' }), 'lejar sdn');
     expect(screen.getByTestId('connector-card-lejar')).toBeTruthy();

@@ -31,6 +31,7 @@ import inboxes from './inboxes.js';
 import templates from './templates.js';
 import replySuggestions from './reply-suggestions.js';
 import connectors from './connectors.js';
+import zohoCrm from './zoho-crm.js';
 import connectorList from './connector-list.js';
 import connectorMcp from './connector-mcp.js';
 import reports from './reports.js';
@@ -66,6 +67,7 @@ export const routeModules: RouteModule[] = [
   templates,
   replySuggestions,
   connectors,
+  zohoCrm,
   connectorList,
   connectorMcp,
   reports,

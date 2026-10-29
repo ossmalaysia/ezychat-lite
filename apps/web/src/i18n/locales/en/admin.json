@@ -1514,7 +1514,11 @@
       "checkFree": "Check free times",
       "checkFreeHint": "Reads when the chosen calendar is busy.",
       "book": "Book appointments",
-      "bookHint": "Adds an event after the customer confirms a time."
+      "bookHint": "Adds an event after the customer confirms a time.",
+      "findCustomer": "Find the customer",
+      "findCustomerHint": "Looks up the chat's WhatsApp number in Contacts and Leads, and gives the AI the name, company, owner and lead status.",
+      "addLead": "Add a lead",
+      "addLeadHint": "Adds a lead when the number is not in Zoho CRM yet, with the name, number, company and a one-line summary of the request. Off until you turn it on."
     },
     "items": {
       "google-calendar": {
@@ -1528,6 +1532,12 @@
         "short": "Connect any system that offers an MCP server.",
         "long": "For your own systems: paste an MCP server link, sign in, and choose per AI agent which of its tools the AI may use. Tools that change data start off.",
         "privacy": "{{product}} sends the system only what a tool asks for in one chat turn."
+      },
+      "zoho-crm": {
+        "name": "Zoho CRM",
+        "short": "Find customers and add leads in Zoho CRM.",
+        "long": "Before it answers, the AI finds the customer in Zoho CRM by their WhatsApp number, so it knows who it is talking to. If you allow it, it adds new enquiries as leads. Your team sees the Zoho record beside each chat.",
+        "privacy": "{{product}} sends Zoho CRM the chat's WhatsApp number for a look-up and, for a new lead, the customer's name, number, email and company when given, and a one-line summary of the request. Never the chat itself. The sign-in is stored encrypted on this computer."
       }
     },
     "gc": {
@@ -1810,6 +1820,101 @@
       },
       "agentCardTools_one": "{{count}} of {{total}} tools on",
       "agentCardTools_other": "{{count}} of {{total}} tools on"
+    },
+    "zoho": {
+      "accountTitle": "Zoho account",
+      "accountDescription": "Sign in with Zoho once. No link or key to paste.",
+      "what1": "The AI knows returning customers: name, company, owner and lead status.",
+      "what2": "New enquiries become leads in Zoho CRM, only if you turn it on.",
+      "what3": "Your team sees the Zoho record beside each chat.",
+      "region": "Where is your Zoho account?",
+      "regionHint": "The Zoho site you sign in to, as in your browser’s address bar (for example crm.zoho.com).",
+      "regions": {
+        "com": "zoho.com",
+        "eu": "zoho.eu (Europe)",
+        "in": "zoho.in (India)",
+        "comAu": "zoho.com.au (Australia)",
+        "jp": "zoho.jp (Japan)",
+        "ca": "zohocloud.ca (Canada)",
+        "sa": "zoho.sa (Saudi Arabia)"
+      },
+      "connect": "Connect Zoho CRM",
+      "connectHint": "You sign in with Zoho and allow {{product}} to read contacts and leads and to add leads. You can disconnect at any time.",
+      "account": "Zoho account",
+      "org": "Organisation",
+      "site": "Zoho site",
+      "state": {
+        "connected": "Working",
+        "expired": "Sign in again",
+        "unavailable": "Can’t reach Zoho"
+      },
+      "expiredTitle": "Zoho sign-in expired",
+      "expiredBody": "Until you sign in again, the AI answers without Zoho CRM and adds no leads. Customers are not told.",
+      "unavailableTitle": "Can’t reach Zoho CRM",
+      "unavailableBody": "{{product}} tries again on its own. Meanwhile the AI answers without Zoho CRM and adds no leads.",
+      "signInAgain": "Sign in again",
+      "perAgent": "Choose what each AI agent may do in Settings.",
+      "openZoho": "Open Zoho CRM",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect Zoho CRM?",
+      "disconnectBody": "The AI stops looking up customers and adding leads at once. Records in Zoho CRM stay. Settings are kept for when you connect again.",
+      "disconnected": "Zoho CRM disconnected",
+      "agentDescription": "What {{name}} may do in Zoho CRM.",
+      "agentNotConnected": "Connect Zoho CRM first on the Overview tab.",
+      "agentPaused": "Paused until Zoho CRM works again: {{name}} answers without it.",
+      "findHint": "Before answering, look up the chat’s WhatsApp number in Contacts and Leads.",
+      "addLeads": "Add new leads",
+      "addLeadsHint": "When the number is not in Zoho CRM yet and the customer makes a real enquiry, add them as a lead.",
+      "changesBadge": "Changes Zoho CRM",
+      "needsFind": "Turn on Find the customer first.",
+      "owner": "Lead owner",
+      "ownerDefault": "Zoho default ({{account}})",
+      "ownerHint": "Zoho’s assignment rules may still change it.",
+      "leadSource": "Lead Source",
+      "leadSourceHint": "Written on every lead the AI adds.",
+      "includeRequest": "Add a one-line summary of the request",
+      "includeRequestHint": "The AI writes it into the lead’s Description, for example “Office lunch catering, about 80 pax, 15 Nov.” Never the chat itself.",
+      "rulesTitle": "Rules the AI always follows",
+      "rule1": "Adds a lead only for a number that is in neither Contacts nor Leads, checked again just before adding.",
+      "rule2": "Needs the customer’s name: the saved contact or WhatsApp name, else what the customer wrote.",
+      "rule3": "One lead per chat. Never changes or deletes existing records; it asks your team instead.",
+      "rule4": "Not in groups, and Try it never adds a lead.",
+      "save": "Save",
+      "saved": "Saved",
+      "activityHint": "What the AI looked up and added. Who and when only, never the chat text.",
+      "act": {
+        "found": "{{agent}} found {{customer}} in {{module}}",
+        "not_found": "{{agent}} looked up {{customer}}: not in Zoho CRM",
+        "added": "{{agent}} added {{customer}} as a lead",
+        "added_by_team": "{{agent}} added {{customer}} as a lead from the chat",
+        "not_added": "{{agent}} did not add {{customer}}: {{reason}}",
+        "failed": "{{agent}} could not reach Zoho CRM for {{customer}}"
+      },
+      "reason": {
+        "exists": "already in Zoho CRM",
+        "no_name": "no name yet",
+        "unavailable": "Zoho CRM unavailable"
+      },
+      "module": {
+        "Contacts": "Contacts",
+        "Leads": "Leads"
+      },
+      "agentCard": {
+        "findAndAdd": "Finds customers and adds new leads",
+        "findOnly": "Finds customers"
+      },
+      "connectedToast": "Zoho CRM connected",
+      "notConfiguredTitle": "Not available in this build",
+      "notConfiguredBody": "Zoho sign-in is not set up in this build of {{product}}.",
+      "waiting": "Waiting for Zoho sign-in…",
+      "sameComputer": "Zoho returns to the computer that runs {{product}}: the sign-in only finishes in a browser on that computer.",
+      "failed": {
+        "denied": "Zoho sign-in was cancelled. Nothing was connected.",
+        "expired": "The sign-in took too long. Try again.",
+        "error": "Zoho sign-in did not finish. Try again."
+      },
+      "ownerDefaultNoAccount": "Zoho default (the signed-in user)",
+      "leadSourceRequired": "Enter a Lead Source."
     }
   },
   "reports": {

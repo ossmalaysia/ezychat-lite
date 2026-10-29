@@ -10,6 +10,11 @@ import {
   mcpConnectorLookupsAvailable,
 } from '../../connectors/mcp/tools.js';
 import {
+  ADD_CRM_LEAD,
+  zohoAgentTools,
+  zohoLookupsAvailable,
+} from '../../connectors/zoho-crm/tools.js';
+import {
   extensionAgentTools,
   extensionLookupsAvailable,
   type AgentKind,
@@ -19,7 +24,8 @@ import {
 
 /**
  * Every look-up source an agent may use besides its Business context: core connectors (Google
- * Calendar with Check free times on) and extension look-ups (`hasAgentLookups`).
+ * Calendar with Check free times on, Zoho CRM with Find the customer on) and extension look-ups
+ * (`hasAgentLookups`).
  */
 export function agentLookupsAvailable(
   ctx: AppContext,
@@ -28,6 +34,7 @@ export function agentLookupsAvailable(
 ): boolean {
   return (
     calendarLookupsAvailable(ctx, agentId) ||
+    zohoLookupsAvailable(ctx, agentId) ||
     mcpConnectorLookupsAvailable(ctx, agentId) ||
     extensionLookupsAvailable(ctx, agent, agentId ?? undefined)
   );
@@ -47,15 +54,18 @@ export async function agentTurnTools(
 ): Promise<ExtensionToolsTurn> {
   const calendar = calendarAgentTools(ctx, log, input, options);
   if (options.lookupsOnly) delete calendar.tools[BOOK_APPOINTMENT];
+  const zoho = zohoAgentTools(ctx, log, input, options);
+  if (options.lookupsOnly) delete zoho.tools[ADD_CRM_LEAD];
   const listed = await mcpConnectorAgentTools(ctx, log, input, options);
   const extension = await extensionAgentTools(ctx, log, input, options);
   return {
-    tools: { ...extension.tools, ...listed.tools, ...calendar.tools },
+    tools: { ...extension.tools, ...listed.tools, ...zoho.tools, ...calendar.tools },
     failed: () => calendar.failed() || listed.failed() || extension.failed(),
-    used: () => [...calendar.used(), ...listed.used(), ...extension.used()],
-    calls: () => [...calendar.calls(), ...listed.calls(), ...extension.calls()],
+    used: () => [...calendar.used(), ...zoho.used(), ...listed.used(), ...extension.used()],
+    calls: () => [...calendar.calls(), ...zoho.calls(), ...listed.calls(), ...extension.calls()],
     dispose: async () => {
       await calendar.dispose();
+      await zoho.dispose();
       await listed.dispose();
       await extension.dispose();
     },

@@ -15,6 +15,7 @@ export * from './reply-suggestions.js';
 export * from './reply-phrases.js';
 export * from './connectors.js';
 export * from './connector-list.js';
+export * from './zoho-crm.js';
 export * from './reports.js';
 export type {
   DesktopRelease,

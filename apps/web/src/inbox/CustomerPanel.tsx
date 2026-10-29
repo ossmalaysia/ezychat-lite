@@ -36,6 +36,7 @@ import { formatRelative } from '../lib/format';
 import { PanelHeader } from './PanelHeader';
 import { TagInput } from './TagInput';
 import type { Directory } from './useDirectory';
+import { ZohoCrmCard } from './ZohoCrmCard';
 
 export interface CustomerPanelProps {
   jid: string;
@@ -710,6 +711,8 @@ function CustomerBody({
               )}
             </div>
           )}
+          {/* Zoho CRM: the chat's record, below the team's details (hidden when not connected). */}
+          {data && <ZohoCrmCard jid={jid} />}
         </div>
       )}
     </>

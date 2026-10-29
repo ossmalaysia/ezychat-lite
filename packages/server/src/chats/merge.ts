@@ -1,4 +1,5 @@
 import { mergeCalendarRows } from '../connectors/google-calendar/repo.js';
+import { mergeZohoCrmRows } from '../connectors/zoho-crm/repo.js';
 import { mergeConnectorRows } from '../connectors/mcp/repo.js';
 import { mergeCustomerProfile } from '../customers/merge.js';
 import { audit } from '../db/audit.js';
@@ -202,6 +203,8 @@ export function mergeChat(
     mergeCalendarRows(db, from, to);
     // Partner (MCP) connector activity, returned values and call counts (no foreign key either).
     mergeConnectorRows(db, from, to);
+    // Zoho CRM leads and activity lines (no foreign key either).
+    mergeZohoCrmRows(db, from, to);
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.
       db.prepare(

@@ -270,7 +270,10 @@
     "aiGroupHandover": "{{actor}} 将 {{member}} 的问题转交给团队：{{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} 将 {{member}} 的问题转交给团队",
     "aiGroupPaused": "AI 已暂停：连续回答过多",
-    "aiGroupMember": "一位成员"
+    "aiGroupMember": "一位成员",
+    "crmFound": "AI 找到了客户 · {{source}}",
+    "crmNotFound": "AI 查找了客户：未找到 · {{source}}",
+    "crmLeadAdded": "AI 添加了潜在客户 · {{source}}"
   },
   "messageList": {
     "label": "消息",
@@ -618,6 +621,23 @@
       "on": "开启",
       "off": "关闭",
       "paused": "已暂停：连续回答过多。同事发言后会重新开始。"
+    }
+  },
+  "zohoCrm": {
+    "title": "Zoho CRM",
+    "owner": "负责人：{{owner}}",
+    "status": "潜在客户状态：{{status}}",
+    "addedByAi": "由 AI 添加",
+    "addedByTeam": "从 {{product}} 添加",
+    "request": "需求：{{request}}",
+    "open": "在 Zoho CRM 中打开",
+    "notFound": "尚未在 Zoho CRM 中。",
+    "add": "添加为潜在客户",
+    "added": "已添加到 Zoho CRM 作为潜在客户",
+    "unavailable": "Zoho CRM 目前不可用。",
+    "module": {
+      "Contacts": "联系人",
+      "Leads": "潜在客户"
     }
   }
 }

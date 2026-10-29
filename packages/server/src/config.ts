@@ -23,6 +23,11 @@ export interface ServerConfig {
    * desktop client type). null/absent: Google Calendar shows "not configured". Never logged.
    */
   googleOAuth?: { clientId: string; clientSecret: string } | null;
+  /**
+   * The Zoho sign-in app of this build (env ZOHO_OAUTH_CLIENT_ID / ZOHO_OAUTH_CLIENT_SECRET, a Zoho
+   * API Console client). null/absent: Zoho CRM shows "not configured". Never logged.
+   */
+  zohoOAuth?: { clientId: string; clientSecret: string } | null;
 }
 
 const MODES = ['standalone', 'service', 'dev'] as const;
@@ -36,6 +41,17 @@ declare const __EZYCHAT_GOOGLE_OAUTH__: { clientId?: unknown; clientSecret?: unk
 function bundledGoogleOAuth(): { clientId?: string; clientSecret?: string } {
   const app =
     typeof __EZYCHAT_GOOGLE_OAUTH__ === 'undefined' ? undefined : __EZYCHAT_GOOGLE_OAUTH__;
+  return {
+    clientId: typeof app?.clientId === 'string' ? app.clientId : undefined,
+    clientSecret: typeof app?.clientSecret === 'string' ? app.clientSecret : undefined,
+  };
+}
+
+/** The Zoho sign-in app a release bundle carries (scripts/zoho-oauth-define.mjs). */
+declare const __EZYCHAT_ZOHO_OAUTH__: { clientId?: unknown; clientSecret?: unknown } | undefined;
+
+function bundledZohoOAuth(): { clientId?: string; clientSecret?: string } {
+  const app = typeof __EZYCHAT_ZOHO_OAUTH__ === 'undefined' ? undefined : __EZYCHAT_ZOHO_OAUTH__;
   return {
     clientId: typeof app?.clientId === 'string' ? app.clientId : undefined,
     clientSecret: typeof app?.clientSecret === 'string' ? app.clientSecret : undefined,
@@ -66,7 +82,8 @@ function defaultWebDist(): string | null {
  * Flags: --data <dir> (required unless WATI_DATA env), --port <n>, --host <h>, --mode <m>,
  * --fake-wa, --web-dist <dir>, --reset-admin, --max-inboxes <n>. Also accepts --flag=value.
  * Env fallbacks: WATI_DATA, WATI_PORT, WATI_HOST, WATI_MODE, WATI_WEB_DIST. Google sign-in app:
- * GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET (both or neither), else the release bundle's.
+ * GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET (both or neither), else the release bundle's;
+ * Zoho sign-in app: ZOHO_OAUTH_CLIENT_ID + ZOHO_OAUTH_CLIENT_SECRET, likewise.
  * Fake WhatsApp is enabled ONLY by the explicit --fake-wa flag (never by env), and never in service mode.
  * --max-inboxes is accepted only together with --mode dev and --fake-wa (never by env).
  */
@@ -145,6 +162,12 @@ export function parseArgs(
   const googleClientSecret = envGoogle
     ? env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()
     : bundled.clientSecret;
+  const zohoBundled = bundledZohoOAuth();
+  const envZoho = env.ZOHO_OAUTH_CLIENT_ID?.trim() && env.ZOHO_OAUTH_CLIENT_SECRET?.trim();
+  const zohoClientId = envZoho ? env.ZOHO_OAUTH_CLIENT_ID?.trim() : zohoBundled.clientId;
+  const zohoClientSecret = envZoho
+    ? env.ZOHO_OAUTH_CLIENT_SECRET?.trim()
+    : zohoBundled.clientSecret;
   const webDist = str('web-dist') ?? env.WATI_WEB_DIST;
 
   return {
@@ -162,6 +185,10 @@ export function parseArgs(
     googleOAuth:
       googleClientId && googleClientSecret
         ? { clientId: googleClientId, clientSecret: googleClientSecret }
+        : null,
+    zohoOAuth:
+      zohoClientId && zohoClientSecret
+        ? { clientId: zohoClientId, clientSecret: zohoClientSecret }
         : null,
   };
 }

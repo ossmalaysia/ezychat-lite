@@ -66,6 +66,9 @@ export const CORE_AGENT_TOOL_NAMES: readonly string[] = [
   // Google Calendar connector (connectors/google-calendar/tools.ts)
   'check_free_times',
   'book_appointment',
+  // Zoho CRM connector (connectors/zoho-crm/tools.ts)
+  'find_crm_customer',
+  'add_crm_lead',
 ];
 /** An extension that has not handed over its tools by then is left out of the turn. */
 export const AGENT_TOOLS_SETUP_MS = 10_000;

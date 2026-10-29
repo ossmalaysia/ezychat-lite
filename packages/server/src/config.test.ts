@@ -53,3 +53,28 @@ describe('parseArgs Google sign-in app', () => {
     expect(parseArgs(['--data', 'x'], {}).googleOAuth).toBeNull();
   });
 });
+
+describe('parseArgs Zoho sign-in app', () => {
+  const bundled = { clientId: '1000.BUNDLED', clientSecret: 'bundled-secret' };
+  const g = globalThis as { __EZYCHAT_ZOHO_OAUTH__?: unknown };
+  afterEach(() => {
+    delete g.__EZYCHAT_ZOHO_OAUTH__;
+  });
+
+  it('is absent without the environment or a release bundle', () => {
+    expect(parseArgs(['--data', 'x'], {}).zohoOAuth).toBeNull();
+    expect(parseArgs(['--data', 'x'], { ZOHO_OAUTH_CLIENT_ID: '1000.X' }).zohoOAuth).toBeNull();
+  });
+
+  it('uses the bundled app, and a complete environment pair wins over it', () => {
+    g.__EZYCHAT_ZOHO_OAUTH__ = bundled;
+    expect(parseArgs(['--data', 'x'], {}).zohoOAuth).toEqual(bundled);
+    const env = { ZOHO_OAUTH_CLIENT_ID: ' 1000.ENV ', ZOHO_OAUTH_CLIENT_SECRET: 'env-secret' };
+    expect(parseArgs(['--data', 'x'], env).zohoOAuth).toEqual({
+      clientId: '1000.ENV',
+      clientSecret: 'env-secret',
+    });
+    g.__EZYCHAT_ZOHO_OAUTH__ = { clientId: 1 };
+    expect(parseArgs(['--data', 'x'], {}).zohoOAuth).toBeNull();
+  });
+});

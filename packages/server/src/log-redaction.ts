@@ -39,6 +39,7 @@ const SECRET_FIELDS = [
   'clientSecret',
   'client_secret',
   'googleOAuth',
+  'zohoOAuth',
 ];
 
 const OAUTH_URL =
