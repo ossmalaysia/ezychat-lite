@@ -411,6 +411,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
+  git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
+  worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
 - A build-time value for the packaged server (e.g. the Google "Desktop app" OAuth client) goes in as an
   esbuild `define` of a global that the code reads with `typeof X === 'undefined'`, from repository secrets
   passed only to the bundle step; the environment still wins, so Dev Builds and forks need no rebuild.
