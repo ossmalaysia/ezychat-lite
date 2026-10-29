@@ -95,6 +95,11 @@ Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots
 4. **API limits**: credits per organisation per day by Zoho edition; the 10-minute cache and the one-lead rule
    keep usage low, but a free-edition org may still run out.
 5. Whether Zoho needs any review before a public desktop app may use the client.
+6. Review: nothing found in Zoho's docs (2026-10-29), not confirmed. Check by signing in from a Zoho account of
+   another organisation (and on zoho.eu) once the client exists; optionally ask Zoho support.
+7. Test organisation: never Anchor Sprint's own Zoho CRM (real customer data). A separate Zoho account and a new
+   CRM organisation with demo data only (proposal 2026-10-29); whether a free or developer edition is enough is
+   not confirmed.
 
 ## Open questions for the owner
 
