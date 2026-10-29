@@ -508,6 +508,12 @@ cover navigation from every admin section and recovery from malformed URLs.
   `npm run e2e:electron-links` (every screen in the real desktop window). The main agent (or the single
   agent working alone) runs it once at the end, after all edits; subagents still never run e2e.
 - On Windows prefer PowerShell; write multi-line scripts to a file instead of `node -e "…"`.
+- **Bounded decisions with TypeSafe Jev** (owner rule; user-level skill `jev-decision` in `~/.claude/skills`, "Jev", also spelled
+  "jav"): for batches of small judgments (classify files or review comments, triage an external issue, pick a
+  LEARNINGS section, rubric scores, ambiguous yes/no checks) call Jev instead of long reasoning; about 1 s and
+  under 1k tokens a request. Gather evidence first; never for what code, graphify, `rg` or tests settle exactly.
+  The key is the Windows user variable `TYPESAFE_API_KEY` (never read or print it). Results are advisory: below
+  your threshold, decide from the evidence; if Jev is down, continue without it and say so.
 - **Release review** (skill `release-review`, design `docs/superpowers/specs/2026-10-24-release-review-design.md`):
   after the last verification of a feature PR, score it with `node scripts/release-review.mjs <pr>` and log it;
   it scores, logs, comments and labels only. Record workbook stages with the checked commit
