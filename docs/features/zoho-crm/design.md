@@ -115,3 +115,22 @@ Confirmed by the owner 2026-10-29 ("Ok, so implement it first, we create account
 and answers 1–3 (Add new leads off by default; request summary on by default; Add as a lead for teammates kept).
 Mock revision `aff82d2`. The Zoho account, test organisation and API client come later (owner); until then the
 connector state is `not_configured` outside `--fake-wa`, and every check runs on the fake Zoho.
+
+## Build (2026-10-29)
+
+Built as confirmed; differences and choices made while building:
+
+- Sign-in uses the server's own loopback callback (as Google Calendar) without PKCE; the one-time hashed `state`, the
+  host-only callback and the checks on the `accounts-server` and `api_domain` Zoho names guard it. Whether Zoho
+  accepts a loopback redirect on any port is still to verify (above).
+- The look-up is the tool `find_crm_customer` the AI calls (tool descriptions carry the instructions; no Zoho
+  wording in the core rules), cached 10 minutes per number; it searches `+<digits>` then `<digits>` in Contacts,
+  then Leads.
+- A teammate's **Add as a lead** uses the saved contact (name required, else 409 `no_name`), Lead Source
+  "WhatsApp" and the Zoho default owner, and never writes a request summary.
+- Zoho's standard Leads layout needs a company: the customer's name stands in when none is known.
+- Audit actions `zoho_crm.connect`, `.disconnect`, `.agent_settings` (changed field names), `.lead_add` (chat
+  only) have Audit page labels.
+- Checks: unit and route tests (fake Zoho), e2e `e2e/zoho-crm.spec.ts`, Dev Build `e2e/devbuild-zoho-check.mjs`
+  (29/29), screens `e2e/zoho-screens.mjs` (52 shots). Not checked: a real Zoho organisation (owner's account and
+  API client come later; until then release builds show "Not available in this build").
