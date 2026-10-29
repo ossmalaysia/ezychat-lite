@@ -267,6 +267,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   /** The WhatsApp JID of a chat key (no inbox suffix). */
   const waJidOf = (chatJid: string): string => parseChatKey(chatJid).waJid;
 
+  /**
+   * Pending rows a person re-sent with Retry. The AI's own send check guards only its automatic
+   * replies: once WhatsApp first took a reply, the AI counts the question as answered and that check
+   * would refuse every retry. Kept in memory: after a restart the check applies again.
+   */
+  const manualRetries = new Set<string>();
+
   const sendJob = async (job: SendJob): Promise<SendResult> => {
     const inboxId = inboxOfKey(job.chatJid);
     const wa = connections.adapter(inboxId);
@@ -276,6 +283,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     if (job.kind !== 'template' && !replyWindowOpen(ctx, job.chatJid, now()))
       throw new Error(WINDOW_CLOSED);
     if (
+      !manualRetries.has(job.localId) &&
       row.sent_by_user_id &&
       ctx.services.auth?.getUser(row.sent_by_user_id)?.kind === 'ai' &&
       !ctx.services.ai?.canSend(job.chatJid, row.sent_by_user_id, job.quotedId)
@@ -327,6 +335,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   };
 
   const onSent = (job: SendJob, r: SendResult) => {
+    manualRetries.delete(job.localId);
     try {
       const row = repo.get(job.localId);
       if (!row) return;
@@ -357,6 +366,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   };
 
   const onFailed = (job: SendJob, err: Error) => {
+    manualRetries.delete(job.localId);
     try {
       const row = repo.get(job.localId);
       if (!row || row.status !== 'pending') return;
@@ -962,12 +972,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         })();
         const moved = repo.get(localId)!;
         emitStatus({ ...moved, id: r.id }, localId);
+        manualRetries.add(localId);
         enqueueRow(moved);
         return present(moved);
       }
       repo.update(id, { status: 'pending', error: null, created_at: t });
       const updated = repo.get(id)!;
       emitStatus(updated);
+      manualRetries.add(id);
       enqueueRow(updated);
       return present(updated);
     },
