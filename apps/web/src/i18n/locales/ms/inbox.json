@@ -270,7 +270,9 @@
     "aiGroupHandover": "{{actor}} menyerahkan soalan {{member}} kepada pasukan: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} menyerahkan soalan {{member}} kepada pasukan",
     "aiGroupPaused": "AI dijeda: terlalu banyak jawapan berturut-turut",
-    "aiGroupMember": "seorang ahli"
+    "aiGroupMember": "seorang ahli",
+    "aiGroupDeclined": "{{actor}} tidak membincangkan topik sensitif dengan {{member}}",
+    "aiGroupOpenChat": "{{actor}} menjawab {{member}} dalam sembang terbuka"
   },
   "messageList": {
     "label": "Mesej",
@@ -605,19 +607,35 @@
     "synced": "Templat disegerakkan daripada WhatsApp"
   },
   "aiGroups": {
-    "badge": "AI menjawab apabila ditanda atau dipetik",
+    "badge": {
+      "tag": "AI menjawab apabila di-tag atau dipetik",
+      "open": "AI dalam sembang terbuka"
+    },
     "badgePaused": "AI dijeda",
     "info": {
-      "title": "Ejen AI menjawab apabila ditanda atau dipetik",
-      "hint": "{{name}} menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI.",
+      "title": "Ejen AI dalam kumpulan ini",
+      "hint": {
+        "tag": "{{name}} menjawab hanya apabila ahli @sebut nombor anda atau memetik mesej AI.",
+        "open": "{{name}} menjawab soalan tentang perniagaan anda, tag, petikan, namanya dan susulan. Ia diam apabila soalan untuk orang lain."
+      },
       "noAgent": "Tiada ejen AI dalam peti masuk ini.",
       "agentDisabled": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
       "agentOff": "Jawab dalam kumpulan dimatikan untuk {{name}}. Hidupkan dahulu di halaman ejen.",
       "openAgent": "Buka {{name}}",
       "readOnly": "Hanya pentadbir boleh menukar ini.",
-      "on": "Hidup",
       "off": "Mati",
-      "paused": "Dijeda: terlalu banyak jawapan berturut-turut. Mesej rakan sepasukan memulakannya semula."
+      "paused": "Dijeda: terlalu banyak jawapan berturut-turut. Mesej rakan sepasukan memulakannya semula.",
+      "hintOff": "{{name}} tidak menjawab dalam kumpulan ini.",
+      "setting": {
+        "default": "Lalai {{name}} ({{mode}})",
+        "open": "Sembang terbuka",
+        "tag": "Tag dan petik",
+        "off": "Mati"
+      }
+    },
+    "mode": {
+      "tag": "Tag dan petik",
+      "open": "Sembang terbuka"
     }
   }
 }

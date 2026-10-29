@@ -772,6 +772,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A rule that bans topics (politics, race, religion, gender) must name the factual business questions that only
+  touch those words (halal food, festive or prayer-day hours, a class for women), in the guardrail and in any
+  classifier prompt, with a test; otherwise the AI refuses the most common questions of Malaysian shops.
 - Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages

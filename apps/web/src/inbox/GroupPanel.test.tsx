@@ -124,7 +124,7 @@ afterEach(() => {
 });
 
 describe('GroupPanel', () => {
-  it('shows the AI agent row under the group name: a switch for admins, the state for agents', async () => {
+  it('shows the AI agent row under the group name: the choice for admins, the mode for agents', async () => {
     mockApi(info());
     const members = globalThis.fetch;
     vi.stubGlobal(
@@ -142,14 +142,13 @@ describe('GroupPanel', () => {
           : members(url, init),
       ),
     );
+    // The answer above has the earlier shape (no setting or mode): the defaults read it as Tag and quote.
     renderPanel(vi.fn(), true);
-    const sw = await screen.findByRole('switch', {
-      name: 'AI agent answers when tagged or quoted',
-    });
-    expect(sw.getAttribute('aria-checked')).toBe('true');
+    const choice = await screen.findByRole('combobox', { name: 'AI agent in this group' });
+    expect(choice.textContent).toBe("Aina's default (Tag and quote)");
     cleanup();
     renderPanel();
-    expect((await screen.findByTestId('group-ai-state')).textContent).toBe('On');
+    expect((await screen.findByTestId('group-ai-state')).textContent).toBe('Tag and quote');
   });
 
   it('lists members with only what WhatsApp shared', async () => {

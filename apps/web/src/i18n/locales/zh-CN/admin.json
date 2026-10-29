@@ -1884,21 +1884,20 @@
   "aiGroups": {
     "title": "群组",
     "description": "{{name}} 可以在您的 WhatsApp 号码（{{inbox}}）的群组中回答。",
-    "switch": "在群组中回答（被标记或引用时）",
-    "switchHint": "仅当成员 @提及您的号码或引用 AI 的消息时回答。其他群组消息不回复。",
+    "switch": "在群组中回答",
+    "switchHint": "选择 {{name}} 在哪些群组回答，以及如何回答。",
     "offSummary_other": "{{inbox}} 在 {{count}} 个群组中。开启后可选择 {{name}} 在哪些群组回答。",
     "listLabel": "{{inbox}} 的群组",
-    "noneOn": "尚未开启任何群组，因此 {{name}} 不会在任何群组回答。",
+    "noneOn": "还没有开启任何群组，所以 {{name}} 不在任何群组回答。",
     "noGroups": "{{inbox}} 尚未加入任何 WhatsApp 群组。号码被加入群组后，群组会显示在这里。",
     "noInbox": "请先为 {{name}} 选择收件箱。",
     "loopGuard": "循环保护：连续回答 {{count}} 次且期间没有同事发言后，{{name}} 会在该群组暂停，直到同事发言。",
     "lookupsOnly": "在群组中，{{name}} 只查询信息，不会在群组中预约或做其他更改。",
     "agentOff": "{{name}} 已关闭。开启 {{name}} 之前，群组中不会有回答。",
     "members_other": "{{count}} 位成员",
-    "answers": "被标记或引用时回答",
     "off": "关闭",
     "paused": "已暂停：连续回答过多",
-    "answerIn": "在 {{group}} 中回答",
+    "answerIn": "{{group}} 中的 AI",
     "openGroup": "打开 {{group}}",
     "saveFailed": "无法保存，请重试。",
     "try": {
@@ -1907,6 +1906,36 @@
       "inGroup": "在群组中",
       "lookupsOnly": "在群组中 {{name}} 只查询信息；由同事完成预约。",
       "notSent": "不会向群组发送任何消息。"
-    }
+    },
+    "scopeLabel": "哪些群组",
+    "scope": {
+      "all": {
+        "title": "所有群组",
+        "text": "{{inbox}} 的每个群组，包括新群组。可在下方关闭某个群组。"
+      },
+      "selected": {
+        "title": "仅选定的群组",
+        "text": "只在下方开启的群组。新群组默认关闭。"
+      }
+    },
+    "modeLabel": "{{name}} 如何回答",
+    "mode": {
+      "tag": {
+        "title": "提及和引用",
+        "text": "仅在成员 @提及您的号码或引用 AI 消息时回答。"
+      },
+      "open": {
+        "title": "开放聊天",
+        "text": "成员叫出 {{name}} 的名字、继续与 {{name}} 对话，或向群组询问与您业务有关的问题时也会回答。问题是问其他人时保持沉默。"
+      }
+    },
+    "openCost": "在开放聊天中，{{name}} 会读取每条新的群消息来决定是否回答：每条消息一次简短的 AI 调用。",
+    "setting": {
+      "default": "默认（{{mode}}）",
+      "open": "开放聊天",
+      "tag": "提及和引用",
+      "off": "关闭"
+    },
+    "sensitive": "{{name}} 从不讨论政治、种族、宗教或性别。被提及这些话题时，会礼貌地说明。"
   }
 }

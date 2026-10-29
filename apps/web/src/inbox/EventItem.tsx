@@ -59,6 +59,11 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       if (group) {
         if (group.kind === 'paused') return i18n.t('inbox:events.aiGroupPaused');
         const member = group.member ?? i18n.t('inbox:events.aiGroupMember');
+        // A tagged or quoted question on politics, race, religion or gender: one polite line only.
+        if (group.kind === 'declined')
+          return i18n.t('inbox:events.aiGroupDeclined', { actor, member });
+        // Open chat: answered without a tag or a quote.
+        if (group.openChat) return i18n.t('inbox:events.aiGroupOpenChat', { actor, member });
         if (group.kind === 'handover')
           return handoff
             ? i18n.t('inbox:events.aiGroupHandover', { actor, member, reason: handoff })

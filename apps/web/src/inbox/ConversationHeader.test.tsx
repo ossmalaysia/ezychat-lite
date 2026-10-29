@@ -212,6 +212,10 @@ describe('ConversationHeader AI in groups badge', () => {
   };
   const ai = (patch: Partial<AiGroupChat> = {}): AiGroupChat => ({
     enabled: true,
+    setting: 'default',
+    mode: 'tag',
+    agentMode: 'tag',
+    agentScope: 'selected',
     agentId: 3,
     agentName: 'Aina',
     agentEnabled: true,
@@ -228,13 +232,18 @@ describe('ConversationHeader AI in groups badge', () => {
     expect(screen.getByText('Group · 24 members')).toBeTruthy();
   });
 
+  it('names Open chat on a group in Open chat', () => {
+    renderHeader(group, { groupAi: ai({ setting: 'open', mode: 'open' }) });
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI in open chat');
+  });
+
   it('says when the loop guard paused the AI', () => {
     renderHeader(group, { groupAi: ai({ paused: true }) });
     expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI paused');
   });
 
   it.each([
-    ['the group is off', ai({ enabled: false })],
+    ['the group is off', ai({ enabled: false, setting: 'off', mode: 'off' })],
     ["the agent's Answer in groups is off", ai({ agentAnswersGroups: false })],
     ['nothing is known yet', null],
   ])('is hidden when %s', (_, groupAi) => {

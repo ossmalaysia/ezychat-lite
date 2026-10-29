@@ -1885,21 +1885,20 @@
   "aiGroups": {
     "title": "Kumpulan",
     "description": "{{name}} boleh menjawab dalam kumpulan nombor WhatsApp anda ({{inbox}}).",
-    "switch": "Jawab dalam kumpulan (apabila ditanda atau dipetik)",
-    "switchHint": "Menjawab hanya apabila ahli @menyebut nombor anda atau memetik mesej AI. Mesej kumpulan lain tidak dijawab.",
+    "switch": "Jawab dalam kumpulan",
+    "switchHint": "Pilih kumpulan yang {{name}} jawab, dan caranya.",
     "offSummary_other": "{{inbox}} berada dalam {{count}} kumpulan. Hidupkan ini untuk memilih tempat {{name}} menjawab.",
     "listLabel": "Kumpulan {{inbox}}",
-    "noneOn": "Belum ada kumpulan yang dihidupkan, jadi {{name}} tidak menjawab dalam mana-mana kumpulan.",
+    "noneOn": "Belum ada kumpulan dihidupkan, jadi {{name}} tidak menjawab dalam mana-mana kumpulan.",
     "noGroups": "{{inbox}} belum berada dalam mana-mana kumpulan WhatsApp. Kumpulan dipaparkan di sini apabila nombor ini ditambah ke dalam kumpulan.",
     "noInbox": "Pilih peti masuk untuk {{name}} dahulu.",
     "loopGuard": "Pengawal gelung: selepas {{count}} jawapan berturut-turut tanpa mesej rakan sepasukan, {{name}} berhenti dalam kumpulan itu sehingga rakan sepasukan menulis.",
     "lookupsOnly": "Dalam kumpulan, {{name}} hanya menyemak maklumat. Tempahan dan perubahan lain tidak dibuat dari kumpulan.",
     "agentOff": "{{name}} dimatikan. Tiada jawapan dalam kumpulan sehingga anda menghidupkan {{name}}.",
     "members_other": "{{count}} ahli",
-    "answers": "Menjawab apabila ditanda atau dipetik",
     "off": "Mati",
     "paused": "Dijeda: terlalu banyak jawapan berturut-turut",
-    "answerIn": "Jawab dalam {{group}}",
+    "answerIn": "AI dalam {{group}}",
     "openGroup": "Buka {{group}}",
     "saveFailed": "Tidak dapat menyimpan. Cuba lagi.",
     "try": {
@@ -1908,6 +1907,36 @@
       "inGroup": "Dalam kumpulan",
       "lookupsOnly": "Dalam kumpulan {{name}} hanya menyemak maklumat; rakan sepasukan membuat tempahan.",
       "notSent": "Tiada apa-apa dihantar ke kumpulan."
-    }
+    },
+    "scopeLabel": "Kumpulan mana",
+    "scope": {
+      "all": {
+        "title": "Semua kumpulan",
+        "text": "Setiap kumpulan {{inbox}}, termasuk kumpulan baharu. Anda boleh matikan kumpulan di bawah."
+      },
+      "selected": {
+        "title": "Kumpulan terpilih sahaja",
+        "text": "Hanya kumpulan yang anda hidupkan di bawah. Kumpulan baharu bermula mati."
+      }
+    },
+    "modeLabel": "Cara {{name}} menjawab",
+    "mode": {
+      "tag": {
+        "title": "Tag dan petik",
+        "text": "Menjawab hanya apabila ahli @sebut nombor anda atau memetik mesej AI."
+      },
+      "open": {
+        "title": "Sembang terbuka",
+        "text": "Juga menjawab apabila ahli menyebut nama {{name}}, terus berbual dengan {{name}}, atau bertanya kumpulan tentang perniagaan anda. Diam apabila soalan untuk orang lain."
+      }
+    },
+    "openCost": "Dalam sembang terbuka, {{name}} membaca setiap mesej kumpulan baharu untuk menentukan sama ada perlu menjawab: satu panggilan AI ringkas bagi setiap mesej.",
+    "setting": {
+      "default": "Lalai ({{mode}})",
+      "open": "Sembang terbuka",
+      "tag": "Tag dan petik",
+      "off": "Mati"
+    },
+    "sensitive": "{{name}} tidak pernah membincangkan politik, kaum, agama atau jantina. Apabila di-tag tentangnya, ia memberitahu dengan sopan."
   }
 }

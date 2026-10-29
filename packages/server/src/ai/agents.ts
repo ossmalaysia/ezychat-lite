@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AiAgentPreset } from '@ezychat/shared';
+import type { AiAgentPreset, AiGroupMode, AiGroupScope } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 import type { SettingsStore } from '../db/settings.js';
 
@@ -19,8 +19,12 @@ export interface AgentRow {
   handoffRules: string | null;
   displayName: string;
   enabled: boolean;
-  /** "Answer in groups": the agent answers tags and quotes in the groups an admin switched on. */
+  /** "Answer in groups" (migration 024). */
   answerGroups: boolean;
+  /** All groups of its inbox (new ones too) or the selected ones only (migration 025). */
+  groupScope: AiGroupScope;
+  /** The default mode of its groups (migration 025). */
+  groupMode: AiGroupMode;
   createdAt: number;
   updatedAt: number;
 }
@@ -50,13 +54,16 @@ interface Row {
   displayName: string;
   disabledAt: number | null;
   answerGroups: number;
+  groupScope: AiGroupScope;
+  groupMode: AiGroupMode;
   createdAt: number;
   updatedAt: number;
 }
 
 const SELECT = `SELECT a.id, a.user_id AS userId, a.inbox_id AS inboxId, a.preset,
   a.instructions, a.handoff_rules AS handoffRules, u.display_name AS displayName,
-  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups, a.created_at AS createdAt, a.updated_at AS updatedAt
+  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups,
+  a.group_scope AS groupScope, a.group_mode AS groupMode, a.created_at AS createdAt, a.updated_at AS updatedAt
   FROM ai_agents a JOIN users u ON u.id = a.user_id
   WHERE u.ai_deleted_at IS NULL`;
 
@@ -160,11 +167,26 @@ export function updateAgentTexts(db: DB, id: number, texts: AgentTexts, now = Da
   if (!changed) throw new AgentError('agent_not_found');
 }
 
-/** The agent's "Answer in groups" switch (migration 024). */
-export function setAgentAnswerGroups(db: DB, id: number, on: boolean, now = Date.now()): void {
+/** The agent's group settings (migrations 024 and 025): only the given fields change. */
+export function setAgentGroupSettings(
+  db: DB,
+  id: number,
+  settings: { answerGroups?: boolean; scope?: AiGroupScope; mode?: AiGroupMode },
+  now = Date.now(),
+): void {
   const changed = db
-    .prepare('UPDATE ai_agents SET answer_groups = ?, updated_at = ? WHERE id = ?')
-    .run(on ? 1 : 0, now, id).changes;
+    .prepare(
+      `UPDATE ai_agents SET answer_groups = coalesce(?, answer_groups),
+       group_scope = coalesce(?, group_scope), group_mode = coalesce(?, group_mode), updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(
+      settings.answerGroups === undefined ? null : settings.answerGroups ? 1 : 0,
+      settings.scope ?? null,
+      settings.mode ?? null,
+      now,
+      id,
+    ).changes;
   if (!changed) throw new AgentError('agent_not_found');
 }
 

@@ -219,13 +219,67 @@ count = (await aiMessages()).length;
 await say(NURUL, 'Nurul Huda', '@Kopi Apong one more?', { mentionedJids: [me] });
 check(!!(await aiAfter(count)), 'after a teammate writes the AI answers again');
 
-// 8. The group switched off: a tag gets no reply.
+// 8. Open chat (docs/features/ai-groups-open-chat/design.md). In Tag and quote an open question gets no reply.
+const JELUTONG = 'Anyone know if you deliver to Jelutong?';
+count = (await aiMessages()).length;
+await say(ARJUN, 'Arjun Pillai', JELUTONG);
+check((await aiAfter(count, 4000)) === null, 'Tag and quote: an open question gets no reply');
+const open = await api('PUT', `/chats/${enc(GROUP)}/ai-group`, { setting: 'open' });
+check(
+  open.status === 200 && open.json?.setting === 'open' && open.json?.mode === 'open',
+  'the group is put in Open chat',
+  JSON.stringify(open.json),
+);
+const openId = await say(ARJUN, 'Arjun Pillai', JELUTONG);
+const openAnswer = await aiAfter(count);
+check(openAnswer?.quotedId === openId, 'Open chat: an open question is answered', openAnswer?.body);
+check(
+  (await events()).some((e) => e.payload.group.kind === 'answered' && e.payload.group.openChat),
+  'the line says "in open chat"',
+);
+count = (await aiMessages()).length;
+const goOnId = await say(ARJUN, 'Arjun Pillai', 'and on Sunday too?');
+check(
+  (await aiAfter(count))?.quotedId === goOnId,
+  'Open chat: the same member goes on without a tag and is answered',
+);
+count = (await aiMessages()).length;
+await say(NURUL, 'Nurul Huda', 'Siti, are you coming on Saturday?');
+check((await aiAfter(count, 4000)) === null, 'Open chat: a question for a person gets no reply');
+const namedId = await say(NURUL, 'Nurul Huda', 'Aina, is Kopi O still RM3.50?');
+check((await aiAfter(count))?.quotedId === namedId, 'Open chat: naming the agent is answered');
+count = (await aiMessages()).length;
+await say(ARJUN, 'Arjun Pillai', 'who do you all think will win the election?');
+check((await aiAfter(count, 4000)) === null, 'politics without a tag gets no reply');
+const politicsId = await say(ARJUN, 'Arjun Pillai', '@Kopi Apong who will win the election?', {
+  mentionedJids: [me],
+});
+const declined = await aiAfter(count);
+check(
+  declined?.quotedId === politicsId && /can't discuss that topic/.test(declined?.body ?? ''),
+  'politics with a tag gets the one polite line',
+  declined?.body,
+);
+check(
+  (await events()).some((e) => e.payload.group.kind === 'declined'),
+  'the line says the AI did not discuss a sensitive topic',
+);
+count = (await aiMessages()).length;
+await say(NURUL, 'Nurul Huda', '@Kopi Apong is your food halal?', { mentionedJids: [me] });
+const halal = await aiAfter(count);
+check(
+  !!halal && !/can't discuss that topic/.test(halal.body ?? ''),
+  'a halal question is a normal business question',
+  halal?.body,
+);
+
+// 9. The group switched off (the earlier { enabled } body): a tag gets no reply.
 await api('PUT', `/chats/${enc(GROUP)}/ai-group`, { enabled: false });
 count = (await aiMessages()).length;
 await say(NURUL, 'Nurul Huda', '@Kopi Apong are you there?', { mentionedJids: [me] });
 check((await aiAfter(count, 4000)) === null, 'a switched-off group gets no reply');
 
-// 9. Try it with Group question sends nothing.
+// 10. Try it with Group question sends nothing.
 const tried = await api('POST', `/ai/agents/${agent.id}/try`, {
   question: 'what time does the kitchen close?',
   knowledge: { displayName: 'Aina', instructions: '', handoffRules: '' },

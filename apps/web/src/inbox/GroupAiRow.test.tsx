@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { AiGroupChat } from '@ezychat/shared';
+import type { AiGroupChat, AiGroupSetting } from '@ezychat/shared';
 import { GroupAiBadge, GroupAiRow } from './GroupAiRow';
 
 const GROUP = '120363000000000001@g.us';
@@ -17,13 +17,19 @@ const json = (body: unknown, code = 200) =>
 
 const state = (patch: Partial<AiGroupChat> = {}): AiGroupChat => ({
   enabled: false,
+  setting: 'off',
+  mode: 'off',
   agentId: 3,
   agentName: 'Aina',
+  agentMode: 'tag',
+  agentScope: 'selected',
   agentEnabled: true,
   agentAnswersGroups: true,
   paused: false,
   ...patch,
 });
+const tagged = (patch: Partial<AiGroupChat> = {}) =>
+  state({ enabled: true, setting: 'default', mode: 'tag', ...patch });
 
 type Call = { url: string; method: string; body: unknown };
 
@@ -41,7 +47,10 @@ function stubServer(start: AiGroupChat | null, putCode = 200) {
       if (method === 'PUT') {
         if (putCode !== 200)
           return json({ error: { code: 'forbidden', message: 'Admins only' } }, putCode);
-        current = { ...current, enabled: (body as { enabled: boolean }).enabled };
+        const setting = (body as { setting: AiGroupSetting }).setting;
+        const mode =
+          setting === 'off' ? 'off' : setting === 'default' ? current.agentMode : setting;
+        current = { ...current, setting, mode, enabled: mode !== 'off' };
       }
       return json(current);
     }),
@@ -62,7 +71,16 @@ function renderRow(isAdmin: boolean) {
   );
 }
 
-const TITLE = 'AI agent answers when tagged or quoted';
+const TITLE = 'AI agent in this group';
+
+// Radix Select needs pointer capture and scrollIntoView, which jsdom lacks.
+beforeAll(() => {
+  const proto = Element.prototype as unknown as Record<string, unknown>;
+  proto.hasPointerCapture ??= () => false;
+  proto.setPointerCapture ??= () => {};
+  proto.releasePointerCapture ??= () => {};
+  proto.scrollIntoView ??= () => {};
+});
 
 afterEach(() => {
   cleanup();
@@ -70,37 +88,55 @@ afterEach(() => {
 });
 
 describe('Group info → AI agent row', () => {
-  it('lets an admin switch the group on with a PUT of only { enabled }', async () => {
+  it('lets an admin put the group in Open chat with a PUT of only { setting }', async () => {
     const calls = stubServer(state());
     renderRow(true);
-    const sw = await screen.findByRole('switch', { name: TITLE });
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-    expect(
-      screen.getByText(
-        'Aina answers only when a member @mentions your number or quotes an AI message.',
-      ),
-    ).toBeTruthy();
-    await userEvent.setup().click(sw);
-    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+    const choice = await screen.findByRole('combobox', { name: TITLE });
+    expect(choice.textContent).toBe('Off');
+    expect(screen.getByText('Aina does not answer in this group.')).toBeTruthy();
+    const user = userEvent.setup();
+    await user.click(choice);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      "Aina's default (Tag and quote)",
+      'Open chat',
+      'Tag and quote',
+      'Off',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Open chat' }));
+    await waitFor(() => expect(choice.textContent).toBe('Open chat'));
     expect(calls.find((c) => c.method === 'PUT')).toEqual({
       url: URL,
       method: 'PUT',
-      body: { enabled: true },
+      body: { setting: 'open' },
     });
+    expect(screen.getByText(/Aina answers questions about your business/)).toBeTruthy();
     expect(screen.queryByText('Only admins can change this.')).toBeNull();
   });
 
-  it('shows agents the state read only', async () => {
-    stubServer(state({ enabled: true }));
+  it('explains Tag and quote', async () => {
+    stubServer(tagged());
+    renderRow(true);
+    expect(
+      await screen.findByText(
+        'Aina answers only when a member @mentions your number or quotes an AI message.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: TITLE }).textContent).toBe(
+      "Aina's default (Tag and quote)",
+    );
+  });
+
+  it('shows agents the mode read only', async () => {
+    stubServer(tagged({ setting: 'open', mode: 'open' }));
     renderRow(false);
-    expect((await screen.findByTestId('group-ai-state')).textContent).toBe('On');
-    expect(screen.queryByRole('switch')).toBeNull();
+    expect((await screen.findByTestId('group-ai-state')).textContent).toBe('Open chat');
+    expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.getByText('Only admins can change this.')).toBeTruthy();
     expect(screen.getByRole('region', { name: TITLE })).toBeTruthy();
   });
 
   it('shows Off to agents while the agent does not answer groups', async () => {
-    stubServer(state({ enabled: true, agentAnswersGroups: false }));
+    stubServer(tagged({ agentAnswersGroups: false }));
     renderRow(false);
     expect((await screen.findByTestId('group-ai-state')).textContent).toBe('Off');
     // Agents get no link to the agent page.
@@ -108,11 +144,11 @@ describe('Group info → AI agent row', () => {
   });
 
   it("is disabled with a hint and a link while the agent's Answer in groups is off", async () => {
-    stubServer(state({ enabled: true, agentAnswersGroups: false }));
+    stubServer(tagged({ agentAnswersGroups: false }));
     renderRow(true);
-    const sw = await screen.findByRole('switch', { name: TITLE });
-    expect(sw.hasAttribute('disabled')).toBe(true);
-    expect(sw.getAttribute('aria-checked')).toBe('false');
+    const choice = await screen.findByRole('combobox', { name: TITLE });
+    expect(choice.hasAttribute('disabled')).toBe(true);
+    expect(choice.textContent).toBe('Off');
     expect(
       screen.getByText(/Answer in groups is off for Aina. Turn it on on the agent page first./),
     ).toBeTruthy();
@@ -122,10 +158,10 @@ describe('Group info → AI agent row', () => {
   });
 
   it('says the agent itself is off (before its Answer in groups switch)', async () => {
-    stubServer(state({ enabled: true, agentEnabled: false, agentAnswersGroups: false }));
+    stubServer(tagged({ agentEnabled: false, agentAnswersGroups: false }));
     renderRow(true);
-    const sw = await screen.findByRole('switch', { name: TITLE });
-    expect(sw.hasAttribute('disabled')).toBe(true);
+    const choice = await screen.findByRole('combobox', { name: TITLE });
+    expect(choice.hasAttribute('disabled')).toBe(true);
     expect(
       screen.getByText(/Aina is off. Nothing is answered in groups until you turn Aina on./),
     ).toBeTruthy();
@@ -139,12 +175,12 @@ describe('Group info → AI agent row', () => {
     stubServer(state({ agentId: null, agentName: null, agentAnswersGroups: false }));
     renderRow(true);
     expect(await screen.findByText('No AI agent works in this inbox.')).toBeTruthy();
-    expect(screen.getByRole('switch', { name: TITLE }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('combobox', { name: TITLE }).hasAttribute('disabled')).toBe(true);
     expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('explains the loop guard pause', async () => {
-    stubServer(state({ enabled: true, paused: true }));
+    stubServer(tagged({ paused: true }));
     renderRow(true);
     expect(
       await screen.findByText(
@@ -153,14 +189,16 @@ describe('Group info → AI agent row', () => {
     ).toBeTruthy();
   });
 
-  it('keeps the switch when the save is refused', async () => {
+  it('keeps the choice when the save is refused', async () => {
     const calls = stubServer(state(), 403);
     renderRow(true);
-    const sw = await screen.findByRole('switch', { name: TITLE });
-    await userEvent.setup().click(sw);
+    const choice = await screen.findByRole('combobox', { name: TITLE });
+    const user = userEvent.setup();
+    await user.click(choice);
+    await user.click(screen.getByRole('option', { name: 'Tag and quote' }));
     await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
-    await waitFor(() => expect(sw.hasAttribute('disabled')).toBe(false));
-    expect(sw.getAttribute('aria-checked')).toBe('false');
+    await waitFor(() => expect(choice.hasAttribute('disabled')).toBe(false));
+    expect(choice.textContent).toBe('Off');
   });
 
   it('renders nothing when the server has no answer for the group', async () => {
@@ -172,14 +210,16 @@ describe('Group info → AI agent row', () => {
 });
 
 describe('GroupAiBadge', () => {
-  it('shows only while the AI answers the group, and says when it is paused', () => {
-    const { rerender, container } = render(<GroupAiBadge ai={state({ enabled: true })} />);
+  it('names the mode while the AI answers the group, and says when it is paused', () => {
+    const { rerender, container } = render(<GroupAiBadge ai={tagged()} />);
     expect(screen.getByTestId('group-ai-badge').textContent).toBe(
       'AI answers when tagged or quoted',
     );
-    rerender(<GroupAiBadge ai={state({ enabled: true, paused: true })} />);
+    rerender(<GroupAiBadge ai={tagged({ setting: 'open', mode: 'open' })} />);
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI in open chat');
+    rerender(<GroupAiBadge ai={tagged({ paused: true })} />);
     expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI paused');
-    rerender(<GroupAiBadge ai={state({ enabled: true, agentAnswersGroups: false })} />);
+    rerender(<GroupAiBadge ai={tagged({ agentAnswersGroups: false })} />);
     expect(container.textContent).toBe('');
     rerender(<GroupAiBadge ai={state()} />);
     expect(container.textContent).toBe('');

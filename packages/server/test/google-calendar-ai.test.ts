@@ -403,8 +403,8 @@ describe('Google Calendar AI tools (live)', () => {
     t.ctx.services.ai!.saveMember({ displayName: 'Aina', enabled: true, instructions: '' }, actor);
     const group = '120363000000009@g.us';
     getChats(t.ctx).upsertFromWa({ jid: group, type: 'group', name: 'Kopi Lovers Club' });
-    setAgentGroups(t.ctx, agentId, true, actor);
-    setGroupChat(t.ctx, group, true, actor);
+    setAgentGroups(t.ctx, agentId, { enabled: true }, actor);
+    setGroupChat(t.ctx, group, 'default', actor);
     script = async (tools, signal) => {
       const offered = freeTimes(await call(tools, 'check_free_times', {}, signal));
       return { reply: `Free at ${offered[0]!.time}`, action: 'answer' };
