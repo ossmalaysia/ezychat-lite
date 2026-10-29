@@ -43,6 +43,21 @@ npm run version:sync                          # copy root package.json version i
 Installers land in `apps/desktop/release/` (`win-unpacked/` for `--dir` builds). Smoke a packaged build with
 `ELECTRON_RUN_AS_NODE=1 "<release>/win-unpacked/EzyChat Lite.exe" <resources>/app.asar.unpacked/dist/server/server.cjs --data <tmp> --port 7432 --fake-wa`.
 
+## Code graph (graphify)
+
+A code-only knowledge graph of the source (`packages/`, `apps/`, `scripts/`, `e2e/`; `.graphifyignore` leaves out
+docs, mocks, images and build output) lives in `graphify-out/` of the **primary checkout** (git-ignored, never
+committed). It is built from the syntax tree: no AI, no cost.
+
+- Before a broad search ("what calls X", "where is Y used", "what does this change touch"), ask the graph:
+  `graphify query "<question>"`, `graphify path "A" "B"`, `graphify explain "X"`, or the `graphify` MCP tools
+  (`query_graph`, `get_node`, `get_neighbors`, `shortest_path`; pass `project_path` = the primary checkout).
+  Exact symbol and file names work best. Then read the files it names; the graph is a map, not the source.
+- From a worktree, query the primary checkout's graph; it shows `main`, not your branch.
+- It stays current by itself: git hooks rebuild it after a commit or checkout in the primary checkout, and after
+  `git pull` there (`post-merge`). Rebuild by hand with `graphify update .` (code only, about a minute).
+- `graphify-out/GRAPH_REPORT.md` lists the central files ("god nodes") and the groups of related code.
+
 ## Architecture
 
 **Process model.** `packages/server` is a standalone Node program that owns all state (SQLite, the

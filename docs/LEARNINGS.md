@@ -383,6 +383,9 @@ into AGENTS.md.
   until `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
   flags in one call: without `--prerelease=false` GitHub answers 422 "Latest release cannot be draft or
   prerelease" and the release stays a pre-release that the updater ignores.
+- Tag a release only after `git fetch` shows the merge commit on `origin/main`; never hide `gh pr merge`
+  output and tag in the same command (Lite and Enterprise). A merge that has not landed yet makes the tag
+  point at the old commit; cancel that run, wait for `cancelled`, then move the tag.
 - Non-app downloads (e.g. voice models) are published under a non-semver tag (`models-…`) as a
   pre-release with `--latest=false`, so the in-app updater (strict semver tags) never offers them.
 - When a component gains a router or data hooks, run every test that renders it (`grep -rl "<Name"`).

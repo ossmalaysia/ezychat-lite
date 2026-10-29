@@ -1,0 +1,44 @@
+# graphify: the code graph holds the app and tool source only (AGENTS.md → Code graph).
+# Code is extracted from the syntax tree (no AI, no cost); everything below would need AI
+# extraction or would duplicate the source.
+
+# Feature mocks copy the app source; screenshots, guides and brand files are images.
+docs/
+
+# Documents, images, media (AI extraction only)
+*.md
+*.mdx
+*.txt
+*.yml
+*.yaml
+*.html
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+*.icns
+*.pdf
+*.mp4
+*.mov
+*.webm
+*.mp3
+*.ogg
+*.wav
+
+# Build output, test output, local data
+**/dist/
+**/dist-lib/
+**/release/
+**/node_modules/
+**/coverage/
+test-results/
+playwright-report/
+.core-packs/
+data/
+.e2e-data*/
+graphify-out/
+.claude/
+tmp*
