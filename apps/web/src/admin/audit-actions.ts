@@ -55,6 +55,10 @@ const LABEL_KEYS = {
   'inbox.update': 'audit.actions.inboxUpdate',
   'inbox.remove': 'audit.actions.inboxRemove',
   'inbox.access_update': 'audit.actions.inboxAccessUpdate',
+  'zoho_crm.connect': 'audit.actions.zohoCrmConnect',
+  'zoho_crm.disconnect': 'audit.actions.zohoCrmDisconnect',
+  'zoho_crm.agent_settings': 'audit.actions.zohoCrmAgentSettings',
+  'zoho_crm.lead_add': 'audit.actions.zohoCrmLeadAdd',
 } as const;
 
 type KnownAction = keyof typeof LABEL_KEYS;
@@ -132,6 +136,7 @@ const FIELD_KEYS: Record<string, string> = {
   agentId: 'audit.fields.agent',
   preset: 'audit.fields.preset',
   internal: 'audit.fields.internal',
+  region: 'audit.fields.zohoSite',
 };
 
 /**

@@ -72,6 +72,10 @@ const SERVER_ACTIONS = [
   'wa.pairing_code',
   'wa.relink',
   'wa.takeover',
+  'zoho_crm.agent_settings',
+  'zoho_crm.connect',
+  'zoho_crm.disconnect',
+  'zoho_crm.lead_add',
 ];
 
 describe('auditActionLabel', () => {
@@ -152,6 +156,17 @@ describe('auditDetails', () => {
     expect(details).toContain('messages 12');
     expect(details).toContain('notes 1');
     expect(details).not.toContain('[object Object]');
+  });
+
+  it('labels the Zoho CRM actions and their fields', () => {
+    expect(auditActionLabel('zoho_crm.lead_add', t)).toBe('Zoho CRM lead added');
+    expect(auditDetails({ region: 'eu' }, t, () => undefined)).toBe('Zoho site: eu');
+    expect(auditDetails({ chatJid: '60132228899@s.whatsapp.net' }, t, () => undefined)).toBe(
+      'Chat: +60132228899',
+    );
+    expect(
+      auditDetails({ agentId: 1, changed: ['addLeads', 'ownerId'] }, t, () => undefined),
+    ).toMatch(/^Changed add leads, owner id/);
   });
 
   it('labels the inbox actions and their fields', () => {

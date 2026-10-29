@@ -206,7 +206,11 @@
       "inboxAccessUpdate": "已更改收件箱权限",
       "aiAgentCreate": "已创建 AI 客服",
       "aiAgentDelete": "已删除 AI 客服",
-      "aiAgentInboxUpdate": "已更改 AI 客服的收件箱"
+      "aiAgentInboxUpdate": "已更改 AI 客服的收件箱",
+      "zohoCrmConnect": "已连接 Zoho CRM",
+      "zohoCrmDisconnect": "已断开 Zoho CRM",
+      "zohoCrmAgentSettings": "已更改 Zoho CRM 设置",
+      "zohoCrmLeadAdd": "已添加 Zoho CRM 潜在客户"
     },
     "fields": {
       "chat": "对话",
@@ -251,7 +255,8 @@
       "members": "成员",
       "agent": "AI 客服",
       "preset": "起点",
-      "internal": "内部"
+      "internal": "内部",
+      "zohoSite": "Zoho 网站"
     },
     "reasons": {
       "rateLimited": "尝试次数过多",

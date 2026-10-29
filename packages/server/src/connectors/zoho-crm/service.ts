@@ -560,7 +560,7 @@ export function createZohoCrmService(ctx: AppContext, options: ZohoCrmServiceOpt
           userId: actor.userId,
           action: 'zoho_crm.agent_settings',
           ip: actor.ip,
-          meta: { agentId, fields },
+          meta: { agentId, changed: fields },
         });
       return parsed;
     },

@@ -208,7 +208,11 @@
       "inboxAccessUpdate": "Inbox access changed",
       "aiAgentCreate": "AI agent created",
       "aiAgentDelete": "AI agent deleted",
-      "aiAgentInboxUpdate": "AI agent inbox changed"
+      "aiAgentInboxUpdate": "AI agent inbox changed",
+      "zohoCrmConnect": "Zoho CRM connected",
+      "zohoCrmDisconnect": "Zoho CRM disconnected",
+      "zohoCrmAgentSettings": "Zoho CRM settings changed",
+      "zohoCrmLeadAdd": "Zoho CRM lead added"
     },
     "fields": {
       "chat": "Chat",
@@ -253,7 +257,8 @@
       "members": "Members",
       "agent": "AI agent",
       "preset": "Starting point",
-      "internal": "Internal"
+      "internal": "Internal",
+      "zohoSite": "Zoho site"
     },
     "reasons": {
       "rateLimited": "Too many attempts",

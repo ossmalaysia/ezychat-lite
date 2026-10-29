@@ -223,7 +223,7 @@ describe('Zoho CRM routes', () => {
       .get() as { meta: string };
     expect(JSON.parse(audit.meta)).toEqual({
       agentId,
-      fields: ['addLeads', 'ownerId', 'leadSource'],
+      changed: ['addLeads', 'ownerId', 'leadSource'],
     });
     // Zoho unreachable while choosing an owner: 503, nothing saved
     await post('/api/dev/fake-zoho', admin, { state: 'unavailable' });

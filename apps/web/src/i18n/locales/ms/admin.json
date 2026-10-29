@@ -206,7 +206,11 @@
       "inboxAccessUpdate": "Akses peti masuk ditukar",
       "aiAgentCreate": "Ejen AI dicipta",
       "aiAgentDelete": "Ejen AI dipadam",
-      "aiAgentInboxUpdate": "Peti masuk ejen AI ditukar"
+      "aiAgentInboxUpdate": "Peti masuk ejen AI ditukar",
+      "zohoCrmConnect": "Zoho CRM disambungkan",
+      "zohoCrmDisconnect": "Sambungan Zoho CRM diputuskan",
+      "zohoCrmAgentSettings": "Tetapan Zoho CRM diubah",
+      "zohoCrmLeadAdd": "Prospek Zoho CRM ditambah"
     },
     "fields": {
       "chat": "Sembang",
@@ -251,7 +255,8 @@
       "members": "Ahli",
       "agent": "Ejen AI",
       "preset": "Titik permulaan",
-      "internal": "Dalaman"
+      "internal": "Dalaman",
+      "zohoSite": "Laman Zoho"
     },
     "reasons": {
       "rateLimited": "Terlalu banyak cubaan",

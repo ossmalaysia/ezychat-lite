@@ -780,6 +780,9 @@ into AGENTS.md.
   per-customer server URL that is itself the secret (Zoho MCP) cannot go in the public connector list (schema 1
   fills `mcp.url` only from non-secret fields), and tools each customer configures cannot carry declared guards.
   Build such a connector in, on the vendor's OAuth and REST API, like Google Calendar.
+- Switch a built-in connector's entry in `ezychat-connectors` from `coming_soon` to `builtin` (with the shipping
+  `minAppVersion`) only after the Lite release that ships it **and** once its sign-in app is in the release builds;
+  before that the new app shows "Not available in this build" on the list's Connect page.
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
@@ -824,6 +827,10 @@ into AGENTS.md.
   isolation and order end to end; a data-moving migration is also checked from the installed release
   (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
   the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
+- A mock-model branch that parses a connector tool's output must also handle the plain-text failure answer
+  ("… is not available right now"): a `JSON.parse` throw fails the turn and hands the chat over, which reads like
+  a product bug in the Dev Build check. Likewise a refusal step must not write the refused value into the
+  customer's own message (the server rightly accepts what the customer wrote).
 - When one thing becomes many (one AI member → one agent per inbox), every extension slot keyed by
   kind (`agentSections` with `agent: 'sales'`) must also get the instance id, and the screen review must
   include an Enterprise Dev Build: its Connectors card named the inbox-1 agent on every agent page, which
@@ -1140,6 +1147,13 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   an inner `min-w-0 truncate` span), `SelectValue` is `display:flex` (add
   `*:data-[slot=select-value]:block … truncate` on the trigger), and `Badge` is `overflow-hidden`
   (a `before:-inset-*` hit area inside it needs `overflow-visible`).
+- A grid item holding a Select with a long value (e.g. "Zoho default (someone@example.com)") needs `min-w-0`
+  (`Field className`), or the single 360 px column grows to the text and the card's fields run past its edge;
+  the trigger's `truncate` only works inside a width-limited parent. `scrollWidth` checks miss it (the page does
+  not scroll), so look at the 360 px shot.
+- In a component test, a card that moves to another section once its query loads (the gallery's "Your connectors")
+  is a new element: wait for the section, then query the card again; a reference taken before the move keeps the
+  old status text.
 - Every new audit action gets a label in `admin/audit-actions.ts` (en/ms/zh-CN) and a readable
   meta summary in the same change; otherwise the Audit page shows raw keys and JSON.
 - Review screenshots taken after animations settle (wait ~500 ms after opening a popover/sheet):
