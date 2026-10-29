@@ -98,12 +98,10 @@ Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots
 
 ## Open questions for the owner
 
-1. **Add new leads**: off by default (proposal), or on once connected?
-2. **Request summary** in the lead's Description: on by default (proposal)? It is AI-written text derived from the
-   chat; the privacy text names it.
-3. **Add as a lead** button for teammates in the customer panel: keep (proposal), or AI only?
-4. Zoho API client: OK to register it under Anchor Sprint's Zoho account (who owns that account)?
-
+Answered 2026-10-29: (1) Add new leads **off by default**: yes. (2) Request summary **on by default**: yes.
+(3) Keep **Add as a lead** for teammates: yes. (4) Zoho API client: the owner asked whether it needs a Zoho
+account; answer: yes, a company-owned Zoho account registers the app (not a customer's, not a personal one);
+which account is still open.
 ## Confirmation
 
 Not confirmed yet. No production code is written before the owner confirms this mock.
