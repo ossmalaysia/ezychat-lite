@@ -839,7 +839,9 @@ into AGENTS.md.
   admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
-  line (errName, status, finishReason; no message text).
+  line (errName, status, finishReason; no message text). Never hand the owner admin-shell commands for it:
+  long one-liners wrap and break when pasted, and `*.log` under `C:\ProgramData\wa-team-inbox` matches the
+  WinSW wrapper log first (filter `server*.log`).
 - Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
   customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 
