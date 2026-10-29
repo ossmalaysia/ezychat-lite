@@ -30,7 +30,8 @@ const FakeGoogleBody = z.object({
 
 export const CALLBACK_PATH = '/api/connectors/google-calendar/callback';
 
-export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** A tiny standalone page (no script, no outside resources). */
 export function sendPage(reply: FastifyReply, status: number, title: string, body: string) {
