@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   place names) can be added to the team's word list; words of your Business context count too. Admins switch
   it in Settings → AI; it is off after the update, on for new installs.
 
+### Fixed
+
+- **Retry on an AI reply that WhatsApp rejected now sends it.** Before, Retry always failed with "AI reply
+  cancelled because chat ownership changed", although nobody had taken the chat.
+
 ## [0.1.62] - 2026-10-28
 
 ### Added

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { User } from '@ezychat/shared';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { createAiService } from '../src/ai/service.js';
@@ -374,6 +374,13 @@ describe('AI setup over MCP', () => {
   });
 
   it('get_stats adds new customers and the chats still waiting after an AI hand-off', async () => {
+    // Midday in the business time zone: a message 2 hours old is still "today" (missed needs > 1 hour),
+    // so the count does not depend on when the suite runs. Only Date is faked; timers stay real.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T12:00:00+08:00'));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const now = Date.now();
     t.ctx.db
       .prepare(

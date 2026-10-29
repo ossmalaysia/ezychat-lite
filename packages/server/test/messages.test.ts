@@ -357,6 +357,56 @@ describe('messages routes', () => {
     expect(t.wa.sent.filter((x) => x.text === 'retry me').length).toBe(2);
   });
 
+  describe('an AI reply', () => {
+    const aiUser = () =>
+      Number(
+        t.ctx.db
+          .prepare(
+            "INSERT INTO users(username, display_name, password_hash, role, kind, created_at) VALUES ('ai-x', 'Sales Agent', '', 'agent', 'ai', 0)",
+          )
+          .run().lastInsertRowid,
+      );
+    const row = (clientId: string) =>
+      t.ctx.db
+        .prepare('SELECT id, status, error FROM messages WHERE client_id = ?')
+        .get(clientId) as { id: string; status: string; error: string | null };
+
+    it('is not sent automatically once the AI no longer owns the answer', async () => {
+      await seed();
+      const ai = aiUser();
+      getMessages(t.ctx).sendText(
+        JID,
+        { text: 'late answer', clientId: 'c-ai-late', quotedId: 'IN-0' },
+        ai,
+      );
+      await waitFor(() => row('c-ai-late').status === 'failed');
+      expect(row('c-ai-late').error).toMatch(/^AI reply cancelled/);
+      expect(t.wa.sent.some((x) => x.text === 'late answer')).toBe(false);
+    });
+
+    it('rejected by WhatsApp is sent again when a person clicks Retry', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await seed();
+      const ai = aiUser();
+      // WhatsApp took the reply (the AI counted the question as answered), then rejected it.
+      t.ctx.db
+        .prepare(
+          `INSERT INTO messages(id, chat_jid, from_me, type, body, quoted_id, timestamp, status, error, client_id, sent_by_user_id, created_at)
+           VALUES ('WA-AI-1', ?, 1, 'text', 'price list', 'IN-0', 1700000005000, 'failed', 'Delivery failed', 'c-ai', ?, 1700000005000)`,
+        )
+        .run(JID, ai);
+      const r = await t.app.inject({
+        method: 'POST',
+        url: '/api/messages/WA-AI-1/retry',
+        headers: authHeaders(cookie),
+      });
+      expect(r.statusCode).toBe(200);
+      await waitFor(() => row('c-ai').status !== 'pending');
+      expect(row('c-ai')).toMatchObject({ status: 'sent', error: null });
+      expect(t.wa.sent.filter((x) => x.text === 'price list').length).toBe(1);
+    });
+  });
+
   it('media upload of a PNG stores and serves it with correct content-type and Range 206', async () => {
     const { cookie } = await createUserAndLogin(t);
     await seed();

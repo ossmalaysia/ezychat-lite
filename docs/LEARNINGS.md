@@ -149,6 +149,11 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
+  `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
+  such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
+  on one such test is not a reason to doubt the PR under review.
+
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
   rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
   nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
@@ -780,6 +785,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A send-time guard for automatic AI replies (`canSend` in `sendJob`) runs on every queue attempt, including a
+  person's Retry: the AI marks the question answered when WhatsApp first takes the reply, so a later ERROR ack
+  (e.g. Baileys `smax-invalid (479)` on a fresh encryption session) left an AI reply that no Retry could send.
+  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message.
 - Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
@@ -843,7 +852,9 @@ into AGENTS.md.
   admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
-  line (errName, status, finishReason; no message text).
+  line (errName, status, finishReason; no message text). Never hand the owner admin-shell commands for it:
+  long one-liners wrap and break when pasted, and `*.log` under `C:\ProgramData\wa-team-inbox` matches the
+  WinSW wrapper log first (filter `server*.log`).
 - Models write Markdown (`**bold**`); WhatsApp bold is `*one asterisk*`, so `**x**` shows stray asterisks to
   customers. Tell the prompt the WhatsApp format and clean the reply before sending; never trust either alone.
 
