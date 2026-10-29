@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.63] - 2026-10-30
+
 ### Added
 
 - **Fix English.** While you type an English reply, spelling mistakes are underlined in red at once and grammar
