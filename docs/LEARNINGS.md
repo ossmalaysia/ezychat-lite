@@ -146,6 +146,11 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
+  `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
+  such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
+  on one such test is not a reason to doubt the PR under review.
+
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
   rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
   nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
