@@ -5,7 +5,7 @@ Branch: `claude/adoring-knuth-al5vph` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | Zoho CRM built-in connector: design.md + mock cloned from ai-groups (80de805), 76 screenshots 1280/360 light/dark, no page errors or overflow; waiting for owner confirmation | 5709439 | 2026-10-28 |
+| Design | done | Mock confirmed by the owner 2026-10-29 ('Ok, so implement it first'); answers 1-3 recorded; Zoho account later | aff82d2 | 2026-10-29 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `claude/adoring-knuth-al5vph` · Every agent updates its stage with
 ## Log
 
 - 2026-10-28 Design: doing — Zoho CRM built-in connector: design.md + mock cloned from ai-groups (80de805), 76 screenshots 1280/360 light/dark, no page errors or overflow; waiting for owner confirmation (5709439)
+- 2026-10-29 Design: done — Mock confirmed by the owner 2026-10-29 ('Ok, so implement it first'); answers 1-3 recorded; Zoho account later (aff82d2)

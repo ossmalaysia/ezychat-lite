@@ -1,6 +1,6 @@
 # Zoho CRM connector (built in): the AI finds the customer and adds new leads
 
-Status: **proposal**, waiting for the owner's confirmation. Branch `claude/adoring-knuth-al5vph` from `main`
+Status: **confirmed** 2026-10-29 (mock revision `aff82d2`). Branch `claude/adoring-knuth-al5vph` from `main`
 (`5709439`, 0.1.62).
 Mock: [mock/index.html](mock/index.html) ([run it](mock/README.md)). Screenshots: `mock/screenshots/zoho-*`
 (`zoho-shots.mjs`, 76 shots, no page errors, no horizontal overflow).
@@ -109,4 +109,8 @@ account; answer: yes, a company-owned Zoho account registers the app (not a cust
 which account is still open.
 ## Confirmation
 
-Not confirmed yet. No production code is written before the owner confirms this mock.
+Confirmed by the owner 2026-10-29 ("Ok, so implement it first, we create account later") after the screenshots
+(Overview, Settings, lead chat with the customer panel, not in Zoho CRM on a phone, not connected dark, Zoho sign-in)
+and answers 1–3 (Add new leads off by default; request summary on by default; Add as a lead for teammates kept).
+Mock revision `aff82d2`. The Zoho account, test organisation and API client come later (owner); until then the
+connector state is `not_configured` outside `--fake-wa`, and every check runs on the fake Zoho.
