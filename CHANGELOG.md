@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Retry on an AI reply that WhatsApp rejected now sends it.** Before, Retry always failed with "AI reply
+  cancelled because chat ownership changed", although nobody had taken the chat.
+
 ## [0.1.62] - 2026-10-28
 
 ### Added

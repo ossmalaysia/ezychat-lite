@@ -772,6 +772,10 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A send-time guard for automatic AI replies (`canSend` in `sendJob`) runs on every queue attempt, including a
+  person's Retry: the AI marks the question answered when WhatsApp first takes the reply, so a later ERROR ack
+  (e.g. Baileys `smax-invalid (479)` on a fresh encryption session) left an AI reply that no Retry could send.
+  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message.
 - Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
