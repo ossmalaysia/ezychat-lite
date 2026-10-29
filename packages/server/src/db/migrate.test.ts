@@ -10,6 +10,7 @@ const TABLES = [
   'users',
   'sessions',
   'chats',
+  'fix_english_words',
   'contacts',
   'messages',
   'notes',
@@ -36,7 +37,7 @@ const TABLES = [
   'calendar_bookings',
   'calendar_activity',
 ];
-const LATEST = 24;
+const LATEST = 25;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -289,6 +290,48 @@ describe('migrate', () => {
       upTo19(fresh);
       migrate(fresh);
       expect(settings(fresh)).toEqual([]);
+    } finally {
+      existing.close();
+      fresh.close();
+    }
+  });
+
+  it('025 turns Fix English off only for an install that already has users, and adds team words', () => {
+    const upTo24 = (db: Database.Database) => {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 24)
+        .sort())
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 24');
+    };
+    const settings = (db: Database.Database) =>
+      db
+        .prepare("SELECT key, value FROM settings WHERE key LIKE 'fix_english%' ORDER BY key")
+        .all();
+    const existing = new Database(':memory:');
+    const fresh = new Database(':memory:');
+    try {
+      upTo24(existing);
+      existing
+        .prepare(
+          "INSERT INTO users (username, display_name, password_hash, role, created_at) VALUES ('a', 'A', 'x', 'admin', 1)",
+        )
+        .run();
+      migrate(existing);
+      expect(settings(existing)).toEqual([
+        { key: 'fix_english', value: 'false' },
+        { key: 'fix_english_upgraded', value: 'true' },
+      ]);
+      upTo24(fresh);
+      migrate(fresh);
+      expect(settings(fresh)).toEqual([]);
+      // One row per word whatever its case.
+      fresh.prepare("INSERT INTO fix_english_words (word, created_at) VALUES ('Cendol', 1)").run();
+      expect(() =>
+        fresh
+          .prepare("INSERT INTO fix_english_words (word, created_at) VALUES ('cendol', 2)")
+          .run(),
+      ).toThrow(/UNIQUE/);
     } finally {
       existing.close();
       fresh.close();

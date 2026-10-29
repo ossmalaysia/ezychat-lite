@@ -161,6 +161,28 @@
       "drop": "Drop files to send them in this chat",
       "dropHint": "They wait above the message box until you press Send.",
       "dropBlocked": "Files can’t be sent in this chat right now."
+    },
+    "fixEnglish": {
+      "spelling": "Spelling",
+      "grammar": "Grammar",
+      "unknown": "Not in the dictionary",
+      "cardLabel": "Fix for “{{word}}”",
+      "ignore": "Ignore",
+      "close": "Close",
+      "remove": "Remove",
+      "looking": "Looking for suggestions",
+      "addWord": "Add to team words",
+      "fixAll_one": "Fix {{count}}",
+      "fixAll_other": "Fix {{count}}",
+      "shortcut": "Fix every marked mistake (Ctrl+J)",
+      "shortcutKey": "Ctrl J",
+      "fixed_one": "{{count}} fixed",
+      "fixed_other": "{{count}} fixed",
+      "undo": "Undo",
+      "checking": "Checking your English…",
+      "clean": "No mistakes",
+      "unavailable": "Grammar check unavailable",
+      "unavailableHint": "The AI connection needs attention. Spelling is still checked, and your message can be sent."
     }
   },
   "quickReplies": {

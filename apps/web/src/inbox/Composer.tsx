@@ -18,6 +18,7 @@ import {
   MEDIA_UPLOAD_LIMIT_BYTES,
   type QuickReply,
   type ReplyPhraseListItem,
+  type FixEnglishStatus,
   type ReplySuggestion,
 } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,14 @@ import {
   filesFromTransfer,
   formatBytes,
 } from '@/lib/file-transfer';
+import {
+  FixEnglishButton,
+  FixEnglishCard,
+  FixEnglishMarks,
+  applyFixes,
+  useFixEnglish,
+  type FixIssue,
+} from './FixEnglish';
 import './composer.css';
 
 /** Lets the conversation hand files dropped anywhere on it to the composer. */
@@ -83,12 +92,28 @@ export interface ComposerProps {
     /** The team's phrase list, matched on every key (docs/features/ai-phrase-dictionary). */
     phrases?: readonly ReplyPhraseListItem[];
   } | null;
+  /**
+   * Fix English (docs/features/grammar-fix/design.md): spelling and grammar marks in this chat
+   * (any chat type; null or a status with both checks off = nothing shown).
+   */
+  fixEnglish?: {
+    chatJid: string;
+    chatName: string;
+    status: FixEnglishStatus | undefined;
+    /** Team words and Business context words, lower case: never marked. */
+    teamWords: ReadonlySet<string>;
+    /** "Add to team words" on a word the dictionary does not know. */
+    onAddWord(word: string): Promise<unknown>;
+  } | null;
 }
 
 const TYPING_THROTTLE_MS = 2_000;
 /** Completion waits for a short pause after a full word, so typing makes no model calls. */
 const COMPLETION_PAUSE_MS = 500;
 const MAX_HEIGHT_PX = 160;
+/** How long "3 fixed · Undo" stays after Fix all. */
+const FIX_UNDO_MS = 5_000;
+const NO_WORDS: ReadonlySet<string> = new Set();
 
 /**
  * The grey text still ahead of the caret: the completion asked for `ghost.for`, minus what was
@@ -127,6 +152,7 @@ export function Composer({
   replyTo = null,
   onCancelReply,
   aiSuggest = null,
+  fixEnglish = null,
   ref,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
@@ -191,6 +217,103 @@ export function Composer({
   const dismissedFor = useRef<string | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
   const ghostText = ghostAhead(ghost, text);
+
+  // Fix English: marks after each key (spelling) or pause (grammar), a card per word, Fix all.
+  const fixStatus = fixEnglish?.status;
+  const fixOn = fixStatus?.spelling === 'on';
+  const fix = useFixEnglish(text, {
+    jid: fixEnglish?.chatJid ?? null,
+    status: fixStatus,
+    chatName: fixEnglish?.chatName ?? '',
+    teamWords: fixEnglish?.teamWords ?? NO_WORDS,
+    disabled,
+  });
+  const marksRef = useRef<HTMLDivElement>(null);
+  const [card, setCard] = useState<{ id: string; left: number; bottom: number } | null>(null);
+  const cardHover = useRef(false);
+  const cardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [fixUndo, setFixUndo] = useState<{ before: string; after: string; count: number } | null>(
+    null,
+  );
+  const cardIssue = card ? fix.issues.find((i) => i.id === card.id) : undefined;
+
+  /** The marked word under a point of the box (the marks layer lets the pointer through). */
+  function issueAt(x: number, y: number): string | null {
+    for (const span of marksRef.current?.querySelectorAll<HTMLElement>('[data-issue]') ?? [])
+      for (const r of span.getClientRects())
+        if (x >= r.left && x <= r.right && y >= r.top - 2 && y <= r.bottom + 4)
+          return span.dataset.issue ?? null;
+    return null;
+  }
+
+  function openCard(id: string) {
+    const span = [...(marksRef.current?.querySelectorAll<HTMLElement>('[data-issue]') ?? [])].find(
+      (el) => el.dataset.issue === id,
+    );
+    const rect = span?.getClientRects()[0];
+    if (!rect) return;
+    if (cardTimer.current) clearTimeout(cardTimer.current);
+    setCard({
+      id,
+      left: rect.left - 8,
+      bottom: window.innerHeight - rect.top + 6,
+    });
+  }
+
+  function closeCardSoon() {
+    if (cardTimer.current) clearTimeout(cardTimer.current);
+    cardTimer.current = setTimeout(() => {
+      if (!cardHover.current) setCard(null);
+    }, 250);
+  }
+
+  function pickFix(issue: FixIssue, replacement: string) {
+    pendingCaret.current = issue.start + replacement.length;
+    setCard(null);
+    setText(applyFixes(text, [issue], replacement));
+  }
+
+  function addWord(issue: FixIssue) {
+    setCard(null);
+    fixEnglish?.onAddWord(issue.original).catch((e: unknown) => toast.error(errorMessage(e)));
+  }
+
+  function fixAll() {
+    const count = fix.fixable.length;
+    if (!count) return;
+    const next = applyFixes(text, fix.fixable);
+    pendingCaret.current = next.length;
+    setCard(null);
+    setFixUndo({ before: text, after: next, count });
+    setText(next);
+  }
+
+  function undoFixAll() {
+    if (!fixUndo) return;
+    pendingCaret.current = fixUndo.before.length;
+    setText(fixUndo.before);
+    setFixUndo(null);
+  }
+
+  // "3 fixed · Undo" goes after a few seconds, or as soon as the teammate types on.
+  useEffect(() => {
+    if (!fixUndo) return;
+    if (text !== fixUndo.after) {
+      setFixUndo(null);
+      return;
+    }
+    const timer = setTimeout(() => setFixUndo(null), FIX_UNDO_MS);
+    return () => clearTimeout(timer);
+  }, [fixUndo, text]);
+  useEffect(() => {
+    if (card && !cardIssue) setCard(null);
+  }, [card, cardIssue]);
+  useEffect(
+    () => () => {
+      if (cardTimer.current) clearTimeout(cardTimer.current);
+    },
+    [],
+  );
 
   function closeSuggestions() {
     suggestAbort.current?.abort();
@@ -399,6 +522,7 @@ export function Composer({
       queueFiles([]);
       setText('');
       setGhost(null);
+      setFixUndo(null);
       closeSuggestions();
       setBrowseReplies(false);
       setPickerDismissed(false);
@@ -460,6 +584,17 @@ export function Composer({
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing) return;
+    // Fix English: Ctrl+J / ⌘J fixes every mark with a safe fix at once.
+    if (fixOn && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'j') {
+      e.preventDefault();
+      fixAll();
+      return;
+    }
+    if (card && e.key === 'Escape') {
+      e.preventDefault();
+      setCard(null);
+      return;
+    }
     if (ghostText && e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       acceptGhost();
@@ -680,10 +815,58 @@ export function Composer({
                 onChange={onChange}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
+                onScroll={(e) => {
+                  if (marksRef.current) marksRef.current.scrollTop = e.currentTarget.scrollTop;
+                  // Focusing the box can scroll it (phones): the card follows its word.
+                  if (card) openCard(card.id);
+                }}
+                // Fix English: hover (mouse) or tap/click a marked word for its card.
+                onMouseMove={(e) => {
+                  if (coarsePointer || !fix.issues.length) return;
+                  const id = issueAt(e.clientX, e.clientY);
+                  if (id) {
+                    if (id !== card?.id) openCard(id);
+                    else if (cardTimer.current) clearTimeout(cardTimer.current);
+                  } else if (card) closeCardSoon();
+                }}
+                onMouseLeave={() => card && closeCardSoon()}
+                onClick={(e) => {
+                  if (!fix.issues.length) return;
+                  const id = issueAt(e.clientX, e.clientY);
+                  if (id) openCard(id);
+                  else setCard(null);
+                }}
                 // Enter inserts a newline on touch keyboards, so label the key accordingly.
                 enterKeyHint={coarsePointer ? 'enter' : 'send'}
+                // Fix English marks spelling itself; the browser's own underline would mark it twice.
+                spellCheck={!fixOn}
                 className="composer-input field-sizing-fixed min-h-11 w-full min-w-0 resize-none rounded-2xl bg-surface px-3.5 py-2.5 text-base leading-6 md:text-base"
               />
+              <FixEnglishMarks
+                ref={marksRef}
+                text={text}
+                issues={fix.issues}
+                activeId={card?.id ?? null}
+              />
+              {cardIssue && card && (
+                <FixEnglishCard
+                  issue={cardIssue}
+                  position={card}
+                  touch={coarsePointer}
+                  onPick={(replacement) => pickFix(cardIssue, replacement)}
+                  onAddWord={() => addWord(cardIssue)}
+                  onIgnore={() => {
+                    fix.ignore(cardIssue);
+                    setCard(null);
+                  }}
+                  onClose={() => setCard(null)}
+                  onHover={(inside) => {
+                    cardHover.current = inside;
+                    if (!inside) closeCardSoon();
+                    else if (cardTimer.current) clearTimeout(cardTimer.current);
+                  }}
+                />
+              )}
               {/* The grey text is drawn over the box, never put in it: Send can never send it. */}
               <div
                 ref={ghostRef}
@@ -771,11 +954,25 @@ export function Composer({
               {t('composer.suggest.unavailable')}
             </span>
           )}
-          {ghostText && !coarsePointer && (
-            <span className="ml-auto text-xs text-muted-foreground" data-testid="completion-hint">
-              {t('composer.suggest.tabHint')}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-3">
+            {ghostText && !coarsePointer && (
+              <span className="text-xs text-muted-foreground" data-testid="completion-hint">
+                {t('composer.suggest.tabHint')}
+              </span>
+            )}
+            {fixOn && fixStatus && text.trim() !== '' && (
+              <FixEnglishButton
+                count={fix.fixable.length}
+                marks={fix.issues.length}
+                grammarStatus={fix.grammarStatus}
+                grammar={fixStatus.grammar}
+                touch={coarsePointer}
+                undo={fixUndo}
+                onFixAll={fixAll}
+                onUndo={undoFixAll}
+              />
+            )}
+          </div>
         </div>
         <PopoverContent
           id={pickerId}

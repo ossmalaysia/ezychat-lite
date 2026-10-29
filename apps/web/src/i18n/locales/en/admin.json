@@ -500,6 +500,26 @@
       },
       "uses": "Used {{count}} times",
       "fact": "Fact checked against the business context"
+    },
+    "fixEnglish": {
+      "title": "Fix English",
+      "description": "While a teammate types an English reply, spelling mistakes are marked at once and grammar mistakes after a short pause. One tap fixes them; nothing is changed or sent without the teammate.",
+      "enable": "Check English for the team",
+      "cost": "Spelling is checked on each device with a built-in British English dictionary (about 0.2 MB, downloaded once): free, no AI. Grammar is one short request to your AI provider after each pause in typing (the model for suggestions), which may charge for it. Malay and Chinese messages are not checked.",
+      "rules": "Only spelling and grammar are fixed. Numbers, prices, names, links and order numbers are never changed, and the teammate's tone stays (lah, ya).",
+      "noConnection": "No AI connection: only spelling is checked. Connect an AI provider above to check grammar too.",
+      "upgraded": "New: Fix English. It is off after the update so that nothing new costs money without your choice.",
+      "wordsTitle": "Team words",
+      "wordsHint": "Never marked: product, place and customer words the dictionary does not know. Teammates add them from a marked word; words of your Business context count too.",
+      "wordsAdd": "Add word",
+      "wordsLabel": "New team word",
+      "wordsPlaceholder": "e.g. cendol",
+      "wordsEmpty": "No team words yet.",
+      "wordsAddedBy": "added by {{name}}",
+      "wordsRemove": "Remove {{word}}",
+      "businessTitle_one": "{{count}} word from your Business context is never marked",
+      "businessTitle_other": "{{count}} words from your Business context are never marked",
+      "businessHint": "They change with your Business context. Shown: the words the dictionary does not know."
     }
   },
   "resolveAll": {

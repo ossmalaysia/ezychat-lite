@@ -158,6 +158,28 @@
       "drop": "Lepaskan fail untuk menghantarnya dalam sembang ini",
       "dropHint": "Fail menunggu di atas kotak mesej sehingga anda tekan Hantar.",
       "dropBlocked": "Fail tidak boleh dihantar dalam sembang ini sekarang."
+    },
+    "fixEnglish": {
+      "spelling": "Ejaan",
+      "grammar": "Tatabahasa",
+      "unknown": "Tiada dalam kamus",
+      "cardLabel": "Pembetulan untuk “{{word}}”",
+      "ignore": "Abaikan",
+      "close": "Tutup",
+      "remove": "Buang",
+      "looking": "Mencari cadangan",
+      "addWord": "Tambah ke perkataan pasukan",
+      "fixAll_one": "Betulkan {{count}}",
+      "fixAll_other": "Betulkan {{count}}",
+      "shortcut": "Betulkan semua kesilapan bertanda (Ctrl+J)",
+      "shortcutKey": "Ctrl J",
+      "fixed_one": "{{count}} dibetulkan",
+      "fixed_other": "{{count}} dibetulkan",
+      "undo": "Buat asal",
+      "checking": "Menyemak bahasa Inggeris anda…",
+      "clean": "Tiada kesilapan",
+      "unavailable": "Semakan tatabahasa tidak tersedia",
+      "unavailableHint": "Sambungan AI perlu diperiksa. Ejaan masih disemak, dan mesej anda boleh dihantar."
     }
   },
   "quickReplies": {

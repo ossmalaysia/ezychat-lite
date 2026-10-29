@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   AiAgentBody,
   AiAgentPreset,
+  FixGrammarResult,
   ReplyCompleteResult,
   ReplySuggestModelInfo,
   ReplySuggestionsResult,
@@ -39,6 +40,7 @@ import {
   DEFAULT_AI_HANDOFF_RULES,
   DEFAULT_AI_INSTRUCTIONS,
   codePointLength,
+  notEnglish,
   presetTexts,
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
@@ -121,6 +123,8 @@ import {
   replySuggestionsModel,
 } from './reply-suggestions-setting.js';
 import { CHATGPT_FAST_DRAFT_MODELS, DRAFT_FAST_MODELS } from './agent/draft.js';
+import { FIX_GRAMMAR_RULES, FixGrammarOutput, grammarIssues } from '../fix-english/grammar.js';
+import { fixEnglishEnabled } from '../fix-english/setting.js';
 import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 
@@ -304,6 +308,12 @@ export interface AiService {
     request: { kind: 'complete'; typed: string },
     signal: AbortSignal,
   ): Promise<ReplyCompleteResult>;
+  /**
+   * Fix English (docs/features/grammar-fix/design.md): the grammar marks for a draft the teammate
+   * is typing in this chat, from one structured call on the "Model for suggestions" model. Nothing
+   * is sent or stored. Throws 409 `fix_english_off` / 503 `ai_unavailable`.
+   */
+  fixGrammar(jid: string, text: string, signal: AbortSignal): Promise<FixGrammarResult>;
   /** The "Model for suggestions" choice: the saved value, the models it may name, what calls use. */
   suggestModelInfo(): ReplySuggestModelInfo;
   /** `fast`, `agent` or a model of the current connection. */
@@ -329,6 +339,8 @@ export const AI_COMPLETION_TIMEOUT_MS = 3_000;
 /** A completion sees only this many of the last chat messages (plus the typed text). */
 export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
+/** A grammar check slower than this is dropped: the teammate has typed on or sent by then. */
+export const FIX_GRAMMAR_TIMEOUT_MS = 10_000;
 /** One phrase-list build (a larger structured answer, in the background). */
 const AI_PHRASE_BUILD_TIMEOUT_MS = 120_000;
 
@@ -2554,6 +2566,51 @@ export function createAiService(
         );
       }
     }) as AiService['draftReply'],
+    async fixGrammar(jid, text, signal) {
+      if (!fixEnglishEnabled(ctx.settings))
+        throw new HttpError(409, 'fix_english_off', 'Fix English is off');
+      if (service.draftConnection() !== 'ready' || !gateOpen())
+        throw new HttpError(503, 'ai_unavailable', 'The grammar check is not available now');
+      if ((text.match(/\p{L}+/gu) ?? []).length < 2)
+        return { status: 'skipped', reason: 'too_short' };
+      if (notEnglish(text)) return { status: 'skipped', reason: 'not_english' };
+      const choice = draftChoice(settingsFor(agentOfChat(jid)));
+      const started = Date.now();
+      let model: string | null = null;
+      let count = 0;
+      let ok = false;
+      let cause: { causeName: string | null; status: number | null } | null = null;
+      try {
+        const answer = await provider.draft!(
+          choice.settings,
+          aiApiKey(ctx.settings),
+          {
+            instructions: FIX_GRAMMAR_RULES,
+            input: JSON.stringify({ text }),
+            cacheId: `${installId()}#fix-english`,
+          },
+          { schema: FixGrammarOutput, fast: choice.fast, maxOutputTokens: 3_000 },
+          AbortSignal.any([signal, AbortSignal.timeout(FIX_GRAMMAR_TIMEOUT_MS)]),
+        );
+        model = answer.model;
+        const issues = grammarIssues(text, answer.output.corrected);
+        count = issues.length;
+        ok = true;
+        return { status: 'checked', issues };
+      } catch (error) {
+        const failure = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = failure.statusCode ?? failure.status;
+        cause = { causeName: errorNameOf(error), status: typeof code === 'number' ? code : null };
+        if (signal.aborted) throw error;
+        throw new HttpError(503, 'ai_unavailable', 'The grammar check did not answer. Try again.');
+      } finally {
+        // Never the text or the corrections: counts and timing only.
+        log.info(
+          { event: 'fix_grammar', ok, ms: Date.now() - started, model, count, ...cause },
+          'Fix English grammar check',
+        );
+      }
+    },
     canSend(jid, userId, quotedId) {
       // A group answer goes out only while its turn sends it, quoting the member's message.
       if (chats.get(jid)?.type === 'group')

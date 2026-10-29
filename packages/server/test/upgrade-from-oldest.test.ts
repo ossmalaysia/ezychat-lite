@@ -142,6 +142,9 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     // 020: an install that existed before reply suggestions starts with them off (they cost money).
     expect(t.ctx.settings.get('ai_reply_suggestions', null)).toBe(false);
     expect(t.ctx.settings.get('ai_reply_suggestions_upgraded', null)).toBe(true);
+    // 025: the same for Fix English (its grammar check calls the AI provider while people type).
+    expect(t.ctx.settings.get('fix_english', null)).toBe(false);
+    expect(t.ctx.settings.get('fix_english_upgraded', null)).toBe(true);
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.
     expect(readFileSync(join(dir, 'wa-auth', 'creds.json'), 'utf8')).toBe(CREDS);
