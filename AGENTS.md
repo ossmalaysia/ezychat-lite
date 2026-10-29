@@ -253,6 +253,19 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Zoho CRM** (design `docs/features/zoho-crm/design.md`). Core built-in connector (`connectors/zoho-crm/`, routes
+`/api/connectors/zoho-crm/*` admins, migration 025): one Zoho account per install, signed in through the server's own
+loopback callback in the data centre the admin picks (`ZohoRegion`; the `accounts-server` and `api_domain` Zoho names
+must be Zoho hosts, `ZOHO_HOSTS`), tokens only in the encrypted `zoho_crm_tokens` setting; the app is
+`ZOHO_OAUTH_CLIENT_ID`/`_SECRET` (env, else the release bundle's `__EZYCHAT_ZOHO_OAUTH__`), without it `not_configured`;
+`--fake-wa` without an app uses the fake Zoho (`fake.ts`, `/api/dev/fake-zoho*`). Per agent (`zoho_crm_agent_settings`):
+Find the customer (on) = tool `find_crm_customer` (no arguments; Contacts then Leads by the chat's number, cached 10 min)
+and Add new leads (off, needs find) = `add_crm_lead`: one lead per chat (`zoho_crm_leads`), the number re-checked in
+Zoho just before, name from the saved contact/WhatsApp name or the customer's own words (`customerWrote`), never updates
+or deletes, not in groups, Try it adds nothing. A Zoho failure never hands over: the tool says Zoho is unavailable and
+the AI answers without it. Chat lines `ai_tool_used` with `crm`; the customer panel reads `GET /api/chats/:jid/zoho-crm`
+and teammates add a lead with `POST …/zoho-crm/lead` (inbox access, rate-limited, audited). Logs carry ids and counts only.
+
 **Connector list** (design `docs/features/connector-list/design.md`). The gallery comes from a signed list published
 by the public repo `anchorsprint/ezychat-connectors` (one folder per connector: `connector.yaml`, `skill.md`,
 `icon.svg`; its CI validates, builds `list-v1.json`, signs it with Ed25519 and uploads it with the icons to

@@ -21,6 +21,12 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Zoho CRM: verify against a real Zoho organisation** (owner creates the Zoho account, test organisation and API
+  client): loopback redirect on any port, multi-DC sign-in (`accounts-server`), the minimum scopes, the `phone` search
+  matching stored formats, the Leads `Company` requirement, API credits per edition, and whether Zoho reviews the
+  client. Then set `ZOHO_OAUTH_CLIENT_ID`/`_SECRET` repository secrets and switch the `ezychat-connectors` entry to
+  `builtin` with the shipping `minAppVersion`.
+
 - **Booking reminders** (2026-10-26, owner asked how; not in the first Google Calendar round): part of the
   Google Calendar connector, per agent: on/off, 1 day / 3 h / 1 h before, editable text; only bookings EzyChat
   made, re-read the event before sending (deleted → none, moved → new time), one per booking, not 10 pm–8 am;

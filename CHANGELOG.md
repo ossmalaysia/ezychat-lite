@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Zoho CRM connector.** Admin → Connectors → Zoho CRM: choose your Zoho site and sign in with Zoho (no link or key
+  to paste). Before it answers, your AI agent finds the customer in Zoho CRM by their WhatsApp number (name, company,
+  owner and lead status). Turn on **Add new leads** and it adds a new enquiry as a lead, once per chat, with the
+  customer's own details and a one-line summary of the request; it never changes or deletes existing records. The
+  customer panel shows the chat's Zoho record with **Open in Zoho CRM**, or **Add as a lead** when the number is not
+  there yet. If Zoho is unreachable, the AI keeps answering without it.
+
 ## [0.1.62] - 2026-10-28
 
 ### Added
