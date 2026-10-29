@@ -156,7 +156,11 @@ export function ZohoCrmSettingsCard({
             {value.addLeads && (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={t('connectors.zoho.owner')} hint={t('connectors.zoho.ownerHint')}>
+                  <Field
+                    className="min-w-0"
+                    label={t('connectors.zoho.owner')}
+                    hint={t('connectors.zoho.ownerHint')}
+                  >
                     {(p) => (
                       <Select
                         value={value.ownerId ?? DEFAULT_OWNER}
@@ -185,6 +189,7 @@ export function ZohoCrmSettingsCard({
                     )}
                   </Field>
                   <Field
+                    className="min-w-0"
                     label={t('connectors.zoho.leadSource')}
                     hint={t('connectors.zoho.leadSourceHint')}
                     error={sourceError}

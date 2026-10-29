@@ -6,11 +6,14 @@
 // Google Calendar (fake Google): BOOK calls check_free_times and offers the first time; CONFIRM checks
 // the free times again, then calls book_appointment with the first time offered in that chat (and an
 // email written in the same message) and repeats what the tool said.
+// Zoho CRM (fake Zoho): CRM calls find_crm_customer and repeats what it found; LEAD NAME <first last>
+// [COMPANY <word>] calls add_crm_lead with what the customer wrote and repeats the tool's answer;
+// LEAD FAKE passes a name the customer never wrote.
 // Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
-// e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
+// e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs, e2e/devbuild-zoho-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -104,6 +107,34 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
       ? await runTool(prompt, 'book_appointment', { start, ...(email ? { email } : {}) }, signal)
       : null;
     return { reply: output === null ? 'book=not-offered' : output, action: 'answer' };
+  }
+  if (last.includes('CRM')) {
+    const output = await runTool(prompt, 'find_crm_customer', {}, signal);
+    if (output === null) return { reply: 'crm=not-offered', action: 'answer' };
+    // "Zoho CRM is not available right now…" is plain text: answer without it, as models do.
+    if (!output.startsWith('{')) return { reply: 'crm=unavailable', action: 'answer' };
+    const found = JSON.parse(output) as { found?: boolean; name?: string; type?: string };
+    return {
+      reply: found.found ? `crm=found ${found.type} ${found.name}` : 'crm=not-found',
+      action: 'answer',
+    };
+  }
+  // LEAD FAKE: a name the customer never wrote (the server must refuse it).
+  const lead = last.includes('LEAD FAKE')
+    ? ['', 'Someone Else', undefined]
+    : /LEAD NAME (\S+ \S+)(?: COMPANY (\S+))?/.exec(last);
+  if (lead) {
+    const output = await runTool(
+      prompt,
+      'add_crm_lead',
+      {
+        name: lead[1],
+        ...(lead[2] ? { company: lead[2] } : {}),
+        request: 'Catering quote for an office lunch',
+      },
+      signal,
+    );
+    return { reply: output === null ? 'lead=not-offered' : output, action: 'answer' };
   }
   // Partner connectors (signed test list of e2e/partner-mcp): STOCK <sku> calls check_stock, INVOICE
   // <number> calls find_invoice, QUOTE <sku> x<qty> @<iso time> NAME <first last> calls
