@@ -2,15 +2,20 @@
 // argv: <server entry> <server args...>. It
 //  1. applies the persisted `port` setting (Admin > Settings) from <data>/app.db over --port,
 //     so a port change takes effect on the next start even though the desktop passes --port;
-//  2. writes the effective port to $WATI_PORT_FILE so the desktop can find the server;
+//  2. moves to the next free port when that one is taken (another program, or a port Windows
+//     reserves), and writes the effective port to $WATI_PORT_FILE so the desktop can find the server;
 //  3. turns a 'shutdown' IPC message (Electron utilityProcess parentPort or Node child IPC) into
 //     the server's SIGTERM handler, because on Windows kill() terminates without running it.
 // CommonJS (.cts → .cjs) so it can be loaded by utilityProcess.fork / ELECTRON_RUN_AS_NODE.
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 
 export const SHUTDOWN_MESSAGE = 'wati:shutdown';
+
+/** How many ports after the chosen one server-host tries before it lets the server fail. */
+export const PORT_TRIES = 20;
 
 export function isValidPort(p: unknown): p is number {
   return typeof p === 'number' && Number.isInteger(p) && p >= 1 && p <= 65535;
@@ -44,13 +49,58 @@ export function prepareServerArgs(
     }
   }
   const i = out.indexOf('--port');
-  if (setting !== null) {
-    if (i >= 0 && out[i + 1] !== undefined) out[i + 1] = String(setting);
-    else out.push('--port', String(setting));
-    return { args: out, port: setting };
-  }
+  if (setting !== null) return { args: withPort(out, setting), port: setting };
   const explicit = i >= 0 ? Number(out[i + 1]) : NaN;
   return { args: out, port: isValidPort(explicit) ? explicit : null };
+}
+
+/** True when nothing holds `port` on loopback or on every interface (a LAN server binds 0.0.0.0). */
+export async function portIsFree(port: number): Promise<boolean> {
+  const bind = (host: string) =>
+    new Promise<boolean>((done) => {
+      const s = createServer();
+      s.once('error', () => done(false));
+      s.listen({ port, host, exclusive: true }, () => s.close(() => done(true)));
+    });
+  return (await bind('127.0.0.1')) && (await bind('0.0.0.0'));
+}
+
+/**
+ * The first free port from `port` on (at most PORT_TRIES), else `port` itself so the server reports
+ * the real error. The desktop follows the port file and saves the new port in desktop.json.
+ */
+export async function pickFreePort(
+  port: number,
+  isFree: (p: number) => Promise<boolean> = portIsFree,
+): Promise<number> {
+  for (let p = port; p < port + PORT_TRIES && p <= 65535; p++) {
+    if (await isFree(p)) return p;
+  }
+  return port;
+}
+
+/** Returns `args` with --port set to `port` (args always carry --port once a port is known). */
+export function withPort(args: readonly string[], port: number): string[] {
+  const out = [...args];
+  const i = out.indexOf('--port');
+  if (i >= 0 && out[i + 1] !== undefined) out[i + 1] = String(port);
+  else out.push('--port', String(port));
+  return out;
+}
+
+/** Moves prepared server args to a free port; `moved` names the change for the log. */
+export async function useFreePort(
+  prepared: { args: string[]; port: number | null },
+  pick: (port: number) => Promise<number> = pickFreePort,
+): Promise<{ args: string[]; port: number | null; moved: string | null }> {
+  if (prepared.port === null) return { ...prepared, moved: null };
+  const free = await pick(prepared.port);
+  if (free === prepared.port) return { ...prepared, moved: null };
+  return {
+    args: withPort(prepared.args, free),
+    port: free,
+    moved: `port ${prepared.port} is in use; using port ${free}`,
+  };
 }
 
 /** Reads settings.port (JSON value) from <dataDir>/app.db read-only; null when absent. */
@@ -87,13 +137,16 @@ export function applyRuntimeVersion(entry: string, env: NodeJS.ProcessEnv): void
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const [entry, ...rest] = process.argv.slice(2);
   if (!entry) {
     process.stderr.write('server-host: missing server entry\n');
     process.exit(2);
   }
-  const { args, port } = prepareServerArgs(rest, (d) => readPortSettingFromDb(d));
+  const { args, port, moved } = await useFreePort(
+    prepareServerArgs(rest, (d) => readPortSettingFromDb(d)),
+  );
+  if (moved) process.stdout.write(`server-host: ${moved}\n`);
   const portFile = process.env.WATI_PORT_FILE;
   if (portFile && port !== null) {
     try {
@@ -123,4 +176,4 @@ function main(): void {
 }
 
 // require.main is the host under ELECTRON_RUN_AS_NODE/node; argv[1] covers utilityProcess.fork.
-if (require.main === module || /server-host\.cjs$/.test(process.argv[1] ?? '')) main();
+if (require.main === module || /server-host\.cjs$/.test(process.argv[1] ?? '')) void main();

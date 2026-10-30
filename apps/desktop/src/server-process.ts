@@ -201,7 +201,7 @@ export class StandaloneServer extends EventEmitter {
       const filePort = this.readPortFile();
       if (filePort !== null && filePort !== this._port) {
         this._port = filePort;
-        this.pushLog(`[desktop] server uses port ${filePort} (from settings)`);
+        this.pushLog(`[desktop] server uses port ${filePort}`);
         this.emit('port', filePort);
       }
       const r = await probeServer(this._port);

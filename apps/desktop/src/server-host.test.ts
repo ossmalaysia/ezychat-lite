@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createServer, type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import {
   applyRuntimeVersion,
   isShutdownMessage,
+  pickFreePort,
+  PORT_TRIES,
+  portIsFree,
   prepareServerArgs,
   SHUTDOWN_MESSAGE,
+  useFreePort,
+  withPort,
 } from './server-host.cjs';
 
 const base = ['--data', 'D:\\data', '--port', '7420', '--mode', 'standalone'];
@@ -63,6 +69,93 @@ describe('prepareServerArgs (persisted port setting wins over --port)', () => {
   it('leaves --reset-admin runs untouched', () => {
     const args = ['--data', 'x', '--reset-admin'];
     expect(prepareServerArgs(args, () => 9000)).toEqual({ args, port: null });
+  });
+});
+
+describe('pickFreePort (a taken port moves the server to the next free one)', () => {
+  it('keeps a free port', async () => {
+    expect(await pickFreePort(7440, async () => true)).toBe(7440);
+  });
+  it('moves to the first free port after a taken one', async () => {
+    const taken = new Set([7440, 7441]);
+    const tried: number[] = [];
+    const port = await pickFreePort(7440, async (p) => {
+      tried.push(p);
+      return !taken.has(p);
+    });
+    expect(port).toBe(7442);
+    expect(tried).toEqual([7440, 7441, 7442]);
+  });
+  it(`gives up after ${PORT_TRIES} ports and keeps the chosen one, so the server reports the error`, async () => {
+    let calls = 0;
+    const port = await pickFreePort(7440, async () => {
+      calls++;
+      return false;
+    });
+    expect(port).toBe(7440);
+    expect(calls).toBe(PORT_TRIES);
+  });
+  it('never tries a port above 65535', async () => {
+    const tried: number[] = [];
+    await pickFreePort(65534, async (p) => {
+      tried.push(p);
+      return false;
+    });
+    expect(tried).toEqual([65534, 65535]);
+  });
+});
+
+describe('portIsFree', () => {
+  it('sees a port held by another listener as taken, and free again after it closes', async () => {
+    const holder = createServer();
+    await new Promise<void>((done) => holder.listen(0, '127.0.0.1', done));
+    const { port } = holder.address() as AddressInfo;
+    try {
+      expect(await portIsFree(port)).toBe(false);
+    } finally {
+      await new Promise<void>((done) => holder.close(() => done()));
+    }
+    expect(await portIsFree(port)).toBe(true);
+  });
+});
+
+describe('useFreePort', () => {
+  it('moves the server args to the free port and says so', async () => {
+    const r = await useFreePort({ args: [...base], port: 7420 }, async () => 7423);
+    expect(r).toEqual({
+      args: ['--data', 'D:\\data', '--port', '7423', '--mode', 'standalone'],
+      port: 7423,
+      moved: 'port 7420 is in use; using port 7423',
+    });
+  });
+  it('changes nothing when the port is free or unknown (--reset-admin)', async () => {
+    const pick = async (p: number) => p;
+    expect(await useFreePort({ args: [...base], port: 7420 }, pick)).toEqual({
+      args: base,
+      port: 7420,
+      moved: null,
+    });
+    let called = false;
+    const none = await useFreePort({ args: ['--reset-admin'], port: null }, async (p) => {
+      called = true;
+      return p;
+    });
+    expect(none).toEqual({ args: ['--reset-admin'], port: null, moved: null });
+    expect(called).toBe(false);
+  });
+});
+
+describe('withPort', () => {
+  it('replaces --port or adds it', () => {
+    expect(withPort(base, 7441)).toEqual([
+      '--data',
+      'D:\\data',
+      '--port',
+      '7441',
+      '--mode',
+      'standalone',
+    ]);
+    expect(withPort(['--data', 'x'], 7441)).toEqual(['--data', 'x', '--port', '7441']);
   });
 });
 

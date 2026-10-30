@@ -65,7 +65,7 @@ WhatsApp socket, cloudflared). The desktop app never embeds it:
 
 - _Standalone_: Electron main (`apps/desktop/src/main.ts`) forks `dist/server-host.cjs` →
   `dist/server/server.cjs` (esbuild bundle) with `utilityProcess.fork`; data in the user's app-data dir.
-  `server-host` writes the effective port to `WATI_PORT_FILE` and turns a `shutdown` IPC message into a graceful close.
+  `server-host` moves to the next free port (up to 20) when the chosen one is taken, writes the effective port to `WATI_PORT_FILE` (the desktop saves it in `desktop.json`) and turns a `shutdown` IPC message into a graceful close.
 - _Service_: WinSW (Windows, LocalSystem) or a launchd daemon (macOS) runs the Electron binary with
   `ELECTRON_RUN_AS_NODE=1`; data moves to `C:\ProgramData\…` / `/Library/Application Support/…`.
   On launch the desktop probes `/api/health`; if a server answers it becomes a plain client window

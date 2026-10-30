@@ -1258,6 +1258,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   catalogs or code; use `{{product}}` and a `Product` field. Check an edition's first installer on a PC that
   also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).
   The first start writes `desktop.json` with the port, so a changed default reaches only new installs.
+  The port is never a fixed contract: `server-host` moves to the next free port and the desktop saves it. A
+  free-port test must bind both `127.0.0.1` and `0.0.0.0` (Windows reserved ranges answer `EACCES`, not
+  `EADDRINUSE`). "The server did not start … may be in use" shows for every start failure: read the log first.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
