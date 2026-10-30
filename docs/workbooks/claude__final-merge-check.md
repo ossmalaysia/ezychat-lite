@@ -7,7 +7,7 @@ Branch: `claude/final-merge-check` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | todo |  |  |  |
 | Dev | done | final merge check: REST+git, own-diff evidence, required checks, verdict line; 158 script tests | 32ce223 | 2026-10-30 |
-| Unit tests | todo |  |  |  |
+| Unit tests | pass | npx vitest run --project scripts: 158 passed; each new rule bite-tested (mutation -> failing test) | 94e37bc | 2026-10-30 |
 | E2E | todo |  |  |  |
 | Dev Build | todo |  |  |  |
 | Screen review | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `claude/final-merge-check` · Every agent updates its stage with
 ## Log
 
 - 2026-10-30 Dev: done — final merge check: REST+git, own-diff evidence, required checks, verdict line; 158 script tests (32ce223)
+- 2026-10-30 Unit tests: pass — npx vitest run --project scripts: 158 passed; each new rule bite-tested (mutation -> failing test) (94e37bc)
