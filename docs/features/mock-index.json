@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "ai-direct-chats",
+      "creationOrder": 21,
+      "createdAt": "2026-10-30",
+      "design": "docs/features/ai-direct-chats/design.md",
+      "mock": "docs/features/ai-direct-chats/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "grammar-fix",
+      "baselineGitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
+      "baselineAppRevision": "cc0a759",
+      "coverage": "Full app clone of the confirmed grammar-fix reference; agent page Direct chats card (Answer direct chats on by default; off with Answer in groups on = group-only info; off with groups off = answers-nothing warning; confirm dialog releasing the agent's open direct chats), the AI agent left out of a direct chat's assignee list while off, card hidden for a Business API inbox; mock-only route PUT /api/mock/groups/agents/:agentId/direct; desktop 1280 / mobile 360 touch, light/dark (direct-shots.mjs)"
+    },
+    {
       "feature": "ask-ezy",
       "creationOrder": 20,
       "createdAt": "2026-10-30",
@@ -89,9 +101,12 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": [
-        "reports"
-      ]
+      "parallelFeatures": ["reports"],
+      "archived": {
+        "folderRemovedAt": "2026-10-30",
+        "lastRevision": "cc0a759",
+        "reason": "retention: sixth feature folder (ai-direct-chats)"
+      }
     },
     {
       "feature": "ai-phrase-dictionary",

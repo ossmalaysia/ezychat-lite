@@ -1011,6 +1011,10 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Mock screenshot scripts that need the AI to hold a chat must switch the AI member on first (`GET /api/ai`, then
+  `PUT /api/ai` with `{...settings, enabled: true}`; an earlier run can leave it off and the assign answers 400), and
+  scope a select to its container (`page.locator('header').getByRole('combobox')`): the chat list's inbox filter is
+  the page's first combobox. In the cloud container launch Chromium with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`.
 - A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)
   and close at once as "outside": mark the opening buttons (`data-ask-ezy-trigger`) and `preventDefault` in
   `onInteractOutside` for them. jsdom does not reproduce it; only the Pixel e2e does.

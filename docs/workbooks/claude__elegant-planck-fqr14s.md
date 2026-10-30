@@ -1,0 +1,17 @@
+# Workbook: AI agent: answer direct chats (group-only agents)
+
+Branch: `claude/elegant-planck-fqr14s` · Every agent updates its stage with
+`node scripts/build-summary.mjs record <stage> <status> "<detail>"` and commits it with the work.
+
+| Stage | Status | Detail | Commit | Updated |
+| --- | --- | --- | --- | --- |
+| Design | doing | ai-direct-chats mock + design.md (direct-shots: 24 shots, no problems); waiting for owner confirmation | cc0a759 | 2026-10-30 |
+| Dev | todo |  |  |  |
+| Unit tests | todo |  |  |  |
+| E2E | todo |  |  |  |
+| Dev Build | todo |  |  |  |
+| Screen review | todo |  |  |  |
+
+## Log
+
+- 2026-10-30 Design: doing — ai-direct-chats mock + design.md (direct-shots: 24 shots, no problems); waiting for owner confirmation (cc0a759)
