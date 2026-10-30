@@ -166,6 +166,27 @@ Hard stops: none
 
 Decision: **risk:auto**
 
+
+## 2026-10-24 · PR #168 · `5ddcadd` · risk:auto (85)
+
+Tier **critical**, set by: package.json dependencies
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: critical | -30 | ✓ |
+| Size: 6 code lines | 0 | ✓ |
+| Changed-lines coverage 100 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check (not needed) | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review (not needed) | +5 | ✓ |
+| Real-part test | +15 | ✓ |
+| **Score** | **85** | |
+
+Hard stops: none
+
+Decision: **risk:auto**
 ## 2026-10-25 · PR #183 · `c446d6c` · risk:human (45)
 
 Tier **core**, set by: apps/web/src/api/templates.ts, apps/web/src/extensions/inbox-types.ts, apps/web/src/extensions/index.ts, apps/web/src/extensions/types.ts, apps/web/src/inbox/ChatList.tsx, apps/web/src/inbox/ChatListItem.tsx, apps/web/src/inbox/Conversation.tsx, apps/web/src/inbox/MessageBubble.tsx and 4 more
