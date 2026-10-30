@@ -96,18 +96,41 @@ export const ASK_RESOLUTION_REPLY = 'Does that answer your question?';
 /** Sent when the server closes the chat; never announces the closing ("I will close this chat"). */
 export const RESOLVED_REPLY = 'Thank you! Message us any time if you need more help.';
 
-/** A check-in or closing line at the end of a reply (removed when the agent asks none). */
-const TRAILING_CHECK_IN =
-  /(?:^|(?<=[.!?。！？\n]))[ \t]*(?:does (?:that|this) answer your question|did (?:that|this) (?:answer your question|help)|(?:is there )?anything else(?: (?:i can|we can) help(?: you)? with)?|(?:i|we)(?:['’]ll| will) (?:now )?close (?:this|the) chat[^.!?\n]*|adakah (?:itu|ini) menjawab soalan anda|(?:这样)?(?:回答|解答)了您的问题吗)[ \t]*[.!?。！？]*\s*$/i;
+/** One sentence that is only a check-in or a closing line (removed when the agent asks none). */
+const CHECK_IN_SENTENCE =
+  /^(?:does (?:that|this) answer your question|did (?:that|this) (?:answer your question|help)|(?:is there )?anything else(?: (?:i|we) can help(?: you)? with)?|(?:i|we)(?:['’]ll| will) (?:now )?close (?:this|the) chat[^.!?。！？]*|adakah (?:itu|ini) menjawab soalan anda|(?:这样)?(?:回答|解答)了您的问题吗)[.!?。！？]*$/i;
+const SENTENCE_END = /[.!?。！？\n]/;
 
-/** The reply without trailing check-in or "closing this chat" lines. */
+/** Where the last sentence of `text` starts (its own end punctuation stays with it). */
+function lastSentenceStart(text: string): number {
+  let i = text.length;
+  while (i > 0 && SENTENCE_END.test(text[i - 1]!)) i--;
+  while (i > 0 && !SENTENCE_END.test(text[i - 1]!)) i--;
+  return i;
+}
+
+/** The reply without trailing check-in or "closing this chat" sentences (linear, no backtracking). */
 export function withoutCheckIn(reply: string): string {
   let text = reply.trim();
-  for (let next = text.replace(TRAILING_CHECK_IN, '').trim(); next !== text;) {
-    text = next;
-    next = text.replace(TRAILING_CHECK_IN, '').trim();
+  while (text) {
+    const start = lastSentenceStart(text);
+    if (!CHECK_IN_SENTENCE.test(text.slice(start).trim())) break;
+    text = text.slice(0, start).trim();
   }
   return text;
+}
+
+/**
+ * The agent asks no resolution question: ask_resolution becomes an answer without its check-in
+ * line, and resolve (a goodbye, never sent mid-conversation) or a reply that was only "Does that
+ * answer…?" becomes no_reply, so the chat stays open.
+ */
+function withoutResolution(decision: AiDecision): AiDecision {
+  if (decision.action !== 'ask_resolution' && decision.action !== 'resolve') return decision;
+  const reply = decision.action === 'resolve' ? '' : withoutCheckIn(decision.reply);
+  return reply
+    ? { action: 'answer', reply, handoffReason: null }
+    : { action: 'no_reply', reply: '', handoffReason: null };
 }
 
 export interface ResolutionOptions {
@@ -138,15 +161,7 @@ export function guardResolution(
   { resolutionCheck = true }: ResolutionOptions = {},
 ): AiDecision {
   if (decision.action === 'handoff') return decision;
-  if (!resolutionCheck) {
-    if (decision.action !== 'ask_resolution' && decision.action !== 'resolve') return decision;
-    // A resolve reply is a goodbye (never sent mid-conversation); a reply that is nothing but
-    // "Does that answer…?": say nothing and keep the chat.
-    const reply = decision.action === 'resolve' ? '' : withoutCheckIn(decision.reply);
-    return reply
-      ? { action: 'answer', reply, handoffReason: null }
-      : { action: 'no_reply', reply: '', handoffReason: null };
-  }
+  if (!resolutionCheck) return withoutResolution(decision);
   let guarded: AiDecision = decision;
   // A confirmation must be words: a captionless photo or other textless batch never closes a chat.
   if (decision.action === 'resolve')

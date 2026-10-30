@@ -256,9 +256,12 @@ export function buildAiPrompt(
   /** The team's saved details for this customer (`aiCustomer`); none in Try it. */
   customer: AiCustomer | null = null,
 ): AiPrompt {
+  // A group never gets a resolution question.
+  const resolutionRules =
+    !situation.group && asksResolution(knowledge) ? RESOLUTION_RULES_ON : RESOLUTION_RULES_OFF;
   return {
     ...(images.length ? { images: [...images] } : {}),
-    instructions: `${GUARDRAILS}\n\n${CORE_RULES}\n${situation.group ? RESOLUTION_RULES_OFF : asksResolution(knowledge) ? RESOLUTION_RULES_ON : RESOLUTION_RULES_OFF}\nYour name: ${knowledge.displayName}\nYour role: ${PRESET_ROLES[knowledge.preset]}\nAdministrator instructions:\n${administratorInstructions(knowledge)}\nBusiness hand-off rules (choose handoff with handoffReason business_rule when one matches):\n${businessHandoffRules(knowledge.handoffRules)}${situation.group ? `\n${GROUP_RULES}` : ''}`,
+    instructions: `${GUARDRAILS}\n\n${CORE_RULES}\n${resolutionRules}\nYour name: ${knowledge.displayName}\nYour role: ${PRESET_ROLES[knowledge.preset]}\nAdministrator instructions:\n${administratorInstructions(knowledge)}\nBusiness hand-off rules (choose handoff with handoffReason business_rule when one matches):\n${businessHandoffRules(knowledge.handoffRules)}${situation.group ? `\n${GROUP_RULES}` : ''}`,
     input: JSON.stringify({
       internalKnowledge,
       businessKnowledge,

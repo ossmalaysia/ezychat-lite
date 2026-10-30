@@ -296,7 +296,21 @@ describe('resolutionCheck off (sales preset default)', () => {
     ['A. Thanks! I will close this chat now.', 'A. Thanks!'],
     ['这是价格。解答了您的问题吗？', '这是价格。'],
     ['Does that answer your question? A follows.', 'Does that answer your question? A follows.'],
+    ['Thanks! Anything else? Does that answer your question?', 'Thanks!'],
+    ['Does that answer your question?', ''],
   ])('withoutCheckIn(%j) → %j', (reply, expected) => {
     expect(withoutCheckIn(reply)).toBe(expected);
   });
+});
+
+it('strips check-in lines in linear time on a long reply without sentence ends', () => {
+  const long = `${'a'.repeat(50_000)}. Does that answer your question?`;
+  const started = performance.now();
+  expect(withoutCheckIn(long)).toBe(`${'a'.repeat(50_000)}.`);
+  // One long sentence that only mentions a check-in is kept whole.
+  expect(withoutCheckIn(`${'a'.repeat(50_000)} does that answer your question`)).toHaveLength(
+    50_031,
+  );
+  expect(withoutCheckIn(`${'word '.repeat(10_000)}x`)).toBe(`${'word '.repeat(10_000)}x`);
+  expect(performance.now() - started).toBeLessThan(200);
 });
