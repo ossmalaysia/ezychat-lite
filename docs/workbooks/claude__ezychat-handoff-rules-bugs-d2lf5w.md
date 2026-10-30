@@ -5,7 +5,7 @@ Branch: `claude/ezychat-handoff-rules-bugs-d2lf5w` · Every agent updates its st
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | todo |  |  |  |
+| Design | done | HTML mock docs/features/ai-handoff-rules (clone of confirmed grammar-fix 4a6cde77 + Closing chats card; 12 shots, 0 problems; snapshot --check ok); google-calendar folder pruned; waiting for owner confirmation | 7d2e926 | 2026-10-30 |
 | Dev | done | Hand-off rules precedence, consultation = discovery, per-agent resolution question (migration 026, Closing chats card), waiting-after-hand-off push title | de47bf8 | 2026-10-30 |
 | Unit tests | pass | CI green on 825abb9: ubuntu (incl. test:coverage + coverage:changed), macos, windows; SonarCloud gate passed | 825abb9 | 2026-10-30 |
 | E2E | pass | npm run e2e on 825abb9 (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). e2e:electron-links green in CI (windows-latest) on 825abb9 | 825abb9 | 2026-10-30 |
@@ -24,3 +24,4 @@ Branch: `claude/ezychat-handoff-rules-bugs-d2lf5w` · Every agent updates its st
 - 2026-10-30 Unit tests: pass — CI green on 825abb9: ubuntu (incl. test:coverage + coverage:changed), macos, windows; SonarCloud gate passed (825abb9)
 - 2026-10-30 E2E: pass — npm run e2e on 825abb9 (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). e2e:electron-links green in CI (windows-latest) on 825abb9 (825abb9)
 - 2026-10-30 Screen review: done — Closing chats card at 1280/360, light/dark, off/on: no page errors, no horizontal scroll, switch saves on click, 44px target like the Groups card; shots docs/screenshots/ai-member/closing-chats-*. Card unchanged since 2b541b5. No separate HTML mock (Groups card pattern; owner to confirm) (825abb9)
+- 2026-10-30 Design: done — HTML mock docs/features/ai-handoff-rules (clone of confirmed grammar-fix 4a6cde77 + Closing chats card; 12 shots, 0 problems; snapshot --check ok); google-calendar folder pruned; waiting for owner confirmation (7d2e926)
