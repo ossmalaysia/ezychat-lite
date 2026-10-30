@@ -862,6 +862,65 @@ export function createAiService(
   const drainTimer = setInterval(drainPending, 1000);
   drainTimer.unref?.();
 
+  /**
+   * The AI itself resolved this chat last, and since then nobody on the team wrote or acted in it: only the
+   * customer's new messages reopened it (e.g. a closing "thanks").
+   */
+  function resolvedByAgentSinceThen(jid: string, aiUserId: number): boolean {
+    const resolved = ctx.db
+      .prepare(
+        "SELECT actor_id, at FROM chat_events WHERE chat_jid = ? AND type = 'resolved' ORDER BY at DESC, id DESC LIMIT 1",
+      )
+      .get(jid) as { actor_id: number | null; at: number } | undefined;
+    if (resolved?.actor_id !== aiUserId) return false;
+    const teamSince = ctx.db
+      .prepare(
+        `SELECT 1 FROM chat_events WHERE chat_jid = @jid AND at >= @at AND actor_id IS NOT NULL AND actor_id <> @ai
+         UNION ALL
+         SELECT 1 FROM messages WHERE chat_jid = @jid AND from_me = 1 AND type <> 'system' AND created_at > @at
+           AND (sent_by_user_id IS NULL OR sent_by_user_id <> @ai)
+         LIMIT 1`,
+      )
+      .get({ jid, at: resolved.at, ai: aiUserId });
+    return !teamSince;
+  }
+
+  /**
+   * A closing message the AI chose not to answer after it had resolved the chat: acknowledge it with a 👍
+   * reaction (a "👍" reply where the connection cannot react) and resolve the chat again, instead of keeping
+   * an open chat nobody answers. The chat is resolved even when neither can be sent (offline, window closed).
+   */
+  async function closeAfterThanks(
+    jid: string,
+    userId: number,
+    customerId: string,
+    agentId: number,
+    signal: AbortSignal,
+    owned: () => boolean,
+  ) {
+    let ack: 'reaction' | 'reply' | 'none' = 'reaction';
+    try {
+      await messages.sendReaction(customerId, '👍', userId);
+    } catch {
+      ack = 'reply';
+      try {
+        await sendReply(jid, userId, customerId, '👍', signal);
+      } catch {
+        ack = 'none';
+      }
+    }
+    // A new customer message while the 👍 went out needs an answer: keep the chat open for it.
+    if (!owned() || state(jid)?.last_customer_message_id !== customerId) return;
+    chats.patch(jid, { status: 'resolved' }, userId);
+    audit(ctx.db, {
+      userId,
+      action: 'ai.resolve',
+      ip: null,
+      meta: { chatJid: jid, agentId, after: 'thanks' },
+    });
+    log.info({ jid, agentId, ack }, 'AI resolved the chat again after thanks');
+  }
+
   async function sendReply(
     jid: string,
     userId: number,
@@ -1554,11 +1613,14 @@ export function createAiService(
       // Nothing to say (e.g. a bare "ok" / "thanks"): the AI keeps the chat and sends nothing; the
       // batch counts as handled so it is not answered again.
       if (decision.action === 'no_reply') {
+        // The 👍 goes out first: the send guard lets an AI reply out only while the message is unanswered.
+        if (resolvedByAgentSinceThen(jid, user.id))
+          await closeAfterThanks(jid, user.id, customerId, agent.id, controller.signal, owned);
         ctx.db
           .prepare(
-            'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ?',
+            'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ? AND last_customer_message_id = ?',
           )
-          .run(customerId, jid);
+          .run(customerId, jid, customerId);
         return;
       }
       // Consecutive resolution questions: a new question or objection restarts the count at 1.
