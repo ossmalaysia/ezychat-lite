@@ -224,7 +224,11 @@ into AGENTS.md.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
   A critical `server-host` change gets the same packaged run, with the server started through the packaged
   `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
-  the table is realigned and the format check fails otherwise.
+  the table is realigned and the format check fails otherwise. A voice-engine update (`sherpa-onnx-node`)
+  needs a real transcript from the packaged server: make speech with Windows `System.Speech` and
+  `ffmpeg -c:a libopus` to Ogg/Opus, `POST /api/ai/voice/download` and wait for `model.state` `installed`
+  (only then `PATCH /api/ai/voice {transcription:'local'}`), send it with `/api/dev/fake-incoming`
+  (`type:'audio'`, `media.base64`) and read `transcriptStatus`/`transcript` from the chat's messages.
   For `screens.smoke.mjs` against that server add `--web-dist resources/web` (else every page is 404) and
   start it on fresh data (the smoke creates the admin once); its `oauth-authorize` FAIL there is the
   expected 409 of AI assistant access being off, not a fault.
