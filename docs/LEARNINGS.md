@@ -81,7 +81,17 @@ into AGENTS.md.
 - Mock seeds that show AI replies: the seeded AI member is off, so the AI service cancels its queued replies
   ("AI reply cancelled"); set the chat's `assigned_to` in the database (an assignment event triggers the same
   cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
-  `PW_CHROMIUM=/opt/pw-browsers/chromium` (no Edge there).
+  `PW_CHROMIUM` set to the browser binary (`/opt/pw-browsers/chromium-<rev>/chrome-linux64/chrome`; the
+  `/opt/pw-browsers/chromium` folder alone fails to launch; no Edge there).
+- Mock shot scripts: wait for a locator, never `waitForLoadState('networkidle')` (the Socket.IO connection keeps
+  the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
+  first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
+  once per fresh server and vary viewport and colour scheme on that one page.
+- In the cloud container the document parser worker (PDF/Word, `ai/knowledge-worker.ts`) answers "Cannot read this
+  document": 4 server tests and the `ai-member.spec` file upload fail there on `main` too. Check a failure there
+  with `git stash -u` before blaming the branch, and let CI decide. `npm run e2e` there needs the Playwright build
+  it expects: link `/opt/pw-browsers/chromium-<wanted>` (and `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
+  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
