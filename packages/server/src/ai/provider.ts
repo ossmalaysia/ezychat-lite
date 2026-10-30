@@ -5,8 +5,9 @@ import { AgentTurnFailure, agentFailure, errorNameOf, openAiKeyModel } from './a
 import { draftModelSettings, runDraft } from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
+import { runAssist } from './agent/assist.js';
 import { promptCacheKey } from './prompt.js';
-import type { AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
+import type { AiAssistCall, AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
 
@@ -102,6 +103,19 @@ export function rewriteOpenAi(
 ): Promise<{ text: string; model: string }> {
   return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, id, bounded) => ({
     ...(await runRewrite({ model, prompt, signal: bounded })),
+    model: id,
+  }));
+}
+
+/** API key mode: one Ask Ezy turn (all steps share the 60 s bound). */
+export function assistOpenAi(
+  settings: AiSettings,
+  apiKey: string | null,
+  call: AiAssistCall,
+  signal: AbortSignal,
+) {
+  return withOpenAiKey(settings, apiKey, call.cacheId, signal, async (model, id, bounded) => ({
+    ...(await runAssist({ ...call, model, signal: bounded })),
     model: id,
   }));
 }

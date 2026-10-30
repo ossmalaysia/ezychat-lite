@@ -45,6 +45,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { AskEzyButton } from '../askezy/AskEzyButton';
 import { useAppVersion } from '@/lib/version';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
@@ -395,6 +396,7 @@ export function AdminLayout() {
           <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
             {currentLabel ? t('titleWithSection', { section: currentLabel }) : t('title')}
           </p>
+          <AskEzyButton compact />
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon-touch" aria-label={t('layout.menu')}>
@@ -420,6 +422,8 @@ export function AdminLayout() {
               {t('common:appName')}
             </p>
             <p className="text-lg font-semibold">{t('title')}</p>
+            {/* An action, not a page: apart from the page list. */}
+            <AskEzyButton variant="outline" className="mt-3 w-full" />
           </div>
           <AdminMenu version={version ?? undefined} />
         </div>

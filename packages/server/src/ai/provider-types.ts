@@ -1,4 +1,5 @@
-import type { ToolSet } from 'ai';
+import type { ModelMessage, ToolSet } from 'ai';
+import type { AssistResult } from './agent/assist.js';
 import type { z } from 'zod';
 import type {
   AiConnection,
@@ -39,6 +40,16 @@ export interface AgentTurnTiming {
   retries: number;
 }
 export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
+
+/** Ask Ezy: one assistant turn with the signed-in user's read tools (`ask-ezy/`). */
+export interface AiAssistCall {
+  instructions: string;
+  messages: ModelMessage[];
+  tools: ToolSet;
+  cacheId?: string;
+  /** Tool names of each finished step, for the live "Read …" lines. */
+  onStep?: (toolNames: string[]) => void;
+}
 
 /** A reply-draft call: its output format, the fast model for completions, the output bound. */
 export interface AiDraftOptions<T> {
@@ -88,6 +99,13 @@ export interface AiProvider {
     prompt: AiRewritePrompt,
     signal: AbortSignal,
   ): Promise<{ text: string; model: string }>;
+  /** Ask Ezy: one agent turn with read tools and a structured answer (`agent/assist.ts`). */
+  assist?(
+    settings: AiSettings,
+    apiKey: string | null,
+    call: AiAssistCall,
+    signal: AbortSignal,
+  ): Promise<AssistResult & { model: string }>;
   /** Reply suggestions and completions: one tool-free structured call (`agent/draft.ts`). */
   draft?<T>(
     settings: AiSettings,

@@ -13,6 +13,10 @@ into AGENTS.md.
 - A scoring rubric gives "not needed" items their full points only where the item guards a risk the change
   cannot have (no screen → no screen review); a bonus that only one tier can earn (the real-part test for
   critical) scores 0 elsewhere, or every small change jumps to 100. Pin the worked examples in tests.
+- A UI rubric scored by Jev from a reviewer's evidence keeps any dimension with one medium problem near 3,
+  whatever level the reviewer suggests, and each fresh reviewer finds new medium problems, so a Jev average gate
+  stalls near 3.6. Fix every medium problem each round, but gate on the review itself (no high problem, every
+  reviewer level ≥ 4) with a cap of a few rounds; leftover problems go to the feature's design.md follow-ups.
 - Ask for a mock confirmation with the key screenshots in front of the owner (send the image files, one per
   screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
   in `design.md` only after that reply.
@@ -992,6 +996,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A shadcn `Button` with an icon pads through `has-[>svg]:px-*`, which beats a plain `max-sm:px-2`: write the
+  override as `max-sm:has-[>svg]:px-2`, then check the screenshot (the class can be present and do nothing).
 - Electron shows no right-click menu of its own: any copy/paste/spelling/image action the desktop window needs
   comes from a `context-menu` handler (`apps/desktop/src/context-menu.ts`, a pure template builder with tests).
   Offer image and link items only for inbox URLs / http(s) links, never `blob:` previews or `javascript:`.

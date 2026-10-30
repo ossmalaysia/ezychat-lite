@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAppVersion } from '../lib/version';
 import { useInboxes, type ChatFilters as Filters } from '../api/queries';
 import { UserMenu } from '../auth/UserMenu';
+import { AskEzyButton } from '../askezy/AskEzyButton';
 import { EmptyState } from '@/components/app';
 import { cn } from '@/lib/utils';
 import { decodeJid } from '../lib/jid';
@@ -96,11 +97,13 @@ export function InboxPage() {
               <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
                 {t('page.title')}
               </h1>
+              <AskEzyButton />
               {directory.isAdmin && (
                 <Button asChild variant="ghost" size="touch">
-                  <Link to="/admin">
+                  <Link to="/admin" aria-label={t('page.admin')}>
                     <Settings aria-hidden="true" />
-                    {t('page.admin')}
+                    {/* Icon only on phones, to leave room for Ask Ezy. */}
+                    <span className="max-sm:hidden">{t('page.admin')}</span>
                   </Link>
                 </Button>
               )}

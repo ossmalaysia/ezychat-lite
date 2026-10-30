@@ -12,7 +12,8 @@ import { AgentTurnFailure, agentFailure, errorNameOf } from './agent/models.js';
 import { draftModelSettings, runDraft } from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
-import type { AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
+import { runAssist } from './agent/assist.js';
+import type { AiAssistCall, AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
 
 /**
  * The public Anthropic Messages API. Fixed here (never `ANTHROPIC_BASE_URL` from the environment),
@@ -192,6 +193,19 @@ export function extractCustomerClaude(
 }
 
 /** Claude API key mode: one reply-draft call (completions use the fast model). */
+/** Claude key mode: one Ask Ezy turn (all steps share the 60 s bound). */
+export function assistClaude(
+  settings: AiSettings,
+  apiKey: string | null,
+  call: AiAssistCall,
+  signal: AbortSignal,
+) {
+  return withClaudeKey(settings, apiKey, signal, async (model, id, bounded) => ({
+    ...(await runAssist({ ...call, model, signal: bounded })),
+    model: id,
+  }));
+}
+
 export function draftClaude<T>(
   settings: AiSettings,
   apiKey: string | null,

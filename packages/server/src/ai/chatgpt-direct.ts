@@ -18,9 +18,28 @@ import {
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';
-import type { AiDraftOptions, AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
-import { draftOpenAi, extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
-import { draftClaude, extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
+import type {
+  AiAssistCall,
+  AiDraftOptions,
+  AiPrompt,
+  AiProvider,
+  AiRewritePrompt,
+} from './provider-types.js';
+import {
+  assistOpenAi,
+  draftOpenAi,
+  extractCustomerOpenAi,
+  generateOpenAi,
+  rewriteOpenAi,
+} from './provider.js';
+import {
+  assistClaude,
+  draftClaude,
+  extractCustomerClaude,
+  generateClaude,
+  rewriteClaude,
+} from './claude.js';
+import { runAssist } from './agent/assist.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
 import { CHATGPT_DRAFT_REASONING, CHATGPT_FAST_DRAFT_MODELS, runDraft } from './agent/draft.js';
@@ -573,6 +592,21 @@ export class DirectChatGptProvider implements AiProvider {
         signal: turnSignal,
         reasoningEffort: CHATGPT_DRAFT_REASONING,
       }),
+      model: id,
+    }));
+  }
+
+  /** Ask Ezy: one agent turn with read tools on the saved (or Auto) model, reasoning `low`. */
+  async assist(
+    settings: AiSettings,
+    apiKey: string | null,
+    call: AiAssistCall,
+    signal: AbortSignal,
+  ) {
+    if (settings.mode === 'api') return assistOpenAi(settings, apiKey, call, signal);
+    if (settings.mode === 'claude') return assistClaude(settings, apiKey, call, signal);
+    return this.turn(settings, call.cacheId, signal, async (model, turnSignal, id) => ({
+      ...(await runAssist({ ...call, model, signal: turnSignal, reasoningEffort: 'low' })),
       model: id,
     }));
   }

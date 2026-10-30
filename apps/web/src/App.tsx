@@ -10,6 +10,20 @@ import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import { DesktopUpdateNotice } from '@/components/app/DesktopUpdates';
 import { DevBuildBadge } from '@/components/app/DevBuildBadge';
 import { extensionRoutes, useWebExtensions } from './extensions';
+import { useAuth } from './auth/AuthProvider';
+import { AskEzyProvider } from './askezy/AskEzyContext';
+import { AskEzyPanel } from './askezy/AskEzyPanel';
+
+/** Ask Ezy: the panel exists only for a signed-in user, on every signed-in page. */
+function SignedInAskEzy() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <ErrorBoundary>
+      <AskEzyPanel />
+    </ErrorBoundary>
+  );
+}
 
 export function App() {
   const { pathname } = useLocation();
@@ -18,36 +32,39 @@ export function App() {
   // navigating to another route clears it.
   return (
     <ErrorBoundary resetKey={pathname}>
-      <DesktopUpdateNotice />
-      <DevBuildBadge />
-      <Routes>
-        <Route path="/setup" element={<SetupWizard />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/change-password"
-          element={
-            <RequireAuth>
-              <ChangePasswordPage />
-            </RequireAuth>
-          }
-        />
-        <Route element={<RequireAuth />}>
-          <Route path="/" element={<InboxPage />} />
-          {/* MCP sign-in: an AI assistant app asks an admin to approve its connection. */}
-          <Route path="/oauth/authorize" element={<OAuthConsentPage />} />
-          <Route path="/chats/:jid" element={<InboxPage />} />
-          {extensionRoutes(extensions, false)}
-        </Route>
-        <Route
-          path="/admin/*"
-          element={
-            <RequireAuth admin>
-              <AdminLayout />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AskEzyProvider>
+        <DesktopUpdateNotice />
+        <DevBuildBadge />
+        <SignedInAskEzy />
+        <Routes>
+          <Route path="/setup" element={<SetupWizard />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/change-password"
+            element={
+              <RequireAuth>
+                <ChangePasswordPage />
+              </RequireAuth>
+            }
+          />
+          <Route element={<RequireAuth />}>
+            <Route path="/" element={<InboxPage />} />
+            {/* MCP sign-in: an AI assistant app asks an admin to approve its connection. */}
+            <Route path="/oauth/authorize" element={<OAuthConsentPage />} />
+            <Route path="/chats/:jid" element={<InboxPage />} />
+            {extensionRoutes(extensions, false)}
+          </Route>
+          <Route
+            path="/admin/*"
+            element={
+              <RequireAuth admin>
+                <AdminLayout />
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AskEzyProvider>
     </ErrorBoundary>
   );
 }
