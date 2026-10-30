@@ -155,6 +155,9 @@ it('keeps the switch keyboard accessible without submitting network settings', a
     name: 'Allow access from the local network (LAN)',
   });
   await user.click(screen.getByRole('spinbutton', { name: 'Port' }));
+  // The LAN access "?" tip comes first, then the switch.
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'What is LAN access?' }));
   await user.tab();
   expect(document.activeElement).toBe(control);
   await user.keyboard(' ');
