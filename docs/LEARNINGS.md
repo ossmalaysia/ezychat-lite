@@ -153,6 +153,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
+  `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
+  Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
+  `prettier --write` on `docs/release-review/log.md` (`main` keeps it unformatted; it rewrote 117 lines).
 - Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
   ended while two jobs still ran. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
@@ -833,7 +837,10 @@ into AGENTS.md.
 - A send-time guard for automatic AI replies (`canSend` in `sendJob`) runs on every queue attempt, including a
   person's Retry: the AI marks the question answered when WhatsApp first takes the reply, so a later ERROR ack
   (e.g. Baileys `smax-invalid (479)` on a fresh encryption session) left an AI reply that no Retry could send.
-  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message.
+  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message. The same
+  guard lets an AI reply out only while its customer message is unanswered (`eligible`): send first, then set
+  `last_replied_message_id`. "Did the team act since?" queries must skip the AI's own messages
+  (`sent_by_user_id = AI user`); a phone message (`sent_by_user_id` NULL) counts as the team.
 - Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
