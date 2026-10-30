@@ -296,7 +296,7 @@ describe('migrate', () => {
     }
   });
 
-  it('026 turns the resolution question off for sales agents only', () => {
+  it('026 adds the resolution question switch, off for every existing agent', () => {
     const db = new Database(':memory:');
     try {
       for (const file of readdirSync(migrationsDir())
@@ -325,8 +325,8 @@ describe('migrate', () => {
         db.prepare('SELECT preset, resolution_check AS on_ FROM ai_agents ORDER BY id').all(),
       ).toEqual([
         { preset: 'sales', on_: 0 },
-        { preset: 'faq', on_: 1 },
-        { preset: 'custom', on_: 1 },
+        { preset: 'faq', on_: 0 },
+        { preset: 'custom', on_: 0 },
       ]);
     } finally {
       db.close();

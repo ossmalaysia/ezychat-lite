@@ -11,7 +11,7 @@ import type { AiPrompt, AiPromptImage } from './provider-types.js';
 
 export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'handoffRules'> & {
   preset: AiAgentPreset;
-  /** The agent's "Ask if the question is answered" switch; missing = on for every preset but sales. */
+  /** The agent's "Ask if the question is answered" switch; missing = off. */
   resolutionCheck?: boolean;
 };
 
@@ -216,11 +216,11 @@ const CORE_RULES = `You are the business's AI agent on WhatsApp. Answer customer
 export const RESOLUTION_RULES_ON = `Once the question is answered, choose ask_resolution and ask whether that answers their question, in the customer's language; do not invite new questions. If the administrator instructions forbid check-in or follow-up lines, choose answer instead and add none. Choose resolve only when the customer's latest message, sent after your resolution question, clearly confirms in any words that their question is answered. A "yes" that answers another question or adds new facts (for example a location, quantity, company or need) is not a confirmation: continue the conversation with answer. Otherwise answer or ask_resolution.`;
 export const RESOLUTION_RULES_OFF = `Never end a reply with a check-in line such as "Does that answer your question?" or "Anything else?". Never choose ask_resolution or resolve: the team closes chats. When you have answered, choose answer.`;
 
-/** The agent asks the resolution question: its switch, else on for every preset but sales. */
+/** The agent asks the resolution question only when its switch is on (default off for every agent). */
 export function asksResolution(
   knowledge: Pick<AiKnowledge, 'preset' | 'resolutionCheck'>,
 ): boolean {
-  return knowledge.resolutionCheck ?? knowledge.preset !== 'sales';
+  return knowledge.resolutionCheck ?? false;
 }
 
 /**

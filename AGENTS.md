@@ -197,7 +197,7 @@ customer details that changed meanwhile is dropped and regenerated. `prompt_cach
 the agent id (`cacheId = installId#agent:<id>`) and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
 questions, objections, new requests and a "yes" carrying new facts (`addsNewFacts`) keep it open. The resolution
 question is per agent (`ai_agents.resolution_check`, migration 026, card "Closing chats", `PUT
-/api/ai/agents/:agentId/resolution-check`; default off for sales, on for other presets): off, the AI never adds a check-in
+/api/ai/agents/:agentId/resolution-check`; default off for every agent): off, the AI never adds a check-in
 line, never chooses ask_resolution/resolve (`guardResolution` turns them into an answer) and never closes a chat. The
 business hand-off rules' "never hand over" cases win over needs_action, missing_facts and asked_for_human (only safety
 and sensitive always apply); needs_action is only a concrete order, payment or account action, and a consultation,

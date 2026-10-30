@@ -24,7 +24,7 @@
       "baselineFeature": "concept-tips",
       "baselineGitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
       "baselineAppRevision": "b348bbc",
-      "coverage": "Full app clone of the confirmed concept-tips reference; agent page Closing chats card (Ask if the question is answered: off for sales with no check-in line and the team closing chats, on with the clear-yes rule), dashed Mock only preview of the same two customer messages per state, kept per agent in localStorage; desktop 1280 / mobile 360 touch, light/dark (resolution-shots.mjs)"
+      "coverage": "Full app clone of the confirmed concept-tips reference; agent page Closing chats card (Ask if the question is answered: off by default for every agent, with no check-in line and the team closing chats, on with the clear-yes rule), dashed Mock only preview of the same two customer messages per state, kept per agent in localStorage; desktop 1280 / mobile 360 touch, light/dark (resolution-shots.mjs)"
     },
     {
       "feature": "concept-tips",

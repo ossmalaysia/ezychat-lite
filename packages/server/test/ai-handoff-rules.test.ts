@@ -208,7 +208,15 @@ describe('BUG 2: no check-in line, and a "yes" with new facts never closes the c
     expect(missing.statusCode).toBe(404);
   });
 
-  it('a new FAQ agent asks the resolution question, an explicit choice wins', () => {
+  it('switching an agent to FAQ keeps the switch off; an explicit choice is kept on later saves', () => {
+    const ai0 = t.ctx.services.ai!;
+    expect(
+      ai0.saveAgent(
+        agent().id,
+        { displayName: 'Desk', enabled: true, preset: 'faq', instructions: '' },
+        actor,
+      ).agent.resolutionCheck,
+    ).toBe(false);
     const ai = t.ctx.services.ai!;
     const status = ai.saveAgent(
       agent().id,

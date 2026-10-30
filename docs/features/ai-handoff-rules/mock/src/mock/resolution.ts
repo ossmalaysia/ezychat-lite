@@ -1,6 +1,6 @@
 // Proposed (ai-handoff-rules), mock only: each agent's "Ask if the question is answered" switch,
 // kept in this browser (localStorage) like the mock agents. Production: `ai_agents.resolution_check`
-// (migration 026) through PUT /api/ai/agents/:agentId/resolution-check; off for sales, on otherwise.
+// (migration 026) through PUT /api/ai/agents/:agentId/resolution-check; off for every agent.
 import { useSyncExternalStore } from 'react';
 import type { AgentPreset } from './agents';
 
@@ -23,10 +23,10 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** The agent's switch: its saved value, else off for sales and on for the other presets. */
-export function useResolutionCheck(agentId: string, preset: AgentPreset): boolean {
+/** The agent's switch: its saved value, else off (every preset). */
+export function useResolutionCheck(agentId: string, _preset: AgentPreset): boolean {
   const saved = useSyncExternalStore(subscribe, () => state);
-  return saved[agentId] ?? preset !== 'sales';
+  return saved[agentId] ?? false;
 }
 
 export function setResolutionCheck(agentId: string, enabled: boolean) {

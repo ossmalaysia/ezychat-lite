@@ -71,8 +71,11 @@ const toAgent = ({ disabledAt, answerGroups, resolutionCheck, ...row }: Row): Ag
   resolutionCheck: resolutionCheck === 1,
 });
 
-/** A new agent's "Ask if the question is answered": off for sales (no check-in lines), else on. */
-export const defaultResolutionCheck = (preset: AiAgentPreset): boolean => preset !== 'sales';
+/**
+ * A new agent's "Ask if the question is answered": off for every preset (owner, 2026-10-30): no check-in
+ * lines and the team closes chats until an admin switches it on.
+ */
+export const defaultResolutionCheck = (_preset: AiAgentPreset): boolean => false;
 
 function one(db: DB, where: string, value: number): AgentRow | null {
   const row = db.prepare(`${SELECT} AND ${where} = ?`).get(value) as Row | undefined;

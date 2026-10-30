@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a
   team member will help when it really hands the chat over.
 - **No more "Does that answer your question?" after every answer.** Each AI agent page has a new **Closing chats**
-  card with the switch "Ask if the question is answered". It is off for sales agents: the agent adds no check-in
+  card with the switch "Ask if the question is answered". It is off for every agent: the agent adds no check-in
   line and never closes a chat. When it is on, a "yes" that carries new information (for example "yes, we are in
   Malaysia") no longer closes the chat, and the agent never writes "I will close this chat now".
 - **A message in a chat the AI handed over says so.** Its notification now reads "<name> is waiting for a

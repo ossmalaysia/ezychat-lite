@@ -43,9 +43,15 @@ describe('agent prompt layout', () => {
   });
 
   it('keeps every byte up to the end of the core identical for different agents', () => {
-    // Sales asks no resolution question by default, FAQ does: the per-agent block starts after the core.
+    // The per-agent resolution block starts after the core (here: FAQ switched on, sales off).
     const a = build(sales, 'floor price RM 100').instructions;
-    const b = build(faq, 'other secret').instructions;
+    const b = buildAiPrompt(
+      { ...faq, resolutionCheck: true },
+      'other secret',
+      '',
+      [{ speaker: 'customer', text: 'Hi' }],
+      situation,
+    ).instructions;
     const coreEnd = a.indexOf(`\n${RESOLUTION_RULES_OFF}\n`);
     expect(coreEnd).toBeGreaterThan(GUARDRAILS.length);
     expect(b.indexOf(`\n${RESOLUTION_RULES_ON}\n`)).toBe(coreEnd);

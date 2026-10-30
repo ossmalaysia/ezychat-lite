@@ -21,8 +21,8 @@ Only one new card. The prompt and server fixes (consultation = discovery, rule p
 "yes + new facts" guard, the waiting-after-hand-off push title) have no screen.
 
 - Agent page → **Closing chats** card, between Connectors and Groups: one switch **Ask if the question is answered**.
-  - Off (sales default): "{{name}} adds no check-in line and never closes a chat. Your team closes chats."
-  - On (FAQ and custom default): "After an answer, {{name}} asks whether it answers the question and closes the chat
+  - Off (default for every agent): "{{name}} adds no check-in line and never closes a chat. Your team closes chats."
+  - On (an admin switches it on): "After an answer, {{name}} asks whether it answers the question and closes the chat
     when the customer clearly says yes."
   - Saves at once (like the Groups switch); audited `ai.resolution_check_update`.
 - Mock only (dashed box): the same two customer messages answered with the switch off and on.
@@ -41,7 +41,7 @@ Only one new card. The prompt and server fixes (consultation = discovery, rule p
 
 - Changed: `src/admin/AgentPage.tsx` (renders the card), `src/i18n/locales/{en,ms,zh-CN}/admin.json` (`mockResolution.*`).
 - Added: `src/admin/AgentResolutionCard.tsx`, `src/mock/resolution.ts` (switch kept per agent in localStorage
-  `mock.ai-resolution-check`; default off for sales).
+  `mock.ai-resolution-check`; default off for every agent).
 - Runner: `run.ts` (temp-folder name, ready line), `resolution-shots.mjs` (added), every `*-shots.mjs` usage line,
   `reference.json` (concept-tips files frozen as inherited; `snapshot.mjs --check` passes).
 
@@ -59,4 +59,5 @@ Only one new card. The prompt and server fixes (consultation = discovery, rule p
 
 ## Confirmation
 
-Pending: owner to confirm the card and its default (off for sales).
+Confirmed 2026-10-30 by the owner in chat: the card as proposed, with the default changed to **off for every agent**
+(answer "Off for every agent"; merge requested the same day).

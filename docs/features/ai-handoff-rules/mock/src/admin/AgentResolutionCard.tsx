@@ -9,7 +9,7 @@ import { setResolutionCheck, useResolutionCheck } from '../mock/resolution';
 
 /**
  * Proposed (ai-handoff-rules): agent page → Closing chats. The "Ask if the question is answered"
- * switch (off for sales: no check-in line, the team closes chats) and, in a dashed Mock only box,
+ * switch (off by default: no check-in line, the team closes chats) and, in a dashed Mock only box,
  * how the same two customer turns are answered with the switch off or on.
  */
 export function AgentResolutionCard({

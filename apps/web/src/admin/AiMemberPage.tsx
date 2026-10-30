@@ -805,7 +805,7 @@ function AgentEditor({
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
           />
 
-          {/* Resolution question and closing chats (off for sales by default). */}
+          {/* Resolution question and closing chats (off by default). */}
           <AgentResolutionCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}

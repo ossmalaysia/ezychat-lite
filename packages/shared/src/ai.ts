@@ -272,7 +272,7 @@ export const AiAgentBody = z.object({
   instructions: AiMemberBody.shape.instructions,
   handoffRules: AiMemberBody.shape.handoffRules,
   inboxId: z.number().int().positive().nullable().optional(),
-  /** Omitted: unchanged on save, the preset's default on create (off for sales). */
+  /** Omitted: unchanged on save, off on create (every preset). */
   resolutionCheck: z.boolean().optional(),
 });
 export type AiAgentBody = z.infer<typeof AiAgentBody>;

@@ -130,8 +130,8 @@ check(
   s?.resolutionCheck,
 );
 check(
-  f?.resolutionCheck === true,
-  'migration 026: the existing FAQ agent keeps asking',
+  f?.resolutionCheck === false,
+  'migration 026: the existing FAQ agent asks no resolution question either',
   f?.resolutionCheck,
 );
 const st = (await api('GET', `/ai/agents/${s.id}`)).json;

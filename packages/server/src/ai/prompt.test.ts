@@ -75,7 +75,9 @@ it('lets the business "never hand over" rules win over every built-in reason but
     'when they say not to hand over in a case (for example "never hand over on a meeting request"), follow them instead of needs_action, missing_facts and asked_for_human',
   );
   expect(instructions).toContain('only the safety rules and the sensitive hand-off always apply');
-  expect(instructions).toContain('the business hand-off rules may rule out a hand-off as said above');
+  expect(instructions).toContain(
+    'the business hand-off rules may rule out a hand-off as said above',
+  );
 });
 
 it('keeps the reply and the action in agreement and never announces closing the chat', () => {
@@ -87,17 +89,19 @@ it('keeps the reply and the action in agreement and never announces closing the 
 });
 
 describe('resolution question (per agent)', () => {
-  it('is off for the sales preset by default: no check-in line, never ask_resolution/resolve', () => {
+  it('is off by default for every preset: no check-in line, never ask_resolution/resolve', () => {
     expect(asksResolution({ preset: 'sales' })).toBe(false);
+    expect(asksResolution({ preset: 'faq' })).toBe(false);
+    expect(asksResolution({ preset: 'custom' })).toBe(false);
     const { instructions } = buildAiPrompt(knowledge, '', 'Delivery RM10', [], situation);
     expect(instructions).toContain(RESOLUTION_RULES_OFF);
     expect(instructions).not.toContain(RESOLUTION_RULES_ON);
     expect(instructions).not.toContain('Does that answer your question?" in');
   });
 
-  it('is on for the other presets, and the agent switch wins either way', () => {
-    expect(asksResolution({ preset: 'faq' })).toBe(true);
-    expect(asksResolution({ preset: 'custom' })).toBe(true);
+  it('is on only when the agent switch is on', () => {
+    expect(asksResolution({ preset: 'faq', resolutionCheck: true })).toBe(true);
+    expect(asksResolution({ preset: 'sales', resolutionCheck: true })).toBe(true);
     expect(asksResolution({ preset: 'faq', resolutionCheck: false })).toBe(false);
     const on = buildAiPrompt({ ...knowledge, resolutionCheck: true }, '', 'x', [], situation);
     expect(on.instructions).toContain(RESOLUTION_RULES_ON);
