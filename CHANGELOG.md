@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network
   access on every start. The app now checks only the address it really uses, so the question shows only when
   LAN access is on.
+- **A reply from your phone no longer leaves a chat stuck with the AI.** When you answer from the WhatsApp phone in a
+  chat that the AI agent holds, the AI now returns the chat to the team and stays out of it, so new customer messages
+  reach your team again. Chats that an earlier version left stuck are returned to the team when the app starts. Assign
+  a chat to the AI again to let it answer the newest message.
 
 ## [0.1.65] - 2026-10-30
 
