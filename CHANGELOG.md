@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.66] - 2026-10-31
+
 ### Fixed
 
 - **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network
