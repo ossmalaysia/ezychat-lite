@@ -747,6 +747,21 @@ export function createAiService(
       chats.patch(jid, { assignedTo: null }, userId);
     }
   };
+  /**
+   * A person answered on the phone in a chat the AI owns: the chat goes back to the team and the AI
+   * stays paused in it (until it is resolved or assigned to the AI again), so it never talks over them.
+   * Unassign first: the `unassigned` event clears `paused`.
+   */
+  const releaseToTeam = (jid: string) => {
+    const owner = ctx.db
+      .prepare("SELECT assigned_to AS assignedTo FROM chats WHERE jid = ? AND type = 'dm'")
+      .get(jid) as { assignedTo: number | null } | undefined;
+    if (owner?.assignedTo != null && isAiUser(owner.assignedTo)) {
+      chats.patch(jid, { assignedTo: null }, owner.assignedTo);
+      log.info({ jid }, 'AI returned the chat to the team after a phone reply');
+    }
+    pause(jid);
+  };
   const releaseAgent = (agentId: number) => {
     const agent = agentById(ctx.db, agentId);
     if (agent) releaseUser(agent.userId);
@@ -1590,7 +1605,13 @@ export function createAiService(
       (chat.assignedTo !== null && chat.assignedTo !== user.id)
     )
       return;
-    if (state(chat.jid)?.paused) return;
+    if (state(chat.jid)?.paused) {
+      // Keep the newest question, so the AI answers it when the chat is assigned to it again.
+      ctx.db
+        .prepare('UPDATE ai_chat_state SET last_customer_message_id = ? WHERE chat_jid = ?')
+        .run(message.id, chat.jid);
+      return;
+    }
     const dueAt = Date.now() + (chat.assignedTo === user.id ? 300 : AI_FALLBACK_MS);
     ctx.db
       .prepare(
@@ -1609,7 +1630,10 @@ export function createAiService(
       .prepare('SELECT timestamp FROM messages WHERE id = ?')
       .get(s.last_customer_message_id) as { timestamp: number } | undefined;
     // Ignore old history echoes. A current phone reply also counts as a human response.
-    if (customer && message.timestamp >= customer.timestamp) pause(message.chatJid);
+    if (!customer || message.timestamp < customer.timestamp) return;
+    // A phone reply names no teammate, so nobody claims the chat: the AI hands it to the team.
+    if (message.sentByUserId === null) releaseToTeam(message.chatJid);
+    else pause(message.chatJid);
   };
   const onReceived = (event: { chat: Chat; message: Message }) => {
     if (event.message.fromMe) onMessage(event.message);
@@ -1663,6 +1687,20 @@ export function createAiService(
     .on('chat:updated', onChat)
     .on('chat:event', onChatEvent)
     .on('user:disabled', onDisabled);
+
+  // Permanent start-up repair: before 0.1.66 a phone reply paused the AI but left the chat assigned
+  // to it, so later customer messages reached nobody. Every other stop path unassigns the chat.
+  const stuck = (
+    ctx.db
+      .prepare(
+        `SELECT c.jid, c.assigned_to AS owner FROM chats c JOIN ai_chat_state s ON s.chat_jid = c.jid
+         WHERE c.type = 'dm' AND c.status = 'open' AND s.paused = 1 AND c.assigned_to IS NOT NULL`,
+      )
+      .all() as Array<{ jid: string; owner: number }>
+  ).filter((row) => isAiUser(row.owner));
+  for (const { jid } of stuck) releaseToTeam(jid);
+  if (stuck.length)
+    log.info({ count: stuck.length }, 'AI returned paused chats to the team at start');
 
   const summary = (agent: AgentRow): AiAgentSummary => ({
     id: agent.id,
@@ -2430,7 +2468,8 @@ export function createAiService(
       return state === 'connected' && !closed && gateOpen() ? 'ready' : 'unavailable';
     },
     assist(call, signal) {
-      if (!provider.assist) throw new HttpError(503, 'ai_unavailable', 'Ask Ezy is not available now');
+      if (!provider.assist)
+        throw new HttpError(503, 'ai_unavailable', 'Ask Ezy is not available now');
       return provider.assist(
         settingsFor(null),
         aiApiKey(ctx.settings),
