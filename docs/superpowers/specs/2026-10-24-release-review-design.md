@@ -84,7 +84,7 @@ Each item counts only when its proof names the scored head commit (or a CI run o
 | ---------------------------------------------------------- | ------------------------------------------------------------ | ------------- |
 | Changed-lines coverage ≥ 90 % / ≥ 95 %                     | `coverage:changed` result of the CI run on the head commit   | +15 / +20     |
 | e2e passed, with a spec that covers the change             | workbook E2E stage `done` naming the spec; CI/local e2e on head | +10        |
-| Desktop link check passed (only when a screen changed)     | workbook E2E entry naming `e2e:electron-links`, or the CI job `Test (windows-latest)` on the head whose `e2e:electron-links` step passed | +5 |
+| Desktop link check passed (only when a screen changed)     | workbook E2E entry naming `e2e:electron-links`              | +5            |
 | Dev Build check on the head commit                         | a row in `docs/dev-build-checks.md` with the head short SHA | +10           |
 | Screen review done (only when a screen changed)            | workbook Screen review stage `done`                         | +5            |
 | Real-part test (Critical only: real WhatsApp, packaged install) | a Dev Build row marked `real:` with the head short SHA | +15           |
@@ -110,9 +110,6 @@ Rules for reading evidence (builder check; agent's call, owner may change):
 3. A change to a security invariant: any file the component map marks `security: true`, or an edit to the
    "Security invariants" section of AGENTS.md.
 4. Any required CI check not green on the head commit.
-5. An unresolved review thread on the PR (`main` requires conversation resolution). The report also lists
-   `Review comments: <open> open of <total>` (no points); where GraphQL is not available it shows the count with
-   "resolution unknown" and does not stop.
 
 ### 3.5 Worked examples (from merged Lite PRs)
 

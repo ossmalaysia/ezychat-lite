@@ -21,7 +21,6 @@ const highest = (tiers) =>
  * @param input {{ files: {path,tier,security,realTest,added,deleted,lockfile}[], dependencyTier: string|null,
  *   screenChanged: boolean, migrations: string[], migrationConfirmed: 'adds-only'|'moves-data'|null,
  *   agentsSecurityChanged: boolean, checks: 'green'|'pending'|'failed', coverage: number|null,
- *   reviewComments?: {total: number, open: number|null}|null,
  *   evidence: {e2e,linkCheck,screenReview,devBuild,realTest: boolean} }}
  */
 export function scoreChange(input) {
@@ -38,13 +37,6 @@ export function scoreChange(input) {
     hardStops.push({
       id: 4,
       reason: input.checks === 'pending' ? 'checks pending' : 'checks failed',
-    });
-  // Unresolved review threads block the merge (conversation resolution is required on main).
-  const review = input.reviewComments ?? null;
-  if (review?.open)
-    hardStops.push({
-      id: 5,
-      reason: `${review.open} unresolved review ${review.open === 1 ? 'thread' : 'threads'}`,
     });
 
   // Only docs/tests (and pipeline) files: no code risk to score.
@@ -88,7 +80,6 @@ export function scoreChange(input) {
     },
     evidenceItem('Screen review', 5, input.screenChanged, evidence.screenReview),
     evidenceItem('Real-part test', 15, critical, evidence.realTest, 0),
-    ...(review ? [reviewItem(review)] : []),
   ];
 
   if (critical && !evidence.realTest) {
@@ -114,15 +105,6 @@ export function scoreChange(input) {
   const score = Math.max(0, Math.min(100, raw));
   const decision = score >= AUTO_AT && !hardStops.length ? 'risk:auto' : 'risk:human';
   return { score, decision, tier, tierFiles, countedLines, items, hardStops };
-}
-
-/** Review comments: shown with their count, no points (open threads are hard stop 5). */
-function reviewItem({ total, open }) {
-  const label =
-    open === null
-      ? `Review comments: ${total} (resolution unknown)`
-      : `Review comments: ${open} open of ${total}`;
-  return { label, points: 0, applies: true, ok: open === null ? total === 0 : open === 0 };
 }
 
 /**

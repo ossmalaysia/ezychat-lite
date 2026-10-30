@@ -165,8 +165,6 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
-- CI's `Test (windows-latest)` job runs `npm run e2e:electron-links` on every non-docs PR: the release review counts
-  that step on the head as the desktop link check, so never ask the owner to run it by hand.
 - Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
   rename/rename pairs: restore each new folder whole from its own side (`git rm -r --cached`, then
   `git checkout <side> -- docs/features/<name>`), rebuild `mock-index.json` from `main`'s copy plus your entry with the

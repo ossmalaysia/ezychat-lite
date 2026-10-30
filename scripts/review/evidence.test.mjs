@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { parseWorkbook, setStage } from '../build-summary.mjs';
 import { loadMap } from './components.mjs';
 import {
-  ciLinkCheck,
   coverageFromLog,
   devBuildEvidence,
   devBuildRows,
   evidenceShaValid,
-  reviewCommentCounts,
   workbookEvidence,
 } from './evidence.mjs';
 
@@ -92,30 +90,5 @@ describe('coverage line', () => {
     );
     expect(coverageFromLog('changed-lines coverage: no changed executable lines')).toBe(100);
     expect(coverageFromLog('nothing here')).toBeNull();
-  });
-});
-
-describe('CI evidence', () => {
-  const step = (name, conclusion) => ({ name, conclusion });
-  it('counts the link check only when the e2e:electron-links step passed', () => {
-    const job = (conclusion) => ({
-      steps: [step('Run npm test', 'success'), step('Run npm run e2e:electron-links', conclusion)],
-    });
-    expect(ciLinkCheck(job('success'))).toBe(true);
-    expect(ciLinkCheck(job('failure'))).toBe(false);
-    // Skipped on a docs-only run: the job is green but the check never ran.
-    expect(ciLinkCheck(job('skipped'))).toBe(false);
-    expect(ciLinkCheck({ steps: [step('Run npm test', 'success')] })).toBe(false);
-    expect(ciLinkCheck(null)).toBe(false);
-  });
-
-  it('counts review comments and the unresolved threads', () => {
-    const comments = [{ id: 1 }, { id: 2 }, { id: 3 }];
-    expect(reviewCommentCounts(comments, [{ isResolved: true }, { isResolved: false }])).toEqual({
-      total: 3,
-      open: 1,
-    });
-    expect(reviewCommentCounts(comments, null)).toEqual({ total: 3, open: null });
-    expect(reviewCommentCounts([], [])).toEqual({ total: 0, open: 0 });
   });
 });

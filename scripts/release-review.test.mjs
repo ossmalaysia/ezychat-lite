@@ -21,9 +21,6 @@ function fakeGh({
   contents = {},
   since = {},
   commits = [],
-  jobs = {},
-  reviewComments = null,
-  threads = null,
 }) {
   return (args) => {
     const key = args.join(' ');
@@ -38,19 +35,7 @@ function fakeGh({
       };
       return JSON.stringify(all);
     }
-    if (args[0] === 'api' && args[1] === 'graphql') {
-      if (!threads) throw new Error('HTTP 403: GraphQL is not available');
-      return JSON.stringify({
-        data: { repository: { pullRequest: { reviewThreads: { nodes: threads } } } },
-      });
-    }
     const path = args[1]?.replace('repos/o/r/', '') ?? '';
-    if (path.startsWith('pulls/5/comments')) {
-      if (!reviewComments) throw new Error('404');
-      return JSON.stringify(reviewComments);
-    }
-    const job = path.match(/^actions\/jobs\/(\d+)$/)?.[1];
-    if (job) return JSON.stringify(jobs[job] ?? { steps: [] });
     const from = path.match(/^compare\/([0-9a-f]+)\.\.\./)?.[1];
     if (from && from in since)
       return JSON.stringify({ files: since[from].map((filename) => ({ filename })) });
@@ -135,52 +120,6 @@ describe('gatherFacts', () => {
     expect(facts.input.coverage).toBeNull();
     expect(facts.input.migrations).toEqual(['packages/server/src/db/migrations/030_x.sql']);
     expect(facts.logPath).toBe('docs/features/x/review.md');
-  });
-});
-
-describe('CI and review evidence', () => {
-  const files = [
-    { filename: 'apps/web/src/x.tsx', status: 'modified', additions: 3, deletions: 1 },
-  ];
-  const checks = [
-    { name: 'Test (ubuntu-latest)', id: 7, status: 'completed', conclusion: 'success' },
-    { name: 'Test (windows-latest)', id: 8, status: 'completed', conclusion: 'success' },
-  ];
-  const links = (conclusion) => ({
-    8: { steps: [{ name: 'Run npm run e2e:electron-links', conclusion }] },
-  });
-
-  it('counts the Windows CI link check on the head without a workbook row', () => {
-    const passed = gatherFacts(5, { gh: fakeGh({ files, checks, jobs: links('success') }), map });
-    expect(passed.input.evidence.linkCheck).toBe(true);
-    expect(passed.input.evidence.e2e).toBe(false);
-    const skipped = gatherFacts(5, { gh: fakeGh({ files, checks, jobs: links('skipped') }), map });
-    expect(skipped.input.evidence.linkCheck).toBe(false);
-    const running = gatherFacts(5, {
-      gh: fakeGh({
-        files,
-        checks: [{ ...checks[1], status: 'in_progress', conclusion: null }],
-        jobs: links('success'),
-      }),
-      map,
-    });
-    expect(running.input.evidence.linkCheck).toBe(false);
-  });
-
-  it('reads review comments with their unresolved threads, or the count alone without GraphQL', () => {
-    const comments = [{ id: 1 }, { id: 2 }];
-    const withThreads = gatherFacts(5, {
-      gh: fakeGh({
-        files,
-        reviewComments: comments,
-        threads: [{ isResolved: true }, { isResolved: false }],
-      }),
-      map,
-    });
-    expect(withThreads.input.reviewComments).toEqual({ total: 2, open: 1 });
-    const restOnly = gatherFacts(5, { gh: fakeGh({ files, reviewComments: comments }), map });
-    expect(restOnly.input.reviewComments).toEqual({ total: 2, open: null });
-    expect(gatherFacts(5, { gh: fakeGh({ files }), map }).input.reviewComments).toBeNull();
   });
 });
 

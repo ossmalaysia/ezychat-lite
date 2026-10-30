@@ -67,24 +67,3 @@ export function coverageFromLog(text) {
   const m = text.match(/changed-lines coverage: ([\d.]+) %/);
   return m ? Number(m[1]) : null;
 }
-
-/**
- * The desktop link check from CI: the Windows job of the head ran `npm run e2e:electron-links`
- * (every external link on every screen in the real Electron window) and that step passed.
- * `job` is the Actions job (`GET actions/jobs/<id>`) with its steps.
- */
-export function ciLinkCheck(job) {
-  return Boolean(
-    job?.steps?.some(
-      (step) => /e2e:electron-links/.test(step.name ?? '') && step.conclusion === 'success',
-    ),
-  );
-}
-
-/** Review comments of the PR: `total` comments, `open` unresolved threads (null = not known). */
-export function reviewCommentCounts(comments, threads) {
-  return {
-    total: comments.length,
-    open: threads === null ? null : threads.filter((thread) => !thread.isResolved).length,
-  };
-}
