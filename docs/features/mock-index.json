@@ -6,17 +6,17 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-direct-chats",
-    "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
-    "mock": "docs/features/ai-direct-chats/mock/index.html",
-    "design": "docs/features/ai-direct-chats/design.md",
+    "feature": "concept-tips",
+    "gitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
+    "mock": "docs/features/concept-tips/mock/index.html",
+    "design": "docs/features/concept-tips/design.md",
     "confirmedAt": "2026-10-30",
-    "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\")."
+    "confirmation": "Owner reviewed round 1 (\"too many text\"), asked for the shorter round 2 cards (\"yes\"), reviewed them and set the goal 2026-10-30 (\"build it, test it for ezychat lite and enterprise, than merge, no need release\"). Open questions defaulted to the proposals: the ? marker; Enterprise tips in the same change."
   },
   "proposals": [
     {
       "feature": "ai-direct-chats",
-      "creationOrder": 21,
+      "creationOrder": 22,
       "createdAt": "2026-10-30",
       "design": "docs/features/ai-direct-chats/design.md",
       "mock": "docs/features/ai-direct-chats/mock/index.html",
@@ -27,7 +27,24 @@
       "coverage": "Full app clone of the confirmed grammar-fix reference; agent page Direct chats card (Answer direct chats on by default; off with Answer in groups on = group-only info; off with groups off = answers-nothing warning; confirm dialog releasing the agent's open direct chats), the AI agent left out of a direct chat's assignee list while off, card hidden for a Business API inbox; mock-only route PUT /api/mock/groups/agents/:agentId/direct; desktop 1280 / mobile 360 touch, light/dark (direct-shots.mjs)",
       "confirmedAt": "2026-10-30",
       "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
-      "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d"
+      "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
+      "parallelFeatures": ["concept-tips"],
+      "note": "Confirmed in parallel with concept-tips (both cloned from grammar-fix): neither mock has the other's change. The next enhancement clones latestConfirmed (concept-tips) and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys)."
+    },
+    {
+      "feature": "concept-tips",
+      "creationOrder": 21,
+      "createdAt": "2026-10-30",
+      "design": "docs/features/concept-tips/design.md",
+      "mock": "docs/features/concept-tips/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "grammar-fix",
+      "baselineGitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
+      "baselineAppRevision": "2ea78a9",
+      "coverage": "Full app clone of the confirmed grammar-fix reference; a \"?\" tip (InfoTip) beside 15 new-concept labels and titles: setup wizard (Link your WhatsApp number, About your business, Connect the AI, OpenAI and Claude API key), Settings -> AI (AI connection, API keys, model, voice messages), Settings -> General (LAN access), Settings -> Integrations (AI assistant access, access tokens), AI agent page (Business context, Role, Hand-over rules, Try it), Phone access, Connectors; each card: what it is in plain words, how to get it (numbered steps), a note (safety, cost or the easier way), a button to the outside page (OpenAI, Anthropic keys) and Read the full guide (ezychat.ai guide in the app language, utm tags only); desktop 1280 / mobile 360 touch, light/dark, seeded and fresh install (tips-shots.mjs)",
+      "confirmedAt": "2026-10-30",
+      "confirmation": "Owner reviewed round 1 (\"too many text\"), asked for the shorter round 2 cards (\"yes\"), reviewed them and set the goal 2026-10-30 (\"build it, test it for ezychat lite and enterprise, than merge, no need release\"). Open questions defaulted to the proposals: the ? marker; Enterprise tips in the same change.",
+      "gitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d"
     },
     {
       "feature": "ask-ezy",
@@ -88,7 +105,12 @@
       "coverage": "Full app clone of the confirmed google-calendar reference plus Admin -> Reports and the PR #192 Bookings tab; the connector gallery read from a signed connector list (format 1; entries with schemaVersion, minAppVersion, kind mcp/builtin/coming_soon, editions): status line \"Connector list updated 2 hours ago · Check for new connectors\", list loaded / offline (last copy) / bad signature (warning, last good copy), an entry for a newer EzyChat greyed with \"Update EzyChat to use this connector\", a schema-2 entry never shown, an Enterprise-only entry in Lite, coming-soon entries with Vote, Google Calendar (MCP) beside the built-in one behind a mock-only switch; partner (MCP) pages (publisher and website, tools with Look-up / Changes data, privacy line before Connect, details for your developer); Connect with a stand-in partner sign-in tab (waiting, cancelled, connected) or an API key dialog (Test, Save, key refused), partner server unreachable; Settings per AI agent from the entry's form (select, toggle, text, days, time range, calendar picker), one switch per tool (changes-data tools off), Rules the AI always follows from the declared guards; Activity (looked up, done, refused with reason, failed); connected but no longer listed; agent page Connectors card rows; mock-only routes /api/mock/connector-list*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise (connector-list-shots.mjs)",
       "confirmedAt": "2026-10-27",
       "confirmation": "Owner reviewed the review page (gallery from the signed list, partner page, OAuth and API key connect, per-agent settings and rules, Activity, No longer available), answered the four questions (anyone may send entries; removed connectors keep working flagged No longer available; list refresh at start and when the connector page opens; icons with the list), asked for common sign-in types (oauth, oauth_own_app, api_key, credentials, none) and confirmed 2026-10-27 (\"yes, build it\").",
-      "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06"
+      "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06",
+      "archived": {
+        "folderRemovedAt": "2026-10-30",
+        "lastRevision": "ee6c347e09362e31d754e4cdc971538935cd9641",
+        "reason": "retention: sixth feature folder (ai-direct-chats)"
+      }
     },
     {
       "feature": "google-calendar",
@@ -107,8 +129,8 @@
       "parallelFeatures": ["reports"],
       "archived": {
         "folderRemovedAt": "2026-10-30",
-        "lastRevision": "cc0a759",
-        "reason": "retention: sixth feature folder (ai-direct-chats)"
+        "lastRevision": "2ea78a96c81a5f026d04190de919806134880b59",
+        "reason": "retention: sixth feature folder (concept-tips)"
       }
     },
     {

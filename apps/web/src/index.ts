@@ -55,6 +55,9 @@ export {
   type StatusTone,
 } from '@/components/app';
 export { ErrorBoundary } from '@/components/app/ErrorBoundary';
+// "?" tips that explain a concept: core topics by name, or an edition's own text.
+export { InfoTip, type InfoTipContent, type InfoTipProps } from '@/components/app/InfoTip';
+export { TIP_TOPICS, type TipGuide, type TipTopic } from '@/lib/tips';
 
 // shadcn/ui primitives.
 export * from '@/components/ui/alert-dialog';

@@ -78,6 +78,7 @@ import {
   useWebExtensions,
   type AgentSectionInfo,
 } from '../extensions';
+import { InfoTip } from '@/components/app/InfoTip';
 
 const PILL_TONE = {
   on: 'success',
@@ -840,7 +841,10 @@ function AgentEditor({
             className="scroll-mt-16 gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring md:scroll-mt-4"
           >
             <CardHeader>
-              <CardTitle>{t('ai.agents.tryTitle')}</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>{t('ai.agents.tryTitle')}</CardTitle>
+                <InfoTip topic="tryIt" />
+              </div>
             </CardHeader>
             <CardContent>
               <AiTryIt
@@ -869,7 +873,10 @@ function AgentEditor({
         <div className="flex flex-col gap-4 border-t p-4">
           <Card className="gap-4">
             <CardHeader className={EDIT_HEADER}>
-              <CardTitle>{t('ai.agents.roleTitle')}</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>{t('ai.agents.roleTitle')}</CardTitle>
+                <InfoTip topic="instructions" />
+              </div>
               {editWithAi(AiEditField.enum.instructions)}
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
@@ -917,7 +924,10 @@ function AgentEditor({
 
           <Card className="gap-4">
             <CardHeader className={EDIT_HEADER}>
-              <CardTitle>{t('ai.agents.handoffTitle')}</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>{t('ai.agents.handoffTitle')}</CardTitle>
+                <InfoTip topic="handoff" />
+              </div>
               {editWithAi(AiEditField.enum.handoffRules)}
             </CardHeader>
             <CardContent className="flex flex-col gap-3">

@@ -42,6 +42,7 @@ import {
 import { useChatgptSignIn } from './use-chatgpt-sign-in';
 import { ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import { cn } from '@/lib/utils';
+import { InfoTip } from '@/components/app/InfoTip';
 
 /** Radix Select needs a non-empty value; '' (Auto) is what is stored. */
 const AUTO_MODEL = 'auto';
@@ -218,7 +219,10 @@ function ConnectionForm({
   return (
     <Card className="gap-4">
       <CardHeader>
-        <CardTitle>{t('ai.settingsTitle')}</CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle>{t('ai.settingsTitle')}</CardTitle>
+          <InfoTip topic="aiConnection" />
+        </div>
         <CardDescription>{t('ai.settingsDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -405,6 +409,7 @@ function ConnectionForm({
           {draft.mode === 'chatgpt' ? (
             <Field
               label={t('ai.chatgptModel')}
+              tip="aiModel"
               hint={models.data?.source === 'live' ? t('ai.modelsLive') : t('ai.modelsFallback')}
             >
               {(p) => (
@@ -430,7 +435,7 @@ function ConnectionForm({
           ) : draft.mode === 'claude' ? (
             <div className="flex flex-col gap-3">
               {/* '' (the server's default) shows as Sonnet, the default model. */}
-              <Field label={t('ai.claude.model')} hint={t('ai.claude.modelHint')}>
+              <Field label={t('ai.claude.model')} hint={t('ai.claude.modelHint')} tip="aiModel">
                 {(p) => (
                   <Select
                     value={draft.model || CLAUDE_DEFAULT_MODEL}
@@ -471,7 +476,7 @@ function ConnectionForm({
                 {t('ai.modelAdvanced')}
               </Button>
               <div id={apiModelId} hidden={!showApiModel}>
-                <Field label={t('ai.model')} hint={t('ai.apiModelHint')}>
+                <Field label={t('ai.model')} hint={t('ai.apiModelHint')} tip="aiModel">
                   {(p) => (
                     <Input
                       {...p}
@@ -595,7 +600,10 @@ function KeyEditor({
     // A saved key is never shown; say so plainly instead of an empty "hidden" field.
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm leading-none font-medium">{label}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm leading-none font-medium">{label}</p>
+          <InfoTip topic={claude ? 'claudeKey' : 'apiKey'} />
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
           <span className="inline-flex items-center gap-2 text-sm">
             <KeyRound className="size-4 text-success" aria-hidden />
@@ -618,6 +626,7 @@ function KeyEditor({
     <div className="flex flex-col gap-2">
       <Field
         label={label}
+        tip={claude ? 'claudeKey' : 'apiKey'}
         hint={saved ? t('ai.keepKeyHint') : claude ? t('ai.claude.keyHint') : t('ai.apiKeyHint')}
         error={check.data && !check.data.ok ? keyTestMessage(t, check.data.error, mode) : undefined}
       >

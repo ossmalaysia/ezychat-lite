@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CopyButton, ErrorState, Field, Pending } from './adminUi';
 import { CloudflareSetup } from './CloudflareSetup';
+import { InfoTip } from '@/components/app/InfoTip';
 
 /** Tunnel state → translation key in the `admin` namespace. */
 const STATE_LABEL_KEY = {
@@ -116,7 +117,10 @@ export function TunnelPage() {
 
       <Card className="gap-4">
         <CardHeader className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <CardTitle>{t('tunnel.connectTitle')}</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle>{t('tunnel.connectTitle')}</CardTitle>
+            <InfoTip topic="tunnel" />
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusDot
               tone={stateTone(s.state)}

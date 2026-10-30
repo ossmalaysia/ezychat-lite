@@ -25,6 +25,8 @@ Status: **confirmed** 2026-10-30 (see Confirmation). Branch `claude/elegant-plan
   2026-10-28), the conversation header assignee select, `ConfirmDialog`, `Banner`.
 - Retention: new feature folder (6th); the oldest, `google-calendar` (last revision on `main` `cc0a759`), is pruned in
   the same change.
+- Built in parallel with `concept-tips` (also cloned from grammar-fix, merged first): after merging `main` this is
+  creation 22 and `connector-list` is pruned instead (last revision on `main` before the merge).
 
 ## Behaviour
 

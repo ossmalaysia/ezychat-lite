@@ -10,7 +10,11 @@ are listed here until they get a branch. Newest first; remove an item when its P
   session while verifying PR ossmalaysia/ezychat-lite#229). Find whether the CLI start line or the limit changed.
 - The document-parser worker (`ai/knowledge-worker.ts`, TypeScript entry through `--import tsx`) answers "Cannot read
   this document" for every file in the Linux cloud container: `src/ai/knowledge.test.ts`, the upload tests in
-  `ai.test.ts`/`ai-agents-routes.test.ts` and the e2e upload in `ai-member.spec.ts` fail there. Check on CI and Windows.
+  `ai.test.ts`/`ai-agents-routes.test.ts` and the e2e upload in `ai-member.spec.ts` fail there, while CI on
+  `ubuntu-latest` passes them. Find what the container lacks (likely `tsx` in a worker thread) so local runs are clean.
+- **One name for hand-over.** Setup, Settings and the audit say "Hand-off rules"; the agent page says "Hand-over
+  rules", and its ms and zh catalogs still show the English words (`ai.agents.handoffTitle`). Pick one word in every
+  language (found in the concept-tips screen review, 2026-10-30).
 - **Flaky on Windows CI:** `packages/server/test/ai-agents-repo.test.ts` › "creates an agent, updates only the
   given texts and keeps a saved blank" timed out after 30 s once on `windows-latest` (PR #220 docs-only run;
   passed on rerun). Fix it in its own PR.

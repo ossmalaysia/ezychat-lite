@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, ErrorState, ListSkeleton, Pending } from './adminUi';
+import { InfoTip } from '@/components/app/InfoTip';
 
 const MB = 1024 * 1024;
 /** Shown on the download button, rounded to 10 MB (the pinned files total ~358 MiB). */
@@ -88,7 +89,10 @@ function VoiceCard({ status }: { status: VoiceStatus }) {
   return (
     <Card className="gap-4">
       <CardHeader>
-        <CardTitle>{t('ai.voice.title')}</CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle>{t('ai.voice.title')}</CardTitle>
+          <InfoTip topic="voice" />
+        </div>
         <CardDescription>{t('ai.voice.description')}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
