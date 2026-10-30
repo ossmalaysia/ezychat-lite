@@ -2,27 +2,16 @@
 // Ask Ezy's status, questions and Apply are answered in the browser with demo answers (the NDJSON stream
 // the server sends), so no model is ever called.
 // Usage: node e2e/ask-ezy-screens.mjs <port> <outDir>
-/* global document -- used inside page.evaluate (runs in the browser) */
-import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  apiPost,
+  eachScreen,
+  launchBrowser,
+  screensArgs,
+  shot,
+  signInDemoAdmin,
+} from './screens-common.mjs';
 
-const PORT = Number(process.argv[2] ?? 7477);
-if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
-  throw new Error('The port must be an integer between 1024 and 65535.');
-/** Screenshots go only inside this repository or the system temp folder. */
-const inside = (base, path) => {
-  const rel = relative(base, path);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-};
-const repo = resolve(import.meta.dirname, '..');
-const OUT = resolve(repo, process.argv[3] ?? 'ask-ezy-screens');
-if (!inside(repo, OUT) && !inside(resolve(tmpdir()), OUT))
-  throw new Error('The output folder must be inside the repository or the temp folder.');
-const BASE = `http://127.0.0.1:${PORT}`;
-mkdirSync(OUT, { recursive: true });
-const ADMIN = { username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' };
+const { base: BASE, out: OUT } = screensArgs('ask-ezy-screens');
 const FARAH = '60123110021@s.whatsapp.net';
 const PRIYA = '60124410087@s.whatsapp.net';
 const SITI = '60127730045@s.whatsapp.net';
@@ -148,117 +137,76 @@ const answerFor = (question) =>
         ? CHANGE
         : SUMMARY;
 
-async function post(path, body, cookie = '') {
-  const res = await fetch(BASE + '/api' + path, {
-    method: 'POST',
-    headers: { origin: BASE, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    body: JSON.stringify(body),
-  });
-  return { res, cookie: res.headers.get('set-cookie')?.split(';')[0] ?? cookie };
-}
-
-if ((await (await fetch(BASE + '/api/setup/status')).json()).needsSetup)
-  await post('/setup/admin', ADMIN);
-const { cookie } = await post('/auth/login', {
-  username: ADMIN.username,
-  password: ADMIN.password,
-});
+const cookie = await signInDemoAdmin(BASE);
 for (const [jid, name, text] of [
   [FARAH, 'Farah Aziz', 'Can I book catering for 30 people this Saturday?'],
   [SITI, 'Siti Rahman', 'Ada hantar ke Bayan Lepas tak? Berapa caj?'],
   [PRIYA, 'Priya Nair', 'Is the 2 kg kopi bag back in stock?'],
 ])
-  await post('/dev/fake-incoming', { chatJid: jid, senderName: name, text }, cookie);
+  await apiPost(BASE, '/dev/fake-incoming', { chatJid: jid, senderName: name, text }, cookie);
 
-const browser = await chromium
-  .launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {})
-  .catch(() => chromium.launch({ channel: process.env.PW_CHANNEL ?? 'msedge' }));
+const browser = await launchBrowser();
 const problems = [];
-const sizes = {
-  desktop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 },
-  mobile: {
-    viewport: { width: 360, height: 780 },
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-  },
-};
-for (const scheme of ['light', 'dark'])
-  for (const [size, options] of Object.entries(sizes)) {
-    const tag = `${size}${scheme === 'dark' ? '-dark' : ''}`;
-    const ctx = await browser.newContext({ ...options, baseURL: BASE, colorScheme: scheme });
-    const [name, value] = cookie.split('=');
-    await ctx.addCookies([{ name, value, url: BASE }]);
-    await ctx.route('**/api/ask-ezy/status', (r) => r.fulfill({ json: { connected: true } }));
-    await ctx.route('**/api/ask-ezy', (r) => {
-      const { question } = r.request().postDataJSON();
-      const answer = answerFor(question);
-      const lines = [
-        ...answer.steps.map((s) => ({ type: 'step', ...s })),
-        { type: 'answer', answer },
-      ];
-      return r.fulfill({
-        contentType: 'application/x-ndjson',
-        body: lines.map((l) => JSON.stringify(l)).join('\n') + '\n',
-      });
+await eachScreen(browser, BASE, cookie, async (ctx, tag) => {
+  await ctx.route('**/api/ask-ezy/status', (r) => r.fulfill({ json: { connected: true } }));
+  await ctx.route('**/api/ask-ezy', (r) => {
+    const { question } = r.request().postDataJSON();
+    const answer = answerFor(question);
+    const lines = [
+      ...answer.steps.map((s) => ({ type: 'step', ...s })),
+      { type: 'answer', answer },
+    ];
+    return r.fulfill({
+      contentType: 'application/x-ndjson',
+      body: lines.map((l) => JSON.stringify(l)).join('\n') + '\n',
     });
-    await ctx.route('**/api/ask-ezy/changes/*/apply', (r) =>
-      r.fulfill({ json: { status: 'applied', version: 7 } }),
-    );
-    const page = await ctx.newPage();
-    page.on('pageerror', (e) => problems.push(`${tag} pageerror: ${e.message}`));
-    const panel = page.getByTestId('ask-ezy-panel');
-    const shot = async (file) => {
-      if (
-        await page.evaluate(
-          () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        )
-      )
-        problems.push(`${tag} ${file}: horizontal overflow`);
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: join(OUT, `${file}-${tag}.png`) });
-    };
-    const ask = async (question) => {
-      // A new question starts a clean conversation (the first one has nothing to clear).
-      await panel
-        .getByRole('button', { name: 'Start over' })
-        .click({ timeout: 1_000 })
-        .catch(() => {});
-      await page
-        .getByRole('alertdialog')
-        .getByRole('button', { name: 'Start over' })
-        .click({ timeout: 1_000 })
-        .catch(() => {});
-      await panel.getByRole('textbox').fill(question);
-      await panel.getByRole('button', { name: 'Send' }).click();
-      await panel.getByTestId('ask-ezy-answer').last().waitFor();
-    };
-
-    await page.goto('/');
-    await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
-    await panel.getByText('Try one').waitFor();
-    await shot('start');
-    await ask('How is my inbox this week?');
-    await shot('week-stats');
-    await ask('Which customers wait for a reply?');
-    await shot('waiting-chats');
-    await ask('Fix my knowledge and hand-off rules');
-    await panel.getByTestId('ask-block-change-demo-change-1').scrollIntoViewIfNeeded();
-    await shot('suggested-change');
+  });
+  await ctx.route('**/api/ask-ezy/changes/*/apply', (r) =>
+    r.fulfill({ json: { status: 'applied', version: 7 } }),
+  );
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => problems.push(`${tag} pageerror: ${e.message}`));
+  const panel = page.getByTestId('ask-ezy-panel');
+  const ask = async (question) => {
+    // A new question starts a clean conversation (the first one has nothing to clear).
     await panel
-      .getByTestId('ask-block-change-demo-change-1')
-      .getByRole('button', { name: 'Apply' })
-      .click();
-    await panel.getByText('Undo stays here', { exact: false }).waitFor();
-    await shot('applied-undo');
-    await panel.getByRole('button', { name: 'Close Ask Ezy' }).click();
+      .getByRole('button', { name: 'Start over' })
+      .click({ timeout: 1_000 })
+      .catch(() => {});
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Start over' })
+      .click({ timeout: 1_000 })
+      .catch(() => {});
+    await panel.getByRole('textbox').fill(question);
+    await panel.getByRole('button', { name: 'Send' }).click();
+    await panel.getByTestId('ask-ezy-answer').last().waitFor();
+  };
 
-    await page.goto(`/chats/${encodeURIComponent(FARAH)}`);
-    await page.getByTestId('ask-ezy-about-chat').click();
-    await panel.getByTestId('ask-block-customer').waitFor();
-    await shot('chat-summary');
-    await ctx.close();
-  }
+  await page.goto('/');
+  await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
+  await panel.getByText('Try one').waitFor();
+  await shot(page, OUT, problems, tag, 'start');
+  await ask('How is my inbox this week?');
+  await shot(page, OUT, problems, tag, 'week-stats');
+  await ask('Which customers wait for a reply?');
+  await shot(page, OUT, problems, tag, 'waiting-chats');
+  await ask('Fix my knowledge and hand-off rules');
+  await panel.getByTestId('ask-block-change-demo-change-1').scrollIntoViewIfNeeded();
+  await shot(page, OUT, problems, tag, 'suggested-change');
+  await panel
+    .getByTestId('ask-block-change-demo-change-1')
+    .getByRole('button', { name: 'Apply' })
+    .click();
+  await panel.getByText('Undo stays here', { exact: false }).waitFor();
+  await shot(page, OUT, problems, tag, 'applied-undo');
+  await panel.getByRole('button', { name: 'Close Ask Ezy' }).click();
+
+  await page.goto(`/chats/${encodeURIComponent(FARAH)}`);
+  await page.getByTestId('ask-ezy-about-chat').click();
+  await panel.getByTestId('ask-block-customer').waitFor();
+  await shot(page, OUT, problems, tag, 'chat-summary');
+});
 await browser.close();
 console.log(problems.length ? `Problems:\n${problems.join('\n')}` : 'No problems found.');
 console.log(`Saved Ask Ezy screenshots in ${OUT}`);
