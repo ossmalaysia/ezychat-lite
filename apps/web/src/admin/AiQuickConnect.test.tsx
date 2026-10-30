@@ -300,6 +300,24 @@ describe('AiQuickConnect', () => {
     await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
     expect(screen.getByLabelText('Anthropic API key')).toBeTruthy();
   });
+
+  it('explains each key with a "?" tip that names the right vendor, without changing the field name', async () => {
+    setup(status());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Use an OpenAI API key instead' }));
+    // The tip sits outside the label: the field's name is still exactly the label.
+    expect(screen.getByLabelText('OpenAI API key', { exact: true }).getAttribute('type')).toBe(
+      'password',
+    );
+    await user.click(screen.getByRole('button', { name: 'What is an API key?' }));
+    expect(screen.getByRole('link', { name: 'Get a key at OpenAI' })).toBeTruthy();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Use a Claude API key instead' }));
+    await user.click(screen.getByRole('button', { name: 'What is a Claude API key?' }));
+    expect(screen.getByRole('link', { name: 'Get a key at Anthropic' }).getAttribute('href')).toBe(
+      'https://console.anthropic.com/settings/keys',
+    );
+  });
 });
 
 describe('keyTestMessage', () => {
