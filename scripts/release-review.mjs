@@ -56,7 +56,7 @@ const DEFAULT_REQUIRED_CHECKS = [DEFAULT_COVERAGE_JOB, DEFAULT_LINK_CHECK_JOB];
 const COVERAGE_LOOKBACK = 10;
 
 export const defaultGit = (args) =>
-  execFileSync('git', args, {
+  execFileSync(resolveTool('git'), args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 256 * 1024 * 1024,
@@ -78,7 +78,7 @@ export function repoFromRemote(url) {
 /** The repository: `GH_REPO`, else the `origin` remote of the current checkout. */
 export function currentRepo(
   env = process.env,
-  remote = () => execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' }),
+  remote = () => defaultGit(['remote', 'get-url', 'origin']),
 ) {
   const repo = env.GH_REPO || repoFromRemote(remote());
   if (!repo) throw new Error('Cannot tell the repository: set GH_REPO=owner/name');
@@ -108,80 +108,57 @@ export function patchTouches(patch, newRange, oldRange) {
   return false;
 }
 
-/** Everything the rubric needs, read from GitHub at the PR head. */
-export function gatherFacts(
-  pr,
-  { gh = defaultGh, git = defaultGit, map, migrationConfirmed = null, repo = currentRepo() } = {},
-) {
-  const json = (args) => JSON.parse(gh(args));
-  const info = prInfo(gh, repo, pr);
-  const head = info.head.sha;
-  const api = (path) => json(['api', `repos/${repo}/${path}`]);
-  const file = (path, ref) => {
-    try {
-      return Buffer.from(api(`contents/${path}?ref=${ref}`).content, 'base64').toString('utf8');
-    } catch {
-      return null;
-    }
-  };
-  // Three dots: from the merge base with main. Its file list stops at 300, so the PR's files come
-  // from pulls/<n>/files (pages of 100, up to GitHub's 3,000) and its own diff from git.
-  const compareOf = (sha) => api(`compare/${info.base.sha}...${sha}`);
-  const compare = compareOf(head);
-  const base = compare.merge_base_commit.sha;
-  const prFiles = [];
+/** The PR's files from pulls/<n>/files: pages of 100, up to GitHub's 3,000. */
+function listPrFiles(api, pr) {
+  const files = [];
   for (let page = 1; page <= 30; page++) {
     const batch = api(`pulls/${pr}/files?per_page=100&page=${page}`);
-    prFiles.push(...batch);
+    files.push(...batch);
     if (batch.length < 100) break;
   }
-  // Evidence must name one of this PR's commits (a rebase gives new ids, so old evidence stops counting).
-  const prCommits = (compare.commits ?? []).map((c) => c.sha);
+  return files;
+}
+
+/** `git diff -U0` of the PR's own change at a commit (fetched by id: works in a shallow clone). */
+function ownDiffAt(git, sha, mergeBase) {
+  try {
+    git(['cat-file', '-e', `${sha}^{commit}`]);
+    git(['cat-file', '-e', `${mergeBase}^{commit}`]);
+  } catch {
+    git(['fetch', '--quiet', '--no-tags', 'origin', sha, mergeBase]);
+  }
+  return git(['diff', '-U0', '--no-color', '--no-renames', '--no-ext-diff', mergeBase, sha]);
+}
+
+/**
+ * Evidence recorded at a commit still holds at the head when the PR's own change of every file
+ * that can change a test result is the same: merging main brings in main's files, checked on main.
+ */
+function evidenceValidator({ head, base, prCommits, compareOf, git, map }) {
   const fullSha = (sha) =>
     head.startsWith(sha) ? head : (prCommits.find((c) => c.startsWith(sha)) ?? null);
-  /** `git diff -U0` of the PR's own change at a commit (fetched by id: works in a shallow clone). */
-  const ownDiff = (sha, mergeBase) => {
-    try {
-      git(['cat-file', '-e', `${sha}^{commit}`]);
-      git(['cat-file', '-e', `${mergeBase}^{commit}`]);
-    } catch {
-      git(['fetch', '--quiet', '--no-tags', 'origin', sha, mergeBase]);
-    }
-    return git(['diff', '-U0', '--no-color', '--no-renames', '--no-ext-diff', mergeBase, sha]);
-  };
   let headDiff;
-  // Evidence recorded at a commit still holds at the head when the PR's own change of every
-  // non-neutral file is the same: merging main brings in main's files, which were checked on main.
-  const validCache = new Map();
-  const isValid = (sha) => {
-    if (!sha || !/^[0-9a-f]{7,40}$/.test(sha)) return false;
-    if (!validCache.has(sha)) {
-      const full = fullSha(sha);
-      let ok = false;
-      if (full === head) ok = true;
-      else if (full)
-        try {
-          headDiff ??= ownDiff(head, base);
-          const before = ownDiff(full, compareOf(full).merge_base_commit.sha);
-          ok = ownDiffChanges(before, headDiff, map)?.length === 0;
-        } catch {
-          ok = false;
-        }
-      validCache.set(sha, ok);
+  const check = (full) => {
+    if (full === head) return true;
+    if (!full) return false;
+    try {
+      headDiff ??= ownDiffAt(git, head, base);
+      const before = ownDiffAt(git, full, compareOf(full).merge_base_commit.sha);
+      return ownDiffChanges(before, headDiff, map)?.length === 0;
+    } catch {
+      return false;
     }
-    return validCache.get(sha);
   };
+  const cache = new Map();
+  return (sha) => {
+    if (!sha || !/^[0-9a-f]{7,40}$/.test(sha)) return false;
+    if (!cache.has(sha)) cache.set(sha, check(fullSha(sha)));
+    return cache.get(sha);
+  };
+}
 
-  const files = prFiles.map((f) => ({
-    path: f.filename,
-    status: f.status,
-    added: f.additions,
-    deleted: f.deletions,
-    lockfile: isLockfile(f.filename),
-    patch: f.patch,
-    ...classifyFile(map, f.filename),
-  }));
-
+/** The dependency tier of the PR's package.json changes and an Enterprise core bump. */
+function dependencyFacts({ files, map, file, json, base, head }) {
   let depTier = null;
   let coreBump = null;
   for (const f of files.filter((x) => x.path.endsWith('package.json'))) {
@@ -210,6 +187,80 @@ export function gatherFacts(
     })();
     coreBump = { ...coreBump, ...coreBumpScore(prsFromCommits(commits), index) };
   }
+  return { depTier, coreBump };
+}
+
+/**
+ * Changed-lines coverage of the head; while its CI runs (or its log is gone), the newest older PR
+ * commit with the same PR diff that has a result. Neither: pending while CI runs, else unknown.
+ */
+function coverageFacts({ runs, runsAt, job, readLog, older, isValid }) {
+  const at = (jobs) => {
+    const run = jobs.find((r) => r.name === job && r.status === 'completed');
+    if (!run) return { done: false, value: null };
+    try {
+      return { done: true, value: coverageFromLog(readLog(run.id)) };
+    } catch {
+      return { done: true, value: null };
+    }
+  };
+  const head = at(runs);
+  if (head.value !== null) return { coverage: head.value, coverageState: 'head' };
+  for (const sha of older) {
+    if (!isValid(sha)) continue;
+    const value = at(runsAt(sha)).value;
+    if (value !== null) return { coverage: value, coverageState: sha.slice(0, 7) };
+  }
+  return { coverage: null, coverageState: head.done ? 'unknown' : 'pending' };
+}
+
+/** The desktop link check from CI: the head's Windows job ran e2e:electron-links and it passed. */
+function ciLinkFacts(runs, job, api) {
+  const run = runs.find((r) => r.name === job && r.status === 'completed');
+  if (!run) return false;
+  try {
+    return ciLinkCheck(api(`actions/jobs/${run.id}`));
+  } catch {
+    return false;
+  }
+}
+
+/** Everything the rubric needs, read from GitHub at the PR head. */
+export function gatherFacts(
+  pr,
+  { gh = defaultGh, git = defaultGit, map, migrationConfirmed = null, repo = currentRepo() } = {},
+) {
+  const json = (args) => JSON.parse(gh(args));
+  const info = prInfo(gh, repo, pr);
+  const head = info.head.sha;
+  const api = (path) => json(['api', `repos/${repo}/${path}`]);
+  const file = (path, ref) => {
+    try {
+      return Buffer.from(api(`contents/${path}?ref=${ref}`).content, 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
+  };
+  // Three dots: from the merge base with main (its file list stops at 300, so not used for files).
+  const compareOf = (sha) => api(`compare/${info.base.sha}...${sha}`);
+  const compare = compareOf(head);
+  const base = compare.merge_base_commit.sha;
+  const prFiles = listPrFiles(api, pr);
+  // Evidence must name one of this PR's commits (a rebase gives new ids, so old evidence stops counting).
+  const prCommits = (compare.commits ?? []).map((c) => c.sha);
+  const isValid = evidenceValidator({ head, base, prCommits, compareOf, git, map });
+
+  const files = prFiles.map((f) => ({
+    path: f.filename,
+    status: f.status,
+    added: f.additions,
+    deleted: f.deletions,
+    lockfile: isLockfile(f.filename),
+    patch: f.patch,
+    ...classifyFile(map, f.filename),
+  }));
+
+  const { depTier, coreBump } = dependencyFacts({ files, map, file, json, base, head });
 
   const agents = files.find((f) => f.path === 'AGENTS.md');
   const agentsSecurityChanged = Boolean(
@@ -230,48 +281,19 @@ export function gatherFacts(
   const runsAt = (sha) => api(`commits/${sha}/check-runs?per_page=100`).check_runs;
   const runs = runsAt(head);
   const required = requiredChecks(runs, map.requiredChecks ?? DEFAULT_REQUIRED_CHECKS);
-  const coverageJob = map.coverageJob ?? DEFAULT_COVERAGE_JOB;
-  const coverageAt = (jobs) => {
-    const run = jobs.find((r) => r.name === coverageJob && r.status === 'completed');
-    if (!run) return { done: false, value: null };
-    try {
-      return {
-        done: true,
-        value: coverageFromLog(gh(['api', `repos/${repo}/actions/jobs/${run.id}/logs`])),
-      };
-    } catch {
-      return { done: true, value: null };
-    }
-  };
-  // Coverage of the head; while its CI runs (or its log is gone), the newest PR commit with the same
-  // PR diff that has a result. Neither: pending while CI runs, else unknown.
-  const headCoverage = coverageAt(runs);
-  let coverage = headCoverage.value;
-  let coverageState = coverage === null ? (headCoverage.done ? 'unknown' : 'pending') : 'head';
-  if (coverage === null)
-    for (const sha of prCommits
+  const { coverage, coverageState } = coverageFacts({
+    runs,
+    runsAt,
+    job: map.coverageJob ?? DEFAULT_COVERAGE_JOB,
+    readLog: (id) => gh(['api', `repos/${repo}/actions/jobs/${id}/logs`]),
+    older: prCommits
       .filter((c) => c !== head)
       .reverse()
-      .slice(0, COVERAGE_LOOKBACK)) {
-      if (!isValid(sha)) continue;
-      const older = coverageAt(runsAt(sha));
-      if (older.value !== null) {
-        [coverage, coverageState] = [older.value, sha.slice(0, 7)];
-        break;
-      }
-    }
+      .slice(0, COVERAGE_LOOKBACK),
+    isValid,
+  });
 
-  // The desktop link check also counts when CI ran it on this head (Windows job, e2e:electron-links).
-  const linkJob = runs.find(
-    (r) => r.name === (map.linkCheckJob ?? DEFAULT_LINK_CHECK_JOB) && r.status === 'completed',
-  );
-  let ciLink = false;
-  if (linkJob)
-    try {
-      ciLink = ciLinkCheck(api(`actions/jobs/${linkJob.id}`));
-    } catch {
-      ciLink = false;
-    }
+  const ciLink = ciLinkFacts(runs, map.linkCheckJob ?? DEFAULT_LINK_CHECK_JOB, api);
   const reviewComments = readReviewComments({ api, json, repo, pr });
 
   const workbookMarkdown = file(workbookPath(info.head.ref).replaceAll('\\', '/'), head);
@@ -403,7 +425,7 @@ export function main(
 ) {
   const args = parseArgs(argv);
   const map = loadMap(MAP_PATH);
-  if (/^chore\(release\)/.test(prInfo(gh, repo, args.pr).title)) {
+  if (prInfo(gh, repo, args.pr).title.startsWith('chore(release)')) {
     log('release PR: not scored (the release rule applies)');
     return null;
   }

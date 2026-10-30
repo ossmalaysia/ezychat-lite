@@ -44,7 +44,7 @@ export function scoreChange(input) {
       id: 5,
       reason: `${review.open} unresolved review ${review.open === 1 ? 'thread' : 'threads'}`,
     });
-  else if (review && review.open === null && review.total)
+  else if (review?.open === null && review.total)
     hardStops.push({ id: 5, reason: `${review.total} review comments, resolution unknown` });
 
   // Only docs/tests (and pipeline) files: no code risk to score.
@@ -141,7 +141,7 @@ function coverageLabel({ coverage, coverageState }) {
 }
 
 /** Hard stops the owner's logged approval of the PR's current diff clears: 1 real part, 2 migration, 3 security. */
-const OWNER_STOPS = [1, 2, 3];
+const OWNER_STOPS = new Set([1, 2, 3]);
 
 /**
  * The final merge verdict: `MERGE OK` only when no hard stop is left, the PR is ready for review,
@@ -155,7 +155,7 @@ export function mergeVerdict(result, pr) {
   if (pr.draft) reasons.push('PR is a draft');
   if (pr.conflict) reasons.push('merge conflict with main');
   for (const stop of result.hardStops)
-    if (!(pr.approved && OWNER_STOPS.includes(stop.id))) reasons.push(stop.reason);
+    if (!(pr.approved && OWNER_STOPS.has(stop.id))) reasons.push(stop.reason);
   if (!pr.approved && result.score < AUTO_AT && result.decision !== 'risk:pipeline')
     reasons.push(`score ${result.score} < ${AUTO_AT}: the owner tests and approves`);
   const approval = pr.approved ? `, owner approved \`${pr.approved}\`` : '';

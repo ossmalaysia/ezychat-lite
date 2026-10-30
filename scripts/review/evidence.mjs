@@ -43,7 +43,7 @@ export function ownDiffChanges(before, after, map) {
   const [a, b] = [ownChanges(before), ownChanges(after)];
   return [...new Set([...a.keys(), ...b.keys()])]
     .filter((path) => resetsEvidence(map, path) && a.get(path) !== b.get(path))
-    .sort();
+    .sort((x, y) => x.localeCompare(y));
 }
 
 /** e2e and screen review from the workbook stages (see build-summary.mjs). The link check comes from CI. */
@@ -137,10 +137,8 @@ export function requiredChecks(runs, names, green = ['success', 'skipped', 'neut
     else if (run.status !== 'completed') out.pending.push(name);
     else if (!green.includes(run.conclusion)) out.failed.push(name);
   }
-  const state = out.failed.length
-    ? 'failed'
-    : out.pending.length || out.missing.length
-      ? 'pending'
-      : 'green';
+  let state = 'green';
+  if (out.failed.length) state = 'failed';
+  else if (out.pending.length || out.missing.length) state = 'pending';
   return { state, ...out };
 }
