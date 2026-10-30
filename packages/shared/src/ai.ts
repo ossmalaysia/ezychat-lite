@@ -256,6 +256,11 @@ export const AiAgentSummary = z.object({
   /** The inbox this agent answers; null = not answering any inbox. */
   inboxId: z.number().int().positive().nullable(),
   documentCount: z.number().int().nonnegative(),
+  /**
+   * "Ask if the question is answered": end answers with a resolution question and close the chat
+   * on a clear "yes". Off: no check-in lines, the team closes chats. Missing (older servers) = off.
+   */
+  resolutionCheck: z.boolean().optional(),
 });
 export type AiAgentSummary = z.infer<typeof AiAgentSummary>;
 /** Create or save one agent (same text limits as the AI member). */
@@ -267,8 +272,13 @@ export const AiAgentBody = z.object({
   instructions: AiMemberBody.shape.instructions,
   handoffRules: AiMemberBody.shape.handoffRules,
   inboxId: z.number().int().positive().nullable().optional(),
+  /** Omitted: unchanged on save, the preset's default on create (off for sales). */
+  resolutionCheck: z.boolean().optional(),
 });
 export type AiAgentBody = z.infer<typeof AiAgentBody>;
+/** `PUT /api/ai/agents/:agentId/resolution-check`: the "Ask if the question is answered" switch. */
+export const AiResolutionCheckBody = z.strictObject({ enabled: z.boolean() });
+export type AiResolutionCheckBody = z.infer<typeof AiResolutionCheckBody>;
 /** `GET /api/ai/agents/:agentId`: the agent, its effective settings and its items. */
 export const AiAgentStatus = z.object({
   agent: AiAgentSummary,

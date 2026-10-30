@@ -208,6 +208,23 @@ export function useAiAgent(agentId: number | null) {
   });
 }
 
+/** The agent's "Ask if the question is answered" switch; saves at once. */
+export function useSetResolutionCheck(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      api(`/ai/agents/${agentId}/resolution-check`, {
+        method: 'PUT',
+        body: { enabled },
+        schema: AiAgentStatus,
+      }),
+    onSuccess: (saved) => {
+      qc.setQueryData(aiAgentKey(agentId), saved);
+      void qc.invalidateQueries({ queryKey: aiAgentsKey });
+    },
+  });
+}
+
 /** One Business context item of an agent with its text (full for text, a preview for files). */
 export function useAiAgentDocument(agentId: number, id: number | null) {
   return useQuery({

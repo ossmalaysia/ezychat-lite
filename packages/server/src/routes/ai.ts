@@ -11,6 +11,7 @@ import {
   AiKeyTestBody,
   type AiKeyTestResponse,
   AiMemberBody,
+  AiResolutionCheckBody,
   AiTryBody,
   VoiceSettingBody,
   EnrichmentSettingBody,
@@ -120,6 +121,9 @@ export default async function aiRoutes(app: FastifyInstance, ctx: AppContext) {
   app.get('/ai/agents/:agentId', async (req) => ai.agentStatus(agentId(req)));
   app.put('/ai/agents/:agentId', async (req) =>
     ai.saveAgent(agentId(req), parse(AiAgentBody, req.body), actor(req)),
+  );
+  app.put('/ai/agents/:agentId/resolution-check', async (req) =>
+    ai.setResolutionCheck(agentId(req), parse(AiResolutionCheckBody, req.body).enabled, actor(req)),
   );
   app.delete('/ai/agents/:agentId', async (req) => {
     ai.deleteAgent(agentId(req), actor(req));

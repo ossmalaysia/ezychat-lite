@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The AI agent follows your hand-over rules.** A request to book a consultation, meeting, demo or call is now
+  treated as a sales conversation: the agent asks what the customer needs instead of handing the chat over, and
+  your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a
+  team member will help when it really hands the chat over.
+- **No more "Does that answer your question?" after every answer.** Each AI agent page has a new **Closing chats**
+  card with the switch "Ask if the question is answered". It is off for sales agents: the agent adds no check-in
+  line and never closes a chat. When it is on, a "yes" that carries new information (for example "yes, we are in
+  Malaysia") no longer closes the chat, and the agent never writes "I will close this chat now".
+- **A message in a chat the AI handed over says so.** Its notification now reads "<name> is waiting for a
+  teammate" until someone in the team replies, instead of looking like a routine message.
+
 - **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network
   access on every start. The app now checks only the address it really uses, so the question shows only when
   LAN access is on.

@@ -14,6 +14,7 @@ import { t } from '../i18n/messages.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
 import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
 import { inboxOfKeyOrNull } from '../inboxes/service.js';
+import { chatWaitingAfterHandoff } from '../reports/report.js';
 import { loadOrCreateVapid, type VapidDetails } from './vapid.js';
 
 export interface PushService {
@@ -292,10 +293,14 @@ export function createPushService(ctx: AppContext, deps: PushDeps = {}): PushSer
     async notifyInbound(chat, message) {
       const targets = recipients(chat);
       if (!targets.length) return;
+      // The AI handed this chat over and nobody has answered yet: the customer's new message (it
+      // replaces the hand-off notice, same tag) says so, so the chat does not read as routine.
+      const waiting = chat.type === 'dm' && chatWaitingAfterHandoff(ctx.db, chat.jid);
       await deliver('inbound', byLocale(targets), (locale) => {
         const preview = chat.lastMessagePreview ?? message.body ?? t(locale, 'push.newMessage');
+        const name = chat.name || t(locale, 'push.unknownContact');
         return {
-          title: (chat.name || t(locale, 'push.unknownContact')).slice(0, 200),
+          title: (waiting ? t(locale, 'push.aiHandoffWaiting', { name }) : name).slice(0, 200),
           body: preview.slice(0, 1000),
           url: `/chats/${encodeURIComponent(chat.jid)}`,
           tag: chat.jid,

@@ -108,6 +108,34 @@ describe('PushService', () => {
     });
   });
 
+  // Repro: "GPU" after the AI handed a consultation over read as a routine message and sat unanswered.
+  it('titles a message in a chat still waiting after an AI hand-off, until a person replies', async () => {
+    const a = mkUser('a1');
+    const { push, sent } = setup();
+    push.subscribe(a.id, sub('a'));
+    const handoffAt = Date.now() - 1000;
+    t.ctx.db
+      .prepare(
+        "INSERT INTO audit_log(user_id, action, ip, meta, at) VALUES (NULL, 'ai.handoff', NULL, ?, ?)",
+      )
+      .run(JSON.stringify({ chatJid: JID, reason: 'needs_action' }), handoffAt);
+    await push.notifyInbound(chat(a.id), message);
+    expect(sent[0]!.payload).toMatchObject({ title: 'Alice is waiting for a teammate', tag: JID });
+    // A teammate answered after the hand-off: back to the plain title.
+    t.ctx.db
+      .prepare(
+        `INSERT INTO chats(jid, inbox_id, wa_jid, type, name, status, updated_at) VALUES (?, 1, ?, 'dm', 'Alice', 'open', ?)`,
+      )
+      .run(JID, JID, handoffAt);
+    t.ctx.db
+      .prepare(
+        `INSERT INTO messages(id, chat_jid, from_me, type, body, timestamp, status, sent_by_user_id, created_at) VALUES ('r1', ?, 1, 'text', 'Hi', ?, 'sent', ?, ?)`,
+      )
+      .run(JID, handoffAt + 500, a.id, handoffAt + 500);
+    await push.notifyInbound(chat(a.id), message);
+    expect(sent[1]!.payload).toMatchObject({ title: 'Alice' });
+  });
+
   it('unassigned → every active user, online or not', async () => {
     const a = mkUser('a1');
     const b = mkUser('b1');

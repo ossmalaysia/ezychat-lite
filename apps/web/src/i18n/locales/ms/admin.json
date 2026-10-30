@@ -1329,6 +1329,14 @@
         "contextName": "Butiran kedai baiki",
         "contextText": "Isi setiap baris selepas titik bertindih dan padam baris yang tidak berkaitan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nNama kedai:\nAlamat:\nWaktu operasi:\nJenama yang kami baiki:\nPembaikan dan harga (skrin, bateri, port pengecasan):\nTempoh siap:\nWaranti pembaikan:\nKaedah pembayaran:\nBahasa lalai untuk balasan:"
       }
+    },
+    "resolution": {
+      "title": "Menutup chat",
+      "description": "Cara {{name}} menamatkan perbualan.",
+      "switch": "Tanya sama ada soalan sudah dijawab",
+      "onHint": "Selepas menjawab, {{name}} bertanya sama ada jawapan itu menjawab soalan dan menutup chat apabila pelanggan jelas berkata ya.",
+      "offHint": "{{name}} tidak menambah ayat semakan dan tidak pernah menutup chat. Pasukan anda yang menutup chat.",
+      "saveFailed": "Tidak dapat disimpan. Cuba lagi."
     }
   },
   "enrichment": {

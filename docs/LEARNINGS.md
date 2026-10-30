@@ -807,6 +807,14 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
+  handed over a consultation request as needs_action against saved "never hand over" rules because the core listed
+  "book" as an action. Keep built-in hand-off reasons narrow, state which ones the business rules may rule out
+  (only safety/sensitive cannot), and pin repro prompts with a rule-following stand-in model plus a bite proof.
+- Never append fixed text to a model reply (a check-in line, "closing this chat") without a per-agent switch, and
+  never treat a "yes" as a confirmation when it carries new facts: a "yes we are in Malaysia" to another question
+  closed a live lead. Resolution guards must check what else the message says, not only how it starts.
+
 - Every path that stops the AI in a chat must also leave a human owner or an unassigned chat: a phone reply
   (`fromMe`, no `sentByUserId`) only paused the AI, the chat stayed assigned to it, and later customer
   messages reached nobody. When you add a stop condition, test the next inbound message too.

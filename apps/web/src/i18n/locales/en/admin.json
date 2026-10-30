@@ -1338,6 +1338,14 @@
         "contextName": "Repair shop details",
         "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nAddress:\nOpening hours:\nBrands we repair:\nRepairs and prices (screen, battery, charging port):\nTurnaround time:\nWarranty on repairs:\nPayment methods:\nDefault language for replies:"
       }
+    },
+    "resolution": {
+      "title": "Closing chats",
+      "description": "How {{name}} ends a conversation.",
+      "switch": "Ask if the question is answered",
+      "onHint": "After an answer, {{name}} asks whether it answers the question and closes the chat when the customer clearly says yes.",
+      "offHint": "{{name}} adds no check-in line and never closes a chat. Your team closes chats.",
+      "saveFailed": "Couldn't save. Try again."
     }
   },
   "enrichment": {

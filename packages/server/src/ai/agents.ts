@@ -21,6 +21,8 @@ export interface AgentRow {
   enabled: boolean;
   /** "Answer in groups": the agent answers tags and quotes in the groups an admin switched on. */
   answerGroups: boolean;
+  /** Ends answers with a resolution question and may close the chat (migration 026). */
+  resolutionCheck: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -50,21 +52,27 @@ interface Row {
   displayName: string;
   disabledAt: number | null;
   answerGroups: number;
+  resolutionCheck: number;
   createdAt: number;
   updatedAt: number;
 }
 
 const SELECT = `SELECT a.id, a.user_id AS userId, a.inbox_id AS inboxId, a.preset,
   a.instructions, a.handoff_rules AS handoffRules, u.display_name AS displayName,
-  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups, a.created_at AS createdAt, a.updated_at AS updatedAt
+  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups,
+  a.resolution_check AS resolutionCheck, a.created_at AS createdAt, a.updated_at AS updatedAt
   FROM ai_agents a JOIN users u ON u.id = a.user_id
   WHERE u.ai_deleted_at IS NULL`;
 
-const toAgent = ({ disabledAt, answerGroups, ...row }: Row): AgentRow => ({
+const toAgent = ({ disabledAt, answerGroups, resolutionCheck, ...row }: Row): AgentRow => ({
   ...row,
   enabled: disabledAt === null,
   answerGroups: answerGroups === 1,
+  resolutionCheck: resolutionCheck === 1,
 });
+
+/** A new agent's "Ask if the question is answered": off for sales (no check-in lines), else on. */
+export const defaultResolutionCheck = (preset: AiAgentPreset): boolean => preset !== 'sales';
 
 function one(db: DB, where: string, value: number): AgentRow | null {
   const row = db.prepare(`${SELECT} AND ${where} = ?`).get(value) as Row | undefined;
@@ -107,6 +115,8 @@ export interface NewAgent {
   preset: AiAgentPreset;
   instructions: string | null;
   handoffRules: string | null;
+  /** Default: `defaultResolutionCheck(preset)`. */
+  resolutionCheck?: boolean;
 }
 
 /** Adds the `ai_agents` row for an existing `kind = 'ai'` user. */
@@ -115,8 +125,8 @@ export function createAgentRow(db: DB, agent: NewAgent, now = Date.now()): Agent
   const id = Number(
     db
       .prepare(
-        `INSERT INTO ai_agents (user_id, inbox_id, preset, instructions, handoff_rules, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO ai_agents (user_id, inbox_id, preset, instructions, handoff_rules, resolution_check, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         agent.userId,
@@ -124,6 +134,7 @@ export function createAgentRow(db: DB, agent: NewAgent, now = Date.now()): Agent
         agent.preset,
         agent.instructions,
         agent.handoffRules,
+        (agent.resolutionCheck ?? defaultResolutionCheck(agent.preset)) ? 1 : 0,
         now,
         now,
       ).lastInsertRowid,
@@ -136,6 +147,7 @@ export interface AgentTexts {
   /** null = back to the preset's defaults. */
   instructions?: string | null;
   handoffRules?: string | null;
+  resolutionCheck?: boolean;
 }
 
 /** Changes only the given fields. */
@@ -153,6 +165,10 @@ export function updateAgentTexts(db: DB, id: number, texts: AgentTexts, now = Da
   if (texts.handoffRules !== undefined) {
     sets.push('handoff_rules = ?');
     values.push(texts.handoffRules);
+  }
+  if (texts.resolutionCheck !== undefined) {
+    sets.push('resolution_check = ?');
+    values.push(texts.resolutionCheck ? 1 : 0);
   }
   const changed = db
     .prepare(`UPDATE ai_agents SET ${sets.join(', ')} WHERE id = ?`)

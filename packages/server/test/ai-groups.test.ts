@@ -542,8 +542,10 @@ describe('Try it: group question', { timeout: 30_000 }, () => {
     decide = () => ({ reply: '', action: 'no_reply' });
     expect(await ai.tryAnswer(body)).toMatchObject({ reply: '', action: 'no_reply' });
     decide = () => ({ reply: 'From 8am!', action: 'ask_resolution' });
+    // A sales agent asks no resolution question by default: the direct-chat answer stays an answer.
     expect(await ai.tryAnswer({ ...body, group: false })).toMatchObject({
-      action: 'ask_resolution',
+      action: 'answer',
+      reply: 'From 8am!',
     });
     expect(prompts.at(-1)!.instructions).not.toContain(GROUP_RULES);
 
