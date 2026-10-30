@@ -27,6 +27,16 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Real-model check of the hand-off rules fixes** (PR #230, merged 2026-10-30): after the next release, run
+  `try_ai_reply` on the Anchor Sprint agent (v87) with "Hi Anchor Sprint, I'd like to book a free consultation (from
+  your homepage)." (expect action `answer` with a discovery question, no hand-off) and "What is the difference
+  between Claude Team Standard and Premium seat?" (expect no check-in line). Needs the owner's AI sign-in; log the
+  result in `docs/dev-build-checks.md`.
+- **Idle AI chats** (2026-10-30, from PR #230): with "Ask if the question is answered" off (the default), an AI agent
+  keeps a chat open and assigned to itself until a hand-off or a teammate acts, so answered chats pile up in the
+  open list. Proposal: resolve a chat the AI holds after N days (e.g. 3) without a customer message, silently (no
+  message to the customer; a new message reopens it as today), per-agent setting, audited. Mock first.
+
 - **Waiting after AI hand-off in the inbox** (2026-10-30, from the hand-off rules fix): the count lives only in
   Reports and MCP `get_stats`; the push now says "<name> is waiting for a teammate". Add an inbox filter or badge
   for these chats (mock first, `docs/features/<feature>/mock`).
