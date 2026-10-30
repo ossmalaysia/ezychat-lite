@@ -14,7 +14,14 @@ import { getAliases } from '../chats/aliases.js';
 import { HttpError, errors } from '../http/errors.js';
 import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
-import { agentById, agentForInbox, setAgentAnswerGroups, type AgentRow } from './agents.js';
+import {
+  agentById,
+  agentForInbox,
+  setAgentAnswerDirect,
+  setAgentAnswerGroups,
+  type AgentRow,
+} from './agents.js';
+import { inboxHasGroups } from './direct.js';
 
 /**
  * AI agents in WhatsApp groups (design docs/features/ai-groups/design.md). The switches (the agent's
@@ -217,7 +224,41 @@ export function agentGroups(ctx: AppContext, agentId: number): AiAgentGroups {
     inboxName: agent.inboxId === null ? null : (ctx.inboxes.repo.get(agent.inboxId)?.name ?? null),
     groups: agent.inboxId === null ? [] : inboxGroups(ctx.db, agent.inboxId),
     loopGuard: AI_GROUP_LOOP_GUARD,
+    answerDirect: agent.answerDirect,
+    directAvailable: inboxHasGroups(ctx, agent.inboxId),
+    heldDirect: heldDirectChats(ctx.db, agent.userId),
   };
+}
+
+const heldDirectChats = (db: DB, userId: number): number =>
+  (
+    db
+      .prepare(
+        "SELECT count(*) AS n FROM chats WHERE type = 'dm' AND status = 'open' AND assigned_to = ?",
+      )
+      .get(userId) as { n: number }
+  ).n;
+
+/**
+ * `PUT /api/ai/agents/:agentId/direct`: the agent's "Answer direct chats" switch (audited). Off
+ * returns its open direct chats to the team, unassigned (design docs/features/ai-direct-chats).
+ */
+export function setAgentDirect(
+  ctx: AppContext,
+  agentId: number,
+  enabled: boolean,
+  actor: Actor,
+): AiAgentGroups {
+  const agent = requireAgent(ctx, agentId);
+  setAgentAnswerDirect(ctx.db, agent.id, enabled);
+  audit(ctx.db, {
+    userId: actor.userId,
+    action: 'ai.direct_switch',
+    ip: actor.ip,
+    meta: { agentId: agent.id, agentName: agent.displayName, enabled },
+  });
+  if (!enabled) ctx.services.ai?.releaseDirect(agent.id);
+  return agentGroups(ctx, agent.id);
 }
 
 /** `PUT /api/ai/agents/:agentId/groups`: the agent's "Answer in groups" switch (audited). */

@@ -1902,6 +1902,18 @@
     "colReplyTime": "Balasan pertama",
     "hourRange": "{{day}} {{from}}–{{to}}"
   },
+  "aiDirect": {
+    "title": "Sembang terus",
+    "description": "Pelanggan yang menghantar mesej terus kepada {{inbox}}.",
+    "switch": "Jawab sembang terus",
+    "switchHint": "Dimatikan: {{name}} tidak menjawab atau mengambil sembang terus, dan rakan pasukan tidak boleh menyerahkannya kepada {{name}}. Gunakan bersama Jawab dalam kumpulan untuk ejen kumpulan sahaja.",
+    "groupOnly": "{{name}} menjawab dalam kumpulan sahaja: tag dan petikan dalam kumpulan yang dihidupkan di bawah. Sembang terus kekal dengan pasukan anda.",
+    "answersNothing": "{{name}} tidak menjawab sebarang sembang. Hidupkan Jawab sembang terus, atau Jawab dalam kumpulan di bawah.",
+    "confirmTitle": "Hentikan {{name}} daripada menjawab sembang terus?",
+    "confirmBody_other": "{{name}} sedang mengendalikan {{count}} sembang terus yang terbuka. Ia dikembalikan kepada pasukan anda, tanpa penerima.",
+    "confirmAction": "Matikan",
+    "saveFailed": "Tidak dapat disimpan. Cuba lagi."
+  },
   "aiGroups": {
     "title": "Kumpulan",
     "description": "{{name}} boleh menjawab dalam kumpulan nombor WhatsApp anda ({{inbox}}).",

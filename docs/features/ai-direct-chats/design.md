@@ -1,6 +1,6 @@
 # AI agent: answer direct chats (group-only agents)
 
-Status: **proposal** 2026-10-30, waiting for the owner's confirmation. Branch `claude/elegant-planck-fqr14s` from `main`
+Status: **confirmed** 2026-10-30 (see Confirmation). Branch `claude/elegant-planck-fqr14s` from `main`
 (`cc0a759`).
 
 ## Owner request (2026-10-30)
@@ -60,4 +60,7 @@ Screenshots: `mock/screenshots/` (`direct-shots.mjs`).
 
 ## Confirmation
 
-Not yet confirmed.
+The owner reviewed the screenshots (agent page with the Direct chats card above Groups, the confirm dialog on a phone,
+the "answers no chats" warning, a direct chat's assignee list without the AI) and PR
+ossmalaysia/ezychat-lite#229, and confirmed on 2026-10-30 ("confirm, implement it"). Mock revision
+`4cfbe96dd` (the commit that added it).

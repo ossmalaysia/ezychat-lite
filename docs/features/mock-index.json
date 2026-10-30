@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "grammar-fix",
-    "gitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
-    "mock": "docs/features/grammar-fix/mock/index.html",
-    "design": "docs/features/grammar-fix/design.md",
-    "confirmedAt": "2026-10-28",
-    "confirmation": "Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 (\"yes, impleemnt it\"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove."
+    "feature": "ai-direct-chats",
+    "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
+    "mock": "docs/features/ai-direct-chats/mock/index.html",
+    "design": "docs/features/ai-direct-chats/design.md",
+    "confirmedAt": "2026-10-30",
+    "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\")."
   },
   "proposals": [
     {
@@ -20,11 +20,14 @@
       "createdAt": "2026-10-30",
       "design": "docs/features/ai-direct-chats/design.md",
       "mock": "docs/features/ai-direct-chats/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "grammar-fix",
       "baselineGitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
       "baselineAppRevision": "cc0a759",
-      "coverage": "Full app clone of the confirmed grammar-fix reference; agent page Direct chats card (Answer direct chats on by default; off with Answer in groups on = group-only info; off with groups off = answers-nothing warning; confirm dialog releasing the agent's open direct chats), the AI agent left out of a direct chat's assignee list while off, card hidden for a Business API inbox; mock-only route PUT /api/mock/groups/agents/:agentId/direct; desktop 1280 / mobile 360 touch, light/dark (direct-shots.mjs)"
+      "coverage": "Full app clone of the confirmed grammar-fix reference; agent page Direct chats card (Answer direct chats on by default; off with Answer in groups on = group-only info; off with groups off = answers-nothing warning; confirm dialog releasing the agent's open direct chats), the AI agent left out of a direct chat's assignee list while off, card hidden for a Business API inbox; mock-only route PUT /api/mock/groups/agents/:agentId/direct; desktop 1280 / mobile 360 touch, light/dark (direct-shots.mjs)",
+      "confirmedAt": "2026-10-30",
+      "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
+      "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d"
     },
     {
       "feature": "ask-ezy",

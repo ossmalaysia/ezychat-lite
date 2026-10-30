@@ -66,6 +66,7 @@ import { AiQuickConnect } from './AiQuickConnect';
 import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { AgentConnectorsCard } from './connectors/AgentConnectorsCard';
+import { AgentDirectCard } from './AgentDirectCard';
 import { AgentGroupsCard, LITE_INBOX_NAME } from './AgentGroupsCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
 import { businessTemplate, type BusinessTemplateId } from './business-templates';
@@ -801,6 +802,19 @@ function AgentEditor({
           <AgentConnectorsCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
+          />
+
+          {/* Direct chats: off with Answer in groups on = a group-only agent. */}
+          <AgentDirectCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
+            inboxName={
+              lite
+                ? LITE_INBOX_NAME
+                : agent.agent.inboxId === null
+                  ? null
+                  : inboxName(agent.agent.inboxId)
+            }
           />
 
           {/* WhatsApp groups: answer when tagged or quoted, and in which groups. */}

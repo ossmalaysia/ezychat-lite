@@ -1901,6 +1901,18 @@
     "colReplyTime": "首次回复",
     "hourRange": "{{day}} {{from}}–{{to}}"
   },
+  "aiDirect": {
+    "title": "私聊",
+    "description": "一对一给 {{inbox}} 发消息的客户。",
+    "switch": "回答私聊",
+    "switchHint": "关闭后：{{name}} 不会回答或接手私聊，团队成员也无法把私聊分配给 {{name}}。与“在群组中回答”一起使用，即为仅限群组的智能体。",
+    "groupOnly": "{{name}} 仅在群组中回答：在下方已开启的群组中被 @ 或被引用时。私聊由您的团队处理。",
+    "answersNothing": "{{name}} 不会回答任何聊天。请开启“回答私聊”，或下方的“在群组中回答”。",
+    "confirmTitle": "让 {{name}} 停止回答私聊？",
+    "confirmBody_other": "{{name}} 正在处理 {{count}} 个进行中的私聊。它们将退回给您的团队，且不分配给任何人。",
+    "confirmAction": "关闭",
+    "saveFailed": "无法保存，请重试。"
+  },
   "aiGroups": {
     "title": "群组",
     "description": "{{name}} 可以在您的 WhatsApp 号码（{{inbox}}）的群组中回答。",

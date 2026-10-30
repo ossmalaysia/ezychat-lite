@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "8a3f44f",
   "appVersionAtProposal": "0.1.59",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "ai-direct-chats",
   "createdAt": "2026-10-30",
   "branchBase": "cc0a759 (main, 0.1.65)",

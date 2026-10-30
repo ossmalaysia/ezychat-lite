@@ -91,6 +91,9 @@ const data = (patch: Partial<AiAgentGroups> = {}): AiAgentGroups => ({
   groups: GROUPS,
   loopGuard: 10,
   inboxName: null,
+  answerDirect: true,
+  directAvailable: true,
+  heldDirect: 0,
   ...patch,
 });
 

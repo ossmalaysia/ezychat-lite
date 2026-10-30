@@ -21,6 +21,11 @@ export interface AgentRow {
   enabled: boolean;
   /** "Answer in groups": the agent answers tags and quotes in the groups an admin switched on. */
   answerGroups: boolean;
+  /**
+   * "Answer direct chats" (migration 026, default on). Off: the agent never answers or takes a direct
+   * chat. Read it through `answersDirect` (ai/direct.ts): an inbox without groups ignores it.
+   */
+  answerDirect: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -50,20 +55,23 @@ interface Row {
   displayName: string;
   disabledAt: number | null;
   answerGroups: number;
+  answerDirect: number;
   createdAt: number;
   updatedAt: number;
 }
 
 const SELECT = `SELECT a.id, a.user_id AS userId, a.inbox_id AS inboxId, a.preset,
   a.instructions, a.handoff_rules AS handoffRules, u.display_name AS displayName,
-  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups, a.created_at AS createdAt, a.updated_at AS updatedAt
+  u.disabled_at AS disabledAt, a.answer_groups AS answerGroups,
+  a.answer_direct AS answerDirect, a.created_at AS createdAt, a.updated_at AS updatedAt
   FROM ai_agents a JOIN users u ON u.id = a.user_id
   WHERE u.ai_deleted_at IS NULL`;
 
-const toAgent = ({ disabledAt, answerGroups, ...row }: Row): AgentRow => ({
+const toAgent = ({ disabledAt, answerGroups, answerDirect, ...row }: Row): AgentRow => ({
   ...row,
   enabled: disabledAt === null,
   answerGroups: answerGroups === 1,
+  answerDirect: answerDirect === 1,
 });
 
 function one(db: DB, where: string, value: number): AgentRow | null {
@@ -164,6 +172,14 @@ export function updateAgentTexts(db: DB, id: number, texts: AgentTexts, now = Da
 export function setAgentAnswerGroups(db: DB, id: number, on: boolean, now = Date.now()): void {
   const changed = db
     .prepare('UPDATE ai_agents SET answer_groups = ?, updated_at = ? WHERE id = ?')
+    .run(on ? 1 : 0, now, id).changes;
+  if (!changed) throw new AgentError('agent_not_found');
+}
+
+/** The agent's "Answer direct chats" switch (migration 026). */
+export function setAgentAnswerDirect(db: DB, id: number, on: boolean, now = Date.now()): void {
+  const changed = db
+    .prepare('UPDATE ai_agents SET answer_direct = ?, updated_at = ? WHERE id = ?')
     .run(on ? 1 : 0, now, id).changes;
   if (!changed) throw new AgentError('agent_not_found');
 }

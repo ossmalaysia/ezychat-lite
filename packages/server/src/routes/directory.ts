@@ -3,6 +3,8 @@ import type { DirectoryUser } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { getAuth, requireUser } from '../auth/guards.js';
 import { getInboxService } from '../inboxes/service.js';
+import { agentById } from '../ai/agents.js';
+import { answersDirect } from '../ai/direct.js';
 
 /**
  * Names and assignment availability only; every teammate can recognize the AI agents. Deleted AI agents stay
@@ -12,6 +14,10 @@ import { getInboxService } from '../inboxes/service.js';
  */
 export default async function directoryRoutes(app: FastifyInstance, ctx: AppContext) {
   const inboxes = getInboxService(ctx);
+  const noDirect = (agentId: number | undefined) => {
+    const agent = agentId ? agentById(ctx.db, agentId) : null;
+    return !!agent && !answersDirect(ctx, agent);
+  };
   app.get('/users/directory', { preHandler: requireUser(ctx) }, async (req) => ({
     users: getAuth(ctx)
       .listUsers({ includeDeleted: true })
@@ -24,6 +30,7 @@ export default async function directoryRoutes(app: FastifyInstance, ctx: AppCont
         aiRole: u.aiRole,
         ...(u.aiAgentId ? { aiAgentId: u.aiAgentId } : {}),
         ...(u.aiDeleted ? { aiDeleted: true } : {}),
+        ...(noDirect(u.aiAgentId) ? { aiNoDirect: true } : {}),
         inboxIds: inboxes.directoryInboxIds(u, req.user!),
       })),
   }));

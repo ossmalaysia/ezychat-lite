@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **AI agents that answer only in groups.** Each AI agent has a new **Answer direct chats** switch (on by default).
+  Turn it off and keep **Answer in groups** on, and the agent answers only when tagged or quoted in the groups you
+  switched on; direct chats stay with your team. The direct chats it was handling go back to the team, and it cannot be
+  assigned a direct chat while the switch is off. WhatsApp Business API inboxes have no groups, so the switch is not
+  shown there.
+
 ### Fixed
 
 - **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network

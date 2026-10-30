@@ -212,6 +212,11 @@ claims or assigns the chat (`claimOnReply` and `onChat` skip groups), offers loo
 connector write tool), quotes the asker, and hands over with "A team member will reply soon." + `ai:group_handoff`
 (push to the assignee, else everyone with inbox access; not counted in Reports' AI hand-overs). Loop guard: 10 AI
 messages since the last teammate message pause the AI in that group (`AI_GROUP_LOOP_GUARD`, one paused line).
+Group-only agents (design `docs/features/ai-direct-chats/design.md`): `ai_agents.answer_direct` (migration 026, default
+on; `PUT /api/ai/agents/:agentId/direct`, audit `ai.direct_switch`). Read it only through `ai/direct.ts#answersDirect`:
+an inbox whose adapter has no `groups` capability (Business API) ignores it. Off: `onInbound`/`eligible` skip direct
+chats, `releaseDirect` returns the held ones (paused, like a disabled agent), assigning a direct chat answers 400
+`agent_no_direct_chats`, and the directory marks the AI user `aiNoDirect` so the web leaves it out of direct chats.
 
 **Fix English** (design `docs/features/grammar-fix/design.md`, mock `docs/features/grammar-fix/mock`). Team switch
 `fix_english` (missing = on; migration 025 writes it off + `fix_english_upgraded` for installs with users), status for

@@ -39,12 +39,24 @@ export const AiAgentGroups = z.object({
   inboxName: z.string().nullable().default(null),
   groups: z.array(AiGroupRow),
   loopGuard: z.number().int().positive(),
+  /**
+   * "Answer direct chats" (design docs/features/ai-direct-chats/design.md, confirmed 2026-10-30).
+   * Off with `enabled` on = a group-only agent. Older servers: on.
+   */
+  answerDirect: z.boolean().default(true),
+  /** The agent's inbox has WhatsApp groups (else the direct switch is hidden and does not apply). */
+  directAvailable: z.boolean().default(false),
+  /** Open direct chats the agent holds now (they go back to the team when direct turns off). */
+  heldDirect: z.number().int().nonnegative().default(0),
 });
 export type AiAgentGroups = z.infer<typeof AiAgentGroups>;
 
 /** `PUT /api/ai/agents/:agentId/groups` (admins): the agent's "Answer in groups" switch. */
 export const AiAgentGroupsBody = z.strictObject({ enabled: z.boolean() });
 export type AiAgentGroupsBody = z.infer<typeof AiAgentGroupsBody>;
+/** `PUT /api/ai/agents/:agentId/direct` (admins): "Answer direct chats"; answers `AiAgentGroups`. */
+export const AiAgentDirectBody = z.strictObject({ enabled: z.boolean() });
+export type AiAgentDirectBody = z.infer<typeof AiAgentDirectBody>;
 
 /**
  * `GET /api/chats/:jid/ai-group` (anyone who may open the chat) and `PUT` (admins, body

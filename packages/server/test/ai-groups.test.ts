@@ -581,6 +581,9 @@ describe('routes', { timeout: 30_000 }, () => {
         { jid: G, name: 'Kopi Lovers Club', memberCount: null, enabled: true, paused: false },
       ],
       loopGuard: AI_GROUP_LOOP_GUARD,
+      answerDirect: true,
+      directAvailable: true,
+      heldDirect: 0,
     });
     const off = await call('PUT', groups, admin.cookie, { enabled: false });
     expect(off.json().enabled).toBe(false);
