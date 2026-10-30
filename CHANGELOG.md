@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.65] - 2026-10-30
+
 ### Changed
 
 - **The app picks a free port by itself.** When another program already uses the port of EzyChat (7420, or 7440 for
