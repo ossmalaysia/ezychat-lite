@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { AiAgentGroups, AiGroupChat, AiGroupRow } from '@ezychat/shared';
 import { AgentGroupsCard } from './AgentGroupsCard';
-import { agentGroupsData, json, renderWithQuery } from './agent-cards.test.helpers';
+import { agentGroupsData, json, renderWithQuery, stubFetch } from './agent-cards.test.helpers';
 
 const KOPI = '120363000000000001@g.us';
 const RESELLERS = '120363000000000002@g.us';
@@ -25,46 +25,31 @@ const GROUPS = [
   }),
 ];
 
-type Call = { url: string; method: string; body: unknown };
-
 /** A stand-in server for the agent's groups and each group's switch. */
 function stubServer(start: AiAgentGroups, fail = false) {
   let state = structuredClone(start);
-  const calls: Call[] = [];
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string, init?: RequestInit) => {
-      const method = init?.method ?? 'GET';
-      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-      calls.push({ url, method, body });
-      if (fail && method === 'PUT')
-        return json({ error: { code: 'internal', message: 'Boom' } }, 500);
-      if (url === '/api/ai/agents/3/groups') {
-        if (method === 'PUT') state = { ...state, enabled: (body as { enabled: boolean }).enabled };
-        return json(state);
-      }
-      const chat = /^\/api\/chats\/([^/]+)\/ai-group$/.exec(url);
-      if (chat && method === 'PUT') {
-        const jid = decodeURIComponent(chat[1]!);
-        const enabled = (body as { enabled: boolean }).enabled;
-        state = {
-          ...state,
-          groups: state.groups.map((g) => (g.jid === jid ? { ...g, enabled } : g)),
-        };
-        const saved: AiGroupChat = {
-          enabled,
-          agentId: 3,
-          agentName: 'Aina',
-          agentEnabled: true,
-          agentAnswersGroups: state.enabled,
-          paused: false,
-        };
-        return json(saved);
-      }
-      return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    }),
-  );
-  return calls;
+  return stubFetch((url, method, body) => {
+    if (fail && method === 'PUT')
+      return json({ error: { code: 'internal', message: 'Boom' } }, 500);
+    if (url === '/api/ai/agents/3/groups') {
+      if (method === 'PUT') state = { ...state, enabled: (body as { enabled: boolean }).enabled };
+      return json(state);
+    }
+    const chat = /^\/api\/chats\/([^/]+)\/ai-group$/.exec(url);
+    if (!chat || method !== 'PUT') return undefined;
+    const jid = decodeURIComponent(chat[1]!);
+    const enabled = (body as { enabled: boolean }).enabled;
+    state = { ...state, groups: state.groups.map((g) => (g.jid === jid ? { ...g, enabled } : g)) };
+    const saved: AiGroupChat = {
+      enabled,
+      agentId: 3,
+      agentName: 'Aina',
+      agentEnabled: true,
+      agentAnswersGroups: state.enabled,
+      paused: false,
+    };
+    return json(saved);
+  });
 }
 
 function renderCard(props: Partial<Parameters<typeof AgentGroupsCard>[0]> = {}) {

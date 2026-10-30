@@ -3,35 +3,31 @@ import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AiAgentGroups } from '@ezychat/shared';
 import { AgentDirectCard } from './AgentDirectCard';
-import { agentGroupsData, json, renderWithQuery } from './agent-cards.test.helpers';
+import {
+  agentGroupsData,
+  json,
+  renderWithQuery,
+  stubFetch,
+  type Call,
+} from './agent-cards.test.helpers';
 
 const data = (patch: Partial<AiAgentGroups> = {}) =>
   agentGroupsData({ inboxName: 'Kopi Apong', ...patch });
 
-type Call = { url: string; method: string; body: unknown };
-
 /** A stand-in server for the agent's groups view and its "Answer direct chats" switch. */
 function stubServer(start: AiAgentGroups, fail = false) {
   let state = structuredClone(start);
-  const calls: Call[] = [];
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string, init?: RequestInit) => {
-      const method = init?.method ?? 'GET';
-      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-      calls.push({ url, method, body });
-      if (url === '/api/ai/agents/3/groups' && method === 'GET') return json(state);
-      if (url === '/api/ai/agents/3/direct' && method === 'PUT') {
-        if (fail) return json({ error: { code: 'internal', message: 'Boom' } }, 500);
-        const enabled = (body as { enabled: boolean }).enabled;
-        state = { ...state, answerDirect: enabled, heldDirect: enabled ? state.heldDirect : 0 };
-        return json(state);
-      }
-      if (url === '/api/users/directory') return json({ users: [] });
-      return json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    }),
-  );
-  return calls;
+  return stubFetch((url, method, body) => {
+    if (url === '/api/ai/agents/3/groups' && method === 'GET') return json(state);
+    if (url === '/api/ai/agents/3/direct' && method === 'PUT') {
+      if (fail) return json({ error: { code: 'internal', message: 'Boom' } }, 500);
+      const enabled = (body as { enabled: boolean }).enabled;
+      state = { ...state, answerDirect: enabled, heldDirect: enabled ? state.heldDirect : 0 };
+      return json(state);
+    }
+    if (url === '/api/users/directory') return json({ users: [] });
+    return undefined;
+  });
 }
 
 function renderCard(inboxName: string | null = 'Kopi Apong') {
