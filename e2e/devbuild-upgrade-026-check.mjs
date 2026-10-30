@@ -1,27 +1,27 @@
-// Real upgrade: a data folder made by a released server (npm @ezychat/server, e.g. 0.1.65 = migrations to
-// 025), then this branch's server on the same folder (migration 026: resolution_check per agent).
-// Fake WhatsApp, temp data, no model calls. Usage (install the release in a scratch folder first:
-// `npm i @ezychat/server@0.1.65` there):
-//   node e2e/devbuild-upgrade-026-check.mjs <scratch folder with node_modules/@ezychat/server> [releaseVersion]
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
+// Real upgrade: a data folder made by the released server 0.1.65 (npm @ezychat/server, the last release
+// before migration 026; its migrations end at 025), then this branch's server on the same folder.
+// Fake WhatsApp, temp data, no model calls. Takes no arguments: it installs the release from npm into
+// its own temp folder (needs network access to the npm registry).
+//   node e2e/devbuild-upgrade-026-check.mjs
+import { execFileSync, spawn } from 'node:child_process';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apiClient, checker, oneLine, poll } from './devbuild-client.mjs';
 
-const usage = 'Usage: devbuild-upgrade-026-check.mjs <release folder> [version]';
-if (!process.argv[2]) throw new Error(usage);
-// The release folder must hold an installed @ezychat/server: nothing else is ever started from it.
-const RELEASE_DIR = realpathSync(resolve(process.argv[2]));
+const RELEASE = '0.1.65';
+const RELEASE_DIR = mkdtempSync(join(tmpdir(), 'ezychat-release-' + RELEASE + '-'));
+execFileSync(
+  process.platform === 'win32' ? 'npm.cmd' : 'npm',
+  ['install', '--no-audit', '--no-fund', '--prefix', RELEASE_DIR, '@ezychat/server@' + RELEASE],
+  { stdio: 'ignore', shell: process.platform === 'win32' },
+);
 const RELEASE_CLI = join(RELEASE_DIR, 'node_modules', '@ezychat', 'server', 'dist', 'cli.js');
-const releasePkg = join(RELEASE_DIR, 'node_modules', '@ezychat', 'server', 'package.json');
-if (
-  !existsSync(RELEASE_CLI) ||
-  JSON.parse(readFileSync(releasePkg, 'utf8')).name !== '@ezychat/server'
-)
-  throw new Error(usage + ' (no installed @ezychat/server there)');
-const RELEASE = /^\d+\.\d+\.\d+$/.test(process.argv[3] ?? '') ? process.argv[3] : '0.1.65';
+const installed = JSON.parse(
+  readFileSync(join(RELEASE_DIR, 'node_modules', '@ezychat', 'server', 'package.json'), 'utf8'),
+).version;
+if (installed !== RELEASE) throw new Error('npm installed @ezychat/server ' + oneLine(installed));
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = mkdtempSync(join(tmpdir(), 'ezychat-upgrade-026-'));
 const PORT = 7495;
