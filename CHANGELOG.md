@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network
+  access on every start. The app now checks only the address it really uses, so the question shows only when
+  LAN access is on.
+
 ## [0.1.65] - 2026-10-30
 
 ### Changed

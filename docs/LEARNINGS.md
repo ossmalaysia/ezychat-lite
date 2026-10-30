@@ -1265,8 +1265,14 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).
   The first start writes `desktop.json` with the port, so a changed default reaches only new installs.
   The port is never a fixed contract: `server-host` moves to the next free port and the desktop saves it. A
-  free-port test must bind both `127.0.0.1` and `0.0.0.0` (Windows reserved ranges answer `EACCES`, not
-  `EADDRINUSE`). "The server did not start … may be in use" shows for every start failure: read the log first.
+  free-port test listens only where the server will (`serverBindHost`: loopback unless LAN access is on); a
+  test listen on `0.0.0.0` made Windows Firewall ask every user for network access (0.1.65). A bind test
+  catches `EACCES` (Windows reserved ranges) as well as `EADDRINUSE`. "The server did not start … may be in
+  use" shows for every start failure: read the log first.
+- Any change that opens, binds or moves a network listener (port, host, socket, tunnel, a test listen)
+  gets a security review before the PR: which interfaces it touches, OS firewall prompts, what a LAN or
+  other local program could reach, and the security invariants in AGENTS.md. Run `/security-review` on the
+  branch and record the answer in the PR description.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
