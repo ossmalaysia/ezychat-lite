@@ -103,6 +103,18 @@ export async function useFreePort(
   };
 }
 
+/** Server args for this start: the saved port setting, then a free port; logs a move. */
+export async function startArgs(
+  rest: readonly string[],
+  readPortSetting: (dataDir: string) => number | null = readPortSettingFromDb,
+  pick: (port: number) => Promise<number> = pickFreePort,
+  log: (line: string) => void = (line) => process.stdout.write(`${line}\n`),
+): Promise<{ args: string[]; port: number | null }> {
+  const { args, port, moved } = await useFreePort(prepareServerArgs(rest, readPortSetting), pick);
+  if (moved) log(`server-host: ${moved}`);
+  return { args, port };
+}
+
 /** Reads settings.port (JSON value) from <dataDir>/app.db read-only; null when absent. */
 export function readPortSettingFromDb(dataDir: string): number | null {
   const file = join(dataDir, 'app.db');
@@ -143,10 +155,7 @@ async function main(): Promise<void> {
     process.stderr.write('server-host: missing server entry\n');
     process.exit(2);
   }
-  const { args, port, moved } = await useFreePort(
-    prepareServerArgs(rest, (d) => readPortSettingFromDb(d)),
-  );
-  if (moved) process.stdout.write(`server-host: ${moved}\n`);
+  const { args, port } = await startArgs(rest);
   const portFile = process.env.WATI_PORT_FILE;
   if (portFile && port !== null) {
     try {

@@ -11,6 +11,7 @@ import {
   portIsFree,
   prepareServerArgs,
   SHUTDOWN_MESSAGE,
+  startArgs,
   useFreePort,
   withPort,
 } from './server-host.cjs';
@@ -142,6 +143,34 @@ describe('useFreePort', () => {
     });
     expect(none).toEqual({ args: ['--reset-admin'], port: null, moved: null });
     expect(called).toBe(false);
+  });
+});
+
+describe('startArgs', () => {
+  it('applies the saved setting, then moves a taken port and logs it once', async () => {
+    const lines: string[] = [];
+    const r = await startArgs(
+      base,
+      () => 7440,
+      async () => 7441,
+      (l) => lines.push(l),
+    );
+    expect(r).toEqual({
+      args: ['--data', 'D:\\data', '--port', '7441', '--mode', 'standalone'],
+      port: 7441,
+    });
+    expect(lines).toEqual(['server-host: port 7440 is in use; using port 7441']);
+  });
+  it('logs nothing when the port is free', async () => {
+    const lines: string[] = [];
+    const r = await startArgs(
+      base,
+      () => null,
+      async (p) => p,
+      (l) => lines.push(l),
+    );
+    expect(r).toEqual({ args: base, port: 7420 });
+    expect(lines).toEqual([]);
   });
 });
 
