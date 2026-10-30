@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A "thanks" after the AI closed a chat is acknowledged and closed again.** When a customer only says thanks
+  after the AI agent resolved the chat, the AI now reacts with a thumbs up (or replies "👍" where reactions are not
+  available) and resolves the chat again, instead of leaving an open chat that nobody answers. A new question, or a
+  teammate who acted in the chat, keeps it open as before.
 - **No Windows Firewall question at start.** Since 0.1.65 the free-port check asked Windows Firewall for network
   access on every start. The app now checks only the address it really uses, so the question shows only when
   LAN access is on.
