@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreChange, sizePoints } from './rubric.mjs';
+import { mergeVerdict, scoreChange, sizePoints } from './rubric.mjs';
 
 const ALL = { e2e: true, linkCheck: true, screenReview: true, devBuild: true, realTest: false };
 const file = (path, tier, lines, extra = {}) => ({
@@ -180,7 +180,8 @@ describe('review comments', () => {
     expect(done).toMatchObject({ decision: 'risk:auto', hardStops: [] });
     expect(item(done)).toMatchObject({ label: 'Review comments: 0 open of 4', ok: true });
     const unknown = scoreChange(input({ files: code, reviewComments: { total: 1, open: null } }));
-    expect(unknown.hardStops).toEqual([]);
+    // Unknown resolution cannot pass a final merge check.
+    expect(unknown.hardStops).toEqual([{ id: 5, reason: '1 review comments, resolution unknown' }]);
     expect(item(unknown)).toMatchObject({
       label: 'Review comments: 1 (resolution unknown)',
       ok: false,
@@ -195,5 +196,93 @@ describe('review comments', () => {
     );
     expect(r).toMatchObject({ score: 100, decision: 'risk:human' });
     expect(r.hardStops).toContainEqual({ id: 5, reason: '1 unresolved review thread' });
+  });
+});
+
+describe('checks and coverage labels', () => {
+  const code = [file('packages/server/src/x.ts', 'core', 10)];
+  const label = (r) => r.items.find((i) => i.label.startsWith('Changed-lines')).label;
+  it('hard stop 4 names each required check that is not green', () => {
+    const r = scoreChange(
+      input({
+        files: code,
+        checks: 'failed',
+        checkNames: { missing: ['C'], pending: ['B'], failed: ['A'] },
+      }),
+    );
+    expect(r.hardStops).toContainEqual({
+      id: 4,
+      reason: 'checks failed (failed: A; running: B; missing: C)',
+    });
+  });
+  it('coverage shows pending while CI runs, and names the commit it came from', () => {
+    expect(
+      label(scoreChange(input({ files: code, coverage: null, coverageState: 'pending' }))),
+    ).toBe('Changed-lines coverage pending (CI running)');
+    expect(label(scoreChange(input({ files: code, coverage: null })))).toBe(
+      'Changed-lines coverage unknown',
+    );
+    expect(label(scoreChange(input({ files: code, coverage: 96, coverageState: 'abc1234' })))).toBe(
+      'Changed-lines coverage 96 % (from `abc1234`, same PR diff)',
+    );
+    expect(label(scoreChange(input({ files: code, coverage: 96, coverageState: 'head' })))).toBe(
+      'Changed-lines coverage 96 %',
+    );
+  });
+});
+
+describe('merge verdict', () => {
+  const pr = (over = {}) => ({ draft: false, conflict: false, approved: null, ...over });
+  const auto = scoreChange(input({ files: [file('apps/web/src/admin/x.tsx', 'noncore', 36)] }));
+  const critical = scoreChange(
+    input({
+      files: [file('packages/wa/src/baileys/x.ts', 'critical', 400, { realTest: 'real WhatsApp' })],
+    }),
+  );
+
+  it('MERGE OK for a risk:auto PR with nothing left', () => {
+    expect(mergeVerdict(auto, pr())).toEqual({
+      ok: true,
+      reasons: [],
+      line: 'MERGE OK · risk:auto (95)',
+    });
+  });
+  it('NOT READY lists draft, conflict, hard stops and a low score', () => {
+    const v = mergeVerdict(critical, pr({ draft: true, conflict: true }));
+    expect(v.ok).toBe(false);
+    expect(v.reasons).toEqual([
+      'PR is a draft',
+      'merge conflict with main',
+      'critical change without a real WhatsApp test',
+      `score ${critical.score} < 70: the owner tests and approves`,
+    ]);
+    expect(v.line).toMatch(/^NOT READY: PR is a draft; merge conflict with main; /);
+  });
+  it("the owner's approval clears the owner-test stops, never checks or open threads", () => {
+    expect(mergeVerdict(critical, pr({ approved: 'abc1234' }))).toMatchObject({
+      ok: true,
+      line: `MERGE OK · risk:human (${critical.score}), owner approved \`abc1234\``,
+    });
+    const red = scoreChange(
+      input({
+        files: [file('packages/wa/src/baileys/x.ts', 'critical', 40)],
+        checks: 'pending',
+        reviewComments: { total: 1, open: 1 },
+      }),
+    );
+    expect(mergeVerdict(red, pr({ approved: 'abc1234' })).reasons).toEqual([
+      'checks pending',
+      '1 unresolved review thread',
+    ]);
+  });
+  it('a merged or closed PR is never MERGE OK', () => {
+    expect(mergeVerdict(auto, pr({ state: 'merged' })).reasons).toEqual(['PR is merged']);
+    expect(mergeVerdict(auto, pr({ state: 'open' })).ok).toBe(true);
+  });
+  it('a pipeline-only PR needs no score', () => {
+    const pipeline = scoreChange(
+      input({ files: [file('.github/workflows/x.yml', 'pipeline', 5)] }),
+    );
+    expect(mergeVerdict(pipeline, pr()).ok).toBe(true);
   });
 });

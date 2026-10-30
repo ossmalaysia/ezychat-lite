@@ -21,6 +21,8 @@ const highest = (tiers) =>
  * @param input {{ files: {path,tier,security,realTest,added,deleted,lockfile}[], dependencyTier: string|null,
  *   screenChanged: boolean, migrations: string[], migrationConfirmed: 'adds-only'|'moves-data'|null,
  *   agentsSecurityChanged: boolean, checks: 'green'|'pending'|'failed', coverage: number|null,
+ *   checkNames?: {missing: string[], pending: string[], failed: string[]},
+ *   coverageState?: 'head'|'pending'|'unknown'|string (a short commit: same PR diff),
  *   reviewComments?: {total: number, open: number|null}|null,
  *   evidence: {e2e,linkCheck,screenReview,devBuild,realTest: boolean} }}
  */
@@ -34,11 +36,7 @@ export function scoreChange(input) {
     .reduce((sum, f) => sum + f.added + f.deleted, 0);
 
   const hardStops = [];
-  if (input.checks !== 'green')
-    hardStops.push({
-      id: 4,
-      reason: input.checks === 'pending' ? 'checks pending' : 'checks failed',
-    });
+  if (input.checks !== 'green') hardStops.push({ id: 4, reason: checksReason(input) });
   // Unresolved review threads block the merge (conversation resolution is required on main).
   const review = input.reviewComments ?? null;
   if (review?.open)
@@ -46,6 +44,8 @@ export function scoreChange(input) {
       id: 5,
       reason: `${review.open} unresolved review ${review.open === 1 ? 'thread' : 'threads'}`,
     });
+  else if (review && review.open === null && review.total)
+    hardStops.push({ id: 5, reason: `${review.total} review comments, resolution unknown` });
 
   // Only docs/tests (and pipeline) files: no code risk to score.
   if (tier === 'docs' || tier === 'pipeline') {
@@ -68,7 +68,7 @@ export function scoreChange(input) {
       ok: true,
     },
     {
-      label: `Changed-lines coverage ${input.coverage === null ? 'unknown' : `${coverage} %`}`,
+      label: coverageLabel(input),
       points: coverage >= 95 ? 20 : coverage >= 90 ? 15 : 0,
       applies: true,
       ok: coverage >= 90,
@@ -114,6 +114,57 @@ export function scoreChange(input) {
   const score = Math.max(0, Math.min(100, raw));
   const decision = score >= AUTO_AT && !hardStops.length ? 'risk:auto' : 'risk:human';
   return { score, decision, tier, tierFiles, countedLines, items, hardStops };
+}
+
+/** Hard stop 4 names each required check that is not green. */
+function checksReason({ checks, checkNames }) {
+  const names = checkNames ?? { missing: [], pending: [], failed: [] };
+  const parts = [];
+  if (names.failed.length) parts.push(`failed: ${names.failed.join(', ')}`);
+  if (names.pending.length) parts.push(`running: ${names.pending.join(', ')}`);
+  if (names.missing.length) parts.push(`missing: ${names.missing.join(', ')}`);
+  const head = checks === 'pending' ? 'checks pending' : 'checks failed';
+  return parts.length ? `${head} (${parts.join('; ')})` : head;
+}
+
+/** Coverage is read from the head, or from an older commit with the same PR diff; pending while CI runs. */
+function coverageLabel({ coverage, coverageState }) {
+  if (coverage === null)
+    return coverageState === 'pending'
+      ? 'Changed-lines coverage pending (CI running)'
+      : 'Changed-lines coverage unknown';
+  const from =
+    coverageState && !['head', 'pending', 'unknown'].includes(coverageState)
+      ? ` (from \`${coverageState}\`, same PR diff)`
+      : '';
+  return `Changed-lines coverage ${coverage} %${from}`;
+}
+
+/** Hard stops the owner's logged approval of the PR's current diff clears: 1 real part, 2 migration, 3 security. */
+const OWNER_STOPS = [1, 2, 3];
+
+/**
+ * The final merge verdict: `MERGE OK` only when no hard stop is left, the PR is ready for review,
+ * has no merge conflict, and is risk:auto / risk:pipeline or the owner approved its current diff.
+ * Pure: the same facts always give the same line.
+ * @param pr {{state?: string, draft: boolean, conflict: boolean, approved: string|null}} approved = the approved short commit
+ */
+export function mergeVerdict(result, pr) {
+  const reasons = [];
+  if (pr.state && pr.state !== 'open') reasons.push(`PR is ${pr.state}`);
+  if (pr.draft) reasons.push('PR is a draft');
+  if (pr.conflict) reasons.push('merge conflict with main');
+  for (const stop of result.hardStops)
+    if (!(pr.approved && OWNER_STOPS.includes(stop.id))) reasons.push(stop.reason);
+  if (!pr.approved && result.score < AUTO_AT && result.decision !== 'risk:pipeline')
+    reasons.push(`score ${result.score} < ${AUTO_AT}: the owner tests and approves`);
+  const approval = pr.approved ? `, owner approved \`${pr.approved}\`` : '';
+  const tail = ` · ${result.decision} (${result.score})${approval}`;
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    line: reasons.length ? `NOT READY: ${reasons.join('; ')}${tail}` : `MERGE OK${tail}`,
+  };
 }
 
 /** Review comments: shown with their count, no points (open threads are hard stop 5). */

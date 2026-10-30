@@ -1,20 +1,52 @@
 // Release review: test evidence, counted only for the commit it checked.
-import { isNeutral } from './components.mjs';
+import { classifyFile, isNeutral } from './components.mjs';
 
 const OK = ['done', 'pass'];
 
 /**
- * Evidence recorded at `sha` still holds at the head when every file changed since `sha` is
- * neutral (workbook, logs, Dev Build log, screenshots, LEARNINGS): recording a stage is itself a commit.
+ * The PR's own change per file from `git diff -U0 <merge base> <commit>`: only the added and removed
+ * lines (and new/deleted file modes), so hunk positions that move when `main` changes the same file do
+ * not count. A binary file is keyed by its blob ids.
  */
-export function evidenceShaValid(sha, changedFilesSince, map) {
-  if (!sha) return false;
-  const files = changedFilesSince(sha);
-  if (files === null) return false;
-  return files.every((path) => isNeutral(map, path));
+export function ownChanges(diffText) {
+  const out = new Map();
+  for (const part of diffText.split(/^(?=diff --git )/m)) {
+    const path = part.match(/^diff --git a\/.+? b\/(.+)$/m)?.[1];
+    if (!path) continue;
+    const lines = part.split('\n');
+    const key = /^Binary files /m.test(part)
+      ? lines.filter((l) => l.startsWith('index ')).join('\n')
+      : lines
+          .filter((l) => /^(?:new|deleted) file mode /.test(l) || /^[+-](?![+-]{2} )/.test(l))
+          .join('\n');
+    out.set(path, key);
+  }
+  return out;
 }
 
-/** e2e, link check and screen review from the workbook stages (see build-summary.mjs). */
+const TEST_FILE = /(?:^|\/)(?:e2e|test)\/|\.test\./;
+
+/**
+ * True when a change to `path` can change a test result: code (critical/core/noncore), pipeline and
+ * test files. Docs (notes, mocks, CHANGELOG, AGENTS.md) and the neutral logs cannot.
+ */
+export const resetsEvidence = (map, path) =>
+  !isNeutral(map, path) && (classifyFile(map, path).tier !== 'docs' || TEST_FILE.test(path));
+
+/**
+ * The PR's files that can change a test result whose own change differs between two commits of the PR (each a
+ * `git diff -U0` from its merge base with `main`): files that only came in from `main` are not the
+ * PR's and do not count. Null = not known.
+ */
+export function ownDiffChanges(before, after, map) {
+  if (typeof before !== 'string' || typeof after !== 'string') return null;
+  const [a, b] = [ownChanges(before), ownChanges(after)];
+  return [...new Set([...a.keys(), ...b.keys()])]
+    .filter((path) => resetsEvidence(map, path) && a.get(path) !== b.get(path))
+    .sort();
+}
+
+/** e2e and screen review from the workbook stages (see build-summary.mjs). The link check comes from CI. */
 export function workbookEvidence(workbook, isValid) {
   const stage = (name) => workbook?.stages?.[name];
   const okStage = (name) => {
@@ -24,11 +56,6 @@ export function workbookEvidence(workbook, isValid) {
   const e2e = okStage('E2E');
   return {
     e2e: { ok: e2e, sha: stage('E2E')?.commit ?? '', detail: stage('E2E')?.detail ?? '' },
-    linkCheck: {
-      ok: e2e && /electron-links/.test(stage('E2E')?.detail ?? ''),
-      sha: stage('E2E')?.commit ?? '',
-      detail: stage('E2E')?.detail ?? '',
-    },
     screenReview: {
       ok: okStage('Screen review'),
       sha: stage('Screen review')?.commit ?? '',
@@ -81,10 +108,39 @@ export function ciLinkCheck(job) {
   );
 }
 
+/** Resolved state of a review thread: GraphQL `isResolved`, or the REST shapes of the CCR route. */
+const resolvedOf = (thread) => thread.isResolved ?? thread.is_resolved ?? thread.resolved;
+
 /** Review comments of the PR: `total` comments, `open` unresolved threads (null = not known). */
 export function reviewCommentCounts(comments, threads) {
+  const known = Array.isArray(threads) && threads.every((t) => typeof resolvedOf(t) === 'boolean');
   return {
     total: comments.length,
-    open: threads === null ? null : threads.filter((thread) => !thread.isResolved).length,
+    open: known ? threads.filter((thread) => !resolvedOf(thread)).length : null,
   };
+}
+
+/**
+ * Required checks of the head by name (`map.requiredChecks`): the newest run of each name decides.
+ * `state` is green only when every one passed; `missing`, `pending` and `failed` name the others.
+ */
+export function requiredChecks(runs, names, green = ['success', 'skipped', 'neutral']) {
+  const out = { missing: [], pending: [], failed: [] };
+  for (const name of names) {
+    const run = runs
+      .filter((r) => r.name === name)
+      .sort(
+        (x, y) =>
+          String(y.started_at ?? '').localeCompare(String(x.started_at ?? '')) || y.id - x.id,
+      )[0];
+    if (!run) out.missing.push(name);
+    else if (run.status !== 'completed') out.pending.push(name);
+    else if (!green.includes(run.conclusion)) out.failed.push(name);
+  }
+  const state = out.failed.length
+    ? 'failed'
+    : out.pending.length || out.missing.length
+      ? 'pending'
+      : 'green';
+  return { state, ...out };
 }
