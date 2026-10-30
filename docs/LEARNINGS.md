@@ -824,6 +824,10 @@ into AGENTS.md.
   A change to the prompt layout or the `/api/ai` routes also breaks the pinned tables elsewhere
   (`test/ai-prompt-agents.test.ts` cache-prefix bytes, `test/ai-routes-access.test.ts` route list): run
   `npx vitest run packages/server/test/ai-*` before pushing, not only the files you edited.
+- SonarCloud's gate also scans `e2e/` scripts: a CLI argument used as a `spawn` cwd or path is a path-traversal
+  vulnerability (security rating C fails the gate) and copied API/check helpers push duplication past 3 %.
+  Validate such paths (realpath + the expected package inside) and import the Dev Build helpers from
+  `e2e/devbuild-client.mjs` instead of copying them.
 - Never append fixed text to a model reply (a check-in line, "closing this chat") without a per-agent switch, and
   never treat a "yes" as a confirmation when it carries new facts: a "yes we are in Malaysia" to another question
   closed a live lead. Resolution guards must check what else the message says, not only how it starts.

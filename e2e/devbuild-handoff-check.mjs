@@ -2,49 +2,24 @@
 // WhatsApp, temp data). Usage: node e2e/devbuild-handoff-check.mjs <port>
 // The mock model follows the rules it is given (see mockDecision), so this checks what the server
 // sends, keeps and shows: never a model's own judgement. Prints PASS/FAIL per step.
-const PORT = Number(process.argv[2] ?? 7491);
-const BASE = `http://127.0.0.1:${PORT}`;
-let failed = 0;
-const check = (ok, step, detail = '') => {
-  if (!ok) failed++;
-  console.log(
-    `${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? `  (${String(detail).replace(/\s+/g, ' ')})` : ''}`,
-  );
-};
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+import { apiClient, checker, poll, wait } from './devbuild-client.mjs';
 
-const health = await fetch(`${BASE}/api/health`);
+const PORT = Number(process.argv[2] ?? 7491);
+const BASE = 'http://127.0.0.1:' + PORT;
+const { check, finish } = checker();
+const api = apiClient(BASE);
+
+const health = await fetch(BASE + '/api/health');
 if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
   throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
 
-let cookie = '';
-async function api(method, path, body) {
-  const res = await fetch(`${BASE}/api${path}`, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
 const messages = async (jid) =>
   (await api('GET', `/chats/${encodeURIComponent(jid)}/messages`)).json?.messages ?? [];
 /** The AI messages of a chat once there are `n` of them (or after `ms`). */
 async function aiMessages(jid, userId, n, ms = 30_000) {
-  const end = Date.now() + ms;
-  let mine = [];
-  while (Date.now() < end) {
-    mine = (await messages(jid)).filter((m) => m.sentByUserId === userId);
-    if (mine.length >= n) return mine;
-    await wait(1000);
-  }
-  return mine;
+  const mine = async () => (await messages(jid)).filter((m) => m.sentByUserId === userId);
+  await poll(async () => (await mine()).length >= n, ms);
+  return mine();
 }
 const customer = (jid, text) =>
   api('POST', '/dev/fake-incoming', { chatJid: jid, text, senderName: 'Zhao Zheng' });
@@ -176,5 +151,4 @@ check(
   JSON.stringify(audit.json ?? '').includes('ai.resolution_check_update'),
   'the switch changes are audited',
 );
-console.log(failed ? `${failed} FAILED` : 'ALL PASSED');
-process.exit(failed ? 1 : 0);
+finish();
