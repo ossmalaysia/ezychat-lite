@@ -813,6 +813,9 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- Every path that stops the AI in a chat must also leave a human owner or an unassigned chat: a phone reply
+  (`fromMe`, no `sentByUserId`) only paused the AI, the chat stayed assigned to it, and later customer
+  messages reached nobody. When you add a stop condition, test the next inbound message too.
 - A send-time guard for automatic AI replies (`canSend` in `sendJob`) runs on every queue attempt, including a
   person's Retry: the AI marks the question answered when WhatsApp first takes the reply, so a later ERROR ack
   (e.g. Baileys `smax-invalid (479)` on a fresh encryption session) left an AI reply that no Retry could send.
