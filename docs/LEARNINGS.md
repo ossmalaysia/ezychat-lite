@@ -153,6 +153,11 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
+  ended while two jobs still ran. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
+  `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
+  "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
+  just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
@@ -321,8 +326,11 @@ into AGENTS.md.
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
   answer from a cached 404. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
-  10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until
-  `https://registry.npmjs.org/@ezychat%2f<pkg>/<version>` answers 200 for all five. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
+  10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until the **tarball**
+  `https://registry.npmjs.org/@ezychat/<pkg>/-/<pkg>-<version>.tgz` answers 200 for all five: the version
+  document can list the version while its tarball still answers 404 (Enterprise CI then fails at `npm ci`).
+  The Enterprise Windows installer job runs on the owner's PC: a long `gh run watch` in the background is
+  stopped under memory pressure, so check the run once (`gh run view <id>`) and again later. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
   publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
   "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
   ticked) from a package that publishes. Then `gh run rerun <publish run> --failed` on the existing tag
@@ -424,6 +432,18 @@ into AGENTS.md.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %).
+- An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
+  (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
+  (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
+  rarely downloaded hash): the fix is the vendor's false-positive form, not a build change. An allowlisting covers
+  one hash only: after each Enterprise release, report the new installer when a vendor flags it, and point users
+  at `ezychat.ai/guides/install-on-windows#antivirus`. McAfee: a `ti!<hash>` detection is reputation only; report
+  it on its "Dispute a Detection & Allowlisting" web form. A 407 MB ZIP of the installer plus its extracted files
+  failed although the page names no limit: attach the installer alone (a 173 MB ZIP went through) and put the
+  download links and SHA-256 values in Details. The owner attaches it by hand: browser automation uploads 10 MB at
+  most and its click on a file input opens no OS dialog; a tab that reports viewport 0x0 or times out on
+  screenshots is in a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
+  Google Threat Intelligence (VirusTotal) docs.
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
