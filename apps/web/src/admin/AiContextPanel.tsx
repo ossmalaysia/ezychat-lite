@@ -51,6 +51,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, Field, Pending } from './adminUi';
+import { InfoTip } from '@/components/app/InfoTip';
 
 const UPLOAD_ACCEPT = '.txt,.md,.pdf,.docx';
 const UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -293,7 +294,10 @@ export function AiContextPanel({
     >
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle id={titleId}>{t('ai.page.stepContext')}</CardTitle>
+            <InfoTip topic="businessContext" />
+          </div>
           <CardDescription>
             {t('ai.contextPanel.hint')}
             <span className="mt-1 block">{t('ai.contextPanel.internalIntro')}</span>

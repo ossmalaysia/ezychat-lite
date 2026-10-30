@@ -23,6 +23,7 @@ import { formatDate, formatRelative } from '@/lib/format';
 import { ConfirmDialog, CopyButton, ErrorState, ListSkeleton } from './adminUi';
 import { CreateTokenDialog } from './CreateTokenDialog';
 import { TokenPermissionsDialog } from './TokenPermissionsDialog';
+import { InfoTip } from '@/components/app/InfoTip';
 
 /** "Used 5 minutes ago" for recent use, a plain date after that. */
 const RELATIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -59,9 +60,12 @@ export function IntegrationsSection() {
         <CardContent className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <Label htmlFor={switchId} className="leading-normal">
-                {t('integrations.access.label')}
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor={switchId} className="leading-normal">
+                  {t('integrations.access.label')}
+                </Label>
+                <InfoTip topic="mcp" />
+              </div>
               <p id={`${switchId}-desc`} className="mt-0.5 text-sm text-muted-foreground">
                 {t('integrations.access.description')}
               </p>
@@ -143,7 +147,10 @@ export function IntegrationsSection() {
 
       <Card className="gap-4">
         <CardHeader>
-          <CardTitle>{t('integrations.tokens.title')}</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle>{t('integrations.tokens.title')}</CardTitle>
+            <InfoTip topic="accessToken" />
+          </div>
           <CardDescription className="mt-1.5">
             {t('integrations.tokens.description')}
           </CardDescription>

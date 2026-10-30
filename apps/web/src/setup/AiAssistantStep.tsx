@@ -21,6 +21,7 @@ import { AiQuickConnect } from '@/admin/AiQuickConnect';
 import { connectionReady } from '../admin/ai-status';
 import { ButtonSpinner } from '../auth/AuthShell';
 import { agentNameFor } from './agent-name';
+import { InfoTip } from '@/components/app/InfoTip';
 
 /**
  * The agent `PUT /api/ai` saved: the AI member's agent (inbox 1's), else the only agent; null for an
@@ -130,7 +131,10 @@ export function AiAssistantStep({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={textId}>{t('setup.ai.businessLabel')}</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={textId}>{t('setup.ai.businessLabel')}</Label>
+          <InfoTip topic="businessContext" />
+        </div>
         <Textarea
           id={textId}
           aria-describedby={hintId}
@@ -146,7 +150,10 @@ export function AiAssistantStep({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">{t('setup.ai.connectTitle')}</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-medium">{t('setup.ai.connectTitle')}</h3>
+          <InfoTip topic="aiConnection" />
+        </div>
         {status.data ? (
           <AiQuickConnect status={status.data} />
         ) : status.error ? (

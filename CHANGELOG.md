@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **"?" tips for new words.** A small **?** beside API key, model, Business context, hand-over rules, phone access,
+  LAN, AI assistant access, access tokens, connectors and the setup steps says in one or two sentences what each one
+  is. The API key tips also link to the page where you get a key and show the steps when asked. Each tip links to
+  the full guide in your language.
+
 ### Fixed
 
 - **A "thanks" after the AI closed a chat is acknowledged and closed again.** When a customer only says thanks

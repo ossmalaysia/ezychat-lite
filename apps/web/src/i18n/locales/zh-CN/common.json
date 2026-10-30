@@ -79,5 +79,80 @@
     "agents": "需要更多 AI 客服？EzyChat Enterprise 为每个 WhatsApp 号码提供一个 AI 客服。",
     "numbers": "需要更多 WhatsApp 号码？EzyChat Enterprise 可将多个号码连接到同一个团队收件箱。",
     "about": "更多 WhatsApp 号码和 AI 客服，并由 Anchor Sprint 提供支持。"
+  },
+  "tips": {
+    "guide": "完整指南",
+    "showSteps": "显示步骤",
+    "hideSteps": "隐藏步骤",
+    "whatsappLink": {
+      "title": "什么是关联设备？",
+      "body": "EzyChat 像 WhatsApp Web 一样关联您的 WhatsApp。号码仍在手机上；请至少每 14 天在手机上打开一次 WhatsApp。"
+    },
+    "aiConnection": {
+      "title": "为什么要连接 AI？",
+      "body": "EzyChat 本身没有 AI。用 ChatGPT 登录（最简单）或使用 API 密钥；由该服务向您收费。"
+    },
+    "apiKey": {
+      "title": "什么是 API 密钥？",
+      "body": "一串秘密代码，让 EzyChat 用您的账号使用 OpenAI。OpenAI 按 AI 用量向您收费。",
+      "step1": "在 platform.openai.com 登录。",
+      "step2": "Billing：添加银行卡或充值。",
+      "step3": "API keys → Create new secret key。",
+      "step4": "复制密钥（sk-…）并粘贴到这里。",
+      "action": "到 OpenAI 获取密钥"
+    },
+    "claudeKey": {
+      "title": "什么是 Claude API 密钥？",
+      "body": "一串秘密代码，让 EzyChat 用您的账号使用 Claude。Anthropic 按 AI 用量向您收费。",
+      "step1": "在 console.anthropic.com 登录。",
+      "step2": "Billing：充值。",
+      "step3": "API keys → Create key。",
+      "step4": "复制密钥（sk-ant-…）并粘贴到这里。",
+      "action": "到 Anthropic 获取密钥"
+    },
+    "aiModel": {
+      "title": "什么是模型？",
+      "body": "AI 的版本。越大越聪明，但更慢、更贵。保留推荐的即可。"
+    },
+    "businessContext": {
+      "title": "什么是业务资料？",
+      "body": "AI 知道的内容：产品、价格、营业时间、送货、常见问题。AI 只根据这些回答，请保持最新。"
+    },
+    "instructions": {
+      "title": "什么是角色？",
+      "body": "AI 的表现方式：语气、语言、要问什么。价格等事实请放在业务资料里。"
+    },
+    "handoff": {
+      "title": "什么是转交？",
+      "body": "AI 停下，把聊天交给团队，团队会收到通知。这些规则决定何时转交，例如投诉或退款。"
+    },
+    "tryIt": {
+      "title": "什么是“试一试”？",
+      "body": "练习聊天，看看 AI 会怎么回答。不会发送到 WhatsApp。"
+    },
+    "voice": {
+      "title": "什么是语音转文字？",
+      "body": "把语音消息转成文字。在这台电脑上：免费、私密。云端：更快，使用您的 OpenAI 密钥。"
+    },
+    "tunnel": {
+      "title": "什么是手机访问？",
+      "body": "一个安全网址（免费，通过 Cloudflare），让团队用手机打开收件箱。这台电脑必须保持开机。"
+    },
+    "lan": {
+      "title": "什么是局域网访问？",
+      "body": "同一 Wi-Fi 的手机可以打开收件箱。不加密：只在信任的网络中开启。"
+    },
+    "mcp": {
+      "title": "什么是 AI 助手访问？",
+      "body": "让 Claude 或 ChatGPT 读取收件箱，帮您总结聊天或改进 AI 客服。开启前一直关闭。"
+    },
+    "accessToken": {
+      "title": "什么是访问令牌？",
+      "body": "开发工具使用收件箱的秘密代码。claude.ai 和 ChatGPT 不需要。"
+    },
+    "connectors": {
+      "title": "什么是连接器？",
+      "body": "让 AI 客服使用其他应用，例如查看 Google 日历并预约。"
+    }
   }
 }

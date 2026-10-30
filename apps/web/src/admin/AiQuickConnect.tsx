@@ -327,6 +327,7 @@ export function AiQuickConnect({ status }: { status: AiMemberStatus }) {
         <div className="flex flex-col gap-3">
           <Field
             label={view === 'claude' ? t('ai.claude.keyLabel') : t('ai.connect.keyLabel')}
+            tip={view === 'claude' ? 'claudeKey' : 'apiKey'}
             hint={view === 'claude' ? t('ai.claude.keyHint') : t('ai.connect.keyHint')}
             error={keyFailed ? keyTestMessage(t, testKey.data?.error, keyMode) : undefined}
           >

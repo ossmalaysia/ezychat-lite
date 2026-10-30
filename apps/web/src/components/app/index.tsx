@@ -233,11 +233,14 @@ export function PageHeader({
   title,
   description,
   actions,
+  titleTip,
   className,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** A "?" (`InfoTip`) after the title, kept outside the heading so its name stays clean. */
+  titleTip?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -248,7 +251,14 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        {titleTip ? (
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+            {titleTip}
+          </div>
+        ) : (
+          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        )}
         {description && (
           <p className="mt-1 text-base leading-relaxed text-muted-foreground md:text-sm">
             {description}

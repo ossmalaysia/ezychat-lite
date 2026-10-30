@@ -1,3 +1,5 @@
+import { tipGuideUrl, type TipGuide } from './tips';
+
 /** External links used for attribution and support across the app. */
 export const ANCHOR_SPRINT_URL = 'https://www.anchorsprint.com';
 export const EZYCHAT_WEBSITE_URL = 'https://ezychat.ai/';
@@ -45,6 +47,11 @@ export interface AppLinks {
    * ready message (in the UI language) to the team. Nothing is counted in the app. null hides them.
    */
   connectorRequest: ((message: string) => string) | null;
+  /**
+   * "Full guide" in the "?" tips (`InfoTip`): the guide page for a slug in the UI language, with the
+   * tip's topic for campaign tags. null hides the link (the tip keeps its text and outside page).
+   */
+  guide: ((guide: TipGuide, locale: string, topic: string) => string) | null;
 }
 
 /**
@@ -75,6 +82,7 @@ export const LITE_APP_LINKS: Readonly<AppLinks> = Object.freeze({
   supportEmail: null,
   upgrade: ENTERPRISE_UPGRADE_URL,
   connectorRequest: connectorRequestUrl,
+  guide: tipGuideUrl,
 });
 
 /** Lite's links with the given overrides (an explicit `null` hides that link). */
