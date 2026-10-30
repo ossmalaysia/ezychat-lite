@@ -7,10 +7,10 @@ Branch: `claude/ezychat-handoff-rules-bugs-d2lf5w` · Every agent updates its st
 | --- | --- | --- | --- | --- |
 | Design | todo |  |  |  |
 | Dev | done | Hand-off rules precedence, consultation = discovery, per-agent resolution question (migration 026, Closing chats card), waiting-after-hand-off push title | de47bf8 | 2026-10-30 |
-| Unit tests | pass | resolution, prompt, ai-handoff-rules (3 repros, bite-proofed), push, migrate 026, AgentResolutionCard; 2 pre-existing PDF-worker failures also on main | de47bf8 | 2026-10-30 |
-| E2E | pass | npm run e2e (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). Desktop-window link check not run here; CI runs it on Windows | 2b541b5 | 2026-10-30 |
+| Unit tests | pass | CI green on 825abb9: ubuntu (incl. test:coverage + coverage:changed), macos, windows; SonarCloud gate passed | 825abb9 | 2026-10-30 |
+| E2E | pass | npm run e2e on 825abb9 (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). e2e:electron-links green in CI (windows-latest) on 825abb9 | 825abb9 | 2026-10-30 |
 | Dev Build | todo | real-model try_ai_reply on Anchor Sprint agent 1 (v87) needs owner sign-in | de47bf8 | 2026-10-30 |
-| Screen review | done | Closing chats card at 1280/360, light/dark, off/on: no page errors, no horizontal scroll, switch saves on click, 44px target like the Groups card; shots in docs/screenshots/ai-member/closing-chats-*. No separate HTML mock: one switch on the confirmed Groups card pattern (owner to confirm) | 2b541b5 | 2026-10-30 |
+| Screen review | done | Closing chats card at 1280/360, light/dark, off/on: no page errors, no horizontal scroll, switch saves on click, 44px target like the Groups card; shots docs/screenshots/ai-member/closing-chats-*. Card unchanged since 2b541b5. No separate HTML mock (Groups card pattern; owner to confirm) | 825abb9 | 2026-10-30 |
 
 ## Log
 
@@ -21,3 +21,6 @@ Branch: `claude/ezychat-handoff-rules-bugs-d2lf5w` · Every agent updates its st
 - 2026-10-30 Dev Build: todo — real-model try_ai_reply on Anchor Sprint agent 1 (v87) needs owner sign-in (de47bf8)
 - 2026-10-30 E2E: pass — npm run e2e (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). Desktop-window link check not run here; CI runs it on Windows (2b541b5)
 - 2026-10-30 Screen review: done — Closing chats card at 1280/360, light/dark, off/on: no page errors, no horizontal scroll, switch saves on click, 44px target like the Groups card; shots in docs/screenshots/ai-member/closing-chats-*. No separate HTML mock: one switch on the confirmed Groups card pattern (owner to confirm) (2b541b5)
+- 2026-10-30 Unit tests: pass — CI green on 825abb9: ubuntu (incl. test:coverage + coverage:changed), macos, windows; SonarCloud gate passed (825abb9)
+- 2026-10-30 E2E: pass — npm run e2e on 825abb9 (local Chromium): 126 passed, 1 failed = ai-member file upload 'Cannot read this document' (container document parser; same unit tests fail on clean main here, pass in CI). e2e:electron-links green in CI (windows-latest) on 825abb9 (825abb9)
+- 2026-10-30 Screen review: done — Closing chats card at 1280/360, light/dark, off/on: no page errors, no horizontal scroll, switch saves on click, 44px target like the Groups card; shots docs/screenshots/ai-member/closing-chats-*. Card unchanged since 2b541b5. No separate HTML mock (Groups card pattern; owner to confirm) (825abb9)
