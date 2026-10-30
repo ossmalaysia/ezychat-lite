@@ -264,6 +264,61 @@ it('cancels fallback after a human or linked-phone reply', async () => {
   expect(provider.generate).not.toHaveBeenCalled();
 });
 
+describe('a phone reply in a chat the AI owns', () => {
+  const aiUserId = () => defaultAgent(t.ctx.db)!.userId;
+  async function aiOwnsChat() {
+    clock();
+    await incoming();
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 100);
+    expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(aiUserId());
+    vi.mocked(provider.generate).mockClear();
+  }
+
+  it('returns the chat to the team, and the AI stays out while the customer writes on', async () => {
+    await aiOwnsChat();
+    await incoming('phone-out', 'Yes?', 'live', jid, true);
+    const chat = getChats(t.ctx).get(jid)!;
+    expect(chat.assignedTo).toBeNull();
+    expect(chat.status).toBe('open');
+    expect(aiLogs.join('\n')).toContain('AI returned the chat to the team after a phone reply');
+
+    await incoming('after-1', 'Do you have H200 cards?');
+    await incoming('after-2', 'my friend');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS * 3);
+    expect(provider.generate).not.toHaveBeenCalled();
+    expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+  });
+
+  it('answers again when someone assigns the chat back to the AI', async () => {
+    await aiOwnsChat();
+    await incoming('phone-out', 'Yes?', 'live', jid, true);
+    await incoming('after', 'Do you have H200 cards?');
+    getChats(t.ctx).patch(jid, { assignedTo: aiUserId() }, actor.userId);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a teammate reply from the app to the normal claim (the AI only pauses)', async () => {
+    await aiOwnsChat();
+    const teammate = human('teammate');
+    getChats(t.ctx).patch(jid, { assignedTo: teammate.id }, teammate.id);
+    getMessages(t.ctx).sendText(jid, { text: 'On it', clientId: 'teammate-reply' }, teammate.id);
+    expect(getChats(t.ctx).get(jid)?.assignedTo).toBe(teammate.id);
+  });
+
+  it('repairs a chat that an older version left assigned to a paused AI', async () => {
+    await aiOwnsChat();
+    t.ctx.db.prepare('UPDATE ai_chat_state SET paused = 1 WHERE chat_jid = ?').run(jid);
+    await t.ctx.services.ai!.shutdown();
+    t.ctx.services.ai = createAiService(t.ctx, { provider, isOnline: () => true });
+    expect(getChats(t.ctx).get(jid)?.assignedTo).toBeNull();
+    expect(aiLogs.join('\n')).toContain('AI returned paused chats to the team at start');
+    await incoming('after', 'Hello?');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS * 3);
+    expect(provider.generate).not.toHaveBeenCalled();
+  });
+});
+
 it('aborts generation on human takeover and ignores a late provider result', async () => {
   const taker = human('takeover');
   let finish!: (value: { reply: string; action: 'answer' }) => void;
