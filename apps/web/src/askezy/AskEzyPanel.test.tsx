@@ -347,4 +347,147 @@ describe('AskEzyPanel', () => {
     );
     await waitFor(() => expect(screen.queryByTestId('ask-block-change-c2')).toBeNull());
   });
+
+  it('copies an answer as plain text with its blocks, and says when copying fails', async () => {
+    const writeText = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('no'));
+    replies.push({
+      events: [
+        answer({
+          text: 'Your week.',
+          blocks: [
+            {
+              type: 'stats',
+              items: [
+                { label: 'New conversations', value: '18', change: '+4', good: true },
+                { label: 'Hand-offs', value: '9' },
+              ],
+            },
+            {
+              type: 'bars',
+              title: 'Hand-offs by reason',
+              rows: [{ label: 'Missing facts', count: 5 }],
+            },
+            {
+              type: 'heatmap',
+              title: 'Busy hours',
+              finding: 'Saturday noon is busiest.',
+              hours: Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 1)),
+            },
+            {
+              type: 'chats',
+              title: 'Waiting',
+              chats: [
+                {
+                  jid: '601@s.whatsapp.net',
+                  name: 'Priya',
+                  preview: 'Order?',
+                  wait: '42 min',
+                  assignee: null,
+                },
+              ],
+            },
+            {
+              type: 'customer',
+              jid: '602@s.whatsapp.net',
+              name: 'Farah Aziz',
+              facts: [],
+              points: ['Catering for 30.'],
+              open: [],
+              next: 'Confirm the deposit.',
+            },
+          ],
+        }),
+      ],
+    });
+    const user = renderPanel();
+    // userEvent.setup() installs its own clipboard: replace it after setup.
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await openAndAsk(user, 'How is my week?');
+    await screen.findByTestId('ask-block-stats');
+    await user.click(screen.getByRole('button', { name: 'Copy answer' }));
+    expect(writeText).toHaveBeenCalledWith(
+      [
+        'Your week.',
+        'New conversations: 18 (+4)',
+        'Hand-offs: 9',
+        'Hand-offs by reason',
+        '- Missing facts: 5',
+        'Saturday noon is busiest.',
+        'Waiting',
+        '- Priya (42 min): Order?',
+        'Farah Aziz',
+        '- Catering for 30.',
+        'Next: Confirm the deposit.',
+      ].join('\n'),
+    );
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Copied'));
+    await user.click(screen.getByRole('button', { name: 'Copy answer' }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('Could not copy. Select the text instead.'),
+    );
+  });
+
+  it('applies both suggested changes with one button', async () => {
+    const change = (id: string, title: string) => ({
+      type: 'change' as const,
+      id,
+      agent: 'Aina',
+      title,
+      target: 'handoff_rules' as const,
+      itemName: null,
+      added: 1,
+      removed: 0,
+      before: 'Old rule.',
+      after: `Old rule.\n${title}.`,
+      reason: 'Seen in hand-offs.',
+      status: 'proposed' as const,
+    });
+    replies.push(
+      {
+        events: [
+          answer({
+            text: 'Two changes.',
+            blocks: [change('c1', 'Late orders'), change('c2', 'Refunds')],
+          }),
+        ],
+      },
+      { json: { status: 'applied', version: 3 } },
+      { json: { status: 'applied', version: 4 } },
+    );
+    const user = renderPanel();
+    await openAndAsk(user, 'Fix my hand-off rules');
+    await user.click(await screen.findByTestId('ask-ezy-apply-all'));
+    await waitFor(() =>
+      expect(sent.map((s) => s.url).filter((u) => u.includes('/changes/'))).toEqual([
+        '/api/ask-ezy/changes/c1/apply',
+        '/api/ask-ezy/changes/c2/apply',
+      ]),
+    );
+    await waitFor(() => expect(screen.queryByTestId('ask-ezy-apply-all')).toBeNull());
+  });
+
+  it('explains too many questions and an unavailable AI, with Settings for an admin', async () => {
+    replies.push(
+      { status: 429, json: { error: { code: 'rate_limited', message: 'slow down' } } },
+      { status: 503, json: { error: { code: 'ai_unavailable', message: 'down' } } },
+    );
+    const user = renderPanel();
+    await openAndAsk(user, 'First');
+    expect(await screen.findByText('Too many questions')).toBeTruthy();
+    // The Send button asks too, not only Enter.
+    await user.type(screen.getByRole('textbox'), 'Second');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('Ezy could not answer this time')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Check Settings → AI' }).getAttribute('href')).toBe(
+      '/admin/settings/ai',
+    );
+    expect(
+      sent
+        .filter((s) => s.url === '/api/ask-ezy')
+        .map((s) => (s.body as { question: string }).question),
+    ).toEqual(['First', 'Second']);
+  });
 });

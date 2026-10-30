@@ -325,6 +325,76 @@ describe('Ask Ezy', () => {
     expect((await change(s.t, s.adminCookie, 'unknown', 'apply')).statusCode).toBe(404);
   });
 
+  it('adds and updates Business context text items, and undoes each', async () => {
+    const s = await setup();
+    const ids: string[] = [];
+    const results: unknown[] = [];
+    const itemId = () =>
+      (
+        s.t.ctx.db.prepare("SELECT id FROM ai_documents WHERE name = 'Delivery areas'").get() as {
+          id: number;
+        }
+      ).id;
+    s.setScript(async (tools) => {
+      const propose = (args: object) =>
+        exec(tools, 'propose_ai_setup_change', { agentId: s.agentId, reason: 'asked', ...args });
+      ids.push(
+        (
+          (await propose({
+            target: 'context_text',
+            name: 'Opening hours',
+            text: 'Open 9 to 6.',
+          })) as {
+            changeId: string;
+          }
+        ).changeId,
+        (
+          (await propose({
+            target: 'context_text',
+            itemId: itemId(),
+            text: 'We deliver in George Town.\nBayan Lepas: RM8.',
+          })) as { changeId: string }
+        ).changeId,
+      );
+      results.push(
+        await propose({ target: 'context_text', text: 'No name.' }),
+        await propose({ target: 'instructions', name: 'x', text: 'Be brief.' }),
+      );
+      return { text: 'Two changes.', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie, { question: 'Improve my knowledge' });
+    expect(results).toEqual([
+      { error: 'Give a name to add a new text item' },
+      { error: 'itemId and name apply to context_text only' },
+    ]);
+    const [added, updated] = ids as [string, string];
+    const ai = s.t.ctx.services.ai!;
+    const opening = () =>
+      ai.agentStatus(s.agentId).documents.find((d) => d.name === 'Opening hours');
+
+    expect((await change(s.t, s.adminCookie, added, 'apply')).json().status).toBe('applied');
+    expect(ai.document(s.agentId, opening()!.id).text).toBe('Open 9 to 6.');
+    // An applied change must be undone before it can be discarded.
+    expect((await change(s.t, s.adminCookie, added, 'discard')).json().error.code).toBe(
+      'change_applied',
+    );
+    expect((await change(s.t, s.adminCookie, added, 'undo')).json()).toEqual({
+      status: 'proposed',
+    });
+    expect(opening()).toBeUndefined();
+
+    expect((await change(s.t, s.adminCookie, updated, 'apply')).json().status).toBe('applied');
+    expect(ai.document(s.agentId, itemId()).text).toBe(
+      'We deliver in George Town.\nBayan Lepas: RM8.',
+    );
+    // Undo never overwrites a teammate's later edit.
+    ai.updateText(s.agentId, itemId(), { text: 'Edited later.' }, { userId: 1, ip: null });
+    const undo = await change(s.t, s.adminCookie, updated, 'undo');
+    expect(undo.statusCode).toBe(409);
+    expect(undo.json().error.code).toBe('setup_changed');
+    expect(ai.document(s.agentId, itemId()).text).toBe('Edited later.');
+  });
+
   it('refuses a proposal the model gets wrong and tells the model why', async () => {
     const s = await setup();
     const results: unknown[] = [];
