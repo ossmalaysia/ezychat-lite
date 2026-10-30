@@ -42,7 +42,12 @@ import {
 import { runAssist } from './agent/assist.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
-import { CHATGPT_DRAFT_REASONING, CHATGPT_FAST_DRAFT_MODELS, runDraft } from './agent/draft.js';
+import {
+  CHATGPT_DRAFT_REASONING,
+  CHATGPT_FAST_DRAFT_MODELS,
+  draftModelSettings,
+  runDraft,
+} from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
@@ -596,16 +601,25 @@ export class DirectChatGptProvider implements AiProvider {
     }));
   }
 
-  /** Ask Ezy: one agent turn with read tools on the saved (or Auto) model, reasoning `low`. */
+  /**
+   * Ask Ezy: one agent turn with read tools on the connection's fast model (the one reply suggestions use),
+   * reasoning `low`: a person waits for it, and the main model took 13–23 s for two or three rounds.
+   */
   async assist(
     settings: AiSettings,
     apiKey: string | null,
     call: AiAssistCall,
     signal: AbortSignal,
   ) {
-    if (settings.mode === 'api') return assistOpenAi(settings, apiKey, call, signal);
-    if (settings.mode === 'claude') return assistClaude(settings, apiKey, call, signal);
-    return this.turn(settings, call.cacheId, signal, async (model, turnSignal, id) => ({
+    if (settings.mode !== 'chatgpt')
+      return (settings.mode === 'api' ? assistOpenAi : assistClaude)(
+        draftModelSettings(settings, true),
+        apiKey,
+        call,
+        signal,
+      );
+    const fast = { ...settings, model: this.fastDraftModel(settings.model) };
+    return this.turn(fast, call.cacheId, signal, async (model, turnSignal, id) => ({
       ...(await runAssist({ ...call, model, signal: turnSignal, reasoningEffort: 'low' })),
       model: id,
     }));

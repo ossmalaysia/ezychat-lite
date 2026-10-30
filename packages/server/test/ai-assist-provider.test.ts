@@ -64,7 +64,7 @@ describe('provider assist (network mocked, no real model)', () => {
     );
   });
 
-  it('ChatGPT sign-in: one turn on the saved model with reasoning low; key modes delegate', async () => {
+  it('ChatGPT sign-in: one turn on the fast model (not the saved one) with reasoning low; key modes delegate', async () => {
     seedTokens(t.ctx);
     const fetchMock = vi.fn(async (url: unknown) =>
       String(url).startsWith(CODEX_BACKEND.modelsUrl)
@@ -78,7 +78,7 @@ describe('provider assist (network mocked, no real model)', () => {
       call,
       new AbortController().signal,
     );
-    expect(result).toMatchObject({ output: OUTPUT, model: 'gpt-6-astra' });
+    expect(result).toMatchObject({ output: OUTPUT, model: 'gpt-6-luna' });
     const sent = fetchMock.mock.calls.filter((c) => c[0] === CODEX_BACKEND.responsesUrl);
     expect(sent).toHaveLength(1);
     const body = JSON.parse(String((sent[0] as unknown as [unknown, RequestInit])[1].body));
