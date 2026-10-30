@@ -87,10 +87,12 @@ into AGENTS.md.
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
   once per fresh server and vary viewport and colour scheme on that one page.
-- In the cloud container the document parser worker (PDF/Word, `ai/knowledge-worker.ts`) answers "Cannot read this
-  document": 4 server tests and the `ai-member.spec` file upload fail there on `main` too. Check a failure there
-  with `git stash -u` before blaming the branch, and let CI decide. `npm run e2e` there needs the Playwright build
-  it expects: link `/opt/pw-browsers/chromium-<wanted>` (and `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
+- Run tests on the Node version CI uses (`setup-node` 22 = the newest 22.x; 22.23.4 on 2026-10-30). On Node 22.22.0
+  a worker's `execArgv: ['--import', 'tsx']` does not apply tsx's hooks, so the document parser worker
+  (`ai/knowledge-worker.ts`) answers "Cannot read this document": 4 server tests and the `ai-member.spec` file upload
+  fail while CI is green. Check `node -v` before calling such a failure the branch's or the machine's. `npm run e2e`
+  in the cloud container also needs the Playwright build it expects: link `/opt/pw-browsers/chromium-<wanted>` (and
+  `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
   `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
@@ -170,6 +172,15 @@ into AGENTS.md.
   files in the wrong folder.
 - In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
   the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
+- A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
+  `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
+  Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
+  `prettier --write` on `docs/release-review/log.md` (`main` keeps it unformatted; it rewrote 117 lines).
+- Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
+  ended while two jobs still ran. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
+  `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
+  "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
+  just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
@@ -338,8 +349,11 @@ into AGENTS.md.
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
   answer from a cached 404. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
-  10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until
-  `https://registry.npmjs.org/@ezychat%2f<pkg>/<version>` answers 200 for all five. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
+  10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until the **tarball**
+  `https://registry.npmjs.org/@ezychat/<pkg>/-/<pkg>-<version>.tgz` answers 200 for all five: the version
+  document can list the version while its tarball still answers 404 (Enterprise CI then fails at `npm ci`).
+  The Enterprise Windows installer job runs on the owner's PC: a long `gh run watch` in the background is
+  stopped under memory pressure, so check the run once (`gh run view <id>`) and again later. Look at the package's Settings page first: `@ezychat/desktop` had no trusted
   publisher at all (only "Select your publisher"). npm's form allows only `npm stage publish` unless
   "Allow npm publish" is ticked; copy every field (label, org, repo, workflow, empty environment, publish
   ticked) from a package that publishes. Then `gh run rerun <publish run> --failed` on the existing tag
@@ -441,6 +455,18 @@ into AGENTS.md.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %).
+- An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
+  (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
+  (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
+  rarely downloaded hash): the fix is the vendor's false-positive form, not a build change. An allowlisting covers
+  one hash only: after each Enterprise release, report the new installer when a vendor flags it, and point users
+  at `ezychat.ai/guides/install-on-windows#antivirus`. McAfee: a `ti!<hash>` detection is reputation only; report
+  it on its "Dispute a Detection & Allowlisting" web form. A 407 MB ZIP of the installer plus its extracted files
+  failed although the page names no limit: attach the installer alone (a 173 MB ZIP went through) and put the
+  download links and SHA-256 values in Details. The owner attaches it by hand: browser automation uploads 10 MB at
+  most and its click on a file input opens no OS dialog; a tab that reports viewport 0x0 or times out on
+  screenshots is in a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
+  Google Threat Intelligence (VirusTotal) docs.
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
@@ -830,7 +856,10 @@ into AGENTS.md.
 - A send-time guard for automatic AI replies (`canSend` in `sendJob`) runs on every queue attempt, including a
   person's Retry: the AI marks the question answered when WhatsApp first takes the reply, so a later ERROR ack
   (e.g. Baileys `smax-invalid (479)` on a fresh encryption session) left an AI reply that no Retry could send.
-  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message.
+  Exempt explicit human actions from automatic-reply guards, and test Retry of a failed AI message. The same
+  guard lets an AI reply out only while its customer message is unanswered (`eligible`): send first, then set
+  `last_replied_message_id`. "Did the team act since?" queries must skip the AI's own messages
+  (`sent_by_user_id = AI user`); a phone message (`sent_by_user_id` NULL) counts as the team.
 - Core AI rules stay connector-neutral: a connector's "skill" is its tool descriptions and result notes, plus
   server guards in its own module; never a tool or connector name in `CORE_RULES` (one general rule covers tools
   that make a change). Details the AI passes to such a tool must be checked against the customer's own messages
@@ -1031,9 +1060,7 @@ into AGENTS.md.
 - Mock screenshot scripts that need the AI to hold a chat must switch the AI member on first (`GET /api/ai`, then
   `PUT /api/ai` with `{...settings, enabled: true}`; an earlier run can leave it off and the assign answers 400), and
   scope a select to its container (`page.locator('header').getByRole('combobox')`): the chat list's inbox filter is
-  the page's first combobox. In the cloud container the preinstalled browsers lag the repo's Playwright: point
-  `PLAYWRIGHT_BROWSERS_PATH` at a scratch folder whose `chromium-<wanted>` / `chromium_headless_shell-<wanted>` entries
-  symlink to `/opt/pw-browsers/*-<installed>`, then `npm run e2e` runs as is (never `playwright install`).
+  the page's first combobox.
 - An e2e assignee check on the shared e2e agent proves nothing: it has no AI connection, stays off, and an off AI is
   never offered anyway. Cover assignee filters with `buildDirectory` unit tests and a Dev Build check instead.
 - A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)

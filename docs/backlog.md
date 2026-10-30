@@ -8,10 +8,6 @@ are listed here until they get a branch. Newest first; remove an item when its P
 - `e2e/devbuild-multi-inbox-check.mjs` fails from its second step on a fresh `--fake-wa --mode dev --max-inboxes 3`
   server (one inbox, adding Catering answers 409), also with `main`'s copy of the script (found 2026-10-30 in a cloud
   session while verifying PR ossmalaysia/ezychat-lite#229). Find whether the CLI start line or the limit changed.
-- The document-parser worker (`ai/knowledge-worker.ts`, TypeScript entry through `--import tsx`) answers "Cannot read
-  this document" for every file in the Linux cloud container: `src/ai/knowledge.test.ts`, the upload tests in
-  `ai.test.ts`/`ai-agents-routes.test.ts` and the e2e upload in `ai-member.spec.ts` fail there, while CI on
-  `ubuntu-latest` passes them. Find what the container lacks (likely `tsx` in a worker thread) so local runs are clean.
 - **One name for hand-over.** Setup, Settings and the audit say "Hand-off rules"; the agent page says "Hand-over
   rules", and its ms and zh catalogs still show the English words (`ai.agents.handoffTitle`). Pick one word in every
   language (found in the concept-tips screen review, 2026-10-30).
@@ -37,8 +33,8 @@ are listed here until they get a branch. Newest first; remove an item when its P
 - **Ask Ezy: model choice** (owner, 2026-10-30, follow-up of 0.1.64): Ask Ezy answers on the connection's fast
   model. Add "Model for Ask Ezy" in Settings → AI (Fast default / same as the AI agent / a model of the
   connection), reusing the reply-suggestions model setting and route pattern.
-- **Ask Ezy: follow-ups** listed in `docs/features/ask-ezy/design.md` (after round 9), plus `docs/screenshots/ask-ezy/`
-  (not yet refreshed) and a hand-off answer that shows real hand-off counts, not only the rules.
+- **Ask Ezy: follow-ups** listed in `docs/features/ask-ezy/design.md` (after round 9), plus a hand-off answer that
+  shows real hand-off counts, not only the rules. (Screenshots: `docs/screenshots/ask-ezy/`, #222.)
 - **AI reactions** (owner, 2026-10-30): let the AI add an emoji reaction where the connection supports reactions
   (linked phone), and reply with the emoji where it does not; needs a `reactions` capability on `WaAdapter`.
   The first use, a 👍 when a customer only thanks after the AI resolved the chat, is on `fix/ai-thanks-after-resolve`.
