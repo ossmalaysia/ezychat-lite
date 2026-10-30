@@ -6,7 +6,9 @@ import { devbuildClient } from './devbuild-client.mjs';
 
 const OWN = '60000000000@s.whatsapp.net';
 const GROUP = '120363077700001@g.us';
-const { api, check, code, wait, finish } = await devbuildClient(Number(process.argv[2] ?? 7491));
+const client = await devbuildClient(Number(process.argv[2] ?? 7491));
+const { api, check, code, wait, finish } = client;
+const signInAdmin = () => client.signInAdmin();
 const enc = encodeURIComponent;
 const chat = async (jid) => (await api('GET', `/chats/${enc(jid)}`)).json?.chat;
 /** The AI messages of a chat after waiting `ms`. */
@@ -22,13 +24,7 @@ async function aiMessages(jid, aiUserId, ms) {
   return found;
 }
 
-const admin = { username: 'checker', displayName: 'Checker', password: 'check-pass-123' };
-if ((await api('GET', '/setup/status')).json.needsSetup) await api('POST', '/setup/admin', admin);
-check(
-  (await api('POST', '/auth/login', { username: admin.username, password: admin.password }))
-    .status === 200,
-  'admin signs in',
-);
+await signInAdmin();
 
 await api('PUT', '/ai', {
   displayName: 'Group Helper',

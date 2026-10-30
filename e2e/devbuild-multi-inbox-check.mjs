@@ -5,6 +5,7 @@
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { cookieSession } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7490);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -19,24 +20,7 @@ const check = (ok, step, detail = '') => {
 };
 
 /** A signed-in browser-like session (its own cookie). */
-function session() {
-  let cookie = '';
-  return async (method, path, body) => {
-    const res = await fetch(BASE + '/api' + path, {
-      method,
-      headers: {
-        origin: BASE,
-        ...(cookie ? { cookie } : {}),
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0];
-    const text = await res.text();
-    return { status: res.status, json: text ? JSON.parse(text) : null };
-  };
-}
+const session = () => cookieSession(BASE);
 
 async function connect(secret) {
   const client = new Client({ name: 'devbuild-multi-inbox', version: '1' });

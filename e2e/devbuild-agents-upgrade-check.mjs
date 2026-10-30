@@ -5,6 +5,7 @@
 // 2. stop it, start this branch on the SAME temp dir (cli.ts --data <temp dir> --port 7434 --fake-wa --mode dev)
 //    node e2e/devbuild-agents-upgrade-check.mjs 7434 verify
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number.
+import { cookieSession } from './devbuild-client.mjs';
 const [port = '7433', phase = 'seed'] = process.argv.slice(2);
 const BASE = `http://127.0.0.1:${port}`;
 let failed = 0;
@@ -15,22 +16,7 @@ const check = (ok, step, detail = '') => {
   const extra = detail ? '  (' + String(detail).replace(/\s+/g, ' ') + ')' : '';
   console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + extra);
 };
-let cookie = '';
-async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
+const api = cookieSession(BASE);
 
 const ADMIN = { username: 'owner', displayName: 'Owner', password: 'upgrade-pass-123' };
 const INSTRUCTIONS = 'Reply in short Malay or English. Kopi Apong sells coffee and kaya toast.';
