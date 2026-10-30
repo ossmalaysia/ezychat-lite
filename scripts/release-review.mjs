@@ -20,10 +20,12 @@ import {
   loadMap,
 } from './review/components.mjs';
 import {
+  ciLinkCheck,
   coverageFromLog,
   devBuildEvidence,
   devBuildRows,
   evidenceShaValid,
+  reviewCommentCounts,
   workbookEvidence,
 } from './review/evidence.mjs';
 import { scoreChange } from './review/rubric.mjs';
@@ -40,6 +42,8 @@ import {
 
 const MAP_PATH = 'docs/release-review/components.json';
 const DEFAULT_COVERAGE_JOB = 'Test (ubuntu-latest)';
+/** The CI job that runs `npm run e2e:electron-links` (Windows runners have a desktop). */
+const DEFAULT_LINK_CHECK_JOB = 'Test (windows-latest)';
 const GREEN = ['success', 'skipped', 'neutral'];
 
 export const defaultGh = (args) =>
@@ -190,6 +194,19 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
       coverage = null;
     }
 
+  // The desktop link check also counts when CI ran it on this head (Windows job, e2e:electron-links).
+  const linkJob = runs.find(
+    (r) => r.name === (map.linkCheckJob ?? DEFAULT_LINK_CHECK_JOB) && r.status === 'completed',
+  );
+  let ciLink = false;
+  if (linkJob)
+    try {
+      ciLink = ciLinkCheck(api(`actions/jobs/${linkJob.id}`));
+    } catch {
+      ciLink = false;
+    }
+  const reviewComments = readReviewComments({ gh, api, json, repo, pr });
+
   const workbookMarkdown = file(workbookPath(info.headRefName).replaceAll('\\', '/'), head);
   const workbook = workbookMarkdown ? parseWorkbook(workbookMarkdown) : null;
   const wb = workbookEvidence(workbook, isValid);
@@ -224,15 +241,50 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
       agentsSecurityChanged,
       checks,
       coverage,
+      reviewComments,
       evidence: {
         e2e: wb.e2e.ok,
-        linkCheck: wb.linkCheck.ok,
+        linkCheck: wb.linkCheck.ok || ciLink,
         screenReview: wb.screenReview.ok,
         devBuild: db.devBuild,
         realTest: db.realTest,
       },
     },
   };
+}
+
+/**
+ * Review comments of the PR (REST) and how many threads are still unresolved (GraphQL
+ * `reviewThreads`; null when GraphQL is not available, e.g. in a cloud session). Null when even
+ * the comments cannot be read.
+ */
+export function readReviewComments({ api, json, repo, pr }) {
+  let comments;
+  try {
+    comments = api(`pulls/${pr}/comments?per_page=100`);
+  } catch {
+    return null;
+  }
+  let threads;
+  try {
+    const [owner, name] = repo.split('/');
+    const query = `query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}`;
+    threads = json([
+      'api',
+      'graphql',
+      '-f',
+      `query=${query}`,
+      '-F',
+      `owner=${owner}`,
+      '-F',
+      `name=${name}`,
+      '-F',
+      `pr=${pr}`,
+    ]).data.repository.pullRequest.reviewThreads.nodes;
+  } catch {
+    threads = null;
+  }
+  return reviewCommentCounts(comments, threads);
 }
 
 export function parseArgs(argv) {

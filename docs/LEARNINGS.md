@@ -165,6 +165,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- CI's `Test (windows-latest)` job runs `npm run e2e:electron-links` on every non-docs PR: the release review counts
+  that step on the head as the desktop link check, so never ask the owner to run it by hand.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
