@@ -497,6 +497,10 @@ cover navigation from every admin section and recovery from malformed URLs.
 
 ## Working rules (required)
 
+- **Security review for network changes** (owner rule): a change that opens, binds or moves a network
+  listener (port, host, socket, tunnel, even a short test listen) gets a security review before its PR:
+  interfaces touched, OS firewall prompts, what the LAN or another local program could reach, and the
+  security invariants above. Run `/security-review` on the branch and write the result in the PR description.
 - **Debug from evidence, not guesses.** Read the server log (`<data>/logs/*.log`) before proposing a cause.
   If the failure isn't in any log, add structured logging (pino child logger with `mod`, fields — not
   string concatenation) first, reproduce, then read it.

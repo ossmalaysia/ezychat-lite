@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createServer, type AddressInfo } from 'node:net';
+import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import {
   applyRuntimeVersion,
@@ -10,6 +11,8 @@ import {
   PORT_TRIES,
   portIsFree,
   prepareServerArgs,
+  readSettingFromDb,
+  serverBindHost,
   SHUTDOWN_MESSAGE,
   startArgs,
   useFreePort,
@@ -75,12 +78,12 @@ describe('prepareServerArgs (persisted port setting wins over --port)', () => {
 
 describe('pickFreePort (a taken port moves the server to the next free one)', () => {
   it('keeps a free port', async () => {
-    expect(await pickFreePort(7440, async () => true)).toBe(7440);
+    expect(await pickFreePort(7440, '127.0.0.1', async () => true)).toBe(7440);
   });
   it('moves to the first free port after a taken one', async () => {
     const taken = new Set([7440, 7441]);
     const tried: number[] = [];
-    const port = await pickFreePort(7440, async (p) => {
+    const port = await pickFreePort(7440, '127.0.0.1', async (p) => {
       tried.push(p);
       return !taken.has(p);
     });
@@ -89,7 +92,7 @@ describe('pickFreePort (a taken port moves the server to the next free one)', ()
   });
   it(`gives up after ${PORT_TRIES} ports and keeps the chosen one, so the server reports the error`, async () => {
     let calls = 0;
-    const port = await pickFreePort(7440, async () => {
+    const port = await pickFreePort(7440, '127.0.0.1', async () => {
       calls++;
       return false;
     });
@@ -98,7 +101,7 @@ describe('pickFreePort (a taken port moves the server to the next free one)', ()
   });
   it('never tries a port above 65535', async () => {
     const tried: number[] = [];
-    await pickFreePort(65534, async (p) => {
+    await pickFreePort(65534, '127.0.0.1', async (p) => {
       tried.push(p);
       return false;
     });
@@ -117,6 +120,58 @@ describe('portIsFree', () => {
       await new Promise<void>((done) => holder.close(() => done()));
     }
     expect(await portIsFree(port)).toBe(true);
+  });
+  it('also checks loopback for a LAN server', async () => {
+    const holder = createServer();
+    await new Promise<void>((done) => holder.listen(0, '127.0.0.1', done));
+    const { port } = holder.address() as AddressInfo;
+    try {
+      expect(await portIsFree(port, '0.0.0.0')).toBe(false);
+    } finally {
+      await new Promise<void>((done) => holder.close(() => done()));
+    }
+  });
+});
+
+describe('readSettingFromDb', () => {
+  it('reads JSON settings read-only, undefined when absent', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wati-host-settings-'));
+    try {
+      const db = new Database(join(dir, 'app.db'));
+      db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)');
+      db.prepare('INSERT INTO settings VALUES (?, ?), (?, ?)').run(
+        'port',
+        '7450',
+        'lan_enabled',
+        'true',
+      );
+      db.close();
+      expect(readSettingFromDb(dir, 'port')).toBe(7450);
+      expect(readSettingFromDb(dir, 'lan_enabled')).toBe(true);
+      expect(readSettingFromDb(dir, 'history_days')).toBeUndefined();
+      expect(() => readSettingFromDb(join(dir, 'missing'), 'port')).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('serverBindHost (test the port only where the server listens)', () => {
+  const data = ['--data', 'D:\\data', '--port', '7440'];
+  it('is loopback by default, so no test listen on every interface (no Windows Firewall prompt)', () => {
+    expect(serverBindHost(data, () => false)).toBe('127.0.0.1');
+  });
+  it('is 0.0.0.0 with LAN access on', () => {
+    expect(serverBindHost(data, () => true)).toBe('0.0.0.0');
+  });
+  it('follows --host, and falls back to loopback when the setting cannot be read', () => {
+    expect(serverBindHost([...data, '--host', '192.168.1.5'], () => false)).toBe('192.168.1.5');
+    expect(
+      serverBindHost(data, () => {
+        throw new Error('no app.db');
+      }),
+    ).toBe('127.0.0.1');
+    expect(serverBindHost(['--port', '7440'], () => true)).toBe('127.0.0.1');
   });
 });
 
@@ -147,29 +202,39 @@ describe('useFreePort', () => {
 });
 
 describe('startArgs', () => {
-  it('applies the saved setting, then moves a taken port and logs it once', async () => {
+  it('applies the saved setting, then moves a taken port on loopback and logs it once', async () => {
     const lines: string[] = [];
+    const hosts: string[] = [];
     const r = await startArgs(
       base,
-      () => 7440,
-      async () => 7441,
+      (_d, key) => (key === 'port' ? 7440 : undefined),
+      async (_p, host) => {
+        hosts.push(host);
+        return 7441;
+      },
       (l) => lines.push(l),
     );
     expect(r).toEqual({
       args: ['--data', 'D:\\data', '--port', '7441', '--mode', 'standalone'],
       port: 7441,
     });
+    expect(hosts).toEqual(['127.0.0.1']);
     expect(lines).toEqual(['server-host: port 7440 is in use; using port 7441']);
   });
-  it('logs nothing when the port is free', async () => {
+  it('tests every interface only with LAN access on, and logs nothing when the port is free', async () => {
     const lines: string[] = [];
+    const hosts: string[] = [];
     const r = await startArgs(
       base,
-      () => null,
-      async (p) => p,
+      (_d, key) => (key === 'lan_enabled' ? true : 'not a port'),
+      async (p, host) => {
+        hosts.push(host);
+        return p;
+      },
       (l) => lines.push(l),
     );
     expect(r).toEqual({ args: base, port: 7420 });
+    expect(hosts).toEqual(['0.0.0.0']);
     expect(lines).toEqual([]);
   });
 });
