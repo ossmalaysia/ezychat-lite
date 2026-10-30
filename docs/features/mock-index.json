@@ -15,18 +15,6 @@
   },
   "proposals": [
     {
-      "feature": "ai-handoff-rules",
-      "creationOrder": 21,
-      "createdAt": "2026-10-30",
-      "design": "docs/features/ai-handoff-rules/design.md",
-      "mock": "docs/features/ai-handoff-rules/mock/index.html",
-      "status": "proposal",
-      "baselineFeature": "grammar-fix",
-      "baselineGitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
-      "baselineAppRevision": "825abb9",
-      "coverage": "Full app clone of the confirmed grammar-fix reference; agent page Closing chats card (Ask if the question is answered: off for sales with no check-in line and the team closing chats, on with the clear-yes rule), dashed Mock only preview of the same two customer messages per state, kept per agent in localStorage; desktop 1280 / mobile 360 touch, light/dark (resolution-shots.mjs)"
-    },
-    {
       "feature": "ask-ezy",
       "creationOrder": 20,
       "createdAt": "2026-10-30",
@@ -101,8 +89,9 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": ["reports"],
-      "folderRemoved": "2026-10-30 (ai-handoff-rules: sixth feature folder); last on this branch at d249783:docs/features/google-calendar/"
+      "parallelFeatures": [
+        "reports"
+      ]
     },
     {
       "feature": "ai-phrase-dictionary",
