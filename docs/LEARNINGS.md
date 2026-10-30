@@ -163,6 +163,13 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
+  rename/rename pairs: restore each new folder whole from its own side (`git rm -r --cached`, then
+  `git checkout <side> -- docs/features/<name>`), rebuild `mock-index.json` from `main`'s copy plus your entry with the
+  next `creationOrder`, and prune the next-oldest folder. Resolving them file by file with `--ours/--theirs` puts some
+  files in the wrong folder.
+- In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
+  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
