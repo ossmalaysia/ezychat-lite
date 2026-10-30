@@ -6,6 +6,7 @@ import {
   FileText,
   Lock,
   MessageSquareText,
+  BotMessageSquare,
   Mic,
   Paperclip,
   SendHorizontal,
@@ -22,6 +23,7 @@ import {
   type ReplySuggestion,
 } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
+import { useAskEzy } from '../askezy/AskEzyContext';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -92,6 +94,8 @@ export interface ComposerProps {
     /** The team's phrase list, matched on every key (docs/features/ai-phrase-dictionary). */
     phrases?: readonly ReplyPhraseListItem[];
   } | null;
+  /** Ask Ezy (docs/features/ask-ezy/design.md): direct chats only; opens Ezy scoped to this chat. */
+  askEzy?: { chatJid: string; name: string } | null;
   /**
    * Fix English (docs/features/grammar-fix/design.md): spelling and grammar marks in this chat
    * (any chat type; null or a status with both checks off = nothing shown).
@@ -152,10 +156,12 @@ export function Composer({
   replyTo = null,
   onCancelReply,
   aiSuggest = null,
+  askEzy = null,
   fixEnglish = null,
   ref,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
+  const { openPanel: openAskEzy } = useAskEzy();
   const [text, setText] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [pickerDismissed, setPickerDismissed] = useState(false);
@@ -915,7 +921,7 @@ export function Composer({
             )}
           </div>
         </PopoverAnchor>
-        <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5">
+        <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 max-sm:-mx-2 max-sm:gap-x-0">
           {quickReplies.length > 0 && (
             <Button
               ref={repliesButtonRef}
@@ -929,7 +935,7 @@ export function Composer({
                 setPickerDismissed(pickerOpen);
                 areaRef.current?.focus();
               }}
-              className="text-muted-foreground"
+              className="text-muted-foreground max-sm:has-[>svg]:px-2"
             >
               <MessageSquareText aria-hidden="true" />
               {t('composer.quickReplies')}
@@ -942,11 +948,34 @@ export function Composer({
               disabled={disabled || aiMode === 'unavailable' || strip?.phase === 'loading'}
               aria-describedby={aiMode === 'unavailable' ? unavailableId : undefined}
               onClick={() => void suggest()}
-              className="text-primary"
+              className="text-primary max-sm:has-[>svg]:px-2"
               data-testid="suggest-reply"
             >
               <Sparkles aria-hidden="true" />
               {t('composer.suggest.button')}
+            </Button>
+          )}
+          {askEzy && (
+            <Button
+              variant="ghost"
+              size="touch"
+              className="text-primary max-sm:has-[>svg]:px-2"
+              data-testid="ask-ezy-about-chat"
+              data-ask-ezy-trigger
+              onClick={() =>
+                openAskEzy({
+                  question: t('askEzy.summariseChat', { name: askEzy.name }),
+                  chatJid: askEzy.chatJid,
+                  chatName: askEzy.name,
+                })
+              }
+            >
+              <BotMessageSquare aria-hidden="true" />
+              <span className="sm:hidden">
+                {t('askEzy.button')}
+                <span className="sr-only"> {t('askEzy.aboutChatSuffix')}</span>
+              </span>
+              <span className="max-sm:hidden">{t('askEzy.summariseButton')}</span>
             </Button>
           )}
           {aiMode === 'unavailable' && (

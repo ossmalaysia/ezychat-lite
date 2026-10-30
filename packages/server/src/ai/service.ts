@@ -77,6 +77,7 @@ import { usersWhoCanOpen } from '../inboxes/access.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AgentTurnFailure, errorNameOf } from './agent/models.js';
+import type { AssistResult } from './agent/assist.js';
 import { AI_OLDER_MESSAGES_PAGE, chatTools } from './agent/tools.js';
 import type { AgentToolInfo } from './agent/extension-tools.js';
 import { agentLookupsAvailable, agentTurnTools } from './agent/turn-tools.js';
@@ -102,7 +103,7 @@ import {
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import { claudeModelId } from './claude.js';
-import type { AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
+import type { AiAssistCall, AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 import {
@@ -293,6 +294,13 @@ export interface AiService {
    * does not work now (expired, blocked, service closing), `none` = no saved connection.
    */
   draftConnection(): 'ready' | 'unavailable' | 'none';
+  /** Ask Ezy: like `draftConnection`, for the assistant turn (`assist`); `expired` = sign in again. */
+  assistConnection(): 'ready' | 'unavailable' | 'expired' | 'none';
+  /**
+   * Ask Ezy (docs/features/ask-ezy/design.md): one assistant turn on the business AI connection with the
+   * tools the caller built for the signed-in user. Throws like the providers (`AgentTurnFailure`, abort).
+   */
+  assist(call: AiAssistCall, signal: AbortSignal): Promise<AssistResult & { model: string }>;
   /**
    * Suggest reply (up to 2 grounded drafts) or a completion of the typed text for one chat, from
    * the chat's agent knowledge whether the agent is on or off. Nothing is sent or stored. Throws
@@ -2408,6 +2416,27 @@ export function createAiService(
         ),
         internalTexts: saved.filter((item) => item.internal).map((item) => item.text),
       };
+    },
+    assistConnection() {
+      if (!provider.assist) return 'none';
+      const mode = aiProviderSettings(ctx.settings).mode;
+      if (mode !== 'chatgpt') {
+        if (!aiApiKey(ctx.settings)) return 'none';
+        return closed || !gateOpen() ? 'unavailable' : 'ready';
+      }
+      const state = provider.connection().state;
+      if (state === 'signed_out' || state === 'signing_in') return 'none';
+      if (state === 'expired') return 'expired';
+      return state === 'connected' && !closed && gateOpen() ? 'ready' : 'unavailable';
+    },
+    assist(call, signal) {
+      if (!provider.assist) throw new HttpError(503, 'ai_unavailable', 'Ask Ezy is not available now');
+      return provider.assist(
+        settingsFor(null),
+        aiApiKey(ctx.settings),
+        { ...call, cacheId: `${installId()}#ask-ezy` },
+        signal,
+      );
     },
     draftConnection() {
       if (!provider.draft) return 'none';

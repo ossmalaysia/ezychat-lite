@@ -219,3 +219,10 @@
     }
   }
 }
+
+/* Ask Ezy docks beside the page from 1280 px: the page makes room instead of being covered. */
+@media (min-width: 1280px) {
+  html[data-ask-ezy='docked'] #root {
+    padding-right: 400px;
+  }
+}

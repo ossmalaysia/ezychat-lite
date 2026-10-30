@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ask Ezy.** Ask questions about your chats, customers and inbox in plain words, from the **Ask Ezy** button
+  in the inbox and in Admin, or from a chat ("Summarise with Ezy"). Ezy answers with short text and, where it
+  helps, number cards, bar charts, a busy-hours chart, a list of chats or a customer summary, and always says
+  what it read. Admins can also ask Ezy to improve the AI agent: it suggests changes to the instructions,
+  hand-off rules or Business context with a before/after test, and nothing changes until you press **Apply**
+  (with **Undo**). Team members see only the chats of their own inboxes and get a message they can send to
+  their admin. Ezy uses your AI connection (ChatGPT, OpenAI or Claude) and never sends messages to customers.
+
 ## [0.1.63] - 2026-10-30
 
 ### Added

@@ -18,12 +18,36 @@ import {
 import type { AppContext } from '../context.js';
 import { promptCacheKey } from './prompt.js';
 import type { LanguageModel } from 'ai';
-import type { AiDraftOptions, AiPrompt, AiProvider, AiRewritePrompt } from './provider-types.js';
-import { draftOpenAi, extractCustomerOpenAi, generateOpenAi, rewriteOpenAi } from './provider.js';
-import { draftClaude, extractCustomerClaude, generateClaude, rewriteClaude } from './claude.js';
+import type {
+  AiAssistCall,
+  AiDraftOptions,
+  AiPrompt,
+  AiProvider,
+  AiRewritePrompt,
+} from './provider-types.js';
+import {
+  assistOpenAi,
+  draftOpenAi,
+  extractCustomerOpenAi,
+  generateOpenAi,
+  rewriteOpenAi,
+} from './provider.js';
+import {
+  assistClaude,
+  draftClaude,
+  extractCustomerClaude,
+  generateClaude,
+  rewriteClaude,
+} from './claude.js';
+import { runAssist } from './agent/assist.js';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, chatGptModel, errorNameOf } from './agent/models.js';
-import { CHATGPT_DRAFT_REASONING, CHATGPT_FAST_DRAFT_MODELS, runDraft } from './agent/draft.js';
+import {
+  CHATGPT_DRAFT_REASONING,
+  CHATGPT_FAST_DRAFT_MODELS,
+  draftModelSettings,
+  runDraft,
+} from './agent/draft.js';
 import { runRewrite } from './agent/rewrite.js';
 import { runAgentTurn } from './agent/turn.js';
 import {
@@ -573,6 +597,30 @@ export class DirectChatGptProvider implements AiProvider {
         signal: turnSignal,
         reasoningEffort: CHATGPT_DRAFT_REASONING,
       }),
+      model: id,
+    }));
+  }
+
+  /**
+   * Ask Ezy: one agent turn with read tools on the connection's fast model (the one reply suggestions use),
+   * reasoning `low`: a person waits for it, and the main model took 13–23 s for two or three rounds.
+   */
+  async assist(
+    settings: AiSettings,
+    apiKey: string | null,
+    call: AiAssistCall,
+    signal: AbortSignal,
+  ) {
+    if (settings.mode !== 'chatgpt')
+      return (settings.mode === 'api' ? assistOpenAi : assistClaude)(
+        draftModelSettings(settings, true),
+        apiKey,
+        call,
+        signal,
+      );
+    const fast = { ...settings, model: this.fastDraftModel(settings.model) };
+    return this.turn(fast, call.cacheId, signal, async (model, turnSignal, id) => ({
+      ...(await runAssist({ ...call, model, signal: turnSignal, reasoningEffort: 'low' })),
       model: id,
     }));
   }

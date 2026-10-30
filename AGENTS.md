@@ -229,6 +229,18 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
+**Ask Ezy** (design `docs/features/ask-ezy/design.md`, mock `docs/features/ask-ezy/mock`). An in-app assistant
+panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
+`answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
+the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
+`try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the connection's
+**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 6 steps, no retries) returns text plus typed blocks
+(`AskEzyBlock`: stats, bars, heatmap, chats, customer, change, test); blocks are validated, invalid ones dropped,
+chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
+20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
+since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
+Logs carry tool names, counts, ms and model, never question or answer text. Web: `apps/web/src/askezy/`.
+
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
 rooms (`all`, `admins`, `user:<id>`; QR codes and tunnel status go to `admins` only) and

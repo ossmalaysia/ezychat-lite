@@ -13,6 +13,10 @@ into AGENTS.md.
 - A scoring rubric gives "not needed" items their full points only where the item guards a risk the change
   cannot have (no screen → no screen review); a bonus that only one tier can earn (the real-part test for
   critical) scores 0 elsewhere, or every small change jumps to 100. Pin the worked examples in tests.
+- A UI rubric scored by Jev from a reviewer's evidence keeps any dimension with one medium problem near 3,
+  whatever level the reviewer suggests, and each fresh reviewer finds new medium problems, so a Jev average gate
+  stalls near 3.6. Fix every medium problem each round, but gate on the review itself (no high problem, every
+  reviewer level ≥ 4) with a cap of a few rounds; leftover problems go to the feature's design.md follow-ups.
 - Ask for a mock confirmation with the key screenshots in front of the owner (send the image files, one per
   screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
   in `design.md` only after that reply.
@@ -274,7 +278,9 @@ into AGENTS.md.
   `npm install` (`git worktree add ../wm-hotfix -b fix/<bug> origin/main`): `main` uses `@wa-team-inbox/*`
   workspace names until the `@ezychat/*` rename merges, so one `node_modules` cannot serve both branches.
 - Branch from a freshly fetched `origin/main`. Stage files explicitly (never `git add -A`); leave the
-  plugin-injected CLAUDE.md block out of commits.
+  plugin-injected CLAUDE.md block out of commits. One path that no longer exists (e.g. a folder whose deletion
+  is already staged) makes `git add` stage nothing: chain `git add … && git commit`, never with `;`, and read
+  `git show --stat HEAD` after the commit.
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
   on the same code, then `gh run rerun <id> --failed`; fix the flaky test in its own PR. A mac DMG job
   failing with `hdiutil: couldn't eject … Resource busy` is a runner glitch: re-run that job, it adds
@@ -992,6 +998,15 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)
+  and close at once as "outside": mark the opening buttons (`data-ask-ezy-trigger`) and `preventDefault` in
+  `onInteractOutside` for them. jsdom does not reproduce it; only the Pixel e2e does.
+- The e2e server's data is shared by every spec in the run (another spec saves an AI key): a spec that needs
+  "no AI connection" or other global state mocks that route, and `chatItem()` takes a chat id, not a name.
+- `userEvent.setup()` installs its own `navigator.clipboard`: in a test, replace the clipboard after setup, or
+  the component writes to user-event's stub and a `writeText` mock sees no call.
+- A shadcn `Button` with an icon pads through `has-[>svg]:px-*`, which beats a plain `max-sm:px-2`: write the
+  override as `max-sm:has-[>svg]:px-2`, then check the screenshot (the class can be present and do nothing).
 - Electron shows no right-click menu of its own: any copy/paste/spelling/image action the desktop window needs
   comes from a `context-menu` handler (`apps/desktop/src/context-menu.ts`, a pure template builder with tests).
   Offer image and link items only for inbox URLs / http(s) links, never `blob:` previews or `javascript:`.

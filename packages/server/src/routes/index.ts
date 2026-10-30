@@ -30,6 +30,7 @@ import oauth from './oauth.js';
 import inboxes from './inboxes.js';
 import templates from './templates.js';
 import replySuggestions from './reply-suggestions.js';
+import askEzy from './ask-ezy.js';
 import fixEnglish from './fix-english.js';
 import connectors from './connectors.js';
 import connectorList from './connector-list.js';
@@ -66,6 +67,7 @@ export const routeModules: RouteModule[] = [
   inboxes,
   templates,
   replySuggestions,
+  askEzy,
   fixEnglish,
   connectors,
   connectorList,
