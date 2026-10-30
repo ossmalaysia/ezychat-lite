@@ -370,7 +370,13 @@ export function AskEzyPanel() {
         className="flex w-full flex-col gap-0 p-0 sm:max-w-[480px] xl:max-w-[400px]"
         data-testid="ask-ezy-panel"
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onInteractOutside={(e) => docked && e.preventDefault()}
+        onInteractOutside={(e) => {
+          // A phone can deliver the opening tap's pointerdown after the panel is open: a tap on an Ask
+          // Ezy button is never "outside" (it would close the panel it just opened).
+          const onTrigger =
+            e.target instanceof Element && e.target.closest('[data-ask-ezy-trigger]') !== null;
+          if (docked || onTrigger) e.preventDefault();
+        }}
       >
         <header className="safe-top flex items-center gap-1 border-b py-2 pr-2 pl-4 sm:py-3">
           <div className="min-w-0 flex-1">

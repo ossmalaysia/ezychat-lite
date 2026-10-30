@@ -833,6 +833,7 @@ export function Composer({
               size="touch"
               className="text-primary max-sm:has-[>svg]:px-2"
               data-testid="ask-ezy-about-chat"
+              data-ask-ezy-trigger
               onClick={() =>
                 openAskEzy({
                   question: t('askEzy.summariseChat', { name: askEzy.name }),

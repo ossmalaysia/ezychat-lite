@@ -12,9 +12,12 @@ import {
 // so the whole panel runs against the real web app without any provider.
 const ndjson = (...events: object[]) => events.map((e) => JSON.stringify(e)).join('\n') + '\n';
 
-test('the real server answers that no AI is connected: Ask Ezy shows the setup first', async ({
-  page,
-}) => {
+test('without an AI connection Ask Ezy shows the setup first', async ({ page }) => {
+  // Other specs save an AI key on the shared e2e server; the server's status route itself is
+  // covered by packages/server/test/ask-ezy.test.ts and the web-client contract test.
+  await page.route('**/api/ask-ezy/status', (route) =>
+    route.fulfill({ json: { connected: false } }),
+  );
   await page.goto('/');
   await expect(inboxHeading(page)).toBeVisible();
   await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
@@ -119,7 +122,7 @@ test('an admin asks about the week, applies a change and asks about one chat', a
     { chatJid: jid, text: 'Can I order two Nasi Lemak for pickup at 1pm?', senderName: 'Nurul' },
     baseURL!,
   );
-  await chatItem(page, 'Nurul').click();
+  await chatItem(page, jid).click();
   await page.getByTestId('ask-ezy-about-chat').click();
   await expect(panel.getByTestId('ask-block-customer')).toContainText('Confirm the pickup time.');
   expect(asked.at(-1)).toMatchObject({ chatJid: jid });

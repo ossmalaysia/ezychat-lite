@@ -27,6 +27,7 @@ export function AskEzyButton({
       aria-label={compact ? t('askEzy.open') : undefined}
       title={t('askEzy.open')}
       data-testid="ask-ezy-open"
+      data-ask-ezy-trigger
     >
       <BotMessageSquare aria-hidden />
       {!compact && t('askEzy.button')}
