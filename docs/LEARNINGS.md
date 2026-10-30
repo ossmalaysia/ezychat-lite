@@ -200,6 +200,9 @@ into AGENTS.md.
   `node scripts/smoke-packaged.mjs apps/desktop/release-check`, then the packaged server with
   `ELECTRON_RUN_AS_NODE=1` on temp data, `--fake-wa`, port 7432 and `e2e/marketing-screenshots.mjs 7432`.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
+  A critical `server-host` change gets the same packaged run, with the server started through the packaged
+  `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
+  the table is realigned and the format check fails otherwise.
   For `screens.smoke.mjs` against that server add `--web-dist resources/web` (else every page is 404) and
   start it on fresh data (the smoke creates the admin once); its `oauth-authorize` FAIL there is the
   expected 409 of AI assistant access being off, not a fault.
