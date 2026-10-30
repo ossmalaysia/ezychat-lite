@@ -1,19 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { AiAgentGroups, AiGroupChat, AiGroupRow } from '@ezychat/shared';
 import { AgentGroupsCard } from './AgentGroupsCard';
+import { agentGroupsData, json, renderWithQuery } from './agent-cards.test.helpers';
 
 const KOPI = '120363000000000001@g.us';
 const RESELLERS = '120363000000000002@g.us';
-
-const json = (body: unknown, code = 200) =>
-  new Response(JSON.stringify(body), {
-    status: code,
-    headers: { 'content-type': 'application/json' },
-  });
 
 const row = (jid: string, name: string, patch: Partial<AiGroupRow> = {}): AiGroupRow => ({
   jid,
@@ -74,28 +68,15 @@ function stubServer(start: AiAgentGroups, fail = false) {
 }
 
 function renderCard(props: Partial<Parameters<typeof AgentGroupsCard>[0]> = {}) {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter>
-        <AgentGroupsCard agentId={3} name="Aina" agentEnabled inboxName="Kopi Apong" {...props} />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithQuery(
+    <MemoryRouter>
+      <AgentGroupsCard agentId={3} name="Aina" agentEnabled inboxName="Kopi Apong" {...props} />
+    </MemoryRouter>,
   );
 }
 
-const data = (patch: Partial<AiAgentGroups> = {}): AiAgentGroups => ({
-  enabled: true,
-  groups: GROUPS,
-  loopGuard: 10,
-  inboxName: null,
-  answerDirect: true,
-  directAvailable: true,
-  heldDirect: 0,
-  ...patch,
-});
+const data = (patch: Partial<AiAgentGroups> = {}): AiAgentGroups =>
+  agentGroupsData({ groups: GROUPS, ...patch });
 
 afterEach(() => {
   cleanup();

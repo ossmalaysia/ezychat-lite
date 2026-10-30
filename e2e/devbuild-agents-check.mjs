@@ -6,39 +6,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-const PORT = Number(process.argv[2] ?? 7491);
+import { devbuildClient } from './devbuild-client.mjs';
+
 const MODE = process.argv[3] ?? 'lite';
-const BASE = `http://127.0.0.1:${PORT}`;
-let failed = 0;
-const oneLine = (value) => String(value).replace(/[\r\n]+/g, ' ');
-const check = (ok, step, detail = '') => {
-  if (!ok) failed++;
-  const extra = detail ? '  (' + oneLine(detail) + ')' : '';
-  console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + extra);
-};
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-const health = await fetch(BASE + '/api/health');
-if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
-  throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
-
-let cookie = '';
-async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
-const code = (r) => r.json?.error?.code ?? r.json?.error;
+const { BASE, api, check, code, wait, finish } = await devbuildClient(
+  Number(process.argv[2] ?? 7491),
+);
 
 /** The first AI message in a chat within `ms`, or null. */
 async function aiReply(jid, aiUserIds, ms = 30_000) {
@@ -271,5 +244,4 @@ if (MODE === 'lite') {
   );
 }
 
-console.log(failed ? `${failed} FAILED` : 'ALL PASS');
-process.exit(failed ? 1 : 0);
+finish();

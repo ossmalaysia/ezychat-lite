@@ -2,38 +2,11 @@
 // against e2e/agents-devbuild.ts (mock model, fake WhatsApp, temp data). Lite runner (no --max-inboxes).
 // Usage: node e2e/devbuild-direct-check.mjs <port>
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number.
-const PORT = Number(process.argv[2] ?? 7491);
-const BASE = `http://127.0.0.1:${PORT}`;
+import { devbuildClient } from './devbuild-client.mjs';
+
 const OWN = '60000000000@s.whatsapp.net';
 const GROUP = '120363077700001@g.us';
-let failed = 0;
-const check = (ok, step, detail = '') => {
-  if (!ok) failed++;
-  console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + (detail ? `  (${String(detail)})` : ''));
-};
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-const health = await fetch(BASE + '/api/health');
-if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
-  throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
-
-let cookie = '';
-async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
-const code = (r) => r.json?.error?.code ?? r.json?.error;
+const { api, check, code, wait, finish } = await devbuildClient(Number(process.argv[2] ?? 7491));
 const enc = encodeURIComponent;
 const chat = async (jid) => (await api('GET', `/chats/${enc(jid)}`)).json?.chat;
 /** The AI messages of a chat after waiting `ms`. */
@@ -175,5 +148,4 @@ check(
   thirdReply[0]?.body,
 );
 
-console.log(failed ? `${failed} FAILED` : 'ALL PASS');
-process.exit(failed ? 1 : 0);
+finish();

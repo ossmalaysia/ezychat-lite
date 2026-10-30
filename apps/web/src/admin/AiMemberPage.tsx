@@ -318,6 +318,13 @@ function AgentEditor({
     submitted && !draft.displayName.trim() ? t('ai.agents.nameRequired') : undefined;
   const inboxName = (inboxId: number | null) =>
     inboxes.find((inbox) => inbox.id === inboxId)?.name ?? '';
+  /** The agent's inbox for the Direct chats and Groups cards; null = it answers no inbox. */
+  const agentInboxName = (): string | null => {
+    // Lite has one number and no inbox list: its inbox keeps the default name.
+    if (lite) return LITE_INBOX_NAME;
+    const inboxId = agent?.agent.inboxId ?? null;
+    return inboxId === null ? null : inboxName(inboxId);
+  };
 
   const documents = agent?.documents ?? [];
   const enabled = Boolean(agent?.agent.enabled);
@@ -808,13 +815,7 @@ function AgentEditor({
           <AgentDirectCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
-            inboxName={
-              lite
-                ? LITE_INBOX_NAME
-                : agent.agent.inboxId === null
-                  ? null
-                  : inboxName(agent.agent.inboxId)
-            }
+            inboxName={agentInboxName()}
           />
 
           {/* WhatsApp groups: answer when tagged or quoted, and in which groups. */}
@@ -822,14 +823,7 @@ function AgentEditor({
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
             agentEnabled={agent.agent.enabled}
-            inboxName={
-              // Lite has one number and no inbox list: its inbox keeps the default name.
-              lite
-                ? LITE_INBOX_NAME
-                : agent.agent.inboxId === null
-                  ? null
-                  : inboxName(agent.agent.inboxId)
-            }
+            inboxName={agentInboxName()}
           />
 
           {/* Every agent is a customer-facing agent for extensions ('sales'). */}

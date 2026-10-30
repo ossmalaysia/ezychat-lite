@@ -1,26 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AiAgentGroups } from '@ezychat/shared';
 import { AgentDirectCard } from './AgentDirectCard';
+import { agentGroupsData, json, renderWithQuery } from './agent-cards.test.helpers';
 
-const json = (body: unknown, code = 200) =>
-  new Response(JSON.stringify(body), {
-    status: code,
-    headers: { 'content-type': 'application/json' },
-  });
-
-const data = (patch: Partial<AiAgentGroups> = {}): AiAgentGroups => ({
-  enabled: true,
-  groups: [],
-  loopGuard: 10,
-  inboxName: 'Kopi Apong',
-  answerDirect: true,
-  directAvailable: true,
-  heldDirect: 0,
-  ...patch,
-});
+const data = (patch: Partial<AiAgentGroups> = {}) =>
+  agentGroupsData({ inboxName: 'Kopi Apong', ...patch });
 
 type Call = { url: string; method: string; body: unknown };
 
@@ -49,14 +35,7 @@ function stubServer(start: AiAgentGroups, fail = false) {
 }
 
 function renderCard(inboxName: string | null = 'Kopi Apong') {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  render(
-    <QueryClientProvider client={qc}>
-      <AgentDirectCard agentId={3} name="Aina" inboxName={inboxName} />
-    </QueryClientProvider>,
-  );
+  renderWithQuery(<AgentDirectCard agentId={3} name="Aina" inboxName={inboxName} />);
 }
 
 const checked = (el: HTMLElement) => el.getAttribute('aria-checked') === 'true';
