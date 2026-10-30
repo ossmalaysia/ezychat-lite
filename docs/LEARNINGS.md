@@ -190,6 +190,8 @@ into AGENTS.md.
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
+- SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D).
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
