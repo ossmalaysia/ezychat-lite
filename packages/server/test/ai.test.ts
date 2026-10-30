@@ -607,6 +607,94 @@ it('sends nothing for no_reply, keeps the chat, and answers the next real questi
   expect(t.wa.sent).toHaveLength(2);
 });
 
+describe('a closing message after the AI resolved the chat', () => {
+  async function resolvedByAi() {
+    clock();
+    await incoming();
+    await vi.advanceTimersByTimeAsync(10_000);
+    vi.mocked(provider.generate).mockResolvedValueOnce({
+      reply: 'Thank you, all the best!',
+      action: 'resolve',
+    });
+    await incoming('confirmation', 'Yes, thank you!');
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
+    return t.wa.sent.length;
+  }
+
+  it('reacts with a thumbs up and resolves the chat again, without a new message', async () => {
+    const sent = await resolvedByAi();
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'much appreciated!');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+    expect(t.wa.reactions).toEqual([
+      { chatJid: jid, target: expect.objectContaining({ fromMe: false }), emoji: '👍' },
+    ]);
+    expect(t.wa.sent).toHaveLength(sent);
+    expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+    const line = aiLogs
+      .map((l) => JSON.parse(l))
+      .find((l) => l.msg === 'AI resolved the chat again after thanks');
+    expect(line).toMatchObject({ jid, ack: 'reaction' });
+  });
+
+  it('replies with a thumbs up where the connection cannot react', async () => {
+    const sent = await resolvedByAi();
+    vi.spyOn(t.wa, 'sendReaction').mockRejectedValueOnce(new Error('not supported'));
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'thanks!');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 2500);
+    expect(t.wa.sent).toHaveLength(sent + 1);
+    expect(t.wa.sent.at(-1)?.text).toBe('👍');
+    expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
+  });
+
+  it('keeps the chat open when a new message arrives while the thumbs up is sent', async () => {
+    await resolvedByAi();
+    let finish!: () => void;
+    const react = t.wa.sendReaction.bind(t.wa);
+    vi.spyOn(t.wa, 'sendReaction').mockImplementationOnce(
+      (...args) =>
+        new Promise((resolve) => {
+          finish = () => resolve(react(...args));
+        }),
+    );
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'thanks!');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+    await incoming('more', 'Oh, one more thing: do you deliver on Sunday?');
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+    expect(aiLogs.join('\n')).not.toContain('AI resolved the chat again after thanks');
+  });
+
+  it('keeps the chat open when a teammate acted after the AI resolved it', async () => {
+    await resolvedByAi();
+    const teammate = human('teammate');
+    getChats(t.ctx).patch(jid, { status: 'open' }, teammate.id);
+    getChats(t.ctx).patch(jid, { assignedTo: null }, teammate.id);
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'thanks!');
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(t.wa.reactions).toEqual([]);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  });
+
+  it('answers a new question after the resolve as usual', async () => {
+    const sent = await resolvedByAi();
+    vi.mocked(provider.generate).mockResolvedValueOnce({
+      reply: 'Delivery costs RM10. Does that answer your question?',
+      action: 'ask_resolution',
+    });
+    await incoming('again', 'How much is delivery?');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+    expect(t.wa.reactions).toEqual([]);
+    expect(t.wa.sent).toHaveLength(sent + 1);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  });
+});
+
 it('logs the failure kind, error class and status when the model fails, then hands over', async () => {
   clock();
   await incoming();
