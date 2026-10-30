@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.64] - 2026-10-30
+
 ### Added
 
 - **Ask Ezy.** Ask questions about your chats, customers and inbox in plain words, from the **Ask Ezy** button

@@ -5,6 +5,9 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
+- **Flaky on Windows CI:** `packages/server/test/ai-agents-repo.test.ts` › "creates an agent, updates only the
+  given texts and keeps a saved blank" timed out after 30 s once on `windows-latest` (PR #220 docs-only run;
+  passed on rerun). Fix it in its own PR.
 - **Emoji reactions: receive and show done** (branch `feat/emoji-reactions`, 2026-10-23; design
   `docs/features/emoji-reactions/design.md`). Left: (1) a live smoke against real WhatsApp of the Baileys
   mapping (`mapWAReaction`, `mapStoredReactions`: live, change, removal, group, history), still
@@ -21,6 +24,14 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Ask Ezy: model choice** (owner, 2026-10-30, follow-up of 0.1.64): Ask Ezy answers on the connection's fast
+  model. Add "Model for Ask Ezy" in Settings → AI (Fast default / same as the AI agent / a model of the
+  connection), reusing the reply-suggestions model setting and route pattern.
+- **Ask Ezy: follow-ups** listed in `docs/features/ask-ezy/design.md` (after round 9), plus `docs/screenshots/ask-ezy/`
+  (not yet refreshed) and a hand-off answer that shows real hand-off counts, not only the rules.
+- **AI reactions** (owner, 2026-10-30): let the AI add an emoji reaction where the connection supports reactions
+  (linked phone), and reply with the emoji where it does not; needs a `reactions` capability on `WaAdapter`.
+  The first use, a 👍 when a customer only thanks after the AI resolved the chat, is on `fix/ai-thanks-after-resolve`.
 - **Booking reminders** (2026-10-26, owner asked how; not in the first Google Calendar round): part of the
   Google Calendar connector, per agent: on/off, 1 day / 3 h / 1 h before, editable text; only bookings EzyChat
   made, re-read the event before sending (deleted → none, moved → new time), one per booking, not 10 pm–8 am;

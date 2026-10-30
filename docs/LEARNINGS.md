@@ -180,7 +180,8 @@ into AGENTS.md.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
-  older commit (or "uncommitted") count as ✗ missing in the release review. The release-review script needs
+  older commit (or "uncommitted") count as ✗ missing in the release review. Rebase onto `main` before the checks
+  you record: a rebase gives every commit a new id, so the recorded ones stop counting. The release-review script needs
   `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
   those two through `gh api` (REST).
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
@@ -808,8 +809,8 @@ into AGENTS.md.
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
-- Anything that must answer while a person types (completions) needs the connection's fast model, never the
-  saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
+- Anything a person waits for (completions, Ask Ezy turns of 2–3 tool rounds: 13–23 s on the workhorse, 8–13 s
+  on `gpt-6-luna`) needs the connection's fast model, never the saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
   `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
   and reasoning levels; measure options with direct timed calls before choosing.
 - Test typing features with person-like timing (120–260 ms a letter, pauses after words, stops inside a word),
