@@ -3,9 +3,10 @@
 A clone of the owner-confirmed **grammar-fix** reference (the whole app, `latestConfirmed` revision `4a6cde77`,
 cloned unchanged from `main` 2ea78a9) with the **concept-tips** proposal on top: a small **?** beside every label or
 title that names a concept a non-technical owner may not know (API key, model, Business context, hand-over, phone
-access, LAN, MCP, access token, connectors…). Click or tap it: a card says what it is in plain words, how to get it
-(numbered steps), a short note (safety, cost or the easier way), a button to the outside page where the thing is made
-(OpenAI and Anthropic key pages) and **Read the full guide** (the ezychat.ai guide in the app language). Scope, the
+access, LAN, MCP, access token, connectors…). Click or tap it: a short card says what it is in one or two sentences,
+with one row of actions: the outside page where the thing is made (OpenAI and Anthropic key pages), **Show steps**
+(folded numbered steps, API keys only) and **Full guide** (the ezychat.ai guide in the app language). Round 2 cut the
+text to about a third after the owner's "too many text". Scope, the
 screen review and the open questions: [../design.md](../design.md).
 
 Every inherited flow still works (Fix English, AI in groups, connectors, Reports, Google Calendar, reply suggestions,
@@ -27,13 +28,11 @@ static text; their outside links open in a new tab.
 ## Walkthrough
 
 1. **First launch** (`--fresh`): create the account. On **Link your WhatsApp number** press **?**: linked device
-   like WhatsApp Web, the phone keeps the number, only recent history comes in, open WhatsApp every 14 days.
-2. **Skip** to **AI assistant**: **?** beside **About your business** (what Business context is, how to write it)
-   and beside **Connect the AI** (EzyChat has no AI of its own; the three ways; "Not sure? Start with Sign in with
-   ChatGPT").
-3. **Use an OpenAI API key instead** → **?** beside **OpenAI API key**: what a key is, that OpenAI bills it
-   separately from ChatGPT Plus, 4 steps on platform.openai.com, keep it private, **Open OpenAI API keys**.
-   **Use a Claude API key instead** shows the Anthropic version.
+   like WhatsApp Web, the phone keeps the number, open WhatsApp every 14 days.
+2. **Skip** to **AI assistant**: **?** beside **About your business** and beside **Connect the AI** (EzyChat has no
+   AI of its own; ChatGPT sign-in is the easiest).
+3. **Use an OpenAI API key instead** → **?** beside **OpenAI API key**: what a key is, **Get a key at OpenAI**,
+   **Show steps** (4 short steps), **Full guide**. **Use a Claude API key instead** shows the Anthropic version.
 4. **Seeded demo**, sign in as `aisyah` → **Admin → Settings → AI**: **?** beside **AI**, the key (Replace key),
    the model (Advanced: choose a model) and **Voice messages** (under More AI features).
 5. **Settings → General → LAN access**, **Settings → Integrations → AI assistant access** and **Access tokens**.

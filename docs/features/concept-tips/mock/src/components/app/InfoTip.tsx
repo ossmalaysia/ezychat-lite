@@ -1,4 +1,5 @@
-import { CircleHelp, ExternalLink } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { ChevronDown, CircleHelp, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -6,9 +7,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { TIPS, guideUrl, type TipTopic } from '@/lib/tips';
 
 /**
- * PROPOSED (concept-tips): a small "?" next to a label or title. Click or tap opens a card that says
- * what the concept is in plain words, how to get it (numbered steps and a button to the outside page)
- * and a link to the full guide. Nothing is sent or saved; it closes with Esc or a click outside.
+ * PROPOSED (concept-tips): a small "?" next to a label or title. Click or tap opens a short card:
+ * what the concept is in one or two sentences, then one row of actions (the outside page where the
+ * thing is made, "Show steps" when there are steps, "Full guide"). Steps stay folded until asked for.
+ * Nothing is sent or saved; it closes with Esc or a click outside.
  */
 export function InfoTip({ topic, className }: { topic: TipTopic; className?: string }) {
   const { t: typedT, i18n } = useTranslation('common');
@@ -17,8 +19,11 @@ export function InfoTip({ topic, className }: { topic: TipTopic; className?: str
   const tip = TIPS[topic];
   const key = (part: string) => `mockTips.${topic}.${part}`;
   const steps = Array.from({ length: tip.steps }, (_, i) => t(key(`step${i + 1}`)));
+  const [showSteps, setShowSteps] = useState(false);
+  const stepsId = useId();
+  const cardRef = useRef<HTMLDivElement>(null);
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => !open && setShowSteps(false)}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -36,37 +41,48 @@ export function InfoTip({ topic, className }: { topic: TipTopic; className?: str
         </button>
       </PopoverTrigger>
       <PopoverContent
+        ref={cardRef}
         align="start"
         collisionPadding={16}
-        className="flex max-h-(--radix-popover-content-available-height) w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto text-sm"
+        className="flex max-h-(--radix-popover-content-available-height) w-[min(20rem,calc(100vw-2rem))] flex-col gap-2 overflow-y-auto text-sm"
       >
         <p className="font-semibold">{t(key('title'))}</p>
         <p className="text-muted-foreground">{t(key('body'))}</p>
-        {steps.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="font-medium">{t(key('stepsTitle'))}</p>
-            <ol className="flex list-decimal flex-col gap-1 pl-5 text-muted-foreground marker:text-foreground">
-              {steps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          </div>
-        )}
-        {tip.note && (
-          <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground">{t(key('note'))}</p>
-        )}
-        {(tip.action || tip.guide) && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {(tip.action || steps.length > 0 || tip.guide) && (
+          <div className="flex flex-wrap items-center gap-x-3">
             {tip.action && (
-              <Button asChild size="touch" variant="outline">
+              <Button asChild size="touch" variant="outline" className="md:min-h-9">
                 <a href={tip.action} target="_blank" rel="noopener noreferrer">
                   <ExternalLink aria-hidden />
                   {t(key('action'))}
                 </a>
               </Button>
             )}
+            {steps.length > 0 && (
+              <Button
+                type="button"
+                size="touch"
+                variant="link"
+                className="px-0 md:min-h-9"
+                aria-expanded={showSteps}
+                aria-controls={stepsId}
+                onClick={() => {
+                  setShowSteps((v) => !v);
+                  // The card grows: keep all of it on screen (phones open it low on the page).
+                  requestAnimationFrame(() =>
+                    cardRef.current?.scrollIntoView({ block: 'nearest' }),
+                  );
+                }}
+              >
+                {showSteps ? t('mockTips.hideSteps') : t('mockTips.showSteps')}
+                <ChevronDown
+                  aria-hidden
+                  className={cn('transition-transform', showSteps && 'rotate-180')}
+                />
+              </Button>
+            )}
             {tip.guide && (
-              <Button asChild size="touch" variant="link" className="px-0">
+              <Button asChild size="touch" variant="link" className="px-0 md:min-h-9">
                 <a
                   href={guideUrl(tip.guide, i18n.language, topic)}
                   target="_blank"
@@ -77,6 +93,16 @@ export function InfoTip({ topic, className }: { topic: TipTopic; className?: str
               </Button>
             )}
           </div>
+        )}
+        {showSteps && (
+          <ol
+            id={stepsId}
+            className="flex list-decimal flex-col gap-0.5 pl-5 text-muted-foreground marker:text-foreground"
+          >
+            {steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
         )}
       </PopoverContent>
     </Popover>

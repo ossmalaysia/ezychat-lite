@@ -60,6 +60,12 @@ async function openTip(page, topic, label, file) {
   if (!box || box.x < 0 || box.x + box.width > vw + 1)
     problems.push(`${label}: tip card off screen`);
   await page.screenshot({ path: join(OUT, `${file}.png`) });
+  const more = card.getByRole('button', { name: /Show steps/ });
+  if (await more.count()) {
+    await more.click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(OUT, `${file}-steps.png`) });
+  }
   passed.push(label);
   await page.keyboard.press('Escape');
   await card.waitFor({ state: 'detached' });

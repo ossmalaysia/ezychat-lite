@@ -5,7 +5,7 @@ Branch: `claude/intelligent-einstein-oam83x` · Every agent updates its stage wi
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | concept-tips mock (grammar-fix baseline): ? tips on 15 concepts across setup, Settings, agent page, Phone access, Connectors; 72 screenshots; waiting for owner confirmation | 2ea78a9 | 2026-10-30 |
+| Design | doing | Round 2 after owner's 'too many text': 1-2 sentences per card, steps folded under Show steps, one action row; waiting for confirmation | e9b6bdb | 2026-10-30 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -16,3 +16,4 @@ Branch: `claude/intelligent-einstein-oam83x` · Every agent updates its stage wi
 
 - 2026-10-30 Design: doing — concept-tips mock (grammar-fix baseline): ? tips on 15 concepts across setup, Settings, agent page, Phone access, Connectors; 72 screenshots; waiting for owner confirmation (2ea78a9)
 - 2026-10-30 Screen review: doing — 72 tip screenshots (1280/360, light/dark): no page errors, overflow or off-screen cards; owner review pending (2ea78a9)
+- 2026-10-30 Design: doing — Round 2 after owner's 'too many text': 1-2 sentences per card, steps folded under Show steps, one action row; waiting for confirmation (e9b6bdb)

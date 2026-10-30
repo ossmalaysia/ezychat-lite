@@ -1,6 +1,6 @@
 # Concept tips ("?" next to new words)
 
-Status: **proposal, round 1** — waiting for the owner's confirmation of the mock. Branch
+Status: **proposal, round 2** — waiting for the owner's confirmation of the mock. Branch
 `claude/intelligent-einstein-oam83x` from `main` (`2ea78a9`).
 
 ## Owner request (2026-10-30)
@@ -11,6 +11,8 @@ Status: **proposal, round 1** — waiting for the owner's confirmation of the mo
   the screen add this tips and guide for non AI native person".
 - Scope (owner, same day): changes go into **Lite and Enterprise** code only (the website keeps its guides as they
   are; tips link to them).
+- Round 1 feedback (owner, same day): "don u felt too many text?" → round 2: one or two sentences (≤ 25 words) per
+  card, no note box, steps folded behind **Show steps**, one action row (outside page · Show steps · Full guide).
 
 ## Baseline
 
@@ -26,21 +28,21 @@ Status: **proposal, round 1** — waiting for the owner's confirmation of the mo
 
 ## Screen review (what a non-technical owner meets, in order)
 
-| Screen                                  | Word that stops people                         | Today                                                   | Tip      |
-| --------------------------------------- | ---------------------------------------------- | ------------------------------------------------------- | -------- |
-| Setup → WhatsApp                         | "Linked device", QR vs phone number            | 3 steps on screen; nothing on what linking means         | `whatsappLink` |
-| Setup → AI assistant                     | "About your business" (= Business context)      | One hint line                                           | `businessContext` |
-| Setup → AI assistant                     | "Connect the AI" — why? which way?             | Button + "unofficial" note + two links                   | `aiConnection` |
-| Setup / Settings → AI                    | **"OpenAI API key"** (the reported problem)    | "Starts with sk-. Create one at platform.openai.com → API keys." No billing step, no link | `apiKey` |
-| Setup / Settings → AI                    | "Anthropic API key"                             | One "Get a key" link                                    | `claudeKey` |
-| Settings → AI                            | "Model", "Advanced: choose a model"            | Live/fallback hint only                                 | `aiModel` |
-| Settings → AI → More AI features         | "Voice messages" (on-device model vs cloud)    | Card description                                        | `voice` |
-| Settings → General                       | "LAN access"                                    | One hint + a warning when on                            | `lan` |
-| Settings → Integrations                  | "AI assistant access" (MCP)                     | Long description, MCP named in it                        | `mcp` |
-| Settings → Integrations                  | "Access tokens"                                 | Description                                             | `accessToken` |
-| AI agent page                            | "Business context", "Role", "Hand-over rules", "Try it" | Hints under the boxes                          | `businessContext`, `instructions`, `handoff`, `tryIt` |
-| Phone access                             | "Tunnel", Cloudflare                            | Page description                                        | `tunnel` |
-| Connectors                               | "Connector"                                     | Page description                                        | `connectors` |
+| Screen                           | Word that stops people                                  | Today                                                                                     | Tip                                                   |
+| -------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Setup → WhatsApp                 | "Linked device", QR vs phone number                     | 3 steps on screen; nothing on what linking means                                          | `whatsappLink`                                        |
+| Setup → AI assistant             | "About your business" (= Business context)              | One hint line                                                                             | `businessContext`                                     |
+| Setup → AI assistant             | "Connect the AI" — why? which way?                      | Button + "unofficial" note + two links                                                    | `aiConnection`                                        |
+| Setup / Settings → AI            | **"OpenAI API key"** (the reported problem)             | "Starts with sk-. Create one at platform.openai.com → API keys." No billing step, no link | `apiKey`                                              |
+| Setup / Settings → AI            | "Anthropic API key"                                     | One "Get a key" link                                                                      | `claudeKey`                                           |
+| Settings → AI                    | "Model", "Advanced: choose a model"                     | Live/fallback hint only                                                                   | `aiModel`                                             |
+| Settings → AI → More AI features | "Voice messages" (on-device model vs cloud)             | Card description                                                                          | `voice`                                               |
+| Settings → General               | "LAN access"                                            | One hint + a warning when on                                                              | `lan`                                                 |
+| Settings → Integrations          | "AI assistant access" (MCP)                             | Long description, MCP named in it                                                         | `mcp`                                                 |
+| Settings → Integrations          | "Access tokens"                                         | Description                                                                               | `accessToken`                                         |
+| AI agent page                    | "Business context", "Role", "Hand-over rules", "Try it" | Hints under the boxes                                                                     | `businessContext`, `instructions`, `handoff`, `tryIt` |
+| Phone access                     | "Tunnel", Cloudflare                                    | Page description                                                                          | `tunnel`                                              |
+| Connectors                       | "Connector"                                             | Page description                                                                          | `connectors`                                          |
 
 Findings outside the tips (not changed in this mock, listed for the implementation PR):
 
@@ -52,22 +54,22 @@ Findings outside the tips (not changed in this mock, listed for the implementati
 
 ## Behaviour (proposal)
 
-| Rule        | Default                                                                                                                                                                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Marker      | A muted **?** (lucide `CircleHelp`, 16 px) right after the label or card title, primary colour on hover/open. Kept **outside** the heading/label element so the field's and heading's accessible names stay clean.                          |
-| Open        | Click or tap (never hover-only, so it works on phones and with a keyboard); Esc or a click outside closes it. Nothing is sent or saved.                                                                                                     |
-| Card        | Title "What is …?", 1–2 plain sentences, optional numbered **How to get one** steps, optional grey note (safety, cost or the easier way), optional button to the outside page (opens in the OS browser), **Read the full guide**.          |
-| Size        | Max 22 rem wide, `100vw − 2rem` on a phone, capped to the space on screen and scrolls when longer. 44 px hit area on the **?** and on both links.                                                                                           |
-| Words       | No jargon inside the explanation; product names exactly as on the outside page (Settings → Billing, API keys → Create new secret key). No prices or amounts: the owner's rule is never to state unconfirmed figures.                         |
-| Links       | Outside pages: `platform.openai.com/api-keys`, `console.anthropic.com/settings/keys`. Guides: `ezychat.ai[/ms|/zh]/guides/<slug>?utm_source=ezychat-lite&utm_medium=app&utm_campaign=tip-<topic>` (campaign tags only, no tracking in the app). |
-| Languages   | en, ms, zh-CN for every topic (catalog test enforces it).                                                                                                                                                                                 |
+| Rule      | Default                                                                                                                                                                                                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Marker    | A muted **?** (lucide `CircleHelp`, 16 px) right after the label or card title, primary colour on hover/open. Kept **outside** the heading/label element so the field's and heading's accessible names stay clean.                                                                  |
+| Open      | Click or tap (never hover-only, so it works on phones and with a keyboard); Esc or a click outside closes it. Nothing is sent or saved.                                                                                                                                             |
+| Card      | Title "What is …?", 1–2 plain sentences (≤ 25 words), then one action row: button to the outside page (opens in the OS browser), **Show steps** (only API keys; folded until clicked, shown under the row so the buttons stay visible, reset when the card closes), **Full guide**. |
+| Size      | Max 20 rem wide, `100vw − 2rem` on a phone, capped to the space on screen and scrolls when longer. 44 px hit area on the **?** and on both links.                                                                                                                                   |
+| Words     | No jargon inside the explanation; product names exactly as on the outside page (Settings → Billing, API keys → Create new secret key). No prices or amounts: the owner's rule is never to state unconfirmed figures.                                                                |
+| Links     | Outside pages: `platform.openai.com/api-keys`, `console.anthropic.com/settings/keys`. Guides: `ezychat.ai[/ms                                                                                                                                                                       | /zh]/guides/<slug>?utm_source=ezychat-lite&utm_medium=app&utm_campaign=tip-<topic>` (campaign tags only, no tracking in the app). |
+| Languages | en, ms, zh-CN for every topic (catalog test enforces it).                                                                                                                                                                                                                           |
 
 ## Screens and states (checklist)
 
 `mock/tips-shots.mjs` (desktop 1280 / mobile 360 touch, light / dark, each tip open): setup WhatsApp, AI assistant
 (connect, business, OpenAI key, Claude key); Settings → AI (connection, key, model, voice), General (LAN), Integrations
 (AI assistant access, access tokens); agent page (Business context, Role, Hand-over rules, Try it); Phone access;
-Connectors. 72 screenshots, no page errors, no horizontal overflow, no card off screen.
+Connectors; API key cards also with steps open. 84 screenshots, no page errors, no horizontal overflow, no card off screen.
 
 ## Implementation plan (after confirmation)
 
@@ -107,4 +109,4 @@ Connectors. 72 screenshots, no page errors, no horizontal overflow, no card off 
 
 ## Confirmation
 
-Pending: mock and screenshots shown to the owner on 2026-10-30.
+Pending: round 1 shown 2026-10-30 ("too many text"); round 2 screenshots shown the same day.

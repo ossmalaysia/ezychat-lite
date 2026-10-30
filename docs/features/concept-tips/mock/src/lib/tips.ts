@@ -21,42 +21,34 @@ export type TipTopic =
   | 'connectors';
 
 export interface TipShape {
-  /** Number of "How to get it" steps (`step1`…`stepN`); 0 = none. */
+  /** Number of "Show steps" lines (`step1`…`stepN`), folded by default; 0 = none. */
   steps: number;
-  /** Has a `note` line (safety, cost or the easier alternative). */
-  note?: boolean;
   /** Outside page where the thing is made (opened in the OS browser), label in `action`. */
   action?: string;
-  /** EzyChat guide slug on ezychat.ai (shown as "Read the guide"). */
+  /** EzyChat guide slug on ezychat.ai (shown as "Full guide"). */
   guide?: 'getting-started' | 'set-up-ai-agent' | 'connect-cloudflare' | 'connect-ai-assistant';
 }
 
 export const TIPS: Record<TipTopic, TipShape> = {
-  whatsappLink: { steps: 0, note: true, guide: 'getting-started' },
-  aiConnection: { steps: 3, note: true, guide: 'set-up-ai-agent' },
-  apiKey: {
-    steps: 4,
-    note: true,
-    action: 'https://platform.openai.com/api-keys',
-    guide: 'set-up-ai-agent',
-  },
+  whatsappLink: { steps: 0, guide: 'getting-started' },
+  aiConnection: { steps: 0, guide: 'set-up-ai-agent' },
+  apiKey: { steps: 4, action: 'https://platform.openai.com/api-keys', guide: 'set-up-ai-agent' },
   claudeKey: {
     steps: 4,
-    note: true,
     action: 'https://console.anthropic.com/settings/keys',
     guide: 'set-up-ai-agent',
   },
-  aiModel: { steps: 0, note: true },
-  businessContext: { steps: 3, guide: 'set-up-ai-agent' },
-  instructions: { steps: 0, note: true, guide: 'set-up-ai-agent' },
-  handoff: { steps: 0, note: true, guide: 'set-up-ai-agent' },
+  aiModel: { steps: 0 },
+  businessContext: { steps: 0, guide: 'set-up-ai-agent' },
+  instructions: { steps: 0, guide: 'set-up-ai-agent' },
+  handoff: { steps: 0, guide: 'set-up-ai-agent' },
   tryIt: { steps: 0 },
-  voice: { steps: 2, note: true },
-  tunnel: { steps: 0, note: true, guide: 'connect-cloudflare' },
-  lan: { steps: 0, note: true },
-  mcp: { steps: 0, note: true, guide: 'connect-ai-assistant' },
-  accessToken: { steps: 0, note: true, guide: 'connect-ai-assistant' },
-  connectors: { steps: 0, note: true },
+  voice: { steps: 0 },
+  tunnel: { steps: 0, guide: 'connect-cloudflare' },
+  lan: { steps: 0 },
+  mcp: { steps: 0, guide: 'connect-ai-assistant' },
+  accessToken: { steps: 0, guide: 'connect-ai-assistant' },
+  connectors: { steps: 0 },
 };
 
 const GUIDE_PREFIX: Partial<Record<string, string>> = { ms: '/ms', 'zh-CN': '/zh' };

@@ -1041,7 +1041,7 @@
     {
       "path": "src/i18n/locales/en/common.json",
       "source": "apps/web/src/i18n/locales/en/common.json",
-      "sha256": "e4e54fb3d31446eb2a51a804700c908b18efb09df522382833653bf5a8308762"
+      "sha256": "4455b9d6e4d42870c4a1c8160339f3cac20efdb1481fbb72a08b22f5117551f8"
     },
     {
       "path": "src/i18n/locales/en/errors.json",
@@ -1071,7 +1071,7 @@
     {
       "path": "src/i18n/locales/ms/common.json",
       "source": "apps/web/src/i18n/locales/ms/common.json",
-      "sha256": "69b536ef929836e711926ba41214dd2fdb1cb70f344baaeea4f1d7e2f1af2f23"
+      "sha256": "18ee32b225590648007e4b83b387939e3882cb003b04f4e3e16ded65dcb59bc0"
     },
     {
       "path": "src/i18n/locales/ms/errors.json",
@@ -1101,7 +1101,7 @@
     {
       "path": "src/i18n/locales/zh-CN/common.json",
       "source": "apps/web/src/i18n/locales/zh-CN/common.json",
-      "sha256": "2420b0653d252beed1af332eb93555bbdb489f71f98ec2bd8c5ca53dc5d7e793"
+      "sha256": "6f4b854a45da933960022da3828b0874842fd6500db1273d16e04523e3b78e5c"
     },
     {
       "path": "src/i18n/locales/zh-CN/errors.json",
@@ -1475,11 +1475,11 @@
     },
     {
       "path": "src/components/app/InfoTip.tsx",
-      "sha256": "5acae2b48c9efeb87a373de96459ba4f0f13e04b68aa8f33d024ec85b1f862d6"
+      "sha256": "61c9760b96976c4dbe0b3748b9c39e192620dcf655d1c27c99f3147a6e397f21"
     },
     {
       "path": "src/lib/tips.ts",
-      "sha256": "de977408191e3b821f35075ffcc39e1ce2c14e91d2a984aaf7abc77ff957ee74"
+      "sha256": "88d11155cdcf5e80a43f53f75040861447d0988dd217b84cf7659486018fbc8c"
     }
   ]
 }
