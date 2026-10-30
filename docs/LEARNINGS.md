@@ -998,6 +998,11 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)
+  and close at once as "outside": mark the opening buttons (`data-ask-ezy-trigger`) and `preventDefault` in
+  `onInteractOutside` for them. jsdom does not reproduce it; only the Pixel e2e does.
+- The e2e server's data is shared by every spec in the run (another spec saves an AI key): a spec that needs
+  "no AI connection" or other global state mocks that route, and `chatItem()` takes a chat id, not a name.
 - `userEvent.setup()` installs its own `navigator.clipboard`: in a test, replace the clipboard after setup, or
   the component writes to user-event's stub and a `writeText` mock sees no call.
 - A shadcn `Button` with an icon pads through `has-[>svg]:px-*`, which beats a plain `max-sm:px-2`: write the
