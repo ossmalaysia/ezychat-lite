@@ -304,6 +304,27 @@ function teamRows(db: DB, responders: InboxActivity['responders']): Report['team
  * Open direct chats the AI handed to the team (its last hand-off) where no teammate or the phone has
  * written since: the customer is still waiting for a person.
  */
+/**
+ * One chat is still waiting after an AI hand-off: the AI handed it over and no person (teammate or
+ * phone) has written since. Same rule as Reports' "waiting after AI hand-off", for one chat.
+ */
+export function chatWaitingAfterHandoff(db: DB, jid: string): boolean {
+  const handoff = db
+    .prepare(
+      "SELECT MAX(at) AS at FROM audit_log WHERE action = 'ai.handoff' AND json_extract(meta, '$.chatJid') = ?",
+    )
+    .get(jid) as { at: number | null };
+  if (handoff.at === null) return false;
+  const reply = db
+    .prepare(
+      `SELECT MAX(m.timestamp) AS at FROM messages m
+       WHERE m.chat_jid = ? AND m.from_me = 1 AND ${COUNTED}
+         AND (m.sent_by_user_id IS NULL OR m.sent_by_user_id NOT IN (SELECT id FROM users WHERE kind = 'ai'))`,
+    )
+    .get(jid) as { at: number | null };
+  return reply.at === null || reply.at < handoff.at;
+}
+
 function waitingAfterHandoff(
   db: DB,
   scope: string,

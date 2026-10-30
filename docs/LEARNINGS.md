@@ -848,6 +848,21 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
+  handed over a consultation request as needs_action against saved "never hand over" rules because the core listed
+  "book" as an action. Keep built-in hand-off reasons narrow, state which ones the business rules may rule out
+  (only safety/sensitive cannot), and pin repro prompts with a rule-following stand-in model plus a bite proof.
+  A change to the prompt layout or the `/api/ai` routes also breaks the pinned tables elsewhere
+  (`test/ai-prompt-agents.test.ts` cache-prefix bytes, `test/ai-routes-access.test.ts` route list): run
+  `npx vitest run packages/server/test/ai-*` before pushing, not only the files you edited.
+- SonarCloud's gate also scans `e2e/` scripts: a CLI argument used as a `spawn` cwd or path is a path-traversal
+  vulnerability (security rating C fails the gate) and copied API/check helpers push duplication past 3 %.
+  Validate such paths (realpath + the expected package inside) and import the Dev Build helpers from
+  `e2e/devbuild-client.mjs` instead of copying them.
+- Never append fixed text to a model reply (a check-in line, "closing this chat") without a per-agent switch, and
+  never treat a "yes" as a confirmation when it carries new facts: a "yes we are in Malaysia" to another question
+  closed a live lead. Resolution guards must check what else the message says, not only how it starts.
+
 - Every path that stops the AI in a chat must also leave a human owner or an unassigned chat: a phone reply
   (`fromMe`, no `sentByUserId`) only paused the AI, the chat stayed assigned to it, and later customer
   messages reached nobody. When you add a stop condition, test the next inbound message too.

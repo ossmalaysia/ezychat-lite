@@ -67,6 +67,7 @@ import { AiEditDialog } from './AiEditDialog';
 import { AiTryIt } from './AiTryIt';
 import { AgentConnectorsCard } from './connectors/AgentConnectorsCard';
 import { AgentGroupsCard, LITE_INBOX_NAME } from './AgentGroupsCard';
+import { AgentResolutionCard } from './AgentResolutionCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
 import { businessTemplate, type BusinessTemplateId } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
@@ -802,6 +803,13 @@ function AgentEditor({
           <AgentConnectorsCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
+          />
+
+          {/* Resolution question and closing chats (off by default). */}
+          <AgentResolutionCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
+            enabled={agent.agent.resolutionCheck ?? false}
           />
 
           {/* WhatsApp groups: answer when tagged or quoted, and in which groups. */}

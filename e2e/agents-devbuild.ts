@@ -10,6 +10,7 @@
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
 // Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals).
+// Hand-off rules: consultation, CHECKIN, RESOLVE and HUMAN (see mockDecision); check: e2e/devbuild-handoff-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -131,6 +132,31 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
       ...(email ? { customer_email: email } : {}),
     });
   }
+  // Hand-off rules (e2e/devbuild-handoff-check.mjs): a consultation request is answered with a
+  // discovery question only when the rules given say it is discovery (else needs_action, the old
+  // behaviour); CHECKIN answers with a check-in line (ask_resolution); a "yes" with RESOLVE tries to
+  // close the chat with the old goodbye; HUMAN asks for a person.
+  if (/consultation/i.test(last))
+    return prompt.instructions.includes('is discovery, not an action')
+      ? { reply: 'Happy to set that up! What would you like to cover?', action: 'answer' }
+      : {
+          reply: "Sorry, I can't book it myself. A team member will help you shortly.",
+          action: 'handoff',
+          handoffReason: 'needs_action',
+        };
+  if (last.includes('CHECKIN'))
+    return {
+      reply: 'Yes, we supply H100 GPUs. Does that answer your question?',
+      action: 'ask_resolution',
+    };
+  if (last.includes('RESOLVE'))
+    return { reply: 'Thank you! I will close this chat now.', action: 'resolve' };
+  if (last.includes('HUMAN'))
+    return {
+      reply: 'A team member will help you shortly.',
+      action: 'handoff',
+      handoffReason: 'asked_for_human',
+    };
   // A change request (e.g. in a WhatsApp group): hand over, as real models do (needs_action).
   if (last.includes('CHANGE'))
     return {

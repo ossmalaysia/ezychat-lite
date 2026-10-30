@@ -195,7 +195,14 @@ awaited; `customer` = the team's saved name, company, email, other phone and add
 never tags, none in Try it); never put per-call or team-editable values earlier. A reply generated with
 customer details that changed meanwhile is dropped and regenerated. `prompt_cache_key` is derived from the random `ai_install_id`,
 the agent id (`cacheId = installId#agent:<id>`) and the model, never from customer data. Resolution guard: only a free-text confirmation closes a chat;
-questions, objections and new requests keep it open; the AI then asks "Does that answer your question?".
+questions, objections, new requests and a "yes" carrying new facts (`addsNewFacts`) keep it open. The resolution
+question is per agent (`ai_agents.resolution_check`, migration 026, card "Closing chats", `PUT
+/api/ai/agents/:agentId/resolution-check`; default off for every agent): off, the AI never adds a check-in
+line, never chooses ask_resolution/resolve (`guardResolution` turns them into an answer) and never closes a chat. The
+business hand-off rules' "never hand over" cases win over needs_action, missing_facts and asked_for_human (only safety
+and sensitive always apply); needs_action is only a concrete order, payment or account action, and a consultation,
+meeting, demo or call request is discovery (`DISCOVERY_REQUEST`). A reply says "a team member will help" only with
+handoff, and never announces closing the chat.
 Order and delivery questions keep the chat with the AI. Web: `admin/AiConnectionSection.tsx` (Settings → AI),
 `admin/AiMemberPage.tsx` + `AiContextPanel.tsx` (`/admin/members/ai/:agentId`, `/new?preset=`; `/admin/members/ai`
 redirects), `admin/AiQuickConnect.tsx` (connect

@@ -6,14 +6,29 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "concept-tips",
-    "gitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
-    "mock": "docs/features/concept-tips/mock/index.html",
-    "design": "docs/features/concept-tips/design.md",
+    "feature": "ai-handoff-rules",
+    "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
+    "mock": "docs/features/ai-handoff-rules/mock/index.html",
+    "design": "docs/features/ai-handoff-rules/design.md",
     "confirmedAt": "2026-10-30",
-    "confirmation": "Owner reviewed round 1 (\"too many text\"), asked for the shorter round 2 cards (\"yes\"), reviewed them and set the goal 2026-10-30 (\"build it, test it for ezychat lite and enterprise, than merge, no need release\"). Open questions defaulted to the proposals: the ? marker; Enterprise tips in the same change."
+    "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent."
   },
   "proposals": [
+    {
+      "feature": "ai-handoff-rules",
+      "creationOrder": 22,
+      "createdAt": "2026-10-30",
+      "design": "docs/features/ai-handoff-rules/design.md",
+      "mock": "docs/features/ai-handoff-rules/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "concept-tips",
+      "baselineGitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
+      "baselineAppRevision": "b348bbc",
+      "coverage": "Full app clone of the confirmed concept-tips reference; agent page Closing chats card (Ask if the question is answered: off by default for every agent, with no check-in line and the team closing chats, on with the clear-yes rule), dashed Mock only preview of the same two customer messages per state, kept per agent in localStorage; desktop 1280 / mobile 360 touch, light/dark (resolution-shots.mjs)",
+      "confirmedAt": "2026-10-30",
+      "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent.",
+      "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb"
+    },
     {
       "feature": "concept-tips",
       "creationOrder": 21,
@@ -88,7 +103,8 @@
       "coverage": "Full app clone of the confirmed google-calendar reference plus Admin -> Reports and the PR #192 Bookings tab; the connector gallery read from a signed connector list (format 1; entries with schemaVersion, minAppVersion, kind mcp/builtin/coming_soon, editions): status line \"Connector list updated 2 hours ago · Check for new connectors\", list loaded / offline (last copy) / bad signature (warning, last good copy), an entry for a newer EzyChat greyed with \"Update EzyChat to use this connector\", a schema-2 entry never shown, an Enterprise-only entry in Lite, coming-soon entries with Vote, Google Calendar (MCP) beside the built-in one behind a mock-only switch; partner (MCP) pages (publisher and website, tools with Look-up / Changes data, privacy line before Connect, details for your developer); Connect with a stand-in partner sign-in tab (waiting, cancelled, connected) or an API key dialog (Test, Save, key refused), partner server unreachable; Settings per AI agent from the entry's form (select, toggle, text, days, time range, calendar picker), one switch per tool (changes-data tools off), Rules the AI always follows from the declared guards; Activity (looked up, done, refused with reason, failed); connected but no longer listed; agent page Connectors card rows; mock-only routes /api/mock/connector-list*; desktop 1280 / mobile 360 touch, light/dark, Lite and Enterprise (connector-list-shots.mjs)",
       "confirmedAt": "2026-10-27",
       "confirmation": "Owner reviewed the review page (gallery from the signed list, partner page, OAuth and API key connect, per-agent settings and rules, Activity, No longer available), answered the four questions (anyone may send entries; removed connectors keep working flagged No longer available; list refresh at start and when the connector page opens; icons with the list), asked for common sign-in types (oauth, oauth_own_app, api_key, credentials, none) and confirmed 2026-10-27 (\"yes, build it\").",
-      "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06"
+      "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06",
+      "folderRemoved": "2026-10-30 (ai-handoff-rules: sixth feature folder); last on main at ee6c347"
     },
     {
       "feature": "google-calendar",

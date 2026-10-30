@@ -75,6 +75,8 @@ beforeEach(async () => {
   t.ctx.services.ai.saveMember({ ...body, enabled: false }, actor);
   t.ctx.services.ai.addText(null, { name: 'Business context', text: CONTEXT }, actor);
   t.ctx.services.ai.saveMember(body, actor);
+  // Most tests here exercise the resolution flow, which a sales agent has off by default.
+  t.ctx.services.ai.setResolutionCheck(defaultAgent(t.ctx.db)!.id, true, actor);
 });
 afterEach(async () => {
   await t.close();

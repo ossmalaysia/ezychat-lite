@@ -27,6 +27,10 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Ideas and next steps
 
+- **Waiting after AI hand-off in the inbox** (2026-10-30, from the hand-off rules fix): the count lives only in
+  Reports and MCP `get_stats`; the push now says "<name> is waiting for a teammate". Add an inbox filter or badge
+  for these chats (mock first, `docs/features/<feature>/mock`).
+
 - **Ask Ezy: model choice** (owner, 2026-10-30, follow-up of 0.1.64): Ask Ezy answers on the connection's fast
   model. Add "Model for Ask Ezy" in Settings → AI (Fast default / same as the AI agent / a model of the
   connection), reusing the reply-suggestions model setting and route pattern.

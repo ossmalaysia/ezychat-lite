@@ -278,3 +278,24 @@ Tier **critical**, set by: packages/server/src/chats/activity.ts, packages/serve
 Hard stops: 1. critical change without a real-part test
 
 Decision: **risk:human**
+
+## 2026-10-30 · PR #230 · `1a244ab` · risk:auto (75)
+
+Tier **core**, set by: apps/web/src/api/ai.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: core | -15 | ✓ |
+| Size: 103 code lines | -10 | ✓ |
+| Changed-lines coverage 100 % | +20 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test (not needed) | 0 | ✓ |
+| **Score** | **75** | |
+
+Hard stops: none
+
+Decision: **risk:auto**

@@ -4,6 +4,8 @@ import { buildEditPrompt } from '../src/ai/edit-prompt.js';
 import { AI_FULL_CONTEXT_CHARACTERS } from '../src/ai/knowledge.js';
 import {
   GUARDRAILS,
+  RESOLUTION_RULES_OFF,
+  RESOLUTION_RULES_ON,
   buildAiPrompt,
   knowledgeSources,
   splitKnowledge,
@@ -41,11 +43,18 @@ describe('agent prompt layout', () => {
   });
 
   it('keeps every byte up to the end of the core identical for different agents', () => {
+    // The per-agent resolution block starts after the core (here: FAQ switched on, sales off).
     const a = build(sales, 'floor price RM 100').instructions;
-    const b = build(faq, 'other secret').instructions;
-    const coreEnd = a.indexOf('\nYour name: ');
+    const b = buildAiPrompt(
+      { ...faq, resolutionCheck: true },
+      'other secret',
+      '',
+      [{ speaker: 'customer', text: 'Hi' }],
+      situation,
+    ).instructions;
+    const coreEnd = a.indexOf(`\n${RESOLUTION_RULES_OFF}\n`);
     expect(coreEnd).toBeGreaterThan(GUARDRAILS.length);
-    expect(b.indexOf('\nYour name: ')).toBe(coreEnd);
+    expect(b.indexOf(`\n${RESOLUTION_RULES_ON}\n`)).toBe(coreEnd);
     expect(b.slice(0, coreEnd)).toBe(a.slice(0, coreEnd));
     expect(a.slice(coreEnd)).toContain('Your name: Ezy');
     expect(b.slice(coreEnd)).toContain('Your name: Clinic Desk');

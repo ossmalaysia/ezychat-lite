@@ -26,6 +26,7 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/agents' },
   { method: 'GET', url: '/api/ai/agents/1' },
   { method: 'PUT', url: '/api/ai/agents/1' },
+  { method: 'PUT', url: '/api/ai/agents/1/resolution-check' },
   { method: 'DELETE', url: '/api/ai/agents/1' },
   { method: 'POST', url: '/api/ai/agents/1/documents' },
   { method: 'POST', url: '/api/ai/agents/1/documents/text' },
