@@ -87,10 +87,12 @@ into AGENTS.md.
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
   once per fresh server and vary viewport and colour scheme on that one page.
-- In the cloud container the document parser worker (PDF/Word, `ai/knowledge-worker.ts`) answers "Cannot read this
-  document": 4 server tests and the `ai-member.spec` file upload fail there on `main` too. Check a failure there
-  with `git stash -u` before blaming the branch, and let CI decide. `npm run e2e` there needs the Playwright build
-  it expects: link `/opt/pw-browsers/chromium-<wanted>` (and `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
+- Run tests on the Node version CI uses (`setup-node` 22 = the newest 22.x; 22.23.4 on 2026-10-30). On Node 22.22.0
+  a worker's `execArgv: ['--import', 'tsx']` does not apply tsx's hooks, so the document parser worker
+  (`ai/knowledge-worker.ts`) answers "Cannot read this document": 4 server tests and the `ai-member.spec` file upload
+  fail while CI is green. Check `node -v` before calling such a failure the branch's or the machine's. `npm run e2e`
+  in the cloud container also needs the Playwright build it expects: link `/opt/pw-browsers/chromium-<wanted>` (and
+  `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
   `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
