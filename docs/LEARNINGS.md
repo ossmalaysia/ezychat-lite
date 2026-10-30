@@ -170,7 +170,8 @@ into AGENTS.md.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
   `prettier --write` on `docs/release-review/log.md` (`main` keeps it unformatted; it rewrote 117 lines).
 - Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
-  ended while two jobs still ran. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
+  ended while two jobs still ran. Right after `gh pr update-branch` the new head has no checks yet and `--watch`
+  returns at once: first wait until `gh pr checks` lists checks for the new `headRefOid`. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
