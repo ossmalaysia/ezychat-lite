@@ -491,6 +491,9 @@ into AGENTS.md.
   registers it (real email code, real trial record). To show new core code, stop only that server, rerun
   `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
   sessions and test agents stay, so nobody registers again.
+- Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
+  with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
+  unrelated log text alone (each touched line counts).
 - Pass extra Vitest flags through the script (`npm run test:coverage -- --pool=forks --maxWorkers=2`), never a
   raw `npx vitest run --coverage`: the script's `--testTimeout=20000` keeps slow tests from false failures.
 - A git worktree whose `node_modules` is a junction to the main checkout: delete the junction first
