@@ -6,17 +6,17 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "concept-tips",
-    "gitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
-    "mock": "docs/features/concept-tips/mock/index.html",
-    "design": "docs/features/concept-tips/design.md",
+    "feature": "ai-handoff-rules",
+    "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
+    "mock": "docs/features/ai-handoff-rules/mock/index.html",
+    "design": "docs/features/ai-handoff-rules/design.md",
     "confirmedAt": "2026-10-30",
-    "confirmation": "Owner reviewed round 1 (\"too many text\"), asked for the shorter round 2 cards (\"yes\"), reviewed them and set the goal 2026-10-30 (\"build it, test it for ezychat lite and enterprise, than merge, no need release\"). Open questions defaulted to the proposals: the ? marker; Enterprise tips in the same change."
+    "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent."
   },
   "proposals": [
     {
       "feature": "ai-direct-chats",
-      "creationOrder": 22,
+      "creationOrder": 23,
       "createdAt": "2026-10-30",
       "design": "docs/features/ai-direct-chats/design.md",
       "mock": "docs/features/ai-direct-chats/mock/index.html",
@@ -28,8 +28,23 @@
       "confirmedAt": "2026-10-30",
       "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
       "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
-      "parallelFeatures": ["concept-tips"],
-      "note": "Confirmed in parallel with concept-tips (both cloned from grammar-fix): neither mock has the other's change. The next enhancement clones latestConfirmed (concept-tips) and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys)."
+      "parallelFeatures": ["concept-tips", "ai-handoff-rules"],
+      "note": "Confirmed in parallel with concept-tips and ai-handoff-rules (all cloned from grammar-fix): none of these mocks has the others' change. The next enhancement clones latestConfirmed and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys)."
+    },
+    {
+      "feature": "ai-handoff-rules",
+      "creationOrder": 22,
+      "createdAt": "2026-10-30",
+      "design": "docs/features/ai-handoff-rules/design.md",
+      "mock": "docs/features/ai-handoff-rules/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "concept-tips",
+      "baselineGitRevision": "360d3be5ad7030d5e6fc3e8d719df223a2a6fe9d",
+      "baselineAppRevision": "b348bbc",
+      "coverage": "Full app clone of the confirmed concept-tips reference; agent page Closing chats card (Ask if the question is answered: off by default for every agent, with no check-in line and the team closing chats, on with the clear-yes rule), dashed Mock only preview of the same two customer messages per state, kept per agent in localStorage; desktop 1280 / mobile 360 touch, light/dark (resolution-shots.mjs)",
+      "confirmedAt": "2026-10-30",
+      "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent.",
+      "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb"
     },
     {
       "feature": "concept-tips",
@@ -86,7 +101,12 @@
       "confirmedAt": "2026-10-28",
       "confirmation": "Owner reviewed the review page (versions 1-3), set the trigger to when tagged or quoted, and confirmed 2026-10-28 (\"confirm\"), including the loop guard as the only limit.",
       "gitRevision": "ea63248ff0e7a529c95978a5ac82af464e5e0d70",
-      "creationOrder": 18
+      "creationOrder": 18,
+      "archived": {
+        "folderRemovedAt": "2026-10-30",
+        "lastRevision": "4d2c99befc6d0ae42e3eb07d16f10fd803408e1e",
+        "reason": "retention: sixth feature folder (ai-direct-chats)"
+      }
     },
     {
       "feature": "connector-list",
@@ -106,11 +126,7 @@
       "confirmedAt": "2026-10-27",
       "confirmation": "Owner reviewed the review page (gallery from the signed list, partner page, OAuth and API key connect, per-agent settings and rules, Activity, No longer available), answered the four questions (anyone may send entries; removed connectors keep working flagged No longer available; list refresh at start and when the connector page opens; icons with the list), asked for common sign-in types (oauth, oauth_own_app, api_key, credentials, none) and confirmed 2026-10-27 (\"yes, build it\").",
       "gitRevision": "9a5643920855cdc27449cbb4f4c3c7d6965eee06",
-      "archived": {
-        "folderRemovedAt": "2026-10-30",
-        "lastRevision": "ee6c347e09362e31d754e4cdc971538935cd9641",
-        "reason": "retention: sixth feature folder (ai-direct-chats)"
-      }
+      "folderRemoved": "2026-10-30 (ai-handoff-rules: sixth feature folder); last on main at ee6c347"
     },
     {
       "feature": "google-calendar",

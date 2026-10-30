@@ -26,7 +26,8 @@ Status: **confirmed** 2026-10-30 (see Confirmation). Branch `claude/elegant-plan
 - Retention: new feature folder (6th); the oldest, `google-calendar` (last revision on `main` `cc0a759`), is pruned in
   the same change.
 - Built in parallel with `concept-tips` (also cloned from grammar-fix, merged first): after merging `main` this is
-  creation 22 and `connector-list` is pruned instead (last revision on `main` before the merge).
+  creation 22 and `connector-list` is pruned instead (last revision on `main` before the merge). A later merge brought
+  `ai-handoff-rules` (22): this is now creation 23 and `ai-groups` is pruned (its confirmed mock stays in git history).
 
 ## Behaviour
 

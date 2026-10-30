@@ -7,6 +7,8 @@ const en = {
     newMessage: 'New message',
     unknownContact: 'Unknown contact',
     aiHandoff: { title: 'Chat handed over', body: '{{name}} needs a teammate.' },
+    /** A new message in a chat the AI handed over that no person has answered yet. */
+    aiHandoffWaiting: '{{name}} is waiting for a teammate',
     /** The AI handed a question in a WhatsApp group to the team. */
     aiGroupHandoff: {
       title: '{{agent}} needs you in {{group}}',
@@ -37,6 +39,7 @@ const ms: typeof en = {
     newMessage: 'Mesej baharu',
     unknownContact: 'Kenalan tidak dikenali',
     aiHandoff: { title: 'Sembang diserahkan', body: '{{name}} memerlukan bantuan ahli pasukan.' },
+    aiHandoffWaiting: '{{name}} sedang menunggu ahli pasukan',
     aiGroupHandoff: {
       title: '{{agent}} memerlukan anda dalam {{group}}',
       body: '{{member}}: {{question}}',
@@ -66,6 +69,7 @@ const zhCN: typeof en = {
     newMessage: '新消息',
     unknownContact: '未知联系人',
     aiHandoff: { title: '会话已转交', body: '{{name}}需要团队成员协助。' },
+    aiHandoffWaiting: '{{name}}正在等待团队成员回复',
     aiGroupHandoff: {
       title: '{{agent}} 需要你在 {{group}} 中协助',
       body: '{{member}}：{{question}}',

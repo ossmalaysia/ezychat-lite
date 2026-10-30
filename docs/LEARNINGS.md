@@ -177,7 +177,8 @@ into AGENTS.md.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
   `prettier --write` on `docs/release-review/log.md` (`main` keeps it unformatted; it rewrote 117 lines).
 - Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
-  ended while two jobs still ran. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
+  ended while two jobs still ran. Right after `gh pr update-branch` the new head has no checks yet and `--watch`
+  returns at once: first wait until `gh pr checks` lists checks for the new `headRefOid`. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
@@ -230,7 +231,11 @@ into AGENTS.md.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
   A critical `server-host` change gets the same packaged run, with the server started through the packaged
   `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
-  the table is realigned and the format check fails otherwise.
+  the table is realigned and the format check fails otherwise. A voice-engine update (`sherpa-onnx-node`)
+  needs a real transcript from the packaged server: make speech with Windows `System.Speech` and
+  `ffmpeg -c:a libopus` to Ogg/Opus, `POST /api/ai/voice/download` and wait for `model.state` `installed`
+  (only then `PATCH /api/ai/voice {transcription:'local'}`), send it with `/api/dev/fake-incoming`
+  (`type:'audio'`, `media.base64`) and read `transcriptStatus`/`transcript` from the chat's messages.
   For `screens.smoke.mjs` against that server add `--web-dist resources/web` (else every page is 404) and
   start it on fresh data (the smoke creates the admin once); its `oauth-authorize` FAIL there is the
   expected 409 of AI assistant access being off, not a fault.
@@ -849,6 +854,21 @@ into AGENTS.md.
   "Name on WhatsApp" row).
 
 ## AI sales agent
+
+- A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
+  handed over a consultation request as needs_action against saved "never hand over" rules because the core listed
+  "book" as an action. Keep built-in hand-off reasons narrow, state which ones the business rules may rule out
+  (only safety/sensitive cannot), and pin repro prompts with a rule-following stand-in model plus a bite proof.
+  A change to the prompt layout or the `/api/ai` routes also breaks the pinned tables elsewhere
+  (`test/ai-prompt-agents.test.ts` cache-prefix bytes, `test/ai-routes-access.test.ts` route list): run
+  `npx vitest run packages/server/test/ai-*` before pushing, not only the files you edited.
+- SonarCloud's gate also scans `e2e/` scripts: a CLI argument used as a `spawn` cwd or path is a path-traversal
+  vulnerability (security rating C fails the gate) and copied API/check helpers push duplication past 3 %.
+  Validate such paths (realpath + the expected package inside) and import the Dev Build helpers from
+  `e2e/devbuild-client.mjs` instead of copying them.
+- Never append fixed text to a model reply (a check-in line, "closing this chat") without a per-agent switch, and
+  never treat a "yes" as a confirmation when it carries new facts: a "yes we are in Malaysia" to another question
+  closed a live lead. Resolution guards must check what else the message says, not only how it starts.
 
 - Every path that stops the AI in a chat must also leave a human owner or an unassigned chat: a phone reply
   (`fromMe`, no `sentByUserId`) only paused the AI, the chat stayed assigned to it, and later customer

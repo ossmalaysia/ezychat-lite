@@ -37,7 +37,7 @@ const TABLES = [
   'calendar_bookings',
   'calendar_activity',
 ];
-const LATEST = 26;
+const LATEST = 27;
 
 describe('migrate', () => {
   it('keeps chat events (ids, payload) and accepts ai_tool_used after the rebuild', () => {
@@ -293,6 +293,43 @@ describe('migrate', () => {
     } finally {
       existing.close();
       fresh.close();
+    }
+  });
+
+  it('026 adds the resolution question switch, off for every existing agent', () => {
+    const db = new Database(':memory:');
+    try {
+      for (const file of readdirSync(migrationsDir())
+        .filter((f) => /^\d+_/.test(f) && parseInt(f, 10) <= 25)
+        .sort())
+        db.exec(readFileSync(join(migrationsDir(), file), 'utf8'));
+      db.pragma('user_version = 25');
+      const user = (name: string) =>
+        Number(
+          db
+            .prepare(
+              "INSERT INTO users (username, display_name, password_hash, role, kind, created_at) VALUES (?, ?, '', 'agent', 'ai', 1)",
+            )
+            .run(name, name).lastInsertRowid,
+        );
+      for (const [name, preset] of [
+        ['s', 'sales'],
+        ['f', 'faq'],
+        ['c', 'custom'],
+      ] as const)
+        db.prepare(
+          'INSERT INTO ai_agents (user_id, preset, created_at, updated_at) VALUES (?, ?, 1, 1)',
+        ).run(user(name), preset);
+      migrate(db);
+      expect(
+        db.prepare('SELECT preset, resolution_check AS on_ FROM ai_agents ORDER BY id').all(),
+      ).toEqual([
+        { preset: 'sales', on_: 0 },
+        { preset: 'faq', on_: 0 },
+        { preset: 'custom', on_: 0 },
+      ]);
+    } finally {
+      db.close();
     }
   });
 

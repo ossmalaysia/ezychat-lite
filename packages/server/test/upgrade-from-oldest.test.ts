@@ -145,7 +145,7 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     // 025: the same for Fix English (its grammar check calls the AI provider while people type).
     expect(t.ctx.settings.get('fix_english', null)).toBe(false);
     expect(t.ctx.settings.get('fix_english_upgraded', null)).toBe(true);
-    // 026: every existing agent keeps answering direct chats.
+    // 027: every existing agent keeps answering direct chats.
     expect(listAgents(t.ctx.db).every((agent) => agent.answerDirect)).toBe(true);
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.

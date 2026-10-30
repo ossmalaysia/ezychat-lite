@@ -21,8 +21,10 @@ export interface AgentRow {
   enabled: boolean;
   /** "Answer in groups": the agent answers tags and quotes in the groups an admin switched on. */
   answerGroups: boolean;
+  /** Ends answers with a resolution question and may close the chat (migration 026). */
+  resolutionCheck: boolean;
   /**
-   * "Answer direct chats" (migration 026, default on). Off: the agent never answers or takes a direct
+   * "Answer direct chats" (migration 027, default on). Off: the agent never answers or takes a direct
    * chat. Read it through `answersDirect` (ai/direct.ts): an inbox without groups ignores it.
    */
   answerDirect: boolean;
@@ -55,6 +57,7 @@ interface Row {
   displayName: string;
   disabledAt: number | null;
   answerGroups: number;
+  resolutionCheck: number;
   answerDirect: number;
   createdAt: number;
   updatedAt: number;
@@ -63,16 +66,30 @@ interface Row {
 const SELECT = `SELECT a.id, a.user_id AS userId, a.inbox_id AS inboxId, a.preset,
   a.instructions, a.handoff_rules AS handoffRules, u.display_name AS displayName,
   u.disabled_at AS disabledAt, a.answer_groups AS answerGroups,
-  a.answer_direct AS answerDirect, a.created_at AS createdAt, a.updated_at AS updatedAt
+  a.resolution_check AS resolutionCheck, a.answer_direct AS answerDirect,
+  a.created_at AS createdAt, a.updated_at AS updatedAt
   FROM ai_agents a JOIN users u ON u.id = a.user_id
   WHERE u.ai_deleted_at IS NULL`;
 
-const toAgent = ({ disabledAt, answerGroups, answerDirect, ...row }: Row): AgentRow => ({
+const toAgent = ({
+  disabledAt,
+  answerGroups,
+  resolutionCheck,
+  answerDirect,
+  ...row
+}: Row): AgentRow => ({
   ...row,
   enabled: disabledAt === null,
   answerGroups: answerGroups === 1,
+  resolutionCheck: resolutionCheck === 1,
   answerDirect: answerDirect === 1,
 });
+
+/**
+ * A new agent's "Ask if the question is answered": off for every preset (owner, 2026-10-30): no check-in
+ * lines and the team closes chats until an admin switches it on.
+ */
+export const defaultResolutionCheck = (_preset: AiAgentPreset): boolean => false;
 
 function one(db: DB, where: string, value: number): AgentRow | null {
   const row = db.prepare(`${SELECT} AND ${where} = ?`).get(value) as Row | undefined;
@@ -115,6 +132,8 @@ export interface NewAgent {
   preset: AiAgentPreset;
   instructions: string | null;
   handoffRules: string | null;
+  /** Default: `defaultResolutionCheck(preset)`. */
+  resolutionCheck?: boolean;
 }
 
 /** Adds the `ai_agents` row for an existing `kind = 'ai'` user. */
@@ -123,8 +142,8 @@ export function createAgentRow(db: DB, agent: NewAgent, now = Date.now()): Agent
   const id = Number(
     db
       .prepare(
-        `INSERT INTO ai_agents (user_id, inbox_id, preset, instructions, handoff_rules, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO ai_agents (user_id, inbox_id, preset, instructions, handoff_rules, resolution_check, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         agent.userId,
@@ -132,6 +151,7 @@ export function createAgentRow(db: DB, agent: NewAgent, now = Date.now()): Agent
         agent.preset,
         agent.instructions,
         agent.handoffRules,
+        (agent.resolutionCheck ?? defaultResolutionCheck(agent.preset)) ? 1 : 0,
         now,
         now,
       ).lastInsertRowid,
@@ -144,6 +164,7 @@ export interface AgentTexts {
   /** null = back to the preset's defaults. */
   instructions?: string | null;
   handoffRules?: string | null;
+  resolutionCheck?: boolean;
 }
 
 /** Changes only the given fields. */
@@ -162,6 +183,10 @@ export function updateAgentTexts(db: DB, id: number, texts: AgentTexts, now = Da
     sets.push('handoff_rules = ?');
     values.push(texts.handoffRules);
   }
+  if (texts.resolutionCheck !== undefined) {
+    sets.push('resolution_check = ?');
+    values.push(texts.resolutionCheck ? 1 : 0);
+  }
   const changed = db
     .prepare(`UPDATE ai_agents SET ${sets.join(', ')} WHERE id = ?`)
     .run(...values, id).changes;
@@ -176,7 +201,7 @@ export function setAgentAnswerGroups(db: DB, id: number, on: boolean, now = Date
   if (!changed) throw new AgentError('agent_not_found');
 }
 
-/** The agent's "Answer direct chats" switch (migration 026). */
+/** The agent's "Answer direct chats" switch (migration 027). */
 export function setAgentAnswerDirect(db: DB, id: number, on: boolean, now = Date.now()): void {
   const changed = db
     .prepare('UPDATE ai_agents SET answer_direct = ?, updated_at = ? WHERE id = ?')

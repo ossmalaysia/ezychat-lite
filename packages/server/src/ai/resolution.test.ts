@@ -4,8 +4,10 @@ import {
   RESOLVED_REPLY,
   guardResolution,
   looksLikeConfirmation,
+  addsNewFacts,
   objectsToResolution,
   requestsAction,
+  withoutCheckIn,
 } from './resolution.js';
 
 const resolve = { action: 'resolve' as const, reply: 'Glad to help!' };
@@ -186,4 +188,129 @@ describe('review fixes', () => {
       reply: ASK_RESOLUTION_REPLY,
     });
   });
+});
+
+// Repro (Anchor Sprint, agent 1): the "book" verb made a consultation request a needs_action hand-off.
+describe('consultation, meeting, demo or call requests are discovery, not actions', () => {
+  const consultation =
+    "Hi Anchor Sprint, I'd like to book a free consultation (from your homepage).";
+
+  it.each([
+    consultation,
+    'Can I schedule a demo?',
+    'I want to book a call with your sales team',
+    'Could I set up a quick zoom meeting next week',
+  ])('is not an action request: %s', (text) => {
+    expect(requestsAction(text)).toBe(false);
+  });
+
+  it.each([
+    "I'd like to book a table for 4",
+    'Please cancel my order',
+    'I want to order 3 units',
+    "I'd like to book a free consultation and place an order for 2 GPUs",
+  ])('is still an action request: %s', (text) => {
+    expect(requestsAction(text)).toBe(true);
+  });
+
+  it('never turns a later close of a consultation chat into a needs_action hand-off', () => {
+    expect(guardResolution(resolve, 1, 'Thanks!', `${consultation}\nThanks!`)).toEqual(resolve);
+  });
+});
+
+// Repro: "yes we are in Malaysia" (to a question about location) closed a live GPU lead.
+describe('a "yes" carrying new facts never resolves', () => {
+  it.each([
+    'yes we are in Malaysia',
+    'Yes, 20 units',
+    'yes Acme Sdn Bhd',
+    "yes I'm the IT manager",
+    '是的，我们公司在吉隆坡',
+  ])('continues the flow: %s', (text) => {
+    expect(addsNewFacts(text)).toBe(true);
+    expect(objectsToResolution(text)).toBe(true);
+    expect(looksLikeConfirmation(text)).toBe(false);
+    expect(guardResolution(resolve, 1, text)).toEqual({
+      action: 'ask_resolution',
+      reply: ASK_RESOLUTION_REPLY,
+    });
+    // Even after the last resolution question, the server never closes on it.
+    expect(guardResolution(ask, 5, text)).toEqual(ask);
+  });
+
+  it.each(['Yes thanks', 'Ok noted, yes that answers it. Thank you!', 'ok', '谢谢'])(
+    'a plain confirmation carries no new facts: %s',
+    (text) => expect(addsNewFacts(text)).toBe(false),
+  );
+
+  it('never announces closing the chat', () => {
+    expect(RESOLVED_REPLY).not.toMatch(/close/i);
+  });
+});
+
+describe('resolutionCheck off (sales preset default)', () => {
+  const off = { resolutionCheck: false };
+
+  it('turns ask_resolution into an answer without the check-in line', () => {
+    expect(
+      guardResolution(
+        {
+          action: 'ask_resolution',
+          reply: 'Premium seats add Claude Code. Does that answer your question?',
+        },
+        0,
+        'What is the difference between Claude Team Standard and Premium seat?',
+        undefined,
+        off,
+      ),
+    ).toEqual({ action: 'answer', reply: 'Premium seats add Claude Code.', handoffReason: null });
+  });
+
+  it('never resolves: a closing-only reply sends nothing and keeps the chat', () => {
+    expect(
+      guardResolution(
+        { action: 'resolve', reply: 'Thank you! I will close this chat now.' },
+        3,
+        'yes we are in Malaysia',
+        undefined,
+        off,
+      ),
+    ).toEqual({ action: 'no_reply', reply: '', handoffReason: null });
+    expect(guardResolution(ask, 5, 'Yes thanks', undefined, off)).toEqual({
+      action: 'no_reply',
+      reply: '',
+      handoffReason: null,
+    });
+  });
+
+  it('leaves answers, hand-offs and no_reply alone', () => {
+    const answer = { action: 'answer' as const, reply: 'Which company are you from?' };
+    expect(guardResolution(answer, 0, 'hi', undefined, off)).toEqual(answer);
+    expect(guardResolution(handoff, 0, 'hi', undefined, off)).toEqual(handoff);
+  });
+
+  it.each([
+    ['A. Does that answer your question?', 'A.'],
+    ['A.\nAnything else I can help you with?', 'A.'],
+    ['A! Is there anything else?', 'A!'],
+    ['A. Thanks! I will close this chat now.', 'A. Thanks!'],
+    ['这是价格。解答了您的问题吗？', '这是价格。'],
+    ['Does that answer your question? A follows.', 'Does that answer your question? A follows.'],
+    ['Thanks! Anything else? Does that answer your question?', 'Thanks!'],
+    ['Does that answer your question?', ''],
+  ])('withoutCheckIn(%j) → %j', (reply, expected) => {
+    expect(withoutCheckIn(reply)).toBe(expected);
+  });
+});
+
+it('strips check-in lines in linear time on a long reply without sentence ends', () => {
+  const long = `${'a'.repeat(50_000)}. Does that answer your question?`;
+  const started = performance.now();
+  expect(withoutCheckIn(long)).toBe(`${'a'.repeat(50_000)}.`);
+  // One long sentence that only mentions a check-in is kept whole.
+  expect(withoutCheckIn(`${'a'.repeat(50_000)} does that answer your question`)).toHaveLength(
+    50_031,
+  );
+  expect(withoutCheckIn(`${'word '.repeat(10_000)}x`)).toBe(`${'word '.repeat(10_000)}x`);
+  expect(performance.now() - started).toBeLessThan(200);
 });

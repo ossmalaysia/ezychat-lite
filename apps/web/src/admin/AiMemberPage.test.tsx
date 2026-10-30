@@ -344,6 +344,7 @@ describe('AI agent page', () => {
       'Name',
       'Business context',
       'Connectors',
+      'Closing chats',
       'Groups',
       'Try it',
       'Role',

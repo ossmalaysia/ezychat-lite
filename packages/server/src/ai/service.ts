@@ -244,6 +244,8 @@ export interface AiService {
   /** 409 `agent_limit` at maxAgents, 409 `inbox_has_agent`; in Lite the agent always serves inbox 1. */
   createAgent(body: AiAgentBody, actor: Actor): AiAgentStatus;
   saveAgent(agentId: number, body: AiAgentBody, actor: Actor): AiAgentStatus;
+  /** The agent's "Ask if the question is answered" switch (audited, takes effect on the next reply). */
+  setResolutionCheck(agentId: number, enabled: boolean, actor: Actor): AiAgentStatus;
   /** Releases its chats first; 409 `last_agent` in Lite. */
   deleteAgent(agentId: number, actor: Actor): void;
   /** Binds the agent to an inbox (null = none) and releases the chats it owned. */
@@ -1349,7 +1351,11 @@ export function createAiService(
         return;
       }
       const current = settingsFor(agentById(ctx.db, agent.id) ?? agent);
-      const knowledgeOf = { ...current, preset: agent.preset };
+      const knowledgeOf = {
+        ...current,
+        preset: agent.preset,
+        resolutionCheck: agent.resolutionCheck,
+      };
       // This agent's items only: Internal ones in full, business ones selected per question.
       const saved = contextItems(agent.id);
       const items = splitKnowledge(saved);
@@ -1592,7 +1598,9 @@ export function createAiService(
         .map(customerText)
         .join('\n');
       const proposed = decision.action;
-      decision = guardResolution(decision, asked, batchText, conversationText);
+      decision = guardResolution(decision, asked, batchText, conversationText, {
+        resolutionCheck: agent.resolutionCheck,
+      });
       // A reply that quotes an Internal item is never sent: the team takes over (no text logged).
       if (decision.action !== 'no_reply' && findLeak(decision.reply, internalTexts)) {
         log.warn({ jid, agentId: agent.id, reason: 'confidential_leak' }, 'AI reply withheld');
@@ -1787,6 +1795,7 @@ export function createAiService(
     enabled: agent.enabled,
     preset: agent.preset,
     inboxId: agent.inboxId,
+    resolutionCheck: agent.resolutionCheck,
     documentCount: (
       ctx.db.prepare('SELECT count(*) AS n FROM ai_documents WHERE agent_id = ?').get(agent.id) as {
         n: number;
@@ -1826,6 +1835,7 @@ export function createAiService(
       inboxId: number | null;
       instructions: string | null;
       handoffRules: string | null;
+      resolutionCheck?: boolean;
     },
     actor: Actor,
   ): AgentRow => {
@@ -1852,6 +1862,9 @@ export function createAiService(
             preset: fields.preset,
             instructions: fields.instructions,
             handoffRules: fields.handoffRules,
+            ...(fields.resolutionCheck !== undefined
+              ? { resolutionCheck: fields.resolutionCheck }
+              : {}),
           },
           now,
         ),
@@ -1924,6 +1937,7 @@ export function createAiService(
           inboxId: body.inboxId ?? null,
           instructions: body.instructions,
           handoffRules: body.handoffRules ?? presetTexts(preset).handoffRules,
+          ...(body.resolutionCheck !== undefined ? { resolutionCheck: body.resolutionCheck } : {}),
         },
         actor,
       );
@@ -1948,6 +1962,9 @@ export function createAiService(
         agentCall(() =>
           updateAgentTexts(ctx.db, agent.id, {
             ...(body.preset ? { preset: body.preset } : {}),
+            ...(body.resolutionCheck !== undefined
+              ? { resolutionCheck: body.resolutionCheck }
+              : {}),
             instructions: body.instructions,
             handoffRules,
           }),
@@ -1985,6 +2002,9 @@ export function createAiService(
             presetChanged: body.preset !== undefined && body.preset !== agent.preset,
             instructionsChanged: body.instructions !== before.instructions,
             handoffRulesChanged: handoffRules !== before.handoffRules,
+            ...(body.resolutionCheck !== undefined && body.resolutionCheck !== agent.resolutionCheck
+              ? { resolutionCheck: body.resolutionCheck }
+              : {}),
             ...mcpAudit(actor),
           },
         });
@@ -1993,6 +2013,21 @@ export function createAiService(
         ctx.bus.emit('user:disabled', agent.userId);
         releaseAgent(agent.id);
       } else refreshPending();
+      return service.agentStatus(agent.id);
+    },
+    setResolutionCheck(agentId, enabled, actor) {
+      const agent = agentById(ctx.db, agentId);
+      if (!agent) throw agentHttpError('agent_not_found');
+      if (enabled !== agent.resolutionCheck)
+        ctx.db.transaction(() => {
+          agentCall(() => updateAgentTexts(ctx.db, agent.id, { resolutionCheck: enabled }));
+          audit(ctx.db, {
+            userId: actor.userId,
+            ip: actor.ip,
+            action: 'ai.resolution_check_update',
+            meta: { agentId: agent.id, enabled, ...mcpAudit(actor) },
+          });
+        })();
       return service.agentStatus(agent.id);
     },
     deleteAgent(agentId, actor) {
@@ -2349,6 +2384,7 @@ export function createAiService(
                 handoffRules: current.handoffRules,
                 ...body.knowledge,
                 preset: agent?.preset ?? 'sales',
+                resolutionCheck: agent?.resolutionCheck ?? false,
               },
               items.internal,
               knowledge,
@@ -2380,7 +2416,9 @@ export function createAiService(
         // reply is an answer and a hand-over is the group line.
         const guarded = group
           ? groupTryDecision(decision)
-          : guardResolution(decision, 0, body.question);
+          : guardResolution(decision, 0, body.question, body.question, {
+              resolutionCheck: agent?.resolutionCheck ?? false,
+            });
         // Same leak check as live replies: Try it shows the hand-over, never the quoted item.
         if (guarded.action !== 'no_reply' && findLeak(guarded.reply, internalTexts)) {
           log.warn({ event: 'ai_try_leak', agentId: agent?.id ?? null }, 'AI reply withheld');
