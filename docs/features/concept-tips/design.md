@@ -1,6 +1,6 @@
 # Concept tips ("?" next to new words)
 
-Status: **proposal, round 2** — waiting for the owner's confirmation of the mock. Branch
+Status: **confirmed** 2026-10-30 (round 2), implemented in the same branch. Branch
 `claude/intelligent-einstein-oam83x` from `main` (`2ea78a9`).
 
 ## Owner request (2026-10-30)
@@ -109,4 +109,15 @@ Connectors; API key cards also with steps open. 84 screenshots, no page errors, 
 
 ## Confirmation
 
-Pending: round 1 shown 2026-10-30 ("too many text"); round 2 screenshots shown the same day.
+Owner reviewed round 1 ("too many text"), asked for the shorter round 2 cards ("yes"), reviewed them and set the goal 2026-10-30 ("build it, test it for ezychat lite and enterprise, than merge, no need release"). Open questions defaulted to the proposals: the ? marker; Enterprise tips in the same change.
+The mock revision is recorded in `docs/features/mock-index.json` (`latestConfirmed`).
+
+## Implementation notes (2026-10-30)
+
+- Lite: `components/app/InfoTip.tsx` (core topics by name, or an edition's own `title`/`body`/`steps`/`action`/
+  `guideHref`, https links only), `lib/tips.ts`, `common.json` `tips.*`, `Field` `tip` and `PageHeader` `titleTip`,
+  `AppLinks.guide` (null hides "Full guide"); exported from `@ezychat/web` (`InfoTip`, `TIP_TOPICS`).
+- Enterprise: Business API setup fields (Phone number ID, WhatsApp Business Account ID, Access token, App secret)
+  get tips now through the published 0.1.65 `Popover`, because the core `InfoTip` export ships only with the next
+  Lite release; they move to the core component when Enterprise takes that release (`docs/backlog.md` there).
+- The Hand-off / Hand-over naming split stays as found (see Screen review); tracked in `docs/backlog.md`.

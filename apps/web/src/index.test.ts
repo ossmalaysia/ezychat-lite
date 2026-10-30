@@ -25,6 +25,8 @@ describe('public web entry', () => {
       'EmptyState',
       'Banner',
       'ErrorBoundary',
+      'InfoTip',
+      'TIP_TOPICS',
     ]) {
       expect(api, name).toHaveProperty(name);
     }

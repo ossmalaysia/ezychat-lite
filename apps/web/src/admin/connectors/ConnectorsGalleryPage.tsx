@@ -38,6 +38,7 @@ import {
   useConnectorLinks,
 } from './connector-ui';
 import { entryIcon, isLinked, listStatus } from './list';
+import { InfoTip } from '@/components/app/InfoTip';
 
 const ALL = 'all' as const;
 
@@ -192,6 +193,7 @@ export function ConnectorsGalleryPage() {
         <PageHeader
           className="pb-0"
           title={t('connectors.title')}
+          titleTip={<InfoTip topic="connectors" />}
           description={t('connectors.description')}
         />
         {list.data && <ListStatusLine gallery={list.data} refresh={refresh} />}

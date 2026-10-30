@@ -29,6 +29,7 @@ import { AiVoiceSection } from './AiVoiceSection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
 import { ExtensionBoundary, useExtensionTranslation, useWebExtensions } from '../extensions';
+import { InfoTip } from '@/components/app/InfoTip';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -212,9 +213,12 @@ export function SettingsPage() {
                 </Field>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <Label htmlFor="settings-lan" className="leading-normal">
-                      {t('settings.network.lan')}
-                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="settings-lan" className="leading-normal">
+                        {t('settings.network.lan')}
+                      </Label>
+                      <InfoTip topic="lan" />
+                    </div>
                     <p id="settings-lan-desc" className="mt-0.5 text-sm text-muted-foreground">
                       {t('settings.network.lanHint')}
                     </p>

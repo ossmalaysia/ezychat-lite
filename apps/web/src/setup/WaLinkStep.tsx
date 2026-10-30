@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ButtonSpinner } from '../auth/AuthShell';
 import { connectedAsLabel } from './connected-label';
+import { InfoTip } from '@/components/app/InfoTip';
 
 export interface WaLinkStepProps {
   onContinue?: () => void;
@@ -128,7 +129,10 @@ export function WaLinkStep({ onContinue, onSkip }: WaLinkStepProps) {
     <div className="flex flex-col gap-5">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">{t('setup.wa.title')}</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-base font-semibold">{t('setup.wa.title')}</h2>
+            <InfoTip topic="whatsappLink" />
+          </div>
           {s?.state && (
             <StatusDot
               tone={stateTone(s.state)}

@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { InfoTip } from '@/components/app/InfoTip';
+import type { TipTopic } from '@/lib/tips';
 
 /** Props a Field hands to its control so label, hint and error are wired up for a11y. */
 export interface FieldControlProps {
@@ -33,6 +35,7 @@ export function Field({
   error,
   className,
   labelClassName,
+  tip,
   children,
 }: {
   label: React.ReactNode;
@@ -41,6 +44,8 @@ export function Field({
   className?: string;
   /** For example `sr-only` when a card title already shows the same words. */
   labelClassName?: string;
+  /** A "?" after the label that explains the concept (`InfoTip`), outside the label element. */
+  tip?: TipTopic;
   children: (props: FieldControlProps) => React.ReactNode;
 }) {
   const id = React.useId();
@@ -48,9 +53,18 @@ export function Field({
   const hasDesc = Boolean(error || hint);
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <Label htmlFor={id} className={labelClassName}>
-        {label}
-      </Label>
+      {tip ? (
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={id} className={labelClassName}>
+            {label}
+          </Label>
+          <InfoTip topic={tip} />
+        </div>
+      ) : (
+        <Label htmlFor={id} className={labelClassName}>
+          {label}
+        </Label>
+      )}
       {children({
         id,
         'aria-describedby': hasDesc ? descId : undefined,
