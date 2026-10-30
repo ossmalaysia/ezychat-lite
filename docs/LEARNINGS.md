@@ -418,6 +418,9 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
+  shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
+  limit 3 %).
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
