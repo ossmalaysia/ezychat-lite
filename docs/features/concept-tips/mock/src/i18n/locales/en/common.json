@@ -1,0 +1,173 @@
+{
+  "appName": "EzyChat Lite",
+  "devBuild": "Dev Build",
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "retry": "Retry",
+    "tryAgain": "Try again",
+    "copy": "Copy",
+    "copied": "Copied",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "done": "Done",
+    "search": "Search",
+    "clear": "Clear",
+    "reload": "Reload",
+    "open": "Open",
+    "learnMore": "Learn more"
+  },
+  "status": {
+    "loading": "Loading…",
+    "somethingWentWrong": "Something went wrong",
+    "noResults": "No results",
+    "optional": "Optional"
+  },
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "justNow": "just now"
+  },
+  "roles": {
+    "admin": "Admin",
+    "agent": "Agent"
+  },
+  "theme": {
+    "label": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "saveFailed": "Could not save your language preference",
+    "loadFailed": "Could not load that language. Reload the page and try again."
+  },
+  "account": {
+    "menu": "Account menu",
+    "adminSettings": "Admin settings",
+    "changePassword": "Change password",
+    "share": "Share this app",
+    "reportIssue": "Report an issue",
+    "about": "About {{appName}}",
+    "signOut": "Sign out"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "This part of the app hit an unexpected error. The error has been reported.",
+    "reload": "Reload page",
+    "goHome": "Go to inbox"
+  },
+  "upgrade": {
+    "cta": "Upgrade to Enterprise",
+    "agents": "Need more AI agents? EzyChat Enterprise has one AI agent for each WhatsApp number.",
+    "numbers": "Need more WhatsApp numbers? EzyChat Enterprise links several numbers to one team inbox.",
+    "about": "More WhatsApp numbers and AI agents, with support from Anchor Sprint."
+  },
+  "mockTips": {
+    "guide": "Read the full guide",
+    "whatsappLink": {
+      "title": "How does linking WhatsApp work?",
+      "body": "EzyChat joins your WhatsApp as a linked device, the same way WhatsApp Web does. Your phone keeps the number and keeps working; your team replies from EzyChat. Only the last few days of chat history come in.",
+      "note": "Open WhatsApp on the phone at least once every 14 days, or WhatsApp signs the linked device out."
+    },
+    "aiConnection": {
+      "title": "Why does the AI need a connection?",
+      "body": "EzyChat has no AI of its own. It uses ChatGPT or Claude through your own account, so the messages go straight to that service and you control the cost.",
+      "stepsTitle": "Three ways to connect",
+      "step1": "Sign in with ChatGPT: the easiest. Uses your ChatGPT plan, no key to copy.",
+      "step2": "OpenAI API key: pay OpenAI for what the AI uses.",
+      "step3": "Claude API key: pay Anthropic for what the AI uses.",
+      "note": "Not sure? Start with Sign in with ChatGPT. You can switch later; your AI setup stays."
+    },
+    "apiKey": {
+      "title": "What is an API key?",
+      "body": "A long secret code, like a password, that lets EzyChat use OpenAI on your account. OpenAI bills that account for what the AI uses (pay as you go, separate from a ChatGPT Plus plan).",
+      "stepsTitle": "How to get one",
+      "step1": "Go to platform.openai.com and sign in, or create an account.",
+      "step2": "Open Settings → Billing and add a payment method or credit.",
+      "step3": "Open API keys → Create new secret key. Name it EzyChat.",
+      "step4": "Copy the key (it starts with sk-) and paste it here. OpenAI shows it only once.",
+      "note": "Keep it private like a password. EzyChat stores it encrypted on this computer. No key? Use Sign in with ChatGPT instead.",
+      "action": "Open OpenAI API keys"
+    },
+    "claudeKey": {
+      "title": "What is a Claude API key?",
+      "body": "A long secret code, like a password, that lets EzyChat use Claude on your Anthropic account. Anthropic bills that account for what the AI uses (pay as you go, separate from a Claude Pro plan).",
+      "stepsTitle": "How to get one",
+      "step1": "Go to console.anthropic.com and sign in, or create an account.",
+      "step2": "Open Settings → Billing and add credit.",
+      "step3": "Open API keys → Create key. Name it EzyChat.",
+      "step4": "Copy the key (it starts with sk-ant-) and paste it here. Anthropic shows it only once.",
+      "note": "Keep it private like a password. EzyChat stores it encrypted on this computer.",
+      "action": "Open Anthropic API keys"
+    },
+    "aiModel": {
+      "title": "What is a model?",
+      "body": "The model is the version of the AI. Larger models write better answers but are slower and cost more per message; smaller ones are fast and cheap.",
+      "note": "Keep the recommended choice unless you have a reason to change it."
+    },
+    "businessContext": {
+      "title": "What is Business context?",
+      "body": "What the AI knows about your business: products, prices, opening hours, delivery areas, policies and common questions. The AI answers only from this; when something is missing, it hands the chat to your team.",
+      "stepsTitle": "Tips",
+      "step1": "Paste your price list, menu or FAQ as text, or upload a PDF or Word file.",
+      "step2": "Write it the way you would brief a new staff member.",
+      "step3": "Update it when prices or hours change."
+    },
+    "instructions": {
+      "title": "What is the role?",
+      "body": "The role tells the AI how to behave: its tone, language, what to ask customers and what to avoid. Think of it as the job description of your AI staff.",
+      "note": "Facts like prices and hours go in Business context, not here."
+    },
+    "handoff": {
+      "title": "What is a hand-over?",
+      "body": "A hand-over is when the AI stops and passes the chat to a person on your team, who gets a notification. Hand-over rules list when that must happen, for example complaints, refunds or custom orders.",
+      "note": "The customer is told a team member will reply. Anyone on the team can also take over a chat at any time."
+    },
+    "tryIt": {
+      "title": "What is Try it?",
+      "body": "A practice chat. Type what a customer might say and see how the AI would answer. Nothing is sent to WhatsApp and no chat changes."
+    },
+    "voice": {
+      "title": "What is voice note transcription?",
+      "body": "It turns customers' voice notes into text, so the AI and your team can read them.",
+      "stepsTitle": "Two ways",
+      "step1": "On this computer: a one-time download, free, and the audio never leaves the computer.",
+      "step2": "In the cloud: faster, uses your OpenAI API key and is billed by OpenAI.",
+      "note": "Without either, voice notes still arrive; the AI hands them to your team."
+    },
+    "tunnel": {
+      "title": "What is phone access?",
+      "body": "EzyChat runs on this computer. Phone access gives it a secure web address through Cloudflare (a free service), so your team can open the inbox on their phones from anywhere. This link is called a tunnel.",
+      "note": "The address works only while this computer is on and EzyChat is running."
+    },
+    "lan": {
+      "title": "What is LAN access?",
+      "body": "It lets phones and computers on the same Wi-Fi or office network open the inbox, without going through the internet.",
+      "note": "LAN traffic is not encrypted. Turn it on only on a network you trust; use phone access for anywhere else."
+    },
+    "mcp": {
+      "title": "What is AI assistant access?",
+      "body": "It lets an AI app you already use, like Claude or ChatGPT, read your inbox and help you: summarise chats, check numbers, improve your AI agent. MCP is the standard these apps use to connect to other tools.",
+      "note": "It stays off until you turn it on, and you choose what each app may do."
+    },
+    "accessToken": {
+      "title": "What is an access token?",
+      "body": "A secret code that a developer tool on your computer uses to prove it may use your inbox. Apps like claude.ai and ChatGPT sign in by themselves and need no token.",
+      "note": "Copy it once and keep it private. Revoke it here to cut access at once."
+    },
+    "connectors": {
+      "title": "What is a connector?",
+      "body": "A connector lets your AI agent use another app for you, for example check free times in Google Calendar and book an appointment.",
+      "note": "Look-ups are on once connected; anything that changes data stays off until you turn it on."
+    }
+  }
+}

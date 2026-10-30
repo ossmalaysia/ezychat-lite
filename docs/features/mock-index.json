@@ -15,6 +15,18 @@
   },
   "proposals": [
     {
+      "feature": "concept-tips",
+      "creationOrder": 21,
+      "createdAt": "2026-10-30",
+      "design": "docs/features/concept-tips/design.md",
+      "mock": "docs/features/concept-tips/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "grammar-fix",
+      "baselineGitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
+      "baselineAppRevision": "2ea78a9",
+      "coverage": "Full app clone of the confirmed grammar-fix reference; a \"?\" tip (InfoTip) beside 15 new-concept labels and titles: setup wizard (Link your WhatsApp number, About your business, Connect the AI, OpenAI and Claude API key), Settings -> AI (AI connection, API keys, model, voice messages), Settings -> General (LAN access), Settings -> Integrations (AI assistant access, access tokens), AI agent page (Business context, Role, Hand-over rules, Try it), Phone access, Connectors; each card: what it is in plain words, how to get it (numbered steps), a note (safety, cost or the easier way), a button to the outside page (OpenAI, Anthropic keys) and Read the full guide (ezychat.ai guide in the app language, utm tags only); desktop 1280 / mobile 360 touch, light/dark, seeded and fresh install (tips-shots.mjs)"
+    },
+    {
       "feature": "ask-ezy",
       "creationOrder": 20,
       "createdAt": "2026-10-30",
@@ -89,9 +101,12 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": [
-        "reports"
-      ]
+      "parallelFeatures": ["reports"],
+      "archived": {
+        "folderRemovedAt": "2026-10-30",
+        "lastRevision": "2ea78a96c81a5f026d04190de919806134880b59",
+        "reason": "retention: sixth feature folder (concept-tips)"
+      }
     },
     {
       "feature": "ai-phrase-dictionary",

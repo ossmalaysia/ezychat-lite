@@ -1,0 +1,173 @@
+{
+  "appName": "EzyChat Lite",
+  "devBuild": "Binaan Dev",
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "confirm": "Sahkan",
+    "delete": "Padam",
+    "edit": "Sunting",
+    "add": "Tambah",
+    "retry": "Cuba semula",
+    "tryAgain": "Cuba lagi",
+    "copy": "Salin",
+    "copied": "Disalin",
+    "back": "Kembali",
+    "next": "Seterusnya",
+    "continue": "Teruskan",
+    "done": "Selesai",
+    "search": "Cari",
+    "clear": "Kosongkan",
+    "reload": "Muat semula",
+    "open": "Buka",
+    "learnMore": "Ketahui lebih lanjut"
+  },
+  "status": {
+    "loading": "Memuatkan…",
+    "somethingWentWrong": "Berlaku ralat",
+    "noResults": "Tiada hasil",
+    "optional": "Pilihan"
+  },
+  "time": {
+    "today": "Hari ini",
+    "yesterday": "Semalam",
+    "justNow": "sebentar tadi"
+  },
+  "roles": {
+    "admin": "Pentadbir",
+    "agent": "Ejen"
+  },
+  "theme": {
+    "label": "Penampilan",
+    "system": "Sistem",
+    "light": "Cerah",
+    "dark": "Gelap"
+  },
+  "language": {
+    "label": "Bahasa",
+    "saveFailed": "Tidak dapat menyimpan pilihan bahasa anda",
+    "loadFailed": "Tidak dapat memuatkan bahasa itu. Muat semula halaman dan cuba lagi."
+  },
+  "account": {
+    "menu": "Menu akaun",
+    "adminSettings": "Tetapan pentadbir",
+    "changePassword": "Tukar kata laluan",
+    "share": "Kongsi aplikasi ini",
+    "reportIssue": "Laporkan masalah",
+    "about": "Perihal {{appName}}",
+    "signOut": "Log keluar"
+  },
+  "errorBoundary": {
+    "title": "Berlaku ralat",
+    "body": "Bahagian aplikasi ini mengalami ralat yang tidak dijangka. Ralat telah dilaporkan.",
+    "reload": "Muat semula halaman",
+    "goHome": "Pergi ke peti masuk"
+  },
+  "upgrade": {
+    "cta": "Upgrade to Enterprise",
+    "agents": "Need more AI agents? EzyChat Enterprise has one AI agent for each WhatsApp number.",
+    "numbers": "Need more WhatsApp numbers? EzyChat Enterprise links several numbers to one team inbox.",
+    "about": "More WhatsApp numbers and AI agents, with support from Anchor Sprint."
+  },
+  "mockTips": {
+    "guide": "Baca panduan penuh",
+    "whatsappLink": {
+      "title": "Bagaimana WhatsApp dipautkan?",
+      "body": "EzyChat menyertai WhatsApp anda sebagai peranti dipaut, sama seperti WhatsApp Web. Telefon anda kekal memegang nombor itu dan terus berfungsi; pasukan anda membalas dari EzyChat. Hanya sejarah chat beberapa hari terakhir dibawa masuk.",
+      "note": "Buka WhatsApp di telefon sekurang-kurangnya sekali setiap 14 hari, jika tidak WhatsApp akan log keluar peranti dipaut."
+    },
+    "aiConnection": {
+      "title": "Kenapa AI perlu disambungkan?",
+      "body": "EzyChat tiada AI sendiri. Ia menggunakan ChatGPT atau Claude melalui akaun anda sendiri, jadi mesej terus ke perkhidmatan itu dan anda mengawal kosnya.",
+      "stepsTitle": "Tiga cara menyambung",
+      "step1": "Log masuk dengan ChatGPT: paling mudah. Guna pelan ChatGPT anda, tiada kunci untuk disalin.",
+      "step2": "Kunci API OpenAI: bayar OpenAI mengikut penggunaan AI.",
+      "step3": "Kunci API Claude: bayar Anthropic mengikut penggunaan AI.",
+      "note": "Tidak pasti? Mula dengan Log masuk dengan ChatGPT. Anda boleh tukar kemudian; tetapan AI anda kekal."
+    },
+    "apiKey": {
+      "title": "Apakah kunci API?",
+      "body": "Kod rahsia yang panjang, seperti kata laluan, yang membolehkan EzyChat menggunakan OpenAI pada akaun anda. OpenAI mengebil akaun itu mengikut penggunaan AI (bayar ikut guna, berasingan daripada pelan ChatGPT Plus).",
+      "stepsTitle": "Cara mendapatkannya",
+      "step1": "Pergi ke platform.openai.com dan log masuk, atau buat akaun.",
+      "step2": "Buka Settings → Billing dan tambah kaedah pembayaran atau kredit.",
+      "step3": "Buka API keys → Create new secret key. Namakan EzyChat.",
+      "step4": "Salin kunci itu (bermula dengan sk-) dan tampal di sini. OpenAI memaparkannya sekali sahaja.",
+      "note": "Simpan secara rahsia seperti kata laluan. EzyChat menyimpannya secara tersulit pada komputer ini. Tiada kunci? Guna Log masuk dengan ChatGPT.",
+      "action": "Buka kunci API OpenAI"
+    },
+    "claudeKey": {
+      "title": "Apakah kunci API Claude?",
+      "body": "Kod rahsia yang panjang, seperti kata laluan, yang membolehkan EzyChat menggunakan Claude pada akaun Anthropic anda. Anthropic mengebil akaun itu mengikut penggunaan AI (bayar ikut guna, berasingan daripada pelan Claude Pro).",
+      "stepsTitle": "Cara mendapatkannya",
+      "step1": "Pergi ke console.anthropic.com dan log masuk, atau buat akaun.",
+      "step2": "Buka Settings → Billing dan tambah kredit.",
+      "step3": "Buka API keys → Create key. Namakan EzyChat.",
+      "step4": "Salin kunci itu (bermula dengan sk-ant-) dan tampal di sini. Anthropic memaparkannya sekali sahaja.",
+      "note": "Simpan secara rahsia seperti kata laluan. EzyChat menyimpannya secara tersulit pada komputer ini.",
+      "action": "Buka kunci API Anthropic"
+    },
+    "aiModel": {
+      "title": "Apakah model?",
+      "body": "Model ialah versi AI. Model besar menulis jawapan lebih baik tetapi lebih perlahan dan lebih mahal bagi setiap mesej; model kecil pantas dan murah.",
+      "note": "Kekalkan pilihan yang disyorkan melainkan anda ada sebab untuk menukarnya."
+    },
+    "businessContext": {
+      "title": "Apakah Konteks perniagaan?",
+      "body": "Apa yang AI tahu tentang perniagaan anda: produk, harga, waktu operasi, kawasan penghantaran, polisi dan soalan lazim. AI menjawab hanya daripada ini; jika sesuatu tiada, ia menyerahkan chat kepada pasukan anda.",
+      "stepsTitle": "Petua",
+      "step1": "Tampal senarai harga, menu atau FAQ sebagai teks, atau muat naik fail PDF atau Word.",
+      "step2": "Tulis seperti anda memberi taklimat kepada pekerja baharu.",
+      "step3": "Kemas kini apabila harga atau waktu berubah."
+    },
+    "instructions": {
+      "title": "Apakah peranan?",
+      "body": "Peranan memberitahu AI cara berkelakuan: nada, bahasa, apa yang perlu ditanya kepada pelanggan dan apa yang perlu dielakkan. Anggaplah ia sebagai huraian kerja pekerja AI anda.",
+      "note": "Fakta seperti harga dan waktu dimasukkan dalam Konteks perniagaan, bukan di sini."
+    },
+    "handoff": {
+      "title": "Apakah serahan?",
+      "body": "Serahan ialah apabila AI berhenti dan menyerahkan chat kepada seorang ahli pasukan anda, yang menerima pemberitahuan. Peraturan serahan menyenaraikan bila ia mesti berlaku, contohnya aduan, bayaran balik atau tempahan khas.",
+      "note": "Pelanggan diberitahu ahli pasukan akan membalas. Sesiapa dalam pasukan juga boleh mengambil alih chat pada bila-bila masa."
+    },
+    "tryIt": {
+      "title": "Apakah Cuba?",
+      "body": "Chat latihan. Taip apa yang mungkin dikatakan pelanggan dan lihat bagaimana AI akan menjawab. Tiada apa dihantar ke WhatsApp dan tiada chat berubah."
+    },
+    "voice": {
+      "title": "Apakah transkripsi nota suara?",
+      "body": "Ia menukar nota suara pelanggan kepada teks, supaya AI dan pasukan anda boleh membacanya.",
+      "stepsTitle": "Dua cara",
+      "step1": "Pada komputer ini: muat turun sekali, percuma, dan audio tidak pernah keluar dari komputer.",
+      "step2": "Di awan: lebih pantas, menggunakan kunci API OpenAI anda dan dibilkan oleh OpenAI.",
+      "note": "Tanpa kedua-duanya, nota suara tetap diterima; AI menyerahkannya kepada pasukan anda."
+    },
+    "tunnel": {
+      "title": "Apakah akses telefon?",
+      "body": "EzyChat berjalan pada komputer ini. Akses telefon memberikannya alamat web yang selamat melalui Cloudflare (perkhidmatan percuma), supaya pasukan anda boleh membuka peti masuk di telefon dari mana-mana. Pautan ini dipanggil terowong.",
+      "note": "Alamat itu berfungsi hanya semasa komputer ini hidup dan EzyChat berjalan."
+    },
+    "lan": {
+      "title": "Apakah akses LAN?",
+      "body": "Ia membolehkan telefon dan komputer pada Wi-Fi atau rangkaian pejabat yang sama membuka peti masuk, tanpa melalui internet.",
+      "note": "Trafik LAN tidak disulitkan. Hidupkan hanya pada rangkaian yang anda percayai; guna akses telefon untuk tempat lain."
+    },
+    "mcp": {
+      "title": "Apakah akses pembantu AI?",
+      "body": "Ia membolehkan aplikasi AI yang anda sudah guna, seperti Claude atau ChatGPT, membaca peti masuk anda dan membantu: meringkaskan chat, menyemak angka, menambah baik ejen AI anda. MCP ialah piawaian yang digunakan aplikasi ini untuk bersambung dengan alat lain.",
+      "note": "Ia kekal dimatikan sehingga anda menghidupkannya, dan anda memilih apa yang boleh dilakukan setiap aplikasi."
+    },
+    "accessToken": {
+      "title": "Apakah token akses?",
+      "body": "Kod rahsia yang digunakan alat pembangun pada komputer anda untuk membuktikan ia boleh menggunakan peti masuk anda. Aplikasi seperti claude.ai dan ChatGPT log masuk sendiri dan tidak perlukan token.",
+      "note": "Salin sekali dan simpan secara rahsia. Batalkan di sini untuk memutuskan akses serta-merta."
+    },
+    "connectors": {
+      "title": "Apakah penyambung?",
+      "body": "Penyambung membolehkan ejen AI anda menggunakan aplikasi lain untuk anda, contohnya menyemak masa lapang dalam Google Calendar dan membuat temu janji.",
+      "note": "Carian dihidupkan sebaik disambungkan; apa-apa yang mengubah data kekal dimatikan sehingga anda menghidupkannya."
+    }
+  }
+}
