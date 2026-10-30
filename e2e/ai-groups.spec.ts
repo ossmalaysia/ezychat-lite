@@ -117,3 +117,51 @@ test('Answer in groups switch turns off and on (desktop)', async ({ page, baseUR
   await expect.poll(state).toBe(before);
   expect(new URL(baseURL!).origin).toBeTruthy();
 });
+
+/**
+ * Group-only agents (docs/features/ai-direct-chats/design.md): "Answer direct chats" off with
+ * "Answer in groups" on shows the group-only note; switched back on at the end (the agent is shared
+ * by every spec). The assignee filter is covered by unit tests and the Dev Build check: here the
+ * agent stays off (no AI connection), so it is never offered as an assignee anyway.
+ */
+test('Answer direct chats off makes a group-only agent (desktop)', async ({
+  page,
+  baseURL,
+}, info) => {
+  test.skip(info.project.name !== DESKTOP, 'one project changes the shared agent');
+  const origin = { Origin: new URL(baseURL!).origin };
+  await page.goto('/');
+  await expect(inboxHeading(page)).toBeVisible();
+  const id = await agentId(page);
+  const groupsOn = await page.request.put(`/api/ai/agents/${id}/groups`, {
+    headers: origin,
+    data: { enabled: true },
+  });
+  expect(groupsOn.status(), await groupsOn.text()).toBe(200);
+  const saved = async () =>
+    (
+      (await (await page.request.get(`/api/ai/agents/${id}/groups`)).json()) as {
+        answerDirect: boolean;
+      }
+    ).answerDirect;
+
+  try {
+    await page.goto(`/admin/members/ai/${id}`);
+    const card = page.getByTestId('agent-direct');
+    const toggle = card.getByTestId('answer-direct');
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await expect.poll(saved).toBe(false);
+    await expect(card.getByTestId('direct-group-only')).toBeVisible();
+    await expectNoHorizontalScroll(page, 'agent page direct chats card');
+    await toggle.click();
+    await expect.poll(saved).toBe(true);
+    await expect(card.getByTestId('direct-group-only')).toHaveCount(0);
+  } finally {
+    await page.request.put(`/api/ai/agents/${id}/direct`, {
+      headers: origin,
+      data: { enabled: true },
+    });
+  }
+});

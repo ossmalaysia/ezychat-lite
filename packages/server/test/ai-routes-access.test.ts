@@ -36,6 +36,7 @@ const ROUTES = [
   { method: 'POST', url: '/api/ai/agents/1/edit' },
   { method: 'GET', url: '/api/ai/agents/1/groups' },
   { method: 'PUT', url: '/api/ai/agents/1/groups' },
+  { method: 'PUT', url: '/api/ai/agents/1/direct' },
   { method: 'GET', url: '/api/ai/voice' },
   { method: 'PATCH', url: '/api/ai/voice' },
   { method: 'POST', url: '/api/ai/voice/download' },

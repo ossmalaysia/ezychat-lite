@@ -1014,7 +1014,11 @@ into AGENTS.md.
 - Mock screenshot scripts that need the AI to hold a chat must switch the AI member on first (`GET /api/ai`, then
   `PUT /api/ai` with `{...settings, enabled: true}`; an earlier run can leave it off and the assign answers 400), and
   scope a select to its container (`page.locator('header').getByRole('combobox')`): the chat list's inbox filter is
-  the page's first combobox. In the cloud container launch Chromium with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`.
+  the page's first combobox. In the cloud container the preinstalled browsers lag the repo's Playwright: point
+  `PLAYWRIGHT_BROWSERS_PATH` at a scratch folder whose `chromium-<wanted>` / `chromium_headless_shell-<wanted>` entries
+  symlink to `/opt/pw-browsers/*-<installed>`, then `npm run e2e` runs as is (never `playwright install`).
+- An e2e assignee check on the shared e2e agent proves nothing: it has no AI connection, stays off, and an off AI is
+  never offered anyway. Cover assignee filters with `buildDirectory` unit tests and a Dev Build check instead.
 - A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)
   and close at once as "outside": mark the opening buttons (`data-ask-ezy-trigger`) and `preventDefault` in
   `onInteractOutside` for them. jsdom does not reproduce it; only the Pixel e2e does.
