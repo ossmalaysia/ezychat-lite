@@ -200,6 +200,9 @@ into AGENTS.md.
   `node scripts/smoke-packaged.mjs apps/desktop/release-check`, then the packaged server with
   `ELECTRON_RUN_AS_NODE=1` on temp data, `--fake-wa`, port 7432 and `e2e/marketing-screenshots.mjs 7432`.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
+  A critical `server-host` change gets the same packaged run, with the server started through the packaged
+  `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
+  the table is realigned and the format check fails otherwise.
   For `screens.smoke.mjs` against that server add `--web-dist resources/web` (else every page is 404) and
   start it on fresh data (the smoke creates the admin once); its `oauth-authorize` FAIL there is the
   expected 409 of AI assistant access being off, not a fault.
@@ -491,6 +494,9 @@ into AGENTS.md.
   registers it (real email code, real trial record). To show new core code, stop only that server, rerun
   `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
   sessions and test agents stay, so nobody registers again.
+- Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
+  with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
+  unrelated log text alone (each touched line counts).
 - Pass extra Vitest flags through the script (`npm run test:coverage -- --pool=forks --maxWorkers=2`), never a
   raw `npx vitest run --coverage`: the script's `--testTimeout=20000` keeps slow tests from false failures.
 - A git worktree whose `node_modules` is a junction to the main checkout: delete the junction first
@@ -1258,6 +1264,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   catalogs or code; use `{{product}}` and a `Product` field. Check an edition's first installer on a PC that
   also runs Lite (the Enterprise build said "Starting EzyChat Lite…" and could not start on port 7420).
   The first start writes `desktop.json` with the port, so a changed default reaches only new installs.
+  The port is never a fixed contract: `server-host` moves to the next free port and the desktop saves it. A
+  free-port test must bind both `127.0.0.1` and `0.0.0.0` (Windows reserved ranges answer `EACCES`, not
+  `EADDRINUSE`). "The server did not start … may be in use" shows for every start failure: read the log first.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.

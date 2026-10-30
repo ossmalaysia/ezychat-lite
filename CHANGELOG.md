@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The app picks a free port by itself.** When another program already uses the port of EzyChat (7420, or 7440 for
+  Enterprise), the app now starts on the next free port and keeps it, instead of stopping with "The server did not
+  start". Teammates who open the inbox on the local network use the new address shown in the app.
+
 ## [0.1.64] - 2026-10-30
 
 ### Added
