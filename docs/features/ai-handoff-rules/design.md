@@ -1,6 +1,6 @@
 # AI hand-off rules fixes: Closing chats per agent
 
-Status: **proposal** (owner confirmation pending). Branch `claude/ezychat-handoff-rules-bugs-d2lf5w`, PR
+Status: **confirmed** 2026-10-30 (see Confirmation). Branch `claude/ezychat-handoff-rules-bugs-d2lf5w`, PR
 ossmalaysia/ezychat-lite#230. Mock: [mock/index.html](mock/index.html), run instructions in [mock/README.md](mock/README.md).
 
 ## Owner request (2026-10-30)
