@@ -54,15 +54,37 @@ export function prepareServerArgs(
   return { args: out, port: isValidPort(explicit) ? explicit : null };
 }
 
-/** True when nothing holds `port` on loopback or on every interface (a LAN server binds 0.0.0.0). */
-export async function portIsFree(port: number): Promise<boolean> {
-  const bind = (host: string) =>
+/**
+ * The address the server will listen on: --host, else 0.0.0.0 when LAN access is on, else loopback
+ * (the server's own rule in main.ts).
+ */
+export function serverBindHost(
+  args: readonly string[],
+  readLanSetting: (dataDir: string) => boolean,
+): string {
+  const host = flagValue(args, 'host');
+  if (host) return host;
+  const data = flagValue(args, 'data');
+  try {
+    return data && readLanSetting(data) ? '0.0.0.0' : '127.0.0.1';
+  } catch {
+    return '127.0.0.1';
+  }
+}
+
+/**
+ * True when nothing holds `port` where the server will listen. Only a LAN server (0.0.0.0) is tested
+ * beyond loopback: a test listen on every interface makes Windows Firewall ask for network access.
+ */
+export async function portIsFree(port: number, host = '127.0.0.1'): Promise<boolean> {
+  const bind = (h: string) =>
     new Promise<boolean>((done) => {
       const s = createServer();
       s.once('error', () => done(false));
-      s.listen({ port, host, exclusive: true }, () => s.close(() => done(true)));
+      s.listen({ port, host: h, exclusive: true }, () => s.close(() => done(true)));
     });
-  return (await bind('127.0.0.1')) && (await bind('0.0.0.0'));
+  if (!(await bind('127.0.0.1'))) return false;
+  return host === '127.0.0.1' || (await bind(host));
 }
 
 /**
@@ -71,10 +93,11 @@ export async function portIsFree(port: number): Promise<boolean> {
  */
 export async function pickFreePort(
   port: number,
-  isFree: (p: number) => Promise<boolean> = portIsFree,
+  host = '127.0.0.1',
+  isFree: (p: number, host: string) => Promise<boolean> = portIsFree,
 ): Promise<number> {
   for (let p = port; p < port + PORT_TRIES && p <= 65535; p++) {
-    if (await isFree(p)) return p;
+    if (await isFree(p, host)) return p;
   }
   return port;
 }
@@ -91,7 +114,7 @@ export function withPort(args: readonly string[], port: number): string[] {
 /** Moves prepared server args to a free port; `moved` names the change for the log. */
 export async function useFreePort(
   prepared: { args: string[]; port: number | null },
-  pick: (port: number) => Promise<number> = pickFreePort,
+  pick: (port: number) => Promise<number> = (port) => pickFreePort(port),
 ): Promise<{ args: string[]; port: number | null; moved: string | null }> {
   if (prepared.port === null) return { ...prepared, moved: null };
   const free = await pick(prepared.port);
@@ -103,30 +126,33 @@ export async function useFreePort(
   };
 }
 
-/** Server args for this start: the saved port setting, then a free port; logs a move. */
+/** Server args for this start: the saved port setting, then a free port where it listens; logs a move. */
 export async function startArgs(
   rest: readonly string[],
-  readPortSetting: (dataDir: string) => number | null = readPortSettingFromDb,
-  pick: (port: number) => Promise<number> = pickFreePort,
+  readSetting: (dataDir: string, key: string) => unknown = readSettingFromDb,
+  pick: (port: number, host: string) => Promise<number> = (port, host) => pickFreePort(port, host),
   log: (line: string) => void = (line) => process.stdout.write(`${line}\n`),
 ): Promise<{ args: string[]; port: number | null }> {
-  const { args, port, moved } = await useFreePort(prepareServerArgs(rest, readPortSetting), pick);
+  const prepared = prepareServerArgs(rest, (d) => {
+    const v = readSetting(d, 'port');
+    return isValidPort(v) ? v : null;
+  });
+  const host = serverBindHost(rest, (d) => readSetting(d, 'lan_enabled') === true);
+  const { args, port, moved } = await useFreePort(prepared, (p) => pick(p, host));
   if (moved) log(`server-host: ${moved}`);
   return { args, port };
 }
 
-/** Reads settings.port (JSON value) from <dataDir>/app.db read-only; null when absent. */
-export function readPortSettingFromDb(dataDir: string): number | null {
+/** Reads one setting (JSON value) from <dataDir>/app.db read-only; undefined when absent. */
+export function readSettingFromDb(dataDir: string, key: string): unknown {
   const file = join(dataDir, 'app.db');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Database = require('better-sqlite3') as any;
   const db = new Database(file, { readonly: true, fileMustExist: true });
   try {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'port'").get() as
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
       { value?: string } | undefined;
-    if (!row || typeof row.value !== 'string') return null;
-    const v: unknown = JSON.parse(row.value);
-    return isValidPort(v) ? v : null;
+    return row && typeof row.value === 'string' ? (JSON.parse(row.value) as unknown) : undefined;
   } finally {
     db.close();
   }
