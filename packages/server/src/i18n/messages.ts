@@ -17,6 +17,11 @@ const en = {
     },
     /** An alert about one of several linked numbers: the inbox name, then the alert. */
     inboxAlertTitle: '{{inbox}}: {{title}}',
+    safetyHigh: {
+      title: 'High-risk message',
+      body: '{{name}} sent something dangerous. Check Admin > Safety.',
+      blocked: '{{name}} sent a hidden program and was blocked automatically.',
+    },
     waLoggedOut: {
       title: 'WhatsApp disconnected',
       body: 'The linked number was logged out. Relink it from Admin > WhatsApp.',
@@ -46,6 +51,11 @@ const ms: typeof en = {
       member: 'Seorang ahli',
     },
     inboxAlertTitle: '{{inbox}}: {{title}}',
+    safetyHigh: {
+      title: 'Mesej berisiko tinggi',
+      body: '{{name}} menghantar sesuatu yang berbahaya. Semak Admin > Keselamatan.',
+      blocked: '{{name}} menghantar program tersembunyi dan disekat secara automatik.',
+    },
     waLoggedOut: {
       title: 'WhatsApp terputus',
       body: 'Nombor yang dipautkan telah dilog keluar. Pautkan semula di Admin > WhatsApp.',
@@ -76,6 +86,11 @@ const zhCN: typeof en = {
       member: '一位成员',
     },
     inboxAlertTitle: '{{inbox}}：{{title}}',
+    safetyHigh: {
+      title: '高风险消息',
+      body: '{{name}} 发来危险内容。请查看 管理 > 安全。',
+      blocked: '{{name}} 发来隐藏程序，已被自动屏蔽。',
+    },
     waLoggedOut: {
       title: 'WhatsApp 已断开',
       body: '已关联的号码已退出登录。请在 管理 > WhatsApp 中重新关联。',

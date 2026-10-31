@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MessageSafety } from './safety.js';
 import {
   ChatEventType,
   ChatStatus,
@@ -126,6 +127,8 @@ export const MessageSchema = z.object({
   senderProfile: z.object({ chatJid: z.string(), name: z.string() }).nullable().optional(),
   /** Emoji reactions, oldest first; empty when nobody reacted. */
   reactions: z.array(MessageReactionSchema).default([]),
+  /** WhatsApp Safety's finding on this inbound message; absent or null when nothing was found. */
+  safety: MessageSafety.nullable().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

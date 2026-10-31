@@ -182,6 +182,16 @@ export interface WaCapabilities {
   templates: boolean;
   /** Receives messages at a public https address (a webhook over Phone access / the tunnel). */
   needsPublicUrl: boolean;
+  /**
+   * Blocks and unblocks numbers (`setBlocked`). Optional so adapters written before WhatsApp Safety
+   * keep compiling: absent = cannot block.
+   */
+  block?: boolean;
+  /**
+   * Blocking works only within this many hours of the number's last message (Business API: 24);
+   * null or absent: any time.
+   */
+  blockWindowHours?: number | null;
 }
 
 /** The capabilities of an adapter that declares none: a phone linked by QR (Baileys, the fake). */
@@ -192,6 +202,8 @@ export const LINKED_PHONE_CAPABILITIES: WaCapabilities = Object.freeze({
   replyWindowHours: null,
   templates: false,
   needsPublicUrl: false,
+  block: true,
+  blockWindowHours: null,
 });
 
 /** An approved message template of the number's business account. */
@@ -258,6 +270,11 @@ export interface WaAdapter {
    * JID, or null when it has none. Throws WaUnavailableError when offline.
    */
   checkNumber(phone: string): Promise<string | null>;
+  /**
+   * Block (true) or unblock a number (adapters with `capabilities.block`): it can no longer message
+   * this number. Throws WaUnavailableError when offline.
+   */
+  setBlocked?(jid: string, blocked: boolean): Promise<void>;
   /** Resolve existing local phone/LID mappings only; must not query WhatsApp. */
   getContactAliases(jids: string[]): Promise<WaContactAlias[]>;
 }
