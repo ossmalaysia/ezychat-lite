@@ -3,6 +3,7 @@ import type {
   AiAgentBody,
   AiAgentPreset,
   FixGrammarResult,
+  SafetyAiAnswer,
   ReplyCompleteResult,
   ReplySuggestModelInfo,
   ReplySuggestionsResult,
@@ -126,6 +127,7 @@ import {
 } from './reply-suggestions-setting.js';
 import { CHATGPT_FAST_DRAFT_MODELS, DRAFT_FAST_MODELS } from './agent/draft.js';
 import { FIX_GRAMMAR_RULES, FixGrammarOutput, grammarIssues } from '../fix-english/grammar.js';
+import { SAFETY_CHECK_RULES, SafetyAiOutput } from '../safety/ai-check.js';
 import { fixEnglishEnabled } from '../fix-english/setting.js';
 import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
@@ -327,6 +329,13 @@ export interface AiService {
    * is sent or stored. Throws 409 `fix_english_off` / 503 `ai_unavailable`.
    */
   fixGrammar(jid: string, text: string, signal: AbortSignal): Promise<FixGrammarResult>;
+  /**
+   * WhatsApp Safety's AI check (docs/features/whatsapp-safety/design.md): one structured call on the
+   * connection's fast model with the fixed `SAFETY_CHECK_RULES` and the message as data (text, file
+   * name and type, a ZIP's file names; never a file's content). null when no AI is ready or the call
+   * fails: the rules' result stands. Logs level, category, ms and model only.
+   */
+  checkSafety(chatJid: string, input: string, signal: AbortSignal): Promise<SafetyAiAnswer | null>;
   /** The "Model for suggestions" choice: the saved value, the models it may name, what calls use. */
   suggestModelInfo(): ReplySuggestModelInfo;
   /** `fast`, `agent` or a model of the current connection. */
@@ -354,6 +363,8 @@ export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 /** A grammar check slower than this is dropped: the teammate has typed on or sent by then. */
 export const FIX_GRAMMAR_TIMEOUT_MS = 10_000;
+/** WhatsApp Safety's AI check: past this the rules' result stands. */
+export const SAFETY_CHECK_TIMEOUT_MS = 15_000;
 /** One phrase-list build (a larger structured answer, in the background). */
 const AI_PHRASE_BUILD_TIMEOUT_MS = 120_000;
 
@@ -1136,7 +1147,8 @@ export function createAiService(
     let decision: AiDecision;
     try {
       // A tag or quote without text (a sticker, a voice note, a photo without caption) goes to the team.
-      if (!asked.body?.trim() || !question) decision = handover('unsupported_message');
+      if (ctx.services.safety?.levelOf(asked.id) === 'high') decision = handover('sensitive');
+      else if (!asked.body?.trim() || !question) decision = handover('unsupported_message');
       else if (!hasFacts) decision = handover('missing_facts');
       else {
         const lookupAbort = new AbortController();
@@ -1523,8 +1535,13 @@ export function createAiService(
             );
         // Facts come from the Business context or from extension look-ups the agent may call.
         const hasFacts = !!knowledge.trim() || agentLookupsAvailable(ctx, 'sales', agent.id);
-        decision =
-          !readable || !understood || !hasFacts || voiceRepeat
+        // WhatsApp Safety: a High-risk message (malware lure, phishing) goes to the team unanswered.
+        const unsafe = batch.some(
+          (message) => !message.fromMe && ctx.services.safety?.levelOf(message.id) === 'high',
+        );
+        decision = unsafe
+          ? { action: 'handoff' as const, reply: HANDOFF_REPLY, handoffReason: 'sensitive' }
+          : !readable || !understood || !hasFacts || voiceRepeat
             ? {
                 action: 'handoff' as const,
                 reply: HANDOFF_REPLY,
@@ -2793,6 +2810,49 @@ export function createAiService(
         log.info(
           { event: 'fix_grammar', ok, ms: Date.now() - started, model, count, ...cause },
           'Fix English grammar check',
+        );
+      }
+    },
+    async checkSafety(chatJid, input, signal) {
+      if (service.draftConnection() !== 'ready' || !gateOpen()) return null;
+      const current = settingsFor(agentOfChat(chatJid));
+      const started = Date.now();
+      let model: string | null = null;
+      let answer: SafetyAiAnswer | null = null;
+      let cause: { causeName: string | null; status: number | null } | null = null;
+      try {
+        const result = await provider.draft!(
+          current,
+          aiApiKey(ctx.settings),
+          { instructions: SAFETY_CHECK_RULES, input, cacheId: `${installId()}#safety` },
+          { schema: SafetyAiOutput, fast: true, maxOutputTokens: 600 },
+          AbortSignal.any([signal, AbortSignal.timeout(SAFETY_CHECK_TIMEOUT_MS)]),
+        );
+        model = result.model;
+        answer = {
+          level: result.output.level,
+          category: result.output.category,
+          reason: result.output.level === 'none' ? '' : result.output.reason.trim().slice(0, 200),
+        };
+        return answer;
+      } catch (error) {
+        const failure = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = failure.statusCode ?? failure.status;
+        cause = { causeName: errorNameOf(error), status: typeof code === 'number' ? code : null };
+        return null;
+      } finally {
+        // Never the message, the file name or the reason: the verdict and timing only.
+        log.info(
+          {
+            event: 'safety_check',
+            ok: answer !== null,
+            level: answer?.level ?? null,
+            category: answer?.category ?? null,
+            ms: Date.now() - started,
+            model,
+            ...cause,
+          },
+          'WhatsApp Safety AI check',
         );
       }
     },

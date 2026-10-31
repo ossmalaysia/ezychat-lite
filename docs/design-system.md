@@ -59,6 +59,22 @@ sign-in and setup screens show a compact language picker. Languages are listed b
 name. Design for the longest language: Malay labels run ~30% longer than English, so prefer short
 labels, allow wrapping or truncation in tight rows, and check every screen at 360px in Malay.
 
+### Writing (owner rule)
+
+The reader is a **business owner or their staff, not an engineer**. Write so they understand at a glance.
+
+- **Few words.** A label is 1–3 words; a hint is one short sentence; a card description is at most two. Cut
+  anything the screen already shows. Lead with what happens to them ("Blocks the number"), not how it works.
+- **Plain words.** Say "file", "number", "blocked", "your team"; not "payload", "JID", "MIME", "quarantine
+  folder", "hash", "API". Name a business result, not a mechanism.
+- **Tip for anything technical.** When a setting needs a concept the owner may not know (AI connection, tunnel,
+  API key, Business API, auto-block), keep the label plain and put the explanation behind `<InfoTip>`
+  (`components/app`): what it is, why it matters, what to do — three short lines at most.
+- **Say what to do next.** Warnings and errors end with the one action that fixes it ("Ask an admin to release
+  it").
+- **Numbers and names over adjectives.** "3 files blocked this week", not "many threats detected". No fear words
+  or exclamation marks.
+
 ### Appearance preference
 
 Light, Dark, and System are available in the Account menu for every member and under

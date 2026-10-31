@@ -263,6 +263,15 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return Promise.resolve(`${phone}@s.whatsapp.net`);
   }
 
+  /** Numbers blocked through `setBlocked` (test helper reads it). */
+  readonly blocked = new Set<string>();
+
+  async setBlocked(jid: string, blocked: boolean): Promise<void> {
+    if (this._status.state !== 'open') throw new WaUnavailableError();
+    if (blocked) this.blocked.add(jid);
+    else this.blocked.delete(jid);
+  }
+
   /** checkNumber answers null for this number (every other valid number has an account). */
   setNotOnWhatsApp(phone: string): void {
     this.notOnWhatsApp.add(phone);

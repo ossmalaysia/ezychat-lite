@@ -19,6 +19,10 @@ export const TIP_TOPICS = [
   'mcp',
   'accessToken',
   'connectors',
+  'safetyAi',
+  'autoBlock',
+  'lockedFiles',
+  'reportNumber',
 ] as const;
 export type TipTopic = (typeof TIP_TOPICS)[number];
 
@@ -55,6 +59,10 @@ export const TIPS: Readonly<Record<TipTopic, TipShape>> = {
   mcp: { steps: 0, guide: 'connect-ai-assistant' },
   accessToken: { steps: 0, guide: 'connect-ai-assistant' },
   connectors: { steps: 0 },
+  safetyAi: { steps: 0 },
+  autoBlock: { steps: 0 },
+  lockedFiles: { steps: 0 },
+  reportNumber: { steps: 3 },
 };
 
 const GUIDE_PREFIX: Partial<Record<string, string>> = { ms: '/ms', 'zh-CN': '/zh' };

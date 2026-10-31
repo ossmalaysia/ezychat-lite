@@ -23,6 +23,10 @@ initializers.push(initAdmin);
 import { initMessaging } from './wa-bridge/index.js';
 initializers.push(initMessaging);
 
+// WhatsApp Safety: message ingest calls it, so it is ready before WhatsApp connects.
+import { initSafety } from './safety/service.js';
+initializers.push(initSafety);
+
 import { initPush } from './push/index.js';
 initializers.push(initPush);
 

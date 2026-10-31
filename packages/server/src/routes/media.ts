@@ -60,6 +60,10 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
   app.get('/media/:msgId', async (req, reply) => {
     const { msgId } = parse(IdParams, req.params);
     requireMessageAccess(ctx, req.user!, msgId);
+    // WhatsApp Safety: a locked High-risk file is refused to agents; every download is recorded.
+    const safety = ctx.services.safety?.checkDownload(msgId, req.user!) ?? 'ok';
+    if (safety === 'locked')
+      return sendError(reply, 403, 'safety_locked', 'This file is locked by WhatsApp Safety');
     // pending (history) media is downloaded on demand here; the first GET may take a while
     const media = await messages.ensureMedia(msgId);
     if (media === 'unavailable')
@@ -67,16 +71,24 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
     if (!media) throw errors.notFound('Media');
     const size = statSync(media.path).size;
     reply
-      .header('content-type', media.mime)
+      // A flagged file is never shown in the page: always a download, with no type to sniff.
+      .header('content-type', safety === 'flagged' ? 'application/octet-stream' : media.mime)
       .header('x-content-type-options', 'nosniff')
       // Defense in depth: even if a scriptable type is opened directly, it runs in an opaque sandbox.
       .header(
         'content-security-policy',
         "default-src 'none'; media-src 'self'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
       )
-      .header('content-disposition', contentDisposition(media.mime, media.name, msgId))
+      .header(
+        'content-disposition',
+        contentDisposition(
+          safety === 'flagged' ? 'application/octet-stream' : media.mime,
+          media.name,
+          msgId,
+        ),
+      )
       .header('accept-ranges', 'bytes')
-      .header('cache-control', 'private, max-age=86400');
+      .header('cache-control', safety === 'flagged' ? 'no-store' : 'private, max-age=86400');
 
     const range = parseRange(req.headers.range, size);
     if (range === 'invalid') {
@@ -94,9 +106,12 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
     return reply.send(createReadStream(media.path));
   });
 
-  app.post('/media/:msgId/redownload', async (req) => {
+  app.post('/media/:msgId/redownload', async (req, reply) => {
     const { msgId } = parse(IdParams, req.params);
     requireMessageAccess(ctx, req.user!, msgId);
+    // A High-risk file stays where WhatsApp Safety put it (locked or deleted): never fetched again.
+    if (ctx.services.safety?.levelOf(msgId) === 'high')
+      return sendError(reply, 409, 'safety_locked', 'This file is handled by WhatsApp Safety');
     return messages.redownload(msgId);
   });
 }

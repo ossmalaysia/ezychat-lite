@@ -6,14 +6,29 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-handoff-rules",
-    "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
-    "mock": "docs/features/ai-handoff-rules/mock/index.html",
-    "design": "docs/features/ai-handoff-rules/design.md",
-    "confirmedAt": "2026-10-30",
-    "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent."
+    "feature": "whatsapp-safety",
+    "gitRevision": "d2f5ee530a65158167763b7078e48bfb6083f27a",
+    "mock": "docs/features/whatsapp-safety/mock/index.html",
+    "design": "docs/features/whatsapp-safety/design.md",
+    "confirmedAt": "2026-10-31",
+    "confirmation": "Owner reviewed the screenshot page (chat warnings, locked file, hacked-customer bar, Admin -> Safety, report dialog, settings, auto-block) and confirmed 2026-10-31 (\"look good\"), answering: AI check on by default when the install has an AI configured; Safety page admins only."
   },
   "proposals": [
+    {
+      "feature": "whatsapp-safety",
+      "creationOrder": 24,
+      "createdAt": "2026-10-31",
+      "design": "docs/features/whatsapp-safety/design.md",
+      "mock": "docs/features/whatsapp-safety/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "ai-handoff-rules",
+      "baselineGitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
+      "baselineAppRevision": "8bfeef9",
+      "coverage": "Full app clone of the confirmed ai-handoff-rules reference; WhatsApp Safety: chat banner (title, up to two plain reasons, the AI line), checked file (Warning confirm dialog, High locked for agents with recorded refusal, admin download dialog, deleted file), chat bars (auto-blocked, blocked by admin with Unblock, reported as scam, customer may be hacked with Copy warning); Admin -> Safety (counts, Flagged To review/All with number, new/existing customer, reason, status and download chips; item sheet with ZIP contents, rules, AI check, team downloads and refusals, history; Mark safe + trust sender, Report as scam dialog with block, phone steps, NSRC 997, Cyber999; Unlock, Delete file, Open chat), Blocked tab, Settings (check messages, AI check, auto-block, delete locked files after 7/30/90 days, Enterprise online check) with InfoTips; mock-only simulator of six scenarios and the admin alert toast; routes /api/mock/safety*; desktop 1280 / mobile 360 touch, light/dark (safety-shots.mjs)",
+      "confirmedAt": "2026-10-31",
+      "confirmation": "Owner reviewed the screenshot page (chat warnings, locked file, hacked-customer bar, Admin -> Safety, report dialog, settings, auto-block) and confirmed 2026-10-31 (\"look good\"), answering: AI check on by default when the install has an AI configured; Safety page admins only.",
+      "gitRevision": "d2f5ee530a65158167763b7078e48bfb6083f27a"
+    },
     {
       "feature": "ai-direct-chats",
       "creationOrder": 23,
@@ -86,7 +101,8 @@
       "coverage": "Full app clone of the confirmed ai-groups reference; Fix English in the composer (every chat, every user). Round 2 (owner: option B): spelling marked on every key in the browser (stand-in for nspell + dictionary-en-gb, no AI, the word being typed left alone), grammar from the AI after a 700 ms pause; wavy underlines with a light tint (red spelling, blue grammar) drawn in a layer behind the box, a card per word (hover on desktop, tap on touch: original struck through -> the fix as one button, Ignore; unknown words: Not in the dictionary + Add to team words), Fix N button at the end of the composer row and Ctrl+J / Cmd+J to fix all, \"N fixed · Undo\" for 5 s, \"No mistakes\", checking spinner, Malay/Chinese not checked, numbers/prices/links/team words never marked, AI down: spelling still works with \"Grammar check unavailable\"; Settings -> AI -> Fix English card (team switch that works without AI, cost text with the dictionary size, updated-install note, spelling-only note) with Team words (Business context words, added by a teammate, add, remove) and a Mock only box (install kind, Normal/Slow/Error/Connection expired); mock-only routes GET/PUT /api/mock/grammar, POST /api/mock/grammar/check, GET/POST/DELETE /api/mock/grammar/words; desktop 1280 / mobile 360 touch, light/dark (grammar-shots.mjs)",
       "confirmedAt": "2026-10-28",
       "confirmation": "Owner reviewed the round 2 screenshots (spelling marked at once, grammar after the pause, the word card, Fix all with Undo, unknown word with Add to team words, spelling still working with the AI down, Team words in Settings -> AI; desktop and phone) and confirmed 2026-10-28 (\"yes, impleemnt it\"). Open questions defaulted to the proposals: Lite (free); on for new installs, off after an update; any teammate adds team words, admins remove.",
-      "gitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec"
+      "gitRevision": "4a6cde7762f4aa1c1787896700d1d4c632615fec",
+      "folderRemoved": "2026-10-31 (whatsapp-safety: sixth feature folder); last on main at 8bfeef9"
     },
     {
       "feature": "ai-groups",

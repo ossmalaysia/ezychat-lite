@@ -28,6 +28,7 @@ import { formatWhatsApp, plainWhatsApp } from '../lib/whatsapp-format';
 import { formatJid } from '../lib/jid';
 import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
+import { SafetyFile, SafetyNotice, showsSafety } from './SafetyMessage';
 import { ReactionBadges } from './ReactionBadges';
 import { ReactionPicker } from './ReactionPicker';
 import { useGuardedLinkClick } from './navigation-guard';
@@ -202,6 +203,8 @@ export function MessageBubble({
 
   const out = m.fromMe;
   const hasMedia = m.type !== 'text';
+  // WhatsApp Safety: a flagged message shows why; its file is checked or locked before download.
+  const flagged = showsSafety(m) ? m.safety : null;
   // Messages cached before reactions existed have none.
   const reactions = m.reactions ?? [];
   // A WhatsApp ID (LID) sender formats to '' (never its digits): fall back to a placeholder.
@@ -352,9 +355,14 @@ export function MessageBubble({
             )}
           </div>
         )}
+        {flagged && <SafetyNotice safety={flagged} hasFile={hasMedia} />}
         {hasMedia && (
           <div className="mb-1">
-            <MediaView message={m} onLoad={onMediaLoad} />
+            {flagged && (flagged.level === 'high' || m.type === 'document') ? (
+              <SafetyFile message={m} safety={flagged} />
+            ) : (
+              <MediaView message={m} onLoad={onMediaLoad} />
+            )}
           </div>
         )}
         {m.type === 'audio' && <VoiceTranscript message={m} />}
