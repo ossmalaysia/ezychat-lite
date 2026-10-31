@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- Never name a module constant after a global (`URL`, `Map`, `Set`, `Buffer`): `const URL = /…/` made every
+  `new URL()` in that file throw, the `try` swallowed it, and link checks silently answered "safe". A rule that
+  fails closed to "nothing found" needs a test with a positive case.
 - A scoring rubric gives "not needed" items their full points only where the item guards a risk the change
   cannot have (no screen → no screen review); a bonus that only one tier can earn (the real-part test for
   critical) scores 0 elsewhere, or every small change jumps to 100. Pin the worked examples in tests.

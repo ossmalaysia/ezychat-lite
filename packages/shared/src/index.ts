@@ -18,6 +18,7 @@ export * from './connectors.js';
 export * from './connector-list.js';
 export * from './reports.js';
 export * from './ask-ezy.js';
+export * from './safety.js';
 export type {
   DesktopRelease,
   DesktopUpdateState,
