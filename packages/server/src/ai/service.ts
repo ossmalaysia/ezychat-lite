@@ -107,7 +107,7 @@ import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import { claudeModelId } from './claude.js';
 import type { AiAssistCall, AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
 import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
-import { guardResolution, objectsToResolution } from './resolution.js';
+import { guardResolution, looksLikeConfirmation, objectsToResolution } from './resolution.js';
 import {
   AI_CLAUDE_SECRET_KEY,
   AI_PROVIDER_KEY,
@@ -913,7 +913,27 @@ export function createAiService(
   }
 
   /**
-   * A closing message the AI chose not to answer after it had resolved the chat: acknowledge it with a 👍
+   * The AI's answer is the chat's last outgoing message and nobody on the team wrote or acted since it:
+   * the customer's plain "thanks" closes the conversation the AI was holding.
+   */
+  function answeredByAgentSinceThen(jid: string, aiUserId: number): boolean {
+    const last = ctx.db
+      .prepare(
+        "SELECT sent_by_user_id, created_at FROM messages WHERE chat_jid = ? AND from_me = 1 AND type <> 'system' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      )
+      .get(jid) as { sent_by_user_id: number | null; created_at: number } | undefined;
+    if (last?.sent_by_user_id !== aiUserId) return false;
+    const teamSince = ctx.db
+      .prepare(
+        'SELECT 1 FROM chat_events WHERE chat_jid = ? AND at >= ? AND actor_id IS NOT NULL AND actor_id <> ? LIMIT 1',
+      )
+      .get(jid, last.created_at, aiUserId);
+    return !teamSince;
+  }
+
+  /**
+   * A closing message the AI chose not to answer after it had resolved the chat (`after: 'resolved'`) or
+   * after its own answer (`'answer'`, a plain thanks only): acknowledge it with a 👍
    * reaction (a "👍" reply where the connection cannot react) and resolve the chat again, instead of keeping
    * an open chat nobody answers. The chat is resolved even when neither can be sent (offline, window closed).
    */
@@ -922,6 +942,7 @@ export function createAiService(
     userId: number,
     customerId: string,
     agentId: number,
+    after: 'resolved' | 'answer',
     signal: AbortSignal,
     owned: () => boolean,
   ) {
@@ -943,9 +964,9 @@ export function createAiService(
       userId,
       action: 'ai.resolve',
       ip: null,
-      meta: { chatJid: jid, agentId, after: 'thanks' },
+      meta: { chatJid: jid, agentId, after: 'thanks', previous: after },
     });
-    log.info({ jid, agentId, ack }, 'AI resolved the chat again after thanks');
+    log.info({ jid, agentId, ack, after }, 'AI resolved the chat after thanks');
   }
 
   async function sendReply(
@@ -1646,9 +1667,24 @@ export function createAiService(
       // Nothing to say (e.g. a bare "ok" / "thanks"): the AI keeps the chat and sends nothing; the
       // batch counts as handled so it is not answered again.
       if (decision.action === 'no_reply') {
-        // The 👍 goes out first: the send guard lets an AI reply out only while the message is unanswered.
-        if (resolvedByAgentSinceThen(jid, user.id))
-          await closeAfterThanks(jid, user.id, customerId, agent.id, controller.signal, owned);
+        // A plain "thanks" after the AI resolved the chat, or after its own answer, closes it with a 👍
+        // whatever the resolution switch (owner rule). The 👍 goes out first: the send guard lets an AI
+        // reply out only while the message is unanswered.
+        const after = resolvedByAgentSinceThen(jid, user.id)
+          ? 'resolved'
+          : looksLikeConfirmation(batchText) && answeredByAgentSinceThen(jid, user.id)
+            ? 'answer'
+            : null;
+        if (after)
+          await closeAfterThanks(
+            jid,
+            user.id,
+            customerId,
+            agent.id,
+            after,
+            controller.signal,
+            owned,
+          );
         ctx.db
           .prepare(
             'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ? AND last_customer_message_id = ?',

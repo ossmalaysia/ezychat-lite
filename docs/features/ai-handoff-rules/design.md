@@ -21,7 +21,7 @@ Only one new card. The prompt and server fixes (consultation = discovery, rule p
 "yes + new facts" guard, the waiting-after-hand-off push title) have no screen.
 
 - Agent page → **Closing chats** card, between Connectors and Groups: one switch **Ask if the question is answered**.
-  - Off (default for every agent): "{{name}} adds no check-in line and never closes a chat. Your team closes chats."
+  - Off (default for every agent): "{{name}} adds no check-in line. When the customer only says thanks, {{name}} reacts 👍 and closes the chat; your team closes the others."
   - On (an admin switches it on): "After an answer, {{name}} asks whether it answers the question and closes the chat
     when the customer clearly says yes."
   - Saves at once (like the Groups switch); audited `ai.resolution_check_update`.

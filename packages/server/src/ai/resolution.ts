@@ -31,7 +31,7 @@ const CONFIRMING =
  * confirming-looking message says is new information (see `addsNewFacts`).
  */
 const CONFIRMING_FILLER =
-  /\b(?:yes|yep|yeah|yup|ya|yah|ok|okay|okey|noted|thanks|thank|you|so|much|very|resolved|sorted|done|great|perfect|all|good|that['’]?s|that|is|it|this|answers?|answered|my|question|questions|sure|cool|nice|got|understood|alright|clear|baik|terima|kasih|selesai|sudah|dah|faham|lah|la|ye|yer|tq|ty|thx)\b/gi;
+  /\b(?:yes|yep|yeah|yup|ya|yah|ok|okay|okey|noted|thanks|thank|you|so|much|very|a|lot|lots|again|appreciated|resolved|sorted|done|great|perfect|all|good|that['’]?s|that|is|it|this|answers?|answered|my|question|questions|sure|cool|nice|got|understood|alright|clear|baik|terima|kasih|selesai|sudah|dah|faham|lah|la|ye|yer|tq|ty|thx)\b/gi;
 /** The customer tells something about themselves ("we are in Malaysia", "我们公司…"). */
 const SELF_STATEMENT =
   /\b(?:we|we['’]re|i['’]m|im|i am|our|us|kami|syarikat)\b|我们|我是|我在|公司/i;
@@ -136,8 +136,8 @@ function withoutResolution(decision: AiDecision): AiDecision {
 export interface ResolutionOptions {
   /**
    * The agent's "Ask if the question is answered" switch. Off: the AI never asks a resolution
-   * question and never closes a chat (the team does); a check-in line the model wrote anyway is
-   * removed. Default on (the guard's original behaviour).
+   * question and never resolves through this guard (a plain "thanks" after its answer is closed with a
+   * 👍 by the service); a check-in line the model wrote anyway is removed. Default on (the guard's original behaviour).
    */
   resolutionCheck?: boolean;
 }
