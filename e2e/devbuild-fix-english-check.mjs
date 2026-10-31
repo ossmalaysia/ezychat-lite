@@ -2,6 +2,7 @@
 // data). Usage: node e2e/devbuild-fix-english-check.mjs <port>
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number. Spelling runs in the
 // browser (see e2e/fix-english-screens.mjs); this checks the server side: switch, grammar, words.
+import { cookieSession } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7491);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -17,22 +18,7 @@ const health = await fetch(BASE + '/api/health');
 if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
   throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
 
-let cookie = '';
-async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
+const api = cookieSession(BASE);
 const code = (r) => r.json?.error?.code ?? r.json?.error;
 const enc = encodeURIComponent;
 

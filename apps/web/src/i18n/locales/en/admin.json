@@ -1937,6 +1937,19 @@
     "colReplyTime": "First reply",
     "hourRange": "{{day}} {{from}}–{{to}}"
   },
+  "aiDirect": {
+    "title": "Direct chats",
+    "description": "Customers who message {{inbox}} one to one.",
+    "switch": "Answer direct chats",
+    "switchHint": "Off: {{name}} never answers or takes a direct chat, and teammates cannot assign one to {{name}}. Use it with Answer in groups for a group-only agent.",
+    "groupOnly": "{{name}} answers only in groups: tags and quotes in the groups switched on below. Direct chats stay with your team.",
+    "answersNothing": "{{name}} answers no chats. Turn on Answer direct chats, or Answer in groups below.",
+    "confirmTitle": "Stop {{name}} answering direct chats?",
+    "confirmBody_one": "{{name}} is handling {{count}} open direct chat. It goes back to your team, unassigned.",
+    "confirmBody_other": "{{name}} is handling {{count}} open direct chats. They go back to your team, unassigned.",
+    "confirmAction": "Turn off",
+    "saveFailed": "Could not save. Try again."
+  },
   "aiGroups": {
     "title": "Groups",
     "description": "{{name}} can answer in the groups of your WhatsApp number ({{inbox}}).",

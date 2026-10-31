@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AiAgentGroups, AiGroupChat, type AiGroupChatBody } from '@ezychat/shared';
+import {
+  AiAgentGroups,
+  AiGroupChat,
+  type AiAgentDirectBody,
+  type AiGroupChatBody,
+} from '@ezychat/shared';
 import { api } from './client';
+import { qk } from './queries';
 
 /**
  * AI agents in WhatsApp groups (design docs/features/ai-groups/design.md): the agent's "Answer in
@@ -29,6 +35,26 @@ export function useSetAnswerInGroups(agentId: number) {
     onSuccess: (saved) => {
       qc.setQueryData(agentGroupsKey(agentId), saved);
       void qc.invalidateQueries({ queryKey: [...aiGroupsKey, 'chat'] });
+    },
+  });
+}
+
+/**
+ * "Answer direct chats" (design docs/features/ai-direct-chats/design.md): off makes a group-only
+ * agent. The team directory follows (`aiNoDirect` leaves the agent out of direct-chat assignment).
+ */
+export function useSetAnswerDirect(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      api(`/ai/agents/${agentId}/direct`, {
+        method: 'PUT',
+        body: { enabled } satisfies AiAgentDirectBody,
+        schema: AiAgentGroups,
+      }),
+    onSuccess: (saved) => {
+      qc.setQueryData(agentGroupsKey(agentId), saved);
+      void qc.invalidateQueries({ queryKey: qk.directory });
     },
   });
 }

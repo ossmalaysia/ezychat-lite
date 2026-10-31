@@ -165,6 +165,13 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
+  rename/rename pairs: restore each new folder whole from its own side (`git rm -r --cached`, then
+  `git checkout <side> -- docs/features/<name>`), rebuild `mock-index.json` from `main`'s copy plus your entry with the
+  next `creationOrder`, and prune the next-oldest folder. Resolving them file by file with `--ours/--theirs` puts some
+  files in the wrong folder.
+- In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
+  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
@@ -1070,6 +1077,12 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- Mock screenshot scripts that need the AI to hold a chat must switch the AI member on first (`GET /api/ai`, then
+  `PUT /api/ai` with `{...settings, enabled: true}`; an earlier run can leave it off and the assign answers 400), and
+  scope a select to its container (`page.locator('header').getByRole('combobox')`): the chat list's inbox filter is
+  the page's first combobox.
+- An e2e assignee check on the shared e2e agent proves nothing: it has no AI connection, stays off, and an off AI is
+  never offered anyway. Cover assignee filters with `buildDirectory` unit tests and a Dev Build check instead.
 - A Radix sheet opened by a tap can get that tap's late `pointerdown` on Android Chromium (e2e project `mobile`)
   and close at once as "outside": mark the opening buttons (`data-ask-ezy-trigger`) and `preventDefault` in
   `onInteractOutside` for them. jsdom does not reproduce it; only the Pixel e2e does.

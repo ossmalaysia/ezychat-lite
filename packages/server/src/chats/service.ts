@@ -9,6 +9,7 @@ import type {
 import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { agentForInbox } from '../ai/agents.js';
+import { answersDirect } from '../ai/direct.js';
 import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
 import { canOpen, scopeFor } from '../inboxes/access.js';
@@ -316,6 +317,16 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               'assignee_not_inbox_agent',
               "The assignee is not this inbox's AI agent",
             );
+          // a group-only agent ("Answer direct chats" off) never answers a direct chat
+          if (user.kind === 'ai' && cur.type === 'dm') {
+            const agent = agentForInbox(ctx.db, cur.inbox_id);
+            if (agent && !answersDirect(ctx, agent))
+              throw new HttpError(
+                400,
+                'agent_no_direct_chats',
+                'This AI agent does not answer direct chats',
+              );
+          }
           fields.assigned_to = body.assignedTo;
           events.push(
             repo.insertEvent({
