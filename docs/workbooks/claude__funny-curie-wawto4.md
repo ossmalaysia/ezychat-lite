@@ -5,7 +5,7 @@ Branch: `claude/funny-curie-wawto4` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | WhatsApp Safety design.md + interactive mock (docs/features/whatsapp-safety); safety-shots 50 shots 0 problems; waiting for owner confirmation | 8bfeef9 | 2026-10-31 |
+| Design | done | Owner confirmed the WhatsApp Safety mock 2026-10-31: AI check on when an AI is configured; Safety page admins only | d2f5ee5 | 2026-10-31 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -16,3 +16,4 @@ Branch: `claude/funny-curie-wawto4` · Every agent updates its stage with
 
 - 2026-10-31 Design: doing — WhatsApp Safety design.md + interactive mock (docs/features/whatsapp-safety); safety-shots 50 shots 0 problems; waiting for owner confirmation (8bfeef9)
 - 2026-10-31 Screen review: doing — Mock screens at 1280/360, light/dark checked (safety-shots.mjs); production screen review after implementation (8bfeef9)
+- 2026-10-31 Design: done — Owner confirmed the WhatsApp Safety mock 2026-10-31: AI check on when an AI is configured; Safety page admins only (d2f5ee5)

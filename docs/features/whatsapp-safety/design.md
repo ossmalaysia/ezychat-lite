@@ -1,6 +1,6 @@
 # WhatsApp Safety: warnings, locked files, report and block
 
-Status: **proposal**, waiting for owner confirmation. Branch `claude/funny-curie-wawto4`. Mock:
+Status: **confirmed** 2026-10-31 (see Confirmation). Branch `claude/funny-curie-wawto4`. Mock:
 [mock/index.html](mock/index.html), run instructions and walkthrough in [mock/README.md](mock/README.md).
 
 ## Owner request (2026-10-31)
@@ -180,11 +180,14 @@ release (no core patch).
 5. Security review (no new listener; media serving and file parsing are the risk), unit tests ≥ 90 % changed lines,
    e2e round, Dev Build check, Baileys block smoke-test on a spare number.
 
-## Open questions for the owner
+## Answered questions (owner, 2026-10-31)
 
-1. AI check default for existing installs when an AI is connected: on (proposed) or off until an admin turns it on?
-2. Should agents see the Safety page read-only (their own inboxes), or admins only (proposed)?
+1. AI check default: **on when the install has an AI connection configured** (new and existing installs); off
+   otherwise, and it turns on by itself only through the admin switch.
+2. Safety page: **admins only**.
 
 ## Confirmation
 
-Pending.
+Confirmed 2026-10-31 by the owner in a comment on the screenshot review page: "look good, 2. start on if account has
+AI configure, 3. admin only". The mock as proposed (revision `d2f5ee530a65158167763b7078e48bfb6083f27a`), AI check on by default when an AI is
+configured, Safety page for admins only.
