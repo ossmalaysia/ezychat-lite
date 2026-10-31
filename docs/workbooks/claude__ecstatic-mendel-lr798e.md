@@ -8,7 +8,7 @@ Branch: `claude/ecstatic-mendel-lr798e` · Every agent updates its stage with
 | Design | done | group-mentions mock confirmed 2026-10-31 ("build it until merge to main"); latestConfirmed updated | 331942a | 2026-10-31 |
 | Dev | done | Composer @ picker (inbox/mentions.ts, MentionPicker.tsx), Conversation + useSendText mentions/shown, useInboxCanTag, en/ms/zh-CN | 331942a | 2026-10-31 |
 | Unit tests | pass | web: mentions.test, Composer.mentions.test, mention-send.test (14; bite proof fails 3); server send-mentions (9); inbox-types | 331942a | 2026-10-31 |
-| E2E | pass | e2e/mentions.spec.ts composer tagging: desktop, Pixel 7, iPhone (7 passed); full e2e at the end | 331942a | 2026-10-31 |
+| E2E | pass | Full npm run e2e: 131 passed, 27 skipped, 0 failed; screens.smoke 35/37 (oauth-authorize expected 409 on fresh data, as logged before); e2e:electron-links is Windows-only, not run in this Linux container | de5d7af | 2026-10-31 |
 | Dev Build | pass | devbuild-mentions-check.mjs 35/35 on --mode dev --fake-wa + built web; real WhatsApp untested | 331942a | 2026-10-31 |
 | Screen review | pass | Picker, picked, sent at 1280/360 light+dark match the confirmed mock; no overflow; docs/screenshots/chat/mention-* | 331942a | 2026-10-31 |
 
@@ -23,3 +23,4 @@ Branch: `claude/ecstatic-mendel-lr798e` · Every agent updates its stage with
 - 2026-10-31 E2E: pass — e2e/mentions.spec.ts composer tagging: desktop, Pixel 7, iPhone (7 passed); full e2e at the end (331942a)
 - 2026-10-31 Dev Build: pass — devbuild-mentions-check.mjs 35/35 on --mode dev --fake-wa + built web; real WhatsApp untested (331942a)
 - 2026-10-31 Screen review: pass — Picker, picked, sent at 1280/360 light+dark match the confirmed mock; no overflow; docs/screenshots/chat/mention-* (331942a)
+- 2026-10-31 E2E: pass — Full npm run e2e: 131 passed, 27 skipped, 0 failed; screens.smoke 35/37 (oauth-authorize expected 409 on fresh data, as logged before); e2e:electron-links is Windows-only, not run in this Linux container (de5d7af)
