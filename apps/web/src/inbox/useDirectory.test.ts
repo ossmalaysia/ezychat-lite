@@ -68,6 +68,26 @@ describe('inbox access in the team directory', () => {
     expect(dir.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Daniel']);
   });
 
+  it('leaves a group-only AI agent out of a direct chat, not out of a group', () => {
+    const list = [
+      { id: 1, displayName: 'Aisyah', role: 'admin' as const, disabled: false },
+      {
+        id: 7,
+        displayName: 'Group AI',
+        role: 'agent' as const,
+        disabled: false,
+        kind: 'ai' as const,
+        aiRole: 'sales' as const,
+        aiAgentId: 70,
+        aiNoDirect: true,
+        inboxIds: 'all' as const,
+      },
+    ];
+    const dir = buildDirectory(null, true, list, { inboxAgents: new Map([[1, 70]]) });
+    expect(dir.assignableFor(1, { direct: true }).map((u) => u.displayName)).toEqual(['Aisyah']);
+    expect(dir.assignableFor(1).map((u) => u.displayName)).toEqual(['Aisyah', 'Group AI']);
+  });
+
   it('offers an AI agent only for the inbox it answers, and never a deleted agent', () => {
     const ai = (id: number, name: string, aiAgentId: number, extra = {}) => ({
       id,

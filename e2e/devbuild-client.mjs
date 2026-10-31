@@ -55,3 +55,49 @@ export async function poll(probe, ms) {
   }
   return value;
 }
+
+/**
+ * `api(method, path, body)` for one browser-like session (its own cookie) against the local Dev Build
+ * at `base`: plain path segments only, never a URL outside it. Answers `{ status, json }`.
+ */
+export function cookieSession(base) {
+  const api = apiClient(base);
+  return (method, path, body) => {
+    if (!/^(\/[\w%@.:?=&-]+)+$/.test(path) || path.split('/').some((p) => p === '..' || p === '.'))
+      throw new Error(`Unexpected API path: ${path}`);
+    if (new URL(`/api${path}`, base).origin !== base)
+      throw new Error('Refusing a link outside the local Dev Build');
+    return api(method, path, body);
+  };
+}
+
+/**
+ * A check session against e2e/agents-devbuild.ts (mock model, fake WhatsApp): refuses any other
+ * server, then gives the API, PASS/FAIL lines and `signInAdmin()` (first-run admin `checker`).
+ */
+export async function devbuildClient(port) {
+  const BASE = `http://127.0.0.1:${port}`;
+  const health = await fetch(BASE + '/api/health');
+  if (health.headers.get('x-agents-devbuild') !== 'mock-ai')
+    throw new Error('Run this only against e2e/agents-devbuild.ts (mock model)');
+  const api = cookieSession(BASE);
+  const { check, finish } = checker();
+  return {
+    BASE,
+    api,
+    check,
+    finish,
+    wait,
+    code: (r) => r.json?.error?.code ?? r.json?.error,
+    async signInAdmin() {
+      const admin = { username: 'checker', displayName: 'Checker', password: 'check-pass-123' };
+      if ((await api('GET', '/setup/status')).json.needsSetup)
+        await api('POST', '/setup/admin', admin);
+      const login = await api('POST', '/auth/login', {
+        username: admin.username,
+        password: admin.password,
+      });
+      check(login.status === 200, 'admin signs in');
+    },
+  };
+}

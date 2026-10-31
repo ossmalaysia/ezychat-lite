@@ -71,6 +71,7 @@ import {
   pausedLineWritten,
   type GroupTrigger,
 } from './groups.js';
+import { answersDirect } from './direct.js';
 import { HttpError, errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
@@ -276,6 +277,8 @@ export interface AiService {
   agentForChat(jid: string): AgentRow | null;
   /** Unassigns and pauses every open chat the agent owns (through chats.patch, so events fire). */
   releaseAgent(agentId: number): void;
+  /** "Answer direct chats" went off: stops the agent's direct-chat replies and returns its open direct chats to the team. */
+  releaseDirect(agentId: number): void;
   /** Stops the agent's scheduled and running replies. */
   cancelAgent(agentId: number): void;
   login(): Promise<void>;
@@ -768,6 +771,18 @@ export function createAiService(
     const agent = agentById(ctx.db, agentId);
     if (agent) releaseUser(agent.userId);
   };
+  /** Like `releaseAgent` for direct chats only: a group-only agent keeps its group answers. */
+  const releaseDirect = (agentId: number) => {
+    const agent = agentById(ctx.db, agentId);
+    if (!agent) return;
+    for (const jid of new Set([...timers.keys(), ...generations.keys()]))
+      if (chats.get(jid)?.type === 'dm' && agentOfChat(jid)?.id === agentId) cancel(jid);
+    for (const jid of ownedOpenChats(agent.userId))
+      if (chats.get(jid)?.type === 'dm') {
+        pause(jid);
+        chats.patch(jid, { assignedTo: null }, agent.userId);
+      }
+  };
   /** Every agent's chats (a changed connection, a sign-out). */
   const releaseOwned = () => {
     for (const agent of listAgents(ctx.db)) releaseUser(agent.userId);
@@ -799,6 +814,7 @@ export function createAiService(
       gateOpen() &&
       !!agent &&
       agent.enabled &&
+      answersDirect(ctx, agent) &&
       ready() &&
       chat?.type === 'dm' &&
       chat.status === 'open' &&
@@ -1667,7 +1683,7 @@ export function createAiService(
     }
     // Only the agent of the chat's inbox answers it.
     const agent = agentForInbox(ctx.db, chat.inboxId);
-    const user = agent?.enabled ? { id: agent.userId } : null;
+    const user = agent?.enabled && answersDirect(ctx, agent) ? { id: agent.userId } : null;
     if (
       !user ||
       chat.type !== 'dm' ||
@@ -2263,6 +2279,7 @@ export function createAiService(
     },
     agentForChat: (jid) => agentOfChat(jid),
     releaseAgent,
+    releaseDirect,
     cancelAgent,
     async login() {
       await provider.login();

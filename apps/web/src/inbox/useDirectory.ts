@@ -33,9 +33,10 @@ export interface Directory {
   assignable: DirectoryEntry[];
   /**
    * The assign dropdown of a chat of this inbox: active people who may open it, and the AI agent
-   * that answers this inbox (no other AI agent: the server refuses it).
+   * that answers this inbox (no other AI agent: the server refuses it). `direct`: a direct chat, which
+   * a group-only agent (`aiNoDirect`) never takes.
    */
-  assignableFor(inboxId: number): DirectoryEntry[];
+  assignableFor(inboxId: number, opts?: { direct?: boolean }): DirectoryEntry[];
   /** Display name for a user id ("You" for the current user when `youLabel`). */
   nameOf(id: number | null | undefined, opts?: { youLabel?: boolean }): string | null;
 }
@@ -69,7 +70,8 @@ export function buildDirectory(
     isAdmin,
     byId,
     assignable,
-    assignableFor: (inboxId) => assignable.filter((u) => mayAssign(u, inboxId)),
+    assignableFor: (inboxId, { direct = false } = {}) =>
+      assignable.filter((u) => mayAssign(u, inboxId) && !(direct && u.aiNoDirect)),
     nameOf(id, opts) {
       if (id == null) return null;
       if (opts?.youLabel && me && id === me.id) return i18n.t('inbox:directory.you');

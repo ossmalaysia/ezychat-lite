@@ -4,11 +4,11 @@
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { cookieSession } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7490);
 const BASE = `http://127.0.0.1:${PORT}`;
 const CUSTOMER = '60198887766@s.whatsapp.net';
-let cookie = '';
 let failed = 0;
 /** Server text in a detail stays on one line, so it can never fake a PASS/FAIL line. */
 const oneLine = (value) => String(value).replace(/[\r\n]+/g, ' ');
@@ -18,21 +18,7 @@ const check = (ok, step, detail = '') => {
   console.log((ok ? 'PASS' : 'FAIL') + '  ' + step + extra);
 };
 
-async function api(method, path, body) {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: {
-      origin: BASE,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const set = res.headers.get('set-cookie');
-  if (set) cookie = set.split(';')[0];
-  const text = await res.text();
-  return { status: res.status, json: text ? JSON.parse(text) : null };
-}
+const api = cookieSession(BASE);
 
 async function connect(secret) {
   const client = new Client({ name: 'devbuild-check', version: '1' });

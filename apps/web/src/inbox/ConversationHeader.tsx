@@ -79,7 +79,7 @@ export function ConversationHeader({
     chat.type === 'group' && groupAiActive(groupAi) ? <GroupAiBadge ai={groupAi} /> : null;
 
   // Options: active team members who may open this chat's inbox + current assignee.
-  const options = [...directory.assignableFor(chat.inboxId)];
+  const options = [...directory.assignableFor(chat.inboxId, { direct: chat.type === 'dm' })];
   if (chat.assignedTo != null && !options.some((u) => u.id === chat.assignedTo)) {
     const known = directory.byId.get(chat.assignedTo);
     options.push(
