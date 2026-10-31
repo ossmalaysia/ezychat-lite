@@ -6,10 +6,14 @@
 /* global document -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve, isAbsolute } from 'node:path';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:7488';
-const OUT = process.argv[3] ?? 'docs/screenshots/safety';
+// Screenshots go only to a folder inside this checkout (never an absolute or ../ path).
+const OUT = resolve(process.argv[3] ?? 'docs/screenshots/safety');
+const inside = relative(process.cwd(), OUT);
+if (!inside || inside.startsWith('..') || isAbsolute(inside))
+  throw new Error('The output folder must be inside the current folder.');
 mkdirSync(OUT, { recursive: true });
 const H = { origin: BASE };
 const browser = await chromium.launch(
