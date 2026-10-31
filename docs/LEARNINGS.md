@@ -165,6 +165,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- CI's `Test (windows-latest)` job runs `npm run e2e:electron-links` on every non-docs PR: the release review counts
+  that step on the head as the desktop link check, so never ask the owner to run it by hand.
 - Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
   rename/rename pairs: restore each new folder whole from its own side (`git rm -r --cached`, then
   `git checkout <side> -- docs/features/<name>`), rebuild `mock-index.json` from `main`'s copy plus your entry with the
@@ -195,12 +197,12 @@ into AGENTS.md.
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
-- `AGENTS.md`, `CLAUDE.md` and other docs outside the release-review neutral list reset a PR's test evidence:
-  put rule changes in their own PR instead of a scored feature PR.
-- The release-review score credits the desktop link check whenever the E2E workbook detail contains the
-  command name `e2e:electron-links`: write it only when it ran ("desktop-window link check not run" otherwise).
-  In a cloud session where `gh` GraphQL is blocked, point `GH_PATH` at a small wrapper that answers
-  `gh repo view` / `gh pr view --json …` from the REST API and passes every other call through.
+- SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D).
+- The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
+  GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
+  compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
+  commit's own diff from `git diff <merge base> <sha>` (fetch both ids; works in a shallow clone).
 - A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
   or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
 - After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
@@ -210,9 +212,8 @@ into AGENTS.md.
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review. Rebase onto `main` before the checks
-  you record: a rebase gives every commit a new id, so the recorded ones stop counting. The release-review script needs
-  `gh pr view`/`gh repo view` (GraphQL); where GraphQL is blocked, point `GH_PATH` at a local wrapper that answers
-  those two through `gh api` (REST).
+  you record: a rebase gives every commit a new id, so the recorded ones stop counting. Merging `main` keeps them:
+  evidence holds while the PR's own change to code, pipeline and test files is the same.
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
   already done): wait with `gh run watch <run id>` on the CI run of the head commit, then read every
   required check by name before a merge.

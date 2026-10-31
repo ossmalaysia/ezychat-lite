@@ -23,3 +23,4 @@ Every release review run, newest last. Never pruned.
 | 2026-10-26 | #193 | `c53fde8` | critical | 60    | risk:human     | docs/release-review/log.md      |
 | 2026-10-30 | #220 | `b8cda7d` | core     | 45    | risk:human     | docs/features/ask-ezy/review.md |
 | 2026-10-30 | #230 | `1a244ab` | core | 75 | risk:auto | docs/release-review/log.md |
+| 2026-10-31 | #236 | `2c05465` | — | — | human-approved | docs/release-review/log.md |

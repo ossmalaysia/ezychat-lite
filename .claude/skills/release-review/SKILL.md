@@ -14,7 +14,10 @@ request, also for `risk:auto`, until the owner approves section 9 of the design 
 
 ## Steps
 
-1. Run `node scripts/release-review.mjs <pr>` (Node 24). It reads GitHub at the PR head commit.
+1. Run `node scripts/release-review.mjs <pr>` (Node 24) from the repo checkout. It reads GitHub REST and git at
+   the PR head commit (no GraphQL: the same command works in a cloud session). The first line is the final merge
+   verdict, `MERGE OK …` or `NOT READY: <reasons> …` (exit code 2). Run it once more right before any merge
+   the owner asks for.
 2. If it lists a new migration, read the migration. Run again with `--migration adds-only` (only new
    tables, columns or indexes) or `--migration moves-data` (it changes or moves existing rows).
 3. If it lists unmapped code files, add rules for them to `components.json` in the same PR.
@@ -33,11 +36,13 @@ request, also for `risk:auto`, until the owner approves section 9 of the design 
 
 ## Evidence the script reads (record it, or the points are lost)
 
-- e2e, desktop link check and screen review: workbook stages with the checked commit
-  (`node scripts/build-summary.mjs record e2e pass "… e2e:electron-links 15/15"` records `HEAD`; put
-  `e2e:electron-links` in the E2E detail when it ran).
+- e2e and screen review: workbook stages with the checked commit (`node scripts/build-summary.mjs record e2e
+pass "…"` records `HEAD`).
+- Desktop link check: read from CI only (the `e2e:electron-links` step of `Test (windows-latest)` on the head).
 - Dev Build check: a row in `docs/dev-build-checks.md` with the short commit in backticks in the Build cell;
   a real-part test (real WhatsApp, packaged install) has `real:` in the row.
-- Coverage: the `changed-lines coverage` line of the CI job `Test (ubuntu-latest)` on the head commit.
-- Evidence stays valid when later commits change only neutral files (workbook, logs, Dev Build log,
-  screenshots, LEARNINGS). Any other change needs the checks again.
+- Coverage: the `changed-lines coverage` line of the CI job `Test (ubuntu-latest)` on the head commit (while it
+  runs: the newest PR commit with the same PR diff; else "pending").
+- Evidence stays valid while the PR's own change (`git diff -U0` from its merge base, added/removed lines) to
+  code, pipeline and test files is the same: merging `main`, docs, mocks and logs never reset it. Changing the
+  PR's own code needs the checks again (design §3.6).

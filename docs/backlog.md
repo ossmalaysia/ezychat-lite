@@ -79,3 +79,11 @@ are listed here until they get a branch. Newest first; remove an item when its P
 - **AI agents follow-ups**: see `docs/features/custom-agents/design.md` → Follow-ups (copy items between
   agents, conflict warning, Try it as a short chat, and more).
 - **Claude provider follow-ups**: test a saved Claude key from the page; wording for a Claude refusal.
+
+## Final merge check follow-ups (release review)
+
+- `scripts/build-summary.mjs` (feature summary) still reads PRs through GraphQL, which cloud sessions block:
+  move it to the same REST + CCR routes as `scripts/release-review.mjs`.
+- CI does not run the browser e2e (`npm run e2e`); the e2e points still come from a workbook stage. Running the
+  e2e in CI would let the release review read it from the head like the link check (needs the owner's call:
+  CI minutes, flaky-test policy).

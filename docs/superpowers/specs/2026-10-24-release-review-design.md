@@ -82,9 +82,9 @@ Each item counts only when its proof names the scored head commit (or a CI run o
 
 | Evidence                                                   | Proof read by the script                                     | Points        |
 | ---------------------------------------------------------- | ------------------------------------------------------------ | ------------- |
-| Changed-lines coverage ≥ 90 % / ≥ 95 %                     | `coverage:changed` result of the CI run on the head commit   | +15 / +20     |
+| Changed-lines coverage ≥ 90 % / ≥ 95 %                     | `coverage:changed` line of the CI job `Test (ubuntu-latest)` on the head; while it runs, the newest PR commit with the same PR diff (§3.6) that has one; else "pending" | +15 / +20     |
 | e2e passed, with a spec that covers the change             | workbook E2E stage `done` naming the spec; CI/local e2e on head | +10        |
-| Desktop link check passed (only when a screen changed)     | workbook E2E entry naming `e2e:electron-links`              | +5            |
+| Desktop link check passed (only when a screen changed)     | CI only: the job `Test (windows-latest)` on the head whose `e2e:electron-links` step passed (a workbook line no longer counts) | +5 |
 | Dev Build check on the head commit                         | a row in `docs/dev-build-checks.md` with the head short SHA | +10           |
 | Screen review done (only when a screen changed)            | workbook Screen review stage `done`                         | +5            |
 | Real-part test (Critical only: real WhatsApp, packaged install) | a Dev Build row marked `real:` with the head short SHA | +15           |
@@ -110,6 +110,46 @@ Rules for reading evidence (builder check; agent's call, owner may change):
 3. A change to a security invariant: any file the component map marks `security: true`, or an edit to the
    "Security invariants" section of AGENTS.md.
 4. Any required CI check not green on the head commit.
+   The required checks are named in `components.json` (`requiredChecks`: SonarCloud Code Analysis and the three
+   Test jobs; branch protection is not readable by every token). Other checks are ignored. The reason names each
+   one that is failed, running or missing.
+5. An unresolved review thread on the PR (`main` requires conversation resolution). The report also lists
+   `Review comments: <open> open of <total>` (no points). Threads are read through GraphQL, else the cloud
+   session's REST route `pulls/<n>/ccr/review_threads`; when neither answers and the PR has comments, the
+   resolution is unknown and that stops too (a final check never passes on an unknown).
+
+### 3.6 Evidence after new commits: the PR's own diff decides
+
+Evidence (workbook stage, Dev Build row, the owner's approval, an older commit's coverage) names a commit of the
+PR. It still holds at the head when **the PR's own change is the same** for every file that can change a test
+result:
+
+- The PR's own change at a commit is `git diff -U0 <merge base with main> <commit>` (the merge base from
+  GitHub's compare, both commits fetched by id, so a shallow clone works). Only the added and removed lines
+  count, so a merge of `main` that moves the PR's hunks keeps the evidence; files that only came from `main` are
+  not the PR's.
+- Files that can change a test result: code tiers (critical, core, noncore), pipeline files and tests
+  (`e2e/**`, `**/test/**`, `*.test.*`). Docs (design notes, mock folders, `CHANGELOG.md`, `AGENTS.md`) and the
+  neutral logs never reset evidence.
+- A commit outside the PR (after a rebase) or a diff that cannot be read never counts.
+
+The PR's file list for tier and size comes from `pulls/<n>/files` (all pages, up to GitHub's 3,000), not from
+compare, which stops at 300 files.
+
+### 3.7 The final merge check
+
+`node scripts/release-review.mjs <pr>` is the one command run on the PR head right before a merge. Its first
+line is the verdict; the exit code is 2 when it is not ready:
+
+- `MERGE OK · <decision> (<score>)` when the PR is open, not a draft, has no merge conflict, has no hard stop,
+  and is `risk:auto` / `risk:pipeline` or the owner's logged approval (`--approve`) still matches the PR's own
+  diff (§3.6).
+- `NOT READY: <reasons> · <decision> (<score>)` otherwise. The owner's approval clears hard stops 1–3 and a low
+  score, never checks (4) or open threads (5).
+
+Every fact is read from GitHub REST and git (no GraphQL needed, so it runs the same in a cloud session and on
+a PC; the repository is `GH_REPO` or the `origin` remote). Same PR state, same verdict. The verdict line is also
+written under the heading of the log entry. It never merges: the merge rule in AGENTS.md is unchanged.
 
 ### 3.5 Worked examples (from merged Lite PRs)
 
@@ -205,8 +245,8 @@ never pruned, so scores stay visible after the five-folder retention rule remove
 
 ## 6. The skill and the script
 
-- `scripts/release-review.mjs <pr> [--write]`: deterministic. Reads the PR diff and head SHA (`gh pr view`,
-  `gh pr diff --name-only` and numstat), the component map, the CI checks on the head SHA (`gh pr checks`,
+- `scripts/release-review.mjs <pr> [--write]`: deterministic. Reads the PR, its files and head SHA (REST
+  `pulls/<n>`, `pulls/<n>/files`), the component map, the required CI checks on the head SHA (check runs,
   and the coverage result from the CI job), the workbook `docs/workbooks/<branch>.md` and
   `docs/dev-build-checks.md`. Prints the score table as JSON and Markdown. With `--write` it appends the log
   entry and the index row.

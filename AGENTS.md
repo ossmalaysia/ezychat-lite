@@ -559,7 +559,8 @@ cover navigation from every admin section and recovery from malformed URLs.
   your threshold, decide from the evidence; if Jev is down, continue without it and say so.
 - **Release review** (skill `release-review`, design `docs/superpowers/specs/2026-10-24-release-review-design.md`):
   after the last verification of a feature PR, score it with `node scripts/release-review.mjs <pr>` and log it;
-  it scores, logs, comments and labels only. Record workbook stages with the checked commit
+  it scores, logs, comments and labels only. It is also the **final merge check**: run it on the head right before
+  a merge the owner asked for; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
   (`build-summary.mjs record` does it) and put the short commit in each Dev Build row. The merge rule
   below is unchanged until the owner approves the design's section 9 in writing.
   **A low score is a to-do list, not a stop** (owner rule): run every check you can for each `✗` item and
@@ -653,8 +654,8 @@ Before you end a session or hand work back to the owner:
 1. **Reflect.** Add the session's real lessons to `docs/LEARNINGS.md` (see Learnings loop; Enterprise-only lessons
    go to that repo's) and say in one line which rules you added or sharpened, or that there were none.
 2. **Score.** For every PR you opened or pushed to in the session, run the release review on its current
-   head (`node scripts/release-review.mjs <pr>`; in a cloud session without `gh` GraphQL use the `GH_PATH`
-   REST wrapper described in `docs/LEARNINGS.md`) and end your last message with a score summary:
+   head (`node scripts/release-review.mjs <pr>`; it uses only REST and git, so it runs the same in a cloud
+   session) and end your last message with a score summary:
    PR, head commit, score, decision, hard stops, and each `✗ missing` item with who must do it. A PR whose
    last code change has no fresh score is not reported as ready.
 

@@ -299,3 +299,7 @@ Tier **core**, set by: apps/web/src/api/ai.ts
 Hard stops: none
 
 Decision: **risk:auto**
+
+## 2026-10-31 · PR #236 · `2c05465` · approved by the owner
+
+> Ok merge

@@ -6,6 +6,7 @@ import {
   SHARED_LOG,
   appendEntry,
   appendIndexRow,
+  approvalsIn,
   indexRow,
   logPathFor,
   parseIndex,
@@ -110,5 +111,36 @@ describe('append only', () => {
     writeFileSync(path, '# Review log\n\n## kept\n');
     appendEntry(path, '## three');
     expect(readFileSync(path, 'utf8')).toContain('## kept\n\n## three');
+  });
+});
+
+describe('final merge check in the log', () => {
+  const result = {
+    score: 95,
+    decision: 'risk:auto',
+    tier: 'noncore',
+    tierFiles: [],
+    items: [],
+    hardStops: [],
+  };
+  it('puts the verdict line under the heading', () => {
+    const entry = renderEntry({
+      date: 'd',
+      pr: 1,
+      sha: 'abc1234',
+      result,
+      verdict: 'MERGE OK · risk:auto (95)',
+    });
+    expect(entry.split('\n')[2]).toBe('**MERGE OK · risk:auto (95)**');
+    expect(renderEntry({ date: 'd', pr: 1, sha: 'abc1234', result })).not.toContain('MERGE OK');
+  });
+  it("finds the owner's approvals of one PR", () => {
+    const log = [
+      renderApproval({ date: '2026-10-29', pr: 7, sha: 'aaaaaaa', quote: 'ok' }),
+      renderApproval({ date: '2026-10-30', pr: 8, sha: 'bbbbbbb', quote: 'ok' }),
+      renderApproval({ date: '2026-10-31', pr: 7, sha: 'ccccccc', quote: 'ok' }),
+    ].join('\n');
+    expect(approvalsIn(log, 7)).toEqual(['aaaaaaa', 'ccccccc']);
+    expect(approvalsIn(null, 7)).toEqual([]);
   });
 });

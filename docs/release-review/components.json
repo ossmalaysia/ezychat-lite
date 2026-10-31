@@ -2,6 +2,12 @@
   "version": 1,
   "about": "Release review tier map (docs/superpowers/specs/2026-10-24-release-review-design.md). First match wins. Tier = what happens if this part breaks: critical = app stops or data is lost; core = a main daily task fails; noncore = a side feature fails.",
   "screenGlobs": ["apps/web/src/**", "apps/desktop/src/**"],
+  "requiredChecks": [
+    "SonarCloud Code Analysis",
+    "Test (ubuntu-latest)",
+    "Test (windows-latest)",
+    "Test (macos-latest)"
+  ],
   "neutralGlobs": [
     "docs/workbooks/**",
     "docs/dev-build-checks.md",

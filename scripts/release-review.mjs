@@ -1,14 +1,18 @@
 #!/usr/bin/env node
-// Release review: a safety score for one pull request (docs/superpowers/specs/2026-10-24-release-review-design.md).
+// Release review: the final merge check and safety score for one pull request
+// (docs/superpowers/specs/2026-10-24-release-review-design.md). The first line is the verdict,
+// `MERGE OK …` or `NOT READY: <reasons> …`; the exit code is 2 when it is not ready.
 //
-//   node scripts/release-review.mjs <pr>                       print the score (Markdown, the PR comment)
+//   node scripts/release-review.mjs <pr>                       print the verdict and score (Markdown, the PR comment)
 //   node scripts/release-review.mjs <pr> --json                the full result as JSON
 //   node scripts/release-review.mjs <pr> --migration adds-only|moves-data   after reading a new migration
 //   node scripts/release-review.mjs <pr> --write               also append the review log entry + index row
 //   node scripts/release-review.mjs <pr> --approve "<owner's words>"   record the owner's test approval
 //
-// Facts come from GitHub (gh api) at the PR head commit, so it works for any PR without a checkout.
-// It never merges, tags or labels: the release-review skill posts the comment and sets the label.
+// Facts come from the GitHub REST API (`gh api`, no GraphQL needed) at the PR head commit, so the same
+// command works in a cloud session and on a PC, for any PR without a checkout. The repository is
+// `GH_REPO` or the `origin` remote. It never merges, tags or labels: the release-review skill posts the
+// comment and sets the label.
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveTool, parseWorkbook, workbookPath } from './build-summary.mjs';
@@ -20,18 +24,22 @@ import {
   loadMap,
 } from './review/components.mjs';
 import {
+  ciLinkCheck,
   coverageFromLog,
   devBuildEvidence,
   devBuildRows,
-  evidenceShaValid,
+  ownDiffChanges,
+  requiredChecks,
+  reviewCommentCounts,
   workbookEvidence,
 } from './review/evidence.mjs';
-import { scoreChange } from './review/rubric.mjs';
+import { mergeVerdict, scoreChange } from './review/rubric.mjs';
 import { applyCoreBump, coreBumpScore, corePin, prsFromCommits } from './review/core-bump.mjs';
 import {
   INDEX,
   appendEntry,
   appendIndexRow,
+  approvalsIn,
   indexRow,
   logPathFor,
   renderApproval,
@@ -40,7 +48,19 @@ import {
 
 const MAP_PATH = 'docs/release-review/components.json';
 const DEFAULT_COVERAGE_JOB = 'Test (ubuntu-latest)';
-const GREEN = ['success', 'skipped', 'neutral'];
+/** The CI job that runs `npm run e2e:electron-links` (Windows runners have a desktop). */
+const DEFAULT_LINK_CHECK_JOB = 'Test (windows-latest)';
+/** Merge-blocking checks when the map names none (branch protection is not readable by every token). */
+const DEFAULT_REQUIRED_CHECKS = [DEFAULT_COVERAGE_JOB, DEFAULT_LINK_CHECK_JOB];
+/** How many older PR commits to search for the changed-lines coverage of the same PR diff. */
+const COVERAGE_LOOKBACK = 10;
+
+export const defaultGit = (args) =>
+  execFileSync(resolveTool('git'), args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 256 * 1024 * 1024,
+  });
 
 export const defaultGh = (args) =>
   execFileSync(resolveTool('gh'), args, {
@@ -48,6 +68,25 @@ export const defaultGh = (args) =>
     stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 64 * 1024 * 1024,
   });
+
+/** `owner/name` from a git remote URL (https, ssh or a local proxy path). */
+export function repoFromRemote(url) {
+  const m = url.trim().match(/[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
+/** The repository: `GH_REPO`, else the `origin` remote of the current checkout. */
+export function currentRepo(
+  env = process.env,
+  remote = () => defaultGit(['remote', 'get-url', 'origin']),
+) {
+  const repo = env.GH_REPO || repoFromRemote(remote());
+  if (!repo) throw new Error('Cannot tell the repository: set GH_REPO=owner/name');
+  return repo;
+}
+
+/** The PR through REST (`gh pr view` needs GraphQL, which cloud sessions block). */
+export const prInfo = (gh, repo, pr) => JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
 
 /** Line ranges `[start, end]` of a `## <title>` section (until the next `## `), 1-based. */
 export function sectionRange(markdown, title) {
@@ -69,65 +108,57 @@ export function patchTouches(patch, newRange, oldRange) {
   return false;
 }
 
-/** Everything the rubric needs, read from GitHub at the PR head. */
-export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null } = {}) {
-  const json = (args) => JSON.parse(gh(args));
-  const repo = gh(['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner']).trim();
-  const info = json([
-    'pr',
-    'view',
-    String(pr),
-    '--json',
-    'title,headRefOid,baseRefOid,headRefName,state',
-  ]);
-  const head = info.headRefOid;
-  const api = (path) => json(['api', `repos/${repo}/${path}`]);
-  const file = (path, ref) => {
+/** The PR's files from pulls/<n>/files: pages of 100, up to GitHub's 3,000. */
+function listPrFiles(api, pr) {
+  const files = [];
+  for (let page = 1; page <= 30; page++) {
+    const batch = api(`pulls/${pr}/files?per_page=100&page=${page}`);
+    files.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return files;
+}
+
+/** `git diff -U0` of the PR's own change at a commit (fetched by id: works in a shallow clone). */
+function ownDiffAt(git, sha, mergeBase) {
+  try {
+    git(['cat-file', '-e', `${sha}^{commit}`]);
+    git(['cat-file', '-e', `${mergeBase}^{commit}`]);
+  } catch {
+    git(['fetch', '--quiet', '--no-tags', 'origin', sha, mergeBase]);
+  }
+  return git(['diff', '-U0', '--no-color', '--no-renames', '--no-ext-diff', mergeBase, sha]);
+}
+
+/**
+ * Evidence recorded at a commit still holds at the head when the PR's own change of every file
+ * that can change a test result is the same: merging main brings in main's files, checked on main.
+ */
+function evidenceValidator({ head, base, prCommits, compareOf, git, map }) {
+  const fullSha = (sha) =>
+    head.startsWith(sha) ? head : (prCommits.find((c) => c.startsWith(sha)) ?? null);
+  let headDiff;
+  const check = (full) => {
+    if (full === head) return true;
+    if (!full) return false;
     try {
-      return Buffer.from(api(`contents/${path}?ref=${ref}`).content, 'base64').toString('utf8');
+      headDiff ??= ownDiffAt(git, head, base);
+      const before = ownDiffAt(git, full, compareOf(full).merge_base_commit.sha);
+      return ownDiffChanges(before, headDiff, map)?.length === 0;
     } catch {
-      return null;
+      return false;
     }
   };
-  const compare = api(`compare/${info.baseRefOid}...${head}`);
-  const base = compare.merge_base_commit.sha;
-  const sinceCache = new Map();
-  // Only the PR's own files count: a branch update from main brings main's files in after the
-  // evidence, and those were checked on main (CI still runs on the updated head).
-  const prFiles = new Set(compare.files.map((f) => f.filename));
-  // Evidence must name one of this PR's commits; GitHub lists at most 300 files per compare, so a
-  // full list is unknown, never "nothing changed".
-  const prCommits = (compare.commits ?? []).map((c) => c.sha);
-  const ownCommit = (sha) => prCommits.some((c) => c.startsWith(sha));
-  const changedFilesSince = (sha) => {
-    if (!sinceCache.has(sha)) {
-      try {
-        const since = () => {
-          if (sha === head.slice(0, sha.length)) return [];
-          if (!ownCommit(sha)) return null;
-          const files = api(`compare/${sha}...${head}`).files;
-          if (files.length >= 300) return null;
-          return files.map((f) => f.filename).filter((path) => prFiles.has(path));
-        };
-        sinceCache.set(sha, since());
-      } catch {
-        sinceCache.set(sha, null);
-      }
-    }
-    return sinceCache.get(sha);
+  const cache = new Map();
+  return (sha) => {
+    if (!sha || !/^[0-9a-f]{7,40}$/.test(sha)) return false;
+    if (!cache.has(sha)) cache.set(sha, check(fullSha(sha)));
+    return cache.get(sha);
   };
-  const isValid = (sha) => evidenceShaValid(sha, changedFilesSince, map);
+}
 
-  const files = compare.files.map((f) => ({
-    path: f.filename,
-    status: f.status,
-    added: f.additions,
-    deleted: f.deletions,
-    lockfile: isLockfile(f.filename),
-    patch: f.patch,
-    ...classifyFile(map, f.filename),
-  }));
-
+/** The dependency tier of the PR's package.json changes and an Enterprise core bump. */
+function dependencyFacts({ files, map, file, json, base, head }) {
   let depTier = null;
   let coreBump = null;
   for (const f of files.filter((x) => x.path.endsWith('package.json'))) {
@@ -156,6 +187,80 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
     })();
     coreBump = { ...coreBump, ...coreBumpScore(prsFromCommits(commits), index) };
   }
+  return { depTier, coreBump };
+}
+
+/**
+ * Changed-lines coverage of the head; while its CI runs (or its log is gone), the newest older PR
+ * commit with the same PR diff that has a result. Neither: pending while CI runs, else unknown.
+ */
+function coverageFacts({ runs, runsAt, job, readLog, older, isValid }) {
+  const at = (jobs) => {
+    const run = jobs.find((r) => r.name === job && r.status === 'completed');
+    if (!run) return { done: false, value: null };
+    try {
+      return { done: true, value: coverageFromLog(readLog(run.id)) };
+    } catch {
+      return { done: true, value: null };
+    }
+  };
+  const head = at(runs);
+  if (head.value !== null) return { coverage: head.value, coverageState: 'head' };
+  for (const sha of older) {
+    if (!isValid(sha)) continue;
+    const value = at(runsAt(sha)).value;
+    if (value !== null) return { coverage: value, coverageState: sha.slice(0, 7) };
+  }
+  return { coverage: null, coverageState: head.done ? 'unknown' : 'pending' };
+}
+
+/** The desktop link check from CI: the head's Windows job ran e2e:electron-links and it passed. */
+function ciLinkFacts(runs, job, api) {
+  const run = runs.find((r) => r.name === job && r.status === 'completed');
+  if (!run) return false;
+  try {
+    return ciLinkCheck(api(`actions/jobs/${run.id}`));
+  } catch {
+    return false;
+  }
+}
+
+/** Everything the rubric needs, read from GitHub at the PR head. */
+export function gatherFacts(
+  pr,
+  { gh = defaultGh, git = defaultGit, map, migrationConfirmed = null, repo = currentRepo() } = {},
+) {
+  const json = (args) => JSON.parse(gh(args));
+  const info = prInfo(gh, repo, pr);
+  const head = info.head.sha;
+  const api = (path) => json(['api', `repos/${repo}/${path}`]);
+  const file = (path, ref) => {
+    try {
+      return Buffer.from(api(`contents/${path}?ref=${ref}`).content, 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
+  };
+  // Three dots: from the merge base with main (its file list stops at 300, so not used for files).
+  const compareOf = (sha) => api(`compare/${info.base.sha}...${sha}`);
+  const compare = compareOf(head);
+  const base = compare.merge_base_commit.sha;
+  const prFiles = listPrFiles(api, pr);
+  // Evidence must name one of this PR's commits (a rebase gives new ids, so old evidence stops counting).
+  const prCommits = (compare.commits ?? []).map((c) => c.sha);
+  const isValid = evidenceValidator({ head, base, prCommits, compareOf, git, map });
+
+  const files = prFiles.map((f) => ({
+    path: f.filename,
+    status: f.status,
+    added: f.additions,
+    deleted: f.deletions,
+    lockfile: isLockfile(f.filename),
+    patch: f.patch,
+    ...classifyFile(map, f.filename),
+  }));
+
+  const { depTier, coreBump } = dependencyFacts({ files, map, file, json, base, head });
 
   const agents = files.find((f) => f.path === 'AGENTS.md');
   const agentsSecurityChanged = Boolean(
@@ -173,24 +278,25 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
     ),
   );
 
-  const runs = api(`commits/${head}/check-runs?per_page=100`).check_runs;
-  const checks = runs.some((r) => r.status !== 'completed')
-    ? 'pending'
-    : runs.every((r) => GREEN.includes(r.conclusion))
-      ? 'green'
-      : 'failed';
-  const coverageRun = runs.find(
-    (r) => r.name === (map.coverageJob ?? DEFAULT_COVERAGE_JOB) && r.status === 'completed',
-  );
-  let coverage = null;
-  if (coverageRun)
-    try {
-      coverage = coverageFromLog(gh(['api', `repos/${repo}/actions/jobs/${coverageRun.id}/logs`]));
-    } catch {
-      coverage = null;
-    }
+  const runsAt = (sha) => api(`commits/${sha}/check-runs?per_page=100`).check_runs;
+  const runs = runsAt(head);
+  const required = requiredChecks(runs, map.requiredChecks ?? DEFAULT_REQUIRED_CHECKS);
+  const { coverage, coverageState } = coverageFacts({
+    runs,
+    runsAt,
+    job: map.coverageJob ?? DEFAULT_COVERAGE_JOB,
+    readLog: (id) => gh(['api', `repos/${repo}/actions/jobs/${id}/logs`]),
+    older: prCommits
+      .filter((c) => c !== head)
+      .reverse()
+      .slice(0, COVERAGE_LOOKBACK),
+    isValid,
+  });
 
-  const workbookMarkdown = file(workbookPath(info.headRefName).replaceAll('\\', '/'), head);
+  const ciLink = ciLinkFacts(runs, map.linkCheckJob ?? DEFAULT_LINK_CHECK_JOB, api);
+  const reviewComments = readReviewComments({ api, json, repo, pr });
+
+  const workbookMarkdown = file(workbookPath(info.head.ref).replaceAll('\\', '/'), head);
   const workbook = workbookMarkdown ? parseWorkbook(workbookMarkdown) : null;
   const wb = workbookEvidence(workbook, isValid);
   const db = devBuildEvidence(devBuildRows(file('docs/dev-build-checks.md', head) ?? ''), isValid);
@@ -204,14 +310,27 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
     }
   })();
 
+  const logPath = logPathFor({ workbookMarkdown, branch: info.head.ref, featureFolders });
+  // The newest owner approval in the log that still matches the PR's diff.
+  const approved =
+    approvalsIn(file(logPath, head), pr)
+      .reverse()
+      .find((sha) => isValid(sha)) ?? null;
+
   return {
     repo,
     coreBump,
     pr,
     title: info.title,
     head,
-    branch: info.headRefName,
-    logPath: logPathFor({ workbookMarkdown, branch: info.headRefName, featureFolders }),
+    branch: info.head.ref,
+    logPath,
+    merge: {
+      state: info.merged_at ? 'merged' : info.state,
+      draft: Boolean(info.draft),
+      conflict: info.mergeable === false || info.mergeable_state === 'dirty',
+      approved: approved?.slice(0, 7) ?? null,
+    },
     unmapped: files.filter((f) => f.unmapped).map((f) => f.path),
     input: {
       files,
@@ -222,17 +341,59 @@ export function gatherFacts(pr, { gh = defaultGh, map, migrationConfirmed = null
         .map((f) => f.path),
       migrationConfirmed,
       agentsSecurityChanged,
-      checks,
+      checks: required.state,
+      checkNames: { missing: required.missing, pending: required.pending, failed: required.failed },
       coverage,
+      coverageState,
+      reviewComments,
       evidence: {
         e2e: wb.e2e.ok,
-        linkCheck: wb.linkCheck.ok,
+        linkCheck: ciLink,
         screenReview: wb.screenReview.ok,
         devBuild: db.devBuild,
         realTest: db.realTest,
       },
     },
   };
+}
+
+/**
+ * Review comments of the PR (REST) and how many threads are still unresolved: GraphQL
+ * `reviewThreads`, else the cloud session's REST route `pulls/<n>/ccr/review_threads` (GraphQL is
+ * blocked there); open is null when neither answers. Null when even the comments cannot be read.
+ */
+export function readReviewComments({ api, json, repo, pr }) {
+  let comments;
+  try {
+    comments = api(`pulls/${pr}/comments?per_page=100`);
+  } catch {
+    return null;
+  }
+  let threads;
+  try {
+    const [owner, name] = repo.split('/');
+    const query = `query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}`;
+    threads = json([
+      'api',
+      'graphql',
+      '-f',
+      `query=${query}`,
+      '-F',
+      `owner=${owner}`,
+      '-F',
+      `name=${name}`,
+      '-F',
+      `pr=${pr}`,
+    ]).data.repository.pullRequest.reviewThreads.nodes;
+  } catch {
+    try {
+      const ccr = api(`pulls/${pr}/ccr/review_threads`);
+      threads = Array.isArray(ccr) ? ccr : (ccr?.threads ?? ccr?.review_threads ?? null);
+    } catch {
+      threads = null;
+    }
+  }
+  return reviewCommentCounts(comments, threads);
 }
 
 export function parseArgs(argv) {
@@ -254,16 +415,21 @@ export function parseArgs(argv) {
 
 export function main(
   argv,
-  { gh = defaultGh, log = console.log, today = new Date().toISOString().slice(0, 10) } = {},
+  {
+    gh = defaultGh,
+    git = defaultGit,
+    log = console.log,
+    today = new Date().toISOString().slice(0, 10),
+    repo = currentRepo(),
+  } = {},
 ) {
   const args = parseArgs(argv);
   const map = loadMap(MAP_PATH);
-  const title = JSON.parse(gh(['pr', 'view', String(args.pr), '--json', 'title'])).title;
-  if (/^chore\(release\)/.test(title)) {
+  if (prInfo(gh, repo, args.pr).title.startsWith('chore(release)')) {
     log('release PR: not scored (the release rule applies)');
     return null;
   }
-  const facts = gatherFacts(args.pr, { gh, map, migrationConfirmed: args.migration });
+  const facts = gatherFacts(args.pr, { gh, git, map, migrationConfirmed: args.migration, repo });
   const sha = facts.head.slice(0, 7);
   if (args.approve) {
     appendEntry(
@@ -289,7 +455,15 @@ export function main(
   const migrationNote = facts.input.migrations.length
     ? `${facts.input.migrations.join(', ')} — ${args.migration ?? 'not confirmed yet'}`
     : '';
-  const entry = renderEntry({ date: today, pr: args.pr, sha, result, migrationNote });
+  const verdict = mergeVerdict(result, facts.merge);
+  const entry = renderEntry({
+    date: today,
+    pr: args.pr,
+    sha,
+    result,
+    migrationNote,
+    verdict: verdict.line,
+  });
   if (args.json)
     log(
       JSON.stringify(
@@ -297,12 +471,13 @@ export function main(
           ...facts,
           input: { ...facts.input, files: facts.input.files.map(({ patch: _patch, ...f }) => f) },
           result,
+          verdict,
         },
         null,
         2,
       ),
     );
-  else log(entry);
+  else log(`${verdict.line}\n\n${entry}`);
   if (facts.unmapped.length)
     log(
       `Unmapped code files (counted as core; add them to ${MAP_PATH}): ${facts.unmapped.join(', ')}`,
@@ -323,12 +498,12 @@ export function main(
     );
     log(`Wrote ${facts.logPath} and ${INDEX}. Commit only these files.`);
   }
-  return result;
+  return { ...result, verdict };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
-    main(process.argv.slice(2));
+    if (main(process.argv.slice(2))?.verdict.ok === false) process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

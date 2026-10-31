@@ -9,10 +9,11 @@ const INDEX_HEAD = '| Date | PR | Commit | Tier | Score | Decision | Log |';
 const sign = (n) => (n > 0 ? `+${n}` : String(n));
 
 /** One log entry; the same Markdown is the PR comment. */
-export function renderEntry({ date, pr, sha, result, migrationNote = '' }) {
+export function renderEntry({ date, pr, sha, result, migrationNote = '', verdict = '' }) {
   const lines = [
     `## ${date} · PR #${pr} · \`${sha}\` · ${result.decision} (${result.score})`,
     '',
+    ...(verdict ? [`**${verdict}**`, ''] : []),
     `Tier **${result.tier}**, set by: ${result.tierFiles.slice(0, 8).join(', ') || '—'}` +
       (result.tierFiles.length > 8 ? ` and ${result.tierFiles.length - 8} more` : ''),
     '',
@@ -35,6 +36,16 @@ export function renderEntry({ date, pr, sha, result, migrationNote = '' }) {
 
 export const renderApproval = ({ date, pr, sha, quote }) =>
   [`## ${date} · PR #${pr} · \`${sha}\` · approved by the owner`, '', `> ${quote}`, ''].join('\n');
+
+/** Short commits the owner approved for PR `pr` in a review log, oldest first. */
+export const approvalsIn = (markdown, pr) =>
+  [
+    ...(markdown ?? '').matchAll(
+      /^## \S+ · PR #(\d+) · `([0-9a-f]{7,40})` · approved by the owner$/gm,
+    ),
+  ]
+    .filter((m) => Number(m[1]) === pr)
+    .map((m) => m[2]);
 
 export const indexRow = ({ date, pr, sha, tier, score, decision, logPath }) =>
   `| ${date} | #${pr} | \`${sha}\` | ${tier} | ${score} | ${decision} | ${logPath} |`;
