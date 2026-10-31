@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ErrorState } from './adminUi';
+import { SafetyReportSection } from './SafetyReport';
 import {
   ChartCard,
   DailyChart,
@@ -230,6 +231,7 @@ function ReportBody({ report }: { report: Report }) {
         </ChartCard>
       </div>
       <Team report={report} />
+      <SafetyReportSection days={report.days} />
     </>
   );
 }

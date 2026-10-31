@@ -10,7 +10,8 @@
     "settings": "设置",
     "audit": "审计日志",
     "connectors": "连接器",
-    "reports": "报表"
+    "reports": "报表",
+    "safety": "安全"
   },
   "layout": {
     "inbox": "收件箱",
@@ -206,7 +207,15 @@
       "inboxAccessUpdate": "已更改收件箱权限",
       "aiAgentCreate": "已创建 AI 客服",
       "aiAgentDelete": "已删除 AI 客服",
-      "aiAgentInboxUpdate": "已更改 AI 客服的收件箱"
+      "aiAgentInboxUpdate": "已更改 AI 客服的收件箱",
+      "safetySettings": "已更改 WhatsApp 安全设置",
+      "safetySafe": "标记的消息已标为安全",
+      "safetyRelease": "已为团队解锁文件",
+      "safetyDelete": "已删除锁定的文件",
+      "safetyReport": "号码已被举报为诈骗",
+      "safetyBlock": "号码已被屏蔽",
+      "safetyUnblock": "号码已解除屏蔽",
+      "safetyAutoBlock": "号码已被自动屏蔽"
     },
     "fields": {
       "chat": "对话",
@@ -1947,6 +1956,174 @@
       "inGroup": "在群组中",
       "lookupsOnly": "在群组中 {{name}} 只查询信息；由同事完成预约。",
       "notSent": "不会向群组发送任何消息。"
+    }
+  },
+  "safety": {
+    "title": "WhatsApp 安全",
+    "description": "提醒你的团队注意危险文件和诈骗消息。",
+    "offNotice": "WhatsApp 安全已关闭，消息不会被检查。",
+    "stats": {
+      "toReview": "待处理",
+      "filesLocked": "已锁定文件",
+      "blocked": "已屏蔽号码"
+    },
+    "tabs": {
+      "flagged": "已标记",
+      "blocked": "已屏蔽",
+      "settings": "设置"
+    },
+    "level": {
+      "none": "无风险",
+      "warning": "需检查",
+      "high": "高风险"
+    },
+    "filter": {
+      "label": "显示",
+      "open": "待处理",
+      "all": "全部"
+    },
+    "empty": {
+      "open": "没有待处理的项目。",
+      "all": "还没有标记的消息。",
+      "blocked": "没有屏蔽的号码。"
+    },
+    "status": {
+      "open": "待处理",
+      "safe": "已标为安全",
+      "reported": "已举报",
+      "blocked": "已屏蔽",
+      "cleared": "AI 判定无风险"
+    },
+    "chip": {
+      "autoBlocked": "自动屏蔽",
+      "maybeHacked": "客户可能被盗号",
+      "locked": "文件已锁定",
+      "downloadedBy": "{{names}} 已下载"
+    },
+    "sender": {
+      "customer": "现有客户",
+      "new": "新号码",
+      "group": "群组成员"
+    },
+    "sheet": {
+      "hackedNote": "这是现有客户。他们的 WhatsApp 可能被盗，所以没有屏蔽。请打电话确认。",
+      "what": "对方发送的内容",
+      "inside": "ZIP 里面：{{names}}",
+      "fileDeleted": "文件已删除。",
+      "fileDeletedBy": "文件已被 {{name}} 删除。",
+      "fileLocked": "文件已锁定，团队无法下载。",
+      "fileOpen": "文件未锁定。",
+      "why": "标记原因",
+      "ai": "AI 检查：{{level}}。{{reason}}",
+      "aiNone": "此消息没有经过 AI 检查。",
+      "team": "你的团队",
+      "noDownloads": "没有人下载。",
+      "downloaded": "{{name}} 已下载 · {{time}}",
+      "refused": "{{name}} 尝试下载（已锁定）· {{time}}",
+      "file": "文件"
+    },
+    "actions": {
+      "trust": "信任此发件人的这类消息",
+      "safe": "标为安全",
+      "report": "举报为诈骗",
+      "unblock": "解除屏蔽",
+      "block": "屏蔽号码",
+      "release": "为团队解锁文件",
+      "delete": "删除文件",
+      "openChat": "打开聊天"
+    },
+    "done": {
+      "safe": "已标为安全。",
+      "release": "已为团队解锁文件。",
+      "delete": "文件已删除。",
+      "report": "已举报为诈骗。",
+      "block": "号码已屏蔽。",
+      "unblock": "已解除屏蔽。"
+    },
+    "deleteTitle": "删除此文件？",
+    "deleteBody": "消息会保留，文件将永久删除。",
+    "report": {
+      "title": "举报 {{name}}？",
+      "confirm": "举报",
+      "scam": "整个团队都会在此号码上看到诈骗提醒。",
+      "block": "屏蔽此号码",
+      "cannotBlock": "此号码现在无法屏蔽",
+      "whatsappTitle": "也告诉 WhatsApp",
+      "whatsappPhone": "在已链接的手机上：打开此聊天，点按名字，再点「举报」。",
+      "whatsappApi": "Business API 号码无法向 WhatsApp 举报，但仍可屏蔽。",
+      "nsrc": "被骗钱？立即拨打 NSRC 997。",
+      "cyber999": "恶意软件？向 Cyber999（MyCERT）举报。"
+    },
+    "blockedBy": {
+      "auto": "自动屏蔽 · {{time}}",
+      "admin": "{{name}} 屏蔽 · {{time}}",
+      "unknown": "已屏蔽 · {{time}}"
+    },
+    "settings": {
+      "title": "设置",
+      "description": "检查在这台电脑上进行。不会外传，除非开启 AI 检查（发送给你的 AI）。",
+      "saved": "已保存。",
+      "enabled": "检查收到的消息",
+      "enabledHint": "提醒你的团队注意危险文件和诈骗消息。",
+      "ai": "AI 检查",
+      "aiHint": "用你的 AI 连接找出规则漏掉的诈骗。",
+      "aiNotConnected": "先连接 AI（设置 > AI）才能使用。在此之前规则仍会检查每条消息。",
+      "autoBlock": "自动屏蔽新号码",
+      "autoBlockHint": "屏蔽发送隐藏程序的新号码。认识的客户只会收到提醒，不会被屏蔽。",
+      "days": "锁定文件保留",
+      "daysHint": "锁定的文件先保留供检查，之后删除。",
+      "daysOption": "{{days}} 天"
+    }
+  },
+  "safetyReport": {
+    "title": "WhatsApp 安全",
+    "open": "打开安全页面",
+    "off": "WhatsApp 安全已关闭，没有进行任何检查。",
+    "up": "比前 {{days}} 天 +{{pct}}%",
+    "down": "比前 {{days}} 天 −{{pct}}%",
+    "dangerousFiles": "危险文件",
+    "dangerousFilesHint": "程序和加密文件",
+    "scamMessages": "诈骗消息",
+    "scamMessagesHint": "假链接和付款骗局",
+    "riskyDownloads": "高风险下载",
+    "riskyDownloadsHint": "团队下载 · {{n}} 次被锁定拦截",
+    "numbersBlocked": "已屏蔽号码",
+    "numbersBlockedHint": "{{n}} 个自动屏蔽",
+    "maybeHacked": "可能被盗号的客户",
+    "maybeHackedHint": "发来危险文件的熟客",
+    "falseAlarms": "误报",
+    "falseAlarmsHint": "{{total}} 条中有 {{n}} 条被标为安全或由 AI 判定无风险",
+    "dailyTitle": "每日标记的消息",
+    "dailyFinding": "最多在 {{date}}：标记 {{n}} 条。",
+    "dailyNone": "此期间没有标记的消息。",
+    "kindsTitle": "拦截了什么",
+    "kindsFinding": "最常见：{{kind}}。",
+    "kind": {
+      "hiddenProgram": "藏在文件里的程序",
+      "fakeLink": "假银行或登录链接",
+      "paymentTrick": "付款或财务骗局",
+      "lockedArchive": "带密码的加密文件",
+      "macroFile": "含宏的文件",
+      "scamNumber": "被举报为诈骗的号码",
+      "other": "其他"
+    },
+    "teamTitle": "谁打开了高风险文件",
+    "teamFinding": "提醒下载过高风险文件的同事：不要打开陌生号码的文件。",
+    "teamNone": "没有人尝试打开高风险文件。",
+    "colTeammate": "同事",
+    "colRisky": "高风险下载",
+    "colRefused": "被锁定拦截",
+    "sendersTitle": "发送最多的号码",
+    "sendersFinding": "屏蔽或举报仍待处理的号码。",
+    "colSender": "发件人",
+    "colFlagged": "标记数",
+    "colStatus": "状态",
+    "senderStatus": {
+      "blocked": "已屏蔽",
+      "reported": "已举报",
+      "maybeHacked": "可能被盗号",
+      "open": "待处理",
+      "done": "已处理"
     }
   }
 }

@@ -9,6 +9,8 @@ const query = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
   days: [] as number[],
 }));
+// The WhatsApp Safety section has its own test (SafetyReport.test.tsx).
+vi.mock('./SafetyReport', () => ({ SafetyReportSection: () => null }));
 vi.mock('../api/queries', () => ({
   useReport: (days: number) => {
     query.days.push(days);

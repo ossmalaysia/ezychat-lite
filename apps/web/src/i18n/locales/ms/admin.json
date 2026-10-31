@@ -10,7 +10,8 @@
     "settings": "Tetapan",
     "audit": "Audit",
     "connectors": "Penyambung",
-    "reports": "Laporan"
+    "reports": "Laporan",
+    "safety": "Keselamatan"
   },
   "layout": {
     "inbox": "Peti masuk",
@@ -206,7 +207,15 @@
       "inboxAccessUpdate": "Akses peti masuk ditukar",
       "aiAgentCreate": "Ejen AI dicipta",
       "aiAgentDelete": "Ejen AI dipadam",
-      "aiAgentInboxUpdate": "Peti masuk ejen AI ditukar"
+      "aiAgentInboxUpdate": "Peti masuk ejen AI ditukar",
+      "safetySettings": "Tetapan Keselamatan WhatsApp diubah",
+      "safetySafe": "Mesej ditanda ditanda selamat",
+      "safetyRelease": "Fail dikunci dibuka untuk pasukan",
+      "safetyDelete": "Fail dikunci dipadam",
+      "safetyReport": "Nombor dilaporkan sebagai penipuan",
+      "safetyBlock": "Nombor disekat",
+      "safetyUnblock": "Nombor dinyahsekat",
+      "safetyAutoBlock": "Nombor disekat secara automatik"
     },
     "fields": {
       "chat": "Sembang",
@@ -1948,6 +1957,174 @@
       "inGroup": "Dalam kumpulan",
       "lookupsOnly": "Dalam kumpulan {{name}} hanya menyemak maklumat; rakan sepasukan membuat tempahan.",
       "notSent": "Tiada apa-apa dihantar ke kumpulan."
+    }
+  },
+  "safety": {
+    "title": "Keselamatan WhatsApp",
+    "description": "Memberi amaran kepada pasukan anda tentang fail berisiko dan mesej penipuan.",
+    "offNotice": "Keselamatan WhatsApp dimatikan. Mesej tidak disemak.",
+    "stats": {
+      "toReview": "Perlu disemak",
+      "filesLocked": "Fail dikunci",
+      "blocked": "Nombor disekat"
+    },
+    "tabs": {
+      "flagged": "Ditanda",
+      "blocked": "Disekat",
+      "settings": "Tetapan"
+    },
+    "level": {
+      "none": "Tiada risiko",
+      "warning": "Semak",
+      "high": "Risiko tinggi"
+    },
+    "filter": {
+      "label": "Tunjuk",
+      "open": "Perlu disemak",
+      "all": "Semua"
+    },
+    "empty": {
+      "open": "Tiada apa-apa untuk disemak.",
+      "all": "Belum ada yang ditanda.",
+      "blocked": "Tiada nombor disekat."
+    },
+    "status": {
+      "open": "Perlu disemak",
+      "safe": "Ditanda selamat",
+      "reported": "Dilaporkan",
+      "blocked": "Disekat",
+      "cleared": "Dilepaskan oleh AI"
+    },
+    "chip": {
+      "autoBlocked": "Disekat automatik",
+      "maybeHacked": "Pelanggan mungkin digodam",
+      "locked": "Fail dikunci",
+      "downloadedBy": "Dimuat turun oleh {{names}}"
+    },
+    "sender": {
+      "customer": "Pelanggan sedia ada",
+      "new": "Nombor baharu",
+      "group": "Ahli kumpulan"
+    },
+    "sheet": {
+      "hackedNote": "Ini pelanggan sedia ada. WhatsApp mereka mungkin digodam, jadi mereka tidak disekat. Telefon mereka untuk menyemak.",
+      "what": "Apa yang dihantar",
+      "inside": "Dalam ZIP: {{names}}",
+      "fileDeleted": "Fail dipadam.",
+      "fileDeletedBy": "Fail dipadam oleh {{name}}.",
+      "fileLocked": "Fail dikunci. Pasukan anda tidak boleh memuat turunnya.",
+      "fileOpen": "Fail tidak dikunci.",
+      "why": "Sebab ditanda",
+      "ai": "Semakan AI: {{level}}. {{reason}}",
+      "aiNone": "Tiada semakan AI untuk mesej ini.",
+      "team": "Pasukan anda",
+      "noDownloads": "Tiada sesiapa memuat turunnya.",
+      "downloaded": "{{name}} memuat turunnya · {{time}}",
+      "refused": "{{name}} cuba memuat turunnya (dikunci) · {{time}}",
+      "file": "Fail"
+    },
+    "actions": {
+      "trust": "Percayai pengirim ini untuk mesej jenis ini",
+      "safe": "Tanda selamat",
+      "report": "Laporkan penipuan",
+      "unblock": "Nyahsekat",
+      "block": "Sekat nombor",
+      "release": "Buka kunci fail untuk pasukan",
+      "delete": "Padam fail",
+      "openChat": "Buka sembang"
+    },
+    "done": {
+      "safe": "Ditanda selamat.",
+      "release": "Fail dibuka untuk pasukan anda.",
+      "delete": "Fail dipadam.",
+      "report": "Dilaporkan sebagai penipuan.",
+      "block": "Nombor disekat.",
+      "unblock": "Nombor dinyahsekat."
+    },
+    "deleteTitle": "Padam fail ini?",
+    "deleteBody": "Mesej kekal. Fail hilang selama-lamanya.",
+    "report": {
+      "title": "Laporkan {{name}}?",
+      "confirm": "Laporkan",
+      "scam": "Seluruh pasukan anda akan melihat amaran penipuan pada nombor ini.",
+      "block": "Sekat nombor",
+      "cannotBlock": "Nombor ini tidak boleh disekat sekarang",
+      "whatsappTitle": "Beritahu WhatsApp juga",
+      "whatsappPhone": "Di telefon terpaut: buka sembang ini, ketik nama, kemudian Laporkan.",
+      "whatsappApi": "Nombor Business API tidak boleh melapor kepada WhatsApp. Sekatan tetap berfungsi.",
+      "nsrc": "Hilang wang? Hubungi NSRC di 997 segera.",
+      "cyber999": "Perisian hasad? Laporkan kepada Cyber999 (MyCERT)."
+    },
+    "blockedBy": {
+      "auto": "Disekat automatik · {{time}}",
+      "admin": "Disekat oleh {{name}} · {{time}}",
+      "unknown": "Disekat · {{time}}"
+    },
+    "settings": {
+      "title": "Tetapan",
+      "description": "Semakan dibuat di komputer ini. Tiada apa-apa dihantar keluar, kecuali kepada AI anda apabila semakan AI dihidupkan.",
+      "saved": "Disimpan.",
+      "enabled": "Semak mesej masuk",
+      "enabledHint": "Memberi amaran kepada pasukan anda tentang fail berisiko dan mesej penipuan.",
+      "ai": "Semakan AI",
+      "aiHint": "Menggunakan sambungan AI anda untuk mengesan penipuan yang terlepas daripada peraturan.",
+      "aiNotConnected": "Sambungkan AI (Tetapan > AI) untuk menggunakannya. Sebelum itu peraturan tetap menyemak setiap mesej.",
+      "autoBlock": "Sekat nombor baharu secara automatik",
+      "autoBlockHint": "Menyekat nombor baharu yang menghantar program tersembunyi. Pelanggan yang anda kenal diberi amaran, tidak disekat.",
+      "days": "Padam fail dikunci selepas",
+      "daysHint": "Fail dikunci disimpan untuk disemak, kemudian dipadam.",
+      "daysOption": "{{days}} hari"
+    }
+  },
+  "safetyReport": {
+    "title": "Keselamatan WhatsApp",
+    "open": "Buka Keselamatan",
+    "off": "Keselamatan WhatsApp dimatikan, jadi tiada apa-apa disemak.",
+    "up": "+{{pct}}% berbanding {{days}} hari sebelumnya",
+    "down": "−{{pct}}% berbanding {{days}} hari sebelumnya",
+    "dangerousFiles": "Fail berbahaya",
+    "dangerousFilesHint": "Program dan fail berkunci",
+    "scamMessages": "Mesej penipuan",
+    "scamMessagesHint": "Pautan palsu dan helah bayaran",
+    "riskyDownloads": "Muat turun berisiko",
+    "riskyDownloadsHint": "Dimuat turun oleh pasukan anda · {{n}} dihalang oleh kunci",
+    "numbersBlocked": "Nombor disekat",
+    "numbersBlockedHint": "{{n}} secara automatik",
+    "maybeHacked": "Pelanggan mungkin digodam",
+    "maybeHackedHint": "Pelanggan dikenali yang menghantar fail berbahaya",
+    "falseAlarms": "Amaran palsu",
+    "falseAlarmsHint": "{{n}} daripada {{total}} ditanda selamat atau dilepaskan oleh AI",
+    "dailyTitle": "Mesej ditanda setiap hari",
+    "dailyFinding": "Paling banyak pada {{date}}: {{n}} ditanda.",
+    "dailyNone": "Tiada yang ditanda dalam tempoh ini.",
+    "kindsTitle": "Apa yang dikesan",
+    "kindsFinding": "Paling biasa: {{kind}}.",
+    "kind": {
+      "hiddenProgram": "Program tersembunyi dalam fail",
+      "fakeLink": "Pautan bank atau log masuk palsu",
+      "paymentTrick": "Helah bayaran atau kewangan",
+      "lockedArchive": "Fail berkunci dengan kata laluan",
+      "macroFile": "Fail dengan makro",
+      "scamNumber": "Nombor dilaporkan penipuan",
+      "other": "Lain-lain"
+    },
+    "teamTitle": "Siapa membuka fail berisiko",
+    "teamFinding": "Ingatkan sesiapa yang memuat turun fail berisiko supaya tidak membuka fail daripada nombor tidak dikenali.",
+    "teamNone": "Tiada sesiapa cuba membuka fail berisiko.",
+    "colTeammate": "Ahli pasukan",
+    "colRisky": "Muat turun berisiko",
+    "colRefused": "Dihalang oleh kunci",
+    "sendersTitle": "Nombor yang paling banyak menghantar",
+    "sendersFinding": "Sekat atau laporkan nombor yang masih terbuka.",
+    "colSender": "Pengirim",
+    "colFlagged": "Ditanda",
+    "colStatus": "Status",
+    "senderStatus": {
+      "blocked": "Disekat",
+      "reported": "Dilaporkan",
+      "maybeHacked": "Mungkin digodam",
+      "open": "Perlu disemak",
+      "done": "Disemak"
     }
   }
 }

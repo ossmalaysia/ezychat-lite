@@ -40,6 +40,7 @@ export interface WebExtensionRoute {
 /** Core admin sections an extension admin route may sit under (the `ADMIN_NAV` paths). */
 export const WEB_EXTENSION_ADMIN_SECTIONS = [
   'reports',
+  'safety',
   'members',
   'quick-replies',
   'connectors',

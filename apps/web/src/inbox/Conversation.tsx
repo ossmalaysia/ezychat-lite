@@ -60,6 +60,7 @@ import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { ReplyWindowNote, WindowClosedPanel } from './ReplyWindow';
+import { SafetyChatBar } from './SafetyMessage';
 import { useReplyWindowHours, useWindowClosed } from './reply-window';
 
 export interface ConversationProps {
@@ -366,6 +367,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setNotesOpen(false);
           }}
         />
+        <SafetyChatBar jid={jid} />
         {startedByAssistant && (
           <Banner
             tone="warning"

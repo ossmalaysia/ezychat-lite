@@ -12,6 +12,7 @@ import {
   Puzzle,
   ScrollText,
   Settings,
+  ShieldAlert,
   Smartphone,
   Globe,
   Users,
@@ -64,6 +65,7 @@ import { AuditPage } from './AuditPage';
 import { ConnectorDetailPage } from './connectors/ConnectorDetailPage';
 import { ConnectorsGalleryPage } from './connectors/ConnectorsGalleryPage';
 import { ReportsPage } from './ReportsPage';
+import { SafetyPage } from './SafetyPage';
 import { ListSkeleton } from './adminUi';
 import { InboxesPage } from './InboxesPage';
 import { MembersPage } from './MembersPage';
@@ -79,6 +81,8 @@ import { WhatsAppPage } from './WhatsAppPage';
 export const ADMIN_NAV = [
   // First: the page an owner opens most (design: docs/features/reports/design.md).
   { to: 'reports', labelKey: 'nav.reports', icon: BarChart3 },
+  // WhatsApp Safety: next to Reports, the page an owner opens after an alert.
+  { to: 'safety', labelKey: 'nav.safety', icon: ShieldAlert },
   { to: 'members', labelKey: 'nav.members', icon: Users },
   { to: 'quick-replies', labelKey: 'nav.quickReplies', icon: MessageSquareText },
   { to: 'connectors', labelKey: 'nav.connectors', icon: Plug },
@@ -435,6 +439,7 @@ export function AdminLayout() {
           <Routes>
             <Route index element={<Navigate to="/admin/members" replace />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="safety" element={<SafetyPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/ai" element={<AiAgentIndexRoute />} />
             <Route path="members/ai/new" element={<AiMemberPage />} />
