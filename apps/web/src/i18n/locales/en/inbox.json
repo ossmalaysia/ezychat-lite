@@ -841,7 +841,7 @@
       "scamNumber": "Your team reported this number as a scam.",
       "cantInspect": "Locked file: it can't be checked.",
       "macroFile": "File with macros (can run code).",
-      "passwordInMessage": "Password sent with the file.",
+      "unlockCodeInMessage": "Password sent with the file.",
       "openOnComputer": "Asks you to open it on a computer.",
       "lookalikeLink": "Link hides where it really goes.",
       "financeUrgency": "Urgent payment or finance request.",

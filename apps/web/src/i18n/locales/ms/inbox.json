@@ -837,7 +837,7 @@
       "scamNumber": "Pasukan anda melaporkan nombor ini sebagai penipuan.",
       "cantInspect": "Fail berkunci: tidak boleh disemak.",
       "macroFile": "Fail dengan makro (boleh jalankan kod).",
-      "passwordInMessage": "Kata laluan dihantar bersama fail.",
+      "unlockCodeInMessage": "Kata laluan dihantar bersama fail.",
       "openOnComputer": "Minta anda buka di komputer.",
       "lookalikeLink": "Pautan menyembunyikan destinasi sebenar.",
       "financeUrgency": "Permintaan bayaran atau kewangan segera.",

@@ -837,7 +837,7 @@
       "scamNumber": "你的团队已将此号码报告为诈骗。",
       "cantInspect": "加密文件：无法检查。",
       "macroFile": "含宏的文件（可运行代码）。",
-      "passwordInMessage": "密码和文件一起发送。",
+      "unlockCodeInMessage": "密码和文件一起发送。",
       "openOnComputer": "要求你在电脑上打开。",
       "lookalikeLink": "链接隐藏了真正的去向。",
       "financeUrgency": "紧急付款或财务请求。",

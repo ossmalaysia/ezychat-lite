@@ -64,7 +64,7 @@ describe('names and magic bytes', () => {
   it('spots fake double extensions and bidi tricks, not ordinary names', () => {
     expect(isDisguisedName('Statement_of_Account.pdf.vbs')).toBe(true);
     expect(isDisguisedName('invoice.pdf   .exe')).toBe(true);
-    expect(isDisguisedName('photo‮gpj.exe')).toBe(true);
+    expect(isDisguisedName('photo\u202egpj.exe')).toBe(true);
     expect(isDisguisedName('report.final.pdf')).toBe(false);
     expect(isDisguisedName('setup.exe')).toBe(false);
   });
@@ -182,9 +182,9 @@ describe('checkMessage', () => {
       'financeUrgency',
     ]);
     expect(checkMessage({ ...base, text: 'Quotation attached. Password: 2026' })).toEqual([
-      'passwordInMessage',
+      'unlockCodeInMessage',
     ]);
-    expect(checkMessage({ ...base, text: '文件密码：8899' })).toEqual(['passwordInMessage']);
+    expect(checkMessage({ ...base, text: '文件密码：8899' })).toEqual(['unlockCodeInMessage']);
   });
 
   it('leaves ordinary messages alone and adds "first file" only next to another finding', () => {
@@ -214,7 +214,7 @@ describe('decide and auto-block', () => {
       level: 'none',
     });
     expect(decide(['macroFile'], null).level).toBe('warning');
-    expect(decide(['cantInspect', 'passwordInMessage'], null).level).toBe('high');
+    expect(decide(['cantInspect', 'unlockCodeInMessage'], null).level).toBe('high');
   });
 
   it('lets the AI raise or confirm, lower only a rules-only Warning, never a critical or High result', () => {
@@ -222,7 +222,7 @@ describe('decide and auto-block', () => {
     expect(decide(['macroFile'], ai('none')).level).toBe('none');
     expect(decide(['macroFile'], ai('warning')).level).toBe('warning');
     expect(decide(['exeInZip'], ai('none')).level).toBe('high');
-    expect(decide(['cantInspect', 'passwordInMessage'], ai('none')).level).toBe('high');
+    expect(decide(['cantInspect', 'unlockCodeInMessage'], ai('none')).level).toBe('high');
   });
 
   it('auto-blocks only a live critical message from a new number outside groups, when switched on', () => {
@@ -240,7 +240,7 @@ describe('decide and auto-block', () => {
     expect(shouldAutoBlock({ ...yes, group: true })).toBe(false);
     expect(shouldAutoBlock({ ...yes, live: false })).toBe(false);
     expect(
-      shouldAutoBlock({ ...yes, decision: decide(['cantInspect', 'passwordInMessage'], null) }),
+      shouldAutoBlock({ ...yes, decision: decide(['cantInspect', 'unlockCodeInMessage'], null) }),
     ).toBe(false);
   });
 });

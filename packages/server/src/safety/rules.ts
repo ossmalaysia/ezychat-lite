@@ -92,7 +92,7 @@ const ARCHIVE_UNREADABLE_EXT = new Set([
 ]);
 
 /** Right-to-left override and similar controls that make `exe.pdf` show as `fdp.exe`. */
-const BIDI = /[‪-‮⁦-⁩‎‏]/;
+const BIDI = /[\u202a-\u202e\u2066-\u2069\u200e\u200f]/;
 
 const ext = (name: string) => {
   const m = /\.([a-z0-9]{1,8})$/i.exec(name.trim());
@@ -254,7 +254,7 @@ export function isLookalikeLink(raw: string): boolean {
 function textRules(text: string, out: Set<SafetyRule>): void {
   if (FINANCE.some((r) => r.test(text))) out.add('financeUrgency');
   if (OPEN_ON_COMPUTER.test(text)) out.add('openOnComputer');
-  if (PASSWORD.test(text)) out.add('passwordInMessage');
+  if (PASSWORD.test(text)) out.add('unlockCodeInMessage');
   for (const m of text.matchAll(LINK))
     if (isLookalikeLink(m[0])) {
       out.add('lookalikeLink');
@@ -271,7 +271,7 @@ const ORDER: SafetyRule[] = [
   'lookalikeLink',
   'cantInspect',
   'macroFile',
-  'passwordInMessage',
+  'unlockCodeInMessage',
   'openOnComputer',
   'financeUrgency',
   'firstFile',
