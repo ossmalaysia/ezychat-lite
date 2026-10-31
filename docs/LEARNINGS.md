@@ -127,6 +127,10 @@ into AGENTS.md.
 - Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
   both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
   parallel feature's screens the next clone must add.
+- A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
+  (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
+  no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
+  value it found in `finally`.
 
 ## Multi-agent process
 
