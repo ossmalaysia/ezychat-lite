@@ -108,6 +108,14 @@ for (const scheme of ['light', 'dark'])
       await p.getByTestId('safety-settings').waitFor();
     });
 
+    await run(suffix, p, 'report-safety', async () => {
+      await p.goto('/admin/reports');
+      const section = p.getByTestId('report-safety');
+      await section.waitFor();
+      await p.getByTestId('safety-risky-downloads').waitFor();
+      await section.scrollIntoViewIfNeeded();
+      await section.screenshot({ path: join(OUT, `report-safety-full-${suffix}.png`) });
+    });
     await run(suffix, p, 'chat-zip-admin', async () => {
       await p.goto(chat('601123456789'));
       await p.getByTestId('safety-notice').waitFor();

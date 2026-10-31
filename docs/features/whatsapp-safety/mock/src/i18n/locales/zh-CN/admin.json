@@ -2135,5 +2135,51 @@
       "lockedArchive": "加密 RAR + 密码",
       "falseAlarm": "正常的付款问题"
     }
+  },
+  "mockSafetyReport": {
+    "title": "WhatsApp 安全",
+    "open": "打开安全页面",
+    "off": "WhatsApp 安全已关闭，没有进行任何检查。",
+    "vs": "比前 {{count}} 天 {{sign}}{{pct}}%",
+    "dangerousFiles": "危险文件",
+    "dangerousFilesHint": "程序和加密文件",
+    "scamMessages": "诈骗消息",
+    "scamMessagesHint": "假链接和付款骗局",
+    "riskyDownloads": "高风险下载",
+    "riskyDownloadsHint": "团队下载 · {{count}} 次被锁定拦截",
+    "numbersBlocked": "已屏蔽号码",
+    "numbersBlockedHint": "{{count}} 个自动屏蔽",
+    "maybeHacked": "可能被盗号的客户",
+    "maybeHackedHint": "发来危险文件的熟客",
+    "falseAlarms": "误报",
+    "falseAlarmsHint": "{{total}} 条中有 {{count}} 条被标为安全或由 AI 判定无风险",
+    "dailyTitle": "每日标记的消息",
+    "dailyFinding": "最多在 {{date}}：标记 {{count}} 条。",
+    "dailyNone": "此期间没有标记的消息。",
+    "kindsTitle": "拦截了什么",
+    "kindsFinding": "最常见：{{kind}}。",
+    "kind": {
+      "hiddenProgram": "藏在文件里的程序",
+      "fakeLink": "假银行或登录链接",
+      "paymentTrick": "付款或财务骗局",
+      "lockedArchive": "带密码的加密文件",
+      "macroFile": "含宏的文件"
+    },
+    "teamTitle": "谁打开了高风险文件",
+    "teamFinding": "提醒下载过高风险文件的同事：不要打开陌生号码的文件。",
+    "colTeammate": "同事",
+    "colRisky": "高风险下载",
+    "colRefused": "被锁定拦截",
+    "sendersTitle": "发送最多的号码",
+    "sendersFinding": "屏蔽或举报仍待处理的号码。",
+    "colSender": "发件人",
+    "colFlagged": "标记数",
+    "colStatus": "状态",
+    "senderStatus": {
+      "blocked": "已屏蔽",
+      "reported": "已举报",
+      "maybeHacked": "可能被盗号",
+      "open": "待处理"
+    }
   }
 }

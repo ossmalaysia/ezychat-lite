@@ -401,6 +401,102 @@ export function registerSafety(app: FastifyInstance, ctx: AppContext, wa: FakeWa
     if (item.status === 'blocked') item.status = scam.has(item.chatJid) ? 'reported' : 'open';
   });
 
+  /**
+   * Admin → Reports → WhatsApp Safety for 7, 30 or 90 days: a deterministic demo history (the
+   * install has run for 120 days) plus today's live items. Production: counted on request from
+   * `safety_items`, `safety_downloads` and `safety_numbers` in `reports/safety.ts`.
+   */
+  app.get('/api/mock/safety/report', { preHandler: requireAdmin(ctx) }, async (req) => {
+    const days = z.coerce
+      .number()
+      .pipe(z.union([z.literal(7), z.literal(30), z.literal(90)]))
+      .default(30)
+      .parse((req.query as { days?: string }).days);
+    const DAY = 86_400_000;
+    const today = new Date();
+    // One flagged message every couple of days; a ZIP-lure wave about two weeks ago.
+    const historyDay = (back: number) => {
+      const seed = (back * 9301 + 49297) % 233280;
+      const r = seed / 233280;
+      const wave = back >= 12 && back <= 16 ? 3 : 0;
+      return { high: Math.floor(r * 1.6) + wave, warning: Math.floor(((r * 7) % 1) * 2.2) };
+    };
+    const period = (offset: number) => {
+      const out = [];
+      for (let back = offset + days - 1; back >= offset; back--) {
+        const date = new Date(today.getTime() - back * DAY).toISOString().slice(0, 10);
+        const h = back === 0 ? { high: 0, warning: 0 } : historyDay(back);
+        if (back === 0)
+          for (const i of items)
+            if (i.level === 'high') h.high++;
+            else if (i.level === 'warning') h.warning++;
+        out.push({ date, ...h });
+      }
+      return out;
+    };
+    const daily = period(0);
+    const sum = (rows: typeof daily, k: 'high' | 'warning') => rows.reduce((s, d) => s + d[k], 0);
+    const high = sum(daily, 'high');
+    const warning = sum(daily, 'warning');
+    const share = (n: number, pct: number) => Math.round((n * pct) / 100);
+    const totals = (h: number, w: number, liveBlocked: number) => ({
+      dangerousFiles: share(h, 70),
+      scamMessages: h - share(h, 70) + share(w, 40),
+      riskyDownloads: days >= 30 ? 1 : 0,
+      refusedDownloads:
+        share(h, 25) +
+        items.flatMap((i) => i.history).filter((x) => x.action === 'downloadRefused').length,
+      numbersBlocked: share(h, 30) + liveBlocked,
+      autoBlocked: share(h, 10) + [...blocked.values()].filter((b) => b.auto).length,
+      maybeHacked: Math.max(1, share(h, 8)),
+      flagged: h + w,
+      falseAlarms:
+        share(w, 35) + items.filter((i) => i.status === 'safe' || i.status === 'cleared').length,
+    });
+    const before = period(days);
+    return {
+      days,
+      enabled: settings.enabled,
+      totals: totals(high, warning, blocked.size),
+      previous: totals(sum(before, 'high'), sum(before, 'warning'), 0),
+      daily,
+      kinds: [
+        { kind: 'hiddenProgram', count: share(high, 55) },
+        { kind: 'fakeLink', count: share(high, 25) + share(warning, 20) },
+        { kind: 'paymentTrick', count: share(warning, 40) },
+        { kind: 'lockedArchive', count: share(high, 12) },
+        { kind: 'macroFile', count: share(warning, 25) },
+      ]
+        .filter((k) => k.count > 0)
+        .sort((a, b) => b.count - a.count),
+      senders: [
+        ...items
+          .filter((i) => i.level === 'high')
+          .map((i) => ({
+            phone: i.phone,
+            name: i.senderName,
+            count: 1,
+            status: blocked.has(i.chatJid)
+              ? ('blocked' as const)
+              : scam.has(i.chatJid)
+                ? ('reported' as const)
+                : i.existingCustomer
+                  ? ('maybeHacked' as const)
+                  : ('open' as const),
+          })),
+        { phone: '+60 11-29918830', name: 'Finance Dept', count: 4, status: 'blocked' as const },
+        { phone: '+62 812-5550192', name: 'Courier Notice', count: 3, status: 'reported' as const },
+      ]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      team: [
+        { name: 'Daniel', riskyDownloads: days >= 30 ? 1 : 0, refused: 2 },
+        { name: 'Mei Ling', riskyDownloads: 0, refused: 1 },
+        { name: 'Aisyah', riskyDownloads: 0, refused: 0 },
+      ],
+    };
+  });
+
   // Mock only: deliver a scenario now (as if the message just arrived), from the Safety page.
   let runs = 0;
   app.post('/api/mock/safety/simulate', { preHandler: requireAdmin(ctx) }, async (req) => {

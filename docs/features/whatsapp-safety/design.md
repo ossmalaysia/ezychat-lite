@@ -124,6 +124,19 @@ release (no core patch).
 - **Report dialog**: scam mark, Block the number, Tell WhatsApp too (tip with three phone steps), NSRC 997, Cyber999.
 - **Settings**: Check incoming messages (on), AI check (on when an AI is connected; tip), Auto-block new numbers (off;
   tip), Delete locked files after 7/30/90 days (tip), Check files and links online (Enterprise).
+- **Admin → Reports → WhatsApp Safety** (owner request 2026-10-31, same 7 / 30 / 90 days, admins, every inbox):
+  - Tiles: **Dangerous files** (programs and locked files received), **Scam messages** (fake links, payment tricks),
+    **Risky downloads** (High-risk files the team downloaded; danger tone above 0; hint = downloads stopped by the
+    lock), **Numbers blocked** (hint: how many automatically), **Customers maybe hacked** (known customers who sent a
+    dangerous file; warning tone), **False alarms** (% of flagged marked safe or cleared by AI: tells the admin
+    whether the checks are too strict). Counts carry "vs previous N days" like the other tiles.
+  - Charts: **Flagged messages per day** (stacked High / Check, Show as table), **What was caught** (ranked kinds:
+    program hidden in a file, fake bank or login link, payment or finance trick, locked file with a password, file
+    with macros), **Who opened risky files** (teammate, risky downloads, stopped by lock), **Numbers that sent the
+    most** (name, number, flagged, status Blocked / Reported / May be hacked / To review).
+  - Off: one line "WhatsApp Safety is off, so nothing was checked." Link **Open Safety** to Admin → Safety.
+  - Not shown (decided): median time to review (little use for a small team), per-inbox split (the Inbox filter of
+    Reports applies once multi-inbox reports exist), money lost (the app cannot know it).
 - Mock only (dashed box): simulate each demo message arriving; the toast stands in for the admin push alert.
 
 ## Baseline
@@ -143,10 +156,11 @@ release (no core patch).
 - Changed: `src/admin/AdminLayout.tsx` (nav + route), `src/inbox/MessageBubble.tsx` (banner, checked file),
   `src/inbox/Conversation.tsx` (chat bar), `src/lib/tips.ts` (four tips),
   `src/i18n/locales/{en,ms,zh-CN}/{admin,inbox,common}.json` (`mockSafety.*`, `mockTips.*`).
-- Added: `src/admin/SafetyPage.tsx`, `src/inbox/SafetyMessage.tsx`, `src/mock/safety.ts`.
+- Added: `src/admin/SafetyPage.tsx`, `src/admin/SafetyReport.tsx` (Reports section), `src/inbox/SafetyMessage.tsx`,
+  `src/mock/safety.ts`. Changed for Reports: `src/admin/ReportsPage.tsx`.
 - Runner: `safety.ts` (scenarios, `decide()`, routes `/api/mock/safety*`), `run.ts` (registers and seeds it, temp
   folder, ready line), `safety-shots.mjs` (added), shot-script usage paths, `reference.json`
-  (`snapshot.mjs --check` passes: 212 inherited files unchanged, 13 changed, 3 added).
+  (`snapshot.mjs --check` passes: 211 inherited files unchanged, 14 changed, 4 added).
 
 ## Screen checklist
 
@@ -163,8 +177,9 @@ release (no core patch).
 | Chat: fake bank link (text), macro file (Warning)                               | ✓            | ✓          | ✓     | ✓    |
 | Chat: hacked-customer bar                                                       | ✓            | ✓          | ✓     | ✓    |
 | Auto-block on: new number blocked, known customer not; Blocked tab; blocked bar | ✓            | —          | ✓     | —    |
+| Reports → WhatsApp Safety (tiles, per day, kinds, team, senders)                | ✓            | ✓          | ✓     | ✓    |
 
-`safety-shots.mjs`: 50 shots, 0 problems (no page errors, no horizontal overflow).
+`safety-shots.mjs`: 54 shots, 0 problems (no page errors, no horizontal overflow).
 
 ## Production plan (after confirmation)
 
@@ -179,6 +194,18 @@ release (no core patch).
 4. Enterprise: `wa-cloud` blocking; online reputation connector.
 5. Security review (no new listener; media serving and file parsing are the risk), unit tests ≥ 90 % changed lines,
    e2e round, Dev Build check, Baileys block smoke-test on a spare number.
+
+## Small decisions (delegated to Claude by the owner, 2026-10-31)
+
+- AI check runs only when a rule found something; daily cap 200 checks per inbox, then rules only (logged as a count).
+- Files larger than 25 MB skip the content check: name and type only (ZIP directory read up to 2,000 entries).
+- "Existing customer" = the team replied before, or a saved customer profile, or the chat is older than 7 days.
+- "Trust this sender" covers files or texts from that number only (not both), until an admin removes it on Safety.
+- Locked files are deleted after 30 days by default; deleting keeps the message and the Safety row.
+- Admin alert = the existing push to admins (`safety:high`), at most one per number per hour.
+- Group messages are checked and flagged; auto-block never applies to group members (blocking a member would not
+  remove them from the group).
+- History import (messages from before linking) is checked by rules only, never by the AI, and never auto-blocks.
 
 ## Answered questions (owner, 2026-10-31)
 

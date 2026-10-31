@@ -2136,5 +2136,51 @@
       "lockedArchive": "RAR berkunci + kata laluan",
       "falseAlarm": "Soalan bayaran biasa"
     }
+  },
+  "mockSafetyReport": {
+    "title": "Keselamatan WhatsApp",
+    "open": "Buka Keselamatan",
+    "off": "Keselamatan WhatsApp dimatikan, jadi tiada apa-apa disemak.",
+    "vs": "{{sign}}{{pct}}% berbanding {{count}} hari sebelumnya",
+    "dangerousFiles": "Fail berbahaya",
+    "dangerousFilesHint": "Program dan fail berkunci",
+    "scamMessages": "Mesej penipuan",
+    "scamMessagesHint": "Pautan palsu dan helah bayaran",
+    "riskyDownloads": "Muat turun berisiko",
+    "riskyDownloadsHint": "Dimuat turun oleh pasukan anda · {{count}} dihalang oleh kunci",
+    "numbersBlocked": "Nombor disekat",
+    "numbersBlockedHint": "{{count}} secara automatik",
+    "maybeHacked": "Pelanggan mungkin digodam",
+    "maybeHackedHint": "Pelanggan dikenali yang menghantar fail berbahaya",
+    "falseAlarms": "Amaran palsu",
+    "falseAlarmsHint": "{{count}} daripada {{total}} ditanda selamat atau dilepaskan oleh AI",
+    "dailyTitle": "Mesej ditanda setiap hari",
+    "dailyFinding": "Paling banyak pada {{date}}: {{count}} ditanda.",
+    "dailyNone": "Tiada yang ditanda dalam tempoh ini.",
+    "kindsTitle": "Apa yang dikesan",
+    "kindsFinding": "Paling biasa: {{kind}}.",
+    "kind": {
+      "hiddenProgram": "Program tersembunyi dalam fail",
+      "fakeLink": "Pautan bank atau log masuk palsu",
+      "paymentTrick": "Helah bayaran atau kewangan",
+      "lockedArchive": "Fail berkunci dengan kata laluan",
+      "macroFile": "Fail dengan makro"
+    },
+    "teamTitle": "Siapa membuka fail berisiko",
+    "teamFinding": "Ingatkan sesiapa yang memuat turun fail berisiko supaya tidak membuka fail daripada nombor tidak dikenali.",
+    "colTeammate": "Ahli pasukan",
+    "colRisky": "Muat turun berisiko",
+    "colRefused": "Dihalang oleh kunci",
+    "sendersTitle": "Nombor yang paling banyak menghantar",
+    "sendersFinding": "Sekat atau laporkan nombor yang masih terbuka.",
+    "colSender": "Pengirim",
+    "colFlagged": "Ditanda",
+    "colStatus": "Status",
+    "senderStatus": {
+      "blocked": "Disekat",
+      "reported": "Dilaporkan",
+      "maybeHacked": "Mungkin digodam",
+      "open": "Perlu disemak"
+    }
   }
 }

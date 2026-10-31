@@ -93,7 +93,8 @@
     "src/i18n/locales/ms/common.json",
     "src/i18n/locales/zh-CN/admin.json",
     "src/i18n/locales/zh-CN/inbox.json",
-    "src/i18n/locales/zh-CN/common.json"
+    "src/i18n/locales/zh-CN/common.json",
+    "src/admin/ReportsPage.tsx"
   ],
   "addedFrontend": [
     "src/admin/AgentBookingsCard.tsx",
@@ -147,12 +148,14 @@
     "src/mock/resolution.ts",
     "src/admin/SafetyPage.tsx",
     "src/inbox/SafetyMessage.tsx",
-    "src/mock/safety.ts"
+    "src/mock/safety.ts",
+    "src/admin/SafetyReport.tsx"
   ],
   "proposalAdded": [
     "src/admin/SafetyPage.tsx",
     "src/inbox/SafetyMessage.tsx",
-    "src/mock/safety.ts"
+    "src/mock/safety.ts",
+    "src/admin/SafetyReport.tsx"
   ],
   "baselineProposal": {
     "feature": "ai-handoff-rules",
@@ -565,10 +568,6 @@
     {
       "path": "src/admin/ReportCharts.tsx",
       "sha256": "cccc11d4e8141793f0c397f893c1062ecf99205586c78ff468303dcadc45b835"
-    },
-    {
-      "path": "src/admin/ReportsPage.tsx",
-      "sha256": "7c1f494420af5a0632f107cd07bc50dbc9eb020e5927a5d1c97c63ee082c2a96"
     },
     {
       "path": "src/admin/ResolveAllChatsCard.tsx",

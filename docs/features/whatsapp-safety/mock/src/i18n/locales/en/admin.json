@@ -2144,5 +2144,51 @@
       "lockedArchive": "Locked RAR + password",
       "falseAlarm": "Normal payment question"
     }
+  },
+  "mockSafetyReport": {
+    "title": "WhatsApp Safety",
+    "open": "Open Safety",
+    "off": "WhatsApp Safety is off, so nothing was checked.",
+    "vs": "{{sign}}{{pct}}% vs previous {{count}} days",
+    "dangerousFiles": "Dangerous files",
+    "dangerousFilesHint": "Programs and locked files",
+    "scamMessages": "Scam messages",
+    "scamMessagesHint": "Fake links and payment tricks",
+    "riskyDownloads": "Risky downloads",
+    "riskyDownloadsHint": "Downloaded by your team · {{count}} stopped by the lock",
+    "numbersBlocked": "Numbers blocked",
+    "numbersBlockedHint": "{{count}} automatically",
+    "maybeHacked": "Customers maybe hacked",
+    "maybeHackedHint": "Known customers who sent a dangerous file",
+    "falseAlarms": "False alarms",
+    "falseAlarmsHint": "{{count}} of {{total}} marked safe or cleared by AI",
+    "dailyTitle": "Flagged messages per day",
+    "dailyFinding": "Most on {{date}}: {{count}} flagged.",
+    "dailyNone": "Nothing flagged in this period.",
+    "kindsTitle": "What was caught",
+    "kindsFinding": "Most common: {{kind}}.",
+    "kind": {
+      "hiddenProgram": "Program hidden in a file",
+      "fakeLink": "Fake bank or login link",
+      "paymentTrick": "Payment or finance trick",
+      "lockedArchive": "Locked file with a password",
+      "macroFile": "File with macros"
+    },
+    "teamTitle": "Who opened risky files",
+    "teamFinding": "Remind anyone with a risky download not to open files from unknown numbers.",
+    "colTeammate": "Teammate",
+    "colRisky": "Risky downloads",
+    "colRefused": "Stopped by lock",
+    "sendersTitle": "Numbers that sent the most",
+    "sendersFinding": "Block or report the numbers still open.",
+    "colSender": "Sender",
+    "colFlagged": "Flagged",
+    "colStatus": "Status",
+    "senderStatus": {
+      "blocked": "Blocked",
+      "reported": "Reported",
+      "maybeHacked": "May be hacked",
+      "open": "To review"
+    }
   }
 }

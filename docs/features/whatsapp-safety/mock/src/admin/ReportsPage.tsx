@@ -18,6 +18,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ErrorState } from './adminUi';
+import { SafetyReportSection } from './SafetyReport';
 import {
   ChartCard,
   DailyChart,
@@ -230,6 +231,8 @@ function ReportBody({ report }: { report: Report }) {
         </ChartCard>
       </div>
       <Team report={report} />
+      {/* Proposed (whatsapp-safety): dangerous files, scam messages, risky downloads, blocks. */}
+      <SafetyReportSection days={report.days as 7 | 30 | 90} />
     </>
   );
 }

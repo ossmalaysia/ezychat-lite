@@ -187,3 +187,42 @@ export function useSimulate() {
     onSuccess: (result) => refresh(result.state),
   });
 }
+
+/** Admin → Reports → WhatsApp Safety (stand-in route `/api/mock/safety/report?days=`). */
+export interface SafetyReportTotals {
+  dangerousFiles: number;
+  scamMessages: number;
+  riskyDownloads: number;
+  refusedDownloads: number;
+  numbersBlocked: number;
+  autoBlocked: number;
+  maybeHacked: number;
+  flagged: number;
+  falseAlarms: number;
+}
+
+export type SafetyKind =
+  'hiddenProgram' | 'fakeLink' | 'paymentTrick' | 'lockedArchive' | 'macroFile';
+
+export interface SafetyReport {
+  days: 7 | 30 | 90;
+  enabled: boolean;
+  totals: SafetyReportTotals;
+  previous: SafetyReportTotals | null;
+  daily: Array<{ date: string; high: number; warning: number }>;
+  kinds: Array<{ kind: SafetyKind; count: number }>;
+  senders: Array<{
+    phone: string;
+    name: string;
+    count: number;
+    status: 'blocked' | 'reported' | 'maybeHacked' | 'open';
+  }>;
+  team: Array<{ name: string; riskyDownloads: number; refused: number }>;
+}
+
+export function useSafetyReport(days: 7 | 30 | 90) {
+  return useQuery({
+    queryKey: ['mock-safety-report', days],
+    queryFn: () => api<SafetyReport>(`/mock/safety/report?days=${days}`),
+  });
+}
