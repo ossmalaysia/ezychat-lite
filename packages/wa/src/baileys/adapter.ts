@@ -791,6 +791,13 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return jid;
   }
 
+  async setBlocked(jid: string, blocked: boolean): Promise<void> {
+    const sock = this.requireOpen();
+    await sock.updateBlockStatus(jid, blocked ? 'block' : 'unblock');
+    // The action only, never the number.
+    this.logger.info({ blocked }, 'block status');
+  }
+
   async getAbout(jid: string): Promise<string | null> {
     if (!this.sock || this._status.state !== 'open') throw new WaUnavailableError();
     const kind = jid.endsWith('@lid') ? 'lid' : 'pn';

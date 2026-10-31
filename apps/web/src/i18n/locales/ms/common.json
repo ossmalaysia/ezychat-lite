@@ -153,6 +153,25 @@
     "connectors": {
       "title": "Apakah penyambung?",
       "body": "Membolehkan ejen AI menggunakan aplikasi lain, cth. menyemak Google Calendar dan membuat temu janji."
+    },
+    "safetyAi": {
+      "title": "Apa semakan AI buat?",
+      "body": "AI anda membaca mesej dan nama fail (bukan fail itu) untuk mengesan penipuan yang terlepas. Ia hanya berjalan apabila ada yang mencurigakan."
+    },
+    "autoBlock": {
+      "title": "Bila ia menyekat?",
+      "body": "Hanya apabila nombor baharu menghantar program tersembunyi. Pelanggan dikenali yang menghantarnya mungkin digodam, jadi anda diberi amaran. Boleh nyahsekat bila-bila masa."
+    },
+    "lockedFiles": {
+      "title": "Di mana fail dikunci disimpan?",
+      "body": "Dalam folder EzyChat sendiri, dinamakan semula supaya tidak boleh dijalankan. Hanya admin boleh membuka kunci atau memadamnya."
+    },
+    "reportNumber": {
+      "title": "Cara melapor kepada WhatsApp",
+      "body": "WhatsApp hanya menerima laporan dari aplikasi WhatsApp.",
+      "step1": "Buka sembang ini di telefon terpaut.",
+      "step2": "Ketik nama di atas.",
+      "step3": "Ketik Laporkan, kemudian Laporkan sekali lagi."
     }
   }
 }

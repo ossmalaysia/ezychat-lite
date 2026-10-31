@@ -202,6 +202,8 @@ export function mergeChat(
     mergeCalendarRows(db, from, to);
     // Partner (MCP) connector activity, returned values and call counts (no foreign key either).
     mergeConnectorRows(db, from, to);
+    // WhatsApp Safety findings follow their messages (no foreign key).
+    db.prepare('UPDATE safety_items SET chat_jid = ? WHERE chat_jid = ?').run(to, from);
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.
       db.prepare(

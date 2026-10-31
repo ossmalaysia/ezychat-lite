@@ -798,6 +798,56 @@
     "readyWith": "Answer ready: {{first}}",
     "aboutChatSuffix": "about this chat"
   },
+  "safety": {
+    "title": {
+      "highFile": "Don't open this file",
+      "highText": "Likely scam",
+      "warningFile": "Check before you open",
+      "warningText": "Be careful with this message"
+    },
+    "file": {
+      "deleted": "File deleted.",
+      "deletedBy": "File deleted by {{name}}.",
+      "locked": "Locked for safety. Ask an admin.",
+      "lockedAdmin": "Locked for your team. Tap to check.",
+      "check": "Tap to check before download.",
+      "lockedToast": "This file is locked. Ask an admin to unlock it."
+    },
+    "download": {
+      "title": "Download this file?",
+      "body": "Only open it if you expected it from this sender.",
+      "highTitle": "High-risk file",
+      "highBody": "Don't open it on a work computer. Download only to report it.",
+      "openReport": "Open Safety",
+      "confirm": "Download"
+    },
+    "bar": {
+      "hacked": "This customer's WhatsApp may be hacked. Don't open their files until you check by phone.",
+      "warnText": "Hi, we received a suspicious file from your WhatsApp. Your account may be hacked. Please check your linked devices in WhatsApp (Settings > Linked devices).",
+      "copied": "Warning copied. Paste it into the chat.",
+      "copyFailed": "Couldn't copy. Select the text and copy it.",
+      "copyWarning": "Copy warning",
+      "autoBlocked": "Blocked automatically by WhatsApp Safety.",
+      "blocked": "This number is blocked.",
+      "blockedBy": "Blocked by {{name}}.",
+      "scam": "Your team reported this number as a scam.",
+      "unblock": "Unblock",
+      "unblocked": "Number unblocked."
+    },
+    "rule": {
+      "exeInZip": "The ZIP hides a program, not a document.",
+      "executable": "This is a program, not a document.",
+      "doubleExtension": "The name pretends to be a document.",
+      "scamNumber": "Your team reported this number as a scam.",
+      "cantInspect": "Locked file: it can't be checked.",
+      "macroFile": "File with macros (can run code).",
+      "unlockCodeInMessage": "Password sent with the file.",
+      "openOnComputer": "Asks you to open it on a computer.",
+      "lookalikeLink": "Link hides where it really goes.",
+      "financeUrgency": "Urgent payment or finance request.",
+      "firstFile": "First file from this number."
+    }
+  },
   "mentions": {
     "title": "Tag a member",
     "loading": "Loading members…",

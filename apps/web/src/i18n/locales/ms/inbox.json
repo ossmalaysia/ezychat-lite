@@ -794,6 +794,56 @@
     "readyWith": "Jawapan sedia: {{first}}",
     "aboutChatSuffix": "tentang chat ini"
   },
+  "safety": {
+    "title": {
+      "highFile": "Jangan buka fail ini",
+      "highText": "Mungkin penipuan",
+      "warningFile": "Semak sebelum buka",
+      "warningText": "Berhati-hati dengan mesej ini"
+    },
+    "file": {
+      "deleted": "Fail dipadam.",
+      "deletedBy": "Fail dipadam oleh {{name}}.",
+      "locked": "Dikunci demi keselamatan. Tanya admin.",
+      "lockedAdmin": "Dikunci untuk pasukan anda. Ketik untuk semak.",
+      "check": "Ketik untuk semak sebelum muat turun.",
+      "lockedToast": "Fail ini dikunci. Minta admin membukanya."
+    },
+    "download": {
+      "title": "Muat turun fail ini?",
+      "body": "Buka hanya jika anda menjangkakannya daripada pengirim ini.",
+      "highTitle": "Fail berisiko tinggi",
+      "highBody": "Jangan buka di komputer kerja. Muat turun hanya untuk melaporkannya.",
+      "openReport": "Buka Keselamatan",
+      "confirm": "Muat turun"
+    },
+    "bar": {
+      "hacked": "WhatsApp pelanggan ini mungkin digodam. Jangan buka fail mereka sehingga anda semak melalui telefon.",
+      "warnText": "Hai, kami menerima fail yang mencurigakan daripada WhatsApp anda. Akaun anda mungkin digodam. Sila semak peranti terpaut dalam WhatsApp (Tetapan > Peranti terpaut).",
+      "copied": "Amaran disalin. Tampal ke dalam sembang.",
+      "copyFailed": "Tidak dapat menyalin. Pilih teks dan salin.",
+      "copyWarning": "Salin amaran",
+      "autoBlocked": "Disekat secara automatik oleh Keselamatan WhatsApp.",
+      "blocked": "Nombor ini disekat.",
+      "blockedBy": "Disekat oleh {{name}}.",
+      "scam": "Pasukan anda melaporkan nombor ini sebagai penipuan.",
+      "unblock": "Nyahsekat",
+      "unblocked": "Nombor dinyahsekat."
+    },
+    "rule": {
+      "exeInZip": "ZIP ini menyembunyikan program, bukan dokumen.",
+      "executable": "Ini program, bukan dokumen.",
+      "doubleExtension": "Nama fail berpura-pura dokumen.",
+      "scamNumber": "Pasukan anda melaporkan nombor ini sebagai penipuan.",
+      "cantInspect": "Fail berkunci: tidak boleh disemak.",
+      "macroFile": "Fail dengan makro (boleh jalankan kod).",
+      "unlockCodeInMessage": "Kata laluan dihantar bersama fail.",
+      "openOnComputer": "Minta anda buka di komputer.",
+      "lookalikeLink": "Pautan menyembunyikan destinasi sebenar.",
+      "financeUrgency": "Permintaan bayaran atau kewangan segera.",
+      "firstFile": "Fail pertama dari nombor ini."
+    }
+  },
   "mentions": {
     "title": "Tag ahli",
     "loading": "Memuatkan ahli…",

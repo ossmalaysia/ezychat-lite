@@ -794,6 +794,56 @@
     "readyWith": "回答已就绪：{{first}}",
     "aboutChatSuffix": "（关于此聊天）"
   },
+  "safety": {
+    "title": {
+      "highFile": "请勿打开此文件",
+      "highText": "疑似诈骗",
+      "warningFile": "打开前请先检查",
+      "warningText": "请小心这条消息"
+    },
+    "file": {
+      "deleted": "文件已删除。",
+      "deletedBy": "文件已被 {{name}} 删除。",
+      "locked": "为安全已锁定。请联系管理员。",
+      "lockedAdmin": "已对团队锁定。点按检查。",
+      "check": "下载前点按检查。",
+      "lockedToast": "此文件已锁定。请管理员解锁。"
+    },
+    "download": {
+      "title": "下载此文件？",
+      "body": "只有你预期这位发件人会发来时才打开。",
+      "highTitle": "高风险文件",
+      "highBody": "不要在工作电脑上打开。只为举报而下载。",
+      "openReport": "打开安全页面",
+      "confirm": "下载"
+    },
+    "bar": {
+      "hacked": "这位客户的 WhatsApp 可能被盗。先打电话确认，再打开他们的文件。",
+      "warnText": "你好，我们从你的 WhatsApp 收到一个可疑文件。你的账号可能被盗，请在 WhatsApp 检查已链接的设备（设置 > 已链接的设备）。",
+      "copied": "提醒已复制，请粘贴到聊天中。",
+      "copyFailed": "无法复制。请选中文字后复制。",
+      "copyWarning": "复制提醒",
+      "autoBlocked": "已被 WhatsApp 安全自动屏蔽。",
+      "blocked": "此号码已被屏蔽。",
+      "blockedBy": "已被 {{name}} 屏蔽。",
+      "scam": "你的团队已将此号码报告为诈骗。",
+      "unblock": "解除屏蔽",
+      "unblocked": "已解除屏蔽。"
+    },
+    "rule": {
+      "exeInZip": "ZIP 里藏的是程序，不是文件。",
+      "executable": "这是程序，不是文件。",
+      "doubleExtension": "文件名伪装成文件。",
+      "scamNumber": "你的团队已将此号码报告为诈骗。",
+      "cantInspect": "加密文件：无法检查。",
+      "macroFile": "含宏的文件（可运行代码）。",
+      "unlockCodeInMessage": "密码和文件一起发送。",
+      "openOnComputer": "要求你在电脑上打开。",
+      "lookalikeLink": "链接隐藏了真正的去向。",
+      "financeUrgency": "紧急付款或财务请求。",
+      "firstFile": "此号码第一次发文件。"
+    }
+  },
   "mentions": {
     "title": "标记成员",
     "loading": "正在加载成员…",

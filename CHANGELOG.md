@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on numbers linked with the WhatsApp app; the WhatsApp Business API does not support tags yet, so its groups show no
   picker.
 
+- **WhatsApp Safety.** EzyChat checks every message customers send for risky files and scams, such as the fake
+  "statement of account" ZIP that hides a program, fake bank links and password-locked files.
+  - **In the chat:** a flagged message shows a short warning. Your team checks a file before downloading it.
+  - **Locked files:** a dangerous file is locked for your team until an admin unlocks it.
+  - **Admin → Safety:** who sent it, from which number, why it was flagged and who on the team downloaded it. You can
+    mark it safe, report the number as a scam, block it, or delete the file.
+  - **AI check:** your AI connection (if you have one) helps spot scams the rules miss. It reads the message and file
+    names, never the file.
+  - **Auto-block:** off by default. It blocks only new numbers that send a hidden program. A customer you know is
+    warned as possibly hacked instead.
+  - **Reports:** a new WhatsApp Safety section counts dangerous files, scam messages, risky downloads, blocked numbers
+    and false alarms.
 - **AI agents that answer only in groups.** Each AI agent has a new **Answer direct chats** switch (on by default).
   Turn it off and keep **Answer in groups** on, and the agent answers only when tagged or quoted in the groups you
   switched on; direct chats stay with your team. The direct chats it was handling go back to the team, and it cannot be

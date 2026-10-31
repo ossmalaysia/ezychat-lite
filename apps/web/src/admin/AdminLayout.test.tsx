@@ -55,6 +55,7 @@ vi.mock('./connectors/ConnectorDetailPage', () => ({
   ConnectorDetailPage: () => <h1>Connector page</h1>,
 }));
 vi.mock('./ReportsPage', () => ({ ReportsPage: () => <h1>Reports</h1> }));
+vi.mock('./SafetyPage', () => ({ SafetyPage: () => <h1>Safety</h1> }));
 
 const ADMIN_NAV = visibleAdminNav(false).map((n) => ({
   ...n,

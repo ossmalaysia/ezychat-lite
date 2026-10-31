@@ -10,7 +10,8 @@
     "settings": "Settings",
     "audit": "Audit",
     "connectors": "Connectors",
-    "reports": "Reports"
+    "reports": "Reports",
+    "safety": "Safety"
   },
   "layout": {
     "inbox": "Inbox",
@@ -208,7 +209,15 @@
       "inboxAccessUpdate": "Inbox access changed",
       "aiAgentCreate": "AI agent created",
       "aiAgentDelete": "AI agent deleted",
-      "aiAgentInboxUpdate": "AI agent inbox changed"
+      "aiAgentInboxUpdate": "AI agent inbox changed",
+      "safetySettings": "WhatsApp Safety settings changed",
+      "safetySafe": "Flagged message marked safe",
+      "safetyRelease": "Locked file unlocked for the team",
+      "safetyDelete": "Locked file deleted",
+      "safetyReport": "Number reported as scam",
+      "safetyBlock": "Number blocked",
+      "safetyUnblock": "Number unblocked",
+      "safetyAutoBlock": "Number blocked automatically"
     },
     "fields": {
       "chat": "Chat",
@@ -1979,5 +1988,174 @@
       "lookupsOnly": "In groups {{name}} only looks things up; a teammate makes the booking.",
       "notSent": "Nothing is sent to the group."
     }
+  },
+  "safety": {
+    "title": "WhatsApp Safety",
+    "description": "Warns your team about risky files and scam messages.",
+    "offNotice": "WhatsApp Safety is off. Messages are not checked.",
+    "stats": {
+      "toReview": "To review",
+      "filesLocked": "Files locked",
+      "blocked": "Numbers blocked"
+    },
+    "tabs": {
+      "flagged": "Flagged",
+      "blocked": "Blocked",
+      "settings": "Settings"
+    },
+    "level": {
+      "none": "No risk",
+      "warning": "Check",
+      "high": "High risk"
+    },
+    "filter": {
+      "label": "Show",
+      "open": "To review",
+      "all": "All"
+    },
+    "empty": {
+      "open": "Nothing to review.",
+      "all": "Nothing flagged yet.",
+      "blocked": "No numbers blocked."
+    },
+    "status": {
+      "open": "To review",
+      "safe": "Marked safe",
+      "reported": "Reported",
+      "blocked": "Blocked",
+      "cleared": "Cleared by AI"
+    },
+    "chip": {
+      "autoBlocked": "Auto-blocked",
+      "maybeHacked": "Customer may be hacked",
+      "locked": "File locked",
+      "downloadedBy": "Downloaded by {{names}}"
+    },
+    "sender": {
+      "customer": "Existing customer",
+      "new": "New number",
+      "group": "Group member"
+    },
+    "sheet": {
+      "hackedNote": "This is an existing customer. Their WhatsApp may be hacked, so they were not blocked. Call them to check.",
+      "what": "What they sent",
+      "inside": "Inside the ZIP: {{names}}",
+      "fileDeleted": "File deleted.",
+      "fileDeletedBy": "File deleted by {{name}}.",
+      "fileLocked": "File locked. Your team can't download it.",
+      "fileOpen": "File not locked.",
+      "why": "Why it was flagged",
+      "ai": "AI check: {{level}}. {{reason}}",
+      "aiNone": "No AI check for this message.",
+      "team": "Your team",
+      "noDownloads": "Nobody downloaded it.",
+      "downloaded": "{{name}} downloaded it · {{time}}",
+      "refused": "{{name}} tried to download it (locked) · {{time}}",
+      "file": "File"
+    },
+    "actions": {
+      "trust": "Trust this sender for this kind of message",
+      "safe": "Mark safe",
+      "report": "Report as scam",
+      "unblock": "Unblock",
+      "block": "Block number",
+      "release": "Unlock file for team",
+      "delete": "Delete file",
+      "openChat": "Open chat"
+    },
+    "done": {
+      "safe": "Marked safe.",
+      "release": "File unlocked for your team.",
+      "delete": "File deleted.",
+      "report": "Reported as scam.",
+      "block": "Number blocked.",
+      "unblock": "Number unblocked."
+    },
+    "deleteTitle": "Delete this file?",
+    "deleteBody": "The message stays. The file is gone for good.",
+    "report": {
+      "title": "Report {{name}}?",
+      "confirm": "Report",
+      "scam": "Your whole team will see a scam warning on this number.",
+      "block": "Block the number",
+      "cannotBlock": "Blocking isn't possible for this number now",
+      "whatsappTitle": "Tell WhatsApp too",
+      "whatsappPhone": "On the linked phone: open this chat, tap the name, then Report.",
+      "whatsappApi": "Business API numbers can't report to WhatsApp. Blocking still works.",
+      "nsrc": "Lost money? Call NSRC at 997 right away.",
+      "cyber999": "Malware? Report it to Cyber999 (MyCERT)."
+    },
+    "blockedBy": {
+      "auto": "Auto-blocked · {{time}}",
+      "admin": "Blocked by {{name}} · {{time}}",
+      "unknown": "Blocked · {{time}}"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Checks run on this computer. Nothing is sent out, except to your AI when the AI check is on.",
+      "saved": "Saved.",
+      "enabled": "Check incoming messages",
+      "enabledHint": "Warns your team about risky files and scam messages.",
+      "ai": "AI check",
+      "aiHint": "Uses your AI connection to spot scams the rules miss.",
+      "aiNotConnected": "Connect an AI (Settings > AI) to use it. Until then the rules still check every message.",
+      "autoBlock": "Auto-block new numbers",
+      "autoBlockHint": "Blocks new numbers that send a hidden program. Customers you know are warned, not blocked.",
+      "days": "Delete locked files after",
+      "daysHint": "Locked files are kept for checking, then deleted.",
+      "daysOption": "{{days}} days"
+    }
+  },
+  "safetyReport": {
+    "title": "WhatsApp Safety",
+    "open": "Open Safety",
+    "off": "WhatsApp Safety is off, so nothing was checked.",
+    "up": "+{{pct}}% vs previous {{days}} days",
+    "down": "−{{pct}}% vs previous {{days}} days",
+    "dangerousFiles": "Dangerous files",
+    "dangerousFilesHint": "Programs and locked files",
+    "scamMessages": "Scam messages",
+    "scamMessagesHint": "Fake links and payment tricks",
+    "riskyDownloads": "Risky downloads",
+    "riskyDownloadsHint": "Downloaded by your team · {{n}} stopped by the lock",
+    "numbersBlocked": "Numbers blocked",
+    "numbersBlockedHint": "{{n}} automatically",
+    "maybeHacked": "Customers maybe hacked",
+    "maybeHackedHint": "Known customers who sent a dangerous file",
+    "falseAlarms": "False alarms",
+    "falseAlarmsHint": "{{n}} of {{total}} marked safe or cleared by AI",
+    "dailyTitle": "Flagged messages per day",
+    "dailyFinding": "Most on {{date}}: {{n}} flagged.",
+    "dailyNone": "Nothing flagged in this period.",
+    "kindsTitle": "What was caught",
+    "kindsFinding": "Most common: {{kind}}.",
+    "kind": {
+      "hiddenProgram": "Program hidden in a file",
+      "fakeLink": "Fake bank or login link",
+      "paymentTrick": "Payment or finance trick",
+      "lockedArchive": "Locked file with a password",
+      "macroFile": "File with macros",
+      "scamNumber": "Number reported as scam",
+      "other": "Other"
+    },
+    "teamTitle": "Who opened risky files",
+    "teamFinding": "Remind anyone with a risky download not to open files from unknown numbers.",
+    "teamNone": "Nobody tried to open a risky file.",
+    "colTeammate": "Teammate",
+    "colRisky": "Risky downloads",
+    "colRefused": "Stopped by lock",
+    "sendersTitle": "Numbers that sent the most",
+    "sendersFinding": "Block or report the numbers still open.",
+    "colSender": "Sender",
+    "colFlagged": "Flagged",
+    "colStatus": "Status",
+    "senderStatus": {
+      "blocked": "Blocked",
+      "reported": "Reported",
+      "maybeHacked": "May be hacked",
+      "open": "To review",
+      "done": "Reviewed"
+    },
+    "teamLocked": "The lock stopped every try. Nobody opened a risky file."
   }
 }

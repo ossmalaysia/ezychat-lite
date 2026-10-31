@@ -206,7 +206,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       rows,
       rows.map((row) => rowToMessage(row)),
     );
-    return reactions.attach(ctx.services.customers?.withSenderProfiles(list) ?? list);
+    const shown = reactions.attach(ctx.services.customers?.withSenderProfiles(list) ?? list);
+    return ctx.services.safety?.attach(shown) ?? shown;
   };
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
@@ -801,12 +802,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       // History media stays 'pending' (mime/name kept) and is fetched on demand (ensureMedia /
       // redownload): eagerly pulling every history file from the CDN floods the network and used
       // to crash the server on a single ECONNRESET. Live media downloads through the limiter.
+      let mediaBytes: Buffer | null = null;
+      let mediaRel: string | null = null;
       if (m.media && source === 'live') {
         const dl = m.media.download;
         try {
           const buf = await downloads.run(() => dl());
           const rel = media.save(chatJid, id, buf, extFor(m.media.mime, m.media.fileName));
           repo.update(id, { media_path: rel, media_status: 'ok' });
+          mediaBytes = buf;
+          mediaRel = rel;
           // Live customer voice notes are transcribed (marked pending before message:new).
           if (m.type === 'audio' && !m.fromMe) ctx.services.voice?.onAudioStored(id);
         } catch (err) {
@@ -814,6 +819,22 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           repo.update(id, { media_status: 'failed' });
         }
       }
+
+      // WhatsApp Safety: every message from a customer, before the team sees it (history: name and
+      // text only, the file is not downloaded yet). It may lock the file and changes no message text.
+      if (!m.fromMe && m.type !== 'audio' && m.type !== 'sticker')
+        ctx.services.safety?.inspect({
+          messageId: id,
+          chatJid,
+          inboxId,
+          senderWaJid: isGroup ? m.senderJid : chatWaJid,
+          group: isGroup,
+          live: source === 'live',
+          text: m.body,
+          file: m.media
+            ? { name: m.media.fileName, mime: m.media.mime, rel: mediaRel, bytes: mediaBytes }
+            : null,
+        });
 
       const final = repo.get(id);
       if (!final) return null;

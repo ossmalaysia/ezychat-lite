@@ -1,0 +1,436 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  SafetyChatState,
+  SafetyReport,
+  SafetyState,
+  type Message,
+  type SafetyAiAnswer,
+} from '@ezychat/shared';
+import { makeTestApp, type TestApp } from './helpers.js';
+import { authHeaders, createUserAndLogin } from './auth-helpers.js';
+import { makeZip } from './safety-helpers.js';
+import { getMessages } from '../src/wa-bridge/index.js';
+import { createSafetyService, SAFETY_AI_DAILY_CAP } from '../src/safety/service.js';
+import { computeSafetyReport, kindOf } from '../src/reports/safety.js';
+
+const LURE = '601123456789@s.whatsapp.net';
+const KNOWN = '60129001234@s.whatsapp.net';
+const LURE_TEXT =
+  'Please forward this statement of account to your finance manager. Kindly open it on a laptop.';
+
+let t: TestApp;
+let admin: { cookie: string; user: { id: number } };
+let agent: { cookie: string; user: { id: number } };
+
+const tick = () => new Promise((r) => setTimeout(r, 20));
+
+async function incoming(
+  chatJid: string,
+  opts: { text?: string; file?: { name: string; mime: string; bytes: Buffer } } = {},
+) {
+  const r = await t.app.inject({
+    method: 'POST',
+    url: '/api/dev/fake-incoming',
+    headers: authHeaders(admin.cookie),
+    payload: {
+      chatJid,
+      senderName: 'Accounts Dept',
+      text: opts.text ?? '',
+      ...(opts.file
+        ? {
+            type: 'document',
+            media: {
+              mime: opts.file.mime,
+              fileName: opts.file.name,
+              base64: opts.file.bytes.toString('base64'),
+            },
+          }
+        : {}),
+    },
+  });
+  expect(r.statusCode).toBe(200);
+  return r.json() as { id: string; chatJid: string };
+}
+
+const lureZip = () => ({
+  name: 'Statement_Oct2026.zip',
+  mime: 'application/zip',
+  bytes: makeZip([{ name: 'Statement_Oct2026.pdf.vbs' }]),
+});
+
+const message = (id: string): Message =>
+  getMessages(t.ctx)
+    .list(LURE, { limit: 50 })
+    .messages.find((m) => m.id === id) ??
+  getMessages(t.ctx)
+    .list(KNOWN, { limit: 50 })
+    .messages.find((m) => m.id === id)!;
+
+async function state(): Promise<SafetyState> {
+  const r = await t.app.inject({
+    method: 'GET',
+    url: '/api/safety',
+    headers: authHeaders(admin.cookie),
+  });
+  expect(r.statusCode).toBe(200);
+  return SafetyState.parse(r.json());
+}
+
+const act = (id: number, action: string, payload: object = {}) =>
+  t.app.inject({
+    method: 'POST',
+    url: `/api/safety/items/${id}/${action}`,
+    headers: authHeaders(admin.cookie),
+    payload,
+  });
+
+const download = (id: string, cookie: string) =>
+  t.app.inject({
+    method: 'GET',
+    url: `/api/media/${encodeURIComponent(id)}`,
+    headers: authHeaders(cookie),
+  });
+
+beforeEach(async () => {
+  t = await makeTestApp();
+  admin = await createUserAndLogin(t, { role: 'admin' });
+  agent = await createUserAndLogin(t, { role: 'agent' });
+});
+afterEach(async () => {
+  await t.close();
+});
+
+describe('WhatsApp Safety: the ZIP lure', () => {
+  it('flags it High, locks the file in quarantine and shows the finding on the message', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const m = message(id);
+    expect(m.safety).toMatchObject({
+      level: 'high',
+      rules: ['exeInZip', 'openOnComputer', 'financeUrgency', 'firstFile'],
+      locked: true,
+      status: 'open',
+    });
+    const row = t.ctx.db.prepare('SELECT media_path FROM messages WHERE id = ?').get(id) as {
+      media_path: string;
+    };
+    expect(row.media_path).toMatch(/^quarantine\/.+\.bin$/);
+    expect(existsSync(join(t.ctx.config.dataDir, 'media', row.media_path))).toBe(true);
+
+    const s = await state();
+    expect(s.items).toHaveLength(1);
+    expect(s.items[0]).toMatchObject({
+      messageId: id,
+      phone: '601123456789',
+      group: false,
+      level: 'high',
+      critical: true,
+      existingCustomer: false,
+      quarantined: true,
+      file: { name: 'Statement_Oct2026.zip', inside: ['Statement_Oct2026.pdf.vbs'] },
+      canBlock: true,
+    });
+  });
+
+  it('refuses the locked file to an agent (recorded), gives it to an admin as a plain download', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const refused = await download(id, agent.cookie);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.code).toBe('safety_locked');
+    const again = await t.app.inject({
+      method: 'POST',
+      url: `/api/media/${encodeURIComponent(id)}/redownload`,
+      headers: authHeaders(agent.cookie),
+    });
+    expect(again.statusCode).toBe(409);
+
+    const ok = await download(id, admin.cookie);
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['content-type']).toBe('application/octet-stream');
+    expect(ok.headers['content-disposition']).toMatch(/^attachment;/);
+    expect(ok.headers['cache-control']).toBe('no-store');
+    // The same admin re-opening it within minutes counts once.
+    await download(id, admin.cookie);
+
+    const item = (await state()).items[0]!;
+    expect(item.downloads.map((d) => d.allowed)).toEqual([false, true]);
+
+    expect((await act(item.id, 'release')).statusCode).toBe(200);
+    expect((await download(id, agent.cookie)).statusCode).toBe(200);
+  });
+
+  it('reports and blocks the number through the connection, then unblocks it', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const item = (await state()).items[0]!;
+    const r = await act(item.id, 'report', { block: true });
+    expect(r.statusCode).toBe(200);
+    expect(t.wa.blocked.has(LURE)).toBe(true);
+    const after = SafetyState.parse(r.json());
+    expect(after.items[0]).toMatchObject({ status: 'blocked', scam: true, blocked: true });
+    expect(after.blocked).toEqual([
+      expect.objectContaining({ waJid: LURE, phone: '601123456789', auto: false, itemId: item.id }),
+    ]);
+
+    const bar = await t.app.inject({
+      method: 'GET',
+      url: `/api/safety/chats/${encodeURIComponent(LURE)}`,
+      headers: authHeaders(agent.cookie),
+    });
+    expect(SafetyChatState.parse(bar.json())).toMatchObject({
+      scam: true,
+      blocked: { auto: false },
+    });
+
+    const un = await act(item.id, 'unblock');
+    expect(un.statusCode).toBe(200);
+    expect(t.wa.blocked.has(LURE)).toBe(false);
+    expect(SafetyState.parse(un.json()).items[0]).toMatchObject({
+      status: 'reported',
+      blocked: false,
+    });
+    // A reported number is flagged whatever it sends next.
+    const { id: next } = await incoming(LURE, { text: 'hello again' });
+    expect(message(next).safety?.rules).toEqual(['scamNumber']);
+    expect(message(id).safety?.status).toBe('reported');
+
+    const audit = t.ctx.db
+      .prepare("SELECT action FROM audit_log WHERE action LIKE 'safety.%' ORDER BY id")
+      .all() as Array<{ action: string }>;
+    expect(audit.map((a) => a.action)).toEqual(['safety.report', 'safety.unblock']);
+  });
+
+  it('marks safe and trusts the sender, deletes a file, and refuses what cannot be done', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const item = (await state()).items[0]!;
+    const del = await act(item.id, 'delete');
+    expect(del.statusCode).toBe(200);
+    const deleted = SafetyState.parse(del.json()).items[0]!;
+    expect(deleted.deleted?.by).toEqual(expect.any(String));
+    expect(message(id).safety).toMatchObject({ locked: false, deletedBy: expect.any(String) });
+    expect((await act(item.id, 'delete')).statusCode).toBe(409);
+
+    expect((await act(item.id, 'safe', { trust: true })).statusCode).toBe(200);
+    // Trusted for files: the next ZIP from this number is not flagged.
+    await incoming(LURE, { file: lureZip() });
+    expect((await state()).items).toHaveLength(1);
+    expect((await act(999, 'safe')).statusCode).toBe(404);
+    const asAgent = await t.app.inject({
+      method: 'POST',
+      url: `/api/safety/items/${item.id}/safe`,
+      headers: authHeaders(agent.cookie),
+      payload: {},
+    });
+    expect(asAgent.statusCode).toBe(403);
+  });
+});
+
+describe('WhatsApp Safety: auto-block, known customers, settings', () => {
+  it('auto-blocks a new number on a critical rule, never a known customer', async () => {
+    const put = await t.app.inject({
+      method: 'PUT',
+      url: '/api/safety/settings',
+      headers: authHeaders(admin.cookie),
+      payload: { autoBlock: true },
+    });
+    expect(put.json()).toMatchObject({
+      enabled: true,
+      ai: true,
+      autoBlock: true,
+      deleteAfterDays: 30,
+    });
+
+    // A known customer: the team replied before.
+    await incoming(KNOWN, { text: 'Hi, order please' });
+    await t.app.inject({
+      method: 'POST',
+      url: `/api/chats/${encodeURIComponent(KNOWN)}/messages`,
+      headers: authHeaders(admin.cookie),
+      payload: { text: 'Sure', clientId: 'c-1' },
+    });
+    await incoming(KNOWN, { text: 'payment slip', file: lureZip() });
+    await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    await tick();
+    expect(t.wa.blocked.has(LURE)).toBe(true);
+    expect(t.wa.blocked.has(KNOWN)).toBe(false);
+    const s = await state();
+    expect(s.items.find((i) => i.chatJid === LURE)).toMatchObject({
+      autoBlocked: true,
+      status: 'blocked',
+    });
+    expect(s.items.find((i) => i.chatJid === KNOWN)).toMatchObject({
+      existingCustomer: true,
+      autoBlocked: false,
+      status: 'open',
+    });
+    expect(s.blocked).toEqual([expect.objectContaining({ waJid: LURE, auto: true, by: null })]);
+    const bar = await t.app.inject({
+      method: 'GET',
+      url: `/api/safety/chats/${encodeURIComponent(KNOWN)}`,
+      headers: authHeaders(agent.cookie),
+    });
+    expect(bar.json()).toMatchObject({ maybeHacked: true, blocked: null });
+  });
+
+  it('checks nothing while switched off, and leaves ordinary messages alone', async () => {
+    await incoming(LURE, { text: 'Can I book catering for 30 people?' });
+    expect((await state()).items).toHaveLength(0);
+    await t.app.inject({
+      method: 'PUT',
+      url: '/api/safety/settings',
+      headers: authHeaders(admin.cookie),
+      payload: { enabled: false, deleteAfterDays: 7 },
+    });
+    await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const s = await state();
+    expect(s.items).toHaveLength(0);
+    expect(s.settings).toMatchObject({ enabled: false, deleteAfterDays: 7 });
+  });
+
+  it('deletes locked files older than the setting', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    const path = (
+      t.ctx.db.prepare('SELECT media_path FROM messages WHERE id = ?').get(id) as {
+        media_path: string;
+      }
+    ).media_path;
+    expect(t.ctx.services.safety!.cleanup(Date.now())).toBe(0);
+    expect(t.ctx.services.safety!.cleanup(Date.now() + 31 * 86_400_000)).toBe(1);
+    expect(existsSync(join(t.ctx.config.dataDir, 'media', path))).toBe(false);
+    expect(message(id).safety).toMatchObject({ locked: false, deletedBy: '' });
+  });
+});
+
+describe('WhatsApp Safety: AI check', () => {
+  const withAi = (answer: SafetyAiAnswer | null) => {
+    const calls: string[] = [];
+    Object.assign(t.ctx.services.ai!, {
+      checkSafety: async (_jid: string, input: string) => {
+        calls.push(input);
+        return answer;
+      },
+    });
+    return calls;
+  };
+
+  it('lowers a rules-only Warning to cleared, never a critical file', async () => {
+    const calls = withAi({ level: 'none', category: 'none', reason: '' });
+    const { id } = await incoming(LURE, {
+      file: { name: 'Order.xlsm', mime: 'application/octet-stream', bytes: Buffer.from('x') },
+    });
+    await tick();
+    expect(JSON.parse(calls[0]!)).toMatchObject({
+      file: { name: 'Order.xlsm' },
+      sender: 'new number',
+    });
+    expect(calls[0]).not.toContain('eA=='); // never the file's bytes
+    expect(message(id).safety).toBeUndefined();
+    expect((await state()).items[0]).toMatchObject({
+      level: 'none',
+      status: 'cleared',
+      ai: { level: 'none' },
+    });
+
+    const { id: lure } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    await tick();
+    expect(message(lure).safety?.level).toBe('high');
+  });
+
+  it('raises a text the rules missed to High and the AI agent leaves it alone', async () => {
+    withAi({ level: 'high', category: 'phishing', reason: 'Pretends to be a bank.' });
+    const { id } = await incoming(LURE, {
+      text: 'Maybank2u: verify at https://maybank2u-secure.my-verify.top/login',
+    });
+    await tick();
+    expect(message(id).safety).toMatchObject({ level: 'high', aiReason: 'Pretends to be a bank.' });
+    expect(t.ctx.services.safety!.levelOf(id)).toBe('high');
+  });
+
+  it('keeps the rules result when the AI does not answer, and stops at the daily cap', async () => {
+    const calls = withAi(null);
+    const svc = createSafetyService(t.ctx);
+    try {
+      for (let i = 0; i < SAFETY_AI_DAILY_CAP + 2; i++)
+        svc.inspect({
+          messageId: `m-${i}`,
+          chatJid: LURE,
+          inboxId: 1,
+          senderWaJid: LURE,
+          group: false,
+          live: true,
+          text: 'Password: 1234',
+          file: null,
+        });
+      expect(calls.length).toBe(SAFETY_AI_DAILY_CAP);
+    } finally {
+      svc.shutdown();
+    }
+  });
+});
+
+describe('Reports → WhatsApp Safety', () => {
+  it('counts dangerous files, scam messages, downloads, blocks and false alarms', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    await incoming(KNOWN, { text: 'Verify at https://bit.ly/abc urgently for payment of invoice' });
+    await download(id, agent.cookie);
+    await download(id, admin.cookie);
+    const item = (await state()).items.find((i) => i.chatJid === LURE)!;
+    await act(item.id, 'report', { block: true });
+    const r = await t.app.inject({
+      method: 'GET',
+      url: '/api/reports/safety?days=7',
+      headers: authHeaders(admin.cookie),
+    });
+    expect(r.statusCode).toBe(200);
+    const report = SafetyReport.parse(r.json());
+    expect(report.totals).toEqual({
+      dangerousFiles: 1,
+      scamMessages: 1,
+      riskyDownloads: 1,
+      refusedDownloads: 1,
+      numbersBlocked: 1,
+      autoBlocked: 0,
+      maybeHacked: 0,
+      flagged: 2,
+      falseAlarms: 0,
+    });
+    expect(report.daily).toHaveLength(7);
+    expect(report.daily.at(-1)).toMatchObject({ high: 1, warning: 1 });
+    expect(report.kinds).toEqual([
+      { kind: 'hiddenProgram', count: 1 },
+      { kind: 'fakeLink', count: 1 },
+    ]);
+    expect(report.senders.find((x) => x.chatJid === LURE)).toMatchObject({
+      status: 'blocked',
+      count: 1,
+      phone: '601123456789',
+    });
+    expect(report.senders.find((x) => x.chatJid === KNOWN)?.status).toBe('open');
+    expect(report.team.map((m) => [m.riskyDownloads, m.refused])).toEqual(
+      expect.arrayContaining([
+        [1, 0],
+        [0, 1],
+      ]),
+    );
+    const asAgent = await t.app.inject({
+      method: 'GET',
+      url: '/api/reports/safety?days=7',
+      headers: authHeaders(agent.cookie),
+    });
+    expect(asAgent.statusCode).toBe(403);
+    expect(
+      computeSafetyReport(t.ctx.db, { days: 30, timeZone: 'UTC', now: Date.now(), enabled: true })
+        .daily,
+    ).toHaveLength(30);
+  });
+
+  it('names each finding by its most telling kind', () => {
+    expect(kindOf(['scamNumber'], null, false)).toBe('scamNumber');
+    expect(kindOf(['doubleExtension'], null, true)).toBe('hiddenProgram');
+    expect(kindOf(['financeUrgency'], 'phishing', false)).toBe('fakeLink');
+    expect(kindOf(['cantInspect'], null, true)).toBe('lockedArchive');
+    expect(kindOf(['macroFile'], null, true)).toBe('macroFile');
+    expect(kindOf(['financeUrgency'], null, false)).toBe('paymentTrick');
+    expect(kindOf(['financeUrgency'], 'impersonation', true)).toBe('other');
+  });
+});

@@ -10,6 +10,15 @@ into AGENTS.md.
 
 ## Working method
 
+- SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
+  character; an editor or tool may turn the escape into the character) and on a JSON key containing "password" (S2068,
+  even a translation key). Name such keys after what they mean (`unlockCodeInMessage`).
+- In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
+  starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
+  `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
+- Never name a module constant after a global (`URL`, `Map`, `Set`, `Buffer`): `const URL = /…/` made every
+  `new URL()` in that file throw, the `try` swallowed it, and link checks silently answered "safe". A rule that
+  fails closed to "nothing found" needs a test with a positive case.
 - A scoring rubric gives "not needed" items their full points only where the item guards a risk the change
   cannot have (no screen → no screen review); a bonus that only one tier can earn (the real-part test for
   critical) scores 0 elsewhere, or every small change jumps to 100. Pin the worked examples in tests.
@@ -75,6 +84,12 @@ into AGENTS.md.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
+  A `gitRevision` in the index is often a branch commit that the squash merge left out of `main`'s history:
+  `git fetch origin <sha>` before `git archive <sha> docs/features/<feature>/mock`.
+- Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
+  a faint, half-transparent card that reads like a z-index bug.
+- Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
+  technical terms (AI connection, Business API, auto-block, where files are kept) go behind an `InfoTip`.
 - Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
   cloned baseline is frozen by hash (`snapshot.mjs --check`) and Prettier rewrites inherited shadcn files. If it
   happens, restore every file outside your delta list with `git checkout -- <file>` and run the check again.

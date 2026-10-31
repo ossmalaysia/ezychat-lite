@@ -153,6 +153,25 @@
     "connectors": {
       "title": "What is a connector?",
       "body": "Lets your AI agent use another app, for example check Google Calendar and book appointments."
+    },
+    "safetyAi": {
+      "title": "What does the AI check do?",
+      "body": "Your AI reads the message and file names (never the file) to spot scams the rules miss. It runs only when something looks off."
+    },
+    "autoBlock": {
+      "title": "When does it block?",
+      "body": "Only when a new number sends a hidden program. A known customer sending one is probably hacked, so you get a warning instead. Unblock anytime."
+    },
+    "lockedFiles": {
+      "title": "Where are locked files kept?",
+      "body": "In EzyChat's own folder, renamed so they can't run. Only admins can unlock or delete them."
+    },
+    "reportNumber": {
+      "title": "How to report to WhatsApp",
+      "body": "WhatsApp takes reports only from the WhatsApp app.",
+      "step1": "Open this chat on the linked phone.",
+      "step2": "Tap the name at the top.",
+      "step3": "Tap Report, then Report again."
     }
   }
 }
