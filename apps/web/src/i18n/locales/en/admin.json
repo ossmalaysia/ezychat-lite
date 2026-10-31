@@ -2155,6 +2155,7 @@
       "maybeHacked": "May be hacked",
       "open": "To review",
       "done": "Reviewed"
-    }
+    },
+    "teamLocked": "The lock stopped every try. Nobody opened a risky file."
   }
 }

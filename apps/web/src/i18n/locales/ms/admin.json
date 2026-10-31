@@ -2125,6 +2125,7 @@
       "maybeHacked": "Mungkin digodam",
       "open": "Perlu disemak",
       "done": "Disemak"
-    }
+    },
+    "teamLocked": "Kunci menghalang setiap cubaan. Tiada sesiapa membuka fail berisiko."
   }
 }

@@ -88,6 +88,14 @@ it('shows the six numbers with their change and the charts', async () => {
   expect(screen.getByTestId('card-safety-daily').querySelector('table')).toBeTruthy();
 });
 
+it('says the lock stopped every try when nobody opened a risky file', async () => {
+  report = { ...report, team: [{ name: 'Daniel', riskyDownloads: 0, refused: 2 }] };
+  show();
+  expect(
+    await screen.findByText('The lock stopped every try. Nobody opened a risky file.'),
+  ).toBeTruthy();
+});
+
 it('says when nothing was flagged, and when Safety is off', async () => {
   report = {
     ...report,

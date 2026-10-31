@@ -137,7 +137,13 @@ function SafetyBody({ report }: { report: SafetyReport }) {
         <ChartCard
           testId="card-safety-team"
           title={t('safetyReport.teamTitle')}
-          finding={report.team.length ? t('safetyReport.teamFinding') : t('safetyReport.teamNone')}
+          finding={
+            report.team.length === 0
+              ? t('safetyReport.teamNone')
+              : report.team.some((m) => m.riskyDownloads > 0)
+                ? t('safetyReport.teamFinding')
+                : t('safetyReport.teamLocked')
+          }
         >
           {report.team.length > 0 && (
             <NumberTable
