@@ -75,6 +75,12 @@ into AGENTS.md.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
+  A `gitRevision` in the index is often a branch commit that the squash merge left out of `main`'s history:
+  `git fetch origin <sha>` before `git archive <sha> docs/features/<feature>/mock`.
+- Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
+  a faint, half-transparent card that reads like a z-index bug.
+- Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
+  technical terms (AI connection, Business API, auto-block, where files are kept) go behind an `InfoTip`.
 - Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
   cloned baseline is frozen by hash (`snapshot.mjs --check`) and Prettier rewrites inherited shadcn files. If it
   happens, restore every file outside your delta list with `git checkout -- <file>` and run the check again.
