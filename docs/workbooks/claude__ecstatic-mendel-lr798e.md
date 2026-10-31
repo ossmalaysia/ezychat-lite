@@ -7,10 +7,10 @@ Branch: `claude/ecstatic-mendel-lr798e` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | group-mentions mock confirmed 2026-10-31 ("build it until merge to main"); latestConfirmed updated | 331942a | 2026-10-31 |
 | Dev | done | Composer @ picker (inbox/mentions.ts, MentionPicker.tsx), Conversation + useSendText mentions/shown, useInboxCanTag, en/ms/zh-CN | 331942a | 2026-10-31 |
-| Unit tests | pass | Final head: web mention tests 14 passed; full suite 4,063 passed; changed-lines coverage 97.1 % | 31fdb55 | 2026-10-31 |
-| E2E | pass | Final head: e2e/mentions.spec.ts 7 passed (desktop, Pixel 7, iPhone); full npm run e2e 131 passed on de5d7af+lint fix (later commit changes only picker markup and the check script) | 31fdb55 | 2026-10-31 |
-| Dev Build | pass | Final head: devbuild-mentions-check.mjs 35/35 on a fresh --mode dev --fake-wa server with the rebuilt web; real WhatsApp untested | 31fdb55 | 2026-10-31 |
-| Screen review | pass | Final head: picker, picked, sent at 1280/360 light+dark unchanged from the reviewed shots; matches the confirmed mock | 31fdb55 | 2026-10-31 |
+| Unit tests | pass | Merged head: 590 affected tests passed (server mentions, shared, wa, web inbox, i18n, contract); full suite 4,063 passed before the merge | f7323d9 | 2026-10-31 |
+| E2E | pass | Merged head: mentions + inbox e2e 13 passed (desktop, Pixel 7, iPhone); full e2e 131 passed before the merge | f7323d9 | 2026-10-31 |
+| Dev Build | pass | Merged head: devbuild-mentions-check.mjs 35/35 on a fresh --mode dev --fake-wa server; real WhatsApp untested | f7323d9 | 2026-10-31 |
+| Screen review | pass | Merged head: picker, picked, sent shots unchanged; matches the confirmed mock | f7323d9 | 2026-10-31 |
 
 ## Log
 
@@ -28,3 +28,7 @@ Branch: `claude/ecstatic-mendel-lr798e` · Every agent updates its stage with
 - 2026-10-31 Dev Build: pass — Final head: devbuild-mentions-check.mjs 35/35 on a fresh --mode dev --fake-wa server with the rebuilt web; real WhatsApp untested (31fdb55)
 - 2026-10-31 Screen review: pass — Final head: picker, picked, sent at 1280/360 light+dark unchanged from the reviewed shots; matches the confirmed mock (31fdb55)
 - 2026-10-31 Unit tests: pass — Final head: web mention tests 14 passed; full suite 4,063 passed; changed-lines coverage 97.1 % (31fdb55)
+- 2026-10-31 E2E: pass — Merged head: mentions + inbox e2e 13 passed (desktop, Pixel 7, iPhone); full e2e 131 passed before the merge (f7323d9)
+- 2026-10-31 Dev Build: pass — Merged head: devbuild-mentions-check.mjs 35/35 on a fresh --mode dev --fake-wa server; real WhatsApp untested (f7323d9)
+- 2026-10-31 Screen review: pass — Merged head: picker, picked, sent shots unchanged; matches the confirmed mock (f7323d9)
+- 2026-10-31 Unit tests: pass — Merged head: 590 affected tests passed (server mentions, shared, wa, web inbox, i18n, contract); full suite 4,063 passed before the merge (f7323d9)
