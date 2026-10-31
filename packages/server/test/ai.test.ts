@@ -14,6 +14,7 @@ import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 import { sha256 } from '../src/crypto/secret.js';
 import { createMessageService } from '../src/messages/service.js';
+import { createChatService } from '../src/chats/service.js';
 import { pdfFixture } from './ai-fixtures.js';
 import { OAuthError } from '../src/ai/chatgpt-oauth.js';
 import { createVoiceService, type VoiceServiceDeps } from '../src/voice/service.js';
@@ -53,6 +54,8 @@ beforeEach(async () => {
     now: () => Date.now(),
     queue: { spacingMs: 0 },
   });
+  // Chat events read the clock on each call too, so they follow the faked Date like messages do.
+  t.ctx.services.chats = createChatService(t.ctx, { now: () => Date.now() });
   provider = {
     generate: vi.fn().mockResolvedValue({
       reply: 'We open at 9am. Has this answered your question?',

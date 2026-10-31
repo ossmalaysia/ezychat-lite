@@ -973,7 +973,9 @@ into AGENTS.md.
   condition to such a path, check every switch combination: #232 ran only after an AI resolve, which #230's
   default (switch off) never makes. Keep confirmation filler words broad ("thanks a lot" counted as new facts).
 - A service that saves `Date.now` as a reference (`deps?.now ?? Date.now`) ignores `vi.useFakeTimers` set up
-  later, so its rows and the faked rows of other services are on different clocks; read `() => Date.now()`.
+  later, so its rows and the faked rows of other services are on different clocks. Fix it in the test (swap
+  in the service with `{ now: () => Date.now() }`), not in the service: a test-only edit to a critical file
+  (`chats/service.ts`) makes the release review demand a real-part test.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
   admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
