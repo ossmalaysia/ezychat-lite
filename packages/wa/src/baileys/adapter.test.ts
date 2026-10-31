@@ -260,6 +260,28 @@ describe('BaileysAdapter event handling', () => {
     await expect(a.sendText('1@s.whatsapp.net', 'hi')).rejects.toBe(other);
   });
 
+  it('sends tagged members as WhatsApp mentions and plain text without them', async () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
+    const calls: Array<{ jid: string; content: unknown }> = [];
+    Object.assign(a as unknown as Record<string, unknown>, {
+      sock: {
+        sendMessage: async (jid: string, content: unknown) => {
+          calls.push({ jid, content });
+          return { key: { id: `T${calls.length}` }, messageTimestamp: 1_700_000_000 };
+        },
+      },
+      _status: { state: 'open', me: null, qr: null, lastError: null },
+    });
+    await a.sendText('1203@g.us', 'Hi @900111', { mentions: ['900111@lid'] });
+    await a.sendText('1203@g.us', 'Hi all', { mentions: [] });
+    await a.sendText('1@s.whatsapp.net', 'Hi');
+    expect(calls.map((c) => c.content)).toEqual([
+      { text: 'Hi @900111', mentions: ['900111@lid'] },
+      { text: 'Hi all' },
+      { text: 'Hi' },
+    ]);
+  });
+
   it('sends a reaction with the key WhatsApp matches; the group author comes from the cache first', async () => {
     const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
     const calls: Array<{ jid: string; content: unknown }> = [];

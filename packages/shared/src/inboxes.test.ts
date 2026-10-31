@@ -138,7 +138,10 @@ describe('inbox types and templates', () => {
       capabilities,
     });
     expect(parsed.type).toBe('wa-cloud');
+    // a connection (or an older server) that does not say it tags members cannot (absent = no)
     expect(parsed.capabilities).toEqual(capabilities);
+    expect(parsed.capabilities.mentions).toBeUndefined();
+    expect(InboxCapabilitiesSchema.parse({ ...capabilities, mentions: true }).mentions).toBe(true);
     expect(InboxType.safeParse('Linked Phone').success).toBe(false);
     expect(
       InboxCapabilitiesSchema.parse({ ...capabilities, needsPublicUrl: undefined }).needsPublicUrl,

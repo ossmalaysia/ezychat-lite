@@ -92,10 +92,18 @@ export const MessageListResponse = z.object({
 });
 export type MessageListResponse = z.infer<typeof MessageListResponse>;
 
+/** Most members one message may tag (@mention). */
+export const MAX_MESSAGE_MENTIONS = 50;
+
 export const SendTextBody = z.object({
   text: z.string().min(1).max(65536),
   quotedId: z.string().optional(),
   clientId: z.string().min(1).max(64),
+  /**
+   * Group chats only: the members this message tags. Each is written in the text as `@<number>`
+   * (the user part of the JID, as WhatsApp does); the server sends them as WhatsApp mentions.
+   */
+  mentions: z.array(z.string().min(1).max(256)).max(MAX_MESSAGE_MENTIONS).optional(),
 });
 export type SendTextBody = z.infer<typeof SendTextBody>;
 

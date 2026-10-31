@@ -805,6 +805,10 @@ into AGENTS.md.
   a tag of the owner otherwise shows as a bare number.
 
 - Keep mention JIDs separate from the original body and resolve names at every presentation path, including inbox/notification previews before truncation; sender names alone do not name tags. Legacy numeric tags must be unambiguous across phone/LID identities, and recycled phone contacts must never supply another person's name.
+- A WhatsApp tag is two parts: `@<user part of the JID>` in the text **and** the address in `mentions`
+  (`contextInfo.mentionedJid`); text alone shows no tag and notifies nobody. Store the sent tags on the outgoing
+  row (`mentioned_jids`) so the queue rebuilds them after a wait or restart and the presenter names them. Gate
+  sending on `WaCapabilities.mentions`, never on a type name: Meta's Cloud API documents no mentions field.
 
 - A voice note is Ogg/Opus sent with `ptt: true`; pass `seconds` and `waveform` (64 bytes, 0–100)
   yourself or Baileys needs optional music-metadata/audio-decode (`waveform` is missing from its types

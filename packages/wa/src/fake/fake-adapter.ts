@@ -26,6 +26,8 @@ export interface FakeSentRecord {
   id: string;
   /** Reply options as the real adapter would receive them. */
   reply?: WaSendOptions;
+  /** Text sends: the members tagged (WhatsApp mentions). */
+  mentions?: string[];
 }
 
 /**
@@ -187,7 +189,13 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   async sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
     const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
-    this.sent.push({ chatJid, text, id, ...(opts?.quotedId ? { reply: opts } : {}) });
+    this.sent.push({
+      chatJid,
+      text,
+      id,
+      ...(opts?.quotedId ? { reply: opts } : {}),
+      ...(opts?.mentions?.length ? { mentions: [...opts.mentions] } : {}),
+    });
     return this.afterSend(chatJid, id);
   }
 

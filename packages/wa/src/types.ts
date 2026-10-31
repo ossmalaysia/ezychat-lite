@@ -136,6 +136,11 @@ export interface WaSendOptions {
   quotedId?: string;
   /** Used when the quoted message is no longer in the adapter's live cache. */
   quoted?: WaQuotedRef;
+  /**
+   * Text sends in groups: the members tagged in the text (each written as `@<user part of the JID>`).
+   * Only for adapters with `capabilities.mentions`.
+   */
+  mentions?: string[];
 }
 
 /** The message a reaction points at: WhatsApp matches it by chat, id, side and group author. */
@@ -182,6 +187,8 @@ export interface WaCapabilities {
   templates: boolean;
   /** Receives messages at a public https address (a webhook over Phone access / the tunnel). */
   needsPublicUrl: boolean;
+  /** Sends WhatsApp mentions (`WaSendOptions.mentions`); absent: no. */
+  mentions?: boolean;
 }
 
 /** The capabilities of an adapter that declares none: a phone linked by QR (Baileys, the fake). */
@@ -192,6 +199,7 @@ export const LINKED_PHONE_CAPABILITIES: WaCapabilities = Object.freeze({
   replyWindowHours: null,
   templates: false,
   needsPublicUrl: false,
+  mentions: true,
 });
 
 /** An approved message template of the number's business account. */

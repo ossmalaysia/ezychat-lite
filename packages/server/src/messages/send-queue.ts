@@ -11,6 +11,8 @@ export interface SendJob {
   kind: 'text' | 'media' | 'template';
   text?: string;
   quotedId?: string;
+  /** text jobs in groups: the members the text tags (WhatsApp mentions) */
+  mentions?: string[];
   /** media jobs: relative media path (MediaStore) + metadata */
   mediaPath?: string;
   mime?: string;

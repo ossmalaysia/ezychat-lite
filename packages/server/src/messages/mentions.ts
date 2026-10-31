@@ -2,6 +2,7 @@ import type { Logger } from 'pino';
 import type { Message } from '@ezychat/shared';
 import { normalizeContactJid } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
+import { errors } from '../http/errors.js';
 import { getAliases, type AliasStore } from '../chats/aliases.js';
 import { jidUser, rowToChat, type ChatRow } from '../chats/repo.js';
 import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
@@ -10,6 +11,23 @@ import { previewOf, rowToMessage, type MessageRow } from './repo.js';
 // Whole numeric tags only. Emails, usernames and URLs are ordinary text.
 const TAG = /(?<![\p{L}\p{N}_@])@(\d+)(?![\p{L}\p{N}_])/gu;
 const URL = /(https?:\/\/[^\s<>]+)/g;
+
+/**
+ * The members a sent text tags, checked: each is a person's WhatsApp address (phone number or
+ * LID) written in the text as a whole `@<number>` tag, as WhatsApp writes a mention. Duplicates
+ * are dropped; anything else is refused (400), so a send never tags someone the text does not show.
+ */
+export function outgoingMentions(text: string, jids: readonly string[]): string[] {
+  const tagged = new Set(tokens(text));
+  const out: string[] = [];
+  for (const raw of jids) {
+    const jid = normalizeContactJid(raw);
+    if (!jid) throw errors.validation('mentions: not a WhatsApp address');
+    if (!tagged.has(jidUser(jid))) throw errors.validation('mentions: the text has no @tag for it');
+    if (!out.includes(jid)) out.push(jid);
+  }
+  return out;
+}
 
 function textParts(body: string): string[] {
   return body.split(URL);
