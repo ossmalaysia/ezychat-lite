@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tag people in WhatsApp groups.** In a group chat, type `@` in the reply box and pick a member from **Tag a
+  member** (type a few letters of their name or number to filter). The member gets a real WhatsApp tag and a
+  notification, just as when you tag them from your phone, and EzyChat shows their name in the message. Tagging works
+  on numbers linked with the WhatsApp app; the WhatsApp Business API does not support tags yet, so its groups show no
+  picker.
+
 - **WhatsApp Safety.** EzyChat checks every message customers send for risky files and scams, such as the fake
   "statement of account" ZIP that hides a program, fake bank links and password-locked files.
   - **In the chat:** a flagged message shows a short warning. Your team checks a file before downloading it.

@@ -843,5 +843,13 @@
       "financeUrgency": "紧急付款或财务请求。",
       "firstFile": "此号码第一次发文件。"
     }
+  },
+  "mentions": {
+    "title": "标记成员",
+    "loading": "正在加载成员…",
+    "error": "无法加载成员。请关闭后重新输入 @。",
+    "noMatch": "没有成员匹配“@{{query}}”。",
+    "admin": "管理员",
+    "noName": "未分享名字"
   }
 }

@@ -706,7 +706,9 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   }
 
   sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
-    return this.send(chatJid, { text }, opts);
+    // A tag is `@<number>` in the text plus the member's address in `mentions` (contextInfo).
+    const mentions = opts?.mentions?.length ? { mentions: [...opts.mentions] } : {};
+    return this.send(chatJid, { text, ...mentions }, opts);
   }
 
   sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {

@@ -843,5 +843,13 @@
       "financeUrgency": "Permintaan bayaran atau kewangan segera.",
       "firstFile": "Fail pertama dari nombor ini."
     }
+  },
+  "mentions": {
+    "title": "Tag ahli",
+    "loading": "Memuatkan ahli…",
+    "error": "Ahli tidak dapat dimuatkan. Tutup dan taip @ semula.",
+    "noMatch": "Tiada ahli sepadan dengan “@{{query}}”.",
+    "admin": "Admin",
+    "noName": "Tiada nama dikongsi"
   }
 }

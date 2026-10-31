@@ -29,6 +29,11 @@ export const InboxCapabilitiesSchema = z.object({
   templates: z.boolean(),
   /** Receives messages through Phone access (a public webhook address). */
   needsPublicUrl: z.boolean().default(false),
+  /**
+   * Tags group members (@mention) in sent text. Absent (an older server, or a connection that
+   * does not say so) means it cannot: read it as `mentions === true`.
+   */
+  mentions: z.boolean().optional(),
 });
 export type InboxCapabilities = z.infer<typeof InboxCapabilitiesSchema>;
 export const DEFAULT_INBOX_CAPABILITIES: InboxCapabilities = {
@@ -38,6 +43,7 @@ export const DEFAULT_INBOX_CAPABILITIES: InboxCapabilities = {
   replyWindowHours: null,
   templates: false,
   needsPublicUrl: false,
+  mentions: true,
 };
 
 /** One linked WhatsApp number (an inbox). Inbox 1 is the number linked before multi-inbox. */

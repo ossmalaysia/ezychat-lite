@@ -186,7 +186,10 @@ describe('adapter factory by inbox type', () => {
       replyWindowHours: null,
       templates: false,
       needsPublicUrl: false,
+      // a linked phone tags group members; an extension type that does not say so cannot
+      mentions: true,
     });
+    expect(listed[1]!.capabilities.mentions).toBe(false);
   });
 
   it('refuses a type no extension registered (400 unknown_inbox_type) and creates nothing', async () => {

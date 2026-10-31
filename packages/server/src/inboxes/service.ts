@@ -178,7 +178,9 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       aiAgentId: agentForInbox(ctx.db, row.id)?.id ?? null,
       ...(admin ? { memberIds: repo.members(row.id) } : {}),
       type: row.type,
-      capabilities: wa?.capabilities ? { ...wa.capabilities } : { ...DEFAULT_INBOX_CAPABILITIES },
+      capabilities: wa?.capabilities
+        ? { ...wa.capabilities, mentions: wa.capabilities.mentions === true }
+        : { ...DEFAULT_INBOX_CAPABILITIES },
     };
   };
 

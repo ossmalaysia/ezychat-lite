@@ -17,6 +17,7 @@ import {
   completionReady,
   matchPhrase,
   MEDIA_UPLOAD_LIMIT_BYTES,
+  type GroupMember,
   type QuickReply,
   type ReplyPhraseListItem,
   type FixEnglishStatus,
@@ -30,6 +31,15 @@ import { toast } from 'sonner';
 import { errorMessage } from '@/api/client';
 import { fetchCompletion, fetchSuggestions, sendPhraseFeedback } from '@/api/reply-suggestions';
 import { QuickReplyPicker, filterQuickReplies } from './QuickReplyPicker';
+import { MentionPicker } from './MentionPicker';
+import {
+  MAX_TAGS,
+  filterMembers,
+  insertTag,
+  mentionQuery,
+  toWhatsApp,
+  type DraftTag,
+} from './mentions';
 import { ReplySuggestions, type SuggestionStrip } from './ReplySuggestions';
 import { EmojiPicker } from './EmojiPicker';
 import { VoiceNoteBar, useVoiceNote } from './VoiceNote';
@@ -57,7 +67,11 @@ export interface ComposerHandle {
 
 export interface ComposerProps {
   quickReplies: QuickReply[];
-  onSend(text: string): void;
+  /**
+   * `mentions`: the tagged members' addresses (groups only; the text then carries `@<number>`);
+   * `shown`: the text as the box showed it (`@Name`), for the pending bubble.
+   */
+  onSend(text: string, mentions?: string[], shown?: string): void;
   /**
    * One file to send, with the caption (the typed text goes with the first file). Files picked,
    * pasted or dropped wait in the tray until Send; they are sent one after another, in order:
@@ -96,6 +110,11 @@ export interface ComposerProps {
   } | null;
   /** Ask Ezy (docs/features/ask-ezy/design.md): direct chats only; opens Ezy scoped to this chat. */
   askEzy?: { chatJid: string; name: string } | null;
+  /**
+   * Tag group members with `@` (docs/features/group-mentions/design.md): a group whose connection
+   * can tag. `members` is null while loading; `onOpen` runs when the picker opens. Null: no picker.
+   */
+  mentions?: { members: GroupMember[] | null; error: boolean; onOpen(): void } | null;
   /**
    * Fix English (docs/features/grammar-fix/design.md): spelling and grammar marks in this chat
    * (any chat type; null or a status with both checks off = nothing shown).
@@ -158,6 +177,7 @@ export function Composer({
   aiSuggest = null,
   askEzy = null,
   fixEnglish = null,
+  mentions = null,
   ref,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
@@ -165,6 +185,10 @@ export function Composer({
   const [text, setText] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [pickerDismissed, setPickerDismissed] = useState(false);
+  // @ tags picked in this draft, the caret, and the `@` whose picker was closed with Escape.
+  const [tags, setTags] = useState<DraftTag[]>([]);
+  const [caret, setCaret] = useState(0);
+  const [mentionDismissed, setMentionDismissed] = useState<number | null>(null);
   const [browseReplies, setBrowseReplies] = useState(false);
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -430,11 +454,23 @@ export function Composer({
 
   const query = browseReplies ? '' : slashQuery(text);
   const matches = query == null ? [] : filterQuickReplies(quickReplies, query);
-  const pickerOpen = query != null && !pickerDismissed && quickReplies.length > 0;
+  const quickOpen = query != null && !pickerDismissed && quickReplies.length > 0;
+  // `@name` right before the caret opens the member picker (groups that can tag only).
+  const mention = mentions && !quickOpen ? mentionQuery(text, caret) : null;
+  const mentionOpen = !!mention && mentionDismissed !== mention.start;
+  const memberMatches =
+    mention && mentionOpen && mentions?.members
+      ? filterMembers(mentions.members, mention.query)
+      : [];
+  const pickerOpen = quickOpen || mentionOpen;
+  const onOpenMentions = mentions?.onOpen;
+  useEffect(() => {
+    if (mentionOpen) onOpenMentions?.();
+  }, [mentionOpen, onOpenMentions]);
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [query]);
+  }, [query, mention?.query]);
 
   // Choosing Reply puts the cursor in the box, ready to type.
   const replyId = replyTo?.id;
@@ -508,6 +544,22 @@ export function Composer({
     });
   }
 
+  /** Puts the picked member's `@Name` tag in place of the `@query` being typed. */
+  function insertMember(member: GroupMember) {
+    if (!mention) return;
+    const r = insertTag(text, mention.start, caret, member);
+    setText(r.text);
+    setCaret(r.caret);
+    pendingCaret.current = r.caret;
+    setTags((list) =>
+      list.some((tag) => tag.jid === r.tag.jid && tag.label === r.tag.label) ||
+      list.length >= MAX_TAGS
+        ? list
+        : [...list, r.tag],
+    );
+    emitTyping(r.text);
+  }
+
   async function confirmed(): Promise<boolean> {
     if (!confirmSend) return true;
     try {
@@ -523,8 +575,14 @@ export function Composer({
     setBusy(true);
     try {
       if (!(await confirmed())) return;
+      // `@Name` tags go out as WhatsApp's `@<number>` with the members' addresses. A caption keeps
+      // the names as typed: WhatsApp media captions are sent without tags.
+      const tagged = mentions && tags.length && files.length === 0 ? toWhatsApp(value, tags) : null;
       if (files.length > 0) sendFiles(files, value);
+      else if (tagged?.mentions.length) onSend(tagged.text, tagged.mentions, value);
       else onSend(value);
+      setTags([]);
+      setMentionDismissed(null);
       queueFiles([]);
       setText('');
       setGhost(null);
@@ -573,6 +631,8 @@ export function Composer({
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const v = e.target.value;
     setText(v);
+    setCaret(e.target.selectionStart ?? v.length);
+    if (!v) setTags([]);
     setBrowseReplies(false);
     if (slashQuery(v) == null) setPickerDismissed(false);
     emitTyping(v);
@@ -613,7 +673,27 @@ export function Composer({
       setGhost(null);
       return;
     }
-    if (pickerOpen && matches.length > 0) {
+    // The member picker drives ↑/↓/Enter/Tab/Escape while it is open.
+    if (mention && mentionOpen && memberMatches.length > 0) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setActiveIndex((i) => (i + step + memberMatches.length) % memberMatches.length);
+        return;
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        e.preventDefault();
+        const m = memberMatches[Math.min(activeIndex, memberMatches.length - 1)];
+        if (m) insertMember(m);
+        return;
+      }
+    }
+    if (mention && mentionOpen && e.key === 'Escape') {
+      e.preventDefault();
+      setMentionDismissed(mention.start);
+      return;
+    }
+    if (quickOpen && matches.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setActiveIndex((i) => (i + 1) % matches.length);
@@ -631,7 +711,7 @@ export function Composer({
         return;
       }
     }
-    if (pickerOpen && e.key === 'Escape') {
+    if (quickOpen && e.key === 'Escape') {
       e.preventDefault();
       setPickerDismissed(true);
       setBrowseReplies(false);
@@ -763,6 +843,7 @@ export function Composer({
         open={pickerOpen}
         onOpenChange={(o) => {
           if (!o) {
+            if (mention && mentionOpen) setMentionDismissed(mention.start);
             setPickerDismissed(true);
             setBrowseReplies(false);
           }
@@ -820,6 +901,8 @@ export function Composer({
                 }
                 onChange={onChange}
                 onKeyDown={onKeyDown}
+                // The cursor moved (click, arrows): re-read the `@query` under it.
+                onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
                 onPaste={onPaste}
                 onScroll={(e) => {
                   if (marksRef.current) marksRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -928,11 +1011,11 @@ export function Composer({
               variant="ghost"
               size="touch"
               disabled={disabled}
-              aria-expanded={pickerOpen}
-              aria-controls={pickerOpen ? pickerId : undefined}
+              aria-expanded={quickOpen}
+              aria-controls={quickOpen ? pickerId : undefined}
               onClick={() => {
-                setBrowseReplies(!pickerOpen);
-                setPickerDismissed(pickerOpen);
+                setBrowseReplies(!quickOpen);
+                setPickerDismissed(quickOpen);
                 areaRef.current?.focus();
               }}
               className="text-muted-foreground max-sm:has-[>svg]:px-2"
@@ -1020,13 +1103,24 @@ export function Composer({
           }}
           className="w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
         >
-          <QuickReplyPicker
-            replies={quickReplies}
-            query={query ?? ''}
-            activeIndex={activeIndex}
-            onPick={insertReply}
-            onHover={setActiveIndex}
-          />
+          {mention && mentionOpen ? (
+            <MentionPicker
+              members={mentions?.members ? memberMatches : null}
+              error={!!mentions?.error}
+              query={mention.query}
+              activeIndex={activeIndex}
+              onPick={insertMember}
+              onHover={setActiveIndex}
+            />
+          ) : (
+            <QuickReplyPicker
+              replies={quickReplies}
+              query={query ?? ''}
+              activeIndex={activeIndex}
+              onPick={insertReply}
+              onHover={setActiveIndex}
+            />
+          )}
         </PopoverContent>
       </Popover>
     </>

@@ -38,7 +38,7 @@ import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
-import { createMentionPresenter } from './mentions.js';
+import { createMentionPresenter, outgoingMentions } from './mentions.js';
 import { OWN_REACTOR, createReactionPresenter, reactionRow } from './reactions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
 import { TemplateCatalog, fillTemplate, templatesUnsupported } from './templates.js';
@@ -156,6 +156,17 @@ export function messageTypeForMime(m: string): MessageType {
   if (m.startsWith('video/')) return 'video';
   if (m.startsWith('audio/')) return 'audio';
   return 'document';
+}
+
+/** The tags a stored outgoing message carries (a damaged value tags nobody). */
+function sentMentions(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((j): j is string => typeof j === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 function extFor(mimeType: string, fileName: string | null): string {
@@ -302,7 +313,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     inflight.set(job.chatJid, guard);
     const p = (async () => {
       if (job.kind === 'text') {
-        return wa.sendText(job.targetJid, job.text ?? '', replyOptions(job.quotedId));
+        const reply = replyOptions(job.quotedId);
+        return wa.sendText(
+          job.targetJid,
+          job.text ?? '',
+          job.mentions?.length ? { ...reply, mentions: job.mentions } : reply,
+        );
       }
       if (job.kind === 'template') {
         if (!wa.sendTemplate || !job.template) throw new Error('templates_unsupported');
@@ -508,7 +524,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         ...(r.voice_note === 1 ? { voiceNote: true } : {}),
       };
     }
-    return { ...base, kind: 'text', text: r.body ?? '' };
+    const mentions = sentMentions(r.mentioned_jids);
+    return { ...base, kind: 'text', text: r.body ?? '', ...(mentions.length ? { mentions } : {}) };
   };
 
   /**
@@ -524,6 +541,20 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     const c = chats.get(jid);
     if (!c) throw errors.notFound('Chat');
     return c;
+  };
+
+  /**
+   * Members a text tags: only in a group, only through a connection that sends WhatsApp mentions
+   * (400 otherwise), and each written in the text as its `@<number>` tag.
+   */
+  const checkMentions = (jid: string, text: string, mentions: string[] | undefined): string[] => {
+    if (!mentions?.length) return [];
+    if (requireChat(jid).type !== 'group')
+      throw errors.validation('mentions: only group messages tag members');
+    const wa = adapterOf(inboxOfKey(jid));
+    if (!wa || capabilitiesOf(wa).mentions !== true)
+      throw errors.validation('mentions: this connection cannot tag members');
+    return outgoingMentions(text, mentions);
   };
 
   /** Sending needs the chat's inbox: a removed inbox keeps its chats read only. */
@@ -826,6 +857,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       requireWindow(jid);
       const quotedId = checkQuote(jid, body.quotedId);
+      const mentions = checkMentions(jid, body.text, body.mentions);
       const t = now();
       claimOnReply(jid, userId, t);
       return insertOutgoing({
@@ -849,6 +881,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         client_id: body.clientId,
         wa_remote_jid: replyTarget(jid),
         sent_via_token_id: opts?.viaTokenId ?? null,
+        // Kept with the message: the queue sends them, and the bubble names the tagged members.
+        mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
       });
     },
 
