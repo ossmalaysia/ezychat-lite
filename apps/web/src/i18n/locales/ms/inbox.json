@@ -793,5 +793,13 @@
     "summariseButton": "Ringkaskan dengan Ezy",
     "readyWith": "Jawapan sedia: {{first}}",
     "aboutChatSuffix": "tentang chat ini"
+  },
+  "mentions": {
+    "title": "Tag ahli",
+    "loading": "Memuatkan ahli…",
+    "error": "Ahli tidak dapat dimuatkan. Tutup dan taip @ semula.",
+    "noMatch": "Tiada ahli sepadan dengan “@{{query}}”.",
+    "admin": "Admin",
+    "noName": "Tiada nama dikongsi"
   }
 }

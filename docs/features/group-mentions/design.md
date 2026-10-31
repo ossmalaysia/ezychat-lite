@@ -1,6 +1,6 @@
 # Tag (@mention) group members when replying
 
-Status: **proposal — waiting for the owner's confirmation** of the mock before the production composer is built.
+Status: **confirmed** 2026-10-31 (see Confirmation); built in the same branch.
 Branch `claude/ecstatic-mendel-lr798e` from `main` (`8bfeef9`).
 
 ## Owner request (2026-10-31)
@@ -94,4 +94,6 @@ Changed or added mock files (the rest is the baseline unchanged): `src/inbox/Com
 
 ## Confirmation
 
-_Not yet confirmed._
+Owner reviewed the mock screenshots (picker, picked names, sent bubble; desktop and phone) and the Baileys / Business
+API answer, then wrote on 2026-10-31: "build it until merge to main". Recorded as confirmation of the mock as proposed
+(source revision `f6f0d2b`) and as the owner's request to merge PR #239.

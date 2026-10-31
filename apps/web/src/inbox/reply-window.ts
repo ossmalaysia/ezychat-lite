@@ -62,6 +62,20 @@ export function useReplyWindowHours(): (inboxId: number) => number | null {
   return useCallback((inboxId: number) => byId.get(inboxId) ?? null, [byId]);
 }
 
+/**
+ * Whether a chat's inbox can tag group members (@mention). Its connection must say so
+ * (`capabilities.mentions`); an inbox not listed yet cannot.
+ */
+export function useInboxCanTag(): (inboxId: number) => boolean {
+  const { data } = useInboxes();
+  const all = data?.inboxes;
+  const byId = useMemo(
+    () => new Map((all ?? []).map((i) => [i.id, inboxCapabilities(i).mentions === true])),
+    [all],
+  );
+  return useCallback((inboxId: number) => byId.get(inboxId) ?? false, [byId]);
+}
+
 /** Longest delay `setTimeout` accepts. */
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 

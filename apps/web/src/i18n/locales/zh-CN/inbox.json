@@ -793,5 +793,13 @@
     "summariseButton": "用 Ezy 总结聊天",
     "readyWith": "回答已就绪：{{first}}",
     "aboutChatSuffix": "（关于此聊天）"
+  },
+  "mentions": {
+    "title": "标记成员",
+    "loading": "正在加载成员…",
+    "error": "无法加载成员。请关闭后重新输入 @。",
+    "noMatch": "没有成员匹配“@{{query}}”。",
+    "admin": "管理员",
+    "noName": "未分享名字"
   }
 }

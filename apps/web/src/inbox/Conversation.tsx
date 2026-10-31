@@ -60,7 +60,7 @@ import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { ReplyWindowNote, WindowClosedPanel } from './ReplyWindow';
-import { useReplyWindowHours, useWindowClosed } from './reply-window';
+import { useInboxCanTag, useReplyWindowHours, useWindowClosed } from './reply-window';
 
 export interface ConversationProps {
   jid: string;
@@ -129,6 +129,13 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       refusedAt.lastInboundAt === (chat?.lastInboundAt ?? null));
   // Group chats: the member count under the name (same cached list the Group info panel uses).
   const groupMembers = useGroupMembers(jid, chat?.type === 'group');
+  const canTag = useInboxCanTag();
+  // Typing @ again retries a member list that failed to load.
+  const membersFailed = groupMembers.isError;
+  const refetchMembers = groupMembers.refetch;
+  const retryMembers = useCallback(() => {
+    if (membersFailed) void refetchMembers();
+  }, [membersFailed, refetchMembers]);
   // Group chats: whether the AI agent answers when tagged or quoted (header badge, Group info).
   const groupAi = useGroupChatAi(chat?.type === 'group' ? jid : null);
   const events = chatQ.data?.events;
@@ -463,9 +470,24 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   onAddWord: (word) =>
                     addTeamWord(word).then((data) => qc.setQueryData(teamWordsKey, data)),
                 }}
-                onSend={(text) => {
+                // @ tags group members when the group's connection can tag.
+                mentions={
+                  chat.type === 'group' && canTag(chat.inboxId)
+                    ? {
+                        members: groupMembers.data?.members ?? null,
+                        error: groupMembers.isError,
+                        onOpen: retryMembers,
+                      }
+                    : null
+                }
+                onSend={(text, mentions, shown) => {
                   sendText.mutate(
-                    { text, clientId: newClientId(), quotedId: replyTo?.id },
+                    {
+                      text,
+                      clientId: newClientId(),
+                      quotedId: replyTo?.id,
+                      ...(mentions?.length ? { mentions, shown } : {}),
+                    },
                     { onError: onSendError },
                   );
                   setReplyTo(null);

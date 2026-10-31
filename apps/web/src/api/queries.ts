@@ -545,6 +545,10 @@ export function flattenMessages(data: MessagesData | undefined): Message[] {
 export interface SendTextInput {
   text: string;
   quotedId?: string;
+  /** Group chats: the tagged members' addresses (the text carries their `@<number>` tags). */
+  mentions?: string[];
+  /** The text as the box showed it (`@Name`), for the pending bubble until the server answers. */
+  shown?: string;
   /** Generate with `newClientId()` (crypto.randomUUID). */
   clientId: string;
 }
@@ -556,11 +560,16 @@ export function useSendText(jid: string) {
     mutationFn: (input: SendTextInput) =>
       api<Message>(`/chats/${enc(jid)}/messages`, {
         method: 'POST',
-        body: { text: input.text, quotedId: input.quotedId, clientId: input.clientId },
+        body: {
+          text: input.text,
+          quotedId: input.quotedId,
+          clientId: input.clientId,
+          ...(input.mentions?.length ? { mentions: input.mentions } : {}),
+        },
       }),
     onMutate: (input) => {
       const msg = optimisticMessage(qc, jid, input.clientId, {
-        body: input.text,
+        body: input.shown ?? input.text,
         quotedId: input.quotedId ?? null,
       });
       upsertMessageInCache(qc, msg);

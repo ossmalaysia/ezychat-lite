@@ -6,12 +6,12 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-handoff-rules",
-    "gitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
-    "mock": "docs/features/ai-handoff-rules/mock/index.html",
-    "design": "docs/features/ai-handoff-rules/design.md",
-    "confirmedAt": "2026-10-30",
-    "confirmation": "Owner confirmed in chat 2026-10-30 (answer \"Off for every agent\" to the default question, with \"Merge #230 now\"): the Closing chats card as proposed, default off for every agent."
+    "feature": "group-mentions",
+    "gitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
+    "mock": "docs/features/group-mentions/mock/index.html",
+    "design": "docs/features/group-mentions/design.md",
+    "confirmedAt": "2026-10-31",
+    "confirmation": "Owner wrote 2026-10-31 \"build it until merge to main\" after reviewing the mock screenshots: the @ member picker as proposed."
   },
   "proposals": [
     {
@@ -20,11 +20,14 @@
       "createdAt": "2026-10-31",
       "design": "docs/features/group-mentions/design.md",
       "mock": "docs/features/group-mentions/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "ai-handoff-rules",
       "baselineGitRevision": "16a126ec521e9e9e79dbe4a4477c449114bb51fb",
       "baselineAppRevision": "8bfeef9",
-      "coverage": "Full app clone of the confirmed ai-handoff-rules reference; group composer @ picker (Tag a member: all members, filtered, no match, loading/failed, Admin chip, large group with unnamed members), picked @Name tags in the box, send through the real server route with mentions (fake WhatsApp gets @<number> + addresses), bubble names; desktop 1280 / mobile 360 touch, light/dark (mention-shots.mjs)"
+      "coverage": "Full app clone of the confirmed ai-handoff-rules reference; group composer @ picker (Tag a member: all members, filtered, no match, loading/failed, Admin chip, large group with unnamed members), picked @Name tags in the box, send through the real server route with mentions (fake WhatsApp gets @<number> + addresses), bubble names; desktop 1280 / mobile 360 touch, light/dark (mention-shots.mjs)",
+      "confirmedAt": "2026-10-31",
+      "confirmation": "Owner wrote 2026-10-31 \"build it until merge to main\" after reviewing the mock screenshots: the @ member picker as proposed.",
+      "gitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4"
     },
     {
       "feature": "ai-direct-chats",

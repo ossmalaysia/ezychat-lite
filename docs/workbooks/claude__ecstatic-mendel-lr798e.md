@@ -5,15 +5,21 @@ Branch: `claude/ecstatic-mendel-lr798e` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | group-mentions mock + design (docs/features/group-mentions), waiting for owner confirmation | 8bfeef9 | 2026-10-31 |
-| Dev | doing | Server/wa/shared: send mentions (route, queue, Baileys, fake, capability). Web composer after mock confirmation | 8bfeef9 | 2026-10-31 |
-| Unit tests | pass | send-mentions.test.ts (9), Baileys mention send, shared capability default; bite proof: dropping job.mentions fails 2 tests | 8bfeef9 | 2026-10-31 |
-| E2E | todo |  |  |  |
-| Dev Build | todo |  |  |  |
-| Screen review | todo |  |  |  |
+| Design | done | group-mentions mock confirmed 2026-10-31 ("build it until merge to main"); latestConfirmed updated | 331942a | 2026-10-31 |
+| Dev | done | Composer @ picker (inbox/mentions.ts, MentionPicker.tsx), Conversation + useSendText mentions/shown, useInboxCanTag, en/ms/zh-CN | 331942a | 2026-10-31 |
+| Unit tests | pass | web: mentions.test, Composer.mentions.test, mention-send.test (14; bite proof fails 3); server send-mentions (9); inbox-types | 331942a | 2026-10-31 |
+| E2E | pass | e2e/mentions.spec.ts composer tagging: desktop, Pixel 7, iPhone (7 passed); full e2e at the end | 331942a | 2026-10-31 |
+| Dev Build | pass | devbuild-mentions-check.mjs 35/35 on --mode dev --fake-wa + built web; real WhatsApp untested | 331942a | 2026-10-31 |
+| Screen review | pass | Picker, picked, sent at 1280/360 light+dark match the confirmed mock; no overflow; docs/screenshots/chat/mention-* | 331942a | 2026-10-31 |
 
 ## Log
 
 - 2026-10-31 Design: doing — group-mentions mock + design (docs/features/group-mentions), waiting for owner confirmation (8bfeef9)
 - 2026-10-31 Dev: doing — Server/wa/shared: send mentions (route, queue, Baileys, fake, capability). Web composer after mock confirmation (8bfeef9)
 - 2026-10-31 Unit tests: pass — send-mentions.test.ts (9), Baileys mention send, shared capability default; bite proof: dropping job.mentions fails 2 tests (8bfeef9)
+- 2026-10-31 Design: done — group-mentions mock confirmed 2026-10-31 ("build it until merge to main"); latestConfirmed updated (331942a)
+- 2026-10-31 Dev: done — Composer @ picker (inbox/mentions.ts, MentionPicker.tsx), Conversation + useSendText mentions/shown, useInboxCanTag, en/ms/zh-CN (331942a)
+- 2026-10-31 Unit tests: pass — web: mentions.test, Composer.mentions.test, mention-send.test (14; bite proof fails 3); server send-mentions (9); inbox-types (331942a)
+- 2026-10-31 E2E: pass — e2e/mentions.spec.ts composer tagging: desktop, Pixel 7, iPhone (7 passed); full e2e at the end (331942a)
+- 2026-10-31 Dev Build: pass — devbuild-mentions-check.mjs 35/35 on --mode dev --fake-wa + built web; real WhatsApp untested (331942a)
+- 2026-10-31 Screen review: pass — Picker, picked, sent at 1280/360 light+dark match the confirmed mock; no overflow; docs/screenshots/chat/mention-* (331942a)

@@ -797,5 +797,13 @@
     "summariseButton": "Summarise with Ezy",
     "readyWith": "Answer ready: {{first}}",
     "aboutChatSuffix": "about this chat"
+  },
+  "mentions": {
+    "title": "Tag a member",
+    "loading": "Loading members…",
+    "error": "Members couldn’t be loaded. Close and type @ again.",
+    "noMatch": "No member matches “@{{query}}”.",
+    "admin": "Admin",
+    "noName": "No name shared"
   }
 }

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tag people in WhatsApp groups.** In a group chat, type `@` in the reply box and pick a member from **Tag a
+  member** (type a few letters of their name or number to filter). The member gets a real WhatsApp tag and a
+  notification, just as when you tag them from your phone, and EzyChat shows their name in the message. Tagging works
+  on numbers linked with the WhatsApp app; the WhatsApp Business API does not support tags yet, so its groups show no
+  picker.
+
 - **AI agents that answer only in groups.** Each AI agent has a new **Answer direct chats** switch (on by default).
   Turn it off and keep **Answer in groups** on, and the agent answers only when tagged or quoted in the groups you
   switched on; direct chats stay with your team. The direct chats it was handling go back to the team, and it cannot be
