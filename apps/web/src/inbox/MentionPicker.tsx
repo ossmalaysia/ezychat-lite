@@ -4,6 +4,7 @@ import { AtSign } from 'lucide-react';
 import type { GroupMember } from '@ezychat/shared';
 import { Command, CommandItem, CommandList } from '@/components/ui/command';
 import { formatPhone } from '@/lib/jid';
+import { cn } from '@/lib/utils';
 import { memberLabel } from './mentions';
 
 export interface MentionPickerProps {
@@ -28,11 +29,16 @@ export function MentionPicker({
   activeIndex,
   onPick,
   onHover,
-}: MentionPickerProps) {
+}: Readonly<MentionPickerProps>) {
   const { t } = useTranslation('inbox');
   const listRef = useRef<HTMLDivElement>(null);
   const list = members ?? [];
   const active = list[Math.min(activeIndex, list.length - 1)];
+  // Failed, loading or no match: one line instead of the list.
+  let notice: string | null = null;
+  if (error) notice = t('mentions.error');
+  else if (members == null) notice = t('mentions.loading');
+  else if (list.length === 0) notice = t('mentions.noMatch', { query });
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`);
@@ -54,13 +60,11 @@ export function MentionPicker({
         <AtSign className="size-3.5" aria-hidden="true" />
         {t('mentions.title')}
       </div>
-      {error ? (
-        <p className="px-3 py-3 text-sm text-destructive">{t('mentions.error')}</p>
-      ) : members == null ? (
-        <p className="px-3 py-3 text-sm text-muted-foreground">{t('mentions.loading')}</p>
-      ) : list.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-muted-foreground">
-          {t('mentions.noMatch', { query })}
+      {notice ? (
+        <p
+          className={cn('px-3 py-3 text-sm', error ? 'text-destructive' : 'text-muted-foreground')}
+        >
+          {notice}
         </p>
       ) : (
         <CommandList

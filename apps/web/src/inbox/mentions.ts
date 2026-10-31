@@ -50,7 +50,7 @@ export function filterMembers(members: GroupMember[], query: string): GroupMembe
         (m.username ?? '').toLowerCase(),
         m.phone ?? '',
       ];
-      return words.some((w) => w && w.startsWith(q));
+      return words.some((w) => w?.startsWith(q));
     })
     .sort(
       (a, b) => named(a) - named(b) || memberLabel(a).localeCompare(memberLabel(b), undefined, {}),
@@ -74,7 +74,7 @@ export function insertTag(
   };
 }
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /**
  * The text and mentions to send: each tag still written as `@Label` (a whole tag, not followed by
@@ -85,7 +85,10 @@ export function toWhatsApp(text: string, tags: DraftTag[]): { text: string; ment
   const mentions: string[] = [];
   // Longest names first, so "@Mei Ling Tan" is never read as "@Mei Ling".
   for (const tag of [...tags].sort((a, b) => b.label.length - a.label.length)) {
-    const re = new RegExp(`(^|[^\\p{L}\\p{N}_])@${escape(tag.label)}(?![\\p{L}\\p{N}_])`, 'gu');
+    const re = new RegExp(
+      String.raw`(^|[^\p{L}\p{N}_])@${escape(tag.label)}(?![\p{L}\p{N}_])`,
+      'gu',
+    );
     const digits = tag.jid.split('@')[0]!.split(':')[0]!;
     let found = false;
     out = out.replace(re, (_m, lead: string) => {

@@ -5,12 +5,20 @@
 // Usage: node e2e/devbuild-mentions-check.mjs <baseUrl> [screenshotDir]
 // Never calls a model or a real WhatsApp number.
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import { apiClient, checker } from './devbuild-client.mjs';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:7431';
-const OUT = process.argv[3];
+const inside = (base, path) => {
+  const rel = relative(base, path);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+const repo = resolve(import.meta.dirname, '..');
+const OUT = process.argv[3] ? resolve(repo, process.argv[3]) : null;
+if (OUT && !inside(repo, OUT) && !inside(resolve(tmpdir()), OUT))
+  throw new Error('The screenshot folder must be inside the repository or the temp folder.');
 if (OUT) mkdirSync(OUT, { recursive: true });
 const { check, finish } = checker();
 const api = apiClient(BASE);
