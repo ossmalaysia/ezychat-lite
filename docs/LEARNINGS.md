@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
+  starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
+  `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
 - Never name a module constant after a global (`URL`, `Map`, `Set`, `Buffer`): `const URL = /…/` made every
   `new URL()` in that file throw, the `try` swallowed it, and link checks silently answered "safe". A rule that
   fails closed to "nothing found" needs a test with a positive case.

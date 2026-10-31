@@ -207,6 +207,10 @@ release (no core patch).
   remove them from the group).
 - History import (messages from before linking) is checked by rules only, never by the AI, and never auto-blocks.
 
+- Production (decided while building): locked files live in `<data>/media/quarantine/` (media is not in the nightly
+  backups, so the design's "not in backups" holds); the "Check files and links online" Enterprise row is left out of
+  Lite until Enterprise ships it (no dead row); the AI's one-line reason is in English for now.
+
 ## Answered questions (owner, 2026-10-31)
 
 1. AI check default: **on when the install has an AI connection configured** (new and existing installs); off

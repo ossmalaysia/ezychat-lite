@@ -328,6 +328,21 @@ enforces the entry's guards before every call (`guards.ts`: confirmFirst, valueF
 fail closed; Try it never runs a write tool) and logs ids, tool names, outcome and ms only. Test partners:
 `e2e/partner-mcp/` (`node e2e/partner-mcp/cli.mjs`; e2e project `partners` on port 7497 via `e2e/start-partners.mjs`).
 
+**WhatsApp Safety** (design `docs/features/whatsapp-safety/design.md`, mock `docs/features/whatsapp-safety/mock`).
+`ctx.services.safety` (`safety/service.ts`) checks every inbound message at ingest (`messages/service.ts` calls `inspect`
+before presenting it; history: name and text only). Local rules `safety/rules.ts` (real type from the first bytes, a
+ZIP's file list only via `safety/zip.ts`: never run, opened or extracted; bounded, fails closed to `cantInspect`) and
+`safety/policy.ts#decide` (critical rule = High; the AI may raise or confirm, lower only a rules-only Warning). AI check
+`AiService.checkSafety` (fast model, fixed `SAFETY_CHECK_RULES`, text + file names + ZIP names, never bytes; 200 a day
+per inbox; logs level/category/ms only). Table `safety_items` (one per flagged message, migration 028), `safety_numbers`
+(scam / blocked / trusted, shared by inboxes), `safety_downloads`. High files move to `media/quarantine/<path>.bin`; the
+media route answers agents 403 `safety_locked` (recorded), serves admins `application/octet-stream` + `no-store`, and
+refuses redownload. `Message.safety` comes from `present()`. Blocking: optional `WaCapabilities.block` /
+`blockWindowHours` + `WaAdapter.setBlocked` (Baileys `updateBlockStatus`, fake). Auto-block (`safety_auto_block`, off)
+only on a critical rule from a number that is not an existing customer, never in groups. The AI agent hands a High
+message over (`sensitive`). Routes `/api/safety*` (admins), `/api/safety/chats/:jid` (inbox access),
+`/api/reports/safety`. Web: `inbox/SafetyMessage.tsx`, `admin/SafetyPage.tsx`, `admin/SafetyReport.tsx`.
+
 **Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
 zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
 only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a
