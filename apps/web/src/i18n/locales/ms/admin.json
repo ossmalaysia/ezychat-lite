@@ -1344,7 +1344,7 @@
       "description": "Cara {{name}} menamatkan perbualan.",
       "switch": "Tanya sama ada soalan sudah dijawab",
       "onHint": "Selepas menjawab, {{name}} bertanya sama ada jawapan itu menjawab soalan dan menutup chat apabila pelanggan jelas berkata ya.",
-      "offHint": "{{name}} tidak menambah ayat semakan dan tidak pernah menutup chat. Pasukan anda yang menutup chat.",
+      "offHint": "{{name}} tidak menambah ayat semakan. Apabila pelanggan hanya berterima kasih, {{name}} memberi reaksi 👍 dan menutup chat; pasukan anda menutup chat yang lain.",
       "saveFailed": "Tidak dapat disimpan. Cuba lagi."
     }
   },

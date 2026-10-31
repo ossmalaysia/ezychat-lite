@@ -56,7 +56,7 @@ test('Ask if the question is answered: saves at once and survives a reload (desk
     await expect(toggle).toHaveAttribute('aria-checked', String(!before));
     await expect.poll(saved).toBe(!before);
     await expect(
-      card.getByText(!before ? /closes the chat when/ : /never closes a chat/),
+      card.getByText(!before ? /closes the chat when/ : /only says thanks/),
     ).toBeVisible();
     await expectNoHorizontalScroll(page, 'agent page closing chats card');
 

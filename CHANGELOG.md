@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
+  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
+  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
+  keeps the chat open.
 - **The AI agent follows your hand-over rules.** A request to book a consultation, meeting, demo or call is now
   treated as a sales conversation: the agent asks what the customer needs instead of handing the chat over, and
   your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a

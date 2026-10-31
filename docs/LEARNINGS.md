@@ -967,6 +967,12 @@ into AGENTS.md.
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
   class and status for the log, or every cause looks like the same plain `Error`.
+- A silent `no_reply` must never leave a chat that nobody closes: a plain thanks (`looksLikeConfirmation`)
+  after the AI's own answer or resolve gets a 👍 and a resolve, whatever the resolution switch. When you add a
+  condition to such a path, check every switch combination: #232 ran only after an AI resolve, which #230's
+  default (switch off) never makes. Keep confirmation filler words broad ("thanks a lot" counted as new facts).
+- A service that saves `Date.now` as a reference (`deps?.now ?? Date.now`) ignores `vi.useFakeTimers` set up
+  later, so its rows and the faked rows of other services are on different clocks; read `() => Date.now()`.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
   admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for

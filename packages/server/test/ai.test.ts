@@ -636,7 +636,7 @@ describe('a closing message after the AI resolved the chat', () => {
     expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
     const line = aiLogs
       .map((l) => JSON.parse(l))
-      .find((l) => l.msg === 'AI resolved the chat again after thanks');
+      .find((l) => l.msg === 'AI resolved the chat after thanks');
     expect(line).toMatchObject({ jid, ack: 'reaction' });
   });
 
@@ -668,7 +668,7 @@ describe('a closing message after the AI resolved the chat', () => {
     finish();
     await vi.advanceTimersByTimeAsync(0);
     expect(getChats(t.ctx).get(jid)?.status).toBe('open');
-    expect(aiLogs.join('\n')).not.toContain('AI resolved the chat again after thanks');
+    expect(aiLogs.join('\n')).not.toContain('AI resolved the chat after thanks');
   });
 
   it('keeps the chat open when a teammate acted after the AI resolved it', async () => {
@@ -693,6 +693,78 @@ describe('a closing message after the AI resolved the chat', () => {
     await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
     expect(t.wa.reactions).toEqual([]);
     expect(t.wa.sent).toHaveLength(sent + 1);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  });
+});
+
+describe('a plain thanks after the AI answered', () => {
+  const resolutionCheck = (on: boolean) =>
+    t.ctx.db.prepare('UPDATE ai_agents SET resolution_check = ?').run(on ? 1 : 0);
+  async function answeredByAi() {
+    clock();
+    await incoming();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+    return t.wa.sent.length;
+  }
+  const closed = () =>
+    aiLogs.map((l) => JSON.parse(l)).find((l) => l.msg === 'AI resolved the chat after thanks');
+
+  for (const on of [false, true])
+    it(`reacts with a thumbs up and resolves the chat (switch ${on ? 'on' : 'off'})`, async () => {
+      resolutionCheck(on);
+      const sent = await answeredByAi();
+      vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+      await incoming('thanks', 'Thank you!');
+      await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+      expect(t.wa.reactions).toEqual([
+        { chatJid: jid, target: expect.objectContaining({ fromMe: false }), emoji: '👍' },
+      ]);
+      expect(t.wa.sent).toHaveLength(sent);
+      expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+      expect(closed()).toMatchObject({ jid, ack: 'reaction', after: 'answer' });
+      const audit = t.ctx.db
+        .prepare("SELECT meta FROM audit_log WHERE action = 'ai.resolve'")
+        .get() as { meta: string };
+      expect(JSON.parse(audit.meta)).toMatchObject({ after: 'thanks', previous: 'answer' });
+    });
+
+  it('closes a thanks the model wanted to resolve with a goodbye while the switch is off', async () => {
+    resolutionCheck(false);
+    const sent = await answeredByAi();
+    vi.mocked(provider.generate).mockResolvedValueOnce({
+      reply: 'You are welcome!',
+      action: 'resolve',
+    });
+    await incoming('thanks', 'thanks a lot');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+    expect(t.wa.sent).toHaveLength(sent);
+    expect(t.wa.reactions).toHaveLength(1);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
+  });
+
+  it('keeps the chat open when the thanks carries more than thanks', async () => {
+    resolutionCheck(false);
+    await answeredByAi();
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'thanks, I will ask my boss and come back');
+    await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+    expect(t.wa.reactions).toEqual([]);
+    expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+    expect(closed()).toBeUndefined();
+  });
+
+  it('keeps the chat open when a teammate acted after the AI answer', async () => {
+    resolutionCheck(false);
+    await answeredByAi();
+    const teammate = human('teammate');
+    const ai = t.ctx.services.ai!.status().member!;
+    getChats(t.ctx).patch(jid, { assignedTo: teammate.id }, teammate.id);
+    getChats(t.ctx).patch(jid, { assignedTo: ai.id }, teammate.id);
+    vi.mocked(provider.generate).mockResolvedValueOnce({ reply: '', action: 'no_reply' });
+    await incoming('thanks', 'thanks!');
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(t.wa.reactions).toEqual([]);
     expect(getChats(t.ctx).get(jid)?.status).toBe('open');
   });
 });

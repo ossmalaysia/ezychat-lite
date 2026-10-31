@@ -100,7 +100,8 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
     return ctx.inboxes.connections.entries().find(([id]) => id === inboxId)?.[1] ?? null;
   };
   const repo = new ChatRepo(ctx.db);
-  const now = deps?.now ?? Date.now;
+  // Read the clock on each call (not a saved reference), so events follow a faked Date in tests.
+  const now = deps?.now ?? (() => Date.now());
   const aliases = getAliases(ctx);
   const log = ctx.log.child({ mod: 'contacts' });
   const presentAll = createChatPresenter(ctx, ctx.log.child({ mod: 'messages' }));
