@@ -303,3 +303,11 @@ Decision: **risk:auto**
 ## 2026-10-31 · PR #236 · `2c05465` · approved by the owner
 
 > Ok merge
+
+## 2026-10-31 · PR #239 · `f2c82dc` · approved by the owner
+
+> build it until merge to main
+
+Owner's merge request in the session (2026-10-31). No real WhatsApp test was done: the Baileys send of `{ text, mentions }`
+is untested on a live number. Checked instead: unit tests, full e2e, Dev Build check 35/35, screen review, Enterprise on
+the local core.
