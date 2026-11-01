@@ -146,6 +146,9 @@ into AGENTS.md.
 ## Multi-agent process
 
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
+- Order the end checks: independent (security) review first, its fixes, then e2e + workbook record. A fix
+  commit after the e2e round changes the PR's own code, so the release review drops the e2e evidence and the
+  2–3 minute round runs twice.
 - Small changes are done directly. Large multi-part work runs through the Workflow tool with as many
   parallel agents as the work allows, with disjoint file ownership and a time budget; only the
   orchestrator commits; agents don't `npm install` unless they own that package.json.
