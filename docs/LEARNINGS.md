@@ -482,6 +482,8 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Right after a service install (data moved back to the machine folder), `/api/health` can stay silent for
+  more than 3 s while `sc query` already says RUNNING: probe with a ~15 s timeout before calling it down.
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
   there throws `EPERM` (Windows) / `EACCES`. Never fold every error into "missing" (`lite-import/detect.ts`
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
