@@ -8,7 +8,7 @@ Branch: `fix/lite-import-service-detect` · Every agent updates its stage with
 | Design | done | Enterprise mock lite-upgrade round 4 confirmed by the owner 2026-11-01 (ezychat-enterprise ddb8575) | 03d9079 | 2026-11-01 |
 | Dev | done | unlock() + IPC wati:lite-import-unlock, Lite service manager on Lite's folders, Remove service prechecks (app.db, links), security review findings fixed | 03d9079 | 2026-11-01 |
 | Unit tests | pass | desktop 594 passed; web lite-import + i18n pass; prechecks run in powershell.exe against real junctions | 03d9079 | 2026-11-01 |
-| E2E | pass | npm run e2e on the PR head after the security fixes: 134 passed, 27 skipped | 542fbe21 | 2026-11-01 |
+| E2E | pass | npm run e2e on the final head: 134 passed, 27 skipped | a941d13c | 2026-11-01 |
 | Dev Build | pass | Real Allow on the owner's live Lite service: removed, data in Lite's user folder (all parts), found 1359 chats / 2 users / no issues. Import not run (owner's live number) | fc86c987 | 2026-11-01 |
 | Screen review | todo | Mock screenshots reviewed (36, desktop+mobile, light+dark); production screens need the desktop bridge, so capture them in the Dev Build | 03d9079 | 2026-11-01 |
 
@@ -23,3 +23,4 @@ Branch: `fix/lite-import-service-detect` · Every agent updates its stage with
 - 2026-11-01 E2E: pass — npm run e2e on the PR head after the security fixes: 134 passed, 27 skipped (542fbe21)
 - 2026-11-01 Dev Build: doing — Dry run on the owner's PC passed (real detection, UAC prompt, elevated prechecks; nothing changed). Real Remove service + import: needs a test PC (d639eb4d)
 - 2026-11-01 Dev Build: pass — Real Allow on the owner's live Lite service: removed, data in Lite's user folder (all parts), found 1359 chats / 2 users / no issues. Import not run (owner's live number) (fc86c987)
+- 2026-11-01 E2E: pass — npm run e2e on the final head: 134 passed, 27 skipped (a941d13c)
