@@ -8,6 +8,7 @@ import {
   psQuote,
   quoteWinArg,
   windowsInstallScript,
+  windowsUninstallPrechecks,
   windowsUninstallScript,
   windowsControlScript,
   windowsResetAdminScript,
@@ -246,6 +247,20 @@ describe('windowsUninstallScript', () => {
     expect(iCheck).toBeGreaterThan(-1);
     expect(iCheck).toBeLessThan(s.indexOf(' stop'));
     expect(s).toContain('the service was left as it is.');
+  });
+
+  it('the prechecks alone change nothing (the elevated dry run of the Dev Build check)', () => {
+    const opts = {
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: 'C:\\Users\\me\\data',
+    };
+    const pre = windowsUninstallPrechecks(opts).join('\r\n');
+    for (const write of [' stop', ' uninstall', 'Remove-Item', 'Move-Item', 'icacls', 'New-Item'])
+      expect(pre).not.toContain(write);
+    expect(pre).toContain('Assert-Locked');
+    expect(windowsUninstallScript(opts).startsWith(pre)).toBe(true);
   });
 
   it('refuses a link at or above the target and the machine folder, again before each write', () => {

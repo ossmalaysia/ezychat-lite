@@ -266,13 +266,14 @@ export interface WindowsUninstallOptions {
 }
 
 /**
- * PowerShell script (run elevated): stop + uninstall service, remove wrapper, move data back, reset ACL.
- * Refuses before touching the service when the target already holds an app.db (the move would stop
- * halfway, after the service is gone, and leave the data in the locked machine folder).
+ * The read-only checks of the uninstall script, before anything changes: the target holds no app.db
+ * (the move would stop halfway, after the service is gone, and leave the data in the locked machine
+ * folder), no link at or above any folder it writes, and a locked service folder. Defines
+ * `Assert-NoLinkUp` for the script that follows. Alone, it is the elevated dry run (Dev Build checks).
  */
-export function windowsUninstallScript(o: WindowsUninstallOptions): string {
+export function windowsUninstallPrechecks(o: WindowsUninstallOptions): string[] {
   const exe = `${o.serviceDir}\\${o.id}.exe`;
-  const lines = [
+  return [
     ...PS_HEADER,
     ...PS_HELPERS,
     `if ((Test-Path -LiteralPath ${psQuote(o.dataDir)}) -and (Test-Path -LiteralPath (Join-Path ${psQuote(o.moveTo)} 'app.db'))) {`,
@@ -292,8 +293,19 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
     `Assert-NoLinkUp ${psQuote(o.moveTo)}`,
     `Assert-NoLinkUp ${psQuote(o.dataDir)}`,
     ...(o.runDir ? [`Assert-NoLinkUp ${psQuote(o.runDir)}`] : []),
+    `if (Test-Path -LiteralPath ${psQuote(exe)}) { Assert-Locked ${psQuote(o.serviceDir)} -Recurse }`,
+  ];
+}
+
+/**
+ * PowerShell script (run elevated): the prechecks, then stop + uninstall service, remove wrapper, move
+ * data back, reset ACL.
+ */
+export function windowsUninstallScript(o: WindowsUninstallOptions): string {
+  const exe = `${o.serviceDir}\\${o.id}.exe`;
+  const lines = [
+    ...windowsUninstallPrechecks(o),
     `if (Test-Path -LiteralPath ${psQuote(exe)}) {`,
-    `  Assert-Locked ${psQuote(o.serviceDir)} -Recurse`,
     `  & ${psQuote(exe)} stop`,
     `  Start-Sleep -Seconds 2`,
     `  & ${psQuote(exe)} uninstall`,

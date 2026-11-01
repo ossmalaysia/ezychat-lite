@@ -156,7 +156,7 @@ export function isMacPromptCancelled(message: string): boolean {
 }
 
 /** Runs a PowerShell script elevated (UAC prompt); returns its combined output. */
-async function runElevatedWindows(script: string): Promise<string> {
+export async function runElevatedWindows(script: string): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'wati-svc-'));
   const inner = join(dir, 'task.ps1');
   const wrapper = join(dir, 'run.ps1');
