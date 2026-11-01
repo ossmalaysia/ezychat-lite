@@ -8,7 +8,7 @@ import type {
 } from '@ezychat/shared';
 
 export const LITE: LiteSummary = {
-  dataDir: '/tmp/lite',
+  dataDir: 'C:/ProgramData/wa-team-inbox',
   schemaVersion: 28,
   number: '+60 12-345 6789',
   ownJid: '60123456789@s.whatsapp.net',
