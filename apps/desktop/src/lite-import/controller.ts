@@ -2,7 +2,7 @@
 // that produces the shared `LiteImportState` for the web screens. No electron import: main.ts injects
 // the file system, the server CLI, the health probe and the own-server stop/start.
 //
-// scan():  find Lite's data → `--lite-summary` → checks (Lite running, Lite's service running, disk).
+// scan():  find Lite's data (a folder this user may not read → phase 'protected') → `--lite-summary` → checks (Lite running, Lite's service running, disk).
 // start(): re-check Lite is stopped → stop our server → `--import-lite` (plan in a temp file) with its
 //          progress lines → copy mode: take over Lite's port → start our server.
 // The CLI owns everything that touches data, including the checks it can only make with the databases
@@ -156,6 +156,19 @@ export class LiteImportController {
       if (!location) {
         this.log({ step: 'scan', found: false, ms: this.now() - started });
         return this.set({ ...initialState(), phase: 'none' });
+      }
+      if (!location.readable) {
+        // Lite's service folder: found, but only an elevated step may read it (design §5.5).
+        const service = await this.deps
+          .liteServiceState()
+          .catch((): ServiceState => 'not-installed');
+        this.location = null;
+        this.log({ step: 'scan', found: true, readable: false, ms: this.now() - started });
+        return this.set({
+          ...initialState(),
+          phase: 'protected',
+          liteService: service !== 'not-installed',
+        });
       }
       let lite: LiteSummary;
       try {

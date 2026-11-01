@@ -120,6 +120,7 @@ export type LiteImportOutcome = z.infer<typeof LiteImportOutcome>;
 export const LiteImportPhase = z.enum([
   'idle', // nothing scanned yet
   'none', // no Lite data on this PC
+  'protected', // Lite's data is in its OS service's machine folder, which this user cannot read
   'found', // summary ready, checks pass
   'blocked', // a check failed (issues)
   'running',

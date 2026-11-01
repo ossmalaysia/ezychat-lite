@@ -77,7 +77,7 @@ function setup(
   const deps: LiteImportDeps = {
     enabled: true,
     ownDataDir: '/ent',
-    findLite: async () => ({ dataDir: '/lite', kind: 'user', profile: '/profile' }),
+    findLite: async () => ({ dataDir: '/lite', kind: 'user', profile: '/profile', readable: true }),
     litePorts: () => [7431, 7420],
     liteServiceState: async () => over.service ?? 'not-installed',
     liteAnswers: async (port) => (over.answers ?? []).includes(port),
@@ -102,6 +102,27 @@ describe('scan', () => {
     const { controller, calls } = setup({ findLite: async () => null });
     expect((await controller.scan()).phase).toBe('none');
     expect(calls).toEqual([]);
+  });
+
+  it('answers protected for a locked service folder: no summary read, no start possible', async () => {
+    const { controller, calls, logs } = setup({
+      service: 'running',
+      findLite: async () => ({
+        dataDir: 'C:\\ProgramData\\wa-team-inbox',
+        kind: 'machine',
+        profile: '/profile',
+        readable: false,
+      }),
+    });
+    expect(await controller.scan()).toMatchObject({
+      phase: 'protected',
+      lite: null,
+      liteService: true,
+      issues: [],
+    });
+    expect(calls).toEqual([]);
+    expect(logs).toContainEqual(expect.objectContaining({ step: 'scan', readable: false }));
+    await expect(controller.start({ team: [] })).rejects.toThrow('scan first');
   });
 
   it('reads the summary and passes the checks: found, copy mode on an empty install', async () => {

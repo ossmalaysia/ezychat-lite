@@ -51,6 +51,7 @@ import { watchForService } from './service-recovery.js';
 import { decideStartup, MOVED_EXIT_CODE, parsePortFile, serviceWaitMs } from './startup.js';
 import { createServerCli, restoreMoved } from './lite-import/cli.js';
 import { LiteImportController } from './lite-import/controller.js';
+import { mtimeOrDenied } from './lite-import/detect.js';
 import { liteImportDeps, saveSupportFile } from './lite-import/host.js';
 import { LITE_IMPORT_PRELOAD_ARG, registerLiteImportIpc } from './lite-import/ipc.js';
 import { createMovedFlow } from './lite-import/moved-flow.js';
@@ -860,13 +861,7 @@ async function main(): Promise<void> {
       serverUrl: () => url,
       fetch,
       fs: {
-        mtimeMs: (path) => {
-          try {
-            return statSync(path).mtimeMs;
-          } catch {
-            return null;
-          }
-        },
+        mtimeMs: (path) => mtimeOrDenied(statSync, path),
         readText: readTextOrNull,
         exists: existsSync,
         freeBytes: freeBytesAt,

@@ -126,7 +126,8 @@ function WithBridge({
 
   if (path === 'new' || error) return startNew;
   if (!state || state.phase === 'idle') return <FullPageLoader />;
-  if (state.phase === 'none') return startNew;
+  // A locked Lite service folder: setup starts new; Admin → Inboxes explains how to bring it later.
+  if (state.phase === 'none' || state.phase === 'protected') return startNew;
   // Mid-import (the window was reloaded): stay on the Lite path.
   const underway = state.phase === 'running' || state.phase === 'done' || state.phase === 'failed';
   const lite = state.lite;

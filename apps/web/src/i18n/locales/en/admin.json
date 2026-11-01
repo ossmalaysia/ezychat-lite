@@ -2204,6 +2204,13 @@
       "title": "No EzyChat Lite data on this PC",
       "body": "EzyChat Lite was not found on this computer. Add the number with a QR scan instead."
     },
+    "protected": {
+      "title": "EzyChat Lite runs as a background service",
+      "body": "Its data is in a protected folder that only the service can open, so this app cannot bring it in yet.",
+      "step1": "In EzyChat Lite, open \"Status & Service…\" from the system tray.",
+      "step2": "Under \"Background service\", choose \"Remove service\". The data moves back to your user profile.",
+      "step3": "Come back here and choose \"Check again\"."
+    },
     "check": {
       "title": "Quick check",
       "liteRunning": "Close EzyChat Lite first",

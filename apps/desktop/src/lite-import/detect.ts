@@ -20,6 +20,8 @@ export interface LiteLocation {
   kind: 'machine' | 'user';
   /** Lite's Electron profile folder. */
   profile: string;
+  /** False when the folder exists but this user may not read it (Lite's service folder). */
+  readable: boolean;
 }
 
 function pathFor(platform: NodeJS.Platform) {
@@ -41,14 +43,31 @@ export function liteFolders(
 }
 
 export interface DetectFs {
-  /** mtime of a file in ms, or null when it does not exist. */
-  mtimeMs(path: string): number | null;
+  /**
+   * mtime of a file in ms, null when it does not exist, 'denied' when this user may not read it
+   * (EPERM/EACCES: Lite's service folder is locked to the service account). Never fold 'denied' into null.
+   */
+  mtimeMs(path: string): number | null | 'denied';
+}
+
+/** DetectFs.mtimeMs from a stat function (main.ts passes node:fs statSync). */
+export function mtimeOrDenied(
+  stat: (path: string) => { mtimeMs: number },
+  path: string,
+): number | null | 'denied' {
+  try {
+    return stat(path).mtimeMs;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code;
+    return code === 'EPERM' || code === 'EACCES' ? 'denied' : null;
+  }
 }
 
 /**
- * The Lite data folder to import, or null. A folder counts only with an app.db. When both exist, the
- * machine folder wins while Lite's service is installed (that is the folder it runs on), else the one
- * with the newer app.db.
+ * The Lite data folder to import, or null. A folder counts only with an app.db, or one this user may
+ * not read. When both exist, the machine folder wins while Lite's service is installed (that is the
+ * folder it runs on), else the one with the newer app.db (a locked machine folder has no time to
+ * compare, so the user folder).
  */
 export function chooseLiteFolder(
   folders: LiteFolders,
@@ -61,11 +80,14 @@ export function chooseLiteFolder(
     dataDir: kind === 'machine' ? folders.machine : folders.user,
     kind,
     profile: folders.profile,
+    readable: (kind === 'machine' ? machine : user) !== 'denied',
   });
   if (machine === null && user === null) return null;
   if (machine === null) return at('user');
   if (user === null) return at('machine');
   if (o.serviceInstalled) return at('machine');
+  if (machine === 'denied') return at('user');
+  if (user === 'denied') return at('machine');
   return machine > user ? at('machine') : at('user');
 }
 

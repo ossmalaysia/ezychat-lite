@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Move to EzyChat Enterprise when EzyChat Lite runs as a background service.** Enterprise said "No EzyChat Lite
+  data on this PC", because the service keeps its data in a protected folder. It now says that EzyChat Lite runs as a
+  background service and how to bring the data: remove the service in EzyChat Lite, then choose **Check again**.
+
 ## [0.1.67] - 2026-11-01
 
 ### Added

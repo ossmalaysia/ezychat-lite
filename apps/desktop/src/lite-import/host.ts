@@ -6,7 +6,7 @@ import type { Product } from '../product.js';
 import type { ServiceState } from '../service/windows.js';
 import type { ServerCli } from './cli.js';
 import type { LiteImportController, LiteImportDeps } from './controller.js';
-import { chooseLiteFolder, liteFolders, litePorts } from './detect.js';
+import { chooseLiteFolder, liteFolders, litePorts, type DetectFs } from './detect.js';
 
 export interface LiteImportHostOptions {
   /** The product whose data is imported (activeProduct().adoptFrom); null turns the import off. */
@@ -26,7 +26,7 @@ export interface LiteImportHostOptions {
   serverUrl(): string;
   fetch: typeof globalThis.fetch;
   fs: {
-    mtimeMs(path: string): number | null;
+    mtimeMs: DetectFs['mtimeMs'];
     readText(path: string): string | null;
     exists(path: string): boolean;
     freeBytes(dir: string): Promise<number | null>;

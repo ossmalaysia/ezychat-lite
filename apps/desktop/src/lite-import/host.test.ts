@@ -53,6 +53,7 @@ describe('liteImportDeps', () => {
       dataDir: '/Users/a/Library/Application Support/WA Team Inbox/data',
       kind: 'user',
       profile: '/Users/a/Library/Application Support/WA Team Inbox',
+      readable: true,
     });
     expect(deps.litePorts()).toEqual([7431, 7420]);
     expect(await deps.liteAnswers(7431)).toBe(true);

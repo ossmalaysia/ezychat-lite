@@ -2174,6 +2174,13 @@
       "title": "Tiada data EzyChat Lite pada PC ini",
       "body": "EzyChat Lite tidak dijumpai pada komputer ini. Tambah nombor dengan imbasan QR."
     },
+    "protected": {
+      "title": "EzyChat Lite berjalan sebagai perkhidmatan latar belakang",
+      "body": "Datanya berada dalam folder terlindung yang hanya boleh dibuka oleh perkhidmatan itu, jadi aplikasi ini belum dapat membawanya masuk.",
+      "step1": "Dalam EzyChat Lite, buka \"Status & Perkhidmatan…\" dari dulang sistem.",
+      "step2": "Di bawah \"Perkhidmatan latar belakang\", pilih \"Buang perkhidmatan\". Data akan kembali ke profil pengguna anda.",
+      "step3": "Kembali ke sini dan pilih \"Semak lagi\"."
+    },
     "check": {
       "title": "Semakan pantas",
       "liteRunning": "Tutup EzyChat Lite dahulu",

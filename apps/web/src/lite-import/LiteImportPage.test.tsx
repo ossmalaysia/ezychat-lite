@@ -358,6 +358,20 @@ describe('LiteImportPage', () => {
     renderPage();
     expect((await screen.findByRole('alert')).textContent).toContain('Could not read');
   });
+
+  it('Lite as a background service: says how to free its data, and Check again scans', async () => {
+    const { bridge } = fakeBridge(liteState({ phase: 'protected', lite: null, liteService: true }));
+    bridge.scan.mockResolvedValueOnce(liteState({ phase: 'found', mode: 'copy' }));
+    window.watiLiteImport = bridge;
+    renderPage();
+    const card = await screen.findByTestId('lite-protected');
+    expect(card.textContent).toContain('EzyChat Lite runs as a background service');
+    expect(card.textContent).toContain('"Remove service"');
+    expect(screen.queryByTestId('lite-none')).toBeNull();
+    await userEvent.click(within(card).getByRole('button', { name: 'Check again' }));
+    await waitFor(() => expect(bridge.scan).toHaveBeenCalledTimes(1));
+    expect(await screen.findByTestId('lite-wizard')).toBeTruthy();
+  });
 });
 
 describe('helpers', () => {
