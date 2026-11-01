@@ -98,8 +98,9 @@ function recordImport(
         mcp: { reason: 'merge', mcpUrl: mcpUrlOf(settings) },
       };
     } else {
-      // Copy keeps an own domain (its tunnel settings come along); a quick tunnel or LAN address changes.
-      const reason = summary.remote === 'quick' || summary.remote === 'lan' ? summary.remote : null;
+      // Copy keeps an own domain (its tunnel settings come along) and the LAN address (the desktop
+      // takes over Lite's port); only a quick tunnel gets a new address on the next start.
+      const reason = summary.remote === 'quick' ? summary.remote : null;
       notice = { checklist: null, mcp: reason ? { reason, mcpUrl: mcpUrlOf(settings) } : null };
     }
     writeNotice(settings, notice);

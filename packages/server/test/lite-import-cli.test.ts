@@ -311,6 +311,16 @@ describe('--lite-summary', () => {
 });
 
 describe('--import-lite, copy mode', () => {
+  it('a copy of a LAN-only Lite keeps its address: no "address changed" flag', async () => {
+    await seedLite(dirs.lite, { tunnel: 'off' });
+    const run = await cli(importArgs(), { edition: 'enterprise', maxInboxes: 5 });
+    expect(run.code).toBe(0);
+    const db = new Database(join(dirs.target, 'app.db'), { readonly: true });
+    const settings = new SettingsStore(db, SecretBox.loadOrCreate(join(dirs.target, 'secret.key')));
+    expect(settings.get(LITE_IMPORT_NOTICE_KEY, null)).toBeNull();
+    db.close();
+  });
+
   it('copies Lite into an empty install, verifies it and hands Lite over', async () => {
     const { adminId } = await seedLite(dirs.lite, { tunnel: 'quick' });
     // an install that was opened once but has no chats: moved aside, never deleted
