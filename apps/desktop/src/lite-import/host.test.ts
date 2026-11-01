@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { LITE_PRODUCT } from '../product.js';
 import type { ServerCli } from './cli.js';
@@ -25,9 +26,9 @@ function options(over: Partial<LiteImportHostOptions> = {}) {
         p === '/Users/a/Library/Application Support/WA Team Inbox/desktop.json'
           ? '{"port":7431}'
           : null,
-      exists: (p) => p === '/ent/data/app.db',
+      exists: (p) => p === join('/ent/data', 'app.db'),
       freeBytes: vi.fn(async () => 5),
-      makeTempDir: vi.fn(async () => '/tmp/x'),
+      makeTempDir: vi.fn(async () => '/work/x'),
       writePrivate: vi.fn(async (file: string, text: string) => {
         files[file] = text;
       }),
@@ -101,10 +102,10 @@ describe('liteImportDeps', () => {
   it('writes the plan privately and removes it', async () => {
     const { o, files } = options();
     const written = await liteImportDeps(o).writePlan({ team: [] });
-    expect(written.file).toBe('/tmp/x/plan.json');
-    expect(files['/tmp/x/plan.json']).toBe('{"team":[]}');
+    expect(written.file).toBe(join('/work/x', 'plan.json'));
+    expect(files[join('/work/x', 'plan.json')]).toBe('{"team":[]}');
     await written.dispose();
-    expect(o.fs.removeDir).toHaveBeenCalledWith('/tmp/x');
+    expect(o.fs.removeDir).toHaveBeenCalledWith('/work/x');
   });
 
   it('restarts only a server it stopped, and passes the port takeover through', async () => {
@@ -151,7 +152,7 @@ describe('saveSupportFile', () => {
       },
     );
     expect(ok).toBe(true);
-    const file = '/dl/ezychat-import-support-2026-11-01T10-20-30-400Z.txt';
+    const file = join('/dl', 'ezychat-import-support-2026-11-01T10-20-30-400Z.txt');
     expect(write).toHaveBeenCalledWith(file, 'report 1');
     expect(reveal).toHaveBeenCalledWith(file);
   });

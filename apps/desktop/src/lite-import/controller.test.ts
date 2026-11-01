@@ -84,7 +84,7 @@ function setup(
     ownHasData: async () => false,
     freeBytes: async () => 10_000,
     cli,
-    writePlan: vi.fn(async () => ({ file: '/tmp/plan.json', dispose: vi.fn(async () => {}) })),
+    writePlan: vi.fn(async () => ({ file: '/work/plan.json', dispose: vi.fn(async () => {}) })),
     stopOwnServer: vi.fn(async () => {}),
     startOwnServer: vi.fn(async () => true),
     takeOverPort: vi.fn(),
@@ -187,7 +187,7 @@ describe('start', () => {
     const dispose = vi.fn(async () => {});
     const { controller, deps, calls } = setup({
       ownHasData: async () => true,
-      writePlan: vi.fn(async () => ({ file: '/tmp/p.json', dispose })),
+      writePlan: vi.fn(async () => ({ file: '/work/p.json', dispose })),
       script: {
         summary: { code: 0, lines: [summary] },
         import: {
@@ -204,7 +204,7 @@ describe('start', () => {
     expect(state.phase).toBe('done');
     expect(deps.writePlan).toHaveBeenCalledWith(plan);
     expect(dispose).toHaveBeenCalled();
-    expect(calls[1]).toContain('/tmp/p.json');
+    expect(calls[1]).toContain('/work/p.json');
     expect(deps.takeOverPort).not.toHaveBeenCalled();
     expect(state.steps.map((s) => s.id)).toEqual([
       'stop',
