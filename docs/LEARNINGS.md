@@ -494,7 +494,9 @@ into AGENTS.md.
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
-  limit 3 %).
+  limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
+  admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
+  its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`).
 - An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
   (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
   (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
