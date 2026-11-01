@@ -60,7 +60,7 @@ describe('AgentResolutionCard', () => {
     ).toBe('false');
     expect(
       screen.getByText(
-        'Mei adds no check-in line and never closes a chat. Your team closes chats.',
+        'Mei adds no check-in line. When the customer only says thanks, Mei reacts 👍 and closes the chat; your team closes the others.',
       ),
     ).toBeTruthy();
   });

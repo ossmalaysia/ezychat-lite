@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 /**
  * Agent page → "Ask if the question is answered": on, the agent ends an answer with a resolution
  * question and may close the chat on a clear "yes"; off (sales default), it adds no check-in line
- * and never closes a chat. Saves at once, like the Groups switch.
+ * and closes a chat only on a plain "thanks" (with a 👍). Saves at once, like the Groups switch.
  */
 export function AgentResolutionCard({
   agentId,

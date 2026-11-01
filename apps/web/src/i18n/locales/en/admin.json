@@ -1353,7 +1353,7 @@
       "description": "How {{name}} ends a conversation.",
       "switch": "Ask if the question is answered",
       "onHint": "After an answer, {{name}} asks whether it answers the question and closes the chat when the customer clearly says yes.",
-      "offHint": "{{name}} adds no check-in line and never closes a chat. Your team closes chats.",
+      "offHint": "{{name}} adds no check-in line. When the customer only says thanks, {{name}} reacts 👍 and closes the chat; your team closes the others.",
       "saveFailed": "Couldn't save. Try again."
     }
   },

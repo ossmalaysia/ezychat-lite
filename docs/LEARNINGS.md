@@ -142,6 +142,10 @@ into AGENTS.md.
 - Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
   both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
   parallel feature's screens the next clone must add.
+- A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
+  (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
+  no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
+  value it found in `finally`.
 
 ## Multi-agent process
 
@@ -455,6 +459,7 @@ into AGENTS.md.
   labels and open the section first in each; agents that own the page miss specs owned by other features.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
+  This includes `e2e/` and Dev Build scripts; call an HTTPS API (e.g. Jev) with `fetch`, not through a CLI.
   It also fails on any `http://` literal (S5332): an RFC 3161 timestamp URL (signed replies, published as
   http) gets a `// NOSONAR (javascript:S5332): <reason>` on its line; everything else uses https.
   It treats `process.argv` in `e2e/` scripts as untrusted (SSRF S5144/S8703): parse the port with
@@ -625,7 +630,8 @@ into AGENTS.md.
   logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
   Build first.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
-  workers die with exit code 3221225477 before any test runs; a one-off script that loads `better-sqlite3`
+  workers die with exit code 3221225477 before any test runs; `npm run e2e` stops with "Process from
+  config.webServer was not able to start. Exit code: 3221225477"; a one-off script that loads `better-sqlite3`
   segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
   instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
@@ -879,6 +885,12 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A sentence about server behaviour in `CORE_RULES` steers the model for every agent and switch: "a thanks
+  gets a 👍" made switch-on agents close silently instead of with a closing line. Put switch-specific
+  behaviour only in the per-switch block (`RESOLUTION_RULES_ON`/`_OFF`); unit tests pass either way, only
+  a real-model eval (`e2e/devbuild-resolution-eval.mjs --baseline`) shows it. Rule checks miss bad words (a
+  server-side fixed English re-ask passed "stays open"): read the saved conversations, and before trusting a
+  new judge question run it on a saved run that has the fault (`eval-judge-jev.mjs`: 0.01 there, 0.93 fixed).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
   handed over a consultation request as needs_action against saved "never hand over" rules because the core listed
   "book" as an action. Keep built-in hand-off reasons narrow, state which ones the business rules may rule out
@@ -963,6 +975,14 @@ into AGENTS.md.
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
   class and status for the log, or every cause looks like the same plain `Error`.
+- A silent `no_reply` must never leave a chat that nobody closes: a plain thanks (`looksLikeConfirmation`)
+  after the AI's own answer or resolve gets a 👍 and a resolve, whatever the resolution switch. When you add a
+  condition to such a path, check every switch combination: #232 ran only after an AI resolve, which #230's
+  default (switch off) never makes. Keep confirmation filler words broad ("thanks a lot" counted as new facts).
+- A service that saves `Date.now` as a reference (`deps?.now ?? Date.now`) ignores `vi.useFakeTimers` set up
+  later, so its rows and the faked rows of other services are on different clocks. Fix it in the test (swap
+  in the service with `{ now: () => Date.now() }`), not in the service: a test-only edit to a critical file
+  (`chats/service.ts`) makes the release review demand a real-part test.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
   admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for

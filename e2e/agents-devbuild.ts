@@ -149,6 +149,10 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
       reply: 'Yes, we supply H100 GPUs. Does that answer your question?',
       action: 'ask_resolution',
     };
+  // A plain thanks after an answer: real models stay silent (no_reply); the server closes the chat
+  // (e2e/devbuild-thanks-check.mjs).
+  if (/^(thank you|thanks)( a lot| so much)?[!. ]*$/i.test(last.trim()))
+    return { reply: '', action: 'no_reply' };
   if (last.includes('RESOLVE'))
     return { reply: 'Thank you! I will close this chat now.', action: 'resolve' };
   if (last.includes('HUMAN'))
