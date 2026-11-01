@@ -12,7 +12,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { liteImportBridge, useLiteImport } from './bridge';
 import { LiteChecklistCard } from './notice';
-import { ChecksStep, DoneStep, FailedStep, FoundStep, ReviewStep, RunningStep } from './steps';
+import {
+  ChecksStep,
+  DoneStep,
+  FailedStep,
+  FoundStep,
+  ProtectedStep,
+  ReviewStep,
+  RunningStep,
+} from './steps';
 import { IconBubble, IconLine } from './ui';
 
 type View = 'found' | 'checks' | 'review' | 'running' | 'done';
@@ -90,33 +98,6 @@ function NoLite() {
   );
 }
 
-/** Lite runs as a background service: its data folder is locked to the service account. */
-function LiteProtected({ onCheckAgain, busy }: { onCheckAgain: () => void; busy: boolean }) {
-  const { t } = useTranslation('admin');
-  return (
-    <Card data-testid="lite-protected">
-      <CardContent className="flex flex-col items-start gap-3 p-6">
-        <IconBubble icon={ShieldCheck} tone="warning" />
-        <p className="font-semibold">{t('liteImport.protected.title')}</p>
-        <p className="text-sm text-muted-foreground">{t('liteImport.protected.body')}</p>
-        <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm">
-          <li>{t('liteImport.protected.step1')}</li>
-          <li>{t('liteImport.protected.step2')}</li>
-          <li>{t('liteImport.protected.step3')}</li>
-        </ol>
-        <div className="flex flex-wrap gap-2">
-          <Button size="touch" onClick={onCheckAgain} disabled={busy}>
-            {t('liteImport.check.again')}
-          </Button>
-          <Button asChild variant="outline" size="touch">
-            <Link to="/admin/inboxes">{t('liteImport.backInboxes')}</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function Wizard({ bridge }: { bridge: DesktopLiteImportBridge }) {
   const { t } = useTranslation('admin');
   const { state, error, busy, act } = useLiteImport(bridge);
@@ -131,24 +112,25 @@ function Wizard({ bridge }: { bridge: DesktopLiteImportBridge }) {
         aria-label={t('liteImport.scanning')}
       />
     );
-  if (state.phase === 'protected')
-    return (
-      <LiteProtected
-        busy={busy}
-        onCheckAgain={() => void act(() => bridge.scan(), t('liteImport.actionFailed'))}
-      />
-    );
-  if (state.phase === 'none' || !state.lite) return <NoLite />;
-
-  const merge = state.mode === 'merge';
-  const view = viewOf(state.phase, local);
-  const people = (users.data ?? []).filter((u) => !u.disabled && u.kind !== 'ai');
   const cancel = (
     <Button asChild variant="outline" size="touch">
       <Link to="/admin/inboxes">{t('liteImport.cancel')}</Link>
     </Button>
   );
   const step = { state, bridge, act, busy };
+  if (state.phase === 'protected')
+    return (
+      <div className="flex min-w-0 flex-col gap-5" data-testid="lite-wizard" data-phase="protected">
+        <Stepper merge at="found" done={false} />
+        {/* Admin → Inboxes runs after setup, so Lite's number comes in as a new inbox. */}
+        <ProtectedStep {...step} mode="merge" cancel={cancel} />
+      </div>
+    );
+  if (state.phase === 'none' || !state.lite) return <NoLite />;
+
+  const merge = state.mode === 'merge';
+  const view = viewOf(state.phase, local);
+  const people = (users.data ?? []).filter((u) => !u.disabled && u.kind !== 'ai');
   const fail = t('liteImport.actionFailed');
   return (
     <div className="flex min-w-0 flex-col gap-5" data-testid="lite-wizard" data-phase={state.phase}>

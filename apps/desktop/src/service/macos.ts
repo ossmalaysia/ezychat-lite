@@ -152,6 +152,10 @@ export function macUninstallScript(o: MacUninstallOptions): string {
   return [
     '#!/bin/bash',
     'set -euo pipefail',
+    // Refuse before touching the daemon: a move into a folder that holds an app.db stops halfway.
+    `if [ -d ${shQuote(o.dataDir)} ] && [ -e ${shQuote(posix.join(o.moveTo, 'app.db'))} ]; then echo "Target already contains app.db; the service was left as it is." >&2; exit 3; fi`,
+    // The target is in the user's home: a symlink there (or above it) would send the move as root elsewhere.
+    `p=${shQuote(o.moveTo)}; while [ "$p" != "/" ] && [ -n "$p" ]; do if [ -L "$p" ]; then echo "Unexpected link: $p; the service was left as it is." >&2; exit 3; fi; p=$(dirname "$p"); done`,
     `launchctl bootout system/${o.label} 2>/dev/null || true`,
     `rm -f ${shQuote(plist)}`,
     ...(o.runtimeDir ? [`rm -rf ${shQuote(o.runtimeDir)}`] : []),

@@ -2148,7 +2148,8 @@
       "enterprise": "{{product}}",
       "newInbox": "新收件箱",
       "sameInbox": "同一号码",
-      "noNumber": "未关联号码"
+      "noNumber": "未关联号码",
+      "service": "后台服务"
     },
     "tile": {
       "chats": "个聊天",
@@ -2175,10 +2176,18 @@
     },
     "protected": {
       "title": "EzyChat Lite 正作为后台服务运行",
-      "body": "它的数据位于只有该服务才能打开的受保护文件夹中，因此本应用暂时无法导入。",
-      "step1": "在 EzyChat Lite 中，从系统托盘打开“状态与服务…”。",
-      "step2": "在“后台服务”下选择“移除服务”。数据会移回您的用户配置文件夹。",
-      "step3": "回到这里并选择“再次检查”。"
+      "ask": "Windows 会请您允许一次",
+      "moves": "Lite 的服务会停止，数据会移到 Lite 自己的文件夹。",
+      "allow": "允许并继续",
+      "allowAgain": "重试",
+      "waitingTitle": "正在等待 Windows",
+      "waitingBody": "请在 Windows 窗口中选择“是”。该窗口可能在本窗口后面。",
+      "declined": "Windows 未允许。没有任何更改。",
+      "failed": "无法释放 EzyChat Lite 的数据。",
+      "byHand": "或者在 EzyChat Lite 中操作：",
+      "step1": "从系统托盘打开“状态与服务…”。",
+      "step2": "在“后台服务”下选择“移除服务”。",
+      "step3": "回到这里并选择“重试”。"
     },
     "check": {
       "title": "快速检查",
@@ -2296,6 +2305,7 @@
       "bring": "从 EzyChat Lite 带入",
       "bringChats": "{{chats}} 个聊天和客户",
       "bringTeam": "{{n}} 位同事，密码不变",
+      "bringAll": "聊天、客户和团队",
       "new": "全新开始",
       "newAccount": "创建新管理员",
       "newQr": "扫码关联 WhatsApp",

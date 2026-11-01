@@ -229,6 +229,33 @@ describe('windowsUninstallScript', () => {
     expect(iMove).toBeGreaterThan(iUninst);
     expect(s).toContain('/reset');
   });
+
+  it('refuses before touching the service when the target already holds an app.db', () => {
+    const s = windowsUninstallScript({
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: "C:\\Users\\O'Neil\\data",
+    });
+    const iCheck = s.indexOf("(Join-Path 'C:\\Users\\O''Neil\\data' 'app.db')");
+    expect(iCheck).toBeGreaterThan(-1);
+    expect(iCheck).toBeLessThan(s.indexOf(' stop'));
+    expect(s).toContain('the service was left as it is.');
+  });
+
+  it('refuses a link at or above the target before touching the service', () => {
+    const s = windowsUninstallScript({
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: 'C:\\Users\\me\\data',
+    });
+    const iLinks = s.indexOf("$p = 'C:\\Users\\me\\data'");
+    expect(iLinks).toBeGreaterThan(-1);
+    expect(s.indexOf('ReparsePoint)) { throw "Unexpected link: $p')).toBeGreaterThan(iLinks);
+    expect(s.indexOf('$p = [System.IO.Path]::GetDirectoryName($p)')).toBeGreaterThan(iLinks);
+    expect(iLinks).toBeLessThan(s.indexOf(' stop'));
+  });
 });
 
 describe('parseScQuery', () => {

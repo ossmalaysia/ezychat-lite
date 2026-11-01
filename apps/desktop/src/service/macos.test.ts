@@ -101,6 +101,15 @@ describe('macUninstallScript', () => {
       owner: 'me',
     });
     expect(s.indexOf('launchctl bootout')).toBeLessThan(s.indexOf('cp -a'));
+    // The app.db check runs before the daemon is touched (a half move would strand the data).
+    const iCheck = s.indexOf("[ -e '/Users/me/data/app.db' ]; then echo");
+    expect(iCheck).toBeGreaterThan(-1);
+    expect(iCheck).toBeLessThan(s.indexOf('launchctl bootout'));
+    // And no symlink at or above the target (root would follow it).
+    const iLinks = s.indexOf("p='/Users/me/data'; while");
+    expect(iLinks).toBeGreaterThan(iCheck);
+    expect(s).toContain('if [ -L "$p" ]; then echo "Unexpected link');
+    expect(iLinks).toBeLessThan(s.indexOf('launchctl bootout'));
     expect(s).toContain("rm -f '/Library/LaunchDaemons/org.ossmalaysia.wateaminbox.server.plist'");
     expect(s).toContain("chown -R 'me'");
   });

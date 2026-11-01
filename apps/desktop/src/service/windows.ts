@@ -264,12 +264,27 @@ export interface WindowsUninstallOptions {
   runDir?: string;
 }
 
-/** PowerShell script (run elevated): stop + uninstall service, remove wrapper, move data back, reset ACL. */
+/**
+ * PowerShell script (run elevated): stop + uninstall service, remove wrapper, move data back, reset ACL.
+ * Refuses before touching the service when the target already holds an app.db (the move would stop
+ * halfway, after the service is gone, and leave the data in the locked machine folder).
+ */
 export function windowsUninstallScript(o: WindowsUninstallOptions): string {
   const exe = `${o.serviceDir}\\${o.id}.exe`;
   const lines = [
     ...PS_HEADER,
     ...PS_HELPERS,
+    `if ((Test-Path -LiteralPath ${psQuote(o.dataDir)}) -and (Test-Path -LiteralPath (Join-Path ${psQuote(o.moveTo)} 'app.db'))) {`,
+    `  throw ${psQuote(`Target ${o.moveTo} already contains app.db; the service was left as it is.`)}`,
+    `}`,
+    // The target is in the user's profile, which the user can change: a junction there (or above it)
+    // would send the elevated move and `icacls /reset /T` into another folder.
+    `$p = ${psQuote(o.moveTo)}`,
+    `while ($p) {`,
+    `  if ((Test-Path -LiteralPath $p) -and ((Get-Item -LiteralPath $p -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { throw "Unexpected link: $p; the service was left as it is." }`,
+    // .NET, not Split-Path: Windows PowerShell 5 has no -LiteralPath -Parent set; null at the drive root.
+    `  $p = [System.IO.Path]::GetDirectoryName($p)`,
+    `}`,
     `if (Test-Path -LiteralPath ${psQuote(exe)}) {`,
     `  Assert-Locked ${psQuote(o.serviceDir)} -Recurse`,
     `  & ${psQuote(exe)} stop`,
