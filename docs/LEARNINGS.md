@@ -482,6 +482,10 @@ into AGENTS.md.
 
 ## Build, tooling and Windows
 
+- Desktop-only screens (Lite import, status window) in a Dev Build on a PC with the installed apps: run the
+  window from source with `npx electron <apps/desktop> --user-data-dir=<test profile>` plus a `desktop.json`
+  port of its own. An unpackaged run does not pin the installed profile, but without its own port it finds
+  the installed server's health and becomes a client of that old build.
 - Right after a service install (data moved back to the machine folder), `/api/health` can stay silent for
   more than 3 s while `sc query` already says RUNNING: probe with a ~15 s timeout before calling it down.
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
