@@ -81,10 +81,11 @@ describe('chooseLiteFolder', () => {
       kind: 'machine',
       readable: false,
     });
-    // No service: a locked leftover has no time to compare, so the readable user folder.
+    // No service but still locked: a "Remove service" that stopped halfway. The user folder may lack
+    // secret.key or wa-auth/, so it is never imported; the locked folder stays the one to free.
     expect(choose({ [machineDb]: 'denied', [userDb]: 9 })).toMatchObject({
-      kind: 'user',
-      readable: true,
+      kind: 'machine',
+      readable: false,
     });
     expect(choose({ [machineDb]: 5, [userDb]: 'denied' })).toMatchObject({
       kind: 'machine',

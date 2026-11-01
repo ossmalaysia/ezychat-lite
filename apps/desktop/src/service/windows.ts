@@ -43,8 +43,9 @@ export function quoteWinArg(arg: string): string {
 }
 
 /** PowerShell single-quoted literal. */
+/** PowerShell single-quoted literal. PowerShell also ends one at ‘ ’ ‚ ‛, so those are doubled too. */
 export function psQuote(s: string): string {
-  return `'${s.replace(/'/g, "''")}'`;
+  return `'${s.replace(/['‘’‚‛]/g, '$&$&')}'`;
 }
 
 /** WinSW v2 service configuration. Runs as LocalSystem (WinSW default). */
@@ -277,14 +278,20 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
     `if ((Test-Path -LiteralPath ${psQuote(o.dataDir)}) -and (Test-Path -LiteralPath (Join-Path ${psQuote(o.moveTo)} 'app.db'))) {`,
     `  throw ${psQuote(`Target ${o.moveTo} already contains app.db; the service was left as it is.`)}`,
     `}`,
-    // The target is in the user's profile, which the user can change: a junction there (or above it)
-    // would send the elevated move and `icacls /reset /T` into another folder.
-    `$p = ${psQuote(o.moveTo)}`,
-    `while ($p) {`,
-    `  if ((Test-Path -LiteralPath $p) -and ((Get-Item -LiteralPath $p -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { throw "Unexpected link: $p; the service was left as it is." }`,
+    // The target is in the user's profile and the machine folder comes from the user's ProgramData:
+    // a junction at or above either would send the elevated move and `icacls /reset /T` elsewhere.
+    // Checked before the service is touched, and again right before each privileged write.
+    `function Assert-NoLinkUp([string]$start) {`,
+    `  $p = $start`,
+    `  while ($p) {`,
+    `    if ((Test-Path -LiteralPath $p) -and ((Get-Item -LiteralPath $p -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { throw "Unexpected link: $p" }`,
     // .NET, not Split-Path: Windows PowerShell 5 has no -LiteralPath -Parent set; null at the drive root.
-    `  $p = [System.IO.Path]::GetDirectoryName($p)`,
+    `    $p = [System.IO.Path]::GetDirectoryName($p)`,
+    `  }`,
     `}`,
+    `Assert-NoLinkUp ${psQuote(o.moveTo)}`,
+    `Assert-NoLinkUp ${psQuote(o.dataDir)}`,
+    ...(o.runDir ? [`Assert-NoLinkUp ${psQuote(o.runDir)}`] : []),
     `if (Test-Path -LiteralPath ${psQuote(exe)}) {`,
     `  Assert-Locked ${psQuote(o.serviceDir)} -Recurse`,
     `  & ${psQuote(exe)} stop`,
@@ -298,9 +305,13 @@ export function windowsUninstallScript(o: WindowsUninstallOptions): string {
           `if (Test-Path -LiteralPath ${psQuote(o.runDir)}) { Remove-Item -LiteralPath ${psQuote(o.runDir)} -Recurse -Force }`,
         ]
       : []),
+    `Assert-NoLinkUp ${psQuote(o.moveTo)}`,
     ...dataMoveCommands('win32', o.dataDir, o.moveTo, null),
     `if (Test-Path -LiteralPath ${psQuote(o.moveTo)}) {`,
-    `  icacls ${psQuote(o.moveTo)} /reset /T /C /Q | Out-Null`,
+    `  Assert-NoLinkUp ${psQuote(o.moveTo)}`,
+    // /L: act on a link inside the data itself, never on what it points to.
+    `  icacls ${psQuote(o.moveTo)} /reset /T /C /L /Q | Out-Null`,
+    `  ${checkExit('icacls /reset')}`,
     `}`,
     `Write-Output 'Service removed.'`,
   ];

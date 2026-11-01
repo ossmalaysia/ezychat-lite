@@ -105,11 +105,19 @@ describe('macUninstallScript', () => {
     const iCheck = s.indexOf("[ -e '/Users/me/data/app.db' ]; then echo");
     expect(iCheck).toBeGreaterThan(-1);
     expect(iCheck).toBeLessThan(s.indexOf('launchctl bootout'));
-    // And no symlink at or above the target (root would follow it).
-    const iLinks = s.indexOf("p='/Users/me/data'; while");
-    expect(iLinks).toBeGreaterThan(iCheck);
+    // And no symlink at or above the target or the machine folder (root would follow it), checked
+    // before the daemon is touched and again right before the move and the chown.
     expect(s).toContain('if [ -L "$p" ]; then echo "Unexpected link');
-    expect(iLinks).toBeLessThan(s.indexOf('launchctl bootout'));
+    const target = "assert_no_link_up '/Users/me/data'";
+    expect(s.split(target).length - 1).toBe(3);
+    const iBootout = s.indexOf('launchctl bootout');
+    expect(s.indexOf(target)).toBeGreaterThan(iCheck);
+    expect(s.indexOf(target)).toBeLessThan(iBootout);
+    expect(
+      s.indexOf("assert_no_link_up '/Library/Application Support/wa-team-inbox'"),
+    ).toBeLessThan(iBootout);
+    expect(s.indexOf(target, iBootout)).toBeLessThan(s.indexOf('cp -a'));
+    expect(s.lastIndexOf(target)).toBeLessThan(s.indexOf('chown -R'));
     expect(s).toContain("rm -f '/Library/LaunchDaemons/org.ossmalaysia.wateaminbox.server.plist'");
     expect(s).toContain("chown -R 'me'");
   });

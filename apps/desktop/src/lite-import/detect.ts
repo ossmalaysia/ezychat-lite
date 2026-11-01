@@ -66,8 +66,9 @@ export function mtimeOrDenied(
 /**
  * The Lite data folder to import, or null. A folder counts only with an app.db, or one this user may
  * not read. When both exist, the machine folder wins while Lite's service is installed (that is the
- * folder it runs on), else the one with the newer app.db (a locked machine folder has no time to
- * compare, so the user folder).
+ * folder it runs on) or while it is locked: "Remove service" deletes it after moving everything, so a
+ * locked machine folder next to a user folder means a move that stopped halfway, and the user folder
+ * may lack secret.key or wa-auth/. Else the one with the newer app.db.
  */
 export function chooseLiteFolder(
   folders: LiteFolders,
@@ -86,7 +87,7 @@ export function chooseLiteFolder(
   if (machine === null) return at('user');
   if (user === null) return at('machine');
   if (o.serviceInstalled) return at('machine');
-  if (machine === 'denied') return at('user');
+  if (machine === 'denied') return at('machine');
   if (user === 'denied') return at('machine');
   return machine > user ? at('machine') : at('user');
 }

@@ -179,6 +179,11 @@ describe('psQuote', () => {
   it('wraps in single quotes and doubles embedded quotes', () => {
     expect(psQuote("C:\\it's")).toBe("'C:\\it''s'");
   });
+
+  it('doubles the typographic single quotes PowerShell also ends a literal at', () => {
+    expect(psQuote('C:\\Users\\O\u2019Brien')).toBe("'C:\\Users\\O\u2019\u2019Brien'");
+    expect(psQuote('a\u2018b\u201Ac\u201Bd')).toBe("'a\u2018\u2018b\u201A\u201Ac\u201B\u201Bd'");
+  });
 });
 
 describe('windowsInstallScript', () => {
@@ -243,18 +248,28 @@ describe('windowsUninstallScript', () => {
     expect(s).toContain('the service was left as it is.');
   });
 
-  it('refuses a link at or above the target before touching the service', () => {
+  it('refuses a link at or above the target and the machine folder, again before each write', () => {
     const s = windowsUninstallScript({
       id: 'wa-team-inbox',
       serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
       dataDir: 'C:\\ProgramData\\wa-team-inbox',
       moveTo: 'C:\\Users\\me\\data',
+      runDir: 'C:\\ProgramData\\wa-team-inbox-run',
     });
-    const iLinks = s.indexOf("$p = 'C:\\Users\\me\\data'");
-    expect(iLinks).toBeGreaterThan(-1);
-    expect(s.indexOf('ReparsePoint)) { throw "Unexpected link: $p')).toBeGreaterThan(iLinks);
-    expect(s.indexOf('$p = [System.IO.Path]::GetDirectoryName($p)')).toBeGreaterThan(iLinks);
-    expect(iLinks).toBeLessThan(s.indexOf(' stop'));
+    expect(s).toContain('$p = [System.IO.Path]::GetDirectoryName($p)');
+    const target = "Assert-NoLinkUp 'C:\\Users\\me\\data'";
+    const checks = s.split(target).length - 1;
+    expect(checks).toBe(3);
+    const iStop = s.indexOf(' stop');
+    expect(s.indexOf(target)).toBeLessThan(iStop);
+    expect(s.indexOf("Assert-NoLinkUp 'C:\\ProgramData\\wa-team-inbox'")).toBeLessThan(iStop);
+    expect(s.indexOf("Assert-NoLinkUp 'C:\\ProgramData\\wa-team-inbox-run'")).toBeLessThan(iStop);
+    // Right before the move and right before the ACL reset.
+    expect(s.lastIndexOf(target)).toBeLessThan(s.indexOf('icacls'));
+    expect(s.indexOf(target, iStop)).toBeLessThan(s.indexOf('Move-Item'));
+    // The reset acts on links themselves and its failure is not silent.
+    expect(s).toContain('/reset /T /C /L /Q');
+    expect(s).toContain('icacls /reset failed');
   });
 });
 
