@@ -764,8 +764,9 @@ into AGENTS.md.
 
 - A destructive elevated step (remove a service, move data) can still be checked on the owner's live PC: keep
   its read-only checks in their own function (`windowsUninstallPrechecks`) and run the real detection, UAC
-  prompt and elevated runner with only that part (`e2e/devbuild-lite-unlock.mjs`). The real change then needs
-  a test PC.
+  prompt and elevated runner with only that part (`e2e/devbuild-lite-unlock.mjs`). With the owner's agreement
+  the reversible real half can run on the live install too (`--real`: remove the service, scan), stopping
+  before what cannot be undone (the import hands the number over); tell the owner how to undo it.
 - An elevated script that writes into a user-writable folder (data moved back to the profile, then
   `icacls /reset /T`) must refuse first when that folder or any folder above it is a link (junction, symlink),
   and check every "would stop halfway" condition (target already has app.db) before it touches the service.
