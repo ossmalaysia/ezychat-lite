@@ -1257,7 +1257,9 @@ into AGENTS.md.
 - A test whose fake answers every request proves nothing about the contract: two obvious bugs (a GET to a
   POST route, a link swallowed by the window) passed every unit test. Test a client against the real
   route table or the real server (`web-client-contract.test.ts`, `makeTestApp`), and check that the new
-  test fails when the bug is put back before you trust it.
+  test fails when the bug is put back before you trust it. Such a test builds a TypeScript program from the
+  source: do it once in `beforeAll` with a 60 s limit. A scan inside each `it` passed alone and timed out
+  (over 5 s) in a busy full run (Enterprise's copy, fixed for 0.1.19).
 
 - Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
   protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put
