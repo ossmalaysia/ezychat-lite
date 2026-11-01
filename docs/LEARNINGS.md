@@ -1138,6 +1138,9 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A UAC prompt started by the hidden runner (`runElevatedWindows`: `Start-Process -Verb RunAs` from a
+  windowless PowerShell) can open behind the app window: the owner saw only "Waiting for Windows". Every
+  screen that waits for it says where to look (taskbar shield, Alt+Tab).
 - Mock screenshot scripts that need the AI to hold a chat must switch the AI member on first (`GET /api/ai`, then
   `PUT /api/ai` with `{...settings, enabled: true}`; an earlier run can leave it off and the assign answers 400), and
   scope a select to its container (`page.locator('header').getByRole('combobox')`): the chat list's inbox filter is
