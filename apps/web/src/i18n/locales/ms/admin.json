@@ -2239,11 +2239,16 @@
     },
     "fail": {
       "title": "Pemindahan gagal",
-      "reason": "Sebab: {{code}}",
       "safe": "Tiada yang berubah. Lite berjalan semula.",
       "retry": "Cuba lagi",
       "support": "Simpan fail sokongan",
-      "saved": "Fail sokongan disimpan (tiada mesej atau nama)"
+      "saved": "Fail sokongan disimpan (tiada mesej atau nama)",
+      "codes": {
+        "own_server_stop": "EzyChat tidak dapat berhenti seketika untuk pemindahan. Tutup tetingkap EzyChat lain dan cuba lagi.",
+        "summary_failed": "EzyChat tidak dapat membaca data EzyChat Lite.",
+        "no_lite_data": "Data EzyChat Lite tiada lagi di komputer ini.",
+        "other": "Sesuatu tidak kena semasa memindahkan."
+      }
     },
     "done": {
       "titleMerge": "Nombor ditambah",

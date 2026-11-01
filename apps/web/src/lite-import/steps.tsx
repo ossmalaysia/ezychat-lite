@@ -482,6 +482,16 @@ export function RunningStep({ state }: { state: LiteImportState }) {
   );
 }
 
+const FAILURE_CODES = ['own_server_stop', 'summary_failed', 'no_lite_data'] as const;
+
+/** Plain words for a failure code from the desktop (codes stay out of the screen). */
+export function failureKey(code: string) {
+  const known = (FAILURE_CODES as readonly string[]).includes(code)
+    ? (code as (typeof FAILURE_CODES)[number])
+    : 'other';
+  return `liteImport.fail.codes.${known}` as const;
+}
+
 /** Back to a fresh scan after a failure or a blocked check. */
 export async function rescan(bridge: DesktopLiteImportBridge): Promise<LiteImportState> {
   const next = await bridge.reset();
@@ -505,9 +515,7 @@ export function FailedStep({
           <XCircle className="size-5 text-danger" aria-hidden />
           {t('liteImport.fail.title')}
         </CardTitle>
-        {state.failure && (
-          <CardDescription>{t('liteImport.fail.reason', { code: state.failure })}</CardDescription>
-        )}
+        {state.failure && <CardDescription>{t(failureKey(state.failure))}</CardDescription>}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <ul className="flex flex-col gap-1">

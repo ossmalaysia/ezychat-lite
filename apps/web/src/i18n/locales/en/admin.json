@@ -2269,11 +2269,16 @@
     },
     "fail": {
       "title": "Move failed",
-      "reason": "Reason: {{code}}",
       "safe": "Nothing changed. Lite is running again.",
       "retry": "Try again",
       "support": "Save support file",
-      "saved": "Support file saved (no messages or names)"
+      "saved": "Support file saved (no messages or names)",
+      "codes": {
+        "own_server_stop": "EzyChat could not pause itself for the move. Close other EzyChat windows and try again.",
+        "summary_failed": "EzyChat could not read EzyChat Lite's data.",
+        "no_lite_data": "EzyChat Lite's data is no longer on this computer.",
+        "other": "Something went wrong while moving."
+      }
     },
     "done": {
       "titleMerge": "Number added",

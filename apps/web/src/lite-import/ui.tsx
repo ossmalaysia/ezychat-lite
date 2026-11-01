@@ -83,7 +83,7 @@ export function MoveFigure({ number, mode }: { number: string | null; mode: Lite
     <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg border bg-card p-3 text-center">
       <IconBubble icon={icon} />
       <span className="font-semibold leading-tight">{title}</span>
-      <span className="text-xs break-all text-muted-foreground">{sub}</span>
+      <span className="text-xs break-words text-muted-foreground">{sub}</span>
     </div>
   );
   return (

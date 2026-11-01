@@ -301,6 +301,14 @@ describe('LiteImportPage', () => {
     expect(signIn.textContent).toContain('Sign in with your EzyChat Lite password');
   });
 
+  it('failed: a known code is explained in plain words', async () => {
+    const { bridge } = fakeBridge(liteState({ phase: 'failed', failure: 'no_lite_data' }));
+    window.watiLiteImport = bridge;
+    renderPage();
+    const failed = await screen.findByTestId('lite-failed');
+    expect(failed.textContent).toContain("EzyChat Lite's data is no longer on this computer.");
+  });
+
   it('failed: nothing changed, Try again rescans, the support file is saved', async () => {
     const { bridge } = fakeBridge(
       liteState({
@@ -313,7 +321,9 @@ describe('LiteImportPage', () => {
     renderPage();
     const failed = await screen.findByTestId('lite-failed');
     expect(failed.textContent).toContain('Nothing changed. Lite is running again.');
-    expect(failed.textContent).toContain('Reason: verify_failed');
+    // an unknown code shows plain words, never the code itself
+    expect(failed.textContent).toContain('Something went wrong while moving.');
+    expect(failed.textContent).not.toContain('verify_failed');
     const u = userEvent.setup();
     await u.click(screen.getByRole('button', { name: 'Save support file' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());

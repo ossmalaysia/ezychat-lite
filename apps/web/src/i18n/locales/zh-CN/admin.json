@@ -2238,11 +2238,16 @@
     },
     "fail": {
       "title": "迁移失败",
-      "reason": "原因：{{code}}",
       "safe": "没有任何更改。Lite 已重新运行。",
       "retry": "重试",
       "support": "保存支持文件",
-      "saved": "支持文件已保存（不含消息或姓名）"
+      "saved": "支持文件已保存（不含消息或姓名）",
+      "codes": {
+        "own_server_stop": "EzyChat 无法暂停以完成迁移。请关闭其他 EzyChat 窗口后重试。",
+        "summary_failed": "EzyChat 无法读取 EzyChat Lite 的数据。",
+        "no_lite_data": "这台电脑上已找不到 EzyChat Lite 的数据。",
+        "other": "迁移时出了问题。"
+      }
     },
     "done": {
       "titleMerge": "号码已添加",
