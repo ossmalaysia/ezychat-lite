@@ -1351,6 +1351,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
   It rewrites every module (times change), so commit only the modules whose screens changed and
   `git checkout` the rest. Demo group members never reuse a customer's number: the member's name renames that chat.
+  Headless Chromium reports notifications as blocked, so every admin shot shows the "Notifications are
+  blocked" box in the sidebar: crop the sidebar for guides, and never take test-env (Dev Build) data for
+  them (test names, repeated chats, the badge).
 - Playwright `page.clock.pauseAt(new Date())` is flaky under load (page clock runs ahead: "Cannot
   fast-forward to the past"); pause at the page's own `Date.now()` plus a few ms.
 - Never pipe a step into `tail`/`head` inside an `&&` chain: the pipe hides its exit code and the chain
