@@ -596,7 +596,9 @@ into AGENTS.md.
 
 - Owner-run PowerShell scripts: Windows PowerShell 5 with `$ErrorActionPreference = 'Stop'` stops on any native
   stderr line (e.g. npm's normal E404 for a new package). Use `Continue` and check `$LASTEXITCODE`; test the
-  read-only parts yourself before handing the script over.
+  read-only parts yourself before handing the script over. The same goes for generated (elevated) service
+  scripts: string tests passed while PS 5 rejected `Split-Path -LiteralPath $p -Parent`; run their prechecks in
+  `powershell.exe` against temp folders (cut before the first privileged command).
 
 - Stopping a background server task can leave its node child running: before a restart on the same
   `--data`, stop the process whose command line names that folder. Exit 3 can also be Windows PID reuse
@@ -757,6 +759,9 @@ into AGENTS.md.
 
 ## Security
 
+- An elevated script that writes into a user-writable folder (data moved back to the profile, then
+  `icacls /reset /T`) must refuse first when that folder or any folder above it is a link (junction, symlink),
+  and check every "would stop halfway" condition (target already has app.db) before it touches the service.
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
