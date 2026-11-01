@@ -387,6 +387,8 @@ describe('LiteImportPage', () => {
     renderPage();
     const card = await screen.findByTestId('lite-protected');
     expect(within(card).getByRole('status').textContent).toContain('Waiting for Windows');
+    // The prompt can open behind the app window: the text says where to find it.
+    expect(within(card).getByRole('status').textContent).toContain('shield icon on the taskbar');
     expect(within(card).queryByRole('button')).toBeNull();
   });
 

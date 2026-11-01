@@ -2182,7 +2182,7 @@
       "allow": "Benarkan dan teruskan",
       "allowAgain": "Cuba lagi",
       "waitingTitle": "Menunggu Windows",
-      "waitingBody": "Pilih Yes dalam tetingkap Windows. Tetingkap itu mungkin di belakang tetingkap ini.",
+      "waitingBody": "Pilih Yes dalam tetingkap Windows. Jika anda tidak nampak, klik ikon perisai pada bar tugas.",
       "declined": "Windows tidak membenarkannya. Tiada apa yang berubah.",
       "failed": "Tidak dapat membebaskan data EzyChat Lite.",
       "byHand": "Atau lakukannya dalam EzyChat Lite:",

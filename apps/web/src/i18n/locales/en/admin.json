@@ -2212,7 +2212,7 @@
       "allow": "Allow and continue",
       "allowAgain": "Try again",
       "waitingTitle": "Waiting for Windows",
-      "waitingBody": "Choose Yes in the Windows window. It can be behind this window.",
+      "waitingBody": "Choose Yes in the Windows window. If you do not see it, click the shield icon on the taskbar.",
       "declined": "Windows did not allow it. Nothing changed.",
       "failed": "Could not free EzyChat Lite’s data.",
       "byHand": "Or do it in EzyChat Lite:",

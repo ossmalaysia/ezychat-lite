@@ -2181,7 +2181,7 @@
       "allow": "允许并继续",
       "allowAgain": "重试",
       "waitingTitle": "正在等待 Windows",
-      "waitingBody": "请在 Windows 窗口中选择“是”。该窗口可能在本窗口后面。",
+      "waitingBody": "请在 Windows 窗口中选择“是”。如果看不到，请点击任务栏上的盾牌图标。",
       "declined": "Windows 未允许。没有任何更改。",
       "failed": "无法释放 EzyChat Lite 的数据。",
       "byHand": "或者在 EzyChat Lite 中操作：",
