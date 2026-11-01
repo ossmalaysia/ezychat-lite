@@ -775,7 +775,12 @@ into AGENTS.md.
   its read-only checks in their own function (`windowsUninstallPrechecks`) and run the real detection, UAC
   prompt and elevated runner with only that part (`e2e/devbuild-lite-unlock.mjs`). With the owner's agreement
   the reversible real half can run on the live install too (`--real`: remove the service, scan), stopping
-  before what cannot be undone (the import hands the number over); tell the owner how to undo it.
+  before what cannot be undone (the import hands the number over); tell the owner how to undo it. A chat
+  warning does not stop a click: a Dev Build window handed to the owner on a PC with a live install ran the
+  whole import. Make the irreversible step impossible there (test data, or a build that refuses it) instead.
+- A Lite marked moved (`moved.json`) while its service is installed cannot start (exit 4, the service stays
+  stopped), and the "Use EzyChat Lite again" screen appears only in standalone mode. Restore order: Remove
+  service → open Lite → Use EzyChat Lite again → install the service again.
 - An elevated script that writes into a user-writable folder (data moved back to the profile, then
   `icacls /reset /T`) must refuse first when that folder or any folder above it is a link (junction, symlink),
   and check every "would stop halfway" condition (target already has app.db) before it touches the service.
