@@ -378,7 +378,10 @@ into AGENTS.md.
   the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
-  answer from a cached 404. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
+  answer from a cached 404; the Enterprise pin bump's `npm install` fails the same way (`notarget`) until it
+  runs with `--prefer-online`. Read the publish result from the `+ @ezychat/<pkg>@x` lines: grepping
+  `gh run view --log` also matches the step's own script source (lines with `[36;1m`), e.g. its "dry run
+  only" warning text. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
   10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until the **tarball**
   `https://registry.npmjs.org/@ezychat/<pkg>/-/<pkg>-<version>.tgz` answers 200 for all five: the version
   document can list the version while its tarball still answers 404 (Enterprise CI then fails at `npm ci`).
