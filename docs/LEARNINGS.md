@@ -634,8 +634,9 @@ into AGENTS.md.
   logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
   Build first.
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
-  workers die with exit code 3221225477 before any test runs; a one-off script that loads `better-sqlite3`
-  segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
+  workers die with exit code 3221225477 before any test runs; jsdom test files fail with "Failed to start forks
+  worker … reading 'bind'" while node-environment files pass, so the summary looks like a partial pass; a one-off
+  script that loads `better-sqlite3` segfaults, exit 139). Put `D:\nvm\v24.13.0` first on PATH for every command, one-off scripts included,
   instead of changing the global version. A
   missing `better-sqlite3/build/` is not a failure: the module loads from its `prebuilds/`.
 - "No tsconfigRootDir was set, and multiple candidate TSConfigRootDirs" on thousands of files means ESLint
