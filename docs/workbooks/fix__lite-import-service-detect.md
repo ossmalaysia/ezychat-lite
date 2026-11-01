@@ -8,7 +8,7 @@ Branch: `fix/lite-import-service-detect` · Every agent updates its stage with
 | Design | done | Enterprise mock lite-upgrade round 4 confirmed by the owner 2026-11-01 (ezychat-enterprise ddb8575) | 03d9079 | 2026-11-01 |
 | Dev | done | unlock() + IPC wati:lite-import-unlock, Lite service manager on Lite's folders, Remove service prechecks (app.db, links), security review findings fixed | 03d9079 | 2026-11-01 |
 | Unit tests | pass | desktop 594 passed; web lite-import + i18n pass; prechecks run in powershell.exe against real junctions | 03d9079 | 2026-11-01 |
-| E2E | pass | npm run e2e 134 passed / 27 skipped; e2e:electron-links passed (both before 03d9079c, which changes only service scripts and detection) | c49cad51 | 2026-11-01 |
+| E2E | pass | npm run e2e on the PR head after the security fixes: 134 passed, 27 skipped | 542fbe21 | 2026-11-01 |
 | Dev Build | todo | Needs a Windows test machine with a test Lite service: the owner's PC runs the live Lite service, which Allow removes | 03d9079 | 2026-11-01 |
 | Screen review | todo | Mock screenshots reviewed (36, desktop+mobile, light+dark); production screens need the desktop bridge, so capture them in the Dev Build | 03d9079 | 2026-11-01 |
 
@@ -20,3 +20,4 @@ Branch: `fix/lite-import-service-detect` · Every agent updates its stage with
 - 2026-11-01 E2E: pass — npm run e2e 134 passed / 27 skipped; e2e:electron-links passed (both before 03d9079c, which changes only service scripts and detection) (c49cad51)
 - 2026-11-01 Dev Build: todo — Needs a Windows test machine with a test Lite service: the owner's PC runs the live Lite service, which Allow removes (03d9079)
 - 2026-11-01 Screen review: todo — Mock screenshots reviewed (36, desktop+mobile, light+dark); production screens need the desktop bridge, so capture them in the Dev Build (03d9079)
+- 2026-11-01 E2E: pass — npm run e2e on the PR head after the security fixes: 134 passed, 27 skipped (542fbe21)
