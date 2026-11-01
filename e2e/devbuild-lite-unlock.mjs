@@ -1,16 +1,21 @@
 #!/usr/bin/env node
-// Dev Build check, DRY RUN ONLY: the Lite → Enterprise "Allow and continue" step on a PC where EzyChat Lite runs
-// as the Windows background service. Runs the REAL desktop code (detection, LiteImportController, the Lite
-// service manager's status, the elevated runner and its UAC prompt), but the elevated script is only the
-// read-only prechecks of "Remove service" (windowsUninstallPrechecks). It never stops, removes or moves anything.
+// Dev Build check: the Lite → Enterprise "Allow and continue" step on a PC where EzyChat Lite runs as the
+// Windows background service. Runs the REAL desktop code (detection, LiteImportController, the Lite service
+// manager, the elevated runner and its UAC prompt). It never imports (never calls start()).
 //
-//   npx tsx --conditions=ezychat-source e2e/devbuild-lite-unlock.mjs
+//   npx tsx --conditions=ezychat-source e2e/devbuild-lite-unlock.mjs          DRY RUN (default)
+//   npx tsx --conditions=ezychat-source e2e/devbuild-lite-unlock.mjs --real   REAL "Remove service"
 //
-// Expected on a PC with Lite's service: scan → phase "protected"; then Windows asks: Yes → the prechecks pass
-// ("DRY RUN: prechecks passed") and the controller stays "protected" (nothing was freed); No → "declined".
+// Dry run: the elevated script is only the read-only prechecks (windowsUninstallPrechecks); nothing changes.
+// Expected: scan → "protected"; Yes → "DRY RUN: prechecks passed", state stays "protected"; No → "declined".
+// --real: Lite's own "Remove service" runs (service removed, data moved to Lite's user folder), then the real
+// `--lite-summary` (needs `npm run bundle:server -w @ezychat/desktop`). Expected: Yes → "found" or "blocked"
+// with Lite's counts. Undo: in EzyChat Lite, Status & Service… → install the background service again.
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServerCli } from '../apps/desktop/src/lite-import/cli.ts';
 import { LiteImportController } from '../apps/desktop/src/lite-import/controller.ts';
 import { mtimeOrDenied, liteFolders } from '../apps/desktop/src/lite-import/detect.ts';
 import { liteImportDeps, liteServiceFolders } from '../apps/desktop/src/lite-import/host.ts';
@@ -58,9 +63,16 @@ const dryRunService = {
   },
 };
 
-const scratch = mkdtempSync(join(tmpdir(), 'lite-unlock-dry-'));
+const realRun = process.argv.includes('--real');
+const entry = fileURLToPath(new URL('../apps/desktop/dist/server/server.cjs', import.meta.url));
+if (realRun && !existsSync(entry))
+  throw new Error(
+    `--real reads Lite's summary with ${entry}: run npm run bundle:server -w @ezychat/desktop`,
+  );
+
+const scratch = mkdtempSync(join(tmpdir(), 'lite-unlock-check-'));
 const refuse = async () => {
-  throw new Error('not used in the dry run');
+  throw new Error('not used in this check (it never imports)');
 };
 const deps = liteImportDeps({
   adoptFrom: product,
@@ -68,8 +80,11 @@ const deps = liteImportDeps({
   env,
   appData,
   dataDir: join(scratch, 'enterprise-data'),
-  cli: { run: refuse },
-  liteService: dryRunService,
+  cli: realRun
+    ? createServerCli({ entry, runtime: 'node', execPath: process.execPath })
+    : { run: refuse },
+  // --real: Lite's own manager, built with Lite's folders (liteServiceFolders), as main.ts does.
+  liteService: realRun ? real : dryRunService,
   probe: async () => false,
   serverUrl: () => 'http://127.0.0.1:1',
   fetch: globalThis.fetch,
@@ -105,11 +120,21 @@ try {
     console.log('Not protected: nothing to try (is Lite running as a service on this PC?).');
   } else {
     console.log(
-      '2. Allow: Windows asks now. Choose Yes or No (dry run: nothing changes either way).',
+      realRun
+        ? '2. Allow (REAL): Windows asks now. Yes removes Lite’s service and moves its data to Lite’s folder.'
+        : '2. Allow: Windows asks now. Choose Yes or No (dry run: nothing changes either way).',
     );
-    show('   result', await controller.unlock());
-    show('3. scan again', await controller.scan());
-    console.log(`   Lite service after: ${await real.status()} (must be unchanged)`);
+    const after = await controller.unlock();
+    show('   result', after);
+    // Counts only: the summary also holds the number and names.
+    if (after.lite)
+      console.log(
+        `   Lite summary: ${after.lite.chats} chats, ${after.lite.users.length} users, ${after.lite.totalBytes} bytes; issues: ${after.issues.join(', ') || 'none'}`,
+      );
+    if (!realRun) show('3. scan again', await controller.scan());
+    console.log(
+      `   Lite service after: ${await real.status()}${realRun ? '' : ' (must be unchanged)'}`,
+    );
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true });
