@@ -8,8 +8,8 @@ Branch: `claude/affectionate-heisenberg-tg7h6n` · Every agent updates its stage
 | Design | done | Mock confirmed 2026-10-28 ("implement it"), revision 1460c1c; design.md + mock-index updated | 70dd1c8 | 2026-10-28 |
 | Dev | done | rebased on main cbd224f: migration 025 -> 029, Safety + edit/delete joined in present() (deleted = no finding), mock creationOrder 26, concept-tips archived | 71e72a0 | 2026-11-02 |
 | Unit tests | pass | 17 files, 294 tests + new Safety delete test (Node 24); typecheck all workspaces; eslint/prettier on changed files | ad94ef7 | 2026-11-02 |
-| E2E | doing | e2e/message-changes.spec.ts only: 4 passed (setup, desktop, Android, iPhone); full npm run e2e + e2e:electron-links still to run after the rebase | ad94ef7 | 2026-11-02 |
-| Dev Build | pass | e2e/devbuild-message-changes-check.mjs on :7477 (fake WA, standalone): 36 shots, no errors/overflow, agent checks pass; real WhatsApp untested | 4aee64d50defc808272cff9b4baee8579816aca7 | 2026-10-28 |
+| E2E | pass | full npm run e2e after the rebase: 138 passed, 27 skipped (Node 24, 1 worker); e2e:electron-links 17/17 screens | af74145 | 2026-11-02 |
+| Dev Build | pass | re-run on af74145: devbuild-message-changes-check 36 shots, no errors/overflow, schema 29; real WhatsApp still untested | af74145 | 2026-11-02 |
 | Screen review | pass | Desktop 1280 + mobile 360, light/dark: matches the confirmed mock; docs/screenshots/chat/edit-delete-* | 4aee64d50defc808272cff9b4baee8579816aca7 | 2026-10-28 |
 
 ## Log
@@ -28,3 +28,5 @@ Branch: `claude/affectionate-heisenberg-tg7h6n` · Every agent updates its stage
 - 2026-11-02 Dev: done — rebased on main cbd224f: migration 025 -> 029, Safety + edit/delete joined in present() (deleted = no finding), mock creationOrder 26, concept-tips archived (71e72a0)
 - 2026-11-02 E2E: doing — e2e/message-changes.spec.ts only: 4 passed (setup, desktop, Android, iPhone); full npm run e2e + e2e:electron-links still to run after the rebase (ad94ef7)
 - 2026-11-02 Unit tests: pass — 17 files, 294 tests + new Safety delete test (Node 24); typecheck all workspaces; eslint/prettier on changed files (ad94ef7)
+- 2026-11-02 E2E: pass — full npm run e2e after the rebase: 138 passed, 27 skipped (Node 24, 1 worker); e2e:electron-links 17/17 screens (af74145)
+- 2026-11-02 Dev Build: pass — re-run on af74145: devbuild-message-changes-check 36 shots, no errors/overflow, schema 29; real WhatsApp still untested (af74145)
