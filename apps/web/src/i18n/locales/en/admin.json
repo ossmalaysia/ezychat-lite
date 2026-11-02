@@ -1915,7 +1915,8 @@
         "cancelled": "No sheet was chosen.",
         "failed": "{{product}} could not open that sheet. Choose it again.",
         "expired": "The file picker took too long. Try again."
-      }
+      },
+      "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}."
     },
     "sheetsAct": {
       "hint": "What the AI looked up and added. Only who and when: never the values or the chat.",

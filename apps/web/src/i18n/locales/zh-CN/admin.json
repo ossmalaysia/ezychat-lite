@@ -1898,7 +1898,8 @@
         "cancelled": "没有选择表格。",
         "failed": "{{product}} 无法打开该表格。请重新选择。",
         "expired": "文件选择器等待时间过长。请重试。"
-      }
+      },
+      "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。"
     },
     "sheetsAct": {
       "hint": "AI 查询和添加的内容。只记录谁和何时：绝不记录数值或聊天内容。",

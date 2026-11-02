@@ -1899,7 +1899,8 @@
         "cancelled": "Tiada helaian dipilih.",
         "failed": "{{product}} tidak dapat membuka helaian itu. Pilih semula.",
         "expired": "Pemilih fail mengambil masa terlalu lama. Cuba lagi."
-      }
+      },
+      "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar pada komputer yang menjalankan {{product}}."
     },
     "sheetsAct": {
       "hint": "Apa yang AI cari dan tambah. Hanya siapa dan bila: tidak pernah nilai atau sembang.",

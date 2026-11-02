@@ -291,7 +291,9 @@ export function SheetsSettingsCard({
                       <ExternalLink aria-hidden />
                     </a>
                   </Button>
-                  <p className="text-sm text-muted-foreground">{t('connectors.gc.sameComputer')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('connectors.sheets.pickSameComputer')}
+                  </p>
                   <Button size="touch" variant="ghost" onClick={() => setPicking(null)}>
                     {t('connectors.gc.cancelSignIn')}
                   </Button>
