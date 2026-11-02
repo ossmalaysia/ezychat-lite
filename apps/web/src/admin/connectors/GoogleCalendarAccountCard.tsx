@@ -1,14 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { CalendarDays, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  googleCalendarUrl,
-  type GoogleCalendarConnectProgress,
-  type GoogleCalendarStatus,
-} from '@ezychat/shared';
-import { errorMessage } from '../../api/client';
+import { googleCalendarUrl, type GoogleCalendarStatus } from '@ezychat/shared';
 import {
   googleCalendarKey,
   useGoogleCalendar,
@@ -22,13 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog, ErrorState, ListSkeleton, Pending } from '../adminUi';
 import { GoogleCalendarLink } from './connector-ui';
-
-interface Signing {
-  requestId: string;
-  url: string;
-  /** The browser blocked the new window: the person opens the link themselves. */
-  blocked: boolean;
-}
+import { GoogleSigningIn, useGoogleConnectFlow } from './google-connect';
 
 const WHAT_KEYS = ['what1', 'what2', 'what3'] as const;
 
@@ -41,57 +29,6 @@ const TONE: Record<GoogleCalendarStatus['state'], StatusTone> = {
 };
 
 /**
- * Starts Google's sign-in: a window opens inside the click (so the browser allows it), then goes
- * to Google's page once the server answers; the page polls until Google sent the person back.
- */
-function useConnectFlow() {
-  const { t } = useTranslation('admin');
-  const qc = useQueryClient();
-  const start = useGoogleCalendarConnect();
-  const [signing, setSigning] = useState<Signing | null>(null);
-  const [failed, setFailed] = useState<GoogleCalendarConnectProgress['error']>(null);
-  const progress = useGoogleCalendarProgress(signing?.requestId ?? null);
-  const status = progress.data?.status;
-  const error = progress.data?.error ?? null;
-
-  useEffect(() => {
-    if (!signing || !status || status === 'pending') return;
-    setSigning(null);
-    if (status === 'done') {
-      setFailed(null);
-      toast.success(t('connectors.gc.connectedToast'));
-      void qc.invalidateQueries({ queryKey: googleCalendarKey });
-    } else setFailed(error ?? 'error');
-  }, [signing, status, error, qc, t]);
-
-  const connect = async () => {
-    setFailed(null);
-    const tab = window.open('about:blank', '_blank');
-    try {
-      const next = await start.mutateAsync();
-      if (tab) {
-        tab.opener = null;
-        tab.location.href = next.authorizationUrl;
-      }
-      setSigning({ requestId: next.requestId, url: next.authorizationUrl, blocked: !tab });
-    } catch {
-      // The mutation error is shown on the card.
-      tab?.close();
-    }
-  };
-
-  return {
-    connect: () => void connect(),
-    cancel: () => setSigning(null),
-    signing,
-    failed,
-    starting: start.isPending,
-    startError: start.error,
-    progressError: progress.error,
-  };
-}
-
-/**
  * The Google account EzyChat uses (one per install): connect, its state, its calendars and
  * Disconnect. Which calendar each AI agent uses lives on the Settings tab.
  */
@@ -100,7 +37,12 @@ export function GoogleCalendarAccountCard({
 }: Readonly<{ onOpenSettings?: () => void }>) {
   const { t } = useTranslation('admin');
   const query = useGoogleCalendar();
-  const flow = useConnectFlow();
+  const flow = useGoogleConnectFlow({
+    useStart: useGoogleCalendarConnect,
+    useProgress: useGoogleCalendarProgress,
+    statusKey: googleCalendarKey,
+    connectedToast: t('connectors.gc.connectedToast'),
+  });
   const disconnect = useGoogleCalendarDisconnect();
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const data = query.data;
@@ -223,34 +165,7 @@ export function GoogleCalendarAccountCard({
             </div>
           </>
         )}
-        {flow.signing && (
-          <div
-            className="flex flex-col items-start gap-3 rounded-lg border px-3 py-3"
-            role="status"
-            data-testid="google-signing-in"
-          >
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              {t('connectors.gc.waiting')}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {flow.signing.blocked ? t('connectors.gc.blocked') : t('connectors.gc.waitingHint')}
-            </p>
-            <Button asChild size="touch" variant={flow.signing.blocked ? 'default' : 'outline'}>
-              <a href={flow.signing.url} target="_blank" rel="noopener noreferrer">
-                {t('connectors.gc.openSignIn')}
-                <ExternalLink aria-hidden />
-              </a>
-            </Button>
-            <p className="text-sm text-muted-foreground">{t('connectors.gc.sameComputer')}</p>
-            <Button size="touch" variant="ghost" onClick={flow.cancel}>
-              {t('connectors.gc.cancelSignIn')}
-            </Button>
-          </div>
-        )}
-        {flow.failed && <Banner tone="danger">{t(`connectors.gc.failed.${flow.failed}`)}</Banner>}
-        {flow.startError && <Banner tone="danger">{errorMessage(flow.startError)}</Banner>}
-        {flow.progressError && <Banner tone="danger">{errorMessage(flow.progressError)}</Banner>}
+        <GoogleSigningIn flow={flow} />
       </CardContent>
       <ConfirmDialog
         open={confirmDisconnect}

@@ -961,6 +961,11 @@ into AGENTS.md.
 
 ## AI sales agent
 
+- A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
+  customer's text as data, never as something the other system runs: Google Sheets `append` with
+  `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`.
+- A Lite → Enterprise import test that fakes "an older Lite" by dropping the newest tables must be extended with every
+  new migration's tables, or it fails with "table already exists" (`lite-import-merge.test.ts`).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
   handed over a consultation request as needs_action against saved "never hand over" rules because the core listed
   "book" as an action. Keep built-in hand-off reasons narrow, state which ones the business rules may rule out
