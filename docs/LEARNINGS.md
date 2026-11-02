@@ -208,6 +208,7 @@ into AGENTS.md.
 - Another session may push to the same PR branch while you work on it: force-push a rebase only with
   `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
   commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
+  Fetch and read the workbook before each long check: the other session may already be running the same one.
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
@@ -661,7 +662,8 @@ into AGENTS.md.
   full suite, list `node.exe` processes whose command line has `mock/run.ts` or the repo path: old mock
   servers survive for days. Run coverage, e2e and electron-links as separate background commands (each
   logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
-  Build first.
+  Build first, by its port owner: stopping the background shell task leaves the `tsx` server child
+  running on the port and its data folder (a restart then reads the old log as "ready").
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs; jsdom test files fail with "Failed to start forks
   worker … reading 'bind'" while node-environment files pass, so the summary looks like a partial pass; a one-off
