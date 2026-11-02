@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy. Retry now sends it again as the same message, so phones that already have it do not show it twice. In a group
   the message says "Some members may not have received this" instead, and it clears by itself as soon as a member
   receives or reads it.
+- **One customer, same details in every inbox.** With two or more WhatsApp numbers, a customer who chats with
+  both now shows the same saved name, company, email, other phone and address in each inbox: an edit in one
+  inbox updates the other, and a new chat of a known customer starts with their details. Tags stay per inbox.
 
 ## [0.1.68] - 2026-11-01
 
