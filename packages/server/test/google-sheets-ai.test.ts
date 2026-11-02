@@ -52,6 +52,8 @@ async function setUp(settings: Partial<SheetsAgentSettings> = {}, connect = true
     const state = new URL(start.authorizationUrl).searchParams.get('state')!;
     const target = new URL(svc.fakeConsent(state, true)!);
     expect((await svc.callback(Object.fromEntries(target.searchParams))).status).toBe(200);
+    // Like drive.file: the admin picked the demo sheet in Google's file picker.
+    svc.fake!.grant(FAKE_SPREADSHEET_ID);
     await svc.putSettings(
       agentId,
       {

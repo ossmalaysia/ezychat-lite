@@ -11,6 +11,7 @@ import {
   type GoogleSheetsStatus,
   type SheetsActivity,
   type SheetsAgentSettings,
+  type SheetsPickerProgress,
   type SpreadsheetInfo,
   type AiAgentSummary,
   type BookingSettings,
@@ -209,6 +210,8 @@ export interface World {
   sheetSettings: Record<number, SheetsAgentSettings>;
   sheetsActivity: SheetsActivity[];
   spreadsheets: Record<string, SpreadsheetInfo>;
+  /** Answers to the file picker polls, in order (the last one repeats). */
+  pickerProgress: SheetsPickerProgress[];
   agents: AiAgentSummary[];
   bookings: Record<number, BookingSettings>;
   activity: CalendarActivity[];
@@ -244,6 +247,7 @@ export function world(patch: Partial<World> = {}): World {
     sheetSettings: {},
     sheetsActivity: [],
     spreadsheets: { [SHEET_ID]: SHEET },
+    pickerProgress: [{ status: 'done', sheet: SHEET }],
     agents: [agent(1, 'Aina')],
     bookings: {},
     activity: [],
@@ -358,6 +362,13 @@ function sheetsRoute(w: World, method: string, path: string, init?: RequestInit)
     w.sheets = sheetsStatus('disconnected');
     return json(w.sheets);
   }
+  if (rest === '/picker' && method === 'POST')
+    return json({
+      requestId: 'pick-1',
+      pickerUrl: 'http://127.0.0.1:7420/api/connectors/google-sheets/picker-page?token=t',
+    });
+  if (rest.startsWith('/picker/'))
+    return json(w.pickerProgress.length > 1 ? w.pickerProgress.shift()! : w.pickerProgress[0]!);
   if (rest === '/spreadsheet' && method === 'POST') {
     const { link } = JSON.parse(String(init!.body)) as { link: string };
     const found = w.spreadsheets[spreadsheetIdFromLink(link) ?? ''];

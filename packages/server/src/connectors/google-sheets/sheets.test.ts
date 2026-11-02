@@ -12,7 +12,7 @@ function client(response: Response) {
 }
 
 describe('SheetsClient', () => {
-  it('asks Google only for the Sheets scope', () => {
+  it('asks Google only for the files the admin picks (drive.file)', () => {
     const url = new URL(
       new SheetsClient(app).authorizationUrl({
         redirectUri: 'http://127.0.0.1:7420/cb',
@@ -22,7 +22,7 @@ describe('SheetsClient', () => {
       }),
     );
     expect(url.searchParams.get('scope')).toBe(
-      'openid email https://www.googleapis.com/auth/spreadsheets',
+      'openid email https://www.googleapis.com/auth/drive.file',
     );
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });

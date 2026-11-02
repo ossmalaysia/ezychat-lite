@@ -13,7 +13,11 @@ import {
   type GoogleEndpoints,
 } from '../google-calendar/google.js';
 
-export const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+/**
+ * Only the files the admin picks in Google's file picker (non-sensitive scope): EzyChat can never
+ * open another file of the account. The Sheets API reads and appends to a picked spreadsheet.
+ */
+export const SHEETS_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 export const SHEETS_SCOPES = ['openid', 'email', SHEETS_SCOPE] as const;
 export const SHEETS_REQUIRED_SCOPES = [SHEETS_SCOPE] as const;
 

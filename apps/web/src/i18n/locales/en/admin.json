@@ -1576,8 +1576,8 @@
       "google-sheets": {
         "name": "Google Sheets",
         "short": "Read prices or stock from a sheet; add new leads.",
-        "long": "Keep prices, stock or a FAQ in a Google Sheet and let your AI agent read it. If you allow it, the AI also adds each new lead as a row. Sign in with Google, then paste the sheet's link.",
-        "privacy": "{{product}} reads only the tab you choose and writes only the lead rows it adds: date, the customer’s name, WhatsApp number, email and a short line on what they want. No chat history goes to Google. The sign-in is stored encrypted on this computer."
+        "long": "Keep prices, stock or a FAQ in a Google Sheet and let your AI agent read it. If you allow it, the AI also adds each new lead as a row. Sign in with Google, then choose the sheet.",
+        "privacy": "{{product}} can open only the spreadsheets you choose, reads only the tab you pick and writes only the lead rows it adds: date, the customer’s name, WhatsApp number, email and a short line on what they want. No chat history goes to Google. The sign-in is stored encrypted on this computer."
       }
     },
     "gc": {
@@ -1867,7 +1867,7 @@
       "what2": "It adds a new lead as a row only if you turn that on.",
       "what3": "It never changes or deletes rows that are already in the sheet.",
       "connect": "Connect Google Sheets",
-      "connectHint": "You sign in with Google and allow {{product}} to open your spreadsheets. It only uses the sheet you choose. You can disconnect at any time.",
+      "connectHint": "You sign in with Google and allow {{product}} to open only the spreadsheets you choose. You can disconnect at any time.",
       "connectedToast": "Google Sheets connected",
       "expiredBody": "Until you sign in again, the AI does not read the sheet or add leads; it hands those chats to your team.",
       "unavailableTitle": "Can't reach Google Sheets",
@@ -1883,11 +1883,6 @@
       "notConnected": "Connect a Google account on the Overview tab first.",
       "spreadsheet": "Spreadsheet",
       "open": "Open in Google Sheets",
-      "link": "Spreadsheet link",
-      "changeLink": "Use another spreadsheet",
-      "linkHint": "Open the sheet in Google Sheets and copy the link from the address bar. The connected Google account must be able to open it.",
-      "linkRequired": "Paste the link of a Google Sheets spreadsheet.",
-      "find": "Use this sheet",
       "chooseTab": "Choose a tab",
       "tabRequired": "Choose a tab.",
       "readHint": "The AI looks up rows that match what the customer asks. The first row must hold the column names.",
@@ -1908,7 +1903,19 @@
         "unavailable": "Paused: can't reach Google Sheets"
       },
       "pausedBody": "{{name}} does not use the sheet until it works again.",
-      "linkPlaceholder": "https://docs.google.com/spreadsheets/d/…"
+      "choose": "Choose a sheet",
+      "chooseAnother": "Choose another sheet",
+      "chooseHint": "Google's file picker opens in a new window. {{product}} can open only the sheets you choose there.",
+      "sheetRequired": "Choose a sheet first.",
+      "picking": "Waiting for Google's file picker…",
+      "pickingHint": "Choose the sheet in the window that opened. This page updates by itself.",
+      "pickBlocked": "Your browser blocked the window. Open the file picker to continue.",
+      "openPicker": "Open the file picker",
+      "pickError": {
+        "cancelled": "No sheet was chosen.",
+        "failed": "{{product}} could not open that sheet. Choose it again.",
+        "expired": "The file picker took too long. Try again."
+      }
     },
     "sheetsAct": {
       "hint": "What the AI looked up and added. Only who and when: never the values or the chat.",

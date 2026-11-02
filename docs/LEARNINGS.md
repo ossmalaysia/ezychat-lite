@@ -788,6 +788,11 @@ into AGENTS.md.
 
 ## Security
 
+- A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
+  CSP stays `script-src 'self'`. Serve it on its own host-only page with a CSP limited to that vendor, guarded by a
+  one-time token, and hand it an access token once (`connectors/google-sheets/picker-page.ts`).
+- Stop a Playwright run with its servers: killing only `playwright` leaves the e2e web servers on 7497/7498 holding the
+  ports, and the next `npm run e2e` hangs at "WebServer" without a test result. Check `ps` for old `cli.ts --port` processes.
 - A destructive elevated step (remove a service, move data) can still be checked on the owner's live PC: keep
   its read-only checks in their own function (`windowsUninstallPrechecks`) and run the real detection, UAC
   prompt and elevated runner with only that part (`e2e/devbuild-lite-unlock.mjs`). With the owner's agreement

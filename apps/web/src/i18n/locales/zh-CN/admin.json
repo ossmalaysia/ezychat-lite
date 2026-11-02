@@ -1566,8 +1566,8 @@
       "google-sheets": {
         "name": "Google Sheets",
         "short": "从表格读取价格或库存；添加新的潜在客户。",
-        "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 代理读取。如果您允许，AI 还会把每个新的潜在客户添加为一行。使用 Google 登录，然后粘贴表格链接。",
-        "privacy": "{{product}} 只读取您选择的工作表，只写入它添加的潜在客户行：日期、客户姓名、WhatsApp 号码、电子邮件，以及一句简短的需求说明。聊天记录不会发送到 Google。登录信息加密保存在这台电脑上。"
+        "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 代理读取。如果您允许，AI 还会把每个新的潜在客户添加为一行。使用 Google 登录，然后选择表格。",
+        "privacy": "{{product}} 只能打开您选择的电子表格，只读取您选的工作表，只写入它添加的潜在客户行：日期、客户姓名、WhatsApp 号码、电子邮件，以及一句简短的需求说明。聊天记录不会发送到 Google。登录信息加密保存在这台电脑上。"
       }
     },
     "gc": {
@@ -1850,7 +1850,7 @@
       "what2": "只有在您开启后，它才会把新的潜在客户添加为一行。",
       "what3": "它绝不会修改或删除表格中已有的行。",
       "connect": "连接 Google Sheets",
-      "connectHint": "您使用 Google 登录并允许 {{product}} 打开您的电子表格。它只使用您选择的表格。您可以随时断开连接。",
+      "connectHint": "您使用 Google 登录，并只允许 {{product}} 打开您选择的电子表格。您可以随时断开连接。",
       "connectedToast": "已连接 Google Sheets",
       "expiredBody": "在您重新登录之前，AI 不会读取表格或添加潜在客户；它会把这些聊天转交给您的团队。",
       "unavailableTitle": "无法连接 Google Sheets",
@@ -1866,11 +1866,6 @@
       "notConnected": "请先在“概览”标签页连接 Google 账号。",
       "spreadsheet": "电子表格",
       "open": "在 Google Sheets 中打开",
-      "link": "电子表格链接",
-      "changeLink": "使用其他电子表格",
-      "linkHint": "在 Google Sheets 中打开表格，并从地址栏复制链接。已连接的 Google 账号必须能打开它。",
-      "linkRequired": "请粘贴 Google Sheets 电子表格的链接。",
-      "find": "使用此表格",
       "chooseTab": "选择工作表",
       "tabRequired": "请选择工作表。",
       "readHint": "AI 会查找与客户提问匹配的行。第一行必须是列名。",
@@ -1891,7 +1886,19 @@
         "unavailable": "已暂停：无法连接 Google Sheets"
       },
       "pausedBody": "在恢复正常之前，{{name}} 不会使用表格。",
-      "linkPlaceholder": "https://docs.google.com/spreadsheets/d/…"
+      "choose": "选择表格",
+      "chooseAnother": "选择其他表格",
+      "chooseHint": "Google 文件选择器会在新窗口中打开。{{product}} 只能打开您在其中选择的表格。",
+      "sheetRequired": "请先选择表格。",
+      "picking": "正在等待 Google 文件选择器…",
+      "pickingHint": "请在打开的窗口中选择表格。此页面会自动更新。",
+      "pickBlocked": "浏览器阻止了该窗口。请打开文件选择器继续。",
+      "openPicker": "打开文件选择器",
+      "pickError": {
+        "cancelled": "没有选择表格。",
+        "failed": "{{product}} 无法打开该表格。请重新选择。",
+        "expired": "文件选择器等待时间过长。请重试。"
+      }
     },
     "sheetsAct": {
       "hint": "AI 查询和添加的内容。只记录谁和何时：绝不记录数值或聊天内容。",

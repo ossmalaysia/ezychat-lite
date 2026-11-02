@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, Table2 } from 'lucide-react';
+import { ExternalLink, Loader2, Table2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   SheetsAgentSettings,
@@ -11,13 +11,14 @@ import {
 import { errorMessage } from '../../api/client';
 import {
   useSaveSheetsSettings,
+  useSheetsPicker,
+  useSheetsPickerProgress,
   useSheetsSettings,
   useSpreadsheetLookup,
 } from '../../api/connectors';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -35,14 +36,21 @@ import {
 } from '../adminUi';
 import { ToolSwitchRow } from './connector-ui';
 
-type FieldErrors = Partial<Record<'link' | 'lookupTab' | 'leadsTab', string>>;
+type FieldErrors = Partial<Record<'sheet' | 'lookupTab' | 'leadsTab', string>>;
+
+interface Picking {
+  requestId: string;
+  url: string;
+  /** The browser blocked the new window: the admin opens the link themselves. */
+  blocked: boolean;
+}
 const RULES = ['rule1', 'rule2', 'rule3', 'rule4'] as const;
 /** Test ids of the two tab choices. */
 const TAB_TEST_IDS = { lookup: 'sheets-lookup-tab', leads: 'sheets-leads-tab' } as const;
 
 /**
- * Connectors → Google Sheets → Settings, for one AI agent: the spreadsheet (a pasted link, checked
- * with Google), Read rows with its tab (on by default) and Add leads with its tab (off until an
+ * Connectors → Google Sheets → Settings, for one AI agent: the spreadsheet (picked in Google's
+ * file picker), Read rows with its tab (on by default) and Add leads with its tab (off until an
  * admin turns it on).
  */
 export function SheetsSettingsCard({
@@ -63,7 +71,10 @@ export function SheetsSettingsCard({
   const save = useSaveSheetsSettings(agentId);
   const lookup = useSpreadsheetLookup();
   const [draft, setDraft] = useState<SheetsAgentSettings>();
-  const [link, setLink] = useState('');
+  const picker = useSheetsPicker();
+  const [picking, setPicking] = useState<Picking | null>(null);
+  const [pickError, setPickError] = useState<'cancelled' | 'failed' | 'expired' | null>(null);
+  const progress = useSheetsPickerProgress(picking?.requestId ?? null);
   const [info, setInfo] = useState<SpreadsheetInfo | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const ids = { read: useId(), leads: useId() };
@@ -81,26 +92,45 @@ export function SheetsSettingsCard({
     if (savedId && connected) find(savedId, { onSuccess: setInfo });
   }, [savedId, connected, find]);
 
-  const choose = () => {
-    if (!value || !link.trim()) {
-      setErrors({ link: t('connectors.sheets.linkRequired') });
-      return;
-    }
-    setErrors({});
-    lookup.mutate(link.trim(), {
-      onSuccess: (found) => {
-        setInfo(found);
-        setLink('');
-        const has = (tab: string | null) => !!tab && found.tabs.some((x) => x.title === tab);
-        const first = found.tabs[0]?.title ?? null;
-        set({
-          spreadsheetId: found.id,
-          spreadsheetName: found.name,
-          lookupTab: has(value.lookupTab) ? value.lookupTab : first,
-          leadsTab: has(value.leadsTab) ? value.leadsTab : null,
-        });
-      },
+  /** A sheet picked in Google's picker: its tabs, the first one to read, leads tab kept if there. */
+  const apply = (found: SpreadsheetInfo) => {
+    if (!value) return;
+    setInfo(found);
+    const has = (tab: string | null) => !!tab && found.tabs.some((x) => x.title === tab);
+    set({
+      spreadsheetId: found.id,
+      spreadsheetName: found.name,
+      lookupTab: has(value.lookupTab) ? value.lookupTab : (found.tabs[0]?.title ?? null),
+      leadsTab: has(value.leadsTab) ? value.leadsTab : null,
     });
+  };
+
+  const pickStatus = progress.data?.status;
+  const pickedSheet = progress.data?.sheet ?? null;
+  useEffect(() => {
+    if (!picking || !pickStatus || pickStatus === 'pending') return;
+    setPicking(null);
+    if (pickStatus === 'done' && pickedSheet) apply(pickedSheet);
+    else setPickError(pickStatus === 'done' ? 'failed' : pickStatus);
+    // apply reads the current draft; the poll result is what changes here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picking, pickStatus, pickedSheet]);
+
+  /** Opens Google's file picker in a new window (inside the click, so the browser allows it). */
+  const choose = async () => {
+    setPickError(null);
+    setErrors({});
+    const tab = window.open('about:blank', '_blank');
+    try {
+      const next = await picker.mutateAsync();
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = next.pickerUrl;
+      }
+      setPicking({ requestId: next.requestId, url: next.pickerUrl, blocked: !tab });
+    } catch {
+      tab?.close();
+    }
   };
 
   const submit = () => {
@@ -109,7 +139,7 @@ export function SheetsSettingsCard({
     if (value.spreadsheetId && value.lookup && !value.lookupTab)
       next.lookupTab = t('connectors.sheets.tabRequired');
     if (value.addLeads && !value.leadsTab) next.leadsTab = t('connectors.sheets.tabRequired');
-    if (!value.spreadsheetId && value.addLeads) next.link = t('connectors.sheets.linkRequired');
+    if (!value.spreadsheetId && value.addLeads) next.sheet = t('connectors.sheets.sheetRequired');
     setErrors(next);
     const parsed = SheetsAgentSettings.safeParse(value);
     if (Object.keys(next).length > 0 || !parsed.success) return;
@@ -220,45 +250,58 @@ export function SheetsSettingsCard({
                   </Button>
                 </div>
               )}
-              <Field
-                label={
-                  value.spreadsheetId
-                    ? t('connectors.sheets.changeLink')
-                    : t('connectors.sheets.link')
-                }
-                hint={t('connectors.sheets.linkHint')}
-                error={errors.link}
-              >
-                {(p) => (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      {...p}
-                      value={link}
-                      inputMode="url"
-                      placeholder={t('connectors.sheets.linkPlaceholder')}
-                      className="min-h-11 min-w-0 flex-1"
-                      data-testid="sheets-link"
-                      onChange={(e) => setLink(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          choose();
-                        }
-                      }}
-                    />
-                    <Button
-                      size="touch"
-                      variant="outline"
-                      disabled={lookup.isPending}
-                      onClick={choose}
-                      data-testid="sheets-find"
-                    >
-                      <Pending show={lookup.isPending} />
-                      {t('connectors.sheets.find')}
-                    </Button>
-                  </div>
-                )}
-              </Field>
+              {!picking && (
+                <div className="flex flex-col items-start gap-2">
+                  <Button
+                    size="touch"
+                    variant={value.spreadsheetId ? 'outline' : 'default'}
+                    disabled={picker.isPending}
+                    onClick={() => void choose()}
+                    data-testid="sheets-choose"
+                  >
+                    <Pending show={picker.isPending} />
+                    {value.spreadsheetId
+                      ? t('connectors.sheets.chooseAnother')
+                      : t('connectors.sheets.choose')}
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    {t('connectors.sheets.chooseHint')}
+                  </p>
+                  {errors.sheet && <p className="text-sm text-danger">{errors.sheet}</p>}
+                </div>
+              )}
+              {picking && (
+                <div
+                  className="flex flex-col items-start gap-3 rounded-lg border px-3 py-3"
+                  role="status"
+                  data-testid="sheets-picking"
+                >
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    {t('connectors.sheets.picking')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {picking.blocked
+                      ? t('connectors.sheets.pickBlocked')
+                      : t('connectors.sheets.pickingHint')}
+                  </p>
+                  <Button asChild size="touch" variant={picking.blocked ? 'default' : 'outline'}>
+                    <a href={picking.url} target="_blank" rel="noopener noreferrer">
+                      {t('connectors.sheets.openPicker')}
+                      <ExternalLink aria-hidden />
+                    </a>
+                  </Button>
+                  <p className="text-sm text-muted-foreground">{t('connectors.gc.sameComputer')}</p>
+                  <Button size="touch" variant="ghost" onClick={() => setPicking(null)}>
+                    {t('connectors.gc.cancelSignIn')}
+                  </Button>
+                </div>
+              )}
+              {pickError && (
+                <Banner tone="danger">{t(`connectors.sheets.pickError.${pickError}`)}</Banner>
+              )}
+              {picker.error && <Banner tone="danger">{errorMessage(picker.error)}</Banner>}
+              {lookup.error && <Banner tone="danger">{errorMessage(lookup.error)}</Banner>}
               {lookup.error && <Banner tone="danger">{errorMessage(lookup.error)}</Banner>}
             </div>
 

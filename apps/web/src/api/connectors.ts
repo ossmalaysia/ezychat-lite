@@ -9,6 +9,8 @@ import {
   GoogleSheetsStatus,
   SheetsActivityList,
   SheetsAgentSettings,
+  SheetsPickerProgress,
+  SheetsPickerStart,
   SpreadsheetInfo,
 } from '@ezychat/shared';
 import { api } from './client';
@@ -195,5 +197,28 @@ export function useSheetsActivity(enabled = true) {
     queryFn: ({ signal }) =>
       api('/connectors/google-sheets/activity', { signal, schema: SheetsActivityList }),
     enabled,
+  });
+}
+
+/** Opens Google's file picker (a page on the computer that runs EzyChat). */
+export function useSheetsPicker() {
+  return useMutation({
+    mutationFn: () =>
+      api('/connectors/google-sheets/picker', { method: 'POST', schema: SheetsPickerStart }),
+  });
+}
+
+/** Polls the picker every 2 s until the admin picked a sheet, cancelled, or it expired. */
+export function useSheetsPickerProgress(requestId: string | null) {
+  return useQuery({
+    queryKey: [...googleSheetsKey, 'picker', requestId] as const,
+    queryFn: ({ signal }) =>
+      api(`/connectors/google-sheets/picker/${encodeURIComponent(requestId ?? '')}`, {
+        signal,
+        schema: SheetsPickerProgress,
+      }),
+    enabled: requestId !== null,
+    refetchInterval: (query) => (query.state.data?.status === 'pending' ? 2000 : false),
+    gcTime: 0,
   });
 }

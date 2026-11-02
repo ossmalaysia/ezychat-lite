@@ -7,6 +7,7 @@ import { AgentConnectorsCard } from './AgentConnectorsCard';
 import { ConnectorDetailPage } from './ConnectorDetailPage';
 import { ConnectorsGalleryPage } from './ConnectorsGalleryPage';
 import {
+  SHEET,
   SHEET_ID,
   agent,
   renderAt,
@@ -33,7 +34,6 @@ afterEach(() => {
 });
 
 const GS = '/admin/connectors/google-sheets';
-const LINK = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=0`;
 const page = (path: string) => renderAt(path, <ConnectorDetailPage />);
 const location = () => screen.getByTestId('location').textContent;
 const connected = (patch: Parameters<typeof world>[0] = {}) =>
@@ -118,22 +118,30 @@ describe('Google Sheets: Settings', () => {
     expect(location()).toBe(`${GS}?tab=overview`);
   });
 
-  it('finds a sheet from its link, picks tabs and saves both switches', async () => {
-    const w = connected();
+  it("chooses a sheet in Google's file picker, picks tabs and saves both switches", async () => {
+    const w = connected({
+      pickerProgress: [
+        { status: 'pending', sheet: null },
+        { status: 'done', sheet: SHEET },
+      ],
+    });
     const fetchMock = stubServer(w);
+    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
     page(`${GS}?tab=settings`);
     const user = userEvent.setup();
-    const link = await screen.findByTestId('sheets-link');
     // Add leads needs a sheet first.
-    expect(screen.getByRole('switch', { name: 'Add leads' }).hasAttribute('disabled')).toBe(true);
-    await user.click(screen.getByTestId('sheets-find'));
-    expect(screen.getByText('Paste the link of a Google Sheets spreadsheet.')).toBeTruthy();
-    await user.type(link, 'https://example.com/nope');
-    await user.click(screen.getByTestId('sheets-find'));
-    expect(await screen.findByText(/cannot open this spreadsheet/)).toBeTruthy();
-    await user.clear(link);
-    await user.type(link, `${LINK}{Enter}`);
-    const chosen = await screen.findByTestId('sheets-chosen');
+    expect(
+      (await screen.findByRole('switch', { name: 'Add leads' })).hasAttribute('disabled'),
+    ).toBe(true);
+    await user.click(screen.getByTestId('sheets-choose'));
+    await waitFor(() =>
+      expect(tab.location.href).toBe(
+        'http://127.0.0.1:7420/api/connectors/google-sheets/picker-page?token=t',
+      ),
+    );
+    expect(tab.opener).toBeNull();
+    const chosen = await screen.findByTestId('sheets-chosen', {}, { timeout: 4000 });
     expect(within(chosen).getByText('Kopi Apong prices')).toBeTruthy();
     expect(
       within(chosen)
@@ -142,6 +150,7 @@ describe('Google Sheets: Settings', () => {
     ).toBe(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`);
     // The first tab is chosen for look-ups.
     expect(screen.getByTestId('sheets-lookup-tab').textContent).toContain('Menu');
+    expect(screen.getByTestId('sheets-choose').textContent).toContain('Choose another sheet');
 
     await user.click(screen.getByRole('switch', { name: 'Add leads' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -161,6 +170,37 @@ describe('Google Sheets: Settings', () => {
       leadsTab: 'Leads',
     });
     expect(toast.success).toHaveBeenCalledWith('Google Sheets settings saved');
+  });
+
+  it.each([
+    ['cancelled', 'No sheet was chosen.'],
+    ['expired', 'The file picker took too long. Try again.'],
+  ] as const)('says when the picker ended %s', async (status, text) => {
+    stubServer(connected({ pickerProgress: [{ status, sheet: null }] }));
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    page(`${GS}?tab=settings`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('sheets-choose'));
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.queryByTestId('sheets-chosen')).toBeNull();
+  });
+
+  it('offers the picker link when the window was blocked, and can cancel', async () => {
+    stubServer(connected({ pickerProgress: [{ status: 'pending', sheet: null }] }));
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    page(`${GS}?tab=settings`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('sheets-choose'));
+    const waiting = await screen.findByTestId('sheets-picking');
+    expect(within(waiting).getByText(/blocked the window/)).toBeTruthy();
+    expect(
+      within(waiting)
+        .getByRole('link', { name: /Open the file picker/ })
+        .getAttribute('href'),
+    ).toContain('/api/connectors/google-sheets/picker-page');
+    await user.click(within(waiting).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByTestId('sheets-picking')).toBeNull();
+    expect(screen.getByTestId('sheets-choose')).toBeTruthy();
   });
 
   it('loads the saved sheet with its tabs and shows a paused banner while Google fails', async () => {

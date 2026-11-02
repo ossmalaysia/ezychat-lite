@@ -5,6 +5,7 @@
  *
  * Logs carry events, ids, counts and states only: never tokens, sheet values, names or numbers.
  */
+import { createHash, randomBytes } from 'node:crypto';
 import {
   SHEETS_LEAD_COLUMNS,
   SheetsAgentSettings,
@@ -13,6 +14,8 @@ import {
   type SheetsActivity,
   type SpreadsheetInfo,
   type GoogleSheetsStatus,
+  type SheetsPickerProgress,
+  type SheetsPickerStart,
 } from '@ezychat/shared';
 import { agentById } from '../../ai/agents.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../../ai/prompt.js';
@@ -56,6 +59,23 @@ const META_TTL_MS = 5 * 60_000;
 const VALUES_TTL_MS = 60_000;
 const MAX_CACHED = 50;
 export const LEAD_REQUEST_CHARACTERS = 500;
+/** A picker window stays usable this long; at most this many open at once. */
+export const PICKER_TTL_MS = 10 * 60_000;
+const MAX_PICKERS = 20;
+export const PICKER_PAGE_PATH = '/api/connectors/google-sheets/picker-page';
+export const FAKE_PICKER_PATH = '/api/dev/fake-google-sheets/picker';
+
+interface PickerSession {
+  requestId: string;
+  createdAt: number;
+  userId: number;
+  status: SheetsPickerProgress['status'];
+  sheet: SpreadsheetInfo | null;
+  /** The page fetched its access token once already. */
+  configured: boolean;
+}
+
+const sha = (text: string) => createHash('sha256').update(text).digest('hex');
 
 export type AddLeadResult =
   | { ok: true; already: boolean }
@@ -115,6 +135,12 @@ export function createGoogleSheetsService(
     now,
   });
 
+  // Real Google needs its file picker too (drive.file): without the key Sheets is not available.
+  const pickerApp = fake ? { apiKey: 'fake-key', appId: '0' } : (ctx.config.googlePicker ?? null);
+  const configured = () => account.configured() && pickerApp !== null;
+  const pickers = new Map<string, PickerSession>(); // by token hash
+  const pickerByRequest = new Map<string, string>(); // requestId → token hash
+
   const metas = new Map<string, { at: number; meta: SpreadsheetMeta }>();
   const values = new Map<string, { at: number; rows: string[][] }>();
   const clearCaches = () => {
@@ -128,6 +154,7 @@ export function createGoogleSheetsService(
   };
 
   const linked = () => {
+    if (!configured()) return false;
     const state = account.state();
     return state === 'connected' || state === 'unavailable';
   };
@@ -156,7 +183,7 @@ export function createGoogleSheetsService(
     } catch (error) {
       if (error instanceof GoogleError && error.kind === 'rejected')
         throw errors.validation(
-          'The connected Google account cannot open this spreadsheet. Share it with that account, or check the link.',
+          'EzyChat cannot open this spreadsheet. Choose it again with Choose a sheet.',
         );
       throw new HttpError(503, 'google_unavailable', 'Google Sheets could not be reached');
     }
@@ -206,14 +233,14 @@ export function createGoogleSheetsService(
   const service = {
     fake,
     account,
-    configured: account.configured,
+    configured,
     timeZone,
     savedContact,
 
     status(): GoogleSheetsStatus {
-      const tokens = account.configured() ? account.tokens() : null;
+      const tokens = configured() ? account.tokens() : null;
       return {
-        state: account.state(),
+        state: configured() ? account.state() : 'not_configured',
         account: tokens?.account ?? null,
         connectedAt: tokens?.connectedAt ?? null,
         problemSince: account.problemSince(),
@@ -355,6 +382,86 @@ export function createGoogleSheetsService(
       return { ok: true, already: false };
     },
 
+    /**
+     * Opens Google's file picker for an admin: a one-time session whose page (this computer only)
+     * gets a fresh access token once and posts the picked spreadsheet back.
+     */
+    startPicker(origin: string, actor: { userId: number }): SheetsPickerStart {
+      if (!linked()) throw new HttpError(409, 'not_connected', 'Connect a Google account first');
+      const at = now();
+      for (const [hash, entry] of pickers)
+        if (at - entry.createdAt > PICKER_TTL_MS) {
+          pickers.delete(hash);
+          pickerByRequest.delete(entry.requestId);
+        }
+      while (pickers.size >= MAX_PICKERS) {
+        const oldest = pickers.keys().next().value!;
+        pickerByRequest.delete(pickers.get(oldest)!.requestId);
+        pickers.delete(oldest);
+      }
+      const token = randomBytes(24).toString('base64url');
+      const requestId = randomBytes(12).toString('hex');
+      pickers.set(sha(token), {
+        requestId,
+        createdAt: at,
+        userId: actor.userId,
+        status: 'pending',
+        sheet: null,
+        configured: false,
+      });
+      pickerByRequest.set(requestId, sha(token));
+      const url = new URL(fake ? FAKE_PICKER_PATH : PICKER_PAGE_PATH, origin);
+      url.searchParams.set('token', token);
+      return { requestId, pickerUrl: url.toString() };
+    },
+
+    pickerProgress(requestId: string): SheetsPickerProgress | null {
+      const hash = pickerByRequest.get(requestId);
+      const entry = hash ? pickers.get(hash) : undefined;
+      if (!entry) return null;
+      if (entry.status === 'pending' && now() - entry.createdAt > PICKER_TTL_MS)
+        return { status: 'expired', sheet: null };
+      return { status: entry.status, sheet: entry.sheet };
+    },
+
+    /** A still-open picker session of this token, else null. */
+    pickerSession(token: string): PickerSession | null {
+      const entry = token ? pickers.get(sha(token)) : undefined;
+      if (!entry || entry.status !== 'pending') return null;
+      return now() - entry.createdAt > PICKER_TTL_MS ? null : entry;
+    },
+
+    /** What the picker page needs, once per session: a fresh access token, the key and app id. */
+    async pickerConfig(
+      token: string,
+    ): Promise<{ oauthToken: string; developerKey: string; appId: string } | null> {
+      const entry = service.pickerSession(token);
+      if (!entry || entry.configured || !pickerApp) return null;
+      entry.configured = true;
+      const oauthToken = await account.withToken(async (access) => access);
+      return { oauthToken, developerKey: pickerApp.apiKey, appId: pickerApp.appId };
+    },
+
+    /** The page's answer: the picked spreadsheet (checked with Google) or a cancel. */
+    async pickerResult(token: string, picked: { id?: string; cancelled?: boolean }) {
+      const entry = service.pickerSession(token);
+      if (!entry) return false;
+      if (picked.cancelled || !picked.id) {
+        entry.status = 'cancelled';
+        return true;
+      }
+      if (fake) fake.grant(picked.id);
+      try {
+        entry.sheet = await service.spreadsheetInfo(picked.id);
+        entry.status = 'done';
+      } catch {
+        entry.status = 'failed';
+        return false;
+      }
+      log.info({ event: 'google_sheets_picked', userId: entry.userId }, 'Spreadsheet picked');
+      return true;
+    },
+
     startConnect: account.startConnect,
     progress: account.progress,
     callback: account.callback,
@@ -365,6 +472,8 @@ export function createGoogleSheetsService(
     },
 
     shutdown() {
+      pickers.clear();
+      pickerByRequest.clear();
       account.shutdown();
       clearCaches();
     },

@@ -53,6 +53,19 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     super(FAKE_SHEETS_ACCOUNT, SHEETS_SCOPES.join(' '));
   }
 
+  /**
+   * Spreadsheets the admin picked in the (fake) file picker: like `drive.file`, every other
+   * spreadsheet answers 404, as Google does for a file the app was not given.
+   */
+  readonly granted = new Set<string>();
+
+  /** The fake picker's choice of a spreadsheet (tests and the dev picker page). */
+  grant(spreadsheetId: string): boolean {
+    if (!this.sheets.has(spreadsheetId)) return false;
+    this.granted.add(spreadsheetId);
+    return true;
+  }
+
   /** The rows of one tab (tests and the dev route). */
   rows(spreadsheetId: string, tab: string): string[][] {
     return this.sheets.get(spreadsheetId)?.tabs.get(tab) ?? [];
@@ -69,7 +82,8 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     const match = /^\/v4\/spreadsheets\/([^/]+)(?:\/values\/([^/]+?)(:append)?)?$/.exec(
       url.pathname,
     );
-    const sheet = match ? this.sheets.get(decodeURIComponent(match[1]!)) : undefined;
+    const id = match ? decodeURIComponent(match[1]!) : '';
+    const sheet = this.granted.has(id) ? this.sheets.get(id) : undefined;
     if (!match || !sheet) return json(404, { error: { code: 404 } });
     if (!match[2] && method === 'GET') {
       this.calls.push('spreadsheet');

@@ -1567,8 +1567,8 @@
       "google-sheets": {
         "name": "Google Sheets",
         "short": "Baca harga atau stok daripada helaian; tambah prospek baharu.",
-        "long": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan ejen AI anda membacanya. Jika anda benarkan, AI juga menambah setiap prospek baharu sebagai satu baris. Log masuk dengan Google, kemudian tampal pautan helaian itu.",
-        "privacy": "{{product}} hanya membaca tab yang anda pilih dan hanya menulis baris prospek yang ditambahnya: tarikh, nama pelanggan, nombor WhatsApp, e-mel dan satu baris ringkas tentang kehendak mereka. Tiada sejarah sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
+        "long": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan ejen AI anda membacanya. Jika anda benarkan, AI juga menambah setiap prospek baharu sebagai satu baris. Log masuk dengan Google, kemudian pilih helaian itu.",
+        "privacy": "{{product}} hanya boleh membuka hamparan yang anda pilih, hanya membaca tab yang anda pilih dan hanya menulis baris prospek yang ditambahnya: tarikh, nama pelanggan, nombor WhatsApp, e-mel dan satu baris ringkas tentang kehendak mereka. Tiada sejarah sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
       }
     },
     "gc": {
@@ -1851,7 +1851,7 @@
       "what2": "Ia menambah prospek baharu sebagai satu baris hanya jika anda menghidupkannya.",
       "what3": "Ia tidak pernah mengubah atau memadam baris yang sudah ada dalam helaian.",
       "connect": "Sambungkan Google Sheets",
-      "connectHint": "Anda log masuk dengan Google dan membenarkan {{product}} membuka hamparan anda. Ia hanya menggunakan helaian yang anda pilih. Anda boleh memutuskan sambungan pada bila-bila masa.",
+      "connectHint": "Anda log masuk dengan Google dan membenarkan {{product}} membuka hanya hamparan yang anda pilih. Anda boleh memutuskan sambungan pada bila-bila masa.",
       "connectedToast": "Google Sheets disambungkan",
       "expiredBody": "Sehingga anda log masuk semula, AI tidak membaca helaian atau menambah prospek; ia menyerahkan sembang tersebut kepada pasukan anda.",
       "unavailableTitle": "Tidak dapat menghubungi Google Sheets",
@@ -1867,11 +1867,6 @@
       "notConnected": "Sambungkan akaun Google pada tab Gambaran Keseluruhan dahulu.",
       "spreadsheet": "Hamparan",
       "open": "Buka dalam Google Sheets",
-      "link": "Pautan hamparan",
-      "changeLink": "Guna hamparan lain",
-      "linkHint": "Buka helaian dalam Google Sheets dan salin pautan daripada bar alamat. Akaun Google yang disambungkan mesti boleh membukanya.",
-      "linkRequired": "Tampal pautan hamparan Google Sheets.",
-      "find": "Guna helaian ini",
       "chooseTab": "Pilih tab",
       "tabRequired": "Pilih tab.",
       "readHint": "AI mencari baris yang sepadan dengan pertanyaan pelanggan. Baris pertama mesti mengandungi nama lajur.",
@@ -1892,7 +1887,19 @@
         "unavailable": "Dijeda: tidak dapat menghubungi Google Sheets"
       },
       "pausedBody": "{{name}} tidak menggunakan helaian sehingga ia berfungsi semula.",
-      "linkPlaceholder": "https://docs.google.com/spreadsheets/d/…"
+      "choose": "Pilih helaian",
+      "chooseAnother": "Pilih helaian lain",
+      "chooseHint": "Pemilih fail Google dibuka dalam tetingkap baharu. {{product}} hanya boleh membuka helaian yang anda pilih di situ.",
+      "sheetRequired": "Pilih helaian dahulu.",
+      "picking": "Menunggu pemilih fail Google…",
+      "pickingHint": "Pilih helaian dalam tetingkap yang dibuka. Halaman ini dikemas kini dengan sendirinya.",
+      "pickBlocked": "Pelayar anda menyekat tetingkap itu. Buka pemilih fail untuk teruskan.",
+      "openPicker": "Buka pemilih fail",
+      "pickError": {
+        "cancelled": "Tiada helaian dipilih.",
+        "failed": "{{product}} tidak dapat membuka helaian itu. Pilih semula.",
+        "expired": "Pemilih fail mengambil masa terlalu lama. Cuba lagi."
+      }
     },
     "sheetsAct": {
       "hint": "Apa yang AI cari dan tambah. Hanya siapa dan bila: tidak pernah nilai atau sembang.",

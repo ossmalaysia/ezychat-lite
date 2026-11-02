@@ -120,3 +120,29 @@ export type SheetsActivity = z.infer<typeof SheetsActivity>;
 /** `GET /api/connectors/google-sheets/activity` (admins): newest first, at most 50. */
 export const SheetsActivityList = z.object({ activity: z.array(SheetsActivity) });
 export type SheetsActivityList = z.infer<typeof SheetsActivityList>;
+
+/**
+ * `POST /api/connectors/google-sheets/picker` (admins): open `pickerUrl` in a new window. It is
+ * Google's file picker on a page of this computer; only the spreadsheets picked there can be used.
+ */
+export const SheetsPickerStart = z.object({
+  requestId: z.string(),
+  pickerUrl: z.string().url(),
+});
+export type SheetsPickerStart = z.infer<typeof SheetsPickerStart>;
+
+/** `GET /api/connectors/google-sheets/picker/:requestId`: the page polls until it is not pending. */
+export const SheetsPickerProgress = z.object({
+  status: z.enum(['pending', 'done', 'cancelled', 'failed', 'expired']),
+  /** done: the picked spreadsheet, its name and tabs. */
+  sheet: SpreadsheetInfo.nullable(),
+});
+export type SheetsPickerProgress = z.infer<typeof SheetsPickerProgress>;
+
+/** The picker page's answer (`POST /api/connectors/google-sheets/picker-result`, this computer only). */
+export const SheetsPickerResult = z.object({
+  token: z.string().min(1).max(100),
+  id: z.string().regex(SPREADSHEET_ID).optional(),
+  cancelled: z.boolean().optional(),
+});
+export type SheetsPickerResult = z.infer<typeof SheetsPickerResult>;

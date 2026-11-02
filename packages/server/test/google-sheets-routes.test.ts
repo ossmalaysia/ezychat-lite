@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SHEETS_SETTINGS } from '@ezychat/shared';
 import { listAgents } from '../src/ai/agents.js';
 import { FAKE_SPREADSHEET_ID } from '../src/connectors/google-sheets/fake.js';
-import { TOKENS_SETTING } from '../src/connectors/google-sheets/service.js';
+import { SheetsClient } from '../src/connectors/google-sheets/sheets.js';
+import {
+  TOKENS_SETTING,
+  createGoogleSheetsService,
+} from '../src/connectors/google-sheets/service.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import {
   SHEETS_PATHS,
@@ -49,6 +53,8 @@ describe('Google Sheets routes', () => {
       ['GET', '/api/connectors/google-sheets/connect/0123456789abcdef01234567'],
       ['POST', '/api/connectors/google-sheets/disconnect'],
       ['POST', '/api/connectors/google-sheets/spreadsheet'],
+      ['POST', '/api/connectors/google-sheets/picker'],
+      ['GET', '/api/connectors/google-sheets/picker/0123456789abcdef01234567'],
       ['GET', `/api/connectors/google-sheets/agents/${agentId}`],
       ['PUT', `/api/connectors/google-sheets/agents/${agentId}`],
       ['GET', '/api/connectors/google-sheets/activity'],
@@ -154,6 +160,11 @@ describe('Google Sheets routes', () => {
       (await post('/api/connectors/google-sheets/spreadsheet', admin, { link: LINK })).statusCode,
     ).toBe(409);
     await connect(admin);
+    // drive.file: a sheet nobody picked cannot be opened.
+    const unpicked = await post('/api/connectors/google-sheets/spreadsheet', admin, { link: LINK });
+    expect(unpicked.statusCode).toBe(400);
+    expect(unpicked.body).toContain('Choose it again with Choose a sheet');
+    t.ctx.services.googleSheets!.fake!.grant(FAKE_SPREADSHEET_ID);
 
     const info = await post('/api/connectors/google-sheets/spreadsheet', admin, { link: LINK });
     expect(info.statusCode).toBe(200);
@@ -211,6 +222,7 @@ describe('Google Sheets routes', () => {
     const { admin } = await setUp();
     await connect(admin);
     const fake = t.ctx.services.googleSheets!.fake!;
+    fake.grant(FAKE_SPREADSHEET_ID);
     await post('/api/dev/fake-google-sheets', admin, { state: 'unavailable' });
     expect(
       (await post('/api/connectors/google-sheets/spreadsheet', admin, { link: LINK })).statusCode,
@@ -229,5 +241,129 @@ describe('Google Sheets routes', () => {
     expect((await get('/api/connectors/google-sheets', admin)).json().state).toBe('connected');
     const dev = (await get('/api/dev/fake-google-sheets', admin)).json();
     expect(dev.sheets[0].tabs.Prices[0]).toEqual(['Item', 'Price (RM)', 'In stock', 'Notes']);
+  });
+});
+
+describe('Google Sheets file picker', () => {
+  const pick = async (admin: string) => {
+    const start = await post('/api/connectors/google-sheets/picker', admin);
+    expect(start.statusCode).toBe(200);
+    const { requestId, pickerUrl } = start.json() as { requestId: string; pickerUrl: string };
+    const url = new URL(pickerUrl);
+    expect(url.pathname).toBe('/api/dev/fake-google-sheets/picker');
+    return { requestId, token: url.searchParams.get('token')!, url };
+  };
+  const progress = async (admin: string, requestId: string) =>
+    (await get(`/api/connectors/google-sheets/picker/${requestId}`, admin)).json();
+
+  it('needs a connected account, then gives the picked sheet with its tabs', async () => {
+    const { admin } = await setUp();
+    expect((await post('/api/connectors/google-sheets/picker', admin)).statusCode).toBe(409);
+    await connect(admin);
+    const { requestId, url } = await pick(admin);
+    expect(await progress(admin, requestId)).toEqual({ status: 'pending', sheet: null });
+    const page = await t.app.inject({ method: 'GET', url: url.pathname + url.search });
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain('Demo price list');
+    const href = /class="sheet" href="([^"]+)"/.exec(page.body)![1]!.replaceAll('&#38;', '&');
+    expect((await t.app.inject({ method: 'GET', url: href })).statusCode).toBe(200);
+    const done = await progress(admin, requestId);
+    expect(done.status).toBe('done');
+    expect(done.sheet).toMatchObject({ id: FAKE_SPREADSHEET_ID, name: 'Demo price list' });
+    // One-time: the same page and its result never work twice.
+    expect((await t.app.inject({ method: 'GET', url: href })).statusCode).toBe(400);
+    expect(
+      (await get(`/api/connectors/google-sheets/picker/${'a'.repeat(24)}`, admin)).statusCode,
+    ).toBe(404);
+  });
+
+  it('records Cancel, and serves the page, script and token only on this computer', async () => {
+    const { admin } = await setUp();
+    await connect(admin);
+    const { requestId, token, url } = await pick(admin);
+    for (const path of [
+      url.pathname + url.search,
+      `/api/connectors/google-sheets/picker-page?token=${token}`,
+      `/api/connectors/google-sheets/picker-config?token=${token}`,
+      '/api/connectors/google-sheets/picker.js',
+    ]) {
+      const lan = await t.app.inject({ method: 'GET', url: path, remoteAddress: '192.168.1.20' });
+      expect(lan.statusCode, path).not.toBe(200);
+      const tunnel = await t.app.inject({
+        method: 'GET',
+        url: path,
+        headers: { 'cf-connecting-ip': '203.0.113.9' },
+      });
+      expect(tunnel.statusCode, path).not.toBe(200);
+    }
+    // The real picker page: its own CSP (Google's picker only) and no inline script.
+    const page = await t.app.inject({
+      method: 'GET',
+      url: `/api/connectors/google-sheets/picker-page?token=${token}`,
+    });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers['content-security-policy']).toContain(
+      "script-src 'self' https://apis.google.com",
+    );
+    expect(page.body).not.toMatch(/<script>/);
+    const script = await t.app.inject({
+      method: 'GET',
+      url: '/api/connectors/google-sheets/picker.js',
+    });
+    expect(script.headers['content-type']).toContain('javascript');
+    // The access token goes to the page once.
+    const config = await get(`/api/connectors/google-sheets/picker-config?token=${token}`, '');
+    expect(config.json()).toMatchObject({ developerKey: 'fake-key', appId: '0' });
+    expect(config.json().oauthToken).toMatch(/^fake-access-/);
+    expect(config.headers['cache-control']).toBe('no-store');
+    expect(
+      (await get(`/api/connectors/google-sheets/picker-config?token=${token}`, '')).statusCode,
+    ).toBe(404);
+    const cancel = await t.app.inject({
+      method: 'POST',
+      url: '/api/connectors/google-sheets/picker-result',
+      headers: { origin: 'http://localhost', host: 'localhost' },
+      payload: { token, cancelled: true },
+    });
+    expect(cancel.statusCode).toBe(200);
+    expect(await progress(admin, requestId)).toEqual({ status: 'cancelled', sheet: null });
+    const again = await t.app.inject({
+      method: 'POST',
+      url: '/api/connectors/google-sheets/picker-result',
+      headers: { origin: 'http://localhost', host: 'localhost' },
+      payload: { token, id: FAKE_SPREADSHEET_ID },
+    });
+    expect(again.statusCode).toBe(400);
+  });
+
+  it('marks a sheet Google will not open as failed', async () => {
+    const { admin } = await setUp();
+    await connect(admin);
+    const { requestId, token } = await pick(admin);
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/connectors/google-sheets/picker-result',
+      headers: { origin: 'http://localhost', host: 'localhost' },
+      payload: { token, id: 'not-a-demo-sheet-000000000000000' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect((await progress(admin, requestId)).status).toBe('failed');
+  });
+});
+
+describe('Google Sheets without the fake Google', () => {
+  it('is not available without the file picker key, and waits for a sign-in with it', async () => {
+    t = await makeTestApp();
+    const client = new SheetsClient({ clientId: 'id', clientSecret: 'secret' });
+    const without = createGoogleSheetsService(t.ctx, { fake: null, client });
+    expect(without.status().state).toBe('not_configured');
+    without.shutdown();
+    t.ctx.config.googlePicker = { apiKey: 'key', appId: '123' };
+    const withKey = createGoogleSheetsService(t.ctx, { fake: null, client });
+    expect(withKey.status().state).toBe('disconnected');
+    expect(() => withKey.startPicker('http://127.0.0.1:7420', { userId: 1 })).toThrow(
+      'Connect a Google account first',
+    );
+    withKey.shutdown();
   });
 });
