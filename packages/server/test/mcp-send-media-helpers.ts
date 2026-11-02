@@ -54,3 +54,11 @@ export async function httpsFixture(files: Record<string, Buffer>, bigBytes: numb
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }
+
+/** The newest `mcp.send` audit row: its raw meta (to check what it never holds) and the parsed meta. */
+export function lastSendAudit(t: TestApp): { raw: string; meta: Record<string, unknown> } {
+  const { meta } = t.ctx.db
+    .prepare("SELECT meta FROM audit_log WHERE action = 'mcp.send' ORDER BY id DESC LIMIT 1")
+    .get() as { meta: string };
+  return { raw: meta, meta: JSON.parse(meta) };
+}

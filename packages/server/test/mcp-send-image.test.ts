@@ -11,7 +11,13 @@ import {
 } from '../src/mcp/send.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { data, mcpClient, waitFor, sendTokens } from './mcp-helpers.js';
-import { httpsFixture, listedTools, principalOf, sentRow } from './mcp-send-media-helpers.js';
+import {
+  httpsFixture,
+  lastSendAudit,
+  listedTools,
+  principalOf,
+  sentRow,
+} from './mcp-send-media-helpers.js';
 
 const LID = '9101@lid';
 const PN = '60123450000@s.whatsapp.net';
@@ -83,12 +89,9 @@ describe('send_image over /mcp', () => {
       sent_via_token_id: senderId,
     });
     await waitFor(() => t.wa.sent.some((m) => m.file?.caption === 'The blue one'));
-    const audit = t.ctx.db
-      .prepare("SELECT meta FROM audit_log WHERE action = 'mcp.send' ORDER BY id DESC LIMIT 1")
-      .get() as { meta: string };
-    const meta = JSON.parse(audit.meta);
-    expect(meta).toMatchObject({ tokenId: senderId, chatJid: LID, type: 'image' });
-    expect(audit.meta).not.toContain('blue');
+    const audit = lastSendAudit(t);
+    expect(audit.meta).toMatchObject({ tokenId: senderId, chatJid: LID, type: 'image' });
+    expect(audit.raw).not.toContain('blue');
   });
 
   it('a repeated requestId sends nothing again; reusing it for another caption is refused', async () => {

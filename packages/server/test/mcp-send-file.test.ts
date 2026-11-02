@@ -13,7 +13,13 @@ import {
 import { pdfFixture } from './ai-fixtures.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { data, mcpClient, waitFor, sendTokens } from './mcp-helpers.js';
-import { httpsFixture, listedTools, principalOf, sentRow } from './mcp-send-media-helpers.js';
+import {
+  httpsFixture,
+  lastSendAudit,
+  listedTools,
+  principalOf,
+  sentRow,
+} from './mcp-send-media-helpers.js';
 import { makeZip } from './safety-helpers.js';
 
 const LID = '9102@lid';
@@ -100,24 +106,20 @@ describe('send_file over /mcp', () => {
       caption: 'Your quotation',
       requestId: id,
     });
-    expect(r.isError).toBeUndefined();
-    expect(data(r)).toMatchObject({ chatJid: LID, duplicate: false });
-    // The extension comes from the real type, never the one passed.
-    expect(row(id)).toEqual({
-      chat_jid: LID,
-      type: 'document',
-      body: 'Your quotation',
-      media_mime: 'application/pdf',
-      media_name: 'Quotation-1042.pdf',
-      sent_by_user_id: admin.id,
-      sent_via_token_id: senderId,
-    });
-    await waitFor(() => t.wa.sent.some((m) => m.file?.caption === 'Your quotation'));
-    const audit = t.ctx.db
-      .prepare("SELECT meta FROM audit_log WHERE action = 'mcp.send' ORDER BY id DESC LIMIT 1")
-      .get() as { meta: string };
-    expect(JSON.parse(audit.meta)).toMatchObject({ tokenId: senderId, type: 'document' });
-    expect(audit.meta).not.toContain('quotation');
+    expect(data(r).duplicate).toBe(false);
+    // Stored in the customer's chat as a document; the extension comes from the real type.
+    const sent = row(id);
+    expect([sent?.chat_jid, sent?.type, sent?.media_mime]).toEqual([
+      LID,
+      'document',
+      'application/pdf',
+    ]);
+    expect([sent?.media_name, sent?.body]).toEqual(['Quotation-1042.pdf', 'Your quotation']);
+    expect([sent?.sent_by_user_id, sent?.sent_via_token_id]).toEqual([admin.id, senderId]);
+    await waitFor(() => t.wa.sent.some((m) => m.file?.fileName === 'Quotation-1042.pdf'));
+    const audit = lastSendAudit(t);
+    expect([audit.meta.type, audit.meta.tokenId]).toEqual(['document', senderId]);
+    expect(audit.raw).not.toContain('quotation');
   });
 
   it('sends a Word .docx file, named from fileName', async () => {
