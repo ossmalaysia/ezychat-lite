@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and never from a group. It never changes or deletes existing rows, and a formula a customer types is saved as
   plain text. Google Sheets has its own Google sign-in, separate from Google Calendar.
 
+## [0.1.70] - 2026-11-02
+
+### Fixed
+
+- **Linking WhatsApp no longer gets stuck on a spinner.** Showing the QR code (or a new one) could hang on
+  "Waiting for the QR code" when the WhatsApp version lookup was slow to answer. The QR code now shows at once; the
+  lookup runs in the background and is used from the next connection.
+
 ## [0.1.69] - 2026-11-02
 
 ### Added

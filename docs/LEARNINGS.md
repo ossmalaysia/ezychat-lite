@@ -387,7 +387,11 @@ into AGENTS.md.
   the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
-  answer from a cached 404. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
+  answer from a cached 404 or an older version (`npm view --prefer-online` skips the cache); the Enterprise
+  pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`. Read the
+  publish result from the `+ @ezychat/<pkg>@x` lines: grepping
+  `gh run view --log` also matches the step's own script source (lines with `[36;1m`), e.g. its "dry run
+  only" warning text. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
   10 minutes (the other four were there at once). Before the Enterprise pin bump, wait until the **tarball**
   `https://registry.npmjs.org/@ezychat/<pkg>/-/<pkg>-<version>.tgz` answers 200 for all five: the version
   document can list the version while its tarball still answers 404 (Enterprise CI then fails at `npm ci`).
@@ -459,7 +463,8 @@ into AGENTS.md.
   diff an API snapshot (users, chats, messages, AI mode/key, settings), reuse a pre-update session
   cookie, and compare identity strings across all `dist/**` files in both `app.asar`s (e.g. `dist/service/`).
 - A `v*` tag makes `release.yml` build a **draft pre-release** whose notes come from the version's
-  `CHANGELOG.md` section (so write that section in plain language before tagging); nothing reaches users
+  `CHANGELOG.md` section (so write that section in plain language before tagging, with no internal status
+  such as "untested against real WhatsApp" or PR numbers: those go in the PR); nothing reaches users
   until `gh release edit <tag> --draft=false --prerelease=false --latest` — all three
   flags in one call: without `--prerelease=false` GitHub answers 422 "Latest release cannot be draft or
   prerelease" and the release stays a pre-release that the updater ignores.
@@ -698,6 +703,8 @@ into AGENTS.md.
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
   space ("Jazz Tong"): always quote command substitutions, e.g. `"$(cat graphify-out/.graphify_python)"`.
+  The owner name has it too, so `ls -l` columns shift in Git Bash: read sizes with `stat -c %s` or PowerShell
+  `Get-ChildItem`, never `awk '{print $5}'` on `ls -l` (it reported a 1.7 MiB bundle as 0.19 MiB).
 - Run `prettier --write` only on files you changed (the repo is not Prettier-clean).
 - Never rebuild a web dist that any running server serves (blank page, 404 assets): stop, rebuild, start.
   A browser that hit the broken build keeps a service worker serving `index.html` for the new assets
@@ -880,6 +887,9 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
+  and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
+  background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
 - A WhatsApp ERROR ack is not proof a message was not sent: in a group it is one ack for the whole message even when
   only some members' devices failed. A later delivered/read receipt overrides it, and a Retry of a message that has a
   WhatsApp id re-sends under that same id (`WaSendOptions.messageId`), never a new one: a new id is a second copy.
@@ -1302,7 +1312,9 @@ into AGENTS.md.
 - A test whose fake answers every request proves nothing about the contract: two obvious bugs (a GET to a
   POST route, a link swallowed by the window) passed every unit test. Test a client against the real
   route table or the real server (`web-client-contract.test.ts`, `makeTestApp`), and check that the new
-  test fails when the bug is put back before you trust it.
+  test fails when the bug is put back before you trust it. Such a test builds a TypeScript program from the
+  source: do it once in `beforeAll` with a 60 s limit. A scan inside each `it` passed alone and timed out
+  (over 5 s) in a busy full run (Enterprise's copy, fixed for 0.1.19).
 
 - Owner-facing setup screens: plain words ("key", "sign in with the system", "things the AI can look up"),
   protocol terms (MCP, OAuth, Bearer, 401, tool ids) only behind "Advanced / for your developer"; on phones put
