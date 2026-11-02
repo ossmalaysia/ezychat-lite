@@ -302,6 +302,33 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     log.warn({ id, chatJid: u.chatJid, code: u.error ?? null }, 'whatsapp error ack');
   };
 
+  /**
+   * A receipt for a send whose result has not been stored yet. A failure outranks a plain server ack
+   * (they may arrive in any order), but a delivered or read receipt proves someone has the message.
+   */
+  const rememberEarlyStatus = (id: string, status: WaMessageStatusUpdate['status']): void => {
+    if (earlyStatus.size > 500) earlyStatus.clear();
+    const prev = earlyStatus.get(id);
+    if (prev === 'failed' && !RECEIVED.has(status)) return;
+    if (!prev || status === 'failed' || STATUS_RANK[status] > STATUS_RANK[prev])
+      earlyStatus.set(id, status);
+  };
+
+  /** The row change a receipt makes to a stored outgoing message, or null for none. */
+  const nextStatus = (
+    r: MessageRow,
+    status: WaMessageStatusUpdate['status'],
+  ): { status: MessageStatus; error?: string | null } | null => {
+    if (status === 'failed') {
+      // In a group the error may concern only some members' phones.
+      if (r.status !== 'pending' && r.status !== 'sent') return null;
+      return { status, error: r.error ?? deliveryError(r.chat_jid) };
+    }
+    // Someone received it after all: it is not failed (a plain server ack proves nothing).
+    if (r.status === 'failed') return RECEIVED.has(status) ? { status, error: null } : null;
+    return STATUS_RANK[status] > STATUS_RANK[r.status] ? { status } : null;
+  };
+
   const sendJob = async (job: SendJob): Promise<SendResult> => {
     const inboxId = inboxOfKey(job.chatJid);
     const wa = connections.adapter(inboxId);
@@ -1049,32 +1076,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     applyStatus(u, inboxId = PRIMARY_INBOX_ID) {
       // a receipt names the WhatsApp id; the row of this inbox carries the inbox suffix
       const id = messageKey(inboxId, u.id);
+      if (u.status === 'failed') logAckError(id, u);
       const r = repo.get(id);
       if (!r) {
-        // may belong to a send whose ack has not been processed yet
-        if (earlyStatus.size > 500) earlyStatus.clear();
-        const prev = earlyStatus.get(id);
-        if (u.status === 'failed') logAckError(id, u);
-        // A failure outranks a plain server ack (it may arrive in any order), but a delivered or read
-        // receipt proves the message reached someone: in a group the error may concern a few phones.
-        if (prev === 'failed' && !RECEIVED.has(u.status)) return;
-        if (!prev || u.status === 'failed' || STATUS_RANK[u.status] > STATUS_RANK[prev])
-          earlyStatus.set(id, u.status);
+        rememberEarlyStatus(id, u.status); // may belong to a send whose ack has not been processed yet
         return;
       }
       if (!r.from_me) return;
-      if (u.status === 'failed') {
-        logAckError(id, u);
-        if (r.status !== 'pending' && r.status !== 'sent') return;
-        repo.update(id, { status: 'failed', error: r.error ?? deliveryError(r.chat_jid) });
-      } else if (r.status === 'failed') {
-        // Someone received it after all: it is not failed (a plain server ack proves nothing).
-        if (!RECEIVED.has(u.status)) return;
-        repo.update(id, { status: u.status, error: null });
-      } else {
-        if (STATUS_RANK[u.status] <= STATUS_RANK[r.status]) return;
-        repo.update(id, { status: u.status });
-      }
+      const next = nextStatus(r, u.status);
+      if (!next) return;
+      repo.update(id, next);
       emitStatus(repo.get(id)!);
     },
 
