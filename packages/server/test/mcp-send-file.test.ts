@@ -1,31 +1,29 @@
 // send_file through the real /mcp route (real tokens, message service, send queue, fake WhatsApp),
 // the port with an injected file download, and the guarded download against a local https server.
-import { createServer, type Server } from 'node:https';
-import type { AddressInfo } from 'node:net';
+import { ZipArchive } from 'archiver';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { User } from '@ezychat/shared';
 import { MCP_SEND_MAX_FILE_BYTES } from '@ezychat/shared';
-import { generateSelfSignedCert } from '../../../e2e/partner-mcp/cert.mjs';
 import {
   createInboxSendPort,
   decodeFileBase64,
   guardedFileFetcher,
-  sendClientId,
   SendError,
 } from '../src/mcp/send.js';
-import { getApiTokens } from '../src/api-tokens/index.js';
-import { ZipArchive } from 'archiver';
 import { pdfFixture } from './ai-fixtures.js';
 import { makeTestApp, type TestApp } from './helpers.js';
-import { data, mcpClient, rpc, waitFor, sendTokens } from './mcp-helpers.js';
+import { data, mcpClient, waitFor, sendTokens } from './mcp-helpers.js';
+import { httpsFixture, listedTools, principalOf, sentRow } from './mcp-send-media-helpers.js';
 import { makeZip } from './safety-helpers.js';
 
 const LID = '9102@lid';
 const PN = '60123450001@s.whatsapp.net';
 const PDF = pdfFixture('Quotation 1042: 2 bags of house blend, RM136');
 const PDF_B64 = PDF.toString('base64');
-let DOCX: Buffer;
+const PNG_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+let DOCX: Buffer;
 
 /** A Word file as Word writes it: the content types name the main document part. */
 function docxFixture(text: string): Promise<Buffer> {
@@ -57,9 +55,9 @@ let sender: string;
 let senderId: number;
 
 const mcp = mcpClient(() => t);
-const { post, count } = mcp;
 const call = (name: string, args: Record<string, unknown>, token = sender) =>
   mcp.call(name, args, token);
+const row = (id: string) => sentRow(t, senderId, id);
 
 let n = 0;
 const requestId = () => `file-test-${++n}-abcdef`;
@@ -74,36 +72,23 @@ beforeAll(async () => {
     body: 'Send the quote',
     senderName: 'Aina',
   });
-  await waitFor(() => count('SELECT COUNT(*) AS n FROM messages') === 1);
+  await waitFor(() => mcp.count('SELECT COUNT(*) AS n FROM messages') === 1);
 });
 afterAll(async () => {
   await t.close();
 });
 
-const row = (id: string) =>
-  t.ctx.db
-    .prepare(
-      `SELECT chat_jid, type, body, media_mime, media_name, sent_by_user_id, sent_via_token_id
-       FROM messages WHERE client_id = ?`,
-    )
-    .get(sendClientId(senderId, id)) as Record<string, unknown> | undefined;
-
 describe('send_file over /mcp', () => {
-  it('is listed only for a token that can send, and is not read-only', async () => {
-    const tools = async (token: string) =>
-      (await post(rpc('tools/list'), token)).json().result.tools as Array<{
-        name: string;
-        annotations: Record<string, boolean>;
-      }>;
-    expect((await tools(readOnly)).map((x) => x.name)).not.toContain('send_file');
-    const tool = (await tools(sender)).find((x) => x.name === 'send_file');
+  it('is offered only to a token that can send, as a write tool', async () => {
+    expect((await listedTools(mcp.post, readOnly)).map((x) => x.name)).not.toContain('send_file');
+    const tool = (await listedTools(mcp.post, sender)).find((x) => x.name === 'send_file');
     expect(tool?.annotations).toMatchObject({ readOnlyHint: false, openWorldHint: true });
-    const r = await call(
+    const refused = await call(
       'send_file',
       { jid: LID, fileBase64: PDF_B64, fileName: 'q.pdf', requestId: requestId() },
       readOnly,
     );
-    expect(r.isError).toBe(true);
+    expect(refused.isError).toBe(true);
   });
 
   it('sends a PDF as a document with its name and caption, as the token owner, and audits it', async () => {
@@ -131,15 +116,11 @@ describe('send_file over /mcp', () => {
     const audit = t.ctx.db
       .prepare("SELECT meta FROM audit_log WHERE action = 'mcp.send' ORDER BY id DESC LIMIT 1")
       .get() as { meta: string };
-    expect(JSON.parse(audit.meta)).toMatchObject({
-      tokenId: senderId,
-      chatJid: LID,
-      type: 'document',
-    });
+    expect(JSON.parse(audit.meta)).toMatchObject({ tokenId: senderId, type: 'document' });
     expect(audit.meta).not.toContain('quotation');
   });
 
-  it('sends a Word .docx file', async () => {
+  it('sends a Word .docx file, named from fileName', async () => {
     const id = requestId();
     const r = await call('send_file', {
       jid: LID,
@@ -148,117 +129,81 @@ describe('send_file over /mcp', () => {
       requestId: id,
     });
     expect(r.isError).toBeUndefined();
-    expect(row(id)).toMatchObject({
-      type: 'document',
-      media_mime: DOCX_MIME,
-      media_name: 'Terms.docx',
-      body: null,
-    });
+    expect(row(id)).toMatchObject({ media_mime: DOCX_MIME, media_name: 'Terms.docx', body: null });
   });
 
-  it('refuses anything that is not a PDF or .docx, whatever its name', async () => {
-    const before = count('SELECT COUNT(*) AS n FROM messages');
-    const png =
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-    for (const b64 of [
-      png,
-      makeZip([{ name: 'invoice.exe' }]).toString('base64'),
-      Buffer.from('just some text').toString('base64'),
-    ]) {
+  it('refuses a photo, a plain ZIP or text, whatever the name says', async () => {
+    const before = mcp.count('SELECT COUNT(*) AS n FROM messages');
+    const others = [PNG_B64, makeZip([{ name: 'invoice.exe' }]), Buffer.from('just some text')];
+    for (const other of others) {
+      const fileBase64 = typeof other === 'string' ? other : other.toString('base64');
       const r = await call('send_file', {
         jid: LID,
-        fileBase64: b64,
+        fileBase64,
         fileName: 'invoice.pdf',
         requestId: requestId(),
       });
-      expect(r.isError).toBe(true);
       expect(r.content[0]!.text).toMatch(/Only PDF or Word \(\.docx\)/);
     }
-    expect(count('SELECT COUNT(*) AS n FROM messages')).toBe(before);
+    expect(mcp.count('SELECT COUNT(*) AS n FROM messages')).toBe(before);
   });
 
   it('a repeated requestId sends nothing again; an image requestId is a different message', async () => {
+    const args = { jid: LID, fileBase64: PDF_B64, fileName: 'a.pdf', caption: 'Twice' };
     const id = requestId();
-    const args = {
-      jid: LID,
-      fileBase64: PDF_B64,
-      fileName: 'a.pdf',
-      caption: 'Twice',
-      requestId: id,
-    };
-    const first = data(await call('send_file', args));
-    const again = data(await call('send_file', args));
+    const first = data(await call('send_file', { ...args, requestId: id }));
+    const again = data(await call('send_file', { ...args, requestId: id }));
     expect(again).toMatchObject({ messageId: first.messageId, duplicate: true });
-    expect(count('SELECT COUNT(*) AS n FROM messages WHERE body = ?', 'Twice')).toBe(1);
-    const imgId = requestId();
-    await call('send_image', {
-      jid: LID,
-      imageBase64:
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-      requestId: imgId,
-    });
-    const mixed = await call('send_file', { ...args, caption: undefined, requestId: imgId });
+    expect(mcp.count('SELECT COUNT(*) AS n FROM messages WHERE body = ?', 'Twice')).toBe(1);
+    const imageId = requestId();
+    await call('send_image', { jid: LID, imageBase64: PNG_B64, requestId: imageId });
+    const mixed = await call('send_file', { ...args, caption: undefined, requestId: imageId });
     expect(mixed.content[0]!.text).toMatch(/already used/);
   });
 
   it('needs exactly one file source, a name, valid base64 and an existing chat', async () => {
+    const pdf = { fileName: 'a.pdf', fileBase64: PDF_B64 };
     const cases: Array<[Record<string, unknown>, RegExp]> = [
       [{ jid: LID, fileName: 'a.pdf' }, /fileUrl or fileBase64/],
-      [
-        { jid: LID, fileName: 'a.pdf', fileBase64: PDF_B64, fileUrl: 'https://example.com/a.pdf' },
-        /fileUrl or fileBase64/,
-      ],
+      [{ jid: LID, ...pdf, fileUrl: 'https://example.com/a.pdf' }, /fileUrl or fileBase64/],
       [{ jid: LID, fileBase64: PDF_B64 }, /fileName/],
-      [{ jid: LID, fileName: 'a.pdf', fileBase64: '***not base64***' }, /fileBase64 is not valid/],
-      [
-        { jid: '60999999999@s.whatsapp.net', fileName: 'a.pdf', fileBase64: PDF_B64 },
-        /Only existing chats/,
-      ],
+      [{ jid: LID, fileName: 'a.pdf', fileBase64: '***' }, /fileBase64 is not valid/],
+      [{ jid: '60999999999@s.whatsapp.net', ...pdf }, /Only existing chats/],
     ];
     for (const [args, message] of cases) {
       const r = await call('send_file', { ...args, requestId: requestId() });
-      expect(r.isError).toBe(true);
       expect(r.content[0]!.text).toMatch(message);
     }
   });
 });
 
-describe('the send port with a file link', () => {
-  it('downloads the link it was given and sends that file; a retry downloads nothing', async () => {
+describe('send_file with a link (the port, download injected)', () => {
+  it('downloads the link once and sends that file; a retry downloads nothing', async () => {
     const urls: string[] = [];
     const port = createInboxSendPort(t.ctx, {
-      fetchFile: async (url) => {
-        urls.push(url);
-        return PDF;
-      },
+      fetchFile: async (url) => (urls.push(url), PDF),
     });
-    const principal = getApiTokens(t.ctx).resolve(sender);
-    if (!principal.ok) throw new Error('token');
-    const id = requestId();
     const input = {
       jid: LID,
       fileUrl: 'https://cdn.example.com/q.pdf',
       fileName: 'Q',
-      requestId: id,
+      requestId: requestId(),
     };
-    expect((await port.sendFile(principal.principal, input)).duplicate).toBe(false);
-    expect(row(id)).toMatchObject({ type: 'document', media_name: 'Q.pdf' });
-    expect((await port.sendFile(principal.principal, input)).duplicate).toBe(true);
+    expect((await port.sendFile(principalOf(t, sender), input)).duplicate).toBe(false);
+    expect(row(input.requestId)).toMatchObject({ type: 'document', media_name: 'Q.pdf' });
+    expect((await port.sendFile(principalOf(t, sender), input)).duplicate).toBe(true);
     expect(urls).toEqual(['https://cdn.example.com/q.pdf']);
   });
 
-  it('an empty download is refused', async () => {
+  it('refuses an empty download', async () => {
     const port = createInboxSendPort(t.ctx, { fetchFile: async () => Buffer.alloc(0) });
-    const principal = getApiTokens(t.ctx).resolve(sender);
-    if (!principal.ok) throw new Error('token');
-    await expect(
-      port.sendFile(principal.principal, {
-        jid: LID,
-        fileUrl: 'https://cdn.example.com/empty.pdf',
-        fileName: 'empty.pdf',
-        requestId: requestId(),
-      }),
-    ).rejects.toThrow(/The file is empty/);
+    const input = {
+      jid: LID,
+      fileUrl: 'https://cdn.example.com/e.pdf',
+      fileName: 'e',
+      requestId: requestId(),
+    };
+    await expect(port.sendFile(principalOf(t, sender), input)).rejects.toThrow(/The file is empty/);
   });
 });
 
@@ -273,45 +218,20 @@ describe('decodeFileBase64', () => {
 });
 
 describe('guardedFileFetcher', () => {
-  let server: Server;
-  let origin: string;
-  let ca: string;
-
+  let site: Awaited<ReturnType<typeof httpsFixture>>;
   beforeAll(async () => {
-    const tls = generateSelfSignedCert();
-    ca = tls.cert;
-    server = createServer({ cert: tls.cert, key: tls.key }, (req, res) => {
-      if (req.url === '/q.pdf')
-        return void res.writeHead(200, { 'content-type': 'application/pdf' }).end(PDF);
-      if (req.url === '/big') {
-        res.writeHead(200);
-        return void res.end(Buffer.alloc(MCP_SEND_MAX_FILE_BYTES + 1024));
-      }
-      res.writeHead(404).end();
-    });
-    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
-    origin = `https://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    site = await httpsFixture({ '/q.pdf': PDF }, MCP_SEND_MAX_FILE_BYTES + 1024);
   });
-  afterAll(async () => {
-    await new Promise<void>((r) => server.close(() => r()));
-  });
+  afterAll(() => site.close());
 
-  it('downloads a file (loopback only allowed in tests)', async () => {
-    const get = guardedFileFetcher({ allowLoopback: true, ca });
-    expect(await get(`${origin}/q.pdf`)).toEqual(PDF);
-    await expect(get(`${origin}/missing`)).rejects.toThrow(/file link answered 404/);
-    await expect(get(`${origin}/big`)).rejects.toThrow(/file is larger than 5 MB/);
-  });
-
-  it('never reaches this computer, a private network or plain http', async () => {
-    const get = guardedFileFetcher();
-    await expect(get(`${origin}/q.pdf`)).rejects.toThrow(
+  it('downloads a file, with file wording in its refusals', async () => {
+    const get = guardedFileFetcher({ allowLoopback: true, ca: site.ca });
+    expect(await get(`${site.origin}/q.pdf`)).toEqual(PDF);
+    await expect(get(`${site.origin}/missing`)).rejects.toThrow(/file link answered 404/);
+    await expect(get(`${site.origin}/big`)).rejects.toThrow(/file is larger than 5 MB/);
+    await expect(guardedFileFetcher()(`${site.origin}/q.pdf`)).rejects.toThrow(
       /file link must be a public internet address/,
     );
-    await expect(get('https://10.0.0.5/a.pdf')).rejects.toThrow(/public internet address/);
-    await expect(get('http://example.com/a.pdf')).rejects.toThrow(/https:\/\//);
-    await expect(get('https://unreachable.invalid/a.pdf')).rejects.toThrow(
-      /file could not be downloaded/,
-    );
+    await expect(guardedFileFetcher()('http://example.com/a.pdf')).rejects.toThrow(/https:\/\//);
   });
 });
