@@ -800,7 +800,8 @@ into AGENTS.md.
   and check every "would stop halfway" condition (target already has app.db) before it touches the service.
 - A row the API redacts but keeps (a message deleted for everyone keeps its text for admins) needs every
   reader of the raw columns guarded, not only `rowToMessage`: the mention presenter, chat previews, the media
-  route and redownload all read `body` / `media_path` directly.
+  route and redownload all read `body` / `media_path` directly. Every later `present()` attach step too: a
+  Safety finding names the file and text, so a deleted message drops it (check this when merging main).
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
