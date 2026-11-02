@@ -205,6 +205,9 @@ into AGENTS.md.
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
+- Another session may push to the same PR branch while you work on it: force-push a rebase only with
+  `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
+  commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
