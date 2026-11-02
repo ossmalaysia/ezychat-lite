@@ -381,7 +381,10 @@ into AGENTS.md.
   variable `NPM_TRUSTED_PUBLISHING=true`. An OIDC publish answering `PUT 404` for a package that exists means
   its trusted publisher is missing or mistyped: have the owner compare it field by field with a package that
   publishes (workflow is the bare file name, no environment), meanwhile publish that version by hand, then
-  rerun `publish-packages` for the next tag (published packages are skipped). A manual publish that answers
+  rerun `publish-packages` for the next tag (published packages are skipped). A publish that stops halfway on
+  `TLOG_CREATE_ENTRY_ERROR` (409, Sigstore says the provenance entry exists) needs only `gh run rerun <id>
+--failed`, but first wait until `npm view <pkg>@<version> version` answers for each package already
+  published (the skip check uses exactly that; it lags the registry list by up to a minute). A manual publish that answers
   `PUT 404` without the security-key step means the saved npm token is invalid: check `npm whoami` first and
   give the owner `npm login --auth-type=web` before the publish. An unfixed trusted publisher fails again on
   every release and leaves the core half published (Enterprise needs all pins equal): before tagging, ask
