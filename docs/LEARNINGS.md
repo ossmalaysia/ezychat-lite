@@ -240,7 +240,8 @@ into AGENTS.md.
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review; a Dev Build row counts only with the
-  tested commit in backticks in its Build column (a branch name does not). Rebase onto `main` before the checks
+  tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
+  SonarCloud duplication fix) voids it too: push and settle SonarCloud before the Dev Build check. Rebase onto `main` before the checks
   you record: a rebase gives every commit a new id, so the recorded ones stop counting. Merging `main` keeps them:
   evidence holds while the PR's own change to code, pipeline and test files is the same.
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
