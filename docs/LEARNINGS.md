@@ -202,6 +202,8 @@ into AGENTS.md.
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
   `prettier --write` on `docs/release-review/log.md` (`main` keeps it unformatted; it rewrote 117 lines).
+  Two new `dev-build-checks.md` sections joined this way lose the blank line between a table and the next
+  paragraph; add it back before prettier, or the paragraph becomes a table row.
 - Wait for PR checks with `gh pr checks <n> --watch`, not a hand-written `until … grep pending` loop: one
   ended while two jobs still ran. Right after `gh pr update-branch` the new head has no checks yet and `--watch`
   returns at once: first wait until `gh pr checks` lists checks for the new `headRefOid`. A script that merges PRs in turn must check `isDraft` and print `gh pr merge` errors: a draft PR showed
