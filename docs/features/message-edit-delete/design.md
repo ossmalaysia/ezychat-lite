@@ -102,7 +102,8 @@ Status: **confirmed** 2026-10-28 and implemented (see Confirmation). Branch
 
 Owner, 2026-10-28, after the mock screenshots (desktop chat, menu after 15 minutes, phone menu, edit and delete
 dialogs, dark phone states) and the touch walkthrough question: "implement it". Mock revision
-`1460c1c6ccfcff64a199c4db8c78fd748b433f02`. The open question (show Edit greyed out with its reason on phones after
+`1460c1c6ccfcff64a199c4db8c78fd748b433f02`, the same mock files as `6be302deb7785daedde3129eff80493ead0ba060` after
+the rebase on `main` (2026-11-02). The open question (show Edit greyed out with its reason on phones after
 15 minutes) was not answered: the default stands, as mocked (phones drop Edit from the press-and-hold bar once its
 window has passed; desktop keeps it disabled with the reason).
 

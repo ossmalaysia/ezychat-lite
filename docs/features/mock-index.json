@@ -28,7 +28,7 @@
       "coverage": "Full app clone of the confirmed ai-groups reference; linked-phone (Baileys) chats: the ⋮ menu beside a message (touch: Edit / Delete under Reply in the press-and-hold bar), Edit dialog (text and captions, 15 minutes), \"Edited\" label with earlier versions, Delete dialog (for everyone within 2 days, for me = hidden for the team and the phone, admins), deleted placeholders for the customer, a teammate and the phone, Show original for admins only, quotes of deleted messages, closed windows (3 days later), WhatsApp offline, agent view, no actions on a Business API inbox; mock-only routes /api/mock/messages/:id, /api/mock/message-changes* and the Simulate edits and deletes panel; desktop 1280 / mobile 360 touch, light/dark (edit-delete-shots.mjs)",
       "confirmedAt": "2026-10-28",
       "confirmation": "Owner viewed the mock screenshots (desktop chat, menu after 15 minutes, phone menu, edit and delete dialogs, dark phone states) and confirmed 2026-10-28 (\"implement it\"); the open question (greyed-out Edit on phones) unanswered, default as mocked.",
-      "gitRevision": "1460c1c6ccfcff64a199c4db8c78fd748b433f02",
+      "gitRevision": "6be302deb7785daedde3129eff80493ead0ba060",
       "parallelFeatures": [
         "ai-direct-chats",
         "ai-handoff-rules",

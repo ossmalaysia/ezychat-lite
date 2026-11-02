@@ -106,7 +106,7 @@ Sending: `PUT /api/messages/:id/reaction` {emoji} ('' removes; one emoji, zod-ch
 goes straight to `WaAdapter.sendReaction` (never queued; offline → 503), with the reply refusals; the
 linked number's row (reactor `me`) keeps `sent_by_user_id` (teammate, `ReactionRepo.applyOwn`) until
 WhatsApp reports another emoji from the phone. One reaction per number: the team shares it.
-Edits and deletes (design `docs/features/message-edit-delete/design.md`, migration 025, `messages/changes.ts`):
+Edits and deletes (design `docs/features/message-edit-delete/design.md`, migration 029, `messages/changes.ts`):
 Baileys `MESSAGE_EDIT` / `REVOKE` protocol messages (`baileys/protocol.ts`, upsert and history only) become adapter
 events `messageEdited` / `messageDeleted`; the adapter skips the echo of its own changes. A change applies only in
 the stored message's chat and only by its author (`changeAuthor`; a group admin may delete, never edit), else waits
