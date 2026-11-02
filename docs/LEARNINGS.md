@@ -551,8 +551,9 @@ into AGENTS.md.
   esbuild `define` of a global that the code reads with `typeof X === 'undefined'`, from repository secrets
   passed only to the bundle step; the environment still wins, so Dev Builds and forks need no rebuild.
   Prove it on a real bundle by printing counts of the values, never the values. A new value also needs its
-  secrets in Enterprise's `installers.yml` and repository (same core bundle), else Enterprise ships without it;
-  list both repos in the PR's owner to-do.
+  secrets in Enterprise's `installers.yml` and repository (same core bundle), and Enterprise's own copy of
+  `scripts/google-oauth-define.mjs` must read it, else Enterprise ships without it; list both repos in the PR's
+  owner to-do, and before the release tag check `gh secret list` in both repos (names only).
 - Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
   A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
   `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
