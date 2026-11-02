@@ -239,7 +239,8 @@ into AGENTS.md.
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
-  older commit (or "uncommitted") count as ✗ missing in the release review. Rebase onto `main` before the checks
+  older commit (or "uncommitted") count as ✗ missing in the release review; a Dev Build row counts only with the
+  tested commit in backticks in its Build column (a branch name does not). Rebase onto `main` before the checks
   you record: a rebase gives every commit a new id, so the recorded ones stop counting. Merging `main` keeps them:
   evidence holds while the PR's own change to code, pipeline and test files is the same.
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
@@ -493,7 +494,12 @@ into AGENTS.md.
   sends every request through one helper with one reasoned `// NOSONAR (jssecurity:S5144)`.
 - SonarCloud counts repeated test bodies as duplicated new code (gate ≤ 3 %): write case lists as
   `it.each` tables. A moved or reformatted file is new code too: old copy-paste between files (e.g. the
-  fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change.
+  fetch scripts' `download()`) then fails the gate, so extract the shared helper in the same change. A new
+  test file modelled on a sibling (`mcp-send-file` on `mcp-send-image`) copies its setup: put that setup in one
+  helper from the start and move the sibling onto it too, or the helper is the duplicate.
+- `file-type` reports `.docx` only when `[Content_Types].xml` names the main part
+  (`…wordprocessingml.document.main+xml`, as Word writes it); a bare test ZIP with `word/document.xml` reads
+  as `application/zip`. Byte-checked upload tests need that realistic fixture.
   A new test file that copies another file's request helpers fails it too: import them from a shared
   test helper (`packages/server/test/mcp-helpers.ts` for `/mcp` calls). The same for a new dialog
   that repeats another dialog's fields (easy when porting a mock): extract one fields component
