@@ -3,9 +3,8 @@
  * `--fake-wa` (tests, e2e, Dev Builds) and no Google app is configured. Nothing here touches the
  * network: `fetch` answers the same requests SheetsClient sends to the fake base URLs.
  */
-import { createHash, randomBytes } from 'node:crypto';
 import type { GoogleEndpoints } from '../google-calendar/google.js';
-import type { FakeSignIn } from '../google-account.js';
+import { FakeGoogleAuth, fakeJson as json, type FakeGoogleMode } from '../google-fake-auth.js';
 import { SHEETS_SCOPES } from './sheets.js';
 
 const BASE = 'https://fake-google-sheets.invalid';
@@ -20,13 +19,7 @@ export const FAKE_SHEETS_ACCOUNT = 'demo.sheets@example.com';
 /** The demo spreadsheet: paste this id (or a link with it) on the Settings tab. */
 export const FAKE_SPREADSHEET_ID = 'demo-price-list-0000000000000000000';
 
-export type FakeSheetsMode = 'ok' | 'expired' | 'unavailable';
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-
-const fakeJwt = (payload: object) =>
-  ['e30', Buffer.from(JSON.stringify(payload)).toString('base64url'), 'sig'].join('.');
+export type FakeSheetsMode = FakeGoogleMode;
 
 function demoSheets(): Map<string, { name: string; tabs: Map<string, string[][]> }> {
   return new Map([
@@ -52,58 +45,12 @@ function demoSheets(): Map<string, { name: string; tabs: Map<string, string[][]>
   ]);
 }
 
-export class FakeGoogleSheets implements FakeSignIn {
-  mode: FakeSheetsMode = 'ok';
+export class FakeGoogleSheets extends FakeGoogleAuth {
   /** Spreadsheets by id; tabs by title, rows of text. */
   readonly sheets = demoSheets();
-  /** Requests answered, by kind (tests check what was asked, never the network). */
-  readonly calls: string[] = [];
-  private readonly codes = new Map<string, { challenge: string; scope: string }>();
-  private readonly access = new Set<string>();
-  private readonly refresh = new Set<string>();
 
-  issueCode(challenge: string, scope: string): string {
-    const code = `fake-code-${randomBytes(8).toString('hex')}`;
-    this.codes.set(code, { challenge, scope });
-    return code;
-  }
-
-  private tokens(scope: string, refresh?: string) {
-    const accessToken = `fake-access-${randomBytes(8).toString('hex')}`;
-    this.access.add(accessToken);
-    const refreshToken = refresh ?? `fake-refresh-${randomBytes(8).toString('hex')}`;
-    this.refresh.add(refreshToken);
-    return {
-      access_token: accessToken,
-      expires_in: 3600,
-      scope,
-      token_type: 'Bearer',
-      ...(refresh ? {} : { refresh_token: refreshToken }),
-      id_token: fakeJwt({ email: FAKE_SHEETS_ACCOUNT }),
-    };
-  }
-
-  private token(body: URLSearchParams): Response {
-    if (this.mode === 'unavailable') return json(503, { error: 'backend_error' });
-    if (body.get('grant_type') === 'authorization_code') {
-      const code = body.get('code') ?? '';
-      const issued = this.codes.get(code);
-      this.codes.delete(code);
-      const challenge = createHash('sha256')
-        .update(body.get('code_verifier') ?? '')
-        .digest('base64url');
-      if (!issued || issued.challenge !== challenge) return json(400, { error: 'invalid_grant' });
-      return json(200, this.tokens(issued.scope));
-    }
-    const refresh = body.get('refresh_token') ?? '';
-    if (this.mode === 'expired' || !this.refresh.has(refresh))
-      return json(400, { error: 'invalid_grant' });
-    return json(200, this.tokens(SHEETS_SCOPES.join(' '), refresh));
-  }
-
-  /** Expire every access token now (the next call refreshes). */
-  expireAccessTokens(): void {
-    this.access.clear();
+  constructor() {
+    super(FAKE_SHEETS_ACCOUNT, SHEETS_SCOPES.join(' '));
   }
 
   /** The rows of one tab (tests and the dev route). */
@@ -117,18 +64,8 @@ export class FakeGoogleSheets implements FakeSignIn {
     );
     if (url.origin !== BASE) throw new TypeError('fake Google Sheets: unknown host');
     const method = (init?.method ?? 'GET').toUpperCase();
-    if (url.pathname === '/token') {
-      this.calls.push('token');
-      return this.token(new URLSearchParams(String(init?.body ?? '')));
-    }
-    if (url.pathname === '/revoke') {
-      this.calls.push('revoke');
-      return json(200, {});
-    }
-    if (this.mode === 'unavailable') return json(503, { error: { code: 503 } });
-    const auth = new Headers(init?.headers).get('authorization') ?? '';
-    if (this.mode === 'expired' || !this.access.has(auth.replace(/^Bearer /, '')))
-      return json(401, { error: { code: 401 } });
+    const denied = this.authorize(url.pathname, init);
+    if (denied) return denied;
     const match = /^\/v4\/spreadsheets\/([^/]+)(?:\/values\/([^/]+?)(:append)?)?$/.exec(
       url.pathname,
     );

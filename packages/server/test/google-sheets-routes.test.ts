@@ -4,6 +4,12 @@ import { listAgents } from '../src/ai/agents.js';
 import { FAKE_SPREADSHEET_ID } from '../src/connectors/google-sheets/fake.js';
 import { TOKENS_SETTING } from '../src/connectors/google-sheets/service.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
+import {
+  SHEETS_PATHS,
+  connectThroughFake,
+  expectAdminOnly,
+  expectCallbackHostOnly,
+} from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
 let t: TestApp;
@@ -31,34 +37,13 @@ const post = (url: string, cookie: string, payload: unknown = {}) =>
 const put = (url: string, cookie: string, payload: unknown) =>
   t.app.inject({ method: 'PUT', url, headers: authHeaders(cookie), payload: payload as object });
 
-/** Runs the whole sign-in on the fake: connect, the consent page's Allow, Google's redirect. */
-async function connect(cookie: string, choice: 'allow' | 'cancel' = 'allow') {
-  const start = await post('/api/connectors/google-sheets/connect', cookie);
-  expect(start.statusCode).toBe(200);
-  const { requestId, authorizationUrl } = start.json() as {
-    requestId: string;
-    authorizationUrl: string;
-  };
-  const consentUrl = new URL(authorizationUrl);
-  expect(consentUrl.pathname).toBe('/api/dev/fake-google-sheets/consent');
-  const consent = await t.app.inject({
-    method: 'GET',
-    url: consentUrl.pathname + consentUrl.search,
-  });
-  expect(consent.statusCode).toBe(200);
-  const href = new RegExp(`id="${choice}" href="([^"]+)"`)
-    .exec(consent.body)![1]!
-    .replaceAll('&#38;', '&');
-  const target = new URL(href);
-  expect(target.pathname).toBe('/api/connectors/google-sheets/callback');
-  const callback = await t.app.inject({ method: 'GET', url: target.pathname + target.search });
-  return { requestId, callback };
-}
+const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
+  connectThroughFake(t, SHEETS_PATHS, cookie, choice);
 
 describe('Google Sheets routes', () => {
   it('are admin only', async () => {
     const { agent, agentId } = await setUp();
-    const urls = [
+    await expectAdminOnly(t, agent, [
       ['GET', '/api/connectors/google-sheets'],
       ['POST', '/api/connectors/google-sheets/connect'],
       ['GET', '/api/connectors/google-sheets/connect/0123456789abcdef01234567'],
@@ -69,19 +54,7 @@ describe('Google Sheets routes', () => {
       ['GET', '/api/connectors/google-sheets/activity'],
       ['GET', '/api/dev/fake-google-sheets'],
       ['POST', '/api/dev/fake-google-sheets'],
-    ] as const;
-    for (const [method, url] of urls) {
-      const payload = method === 'GET' ? undefined : {};
-      const anonymous = await t.app.inject({
-        method,
-        url,
-        headers: { origin: 'http://localhost', host: 'localhost' },
-        payload,
-      });
-      expect(anonymous.statusCode, url).toBe(401);
-      const asAgent = await t.app.inject({ method, url, headers: authHeaders(agent), payload });
-      expect(asAgent.statusCode, url).toBe(403);
-    }
+    ]);
   });
 
   it('connects through the fake Google, keeps tokens encrypted and disconnects', async () => {
@@ -169,14 +142,7 @@ describe('Google Sheets routes', () => {
       authorizationUrl: string;
     };
     const state = new URL(start.authorizationUrl).searchParams.get('state')!;
-    const url = `/api/connectors/google-sheets/callback?state=${state}&code=x`;
-    expect(
-      (await t.app.inject({ method: 'GET', url, remoteAddress: '192.168.1.20' })).statusCode,
-    ).toBe(403);
-    expect(
-      (await t.app.inject({ method: 'GET', url, headers: { 'cf-connecting-ip': '203.0.113.9' } }))
-        .statusCode,
-    ).toBe(403);
+    await expectCallbackHostOnly(t, `/api/connectors/google-sheets/callback?state=${state}&code=x`);
   });
 
   it('finds a spreadsheet from its link and saves per-agent settings checked with Google', async () => {

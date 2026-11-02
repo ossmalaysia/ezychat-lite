@@ -15,11 +15,9 @@ import {
   useSpreadsheetLookup,
 } from '../../api/connectors';
 import { Banner } from '@/components/app';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -27,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import {
   ErrorState,
   Field,
@@ -36,6 +33,7 @@ import {
   SaveBar,
   type FieldControlProps,
 } from '../adminUi';
+import { ToolSwitchRow } from './connector-ui';
 
 type FieldErrors = Partial<Record<'link' | 'lookupTab' | 'leadsTab', string>>;
 const RULES = ['rule1', 'rule2', 'rule3', 'rule4'] as const;
@@ -265,25 +263,13 @@ export function SheetsSettingsCard({
             </div>
 
             <div className="flex flex-col divide-y rounded-lg border">
-              <div className="flex flex-col gap-3 px-3 py-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <Label htmlFor={ids.read}>{t('connectors.tools.readRows')}</Label>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t('connectors.sheets.readHint')}
-                    </p>
-                  </div>
-                  <Label
-                    htmlFor={ids.read}
-                    className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
-                  >
-                    <Switch
-                      id={ids.read}
-                      checked={value.lookup}
-                      onCheckedChange={(lookupOn) => set({ lookup: lookupOn })}
-                    />
-                  </Label>
-                </div>
+              <ToolSwitchRow
+                id={ids.read}
+                label={t('connectors.tools.readRows')}
+                hint={t('connectors.sheets.readHint')}
+                checked={value.lookup}
+                onCheckedChange={(lookupOn) => set({ lookup: lookupOn })}
+              >
                 {value.lookup && value.spreadsheetId && (
                   <Field label={t('connectors.sheets.lookupTab')} error={errors.lookupTab}>
                     {(p) =>
@@ -296,30 +282,16 @@ export function SheetsSettingsCard({
                     }
                   </Field>
                 )}
-              </div>
-              <div className="flex flex-col gap-3 px-3 py-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <Label htmlFor={ids.leads}>{t('connectors.tools.addLead')}</Label>
-                      <Badge variant="secondary">{t('connectors.sheets.changesSheet')}</Badge>
-                    </span>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t('connectors.sheets.leadsHint')}
-                    </p>
-                  </div>
-                  <Label
-                    htmlFor={ids.leads}
-                    className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
-                  >
-                    <Switch
-                      id={ids.leads}
-                      checked={value.addLeads}
-                      disabled={!value.spreadsheetId}
-                      onCheckedChange={(addLeads) => set({ addLeads })}
-                    />
-                  </Label>
-                </div>
+              </ToolSwitchRow>
+              <ToolSwitchRow
+                id={ids.leads}
+                label={t('connectors.tools.addLead')}
+                badge={t('connectors.sheets.changesSheet')}
+                hint={t('connectors.sheets.leadsHint')}
+                checked={value.addLeads}
+                disabled={!value.spreadsheetId}
+                onCheckedChange={(addLeads) => set({ addLeads })}
+              >
                 {value.addLeads && value.spreadsheetId && (
                   <Field
                     label={t('connectors.sheets.leadsTab')}
@@ -336,7 +308,7 @@ export function SheetsSettingsCard({
                     }
                   </Field>
                 )}
-              </div>
+              </ToolSwitchRow>
             </div>
 
             <div className="rounded-lg bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
