@@ -831,6 +831,9 @@ into AGENTS.md.
   mutation hands them to the showing component's state via a callback and returns metadata only;
   clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- An MCP tool that takes a link (e.g. `send_image` `imageUrl`) downloads it only through `guardedFetch` (https,
+  public address checked at connect, size and time cap) and checks the file type on the bytes; a large-body tool
+  raises `bodyLimit` on its own route only, after the token check in `onRequest`, never the app-wide 1 MB.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
@@ -856,6 +859,9 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- A WhatsApp ERROR ack is not proof a message was not sent: in a group it is one ack for the whole message even when
+  only some members' devices failed. A later delivered/read receipt overrides it, and a Retry of a message that has a
+  WhatsApp id re-sends under that same id (`WaSendOptions.messageId`), never a new one: a new id is a second copy.
 - Baileys emits the echo of our own send (`messages.upsert`, `fromMe`) before `sendMessage` resolves:
   data only the sender knows (e.g. which teammate sent a reaction) must be added after the send by an
   idempotent step that works whether the echo came first or later (`ReactionRepo.applyOwn`), and the
