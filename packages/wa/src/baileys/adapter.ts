@@ -34,6 +34,7 @@ import {
   type WaContactAlias,
   type WaGroupInfo,
   type WaMessageStatusUpdate,
+  type WaMessageTarget,
   type WaReactionTarget,
   type WaSendFile,
   type WaSendOptions,
@@ -41,8 +42,10 @@ import {
 import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
+import { createWaVersionSource } from './wa-version.js';
 import { jidType, mapStoredReactions, mapWAMessage, mapWAReaction, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
+import { mapWAProtocol } from './protocol.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 import { checkedNumberJid } from './number-check.js';
 import { profilePhoto } from './photos.js';
@@ -51,7 +54,14 @@ import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
 
 const RAW_CACHE_MAX = 2000;
+/** How long an edit or delete this adapter sent waits for WhatsApp's echo of it. */
+const OWN_CHANGE_TTL_MS = 60_000;
 const DAY_MS = 86_400_000;
+
+/** One per process: every inbox and reconnect shares the looked-up WhatsApp Web version. */
+const waVersion = createWaVersionSource({
+  fetchLatest: () => fetchLatestBaileysVersion() as Promise<{ version: [number, number, number] }>,
+});
 
 type BoomLike = { output?: { statusCode?: number }; message?: string };
 
@@ -124,6 +134,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private readonly logger: Logger;
   private readonly historyDaysOpt: WaAdapterOptions['historyDays'];
   private raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
+  /**
+   * Target ids of edits and deletes this adapter sent → when: WhatsApp echoes them back like the
+   * phone's own, and the core already recorded them with the teammate who made them.
+   */
+  private readonly ownChanges = new Map<string, number>();
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   /** true when the socket was closed on purpose (disconnect/logout/replaced/blocked). */
@@ -296,13 +311,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.setStatus({ state: 'connecting', qr: null });
     const { state, saveCreds } = await this.auth.load();
 
-    let version: [number, number, number] | undefined;
-    try {
-      const latest = await fetchLatestBaileysVersion();
-      version = latest.version;
-    } catch (err) {
-      this.logger.warn({ err }, 'could not fetch latest WA version; using bundled default');
-    }
+    // Never wait for the GitHub lookup: connect with the version we have, refresh it for next time.
+    const version = waVersion.current();
+    void waVersion.refresh().then(({ error }) => {
+      if (error) this.logger.warn({ err: error }, 'could not fetch latest WA version');
+    });
 
     if (this.stopped) return; // disconnect() was called while loading
 
@@ -473,7 +486,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     for (const { key, update } of updates) {
       if (!key.id || !key.remoteJid || !key.fromMe) continue;
       const status = mapAck(update.status);
-      if (status) this.emitTyped('messageStatus', { id: key.id, chatJid: key.remoteJid, status });
+      if (!status) continue;
+      const code = status === 'failed' ? update.messageStubParameters?.[0] : undefined;
+      this.emitTyped('messageStatus', {
+        id: key.id,
+        chatJid: key.remoteJid,
+        status,
+        ...(typeof code === 'string' && code ? { error: code } : {}),
+      });
     }
   }
 
@@ -503,6 +523,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     if (reaction) {
       if (source === 'history' && reaction.timestamp < this.historyCutoff()) return;
       this.emitTyped('reaction', reaction, { source });
+      return;
+    }
+    // Edits and deletes arrive as protocol messages naming the changed message. Baileys also
+    // reports them as messages.update; only this path is read, so each change counts once.
+    const change = mapWAProtocol(m);
+    if (change) {
+      const { targetId, fromMe, timestamp } = change.kind === 'edit' ? change.edit : change.revoke;
+      if (source === 'history' && timestamp < this.historyCutoff()) return;
+      if (fromMe && this.takeOwnChange(targetId)) return;
+      if (change.kind === 'edit') this.emitTyped('messageEdited', change.edit, { source });
+      else this.emitTyped('messageDeleted', change.revoke, { source });
       return;
     }
     if (m.message) this.raw.set(id, m);
@@ -689,7 +720,15 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         : undefined;
     let res: WAMessage | undefined;
     try {
-      res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
+      const options = {
+        ...(quoted ? { quoted } : {}),
+        ...(opts?.messageId ? { messageId: opts.messageId } : {}),
+      };
+      res = await sock.sendMessage(
+        chatJid,
+        content,
+        Object.keys(options).length ? options : undefined,
+      );
     } catch (err) {
       // connection dropped mid-send: report as unavailable so the queue keeps the job pending
       if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open') {
@@ -739,16 +778,92 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return this.send(chatJid, content, opts);
   }
 
-  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult> {
-    // The cached key carries the group author exactly as WhatsApp delivered it.
+  /** The key WhatsApp matches a message by; the cached key carries the group author as delivered. */
+  private targetKey(chatJid: string, target: WaMessageTarget): WAMessageKey {
     const participant = this.raw.get(target.id)?.key?.participant ?? target.participant;
-    const key: WAMessageKey = {
+    return {
       remoteJid: chatJid,
       id: target.id,
       fromMe: target.fromMe,
       ...(participant && chatJid.endsWith('@g.us') ? { participant } : {}),
     };
-    return this.send(chatJid, { react: { text: emoji, key } }, undefined, false);
+  }
+
+  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult> {
+    return this.send(
+      chatJid,
+      { react: { text: emoji, key: this.targetKey(chatJid, target) } },
+      undefined,
+      false,
+    );
+  }
+
+  /** Remember an edit/delete we send, so its echo is not reported as the phone's. */
+  private markOwnChange(targetId: string): void {
+    const t = Date.now();
+    for (const [id, at] of this.ownChanges)
+      if (t - at > OWN_CHANGE_TTL_MS) this.ownChanges.delete(id);
+    this.ownChanges.set(targetId, t);
+  }
+
+  /** True (and forgotten) when a fromMe change of `targetId` is the echo of our own. */
+  private takeOwnChange(targetId: string): boolean {
+    const at = this.ownChanges.get(targetId);
+    if (at === undefined) return false;
+    this.ownChanges.delete(targetId);
+    return Date.now() - at <= OWN_CHANGE_TTL_MS;
+  }
+
+  private async sendChange(
+    chatJid: string,
+    target: WaMessageTarget,
+    content: AnyMessageContent,
+  ): Promise<SendResult> {
+    this.markOwnChange(target.id);
+    try {
+      return await this.send(chatJid, content, undefined, false);
+    } catch (err) {
+      this.ownChanges.delete(target.id);
+      throw err;
+    }
+  }
+
+  editText(chatJid: string, target: WaMessageTarget, text: string): Promise<SendResult> {
+    const key = this.targetKey(chatJid, target);
+    const cached = this.raw.get(target.id);
+    return this.sendChange(chatJid, target, { text, edit: key }).then((r) => {
+      // Later quotes of the message show the new text.
+      const m = cached?.message;
+      if (m?.conversation != null) m.conversation = text;
+      else if (m?.extendedTextMessage) m.extendedTextMessage.text = text;
+      return r;
+    });
+  }
+
+  deleteForEveryone(chatJid: string, target: WaMessageTarget): Promise<SendResult> {
+    return this.sendChange(chatJid, target, { delete: this.targetKey(chatJid, target) });
+  }
+
+  async deleteForMe(chatJid: string, target: WaMessageTarget, timestamp: number): Promise<void> {
+    const sock = this.requireOpen();
+    try {
+      await sock.chatModify(
+        {
+          deleteForMe: {
+            deleteMedia: true,
+            key: this.targetKey(chatJid, target),
+            timestamp: Math.floor(timestamp / 1000),
+          },
+        },
+        chatJid,
+      );
+    } catch (err) {
+      if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open')
+        throw new WaUnavailableError(
+          `WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`,
+        );
+      throw err;
+    }
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Linking WhatsApp no longer gets stuck on a spinner.** Showing the QR code (or a new one) could hang on
+  "Waiting for the QR code" when the WhatsApp version lookup was slow to answer. The QR code now shows at once; the
+  lookup runs in the background and is used from the next connection.
+
+## [0.1.69] - 2026-11-02
+
+### Added
+
+- **AI assistants can send images.** A connected AI assistant (MCP) with **Can send WhatsApp messages** has a new
+  `send_image` tool: it sends a JPEG, PNG or WebP photo (up to 5 MB, from a public https link or as a file) with an
+  optional caption into an existing chat, with the same limits, approval and "via AI assistant" mark as text replies.
+- **Reports per WhatsApp number.** With two or more numbers, Admin → Reports has an inbox choice next to the period:
+  **All inboxes** shows every number together (as before), or pick one number to see only its customers, replies,
+  AI hand-offs and WhatsApp Safety findings.
+- **Edit and delete messages.** Hover a message you sent (or press and hold it on a phone) and choose **Edit** to
+  fix the text or caption within 15 minutes: the customer sees it marked "Edited", and **Edited** in the inbox lists
+  the earlier versions. **Delete** removes it for everyone within 2 days; admins can also **Delete for me**, which
+  hides a message for the whole team and on the linked phone. Admins can change messages sent from the phone or by
+  the AI agent; agents change their own. When a customer edits or deletes a message, the inbox now shows it too
+  ("Edited", or "… deleted this message"); admins can still open the original. The AI agent ignores deleted
+  messages and answers the edited text. Linked-phone inboxes only (the WhatsApp Business API cannot edit or
+  delete).
+
+### Fixed
+
+- **Retry no longer sends a message twice.** WhatsApp sometimes reports an error for a message it already took (in a
+  group, often only one member's phone could not take it). EzyChat showed it as not sent, and Retry sent a second
+  copy. Retry now sends it again as the same message, so phones that already have it do not show it twice. In a group
+  the message says "Some members may not have received this" instead, and it clears by itself as soon as a member
+  receives or reads it.
+- **One customer, same details in every inbox.** With two or more WhatsApp numbers, a customer who chats with
+  both now shows the same saved name, company, email, other phone and address in each inbox: an edit in one
+  inbox updates the other, and a new chat of a known customer starts with their details. Tags stay per inbox.
+
 ## [0.1.68] - 2026-11-01
 
 ### Fixed

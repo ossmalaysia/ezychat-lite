@@ -16,6 +16,9 @@ into AGENTS.md.
 - In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
   starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
   `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
+- A user created or reset over the API answers 403 `Password change required` on every call until
+  `POST /api/auth/change-password`: a role check (agent refused a locked file) then "passes" for the wrong reason.
+  Assert the error code (`safety_locked`, …) and a positive control (a clean file the agent may download), never the status alone.
 - Never name a module constant after a global (`URL`, `Map`, `Set`, `Buffer`): `const URL = /…/` made every
   `new URL()` in that file throw, the `try` swallowed it, and link checks silently answered "safe". A rule that
   fails closed to "nothing found" needs a test with a positive case.
@@ -202,6 +205,10 @@ into AGENTS.md.
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
+- Another session may push to the same PR branch while you work on it: force-push a rebase only with
+  `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
+  commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
+  Fetch and read the workbook before each long check: the other session may already be running the same one.
 - A test that counts "today" in the business time zone (`days: 1`, reports) with rows placed hours before
   `Date.now()` fails when CI runs just after midnight Malaysia time (about 16:00–17:00 UTC). Fix the clock in
   such tests (`vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(<midday +08:00>)`); a red CI run
@@ -328,7 +335,9 @@ into AGENTS.md.
   times out on a branch is a branch regression (load, not flakiness): compare per-test times first.
 - A test that runs every migration on a fresh SQLite file costs ~1 s per test locally and timed out (> 30 s)
   on `windows-latest` (disk sync per migration on a busy runner): build migration-only test databases with
-  `new Database(':memory:')` unless the test reopens the file.
+  `new Database(':memory:')` unless the test reopens the file. Bring it to an old schema with `migrate(db, N)` and
+  compare with `latestMigration()` (`src/db/migrate.ts`); never list `db/migrations`, sort file names or set
+  `user_version` by hand in a test (14 drifting copies were removed, `docs/DEBT.md`).
 - Push a Lite API change before the Enterprise commit that uses it: Enterprise CI builds the Lite branch
   as pushed at that moment (`LITE_REF`), so the reverse order fails its typecheck.
 - Private repositories (e.g. `anchorsprint/ezychat-enterprise`) run CI only on the org's self-hosted
@@ -482,6 +491,11 @@ into AGENTS.md.
   (`admin/SendPermissionFields.tsx`).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
+- Rebasing a branch whose mock commit cloned a folder `main` has since pruned: Git pairs the clone with
+  `main`'s own clones as renames (hundreds of rename/rename conflicts; `-X no-renames` and
+  `merge.renames=false` do not stop it in a rebase). Resolve that commit by hand: `git rm -r docs/features`,
+  `git checkout origin/main -- docs/features`, `git checkout <mock commit> -- docs/features/<feature>`, rebuild
+  `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
 
 ## Build, tooling and Windows
 
@@ -572,7 +586,9 @@ into AGENTS.md.
 - `scripts/pack-contract.test.mjs` reuses an existing local `dist/`: after a new migration or shared export
   it fails on the stale build. Rebuild `node scripts/build-package.mjs packages/shared` first, then
   `packages/server` (the server build compiles against shared's `dist`, not `src`).
-- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`), never a
+- A new field in a shared **response** schema gets a `.default()` (empty list, `false`, `null`) or, on a type
+  that code builds by hand (`Message`, `InboxCapabilities`), `.optional()` read as "absent = off": a default
+  makes the inferred output type require the field and breaks every fixture here and in Enterprise. Never a
   bare required type: Enterprise web tests use fetch doubles of an older server, and a required field made
   the agent page show "Couldn't load". Run the Enterprise suite on `use-local-core.mjs` before a
   contract change ships, then `npm ci` there to restore the npm core. First check port 7434: the owner's
@@ -649,7 +665,8 @@ into AGENTS.md.
   full suite, list `node.exe` processes whose command line has `mock/run.ts` or the repo path: old mock
   servers survive for days. Run coverage, e2e and electron-links as separate background commands (each
   logs its own exit), so a low-memory reap of one does not lose the others; stop a no-longer-needed Dev
-  Build first.
+  Build first, by its port owner: stopping the background shell task leaves the `tsx` server child
+  running on the port and its data folder (a restart then reads the old log as "ready").
 - Run `node -v` before verifying: nvm4w switches Node machine-wide and Node 20 breaks this repo (Vitest
   workers die with exit code 3221225477 before any test runs; jsdom test files fail with "Failed to start forks
   worker … reading 'bind'" while node-environment files pass, so the summary looks like a partial pass; a one-off
@@ -664,8 +681,8 @@ into AGENTS.md.
 - Run `npm run lint` again after the last code change, also for a script added late: e2e scripts that
   touch `document`/`window` inside `page.evaluate` need `/* global document, window -- … */` (Node globals only).
 - The context-mode hook blocks `fetch('http…` inside a Bash command: put Dev Build HTTP steps in a script
-  file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration also moves `LATEST` and the table
-  list in `src/db/migrate.test.ts`.
+  file (scratchpad or `e2e/devbuild-*.mjs`) and run that. A new migration adds its tables to the table list in
+  `src/db/migrate.test.ts` (`LATEST` follows `latestMigration()`).
 - A browser-side worker (e.g. the WebAssembly voice encoder) is packaged-smoke-tested by serving the
   packaged `resources/web` from the packaged server (`--web-dist`, `ELECTRON_RUN_AS_NODE=1`, `--fake-wa`)
   and driving Chrome; build with `--dir --config.directories.output=<scratch>`.
@@ -789,6 +806,10 @@ into AGENTS.md.
 - An elevated script that writes into a user-writable folder (data moved back to the profile, then
   `icacls /reset /T`) must refuse first when that folder or any folder above it is a link (junction, symlink),
   and check every "would stop halfway" condition (target already has app.db) before it touches the service.
+- A row the API redacts but keeps (a message deleted for everyone keeps its text for admins) needs every
+  reader of the raw columns guarded, not only `rowToMessage`: the mention presenter, chat previews, the media
+  route and redownload all read `body` / `media_path` directly. Every later `present()` attach step too: a
+  Safety finding names the file and text, so a deleted message drops it (check this when merging main).
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
@@ -829,6 +850,9 @@ into AGENTS.md.
   mutation hands them to the showing component's state via a callback and returns metadata only;
   clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- An MCP tool that takes a link (e.g. `send_image` `imageUrl`) downloads it only through `guardedFetch` (https,
+  public address checked at connect, size and time cap) and checks the file type on the bytes; a large-body tool
+  raises `bodyLimit` on its own route only, after the token check in `onRequest`, never the app-wide 1 MB.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
@@ -854,6 +878,17 @@ into AGENTS.md.
 
 ## WhatsApp / Baileys
 
+- Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
+  and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
+  background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
+- A WhatsApp ERROR ack is not proof a message was not sent: in a group it is one ack for the whole message even when
+  only some members' devices failed. A later delivered/read receipt overrides it, and a Retry of a message that has a
+  WhatsApp id re-sends under that same id (`WaSendOptions.messageId`), never a new one: a new id is a second copy.
+- Edits and deletes arrive as a `protocolMessage` (`MESSAGE_EDIT` / `REVOKE`; `normalizeMessageContent`
+  unwraps the `editedMessage` wrapper) whose outer key is the author and whose `key.id` is the changed
+  message; Baileys also re-emits them as `messages.update`, so read one path only (`baileys/protocol.ts`).
+  Our own edit or delete echoes back `fromMe` like the phone's, during `sendMessage`: mark the target before
+  sending and skip that echo, and keep the core's apply step idempotent anyway (same text, already deleted).
 - Baileys emits the echo of our own send (`messages.upsert`, `fromMe`) before `sendMessage` resolves:
   data only the sender knows (e.g. which teammate sent a reaction) must be added after the send by an
   idempotent step that works whether the echo came first or later (`ReactionRepo.applyOwn`), and the
@@ -863,6 +898,10 @@ into AGENTS.md.
   find rows by a key both versions write (`upgrade-from-oldest.test.ts` covers it).
 - A chat key is opaque (`<waJid>#<inboxId>` outside inbox 1): read the JID shape (`@lid`, `@g.us`, phone)
   from `chats.wa_jid` / `waJidOf`, and send `waJid`/`waMessageId` to WhatsApp, never the key.
+- Data about a person (not a conversation) must not stay keyed by the chat key alone: the same person has
+  one chat per inbox. Customer contact fields sync across `linkedChats` (same JID or PN/LID pair, never a
+  re-pointed number); per-inbox data such as tags stays per chat so access scoping holds
+  (`inbox-access.test.ts` pins it). Run the access tests when widening any write across inboxes.
 - The linked account is never a contact, chat or alias (`aliases.learn` ignores own pairs), and in
   groups WhatsApp shows it only by its LID. Anything that names people (mentions, member lists) must
   also check `status.me.jid` and `status.me.lid` (from `sock.user.lid`) and name it from `status.me.name`;
@@ -1150,6 +1189,8 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A page that counts across inboxes (Reports, its Safety section) takes one optional `inbox` query param and the page's
+  picker passes the same choice to every section; a section left on "all" next to a one-inbox total misleads.
 - A UAC prompt started by the hidden runner (`runElevatedWindows`: `Start-Process -Verb RunAs` from a
   windowless PowerShell) can open behind the app window: the owner saw only "Waiting for Windows". Every
   screen that waits for it says where to look (taskbar shield, Alt+Tab).
@@ -1269,6 +1310,9 @@ into AGENTS.md.
 - Cloning a mock for the next proposal: move the old proposal to `baselineProposal`, add its added files to
   `inheritedUnchanged` and drop only the files this proposal changes. Compare the counts that `--check` prints
   before and after: a drop in inherited files means the check got weaker and still passes.
+- The cumulative mock seeds chats in different inbox types (Jason Lim and Priya Nair are in the WhatsApp Business
+  API inbox "Online orders"): demo a feature that depends on `WaCapabilities` in a Kopi Apong (linked-phone) chat
+  and gate the mock UI by `inboxOfChat(...).type` too, or the screenshots show it where it can never work.
 - A mock shot script that saves something (e.g. Save in a dialog) changes the mock's data: run it once
   on a freshly started mock, and restart the mock again before the owner opens it. Restart after a failed
   run too, and send server-side effects (messages) from one viewport only: every browser context starts
@@ -1347,12 +1391,20 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   (`chat:updated` with tags), or another tab or teammate sees stale options until the cache expires.
 - E2E data that other tests or projects could share (tags, names) gets a per-project suffix
   (`projectTag(info)`); `npm run e2e` rebuilds `apps/web/dist`, so stop any Dev Build serving it first.
+- E2E that closes one Radix popover and then opens another waits for the first to be gone
+  (`toHaveCount(0)`) and its trigger to be focused (`toBeFocused()`) before the next step: Radix hands focus
+  back one timer tick after the exit animation, and under load that late focus lands after the next step,
+  dismissing the new popover ("focus outside"). Reproduce such races by delaying zero-delay timers in the
+  page, not by raising timeouts. `--repeat-each` on reaction tests hits the 30-a-minute reaction limit.
 - Review a UI change on the whole page at 1280 and 360 px, top to bottom, not only the changed
   section: background bands, orphaned blocks and spacing between sections only show in context.
 - Marketing screenshots come from `e2e/marketing-screenshots.mjs` on a fresh `--mode standalone` server
   (`dev` mode stamps a "Dev Build" badge); save a placeholder AI key so the AI page isn't red "Needs connection".
   It rewrites every module (times change), so commit only the modules whose screens changed and
   `git checkout` the rest. Demo group members never reuse a customer's number: the member's name renames that chat.
+  Headless Chromium reports notifications as blocked, so every admin shot shows the "Notifications are
+  blocked" box in the sidebar: crop the sidebar for guides, and never take test-env (Dev Build) data for
+  them (test names, repeated chats, the badge).
 - Playwright `page.clock.pauseAt(new Date())` is flaky under load (page clock runs ahead: "Cannot
   fast-forward to the past"); pause at the page's own `Date.now()` plus a few ms.
 - Never pipe a step into `tail`/`head` inside an `&&` chain: the pipe hides its exit code and the chain

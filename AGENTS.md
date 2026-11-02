@@ -11,6 +11,8 @@ npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, al
 ## Before you start (required)
 
 1. Read `docs/LEARNINGS.md` — past mistakes and the rules that came out of them.
+   For a tech-debt review or a change in an area it lists, also read `docs/DEBT.md` (findings, fixes, open debt)
+   and record new findings and fixes there.
 2. Read `docs/design-system.md` before touching `apps/web`.
 3. Check `git status`; never overwrite uncommitted work you didn't make.
 
@@ -104,6 +106,17 @@ Sending: `PUT /api/messages/:id/reaction` {emoji} ('' removes; one emoji, zod-ch
 goes straight to `WaAdapter.sendReaction` (never queued; offline → 503), with the reply refusals; the
 linked number's row (reactor `me`) keeps `sent_by_user_id` (teammate, `ReactionRepo.applyOwn`) until
 WhatsApp reports another emoji from the phone. One reaction per number: the team shares it.
+Edits and deletes (design `docs/features/message-edit-delete/design.md`, migration 029, `messages/changes.ts`):
+Baileys `MESSAGE_EDIT` / `REVOKE` protocol messages (`baileys/protocol.ts`, upsert and history only) become adapter
+events `messageEdited` / `messageDeleted`; the adapter skips the echo of its own changes. A change applies only in
+the stored message's chat and only by its author (`changeAuthor`; a group admin may delete, never edit), else waits
+in `message_changes_pending` until the message arrives. Team: `PATCH /api/messages/:id` {text} (15 min) and
+`DELETE /api/messages/:id?scope=everyone` (2 days) for the teammate who sent it or an admin, `scope=me` (hidden for
+the team, `chatModify` on the phone) for admins; never queued (offline → 503), 30 a minute per user, audit ids only.
+Only with `WaCapabilities.editMessage` / `deleteForEveryone` / `deleteForMe` (absent = off, e.g. the Business API).
+A deleted row keeps its text; `rowToMessage` sends it without body, media or quote, and only admins read the
+original (`GET /api/messages/:id/edits`). Hidden rows leave `pageDesc`; the AI skips deleted messages and redrafts
+when the customer changes a message mid-reply. Dev: `POST /api/dev/fake-edit`, `/api/dev/fake-revoke`.
 
 **Inboxes (several WhatsApp numbers).** Design `docs/features/multi-inbox/design.md`. Each WhatsApp
 number is an inbox (table `inboxes`, linked phone). `InboxConnections` (`inboxes/connections.ts`) holds one
@@ -270,7 +283,9 @@ cascades). `rowToChat` prefers the profile name and adds `tags`/`whatsappName`; 
 from `ChatRepo.get`/`list` (profile join + one batched tag query; SQL in `customers/sql.ts`). Every
 outbound Message goes through the message service's `present()` (group `senderProfile` via
 `AliasStore.route()`). `mergeChat` must move every table keyed by `chat_jid` (profiles via
-`customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
+`customers/merge.ts`). One person's direct chats in several inboxes share the contact fields (not tags):
+`customers/linked.ts#linkedChats` (same JID or PN/LID pair, never a re-pointed number) is written on every
+save and enrichment, seeds a new chat in `ChatRepo.ensure`, and fills empty chats at start-up. When the AI reads profiles, put them in `currentSituation`/`conversation`,
 never earlier in the prompt.
 
 **Customer enrichment.** `customers/enrichment.ts` uses the shared AI connection independently of
@@ -343,8 +358,10 @@ only on a critical rule from a number that is not an existing customer, never in
 message over (`sensitive`). Routes `/api/safety*` (admins), `/api/safety/chats/:jid` (inbox access),
 `/api/reports/safety`. Web: `inbox/SafetyMessage.tsx`, `admin/SafetyPage.tsx`, `admin/SafetyReport.tsx`.
 
-**Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
-zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
+**Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90[&inbox=<id>]` (admins; no
+`inbox` = every inbox together, else that one inbox, removed ones included, unknown 404 through `reports/scope.ts`; the
+page's inbox choice shows with 2+ visible inboxes and also scopes `/api/reports/safety`; zod `Report` in
+`packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
 only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a
 chat whose first message is the customer's and is not older than WhatsApp's link time (the inbox's first stored
 `created_at`, i.e. the history import); missed = no reply within `MISSED_LEAD_MS` (1 h); "waiting after AI
@@ -482,7 +499,11 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   `api_token.update` with before/after, never through a token) and goes only through `InboxSendPort` (`mcp/send.ts`), which rechecks
   the scope: text into an **existing** chat, as the token owner, through the
   normal message service; idempotent per token + `requestId`; 10 a minute and 100 a day per token;
-  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_to_new_number` (scope
+  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_image` (same scope and limits)
+  sends a JPEG/PNG/WebP (type read from the bytes, ≤ 5 MB) given as base64 or a public https link
+  downloaded only through `guardedFetch` (SSRF guard, 10 s, no loopback/private address); a retry with
+  the same `requestId` downloads nothing; audit adds `type: 'image'`, never the caption or link. `/mcp`
+  accepts bodies up to 8 MB (`MCP_BODY_LIMIT`), only after the token check in `onRequest`. `send_to_new_number` (scope
   `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
   in the inbox only after `WaAdapter.checkNumber` confirms it (20 checks a day per token, counted before
   the check; audit `mcp.new_chat`); its description and every result carry the WhatsApp ban warning.
