@@ -1,40 +1,50 @@
 /**
- * The WhatsApp Web version to announce, looked up from Baileys' GitHub copy without ever blocking a
- * connect: the lookup has no timeout of its own, so a slow or throttled raw.githubusercontent.com
- * held every connect (and every new QR) at "connecting" forever. Bounded by `timeoutMs`, cached so
- * reconnects and QR refreshes do not ask again; a failure falls back to Baileys' bundled version.
+ * The WhatsApp Web version to announce. WhatsApp refuses clients whose version is too old, so Baileys
+ * suggests looking up the newest one from its GitHub copy on every connect. That lookup has no
+ * timeout, and awaiting it before the socket held every connect (and every new QR) at "connecting"
+ * while GitHub was slow or blocked. A connect never waits for it now: it uses the last version
+ * looked up (or Baileys' bundled one) at once, and the lookup refreshes in the background, bounded
+ * by `timeoutMs` and cached, so a connect WhatsApp refused for an old version retries with the new one.
  */
 export type WaVersion = [number, number, number];
 
 export interface WaVersionSourceOptions {
   fetchLatest: () => Promise<{ version: WaVersion }>;
   timeoutMs?: number;
-  /** How long a fetched version is reused. */
+  /** How long a fetched version is reused before the next lookup. */
   ttlMs?: number;
   /** How long to skip the lookup after a failure or timeout. */
   failureTtlMs?: number;
   now?: () => number;
 }
 
-export const WA_VERSION_TIMEOUT_MS = 5_000;
+export const WA_VERSION_TIMEOUT_MS = 10_000;
 const WA_VERSION_TTL_MS = 6 * 60 * 60_000;
 const WA_VERSION_FAILURE_TTL_MS = 10 * 60_000;
 
-export interface WaVersionLookup {
+export interface WaVersionRefresh {
   version: WaVersion | undefined;
-  /** Set when this call tried the lookup and it failed or timed out. */
+  /** Set when this refresh tried the lookup and it failed or timed out. */
   error?: unknown;
 }
 
-export function createWaVersionSource(opts: WaVersionSourceOptions) {
+export interface WaVersionSource {
+  /** The version to connect with now: the last one looked up, else undefined (Baileys' bundled one). */
+  current(): WaVersion | undefined;
+  /** Looks the version up unless a recent result is cached; never rejects, one lookup at a time. */
+  refresh(): Promise<WaVersionRefresh>;
+}
+
+export function createWaVersionSource(opts: WaVersionSourceOptions): WaVersionSource {
   const timeoutMs = opts.timeoutMs ?? WA_VERSION_TIMEOUT_MS;
   const ttlMs = opts.ttlMs ?? WA_VERSION_TTL_MS;
   const failureTtlMs = opts.failureTtlMs ?? WA_VERSION_FAILURE_TTL_MS;
   const now = opts.now ?? Date.now;
-  let cached: { version: WaVersion | undefined; until: number } | null = null;
-  let inflight: Promise<WaVersionLookup> | null = null;
+  let version: WaVersion | undefined;
+  let nextLookupAt = 0;
+  let inflight: Promise<WaVersionRefresh> | null = null;
 
-  const lookup = async (): Promise<WaVersionLookup> => {
+  const lookup = async (): Promise<WaVersionRefresh> => {
     let timer: NodeJS.Timeout | undefined;
     try {
       const timeout = new Promise<never>((_, reject) => {
@@ -44,21 +54,23 @@ export function createWaVersionSource(opts: WaVersionSourceOptions) {
         );
         timer.unref?.();
       });
-      const { version } = await Promise.race([opts.fetchLatest(), timeout]);
-      cached = { version, until: now() + ttlMs };
+      ({ version } = await Promise.race([opts.fetchLatest(), timeout]));
+      nextLookupAt = now() + ttlMs;
       return { version };
     } catch (error) {
-      cached = { version: cached?.version, until: now() + failureTtlMs };
-      return { version: cached.version, error };
+      nextLookupAt = now() + failureTtlMs;
+      return { version, error };
     } finally {
       clearTimeout(timer);
     }
   };
 
   return {
-    get(): Promise<WaVersionLookup> {
-      if (cached && now() < cached.until) return Promise.resolve({ version: cached.version });
-      inflight ??= lookup().finally(() => {
+    current: () => version,
+    refresh() {
+      if (inflight) return inflight;
+      if (now() < nextLookupAt) return Promise.resolve({ version });
+      inflight = lookup().finally(() => {
         inflight = null;
       });
       return inflight;

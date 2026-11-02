@@ -27,8 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Linking WhatsApp no longer gets stuck on a spinner.** Showing the QR code (or a new one) could hang on
-  "Waiting for the QR code" when the WhatsApp version lookup was slow to answer; it now gives up after 5 seconds and
-  links with the built-in version.
+  "Waiting for the QR code" when the WhatsApp version lookup was slow to answer. The QR code now shows at once; the
+  lookup runs in the background and is used from the next connection.
 - **Retry no longer sends a message twice.** WhatsApp sometimes reports an error for a message it already took (in a
   group, often only one member's phone could not take it). EzyChat showed it as not sent, and Retry sent a second
   copy. Retry now sends it again as the same message, so phones that already have it do not show it twice. In a group

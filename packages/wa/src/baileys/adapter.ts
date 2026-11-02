@@ -58,7 +58,7 @@ const RAW_CACHE_MAX = 2000;
 const OWN_CHANGE_TTL_MS = 60_000;
 const DAY_MS = 86_400_000;
 
-/** One per process: every inbox and reconnect reuses the looked-up WhatsApp Web version. */
+/** One per process: every inbox and reconnect shares the looked-up WhatsApp Web version. */
 const waVersion = createWaVersionSource({
   fetchLatest: () => fetchLatestBaileysVersion() as Promise<{ version: [number, number, number] }>,
 });
@@ -311,10 +311,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.setStatus({ state: 'connecting', qr: null });
     const { state, saveCreds } = await this.auth.load();
 
-    // Bounded and cached: an unanswered GitHub lookup must never hold the QR at "connecting".
-    const { version, error } = await waVersion.get();
-    if (error)
-      this.logger.warn({ err: error }, 'could not fetch latest WA version; using bundled default');
+    // Never wait for the GitHub lookup: connect with the version we have, refresh it for next time.
+    const version = waVersion.current();
+    void waVersion.refresh().then(({ error }) => {
+      if (error) this.logger.warn({ err: error }, 'could not fetch latest WA version');
+    });
 
     if (this.stopped) return; // disconnect() was called while loading
 
