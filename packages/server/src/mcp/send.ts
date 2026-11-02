@@ -82,10 +82,12 @@ export type ImageFetcher = (url: string) => Promise<Buffer>;
  * The default image download: https only, never this computer or a private network (checked on the
  * address actually connected to), same-origin redirects only, 10 s, at most 5 MB.
  */
-export function guardedImageFetcher(
-  policy: Omit<NetPolicy, 'maxResponseBytes'> = { allowLoopback: false },
-): ImageFetcher {
-  const get = guardedFetch({ ...policy, maxResponseBytes: MCP_SEND_MAX_IMAGE_BYTES });
+export function guardedImageFetcher(policy?: Omit<NetPolicy, 'maxResponseBytes'>): ImageFetcher {
+  const get = guardedFetch({
+    allowLoopback: false,
+    ...policy,
+    maxResponseBytes: MCP_SEND_MAX_IMAGE_BYTES,
+  });
   return async (url) => {
     let res: Response;
     try {
@@ -130,6 +132,20 @@ export const NEW_NUMBER_WARNING =
   'This person may not expect a message from this WhatsApp number. WhatsApp can ban a number that ' +
   'messages people who did not ask for it. Tell the user this, and message new numbers only when the ' +
   'person agreed to be contacted.';
+
+/** A message-service refusal as a SendError for the model; anything unexpected as it is. */
+function sendFailure(err: unknown): unknown {
+  if (err instanceof SendError) return err;
+  if (err instanceof HttpError && err.code === WINDOW_CLOSED)
+    return new SendError(
+      "window_closed: this chat's reply window has closed (the customer has not written " +
+        'recently), so WhatsApp allows only an approved template now; a person can send one ' +
+        'from the inbox.',
+    );
+  // Expected checks of the message service (moved number, quote not in this chat, ...).
+  if (err instanceof HttpError && err.status < 500) return new SendError(err.message);
+  return err;
+}
 
 /** The message service's clientId for this token + requestId (≤ 64 chars, never reused by the inbox). */
 export function sendClientId(tokenId: number, requestId: string): string {
@@ -180,7 +196,7 @@ export function createInboxSendPort(
 
     async sendImage(principal, input) {
       const chatJid = targetChat(principal, input.jid);
-      if (!input.imageUrl === !input.imageBase64)
+      if (Boolean(input.imageUrl) === Boolean(input.imageBase64))
         throw new SendError('Pass the image as imageUrl or imageBase64 (one of them).');
       const caption = input.caption?.trim() || undefined;
       const clientId = sendClientId(principal.tokenId, input.requestId);
@@ -328,20 +344,6 @@ export function createInboxSendPort(
           `Too many messages from this token in ${what}; try again in ${hit.retryAfterSec} s.`,
         );
     }
-  }
-
-  /** A message-service refusal as a SendError for the model; anything unexpected as it is. */
-  function sendFailure(err: unknown): unknown {
-    if (err instanceof SendError) return err;
-    if (err instanceof HttpError && err.code === WINDOW_CLOSED)
-      return new SendError(
-        "window_closed: this chat's reply window has closed (the customer has not written " +
-          'recently), so WhatsApp allows only an approved template now; a person can send one ' +
-          'from the inbox.',
-      );
-    // Expected checks of the message service (moved number, quote not in this chat, ...).
-    if (err instanceof HttpError && err.status < 500) return new SendError(err.message);
-    return err;
   }
 
   /** Sends into a chat that exists; idempotent per token + requestId; counted and audited. */

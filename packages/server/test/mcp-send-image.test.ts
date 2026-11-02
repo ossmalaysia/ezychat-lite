@@ -6,7 +6,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { User } from '@ezychat/shared';
 import { MCP_SEND_MAX_IMAGE_BYTES } from '@ezychat/shared';
 import { generateSelfSignedCert } from '../../../e2e/partner-mcp/cert.mjs';
-import { setMcpEnabled } from '../src/mcp/settings.js';
 import {
   createInboxSendPort,
   decodeImageBase64,
@@ -16,7 +15,7 @@ import {
 } from '../src/mcp/send.js';
 import { getApiTokens } from '../src/api-tokens/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
-import { data, mcpClient, rpc, waitFor } from './mcp-helpers.js';
+import { data, mcpClient, rpc, waitFor, sendTokens } from './mcp-helpers.js';
 
 const LID = '9101@lid';
 const PN = '60123450000@s.whatsapp.net';
@@ -42,24 +41,7 @@ const requestId = () => `img-test-${++n}-abcdef`;
 
 beforeAll(async () => {
   t = await makeTestApp({ listen: true });
-  const auth = t.ctx.services.auth!;
-  admin = auth.createUser({
-    username: 'owner',
-    displayName: 'Owner',
-    role: 'admin',
-    password: 'password123',
-    mustChangePassword: false,
-  });
-  const tokens = t.ctx.services.apiTokens!;
-  readOnly = tokens.create(admin.id, { name: 'reader', expiresInDays: 90 }, 'ip').secret;
-  const created = tokens.create(
-    admin.id,
-    { name: 'sender', expiresInDays: 90, canSend: true },
-    'ip',
-  );
-  sender = created.secret;
-  senderId = created.token.id;
-  setMcpEnabled(t.ctx, true);
+  ({ admin, readOnly, sender, senderId } = sendTokens(t));
   t.wa.simulateIncoming({ chatJid: LID, chatJidAlt: PN, body: 'Photo please', senderName: 'Mei' });
   await waitFor(() => count('SELECT COUNT(*) AS n FROM messages') === 1);
 });
