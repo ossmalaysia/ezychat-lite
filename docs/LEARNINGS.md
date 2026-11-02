@@ -398,7 +398,8 @@ into AGENTS.md.
   the owner whether it is fixed and have the manual publish folder ready at the new tag. A manual publish ends
   with `PUT 202` "being processed": the version shows up about a minute later. Check the registry document
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
-  answer from a cached 404 or an older version (`npm view --prefer-online` skips the cache); the Enterprise
+  answer from a cached 404 or an older version (even `--prefer-online` gave E404 minutes after a publish that
+  the registry URL already served); the Enterprise
   pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`. Read the
   publish result from the `+ @ezychat/<pkg>@x` lines: grepping
   `gh run view --log` also matches the step's own script source (lines with `[36;1m`), e.g. its "dry run
