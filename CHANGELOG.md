@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **All inboxes** shows every number together (as before), or pick one number to see only its customers, replies,
   AI hand-offs and WhatsApp Safety findings.
 
+### Fixed
+
+- **Retry no longer sends a message twice.** WhatsApp sometimes reports an error for a message it already took (in a
+  group, often only one member's phone could not take it). EzyChat showed it as not sent, and Retry sent a second
+  copy. Retry now sends it again as the same message, so phones that already have it do not show it twice. In a group
+  the message says "Some members may not have received this" instead, and it clears by itself as soon as a member
+  receives or reads it.
+
 ## [0.1.68] - 2026-11-01
 
 ### Fixed
