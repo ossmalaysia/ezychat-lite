@@ -484,6 +484,11 @@ into AGENTS.md.
   (`admin/SendPermissionFields.tsx`).
 - SonarCloud: keep data tables as one-line tuples, catalogs in JSON, avoid `password`/`pwd` in i18n keys;
   write `UPDATE` statements with an explicit `WHERE`.
+- Rebasing a branch whose mock commit cloned a folder `main` has since pruned: Git pairs the clone with
+  `main`'s own clones as renames (hundreds of rename/rename conflicts; `-X no-renames` and
+  `merge.renames=false` do not stop it in a rebase). Resolve that commit by hand: `git rm -r docs/features`,
+  `git checkout origin/main -- docs/features`, `git checkout <mock commit> -- docs/features/<feature>`, rebuild
+  `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
 
 ## Build, tooling and Windows
 
