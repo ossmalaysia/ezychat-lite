@@ -8,9 +8,9 @@ Branch: `claude/affectionate-heisenberg-tg7h6n` · Every agent updates its stage
 | Design | done | Mock confirmed 2026-10-28 ("implement it"), revision 1460c1c; design.md + mock-index updated | 70dd1c8 | 2026-10-28 |
 | Dev | done | rebased on main cbd224f: migration 025 -> 029, Safety + edit/delete joined in present() (deleted = no finding), mock creationOrder 26, concept-tips archived | 71e72a0 | 2026-11-02 |
 | Unit tests | pass | 17 files, 294 tests + new Safety delete test (Node 24); typecheck all workspaces; eslint/prettier on changed files | ad94ef7 | 2026-11-02 |
-| E2E | pass | full npm run e2e after the rebase: 138 passed, 27 skipped (Node 24, 1 worker); e2e:electron-links 17/17 screens | af74145 | 2026-11-02 |
-| Dev Build | pass | re-run on af74145: devbuild-message-changes-check 36 shots, no errors/overflow, schema 29; real WhatsApp still untested | af74145 | 2026-11-02 |
-| Screen review | pass | Desktop 1280 + mobile 360, light/dark: matches the confirmed mock; docs/screenshots/chat/edit-delete-* | 4aee64d50defc808272cff9b4baee8579816aca7 | 2026-10-28 |
+| E2E | pass | npm run e2e on 1c27a1a after the Lite-import fix: 137 passed, 27 skipped; ai-member fails here on Node 22 only (known document-worker issue; passed on the owner's Node 24 run). Desktop-window link check from the owner's run on af74145 | 1c27a1a84a7fc53187010547bf06bbc7190c5d0a | 2026-11-02 |
+| Dev Build | pass | re-run on 1c27a1a (after the Lite-import fix): devbuild-message-changes-check 36 shots, no errors/overflow, agent checks pass; real WhatsApp still untested | 1c27a1a84a7fc53187010547bf06bbc7190c5d0a | 2026-11-02 |
+| Screen review | pass | re-captured on 1c27a1a, desktop 1280 + mobile 360, light/dark: matches the confirmed mock next to main's Ask Ezy / Summarise buttons; docs/screenshots/chat/edit-delete-* | 1c27a1a84a7fc53187010547bf06bbc7190c5d0a | 2026-11-02 |
 
 ## Log
 
@@ -30,3 +30,6 @@ Branch: `claude/affectionate-heisenberg-tg7h6n` · Every agent updates its stage
 - 2026-11-02 Unit tests: pass — 17 files, 294 tests + new Safety delete test (Node 24); typecheck all workspaces; eslint/prettier on changed files (ad94ef7)
 - 2026-11-02 E2E: pass — full npm run e2e after the rebase: 138 passed, 27 skipped (Node 24, 1 worker); e2e:electron-links 17/17 screens (af74145)
 - 2026-11-02 Dev Build: pass — re-run on af74145: devbuild-message-changes-check 36 shots, no errors/overflow, schema 29; real WhatsApp still untested (af74145)
+- 2026-11-02 E2E: pass — npm run e2e on 1c27a1a after the Lite-import fix: 137 passed, 27 skipped; ai-member fails here on Node 22 only (known document-worker issue; passed on the owner's Node 24 run). Desktop-window link check from the owner's run on af74145 (1c27a1a84a7fc53187010547bf06bbc7190c5d0a)
+- 2026-11-02 Dev Build: pass — re-run on 1c27a1a (after the Lite-import fix): devbuild-message-changes-check 36 shots, no errors/overflow, agent checks pass; real WhatsApp still untested (1c27a1a84a7fc53187010547bf06bbc7190c5d0a)
+- 2026-11-02 Screen review: pass — re-captured on 1c27a1a, desktop 1280 + mobile 360, light/dark: matches the confirmed mock next to main's Ask Ezy / Summarise buttons; docs/screenshots/chat/edit-delete-* (1c27a1a84a7fc53187010547bf06bbc7190c5d0a)
