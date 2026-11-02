@@ -365,7 +365,8 @@ into AGENTS.md.
   A junction to another branch's install links `@ezychat/*` to that branch's sources: link only to a
   checkout on the same base, else `tsc` reports the other branch's contract changes as your errors.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
-  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Bring a long PR branch
+  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Before writing a rule, also
+  search the open `docs(learnings)` PRs (`gh pr diff <n>`), not only `main`: one may already hold it. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
   commit. After a base PR is squash-merged, replay only your own commits
   (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
