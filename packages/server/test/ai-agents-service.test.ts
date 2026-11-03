@@ -9,7 +9,7 @@ import {
   type AiMemberBody,
 } from '@ezychat/shared';
 import { createAiService, AI_FALLBACK_MS, type AiService } from '../src/ai/service.js';
-import { updateAgentTexts } from '../src/ai/agents.js';
+import { agentById, updateAgentTexts } from '../src/ai/agents.js';
 import { HANDOFF_REPLY } from '../src/ai/prompt.js';
 import type { AiPrompt, AiProvider } from '../src/ai/provider-types.js';
 import { tryAgentReply, type AgentToolsInput, type ServerExtension } from '../src/index.js';

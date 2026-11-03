@@ -306,6 +306,9 @@ describe('Google Sheets routes', () => {
     const again = await refresh();
     expect(again.statusCode).toBe(429);
     expect(again.json().error.code).toBe('rate_limited');
+    // Signed out: nothing to read.
+    await post('/api/connectors/google-sheets/disconnect', admin);
+    expect((await refresh()).statusCode).toBe(409);
   });
 
   it('shows Google problems as states and recovers', async () => {
