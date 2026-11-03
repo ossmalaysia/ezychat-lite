@@ -1511,6 +1511,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   textarea's own mouse/click events, and draw them with `text-transparent` (not `invisible`, which also hides
   the underline). Give one-letter marks a tint as well; a wavy underline under "i" or "a" is unreadable.
 
+- Testing a refused file pick: `userEvent.upload` drops files that do not match the input's `accept` before the
+  component sees them; use `userEvent.setup({ applyAccept: false })` when the test is about the app's own check.
+- A feature that sends anything out of the app builds what it sends on the server (app details, log) and shows the
+  user exactly that text before Send (`GET …/defaults`); never trust the browser for diagnostics, and strip ids and
+  numbers from a screen path before it leaves.
+
 ## Internationalization
 
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the

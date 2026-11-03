@@ -1,7 +1,6 @@
 # Send feedback from the app (Lite and Enterprise)
 
-Status: **proposal, waiting for the owner's mock confirmation** (see Confirmation). Design and mock only; no
-production code yet. Branch `claude/pensive-mayer-ayw25p` from `main` (`1564247`).
+Status: **confirmed** 2026-11-03 (see Confirmation); built in the same branch. Branch `claude/pensive-mayer-ayw25p` from `main` (`1564247`).
 
 ## Owner request (2026-11-03)
 
@@ -156,4 +155,10 @@ Open `http://localhost:7489/`, sign in as `aisyah` / `demo-pass-123`, open the a
 
 ## Confirmation
 
-Pending owner review of the mock and screenshots.
+- 2026-11-03, owner (Jazz Tong), after viewing the screenshots (menu, empty form, filled problem, app details and log,
+  sent, phone, Enterprise; portal list, detail, email, settings, phone): "ok build until it work then pr and merge
+  verify than archive it after all done". Mock revision `f3eaf7bc`.
+- Open questions, taken as proposed in the mock (the owner did not change them): Send feedback replaces Request a
+  feature and Report an issue (GitHub link inside the dialog, Lite only); no "My feedback" list in v1.
+- Change after confirmation: the area codes follow the portal contract (`ai_agent`, `whatsapp_link`, `install_update`
+  instead of the mock's `ai`, `whatsapp`, `install`); labels unchanged.
