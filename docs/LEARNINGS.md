@@ -1232,9 +1232,10 @@ into AGENTS.md.
   claim a group (`claimOnReply`), pause/cancel logic keyed on the chat (`onChat`) must skip groups, and tools that read
   the customer profile need an empty contact in a group. Grep for `type === 'dm'` assumptions before widening a path.
 
-- Reusing `groupConversation` for another group prompt: filter deleted messages first. It maps each message
-  through `conversation([message])`, which drops a deleted one, so `[0]` is undefined and the turn crashes.
-  Any new group prompt also sends no customer details (a group has no profile) and passes `groupText` text.
+- A per-item helper built on a list helper that filters (`conversation([message])[0]!`) crashes on the filtered
+  item: use `flatMap` so the helper keeps the filter. A deleted group message broke every live group AI turn.
+- A draft prompt that tells the model to use a value (a group member's name) must put that value in the fact-check
+  `sources`, or the number check drops correct drafts ("Kopi88 Ali"). Group prompts send no customer details.
 
 ## Desktop and web UI
 

@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WhatsApp groups too, not only in one-to-one chats. Suggested replies answer the latest question in the group and
   see members by name, never by phone number. Nothing is sent until you press Send.
 
+### Fixed
+
+- **The AI agent answers in a group after someone deletes a message there.** After a member deleted a message for
+  everyone, the AI could fail to answer when tagged in that group, until the deleted message was far enough back.
+
 ## [0.1.72] - 2026-11-03
 
 ### Fixed

@@ -150,6 +150,59 @@ describe('draftReply', () => {
     expect(sentPrompt().input.currentSituation.group).toBeUndefined();
   });
 
+  it('skips a group message deleted for everyone and keeps a draft naming a member', async () => {
+    const GROUP = '120363025550002@g.us';
+    const ALI = '60123450000@s.whatsapp.net';
+    const gone = t.wa.simulateIncoming({
+      chatJid: GROUP,
+      senderJid: ALI,
+      senderName: 'Kopi88 Ali',
+      body: 'Wrong group, sorry',
+    });
+    t.wa.simulateIncoming({
+      chatJid: GROUP,
+      senderJid: ALI,
+      senderName: 'Kopi88 Ali',
+      body: 'Is Nasi Lemak Ayam available today?',
+    });
+    await vi.waitFor(() =>
+      expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages').get()).toEqual({ n: 3 }),
+    );
+    t.wa.simulateRevoke({ chatJid: GROUP, targetId: gone.id, senderJid: ALI });
+    await vi.waitFor(() =>
+      expect(
+        t.ctx.db.prepare('SELECT deleted_at FROM messages WHERE id = ?').get(gone.id),
+      ).toMatchObject({ deleted_at: expect.any(Number) }),
+    );
+    vi.mocked(provider.draft!).mockResolvedValueOnce({
+      output: {
+        suggestions: [
+          {
+            label: 'Confirm',
+            text: 'Hi Kopi88 Ali, yes, Nasi Lemak Ayam is RM12.',
+            grounded: true,
+          },
+        ],
+        noAnswer: false,
+        handoffRule: null,
+      },
+      model: 'gpt-test',
+    });
+    const result = await t.ctx.services.ai!.draftReply(
+      GROUP,
+      { kind: 'suggest' },
+      new AbortController().signal,
+    );
+    expect(sentPrompt().input.conversation).toEqual([
+      { speaker: 'customer', name: 'Kopi88 Ali', text: 'Is Nasi Lemak Ayam available today?' },
+    ]);
+    // 88 comes from the member's name, which the draft may use: the draft is kept.
+    expect(result).toMatchObject({
+      suggestions: [{ text: 'Hi Kopi88 Ali, yes, Nasi Lemak Ayam is RM12.' }],
+      noAnswer: false,
+    });
+  });
+
   it('uses no business context when the inbox has no agent', async () => {
     const ai = t.ctx.services.ai!;
     // Lite keeps its one agent on inbox 1; an Enterprise inbox can have none (same lookup).

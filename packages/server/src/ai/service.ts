@@ -1089,16 +1089,18 @@ export function createAiService(
       if (!groupQueues.get(jid)?.length) groupQueues.delete(jid);
     }
   }
-  /** The group as the model sees it: who spoke (AI, a teammate, a named member) and what was said. */
+  /**
+   * The group as the model sees it: who spoke (AI, a teammate, a named member) and what was said.
+   * A message deleted for everyone is left out, as in `conversation`.
+   */
   const groupConversation = (history: Message[], aiUsers: ReadonlySet<number>) =>
-    history.map((message): AiConversationTurn => {
-      const turn = conversation([message], aiUsers)[0]!;
-      return {
+    history.flatMap((message): AiConversationTurn[] =>
+      conversation([message], aiUsers).map((turn) => ({
         speaker: turn.speaker,
         ...(turn.speaker === 'customer' ? { name: memberName(ctx, message) ?? 'Member' } : {}),
         text: groupText(turn.text),
-      };
-    });
+      })),
+    );
   /**
    * One answer to an addressed group message: never a claim or an assignment change, look-up tools
    * only. answer → the reply quoting the member; handoff → "A team member will reply soon." quoting
@@ -2663,10 +2665,7 @@ export function createAiService(
       // text, never the knowledge (smaller and faster; its facts may only come from the chat).
       const completing = request.kind === 'complete';
       const allTurns = group
-        ? groupConversation(
-            history.filter((message) => message.deletedAt == null),
-            aiUserIds(),
-          )
+        ? groupConversation(history, aiUserIds())
         : conversation(history, aiUserIds());
       const turns = completing ? allTurns.slice(-AI_COMPLETION_TURNS) : allTurns;
       const business = completing
@@ -2690,7 +2689,8 @@ export function createAiService(
       const sources = [
         business,
         agent ? instructions : '',
-        ...turns.map((turn) => turn.text),
+        // A group draft may name the member it answers.
+        ...turns.map((turn) => (turn.name ? `${turn.name}: ${turn.text}` : turn.text)),
         JSON.stringify(customer ?? {}),
       ].join('\n');
       const prompt = {
