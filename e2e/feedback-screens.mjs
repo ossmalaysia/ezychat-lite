@@ -12,10 +12,15 @@
 import { chromium } from '@playwright/test';
 import { createServer } from 'node:http';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:7466';
-const OUT = process.argv[3] ?? 'docs/screenshots/feedback';
+// Screenshots go only inside this repository (never an arbitrary path from the command line).
+const REPO = resolve(import.meta.dirname, '..');
+const OUT = resolve(REPO, process.argv[3] ?? 'docs/screenshots/feedback');
+const inside = relative(REPO, OUT);
+if (!inside || inside.startsWith('..') || resolve(inside) === inside)
+  throw new Error(`Output folder must be inside the repository: ${OUT}`);
 const PORTAL_PORT = 7477;
 mkdirSync(OUT, { recursive: true });
 
