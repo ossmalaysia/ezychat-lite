@@ -31,18 +31,18 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 
 ## Part A: Google Sheets gives tab access, the agent has the instructions
 
-| Rule      | Proposal                                                                                                                                                                                                                                                                                                                      |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Settings  | Per agent: one spreadsheet (unchanged) and a list of its tabs, each **Off**, **Read** or **Add rows**. Replaces `lookupTab`/`lookup`/`leadsTab`/`addLeads` in the JSON `sheets_agent_settings.settings` (no table change).                                                                                                    |
-| Upgrade   | Permanent start-up code maps the old fields: `lookupTab` + `lookup` → Read, `leadsTab` + `addLeads` → Add rows. An agent that used Add leads gets one line appended to its saved instructions only if it has none about the sheet: "Add customers who want to buy to the tab {leadsTab}." (audited, kept as a setup version). |
-| Tools     | `read_sheet_rows {tab, query}` and `add_sheet_row {tab, values: {column: value}}`. Their descriptions list only this agent's tabs for that access, each with its column names (first row, read when the turn starts, cached 5 min). No tab on Add rows = no `add_sheet_row`; same for Read.                                   |
-| Columns   | Values are matched to the tab's first-row names (case and spacing ignored); unknown names are refused with the list of valid ones. Columns named Date, Name, WhatsApp, AI agent are filled by EzyChat (business time zone, saved/WhatsApp name, the sender's number, agent name) unless the AI passes a value.                |
-| Empty tab | Add rows needs a first row; Settings shows "Add column names in the first row of this tab" and the tool is not offered for it.                                                                                                                                                                                                |
-| Guards    | Values written with `valueInputOption=RAW`. Every value the AI passes (other than auto columns) must appear in a message of the person it records for (the customer in a direct chat, the member in a group; spacing/case ignored, numbers and dates normalised); else refused with "ask the person for it". Never in Try it. |
-| Limit     | At most 20 rows a chat a day per tab, and the same row (same values) never twice in a day (idempotent key: chat, tab, message id). Replaces the one-lead-a-day rule. Migration adds `tab` and `message_id` to `sheets_leads` (renamed in code to sheet rows).                                                                 |
-| Prompt    | No sheet text in `CORE_RULES` (unchanged connector-neutral rule). The tool descriptions carry the tabs; the agent's instructions say when to use them.                                                                                                                                                                        |
-| Logs      | Activity: who, when, agent, tab, `row_added` / `looked_up` / `failed`; never values. Log lines: tool, tab count, ok, ms.                                                                                                                                                                                                      |
-| Presets   | The Sales preset text gets "Add buyers to the leads tab when one is available" so new sales agents keep today's behaviour.                                                                                                                                                                                                    |
+| Rule      | Proposal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings  | Per agent: one spreadsheet (unchanged) and a list of its tabs, each **Off**, **Read** or **Add rows**. Replaces `lookupTab`/`lookup`/`leadsTab`/`addLeads` in the JSON `sheets_agent_settings.settings` (no table change).                                                                                                                                                                                                                                                                                                        |
+| Upgrade   | Permanent start-up code maps the old fields: `lookupTab` + `lookup` → Read, `leadsTab` + `addLeads` → Add rows. An agent that used Add leads gets one line appended to its saved instructions only if it has none about the sheet: "Add customers who want to buy to the tab {leadsTab}." (audited, kept as a setup version).                                                                                                                                                                                                     |
+| Tools     | `read_sheet_rows {tab, query}` and `add_sheet_row {tab, values: {column: value}}`. Their descriptions list only this agent's tabs for that access, each with its column names (first row, read when the turn starts, cached 5 min). No tab on Add rows = no `add_sheet_row`; same for Read.                                                                                                                                                                                                                                       |
+| Columns   | Values are matched to the tab's first-row names (case and spacing ignored); unknown names are refused with the list of valid ones. Columns named Date, Name, WhatsApp, AI agent are filled by EzyChat (business time zone, saved/WhatsApp name, the sender's number, agent name) unless the AI passes a value.                                                                                                                                                                                                                    |
+| Empty tab | Add rows needs a first row; Settings shows "Add column names in the first row of this tab" and the tool is not offered for it.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Guards    | Values written with `valueInputOption=RAW`. Every value the AI passes (other than auto columns) must come from the person it records for (the customer in a direct chat, the member in a group): their text, or a file they sent (see Part C). A typed value must appear in their messages (spacing/case ignored, numbers and dates normalised); a value read from a file is allowed only when the turn was given that file. Else refused with "ask the person for it". Never in Try it.                                          |
+| Limit     | No business limit: the agent's instructions decide how many rows (one claim, ten invoices). Only two technical guards: the same row is never saved twice (key: chat, tab, message id and a hash of the values, so a retry or a re-read batch adds nothing, while one PDF with three invoices can still add three rows), and a runaway cap of 500 rows a day per agent (stops a broken instruction or loop; Activity shows "Daily cap reached" to admins). Migration adds `tab`, `message_id` and `values_hash` to `sheets_leads`. |
+| Prompt    | No sheet text in `CORE_RULES` (unchanged connector-neutral rule). The tool descriptions carry the tabs; the agent's instructions say when to use them.                                                                                                                                                                                                                                                                                                                                                                            |
+| Logs      | Activity: who, when, agent, tab, `row_added` / `looked_up` / `failed`; never values. Log lines: tool, tab count, ok, ms.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Presets   | The Sales preset text gets "Add buyers to the leads tab when one is available" so new sales agents keep today's behaviour.                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## Part B: several agents per WhatsApp number (Enterprise)
 
@@ -58,6 +58,17 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 | Routes              | `PUT /api/chats/:jid/ai-group` {enabled, agentId?, listen?}; `GET` adds `agentId`, `listen`, `agents` (choices). Old body {enabled} keeps working (agent = the only group agent of the inbox, else 400 `agent_required`).                                                                       |
 | Audit               | `ai.group_switch` adds agentId and listen before/after.                                                                                                                                                                                                                                         |
 
+## Part C: values from images and PDFs (invoices, claim forms, receipts)
+
+| Rule          | Proposal                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images        | Already supported: a turn gets the newest images of the batch (`ai/images.ts`: JPEG/PNG/WebP, ≤ 5 MB). New: up to 10 images per turn when the agent has a tab on Add rows (an invoice photo set), else 3 as today.                                                                                                                                                                                |
+| PDFs          | New: PDFs sent by the person go to the model as files (AI SDK `type: 'file'`, `application/pdf`; OpenAI and Claude read text and scanned pages). ≤ 10 MB and ≤ 20 pages each, at most 3 per turn. A provider mode that cannot take files gets the PDF's text layer instead (`document-worker.ts`, the Business context extractor); a scanned PDF there is skipped and the agent asks for a photo. |
+| Safety        | Only files that WhatsApp Safety did not flag High (quarantined files never reach the model). File type from the bytes, never the name. Word, Excel, ZIP and other files are not read (agent says it cannot open them).                                                                                                                                                                            |
+| Source column | A tab with a column named Source (or File) gets the file name and the message time automatically, so the team can find the original in the chat. The file itself stays in EzyChat; saving files to Google Drive is a later step.                                                                                                                                                                  |
+| Wrong reads   | The model can misread a blurry photo. Instructions can ask the agent to repeat the key values in its reply ("Recorded: INV-1042, RM 1,250.00 ✅") so the sender can correct it; a correction is saved as a new row (no row updates in this version).                                                                                                                                              |
+| Logs          | File count, pages and type only; never file names, content or values.                                                                                                                                                                                                                                                                                                                             |
+
 ## Screens (mock checklist)
 
 1. Admin → Members: two AI agents on one inbox (Sales: direct chats; Claims: groups only), New AI agent allowed
@@ -71,8 +82,10 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
    InfoTip, daily cap reached note.
 6. Group chat: member posts a claim → AI reply per instructions ("Recorded ✅"), missing-detail question, a
    chat message that is not a claim (no reply).
-7. Activity tab: row added to Claims, failed (value not in the message).
-8. Desktop 1280 / mobile 360, light and dark; en, ms, zh-CN.
+7. Activity tab: row added to Claims, failed (value not in the message), daily cap reached.
+8. Group chat: member sends an invoice PDF and a receipt photo → one row each, reply repeats the key values; a
+   Word file → "I can read photos and PDFs only".
+9. Desktop 1280 / mobile 360, light and dark; en, ms, zh-CN.
 
 ## Baseline
 
@@ -86,10 +99,12 @@ pruned in the same change.
 
 ## Open points (my calls, easy to change)
 
-1. Sheet values are checked against the sender's own messages; a member posting a claim for someone else is
-   fine as long as the values are in that member's message.
-2. Batch window 8 s and 300 turns a day per listening group.
-3. Several agents per inbox and listen mode are core code; only the limit comes from the edition, so Lite with
+1. Sheet values are checked against the sender's own messages and files; a member posting a claim for someone
+   else is fine as long as the values are in that member's message or file. Values read from a photo cannot be
+   checked by the server; the reply that repeats them is the check.
+2. Runaway cap 500 rows a day per agent; PDFs ≤ 10 MB / 20 pages, up to 3 PDFs and 10 images per turn.
+3. Batch window 8 s and 300 turns a day per listening group.
+4. Several agents per inbox and listen mode are core code; only the limit comes from the edition, so Lite with
    its 1 agent can also use listen mode in a group.
 
 ## Build plan (after confirmation)
@@ -97,7 +112,8 @@ pruned in the same change.
 1. Shared: `SheetsAgentSettings.tabs`, `AiGroupChat.agentId/listen`, `maxAgents` in health/edition info.
 2. Server: start-up settings mapping; `add_sheet_row`/`read_sheet_rows` with tab + columns; guards; migration 031
    (`ai_group_chats.agent_id`, `listen`; sheet row log `tab`, `message_id`); `runCli({ maxAgents })`;
-   direct-agent rule; group routing by `agent_id`; listen batching and cap; upgrade test seed.
+   direct-agent rule; group routing by `agent_id`; listen batching and cap; PDF file input per provider
+   mode with text fallback; image limit 10 for record agents; upgrade test seed.
 3. Web: Sheets tab list, Group info agent select + listen switch, agent errors; en/ms/zh-CN.
 4. Enterprise: pass `maxAgents` (separate PR after the core release).
 
