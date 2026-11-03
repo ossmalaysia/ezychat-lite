@@ -259,6 +259,7 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
 
     t = await makeTestApp({ config: { dataDir: dir } });
     const db = t.ctx.db;
+    console.log('DBG', db.prepare('SELECT id, user_id, instructions FROM ai_agents').all(), db.prepare("SELECT * FROM audit_log WHERE action LIKE 'google%'").all(), db.prepare("SELECT agent_id, via, substr(content,1,30) c, reason FROM ai_setup_versions").all());
     expect(db.prepare('SELECT tab, message_id, values_hash FROM sheets_leads').all()).toEqual([
       { tab: null, message_id: null, values_hash: null },
     ]);

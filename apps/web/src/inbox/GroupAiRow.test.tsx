@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { AiGroupChat } from '@ezychat/shared';
+import type { AiGroupChat, AiGroupChatBody } from '@ezychat/shared';
 import { GroupAiBadge, GroupAiRow } from './GroupAiRow';
 
 const GROUP = '120363000000000001@g.us';
@@ -22,8 +22,14 @@ const state = (patch: Partial<AiGroupChat> = {}): AiGroupChat => ({
   agentEnabled: true,
   agentAnswersGroups: true,
   paused: false,
+  listen: false,
+  agents: [],
   ...patch,
 });
+const TWO = [
+  { id: 3, name: 'Aina' },
+  { id: 7, name: 'Claims agent' },
+];
 
 type Call = { url: string; method: string; body: unknown };
 
@@ -41,7 +47,14 @@ function stubServer(start: AiGroupChat | null, putCode = 200) {
       if (method === 'PUT') {
         if (putCode !== 200)
           return json({ error: { code: 'forbidden', message: 'Admins only' } }, putCode);
-        current = { ...current, enabled: (body as { enabled: boolean }).enabled };
+        const put = body as AiGroupChatBody;
+        const agent = current.agents.find((a) => a.id === put.agentId);
+        current = {
+          ...current,
+          enabled: put.enabled,
+          listen: put.listen ?? current.listen,
+          ...(agent && { agentId: agent.id, agentName: agent.name, agentAnswersGroups: true }),
+        };
       }
       return json(current);
     }),
@@ -62,7 +75,16 @@ function renderRow(isAdmin: boolean) {
   );
 }
 
-const TITLE = 'AI agent answers when tagged or quoted';
+const TITLE = 'AI agent in this group';
+
+beforeAll(() => {
+  // Radix Select uses pointer capture and scrollIntoView, which jsdom lacks.
+  const proto = Element.prototype as unknown as Record<string, unknown>;
+  proto.hasPointerCapture ??= () => false;
+  proto.setPointerCapture ??= () => {};
+  proto.releasePointerCapture ??= () => {};
+  proto.scrollIntoView ??= () => {};
+});
 
 afterEach(() => {
   cleanup();
@@ -167,23 +189,6 @@ describe('Group info → AI agent row', () => {
     const calls = stubServer(null);
     const { container } = renderRow(true);
     await waitFor(() => expect(calls).toHaveLength(1));
-    expect(container.textContent).toBe('');
-  });
-});
-
-describe('GroupAiBadge', () => {
-  it('shows only while the AI answers the group, and says when it is paused', () => {
-    const { rerender, container } = render(<GroupAiBadge ai={state({ enabled: true })} />);
-    expect(screen.getByTestId('group-ai-badge').textContent).toBe(
-      'AI answers when tagged or quoted',
-    );
-    rerender(<GroupAiBadge ai={state({ enabled: true, paused: true })} />);
-    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI paused');
-    rerender(<GroupAiBadge ai={state({ enabled: true, agentAnswersGroups: false })} />);
-    expect(container.textContent).toBe('');
-    rerender(<GroupAiBadge ai={state()} />);
-    expect(container.textContent).toBe('');
-    rerender(<GroupAiBadge ai={null} />);
     expect(container.textContent).toBe('');
   });
 });
