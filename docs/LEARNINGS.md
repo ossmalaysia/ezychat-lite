@@ -1516,6 +1516,7 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   invisible to `document.elementsFromPoint`: hit-test them with each span's `getClientRects()` from the
   textarea's own mouse/click events, and draw them with `text-transparent` (not `invisible`, which also hides
   the underline). Give one-letter marks a tint as well; a wavy underline under "i" or "a" is unreadable.
+- When the server lifts a uniqueness rule (one agent per inbox), grep the web for client flows that still enforce it (taking the slot from the other holder, "one per …" hints): unit tests written to the old rule keep passing, only a Dev Build screen review shows it.
 
 ## Internationalization
 
