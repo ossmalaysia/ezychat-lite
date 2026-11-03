@@ -1213,6 +1213,9 @@ into AGENTS.md.
   customer).
 - Data shipped inside the app (a built-in fallback list) uses `minAppVersion: '0.0.0'`: unit tests run as
   `0.0.0-test`, so any higher minimum marks the built-in entries "needs update" in tests and Dev Builds.
+  In the published list (`ezychat-connectors`), `minAppVersion` is compared with each edition's own version
+  (Enterprise 0.1.22 while Lite is 0.1.71): never put a Lite version on an entry for both editions; a
+  `builtin` entry keeps `0.1.0`, because an app without that connector skips it anyway.
 - Server unit tests may import an `e2e/` helper only as `.mjs` with a `.d.mts` type file: a `.ts` file outside
   `packages/server` breaks its typecheck (TS6059 rootDir).
 - Never trust a model to continue "exactly where the text stops": ask for the whole current sentence and cut the
