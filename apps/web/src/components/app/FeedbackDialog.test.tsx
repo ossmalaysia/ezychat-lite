@@ -7,7 +7,7 @@ import type { FeedbackDefaults } from '@ezychat/shared';
 import { AppLinksProvider } from '@/lib/app-links';
 import { GITHUB_ISSUES_URL, resolveAppLinks } from '@/lib/links';
 import { ErrorBoundary } from './ErrorBoundary';
-import { areaForPath, FeedbackHost, openFeedback } from './FeedbackDialog';
+import { areaForPath, FeedbackHost, languageName, openFeedback } from './FeedbackDialog';
 
 const auth = vi.hoisted(() => ({
   user: { id: 1, username: 'aisyah', displayName: 'Aisyah', role: 'agent' } as unknown,
@@ -354,5 +354,13 @@ describe('Send feedback dialog', () => {
       'ariaChecked',
       'true',
     );
+  });
+});
+
+describe('languageName', () => {
+  it('names the language and falls back to the code', () => {
+    expect(languageName('en')).toBe('English');
+    expect(languageName('ms', 'en')).toBe('Malay');
+    expect(languageName('!!')).toBe('!!');
   });
 });

@@ -78,6 +78,15 @@ export function openFeedback(prefill: FeedbackPrefill = {}): void {
 }
 
 /** The part of the app a screen belongs to, so the report starts with the right one. */
+/** "en" → "English" in the UI language; the code itself when the browser cannot name it. */
+export function languageName(code: string, uiLanguage = code): string {
+  try {
+    return new Intl.DisplayNames([uiLanguage], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 export function areaForPath(path: string): FeedbackArea {
   if (path.startsWith('/admin/members/ai') || path.startsWith('/admin/ai')) return 'ai_agent';
   if (path.startsWith('/admin/whatsapp') || path.startsWith('/admin/inboxes'))
@@ -376,7 +385,7 @@ export function FeedbackDialog({
         ['osVersion', server.osVersion],
         ['client', t(`feedback.diagValue.${client}`)],
         ['mode', t(`feedback.diagValue.${server.mode}`)],
-        ['language', i18n.language],
+        ['language', languageName(i18n.language)],
         ['timeZone', Intl.DateTimeFormat().resolvedOptions().timeZone],
         ['screen', screen],
         ['waConnected', t(server.waConnected ? 'feedback.diag.yes' : 'feedback.diag.no')],
