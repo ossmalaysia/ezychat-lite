@@ -230,6 +230,8 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
         "INSERT INTO ai_agents (id, user_id, inbox_id, preset, instructions, created_at, updated_at) VALUES (3, 9, 1, 'sales', 'Sell kopi kindly', ?, ?)",
       )
       .run(at, at);
+    // Release 30 had already moved the member texts into agent rows.
+    old.prepare("INSERT INTO settings (key, value) VALUES ('ai_agents_migrated', 'true')").run();
     old
       .prepare(
         'INSERT INTO sheets_agent_settings (agent_id, settings, updated_at) VALUES (3, ?, ?)',
@@ -259,7 +261,6 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
 
     t = await makeTestApp({ config: { dataDir: dir } });
     const db = t.ctx.db;
-    console.log('DBG', db.prepare('SELECT id, user_id, instructions FROM ai_agents').all(), db.prepare("SELECT * FROM audit_log WHERE action LIKE 'google%'").all(), db.prepare("SELECT agent_id, via, substr(content,1,30) c, reason FROM ai_setup_versions").all());
     expect(db.prepare('SELECT tab, message_id, values_hash FROM sheets_leads').all()).toEqual([
       { tab: null, message_id: null, values_hash: null },
     ]);

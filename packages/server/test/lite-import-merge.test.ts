@@ -481,8 +481,14 @@ describe('mergeLiteInbox', () => {
     const db = open(t.dir);
     try {
       expect(db.prepare('SELECT COUNT(*) AS n FROM sheets_agent_settings').get()).toEqual({ n: 1 });
-      expect(db.prepare('SELECT chat_jid FROM sheets_leads').get()).toEqual({
+      expect(
+        db.prepare('SELECT chat_jid, tab, message_id, values_hash FROM sheets_leads').get(),
+      ).toEqual({
         chat_jid: `${LITE_CHAT}#3`,
+        tab: 'Leads',
+        // The duplicate guard keeps pointing at the same message under its new key.
+        message_id: 'M1#3',
+        values_hash: 'h1',
       });
       // The Calendar sign-in differs (none): its settings stay behind.
       expect(db.prepare('SELECT COUNT(*) AS n FROM calendar_agent_settings').get()).toEqual({

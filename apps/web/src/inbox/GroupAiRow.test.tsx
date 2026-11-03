@@ -191,4 +191,108 @@ describe('Group info → AI agent row', () => {
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(container.textContent).toBe('');
   });
+
+  it('hides the agent choice with one group agent and sends it when switching on', async () => {
+    const calls = stubServer(
+      state({ agentId: null, agentName: null, agents: [{ id: 7, name: 'Claims agent' }] }),
+    );
+    renderRow(true);
+    const sw = await screen.findByRole('switch', { name: TITLE });
+    expect(screen.queryByTestId('group-ai-agent')).toBeNull();
+    expect(
+      screen.getByText(
+        'Claims agent answers only when a member @mentions your number or quotes an AI message.',
+      ),
+    ).toBeTruthy();
+    await userEvent.setup().click(sw);
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ enabled: true, agentId: 7 });
+  });
+
+  it('asks for an agent first with 2+ group agents, then switches on with the chosen one', async () => {
+    const calls = stubServer(state({ agentId: null, agentName: null, agents: TWO }));
+    renderRow(true);
+    const sw = await screen.findByRole('switch', { name: TITLE });
+    expect(sw.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Choose the AI agent for this group, then switch it on.')).toBeTruthy();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }));
+    await user.click(await screen.findByRole('option', { name: 'Claims agent' }));
+    // Choosing while off saves nothing yet.
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    expect(sw.hasAttribute('disabled')).toBe(false);
+    await user.click(sw);
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ enabled: true, agentId: 7 });
+    expect(screen.getByRole('combobox', { name: 'Agent' }).textContent).toBe('Claims agent');
+  });
+
+  it('moves a switched-on group to another agent at once', async () => {
+    const calls = stubServer(state({ enabled: true, agents: TWO }));
+    renderRow(true);
+    const user = userEvent.setup();
+    const select = await screen.findByRole('combobox', { name: 'Agent' });
+    expect(select.textContent).toBe('Aina');
+    await user.click(select);
+    await user.click(await screen.findByRole('option', { name: 'Claims agent' }));
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+        { enabled: true, agentId: 7 },
+      ]),
+    );
+  });
+
+  it('switches Reads every message for the group with its agent, and explains it', async () => {
+    const calls = stubServer(state({ enabled: true }));
+    renderRow(true);
+    const listen = await screen.findByRole('switch', { name: 'Reads every message' });
+    expect(listen.getAttribute('aria-checked')).toBe('false');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'What is Reads every message?' }));
+    expect(await screen.findByText(/The agent sees every member message/)).toBeTruthy();
+    await user.click(listen);
+    await waitFor(() => expect(listen.getAttribute('aria-checked')).toBe('true'));
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+      enabled: true,
+      agentId: 3,
+      listen: true,
+    });
+    expect(
+      screen.getByText('Aina reads every member message and follows its instructions.'),
+    ).toBeTruthy();
+  });
+
+  it('hides Reads every message while the group is off and from agents', async () => {
+    stubServer(state());
+    renderRow(true);
+    await screen.findByRole('switch', { name: TITLE });
+    expect(screen.queryByTestId('group-ai-listen')).toBeNull();
+    cleanup();
+    stubServer(state({ enabled: true, listen: true, agents: TWO }));
+    renderRow(false);
+    expect(
+      await screen.findByText('Aina reads every member message and follows its instructions.'),
+    ).toBeTruthy();
+    expect(screen.queryByTestId('group-ai-listen')).toBeNull();
+    expect(screen.queryByTestId('group-ai-agent')).toBeNull();
+  });
+});
+
+describe('GroupAiBadge', () => {
+  it('shows only while the AI answers the group, and says when it is paused', () => {
+    const { rerender, container } = render(<GroupAiBadge ai={state({ enabled: true })} />);
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe(
+      'AI answers when tagged or quoted',
+    );
+    rerender(<GroupAiBadge ai={state({ enabled: true, listen: true })} />);
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI reads every message');
+    rerender(<GroupAiBadge ai={state({ enabled: true, paused: true })} />);
+    expect(screen.getByTestId('group-ai-badge').textContent).toBe('AI paused');
+    rerender(<GroupAiBadge ai={state({ enabled: true, agentAnswersGroups: false })} />);
+    expect(container.textContent).toBe('');
+    rerender(<GroupAiBadge ai={state()} />);
+    expect(container.textContent).toBe('');
+    rerender(<GroupAiBadge ai={null} />);
+    expect(container.textContent).toBe('');
+  });
 });
