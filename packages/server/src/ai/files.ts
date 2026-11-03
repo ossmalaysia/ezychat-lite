@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { constants, inflateSync } from 'node:zlib';
 import { fileTypeFromFile } from 'file-type';
 import type { Message } from '@ezychat/shared';
@@ -92,7 +92,8 @@ export async function collectPromptFiles(
       continue;
     }
     // Imported history media stays pending until someone opens it: never wait for it.
-    if (deps.mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS) continue;
+    if (deps.mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS)
+      continue;
     const full = (kind: 'image' | 'pdf') =>
       kind === 'image' ? images.length >= maxImages : pdfs.length >= maxPdfs;
     // A photo over the limit is not waited for; a document may still turn out to be either kind.
@@ -111,7 +112,12 @@ export async function collectPromptFiles(
     } else if (full('pdf')) {
       skipped.push({ messageId: message.id, reason: 'limit', kind: 'PDF' });
     } else {
-      pdfs.push({ name: pdfName(message.mediaName), base64: '', pages: read.pages, buffer: read.buffer });
+      pdfs.push({
+        name: pdfName(message.mediaName),
+        base64: '',
+        pages: read.pages,
+        buffer: read.buffer,
+      });
     }
   }
   const extract = options.extractText ?? defaultExtractText;
@@ -166,8 +172,15 @@ export async function readPromptFile(path: string): Promise<ReadFile> {
   return { kind: 'pdf', buffer, pages };
 }
 
+/** The first bytes only: a large file of another type is never read in full. */
 function readHead(path: string, size: number): Buffer {
-  return readFileSync(path).subarray(0, Math.min(size, 16));
+  const head = Buffer.alloc(Math.min(size, 16));
+  const fd = openSync(path, 'r');
+  try {
+    return head.subarray(0, readSync(fd, head, 0, head.length, 0));
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** The whole file, or null when it grew past the bound or cannot be read. */
@@ -220,7 +233,10 @@ async function documentKind(path: string): Promise<string> {
 /** The file name the model sees (the sheet's Source column uses it): one plain line, bounded. */
 export function pdfName(name: string | null | undefined): string {
   // eslint-disable-next-line no-control-regex
-  const clean = (name ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 120);
+  const clean = (name ?? '')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .trim()
+    .slice(0, 120);
   return clean || 'document.pdf';
 }
 
@@ -339,12 +355,11 @@ export function skippedFilesNote(skipped: readonly SkippedFile[]): string | null
   const of = (reason: SkippedFileReason) => skipped.filter((file) => file.reason === reason);
   const types = of('type');
   if (types.length) {
-    const kinds = KIND_ORDER.filter((kind) => types.some((file) => (file.kind ?? 'file') === kind));
-    const named = kinds.filter((kind) => kind !== 'file');
-    const label = named.length ? named.join(', ') : 'a type';
-    lines.push(
-      `The person sent a file the AI cannot open (${label === 'a type' ? 'not a photo or PDF' : label}). Ask for a PDF or a photo.`,
+    const named = KIND_ORDER.filter(
+      (kind) => kind !== 'file' && types.some((file) => file.kind === kind),
     );
+    const label = named.length ? named.join(', ') : 'not a photo or PDF';
+    lines.push(`The person sent a file the AI cannot open (${label}). Ask for a PDF or a photo.`);
   }
   if (of('size').length) {
     lines.push('The person sent a file too large to read. Ask for a smaller PDF or a photo.');
