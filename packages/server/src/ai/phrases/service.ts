@@ -10,7 +10,6 @@ import type {
 import type { AppContext } from '../../context.js';
 import { audit } from '../../db/audit.js';
 import { HttpError, errors } from '../../http/errors.js';
-import { inboxOfKey } from '../../inboxes/keys.js';
 import { errorNameOf } from '../agent/models.js';
 import { agentById, defaultAgent, listAgents, type AgentRow } from '../agents.js';
 import { chatAgent } from '../groups.js';
