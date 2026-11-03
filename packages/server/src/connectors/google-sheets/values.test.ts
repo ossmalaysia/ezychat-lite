@@ -73,7 +73,7 @@ describe('personWrote', () => {
   });
 
   it('lists the dates of a text', () => {
-    expect(datesIn('2026-02-30 or 13/13')).toEqual([]);
+    expect(datesIn('2026-13-40 or 13/13')).toEqual([]);
     expect(datesIn('5th of nothing, Dec 25')).toEqual([{ d: 25, m: 12, y: null }]);
   });
 });

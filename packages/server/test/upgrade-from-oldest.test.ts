@@ -214,4 +214,63 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     ).json() as { chat: { inboxId: number; waJid: string } };
     expect(chat.chat).toMatchObject({ inboxId: 1, waJid: OTHER });
   });
+  // ── Google Sheets (031 + start-up upgrade): older lead settings become tab access ──────────
+  it('031 keeps Google Sheets history and turns Add leads into tab access and one instruction line', async () => {
+    dir = oldestDataDir();
+    const old = new Database(join(dir, 'app.db'));
+    migrate(old, 30);
+    const at = 1_700_000_000_000;
+    old
+      .prepare(
+        "INSERT INTO users (id, username, display_name, password_hash, role, kind, created_at) VALUES (9, 'ai-s', 'Kopi Bot', '', 'agent', 'ai', ?)",
+      )
+      .run(at);
+    old
+      .prepare(
+        "INSERT INTO ai_agents (id, user_id, inbox_id, preset, instructions, created_at, updated_at) VALUES (3, 9, 1, 'sales', 'Sell kopi kindly', ?, ?)",
+      )
+      .run(at, at);
+    old
+      .prepare(
+        'INSERT INTO sheets_agent_settings (agent_id, settings, updated_at) VALUES (3, ?, ?)',
+      )
+      .run(
+        JSON.stringify({
+          spreadsheetId: 'demo-price-list-0000000000000000000',
+          spreadsheetName: 'Prices',
+          lookupTab: 'Prices',
+          lookup: true,
+          leadsTab: 'Leads',
+          addLeads: true,
+        }),
+        at,
+      );
+    old
+      .prepare(
+        "INSERT INTO sheets_leads (agent_id, chat_jid, spreadsheet_id, created_at) VALUES (3, ?, 'demo-price-list-0000000000000000000', ?)",
+      )
+      .run(CUSTOMER, at);
+    old
+      .prepare(
+        "INSERT INTO sheets_activity (kind, agent_id, chat_jid, at) VALUES ('lead_added', 3, ?, ?)",
+      )
+      .run(CUSTOMER, at);
+    old.close();
+
+    t = await makeTestApp({ config: { dataDir: dir } });
+    const db = t.ctx.db;
+    expect(db.prepare('SELECT tab, message_id, values_hash FROM sheets_leads').all()).toEqual([
+      { tab: null, message_id: null, values_hash: null },
+    ]);
+    expect(t.ctx.services.googleSheets!.activity()).toMatchObject([
+      { kind: 'lead_added', agentId: 3, tab: null, group: null },
+    ]);
+    expect(t.ctx.services.googleSheets!.getSettings(3).tabs).toEqual([
+      { title: 'Prices', access: 'read' },
+      { title: 'Leads', access: 'add' },
+    ]);
+    expect(listAgents(db).find((a) => a.id === 3)!.instructions).toBe(
+      'Sell kopi kindly\n\nAdd customers who want to buy as a new row to the tab "Leads".',
+    );
+  });
 });

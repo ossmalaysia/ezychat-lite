@@ -159,11 +159,8 @@ describe('Google Sheets: Settings', () => {
     expect(within(leadColumns).getByText('Email').hasAttribute('data-auto')).toBe(false);
     // A tab with an empty first row can only stay Off.
     const notes = screen.getByRole('radiogroup', { name: 'Notes' });
-    expect(
-      within(notes)
-        .getAllByRole('radio')
-        .map((r) => r.textContent),
-    ).toEqual(['Off']);
+    expect(within(notes).getAllByRole('radio')).toHaveLength(1);
+    expect(within(notes).getByRole('radio', { name: 'Off' })).toBeTruthy();
     expect(
       screen.getByText('Add column names in the first row of this tab before the AI can use it.'),
     ).toBeTruthy();
