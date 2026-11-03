@@ -453,8 +453,12 @@ export function setAgentGroupChats(
     return { jid, name: chat.name, row: groupChatRow(ctx.db, jid) };
   });
   const changes = ctx.db.transaction(() => {
-    const out: Array<{ jid: string; name: string | null; before: GroupChatRow; after: GroupChatRow }> =
-      [];
+    const out: Array<{
+      jid: string;
+      name: string | null;
+      before: GroupChatRow;
+      after: GroupChatRow;
+    }> = [];
     for (const { jid, name, row } of groups) {
       const owner = groupOwner(ctx, jid, row);
       const own = owner?.id === agent.id;
@@ -471,7 +475,11 @@ export function setAgentGroupChats(
         if (!own) continue;
         after = { enabled: false, agentId: null, listen: false };
       }
-      if (after.enabled === row.enabled && after.agentId === row.agentId && after.listen === row.listen)
+      if (
+        after.enabled === row.enabled &&
+        after.agentId === row.agentId &&
+        after.listen === row.listen
+      )
         continue;
       writeGroupRow(ctx.db, jid, after, actor.userId);
       out.push({ jid, name, before: row, after });

@@ -32,14 +32,20 @@ export function answersDirect(ctx: AppContext, agent: AgentRow): boolean {
  */
 export function directAgentOf(ctx: AppContext, inboxId: number): AgentRow | null {
   const agents = agentsForInbox(ctx.db, inboxId);
-  return agents.find((agent) => agent.answerDirect) ?? agents.find((a) => answersDirect(ctx, a)) ?? null;
+  return (
+    agents.find((agent) => agent.answerDirect) ?? agents.find((a) => answersDirect(ctx, a)) ?? null
+  );
 }
 
 /**
  * A second agent that would answer direct chats in this inbox: on an inbox without groups every
  * agent does (its switch does not count there), so only one agent fits such an inbox.
  */
-export function directSlotTaken(ctx: AppContext, inboxId: number | null, agentId: number | null): boolean {
+export function directSlotTaken(
+  ctx: AppContext,
+  inboxId: number | null,
+  agentId: number | null,
+): boolean {
   if (inboxId === null || inboxHasGroups(ctx, inboxId)) return false;
   return agentsForInbox(ctx.db, inboxId).some((agent) => agent.id !== agentId);
 }

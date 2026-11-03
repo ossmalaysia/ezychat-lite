@@ -33,10 +33,7 @@ export interface AgentRow {
 }
 
 export type AgentErrorCode =
-  | 'agent_limit'
-  | 'inbox_has_direct_agent'
-  | 'agent_not_found'
-  | 'internal_too_large';
+  'agent_limit' | 'inbox_has_direct_agent' | 'agent_not_found' | 'internal_too_large';
 
 export class AgentError extends Error {
   constructor(readonly code: AgentErrorCode) {
@@ -138,7 +135,11 @@ export function defaultAgent(db: DB): AgentRow | null {
 }
 
 /** Another agent of this inbox has "Answer direct chats" on (at most one per inbox may). */
-export function inboxHasDirectAgent(db: DB, inboxId: number | null, agentId: number | null): boolean {
+export function inboxHasDirectAgent(
+  db: DB,
+  inboxId: number | null,
+  agentId: number | null,
+): boolean {
   if (inboxId === null) return false;
   return !!db
     .prepare('SELECT 1 FROM ai_agents WHERE inbox_id = ? AND answer_direct = 1 AND id IS NOT ?')

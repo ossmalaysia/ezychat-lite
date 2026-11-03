@@ -17,6 +17,7 @@ import {
   setGroupChat,
 } from '../src/ai/groups.js';
 import { LISTEN_SITUATION } from '../src/ai/prompt.js';
+import type * as TurnTools from '../src/ai/agent/turn-tools.js';
 import type { AiPrompt, AiProvider } from '../src/ai/provider-types.js';
 import { AI_GROUP_LISTEN_WINDOW_MS, createAiService } from '../src/ai/service.js';
 import type { AppContext } from '../src/context.js';
@@ -28,7 +29,7 @@ import { makeTestApp, type TestApp } from './helpers.js';
 /** Every `agentTurnTools` call's options (the real tools still run). */
 const turnOptions = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 vi.mock('../src/ai/agent/turn-tools.js', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../src/ai/agent/turn-tools.js')>();
+  const real = await importOriginal<typeof TurnTools>();
   return {
     ...real,
     agentTurnTools: (async (...args: Parameters<typeof real.agentTurnTools>) => {
@@ -117,14 +118,28 @@ async function setUp(opts: { maxAgents?: number } = {}) {
 function addClaims(): AgentRow {
   const ai = t.ctx.services.ai!;
   const created = ai.createAgent(claimsBody, actor);
-  ai.addText(created.agent.id, { name: 'Claims', text: 'A claim has a number and an amount.' }, actor);
+  ai.addText(
+    created.agent.id,
+    { name: 'Claims', text: 'A claim has a number and an amount.' },
+    actor,
+  );
   const { inboxId: _inbox, ...saved } = claimsBody;
   ai.saveAgent(created.agent.id, { ...saved, enabled: true }, actor);
   setAgentGroups(t.ctx, created.agent.id, true, actor);
   return agentById(t.ctx.db, created.agent.id)!;
 }
 
-async function inGroup(body: string, o: { from?: string; name?: string; source?: 'live' | 'history'; mentions?: string[]; fromMe?: boolean; chatJid?: string } = {}) {
+async function inGroup(
+  body: string,
+  o: {
+    from?: string;
+    name?: string;
+    source?: 'live' | 'history';
+    mentions?: string[];
+    fromMe?: boolean;
+    chatJid?: string;
+  } = {},
+) {
   const id = `m-${++seq}`;
   await getMessages(t.ctx).ingest(
     {
@@ -221,7 +236,13 @@ describe('groups given to agents', { timeout: 30_000 }, () => {
     });
     expect(given.statusCode, given.body).toBe(200);
     expect(given.json().groups).toEqual([
-      expect.objectContaining({ jid: G, enabled: true, agentId: claims.id, agentName: 'Claims', listen: true }),
+      expect.objectContaining({
+        jid: G,
+        enabled: true,
+        agentId: claims.id,
+        agentName: 'Claims',
+        listen: true,
+      }),
       expect.objectContaining({ jid: G2, enabled: true, agentId: claims.id, listen: true }),
     ]);
     // the same again changes nothing; without listen a group keeps its own setting
@@ -243,7 +264,9 @@ describe('groups given to agents', { timeout: 30_000 }, () => {
     const bad = await call('PUT', url(claims.id), admin.cookie, { jids: [], enabled: true });
     expect(bad.statusCode).toBe(400);
     const agent = await createUserAndLogin(t, { role: 'agent' });
-    expect((await call('PUT', url(claims.id), agent.cookie, { jids: [G], enabled: true })).statusCode).toBe(403);
+    expect(
+      (await call('PUT', url(claims.id), agent.cookie, { jids: [G], enabled: true })).statusCode,
+    ).toBe(403);
 
     const back = await call('PUT', url(claims.id), admin.cookie, { jids: [G2], enabled: false });
     expect(back.json().groups.find((g: { jid: string }) => g.jid === G2)).toMatchObject({
@@ -351,7 +374,9 @@ describe('groups given to agents', { timeout: 30_000 }, () => {
     // a direct chat is never assigned to a group-only agent, a group agent of its own inbox may be
     const patch = (jid: string, userId: number) => () =>
       getChats(t.ctx).patch(jid, { assignedTo: userId }, actor.userId);
-    expect(patch(DM, claims.userId)).toThrow(expect.objectContaining({ code: 'agent_no_direct_chats' }));
+    expect(patch(DM, claims.userId)).toThrow(
+      expect.objectContaining({ code: 'agent_no_direct_chats' }),
+    );
   });
 });
 
@@ -486,7 +511,9 @@ describe('releasing groups', { timeout: 30_000 }, () => {
     expect(backfillGroupAgents(t.ctx.db)).toBe(0);
     // with two agents on the number nobody is chosen for the admin
     addClaims();
-    t.ctx.db.prepare('INSERT INTO ai_group_chats (chat_jid, enabled, updated_at) VALUES (?, 1, 0)').run(G2);
+    t.ctx.db
+      .prepare('INSERT INTO ai_group_chats (chat_jid, enabled, updated_at) VALUES (?, 1, 0)')
+      .run(G2);
     expect(backfillGroupAgents(t.ctx.db)).toBe(0);
     expect(groupChatRow(t.ctx.db, G2).agentId).toBeNull();
   });

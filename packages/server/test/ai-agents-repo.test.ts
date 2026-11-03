@@ -230,13 +230,15 @@ describe('agents repo', { timeout: 30_000 }, () => {
     expect(agentForInbox(db, 1)?.id).toBe(second.id);
   });
 
-  it('releases an agent\'s groups when it moves, its groups go off or it is deleted', () => {
+  it("releases an agent's groups when it moves, its groups go off or it is deleted", () => {
     const { db } = upgradedWithMember();
     addInbox(db, 2);
     const agent = listAgents(db)[0]!;
     const row = (jid: string) =>
       db
-        .prepare('SELECT enabled, agent_id AS agentId, listen FROM ai_group_chats WHERE chat_jid = ?')
+        .prepare(
+          'SELECT enabled, agent_id AS agentId, listen FROM ai_group_chats WHERE chat_jid = ?',
+        )
         .get(jid);
     const give = (jid: string) =>
       db

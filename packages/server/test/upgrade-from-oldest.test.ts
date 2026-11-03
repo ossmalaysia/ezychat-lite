@@ -329,7 +329,9 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     ]);
     expect(
       db
-        .prepare('SELECT chat_jid AS jid, agent_id AS agentId, listen FROM ai_group_chats ORDER BY chat_jid')
+        .prepare(
+          'SELECT chat_jid AS jid, agent_id AS agentId, listen FROM ai_group_chats ORDER BY chat_jid',
+        )
         .all(),
     ).toEqual([
       { jid: GROUP, agentId: 4, listen: 0 },

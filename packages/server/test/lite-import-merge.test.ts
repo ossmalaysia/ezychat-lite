@@ -724,7 +724,9 @@ describe('mergeLiteInbox refusals and rollback', () => {
       db.exec(`ALTER TABLE messages DROP COLUMN ${column}`);
     // and 032 (group agents: its index and ai_group_chats columns; the agents table rebuild reruns)
     db.exec('DROP INDEX idx_ai_group_chats_agent; DROP INDEX idx_ai_agents_inbox;');
-    db.exec('ALTER TABLE ai_group_chats DROP COLUMN listen; ALTER TABLE ai_group_chats DROP COLUMN agent_id;');
+    db.exec(
+      'ALTER TABLE ai_group_chats DROP COLUMN listen; ALTER TABLE ai_group_chats DROP COLUMN agent_id;',
+    );
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

@@ -52,7 +52,6 @@ import {
   agentById,
   agentByUserId,
   agentForInbox,
-  agentsForInbox,
   createAgentRow,
   defaultAgent,
   deleteAgentRow,
@@ -1697,8 +1696,7 @@ export function createAiService(
           files = await batchFiles(batch, agent.id, controller.signal);
         if (!owned()) return;
         const pdfGiven = document && files.pdfs.length > 0;
-        const readable =
-          customer.type === 'text' || customer.type === 'image' || voice || pdfGiven;
+        const readable = customer.type === 'text' || customer.type === 'image' || voice || pdfGiven;
         const understood =
           !!customer.body?.trim() ||
           (customer.type === 'image' && files.images.length > 0) ||
