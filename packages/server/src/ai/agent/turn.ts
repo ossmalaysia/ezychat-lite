@@ -1,7 +1,13 @@
 import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { AI_MODEL_HANDOFF_REASONS, AiDecision, AiDecisionAction } from '@ezychat/shared';
-import { AI_IMAGE_DETAIL, type AgentTurnTiming, type AiPrompt } from '../provider-types.js';
+import {
+  AI_IMAGE_DETAIL,
+  pdfTextLayer,
+  type AgentTurnTiming,
+  type AiPdfInput,
+  type AiPrompt,
+} from '../provider-types.js';
 import { toWhatsAppText } from '../whatsapp-format.js';
 import { isMalformedAnswer } from './models.js';
 
@@ -17,7 +23,12 @@ const DecisionOutput = z.object({
 
 export interface AgentTurn {
   model: LanguageModel;
-  prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images'>;
+  prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images' | 'pdfs'>;
+  /**
+   * How this provider mode takes the prompt's PDFs: `file` (default; OpenAI API key and Claude) or
+   * `text` (the ChatGPT sign-in backend gets only their text layer).
+   */
+  pdfInput?: AiPdfInput;
   /** Read tools already bound to this chat by the server (see `agent/tools.ts`); none is fine. */
   tools?: ToolSet;
   signal: AbortSignal;
@@ -49,6 +60,34 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
   }
 }
 
+/**
+ * The user message: the input JSON, then the images, then the PDFs as files (`file`) or as one
+ * text part with their text layer (`text`). Without images and PDFs it is the input text alone.
+ */
+export function userContent(prompt: AgentTurn['prompt'], pdfInput: AiPdfInput) {
+  const pdfs = prompt.pdfs ?? [];
+  const pdfText = pdfInput === 'text' ? pdfTextLayer(pdfs) : null;
+  return [
+    { type: 'text' as const, text: prompt.input },
+    ...(prompt.images ?? []).map((image) => ({
+      type: 'image' as const,
+      image: image.base64,
+      mediaType: image.mime,
+      providerOptions: { openai: { imageDetail: AI_IMAGE_DETAIL } },
+    })),
+    ...(pdfInput === 'file'
+      ? pdfs.map((pdf) => ({
+          type: 'file' as const,
+          data: pdf.base64,
+          mediaType: 'application/pdf',
+          filename: pdf.name,
+        }))
+      : pdfText
+        ? [{ type: 'text' as const, text: pdfText }]
+        : []),
+  ];
+}
+
 async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnResult> {
   turn.signal.throwIfAborted();
   const started = Date.now();
@@ -60,15 +99,7 @@ async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnR
     messages: [
       {
         role: 'user',
-        content: [
-          { type: 'text', text: turn.prompt.input },
-          ...(turn.prompt.images ?? []).map((image) => ({
-            type: 'image' as const,
-            image: image.base64,
-            mediaType: image.mime,
-            providerOptions: { openai: { imageDetail: AI_IMAGE_DETAIL } },
-          })),
-        ],
+        content: userContent(turn.prompt, turn.pdfInput ?? 'file'),
       },
     ],
     tools: turn.tools ?? {},
