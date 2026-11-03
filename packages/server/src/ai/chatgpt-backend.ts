@@ -69,7 +69,11 @@ export function responsesBody(request: ResponsesRequest, sessionId: string) {
     model: request.model,
     instructions: request.instructions,
     input: [
-      { type: 'message', role: 'user', content: userMessageContent(request.input, request.images, request.pdfs) },
+      {
+        type: 'message',
+        role: 'user',
+        content: userMessageContent(request.input, request.images, request.pdfs),
+      },
     ],
     store: false,
     stream: true,

@@ -260,9 +260,9 @@ async function documentKind(path: string): Promise<string> {
 
 /** The file name the model sees (the sheet's Source column uses it): one plain line, bounded. */
 export function pdfName(name: string | null | undefined): string {
-  // eslint-disable-next-line no-control-regex
-  const clean = (name ?? '')
-    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+  const isControl = (char: string) => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f;
+  const clean = Array.from(name ?? '', (char) => (isControl(char) ? ' ' : char))
+    .join('')
     .trim()
     .slice(0, 120);
   return clean || 'document.pdf';

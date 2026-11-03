@@ -88,9 +88,7 @@ export function AgentDirectCard({
 
         {taken && (
           <p className="text-sm text-danger" role="alert" data-testid="direct-taken">
-            {other
-              ? t('aiDirect.taken', { other, inbox })
-              : t('aiDirect.takenUnknown', { inbox })}
+            {other ? t('aiDirect.taken', { other, inbox }) : t('aiDirect.takenUnknown', { inbox })}
           </p>
         )}
 

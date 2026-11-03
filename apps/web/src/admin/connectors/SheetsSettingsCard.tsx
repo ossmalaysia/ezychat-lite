@@ -348,7 +348,11 @@ export function SheetsSettingsCard({
                       onClick={reload}
                       data-testid="sheets-refresh"
                     >
-                      {reading ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
+                      {reading ? (
+                        <Loader2 className="animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw aria-hidden />
+                      )}
                       {t('connectors.sheets.refresh')}
                     </Button>
                   </div>

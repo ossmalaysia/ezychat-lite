@@ -92,7 +92,9 @@ export function AgentGroupsCard({
                   checked={on}
                   disabled={setAgent.isPending}
                   onCheckedChange={(enabled) =>
-                    setAgent.mutate(enabled, { onError: () => toast.error(t('aiGroups.saveFailed')) })
+                    setAgent.mutate(enabled, {
+                      onError: () => toast.error(t('aiGroups.saveFailed')),
+                    })
                   }
                 />
               </Label>
@@ -332,17 +334,15 @@ function AddGroupsDialog({
           </>
         )}
         <div className="flex min-h-11 items-center gap-3 border-t pt-3">
-          <Checkbox
-            id={listenId}
-            checked={listen}
-            onCheckedChange={(v) => setListen(v === true)}
-          />
+          <Checkbox id={listenId} checked={listen} onCheckedChange={(v) => setListen(v === true)} />
           <Label htmlFor={listenId} className="font-normal">
             {t('aiGroups.add.listen')}
           </Label>
         </div>
         {save.error && (
-          <Banner tone="danger">{taken ? t('aiGroups.add.taken') : errorMessage(save.error)}</Banner>
+          <Banner tone="danger">
+            {taken ? t('aiGroups.add.taken') : errorMessage(save.error)}
+          </Banner>
         )}
       </div>
     </ResponsiveDialog>
@@ -373,7 +373,10 @@ function AddGroupRow({
       />
       <Label
         htmlFor={id}
-        className={cn('flex min-w-0 flex-col items-start gap-0.5 font-normal', held && 'opacity-60')}
+        className={cn(
+          'flex min-w-0 flex-col items-start gap-0.5 font-normal',
+          held && 'opacity-60',
+        )}
       >
         <span className="[overflow-wrap:anywhere]">{g.name}</span>
         {detail && <span className="text-xs text-muted-foreground">{detail}</span>}

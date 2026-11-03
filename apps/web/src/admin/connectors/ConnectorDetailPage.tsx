@@ -325,7 +325,12 @@ function SheetsActivityList() {
       />
     );
   const line = (r: SheetsActivity) => {
-    const names = { agent: r.agentName, customer: r.customer, tab: r.tab ?? '', group: r.group ?? '' };
+    const names = {
+      agent: r.agentName,
+      customer: r.customer,
+      tab: r.tab ?? '',
+      group: r.group ?? '',
+    };
     if (r.kind === 'row_added' && r.group) return t('connectors.sheetsAct.row_addedGroup', names);
     if (r.kind === 'looked_up' && r.tab) return t('connectors.sheetsAct.looked_upTab', names);
     return t(`connectors.sheetsAct.${r.kind}`, names);

@@ -1,8 +1,4 @@
-import {
-  SHEETS_AUTO_COLUMNS,
-  type SheetTabSetting,
-  type SpreadsheetInfo,
-} from '@ezychat/shared';
+import { SHEETS_AUTO_COLUMNS, type SheetTabSetting, type SpreadsheetInfo } from '@ezychat/shared';
 
 /** Column names are matched ignoring case and spacing (as the server does). */
 export const columnKey = (column: string) => column.toLowerCase().replace(/\s+/g, '');
