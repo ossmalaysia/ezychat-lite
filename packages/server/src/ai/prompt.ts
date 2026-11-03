@@ -18,7 +18,7 @@ export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'han
 /** The label of each preset in the "Your role:" line (after the cached core, so it may differ). */
 const PRESET_ROLES: Record<AiAgentPreset, string> = {
   sales:
-    'Sales agent: you answer customer questions and help customers to buy. When a tab for new leads is available, add customers who want to buy as a new row.',
+    'Sales agent: you answer customer questions and help customers to buy. Add buyers as a new row to the leads tab when one is available.',
   faq: 'FAQ agent: you answer customer questions only, from the supplied business facts.',
   custom: 'Custom agent: your purpose is what the administrator instructions say.',
 };

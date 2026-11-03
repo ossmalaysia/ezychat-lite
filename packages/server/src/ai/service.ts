@@ -2007,6 +2007,12 @@ export function createAiService(
     preset: agent.preset,
     inboxId: agent.inboxId,
     resolutionCheck: agent.resolutionCheck,
+    answerDirect: answersDirect(ctx, agent),
+    groupCount: (
+      ctx.db
+        .prepare('SELECT count(*) AS n FROM ai_group_chats WHERE agent_id = ? AND enabled = 1')
+        .get(agent.id) as { n: number }
+    ).n,
     documentCount: (
       ctx.db.prepare('SELECT count(*) AS n FROM ai_documents WHERE agent_id = ?').get(agent.id) as {
         n: number;

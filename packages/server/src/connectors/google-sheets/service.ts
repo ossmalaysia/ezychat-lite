@@ -8,6 +8,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import {
+  SHEETS_LEAD_COLUMNS,
   SheetsAgentSettings,
   googleSheetUrl,
   spreadsheetIdFromLink,
@@ -41,7 +42,7 @@ import {
   type ActivityInput,
   type SheetRowKey,
 } from './repo.js';
-import { upgradeSheetsSettings } from './upgrade.js';
+import { legacyLeadsTabOf, upgradeSheetsSettings } from './upgrade.js';
 import { autoColumn, columnKey, headerColumns, matchColumns, personWrote } from './values.js';
 import {
   SHEETS_ENDPOINTS,
@@ -504,6 +505,11 @@ export function createGoogleSheetsService(
       addActivity(ctx.db, row, now());
     },
 
+    /** The agent's older leads tab (it may still be empty; see upgrade.ts), else null. */
+    legacyLeadsTab(agentId: number): string | null {
+      return legacyLeadsTabOf(ctx, agentId);
+    },
+
     /** The group's name when `chatJid` is a group, else null (Activity shows it). */
     groupName(chatJid: string | null): string | null {
       if (!chatJid) return null;
@@ -541,8 +547,10 @@ export function createGoogleSheetsService(
         usable?.addTabs.find((title) => title === input.tab) ??
         usable?.addTabs.find((title) => columnKey(title) === columnKey(input.tab));
       if (!usable || !tab) return { ok: false, reason: 'not_allowed', tabs: usable?.addTabs ?? [] };
-      const header =
-        (await tabColumns(agentId, usable.spreadsheetId, [tab], signal)).get(tab) ?? [];
+      let header = (await tabColumns(agentId, usable.spreadsheetId, [tab], signal)).get(tab) ?? [];
+      // An older leads tab still empty: the lead header goes in with the first row, as before.
+      const writeHeader = !header.some(Boolean) && service.legacyLeadsTab(agentId) === tab;
+      if (writeHeader) header = [...SHEETS_LEAD_COLUMNS];
       const columns = header.filter(Boolean);
       if (!columns.length) return { ok: false, reason: 'no_columns', tab };
       const given = Object.fromEntries(
@@ -606,8 +614,20 @@ export function createGoogleSheetsService(
 
       adding.add(flight);
       try {
-        await appendWithQuota(usable.spreadsheetId, tab, [row], signal);
+        await appendWithQuota(
+          usable.spreadsheetId,
+          tab,
+          writeHeader ? [header, row] : [row],
+          signal,
+        );
         values.delete(`${usable.spreadsheetId}\n${tab}`);
+        if (writeHeader)
+          remember(
+            columnCache,
+            columnKeyOf(agentId, usable.spreadsheetId, tab),
+            { at: now(), columns: header },
+            MAX_CACHED_COLUMNS,
+          );
         insertRow(ctx.db, { ...key, agentId }, now());
       } finally {
         adding.delete(flight);

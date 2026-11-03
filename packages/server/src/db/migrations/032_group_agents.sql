@@ -4,8 +4,8 @@
 -- answering direct chats, checked by the server). SQLite cannot drop a column constraint in place,
 -- so the table is rebuilt with the same ids. Migrations run with foreign keys on, so dropping the old
 -- table deletes the rows of every table that references it (ON DELETE CASCADE): they are kept in
--- temporary copies and put back unchanged.
--- (items without an agent are not deleted and stay as they are)
+-- temporary copies and put back unchanged (OR IGNORE: rows the drop did not delete, e.g. items
+-- without an agent or a connection with foreign keys off, stay as they are).
 CREATE TEMP TABLE keep_ai_documents AS SELECT * FROM ai_documents WHERE agent_id IS NOT NULL;
 CREATE TEMP TABLE keep_reply_phrases AS SELECT * FROM reply_phrases;
 CREATE TEMP TABLE keep_calendar_agent_settings AS SELECT * FROM calendar_agent_settings;
@@ -34,12 +34,12 @@ DROP TABLE ai_agents;
 ALTER TABLE ai_agents_new RENAME TO ai_agents;
 CREATE INDEX idx_ai_agents_inbox ON ai_agents(inbox_id);
 
-INSERT INTO ai_documents SELECT * FROM temp.keep_ai_documents;
-INSERT INTO reply_phrases SELECT * FROM temp.keep_reply_phrases;
-INSERT INTO calendar_agent_settings SELECT * FROM temp.keep_calendar_agent_settings;
-INSERT INTO calendar_offers SELECT * FROM temp.keep_calendar_offers;
-INSERT INTO connector_agent_settings SELECT * FROM temp.keep_connector_agent_settings;
-INSERT INTO sheets_agent_settings SELECT * FROM temp.keep_sheets_agent_settings;
+INSERT OR IGNORE INTO ai_documents SELECT * FROM temp.keep_ai_documents;
+INSERT OR IGNORE INTO reply_phrases SELECT * FROM temp.keep_reply_phrases;
+INSERT OR IGNORE INTO calendar_agent_settings SELECT * FROM temp.keep_calendar_agent_settings;
+INSERT OR IGNORE INTO calendar_offers SELECT * FROM temp.keep_calendar_offers;
+INSERT OR IGNORE INTO connector_agent_settings SELECT * FROM temp.keep_connector_agent_settings;
+INSERT OR IGNORE INTO sheets_agent_settings SELECT * FROM temp.keep_sheets_agent_settings;
 DROP TABLE temp.keep_ai_documents;
 DROP TABLE temp.keep_reply_phrases;
 DROP TABLE temp.keep_calendar_agent_settings;

@@ -22,6 +22,20 @@ import {
 } from './repo.js';
 
 /** The line an agent that used Add leads gets (the tab name in quotes). */
+/**
+ * Agents whose older Add leads tab may still be empty (`{ [agentId]: tab }`): the old tool wrote
+ * the lead header itself on the first lead, so such a tab keeps getting rows with that header.
+ */
+export const LEGACY_LEADS_SETTING = 'google_sheets_legacy_leads';
+
+/** The older leads tab of this agent, else null. */
+export function legacyLeadsTabOf(ctx: AppContext, agentId: number): string | null {
+  const map = ctx.settings.get<unknown>(LEGACY_LEADS_SETTING, null);
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return null;
+  const tab = (map as Record<string, unknown>)[String(agentId)];
+  return typeof tab === 'string' && tab ? tab : null;
+}
+
 export const leadsInstruction = (tab: string) =>
   `Add customers who want to buy as a new row to the tab "${tab}".`;
 
@@ -72,6 +86,10 @@ export function upgradeSheetsSettings(ctx: AppContext, now = Date.now()): number
           });
           instructionsChanged = true;
         }
+      }
+      if (leadsTab) {
+        const map = ctx.settings.get<Record<string, string> | null>(LEGACY_LEADS_SETTING, null);
+        ctx.settings.set(LEGACY_LEADS_SETTING, { ...(map ?? {}), [row.agentId]: leadsTab });
       }
       writeSettings(ctx.db, row.agentId, settings, now);
     })();

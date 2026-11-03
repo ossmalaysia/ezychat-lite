@@ -1,7 +1,7 @@
 import { tool, type ToolSet } from 'ai';
 import type { Logger } from 'pino';
 import { z } from 'zod';
-import { SHEETS_AUTO_COLUMNS } from '@ezychat/shared';
+import { SHEETS_AUTO_COLUMNS, SHEETS_LEAD_COLUMNS } from '@ezychat/shared';
 import { agentById } from '../../ai/agents.js';
 import type {
   AgentToolInfo,
@@ -109,6 +109,10 @@ export async function sheetsAgentTools(
       'Google Sheets column names not read',
     );
   }
+  // An older leads tab still empty gets the lead header with its first row (as before).
+  const legacyLeads = service.legacyLeadsTab(agentId);
+  if (columns && legacyLeads && !columns.get(legacyLeads)?.some(Boolean))
+    columns.set(legacyLeads, [...SHEETS_LEAD_COLUMNS]);
   // A tab whose first row is empty cannot take rows.
   const addTabs = usable.addTabs.filter((tab) => !columns || columns.get(tab)?.some(Boolean));
 
