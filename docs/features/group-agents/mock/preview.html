@@ -596,6 +596,11 @@
       .menu-btn {
         display: none;
       }
+      .chip.added {
+        outline: 1px dashed var(--note-border);
+        background: var(--note);
+        color: var(--note-foreground);
+      }
       .ctl {
         display: flex;
         align-items: center;
@@ -832,18 +837,23 @@ Ignore greetings and chat that is not a claim.</textarea
               <div class="grow">
                 <div class="t">ABC Insurance – Operations</div>
                 <div class="h">
-                  5 tabs · <a href="#" style="color: var(--primary)">Open in Google Sheets</a>
+                  <span id="tabCount">5 tabs</span> ·
+                  <a href="#" style="color: var(--primary)">Open in Google Sheets</a>
                 </div>
               </div>
               <button class="btn">Choose another sheet</button>
             </div>
 
-            <h2 style="margin-top: 18px">
-              Tabs this agent may use <span class="badge new">New</span>
-            </h2>
+            <div class="row" style="border: 0; padding: 0; margin: 18px 0 0">
+              <h2 style="margin: 0">Tabs this agent may use <span class="badge new">New</span></h2>
+              <div class="ctl">
+                <span class="lbl" id="checked" aria-live="polite">Checked today 10:42</span>
+                <button class="btn" id="refreshTabs">↻ Refresh</button>
+              </div>
+            </div>
             <p class="desc">
               The agent's instructions say when to use them. Column names come from the first row of
-              each tab.
+              each tab. Changed a tab in Google Sheets? Press Refresh.
             </p>
             <div id="tabList"></div>
             <div class="info">
@@ -1115,7 +1125,7 @@ Ignore greetings and chat that is not a claim.</textarea
             (
               t,
               i,
-            ) => `<div class="row"><div class="grow"><div class="t">${t.n}</div>${t.c.length ? `<div class="chips">${t.c.map((c) => `<span class="chip ${AUTO.includes(c) ? 'auto' : ''}">${c}</span>`).join('')}</div>` : ''}
+            ) => `<div class="row"><div class="grow"><div class="t">${t.n}${t.isNew ? ' <span class="badge new">New tab</span>' : ''}${t.changed ? ' <span class="badge new">Columns changed</span>' : ''}</div>${t.c.length ? `<div class="chips">${t.c.map((c) => `<span class="chip ${AUTO.includes(c) ? 'auto' : ''} ${(t.added || []).includes(c) ? 'added' : ''}">${c}</span>`).join('')}</div>` : ''}
   ${!t.c.length ? `<div class="warn">⚠ <span>Add column names in the first row of this tab before the AI can use it.</span></div>` : ''}</div>
   <div class="seg" role="group" aria-label="Access to ${t.n}">${['off', 'read', 'add'].map((a) => `<button aria-pressed="${t.a === a}" data-t="${i}" data-a="${a}" ${!t.c.length && a !== 'off' ? 'disabled' : ''}>${{ off: 'Off', read: 'Read', add: 'Add rows' }[a]}</button>`).join('')}</div></div>`,
           )
@@ -1123,6 +1133,42 @@ Ignore greetings and chat that is not a claim.</textarea
       }
       renderTabs();
       $('#agentSel').onchange = renderTabs;
+      // Refresh: reads the tab names and first rows from Google again (mock: Claims gained "Workshop",
+      // Notes got column names, a new tab "Repairs" appeared and stays Off until an admin turns it on).
+      $('#refreshTabs').onclick = () => {
+        const b = $('#refreshTabs');
+        b.disabled = true;
+        b.textContent = 'Refreshing…';
+        setTimeout(() => {
+          for (const k of Object.keys(tabs)) {
+            const list = tabs[k];
+            const claims = list.find((t) => t.n === 'Claims');
+            if (!claims.c.includes('Workshop')) {
+              claims.c.splice(claims.c.indexOf('Source'), 0, 'Workshop');
+              claims.added = ['Workshop'];
+              claims.changed = true;
+            }
+            const notes = list.find((t) => t.n === 'Notes');
+            if (!notes.c.length) {
+              notes.c = ['Date', 'Group', 'Note'];
+              notes.added = ['Date', 'Group', 'Note'];
+              notes.changed = true;
+            }
+            if (!list.some((t) => t.n === 'Repairs'))
+              list.push({
+                n: 'Repairs',
+                a: 'off',
+                isNew: true,
+                c: ['Date', 'Group', 'Policy no', 'Workshop', 'Status'],
+              });
+          }
+          b.disabled = false;
+          b.textContent = '↻ Refresh';
+          $('#checked').textContent = 'Checked just now · 1 new tab, 2 tabs changed';
+          $('#tabCount').textContent = '6 tabs';
+          renderTabs();
+        }, 600);
+      };
       $('#tabList').addEventListener('click', (e) => {
         const b = e.target.closest('[data-a]');
         if (!b) return;
@@ -1372,20 +1418,18 @@ Ignore greetings and chat that is not a claim.</textarea
         document
           .querySelectorAll('.mockbar [data-go]')
           .forEach((b) => b.setAttribute('aria-pressed', b.dataset.go === id));
-        document
-          .querySelectorAll('nav.side [data-nav]')
-          .forEach((a) =>
-            a.classList.toggle(
-              'active',
-              a.dataset.nav ===
-                {
-                  members: 'members',
-                  agent: 'members',
-                  sheets: 'connectors',
-                  activity: 'connectors',
-                }[id],
-            ),
-          );
+        document.querySelectorAll('nav.side [data-nav]').forEach((a) =>
+          a.classList.toggle(
+            'active',
+            a.dataset.nav ===
+              {
+                members: 'members',
+                agent: 'members',
+                sheets: 'connectors',
+                activity: 'connectors',
+              }[id],
+          ),
+        );
         history.replaceState(null, '', '#' + id);
         window.scrollTo(0, 0);
       }
