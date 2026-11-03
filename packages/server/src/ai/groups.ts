@@ -1,7 +1,9 @@
 import {
   AI_GROUP_LOOP_GUARD,
+  type AiAgentGroupChatsBody,
   type AiAgentGroups,
   type AiGroupChat,
+  type AiGroupChatBody,
   type AiGroupEvent,
   type AiToolUsedPayload,
   type Message,
@@ -15,13 +17,15 @@ import { HttpError, errors } from '../http/errors.js';
 import { inboxOfKey, parseChatKey } from '../inboxes/keys.js';
 import { getChats } from '../wa-bridge/index.js';
 import {
+  AgentError,
   agentById,
   agentForInbox,
+  agentsForInbox,
   setAgentAnswerDirect,
   setAgentAnswerGroups,
   type AgentRow,
 } from './agents.js';
-import { inboxHasGroups } from './direct.js';
+import { directAgentOf, inboxHasGroups } from './direct.js';
 
 /**
  * AI agents in WhatsApp groups (design docs/features/ai-groups/design.md). The switches (the agent's
@@ -100,19 +104,101 @@ export function addressedToAi(
   return null;
 }
 
-/** Whether an admin switched this group on (new groups start off). */
-export function groupEnabled(db: DB, jid: string): boolean {
-  const row = db.prepare('SELECT enabled FROM ai_group_chats WHERE chat_jid = ?').get(jid) as
-    { enabled: number } | undefined;
-  return row?.enabled === 1;
+/** One group's row in `ai_group_chats` (migrations 024, 032); a group without a row is off. */
+export interface GroupChatRow {
+  enabled: boolean;
+  /** The agent the group is given to; null = none. */
+  agentId: number | null;
+  /** "Reads every message". */
+  listen: boolean;
 }
 
-function writeGroupEnabled(db: DB, jid: string, enabled: boolean, userId: number) {
+export function groupChatRow(db: DB, jid: string): GroupChatRow {
+  const row = db
+    .prepare('SELECT enabled, agent_id AS agentId, listen FROM ai_group_chats WHERE chat_jid = ?')
+    .get(jid) as { enabled: number; agentId: number | null; listen: number } | undefined;
+  return {
+    enabled: row?.enabled === 1,
+    agentId: row?.agentId ?? null,
+    listen: row?.listen === 1,
+  };
+}
+
+/** Whether an admin switched this group on (new groups start off). */
+export function groupEnabled(db: DB, jid: string): boolean {
+  return groupChatRow(db, jid).enabled;
+}
+
+function writeGroupRow(db: DB, jid: string, row: GroupChatRow, userId: number) {
   db.prepare(
-    `INSERT INTO ai_group_chats (chat_jid, enabled, updated_at, updated_by) VALUES (?, ?, ?, ?)
-     ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at,
-     updated_by = excluded.updated_by`,
-  ).run(jid, enabled ? 1 : 0, Date.now(), userId);
+    `INSERT INTO ai_group_chats (chat_jid, enabled, agent_id, listen, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled, agent_id = excluded.agent_id,
+     listen = excluded.listen, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+  ).run(jid, row.enabled ? 1 : 0, row.agentId, row.listen ? 1 : 0, Date.now(), userId);
+}
+
+/** A chat key of a WhatsApp group (`…@g.us`, any inbox). */
+export const isGroupKey = (jid: string): boolean => parseChatKey(jid).waJid.endsWith('@g.us');
+
+/** The agent a group is given to, when it still serves the group's inbox (whatever its switches). */
+function groupOwner(ctx: AppContext, jid: string, row = groupChatRow(ctx.db, jid)) {
+  if (row.agentId === null) return null;
+  const agent = agentById(ctx.db, row.agentId);
+  return agent && agent.inboxId === inboxOfKey(jid) ? agent : null;
+}
+
+/**
+ * The agent that answers this chat (design docs/features/group-agents/design.md): in a group the
+ * agent its row names, while the group is switched on and that agent is on with "Answer in groups";
+ * in a direct chat the inbox's direct agent (`directAgentOf`, on or off: the caller checks).
+ */
+export function agentForChat(ctx: AppContext, jid: string): AgentRow | null {
+  if (!isGroupKey(jid)) return directAgentOf(ctx, inboxOfKey(jid));
+  const row = groupChatRow(ctx.db, jid);
+  const agent = row.enabled ? groupOwner(ctx, jid, row) : null;
+  return agent?.enabled && agent.answerGroups ? agent : null;
+}
+
+/**
+ * The agent whose knowledge and settings belong to this chat (reply suggestions, Fix English,
+ * phrase lists, stopping work): the group's agent, else the inbox's direct agent, else its main one.
+ */
+export function chatAgent(ctx: AppContext, jid: string): AgentRow | null {
+  const inboxId = inboxOfKey(jid);
+  return (
+    (isGroupKey(jid) ? groupOwner(ctx, jid) : null) ??
+    directAgentOf(ctx, inboxId) ??
+    agentForInbox(ctx.db, inboxId)
+  );
+}
+
+/**
+ * Permanent, idempotent start-up step: a switched-on group with no agent (switched on before its
+ * inbox had one) gets the inbox's agent when the inbox has exactly one. Migration 032 gave existing
+ * rows their inbox's agent; this only covers rows written while no agent existed.
+ */
+export function backfillGroupAgents(db: DB, now = Date.now()): number {
+  const rows = db
+    .prepare('SELECT chat_jid AS jid FROM ai_group_chats WHERE enabled = 1 AND agent_id IS NULL')
+    .all() as Array<{ jid: string }>;
+  let changed = 0;
+  for (const { jid } of rows) {
+    let inboxId: number;
+    try {
+      inboxId = inboxOfKey(jid);
+    } catch {
+      continue;
+    }
+    const agents = agentsForInbox(db, inboxId);
+    if (agents.length !== 1) continue;
+    changed += db
+      .prepare(
+        'UPDATE ai_group_chats SET agent_id = ?, updated_at = ? WHERE chat_jid = ? AND agent_id IS NULL',
+      )
+      .run(agents[0]!.id, now, jid).changes;
+  }
+  return changed;
 }
 
 /** The loop guard of one group: AI messages since the last teammate (or phone) message. */
@@ -124,13 +210,17 @@ export interface LoopGuardState {
   since: number;
 }
 
-export function loopGuard(db: DB, jid: string): LoopGuardState {
+/**
+ * `listen` ("Reads every message"): the run is broken by any person's message (a member's too), so
+ * a busy group of members never trips it; else only a teammate (or phone) message breaks it.
+ */
+export function loopGuard(db: DB, jid: string, listen = false): LoopGuardState {
   const last = db
     .prepare(
       `SELECT max(m.timestamp) AS at FROM messages m LEFT JOIN users u ON u.id = m.sent_by_user_id
-       WHERE m.chat_jid = ? AND m.from_me = 1 AND (u.id IS NULL OR u.kind <> 'ai')`,
+       WHERE m.chat_jid = ? AND (m.from_me = 1 OR ?) AND (u.id IS NULL OR u.kind <> 'ai')`,
     )
-    .get(jid) as { at: number | null };
+    .get(jid, listen ? 1 : 0) as { at: number | null };
   const since = last.at ?? 0;
   const { n } = db
     .prepare(
@@ -189,22 +279,35 @@ export function groupLine(
   };
 }
 
-/** The group chats of an inbox with their switch, by name. */
+/** The group chats of an inbox with their switch, agent and "Reads every message", by name. */
 function inboxGroups(db: DB, inboxId: number) {
   return (
     db
       .prepare(
-        `SELECT c.jid, c.name, coalesce(g.enabled, 0) AS enabled FROM chats c
+        `SELECT c.jid, c.name, coalesce(g.enabled, 0) AS enabled, a.id AS agentId,
+         u.display_name AS agentName, coalesce(g.listen, 0) AS listen FROM chats c
          LEFT JOIN ai_group_chats g ON g.chat_jid = c.jid
+         LEFT JOIN ai_agents a ON a.id = g.agent_id AND a.inbox_id = c.inbox_id
+         LEFT JOIN users u ON u.id = a.user_id
          WHERE c.type = 'group' AND c.inbox_id = ? ORDER BY lower(c.name), c.jid`,
       )
-      .all(inboxId) as Array<{ jid: string; name: string | null; enabled: number }>
+      .all(inboxId) as Array<{
+      jid: string;
+      name: string | null;
+      enabled: number;
+      agentId: number | null;
+      agentName: string | null;
+      listen: number;
+    }>
   ).map((row) => ({
     jid: row.jid,
     name: row.name?.trim() || parseChatKey(row.jid).waJid,
     memberCount: null,
     enabled: row.enabled === 1,
-    paused: loopGuard(db, row.jid).paused,
+    paused: loopGuard(db, row.jid, row.listen === 1).paused,
+    agentId: row.agentId,
+    agentName: row.agentName,
+    listen: row.listen === 1,
   }));
 }
 

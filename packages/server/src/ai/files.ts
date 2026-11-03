@@ -103,7 +103,7 @@ export async function collectPromptFiles(
     }
     await deps.waitForMedia(message.id, options.signal, deadline);
     const file = deps.mediaPath(message.id);
-    const read = file ? await readPromptFile(file.path) : ({ reason: 'unreadable' } as const);
+    const read: ReadFile = file ? await readPromptFile(file.path) : { reason: 'unreadable' };
     if ('reason' in read) {
       skipped.push({ messageId: message.id, reason: read.reason, ...kindOf(read) });
     } else if (read.kind === 'image') {
@@ -131,7 +131,8 @@ export async function collectPromptFiles(
   return { images: images.reverse(), pdfs: withText.reverse(), skipped: skipped.reverse() };
 }
 
-const kindOf = (read: { kind?: string }) => (read.kind ? { kind: read.kind } : {});
+const kindOf = (read: { kind?: string }) =>
+  'kind' in read && read.kind ? { kind: read.kind } : {};
 
 type ReadFile =
   | { kind: 'image'; image: AiPromptImage }
