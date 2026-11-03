@@ -113,6 +113,8 @@ describe('Google Sheets settings from older releases', () => {
         .prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'google_sheets.upgrade'")
         .get(),
     ).toEqual({ n: 1 });
+    // The leads tab may still be empty: it keeps getting the lead header with its first row.
+    expect(t.ctx.settings.get('google_sheets_legacy_leads', null)).toEqual({ [agentId]: 'Leads' });
     // Idempotent: a second start changes nothing.
     expect(upgradeSheetsSettings(t.ctx)).toBe(0);
     expect(agentById(t.ctx.db, agentId)!.instructions).toBe(instructions);
@@ -148,5 +150,6 @@ describe('Google Sheets settings from older releases', () => {
     store(agentId, legacy({ addLeads: false }));
     expect(upgradeSheetsSettings(t.ctx)).toBe(1);
     expect(agentById(t.ctx.db, agentId)!.instructions).toBe('Answer kindly.');
+    expect(t.ctx.settings.get('google_sheets_legacy_leads', null)).toBeNull();
   });
 });

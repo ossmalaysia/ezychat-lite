@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SHEETS_SETTINGS, type SheetTabSetting } from '@ezychat/shared';
+import {
+  DEFAULT_SHEETS_SETTINGS,
+  SHEETS_LEAD_COLUMNS,
+  type SheetTabSetting,
+} from '@ezychat/shared';
 import type { ToolSet } from 'ai';
 import { listAgents } from '../src/ai/agents.js';
 import { CORE_AGENT_TOOL_NAMES } from '../src/ai/agent/extension-tools.js';
@@ -10,6 +14,7 @@ import { sheetsCanAddRows } from '../src/connectors/google-sheets/record.js';
 import { mergeSheetsRows } from '../src/connectors/google-sheets/repo.js';
 import { createGoogleSheetsService } from '../src/connectors/google-sheets/service.js';
 import { SHEETS_TOOL_NAMES, refusal } from '../src/connectors/google-sheets/tools.js';
+import { upgradeSheetsSettings } from '../src/connectors/google-sheets/upgrade.js';
 import { getMessages } from '../src/wa-bridge/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -429,6 +434,59 @@ describe('Google Sheets AI tools', () => {
       await svc.addRow(agentId, jid, { tab: 'Notes', values: { Note: 'call me back' } }, undefined),
     ).toMatchObject({ ok: true, already: false });
     expect(svc.fake!.rows(FAKE_SPREADSHEET_ID, 'Notes')[1]).toEqual(['call me back']);
+  });
+
+  it('keeps adding leads to an older, still empty leads tab: the lead header comes first', async () => {
+    const svc = await setUp([PRICES]);
+    const leads = svc.fake!.rows(FAKE_SPREADSHEET_ID, 'Leads');
+    leads.length = 0;
+    // A save from before tab access, with Add leads on and no lead added yet.
+    t.ctx.db.prepare('UPDATE sheets_agent_settings SET settings = ? WHERE agent_id = ?').run(
+      JSON.stringify({
+        spreadsheetId: FAKE_SPREADSHEET_ID,
+        spreadsheetName: 'Demo price list',
+        lookupTab: 'Prices',
+        lookup: true,
+        leadsTab: 'Leads',
+        addLeads: true,
+      }),
+      agentId,
+    );
+    expect(upgradeSheetsSettings(t.ctx)).toBe(1);
+    expect(svc.legacyLeadsTab(agentId)).toBe('Leads');
+    await says('m1', 'I want catering for 20, email mei@example.com');
+    const tools = await turn(jid);
+    expect(tools.tools.add_sheet_row!.description).toContain(
+      `"Leads" (columns: ${SHEETS_LEAD_COLUMNS.join(', ')})`,
+    );
+    expect(
+      await call(tools.tools, 'add_sheet_row', {
+        tab: 'Leads',
+        values: { Email: 'mei@example.com', Request: 'catering for 20' },
+      }),
+    ).toBe('Added to "Leads".');
+    expect(leads[0]).toEqual([...SHEETS_LEAD_COLUMNS]);
+    expect(leads[1]).toEqual([
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/),
+      'Mei Ying',
+      '+60123456789',
+      'mei@example.com',
+      'catering for 20',
+      'Aina',
+    ]);
+    // The header is written once.
+    await call(tools.tools, 'add_sheet_row', { tab: 'Leads', values: { Request: 'catering' } });
+    expect(leads).toHaveLength(3);
+    expect(leads.filter((row) => row[0] === 'Date')).toHaveLength(1);
+  });
+
+  it('offers no add tool for an empty tab that was never a leads tab', async () => {
+    const svc = await setUp([{ title: 'Notes', access: 'add' }]);
+    expect(svc.legacyLeadsTab(agentId)).toBeNull();
+    t.ctx.settings.set('google_sheets_legacy_leads', ['bad']);
+    expect(svc.legacyLeadsTab(agentId)).toBeNull();
+    t.ctx.settings.set('google_sheets_legacy_leads', { [agentId]: 'Leads' });
+    expect(Object.keys((await turn(jid)).tools)).toEqual([]);
   });
 
   it('never adds a row from Try it', async () => {
