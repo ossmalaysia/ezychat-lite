@@ -154,8 +154,9 @@ describe('generateClaude', () => {
       },
       signal(),
     );
-    const content = (call(fetcher).body.messages as Array<{ content: Array<Record<string, unknown>> }>)[0]!
-      .content;
+    const content = (
+      call(fetcher).body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0]!.content;
     expect(content.map((part) => part.type)).toEqual(['text', 'image', 'document']);
     expect(content[2]).toMatchObject({
       type: 'document',

@@ -342,9 +342,18 @@ const heldDirectChats = (db: DB, userId: number): number =>
       .get(userId) as { n: number }
   ).n;
 
+/** 409 for a second agent that would answer direct chats in one inbox. */
+export const directAgentTaken = () =>
+  new HttpError(
+    409,
+    'inbox_has_direct_agent',
+    'Another AI agent already answers direct chats on this number',
+  );
+
 /**
  * `PUT /api/ai/agents/:agentId/direct`: the agent's "Answer direct chats" switch (audited). Off
- * returns its open direct chats to the team, unassigned (design docs/features/ai-direct-chats).
+ * returns its open direct chats to the team, unassigned (design docs/features/ai-direct-chats). On
+ * while another agent of the inbox answers direct chats: 409 `inbox_has_direct_agent`.
  */
 export function setAgentDirect(
   ctx: AppContext,
@@ -353,7 +362,13 @@ export function setAgentDirect(
   actor: Actor,
 ): AiAgentGroups {
   const agent = requireAgent(ctx, agentId);
-  setAgentAnswerDirect(ctx.db, agent.id, enabled);
+  try {
+    setAgentAnswerDirect(ctx.db, agent.id, enabled);
+  } catch (error) {
+    if (error instanceof AgentError && error.code === 'inbox_has_direct_agent')
+      throw directAgentTaken();
+    throw error;
+  }
   audit(ctx.db, {
     userId: actor.userId,
     action: 'ai.direct_switch',
@@ -364,7 +379,10 @@ export function setAgentDirect(
   return agentGroups(ctx, agent.id);
 }
 
-/** `PUT /api/ai/agents/:agentId/groups`: the agent's "Answer in groups" switch (audited). */
+/**
+ * `PUT /api/ai/agents/:agentId/groups`: the agent's "Answer in groups" switch (audited). Off turns
+ * the AI off in its groups (rows kept, agent cleared), never moving them to another agent.
+ */
 export function setAgentGroups(
   ctx: AppContext,
   agentId: number,
@@ -372,6 +390,8 @@ export function setAgentGroups(
   actor: Actor,
 ): AiAgentGroups {
   const agent = requireAgent(ctx, agentId);
+  // Stop its group work while the rows still name it.
+  if (!enabled) ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
   setAgentAnswerGroups(ctx.db, agent.id, enabled);
   audit(ctx.db, {
     userId: actor.userId,
@@ -379,7 +399,95 @@ export function setAgentGroups(
     ip: actor.ip,
     meta: { agentId: agent.id, agentName: agent.displayName, enabled },
   });
-  if (!enabled) ctx.services.ai?.stopGroupTurns({ agentId: agent.id });
+  return agentGroups(ctx, agent.id);
+}
+
+/** One `ai.group_switch` audit row: the switch, agent and "Reads every message" before and after. */
+function auditGroupSwitch(
+  ctx: AppContext,
+  actor: Actor,
+  jid: string,
+  groupName: string | null,
+  before: GroupChatRow,
+  after: GroupChatRow,
+) {
+  audit(ctx.db, {
+    userId: actor.userId,
+    action: 'ai.group_switch',
+    ip: actor.ip,
+    meta: {
+      chatJid: jid,
+      groupName,
+      enabled: after.enabled,
+      agentId: after.agentId,
+      listen: after.listen,
+      before: { enabled: before.enabled, agentId: before.agentId, listen: before.listen },
+    },
+  });
+}
+
+const groupHasAgent = () =>
+  new HttpError(409, 'group_has_agent', 'Another AI agent already answers this group');
+
+/**
+ * `PUT /api/ai/agents/:agentId/group-chats` (admins): gives groups of the agent's inbox to this
+ * agent (`enabled` true, with `listen` when given, else kept for its own groups and off for new
+ * ones) or takes its groups back (`enabled` false: AI off, agent cleared). A group another agent
+ * holds is refused as a whole (409 `group_has_agent`); a jid that is not a group of the agent's
+ * inbox is 400. Audited per group.
+ */
+export function setAgentGroupChats(
+  ctx: AppContext,
+  agentId: number,
+  body: AiAgentGroupChatsBody,
+  actor: Actor,
+): AiAgentGroups {
+  const agent = requireAgent(ctx, agentId);
+  if (agent.inboxId === null) throw errors.validation('This AI agent has no WhatsApp number');
+  const chats = getChats(ctx);
+  const jids = [...new Set(body.jids)];
+  const groups = jids.map((jid) => {
+    const chat = chats.get(jid);
+    if (!chat || chat.type !== 'group' || chat.inboxId !== agent.inboxId)
+      throw errors.validation("Choose WhatsApp groups of this AI agent's number");
+    return { jid, name: chat.name, row: groupChatRow(ctx.db, jid) };
+  });
+  const changes = ctx.db.transaction(() => {
+    const out: Array<{ jid: string; name: string | null; before: GroupChatRow; after: GroupChatRow }> =
+      [];
+    for (const { jid, name, row } of groups) {
+      const owner = groupOwner(ctx, jid, row);
+      const own = owner?.id === agent.id;
+      let after: GroupChatRow;
+      if (body.enabled) {
+        if (row.enabled && owner && !own) throw groupHasAgent();
+        after = {
+          enabled: true,
+          agentId: agent.id,
+          listen: body.listen ?? (own ? row.listen : false),
+        };
+      } else {
+        // only its own groups go back; a group of another agent is left as it is
+        if (!own) continue;
+        after = { enabled: false, agentId: null, listen: false };
+      }
+      if (after.enabled === row.enabled && after.agentId === row.agentId && after.listen === row.listen)
+        continue;
+      writeGroupRow(ctx.db, jid, after, actor.userId);
+      out.push({ jid, name, before: row, after });
+    }
+    return out;
+  })();
+  for (const change of changes) {
+    auditGroupSwitch(ctx, actor, change.jid, change.name, change.before, change.after);
+    // a different agent, AI off or listening off: running or waiting work of the old setting stops
+    if (
+      !change.after.enabled ||
+      change.after.agentId !== change.before.agentId ||
+      change.before.listen !== change.after.listen
+    )
+      ctx.services.ai?.stopGroupTurns({ jid: change.jid });
+  }
   return agentGroups(ctx, agent.id);
 }
 
@@ -390,35 +498,83 @@ const requireGroupChat = (ctx: AppContext, jid: string) => {
   return chat;
 };
 
-/** `GET /api/chats/:jid/ai-group`: the group's switch, its inbox's agent and the guard. */
+/** Agents of the group's inbox with "Answer in groups" on: the choices for a group. */
+const groupAgentChoices = (ctx: AppContext, jid: string): AgentRow[] =>
+  agentsForInbox(ctx.db, inboxOfKey(jid)).filter((agent) => agent.answerGroups);
+
+/**
+ * The agent a group without its own gets: the inbox's only agent with "Answer in groups" on, else
+ * (none has it on) the inbox's only agent; null when there is none. Several: `agent_required`.
+ */
+function defaultGroupAgent(ctx: AppContext, jid: string): AgentRow | null | 'several' {
+  const choices = groupAgentChoices(ctx, jid);
+  if (choices.length === 1) return choices[0]!;
+  if (choices.length > 1) return 'several';
+  const all = agentsForInbox(ctx.db, inboxOfKey(jid));
+  if (all.length > 1) return 'several';
+  return all[0] ?? null;
+}
+
+/** `GET /api/chats/:jid/ai-group`: the group's switch, its agent, the choices and the guard. */
 export function groupChatStatus(ctx: AppContext, jid: string): AiGroupChat {
   requireGroupChat(ctx, jid);
-  const agent = agentForInbox(ctx.db, inboxOfKey(jid));
+  const row = groupChatRow(ctx.db, jid);
+  const fallback = defaultGroupAgent(ctx, jid);
+  const agent = groupOwner(ctx, jid, row) ?? (fallback === 'several' ? null : fallback);
   return {
-    enabled: groupEnabled(ctx.db, jid),
+    enabled: row.enabled,
     agentId: agent?.id ?? null,
     agentName: agent?.displayName ?? null,
     agentEnabled: !!agent?.enabled,
     agentAnswersGroups: !!agent && agent.enabled && agent.answerGroups,
-    paused: loopGuard(ctx.db, jid).paused,
+    paused: loopGuard(ctx.db, jid, row.listen).paused,
+    listen: row.listen,
+    agents: groupAgentChoices(ctx, jid).map((choice) => ({
+      id: choice.id,
+      name: choice.displayName,
+    })),
   };
 }
 
-/** `PUT /api/chats/:jid/ai-group` (admins): switches the AI on or off in one group (audited). */
+/**
+ * `PUT /api/chats/:jid/ai-group` (admins): switches the AI on or off in one group, and sets its
+ * agent and "Reads every message" (audited). `agentId` must be an agent of the group's inbox with
+ * "Answer in groups" on (else 400); without it the group keeps its agent, else gets
+ * `defaultGroupAgent` (several: 400 `agent_required`).
+ */
 export function setGroupChat(
   ctx: AppContext,
   jid: string,
-  enabled: boolean,
+  body: boolean | AiGroupChatBody,
   actor: Actor,
 ): AiGroupChat {
+  const input = typeof body === 'boolean' ? { enabled: body } : body;
   const chat = requireGroupChat(ctx, jid);
-  writeGroupEnabled(ctx.db, jid, enabled, actor.userId);
-  audit(ctx.db, {
-    userId: actor.userId,
-    action: 'ai.group_switch',
-    ip: actor.ip,
-    meta: { chatJid: jid, groupName: chat.name, enabled },
-  });
-  if (!enabled) ctx.services.ai?.stopGroupTurns({ jid });
+  const before = groupChatRow(ctx.db, jid);
+  let agentId = groupOwner(ctx, jid, before)?.id ?? null;
+  if (input.agentId !== undefined) {
+    const chosen = agentById(ctx.db, input.agentId);
+    if (!chosen || chosen.inboxId !== inboxOfKey(jid) || !chosen.answerGroups)
+      throw new HttpError(
+        400,
+        'agent_not_group_agent',
+        'Choose an AI agent of this number that answers in groups',
+      );
+    agentId = chosen.id;
+  } else if (agentId === null && input.enabled) {
+    const fallback = defaultGroupAgent(ctx, jid);
+    if (fallback === 'several')
+      throw new HttpError(400, 'agent_required', 'Choose the AI agent for this group');
+    agentId = fallback?.id ?? null;
+  }
+  const after: GroupChatRow = {
+    enabled: input.enabled,
+    agentId,
+    listen: input.listen ?? before.listen,
+  };
+  writeGroupRow(ctx.db, jid, after, actor.userId);
+  auditGroupSwitch(ctx, actor, jid, chat.name, before, after);
+  if (!after.enabled || after.agentId !== before.agentId || (before.listen && !after.listen))
+    ctx.services.ai?.stopGroupTurns({ jid });
   return groupChatStatus(ctx, jid);
 }
