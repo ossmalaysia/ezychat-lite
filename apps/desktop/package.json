@@ -1,7 +1,7 @@
 {
   "name": "@ezychat/desktop",
   "productName": "EzyChat Lite",
-  "version": "0.1.70",
+  "version": "0.1.72",
   "type": "module",
   "license": "MIT",
   "description": "EzyChat core: the Electron desktop shell (window, tray, status window, OS service, updater).",
@@ -53,9 +53,9 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
+    "@vscode/sudo-prompt": "^9.3.2",
     "better-sqlite3": "^13.0.3",
-    "sherpa-onnx-node": "2.0.1",
-    "sudo-prompt": "^9.2.1"
+    "sherpa-onnx-node": "2.0.1"
   },
   "peerDependencies": {
     "electron": ">=44"
