@@ -1,6 +1,6 @@
 # Group agents: several AI agents per number, sheet tabs per agent
 
-Status: **confirmed by the owner 2026-11-03** on the preview mock (see "Mock and confirmation"); in build. Created 2026-11-03 (creationOrder 28). Branch `claude/determined-feynman-y5uo0g` from `main`
+Status: **confirmed by the owner 2026-11-03** on the preview mock (see "Mock and confirmation"); built in PR #269 (unit tests, e2e; Dev Build with real AI, WhatsApp and Google is the owner's check). Created 2026-11-03 (creationOrder 28). Branch `claude/determined-feynman-y5uo0g` from `main`
 (`1564247`).
 
 ## Owner request (2026-11-03)
