@@ -105,6 +105,8 @@ export interface AiSituation {
   awaitingConfirmation: boolean;
   /** A WhatsApp group answer: the group, the asking member and the message to answer. */
   group?: AiGroupSituation;
+  /** Files of the batch the model was not given and why (`ai/files.ts`), as one plain note. */
+  filesNote?: string;
 }
 
 /** What a group answer is about (per call, so it lives in the Current situation block). */
@@ -113,11 +115,23 @@ export interface AiGroupSituation {
   name: string;
   /** The asking member's display name (never a phone number). */
   member: string;
-  /** How the member addressed the AI: a tag of the business, or a reply to an AI answer. */
-  trigger: 'tag' | 'quote';
-  /** The member's message to answer. */
+  /**
+   * How the member addressed the AI: a tag of the business, or a reply to an AI answer; `listen`:
+   * the group has "Reads every message" on and this is a batch of new member messages.
+   */
+  trigger: 'tag' | 'quote' | 'listen';
+  /** The member's message to answer (`listen`: the newest message of the batch). */
   message: string;
+  /** `listen`: every new member message of the batch, oldest first. */
+  messages?: Array<{ member: string; text: string }>;
 }
+
+/**
+ * The Current situation note of a group with "Reads every message" on: per call (never in the
+ * fixed rules), so the agent's own instructions decide when it replies.
+ */
+export const LISTEN_SITUATION =
+  'You read every message in this group, not only messages that tag the business. Reply only when your administrator instructions call for it (for example to record or confirm what a member sent); otherwise choose no_reply with an empty reply.';
 
 /** The configured zone if the runtime knows it, otherwise Kuala Lumpur. */
 export function resolveAiTimeZone(value: unknown): string {
@@ -154,9 +168,10 @@ export function situationClock(now: Date, timeZone: string) {
 }
 
 function currentSituation(
-  { now, timeZone, awaitingConfirmation, group }: AiSituation,
+  { now, timeZone, awaitingConfirmation, group, filesNote }: AiSituation,
   customer: AiCustomer | null,
 ) {
+  const files = filesNote ? { files: filesNote } : {};
   if (group)
     return {
       ...situationClock(now, timeZone),
@@ -164,17 +179,22 @@ function currentSituation(
         name: group.name,
         askingMember: group.member,
         addressedBy:
-          group.trigger === 'tag'
-            ? 'The member tagged the business.'
-            : 'The member replied to your earlier answer.',
+          group.trigger === 'listen'
+            ? LISTEN_SITUATION
+            : group.trigger === 'tag'
+              ? 'The member tagged the business.'
+              : 'The member replied to your earlier answer.',
         messageToAnswer: group.message,
+        ...(group.trigger === 'listen' && group.messages ? { newMessages: group.messages } : {}),
       },
+      ...files,
     };
   return {
     ...situationClock(now, timeZone),
     resolution: `Resolution confirmation is currently ${awaitingConfirmation ? 'awaited' : 'NOT awaited'}.`,
     // Editable by the team at any time, so it lives in this per-call block, never earlier.
     ...(customer ? { customer } : {}),
+    ...files,
   };
 }
 

@@ -873,7 +873,7 @@ export function createAiService(
     }
   });
   const eligible = (jid: string): boolean => {
-    const agent = agentOfChat(jid);
+    const agent = agentForChat(ctx, jid);
     const chat = chats.get(jid);
     const s = state(jid);
     return (
@@ -1090,9 +1090,7 @@ export function createAiService(
   const groupAgent = (jid: string): AgentRow | null => {
     if (closed || !gateOpen() || !ready()) return null;
     if (chats.get(jid)?.type !== 'group') return null;
-    const agent = agentOfChat(jid);
-    if (!agent?.enabled || !agent.answerGroups || !groupEnabled(ctx.db, jid)) return null;
-    return agent;
+    return agentForChat(ctx, jid);
   };
   /**
    * Loop guard: after AI_GROUP_LOOP_GUARD AI messages in a row without a teammate message the AI
@@ -1398,7 +1396,7 @@ export function createAiService(
 
   async function respond(jid: string) {
     if (!eligible(jid)) return;
-    const agent = agentOfChat(jid)!;
+    const agent = agentForChat(ctx, jid)!;
     const user = { id: agent.userId };
     const customerId = state(jid)!.last_customer_message_id!;
     const controller = new AbortController();
@@ -1408,7 +1406,7 @@ export function createAiService(
       chats.get(jid)?.assignedTo === user.id &&
       state(jid)?.last_customer_message_id === customerId &&
       !state(jid)?.paused &&
-      agentOfChat(jid)?.id === agent.id &&
+      agentForChat(ctx, jid)?.id === agent.id &&
       !!agentById(ctx.db, agent.id)?.enabled;
     try {
       if (chats.get(jid)!.assignedTo === null) chats.patch(jid, { assignedTo: user.id }, user.id);
@@ -1792,8 +1790,8 @@ export function createAiService(
       onGroupInbound(chat, message);
       return;
     }
-    // Only the agent of the chat's inbox answers it.
-    const agent = agentForInbox(ctx.db, chat.inboxId);
+    // Only the inbox's direct agent answers a direct chat.
+    const agent = directAgentOf(ctx, chat.inboxId);
     const user = agent?.enabled && answersDirect(ctx, agent) ? { id: agent.userId } : null;
     if (
       !user ||
@@ -1844,7 +1842,7 @@ export function createAiService(
       ctx.db.prepare('DELETE FROM ai_chat_state WHERE chat_jid = ?').run(chat.jid);
     } else if (
       chat.assignedTo !== null &&
-      chat.assignedTo !== agentForInbox(ctx.db, chat.inboxId)?.userId
+      chat.assignedTo !== directAgentOf(ctx, chat.inboxId)?.userId
     )
       pause(chat.jid);
   };
@@ -1913,6 +1911,8 @@ export function createAiService(
       }
     ).n,
   });
+  /** One agent, or one number: every agent serves inbox 1. */
+  const oneInbox = () => maxAgents() <= 1 || ctx.inboxes.connections.maxInboxes() <= 1;
   const requireInbox = (inboxId: number) => {
     const inbox = ctx.inboxes.repo.get(inboxId);
     if (!inbox || inbox.removed_at !== null) throw errors.notFound('Inbox');
@@ -1937,7 +1937,7 @@ export function createAiService(
     if (!hasContext && !agentLookupsAvailable(ctx, 'sales', agentId))
       throw errors.validation('Add business context before turning on the AI member');
   };
-  /** A new `kind = 'ai'` team member and its agent row (409 `agent_limit` / `inbox_has_agent`). */
+  /** A new `kind = 'ai'` team member and its agent row (409 `agent_limit` / `inbox_has_direct_agent`). */
   const insertAgent = (
     fields: {
       displayName: string;
@@ -1951,9 +1951,11 @@ export function createAiService(
     actor: Actor,
   ): AgentRow => {
     if (listAgents(ctx.db).length >= maxAgents()) throw agentHttpError('agent_limit');
-    // Lite: the only agent always answers the only inbox.
-    const inboxId = maxAgents() <= 1 ? 1 : fields.inboxId;
+    // Lite (and any build with one number): the agents always answer the only inbox.
+    const inboxId = oneInbox() ? 1 : fields.inboxId;
     if (inboxId !== null) requireInbox(inboxId);
+    // An inbox without groups has no group-only agents: its one agent answers direct chats.
+    if (directSlotTaken(ctx, inboxId, null)) throw agentHttpError('inbox_has_direct_agent');
     return ctx.db.transaction(() => {
       const now = Date.now();
       const userId = Number(
@@ -2038,7 +2040,7 @@ export function createAiService(
     },
     createAgent(body, actor) {
       // Lite forces inbox 1 (insertAgent); only an inbox-1 agent adopts items written before it.
-      checkEnable(null, body.enabled, maxAgents() <= 1 || body.inboxId === 1);
+      checkEnable(null, body.enabled, oneInbox() || body.inboxId === 1);
       const preset = body.preset ?? 'sales';
       const agent = insertAgent(
         {
@@ -2059,7 +2061,7 @@ export function createAiService(
       const agent = agentById(ctx.db, agentId);
       if (!agent) throw agentHttpError('agent_not_found');
       checkEnable(agent.id, body.enabled);
-      // A new inbox first: it may be refused (inbox_has_agent) before anything is saved.
+      // A new inbox first: it may be refused (inbox_has_direct_agent) before anything is saved.
       if (body.inboxId !== undefined && body.inboxId !== agent.inboxId)
         service.setAgentInbox(agent.id, body.inboxId, actor);
       cancelAgent(agent.id);
@@ -2162,10 +2164,11 @@ export function createAiService(
     setAgentInbox(agentId, inboxId, actor) {
       const agent = agentById(ctx.db, agentId);
       if (!agent) throw agentHttpError('agent_not_found');
-      if (maxAgents() <= 1 && inboxId !== 1)
+      if (oneInbox() && inboxId !== 1)
         throw errors.validation('The AI agent always answers the only inbox');
       if (inboxId !== null) requireInbox(inboxId);
       if (inboxId === agent.inboxId) return service.agentStatus(agent.id);
+      if (directSlotTaken(ctx, inboxId, agent.id)) throw directAgentTaken();
       cancelAgent(agent.id);
       ctx.db.transaction(() => {
         agentCall(() => setAgentInbox(ctx.db, agent.id, inboxId));
@@ -2966,7 +2969,7 @@ export function createAiService(
         );
       return (
         eligible(jid) &&
-        agentOfChat(jid)?.userId === userId &&
+        agentForChat(ctx, jid)?.userId === userId &&
         chats.get(jid)?.assignedTo === userId &&
         !!quotedId &&
         state(jid)?.last_customer_message_id === quotedId
@@ -2993,6 +2996,8 @@ export function createAiService(
   migrateLegacyContext();
   // Permanent start-up step: the old member texts become agent 1 (once, see ai/agents.ts).
   migrateMemberSetting(ctx.db, ctx.settings);
+  // Permanent start-up step: a switched-on group with no agent gets its inbox's only agent.
+  backfillGroupAgents(ctx.db);
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.
   const pending = ctx.db
     .prepare(
