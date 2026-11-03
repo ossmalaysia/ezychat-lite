@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   several groups to one agent at once from its page.
 - **Several AI agents per WhatsApp number (Enterprise).** One agent answers direct chats; others work in the groups
   you give them, for example a claims agent for every branch group.
+- **Send feedback from the app.** Anyone signed in can tell the EzyChat team about a problem, an idea or a question
+  from the account menu, Admin → Help & feedback, About or the error panel ("Report this problem"), with up to 3
+  pictures, PDFs, text files or short videos and, in the desktop app, a screenshot of the window. Email is required so
+  we can reply. App details (version, computer, connection status) are included unless you untick them, and the last
+  lines of the app log only when you tick it; "See what is sent" shows both. Phone numbers, emails, names and message
+  text are removed from the log first. Nothing is sent until you press Send. This replaces Request a feature and Report
+  an issue in the menus; the GitHub link is inside the form.
 - **Open PDFs and photos inside EzyChat.** Tap a PDF a customer sent and it opens in the app, page by page, with zoom.
   No more saving it first and opening it somewhere else. Photos sent as files open in the photo preview too.
   Download is still one tap away, and other files download as before.
