@@ -36,7 +36,7 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 | Settings  | Per agent: one spreadsheet (unchanged) and a list of its tabs, each **Off**, **Read** or **Add rows**. Replaces `lookupTab`/`lookup`/`leadsTab`/`addLeads` in the JSON `sheets_agent_settings.settings` (no table change).                                                                                                                                                                                                                                                                                                                                                   |
 | Upgrade   | Permanent start-up code maps the old fields: `lookupTab` + `lookup` → Read, `leadsTab` + `addLeads` → Add rows. An agent that used Add leads gets one line appended to its saved instructions only if it has none about the sheet: "Add customers who want to buy to the tab {leadsTab}." (audited, kept as a setup version).                                                                                                                                                                                                                                                |
 | Tools     | `read_sheet_rows {tab, query}` and `add_sheet_row {tab, values: {column: value}}`. Their descriptions list only this agent's tabs for that access, each with its column names (first row, read when the turn starts, cached 5 min). No tab on Add rows = no `add_sheet_row`; same for Read.                                                                                                                                                                                                                                                                                  |
-| Columns   | Values are matched to the tab's first-row names (case and spacing ignored); unknown names are refused with the list of valid ones. Columns named Date, Name, WhatsApp, AI agent are filled by EzyChat (business time zone, saved/WhatsApp name, the sender's number, agent name) unless the AI passes a value.                                                                                                                                                                                                                                                               |
+| Columns   | Values are matched to the tab's first-row names (case and spacing ignored); unknown names are refused with the list of valid ones. Columns named Date, Name, WhatsApp, Group, AI agent are filled by EzyChat (business time zone, saved/WhatsApp name, the sender's number, the group's name so one sheet can serve many groups, e.g. one per branch, agent name) unless the AI passes a value.                                                                                                                                                                              |
 | Empty tab | Add rows needs a first row; Settings shows "Add column names in the first row of this tab" and the tool is not offered for it.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Guards    | Values written with `valueInputOption=RAW`. Every value the AI passes (other than auto columns) must come from the person it records for (the customer in a direct chat, the member in a group): their text, or a file they sent (see Part C). A typed value must appear in their messages (spacing/case ignored, numbers and dates normalised); a value read from a file is allowed only when the turn was given that file. Else refused with "ask the person for it". Never in Try it.                                                                                     |
 | Limit     | No limit on rows: a tab can keep growing for as long as the business uses it. One guard only: the same row is never saved twice (key: chat, tab, message id and a hash of the values, so a retry or a re-read batch adds nothing, while one PDF with three invoices still adds three rows). Rows are added only in a turn started by a person's message, so the AI cannot loop on its own. Google's per-minute write quota is handled by queueing (retry after the minute), never by dropping a row. Migration adds `tab`, `message_id` and `values_hash` to `sheets_leads`. |
@@ -58,6 +58,19 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 | Routes              | `PUT /api/chats/:jid/ai-group` {enabled, agentId?, listen?}; `GET` adds `agentId`, `listen`, `agents` (choices). Old body {enabled} keeps working (agent = the only group agent of the inbox, else 400 `agent_required`).                                                                       |
 | Audit               | `ai.group_switch` adds agentId and listen before/after.                                                                                                                                                                                                                                         |
 
+## One agent, many groups (owner use case 2026-11-03)
+
+One Claims agent listens to "Claims KL", "Claims Penang", "Claims JB" (one group per branch) and saves every claim
+to the same Claims tab of one spreadsheet, where the team processes them. Nothing per group needs its own agent,
+connector or tab:
+
+- Agent page → Groups card lists the agent's groups (exists today) and gains **Add groups**: a multi-select of
+  this inbox's groups, each added with Reads every message on. Each row has its Reads every message switch and
+  Remove. Group info shows the same setting for one group (both write `ai_group_chats`).
+- The Group column (auto) tells the team which branch a row came from; a Branch column can instead be filled by
+  the agent's instructions ("Branch = KL for Claims KL").
+- One Google sign-in, one spreadsheet, one tab for all groups.
+
 ## Part C: values from images and PDFs (invoices, claim forms, receipts)
 
 | Rule          | Proposal                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -78,14 +91,15 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 3. Google Sheets → Settings per agent: spreadsheet, tab list (Off / Read / Add rows), column names under each tab,
    empty-first-row warning, a tab Google no longer lists, Claims agent with only Claims on Add rows.
 4. Agent page → Connectors row: "Reads Products · Adds rows to Claims".
-5. Group info: AI switch, AI agent select (one / several / none with Groups on), Reads every message switch with
+5. Agent page Groups card: Add groups (multi-select), three branch groups listening, Remove.
+6. Group info: AI switch, AI agent select (one / several / none with Groups on), Reads every message switch with
    InfoTip, daily cap reached note.
-6. Group chat: member posts a claim → AI reply per instructions ("Recorded ✅"), missing-detail question, a
+7. Group chat: member posts a claim → AI reply per instructions ("Recorded ✅"), missing-detail question, a
    chat message that is not a claim (no reply).
-7. Activity tab: row added to Claims, failed (value not in the message).
-8. Group chat: member sends an invoice PDF and a receipt photo → one row each, reply repeats the key values; a
+8. Activity tab: row added to Claims, failed (value not in the message).
+9. Group chat: member sends an invoice PDF and a receipt photo → one row each, reply repeats the key values; a
    Word file → "I can read photos and PDFs only".
-9. Desktop 1280 / mobile 360, light and dark; en, ms, zh-CN.
+10. Desktop 1280 / mobile 360, light and dark; en, ms, zh-CN.
 
 ## Baseline
 
