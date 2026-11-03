@@ -133,4 +133,9 @@ pruned in the same change.
 
 ## Mock and confirmation
 
-Not done yet: the cumulative HTML mock and the owner's confirmation.
+- **Preview (2026-11-03):** `mock/preview.html`, a standalone clickable preview of the new screens in the app's
+  colour tokens (open the file in a browser; Mock only bar switches screens, simulates claims, Dark/Light).
+  Screenshots desktop 1280 and mobile 360 in `mock/screenshots/` (no horizontal scroll at 360 px). Shown to the
+  owner for direction.
+- **Still owed before production UI:** the cumulative full-app mock (clone of `group-mentions` at `f6f0d2b` plus the
+  WhatsApp Safety and edit/delete screens) with these screens added, and the owner's confirmation of it.
