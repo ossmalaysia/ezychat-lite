@@ -1239,6 +1239,10 @@ into AGENTS.md.
 
 ## Desktop and web UI
 
+- A dialog whose body holds buttons (show details, add files, remove) uses a plain container, not a `<form>`: shadcn
+  `Button` defaults to `type="submit"`, so every toggle sent the report. Send stays an explicit button in the footer.
+- A route that takes several files reads `req.parts({ limits: { files: N, fileSize } })`: the app-wide multipart limit
+  is 1 file and a second file resets the connection, which the browser reports as "cannot reach the server".
 - A page that counts across inboxes (Reports, its Safety section) takes one optional `inbox` query param and the page's
   picker passes the same choice to every section; a section left on "all" next to a one-inbox total misleads.
 - A UAC prompt started by the hidden runner (`runElevatedWindows`: `Start-Process -Verb RunAs` from a
