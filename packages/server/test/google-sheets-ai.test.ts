@@ -399,6 +399,38 @@ describe('Google Sheets AI tools', () => {
     svc.shutdown();
   });
 
+  it('stops waiting for the quota when the turn is cancelled', async () => {
+    const svc = await setUp([CLAIMS]);
+    await says('m1', 'policy P-2');
+    svc.fake!.appendStatuses.push(429);
+    const controller = new AbortController();
+    const pending = svc.addRow(
+      agentId,
+      jid,
+      { tab: 'Claims', values: { 'Policy no': 'P-2' } },
+      undefined,
+      controller.signal,
+    );
+    setTimeout(() => controller.abort(new Error('cancelled')), 20);
+    await expect(pending).rejects.toThrow('cancelled');
+    expect(claims()).toHaveLength(1);
+  });
+
+  it('refuses a tab without column names, and leaves trailing empty cells out', async () => {
+    const svc = await setUp([{ title: 'Notes', access: 'add' }]);
+    await says('m1', 'note: call me back');
+    expect(
+      await svc.addRow(agentId, jid, { tab: 'Notes', values: { Note: 'call me back' } }, undefined),
+    ).toEqual({ ok: false, reason: 'no_columns', tab: 'Notes' });
+    // The admin adds column names and presses Refresh.
+    svc.fake!.rows(FAKE_SPREADSHEET_ID, 'Notes').push(['Note', 'Extra']);
+    await svc.refresh(agentId);
+    expect(
+      await svc.addRow(agentId, jid, { tab: 'Notes', values: { Note: 'call me back' } }, undefined),
+    ).toMatchObject({ ok: true, already: false });
+    expect(svc.fake!.rows(FAKE_SPREADSHEET_ID, 'Notes')[1]).toEqual(['call me back']);
+  });
+
   it('never adds a row from Try it', async () => {
     await setUp([CLAIMS]);
     const tryIt = await turn(null);

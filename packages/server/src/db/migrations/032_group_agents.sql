@@ -5,7 +5,8 @@
 -- so the table is rebuilt with the same ids. Migrations run with foreign keys on, so dropping the old
 -- table deletes the rows of every table that references it (ON DELETE CASCADE): they are kept in
 -- temporary copies and put back unchanged.
-CREATE TEMP TABLE keep_ai_documents AS SELECT * FROM ai_documents;
+-- (items without an agent are not deleted and stay as they are)
+CREATE TEMP TABLE keep_ai_documents AS SELECT * FROM ai_documents WHERE agent_id IS NOT NULL;
 CREATE TEMP TABLE keep_reply_phrases AS SELECT * FROM reply_phrases;
 CREATE TEMP TABLE keep_calendar_agent_settings AS SELECT * FROM calendar_agent_settings;
 CREATE TEMP TABLE keep_calendar_offers AS SELECT * FROM calendar_offers;
