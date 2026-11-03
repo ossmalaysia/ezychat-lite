@@ -41,6 +41,7 @@ import {
   type ActivityInput,
   type SheetRowKey,
 } from './repo.js';
+import { upgradeSheetsSettings } from './upgrade.js';
 import { autoColumn, columnKey, headerColumns, matchColumns, personWrote } from './values.js';
 import {
   SHEETS_ENDPOINTS,
@@ -540,7 +541,8 @@ export function createGoogleSheetsService(
         usable?.addTabs.find((title) => title === input.tab) ??
         usable?.addTabs.find((title) => columnKey(title) === columnKey(input.tab));
       if (!usable || !tab) return { ok: false, reason: 'not_allowed', tabs: usable?.addTabs ?? [] };
-      const header = (await tabColumns(agentId, usable.spreadsheetId, [tab], signal)).get(tab) ?? [];
+      const header =
+        (await tabColumns(agentId, usable.spreadsheetId, [tab], signal)).get(tab) ?? [];
       const columns = header.filter(Boolean);
       if (!columns.length) return { ok: false, reason: 'no_columns', tab };
       const given = Object.fromEntries(
@@ -549,7 +551,8 @@ export function createGoogleSheetsService(
           .filter(([name]) => name),
       );
       const matched = matchColumns(header, given);
-      if (!matched.ok) return { ok: false, reason: 'unknown_columns', tab, unknown: matched.unknown, columns };
+      if (!matched.ok)
+        return { ok: false, reason: 'unknown_columns', tab, unknown: matched.unknown, columns };
 
       const chat = getChats(ctx).get(chatJid);
       const group = chat?.type === 'group';
@@ -723,6 +726,8 @@ export function createGoogleSheetsService(
 export type GoogleSheetsService = ReturnType<typeof createGoogleSheetsService>;
 
 export function initGoogleSheets(ctx: AppContext) {
+  // Older saves become tab access (permanent, idempotent; after the AI agents exist).
+  upgradeSheetsSettings(ctx);
   ctx.services.googleSheets = createGoogleSheetsService(ctx);
 }
 

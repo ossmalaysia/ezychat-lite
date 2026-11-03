@@ -78,57 +78,84 @@ export async function collectPromptFiles(
   deps: PromptFileDeps,
   options: CollectPromptFilesOptions,
 ): Promise<PromptFiles> {
-  const maxImages = Math.max(0, options.maxImages ?? AI_MAX_IMAGES);
-  const maxPdfs = Math.min(AI_MAX_PDFS, Math.max(0, options.maxPdfs ?? AI_MAX_PDFS));
-  const images: AiPromptImage[] = [];
-  const pdfs: Array<Omit<AiPromptPdf, 'text'> & { buffer: Buffer }> = [];
-  const skipped: SkippedFile[] = [];
+  const found = new FoundFiles(
+    Math.max(0, options.maxImages ?? AI_MAX_IMAGES),
+    Math.min(AI_MAX_PDFS, Math.max(0, options.maxPdfs ?? AI_MAX_PDFS)),
+  );
   const deadline = Date.now() + AI_IMAGE_WAIT_MS;
-  for (const message of [...batch].reverse()) {
+  for (const message of batch.toReversed()) {
     if (options.signal.aborted) break;
-    if (message.fromMe || (message.type !== 'image' && message.type !== 'document')) continue;
-    if (deps.safetyLevel(message.id) === 'high') {
-      skipped.push({ messageId: message.id, reason: 'safety' });
-      continue;
-    }
-    // Imported history media stays pending until someone opens it: never wait for it.
-    if (deps.mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS)
-      continue;
-    const full = (kind: 'image' | 'pdf') =>
-      kind === 'image' ? images.length >= maxImages : pdfs.length >= maxPdfs;
-    // A photo over the limit is not waited for; a document may still turn out to be either kind.
-    if (message.type === 'image' && full('image')) {
-      skipped.push({ messageId: message.id, reason: 'limit', kind: 'photo' });
-      continue;
-    }
+    if (!found.wanted(message, deps)) continue;
+    // Sequential on purpose: newest first, one shared wait deadline, and each file's kind decides
+    // whether the next one still fits the limits.
     await deps.waitForMedia(message.id, options.signal, deadline);
     const file = deps.mediaPath(message.id);
-    const read: ReadFile = file ? await readPromptFile(file.path) : { reason: 'unreadable' };
-    if ('reason' in read) {
-      skipped.push({ messageId: message.id, reason: read.reason, ...kindOf(read) });
-    } else if (read.kind === 'image') {
-      if (full('image')) skipped.push({ messageId: message.id, reason: 'limit', kind: 'photo' });
-      else images.push(read.image);
-    } else if (full('pdf')) {
-      skipped.push({ messageId: message.id, reason: 'limit', kind: 'PDF' });
-    } else {
-      pdfs.push({
-        name: pdfName(message.mediaName),
-        base64: '',
-        pages: read.pages,
-        buffer: read.buffer,
-      });
-    }
+    found.add(message, file ? await readPromptFile(file.path) : { reason: 'unreadable' });
   }
   const extract = options.extractText ?? defaultExtractText;
-  const withText = await Promise.all(
-    pdfs.map(async ({ buffer, ...pdf }): Promise<AiPromptPdf> => ({
+  const pdfs = await Promise.all(
+    found.pdfs.map(async ({ buffer, ...pdf }): Promise<AiPromptPdf> => ({
       ...pdf,
       base64: buffer.toString('base64'),
       text: options.textLayer === false ? null : await textOrNull(extract, buffer, options.signal),
     })),
   );
-  return { images: images.reverse(), pdfs: withText.reverse(), skipped: skipped.reverse() };
+  return {
+    images: found.images.toReversed(),
+    pdfs: pdfs.toReversed(),
+    skipped: found.skipped.toReversed(),
+  };
+}
+
+/** The files found so far (newest first) and the limits they fill. */
+class FoundFiles {
+  readonly images: AiPromptImage[] = [];
+  readonly pdfs: Array<Omit<AiPromptPdf, 'text'> & { buffer: Buffer }> = [];
+  readonly skipped: SkippedFile[] = [];
+  constructor(
+    private readonly maxImages: number,
+    private readonly maxPdfs: number,
+  ) {}
+
+  private full(kind: 'image' | 'pdf'): boolean {
+    return kind === 'image'
+      ? this.images.length >= this.maxImages
+      : this.pdfs.length >= this.maxPdfs;
+  }
+
+  /** Whether to wait for and read this message's file; records why not when it is a skipped file. */
+  wanted(message: Message, deps: PromptFileDeps): boolean {
+    if (message.fromMe || (message.type !== 'image' && message.type !== 'document')) return false;
+    if (deps.safetyLevel(message.id) === 'high') {
+      this.skipped.push({ messageId: message.id, reason: 'safety' });
+      return false;
+    }
+    // Imported history media stays pending until someone opens it: never wait for it.
+    if (deps.mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS) {
+      return false;
+    }
+    // A photo over the limit is not waited for; a document may still turn out to be either kind.
+    if (message.type === 'image' && this.full('image')) {
+      this.skipped.push({ messageId: message.id, reason: 'limit', kind: 'photo' });
+      return false;
+    }
+    return true;
+  }
+
+  add(message: Message, read: ReadFile): void {
+    const id = message.id;
+    if ('reason' in read) {
+      this.skipped.push({ messageId: id, reason: read.reason, ...kindOf(read) });
+    } else if (read.kind === 'image') {
+      if (this.full('image')) this.skipped.push({ messageId: id, reason: 'limit', kind: 'photo' });
+      else this.images.push(read.image);
+    } else if (this.full('pdf')) {
+      this.skipped.push({ messageId: id, reason: 'limit', kind: 'PDF' });
+    } else {
+      const name = pdfName(message.mediaName);
+      this.pdfs.push({ name, base64: '', pages: read.pages, buffer: read.buffer });
+    }
+  }
 }
 
 const kindOf = (read: { kind?: string }) =>
@@ -393,6 +420,8 @@ export function promptFilesLog(files: PromptFiles) {
     pdfPages: files.pdfs.reduce((sum, pdf) => sum + pdf.pages, 0),
     pdfText: files.pdfs.filter((pdf) => pdf.text !== null).length,
     skipped: files.skipped.length,
-    skippedTypes: [...new Set(files.skipped.map((file) => file.kind ?? file.reason))].sort(),
+    skippedTypes: [...new Set(files.skipped.map((file) => file.kind ?? file.reason))].sort((a, b) =>
+      a.localeCompare(b),
+    ),
   };
 }

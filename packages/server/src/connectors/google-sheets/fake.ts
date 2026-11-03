@@ -41,7 +41,18 @@ function demoSheets(): Map<string, { name: string; tabs: Map<string, string[][]>
           ['Leads', [['Date', 'Name', 'WhatsApp', 'Email', 'Request', 'AI agent']]],
           [
             'Claims',
-            [['Date', 'Name', 'WhatsApp', 'Group', 'Policy no', 'Amount', 'What happened', 'Source']],
+            [
+              [
+                'Date',
+                'Name',
+                'WhatsApp',
+                'Group',
+                'Policy no',
+                'Amount',
+                'What happened',
+                'Source',
+              ],
+            ],
           ],
           ['Notes', []],
         ]),
@@ -99,7 +110,11 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
         const title = /^'((?:[^']|'')*)'!/.exec(range)?.[1]?.replace(/''/g, "'");
         const tab = title !== undefined ? sheet.tabs.get(title) : undefined;
         if (!tab) return json(400, { error: { code: 400, message: 'Unable to parse range' } });
-        valueRanges.push({ range, majorDimension: 'ROWS', ...(tab[0] ? { values: [tab[0]] } : {}) });
+        valueRanges.push({
+          range,
+          majorDimension: 'ROWS',
+          ...(tab[0] ? { values: [tab[0]] } : {}),
+        });
       }
       return json(200, { valueRanges });
     }

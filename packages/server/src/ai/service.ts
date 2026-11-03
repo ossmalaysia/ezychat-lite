@@ -111,7 +111,13 @@ import {
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import { claudeModelId } from './claude.js';
-import type { AiAssistCall, AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
+import type {
+  AiAssistCall,
+  AiPromptImage,
+  AiPromptPdf,
+  AiProvider,
+  AiRewritePrompt,
+} from './provider-types.js';
 import { AI_LIVE_MEDIA_MS } from './images.js';
 import * as promptFiles from './files.js';
 import { sheetsCanAddRows, type SheetRecordContext } from '../connectors/google-sheets/record.js';
@@ -555,6 +561,8 @@ export function createAiService(
     customer: AiCustomer | null = null,
     /** A WhatsApp group answer (group rules and the group in the Current situation block). */
     group?: AiGroupSituation,
+    /** The batch's PDFs and the note on files left out (Current situation block). */
+    files?: { pdfs: AiPromptPdf[]; note: string | null },
   ) => ({
     ...buildAiPrompt(
       knowledge,
@@ -566,10 +574,12 @@ export function createAiService(
         timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
         awaitingConfirmation,
         ...(group ? { group } : {}),
+        ...(files?.note ? { filesNote: files.note } : {}),
       },
       images,
       customer,
     ),
+    ...(files?.pdfs.length ? { pdfs: [...files.pdfs] } : {}),
     cacheId: `${installId()}#agent:${agentId}`,
   });
   const mediaPending = (id: string) =>
@@ -1492,7 +1502,12 @@ export function createAiService(
       const asked = state(jid)!.awaiting_confirmation;
       const awaiting = asked > 0;
       let decision: AiDecision;
-      let images: AiPromptImage[] = [];
+      let files: Awaited<ReturnType<typeof batchFiles>> = {
+        images: [],
+        pdfs: [],
+        skipped: [],
+        note: null,
+      };
       const toolCalls: string[] = [];
       /** Successful extension look-ups ("AI looked up …" lines) and whether one failed. */
       let lookups: AgentToolInfo[] = [];
@@ -1514,7 +1529,7 @@ export function createAiService(
         turns: AiConversationTurn[],
         facts: string,
         awaitingConfirmation: boolean,
-        batchImages: AiPromptImage[],
+        given: typeof files,
       ): Promise<AiDecision> => {
         // A failed extension look-up ends the turn at once; the catch below hands over.
         const lookupAbort = new AbortController();
@@ -1529,6 +1544,7 @@ export function createAiService(
               lookupAbort.abort();
             },
             onCall: (name) => toolCalls.push(name),
+            record: recordContext(batch, given, false),
           },
         );
         try {
@@ -1544,8 +1560,10 @@ export function createAiService(
                   facts,
                   turns,
                   awaitingConfirmation,
-                  batchImages,
+                  given.images,
                   savedCustomer,
+                  undefined,
+                  given,
                 ),
                 tools: {
                   ...chatTools({
@@ -1567,14 +1585,24 @@ export function createAiService(
         }
       };
       try {
-        // Text, images (with or without a caption) and voice notes can be handled; video,
-        // documents, stickers and the like go to the team.
+        // Text, images (with or without a caption), PDFs the model is given and voice notes can be
+        // handled; video, other documents, stickers and the like go to the team.
         const voice = customer.type === 'audio';
-        const readable = customer.type === 'text' || customer.type === 'image' || voice;
-        if (readable && knowledge.trim()) images = await batchImages(batch, controller.signal);
+        const document = customer.type === 'document';
+        if (
+          (customer.type === 'text' || customer.type === 'image' || voice || document) &&
+          knowledge.trim()
+        )
+          files = await batchFiles(batch, agent.id, controller.signal);
         if (!owned()) return;
+        const pdfGiven = document && files.pdfs.length > 0;
+        const readable =
+          customer.type === 'text' || customer.type === 'image' || voice || pdfGiven;
         const understood =
-          !!customer.body?.trim() || (customer.type === 'image' && images.length > 0) || voice;
+          !!customer.body?.trim() ||
+          (customer.type === 'image' && files.images.length > 0) ||
+          voice ||
+          pdfGiven;
         // An untranscribed voice note gets one "please type it" answer; a second one after
         // that request goes to the team.
         const customerIndex = history.indexOf(customer);
@@ -1606,7 +1634,7 @@ export function createAiService(
                 reply: HANDOFF_REPLY,
                 handoffReason: hasFacts ? 'unsupported_message' : 'missing_facts',
               }
-            : await decide(conversation(history, aiUsers), knowledge, awaiting, images);
+            : await decide(conversation(history, aiUsers), knowledge, awaiting, files);
         // The first voice note the AI could not listen to always gets the "please type it" answer
         // (a repeat was handed off above); only a request for a person or a sensitive topic
         // still hands off.
@@ -1700,7 +1728,8 @@ export function createAiService(
           proposed,
           handoffReason: decision.handoffReason ?? null,
           asked,
-          images: images.length,
+          images: files.images.length,
+          pdfs: files.pdfs.length,
           toolCalls,
           voiceNotes: voiceNotes.length,
           model: current.model ?? null,

@@ -30,8 +30,7 @@ export function headerColumns(row: readonly string[] | undefined): string[] {
 }
 
 export type MatchedValues =
-  | { ok: true; byIndex: Map<number, string> }
-  | { ok: false; unknown: string[] };
+  { ok: true; byIndex: Map<number, string> } | { ok: false; unknown: string[] };
 
 /** Maps the AI's `{column: value}` onto the header's positions; unknown names are listed. */
 export function matchColumns(
@@ -106,7 +105,9 @@ export function datesIn(text: string): DayMonth[] {
   };
   for (const g of t.matchAll(/(?<!\d)(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)/g))
     push(Number(g[3]), Number(g[2]), Number(g[1]));
-  for (const g of t.matchAll(/(?<![\d/.-])(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{4}|\d{2}))?(?![\d])/g)) {
+  for (const g of t.matchAll(
+    /(?<![\d/.-])(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{4}|\d{2}))?(?![\d])/g,
+  )) {
     // Day first (Malaysia, Singapore); month first is accepted too: the check is against invention.
     push(Number(g[1]), Number(g[2]), year(g[3]));
     push(Number(g[2]), Number(g[1]), year(g[3]));

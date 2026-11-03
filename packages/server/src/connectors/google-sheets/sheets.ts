@@ -94,11 +94,7 @@ export class SheetsClient extends GoogleClient {
     const rows = Array.isArray(json.values) ? (json.values as unknown[]) : [];
     return rows
       .slice(0, MAX_READ_ROWS)
-      .map((row) =>
-        (Array.isArray(row) ? row : [])
-          .slice(0, MAX_READ_COLUMNS)
-          .map(cellText),
-      );
+      .map((row) => (Array.isArray(row) ? row : []).slice(0, MAX_READ_COLUMNS).map(cellText));
   }
 
   /** The first row (A1:Z1) of each tab, in one request per 50 tabs; an empty first row is []. */
@@ -124,7 +120,8 @@ export class SheetsClient extends GoogleClient {
         : [];
       chunk.forEach((tab, i) => {
         const values = found[i]?.values;
-        const row = Array.isArray(values) && Array.isArray(values[0]) ? (values[0] as unknown[]) : [];
+        const row =
+          Array.isArray(values) && Array.isArray(values[0]) ? (values[0] as unknown[]) : [];
         out.set(tab, row.slice(0, MAX_READ_COLUMNS).map(cellText));
       });
     }

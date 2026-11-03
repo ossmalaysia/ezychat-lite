@@ -65,8 +65,6 @@ export async function runAgentTurn(turn: AgentTurn): Promise<AgentTurnResult> {
  * text part with their text layer (`text`). Without images and PDFs it is the input text alone.
  */
 export function userContent(prompt: AgentTurn['prompt'], pdfInput: AiPdfInput) {
-  const pdfs = prompt.pdfs ?? [];
-  const pdfText = pdfInput === 'text' ? pdfTextLayer(pdfs) : null;
   return [
     { type: 'text' as const, text: prompt.input },
     ...(prompt.images ?? []).map((image) => ({
@@ -75,17 +73,22 @@ export function userContent(prompt: AgentTurn['prompt'], pdfInput: AiPdfInput) {
       mediaType: image.mime,
       providerOptions: { openai: { imageDetail: AI_IMAGE_DETAIL } },
     })),
-    ...(pdfInput === 'file'
-      ? pdfs.map((pdf) => ({
-          type: 'file' as const,
-          data: pdf.base64,
-          mediaType: 'application/pdf',
-          filename: pdf.name,
-        }))
-      : pdfText
-        ? [{ type: 'text' as const, text: pdfText }]
-        : []),
+    ...pdfParts(prompt.pdfs ?? [], pdfInput),
   ];
+}
+
+/** PDFs as file parts, or one text part with their text layer (none without text). */
+function pdfParts(pdfs: NonNullable<AiPrompt['pdfs']>, pdfInput: AiPdfInput) {
+  if (pdfInput === 'file') {
+    return pdfs.map((pdf) => ({
+      type: 'file' as const,
+      data: pdf.base64,
+      mediaType: 'application/pdf',
+      filename: pdf.name,
+    }));
+  }
+  const text = pdfTextLayer(pdfs);
+  return text ? [{ type: 'text' as const, text }] : [];
 }
 
 async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnResult> {

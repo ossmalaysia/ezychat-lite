@@ -131,7 +131,10 @@ export async function sheetsAgentTools(
         ms,
         ...(notRun ? { notRun } : {}),
       });
-      log.info({ event: 'ai_tool_call', tool: name, source: SOURCE, tabs: 1, ok, ms }, 'AI tool call');
+      log.info(
+        { event: 'ai_tool_call', tool: name, source: SOURCE, tabs: 1, ok, ms },
+        'AI tool call',
+      );
       ctx.bus.emit('ai:tool_call', {
         agent: input.agent,
         agentId,

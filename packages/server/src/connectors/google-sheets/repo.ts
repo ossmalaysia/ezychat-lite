@@ -110,15 +110,7 @@ export function insertRow(db: DB, row: SheetRowKey & { agentId: number }, now: n
   db.prepare(
     `INSERT INTO sheets_leads (agent_id, chat_jid, spreadsheet_id, tab, message_id, values_hash, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    row.agentId,
-    row.chatJid,
-    row.spreadsheetId,
-    row.tab,
-    row.messageId,
-    row.valuesHash,
-    now,
-  );
+  ).run(row.agentId, row.chatJid, row.spreadsheetId, row.tab, row.messageId, row.valuesHash, now);
 }
 
 export interface ActivityInput {
@@ -213,8 +205,7 @@ export function newestInbound(
          WHERE chat_jid = ? AND from_me = 0 ORDER BY timestamp DESC, rowid DESC LIMIT 1`,
       )
       .get(chatJid) as
-      | { id: string; senderJid: string | null; senderName: string | null }
-      | undefined) ?? null
+      { id: string; senderJid: string | null; senderName: string | null } | undefined) ?? null
   );
 }
 
@@ -226,7 +217,8 @@ export function memberContact(
 ): { name: string | null; phone: string | null } {
   const contact = db
     .prepare('SELECT saved_name AS saved, push_name AS push, phone FROM contacts WHERE jid = ?')
-    .get(memberJid) as { saved: string | null; push: string | null; phone: string | null } | undefined;
+    .get(memberJid) as
+    { saved: string | null; push: string | null; phone: string | null } | undefined;
   const sent = db
     .prepare(
       `SELECT sender_name AS name FROM messages WHERE chat_jid = ? AND sender_jid = ?
