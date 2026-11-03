@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "group-agents",
+      "creationOrder": 28,
+      "createdAt": "2026-11-03",
+      "design": "docs/features/group-agents/design.md",
+      "mock": null,
+      "status": "proposal",
+      "baselineFeature": "group-mentions",
+      "baselineGitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
+      "coverage": "Design and checklist only; the HTML mock is still owed.",
+      "note": "Several AI agents per WhatsApp number (Enterprise limit), group agent + listen mode, Google Sheets tab access per agent (Off / Read / Add rows)."
+    },
+    {
       "feature": "google-sheets",
       "creationOrder": 27,
       "createdAt": "2026-11-02",
@@ -97,7 +109,8 @@
       "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
       "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
       "parallelFeatures": ["concept-tips", "ai-handoff-rules"],
-      "note": "Confirmed in parallel with concept-tips and ai-handoff-rules (all cloned from grammar-fix): none of these mocks has the others' change. The next enhancement clones latestConfirmed and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys)."
+      "note": "Confirmed in parallel with concept-tips and ai-handoff-rules (all cloned from grammar-fix): none of these mocks has the others' change. The next enhancement clones latestConfirmed and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys).",
+      "archived": "Folder pruned 2026-11-03 (retention: five newest); recover it from git revision 1564247."
     },
     {
       "feature": "ai-handoff-rules",
