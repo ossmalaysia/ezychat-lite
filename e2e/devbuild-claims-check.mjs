@@ -101,12 +101,18 @@ check(
 
 // Google Sheets (fake Google): sign in, pick the demo spreadsheet, Claims on Add rows only.
 const connect = await api('POST', '/connectors/google-sheets/connect', {});
-const authUrl = connect.json?.authorizationUrl;
-const consent = await fetch(authUrl);
+/** A link the Dev Build gave back, as an API path of this Dev Build only (refuses any other host). */
+function localApiPath(link) {
+  const url = new URL(String(link), BASE);
+  if (url.origin !== BASE || !url.pathname.startsWith('/api/'))
+    throw new Error('Refusing a link outside the local Dev Build');
+  return url.pathname.slice('/api'.length) + url.search;
+}
+const consent = await api('GET', localApiPath(connect.json?.authorizationUrl));
 const allow = /id="allow" href="([^"]+)"/
-  .exec(await consent.text())?.[1]
+  .exec(String(consent.json?.html ?? ''))?.[1]
   ?.replace(/&#38;|&amp;/g, '&');
-await fetch(new URL(allow, BASE).href);
+await api('GET', localApiPath(allow));
 await wait(500);
 const sheetsStatus = (await api('GET', '/connectors/google-sheets')).json;
 check(
@@ -118,7 +124,7 @@ const picker = await api('POST', '/connectors/google-sheets/picker', {});
 const token = new URL(picker.json.pickerUrl).searchParams.get('token');
 const sheets = (await api('GET', '/dev/fake-google-sheets')).json.sheets;
 const sheetId = sheets[0].id;
-await fetch(`${BASE}/api/dev/fake-google-sheets/pick?token=${enc(token)}&id=${enc(sheetId)}`);
+await api('GET', `/dev/fake-google-sheets/pick?token=${enc(token)}&id=${enc(sheetId)}`);
 const saved = await api('PUT', `/connectors/google-sheets/agents/${claims.id}`, {
   spreadsheetId: sheetId,
   spreadsheetName: sheets[0].name,
