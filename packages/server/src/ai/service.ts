@@ -52,6 +52,7 @@ import {
   agentById,
   agentByUserId,
   agentForInbox,
+  agentsForInbox,
   createAgentRow,
   defaultAgent,
   deleteAgentRow,
@@ -64,7 +65,11 @@ import {
 import { findLeak } from './leak-check.js';
 import {
   addressedToAi,
-  groupEnabled,
+  agentForChat,
+  backfillGroupAgents,
+  chatAgent,
+  directAgentTaken,
+  groupChatRow,
   groupLine,
   groupText,
   loopGuard,
@@ -72,10 +77,11 @@ import {
   pausedLineWritten,
   type GroupTrigger,
 } from './groups.js';
-import { answersDirect } from './direct.js';
+import { answersDirect, directAgentOf, directSlotTaken } from './direct.js';
 import { HttpError, errors, parse } from '../http/errors.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { usersWhoCanOpen } from '../inboxes/access.js';
+import { getAliases } from '../chats/aliases.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 import { AI_KNOWLEDGE_CHARACTERS, relevantKnowledge } from './knowledge.js';
 import { AgentTurnFailure, errorNameOf } from './agent/models.js';
@@ -106,7 +112,9 @@ import {
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import { claudeModelId } from './claude.js';
 import type { AiAssistCall, AiPromptImage, AiProvider, AiRewritePrompt } from './provider-types.js';
-import { AI_IMAGE_WAIT_MS, AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, readPromptImage } from './images.js';
+import { AI_LIVE_MEDIA_MS } from './images.js';
+import * as promptFiles from './files.js';
+import { sheetsCanAddRows, type SheetRecordContext } from '../connectors/google-sheets/record.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 import {
   AI_CLAUDE_SECRET_KEY,
@@ -206,7 +214,7 @@ const mcpAudit = (actor: Actor) =>
 type AgentHttpCode = AgentError['code'] | 'last_agent';
 const AGENT_ERRORS: Record<AgentHttpCode, [status: number, message: string]> = {
   agent_limit: [409, 'No more AI agents can be added in this edition'],
-  inbox_has_agent: [409, 'This inbox already has an AI agent'],
+  inbox_has_direct_agent: [409, 'Another AI agent already answers direct chats on this number'],
   agent_not_found: [404, 'AI agent not found'],
   internal_too_large: [
     409,
@@ -242,11 +250,14 @@ export interface AiService {
   status(): AiMemberStatus;
   /** Every agent, oldest first. */
   listAgents(): AiAgentSummary[];
-  /** Agents this edition allows (= maxInboxes; Lite 1). */
+  /** Agents this edition allows (`maxAgents`, default maxInboxes; Lite 1). */
   maxAgents(): number;
   /** 404 `agent_not_found` for an unknown or deleted agent. */
   agentStatus(agentId: number): AiAgentStatus;
-  /** 409 `agent_limit` at maxAgents, 409 `inbox_has_agent`; in Lite the agent always serves inbox 1. */
+  /**
+   * 409 `agent_limit` at maxAgents. A new agent in an inbox whose direct chats another agent answers
+   * starts group-only; 409 `inbox_has_direct_agent` when it cannot. Lite: always inbox 1.
+   */
   createAgent(body: AiAgentBody, actor: Actor): AiAgentStatus;
   saveAgent(agentId: number, body: AiAgentBody, actor: Actor): AiAgentStatus;
   /** The agent's "Ask if the question is answered" switch (audited, takes effect on the next reply). */
@@ -278,7 +289,10 @@ export interface AiService {
   ): AiAgentStatus;
   document(agentId: number | null, id: number): AiDocumentView;
   removeDocument(agentId: number | null, id: number, actor: Actor): AiAgentStatus;
-  /** The agent that answers this chat (the agent of its inbox), or null. */
+  /**
+   * The agent that answers this chat, or null: a group's own agent (group on, agent on with "Answer
+   * in groups"), a direct chat's the inbox's direct agent (`ai/groups.ts#agentForChat`).
+   */
   agentForChat(jid: string): AgentRow | null;
   /** Unassigns and pauses every open chat the agent owns (through chats.patch, so events fire). */
   releaseAgent(agentId: number): void;
@@ -391,10 +405,10 @@ export function createAiService(
   const generations = new Map<string, AbortController>();
   const running = new Set<Promise<void>>();
   let closed = false;
-  /** Lite 1; an Enterprise build one per inbox. */
-  const maxAgents = () => ctx.inboxes.connections.maxInboxes();
-  /** The agent of the chat's inbox: the only AI that may answer it. */
-  const agentOfChat = (jid: string) => agentForInbox(ctx.db, inboxOfKey(jid));
+  /** The edition's limit (`runCli({ maxAgents })`), else one per inbox: Lite 1. */
+  const maxAgents = () => ctx.config.maxAgents ?? ctx.inboxes.connections.maxInboxes();
+  /** The agent whose knowledge and work belong to the chat (it may be off: callers check). */
+  const agentOfChat = (jid: string) => chatAgent(ctx, jid);
   /** Every AI team member, deleted agents included (their messages stay in the history). */
   const aiUserIds = () =>
     new Set(
@@ -581,23 +595,52 @@ export function createAiService(
       signal.addEventListener('abort', done, { once: true });
       if (!mediaPending(id) || signal.aborted) done();
     });
-  /** The newest readable customer images of a batch (newest first), at most AI_MAX_IMAGES. */
-  async function batchImages(batch: readonly Message[], signal: AbortSignal) {
-    const images: AiPromptImage[] = [];
-    // One wait budget for the whole batch, not per image.
-    const deadline = Date.now() + AI_IMAGE_WAIT_MS;
-    for (const message of [...batch].reverse()) {
-      if (images.length >= AI_MAX_IMAGES || signal.aborted) break;
-      if (message.fromMe || message.type !== 'image') continue;
-      // Imported history media stays pending until someone opens it: never wait for it.
-      if (mediaPending(message.id) && Date.now() - message.timestamp > AI_LIVE_MEDIA_MS) continue;
-      await waitForMedia(message.id, signal, deadline);
-      const file = messages.mediaPath(message.id);
-      const image = file ? readPromptImage(file.path) : null;
-      if (image) images.push(image);
-    }
-    return images.reverse();
+  /**
+   * The photos and PDFs of a batch the model is given (`ai/files.ts`): up to 10 photos when the
+   * agent may add sheet rows (an invoice set), else 3; High-risk files never. The note says which
+   * files were left out (when the files module provides one).
+   */
+  async function batchFiles(batch: readonly Message[], agentId: number, signal: AbortSignal) {
+    const files = await promptFiles.collectPromptFiles(
+      batch,
+      {
+        waitForMedia,
+        mediaPending,
+        mediaPath: (id) => messages.mediaPath(id),
+        safetyLevel: (id) => ctx.services.safety?.levelOf(id) ?? null,
+      },
+      { maxImages: sheetsCanAddRows(ctx, agentId) ? 10 : 3, signal },
+    );
+    const noteOf = (promptFiles as Record<string, unknown>).skippedFilesNote;
+    const note =
+      typeof noteOf === 'function' && files.skipped.length
+        ? (noteOf as (skipped: typeof files.skipped) => string | null)(files.skipped)
+        : null;
+    return { ...files, note: note || null };
   }
+  /** Who a sheet row of this turn is for (Google Sheets "Add rows"); `group` = the batch's senders. */
+  const recordContext = (
+    batch: readonly Message[],
+    files: { images: readonly unknown[]; pdfs: readonly unknown[] },
+    group: boolean,
+  ): SheetRecordContext => ({
+    personJids: group
+      ? [
+          ...new Set(
+            batch.flatMap((message) =>
+              message.senderJid ? [getAliases(ctx).resolve(message.senderJid)] : [],
+            ),
+          ),
+        ]
+      : null,
+    messageIds: batch.map((message) => message.id),
+    filesGiven: files.images.length + files.pdfs.length > 0,
+    fileNames: batch.flatMap((message) =>
+      (message.type === 'image' || message.type === 'document') && message.mediaName
+        ? [message.mediaName]
+        : [],
+    ),
+  });
   const state = (jid: string) =>
     ctx.db.prepare('SELECT * FROM ai_chat_state WHERE chat_jid = ?').get(jid) as State | undefined;
   /** One agent's Business context items with their text, oldest first (stable knowledge prefix). */
