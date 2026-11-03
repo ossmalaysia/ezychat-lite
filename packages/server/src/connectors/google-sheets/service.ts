@@ -205,8 +205,8 @@ export function createGoogleSheetsService(
   // Rows being added now (a second identical call waits for nothing and adds nothing).
   const adding = new Set<string>();
   account.onChange(clearCaches);
-  const remember = <T>(map: Map<string, T>, key: string, value: T) => {
-    if (map.size >= MAX_CACHED) map.delete(map.keys().next().value!);
+  const remember = <T>(map: Map<string, T>, key: string, value: T, limit = MAX_CACHED) => {
+    if (!map.has(key) && map.size >= limit) map.delete(map.keys().next().value!);
     map.set(key, value);
   };
 
@@ -256,10 +256,12 @@ export function createGoogleSheetsService(
       );
       for (const tab of missing) {
         const columns = headerColumns(rows.get(tab));
-        remember(columnCache, columnKeyOf(agentId, spreadsheetId, tab), {
-          at: now(),
-          columns,
-        });
+        remember(
+          columnCache,
+          columnKeyOf(agentId, spreadsheetId, tab),
+          { at: now(), columns },
+          MAX_CACHED_COLUMNS,
+        );
         out.set(tab, columns);
       }
     }
@@ -438,10 +440,12 @@ export function createGoogleSheetsService(
         if (key.startsWith(`${settings.spreadsheetId}\n`)) values.delete(key);
       const info = await checkedInfo(settings.spreadsheetId);
       for (const tab of info.tabs)
-        remember(columnCache, columnKeyOf(agentId, settings.spreadsheetId, tab.title), {
-          at,
-          columns: tab.columns,
-        });
+        remember(
+          columnCache,
+          columnKeyOf(agentId, settings.spreadsheetId, tab.title),
+          { at, columns: tab.columns },
+          MAX_CACHED_COLUMNS,
+        );
       log.info(
         { event: 'google_sheets_refresh', agentId, tabs: info.tabs.length },
         'Spreadsheet tabs read again',

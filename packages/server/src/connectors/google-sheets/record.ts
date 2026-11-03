@@ -1,4 +1,5 @@
 import type { AppContext } from '../../context.js';
+import { readSettings } from './repo.js';
 
 /**
  * Who a sheet row is recorded for in one AI turn (design docs/features/group-agents/design.md).
@@ -17,7 +18,7 @@ export interface SheetRecordContext {
 
 /** The agent has at least one tab on Add rows (it may get more images per turn). */
 export function sheetsCanAddRows(ctx: AppContext, agentId: number | null | undefined): boolean {
-  if (agentId === null || agentId === undefined) return false;
-  const settings = ctx.services.googleSheets?.getSettings(agentId);
-  return !!settings?.spreadsheetId && settings.tabs.some((tab) => tab.access === 'add');
+  if (agentId === null || agentId === undefined || !ctx.services.googleSheets) return false;
+  const settings = readSettings(ctx.db, agentId);
+  return !!settings.spreadsheetId && settings.tabs.some((tab) => tab.access === 'add');
 }
