@@ -247,6 +247,7 @@ describe('Google Sheets AI tools', () => {
     expect(events.map((e) => JSON.parse(e.payload))).toContainEqual({
       title: 'Add a row to Claims',
       sourceLabel: 'Google Sheets',
+      sheet: { action: 'row_added', tab: 'Claims' },
     });
     const activity = t.ctx.services.googleSheets!.activity();
     expect(activity.map((a) => [a.kind, a.tab])).toEqual([

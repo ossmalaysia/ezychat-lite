@@ -267,7 +267,11 @@ export async function sheetsAgentTools(
             const agent = agentById(ctx.db, agentId);
             if (agent)
               getChats(ctx).addAiToolUsed(chatJid, agent.userId, [
-                { title: `${ROW_TITLE} to ${result.tab}`, sourceLabel: SOURCE_LABEL },
+                {
+                  title: `${ROW_TITLE} to ${result.tab}`,
+                  sourceLabel: SOURCE_LABEL,
+                  sheet: { action: 'row_added', tab: result.tab },
+                },
               ]);
           }
           return {

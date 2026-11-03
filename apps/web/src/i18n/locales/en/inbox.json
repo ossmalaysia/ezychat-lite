@@ -287,6 +287,7 @@
     "reopened": "{{actor}} reopened this chat",
     "aiToolUsed": "AI looked up {{title}} · {{source}}",
     "internalNote": "Internal note",
+    "sheetRowAdded": "AI added a row to {{tab}} · {{source}}",
     "calendarChecked": "AI checked free times · {{source}}",
     "calendarBooked": "AI booked {{when}} · {{source}}",
     "calendarBookedNoTime": "AI booked a time · {{source}}",

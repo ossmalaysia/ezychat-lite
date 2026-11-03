@@ -260,6 +260,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               sourceLabel: lookup.sourceLabel,
               ...(lookup.calendar ? { calendar: lookup.calendar } : {}),
               ...(lookup.group ? { group: lookup.group } : {}),
+              ...(lookup.sheet ? { sheet: lookup.sheet } : {}),
             },
             at,
           }),

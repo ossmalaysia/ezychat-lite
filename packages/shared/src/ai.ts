@@ -436,6 +436,8 @@ export const AiToolUsedPayload = z.object({
   calendar: AiToolCalendarDetail.optional(),
   /** A WhatsApp group: the AI answered a tag or a quote, handed over, or paused (loop guard). */
   group: AiGroupEvent.optional(),
+  /** Google Sheets (core connector): the AI added a row to this tab. */
+  sheet: z.object({ action: z.literal('row_added'), tab: z.string().max(100) }).optional(),
 });
 export type AiToolUsedPayload = z.infer<typeof AiToolUsedPayload>;
 /** One extension tool call of a Try it answer: names and timing only, never input or output. */
