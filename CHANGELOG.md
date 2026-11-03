@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   several groups to one agent at once from its page.
 - **Several AI agents per WhatsApp number (Enterprise).** One agent answers direct chats; others work in the groups
   you give them, for example a claims agent for every branch group.
+- **Open PDFs and photos inside EzyChat.** Tap a PDF a customer sent and it opens in the app, page by page, with zoom.
+  No more saving it first and opening it somewhere else. Photos sent as files open in the photo preview too.
+  Download is still one tap away, and other files download as before.
 
 - **Suggest reply and Summarise with Ezy in group chats.** The two AI buttons under the message box now show in
   WhatsApp groups too, not only in one-to-one chats. Suggested replies answer the latest question in the group and
