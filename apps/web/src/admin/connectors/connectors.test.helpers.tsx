@@ -394,8 +394,7 @@ function sheetsRoute(w: World, method: string, path: string, init?: RequestInit)
   }
   const refreshMatch = /^\/agents\/(\d+)\/refresh$/.exec(rest);
   if (refreshMatch && method === 'POST') {
-    const next =
-      w.sheetRefresh.length > 1 ? w.sheetRefresh.shift()! : (w.sheetRefresh[0] ?? null);
+    const next = w.sheetRefresh.length > 1 ? w.sheetRefresh.shift()! : (w.sheetRefresh[0] ?? null);
     if (next === 'busy')
       return json({ error: { code: 'rate_limited', message: 'Too many requests' } }, 429);
     const saved = w.sheetSettings[Number(refreshMatch[1])]?.spreadsheetId ?? '';

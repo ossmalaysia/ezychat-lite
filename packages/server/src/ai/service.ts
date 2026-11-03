@@ -118,8 +118,8 @@ import type {
   AiProvider,
   AiRewritePrompt,
 } from './provider-types.js';
-import { AI_LIVE_MEDIA_MS } from './images.js';
-import * as promptFiles from './files.js';
+import { AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, AI_MAX_RECORD_IMAGES } from './images.js';
+import { collectPromptFiles, promptFilesLog, skippedFilesNote } from './files.js';
 import { sheetsCanAddRows, type SheetRecordContext } from '../connectors/google-sheets/record.js';
 import { guardResolution, objectsToResolution } from './resolution.js';
 import {
@@ -618,7 +618,7 @@ export function createAiService(
    * files were left out (when the files module provides one).
    */
   async function batchFiles(batch: readonly Message[], agentId: number, signal: AbortSignal) {
-    const files = await promptFiles.collectPromptFiles(
+    const files = await collectPromptFiles(
       batch,
       {
         waitForMedia,
@@ -626,14 +626,14 @@ export function createAiService(
         mediaPath: (id) => messages.mediaPath(id),
         safetyLevel: (id) => ctx.services.safety?.levelOf(id) ?? null,
       },
-      { maxImages: sheetsCanAddRows(ctx, agentId) ? 10 : 3, signal },
+      {
+        maxImages: sheetsCanAddRows(ctx, agentId) ? AI_MAX_RECORD_IMAGES : AI_MAX_IMAGES,
+        signal,
+        // the ChatGPT sign-in backend takes no files: it gets each PDF's text layer
+        textLayer: aiProviderSettings(ctx.settings).mode === 'chatgpt',
+      },
     );
-    const noteOf = (promptFiles as Record<string, unknown>).skippedFilesNote;
-    const note =
-      typeof noteOf === 'function' && files.skipped.length
-        ? (noteOf as (skipped: typeof files.skipped) => string | null)(files.skipped)
-        : null;
-    return { ...files, note: note || null };
+    return { ...files, note: skippedFilesNote(files.skipped) };
   }
   /** Who a sheet row of this turn is for (Google Sheets "Add rows"); `group` = the batch's senders. */
   const recordContext = (
@@ -1264,7 +1264,11 @@ export function createAiService(
     try {
       // A tag or quote without text (a sticker, a voice note, a photo without caption) goes to the team.
       if (unsafe) decision = handover('sensitive');
-      else if (!listen && (!asked.body?.trim() || !question))
+      else if (
+        !listen &&
+        (!asked.body?.trim() || !question) &&
+        !(asked.type === 'document' && files.pdfs.length > 0)
+      )
         decision = handover('unsupported_message');
       else if (!hasFacts) decision = handover('missing_facts');
       else {
@@ -1364,8 +1368,7 @@ export function createAiService(
         group: true,
         trigger: ask.trigger,
         batch: batch.length,
-        images: files.images.length,
-        pdfs: files.pdfs.length,
+        ...promptFilesLog(files),
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
@@ -1826,8 +1829,7 @@ export function createAiService(
           proposed,
           handoffReason: decision.handoffReason ?? null,
           asked,
-          images: files.images.length,
-          pdfs: files.pdfs.length,
+          ...promptFilesLog(files),
           toolCalls,
           voiceNotes: voiceNotes.length,
           model: current.model ?? null,
