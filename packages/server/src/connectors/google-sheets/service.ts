@@ -467,7 +467,7 @@ export function createGoogleSheetsService(
       if (!agentById(ctx.db, agentId)) throw errors.notFound('Agent');
       const parsed = SheetsAgentSettings.parse(next);
       const before = readSettings(ctx.db, agentId);
-      let saved: SheetsAgentSettings = parsed;
+      let saved: SheetsAgentSettings;
       let droppedTabs = 0;
       if (!parsed.spreadsheetId) saved = { spreadsheetId: null, spreadsheetName: null, tabs: [] };
       else if (linked()) {
