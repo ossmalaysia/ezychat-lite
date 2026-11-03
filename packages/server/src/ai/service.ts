@@ -175,6 +175,13 @@ const groupTryDecision = (decision: AiDecision): AiDecision =>
       : { action: 'answer', reply: decision.reply, handoffReason: null };
 
 export const AI_FALLBACK_MS = 10_000;
+/**
+ * "Reads every message" groups: a turn starts this long after the last member message and sees
+ * every new one (a claim sent as text + photo + PDF is one turn).
+ */
+export const AI_GROUP_LISTEN_WINDOW_MS = 8_000;
+/** A listening group's batch keeps at most this many of the newest messages. */
+const AI_GROUP_LISTEN_BATCH_MAX = 30;
 /** Names of the fixed Claude models (`GET /api/ai/models` in Claude mode). */
 const CLAUDE_MODEL_LABELS: Record<(typeof CLAUDE_MODELS)[number], string> = {
   'claude-sonnet-5-5': 'Claude Sonnet 5.5',
@@ -756,9 +763,18 @@ export function createAiService(
   };
   // WhatsApp groups (docs/features/ai-groups/design.md): addressed questions wait per group and are
   // answered one at a time; the AI never owns a group chat, so none of the direct-chat state applies.
-  /** Addressed group messages waiting for an answer, per group, oldest first. */
-  const groupQueues = new Map<string, Array<{ id: string; trigger: GroupTrigger }>>();
+  /**
+   * Group turns waiting, per group, oldest first: an addressed message (`tag` / `quote`), or a
+   * listening group's batch of new member messages (`listen`, `id` = its newest).
+   */
+  const groupQueues = new Map<
+    string,
+    Array<{ id: string; trigger: GroupTrigger | 'listen'; batch?: string[] }>
+  >();
   const groupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** "Reads every message": member messages collected per group until it is quiet for a while. */
+  const listenBatches = new Map<string, string[]>();
+  const listenTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const groupTurns = new Map<string, AbortController>();
   /** `<jid>\n<quoted message id>` of group answers being sent now: canSend lets only these out. */
   const groupSends = new Set<string>();
@@ -767,6 +783,10 @@ export function createAiService(
     if (timer) clearTimeout(timer);
     groupTimers.delete(jid);
     groupQueues.delete(jid);
+    const listening = listenTimers.get(jid);
+    if (listening) clearTimeout(listening);
+    listenTimers.delete(jid);
+    listenBatches.delete(jid);
     const turn = groupTurns.get(jid);
     groupTurns.delete(jid);
     if (turn) {
@@ -774,7 +794,8 @@ export function createAiService(
       failPendingAi(jid);
     }
   };
-  const groupJids = () => new Set([...groupTimers.keys(), ...groupTurns.keys()]);
+  const groupJids = () =>
+    new Set([...groupTimers.keys(), ...groupTurns.keys(), ...listenTimers.keys()]);
   const cancelAll = () => {
     for (const jid of new Set([...timers.keys(), ...generations.keys()])) cancel(jid);
     for (const jid of groupJids()) cancelGroup(jid);
@@ -1096,8 +1117,8 @@ export function createAiService(
    * Loop guard: after AI_GROUP_LOOP_GUARD AI messages in a row without a teammate message the AI
    * waits; the first held question of the run writes the one "AI paused" line.
    */
-  const holdForLoopGuard = (jid: string, agent: AgentRow): boolean => {
-    const guard = loopGuard(ctx.db, jid);
+  const holdForLoopGuard = (jid: string, agent: AgentRow, listen = false): boolean => {
+    const guard = loopGuard(ctx.db, jid, listen);
     if (!guard.paused) return false;
     if (!pausedLineWritten(ctx.db, jid, guard.since)) {
       chats.addAiToolUsed(jid, agent.userId, [groupLine(agent, { kind: 'paused', member: null })]);
@@ -1111,7 +1132,7 @@ export function createAiService(
   /** Waiting questions of one group: at most this many (a burst beyond it gets no answer). */
   const GROUP_QUEUE_MAX = 5;
   const GROUP_DEBOUNCE_MS = 1000;
-  function scheduleGroup(jid: string) {
+  function scheduleGroup(jid: string, delay = GROUP_DEBOUNCE_MS) {
     if (groupTimers.has(jid) || groupTurns.has(jid) || groupTimers.size >= 200) return;
     const timer = setTimeout(() => {
       groupTimers.delete(jid);
@@ -1123,7 +1144,7 @@ export function createAiService(
         .catch(() => log.warn({ jid, reason: 'workflow_failed' }, 'AI group workflow failed'))
         .finally(() => running.delete(promise));
       running.add(promise);
-    }, GROUP_DEBOUNCE_MS);
+    }, delay);
     timer.unref?.();
     groupTimers.set(jid, timer);
   }
@@ -1159,13 +1180,14 @@ export function createAiService(
    */
   async function groupTurn(
     jid: string,
-    ask: { id: string; trigger: GroupTrigger },
+    ask: { id: string; trigger: GroupTrigger | 'listen'; batch?: string[] },
     signal: AbortSignal,
   ) {
     const agent = groupAgent(jid);
     if (!agent) return;
+    const listen = ask.trigger === 'listen';
     const still = () => !signal.aborted && groupAgent(jid)?.id === agent.id;
-    if (holdForLoopGuard(jid, agent)) return;
+    if (holdForLoopGuard(jid, agent, listen)) return;
     if (!replyWindowOpen(ctx, jid)) {
       log.info({ jid, agentId: agent.id, reason: 'window_closed' }, 'AI group question skipped');
       return;
@@ -1173,12 +1195,27 @@ export function createAiService(
     const chat = chats.get(jid)!;
     const history = messages.list(jid, { limit: AI_GROUP_CONTEXT_MESSAGES }).messages;
     const asked = history.find((message) => message.id === ask.id);
-    if (!asked) {
+    // Listening: the batch's member messages still in the chat (a deleted one is not read).
+    const batch = listen
+      ? history.filter(
+          (message) =>
+            (ask.batch ?? [ask.id]).includes(message.id) &&
+            !message.fromMe &&
+            message.deletedAt == null,
+        )
+      : asked
+        ? [asked]
+        : [];
+    if (!asked || !batch.length) {
       log.info({ jid, agentId: agent.id, reason: 'question_too_old' }, 'AI group question skipped');
       return;
     }
     const member = memberName(ctx, asked);
     const question = groupText(customerText(asked)).trim();
+    const batchTexts = batch.map((message) => ({
+      member: memberName(ctx, message) ?? 'Member',
+      text: groupText(customerText(message)).trim(),
+    }));
     const quoted = asked.quotedId
       ? history.find((message) => message.id === asked.quotedId)
       : undefined;
@@ -1188,9 +1225,32 @@ export function createAiService(
     const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
     const knowledge = relevantKnowledge(
       items.business,
-      [quoted ? customerText(quoted) : '', question].filter(Boolean).join('\n'),
+      listen
+        ? batchTexts.map((line) => line.text).join('\n')
+        : [quoted ? customerText(quoted) : '', question].filter(Boolean).join('\n'),
     );
-    const hasFacts = !!knowledge.trim() || agentLookupsAvailable(ctx, 'sales', agent.id);
+    const canRecord = sheetsCanAddRows(ctx, agent.id);
+    const hasFacts =
+      !!knowledge.trim() || agentLookupsAvailable(ctx, 'sales', agent.id) || canRecord;
+    const unsafe = batch.some((message) => ctx.services.safety?.levelOf(message.id) === 'high');
+    // Photos and PDFs of the batch (a tagged photo, a listening group's claim files).
+    const files =
+      !unsafe && hasFacts && batch.some((m) => m.type === 'image' || m.type === 'document')
+        ? await batchFiles(batch, agent.id, signal)
+        : { images: [], pdfs: [], skipped: [], note: null };
+    if (!still()) return;
+    if (listen && !unsafe) {
+      // A listening group gets no hand-over line for what it cannot read: it stays quiet.
+      const readable =
+        batchTexts.some((line) => line.text) || files.images.length + files.pdfs.length > 0;
+      if (!readable || !hasFacts) {
+        log.info(
+          { jid, agentId: agent.id, reason: readable ? 'missing_facts' : 'nothing_readable' },
+          'AI group messages skipped',
+        );
+        return;
+      }
+    }
     const toolCalls: string[] = [];
     let lookups: AgentToolInfo[] = [];
     let lookupFailed = false;
@@ -1203,8 +1263,9 @@ export function createAiService(
     let decision: AiDecision;
     try {
       // A tag or quote without text (a sticker, a voice note, a photo without caption) goes to the team.
-      if (ctx.services.safety?.levelOf(asked.id) === 'high') decision = handover('sensitive');
-      else if (!asked.body?.trim() || !question) decision = handover('unsupported_message');
+      if (unsafe) decision = handover('sensitive');
+      else if (!listen && (!asked.body?.trim() || !question))
+        decision = handover('unsupported_message');
       else if (!hasFacts) decision = handover('missing_facts');
       else {
         const lookupAbort = new AbortController();
@@ -1220,6 +1281,7 @@ export function createAiService(
             },
             onCall: (name) => toolCalls.push(name),
             lookupsOnly: true,
+            record: recordContext(batch, files, true),
           },
         );
         try {
@@ -1235,14 +1297,16 @@ export function createAiService(
                   knowledge,
                   groupConversation(history, aiUserIds()),
                   false,
-                  [],
+                  files.images,
                   null,
                   {
                     name: chat.name?.trim() || 'WhatsApp group',
                     member: member ?? 'Member',
                     trigger: ask.trigger,
                     message: question,
+                    ...(listen ? { messages: batchTexts } : {}),
                   },
+                  files,
                 ),
                 tools: {
                   ...chatTools({
@@ -1299,6 +1363,9 @@ export function createAiService(
         agentId: agent.id,
         group: true,
         trigger: ask.trigger,
+        batch: batch.length,
+        images: files.images.length,
+        pdfs: files.pdfs.length,
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
@@ -1369,10 +1436,43 @@ export function createAiService(
         question,
       });
   }
-  /** A live group message: queued for an answer only when every switch is on and it is addressed. */
+  /** A listening group was quiet for the window: its batch becomes one queued turn. */
+  const flushListen = (jid: string) => {
+    listenTimers.delete(jid);
+    const batch = listenBatches.get(jid);
+    listenBatches.delete(jid);
+    if (!batch?.length || !groupAgent(jid)) return;
+    const queue = groupQueues.get(jid) ?? [];
+    if (queue.length >= GROUP_QUEUE_MAX) {
+      log.info({ jid, reason: 'queue_full' }, 'AI group question skipped');
+      return;
+    }
+    queue.push({ id: batch.at(-1)!, trigger: 'listen', batch });
+    groupQueues.set(jid, queue);
+    log.info({ jid, trigger: 'listen', batch: batch.length }, 'AI group messages');
+    scheduleGroup(jid, 0);
+  };
+  /**
+   * A live group message: in a group with "Reads every message" on it joins the group's batch (one
+   * turn once the group is quiet for AI_GROUP_LISTEN_WINDOW_MS); else it is queued for an answer
+   * only when every switch is on and it is addressed.
+   */
   const onGroupInbound = (chat: Chat, message: Message) => {
     const agent = groupAgent(chat.jid);
     if (!agent) return;
+    if (groupChatRow(ctx.db, chat.jid).listen) {
+      if (message.fromMe || isAiUser(message.sentByUserId)) return;
+      const batch = [...(listenBatches.get(chat.jid) ?? []), message.id].slice(
+        -AI_GROUP_LISTEN_BATCH_MAX,
+      );
+      listenBatches.set(chat.jid, batch);
+      const waiting = listenTimers.get(chat.jid);
+      if (waiting) clearTimeout(waiting);
+      const timer = setTimeout(() => flushListen(chat.jid), AI_GROUP_LISTEN_WINDOW_MS);
+      timer.unref?.();
+      listenTimers.set(chat.jid, timer);
+      return;
+    }
     const trigger = addressedToAi(ctx, {
       chatJid: chat.jid,
       messageId: message.id,

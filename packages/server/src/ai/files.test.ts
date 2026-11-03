@@ -282,7 +282,7 @@ describe('collectPromptFiles', () => {
     ]);
     expect(waited).not.toContain('risky');
     expect(waited).not.toContain('old');
-    expect(promptFilesLog(files).skippedTypes).toEqual(['Word', 'safety', 'unreadable']);
+    expect(promptFilesLog(files).skippedTypes).toEqual(['safety', 'unreadable', 'Word']);
   });
 
   it('stops on abort and gives no text layer once aborted', async () => {

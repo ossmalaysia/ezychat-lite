@@ -77,9 +77,11 @@ export const SHEET: SpreadsheetInfo = {
   id: SHEET_ID,
   name: 'Kopi Apong prices',
   tabs: [
-    { title: 'Menu', rows: 1000 },
-    { title: 'Leads', rows: 1000 },
+    { title: 'Menu', rows: 1000, columns: ['Item', 'Price', 'Stock'] },
+    { title: 'Leads', rows: 1000, columns: ['Date', 'Name', 'WhatsApp', 'Email', 'Request'] },
+    { title: 'Notes', rows: 1000, columns: [] },
   ],
+  checkedAt: null,
   url: googleSheetUrl(SHEET_ID),
 };
 
@@ -212,6 +214,11 @@ export interface World {
   spreadsheets: Record<string, SpreadsheetInfo>;
   /** Answers to the file picker polls, in order (the last one repeats). */
   pickerProgress: SheetsPickerProgress[];
+  /**
+   * Answers to Refresh (`POST …/agents/:id/refresh`), in order (the last one repeats); empty = the
+   * saved spreadsheet as `spreadsheets` holds it. `'busy'` answers 429 rate_limited.
+   */
+  sheetRefresh: (SpreadsheetInfo | 'busy')[];
   agents: AiAgentSummary[];
   bookings: Record<number, BookingSettings>;
   activity: CalendarActivity[];
@@ -248,6 +255,7 @@ export function world(patch: Partial<World> = {}): World {
     sheetsActivity: [],
     spreadsheets: { [SHEET_ID]: SHEET },
     pickerProgress: [{ status: 'done', sheet: SHEET }],
+    sheetRefresh: [],
     agents: [agent(1, 'Aina')],
     bookings: {},
     activity: [],
@@ -383,6 +391,18 @@ function sheetsRoute(w: World, method: string, path: string, init?: RequestInit)
           },
           400,
         );
+  }
+  const refreshMatch = /^\/agents\/(\d+)\/refresh$/.exec(rest);
+  if (refreshMatch && method === 'POST') {
+    const next =
+      w.sheetRefresh.length > 1 ? w.sheetRefresh.shift()! : (w.sheetRefresh[0] ?? null);
+    if (next === 'busy')
+      return json({ error: { code: 'rate_limited', message: 'Too many requests' } }, 429);
+    const saved = w.sheetSettings[Number(refreshMatch[1])]?.spreadsheetId ?? '';
+    const found = next ?? w.spreadsheets[saved];
+    return found
+      ? json(found)
+      : json({ error: { code: 'validation', message: 'No spreadsheet chosen.' } }, 400);
   }
   const agentMatch = /^\/agents\/(\d+)$/.exec(rest);
   if (agentMatch) {
