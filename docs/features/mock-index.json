@@ -21,11 +21,13 @@
       "createdAt": "2026-11-03",
       "design": "docs/features/group-agents/design.md",
       "mock": "docs/features/group-agents/mock/preview.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "group-mentions",
       "baselineGitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
       "coverage": "Standalone preview of the new screens (members, Claims agent page, Google Sheets tab access, group chat with claim/PDF/photo/missing/chit-chat/Word simulation, the sheet, Activity), desktop 1280 / mobile 360, light/dark; the cumulative full-app clone is still owed.",
-      "note": "Several AI agents per WhatsApp number (Enterprise limit), group agent + listen mode, Google Sheets tab access per agent (Off / Read / Add rows)."
+      "note": "Several AI agents per WhatsApp number (Enterprise limit), group agent + listen mode, Google Sheets tab access per agent (Off / Read / Add rows).",
+      "confirmedAt": "2026-11-03",
+      "confirmation": "Owner wrote 2026-11-03 \"look good, implement it until it done with test, than create PR and merge\" after the preview screenshots (incl. Refresh). Confirmed on the standalone preview; no full-app clone."
     },
     {
       "feature": "google-sheets",

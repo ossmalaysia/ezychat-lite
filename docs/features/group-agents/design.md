@@ -1,7 +1,6 @@
 # Group agents: several AI agents per number, sheet tabs per agent
 
-Status: **design proposal, not yet confirmed by the owner**. The HTML mock is still owed (see "Mock and
-confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined-feynman-y5uo0g` from `main`
+Status: **confirmed by the owner 2026-11-03** on the preview mock (see "Mock and confirmation"); in build. Created 2026-11-03 (creationOrder 28). Branch `claude/determined-feynman-y5uo0g` from `main`
 (`1564247`).
 
 ## Owner request (2026-11-03)
@@ -138,5 +137,8 @@ pruned in the same change.
   colour tokens (open the file in a browser; Mock only bar switches screens, simulates claims, Dark/Light).
   Screenshots desktop 1280 and mobile 360 in `mock/screenshots/` (no horizontal scroll at 360 px). Shown to the
   owner for direction.
-- **Still owed before production UI:** the cumulative full-app mock (clone of `group-mentions` at `f6f0d2b` plus the
+- **Owner confirmation 2026-11-03:** after the preview screenshots, the Refresh button and the tool explanation the owner
+  wrote "look good, implement it until it done with test, than create PR and merge". The owner chose to build from the
+  preview; the cumulative full-app mock was not made (a recorded gap, not an approval of the rule's skip).
+- **Not made:** the cumulative full-app mock (clone of `group-mentions` at `f6f0d2b` plus the
   WhatsApp Safety and edit/delete screens) with these screens added, and the owner's confirmation of it.

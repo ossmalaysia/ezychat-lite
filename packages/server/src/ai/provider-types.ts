@@ -23,6 +23,8 @@ export interface AiPrompt {
    * part of the user message. Absent or empty: the request body is exactly as without images.
    */
   images?: AiPromptImage[];
+  /** PDFs of the batch (design group-agents Part C). */
+  pdfs?: AiPromptPdf[];
   /**
    * Read tools bound to the chat being answered (`agent/tools.ts`). Absent or empty: the model
    * answers in one call, as before.
@@ -60,6 +62,14 @@ export interface AiDraftOptions<T> {
 export interface AiPromptImage {
   mime: string;
   base64: string;
+}
+/** A PDF the person sent: the file for models that read PDFs, its text layer for the others. */
+export interface AiPromptPdf {
+  name: string;
+  base64: string;
+  /** Text layer (null: scanned or unreadable). */
+  text: string | null;
+  pages: number;
 }
 /** Low detail keeps image tokens small and replies fast (OpenAI only; never sent to Claude). */
 export const AI_IMAGE_DETAIL = 'low';
