@@ -9,8 +9,8 @@ Branch: `claude/determined-feynman-y5uo0g` · Every agent updates its stage with
 | Dev | done | Sheets tab access, group agents + listen, PDFs, web screens integrated | 5c47ef4 | 2026-11-03 |
 | Unit tests | pass | 4612 tests pass; changed-lines coverage 98.2 % | 4001321 | 2026-11-03 |
 | E2E | pass | npm run e2e: 141 passed, 27 skipped (Linux; electron-links is Windows-only, not run) | 4001321 | 2026-11-03 |
-| Dev Build | skip | Not run: real AI sign-in and real WhatsApp needed (owner) | 4001321 | 2026-11-03 |
-| Screen review | todo |  |  |  |
+| Dev Build | pass | Claims Dev Build check 18/18 (mock AI, fake WA, fake Google) | 75379c2 | 2026-11-03 |
+| Screen review | pass | Agent page, Sheets settings, Activity, Members, Group info at 1280/360 light+dark: no overflow, no page errors; 2 findings fixed | 75379c2 | 2026-11-03 |
 
 ## Log
 
@@ -20,3 +20,5 @@ Branch: `claude/determined-feynman-y5uo0g` · Every agent updates its stage with
 - 2026-11-03 Unit tests: pass — 4612 tests pass; changed-lines coverage 98.2 % (4001321)
 - 2026-11-03 E2E: pass — npm run e2e: 141 passed, 27 skipped (Linux; electron-links is Windows-only, not run) (4001321)
 - 2026-11-03 Dev Build: skip — Not run: real AI sign-in and real WhatsApp needed (owner) (4001321)
+- 2026-11-03 Dev Build: pass — Claims Dev Build check 18/18 (mock AI, fake WA, fake Google) (75379c2)
+- 2026-11-03 Screen review: pass — Agent page, Sheets settings, Activity, Members, Group info at 1280/360 light+dark: no overflow, no page errors; 2 findings fixed (75379c2)
