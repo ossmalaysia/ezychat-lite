@@ -275,4 +275,77 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
       'Sell kopi kindly\n\nAdd customers who want to buy as a new row to the tab "Leads".',
     );
   });
+  // Group agents (032): the agents table loses the one-agent-per-inbox rule without losing the
+  // rows that point at an agent, and switched-on groups keep their inbox's agent.
+  it('032 lets an inbox have several agents, keeps agent data and gives groups their agent', async () => {
+    dir = oldestDataDir();
+    const old = new Database(join(dir, 'app.db'));
+    migrate(old, 31);
+    const at = 1_700_000_000_000;
+    old
+      .prepare(
+        "INSERT INTO users (id, username, display_name, password_hash, role, kind, created_at) VALUES (9, 'ai-g', 'Kopi Bot', '', 'agent', 'ai', ?)",
+      )
+      .run(at);
+    old
+      .prepare(
+        "INSERT INTO ai_agents (id, user_id, inbox_id, preset, instructions, answer_groups, created_at, updated_at) VALUES (4, 9, 1, 'faq', 'Be brief', 1, ?, ?)",
+      )
+      .run(at, at);
+    old.prepare("INSERT INTO settings (key, value) VALUES ('ai_agents_migrated', 'true')").run();
+    old
+      .prepare(
+        "INSERT INTO ai_documents (agent_id, name, kind, size, text, created_at, updated_at) VALUES (4, 'Hours', 'text', 8, 'Open 8-6', ?, ?)",
+      )
+      .run(at, at);
+    old
+      .prepare(
+        "INSERT INTO reply_phrases (agent_id, language, text, source, created_at, updated_at) VALUES (4, 'en', 'We open at 8.', 'context', ?, ?)",
+      )
+      .run(at, at);
+    const GROUP = '120363000000009@g.us';
+    old
+      .prepare('INSERT INTO ai_group_chats (chat_jid, enabled, updated_at) VALUES (?, 1, ?)')
+      .run(GROUP, at);
+    old
+      .prepare('INSERT INTO ai_group_chats (chat_jid, enabled, updated_at) VALUES (?, 0, ?)')
+      .run('120363000000010@g.us', at);
+    old.close();
+
+    t = await makeTestApp({ config: { dataDir: dir } });
+    const db = t.ctx.db;
+    expect(listAgents(db).find((a) => a.id === 4)).toMatchObject({
+      inboxId: 1,
+      preset: 'faq',
+      instructions: 'Be brief',
+      answerGroups: true,
+      answerDirect: true,
+    });
+    expect(db.prepare('SELECT agent_id AS agentId, name FROM ai_documents').all()).toEqual([
+      { agentId: 4, name: 'Hours' },
+    ]);
+    expect(db.prepare('SELECT agent_id AS agentId FROM reply_phrases').all()).toEqual([
+      { agentId: 4 },
+    ]);
+    expect(
+      db
+        .prepare('SELECT chat_jid AS jid, agent_id AS agentId, listen FROM ai_group_chats ORDER BY chat_jid')
+        .all(),
+    ).toEqual([
+      { jid: GROUP, agentId: 4, listen: 0 },
+      { jid: '120363000000010@g.us', agentId: null, listen: 0 },
+    ]);
+    // a second agent on the same number is allowed now
+    db.prepare(
+      "INSERT INTO users (id, username, display_name, password_hash, role, kind, created_at) VALUES (10, 'ai-h', 'Claims', '', 'agent', 'ai', ?)",
+    ).run(at);
+    expect(() =>
+      db
+        .prepare(
+          "INSERT INTO ai_agents (user_id, inbox_id, preset, answer_direct, created_at, updated_at) VALUES (10, 1, 'custom', 0, ?, ?)",
+        )
+        .run(at, at),
+    ).not.toThrow();
+    expect(db.pragma('foreign_key_check')).toEqual([]);
+  });
 });
