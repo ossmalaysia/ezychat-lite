@@ -1232,6 +1232,10 @@ into AGENTS.md.
   claim a group (`claimOnReply`), pause/cancel logic keyed on the chat (`onChat`) must skip groups, and tools that read
   the customer profile need an empty contact in a group. Grep for `type === 'dm'` assumptions before widening a path.
 
+- Reusing `groupConversation` for another group prompt: filter deleted messages first. It maps each message
+  through `conversation([message])`, which drops a deleted one, so `[0]` is undefined and the turn crashes.
+  Any new group prompt also sends no customer details (a group has no profile) and passes `groupText` text.
+
 ## Desktop and web UI
 
 - A page that counts across inboxes (Reports, its Safety section) takes one optional `inbox` query param and the page's

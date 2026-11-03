@@ -1,0 +1,19 @@
+# Workbook: claude/wizardly-brown-b7fl2n
+
+Branch: `claude/wizardly-brown-b7fl2n` · Every agent updates its stage with
+`node scripts/build-summary.mjs record <stage> <status> "<detail>"` and commits it with the work.
+
+| Stage | Status | Detail | Commit | Updated |
+| --- | --- | --- | --- | --- |
+| Design | todo |  |  |  |
+| Dev | done | Suggest reply, completion and Summarise with Ezy open for groups; draft prompt names members | 83d1bf1 | 2026-11-03 |
+| Unit tests | done | ai-reply-draft + reply-suggestions-routes: group drafts, member names, no profile | 83d1bf1 | 2026-11-03 |
+| E2E | done | reply-suggestions/ask-ezy/mentions on desktop-chromium + mobile: 14 passed | 83d1bf1 | 2026-11-03 |
+| Dev Build | todo |  |  |  |
+| Screen review | todo |  |  |  |
+
+## Log
+
+- 2026-11-03 Dev: done — Suggest reply, completion and Summarise with Ezy open for groups; draft prompt names members (83d1bf1)
+- 2026-11-03 E2E: done — reply-suggestions/ask-ezy/mentions on desktop-chromium + mobile: 14 passed (83d1bf1)
+- 2026-11-03 Unit tests: done — ai-reply-draft + reply-suggestions-routes: group drafts, member names, no profile (83d1bf1)

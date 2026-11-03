@@ -2657,10 +2657,17 @@ export function createAiService(
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const history = messages.list(jid, { limit: 20 }).messages;
+      // A group shows each member's name (never a number) and has no customer profile.
+      const group = chats.get(jid)?.type === 'group';
       // A completion predicts the next words like a keyboard: only the last messages and the typed
       // text, never the knowledge (smaller and faster; its facts may only come from the chat).
       const completing = request.kind === 'complete';
-      const allTurns = conversation(history, aiUserIds());
+      const allTurns = group
+        ? groupConversation(
+            history.filter((message) => message.deletedAt == null),
+            aiUserIds(),
+          )
+        : conversation(history, aiUserIds());
       const turns = completing ? allTurns.slice(-AI_COMPLETION_TURNS) : allTurns;
       const business = completing
         ? ''
@@ -2672,7 +2679,9 @@ export function createAiService(
               .map(customerText)
               .join('\n'),
           );
-      const customer = aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
+      const customer = group
+        ? null
+        : aiCustomer(ctx.services.customers?.profile(jid).profile ?? null);
       // No agent: no preset texts that nobody configured (only the conversation and the customer).
       const instructions = agent
         ? administratorInstructions({ ...current, preset: agent.preset })
@@ -2693,6 +2702,7 @@ export function createAiService(
           businessKnowledge: business,
           conversation: turns,
           customer,
+          group,
           now: new Date(),
           timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
           ...(request.kind === 'complete' ? { typed: request.typed } : {}),
