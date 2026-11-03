@@ -192,8 +192,9 @@ into AGENTS.md.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
   timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
   blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
-- Pushes in quick succession can leave the PR head with no CI run (only SonarCloud): check that the head commit has its
-  own `Test (…)` runs before scoring or merging; trigger a new run with the next real commit, never an empty one.
+- A PR head with no `Test (…)` runs (only SonarCloud) usually means the PR conflicts with `main` (`mergeable_state:
+dirty`): GitHub creates no `pull_request` run until the base is merged in. Check the head's runs before scoring or
+  merging; fix the conflict, never push an empty commit.
 - CI's `Test (windows-latest)` job runs `npm run e2e:electron-links` on every non-docs PR: the release review counts
   that step on the head as the desktop link check, so never ask the owner to run it by hand.
 - Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
