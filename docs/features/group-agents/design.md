@@ -46,17 +46,17 @@ confirmation"). Created 2026-11-03 (creationOrder 28). Branch `claude/determined
 
 ## Part B: several agents per WhatsApp number (Enterprise)
 
-| Rule                | Proposal                                                                                                                                                                                                                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Limit               | `runCli({ maxAgents })` separate from `maxInboxes` (default `maxInboxes`, so Lite stays 1 and nothing changes without the option). Enterprise passes its own number. 409 `agent_limit` unchanged.                                                                                               |
-| Direct chats        | Still at most **one** agent per inbox answers direct chats (the agent with Direct chats on). 409 `inbox_has_direct_agent` replaces `inbox_has_agent` for a second one; any number of group-only agents per inbox.                                                                               |
-| Groups              | `ai_group_chats` gains `agent_id` (migration). Group info → AI: switch **On** + **AI agent** select (agents of this inbox with Groups on). Existing rows get the inbox's current agent. `agentForChat` for a group = its row's agent; direct chat = the inbox's direct agent.                   |
-| Reads every message | `ai_group_chats.listen` (default off). Off = today's rule (tag or quote). On = every live member message of that group starts a turn of that group's agent. The turn may end with `no_reply` (nothing sent). Only live messages, never history, never the linked number's own or an AI message. |
-| Writes in groups    | Today a group turn is look-ups only. New: a group turn may use `add_sheet_row` (only this tool; booking and connector writes stay off in groups). Values must come from the message's sender. Group hand-over unchanged.                                                                        |
-| Cost guard          | Listen mode: bursts in one group are batched (a turn starts 8 s after the last message, sees all new ones); at most 300 turns a day per group, then a paused line for admins (not in the group). The existing 10-message loop guard still applies.                                              |
-| Assign / release    | Removing an agent, turning its Groups off or deleting it turns its groups' AI off (rows kept, agent cleared), never moves them to another agent.                                                                                                                                                |
-| Routes              | `PUT /api/chats/:jid/ai-group` {enabled, agentId?, listen?}; `GET` adds `agentId`, `listen`, `agents` (choices). Old body {enabled} keeps working (agent = the only group agent of the inbox, else 400 `agent_required`).                                                                       |
-| Audit               | `ai.group_switch` adds agentId and listen before/after.                                                                                                                                                                                                                                         |
+| Rule                | Proposal                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Limit               | `runCli({ maxAgents })` separate from `maxInboxes` (default `maxInboxes`, so Lite stays 1 and nothing changes without the option). Enterprise passes its own number. 409 `agent_limit` unchanged.                                                                                                                                                                                                                   |
+| Direct chats        | Still at most **one** agent per inbox answers direct chats (the agent with Direct chats on). 409 `inbox_has_direct_agent` replaces `inbox_has_agent` for a second one; any number of group-only agents per inbox.                                                                                                                                                                                                   |
+| Groups              | `ai_group_chats` gains `agent_id` (migration). Group info → AI: switch **On** + **AI agent** select (agents of this inbox with Groups on). Existing rows get the inbox's current agent. `agentForChat` for a group = its row's agent; direct chat = the inbox's direct agent.                                                                                                                                       |
+| Reads every message | `ai_group_chats.listen` (default off). Off = today's rule (tag or quote). On = every live member message of that group starts a turn of that group's agent. The turn may end with `no_reply` (nothing sent). Only live messages, never history, never the linked number's own or an AI message.                                                                                                                     |
+| Writes in groups    | Today a group turn is look-ups only. New: a group turn may use `add_sheet_row` (only this tool; booking and connector writes stay off in groups). Values must come from the message's sender. Group hand-over unchanged.                                                                                                                                                                                            |
+| Batching            | Listen mode has no daily cap. Messages arriving close together in one group are handled as one turn (it starts 8 s after the last message and sees all new ones), so a claim sent as text + photo + PDF is one turn. Loop guard in listen mode: the AI pauses only after 10 AI messages in a row with no person's message between them (a busy group of members never trips it); tag/quote mode keeps today's rule. |
+| Assign / release    | Removing an agent, turning its Groups off or deleting it turns its groups' AI off (rows kept, agent cleared), never moves them to another agent.                                                                                                                                                                                                                                                                    |
+| Routes              | `PUT /api/chats/:jid/ai-group` {enabled, agentId?, listen?}; `GET` adds `agentId`, `listen`, `agents` (choices). Old body {enabled} keeps working (agent = the only group agent of the inbox, else 400 `agent_required`).                                                                                                                                                                                           |
+| Audit               | `ai.group_switch` adds agentId and listen before/after.                                                                                                                                                                                                                                                                                                                                                             |
 
 ## One agent, many groups (owner use case 2026-11-03)
 
@@ -93,7 +93,7 @@ connector or tab:
 4. Agent page → Connectors row: "Reads Products · Adds rows to Claims".
 5. Agent page Groups card: Add groups (multi-select), three branch groups listening, Remove.
 6. Group info: AI switch, AI agent select (one / several / none with Groups on), Reads every message switch with
-   InfoTip, daily cap reached note.
+   InfoTip.
 7. Group chat: member posts a claim → AI reply per instructions ("Recorded ✅"), missing-detail question, a
    chat message that is not a claim (no reply).
 8. Activity tab: row added to Claims, failed (value not in the message).
@@ -117,7 +117,7 @@ pruned in the same change.
    else is fine as long as the values are in that member's message or file. Values read from a photo cannot be
    checked by the server; the reply that repeats them is the check.
 2. PDFs ≤ 10 MB / 20 pages, up to 3 PDFs and 10 images per turn.
-3. Batch window 8 s and 300 turns a day per listening group.
+3. Batch window 8 s for listening groups.
 4. Several agents per inbox and listen mode are core code; only the limit comes from the edition, so Lite with
    its 1 agent can also use listen mode in a group.
 
@@ -126,7 +126,7 @@ pruned in the same change.
 1. Shared: `SheetsAgentSettings.tabs`, `AiGroupChat.agentId/listen`, `maxAgents` in health/edition info.
 2. Server: start-up settings mapping; `add_sheet_row`/`read_sheet_rows` with tab + columns; guards; migration 031
    (`ai_group_chats.agent_id`, `listen`; sheet row log `tab`, `message_id`); `runCli({ maxAgents })`;
-   direct-agent rule; group routing by `agent_id`; listen batching and cap; PDF file input per provider
+   direct-agent rule; group routing by `agent_id`; listen batching and loop guard; PDF file input per provider
    mode with text fallback; image limit 10 for record agents; upgrade test seed.
 3. Web: Sheets tab list, Group info agent select + listen switch, agent errors; en/ms/zh-CN.
 4. Enterprise: pass `maxAgents` (separate PR after the core release).
