@@ -118,7 +118,8 @@ function addClaims(): AgentRow {
   const ai = t.ctx.services.ai!;
   const created = ai.createAgent(claimsBody, actor);
   ai.addText(created.agent.id, { name: 'Claims', text: 'A claim has a number and an amount.' }, actor);
-  ai.saveAgent(created.agent.id, { ...claimsBody, enabled: true }, actor);
+  const { inboxId: _inbox, ...saved } = claimsBody;
+  ai.saveAgent(created.agent.id, { ...saved, enabled: true }, actor);
   setAgentGroups(t.ctx, created.agent.id, true, actor);
   return agentById(t.ctx.db, created.agent.id)!;
 }
