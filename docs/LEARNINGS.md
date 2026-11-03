@@ -532,6 +532,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- A random "can't reach" from the server while the browser and curl work: test the app's own runtime
+  (`ELECTRON_RUN_AS_NODE=1 <app> script.js` with `fetch`), and `curl -4` / `curl -6` on that computer. A network
+  with IPv6 addresses but no IPv6 route made fetch time out (`UND_ERR_CONNECT_TIMEOUT`) at random; `runCli`
+  sets `ipv4first` (`dns-order.ts`). Cloudflare turns IPv6 off only on the Enterprise plan, so fix it in the app.
+
 - Desktop-only screens (Lite import, status window) in a Dev Build on a PC with the installed apps: run the
   window from source with `npx electron <apps/desktop> --user-data-dir=<test profile>` plus a `desktop.json`
   port of its own. An unpackaged run does not pin the installed profile, but without its own port it finds
