@@ -189,6 +189,11 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
+  timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
+  blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
+- Pushes in quick succession can leave the PR head with no CI run (only SonarCloud): check that the head commit has its
+  own `Test (…)` runs before scoring or merging; trigger a new run with the next real commit, never an empty one.
 - CI's `Test (windows-latest)` job runs `npm run e2e:electron-links` on every non-docs PR: the release review counts
   that step on the head as the desktop link check, so never ask the owner to run it by hand.
 - Two branches that each add a feature mock folder while pruning the same old one conflict as hundreds of
@@ -822,6 +827,8 @@ into AGENTS.md.
 
 ## Security
 
+- A script that writes files to a folder named on the command line resolves it against the repository and refuses
+  anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise).
 - A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
   CSP stays `script-src 'self'`. Serve it on its own host-only page with a CSP limited to that vendor, guarded by a
   one-time token, and hand it an access token once (`connectors/google-sheets/picker-page.ts`).
