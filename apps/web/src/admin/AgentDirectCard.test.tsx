@@ -38,6 +38,8 @@ const agent = (id: number, displayName: string, inboxId: number | null): AiAgent
   preset: 'custom',
   inboxId,
   documentCount: 0,
+  answerDirect: true,
+  groupCount: 0,
 });
 
 /** 409 inbox_has_direct_agent on the direct switch; `agents` = `GET /api/ai/agents`. */

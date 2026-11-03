@@ -93,6 +93,8 @@ export const agent = (id: number, displayName: string): AiAgentSummary => ({
   preset: 'sales',
   inboxId: id,
   documentCount: 0,
+  answerDirect: true,
+  groupCount: 0,
 });
 
 const HOUR = 3_600_000;

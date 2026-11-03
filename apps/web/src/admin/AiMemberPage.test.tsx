@@ -57,6 +57,8 @@ function agentStatus(
     preset: 'sales',
     inboxId: 1,
     documentCount: documents.length,
+    answerDirect: true,
+    groupCount: 0,
     ...patch,
   };
   return {
