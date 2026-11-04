@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "group-management",
+      "creationOrder": 30,
+      "createdAt": "2026-11-04",
+      "design": "docs/features/group-management/design.md",
+      "mock": "docs/features/group-management/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "in-app-feedback",
+      "baselineGitRevision": "f3eaf7bcf7792fb4e058103b9bd9f93e9fcc4ed6",
+      "coverage": "Full app clone of the confirmed in-app-feedback reference; Group info for EzyChat admins: description, Manage bar (Edit info, Add member, Invite link, Settings), join requests (approve/reject), Edit info dialog, Add member (ban-risk note, privacy refusal -> Send invite -> sent, not on WhatsApp), member actions (Make group admin, Remove as admin, Remove from group with confirm, creator protected), invite link (copy, reset with confirm), group settings (only admins send, only admins edit info, who can add, approve new members) with Recent changes, number not a group admin, WhatsApp offline, Business API connection (invite only, n of 8, remove only, no settings) via a Mock only switch, agent read-only; mock-only routes /api/mock/group-admin*; desktop 1280 / mobile 360 touch, light/dark (group-admin-shots.mjs)",
+      "note": "Inherits the coverage gaps of in-app-feedback (message-edit-delete, whatsapp-safety and group-agents screens still owed). Baseline drift: the feedback stand-in route now yields to the shipped core route."
+    },
+    {
       "feature": "group-agents",
       "creationOrder": 29,
       "createdAt": "2026-11-03",
@@ -94,7 +106,8 @@
       "confirmation": "Owner wrote 2026-10-31 \"build it until merge to main\" after reviewing the mock screenshots: the @ member picker as proposed.",
       "gitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
       "parallelFeatures": ["whatsapp-safety"],
-      "note": "Confirmed in parallel with whatsapp-safety (24, merged to main first); both cloned from ai-handoff-rules, so neither mock has the other's change. The next enhancement clones latestConfirmed and copies the WhatsApp Safety screens from docs/features/whatsapp-safety/mock."
+      "note": "Confirmed in parallel with whatsapp-safety (24, merged to main first); both cloned from ai-handoff-rules, so neither mock has the other's change. The next enhancement clones latestConfirmed and copies the WhatsApp Safety screens from docs/features/whatsapp-safety/mock.",
+      "folderRemoved": "2026-11-04 (group-management: sixth feature folder); last on main at c589b88"
     },
     {
       "feature": "whatsapp-safety",
