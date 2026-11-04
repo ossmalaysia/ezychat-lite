@@ -131,7 +131,8 @@ into AGENTS.md.
 - Before building UI for existing data, check the live data for why the current UI is empty; prefer making
   the data appear over adding UI.
 - Re-fetch `main` and re-verify paths and conventions right before planning or executing a plan; plans in
-  this repo go stale within hours.
+  this repo go stale within hours. A cloud checkout's `origin/main` ref can be days behind its own detached
+  HEAD: `git fetch origin main` before `git checkout -b … origin/main`, or the branch starts on an old release.
 - Reshape existing data once at startup, before any service runs; runtime code only routes and resolves.
 - Evals and tests must assert the business outcome (chat handed to the team, order not lost), not only the
   agent's words.
@@ -1075,7 +1076,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Ready-made Business context (templates) uses blank fill-in lines (`Opening hours:`), never sample
   values or `[your price]` placeholders: the AI repeats a placeholder as a fact, but a blank line is no
   fact, so it hands over. Build template instructions as the type's tested text plus a short business
-  part, and test the length limits in every language.
+  part, and test the length limits in every language. A Custom template has no starting text: its business
+  part is the whole role (no leading blank lines, no sales/FAQ text). A template that changes how an agent
+  works (Claims: groups only) flips switches only on a new agent; an existing agent gets a note, because
+  turning direct chats off hands its open chats back. A text naming a sheet tab keeps the tab's real name
+  in every language, and its test accepts the language's quotes (zh-CN writes “Claims”).
 - An MCP tool that writes text a person reads in a box must say the format: AI assistants hard-wrap long
   text at about 60–80 characters, and the box shows every line break, so rules looked cut short. The
   `update_ai_setup` description and `text` field say "one line per paragraph or list item".
