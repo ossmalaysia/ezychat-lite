@@ -497,7 +497,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
-  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below.
+  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below, and S9382 (each `await`
+  written inside a loop body is one issue: a screen script loops over sets that call one `async function captureSet`).
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.

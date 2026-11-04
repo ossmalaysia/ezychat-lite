@@ -125,134 +125,140 @@ const BUSINESS_CAPS = {
   descriptionMax: 2048,
 };
 
-for (const scheme of ['light', 'dark'])
-  for (const size of ['desktop', 'mobile']) {
-    const tag = `${size}${scheme === 'dark' ? '-dark' : ''}`;
-    const ctx = await context(size, scheme, cookie);
-    const page = await ctx.newPage();
-    page.on('pageerror', (e) => problems.push(`${tag} pageerror: ${e.message}`));
-    const snap = (file) => shot(page, out, problems, tag, `group-admin-${file}`);
-    const dialog = (name) => page.getByRole('dialog', { name });
+/** One screen set (scheme × size): the 17 states. */
+async function captureSet(scheme, size) {
+  const tag = `${size}${scheme === 'dark' ? '-dark' : ''}`;
+  const ctx = await context(size, scheme, cookie);
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => problems.push(`${tag} pageerror: ${e.message}`));
+  const snap = (file) => shot(page, out, problems, tag, `group-admin-${file}`);
+  const dialog = (name) => page.getByRole('dialog', { name });
 
-    // 01 admin bar with description and join requests
-    const { groupJid, p } = await makeGroup();
-    let panel = await openGroupInfo(page, groupJid);
-    const manage = panel.getByRole('region', { name: 'Manage group' });
-    await manage.waitFor();
-    await snap('01-bar');
+  // 01 admin bar with description and join requests
+  const { groupJid, p } = await makeGroup();
+  let panel = await openGroupInfo(page, groupJid);
+  const manage = panel.getByRole('region', { name: 'Manage group' });
+  await manage.waitFor();
+  await snap('01-bar');
 
-    // 02 edit info (long description)
-    await manage.getByRole('button', { name: 'Edit info' }).click();
-    await dialog('Group name and description')
-      .getByLabel('Description')
-      .fill(
-        'Monthly meetups for founders in Klang Valley. Share events, ask questions, introduce your business once, no spam please. Admins approve new members. '.repeat(
-          3,
-        ),
-      );
-    await snap('02-edit');
-    await dialog('Group name and description').getByRole('button', { name: 'Cancel' }).click();
-
-    // 03 add member, 04 privacy refusal, 05 invite sent
-    await manage.getByRole('button', { name: 'Add member' }).click();
-    const add = dialog('Add a member');
-    await add.getByLabel('WhatsApp number').fill(p(30));
-    await snap('03-add');
-    await add.getByRole('button', { name: 'Add', exact: true }).click();
-    await add.getByRole('button', { name: 'Send invite' }).waitFor();
-    await snap('04-privacy');
-    await add.getByRole('button', { name: 'Send invite' }).click();
-    await add.getByRole('button', { name: 'Done' }).waitFor();
-    await snap('05-invited');
-    await add.getByRole('button', { name: 'Done' }).click();
-
-    // 06 not on WhatsApp (the fake phone has every valid number on WhatsApp: stub the answer)
-    await page.route(/\/api\/chats\/[^/]+\/group\/members$/, (route) =>
-      route.request().method() === 'POST'
-        ? route.fulfill({ status: 422, json: { error: 'not_on_whatsapp' } })
-        : route.continue(),
+  // 02 edit info (long description)
+  await manage.getByRole('button', { name: 'Edit info' }).click();
+  await dialog('Group name and description')
+    .getByLabel('Description')
+    .fill(
+      'Monthly meetups for founders in Klang Valley. Share events, ask questions, introduce your business once, no spam please. Admins approve new members. '.repeat(
+        3,
+      ),
     );
-    await manage.getByRole('button', { name: 'Add member' }).click();
-    await add.getByLabel('WhatsApp number').fill('60123000999');
-    await add.getByRole('button', { name: 'Add', exact: true }).click();
-    await page.waitForTimeout(500);
-    await snap('06-not-on-whatsapp');
-    await add.getByRole('button', { name: 'Cancel' }).click();
-    await page.unroute(/\/api\/chats\/[^/]+\/group\/members$/);
+  await snap('02-edit');
+  await dialog('Group name and description').getByRole('button', { name: 'Cancel' }).click();
 
-    // 07 member detail, 08 remove confirm
-    await panel.getByRole('searchbox', { name: 'Search members' }).fill('Farid');
-    await panel.getByRole('button', { name: /Farid Rahman/ }).click();
-    await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
-    await snap('07-member');
-    await panel.getByRole('button', { name: 'Remove from group' }).click();
-    await page.getByRole('alertdialog').waitFor();
-    await snap('08-remove-confirm');
-    await page
-      .getByRole('alertdialog')
-      .getByRole('button', { name: 'Remove', exact: true })
-      .click();
-    await page.waitForTimeout(800);
+  // 03 add member, 04 privacy refusal, 05 invite sent
+  await manage.getByRole('button', { name: 'Add member' }).click();
+  const add = dialog('Add a member');
+  await add.getByLabel('WhatsApp number').fill(p(30));
+  await snap('03-add');
+  await add.getByRole('button', { name: 'Add', exact: true }).click();
+  await add.getByRole('button', { name: 'Send invite' }).waitFor();
+  await snap('04-privacy');
+  await add.getByRole('button', { name: 'Send invite' }).click();
+  await add.getByRole('button', { name: 'Done' }).waitFor();
+  await snap('05-invited');
+  await add.getByRole('button', { name: 'Done' }).click();
 
-    // 09 invite link, 10 reset confirm
-    await openGroupInfo(page, groupJid);
-    await manage.getByRole('button', { name: 'Invite link' }).click();
-    await dialog('Invite link').getByRole('button', { name: 'Copy link' }).waitFor();
-    await snap('09-link');
-    await dialog('Invite link').getByRole('button', { name: 'Reset link' }).click();
-    await page.getByRole('alertdialog').waitFor();
-    await snap('10-reset-confirm');
-    await page
-      .getByRole('alertdialog')
-      .getByRole('button', { name: 'Reset link', exact: true })
-      .click();
-    await page.waitForTimeout(500);
-    await dialog('Invite link').getByRole('button', { name: 'Done' }).click();
+  // 06 not on WhatsApp (the fake phone has every valid number on WhatsApp: stub the answer)
+  await page.route(/\/api\/chats\/[^/]+\/group\/members$/, (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({ status: 422, json: { error: 'not_on_whatsapp' } })
+      : route.continue(),
+  );
+  await manage.getByRole('button', { name: 'Add member' }).click();
+  await add.getByLabel('WhatsApp number').fill('60123000999');
+  await add.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.waitForTimeout(500);
+  await snap('06-not-on-whatsapp');
+  await add.getByRole('button', { name: 'Cancel' }).click();
+  await page.unroute(/\/api\/chats\/[^/]+\/group\/members$/);
 
-    // 11 settings with Recent changes
-    await manage.getByRole('button', { name: 'Settings' }).click();
-    const settings = dialog('Group settings');
-    await settings.getByRole('switch', { name: 'Only admins send messages' }).click();
-    await page.waitForTimeout(600);
-    await snap('11-settings');
-    await settings.getByRole('button', { name: 'Done' }).click();
+  // 07 member detail, 08 remove confirm
+  await panel.getByRole('searchbox', { name: 'Search members' }).fill('Farid');
+  await panel.getByRole('button', { name: /Farid Rahman/ }).click();
+  await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
+  await snap('07-member');
+  await panel.getByRole('button', { name: 'Remove from group' }).click();
+  await page.getByRole('alertdialog').waitFor();
+  await snap('08-remove-confirm');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.waitForTimeout(800);
 
-    // 12 not a group admin
-    const notAdmin = await makeGroup({ meRole: 'member' });
-    await openGroupInfo(page, notAdmin.groupJid);
-    await snap('12-not-admin');
+  // 09 invite link, 10 reset confirm
+  await openGroupInfo(page, groupJid);
+  await manage.getByRole('button', { name: 'Invite link' }).click();
+  await dialog('Invite link').getByRole('button', { name: 'Copy link' }).waitFor();
+  await snap('09-link');
+  await dialog('Invite link').getByRole('button', { name: 'Reset link' }).click();
+  await page.getByRole('alertdialog').waitFor();
+  await snap('10-reset-confirm');
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Reset link', exact: true })
+    .click();
+  await page.waitForTimeout(500);
+  await dialog('Invite link').getByRole('button', { name: 'Done' }).click();
 
-    // 13 offline
-    await stubState(page, (b) => ({ ...b, online: false }));
-    await openGroupInfo(page, groupJid);
-    await snap('13-offline');
-    await page.unrouteAll({ behavior: 'wait' });
+  // 11 settings with Recent changes
+  await manage.getByRole('button', { name: 'Settings' }).click();
+  const settings = dialog('Group settings');
+  await settings.getByRole('switch', { name: 'Only admins send messages' }).click();
+  await page.waitForTimeout(600);
+  await snap('11-settings');
+  await settings.getByRole('button', { name: 'Done' }).click();
 
-    // 14–16 Business API connection (invite only, 8 members, no admins or settings)
-    const api8 = await makeGroup({ generated: 0 });
-    await stubState(page, (b) => ({ ...b, caps: BUSINESS_CAPS, settings: {} }));
-    panel = await openGroupInfo(page, api8.groupJid);
-    await snap('14-business-api');
-    await manage.getByRole('button', { name: 'Settings' }).click();
-    await page.waitForTimeout(400);
-    await snap('15-business-api-settings');
-    await dialog('Group settings').getByRole('button', { name: 'Done' }).click();
-    await panel.getByRole('searchbox', { name: 'Search members' }).fill('Tan Wei');
-    await panel.getByRole('button', { name: /Tan Wei Ming/ }).click();
-    await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
-    await snap('16-business-api-member');
-    await page.unrouteAll({ behavior: 'wait' });
-    await ctx.close();
+  // 12 not a group admin
+  const notAdmin = await makeGroup({ meRole: 'member' });
+  await openGroupInfo(page, notAdmin.groupJid);
+  await snap('12-not-admin');
 
-    // 17 agent: read-only
-    const actx = await context(size, scheme, agentCookie);
-    const apage = await actx.newPage();
-    apage.on('pageerror', (e) => problems.push(`${tag} agent pageerror: ${e.message}`));
-    await openGroupInfo(apage, groupJid);
-    await shot(apage, out, problems, tag, 'group-admin-17-agent');
-    await actx.close();
-    console.log(`${tag}: 17 states`);
-  }
+  // 13 offline
+  await stubState(page, (b) => ({ ...b, online: false }));
+  await openGroupInfo(page, groupJid);
+  await snap('13-offline');
+  await page.unrouteAll({ behavior: 'wait' });
+
+  // 14–16 Business API connection (invite only, 8 members, no admins or settings)
+  const api8 = await makeGroup({ generated: 0 });
+  await stubState(page, (b) => ({ ...b, caps: BUSINESS_CAPS, settings: {} }));
+  panel = await openGroupInfo(page, api8.groupJid);
+  await snap('14-business-api');
+  await manage.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(400);
+  await snap('15-business-api-settings');
+  await dialog('Group settings').getByRole('button', { name: 'Done' }).click();
+  await panel.getByRole('searchbox', { name: 'Search members' }).fill('Tan Wei');
+  await panel.getByRole('button', { name: /Tan Wei Ming/ }).click();
+  await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
+  await snap('16-business-api-member');
+  await page.unrouteAll({ behavior: 'wait' });
+  await ctx.close();
+
+  // 17 agent: read-only
+  const actx = await context(size, scheme, agentCookie);
+  const apage = await actx.newPage();
+  apage.on('pageerror', (e) => problems.push(`${tag} agent pageerror: ${e.message}`));
+  await openGroupInfo(apage, groupJid);
+  await shot(apage, out, problems, tag, 'group-admin-17-agent');
+  await actx.close();
+  console.log(`${tag}: 17 states`);
+}
+
+const SETS = ['light', 'dark'].flatMap((scheme) =>
+  ['desktop', 'mobile'].map((size) => [scheme, size]),
+);
+// One set after another: they share the server and its fake phone.
+await SETS.reduce(
+  (prev, [scheme, size]) => prev.then(() => captureSet(scheme, size)),
+  Promise.resolve(),
+);
 
 await browser.close();
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'no page errors, no overflow');
