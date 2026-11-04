@@ -493,7 +493,9 @@ export function GroupSettingsDialog({
               {view.changes.map((c, i) => (
                 <li key={`${c.at}-${i}`} className="[overflow-wrap:anywhere]">
                   {changeLine(c, t)}{' '}
-                  <span className="text-muted-foreground">· {formatDate(c.at)}</span>
+                  <span className="whitespace-nowrap text-muted-foreground">
+                    · {formatDate(c.at)}
+                  </span>
                 </li>
               ))}
             </ul>

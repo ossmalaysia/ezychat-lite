@@ -179,43 +179,53 @@ function JoinRequests({
           return (
             <li key={r.jid} className="flex flex-wrap items-center gap-2 py-1.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{name}</p>
+                <p
+                  className={
+                    r.name
+                      ? 'text-sm [overflow-wrap:anywhere]'
+                      : 'text-sm whitespace-nowrap tabular-nums'
+                  }
+                >
+                  {name}
+                </p>
                 {r.name && number && (
                   <p className="text-xs text-muted-foreground tabular-nums">{number}</p>
                 )}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="min-h-11 sm:min-h-8"
-                disabled={disabled || decide.isPending}
-                onClick={() =>
-                  decide.mutate(
-                    { member: r.jid, approve: true },
-                    {
-                      onSuccess: () => toast.success(t('groupAdmin.approved', { name })),
-                      onError: (e) => toast.error(groupAdminErrorText(e, t)),
-                    },
-                  )
-                }
-              >
-                {t('groupAdmin.approve')}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="min-h-11 sm:min-h-8"
-                disabled={disabled || decide.isPending}
-                onClick={() =>
-                  decide.mutate(
-                    { member: r.jid, approve: false },
-                    { onError: (e) => toast.error(groupAdminErrorText(e, t)) },
-                  )
-                }
-              >
-                {t('groupAdmin.reject')}
-              </Button>
+              <div className="ml-auto flex shrink-0 gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="min-h-11 sm:min-h-8"
+                  disabled={disabled || decide.isPending}
+                  onClick={() =>
+                    decide.mutate(
+                      { member: r.jid, approve: true },
+                      {
+                        onSuccess: () => toast.success(t('groupAdmin.approved', { name })),
+                        onError: (e) => toast.error(groupAdminErrorText(e, t)),
+                      },
+                    )
+                  }
+                >
+                  {t('groupAdmin.approve')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="min-h-11 sm:min-h-8"
+                  disabled={disabled || decide.isPending}
+                  onClick={() =>
+                    decide.mutate(
+                      { member: r.jid, approve: false },
+                      { onError: (e) => toast.error(groupAdminErrorText(e, t)) },
+                    )
+                  }
+                >
+                  {t('groupAdmin.reject')}
+                </Button>
+              </div>
             </li>
           );
         })}

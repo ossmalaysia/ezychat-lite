@@ -181,6 +181,7 @@ for (const scheme of ['light', 'dark'])
     await page.unroute(/\/api\/chats\/[^/]+\/group\/members$/);
 
     // 07 member detail, 08 remove confirm
+    await panel.getByRole('searchbox', { name: 'Search members' }).fill('Farid');
     await panel.getByRole('button', { name: /Farid Rahman/ }).click();
     await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
     await snap('07-member');
@@ -236,6 +237,7 @@ for (const scheme of ['light', 'dark'])
     await page.waitForTimeout(400);
     await snap('15-business-api-settings');
     await dialog('Group settings').getByRole('button', { name: 'Done' }).click();
+    await panel.getByRole('searchbox', { name: 'Search members' }).fill('Tan Wei');
     await panel.getByRole('button', { name: /Tan Wei Ming/ }).click();
     await panel.getByRole('button', { name: 'Remove from group' }).waitFor();
     await snap('16-business-api-member');
