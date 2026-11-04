@@ -75,7 +75,7 @@ export async function createInboxApp({
   startQueryPersistence(queryClient, {
     storage,
     buster,
-    onUserSwitch: () => void clearUserCaches(),
+    clearCaches: () => void clearUserCaches(),
   });
   const render = () =>
     createRoot(root).render(

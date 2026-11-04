@@ -77,7 +77,7 @@ describe('save and restore', () => {
     vi.useFakeTimers();
     const storage = memoryStorage();
     const qc = new QueryClient();
-    const stop = startQueryPersistence(qc, { storage, buster: BUSTER, onUserSwitch: () => {} });
+    const stop = startQueryPersistence(qc, { storage, buster: BUSTER, clearCaches: () => {} });
     signedIn(qc, 7);
     qc.setQueryData(qk.chats(filters), chatList());
     qc.setQueryData(qk.inboxes, { inboxes: [{ id: 1 }] });
@@ -108,7 +108,7 @@ describe('save and restore', () => {
     const save = (savedAt: number, buster = BUSTER) => {
       const qc = new QueryClient();
       vi.useFakeTimers({ now: savedAt });
-      const stop = startQueryPersistence(qc, { storage, buster, onUserSwitch: () => {} });
+      const stop = startQueryPersistence(qc, { storage, buster, clearCaches: () => {} });
       signedIn(qc, 7);
       vi.advanceTimersByTime(SAVE_DELAY_MS);
       stop();
@@ -137,7 +137,7 @@ describe('save and restore', () => {
     vi.useFakeTimers();
     const storage = memoryStorage();
     const qc = new QueryClient();
-    const stop = startQueryPersistence(qc, { storage, buster: BUSTER, onUserSwitch: () => {} });
+    const stop = startQueryPersistence(qc, { storage, buster: BUSTER, clearCaches: () => {} });
     signedIn(qc, 7);
     vi.advanceTimersByTime(SAVE_DELAY_MS);
     stop();
@@ -155,7 +155,7 @@ describe('sign-out and user switch', () => {
     vi.useFakeTimers();
     const storage = memoryStorage();
     const qc = new QueryClient();
-    startQueryPersistence(qc, { storage, buster: BUSTER, onUserSwitch: () => {} });
+    startQueryPersistence(qc, { storage, buster: BUSTER, clearCaches: () => {} });
     signedIn(qc, 7);
     vi.advanceTimersByTime(SAVE_DELAY_MS);
     expect(storage.getItem('ezy.queries.7')).toBeTruthy();
@@ -167,23 +167,46 @@ describe('sign-out and user switch', () => {
     expect(storage.getItem('ezy.queries.7')).toBeNull();
   });
 
+  it('clears the photo and file caches once when the session ends (e.g. a disabled user, 401)', () => {
+    const storage = memoryStorage();
+    storage.setItem(LAST_USER_KEY, '7'); // user 7 used this device before
+    const clearCaches = vi.fn();
+    const qc = new QueryClient();
+    startQueryPersistence(qc, { storage, buster: BUSTER, clearCaches });
+    qc.setQueryData(qk.me, null); // /api/me answered 401
+    expect(clearCaches).toHaveBeenCalledTimes(1);
+    qc.setQueryData(qk.me, null); // the login page asks again: nothing more to clear
+    expect(clearCaches).toHaveBeenCalledTimes(1);
+    signedIn(qc, 8); // already cleared since user 7 left
+    expect(clearCaches).toHaveBeenCalledTimes(1);
+    expect(storage.getItem(LAST_USER_KEY)).toBe('8');
+  });
+
+  it('never clears on a device where nobody was signed in before', () => {
+    const clearCaches = vi.fn();
+    const qc = new QueryClient();
+    startQueryPersistence(qc, { storage: memoryStorage(), buster: BUSTER, clearCaches });
+    qc.setQueryData(qk.me, null);
+    expect(clearCaches).not.toHaveBeenCalled();
+  });
+
   it('clears the photo caches and the other user’s data when a different user signs in', () => {
     vi.useFakeTimers();
     const storage = memoryStorage();
-    const onUserSwitch = vi.fn();
+    const clearCaches = vi.fn();
     const qc = new QueryClient();
-    startQueryPersistence(qc, { storage, buster: BUSTER, onUserSwitch });
+    startQueryPersistence(qc, { storage, buster: BUSTER, clearCaches });
     signedIn(qc, 7);
-    expect(onUserSwitch).toHaveBeenCalledTimes(1); // no earlier user known on this device
+    expect(clearCaches).toHaveBeenCalledTimes(1); // no earlier user known on this device
     qc.setQueryData(qk.chats(filters), chatList());
     vi.advanceTimersByTime(SAVE_DELAY_MS);
 
     signedIn(qc, 7); // the same user again (a profile change): nothing is cleared
-    expect(onUserSwitch).toHaveBeenCalledTimes(1);
+    expect(clearCaches).toHaveBeenCalledTimes(1);
 
     qc.setQueryData(qk.me, null); // session ended without signing out
     signedIn(qc, 8);
-    expect(onUserSwitch).toHaveBeenCalledTimes(2);
+    expect(clearCaches).toHaveBeenCalledTimes(2);
     expect(qc.getQueryData(qk.chats(filters))).toBeUndefined();
     expect(storage.getItem('ezy.queries.7')).toBeNull();
     expect(storage.getItem(LAST_USER_KEY)).toBe('8');
@@ -219,7 +242,7 @@ describe('sign-out and user switch', () => {
     };
     const qc = new QueryClient();
     expect(() => restorePersistedQueries(qc, { storage: broken, buster: BUSTER })).not.toThrow();
-    startQueryPersistence(qc, { storage: broken, buster: BUSTER, onUserSwitch: () => {} });
+    startQueryPersistence(qc, { storage: broken, buster: BUSTER, clearCaches: () => {} });
     expect(() => {
       signedIn(qc, 7);
       vi.advanceTimersByTime(SAVE_DELAY_MS);

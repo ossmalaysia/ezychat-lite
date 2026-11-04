@@ -62,7 +62,12 @@ Tunnel/ingress changes (Phase 2), new screens or settings, offline sending, cach
   `cache-control` contains `no-store`** (plugin). API JSON is not cached by the service worker.
 - **Clear on sign-out and user switch:** on logout, and on sign-in when the user id differs from the last one, the
   page posts `{type:'clear-user-caches'}` to the service worker, which deletes `ezy-avatars-*` and `ezy-media-*`; the
-  page also clears the persisted queries below.
+  page also clears the persisted queries below. Every other end of a session clears too: `session:revoked` on the
+  socket, and `/api/me` answering 401 (a disabled user or an expired session), once per user who leaves.
+- **Decision (final review I-1):** the saved first screen still shows before `/api/me` answers. Waiting for it
+  would cost one round trip (~660 ms from the owner's phone), the main gain of this work. Cost if wrong: a revoked or
+  disabled user can see the list they already saw, at most 1 day old, for one round trip; the first 401 then removes
+  the saved copy, the photos and the files from the device.
 - **Instant first screen:** persist a small set of React Query results per user in `localStorage` (official
   `@tanstack/react-query-persist-client` + sync storage persister, or an equivalent small persister): the first
   page of the chat list, inboxes, `me`, settings. On open they render at once and refetch immediately; max age 1 day;

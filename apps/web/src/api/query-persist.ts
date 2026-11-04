@@ -185,19 +185,22 @@ export function restorePersistedQueries(
 }
 
 /**
- * Saves the kept queries of the signed-in user while the app runs. When the user signs out (or the
- * session ends) the saved copy is removed; when a different user signs in, `onUserSwitch` runs (it
- * clears the photo and file caches) and the earlier user's data leaves memory and the device.
+ * Saves the kept queries of the signed-in user while the app runs. When the session ends (sign-out,
+ * a 401 for a disabled user or a revoked session) the saved copy is removed and `clearCaches` runs
+ * (it removes the photo and file caches); when a different user signs in, the earlier user's data
+ * also leaves memory. `clearCaches` runs once per user who leaves.
  */
 export function startQueryPersistence(
   qc: QueryClient,
   {
     storage,
     buster,
-    onUserSwitch,
-  }: { storage: KeyValueStorage | null; buster: string; onUserSwitch: () => void },
+    clearCaches,
+  }: { storage: KeyValueStorage | null; buster: string; clearCaches: () => void },
 ): () => void {
   let lastUser = readLastUser(storage);
+  // True once the caches were cleared after lastUser left, until the next user arrives.
+  let cleared = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const cancel = () => {
     clearTimeout(timer);
@@ -212,11 +215,19 @@ export function startQueryPersistence(
   const onUser = (user: User | null) => {
     if (!user) {
       cancel();
-      if (lastUser !== null) remove(storage, SAVED_PREFIX + lastUser);
+      if (lastUser !== null && !cleared) {
+        remove(storage, SAVED_PREFIX + lastUser);
+        attempt(clearCaches, undefined);
+        cleared = true;
+      }
       return;
     }
-    if (user.id === lastUser) return;
-    attempt(onUserSwitch, undefined);
+    if (user.id === lastUser) {
+      cleared = false;
+      return;
+    }
+    if (!cleared) attempt(clearCaches, undefined);
+    cleared = false;
     if (lastUser !== null) {
       remove(storage, SAVED_PREFIX + lastUser);
       qc.removeQueries({

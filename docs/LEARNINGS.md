@@ -916,6 +916,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- Data a device keeps for one user (saved queries, service worker photo/file caches) is cleared on every way a session
+  ends, not only the sign-out button: the `session:revoked` socket event and a 401 from `/api/me` too
+  (`startQueryPersistence` `clearCaches`). Test each path.
 - A script that writes files to a folder named on the command line resolves it against the repository and refuses
   anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise).
 - A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
