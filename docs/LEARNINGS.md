@@ -544,6 +544,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- A contract the publishing repo validates through `z.toJSONSchema(…, { io: 'input' })` must stay plain: a
+  `.transform()` (and every check piped after it, e.g. lengths) vanishes from the schema. Clean values before
+  `safeParse` instead (`cleanAgentTemplateValue`). The root `ajv` is ESLint's v6; ajv 8 is only nested, so repo
+  scripts take a validator as a parameter and tests pass one built from the zod contract.
+- A generated folder that a test compares byte for byte with its generator goes into `.prettierignore`; Prettier
+  rewrites JSON arrays and Markdown and the drift test fails.
 - A random "can't reach" from the server while the browser and curl work: test the app's own runtime
   (`ELECTRON_RUN_AS_NODE=1 <app> script.js` with `fetch`), and `curl -4` / `curl -6` on that computer. A network
   with IPv6 addresses but no IPv6 route made fetch time out (`UND_ERR_CONNECT_TIMEOUT`) at random; `runCli`
@@ -947,6 +953,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   slot synchronously with the check, before any `await`: the AI SDK runs the tool calls of one step in parallel.
 - A signed list that the app downloads is trusted only after the signature over the exact bytes, a sequence that
   never goes down, and the hash of every referenced file pass; one bad file rejects the whole list.
+- Two signed lists that share keys sign a domain prefix before the bytes (`ezychat-templates-v1\n` + file): zod
+  strips unknown keys, so a validly signed list of one kind can parse as the other and replace it with an empty list.
+  Give each list file its own marker field too (`catalog: "templates"`).
 
 ## WhatsApp / Baileys
 

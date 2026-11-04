@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New AI agent templates without an app update.** The business-template gallery now also reads a signed template
+  library from EzyChat's servers when it opens, so new templates (and fixes to existing ones) arrive without
+  installing a new version. The templates built into the app stay available offline, and the gallery says when the
+  library was last updated. A template still only fills the boxes after you click Apply.
+
 ## [0.1.74] - 2026-11-04
 
 ### Added

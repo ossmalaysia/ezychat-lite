@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "template-store",
+      "creationOrder": 31,
+      "createdAt": "2026-11-04",
+      "design": "docs/features/template-store/design.md",
+      "mock": "docs/features/template-store/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "claims-template",
+      "baselineGitRevision": "658dbf347820d2e0d167e5e2c7dceff4fc312930",
+      "coverage": "Standalone preview cloned from the claims-template preview (build-preview.mjs from the real catalogs): template gallery with the list loaded (source line, a list template with Works with, a list-only category chip), built-in only, offline; New agent after applying a list template; en/ms/zh-CN, desktop 1280 / mobile 360, light/dark.",
+      "note": "Owner asked for a remote template repository like the connector store (2026-11-04); mock recorded for review, not yet confirmed."
+    },
+    {
       "feature": "claims-template",
       "creationOrder": 30,
       "createdAt": "2026-11-04",
@@ -89,7 +101,12 @@
         "whatsapp-safety",
         "group-mentions"
       ],
-      "note": "Confirmed 2026-10-28 on the ai-groups baseline (first creationOrder 19, renumbered when rebased on main after features 19-25 merged). Its mock does not have the later features; latestConfirmed stays group-mentions, and the next clone copies the edit/delete screens from docs/features/message-edit-delete/mock."
+      "note": "Confirmed 2026-10-28 on the ai-groups baseline (first creationOrder 19, renumbered when rebased on main after features 19-25 merged). Its mock does not have the later features; latestConfirmed stays group-mentions, and the next clone copies the edit/delete screens from docs/features/message-edit-delete/mock.",
+      "pruned": {
+        "at": "2026-11-04",
+        "lastRevision": "3a676d12a280968ef97dba29fc6c39f3e1f18e37",
+        "reason": "retention: template-store is the sixth feature folder; recover with git show <lastRevision>:docs/features/message-edit-delete/..."
+      }
     },
     {
       "feature": "group-mentions",
