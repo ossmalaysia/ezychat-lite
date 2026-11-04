@@ -231,6 +231,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
+- In a cloud session the permission check may refuse any force-push, including `--force-with-lease`. When a stacked
+  base PR is squash-merged, merge `origin/main` into the branch instead of `rebase --onto`: it needs no force, and
+  `git diff <rebased> HEAD` proves that the trees are the same. Point a confirmation `gitRevision` at main's squash commit.
 - Another session may push to the same PR branch while you work on it: force-push a rebase only with
   `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
   commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
