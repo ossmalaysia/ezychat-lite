@@ -2,7 +2,7 @@
 
 Status: **proposal**. Owner request 2026-11-04 (main EzyChat session): "how come the template requires an app release —
 implement a remote template repository like our connector store". Branch `feat/template-store` from `main`
-(`658dbf3`, 0.1.74). Created 2026-11-04 (creationOrder 31).
+(`658dbf3`, 0.1.74). Created 2026-11-04 (creationOrder 32).
 
 ## Problem
 
