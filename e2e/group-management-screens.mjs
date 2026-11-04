@@ -5,6 +5,7 @@
 // Desktop 1280 / phone 360, light / dark; reports page errors and horizontal overflow. States the fake phone
 // cannot produce (not on WhatsApp, offline, a Business API connection) answer the web from a stubbed route; the
 // screens themselves are the real app. Never touches real WhatsApp.
+import { randomBytes } from 'node:crypto';
 import {
   apiPost,
   launchBrowser,
@@ -17,7 +18,6 @@ import {
 const { base, out } = screensArgs('.group-management-screens');
 const cookie = await signInDemoAdmin(base);
 const problems = [];
-const AGENT = { username: 'farid', displayName: 'Farid', password: 'agent-pass-123' };
 
 async function api(method, path, body, c = cookie) {
   const res = await fetch(base + '/api' + path, {
@@ -29,17 +29,25 @@ async function api(method, path, body, c = cookie) {
   return res.json();
 }
 
-// An agent with access to the inbox (for the read-only view).
-await api('POST', '/users', { ...AGENT, role: 'agent', password: 'agent-temp-123' });
-let agentCookie = (await apiPost(base, '/auth/login', { ...AGENT, password: 'agent-temp-123' }))
-  .cookie;
+// An agent with access to the inbox (for the read-only view); throwaway secrets for this temp server only.
+const secret = () => randomBytes(12).toString('base64url');
+const first = secret();
+const AGENT = { username: 'farid', displayName: 'Farid', secret: secret() };
+await api('POST', '/users', {
+  username: AGENT.username,
+  displayName: AGENT.displayName,
+  role: 'agent',
+  password: first,
+});
+const login = (pw) =>
+  apiPost(base, '/auth/login', { username: AGENT.username, password: pw }).then((r) => r.cookie);
 await api(
   'POST',
   '/auth/change-password',
-  { currentPassword: 'agent-temp-123', newPassword: AGENT.password },
-  agentCookie,
+  { currentPassword: first, newPassword: AGENT.secret },
+  await login(first),
 );
-agentCookie = (await apiPost(base, '/auth/login', AGENT)).cookie;
+const agentCookie = await login(AGENT.secret);
 
 let seq = 0;
 /** A fresh fake group (its own JID per screen set, so changes never leak between sizes). */
