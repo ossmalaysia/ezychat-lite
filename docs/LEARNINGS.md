@@ -521,6 +521,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   labels and open the section first in each; agents that own the page miss specs owned by other features.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
+  An e2e check that starts a server never spawns `npx`: run `process.execPath` with `node_modules/tsx/dist/cli.mjs`
+  (`e2e/start-multi-inbox.mjs`).
   It also fails on any `http://` literal (S5332): an RFC 3161 timestamp URL (signed replies, published as
   http) gets a `// NOSONAR (javascript:S5332): <reason>` on its line; everything else uses https.
   It treats `process.argv` in `e2e/` scripts as untrusted (SSRF S5144/S8703): parse the port with
