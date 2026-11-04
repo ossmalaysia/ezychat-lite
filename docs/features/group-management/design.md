@@ -385,6 +385,9 @@ Coverage gaps (inherited, not added in this round): the message-edit-delete scre
 group-agents preview are still owed to the cumulative reference (see the index notes); the mock has no Business API inbox
 seeded, so the Business API case is shown through the Mock only switch in Group info.
 
+Retention: the sixth feature folder, so `message-edit-delete` (confirmed, creationOrder 26) is pruned in this change;
+recover it from `d16b815`.
+
 Screen/state checklist (desktop 1280 / mobile 360 touch, light / dark; `group-admin-shots.mjs`, 68 shots, 0 page
 errors, 0 horizontal overflow):
 
