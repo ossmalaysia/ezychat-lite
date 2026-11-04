@@ -13,7 +13,8 @@ into AGENTS.md.
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
   character; an editor or the agent's file-writing tool may turn the escape into the character, so scan new test
   files for U+200E/F, U+202A–202E, U+2066–2069, U+FEFF before pushing) and on a JSON key containing "password" (S2068,
-  even a translation key). Name such keys after what they mean (`unlockCodeInMessage`).
+  even a translation key, or a demo user's `password:` literal in an `e2e/*.mjs` script). Name such keys after what they
+  mean (`unlockCodeInMessage`); a capture script creates extra users with `randomBytes` secrets or `DEMO_ADMIN`.
 - In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
   starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
   `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
@@ -156,6 +157,8 @@ into AGENTS.md.
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
   docs-only commit, or the stages show as `✗ missing`.
+- Never rebase, stash or switch branches in a checkout where subagents are still writing files: commit each finished
+  agent's files first, and rebase onto a newly merged base only after the last agent has handed back.
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
 - Child cloud sessions refuse a merge or CI-gate change that another session relays to them, even when it quotes
   the owner. Brief children to stop at a green PR and report to `@parent`; the main session, which holds the
@@ -211,6 +214,11 @@ into AGENTS.md.
   review only your own commits (`git show <sha>`) when the base moved.
 - A change for another repository that a cloud session may not attach (add_repo refused) ships as a `git apply`-ready
   patch in the feature folder (`publisher/*.patch`, checked by applying it to an empty repo) plus the owner's steps.
+- A test server that serves a payload and its signature in two requests must build them once (per version), never per
+  request with a clock in the signed body: a second boundary between the two fetches fails the signature check on CI
+  only (`e2e/partner-mcp/server.mjs` signed list).
+- `npm ci` in a Linux cloud session marks `apps/desktop/scripts/fetch-*.mjs` executable (mode-only diff): reset them with
+  `chmod 644` instead of committing the mode change, and check `git status` before every commit in a fresh checkout.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
   timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
   blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
@@ -225,7 +233,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   next `creationOrder`, and prune the next-oldest folder. Resolving them file by file with `--ours/--theirs` puts some
   files in the wrong folder.
 - In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
-  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
+  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that. The `[a]gents` bracket trick
+  does not help when the same tool call also starts or names that program.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
@@ -238,6 +247,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
+- In a cloud session the permission check may refuse any force-push, including `--force-with-lease`. When a stacked
+  base PR is squash-merged, merge `origin/main` into the branch instead of `rebase --onto`: it needs no force, and
+  `git diff <rebased> HEAD` proves that the trees are the same. Point a confirmation `gitRevision` at main's squash commit.
 - Another session may push to the same PR branch while you work on it: force-push a rebase only with
   `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
   commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
@@ -271,7 +283,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review; a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
-  SonarCloud duplication fix) voids it too: push and settle SonarCloud before the Dev Build check. Rebase onto `main` before the checks
+  SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
+  before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
   you record: a rebase gives every commit a new id, so the recorded ones stop counting. Merging `main` keeps them:
   evidence holds while the PR's own change to code, pipeline and test files is the same.
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
@@ -500,7 +513,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
-  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below.
+  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below, and S9382 (each `await`
+  written inside a loop body is one issue: a screen script loops over sets that call one `async function captureSet`).
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
@@ -563,6 +577,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   scripts take a validator as a parameter and tests pass one built from the zod contract.
 - A generated folder that a test compares byte for byte with its generator goes into `.prettierignore`; Prettier
   rewrites JSON arrays and Markdown and the drift test fails.
+- In a Linux cloud session `e2e/screens-common.mjs#launchBrowser` falls back to msedge and fails: run capture scripts
+  with `PW_CHROMIUM=/opt/pw-browsers/chromium-<n>/chrome-linux64/chrome`, and restart the server on fresh data after a
+  failed run (the script's seed users already exist).
 - A random "can't reach" from the server while the browser and curl work: test the app's own runtime
   (`ELECTRON_RUN_AS_NODE=1 <app> script.js` with `fetch`), and `curl -4` / `curl -6` on that computer. A network
   with IPv6 addresses but no IPv6 route made fetch time out (`UND_ERR_CONNECT_TIMEOUT`) at random; `runCli`
@@ -973,6 +990,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- Baileys group changes report refusals two ways: `groupParticipantsUpdate` / `groupRequestParticipantsUpdate` return
+  per-person `{status: <code>}` (403 + `add_request` = privacy, send the invite), while subject, description, settings
+  and invite-code calls throw a Boom whose `data` is the code (401/403 = not a group admin). Map both; fail closed.
+- A core route that calls an optional `WaAdapter` method passes through an adapter error whose `err.code` is in the
+  feature's shared error list (e.g. `GROUP_ADMIN_ERRORS`), with its natural status: Enterprise adapters (`wa-cloud`)
+  signal whole-request refusals that way, and a catch-all 502 hides them.
 - Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
   and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
   background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
@@ -1304,6 +1327,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A list row with a label and action buttons (join requests, approvals): keep a phone number `whitespace-nowrap` and the
+  buttons in one `ml-auto shrink-0` group, so a narrow panel moves the whole group below instead of truncating the
+  number or putting one button per line (a `min-w-*` on the label did the latter at 360 px).
+- Screen-review states the fake WhatsApp cannot produce (offline with a cached panel, another connection type's
+  capabilities, a 422 from WhatsApp) come from `page.route` on that one GET/POST in the capture script, with the real
+  app rendering them (`e2e/group-management-screens.mjs`); never add a dev-only server switch just for screenshots.
 - A dialog whose body holds buttons (show details, add files, remove) uses a plain container, not a `<form>`: shadcn
   `Button` defaults to `type="submit"`, so every toggle sent the report. Send stays an explicit button in the footer.
 - A route that takes several files reads `req.parts({ limits: { files: N, fileSize } })`: the app-wide multipart limit
@@ -1578,6 +1607,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   runs later, after the code that updates the ref. Shifting marks with `ref.current` inside the updater kept stale
   grammar marks in "Fix N". A popover anchored to a word near the screen edge is `fixed` and measured after render,
   then moved left to fit (an `absolute` card inside a narrow composer ran off a 360 px screen).
+- A diff turned into fix marks must never give two marks on one range: merge changes that meet or overlap, and
+  never widen an insertion across another change (only over unchanged tokens). Two marks on "email" ("your email",
+  "email.") applied one after the other added text twice. Test it as a property: applying every mark gives the
+  corrected text, and the fixed text gets no new mark. On the client, tie an AI answer to the exact text it was
+  asked for and remember applied fixes per draft: the model answers each check afresh and may re-add the same
+  insertion ("email." → "email..").
 - OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
   then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 - Marks drawn in a `pointer-events-none` layer over the composer (grey completion, Fix English underlines) are
