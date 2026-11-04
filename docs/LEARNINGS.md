@@ -160,7 +160,8 @@ into AGENTS.md.
 
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
-  docs-only commit, or the stages show as `✗ missing`.
+  docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
+  `docs/dev-build-checks.md` row: cite the commit that already contains a new check script, not the one before it.
 - Never rebase, stash or switch branches in a checkout where subagents are still writing files: commit each finished
   agent's files first, and rebase onto a newly merged base only after the last agent has handed back.
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
