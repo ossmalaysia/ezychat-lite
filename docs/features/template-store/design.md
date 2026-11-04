@@ -126,10 +126,14 @@ fills editable boxes after an admin's click.
   template ("Event venue", category "Events" from the list) and the offline/builtin states.
 - Screens: gallery loaded (with the list template and the new chip), builtin, offline; desktop 1280 / mobile 360,
   light/dark; en, ms, zh-CN.
-- Confirmation: **not yet recorded** (owner reviews the PR screenshots).
+- Confirmation: **confirmed 2026-11-04** by the owner (Jazz), relayed from the main session in his own words:
+  "279 go ahead", covering the mock and the open questions below. The list is published for real at
+  `https://dl.ezychat.ai/templates/templates-v1.json` (sequence 1, 18 entries, 6 categories; publishing repo run
+  41818602615, commit `dc242eb`). This preview is a standalone gallery reference, not a cumulative full-app clone, so
+  `latestConfirmed` in `mock-index.json` stays on group-management.
 
-## Open questions (my call until the owner answers)
+## Open questions (answered by the owner, 2026-11-04)
 
-1. Should a list be able to **retire** a built-in template? My call: no for now (a list can only add or replace).
-2. Show a "New" badge on templates added by the list? My call: no; the source line says the library was updated.
+1. Should a list be able to **retire** a built-in template? Owner: no (a list can only add or replace).
+2. Show a "New" badge on templates added by the list? Owner: no; the source line says the library was updated.
 3. Separate keys for templates? Decided: shared keys (owner, connector repo), with domain separation.

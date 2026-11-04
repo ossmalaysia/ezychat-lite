@@ -151,6 +151,10 @@ into AGENTS.md.
 - Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
   both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
   parallel feature's screens the next clone must add.
+- A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
+  nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
+  and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
+  are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
 
 ## Multi-agent process
 
