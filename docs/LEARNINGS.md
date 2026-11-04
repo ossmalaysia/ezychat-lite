@@ -12,7 +12,8 @@ into AGENTS.md.
 
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
   character; an editor or tool may turn the escape into the character) and on a JSON key containing "password" (S2068,
-  even a translation key). Name such keys after what they mean (`unlockCodeInMessage`).
+  even a translation key, or a demo user's `password:` literal in an `e2e/*.mjs` script). Name such keys after what they
+  mean (`unlockCodeInMessage`); a capture script creates extra users with `randomBytes` secrets or `DEMO_ADMIN`.
 - In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
   starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
   `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
