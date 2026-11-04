@@ -107,6 +107,11 @@ describe('grammarIssues', () => {
         const once = applyAll(text, [issue]);
         expect(once).not.toMatch(/([!,.?])\1/u);
       }
+    // The model checks the fixed draft afresh and adds the same full stop or word again.
+    expect(pairs('Please check your email.', 'Please check your email..')).toEqual([]);
+    expect(pairs('send the quote', 'send the the quote')).toEqual([]);
+    // A real insertion next to other punctuation is kept.
+    expect(pairs('ok, see you', 'ok, see you.')).toEqual([['you', 'you.']]);
   });
 
   it(`returns at most ${GRAMMAR_ISSUES_MAX} marks`, () => {

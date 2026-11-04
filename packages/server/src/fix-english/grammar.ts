@@ -141,8 +141,10 @@ function protectedSpans(text: string): Array<[number, number]> {
   return spans;
 }
 /**
- * A pure insertion whose new text already stands right next to the mark ("email!" + "!" →
- * "email!!", "update." + "." → "update.."): applying it would add that text a second time.
+ * A pure insertion whose new text already stands on either side of where it goes ("email!" + "!" →
+ * "email!!", "email." + "." → "email..", "the" + "the " → "the the"): applying it would add that
+ * text a second time. The model checks every draft afresh, so it may offer a fix again right after
+ * it was applied.
  */
 function insertsWhatIsThere(
   text: string,
@@ -152,15 +154,20 @@ function insertsWhatIsThere(
   replacement: string,
 ): boolean {
   if (replacement.length <= original.length) return false;
+  let at: number;
+  let added: string;
   if (original && replacement.startsWith(original)) {
-    const added = replacement.slice(original.length).trimEnd();
-    return !!added && text.slice(end).trimStart().startsWith(added.trimStart());
-  }
-  if (replacement.endsWith(original)) {
-    const added = replacement.slice(0, replacement.length - original.length).trimStart();
-    return !!added && text.slice(0, start).trimEnd().endsWith(added.trimEnd());
-  }
-  return false;
+    at = end;
+    added = replacement.slice(original.length);
+  } else if (replacement.endsWith(original)) {
+    at = start;
+    added = replacement.slice(0, replacement.length - original.length);
+  } else return false;
+  added = added.trim();
+  return (
+    !!added &&
+    (text.slice(0, at).trimEnd().endsWith(added) || text.slice(at).trimStart().startsWith(added))
+  );
 }
 const isSpaceChar = (c: string | undefined) => c !== undefined && c.trim() === '';
 
