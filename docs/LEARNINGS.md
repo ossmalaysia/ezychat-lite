@@ -552,6 +552,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- In a Linux cloud session `e2e/screens-common.mjs#launchBrowser` falls back to msedge and fails: run capture scripts
+  with `PW_CHROMIUM=/opt/pw-browsers/chromium-<n>/chrome-linux64/chrome`, and restart the server on fresh data after a
+  failed run (the script's seed users already exist).
 - A random "can't reach" from the server while the browser and curl work: test the app's own runtime
   (`ELECTRON_RUN_AS_NODE=1 <app> script.js` with `fetch`), and `curl -4` / `curl -6` on that computer. A network
   with IPv6 addresses but no IPv6 route made fetch time out (`UND_ERR_CONNECT_TIMEOUT`) at random; `runCli`
@@ -1295,6 +1298,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A list row with a label and action buttons (join requests, approvals): keep a phone number `whitespace-nowrap` and the
+  buttons in one `ml-auto shrink-0` group, so a narrow panel moves the whole group below instead of truncating the
+  number or putting one button per line (a `min-w-*` on the label did the latter at 360 px).
 - Screen-review states the fake WhatsApp cannot produce (offline with a cached panel, another connection type's
   capabilities, a 422 from WhatsApp) come from `page.route` on that one GET/POST in the capture script, with the real
   app rendering them (`e2e/group-management-screens.mjs`); never add a dev-only server switch just for screenshots.
