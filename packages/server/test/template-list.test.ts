@@ -194,7 +194,9 @@ describe('template list service', () => {
     server.publish({
       sequence: 1,
       entries: [
-        tpl('venue', { texts: { en: { ...texts('Venue'), focus: hidden, name: '\u2066Venue\u2069' } } }),
+        tpl('venue', {
+          texts: { en: { ...texts('Venue'), focus: hidden, name: '\u2066Venue\u2069' } },
+        }),
         // A required text that is only unsafe characters is empty after cleaning: dropped.
         tpl('empty', { texts: { en: { ...texts('Empty'), name: '\u202E\u202C' } } }),
       ],
