@@ -89,10 +89,12 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
       )
       .header('accept-ranges', 'bytes')
       // A message's file never changes (its id is fixed): the phone may keep it 30 days. A file
-      // WhatsApp Safety flagged is never kept anywhere.
+      // WhatsApp Safety flagged, or one its AI check may still lock, is never kept anywhere.
       .header(
         'cache-control',
-        safety === 'flagged' ? 'no-store' : 'private, max-age=2592000, immutable',
+        safety === 'flagged' || ctx.services.safety?.cacheable(msgId) === false
+          ? 'no-store'
+          : 'private, max-age=2592000, immutable',
       );
 
     const range = parseRange(req.headers.range, size);
