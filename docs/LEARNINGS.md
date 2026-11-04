@@ -1294,6 +1294,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- Screen-review states the fake WhatsApp cannot produce (offline with a cached panel, another connection type's
+  capabilities, a 422 from WhatsApp) come from `page.route` on that one GET/POST in the capture script, with the real
+  app rendering them (`e2e/group-management-screens.mjs`); never add a dev-only server switch just for screenshots.
 - A dialog whose body holds buttons (show details, add files, remove) uses a plain container, not a `<form>`: shadcn
   `Button` defaults to `type="submit"`, so every toggle sent the report. Send stays an explicit button in the footer.
 - A route that takes several files reads `req.parts({ limits: { files: N, fileSize } })`: the app-wide multipart limit
