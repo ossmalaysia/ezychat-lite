@@ -3,39 +3,20 @@
 // `--max-agents 2`, then: node e2e/claims-template-screens.mjs <baseURL> <outDir>
 // Prints PASS/FAIL per check (a new agent from the template is Custom, group-only and has its Claim rules;
 // an existing agent is never switched) and OVERFLOW / PAGEERROR lines; never calls a model.
-/* global document, window -- used inside page.evaluate (runs in the browser) */
-import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { chromium } from '@playwright/test';
+import { ADMIN, VIEWS, screenKit } from './screen-kit.mjs';
 
 const [base, out] = process.argv.slice(2);
 if (!base || !out)
   throw new Error('Usage: node e2e/claims-template-screens.mjs <baseURL> <outDir>');
-mkdirSync(out, { recursive: true });
-const H = { Origin: base };
-const ADMIN = { username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' };
 let failed = 0;
 const check = (ok, step, detail = '') => {
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? `  (${detail})` : ''}`);
 };
 
-const browser = existsSync(chromium.executablePath())
-  ? await chromium.launch()
-  : await chromium.launch({ channel: 'chrome' });
-const ctx = (opts = {}) =>
-  browser.newContext({ baseURL: base, locale: 'en-US', serviceWorkers: 'block', ...opts });
-async function api(req, method, path, data) {
-  const r = await req.fetch(path, { method, data, headers: H });
-  if (!r.ok()) throw new Error(`${method} ${path}: ${r.status()} ${await r.text()}`);
-  return r.json().catch(() => null);
-}
-
-const setup = await ctx();
+const { browser, ctx, api, adminContext, shot } = await screenKit(base, out);
+const setup = await adminContext();
 const req = setup.request;
-if ((await (await req.get('/api/setup/status')).json()).needsSetup)
-  await api(req, 'POST', '/api/setup/admin', ADMIN);
-await api(req, 'POST', '/api/auth/login', { username: ADMIN.username, password: ADMIN.password });
 // Agent 1 (Aina) answers direct chats with the untouched Sales starting text.
 await api(req, 'PUT', '/api/ai', {
   displayName: 'Aina',
@@ -45,19 +26,6 @@ await api(req, 'PUT', '/api/ai', {
 });
 const aina = (await api(req, 'GET', '/api/ai')).agents[0];
 
-const VIEWS = [
-  ['desktop', { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 }],
-  [
-    'mobile',
-    { viewport: { width: 360, height: 780 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  ],
-];
-const shot = async (p, name, fullPage = false) => {
-  await p.waitForTimeout(400);
-  await p.screenshot({ path: join(out, `${name}.png`), fullPage });
-  const sw = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  if (sw > 0) console.log(`OVERFLOW ${name}: +${sw}px`);
-};
 const LOCALES = { en: 'en-US', ms: 'ms-MY', 'zh-CN': 'zh-CN' };
 const NAMES = { en: 'Claims agent', ms: 'Ejen tuntutan', 'zh-CN': '理赔代理' };
 const APPLY = { en: 'Apply template', ms: 'Gunakan templat', 'zh-CN': '应用模板' };
@@ -71,7 +39,7 @@ async function signIn(c) {
   await c.request.fetch('/api/auth/login', {
     method: 'POST',
     data: { username: ADMIN.username, password: ADMIN.password },
-    headers: H,
+    headers: { Origin: base },
   });
   return { p, errors };
 }
