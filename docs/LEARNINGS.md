@@ -182,6 +182,8 @@ into AGENTS.md.
   environment as an approval gate unless its required reviewers are set; put the real gate in the workflow (dispatch
   on `main`, a `confirm` input, strict checks). Agents start `release-approve.yml` only when the owner says "release".
 - `/security-review` in a fresh cloud clone fails on `origin/HEAD...`: run `git remote set-head origin main` first.
+- Any edit to a workflow makes SonarCloud re-flag its old workflow-level write permissions (S8233, Security C fails
+  the gate): when touching a workflow, set `permissions: {}` at the top and give each job only what it needs.
 - An edition's AI-agent limit defaults to its `maxInboxes` (`ai/service.ts`: `config.maxAgents ?? maxInboxes`), so
   Enterprise (10 numbers) has had 10 agents since core 0.1.73 without passing `maxAgents`. Before saying an edition
   lacks a feature, read the core default as well as the options the edition passes.
