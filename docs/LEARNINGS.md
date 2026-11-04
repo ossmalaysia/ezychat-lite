@@ -1008,6 +1008,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- `WaAdapterEvents` has no "profile photo changed" event: a cache of WhatsApp photos (`avatars/store.ts`) refreshes
+  by age (24 h) and keeps the last good photo when a refresh fails. Serve the bytes yourself with a version in the
+  URL (`?v=<hash>`, immutable) instead of a 302 to WhatsApp's CDN: over a slow tunnel each redirect was a ~0.7 s
+  round trip on every open, and the CDN URL expires anyway.
 - Baileys group changes report refusals two ways: `groupParticipantsUpdate` / `groupRequestParticipantsUpdate` return
   per-person `{status: <code>}` (403 + `add_request` = privacy, send the invite), while subject, description, settings
   and invite-code calls throw a Boom whose `data` is the code (401/403 = not a group admin). Map both; fail closed.
