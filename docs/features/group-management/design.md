@@ -1,6 +1,6 @@
 # Manage WhatsApp groups inside EzyChat (group management)
 
-Status: **proposal: needs the owner's confirmation**. Planning and discovery only; no production code. Branch
+Status: **confirmed by the owner 2026-11-04** (see Confirmation). Implementation on `feat/group-management`. Branch
 `docs/group-management` from `main` `c589b88` (0.1.73).
 
 ## Owner request (2026-11-04)
@@ -413,4 +413,17 @@ errors, 0 horizontal overflow):
 
 ## Confirmation
 
-Not yet confirmed. Waiting for the owner's review of the screenshots and answers to the open questions.
+Confirmed by the owner (Jazz) on 2026-11-04, in his own words in the main EzyChat session: "go with your suggestion,
+run multiple subagent to implement independent part, only merge to main and archive it, we will release daily."
+"Your suggestion" = the proposed answer to every open question, so the answers are:
+
+1. Only EzyChat admins manage groups; agents get the read-only view.
+2. Privacy refusal → a "Send invite" button (never automatic).
+3. Add limit 20 a day and 6 an hour per WhatsApp number.
+4. Group settings and join requests are in v1.
+5. Business API in-chat management uses these core actions; the Enterprise Groups page keeps list/create/delete.
+6. Recent changes lists only EzyChat-made changes in v1.
+7. Ships in Lite (core); Enterprise implements Meta's subset in `wa-cloud`.
+
+The mock at this revision is the implementation and screen-review reference. No app release or tag for this change:
+Lite ships it in the daily release.
