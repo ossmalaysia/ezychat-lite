@@ -589,6 +589,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- Measuring a slow tunnel locally: put a proxy that delays every request (and the WebSocket upgrade) in front
+  of the server; Chrome throttling does not slow the service worker's own fetches. The fake WhatsApp has no
+  photos, so give contacts a photo address in a measurement-only preload. Do not use Playwright `context.route`
+  for the new code (it turns off the HTTP cache and changes service worker handling), and measure only after the
+  service worker controls the page: installing it through a 650 ms proxy took 16–19 s, and opens before that
+  showed photo requests that an installed PWA never makes.
 - A contract the publishing repo validates through `z.toJSONSchema(…, { io: 'input' })` must stay plain: a
   `.transform()` (and every check piped after it, e.g. lengths) vanishes from the schema. Clean values before
   `safeParse` instead (`cleanAgentTemplateValue`). The root `ajv` is ESLint's v6; ajv 8 is only nested, so repo
