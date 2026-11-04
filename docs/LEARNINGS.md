@@ -153,6 +153,9 @@ into AGENTS.md.
 
 ## Multi-agent process
 
+- `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
+  counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
+  docs-only commit, or the stages show as `✗ missing`.
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
 - Child cloud sessions refuse a merge or CI-gate change that another session relays to them, even when it quotes
   the owner. Brief children to stop at a green PR and report to `@parent`; the main session, which holds the
