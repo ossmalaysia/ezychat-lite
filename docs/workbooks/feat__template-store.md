@@ -7,10 +7,10 @@ Branch: `feat/template-store` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | docs/features/template-store/design.md; mock (standalone preview, desktop/mobile, light/dark, en/ms/zh-CN) recorded, owner confirmation pending | 658dbf3 | 2026-11-04 |
 | Dev | done | shared contract, server template list (download/verify/store) + /api/ai/templates routes, web gallery from the API with built-in fallback, export/schema/publisher scripts | 658dbf3 | 2026-11-04 |
-| Unit tests | pass | Linux: 403 files / 4746 tests pass with coverage; changed lines 100 % (286/286); typecheck + lint clean; SonarCloud gate passed | 853680b | 2026-11-04 |
-| E2E | pass | npm run e2e (Linux, fake WhatsApp, mock AI): 144 passed, 27 skipped, 0 failed; e2e:electron-links is Windows-only, not run | 853680b | 2026-11-04 |
-| Dev Build | pass | e2e/template-store-check.mjs: 15/15 PASS (signed list served locally, mock model): download+verify, gallery, Apply+Create, bad signature rejected, offline keeps copy | 853680b | 2026-11-04 |
-| Screen review | pass | Real app gallery 1280/360 light/dark (loaded, Events, applied, offline) in docs/features/template-store/screenshots; no overflow or page errors; matches the mock | 853680b | 2026-11-04 |
+| Unit tests | pass | CI green on d3d4cc9 (ubuntu, windows, macos); local coverage run: changed lines 100 % (286/286) | d3d4cc9 | 2026-11-04 |
+| E2E | pass | npm run e2e on d3d4cc9 (after merging main): 144 passed, 27 skipped, 0 failed; e2e:electron-links is Windows-only, not run | d3d4cc9 | 2026-11-04 |
+| Dev Build | pass | e2e/template-store-check.mjs on d3d4cc9: 15/15 PASS (signed list served locally, mock model): download+verify, gallery, Apply+Create, bad signature rejected, offline keeps copy | d3d4cc9 | 2026-11-04 |
+| Screen review | pass | Real app gallery 1280/360 light/dark (loaded, Events, applied, offline) re-captured on d3d4cc9 in docs/features/template-store/screenshots; no overflow or page errors; matches the mock | d3d4cc9 | 2026-11-04 |
 
 ## Log
 
@@ -24,3 +24,7 @@ Branch: `feat/template-store` · Every agent updates its stage with
 - 2026-11-04 Dev Build: pass — e2e/template-store-check.mjs: 15/15 PASS (signed list served locally, mock model): download+verify, gallery, Apply+Create, bad signature rejected, offline keeps copy (853680b)
 - 2026-11-04 Screen review: pass — Real app gallery 1280/360 light/dark (loaded, Events, applied, offline) in docs/features/template-store/screenshots; no overflow or page errors; matches the mock (853680b)
 - 2026-11-04 Unit tests: pass — Linux: 403 files / 4746 tests pass with coverage; changed lines 100 % (286/286); typecheck + lint clean; SonarCloud gate passed (853680b)
+- 2026-11-04 E2E: pass — npm run e2e on d3d4cc9 (after merging main): 144 passed, 27 skipped, 0 failed; e2e:electron-links is Windows-only, not run (d3d4cc9)
+- 2026-11-04 Dev Build: pass — e2e/template-store-check.mjs on d3d4cc9: 15/15 PASS (signed list served locally, mock model): download+verify, gallery, Apply+Create, bad signature rejected, offline keeps copy (d3d4cc9)
+- 2026-11-04 Screen review: pass — Real app gallery 1280/360 light/dark (loaded, Events, applied, offline) re-captured on d3d4cc9 in docs/features/template-store/screenshots; no overflow or page errors; matches the mock (d3d4cc9)
+- 2026-11-04 Unit tests: pass — CI green on d3d4cc9 (ubuntu, windows, macos); local coverage run: changed lines 100 % (286/286) (d3d4cc9)
