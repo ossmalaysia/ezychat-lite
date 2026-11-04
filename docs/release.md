@@ -46,7 +46,36 @@ On the merge commit, an annotated tag: `git tag -a v<version> <commit> -m "EzyCh
 Installed apps find the update at their next check and jump straight to it (never through older
 versions: every upgrade step lives in a migration or start-up code, see `AGENTS.md`).
 
-## 4. Download links (never change)
+## 4. Approved one-click release (default)
+
+Steps 2 and 3 run in GitHub Actions with one approval, so a cloud session (which cannot push tags or run
+`gh release edit`) can start a release and the owner only approves it.
+
+1. After the release PR is merged, start **Release (approved)** (`.github/workflows/release-approve.yml`) on
+   `main` with the version: `gh workflow run release-approve.yml --ref main -f version=<version>` or Actions →
+   Release (approved) → Run workflow. Its `check` job stops before any write when the version is not `x.y.z`,
+   `package.json` on `main` is another version, `CHANGELOG.md` has no section for it, `main` moved since the
+   run started, or the tag already exists.
+2. The owner approves the `release-approval` deployment (GitHub app or Actions page). The `release` job checks
+   again, creates the annotated tag `v<version>` ("EzyChat Lite <version>") on that `main` commit through the
+   API and starts `release.yml` (with `publish=true`) and `publish-packages.yml` on the tag. A tag created with
+   `GITHUB_TOKEN` starts no `on: push: tags` workflow, so both are started with `workflow_dispatch`.
+3. `release.yml` builds the three installers as before. Its `publish` job runs only when every build succeeded,
+   only for a dispatch with `publish=true` on the tag itself, checks the draft (`scripts/release-publish.mjs`:
+   6 installer files, not empty, notes from `release-notes.mjs`), publishes it in one call
+   (`--draft=false --prerelease=false --latest`) and fails unless `releases/latest` is the new tag. Any failure
+   leaves the draft unpublished: fix it and publish by hand (step 3) or rebuild with
+   `gh workflow run release.yml --ref v<version> -f ref=v<version> -f publish=true`.
+4. Check npm (`npm view @ezychat/server version`): the npm publish runs beside the build and does not hold
+   back the GitHub release.
+
+Owner setup (once): Settings → Environments → New `release-approval` → Required reviewers: jazztong →
+Deployment branches: `main` → Save. Without the environment's reviewers the job would run without approval.
+
+Steps 2 and 3 above stay as the manual fallback (a tag pushed by a person still starts both workflows; that
+`release.yml` run leaves the draft unpublished).
+
+## 5. Download links (never change)
 
 | Link                                                                                            | Gives                                                                                        |
 | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -57,9 +86,9 @@ versions: every upgrade step lives in a migration or start-up code, see `AGENTS.
 | `https://github.com/ossmalaysia/ezychat-lite/releases/latest`                                   | The newest release page                                                                      |
 
 GitHub's `latest` counts only published, non-pre-release releases, so links keep giving the previous
-version until step 3. Never rename the copies: shared links depend on them.
+version until the release is published (§3 or §4). Never rename the copies: shared links depend on them.
 
-## 5. After the release
+## 6. After the release
 
 - Enterprise: pins to the new core version, its own release (`docs/releases.md` there).
 - A bad release is fixed by a **new** version (hotfix), never by deleting a published release: installed

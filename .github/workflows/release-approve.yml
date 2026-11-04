@@ -1,0 +1,130 @@
+name: Release (approved)
+
+# One-click release (docs/release.md §4): an agent or the owner starts this on main with the version of a merged
+# release PR; the owner's approval of the `release-approval` environment is the only gate. After approval it
+# tags main, then starts release.yml (build, draft, publish when the draft is complete) and publish-packages.yml
+# on that tag. A tag created with GITHUB_TOKEN does not start `on: push: tags` workflows, so both are started
+# here with workflow_dispatch, which GITHUB_TOKEN may trigger.
+#
+# Owner setup (once): Settings → Environments → New `release-approval` → Required reviewers: jazztong →
+# Deployment branches: main → Save.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version of the merged release PR, x.y.z (e.g. 0.1.75)
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release-approve
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check v${{ inputs.version }}
+    # Only main is released; a dispatch on any other branch or tag stops here.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # The input reaches shells only through env and only after this check (never ${{ }} inside run).
+      - name: Version is x.y.z
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must be x.y.z, got: $VERSION"
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Release checks
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node scripts/release-publish.mjs version "$VERSION"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$pkg" != "$VERSION" ]; then
+            echo "::error::package.json on main is $pkg, not $VERSION: merge the release PR first"
+            exit 1
+          fi
+          node scripts/sync-version.mjs --check
+          node scripts/release-notes.mjs "v$VERSION" > /dev/null
+          main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$main" != "$SHA" ]; then
+            echo "::error::main moved to $main after this run started on $SHA: start the release again"
+            exit 1
+          fi
+          if [ -n "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ]; then
+            echo "::error::tag v$VERSION already exists"
+            exit 1
+          fi
+          echo "v$VERSION on $SHA: ready for approval" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Tag v${{ inputs.version }} and start the release
+    needs: check
+    runs-on: ubuntu-latest
+    # The approval gate: this job waits until a required reviewer approves the deployment.
+    environment: release-approval
+    permissions:
+      contents: write # create the tag
+      actions: write # start release.yml and publish-packages.yml
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      SHA: ${{ github.sha }}
+    steps:
+      # The approval may come much later: check everything again right before the writes.
+      - name: Check again after approval
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::bad version"; exit 1; }
+          main="$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)"
+          if [ "$main" != "$SHA" ]; then
+            echo "::error::main moved to $main since $SHA was checked: start the release again"
+            exit 1
+          fi
+          if gh api "repos/$REPO/git/ref/tags/v$VERSION" > /dev/null 2>&1; then
+            echo "::error::tag v$VERSION already exists"
+            exit 1
+          fi
+          if gh release view "v$VERSION" --repo "$REPO" > /dev/null 2>&1; then
+            echo "::error::a release v$VERSION already exists"
+            exit 1
+          fi
+      - name: Create the annotated tag
+        run: |
+          set -euo pipefail
+          tag_sha="$(gh api "repos/$REPO/git/tags" -f tag="v$VERSION" -f message="EzyChat Lite $VERSION" \
+            -f object="$SHA" -f type=commit --jq .sha)"
+          gh api "repos/$REPO/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$tag_sha" > /dev/null
+          target="$(gh api "repos/$REPO/git/tags/$tag_sha" --jq .object.sha)"
+          if [ "$target" != "$SHA" ]; then
+            echo "::error::tag v$VERSION points at $target, not $SHA"
+            exit 1
+          fi
+          echo "Tagged v$VERSION → $SHA" >> "$GITHUB_STEP_SUMMARY"
+      # GITHUB_TOKEN tag pushes start no workflows: start both on the tag (their workflow files come from it).
+      - name: Start the release build and the npm publish
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml --repo "$REPO" --ref "v$VERSION" -f ref="v$VERSION" -f publish=true
+          gh workflow run publish-packages.yml --repo "$REPO" --ref "v$VERSION" -f ref="v$VERSION"
+          {
+            echo "Started on v$VERSION: release.yml (publishes the draft when all 6 installers and the notes are there)"
+            echo "and publish-packages.yml. Follow them in Actions; a failure leaves the draft unpublished."
+          } >> "$GITHUB_STEP_SUMMARY"
