@@ -14,6 +14,7 @@ import {
   isAvatarRequest,
   isClearUserCachesMessage,
   isMediaRequest,
+  mediaSizePlugin,
   noStorePlugin,
 } from './sw-routes';
 
@@ -45,7 +46,10 @@ registerRoute(
 );
 registerRoute(
   ({ url, request }) => isMediaRequest(url, request, self.location.origin),
-  new CacheFirst({ cacheName: MEDIA_CACHE, plugins: keptAnswers(MEDIA_LIMITS) }),
+  new CacheFirst({
+    cacheName: MEDIA_CACHE,
+    plugins: [mediaSizePlugin, ...keptAnswers(MEDIA_LIMITS)],
+  }),
 );
 
 // Sign-out or another user signing in: the page asks to remove the photos and files.

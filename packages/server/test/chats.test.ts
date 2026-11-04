@@ -112,7 +112,8 @@ describe('chat profile images', () => {
       headers: { cookie },
     });
     expect(versioned.statusCode).toBe(200);
-    expect(versioned.headers['cache-control']).toBe('private, max-age=31536000, immutable');
+    // Re-asked after a week, so a changed photo reaches the chat list (the server refreshes after 24 h).
+    expect(versioned.headers['cache-control']).toBe('private, max-age=604800');
     const old = await t.app.inject({
       method: 'GET',
       url: `${avatar()}?v=0123456789abcdef`,

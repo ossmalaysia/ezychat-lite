@@ -11,8 +11,12 @@ declare module '../context.js' {
 
 /** A known photo or a known "no photo": the browser may keep it for a day. */
 export const AVATAR_DAY = 'private, max-age=86400';
-/** A photo asked for by its content hash (`?v=<hash>`) never changes. */
-export const AVATAR_IMMUTABLE = 'private, max-age=31536000, immutable';
+/**
+ * A photo asked for by its content hash (`?v=<hash>`): kept a week, not "immutable". The server learns of a
+ * new photo only when someone asks again after its 24 h refresh, so a browser that never asks would keep an
+ * old photo forever.
+ */
+export const AVATAR_VERSIONED = 'private, max-age=604800';
 
 /** The one photo store of this server (`<data>/avatars/`), shared by every route. */
 export function avatarStore(ctx: AppContext): AvatarStore {
@@ -35,7 +39,7 @@ export function sendAvatar(req: FastifyRequest, reply: FastifyReply, r: AvatarRe
   if (r.kind === 'none') return reply.header('cache-control', AVATAR_DAY).code(204).send();
   const etag = `"${r.hash}"`;
   const v = (req.query as Record<string, unknown> | undefined)?.v;
-  reply.header('cache-control', v === r.hash ? AVATAR_IMMUTABLE : AVATAR_DAY).header('etag', etag);
+  reply.header('cache-control', v === r.hash ? AVATAR_VERSIONED : AVATAR_DAY).header('etag', etag);
   const ifNoneMatch = req.headers['if-none-match'];
   if (ifNoneMatch?.split(',').some((t) => t.trim().replace(/^W\//, '') === etag))
     return reply.code(304).send();

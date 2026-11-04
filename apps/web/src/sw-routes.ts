@@ -58,6 +58,17 @@ export const noStorePlugin = {
     ),
 };
 
+/** Largest message file the phone keeps: one long video must not fill the phone's storage. */
+export const MEDIA_MAX_BYTES = 20 * 1024 * 1024;
+
+/** Workbox plugin for message files: never store one larger than MEDIA_MAX_BYTES. */
+export const mediaSizePlugin = {
+  cacheWillUpdate: ({ response }: { response: Response }): Promise<Response | null> =>
+    Promise.resolve(
+      Number(response.headers.get('content-length') ?? 0) > MEDIA_MAX_BYTES ? null : response,
+    ),
+};
+
 export function isClearUserCachesMessage(data: unknown): boolean {
   return (
     typeof data === 'object' &&

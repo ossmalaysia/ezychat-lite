@@ -9,6 +9,8 @@ import {
   isAvatarRequest,
   isClearUserCachesMessage,
   isMediaRequest,
+  MEDIA_MAX_BYTES,
+  mediaSizePlugin,
   noStorePlugin,
 } from './sw-routes';
 
@@ -100,6 +102,27 @@ describe('noStorePlugin', () => {
     const headers = new Headers({ 'cache-control': 'private, max-age=31536000, immutable' });
     const response = new Response('x', { status: 200, headers });
     expect(await noStorePlugin.cacheWillUpdate({ response })).toBe(response);
+    expect(await store(null)).not.toBeNull();
+  });
+});
+
+describe('mediaSizePlugin', () => {
+  const store = (length: string | null) => {
+    const headers = new Headers(length === null ? {} : { 'content-length': length });
+    return mediaSizePlugin.cacheWillUpdate({
+      response: new Response('x', { status: 200, headers }),
+    });
+  };
+
+  it('never keeps a file over 20 MB on the phone', async () => {
+    expect(MEDIA_MAX_BYTES).toBe(20 * 1024 * 1024);
+    expect(await store(String(MEDIA_MAX_BYTES + 1))).toBeNull();
+    expect(await store(String(200 * 1024 * 1024))).toBeNull();
+  });
+
+  it('keeps a file up to 20 MB, and one whose size is not told (the expiration limits still apply)', async () => {
+    expect(await store(String(MEDIA_MAX_BYTES))).not.toBeNull();
+    expect(await store('2048')).not.toBeNull();
     expect(await store(null)).not.toBeNull();
   });
 });
