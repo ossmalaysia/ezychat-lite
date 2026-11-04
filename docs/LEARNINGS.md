@@ -203,6 +203,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A test server that serves a payload and its signature in two requests must build them once (per version), never per
+  request with a clock in the signed body: a second boundary between the two fetches fails the signature check on CI
+  only (`e2e/partner-mcp/server.mjs` signed list).
 - `npm ci` in a Linux cloud session marks `apps/desktop/scripts/fetch-*.mjs` executable (mode-only diff): reset them with
   `chmod 644` instead of committing the mode change, and check `git status` before every commit in a fresh checkout.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
