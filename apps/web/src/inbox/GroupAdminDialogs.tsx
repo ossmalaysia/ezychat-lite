@@ -54,12 +54,12 @@ export function EditGroupDialog({
   data,
   view,
   onClose,
-}: {
+}: Readonly<{
   jid: string;
   data: GroupInfoResponse;
   view: GroupAdminResponse;
   onClose(): void;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   const nameId = useId();
   const descId = useId();
@@ -152,7 +152,7 @@ export function EditGroupDialog({
   );
 }
 
-export function AddMemberDialog({ jid, onClose }: { jid: string; onClose(): void }) {
+export function AddMemberDialog({ jid, onClose }: Readonly<{ jid: string; onClose(): void }>) {
   const { t } = useTranslation('inbox');
   const id = useId();
   const add = useAddGroupMember(jid);
@@ -197,7 +197,7 @@ export function AddMemberDialog({ jid, onClose }: { jid: string; onClose(): void
           <DialogDescription>{t('groupAdmin.addHint')}</DialogDescription>
         </DialogHeader>
         <div className="min-w-0 space-y-2">
-          {step.kind === 'form' ? (
+          {step.kind === 'form' && (
             <>
               <Label htmlFor={id}>{t('groupAdmin.phone')}</Label>
               <Input
@@ -213,11 +213,13 @@ export function AddMemberDialog({ jid, onClose }: { jid: string; onClose(): void
               />
               <Banner tone="warning">{t('groupAdmin.banRisk')}</Banner>
             </>
-          ) : step.kind === 'invite' ? (
+          )}
+          {step.kind === 'invite' && (
             <Banner tone="info" title={t('groupAdmin.privacyTitle')}>
               {t('groupAdmin.privacyBody', { phone: shown })}
             </Banner>
-          ) : (
+          )}
+          {step.kind === 'invited' && (
             <Banner tone="info" title={t('groupAdmin.invitedTitle')}>
               {t('groupAdmin.invitedBody', { phone: shown })}
             </Banner>
@@ -266,11 +268,11 @@ export function InviteLinkDialog({
   jid,
   view,
   onClose,
-}: {
+}: Readonly<{
   jid: string;
   view: GroupAdminResponse;
   onClose(): void;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   const reset = useResetGroupInvite(jid);
   const [confirm, setConfirm] = useState(false);
@@ -404,11 +406,11 @@ export function GroupSettingsDialog({
   jid,
   view,
   onClose,
-}: {
+}: Readonly<{
   jid: string;
   view: GroupAdminResponse;
   onClose(): void;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   const ids = useId();
   const set = useGroupSettings(jid);

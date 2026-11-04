@@ -245,7 +245,7 @@ describe('group management: changes', () => {
     // the member list is read again after a change
     const before = t.wa.groupInfoCalls.length;
     await state();
-    expect(t.wa.groupInfoCalls.length).toBe(before + 1);
+    expect(t.wa.groupInfoCalls).toHaveLength(before + 1);
   });
 
   it('edit validates against the connection limits', async () => {
@@ -277,7 +277,7 @@ describe('group management: changes', () => {
     // Aisyah is listed by her WhatsApp ID; her number is known through the list
     r = await send('POST', url('/members'), admin, { phone: '60137782210' });
     expect([r.statusCode, code(r)]).toEqual([409, 'already_member']);
-    expect(t.wa.groupAdminCalls.length).toBe(calls);
+    expect(t.wa.groupAdminCalls).toHaveLength(calls);
     expect((await send('POST', url('/members'), admin, { phone: '+6012' })).statusCode).toBe(400);
   });
 
@@ -446,7 +446,7 @@ describe('group management: changes', () => {
     // the refusal drops the cached member list: the next read asks WhatsApp again
     const before = t.wa.groupInfoCalls.length;
     await state();
-    expect(t.wa.groupInfoCalls.length).toBe(before + 1);
+    expect(t.wa.groupInfoCalls).toHaveLength(before + 1);
   });
 
   it('adapter error codes pass through; unknown codes answer 502', async () => {

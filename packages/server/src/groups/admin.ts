@@ -174,6 +174,34 @@ const messageOf = (c: GroupAdminError) => MESSAGES[c] ?? 'WhatsApp did not make 
 const isGroupAdmin = (p: WaGroupParticipant | null) =>
   p?.role === 'admin' || p?.role === 'superadmin';
 
+function memberJidParam(member: string): string {
+  const jid = normalizeContactJid(member);
+  if (!jid) throw errors.validation('member: not a WhatsApp number or ID');
+  return jid;
+}
+
+/** Per-person refusals of a member change, as answers. */
+function participantError(r: WaParticipantResult | undefined): HttpError {
+  switch (r?.status) {
+    case 'already':
+      return conflict('already_member', 'This person is already in the group');
+    case 'not_member':
+      return notMember();
+    case 'not_allowed':
+      return notGroupAdmin();
+    case 'full':
+      return conflict('group_full', 'This group is full');
+    default:
+      return changeFailed();
+  }
+}
+
+const MEMBER_AUDIT_ACTION: Record<'remove' | 'promote' | 'demote', GroupChangeAction> = {
+  remove: 'member_remove',
+  promote: 'admin_promote',
+  demote: 'admin_demote',
+};
+
 export function createGroupAdminService(
   ctx: AppContext,
   groups: GroupService,
@@ -214,7 +242,7 @@ export function createGroupAdminService(
       throw errors.notFound('Group');
     }
     const chat = getChats(ctx).get(groupKey);
-    if (!chat || chat.type !== 'group') throw errors.notFound('Group');
+    if (chat?.type !== 'group') throw errors.notFound('Group');
     return { inboxId: parsed.inboxId, groupJid: parsed.waJid };
   }
 
@@ -247,12 +275,6 @@ export function createGroupAdminService(
         [p.jid, p.phoneJid, p.lidJid].some((j) => !!j && want.has(j)),
       ) ?? null
     );
-  }
-
-  function memberJidParam(member: string): string {
-    const jid = normalizeContactJid(member);
-    if (!jid) throw errors.validation('member: not a WhatsApp number or ID');
-    return jid;
   }
 
   function limit(limiter: WindowLimiter, actor: GroupActor): void {
@@ -345,22 +367,6 @@ export function createGroupAdminService(
     ctx.bus.emit('group:changed', { chatJid: groupKey });
   }
 
-  /** Per-person refusals of a member change, as answers. */
-  function participantError(r: WaParticipantResult | undefined): HttpError {
-    switch (r?.status) {
-      case 'already':
-        return conflict('already_member', 'This person is already in the group');
-      case 'not_member':
-        return notMember();
-      case 'not_allowed':
-        return notGroupAdmin();
-      case 'full':
-        return conflict('group_full', 'This group is full');
-      default:
-        return changeFailed();
-    }
-  }
-
   function memberName(inboxId: number, jid: string, names: Map<string, string>): string | null {
     const aliases = getAliases(ctx);
     for (const j of [jid, ...aliases.group(jid)]) {
@@ -368,8 +374,7 @@ export function createGroupAdminService(
       if (n) return n;
     }
     const chat = getChats(ctx).get(aliases.route(inboxId, jid));
-    if (chat && chat.type === 'dm' && chat.name && chat.name !== jidUser(chat.jid))
-      return chat.name;
+    if (chat?.type === 'dm' && chat.name && chat.name !== jidUser(chat.jid)) return chat.name;
     return jid.endsWith('@s.whatsapp.net') ? `+${jidUser(jid)}` : null;
   }
 
@@ -484,12 +489,7 @@ export function createGroupAdminService(
     limit(memberLimiter, actor);
     const t0 = now();
     const [r] = await call(action, () => c.wa.updateGroupMembers!(c.groupJid, [p.jid], action));
-    const auditAction: GroupChangeAction =
-      action === 'remove'
-        ? 'member_remove'
-        : action === 'promote'
-          ? 'admin_promote'
-          : 'admin_demote';
+    const auditAction = MEMBER_AUDIT_ACTION[action];
     if (r?.status === 'already' && action !== 'remove') {
       log.info({ action: auditAction, result: 'already', ms: now() - t0 }, 'group change');
       return;

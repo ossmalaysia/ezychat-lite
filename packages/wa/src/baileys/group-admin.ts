@@ -135,7 +135,8 @@ export function mapJoinRequests(list: unknown): WaGroupJoinRequest[] {
     if (!jid || seen.has(jid)) continue;
     seen.add(jid);
     const pn = normalizeContactJid(raw?.phone_number ?? raw?.pn);
-    const phoneJid = !jid.endsWith('@lid') ? jid : pn && !pn.endsWith('@lid') ? pn : null;
+    let phoneJid: string | null = jid;
+    if (jid.endsWith('@lid')) phoneJid = pn && !pn.endsWith('@lid') ? pn : null;
     const t = Number(raw?.request_time ?? raw?.t);
     out.push({ jid, phoneJid, at: Number.isFinite(t) && t > 0 ? t * 1000 : null });
   }

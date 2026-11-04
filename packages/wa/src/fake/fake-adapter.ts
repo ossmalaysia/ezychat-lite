@@ -410,7 +410,10 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   async getGroupInviteLink(groupJid: string): Promise<string> {
     this.groupCall('getGroupInviteLink', groupJid);
     let code = this.inviteCodes.get(groupJid);
-    if (!code) this.inviteCodes.set(groupJid, (code = this.newInviteCode()));
+    if (!code) {
+      code = this.newInviteCode();
+      this.inviteCodes.set(groupJid, code);
+    }
     return `https://chat.whatsapp.com/${code}`;
   }
 

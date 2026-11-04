@@ -11,7 +11,12 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { GroupAdminResponse, GroupInfoResponse, GroupMember } from '@ezychat/shared';
+import type {
+  GroupAdminCaps,
+  GroupAdminResponse,
+  GroupInfoResponse,
+  GroupMember,
+} from '@ezychat/shared';
 import {
   useGroupJoinRequest,
   useRemoveGroupMember,
@@ -42,7 +47,7 @@ import { groupAdminErrorText, othersCount, useGroupAdminState } from './GroupAdm
  * group from Group info, with only the actions this connection supports (`caps`, never a type
  * name) while the linked number is a group admin; agents and non-admin numbers see why they can't.
  */
-export function GroupAdminBar({ data }: { data: GroupInfoResponse }) {
+export function GroupAdminBar({ data }: Readonly<{ data: GroupInfoResponse }>) {
   const { t } = useTranslation('inbox');
   const jid = data.group.jid;
   const { view, anyCap, block, can } = useGroupAdminState(jid);
@@ -155,11 +160,11 @@ function JoinRequests({
   jid,
   view,
   disabled,
-}: {
+}: Readonly<{
   jid: string;
   view: GroupAdminResponse;
   disabled: boolean;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   const decide = useGroupJoinRequest(jid);
   return (
@@ -225,12 +230,12 @@ export function MemberAdminActions({
   member,
   label,
   onRemoved,
-}: {
+}: Readonly<{
   groupJid: string;
   member: GroupMember;
   label: string;
   onRemoved(): void;
-}) {
+}>) {
   const { t } = useTranslation('inbox');
   const { view, block, can } = useGroupAdminState(groupJid);
   const role = useSetGroupMemberAdmin(groupJid);
@@ -266,6 +271,10 @@ export function MemberAdminActions({
       onError: (e) => toast.error(groupAdminErrorText(e, t)),
     });
 
+  let confirmBody = t('groupAdmin.demoteBody');
+  if (confirm === 'remove')
+    confirmBody = t(caps.inviteOnly ? 'groupAdmin.removeBodyApi' : 'groupAdmin.removeBody');
+
   return (
     <section
       className="space-y-2 border-t pt-3"
@@ -281,51 +290,14 @@ export function MemberAdminActions({
       {owner ? (
         <p className="text-xs text-muted-foreground">{t('groupAdmin.ownerNote')}</p>
       ) : (
-        <>
-          {caps.admins &&
-            (member.role === 'member' ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="touch"
-                className="w-full"
-                disabled={!can || busy}
-                onClick={() => setAdmin(true)}
-              >
-                {role.isPending ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <ShieldCheck aria-hidden="true" />
-                )}
-                {t('groupAdmin.makeAdmin')}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="touch"
-                className="w-full"
-                disabled={!can || busy}
-                onClick={() => setConfirm('demote')}
-              >
-                <ShieldOff aria-hidden="true" />
-                {t('groupAdmin.removeAdmin')}
-              </Button>
-            ))}
-          {caps.removeMembers && (
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="w-full text-danger"
-              disabled={!can || busy}
-              onClick={() => setConfirm('remove')}
-            >
-              <UserMinus aria-hidden="true" />
-              {t('groupAdmin.remove')}
-            </Button>
-          )}
-        </>
+        <MemberActionButtons
+          caps={caps}
+          isMember={member.role === 'member'}
+          disabled={!can || busy}
+          promoting={role.isPending}
+          onPromote={() => setAdmin(true)}
+          onConfirm={setConfirm}
+        />
       )}
       <AlertDialog open={confirm !== null} onOpenChange={(o) => !o && !busy && setConfirm(null)}>
         <AlertDialogContent>
@@ -335,13 +307,7 @@ export function MemberAdminActions({
                 ? t('groupAdmin.removeTitle', { name: label })
                 : t('groupAdmin.demoteTitle', { name: label })}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm === 'remove'
-                ? caps.inviteOnly
-                  ? t('groupAdmin.removeBodyApi')
-                  : t('groupAdmin.removeBody')
-                : t('groupAdmin.demoteBody')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{confirmBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11 sm:min-h-9" disabled={busy}>
@@ -361,5 +327,72 @@ export function MemberAdminActions({
         </AlertDialogContent>
       </AlertDialog>
     </section>
+  );
+}
+
+/** Make / remove group admin and Remove from group for one member (never the creator). */
+function MemberActionButtons({
+  caps,
+  isMember,
+  disabled,
+  promoting,
+  onPromote,
+  onConfirm,
+}: Readonly<{
+  caps: GroupAdminCaps;
+  isMember: boolean;
+  disabled: boolean;
+  promoting: boolean;
+  onPromote(): void;
+  onConfirm(kind: 'remove' | 'demote'): void;
+}>) {
+  const { t } = useTranslation('inbox');
+  const roleIcon = promoting ? (
+    <Loader2 className="animate-spin" aria-hidden="true" />
+  ) : (
+    <ShieldCheck aria-hidden="true" />
+  );
+  return (
+    <>
+      {caps.admins && isMember && (
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="w-full"
+          disabled={disabled}
+          onClick={onPromote}
+        >
+          {roleIcon}
+          {t('groupAdmin.makeAdmin')}
+        </Button>
+      )}
+      {caps.admins && !isMember && (
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="w-full"
+          disabled={disabled}
+          onClick={() => onConfirm('demote')}
+        >
+          <ShieldOff aria-hidden="true" />
+          {t('groupAdmin.removeAdmin')}
+        </Button>
+      )}
+      {caps.removeMembers && (
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="w-full text-danger"
+          disabled={disabled}
+          onClick={() => onConfirm('remove')}
+        >
+          <UserMinus aria-hidden="true" />
+          {t('groupAdmin.remove')}
+        </Button>
+      )}
+    </>
   );
 }
