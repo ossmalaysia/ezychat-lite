@@ -1681,6 +1681,15 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Cloudflare and sharing
 
+- Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
+  `performance.getEntriesByType('resource')` (count, `transferSize`, duration per kind) and `/cdn-cgi/trace`
+  (`colo` = where the visitor enters); on the PC read cloudflared's `/metrics` on `127.0.0.1:20241…`
+  (`edge_location`, `quic_client_smoothed_rtt`) by port, never its command line (the token). The dashboard's
+  "Edge Locations" are the tunnel side only. From Malaysia, TM/Unifi entered at `SJC` and mobile data at `FRA`
+  (Cloudflare status: KUL re-routed) while the tunnel was Singapore at 25–50 ms: ~660 ms per request for a 43 KB
+  page, so cut round trips, not bytes. No Cloudflare plan chooses the entry point (Enterprise Regional Services
+  only moves decryption); ngrok's region pinning (`ap` = Singapore) does, as do Tailscale (needs its `*.ts.net`
+  name in the Host allowlist) or an own Malaysian relay.
 - Anchor Sprint Workers deploy with Workers Builds, not Actions: `main` runs `wrangler d1 migrations apply
 DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
   Worker tag and a build token: upload a placeholder Worker first and reuse the account's build token.
