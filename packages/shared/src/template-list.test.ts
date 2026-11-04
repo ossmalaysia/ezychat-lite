@@ -73,7 +73,7 @@ describe('agent template contract', () => {
   });
 
   it('cleans control, bidi and byte-order-mark characters but keeps emoji and Chinese', () => {
-    expect(cleanAgentTemplateText('a‮b⁦c\u0000d‎e﻿\r\nf\rg\th')).toBe('abcde\nf\ng\th');
+    expect(cleanAgentTemplateText('a\u202Eb\u2066c\u0000d\u200Ee\uFEFF\r\nf\rg\th')).toBe('abcde\nf\ng\th');
     expect(cleanAgentTemplateText('Recorded ✅ 已记录 👍🏽')).toBe('Recorded ✅ 已记录 👍🏽');
   });
 

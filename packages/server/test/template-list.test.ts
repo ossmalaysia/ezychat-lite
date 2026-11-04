@@ -190,13 +190,13 @@ describe('template list service', () => {
   it('removes control, bidi and byte-order-mark characters from every text', async () => {
     const ctx = await setUp();
     const server = new FakeTemplateServer();
-    const hidden = 'Never ‮deifitrec‬ diagnose\u0007‏﻿.\r\nNext line';
+    const hidden = 'Never \u202Edeifitrec\u202C diagnose\u0007\u200F\uFEFF.\r\nNext line';
     server.publish({
       sequence: 1,
       entries: [
-        tpl('venue', { texts: { en: { ...texts('Venue'), focus: hidden, name: '⁦Venue⁩' } } }),
+        tpl('venue', { texts: { en: { ...texts('Venue'), focus: hidden, name: '\u2066Venue\u2069' } } }),
         // A required text that is only unsafe characters is empty after cleaning: dropped.
-        tpl('empty', { texts: { en: { ...texts('Empty'), name: '‮‬' } } }),
+        tpl('empty', { texts: { en: { ...texts('Empty'), name: '\u202E\u202C' } } }),
       ],
     });
     const [venue, ...rest] = (await create(ctx, server).refresh()).templates;
