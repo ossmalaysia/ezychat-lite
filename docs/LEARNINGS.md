@@ -152,6 +152,8 @@ into AGENTS.md.
 
 ## Multi-agent process
 
+- Never rebase, stash or switch branches in a checkout where subagents are still writing files: commit each finished
+  agent's files first, and rebase onto a newly merged base only after the last agent has handed back.
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
 - Order the end checks: independent (security) review first, its fixes, then e2e + workbook record. A fix
   commit after the e2e round changes the PR's own code, so the release review drops the e2e evidence and the
