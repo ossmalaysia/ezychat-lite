@@ -469,6 +469,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   shell without a terminal `gh run watch` can also return at once: poll `gh run view <id> --json status`, or
   `gh pr checks <pr> --json bucket` until no `pending` is left (never parse the text table: names have spaces).
   Filter with gh's own `--jq`: the owner's PC has no `jq`, and a watcher that pipes to it stays silent.
+  Right after a push, `gh pr checks` still lists the old commit's results (a stale fail or cancel): wait
+  on `gh run list --branch <b> --json headSha,status` for the new head SHA, then read the checks.
 - `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
