@@ -98,34 +98,48 @@ const textOf = (tokens: Token[], from: number, to: number) =>
 function markRanges(a: Token[], b: Token[]): Hunk[] {
   const list = hunks(a, b);
   const out: Hunk[] = [];
-  for (let k = 0; k < list.length; k++) {
-    let hunk = { ...list[k]! };
-    if (hunk.aFrom === hunk.aTo) {
-      const next = a.findIndex((t, index) => index >= hunk.aTo && isWord(t.text));
-      const following = list[k + 1];
-      if (next >= 0 && a.slice(hunk.aTo, next).every((t) => isSpace(t.text))) {
-        if (following && following.aFrom <= next) {
-          // The next word is changed too: one change from the insertion to the end of that one.
-          hunk = { ...hunk, aTo: following.aTo, bTo: following.bTo };
-          k++;
-        } else hunk = { ...hunk, aTo: next + 1, bTo: hunk.bTo + next + 1 - hunk.aTo };
-      } else {
-        let before = hunk.aFrom - 1;
-        while (before >= 0 && !isWord(a[before]!.text)) before--;
-        if (before < 0) continue;
-        const previous = out.at(-1);
-        if (previous && previous.aTo > before)
-          hunk = { ...hunk, aFrom: previous.aFrom, bFrom: previous.bFrom };
-        else hunk = { ...hunk, aFrom: before, bFrom: hunk.bFrom - (hunk.aFrom - before) };
-      }
-    }
-    const previous = out.at(-1);
-    if (previous && previous.aTo > hunk.aFrom) {
-      previous.aTo = Math.max(previous.aTo, hunk.aTo);
-      previous.bTo = Math.max(previous.bTo, hunk.bTo);
-    } else out.push(hunk);
+  for (const [k, hunk] of list.entries()) {
+    const widened =
+      hunk.aFrom === hunk.aTo ? widenInsertion(a, hunk, list[k + 1], out.at(-1)) : { ...hunk };
+    if (!widened) continue;
+    mergeInto(out, widened);
   }
   return out;
+}
+
+/**
+ * An insertion widened to the next word (when only spaces lie between), else to the word before;
+ * null when there is no word to attach it to. It joins the following or previous change instead of
+ * reaching across it.
+ */
+function widenInsertion(
+  a: Token[],
+  hunk: Hunk,
+  following: Hunk | undefined,
+  previous: Hunk | undefined,
+): Hunk | null {
+  const next = a.findIndex((t, index) => index >= hunk.aTo && isWord(t.text));
+  if (next >= 0 && a.slice(hunk.aTo, next).every((t) => isSpace(t.text))) {
+    // The next word is changed too: one change from the insertion to the end of that one.
+    if (following && following.aFrom <= next)
+      return { ...hunk, aTo: following.aTo, bTo: following.bTo };
+    return { ...hunk, aTo: next + 1, bTo: hunk.bTo + next + 1 - hunk.aTo };
+  }
+  let before = hunk.aFrom - 1;
+  while (before >= 0 && !isWord(a[before]!.text)) before--;
+  if (before < 0) return null;
+  if (previous && previous.aTo > before)
+    return { ...hunk, aFrom: previous.aFrom, bFrom: previous.bFrom };
+  return { ...hunk, aFrom: before, bFrom: hunk.bFrom - (hunk.aFrom - before) };
+}
+
+/** Adds a run, joining it to the last one when they overlap. */
+function mergeInto(out: Hunk[], hunk: Hunk) {
+  const previous = out.at(-1);
+  if (previous && previous.aTo > hunk.aFrom) {
+    previous.aTo = Math.max(previous.aTo, hunk.aTo);
+    previous.bTo = Math.max(previous.bTo, hunk.bTo);
+  } else out.push(hunk);
 }
 
 /** A number, link, email address or @mention in a change: never touched. */
