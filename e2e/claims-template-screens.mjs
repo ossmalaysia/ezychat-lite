@@ -51,7 +51,7 @@ async function applyClaims(p, lang) {
 async function createAndCheck(p, lang, tag, problems) {
   await p.getByRole('button', { name: CREATE[lang] }).click();
   await p.waitForURL(/\/admin\/members\/ai\/\d+$/);
-  const id = Number(/(\d+)$/.exec(p.url())[1]);
+  const id = Number(new URL(p.url()).pathname.split('/').pop());
   await p.getByTestId('agent-direct').waitFor();
   await shot(p, out, problems, tag, '03-created-top');
   await p.getByTestId('agent-direct').scrollIntoViewIfNeeded();

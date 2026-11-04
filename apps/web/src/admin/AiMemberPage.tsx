@@ -407,6 +407,8 @@ function AgentEditor({
       toast.error(agentErrorMessage(error, t));
     }
   };
+  let groupSetupMode: 'new' | 'existing' | null = null;
+  if (groupSetup) groupSetupMode = isNew ? 'new' : 'existing';
   /** A new agent from a group-agent template: Answer in groups on, Answer direct chats off. */
   const setUpGroupAgent = async (agentId: number, name: string) => {
     try {
@@ -649,7 +651,7 @@ function AgentEditor({
       <BusinessTemplateCard
         disabled={busy}
         pendingItem={pendingItem?.name ?? null}
-        groupSetup={groupSetup ? (isNew ? 'new' : 'existing') : null}
+        groupSetup={groupSetupMode}
         onApply={chooseBusiness}
       />
 

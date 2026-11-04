@@ -213,7 +213,9 @@ function TemplateGallery({
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {isGroupAgentTemplate(id)
-                      ? `${t(`ai.presets.${preset}`)} · ${t('ai.businessTemplates.groupAgentTag')}`
+                      ? [t(`ai.presets.${preset}`), t('ai.businessTemplates.groupAgentTag')].join(
+                          ' · ',
+                        )
                       : t(`ai.presets.${preset}`)}
                   </span>
                   <span className="text-sm text-muted-foreground">
