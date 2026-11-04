@@ -1349,6 +1349,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- Every round trip counts over a slow tunnel (~0.7 s each): the live connection reloads every query when it joins,
+  so a list already on screen waits for that reload (with a short fallback) instead of loading itself; an infinite
+  list reloads every loaded page, so persist and restore page 1 only. One open loaded `/api/chats` up to 6 times.
+  The PWA caches (`sw-routes.ts`) never store a `no-store` answer, are cleared at sign-out and on a user switch,
+  and a media file is cacheable only once WhatsApp Safety's AI check has answered (`safety.cacheable`).
 - A list row with a label and action buttons (join requests, approvals): keep a phone number `whitespace-nowrap` and the
   buttons in one `ml-auto shrink-0` group, so a narrow panel moves the whole group below instead of truncating the
   number or putting one button per line (a `min-w-*` on the label did the latter at 360 px).
