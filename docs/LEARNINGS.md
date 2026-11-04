@@ -204,6 +204,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
+  `pull_request` runs need the merge commit. Merge main, then re-run e2e and the Dev Build check on the new head,
+  because release-review counts a stage only at a commit with the head's code diff.
 - In a fresh cloud clone `/security-review` fails on `origin/HEAD...`: run `git remote set-head origin main` first, and
   review only your own commits (`git show <sha>`) when the base moved.
 - A change for another repository that a cloud session may not attach (add_repo refused) ships as a `git apply`-ready
