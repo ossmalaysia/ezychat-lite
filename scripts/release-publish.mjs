@@ -35,7 +35,8 @@ export function draftProblems(release, version) {
   for (const name of expectedInstallers(version)) {
     const asset = assets.get(name);
     if (!asset) problems.push(`missing installer ${name}`);
-    else if (!(asset.size > 0)) problems.push(`empty installer ${name}`);
+    else if (typeof asset.size !== 'number' || asset.size <= 0)
+      problems.push(`empty installer ${name}`);
     else if (asset.state && asset.state !== 'uploaded')
       problems.push(`installer ${name} is ${asset.state}`);
   }

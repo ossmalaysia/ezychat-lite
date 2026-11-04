@@ -59,6 +59,13 @@ describe('draftProblems', () => {
     ]);
   });
 
+  it('refuses an installer without a size', () => {
+    const assets = draft().assets.map((a, i) => (i === 0 ? { name: a.name } : a));
+    expect(draftProblems(draft({ assets }), '0.1.75')).toEqual([
+      'empty installer EzyChat-Lite-0.1.75-win-x64.exe',
+    ]);
+  });
+
   it('refuses installers of another version', () => {
     expect(draftProblems(draft(), '0.1.76')).toContain(
       'missing installer EzyChat-Lite-0.1.76-win-x64.exe',

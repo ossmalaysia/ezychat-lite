@@ -15,15 +15,16 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
-  # GitHub OIDC for the Azure sign-in of Windows signing (no stored secret in this public repository).
-  id-token: write
+permissions: {}
 
 jobs:
   package:
     name: Package (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # upload installers to the draft release
+      # GitHub OIDC for the Azure sign-in of Windows signing (no stored secret in this public repository).
+      id-token: write
     # The Azure federated credential (github-ezychat-lite-release on the app ezychat-ci-signing) trusts
     # only this environment: subject repo:ossmalaysia@325334523/ezychat-lite@1400498086:environment:release
     # (the repository uses GitHub's immutable-ID subjects). Its rules allow v* tags and main.
