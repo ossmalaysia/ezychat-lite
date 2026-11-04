@@ -214,7 +214,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   next `creationOrder`, and prune the next-oldest folder. Resolving them file by file with `--ours/--theirs` puts some
   files in the wrong folder.
 - In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
-  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
+  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that. The `[a]gents` bracket trick
+  does not help when the same tool call also starts or names that program.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
