@@ -946,6 +946,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Baileys group changes report refusals two ways: `groupParticipantsUpdate` / `groupRequestParticipantsUpdate` return
   per-person `{status: <code>}` (403 + `add_request` = privacy, send the invite), while subject, description, settings
   and invite-code calls throw a Boom whose `data` is the code (401/403 = not a group admin). Map both; fail closed.
+- A core route that calls an optional `WaAdapter` method passes through an adapter error whose `err.code` is in the
+  feature's shared error list (e.g. `GROUP_ADMIN_ERRORS`), with its natural status: Enterprise adapters (`wa-cloud`)
+  signal whole-request refusals that way, and a catch-all 502 hides them.
 - Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
   and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
   background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
