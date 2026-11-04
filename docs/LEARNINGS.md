@@ -178,6 +178,9 @@ into AGENTS.md.
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
   through `env:` after a strict format check (`^[0-9]+\.[0-9]+\.[0-9]+$`), never as `${{ inputs.* }}` in `run:`.
+- A job's `environment:` that does not exist yet is created **unprotected** on its first run, so an approval gate
+  works only after the owner has created it with required reviewers: say so in the PR and never dispatch before.
+- `/security-review` in a fresh cloud clone fails on `origin/HEAD...`: run `git remote set-head origin main` first.
 - An edition's AI-agent limit defaults to its `maxInboxes` (`ai/service.ts`: `config.maxAgents ?? maxInboxes`), so
   Enterprise (10 numbers) has had 10 agents since core 0.1.73 without passing `maxAgents`. Before saying an edition
   lacks a feature, read the core default as well as the options the edition passes.
