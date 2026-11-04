@@ -907,7 +907,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   worker before reporting, because the order differs from the parallel run, and give each "already exists" branch its
   own assertion that runs on desktop too.
 - Lite → Enterprise merge (`lite-import/merge-tables.ts` `TABLE_PLAN`): every new core table must be listed as merged
-  or skipped with a reason; the coverage test fails otherwise. A failed hand-over after a committed merge restores the
+  or skipped with a reason; the coverage test fails otherwise. A branch with a migration runs
+  `lite-import-merge*.test.ts` and `upgrade-from-oldest.test.ts` after every rebase, not only its own files. A failed hand-over after a committed merge restores the
   pre-import backup (`onCommitted` undo) so Lite and Enterprise never both keep one number.
 - A read-only better-sqlite3 open of a stopped WAL database still creates `-wal`/`-shm` files: remove them afterwards
   when a folder must stay byte-identical (Lite's data during an import).
