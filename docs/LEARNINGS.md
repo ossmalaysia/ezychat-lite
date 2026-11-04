@@ -526,6 +526,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+  A required job `cancelled` after about 15 min with no runner and no steps never started (macOS runners
+  busy): `gh run rerun <id> --failed`, not a code fault. Push every log-only commit (workbook, Dev Build row,
+  review approval) in one push before that wait: each push starts all of CI again.
 - Before you start a new run or a rerun, stop every old watcher or retry task: a leftover one can start an old
   run again, and that attempt can still publish. Report a release from the live files (feed, sizes,
   SHA-256), never from a run's conclusion alone.
