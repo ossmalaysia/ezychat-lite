@@ -1,10 +1,16 @@
 // Screen review shots for AI agents against e2e/agents-devbuild.ts (mock model, fake WhatsApp, temp data).
 // Usage: node e2e/agent-screens.mjs <baseURL> <outDir> <lite|enterprise>
 //   (enterprise: start the runner with --max-inboxes 3)
-import { ADMIN, VIEWS, screenKit } from './screen-kit.mjs';
+/* global document, window -- used inside page.evaluate (runs in the browser) */
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { chromium } from '@playwright/test';
 
 const [base, out, mode = 'lite'] = process.argv.slice(2);
 const enterprise = mode === 'enterprise';
+mkdirSync(out, { recursive: true });
+const H = { Origin: base };
+const ADMIN = { username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' };
 const agentBody = (displayName, extra = {}) => ({
   displayName,
   enabled: false,
@@ -13,9 +19,22 @@ const agentBody = (displayName, extra = {}) => ({
   ...extra,
 });
 
-const { browser, ctx, api, adminContext, shot } = await screenKit(base, out);
-const setup = await adminContext();
+const browser = existsSync(chromium.executablePath())
+  ? await chromium.launch()
+  : await chromium.launch({ channel: 'chrome' });
+const ctx = (opts = {}) =>
+  browser.newContext({ baseURL: base, locale: 'en-US', serviceWorkers: 'block', ...opts });
+async function api(req, method, path, data) {
+  const r = await req.fetch(path, { method, data, headers: H });
+  if (!r.ok()) throw new Error(`${method} ${path}: ${r.status()} ${await r.text()}`);
+  return r.json().catch(() => null);
+}
+
+const setup = await ctx();
 const req = setup.request;
+if ((await (await req.get('/api/setup/status')).json()).needsSetup)
+  await api(req, 'POST', '/api/setup/admin', ADMIN);
+await api(req, 'POST', '/api/auth/login', { username: ADMIN.username, password: ADMIN.password });
 let first;
 if (enterprise) {
   await api(req, 'PATCH', '/api/inboxes/1', { name: 'Kopi Apong' });
@@ -56,6 +75,19 @@ await api(req, 'POST', `/api/ai/agents/${first.id}/documents/text`, {
 });
 await setup.close();
 
+const VIEWS = [
+  ['desktop', { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 }],
+  [
+    'mobile',
+    { viewport: { width: 360, height: 780 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  ],
+];
+const shot = async (p, name, fullPage = false) => {
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: join(out, `${name}.png`), fullPage });
+  const sw = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  if (sw > 0) console.log(`OVERFLOW ${name}: +${sw}px`);
+};
 for (const scheme of ['light', 'dark']) {
   for (const [view, opts] of VIEWS) {
     const tag = `${mode}-${view}-${scheme}`;

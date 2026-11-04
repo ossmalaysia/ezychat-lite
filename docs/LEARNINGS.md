@@ -554,7 +554,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
   admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
-  its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`).
+  its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`). Grep `e2e/` for a shared module before
+  copying any script's setup (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
+  cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
+  fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
 - An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
   (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
   (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
