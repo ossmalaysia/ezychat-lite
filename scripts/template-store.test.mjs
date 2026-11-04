@@ -144,7 +144,8 @@ describe('template export and publisher build', () => {
 
   it('writes and reads only inside the repository or the temp folder', () => {
     expect(() => safeOutDir('/etc/ezychat')).toThrow(/refusing/);
-    expect(() => safePath('../../outside', '/tmp/x/y')).not.toThrow();
+    // A path that climbs out of the working folder is still fine inside the temp folder.
+    expect(() => safePath('../outside', join(tmpdir(), 'x'))).not.toThrow();
     expect(() => safePath('/etc/passwd', process.cwd())).toThrow(/refusing/);
   });
 
