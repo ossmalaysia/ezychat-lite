@@ -200,6 +200,10 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- In a fresh cloud clone `/security-review` fails on `origin/HEAD...`: run `git remote set-head origin main` first, and
+  review only your own commits (`git show <sha>`) when the base moved.
+- A change for another repository that a cloud session may not attach (add_repo refused) ships as a `git apply`-ready
+  patch in the feature folder (`publisher/*.patch`, checked by applying it to an empty repo) plus the owner's steps.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
   timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
   blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
