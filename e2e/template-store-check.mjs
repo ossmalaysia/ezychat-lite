@@ -11,7 +11,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { writeExport } from '../scripts/export-templates.mjs';
 import { build } from '../docs/features/template-store/publisher/build-templates.mjs';
 import { checker } from './devbuild-client.mjs';
@@ -85,11 +85,13 @@ const listServer = createServer((req, res) => {
 await new Promise((r) => listServer.listen(LIST_PORT, '127.0.0.1', r));
 
 // ── The Dev Build ────────────────────────────────────────────────────────────────────────────
+// Node runs tsx's CLI directly: no npx and no shell, so nothing is looked up on PATH.
+const tsxCli = resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs');
 const server = spawn(
-  'npx',
+  process.execPath,
   [
-    'tsx',
     '--conditions=ezychat-source',
+    tsxCli,
     'e2e/agents-devbuild.ts',
     '--fake-wa',
     '--port',
