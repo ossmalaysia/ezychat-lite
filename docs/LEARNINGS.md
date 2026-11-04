@@ -57,7 +57,8 @@ into AGENTS.md.
   password is only the owner's (reset needs the CLI `--reset-admin` with the server stopped).
   `start.ps1` builds whatever the primary checkout has checked out, often another session's branch: for a
   given commit, detach a spare clean worktree at it (`npm ci` when the lockfile moved) and start a copy of
-  the script pointed there.
+  the script pointed there. When the branch adds a migration, copy `data/` to a backup folder first: the
+  permanent data then has a schema that `main` does not know.
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
