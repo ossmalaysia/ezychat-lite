@@ -8,7 +8,7 @@ Branch: `feat/template-store` · Every agent updates its stage with
 | Design | done | docs/features/template-store/design.md; mock (standalone preview, desktop/mobile, light/dark, en/ms/zh-CN) recorded, owner confirmation pending | 658dbf3 | 2026-11-04 |
 | Dev | done | shared contract, server template list (download/verify/store) + /api/ai/templates routes, web gallery from the API with built-in fallback, export/schema/publisher scripts | 658dbf3 | 2026-11-04 |
 | Unit tests | todo |  |  |  |
-| E2E | todo |  |  |  |
+| E2E | pass | npm run e2e (Linux, fake WhatsApp, mock AI): 144 passed, 27 skipped, 0 failed; e2e:electron-links is Windows-only, not run | 6116af3 | 2026-11-04 |
 | Dev Build | todo |  |  |  |
 | Screen review | todo |  |  |  |
 
@@ -16,3 +16,4 @@ Branch: `feat/template-store` · Every agent updates its stage with
 
 - 2026-11-04 Design: done — docs/features/template-store/design.md; mock (standalone preview, desktop/mobile, light/dark, en/ms/zh-CN) recorded, owner confirmation pending (658dbf3)
 - 2026-11-04 Dev: done — shared contract, server template list (download/verify/store) + /api/ai/templates routes, web gallery from the API with built-in fallback, export/schema/publisher scripts (658dbf3)
+- 2026-11-04 E2E: pass — npm run e2e (Linux, fake WhatsApp, mock AI): 144 passed, 27 skipped, 0 failed; e2e:electron-links is Windows-only, not run (6116af3)

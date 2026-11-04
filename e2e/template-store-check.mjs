@@ -148,6 +148,7 @@ try {
   const browser = await launchBrowser();
   const problems = [];
   const [name, value] = cookie.split('=');
+  let agentPath = '/admin/members/ai/new?preset=sales';
   const open = async (size, scheme) => {
     const ctx = await browser.newContext({
       ...SIZES[size],
@@ -158,7 +159,7 @@ try {
     await ctx.addCookies([{ name, value, url: base }]);
     const page = await ctx.newPage();
     page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
-    await page.goto('/admin/members/ai/new?preset=sales');
+    await page.goto(agentPath);
     await page.getByTestId('business-templates').waitFor();
     return { ctx, page };
   };
@@ -207,6 +208,8 @@ try {
     await page.getByRole('button', { name: 'Create agent' }).click();
     await page.waitForURL(/\/admin\/members\/ai\/\d+$/);
     const id = Number(new URL(page.url()).pathname.split('/').pop());
+    // The agent limit is reached now: later screens open the new agent's page (same template card).
+    agentPath = `/admin/members/ai/${id}`;
     const agent = await api('GET', `/ai/agents/${id}`);
     check(agent.agent.preset === 'sales', 'the new agent is a Sales agent');
     check(
