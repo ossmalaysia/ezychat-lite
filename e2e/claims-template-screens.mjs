@@ -3,25 +3,30 @@
 // `--max-agents 2`, then: node e2e/claims-template-screens.mjs <port> <outDir>
 // PASS/FAIL per check (a new agent from the template is Custom, group-only and has its Claim rules; an
 // existing agent is never switched), plus overflow and page errors; never calls a model.
-import { checker } from './devbuild-client.mjs';
-import { SIZES, launchBrowser, screensArgs, shot, signInDemoAdmin } from './screens-common.mjs';
+import { checker, cookieSession } from './devbuild-client.mjs';
+import {
+  DEMO_ADMIN,
+  SIZES,
+  launchBrowser,
+  screensArgs,
+  shot,
+  signInDemoAdmin,
+} from './screens-common.mjs';
 
 const { base, out } = screensArgs('.claims-template-screens');
 const { check, finish } = checker();
 const cookie = await signInDemoAdmin(base);
+// API calls go through the checked session (plain paths on this Dev Build only).
+const session = cookieSession(base);
+await session('POST', '/auth/login', {
+  username: DEMO_ADMIN.username,
+  password: DEMO_ADMIN.password,
+});
 /** One API call as the signed-in admin; the JSON answer. */
 async function call(method, path, body) {
-  const res = await fetch(base + '/api' + path, {
-    method,
-    headers: {
-      origin: base,
-      cookie,
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
-  return res.json();
+  const res = await session(method, path, body);
+  if (res.status >= 400) throw new Error(`${method} ${path}: ${res.status}`);
+  return res.json;
 }
 
 // Agent 1 (Aina) answers direct chats with the untouched Sales starting text.
