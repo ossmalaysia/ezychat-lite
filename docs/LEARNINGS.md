@@ -191,6 +191,8 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- `npm ci` in a Linux cloud session marks `apps/desktop/scripts/fetch-*.mjs` executable (mode-only diff): reset them with
+  `chmod 644` instead of committing the mode change, and check `git status` before every commit in a fresh checkout.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
   timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
   blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
