@@ -1555,6 +1555,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   runs later, after the code that updates the ref. Shifting marks with `ref.current` inside the updater kept stale
   grammar marks in "Fix N". A popover anchored to a word near the screen edge is `fixed` and measured after render,
   then moved left to fit (an `absolute` card inside a narrow composer ran off a 360 px screen).
+- A diff turned into fix marks must never give two marks on one range: merge changes that meet or overlap, and
+  never widen an insertion across another change (only over unchanged tokens). Two marks on "email" ("your email",
+  "email.") applied one after the other added text twice. Test it as a property: applying every mark gives the
+  corrected text, and the fixed text gets no new mark. On the client, tie an AI answer to the exact text it was
+  asked for and remember applied fixes per draft: the model answers each check afresh and may re-add the same
+  insertion ("email." → "email..").
 - OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
   then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 - Marks drawn in a `pointer-events-none` layer over the composer (grey completion, Fix English underlines) are
