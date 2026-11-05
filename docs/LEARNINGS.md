@@ -602,6 +602,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `&`, and leaves `$LASTEXITCODE` unset, so its output and exit code are lost: pipe the call (`& $exe … | Write-Output`)
   and test the generated script with the real Electron binary (`windows.test.ts`). A test that sets `$LASTEXITCODE`
   itself makes a local copy; read `$global:LASTEXITCODE`.
+- To test Windows file code against a folder "being used by another process", spawn a child with that folder as its
+  `cwd` (it holds the folder itself open, as an antivirus scan or a shell does); kill it and await its `exit` before
+  cleanup, or `rm` fails with EBUSY. Updater helper pieces are exported constants (`WINDOWS_START_INSTALLER`,
+  `WINDOWS_RESTORE_OLD_APP`) so such tests run the real PowerShell.
 - Measuring a slow tunnel locally: put a proxy that delays every request (and the WebSocket upgrade) in front
   of the server; Chrome throttling does not slow the service worker's own fetches. The fake WhatsApp has no
   photos, so give contacts a photo address in a measurement-only preload. Do not use Playwright `context.route`
