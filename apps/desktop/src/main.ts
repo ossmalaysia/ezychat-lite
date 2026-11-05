@@ -777,6 +777,14 @@ async function main(): Promise<void> {
     resetAdmin,
     openMain: () => showMain(),
     openLogsFolder: () => {
+      // macOS service: its data folder (logs included) is root-only, so open a copy made after the admin prompt.
+      if (mode === 'client' && service.copyLogs) {
+        void service
+          .copyLogs()
+          .then((dir) => shell.openPath(dir))
+          .catch((err: unknown) => log(`could not copy the service logs: ${String(err)}`));
+        return;
+      }
       const dir = join(mode === 'client' ? machineDataDir() : dataDir, 'logs');
       void shell.openPath(existsSync(dir) ? dir : dirname(dir));
     },

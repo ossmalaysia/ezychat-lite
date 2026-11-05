@@ -9,6 +9,7 @@ import { servicePortFile, serviceRunDir } from '../paths.js';
 import { activeProduct, type Product } from '../product.js';
 import {
   macControlScript,
+  macCopyLogsScript,
   macInstallScript,
   macResetAdminScript,
   macUninstallScript,
@@ -39,6 +40,8 @@ export interface ServiceManager {
   start(): Promise<void>;
   stop(): Promise<void>;
   resetAdmin(): Promise<string>;
+  /** macOS: copies the root-only service logs into a folder the user can open; returns its path. */
+  copyLogs?(): Promise<string>;
 }
 
 export interface ServiceDeps {
@@ -107,6 +110,8 @@ export function serviceCommand(
   };
   if (d.cloudflaredBinary && exists(d.cloudflaredBinary))
     env.WATI_CLOUDFLARED = d.cloudflaredBinary;
+  // server-host then ends exits a restart cannot fix with 0, which the launchd job does not restart
+  if (platform === 'darwin') env.WATI_SERVICE_MANAGER = 'launchd';
   const cmd = {
     exe: d.execPath,
     args: [
@@ -340,6 +345,16 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
       },
       async stop() {
         log(await runElevated(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
+      },
+      async copyLogs() {
+        const out = await runElevated(
+          macCopyLogsScript({
+            logDir,
+            tempPrefix: `${product.appDirName}-logs`,
+            owner: userInfo().username,
+          }),
+        );
+        return out.split('\n').pop()?.trim() ?? '';
       },
       async resetAdmin() {
         requirePackagedRuntime();

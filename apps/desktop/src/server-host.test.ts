@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   applyRuntimeVersion,
   isShutdownMessage,
+  launchdExitCode,
   pickFreePort,
   PORT_TRIES,
   portIsFree,
@@ -259,5 +260,16 @@ describe('isShutdownMessage', () => {
     expect(isShutdownMessage({ data: SHUTDOWN_MESSAGE })).toBe(true);
     expect(isShutdownMessage('other')).toBe(false);
     expect(isShutdownMessage(null)).toBe(false);
+  });
+});
+
+describe('launchdExitCode', () => {
+  it('reports exits a restart cannot fix as success, so launchd does not restart them forever', () => {
+    // 2 bad arguments, 3 data folder locked, 4 data folder moved to Enterprise
+    for (const code of [2, 3, 4]) expect(launchdExitCode(code)).toBe(0);
+  });
+  it('keeps crashes and clean exits as they are', () => {
+    for (const code of [0, 1, 5, 137]) expect(launchdExitCode(code)).toBe(code);
+    expect(launchdExitCode(undefined)).toBeUndefined();
   });
 });

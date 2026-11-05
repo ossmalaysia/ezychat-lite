@@ -158,6 +158,15 @@ export function readSettingFromDb(dataDir: string, key: string): unknown {
   }
 }
 
+/**
+ * Exit codes of the server CLI that a restart cannot fix: 2 bad arguments, 3 data folder locked by another
+ * server, 4 data folder moved to Enterprise. The launchd job restarts only after an unsuccessful exit
+ * (KeepAlive SuccessfulExit false), so these leave as 0 instead of restarting every few seconds forever.
+ */
+export function launchdExitCode(code: number | undefined): number | undefined {
+  return code === 2 || code === 3 || code === 4 ? 0 : code;
+}
+
 export function isShutdownMessage(m: unknown): boolean {
   if (m === SHUTDOWN_MESSAGE) return true;
   // Electron parentPort delivers a MessageEvent-like { data }
@@ -203,6 +212,10 @@ async function main(): Promise<void> {
     process.on('message', onMessage);
     // don't let the IPC channel keep the process alive on its own
     process.channel?.unref();
+  }
+  if (process.env.WATI_SERVICE_MANAGER === 'launchd') {
+    const exit = process.exit.bind(process);
+    process.exit = ((code?: number) => exit(launchdExitCode(code))) as typeof process.exit;
   }
   const entryPath = resolve(entry);
   applyRuntimeVersion(entryPath, process.env);
