@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Google Sheets: create a new sheet from the connector page.** Admins can create a spreadsheet in the connected
   Google account, blank or from a template's layout (the Claims template has one), with its tabs, column names and
   what the AI agent may do with each tab. It is used by the agent at once.
+- **Google Drive connector (Beta).** Admin → Connectors → Google Drive: sign in with Google and choose a folder for each
+  AI agent. With **Save files** on, the agent saves photos and documents people send in a chat into that folder (named
+  by date and time, never a file WhatsApp Safety locked, up to 25 MB). With **Read files**, it answers from the Drive
+  files you pick (Google Docs, Sheets, PDF, Word, text). The agent's instructions say what to save or read, and when.
+  EzyChat sees only the folder and files you choose.
 
 ### Fixed
 
