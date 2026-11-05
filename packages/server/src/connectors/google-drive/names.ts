@@ -72,7 +72,8 @@ export function savedFileName(
   const mime = (input.mime ?? '').toLowerCase().split(';')[0]!.trim();
   const ext = EXTENSIONS[mime] ?? EXTENSIONS[(input.mime ?? '').toLowerCase()];
   const label = LABELS[input.type] ?? 'File';
-  return `${day} ${time} ${label} ${ref}${ext ? `.${ext}` : ''}`;
+  const suffix = ext ? '.' + ext : '';
+  return `${day} ${time} ${label} ${ref}${suffix}`;
 }
 
 /**

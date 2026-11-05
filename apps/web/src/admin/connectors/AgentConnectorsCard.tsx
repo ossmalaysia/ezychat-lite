@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plug } from 'lucide-react';
+import type { DriveAgentSettings, SheetsAgentSettings } from '@ezychat/shared';
 import { useConnectorGallery, useConnectorsAgentSettings } from '../../api/connector-list';
 import {
   useBookingSettings,
@@ -19,6 +20,43 @@ import { entryIcon, isLinked, withToolDefaults } from './list';
 const ROW =
   'flex min-h-11 items-center gap-3 rounded-lg border px-3 py-3 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** Signed in (also while it needs attention): the connector's row shows. */
+const linkedState = (state: string | undefined) =>
+  state === 'connected' || state === 'expired' || state === 'unavailable';
+
+/** Google Calendar: Off, Checks free times, or Checks and books. */
+function calendarLine(t: Translate, booking: { checkFree: boolean; book: boolean }): string {
+  if (!booking.checkFree) return t('connectors.agentCard.off');
+  return t(booking.book ? 'connectors.agentCard.checkAndBook' : 'connectors.agentCard.checkOnly');
+}
+
+/** Google Sheets: the tabs it reads and adds rows to, or Off. */
+function sheetsLine(t: Translate, settings: SheetsAgentSettings): string {
+  const tabs = (access: 'read' | 'add') =>
+    settings.spreadsheetId
+      ? settings.tabs.filter((x) => x.access === access).map((x) => x.title)
+      : [];
+  const reads = tabs('read');
+  const adds = tabs('add');
+  if (reads.length + adds.length === 0) return t('connectors.agentCard.off');
+  const parts: string[] = [];
+  if (reads.length) parts.push(t('connectors.agentCard.sheetsReads', { tabs: reads.join(', ') }));
+  if (adds.length) parts.push(t('connectors.agentCard.sheetsAdds', { tabs: adds.join(', ') }));
+  return parts.join(' · ');
+}
+
+/** Google Drive: no folder, saves, reads N files, both, or Off. */
+function driveLine(t: Translate, settings: DriveAgentSettings): string {
+  if (!settings.folder) return t('connectors.agentCard.driveNoFolder');
+  const count = settings.read ? settings.files.length : 0;
+  if (settings.save && count) return t('connectors.agentCard.driveSavesAndReads', { count });
+  if (settings.save) return t('connectors.agentCard.driveSaves');
+  if (count) return t('connectors.agentCard.driveReads', { count });
+  return t('connectors.agentCard.off');
+}
+
 /**
  * Agent page → Connectors: one summary row per connected connector (what this agent may do there)
  * that opens the connector's Settings tab for this agent. Settings live on the connector's page.
@@ -27,50 +65,24 @@ export function AgentConnectorsCard({
   agentId,
   name,
 }: Readonly<{ agentId: number; name: string }>) {
-  const { t } = useTranslation('admin');
+  const { t: typed } = useTranslation('admin');
+  const t = typed as unknown as Translate;
   const google = useGoogleCalendar();
   const state = google.data?.state;
-  const connected = state === 'connected' || state === 'expired' || state === 'unavailable';
+  const connected = linkedState(state);
   const booking = useBookingSettings(agentId, connected);
   const sheets = useGoogleSheets();
   const sheetsState = sheets.data?.state;
-  const sheetsLinked =
-    sheetsState === 'connected' || sheetsState === 'expired' || sheetsState === 'unavailable';
+  const sheetsLinked = linkedState(sheetsState);
   const sheetSettings = useSheetsSettings(agentId, sheetsLinked).data;
   const gs = findConnector('google-sheets')!;
-  const sheetTabs = (access: 'read' | 'add') =>
-    sheetSettings?.spreadsheetId
-      ? sheetSettings.tabs.filter((x) => x.access === access).map((x) => x.title)
-      : [];
-  const reads = sheetTabs('read');
-  const adds = sheetTabs('add');
-  const sheetsSummary = !sheetSettings
-    ? null
-    : reads.length + adds.length === 0
-      ? t('connectors.agentCard.off')
-      : [
-          reads.length > 0 && t('connectors.agentCard.sheetsReads', { tabs: reads.join(', ') }),
-          adds.length > 0 && t('connectors.agentCard.sheetsAdds', { tabs: adds.join(', ') }),
-        ]
-          .filter(Boolean)
-          .join(' · ');
+  const sheetsSummary = sheetSettings ? sheetsLine(t, sheetSettings) : null;
   const drive = useGoogleDrive();
   const driveState = drive.data?.state;
-  const driveLinked =
-    driveState === 'connected' || driveState === 'expired' || driveState === 'unavailable';
+  const driveLinked = linkedState(driveState);
   const driveSettings = useDriveSettings(agentId, driveLinked).data;
   const gd = findConnector('google-drive')!;
-  const driveSummary = !driveSettings
-    ? null
-    : !driveSettings.folder
-      ? t('connectors.agentCard.driveNoFolder')
-      : driveSettings.save && driveSettings.read && driveSettings.files.length > 0
-        ? t('connectors.agentCard.driveSavesAndReads', { count: driveSettings.files.length })
-        : driveSettings.save
-          ? t('connectors.agentCard.driveSaves')
-          : driveSettings.read && driveSettings.files.length > 0
-            ? t('connectors.agentCard.driveReads', { count: driveSettings.files.length })
-            : t('connectors.agentCard.off');
+  const driveSummary = driveSettings ? driveLine(t, driveSettings) : null;
   const gallery = useConnectorGallery();
   const partners = (gallery.data?.connectors ?? []).filter(
     (c) => c.entry.kind === 'mcp' && isLinked(c.connection),
@@ -80,13 +92,7 @@ export function AgentConnectorsCard({
     agentId,
   );
   const gc = findConnector('google-calendar')!;
-  const summary = !booking.data
-    ? null
-    : !booking.data.checkFree
-      ? t('connectors.agentCard.off')
-      : booking.data.book
-        ? t('connectors.agentCard.checkAndBook')
-        : t('connectors.agentCard.checkOnly');
+  const summary = booking.data ? calendarLine(t, booking.data) : null;
   return (
     <Card className="gap-4" data-testid="agent-connectors">
       <CardHeader>

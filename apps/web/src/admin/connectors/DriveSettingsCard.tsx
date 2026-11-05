@@ -5,7 +5,6 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
-  Loader2,
   ShieldCheck,
   Trash2,
   TriangleAlert,
@@ -34,6 +33,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
+import { PickerWaiting } from './connector-ui';
 
 interface Picking {
   kind: DrivePickerBody['kind'];
@@ -42,6 +42,13 @@ interface Picking {
   /** The browser blocked the new window: the admin opens the link themselves. */
   blocked: boolean;
 }
+/** What the waiting card says while Google's picker is open. */
+const pickingHint = (picking: Picking) => {
+  if (picking.blocked) return 'connectors.drive.pickBlocked';
+  return picking.kind === 'folder'
+    ? 'connectors.drive.pickingFolder'
+    : 'connectors.drive.pickingFiles';
+};
 const SAVE_RULES = ['rule1', 'rule2', 'rule3', 'rule4'] as const;
 const SAVE_MAX_MB = Math.round(DRIVE_SAVE_MAX_BYTES / (1024 * 1024));
 
@@ -238,37 +245,16 @@ export function DriveSettingsCard({
             <InfoTip topic="driveFiles" />
           </p>
           {picking && (
-            <div
-              className="flex flex-col items-start gap-3 rounded-lg border px-3 py-3"
-              role="status"
-              data-testid="drive-picking"
-            >
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                {t('connectors.drive.picking')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {picking.blocked
-                  ? t('connectors.drive.pickBlocked')
-                  : t(
-                      picking.kind === 'folder'
-                        ? 'connectors.drive.pickingFolder'
-                        : 'connectors.drive.pickingFiles',
-                    )}
-              </p>
-              <Button asChild size="touch" variant={picking.blocked ? 'default' : 'outline'}>
-                <a href={picking.url} target="_blank" rel="noopener noreferrer">
-                  {t('connectors.drive.openPicker')}
-                  <ExternalLink aria-hidden />
-                </a>
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                {t('connectors.drive.pickSameComputer')}
-              </p>
-              <Button size="touch" variant="ghost" onClick={() => setPicking(null)}>
-                {t('connectors.gc.cancelSignIn')}
-              </Button>
-            </div>
+            <PickerWaiting
+              testId="drive-picking"
+              title={t('connectors.drive.picking')}
+              hint={t(pickingHint(picking))}
+              url={picking.url}
+              blocked={picking.blocked}
+              openLabel={t('connectors.drive.openPicker')}
+              sameComputer={t('connectors.drive.pickSameComputer')}
+              onCancel={() => setPicking(null)}
+            />
           )}
           {pickError && (
             <Banner tone="danger">{t(`connectors.drive.pickError.${pickError}`)}</Banner>
@@ -277,23 +263,15 @@ export function DriveSettingsCard({
         </CardContent>
       </Card>
 
-      <Card className="gap-4" data-testid="drive-save">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <CardTitle>
-                <Label htmlFor={`drive-save-${agentId}`}>{t('connectors.drive.save.title')}</Label>
-              </CardTitle>
-              <CardDescription>{t('connectors.drive.save.description', { name })}</CardDescription>
-            </div>
-            <Switch
-              id={`drive-save-${agentId}`}
-              checked={!!folder && value.save}
-              disabled={!folder}
-              onCheckedChange={(on) => set({ save: on })}
-            />
-          </div>
-        </CardHeader>
+      <DriveSwitchCard
+        testId="drive-save"
+        id={`drive-save-${agentId}`}
+        title={t('connectors.drive.save.title')}
+        description={t('connectors.drive.save.description', { name })}
+        checked={!!folder && value.save}
+        disabled={!folder}
+        onChange={(on) => set({ save: on })}
+      >
         {(!folder || value.save) && (
           <CardContent className="flex flex-col gap-4">
             {!folder ? (
@@ -313,25 +291,17 @@ export function DriveSettingsCard({
             )}
           </CardContent>
         )}
-      </Card>
+      </DriveSwitchCard>
 
-      <Card className="gap-4" data-testid="drive-read">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <CardTitle>
-                <Label htmlFor={`drive-read-${agentId}`}>{t('connectors.drive.read.title')}</Label>
-              </CardTitle>
-              <CardDescription>{t('connectors.drive.read.description', { name })}</CardDescription>
-            </div>
-            <Switch
-              id={`drive-read-${agentId}`}
-              checked={!!folder && value.read}
-              disabled={!folder}
-              onCheckedChange={(on) => set({ read: on })}
-            />
-          </div>
-        </CardHeader>
+      <DriveSwitchCard
+        testId="drive-read"
+        id={`drive-read-${agentId}`}
+        title={t('connectors.drive.read.title')}
+        description={t('connectors.drive.read.description', { name })}
+        checked={!!folder && value.read}
+        disabled={!folder}
+        onChange={(on) => set({ read: on })}
+      >
         {(!folder || value.read) && (
           <CardContent className="flex flex-col gap-3">
             {!folder ? (
@@ -343,37 +313,10 @@ export function DriveSettingsCard({
                     {t('connectors.drive.read.none', { name })}
                   </p>
                 ) : (
-                  <ul
-                    className="flex flex-col divide-y rounded-lg border"
-                    data-testid="drive-files"
-                  >
-                    {value.files.map((f) => (
-                      <li key={f.id} className="flex items-center gap-3 px-3 py-2">
-                        {f.kind === 'other' ? (
-                          <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden />
-                        ) : (
-                          <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                        )}
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="text-sm font-medium break-words">{f.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {f.kind === 'other'
-                              ? t('connectors.drive.read.cantRead')
-                              : t(`connectors.drive.kind.${f.kind}`)}
-                          </span>
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-11 shrink-0 md:size-9"
-                          aria-label={t('connectors.drive.read.remove', { file: f.name })}
-                          onClick={() => set({ files: value.files.filter((x) => x.id !== f.id) })}
-                        >
-                          <Trash2 aria-hidden />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+                  <DriveFileList
+                    files={value.files}
+                    onRemove={(id) => set({ files: value.files.filter((x) => x.id !== id) })}
+                  />
                 )}
                 {!picking && (
                   <Button
@@ -397,7 +340,7 @@ export function DriveSettingsCard({
             )}
           </CardContent>
         )}
-      </Card>
+      </DriveSwitchCard>
 
       <p className="text-sm text-muted-foreground" data-testid="drive-instructions-note">
         {t('connectors.drive.when.note', { name })}{' '}
@@ -425,5 +368,86 @@ export function DriveSettingsCard({
         </Button>
       </SaveBar>
     </div>
+  );
+}
+
+/** A card whose title is a switch (Save files, Read files). */
+function DriveSwitchCard({
+  testId,
+  id,
+  title,
+  description,
+  checked,
+  disabled,
+  onChange,
+  children,
+}: Readonly<{
+  testId: string;
+  id: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (on: boolean) => void;
+  children: React.ReactNode;
+}>) {
+  return (
+    <Card className="gap-4" data-testid={testId}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <CardTitle>
+              <Label htmlFor={id}>{title}</Label>
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} />
+        </div>
+      </CardHeader>
+      {children}
+    </Card>
+  );
+}
+
+/** The files the AI may read, each with its kind and a remove button. */
+function DriveFileList({
+  files,
+  onRemove,
+}: Readonly<{ files: DriveFile[]; onRemove: (id: string) => void }>) {
+  const { t } = useTranslation('admin');
+  return (
+    <ul className="flex flex-col divide-y rounded-lg border" data-testid="drive-files">
+      {files.map((f) => {
+        const readable = f.kind !== 'other';
+        const Icon = readable ? FileText : TriangleAlert;
+        return (
+          <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+            <Icon
+              className={
+                readable ? 'size-4 shrink-0 text-muted-foreground' : 'size-4 shrink-0 text-warning'
+              }
+              aria-hidden
+            />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-sm font-medium break-words">{f.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {f.kind === 'other'
+                  ? t('connectors.drive.read.cantRead')
+                  : t(`connectors.drive.kind.${f.kind}`)}
+              </span>
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 shrink-0 md:size-9"
+              aria-label={t('connectors.drive.read.remove', { file: f.name })}
+              onClick={() => onRemove(f.id)}
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

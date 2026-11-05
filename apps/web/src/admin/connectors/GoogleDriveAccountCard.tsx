@@ -7,7 +7,7 @@ import {
   useGoogleDriveDisconnect,
   useGoogleDriveProgress,
 } from '../../api/connectors';
-import { GoogleAccountCard, useGoogleConnectFlow } from './google-connect';
+import { GoogleAccountCard, googleAccountTexts, useGoogleConnectFlow } from './google-connect';
 
 /**
  * The Google account Google Drive uses (one per install, its own sign-in): connect, its state and
@@ -31,19 +31,7 @@ export function GoogleDriveAccountCard({
       flow={flow}
       disconnect={useGoogleDriveDisconnect()}
       onOpenSettings={onOpenSettings}
-      texts={{
-        description: t('connectors.gd.accountDescription'),
-        what: [t('connectors.gd.what1'), t('connectors.gd.what2'), t('connectors.gd.what3')],
-        connect: t('connectors.gd.connect'),
-        connectHint: t('connectors.gd.connectHint'),
-        expiredBody: t('connectors.gd.expiredBody'),
-        unavailableTitle: t('connectors.gd.unavailableTitle'),
-        unavailableBody: t('connectors.gd.unavailableBody'),
-        perAgent: t('connectors.gd.perAgent'),
-        disconnectTitle: t('connectors.gd.disconnectTitle'),
-        disconnectBody: t('connectors.gd.disconnectBody'),
-        disconnected: t('connectors.gd.disconnected'),
-      }}
+      texts={googleAccountTexts(t as unknown as (key: string) => string, 'gd')}
     />
   );
 }

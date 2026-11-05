@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ConnectorGallery, ConnectorListStatus } from '@ezychat/shared';
+import type { ConnectorGallery, ConnectorListStatus, GoogleCalendarState } from '@ezychat/shared';
 import { connectorText } from '@ezychat/shared';
 import { errorMessage } from '../../api/client';
 import { useConnectorGallery, useRefreshConnectorList } from '../../api/connector-list';
@@ -83,6 +83,10 @@ export function ConnectorsGalleryPage() {
     refreshNow();
   }, [refreshNow]);
 
+  const signInStates: Partial<Record<string, GoogleCalendarState | undefined>> = {
+    'google-sheets': sheets.data?.state,
+    'google-drive': drive.data?.state,
+  };
   const app = (id: (typeof CONNECTORS)[number]['id']): GalleryRow => {
     const c = CONNECTORS.find((x) => x.id === id)!;
     return {
@@ -92,15 +96,7 @@ export function ConnectorsGalleryPage() {
       short: t(`connectors.items.${c.id}.short`),
       category: c.category,
       icon: c,
-      status: connectorStatus(
-        c,
-        c.id === 'google-sheets'
-          ? sheets.data?.state
-          : c.id === 'google-drive'
-            ? drive.data?.state
-            : google.data?.state,
-        links[c.id],
-      ),
+      status: connectorStatus(c, signInStates[c.id] ?? google.data?.state, links[c.id]),
       beta:
         list.data?.connectors.some(
           (g) =>

@@ -18,6 +18,7 @@ import type {
   CalendarBooking,
   ConnectorEntry,
   DriveActivity,
+  GoogleCalendarState,
   SheetsActivity,
 } from '@ezychat/shared';
 import {
@@ -62,6 +63,18 @@ const TABS = ['overview', 'settings', 'activity', 'bookings'] as const;
 type Tab = (typeof TABS)[number];
 /** Google Sheets and Google Drive have no Bookings tab. */
 const SHEETS_TABS = ['overview', 'settings', 'activity'] as const;
+
+/** The built-in Google connectors' own pages (each with its tabs). */
+const GOOGLE_TABS: Partial<
+  Record<
+    string,
+    (props: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) => React.ReactNode
+  >
+> = {
+  'google-calendar': (props) => <GoogleCalendarTabs {...props} />,
+  'google-sheets': (props) => <GoogleSheetsTabs {...props} />,
+  'google-drive': (props) => <GoogleDriveTabs {...props} />,
+};
 const isTab = (value: string | null, tabs: readonly Tab[] = TABS): value is Tab =>
   (tabs as readonly string[]).includes(value ?? '');
 
@@ -89,15 +102,11 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
   const entry = useBuiltinEntry(c.id);
   const link = links[c.id];
   if (link) return <Navigate to={link} replace />;
-  const status = connectorStatus(
-    c,
-    c.id === 'google-sheets'
-      ? sheets.data?.state
-      : c.id === 'google-drive'
-        ? drive.data?.state
-        : google.data?.state,
-    undefined,
-  );
+  const states: Partial<Record<string, { state: GoogleCalendarState } | undefined>> = {
+    'google-sheets': sheets.data,
+    'google-drive': drive.data,
+  };
+  const status = connectorStatus(c, (states[c.id] ?? google.data)?.state, undefined);
   const name = t(`connectors.items.${c.id}.name`);
 
   return (
@@ -118,13 +127,7 @@ function AppConnectorPage({ c }: { c: CatalogConnector }) {
         </div>
       </div>
 
-      {c.id === 'google-calendar' ? (
-        <GoogleCalendarTabs c={c} entry={entry} />
-      ) : c.id === 'google-sheets' ? (
-        <GoogleSheetsTabs c={c} entry={entry} />
-      ) : c.id === 'google-drive' ? (
-        <GoogleDriveTabs c={c} entry={entry} />
-      ) : (
+      {GOOGLE_TABS[c.id]?.({ c, entry }) ?? (
         <div className="flex flex-col gap-4">
           {status === 'enterprise' && (
             <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -194,13 +197,28 @@ function useTabParam(tabs: readonly Tab[]) {
   return [tab, setTab] as const;
 }
 
-/** Google Sheets: Overview (what it does, the Google account, your data), Settings, Activity. */
-function GoogleSheetsTabs({
+/**
+ * A Google connector with its own sign-in (Sheets, Drive): Overview (what it does, the Google
+ * account, your data), Settings (per AI agent) and Activity.
+ */
+function GoogleConnectorTabs({
   c,
   entry,
-}: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
+  account,
+  privacy,
+  settings,
+  activity,
+}: Readonly<{
+  c: CatalogConnector;
+  entry: ConnectorEntry | null;
+  account: (openSettings: () => void) => React.ReactNode;
+  privacy: React.ReactNode;
+  settings: (openOverview: () => void) => React.ReactNode;
+  activity: React.ReactNode;
+}>) {
   const { t } = useTranslation('admin');
   const [tab, setTab] = useTabParam(SHEETS_TABS);
+  const [overview, settingsTab] = SHEETS_TABS;
   return (
     <Tabs value={tab} onValueChange={setTab}>
       <div className="-mx-4 scroll-px-4 overflow-x-auto px-4 pb-1">
@@ -215,41 +233,48 @@ function GoogleSheetsTabs({
       <TabsContent value="overview" className="flex flex-col gap-4">
         <About c={c} />
         <ConnectorNotice entry={entry} />
-        <GoogleSheetsAccountCard onOpenSettings={() => setTab('settings')} />
-        <Privacy c={c} />
+        {account(() => setTab(settingsTab))}
+        {privacy}
       </TabsContent>
       <TabsContent value="settings" className="flex flex-col gap-4">
-        <SheetsAgentSettings onConnect={() => setTab('overview')} />
+        {settings(() => setTab(overview))}
       </TabsContent>
       <TabsContent value="activity" className="flex flex-col gap-4">
-        <SheetsActivityList />
+        {activity}
       </TabsContent>
     </Tabs>
   );
 }
 
-/** Google Drive: Overview (what it does, the Google account, your data), Settings, Activity. */
+/** Google Sheets: the shared Google connector tabs with its account card, settings and activity. */
+function GoogleSheetsTabs({
+  c,
+  entry,
+}: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
+  return (
+    <GoogleConnectorTabs
+      c={c}
+      entry={entry}
+      account={(open) => <GoogleSheetsAccountCard onOpenSettings={open} />}
+      privacy={<Privacy c={c} />}
+      settings={(open) => <SheetsAgentSettings onConnect={open} />}
+      activity={<SheetsActivityList />}
+    />
+  );
+}
+
+/** Google Drive: the shared Google connector tabs; its privacy card has three lines. */
 function GoogleDriveTabs({
   c,
   entry,
 }: Readonly<{ c: CatalogConnector; entry: ConnectorEntry | null }>) {
   const { t } = useTranslation('admin');
-  const [tab, setTab] = useTabParam(SHEETS_TABS);
   return (
-    <Tabs value={tab} onValueChange={setTab}>
-      <div className="-mx-4 scroll-px-4 overflow-x-auto px-4 pb-1">
-        <TabsList variant="line" className="w-max justify-start">
-          {SHEETS_TABS.map((id) => (
-            <TabsTrigger key={id} value={id} className="min-h-11 flex-none px-3 md:min-h-9">
-              {t(`connectors.tabs.${id}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-      <TabsContent value="overview" className="flex flex-col gap-4">
-        <About c={c} />
-        <ConnectorNotice entry={entry} />
-        <GoogleDriveAccountCard onOpenSettings={() => setTab('settings')} />
+    <GoogleConnectorTabs
+      c={c}
+      entry={entry}
+      account={(open) => <GoogleDriveAccountCard onOpenSettings={open} />}
+      privacy={
         <Card className="gap-3">
           <CardHeader>
             <CardTitle>{t('connectors.privacyTitle')}</CardTitle>
@@ -260,14 +285,10 @@ function GoogleDriveTabs({
             <p>{t('connectors.items.google-drive.privacy3')}</p>
           </CardContent>
         </Card>
-      </TabsContent>
-      <TabsContent value="settings" className="flex flex-col gap-4">
-        <DriveAgentSettings onConnect={() => setTab('overview')} />
-      </TabsContent>
-      <TabsContent value="activity" className="flex flex-col gap-4">
-        <DriveActivityList />
-      </TabsContent>
-    </Tabs>
+      }
+      settings={(open) => <DriveAgentSettings onConnect={open} />}
+      activity={<DriveActivityList />}
+    />
   );
 }
 
@@ -320,7 +341,7 @@ function Privacy({ c }: { c: CatalogConnector }) {
 }
 
 /** Settings tab: one AI agent at a time (`&agent=<id>` picks it; a picker with 2+ agents). */
-function AgentSettings({ onConnect }: { onConnect: () => void }) {
+function AgentSettings({ onConnect }: Readonly<{ onConnect: () => void }>) {
   const google = useGoogleCalendar();
   if (google.isPending) return <ListSkeleton rows={3} />;
   if (google.error)
@@ -341,7 +362,7 @@ function AgentSettings({ onConnect }: { onConnect: () => void }) {
 }
 
 /** Google Sheets Settings tab: one AI agent at a time, like Google Calendar's. */
-function SheetsAgentSettings({ onConnect }: { onConnect: () => void }) {
+function SheetsAgentSettings({ onConnect }: Readonly<{ onConnect: () => void }>) {
   const sheets = useGoogleSheets();
   if (sheets.isPending) return <ListSkeleton rows={3} />;
   if (sheets.error)
@@ -362,7 +383,7 @@ function SheetsAgentSettings({ onConnect }: { onConnect: () => void }) {
 }
 
 /** Google Drive Settings tab: connect first, then one AI agent at a time. */
-function DriveAgentSettings({ onConnect }: { onConnect: () => void }) {
+function DriveAgentSettings({ onConnect }: Readonly<{ onConnect: () => void }>) {
   const { t } = useTranslation('admin');
   const drive = useGoogleDrive();
   if (drive.isPending) return <ListSkeleton rows={3} />;

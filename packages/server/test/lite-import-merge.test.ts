@@ -314,21 +314,20 @@ describe('mergeLiteInbox', () => {
         agent_id: agentId,
         chat_jid: `${LITE_CHAT}#3`,
       });
-      // Google Sheets likewise: no settings or lead records, activity kept
-      expect(db.prepare('SELECT COUNT(*) AS n FROM sheets_agent_settings').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM sheets_leads').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT agent_id, chat_jid FROM sheets_activity').get()).toEqual({
-        agent_id: agentId,
-        chat_jid: `${LITE_CHAT}#3`,
-      });
-      // Google Drive likewise: no settings, folders or saved files, activity kept
-      expect(db.prepare('SELECT COUNT(*) AS n FROM drive_agent_settings').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM drive_folders').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM drive_saved_files').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT agent_id, chat_jid FROM drive_activity').get()).toEqual({
-        agent_id: agentId,
-        chat_jid: `${LITE_CHAT}#3`,
-      });
+      // Google Sheets and Drive likewise: no settings or records, activity kept
+      for (const table of [
+        'sheets_agent_settings',
+        'sheets_leads',
+        'drive_agent_settings',
+        'drive_folders',
+        'drive_saved_files',
+      ])
+        expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get(), table).toEqual({ n: 0 });
+      for (const table of ['sheets_activity', 'drive_activity'])
+        expect(db.prepare(`SELECT agent_id, chat_jid FROM ${table}`).get(), table).toEqual({
+          agent_id: agentId,
+          chat_jid: `${LITE_CHAT}#3`,
+        });
 
       // Safety finding follows its message
       const item = db

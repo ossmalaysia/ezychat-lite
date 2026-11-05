@@ -80,7 +80,7 @@ describe('connector list', () => {
     });
     await s.refresh();
     expect(server.calls).toEqual([]);
-    expect(ConnectorGallery.parse(s.gallery()).connectors.length).toBe(16);
+    expect(ConnectorGallery.parse(s.gallery()).connectors).toHaveLength(16);
     expect(s.entry('google-calendar')?.kind).toBe('builtin');
     expect(s.entry('hitpay')?.kind).toBe('coming_soon');
     expect(s.entry('custom-mcp')).toBeNull();

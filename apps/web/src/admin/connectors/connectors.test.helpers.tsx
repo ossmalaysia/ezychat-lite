@@ -68,7 +68,8 @@ export const status = (
   ...patch,
 });
 
-export const sheetsStatus = (state: GoogleSheetsStatus['state']): GoogleSheetsStatus => ({
+/** A Google connector's sign-in status (Sheets, Drive: the same shape). */
+const signInStatus = (state: GoogleSheetsStatus['state']): GoogleSheetsStatus => ({
   state,
   account:
     state === 'connected' || state === 'expired' || state === 'unavailable'
@@ -77,16 +78,9 @@ export const sheetsStatus = (state: GoogleSheetsStatus['state']): GoogleSheetsSt
   connectedAt: null,
   problemSince: null,
 });
-
-export const driveStatus = (state: GoogleDriveStatus['state']): GoogleDriveStatus => ({
-  state,
-  account:
-    state === 'connected' || state === 'expired' || state === 'unavailable'
-      ? 'kopiapong@gmail.com'
-      : null,
-  connectedAt: null,
-  problemSince: null,
-});
+export const sheetsStatus = signInStatus;
+export const driveStatus = (state: GoogleDriveStatus['state']): GoogleDriveStatus =>
+  signInStatus(state);
 
 export const DRIVE_FOLDER = { id: 'folder-claims-0000000001', name: 'Customer claims' };
 
@@ -456,10 +450,11 @@ function sheetsRoute(w: World, method: string, path: string, init?: RequestInit)
   return null;
 }
 
-/** The Google Drive routes of the fake server. */
-function driveRoute(w: World, method: string, path: string, init?: RequestInit): Response | null {
-  if (!path.startsWith('/connectors/google-drive')) return null;
-  const rest = path.slice('/connectors/google-drive'.length);
+/** A fake request's JSON body as text. */
+const bodyText = (init?: RequestInit) => (typeof init?.body === 'string' ? init.body : '{}');
+
+/** The Google Drive sign-in routes of the fake server (`rest` after the connector's path). */
+function driveSignIn(w: World, method: string, rest: string): Response | null {
   if (rest === '') return json(w.drive);
   if (rest === '/connect' && method === 'POST')
     return json({
@@ -475,8 +470,17 @@ function driveRoute(w: World, method: string, path: string, init?: RequestInit):
     w.drive = driveStatus('disconnected');
     return json(w.drive);
   }
+  return null;
+}
+
+/** The Google Drive routes of the fake server. */
+function driveRoute(w: World, method: string, path: string, init?: RequestInit): Response | null {
+  if (!path.startsWith('/connectors/google-drive')) return null;
+  const rest = path.slice('/connectors/google-drive'.length);
+  const signIn = driveSignIn(w, method, rest);
+  if (signIn) return signIn;
   if (rest === '/picker' && method === 'POST') {
-    w.drivePickerBodies.push(JSON.parse(String(init!.body)) as DrivePickerBody);
+    w.drivePickerBodies.push(JSON.parse(bodyText(init)) as DrivePickerBody);
     return json({
       requestId: `dpick-${w.drivePickerBodies.length}`,
       pickerUrl: 'http://127.0.0.1:7420/api/connectors/google-drive/picker-page?token=t',
@@ -487,8 +491,7 @@ function driveRoute(w: World, method: string, path: string, init?: RequestInit):
   const agentMatch = /^\/agents\/(\d+)$/.exec(rest);
   if (agentMatch) {
     const id = Number(agentMatch[1]);
-    if (method === 'PUT')
-      w.driveSettings[id] = JSON.parse(String(init!.body)) as DriveAgentSettings;
+    if (method === 'PUT') w.driveSettings[id] = JSON.parse(bodyText(init)) as DriveAgentSettings;
     return json(w.driveSettings[id] ?? DEFAULT_DRIVE_SETTINGS);
   }
   if (rest === '/activity') return json({ activity: w.driveActivity });

@@ -136,25 +136,24 @@ export function toDriveFile(item: DriveItem): DriveFile {
   };
 }
 
+function defaultFake(ctx: AppContext): FakeGoogleDrive | null {
+  const useFake = ctx.config.fakeWa && ctx.config.mode !== 'service' && !ctx.config.googleOAuth;
+  return useFake ? new FakeGoogleDrive() : null;
+}
+
+function defaultClient(ctx: AppContext, fake: FakeGoogleDrive | null): DriveClient | null {
+  if (fake) return new DriveClient(FAKE_DRIVE_APP, FAKE_DRIVE_ENDPOINTS, fake.fetch);
+  if (ctx.config.googleOAuth) return new DriveClient(ctx.config.googleOAuth, DRIVE_ENDPOINTS);
+  return null;
+}
+
 export function createGoogleDriveService(ctx: AppContext, options: GoogleDriveServiceOptions = {}) {
   const log = ctx.log.child({ mod: 'google-drive' });
   const now = options.now ?? Date.now;
   // The fake replaces Google only with --fake-wa (never in service mode) and no Google app
   // configured: a Dev Build with GOOGLE_OAUTH_CLIENT_ID/_SECRET talks to real Google.
-  const fake =
-    options.fake !== undefined
-      ? options.fake
-      : ctx.config.fakeWa && ctx.config.mode !== 'service' && !ctx.config.googleOAuth
-        ? new FakeGoogleDrive()
-        : null;
-  const client: DriveClient | null =
-    options.client !== undefined
-      ? options.client
-      : fake
-        ? new DriveClient(FAKE_DRIVE_APP, FAKE_DRIVE_ENDPOINTS, fake.fetch)
-        : ctx.config.googleOAuth
-          ? new DriveClient(ctx.config.googleOAuth, DRIVE_ENDPOINTS)
-          : null;
+  const fake = options.fake === undefined ? defaultFake(ctx) : options.fake;
+  const client = options.client === undefined ? defaultClient(ctx, fake) : options.client;
 
   const account = createGoogleAccount(ctx, {
     key: 'google_drive',
@@ -491,7 +490,7 @@ export function createGoogleDriveService(ctx: AppContext, options: GoogleDriveSe
       let text: string;
       try {
         if (asExport || file.kind === 'text') {
-          text = new TextDecoder('utf-8', { fatal: false }).decode(bytes).replace(/\0/g, '');
+          text = new TextDecoder('utf-8', { fatal: false }).decode(bytes).replaceAll('\0', '');
         } else
           text = await extractKnowledgeIsolated(
             file.kind === 'pdf' ? 'file.pdf' : 'file.docx',
@@ -567,7 +566,7 @@ export function createGoogleDriveService(ctx: AppContext, options: GoogleDriveSe
     /** A still-open picker session of this token, else null. */
     pickerSession(token: string): PickerSession | null {
       const entry = token ? pickers.get(sha(token)) : undefined;
-      if (!entry || entry.status !== 'pending') return null;
+      if (entry?.status !== 'pending') return null;
       return now() - entry.createdAt > PICKER_TTL_MS ? null : entry;
     },
 
@@ -583,7 +582,7 @@ export function createGoogleDriveService(ctx: AppContext, options: GoogleDriveSe
       const entry = service.pickerSession(token);
       if (!entry || entry.configured || !pickerApp) return null;
       entry.configured = true;
-      const oauthToken = await account.withToken(async (access) => access);
+      const oauthToken = await account.withToken((access) => Promise.resolve(access));
       return {
         oauthToken,
         developerKey: pickerApp.apiKey,

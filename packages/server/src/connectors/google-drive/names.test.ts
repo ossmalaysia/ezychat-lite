@@ -25,7 +25,7 @@ describe('Google Drive names', () => {
 
   it('cleans a sub-folder name to one safe level', () => {
     expect(cleanSubfolder('  Jay/Low\\Co  ')).toBe('Jay-Low-Co');
-    expect(cleanSubfolder('Jay‮Low\u0000')).toBe('JayLow');
+    expect(cleanSubfolder('Jay\u202eLow\u0000')).toBe('JayLow');
     expect(cleanSubfolder('../..')).toBe('-..');
     expect(cleanSubfolder('...')).toBeNull();
     expect(cleanSubfolder('   ')).toBeNull();

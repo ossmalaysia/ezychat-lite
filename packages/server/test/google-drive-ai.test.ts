@@ -224,7 +224,7 @@ describe('Google Drive AI tools', () => {
     await sends('m-2');
     const { tools } = await turn(jid);
     expect(
-      await call(tools, 'save_file_to_drive', { file: 'file1', subfolder: ' Jay/Low‮ ' }),
+      await call(tools, 'save_file_to_drive', { file: 'file1', subfolder: ' Jay/Low\u202e ' }),
     ).toBe('Saved to Google Drive.');
     expect(await call(tools, 'save_file_to_drive', { file: 'file2', subfolder: 'Jay-Low' })).toBe(
       'Saved to Google Drive.',

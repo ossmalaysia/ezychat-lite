@@ -149,98 +149,131 @@ export class FakeGoogleDrive extends FakeGoogleAuth {
 
   /** `'X' in parents`, `name = 'Y'`, `appProperties has { key='k' and value='v' }`, mimeType. */
   private matches(item: FakeDriveItem, q: string): boolean {
-    const unq = (s: string) => s.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
-    const parent = /'((?:[^'\\]|\\.)*)' in parents/.exec(q);
-    if (parent && !item.parents.includes(unq(parent[1]!))) return false;
-    const name = /name = '((?:[^'\\]|\\.)*)'/.exec(q);
-    if (name && item.name !== unq(name[1]!)) return false;
-    const mime = /mimeType = '((?:[^'\\]|\\.)*)'/.exec(q);
-    if (mime && item.mimeType !== unq(mime[1]!)) return false;
+    const unq = (text: string) => text.replaceAll("\\'", "'").replaceAll('\\\\', '\\');
+    const field = (pattern: RegExp) => {
+      const found = pattern.exec(q);
+      return found ? unq(found[1]!) : null;
+    };
+    const parent = field(/'((?:[^'\\]|\\.)*)' in parents/);
+    if (parent !== null && !item.parents.includes(parent)) return false;
+    const name = field(/name = '((?:[^'\\]|\\.)*)'/);
+    if (name !== null && item.name !== name) return false;
+    const mime = field(/mimeType = '((?:[^'\\]|\\.)*)'/);
+    if (mime !== null && item.mimeType !== mime) return false;
     const prop = /key='((?:[^'\\]|\\.)*)' and value='((?:[^'\\]|\\.)*)'/.exec(q);
     if (prop && item.appProperties[unq(prop[1]!)] !== unq(prop[2]!)) return false;
     return !item.trashed;
   }
 
-  readonly fetch: typeof fetch = async (input, init) => {
-    const url = new URL(
-      typeof input === 'string' ? input : input instanceof URL ? input : input.url,
-    );
-    if (url.origin !== BASE) throw new TypeError('fake Google Drive: unknown host');
-    const method = (init?.method ?? 'GET').toUpperCase();
-    // The resumable session URL carries no token (as Google's: the upload id is the key).
-    if (url.pathname === '/upload/drive/v3/files' && url.searchParams.has('upload_id')) {
-      const session = this.sessions.get(url.searchParams.get('upload_id')!);
-      if (!session || method !== 'PUT') return json(404, { error: { code: 404 } });
-      this.sessions.delete(url.searchParams.get('upload_id')!);
-      this.calls.push('upload');
-      const status = this.uploadStatuses.shift();
-      if (status) return json(status, { error: { code: status } });
-      const body = init?.body;
-      const content = body instanceof Uint8Array ? Buffer.from(body) : Buffer.from(String(body));
-      const item = this.add({ ...session, content });
-      return json(200, { id: item.id });
-    }
-    const denied = this.authorize(url.pathname, init);
-    if (denied) return denied;
-    if (url.pathname === '/upload/drive/v3/files' && method === 'POST') {
-      const body = JSON.parse(String(init?.body)) as Partial<UploadSession>;
-      const parent = body.parents?.[0];
-      if (!parent || !this.reachable(parent)) return json(404, { error: { code: 404 } });
-      const uploadId = randomBytes(8).toString('hex');
-      this.sessions.set(uploadId, {
-        name: String(body.name),
-        mimeType: String(body.mimeType),
-        parents: [parent],
-        appProperties: body.appProperties ?? {},
-      });
-      return new Response(null, {
-        status: 200,
-        headers: {
-          location: `${BASE}/upload/drive/v3/files?uploadType=resumable&upload_id=${uploadId}`,
-        },
-      });
-    }
-    if (url.pathname === '/drive/v3/files' && method === 'GET') {
-      this.calls.push('list');
-      const q = url.searchParams.get('q') ?? '';
-      const files = [...this.items.values()]
-        .filter((i) => this.reachable(i.id) && this.matches(i, q))
-        .map((i) => this.meta(i));
-      return json(200, { files });
-    }
-    if (url.pathname === '/drive/v3/files' && method === 'POST') {
-      const body = JSON.parse(String(init?.body)) as { name?: string; parents?: string[] };
-      const parent = body.parents?.[0];
-      if (!parent || !this.reachable(parent)) return json(404, { error: { code: 404 } });
-      this.calls.push('createFolder');
-      const item = this.add({
-        name: String(body.name),
-        mimeType: FOLDER_MIME,
-        parents: [parent],
-        content: Buffer.alloc(0),
-        appProperties: {},
-      });
-      return json(200, { id: item.id });
-    }
-    const exported = /^\/drive\/v3\/files\/([^/]+)\/export$/.exec(url.pathname);
-    if (exported && method === 'GET') {
-      const item = this.reachable(decodeURIComponent(exported[1]!));
-      if (!item || !item.mimeType.startsWith('application/vnd.google-apps'))
-        return json(404, { error: { code: 404 } });
-      this.calls.push('export');
+  private static bodyText(init: RequestInit | undefined): string {
+    return typeof init?.body === 'string' ? init.body : '';
+  }
+
+  private static bodyBytes(init: RequestInit | undefined): Buffer {
+    const body = init?.body;
+    if (body instanceof Uint8Array) return Buffer.from(body);
+    return Buffer.from(typeof body === 'string' ? body : '');
+  }
+
+  /** The PUT of a resumable upload (no token: the upload id is the key, as Google's). */
+  private finishUpload(url: URL, method: string, init: RequestInit | undefined): Response {
+    const uploadId = url.searchParams.get('upload_id')!;
+    const session = this.sessions.get(uploadId);
+    if (!session || method !== 'PUT') return json(404, { error: { code: 404 } });
+    this.sessions.delete(uploadId);
+    this.calls.push('upload');
+    const status = this.uploadStatuses.shift();
+    if (status) return json(status, { error: { code: status } });
+    const item = this.add({ ...session, content: FakeGoogleDrive.bodyBytes(init) });
+    return json(200, { id: item.id });
+  }
+
+  private startUpload(init: RequestInit | undefined): Response {
+    const body = JSON.parse(FakeGoogleDrive.bodyText(init)) as Partial<UploadSession>;
+    const parent = body.parents?.[0];
+    if (!parent || !this.reachable(parent)) return json(404, { error: { code: 404 } });
+    const uploadId = randomBytes(8).toString('hex');
+    this.sessions.set(uploadId, {
+      name: String(body.name),
+      mimeType: String(body.mimeType),
+      parents: [parent],
+      appProperties: body.appProperties ?? {},
+    });
+    return new Response(null, {
+      status: 200,
+      headers: {
+        location: `${BASE}/upload/drive/v3/files?uploadType=resumable&upload_id=${uploadId}`,
+      },
+    });
+  }
+
+  private listFiles(url: URL): Response {
+    this.calls.push('list');
+    const q = url.searchParams.get('q') ?? '';
+    const files = [...this.items.values()]
+      .filter((i) => this.reachable(i.id) && this.matches(i, q))
+      .map((i) => this.meta(i));
+    return json(200, { files });
+  }
+
+  private createFolder(init: RequestInit | undefined): Response {
+    const body = JSON.parse(FakeGoogleDrive.bodyText(init)) as {
+      name?: string;
+      parents?: string[];
+    };
+    const parent = body.parents?.[0];
+    if (!parent || !this.reachable(parent)) return json(404, { error: { code: 404 } });
+    this.calls.push('createFolder');
+    const item = this.add({
+      name: String(body.name),
+      mimeType: FOLDER_MIME,
+      parents: [parent],
+      content: Buffer.alloc(0),
+      appProperties: {},
+    });
+    return json(200, { id: item.id });
+  }
+
+  private exportFile(id: string): Response {
+    const item = this.reachable(id);
+    if (!item?.mimeType.startsWith('application/vnd.google-apps'))
+      return json(404, { error: { code: 404 } });
+    this.calls.push('export');
+    return new Response(new Uint8Array(item.content), { status: 200 });
+  }
+
+  private getFile(id: string, url: URL): Response {
+    const item = this.reachable(id);
+    if (!item) return json(404, { error: { code: 404 } });
+    if (url.searchParams.get('alt') === 'media') {
+      this.calls.push('download');
       return new Response(new Uint8Array(item.content), { status: 200 });
     }
-    const one = /^\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname);
-    if (one && method === 'GET') {
-      const item = this.reachable(decodeURIComponent(one[1]!));
-      if (!item) return json(404, { error: { code: 404 } });
-      if (url.searchParams.get('alt') === 'media') {
-        this.calls.push('download');
-        return new Response(new Uint8Array(item.content), { status: 200 });
-      }
-      this.calls.push('file');
-      return json(200, this.meta(item));
-    }
+    this.calls.push('file');
+    return json(200, this.meta(item));
+  }
+
+  private answer(url: URL, method: string, init: RequestInit | undefined): Response {
+    if (url.pathname === '/upload/drive/v3/files' && url.searchParams.has('upload_id'))
+      return this.finishUpload(url, method, init);
+    const denied = this.authorize(url.pathname, init);
+    if (denied) return denied;
+    const route = `${method} ${url.pathname}`;
+    if (route === 'POST /upload/drive/v3/files') return this.startUpload(init);
+    if (route === 'GET /drive/v3/files') return this.listFiles(url);
+    if (route === 'POST /drive/v3/files') return this.createFolder(init);
+    const exported = /^GET \/drive\/v3\/files\/([^/]+)\/export$/.exec(route);
+    if (exported) return this.exportFile(decodeURIComponent(exported[1]!));
+    const one = /^GET \/drive\/v3\/files\/([^/]+)$/.exec(route);
+    if (one) return this.getFile(decodeURIComponent(one[1]!), url);
     return json(404, { error: { code: 404 } });
+  }
+
+  readonly fetch: typeof fetch = (input, init) => {
+    const raw = typeof input === 'string' || input instanceof URL ? input : input.url;
+    const url = new URL(raw);
+    if (url.origin !== BASE)
+      return Promise.reject(new TypeError('fake Google Drive: unknown host'));
+    return Promise.resolve(this.answer(url, (init?.method ?? 'GET').toUpperCase(), init));
   };
 }

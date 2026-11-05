@@ -1,15 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_DRIVE_SETTINGS } from '@ezychat/shared';
-import { listAgents } from '../src/ai/agents.js';
 import { DriveClient } from '../src/connectors/google-drive/drive.js';
 import { FAKE_DRIVE_DOC_ID, FAKE_DRIVE_FOLDER_ID } from '../src/connectors/google-drive/fake.js';
 import { createGoogleDriveService } from '../src/connectors/google-drive/service.js';
-import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import {
   DRIVE_PATHS,
+  connectorRequests,
+  connectorTestApp,
   connectThroughFake,
   expectAdminOnly,
   expectCallbackHostOnly,
+  expectPickerHostOnly,
 } from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -19,22 +20,16 @@ afterEach(async () => {
 });
 
 async function setUp() {
-  t = await makeTestApp();
-  const admin = await createUserAndLogin(t, { role: 'admin' });
-  const agent = await createUserAndLogin(t, { role: 'agent' });
-  t.ctx.services.ai!.saveMember(
-    { displayName: 'Aina', enabled: false, instructions: '' },
-    { userId: admin.user.id, ip: null },
-  );
-  return { admin: admin.cookie, agent: agent.cookie, agentId: listAgents(t.ctx.db)[0]!.id };
+  const app = await connectorTestApp();
+  t = app.t;
+  return app;
 }
 
-const get = (url: string, cookie: string) =>
-  t.app.inject({ method: 'GET', url, headers: { cookie } });
+const get = (url: string, cookie: string) => connectorRequests(t).get(url, cookie);
 const post = (url: string, cookie: string, payload: unknown = {}) =>
-  t.app.inject({ method: 'POST', url, headers: authHeaders(cookie), payload: payload as object });
+  connectorRequests(t).post(url, cookie, payload);
 const put = (url: string, cookie: string, payload: unknown) =>
-  t.app.inject({ method: 'PUT', url, headers: authHeaders(cookie), payload: payload as object });
+  connectorRequests(t).put(url, cookie, payload);
 const local = { origin: 'http://localhost', host: 'localhost' };
 
 const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
@@ -269,30 +264,12 @@ describe('Google Drive routes', () => {
     const { admin } = await setUp();
     await connect(admin);
     const { requestId, token, url } = await pick(admin, { kind: 'folder' });
-    for (const path of [
+    const script = await expectPickerHostOnly(
+      t,
+      '/api/connectors/google-drive',
+      token,
       url.pathname + url.search,
-      `/api/connectors/google-drive/picker-page?token=${token}`,
-      `/api/connectors/google-drive/picker-config?token=${token}`,
-      '/api/connectors/google-drive/picker.js',
-    ]) {
-      const lan = await t.app.inject({ method: 'GET', url: path, remoteAddress: '192.168.1.20' });
-      expect(lan.statusCode, path).not.toBe(200);
-      const tunnel = await t.app.inject({
-        method: 'GET',
-        url: path,
-        headers: { 'cf-connecting-ip': '203.0.113.9' },
-      });
-      expect(tunnel.statusCode, path).not.toBe(200);
-    }
-    const page = await t.app.inject({
-      method: 'GET',
-      url: `/api/connectors/google-drive/picker-page?token=${token}`,
-    });
-    expect(page.statusCode).toBe(200);
-    expect(page.headers['content-security-policy']).toContain(
-      "script-src 'self' https://apis.google.com",
     );
-    expect(page.body).not.toMatch(/<script>/);
     expect(
       (
         await t.app.inject({
@@ -301,12 +278,7 @@ describe('Google Drive routes', () => {
         })
       ).statusCode,
     ).toBe(400);
-    const script = await t.app.inject({
-      method: 'GET',
-      url: '/api/connectors/google-drive/picker.js',
-    });
-    expect(script.headers['content-type']).toContain('javascript');
-    expect(script.body).toContain('setSelectFolderEnabled');
+    expect(script).toContain('setSelectFolderEnabled');
     const config = await get(`/api/connectors/google-drive/picker-config?token=${token}`, '');
     expect(config.json()).toMatchObject({ developerKey: 'fake-key', appId: '0', mode: 'folder' });
     expect(config.json().oauthToken).toMatch(/^fake-access-/);

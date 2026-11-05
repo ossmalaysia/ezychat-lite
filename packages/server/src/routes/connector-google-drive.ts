@@ -25,6 +25,12 @@ const CallbackQuery = z.object({
 const FakeDriveBody = z.object({ state: z.enum(['ok', 'expired', 'unavailable']) });
 const TokenQuery = z.object({ token: z.string().max(100).default('') });
 
+/** A query value given once or several times, as a list. */
+const toList = (value: string | string[] | undefined): string[] => {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
 export const DRIVE_CALLBACK_PATH = '/api/connectors/google-drive/callback';
 
 const NOT_HERE = '<p>Choose in Google Drive on the computer that runs EzyChat.</p>';
@@ -152,7 +158,8 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
   if (!fake) return;
 
   app.get('/dev/fake-google-drive/consent', async (req, reply) => {
-    const state = String((req.query as { state?: unknown } | null)?.state ?? '');
+    const raw = (req.query as { state?: unknown } | null)?.state;
+    const state = typeof raw === 'string' ? raw : '';
     const allow = drive.fakeConsent(state, true);
     const cancel = drive.fakeConsent(state, false);
     if (!allow || !cancel)
@@ -177,15 +184,17 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
       session.kind === 'folder'
         ? fake.folders()
         : fake.filesIn(session.parent ?? '').filter((i) => i.mimeType !== FOLDER_MIME);
+    const idParam = (id: string) => 'ids=' + encodeURIComponent(id);
     const list = items
-      .map(
-        (item) =>
-          `<li><a class="item" href="${escapeHtml(link(`ids=${encodeURIComponent(item.id)}`))}">${escapeHtml(item.name)}</a></li>`,
-      )
+      .map((item) => {
+        const href = escapeHtml(link(idParam(item.id)));
+        return `<li><a class="item" href="${href}">${escapeHtml(item.name)}</a></li>`;
+      })
       .join('');
+    const allHref = escapeHtml(link(items.map((i) => idParam(i.id)).join('&')));
     const all =
       session.kind === 'files' && items.length
-        ? `<p><a id="all" href="${escapeHtml(link(items.map((i) => `ids=${encodeURIComponent(i.id)}`).join('&')))}">All files</a></p>`
+        ? `<p><a id="all" href="${allHref}">All files</a></p>`
         : '';
     return sendPage(
       reply,
@@ -204,7 +213,7 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
         ids: z
           .union([z.string().max(200), z.array(z.string().max(200)).max(50)])
           .optional()
-          .transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v])),
+          .transform(toList),
         cancel: z.string().optional(),
       })
       .parse(raw);

@@ -155,27 +155,7 @@ export function seedTarget(
   db.prepare(
     "INSERT INTO fix_english_words (word, added_by, created_at) VALUES ('ezychat', NULL, ?)",
   ).run(NOW);
-  if (opts.googleAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_calendar_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.googleAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
-  if (opts.sheetsAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_sheets_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.sheetsAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
-  if (opts.driveAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_drive_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.driveAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
+  saveGoogleSignIns(db, secret, opts);
   db.close();
   return { dir, bossId, amyId };
 }
@@ -323,27 +303,7 @@ export function seedLite(
     "INSERT INTO connector_calls (connector_id, tool, chat_jid, consent_message_id, at) VALUES ('acme', 'lookup', ?, 'M1', ?)",
   ).run(LITE_CHAT, NOW);
   // Google Calendar per-agent settings and a booking
-  if (opts.googleAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_calendar_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.googleAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
-  if (opts.sheetsAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_sheets_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.sheetsAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
-  if (opts.driveAccount) {
-    db.prepare("INSERT INTO settings (key, value) VALUES ('google_drive_tokens', ?)").run(
-      secret.encrypt(
-        JSON.stringify({ account: opts.driveAccount, refreshToken: 'r', accessToken: 'a' }),
-      ),
-    );
-  }
+  saveGoogleSignIns(db, secret, opts);
   db.prepare(
     "INSERT INTO calendar_agent_settings (agent_id, settings, updated_at) VALUES (?, '{}', ?)",
   ).run(agent, NOW);
@@ -417,4 +377,23 @@ export function seedLite(
   mkdirSync(join(dir, 'wa-auth'), { recursive: true });
   writeFileSync(join(dir, 'wa-auth', 'creds.json'), '{"me":"lite"}');
   return { dir, ids: { amy, lee, sam, ai, agent }, connectorSecret };
+}
+
+/** The Google sign-ins (Calendar, Sheets, Drive) the import compares by account. */
+function saveGoogleSignIns(
+  db: DB,
+  secret: SecretBox,
+  opts: { googleAccount?: string; sheetsAccount?: string; driveAccount?: string },
+) {
+  const accounts = [
+    ['google_calendar_tokens', opts.googleAccount],
+    ['google_sheets_tokens', opts.sheetsAccount],
+    ['google_drive_tokens', opts.driveAccount],
+  ] as const;
+  for (const [key, account] of accounts)
+    if (account)
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(
+        key,
+        secret.encrypt(JSON.stringify({ account, refreshToken: 'r', accessToken: 'a' })),
+      );
 }

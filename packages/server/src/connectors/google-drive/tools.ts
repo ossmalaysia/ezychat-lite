@@ -11,8 +11,8 @@ import type {
 } from '../../ai/agent/extension-tools.js';
 import type { AppContext } from '../../context.js';
 import { getChats } from '../../wa-bridge/index.js';
-import { GoogleError } from '../google-calendar/google.js';
 import type { SheetRecordContext } from '../google-sheets/record.js';
+import { connectorToolRunner } from '../tool-run.js';
 import { SUBFOLDER_CHARACTERS } from './names.js';
 import type { SaveResult } from './service.js';
 
@@ -24,6 +24,12 @@ const SOURCE = 'google-drive';
 const SOURCE_LABEL = 'Google Drive';
 const READ_TITLE = 'your Drive files';
 const SAVE_TITLE = 'Save a file';
+
+const READ_REFUSALS = {
+  not_allowed: 'This file is not available now. Hand the chat to the team.',
+  too_large: 'This file is too large to read. Say you will check, or hand the chat to the team.',
+  no_text: 'This file has no readable text. Say you will check, or hand the chat to the team.',
+} as const;
 
 const KIND_LABELS: Record<string, string> = {
   image: 'photo',
@@ -90,65 +96,31 @@ export function driveAgentTools(
   const agentId = input.agentId;
   const chatJid = input.chatJid;
 
-  const run = async <T>(
+  const fail = () => {
+    if (chatJid)
+      service.addActivity({ kind: 'failed', agentId, chatJid, group: service.groupName(chatJid) });
+  };
+  const runner = connectorToolRunner(
+    ctx,
+    log,
+    { ...input, agentId },
+    {
+      source: SOURCE,
+      sourceLabel: SOURCE_LABEL,
+      failEvent: 'google_drive_tool_failed',
+      calls,
+      onCall: options.onCall,
+      onFailure: options.onFailure,
+      markFailed: () => {
+        failed = true;
+      },
+    },
+  );
+  const run = <T>(
     name: string,
     title: string,
     body: () => Promise<{ output: T; notRun?: boolean }>,
-  ): Promise<T> => {
-    options.onCall?.(name);
-    const started = Date.now();
-    const finish = (ok: boolean, notRun?: boolean) => {
-      const ms = Date.now() - started;
-      calls.push({
-        tool: name,
-        source: SOURCE,
-        title,
-        sourceLabel: SOURCE_LABEL,
-        ok,
-        ms,
-        ...(notRun ? { notRun } : {}),
-      });
-      log.info({ event: 'ai_tool_call', tool: name, source: SOURCE, ok, ms }, 'AI tool call');
-      ctx.bus.emit('ai:tool_call', {
-        agent: input.agent,
-        agentId,
-        chatJid,
-        tool: name,
-        source: SOURCE,
-        title,
-        ok,
-        ms,
-      });
-    };
-    try {
-      const { output, notRun } = await body();
-      finish(true, notRun);
-      return output;
-    } catch (error) {
-      // A cancelled turn is not a failed call.
-      if (input.signal.aborted) throw error;
-      failed = true;
-      log.warn(
-        {
-          event: 'google_drive_tool_failed',
-          tool: name,
-          kind: error instanceof GoogleError ? error.kind : 'other',
-          status: error instanceof GoogleError ? error.status : null,
-        },
-        'Google Drive tool failed',
-      );
-      if (chatJid)
-        service.addActivity({
-          kind: 'failed',
-          agentId,
-          chatJid,
-          group: service.groupName(chatJid),
-        });
-      finish(false);
-      options.onFailure();
-      throw error;
-    }
-  };
+  ) => runner(name, title, body, fail);
 
   if (usable.save) {
     // Try it (no chat): one stand-in file, never saved.
@@ -233,11 +205,13 @@ export function driveAgentTools(
         query: z.string().max(200).optional().describe('Words of what the person asks about'),
       }),
       execute: ({ query }) =>
-        run(LIST_DRIVE_FILES, READ_TITLE, async () => {
+        run(LIST_DRIVE_FILES, READ_TITLE, () => {
           const current = service.usable(agentId);
           if (!current?.readFiles.length)
-            return { output: 'No Drive files are available now. Hand the chat to the team.' };
-          return {
+            return Promise.resolve({
+              output: 'No Drive files are available now. Hand the chat to the team.',
+            });
+          return Promise.resolve({
             output: JSON.stringify({
               files: service.findFiles(current, query).map((f) => ({
                 id: f.id,
@@ -245,7 +219,7 @@ export function driveAgentTools(
                 kind: f.kind,
               })),
             }),
-          };
+          });
         }),
     });
     tools[READ_DRIVE_FILE] = tool({
@@ -264,15 +238,7 @@ export function driveAgentTools(
           if (!current)
             return { output: 'This file is not available now. Hand the chat to the team.' };
           const result = await service.readFile(current, fileId, input.signal);
-          if (!result.ok)
-            return {
-              output:
-                result.reason === 'not_allowed'
-                  ? 'This file is not available now. Hand the chat to the team.'
-                  : result.reason === 'too_large'
-                    ? 'This file is too large to read. Say you will check, or hand the chat to the team.'
-                    : 'This file has no readable text. Say you will check, or hand the chat to the team.',
-            };
+          if (!result.ok) return { output: READ_REFUSALS[result.reason] };
           if (chatJid && !readOnce)
             service.addActivity({
               kind: 'read',

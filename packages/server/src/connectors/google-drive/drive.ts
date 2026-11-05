@@ -65,7 +65,8 @@ function toItem(json: Record<string, unknown>): DriveItem | null {
 
 /** A Drive query string literal (single quotes and backslashes escaped). */
 export function queryLiteral(value: string): string {
-  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+  const escaped = value.replaceAll('\\', String.raw`\\`).replaceAll("'", String.raw`\'`);
+  return `'${escaped}'`;
 }
 
 export class DriveClient extends GoogleClient {
