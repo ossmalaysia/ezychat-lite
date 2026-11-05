@@ -277,5 +277,30 @@ check(
 );
 check(!JSON.stringify(activity).includes('P-902341'), 'Activity never stores row values');
 
+// 6. "Allow formulas" on Claims (design group-agents Part D): values go in as typed, but a formula the
+//    member wrote is kept as text (leading '), never run.
+const withFormulas = await api('PUT', `/connectors/google-sheets/agents/${claims.id}`, {
+  spreadsheetId: sheetId,
+  spreadsheetName: sheets[0].name,
+  tabs: [{ title: 'Claims', access: 'add', formulas: true }],
+});
+check(
+  withFormulas.status === 200 && withFormulas.json?.tabs?.[0]?.formulas === true,
+  'Allow formulas is saved on the Claims tab',
+  JSON.stringify(withFormulas.json?.tabs),
+);
+const before6 = (await claimRows()).length;
+await say(GROUPS[1][0], 'Policy no: =HYPERLINK("http://x.example")\nAmount: 1250');
+const reply6 = await aiAfter(GROUPS[1][0], 1);
+const row6 = (await claimRows()).at(-1) ?? [];
+check(
+  !!reply6 &&
+    (await claimRows()).length === before6 + 1 &&
+    row6.includes(`'=HYPERLINK("http://x.example")`) &&
+    !row6.includes('=HYPERLINK("http://x.example")'),
+  "a member's formula is saved as text when formulas are allowed",
+  JSON.stringify(row6),
+);
+
 console.log(failed ? `\n${failed} step(s) failed` : '\nAll steps passed');
 process.exit(failed ? 1 : 0);

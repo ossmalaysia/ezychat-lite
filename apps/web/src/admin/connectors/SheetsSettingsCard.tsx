@@ -461,91 +461,92 @@ function TabRow({
     label: t(`connectors.sheets.access.${value}`),
   }));
   return (
-    <li
-      className="flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
-      data-testid="sheets-tab"
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="flex flex-wrap items-center gap-2">
-          <span id={labelId} className="font-medium break-words">
-            {title}
+    <li className="flex flex-col gap-3 rounded-lg border px-3 py-3" data-testid="sheets-tab">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="flex flex-wrap items-center gap-2">
+            <span id={labelId} className="font-medium break-words">
+              {title}
+            </span>
+            {marks?.newTab && (
+              <Badge variant="outline" className="border-warning/40 text-warning">
+                {t('connectors.sheets.newTab')}
+              </Badge>
+            )}
+            {marks?.changed && (
+              <Badge variant="outline" className="border-warning/40 text-warning">
+                {t('connectors.sheets.columnsChanged')}
+              </Badge>
+            )}
           </span>
-          {marks?.newTab && (
-            <Badge variant="outline" className="border-warning/40 text-warning">
-              {t('connectors.sheets.newTab')}
-            </Badge>
+          {empty ? (
+            <Banner tone="warning">{t('connectors.sheets.emptyFirstRow')}</Banner>
+          ) : (
+            <ul
+              className="flex flex-wrap gap-1.5"
+              aria-label={t('connectors.sheets.columnsOf', { tab: title })}
+            >
+              {columns.map((column, i) => {
+                const added = marks?.added.has(column) ?? false;
+                const auto = isAutoColumn(column);
+                return (
+                  <li
+                    key={`${i}-${column}`}
+                    className={cn(
+                      'rounded-sm border border-transparent px-2 py-0.5 text-xs [overflow-wrap:anywhere]',
+                      auto ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+                      added && 'border-dashed border-warning/60 bg-warning/10 text-foreground',
+                    )}
+                    data-auto={auto || undefined}
+                    data-added={added || undefined}
+                  >
+                    {column}
+                    {added && (
+                      <span className="sr-only"> ({t('connectors.sheets.newColumn')})</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          {marks?.changed && (
-            <Badge variant="outline" className="border-warning/40 text-warning">
-              {t('connectors.sheets.columnsChanged')}
-            </Badge>
-          )}
-        </span>
-        {empty ? (
-          <Banner tone="warning">{t('connectors.sheets.emptyFirstRow')}</Banner>
-        ) : (
-          <ul
-            className="flex flex-wrap gap-1.5"
-            aria-label={t('connectors.sheets.columnsOf', { tab: title })}
-          >
-            {columns.map((column, i) => {
-              const added = marks?.added.has(column) ?? false;
-              const auto = isAutoColumn(column);
-              return (
-                <li
-                  key={`${i}-${column}`}
-                  className={cn(
-                    'rounded-sm border border-transparent px-2 py-0.5 text-xs [overflow-wrap:anywhere]',
-                    auto ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-                    added && 'border-dashed border-warning/60 bg-warning/10 text-foreground',
-                  )}
-                  data-auto={auto || undefined}
-                  data-added={added || undefined}
-                >
-                  {column}
-                  {added && <span className="sr-only"> ({t('connectors.sheets.newColumn')})</span>}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {!empty && access === 'add' && (
-          <div
-            className="flex flex-col divide-y rounded-lg border"
-            role="group"
-            aria-label={t('connectors.sheets.permissions.groupLabel', { tab: title })}
-            data-testid="sheets-tab-permissions"
-          >
-            <ToolSwitchRow
-              id={`${switchId}-ai`}
-              label={t('connectors.sheets.permissions.aiValues')}
-              hint={t('connectors.sheets.permissions.aiValuesHint')}
-              checked={!!setting.aiValues}
-              onCheckedChange={(aiValues) => onChange({ aiValues })}
-            />
-            <ToolSwitchRow
-              id={`${switchId}-formulas`}
-              label={t('connectors.sheets.permissions.formulas')}
-              hint={t('connectors.sheets.permissions.formulasHint')}
-              tip={
-                <InfoTip
-                  title={t('connectors.sheets.permissions.formulasTipTitle')}
-                  body={t('connectors.sheets.permissions.formulasTipBody')}
-                />
-              }
-              checked={!!setting.formulas}
-              onCheckedChange={(formulas) => onChange({ formulas })}
-            />
-          </div>
-        )}
+        </div>
+        <SegmentedControl
+          aria-labelledby={labelId}
+          value={empty ? 'off' : access}
+          onValueChange={(next: SheetTabAccess) => onChange({ access: next })}
+          options={options}
+          className="shrink-0 self-start"
+        />
       </div>
-      <SegmentedControl
-        aria-labelledby={labelId}
-        value={empty ? 'off' : access}
-        onValueChange={(next: SheetTabAccess) => onChange({ access: next })}
-        options={options}
-        className="shrink-0 self-start"
-      />
+      {!empty && access === 'add' && (
+        <div
+          className="flex flex-col divide-y rounded-lg border"
+          role="group"
+          aria-label={t('connectors.sheets.permissions.groupLabel', { tab: title })}
+          data-testid="sheets-tab-permissions"
+        >
+          <ToolSwitchRow
+            id={`${switchId}-ai`}
+            label={t('connectors.sheets.permissions.aiValues')}
+            hint={t('connectors.sheets.permissions.aiValuesHint')}
+            checked={!!setting.aiValues}
+            onCheckedChange={(aiValues) => onChange({ aiValues })}
+          />
+          <ToolSwitchRow
+            id={`${switchId}-formulas`}
+            label={t('connectors.sheets.permissions.formulas')}
+            hint={t('connectors.sheets.permissions.formulasHint')}
+            tip={
+              <InfoTip
+                title={t('connectors.sheets.permissions.formulasTipTitle')}
+                body={t('connectors.sheets.permissions.formulasTipBody')}
+              />
+            }
+            checked={!!setting.formulas}
+            onCheckedChange={(formulas) => onChange({ formulas })}
+          />
+        </div>
+      )}
     </li>
   );
 }
