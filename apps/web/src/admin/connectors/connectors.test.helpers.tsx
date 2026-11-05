@@ -438,7 +438,7 @@ function sheetsRoute(w: World, method: string, path: string, init?: RequestInit)
   }
   const createMatch = /^\/agents\/(\d+)\/create$/.exec(rest);
   if (createMatch && method === 'POST') {
-    const layout = JSON.parse(String(init!.body)) as SheetLayout;
+    const layout = JSON.parse(init!.body as string) as SheetLayout;
     w.sheetCreated.push(layout);
     const id = `created-sheet-${w.sheetCreated.length}-000000000000`;
     w.spreadsheets[id] = {

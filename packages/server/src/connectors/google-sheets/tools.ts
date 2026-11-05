@@ -70,10 +70,10 @@ function tabList(
         allows?.aiValues.includes(tab) && 'values you looked up or worked out allowed',
         allows?.formulas.includes(tab) && 'formulas allowed',
       ].filter(Boolean);
-      const parts = [
-        names?.length ? `columns: ${names.join(', ')}` : columns ? 'no column names' : null,
-        ...extra,
-      ].filter(Boolean);
+      let columnText: string | null = null;
+      if (names?.length) columnText = `columns: ${names.join(', ')}`;
+      else if (columns) columnText = 'no column names';
+      const parts = [columnText, ...extra].filter(Boolean);
       return parts.length ? `"${tab}" (${parts.join('; ')})` : `"${tab}"`;
     })
     .join('; ');

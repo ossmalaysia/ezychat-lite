@@ -152,7 +152,7 @@ export function personWrote(texts: readonly string[], value: string): boolean {
 // ── Formulas (a tab with "Allow formulas" on) ─────────────────────────────────────────────
 
 /** A plain number as typed: sign, digits, separators, an optional decimal part and percent. */
-const PLAIN_NUMBER = /^[+-]?\s*\d[\d,\s]*(?:\.\d+)?\s*%?$/;
+const PLAIN_NUMBER = /^[+-]?\d[\d, ]*(?:\.\d+)?%?$/;
 
 /**
  * True when Google would read `value` as a formula if it were typed into a cell: it starts with
@@ -161,7 +161,7 @@ const PLAIN_NUMBER = /^[+-]?\s*\d[\d,\s]*(?:\.\d+)?\s*%?$/;
 export function isFormula(value: string): boolean {
   const text = value.trimStart();
   if (text.startsWith('=')) return true;
-  return /^[+\-@]/.test(text) && !PLAIN_NUMBER.test(text.trim());
+  return /^[+\-@]/.test(text) && !PLAIN_NUMBER.test(text.trim().replace(/^([+-])\s+/, '$1'));
 }
 
 /**
@@ -195,8 +195,11 @@ const URL_IN_FORMULA = /(?:https?|ftp|file|data|javascript|mailto)\s*:|:\/\/|www
 export function formulaReachesOut(formula: string): boolean {
   const text = formula.normalize('NFKC');
   if (URL_IN_FORMULA.test(text)) return true;
-  for (const match of text.matchAll(/([A-Za-z_][A-Za-z0-9_.]*)\s*\(/g)) {
-    const name = match[1]!.toUpperCase().replace(/^_XLFN\./, '');
+  // Each name, then whether a "(" follows it (spaces allowed): a call. One linear pass per name.
+  for (const match of text.matchAll(/[A-Za-z_][\w.]*/g)) {
+    const after = text.slice(match.index + match[0].length).trimStart();
+    if (!after.startsWith('(')) continue;
+    const name = match[0].toUpperCase().replace(/^_XLFN\./, '');
     if (BLOCKED_NAMES.has(name) || BLOCKED_PARTS.test(name)) return true;
   }
   return false;

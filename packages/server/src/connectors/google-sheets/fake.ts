@@ -106,7 +106,7 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     if (denied) return denied;
     if (url.pathname === '/v4/spreadsheets' && method === 'POST') {
       this.calls.push('create');
-      const body = JSON.parse(String(init?.body)) as {
+      const body = JSON.parse(init?.body as string) as {
         properties: { title: string };
         sheets: Array<{ properties: { title: string } }>;
       };
@@ -126,7 +126,7 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
         : undefined;
       if (!sheet) return json(404, { error: { code: 404 } });
       this.calls.push('batchUpdate');
-      const body = JSON.parse(String(init?.body)) as {
+      const body = JSON.parse(init?.body as string) as {
         valueInputOption: string;
         data: Array<{ range: string; values: string[][] }>;
       };
@@ -134,9 +134,10 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
       // Stored as sent: the fake evaluates nothing.
       for (const { range, values } of body.data) {
         const m = /^'((?:[^']|'')*)'!([A-Z])(\d+)$/.exec(range);
-        const tab = m ? sheet.tabs.get(m[1]!.replace(/''/g, "'")) : undefined;
-        if (!m || !tab) return json(400, { error: { code: 400, message: 'Unable to parse range' } });
-        const col0 = m[2]!.charCodeAt(0) - 65;
+        const tab = m ? sheet.tabs.get(m[1]!.replaceAll("''", "'")) : undefined;
+        if (!m || !tab)
+          return json(400, { error: { code: 400, message: 'Unable to parse range' } });
+        const col0 = m[2]!.codePointAt(0)! - 65;
         values.forEach((row, r) => {
           const at = Number(m[3]) - 1 + r;
           while (tab.length <= at) tab.push([]);

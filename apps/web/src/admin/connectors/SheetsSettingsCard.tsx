@@ -531,9 +531,8 @@ function TabRow({
         />
       </div>
       {!empty && access === 'add' && (
-        <div
-          className="flex flex-col divide-y rounded-lg border"
-          role="group"
+        <fieldset
+          className="flex min-w-0 flex-col divide-y rounded-lg border"
           aria-label={t('connectors.sheets.permissions.groupLabel', { tab: title })}
           data-testid="sheets-tab-permissions"
         >
@@ -557,7 +556,7 @@ function TabRow({
             checked={!!setting.formulas}
             onCheckedChange={(formulas) => onChange({ formulas })}
           />
-        </div>
+        </fieldset>
       )}
     </li>
   );
