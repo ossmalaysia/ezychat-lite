@@ -4,7 +4,9 @@ import { ChevronRight, Plug } from 'lucide-react';
 import { useConnectorGallery, useConnectorsAgentSettings } from '../../api/connector-list';
 import {
   useBookingSettings,
+  useDriveSettings,
   useGoogleCalendar,
+  useGoogleDrive,
   useGoogleSheets,
   useSheetsSettings,
 } from '../../api/connectors';
@@ -52,6 +54,23 @@ export function AgentConnectorsCard({
         ]
           .filter(Boolean)
           .join(' · ');
+  const drive = useGoogleDrive();
+  const driveState = drive.data?.state;
+  const driveLinked =
+    driveState === 'connected' || driveState === 'expired' || driveState === 'unavailable';
+  const driveSettings = useDriveSettings(agentId, driveLinked).data;
+  const gd = findConnector('google-drive')!;
+  const driveSummary = !driveSettings
+    ? null
+    : !driveSettings.folder
+      ? t('connectors.agentCard.driveNoFolder')
+      : driveSettings.save && driveSettings.read && driveSettings.files.length > 0
+        ? t('connectors.agentCard.driveSavesAndReads', { count: driveSettings.files.length })
+        : driveSettings.save
+          ? t('connectors.agentCard.driveSaves')
+          : driveSettings.read && driveSettings.files.length > 0
+            ? t('connectors.agentCard.driveReads', { count: driveSettings.files.length })
+            : t('connectors.agentCard.off');
   const gallery = useConnectorGallery();
   const partners = (gallery.data?.connectors ?? []).filter(
     (c) => c.entry.kind === 'mcp' && isLinked(c.connection),
@@ -111,6 +130,25 @@ export function AgentConnectorsCard({
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
+        {driveLinked && (
+          <Link
+            to={`/admin/connectors/google-drive?tab=settings&agent=${agentId}`}
+            className={ROW}
+            data-testid="agent-connector-google-drive"
+          >
+            <ConnectorIcon c={gd} />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex flex-wrap items-center gap-2 font-medium">
+                {t('connectors.items.google-drive.name')}
+                {driveState !== 'connected' && <ConnectorStatusBadge status="attention" />}
+              </span>
+              {driveSummary && (
+                <span className="text-sm text-muted-foreground">{driveSummary}</span>
+              )}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        )}
         {partners.map((c, i) => {
           const tools = c.entry.tools ?? [];
           const saved = partnerSettings[i]?.data;
@@ -143,7 +181,7 @@ export function AgentConnectorsCard({
             </Link>
           );
         })}
-        {!connected && !sheetsLinked && partners.length === 0 && (
+        {!connected && !sheetsLinked && !driveLinked && partners.length === 0 && (
           <p className="text-sm text-muted-foreground">{t('connectors.agentCard.none')}</p>
         )}
         <Button asChild variant="outline" size="touch" className="self-start">

@@ -373,6 +373,19 @@ never Try it. Activity and
 logs keep who and when only, never row values. `--fake-wa` without a Google app uses `FakeGoogleSheets`
 (`/api/dev/fake-google-sheets*`, demo sheet `FAKE_SPREADSHEET_ID`).
 
+**Google Drive** (design `docs/features/google-drive/design.md`). Core built-in connector like Sheets, its own Google
+sign-in (`google_drive_tokens`, scope `drive.file`: a picked folder grants only the folder, so the AI reads only files the
+admin picks; Google's picker in `folder` or multi-select `files` mode, `connectors/google-drive/picker-page.ts`).
+`connectors/google-drive/` (`repo.ts` is its only SQL, migration 034, routes `/api/connectors/google-drive/*`, admins): per
+agent one folder, Save files (off) and Read files (on) with ≤ 50 picked files inside the folder; nothing about the use
+case (instructions decide). Tools: `save_file_to_drive {file, subfolder?}` picks a label of this chat's newest inbound
+files (24 h, ≤ 10; group: the batch's senders), never a link or id from the model; never Safety High/quarantined, ≤ 25 MB,
+once per message and folder (`drive_saved_files` + Drive app property `ezychatKey`), EzyChat names the file, optional
+one-level sub-folder EzyChat creates (`drive_folders`), also in group turns, never Try it; `list_drive_files` /
+`read_drive_file` read only the picked files (Docs/Sheets exported, PDF/Word via `extractKnowledgeIsolated`, ≤ 10 MB,
+≤ 20,000 characters), never files saved from chats. Chat line `ai_tool_used` with `drive: {action:'saved'}`; Activity and
+logs keep who/when/kind/size only. `--fake-wa` without a Google app uses `FakeGoogleDrive` (`/api/dev/fake-google-drive*`).
+
 **Connector list** (design `docs/features/connector-list/design.md`). The gallery comes from a signed list published
 by the public repo `anchorsprint/ezychat-connectors` (one folder per connector: `connector.yaml`, `skill.md`,
 `icon.svg`; its CI validates, builds `list-v1.json`, signs it with Ed25519 and uploads it with the icons to

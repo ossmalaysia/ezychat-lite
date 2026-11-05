@@ -124,7 +124,12 @@ export interface Target {
 
 /** An Enterprise data folder with data: 2 inboxes, users, an AI agent, chats and a shared contact. */
 export function seedTarget(
-  opts: { inboxes?: number; googleAccount?: string; sheetsAccount?: string } = {},
+  opts: {
+    inboxes?: number;
+    googleAccount?: string;
+    sheetsAccount?: string;
+    driveAccount?: string;
+  } = {},
 ): Target {
   const dir = tempDir('lite-merge-target-');
   const secret = SecretBox.loadOrCreate(join(dir, 'secret.key'));
@@ -164,6 +169,13 @@ export function seedTarget(
       ),
     );
   }
+  if (opts.driveAccount) {
+    db.prepare("INSERT INTO settings (key, value) VALUES ('google_drive_tokens', ?)").run(
+      secret.encrypt(
+        JSON.stringify({ account: opts.driveAccount, refreshToken: 'r', accessToken: 'a' }),
+      ),
+    );
+  }
   db.close();
   return { dir, bossId, amyId };
 }
@@ -179,7 +191,12 @@ export const LITE_GROUP = '1203@g.us';
 
 /** A Lite data folder: overlapping username, the same contact, the same shortcut, an AI agent. */
 export function seedLite(
-  opts: { ownJid?: string; googleAccount?: string; sheetsAccount?: string } = {},
+  opts: {
+    ownJid?: string;
+    googleAccount?: string;
+    sheetsAccount?: string;
+    driveAccount?: string;
+  } = {},
 ): Lite {
   const dir = tempDir('lite-merge-lite-');
   const secret = SecretBox.loadOrCreate(join(dir, 'secret.key'));
@@ -320,6 +337,13 @@ export function seedLite(
       ),
     );
   }
+  if (opts.driveAccount) {
+    db.prepare("INSERT INTO settings (key, value) VALUES ('google_drive_tokens', ?)").run(
+      secret.encrypt(
+        JSON.stringify({ account: opts.driveAccount, refreshToken: 'r', accessToken: 'a' }),
+      ),
+    );
+  }
   db.prepare(
     "INSERT INTO calendar_agent_settings (agent_id, settings, updated_at) VALUES (?, '{}', ?)",
   ).run(agent, NOW);
@@ -339,6 +363,19 @@ export function seedLite(
   ).run(agent, LITE_CHAT, NOW);
   db.prepare(
     "INSERT INTO sheets_activity (kind, agent_id, chat_jid, at) VALUES ('lead_added', ?, ?, ?)",
+  ).run(agent, LITE_CHAT, NOW);
+  // Google Drive per-agent settings, a sub-folder, a saved file and an activity line
+  db.prepare(
+    "INSERT INTO drive_agent_settings (agent_id, settings, updated_at) VALUES (?, '{}', ?)",
+  ).run(agent, NOW);
+  db.prepare(
+    "INSERT INTO drive_folders (parent_id, name, folder_id, created_at) VALUES ('folder1', 'Jay', 'sub1', ?)",
+  ).run(NOW);
+  db.prepare(
+    "INSERT INTO drive_saved_files (agent_id, chat_jid, message_id, folder_id, file_id, created_at) VALUES (?, ?, 'M1', 'folder1', 'file1', ?)",
+  ).run(agent, LITE_CHAT, NOW);
+  db.prepare(
+    "INSERT INTO drive_activity (kind, agent_id, chat_jid, at) VALUES ('saved', ?, ?, ?)",
   ).run(agent, LITE_CHAT, NOW);
   // Safety finding on M4, with a download record
   const item = Number(

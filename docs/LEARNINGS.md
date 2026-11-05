@@ -1155,6 +1155,13 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
   `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`.
+- A connector tool that acts on a chat's file lets the model choose a **label** of files the server listed (this chat's
+  inbound files, its senders), never a message id, link or path from the model; the server maps the label back and
+  re-checks Safety, size and duplicates (`connectors/google-drive/tools.ts`).
+- A new `AiToolUsedPayload` field must also be copied in `chats/service.ts#addAiToolUsed`, which builds the stored
+  payload field by field; otherwise the chat line silently loses it.
+- Test media with a spoofed name (right-to-left override, `…\u202egpj.exe`) is rated High by WhatsApp Safety at ingest:
+  use plain file names in fixtures unless the test is about Safety (then assert `levelOf`, no mock).
 - A Lite → Enterprise import test that fakes "an older Lite" by dropping the newest tables must be extended with every
   new migration's tables, or it fails with "table already exists" (`lite-import-merge.test.ts`).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model

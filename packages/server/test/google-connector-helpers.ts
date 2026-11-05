@@ -21,6 +21,12 @@ export const SHEETS_PATHS: GooglePaths = {
   callback: '/api/connectors/google-sheets/callback',
 };
 
+export const DRIVE_PATHS: GooglePaths = {
+  connect: '/api/connectors/google-drive/connect',
+  consent: '/api/dev/fake-google-drive/consent',
+  callback: '/api/connectors/google-drive/callback',
+};
+
 /** Runs the whole sign-in on the fake: connect, the consent page's Allow or Cancel, Google's redirect. */
 export async function connectThroughFake(
   t: TestApp,

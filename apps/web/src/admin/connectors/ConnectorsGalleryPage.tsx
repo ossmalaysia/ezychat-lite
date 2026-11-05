@@ -14,7 +14,7 @@ import type { ConnectorGallery, ConnectorListStatus } from '@ezychat/shared';
 import { connectorText } from '@ezychat/shared';
 import { errorMessage } from '../../api/client';
 import { useConnectorGallery, useRefreshConnectorList } from '../../api/connector-list';
-import { useGoogleCalendar, useGoogleSheets } from '../../api/connectors';
+import { useGoogleCalendar, useGoogleDrive, useGoogleSheets } from '../../api/connectors';
 import { Banner, EmptyState, PageHeader } from '@/components/app';
 import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,7 @@ export function ConnectorsGalleryPage() {
   const { t, i18n } = useTranslation('admin');
   const google = useGoogleCalendar();
   const sheets = useGoogleSheets();
+  const drive = useGoogleDrive();
   const list = useConnectorGallery();
   const refresh = useRefreshConnectorList();
   const links = useConnectorLinks();
@@ -93,7 +94,11 @@ export function ConnectorsGalleryPage() {
       icon: c,
       status: connectorStatus(
         c,
-        c.id === 'google-sheets' ? sheets.data?.state : google.data?.state,
+        c.id === 'google-sheets'
+          ? sheets.data?.state
+          : c.id === 'google-drive'
+            ? drive.data?.state
+            : google.data?.state,
         links[c.id],
       ),
       beta:
@@ -103,9 +108,9 @@ export function ConnectorsGalleryPage() {
         ) ?? false,
     };
   };
-  const all: GalleryRow[] = [app('google-calendar'), app('google-sheets')];
+  const all: GalleryRow[] = [app('google-calendar'), app('google-sheets'), app('google-drive')];
   for (const g of list.data?.connectors ?? []) {
-    // Built-in connectors are the app's own (Google Calendar and Google Sheets show once, with
+    // Built-in connectors are the app's own (Google Calendar, Sheets and Drive show once, with
     // their live state and pages); a built-in this app does not know is skipped.
     if (g.entry.kind === 'builtin') continue;
     if (g.delisted && !isLinked(g.connection)) continue;

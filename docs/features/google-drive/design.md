@@ -1,6 +1,6 @@
 # Google Drive connector
 
-Status: **proposal: mock revised 2026-11-05 (use-case agnostic), owner confirmation pending** (see "Mock and confirmation").
+Status: **confirmed 2026-11-05, built** (see "Mock and confirmation" and "As built").
 Created 2026-11-05 (creationOrder 33). Owner request (Jazz, 2026-11-05): a Google Drive connector so an AI agent can
 (1) save files to Google Drive and (2) read files from Google Drive, both through one connector. Built like Google
 Sheets (`packages/server/src/connectors/google-sheets/`, design in git history `docs/features/google-sheets/design.md`
@@ -61,10 +61,11 @@ already there (Sheets added it), keep the Picker API enabled; no new secret.
 
 ## Rules (fail closed)
 
-**Save files** (`save_file_to_drive {messageId, subfolder?}`):
+**Save files** (`save_file_to_drive {file, subfolder?}`):
 
-1. The tool takes the **id of a message in this chat** from the conversation the model sees (never a URL, path,
-   bytes or a file name from the model). The server loads that stored message and checks: same chat, inbound
+1. The tool lists this chat's newest inbound files of the last 24 hours (at most 10; in a group only those of the
+   turn's senders) as labels `file1`…`file10` and the model picks a **label** (never a URL, path, bytes, message id
+   or file name from the model). The server maps the label to the stored message and checks: same chat, inbound
    (`from_me = 0`), not deleted, has media, media downloaded (history media `pending` is downloaded on demand first,
    like `GET /api/media/:id`), any media type (photo, document, video, voice note), size ≤ **25 MB**.
 2. **WhatsApp Safety**: never a message with a High safety item or quarantined media (`safety_locked`), never a
@@ -101,7 +102,7 @@ already there (Sheets added it), keep the Picker API enabled; no new secret.
 
 **Logs, audit, Activity**: logs carry event, tool, ok, ms, counts, sizes and kinds only; never file names, contents,
 folder names or customer names. Audit `google_drive.connect` / `.disconnect` / `.agent_settings` {agentId, fields}.
-Activity rows store kind, agent id, chat id, time and reason (`saved`, `read`, `skipped` {safety|size|type|already},
+Activity rows store kind, agent id, chat id, time and reason (`saved`, `read`, `skipped` {safety|size|unavailable},
 `failed`); the page joins the chat's name at read time like Sheets. Chat line: `ai_tool_used` with `drive`
 {action: saved|read}.
 
@@ -171,4 +172,18 @@ the `latestConfirmed` baseline), README at the top of `mock/README.md`, intentio
 → `proposalChanges`, screenshots `mock/screenshots/` (`drive-shots.mjs`, 16 states × desktop/mobile × light/dark, no
 page errors, no horizontal overflow). Retention: `in-app-feedback` (creationOrder 28) removed, last at `32a58d6`.
 
-Confirmation: **pending** (sent to the main session 2026-11-05).
+Confirmation: owner (Jazz) 2026-11-05, first on the agnostic rule ("so the connetor should be use case agnostic, Agent
+will have instruction in agent setting, not on connector"; the mock was revised, rule recorded in
+`docs/connector-design.md`), then relayed verbatim by the main session: "what confirm drive, google drive need allow
+read and write" = confirmed with both capabilities (Save files = write, Read files = read) and decisions 1–7 as
+proposed. Confirmed mock revision: `442b6317254a1a86b7df66bb86335f2d0047caec`.
+
+## As built (differences from the text above)
+
+- Save input is a file **label** (see Rules), not a message id: the model never sees message ids.
+- Skip reasons are `safety`, `size` and `unavailable` (download failed); "already saved" is a success, not a skip.
+- Drive's private app property `ezychatKey` (hash of message + folder) lets a retry after a crash find the file it
+  already uploaded, besides the `drive_saved_files` record.
+- The Settings file list shows the kind only (no text size: the server does not download files to list them).
+- Not built: the connector list repo entry (`anchorsprint/ezychat-connectors`) — the app's `builtin-list.json` carries
+  the entry until the repo publishes one.
