@@ -678,7 +678,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   A manual installer run over a service install leaves the service Stopped (it fails to restart while files are
   replaced): `Start-Service` as admin afterwards, then check `/api/health`. A VirusTotal checksum lookup of a new
   release answers "Item not found" (no evidence either way); only an upload (public and permanent: owner's yes first)
-  gives a scan.
+  gives a scan. Browser automation cannot upload it (10 MB limit); its URL scan rates the address only, not the file.
+  A clean result does not predict the home products: Enterprise 0.1.26 scored 0/53 with "McAfee Scanner" and Trellix
+  undetected while McAfee at home blocked it, and `dl.ezychat.ai` and GitHub both scored 0/93. So hosting is not
+  proven as the cause, and the fix stays the vendor's dispute form plus a safe updater.
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
