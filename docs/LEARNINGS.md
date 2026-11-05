@@ -12,6 +12,10 @@ into AGENTS.md.
 
 - Before you call a PR a break of an owner rule, read that rule in `origin/main`'s `AGENTS.md`: memory notes and older
   checkouts lag rule changes ("No tracking in Lite" became "Anonymous usage stats only" with #285).
+- A new connector modelled on an existing one fails SonarCloud's 3 % new-code duplication gate (tests count too) when
+  its tool wrapper, account-card texts, picker waiting card or route-test setup are copied: put each in one shared helper
+  (`connectors/tool-run.ts`, `googleAccountTexts`, `PickerWaiting`, `connectorTestApp`) and move the older connector onto
+  it in the same PR. Read the duplicated blocks with `api/duplications/show?key=<project>:<path>&pullRequest=<n>`.
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
