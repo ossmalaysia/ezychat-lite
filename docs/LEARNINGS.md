@@ -346,7 +346,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   expected 409 of AI assistant access being off, not a fault.
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
-  (`compare.commits`), not just any commit in a log.
+  (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
+  stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
