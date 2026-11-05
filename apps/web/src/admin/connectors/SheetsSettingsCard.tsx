@@ -28,10 +28,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils';
 import { formatRelative } from '../../lib/format';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
-import { ToolSwitchRow } from './connector-ui';
+import { PickerWaiting, ToolSwitchRow } from './connector-ui';
 import { CreateSheetDialog } from './CreateSheetDialog';
 import { diffTabs, isAutoColumn, normalizeTabs, tabsToSave, type TabMarks } from './sheets-tabs';
-import { PickerWaiting } from './connector-ui';
 
 interface Picking {
   requestId: string;
