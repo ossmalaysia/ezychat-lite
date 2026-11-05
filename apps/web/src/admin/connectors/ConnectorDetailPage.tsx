@@ -204,16 +204,16 @@ function useTabParam(tabs: readonly Tab[]) {
 function GoogleConnectorTabs({
   c,
   entry,
-  account,
+  AccountCard,
   privacy,
-  settings,
+  Settings,
   activity,
 }: Readonly<{
   c: CatalogConnector;
   entry: ConnectorEntry | null;
-  account: (openSettings: () => void) => React.ReactNode;
+  AccountCard: React.ComponentType<{ onOpenSettings?: () => void }>;
   privacy: React.ReactNode;
-  settings: (openOverview: () => void) => React.ReactNode;
+  Settings: React.ComponentType<{ onConnect: () => void }>;
   activity: React.ReactNode;
 }>) {
   const { t } = useTranslation('admin');
@@ -233,11 +233,11 @@ function GoogleConnectorTabs({
       <TabsContent value="overview" className="flex flex-col gap-4">
         <About c={c} />
         <ConnectorNotice entry={entry} />
-        {account(() => setTab(settingsTab))}
+        <AccountCard onOpenSettings={() => setTab(settingsTab)} />
         {privacy}
       </TabsContent>
       <TabsContent value="settings" className="flex flex-col gap-4">
-        {settings(() => setTab(overview))}
+        <Settings onConnect={() => setTab(overview)} />
       </TabsContent>
       <TabsContent value="activity" className="flex flex-col gap-4">
         {activity}
@@ -255,9 +255,9 @@ function GoogleSheetsTabs({
     <GoogleConnectorTabs
       c={c}
       entry={entry}
-      account={(open) => <GoogleSheetsAccountCard onOpenSettings={open} />}
+      AccountCard={GoogleSheetsAccountCard}
       privacy={<Privacy c={c} />}
-      settings={(open) => <SheetsAgentSettings onConnect={open} />}
+      Settings={SheetsAgentSettings}
       activity={<SheetsActivityList />}
     />
   );
@@ -273,7 +273,7 @@ function GoogleDriveTabs({
     <GoogleConnectorTabs
       c={c}
       entry={entry}
-      account={(open) => <GoogleDriveAccountCard onOpenSettings={open} />}
+      AccountCard={GoogleDriveAccountCard}
       privacy={
         <Card className="gap-3">
           <CardHeader>
@@ -286,7 +286,7 @@ function GoogleDriveTabs({
           </CardContent>
         </Card>
       }
-      settings={(open) => <DriveAgentSettings onConnect={open} />}
+      Settings={DriveAgentSettings}
       activity={<DriveActivityList />}
     />
   );

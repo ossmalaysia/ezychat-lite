@@ -61,6 +61,34 @@ const fingerprint = (s: DriveAgentSettings) =>
     files: s.files.map((f) => f.id),
   });
 
+/** What the picker gave: a folder (another one clears the picked files) or files to add. */
+function applyPicked(
+  value: DriveAgentSettings,
+  kind: Picking['kind'],
+  folder: DriveAgentSettings['folder'],
+  files: DriveFile[],
+): DriveAgentSettings {
+  if (kind === 'folder' && folder) {
+    const changed = value.folder?.id !== folder.id;
+    return { ...value, folder, ...(changed ? { files: [] } : {}) };
+  }
+  const known = new Set(value.files.map((f) => f.id));
+  const added = files.filter((f) => !known.has(f.id));
+  return { ...value, files: [...value.files, ...added].slice(0, DRIVE_MAX_FILES) };
+}
+
+/** A finished picker: `ok` with something picked, else why nothing was. */
+function pickOutcome(
+  kind: Picking['kind'],
+  status: 'done' | 'cancelled' | 'failed' | 'expired',
+  folder: DriveAgentSettings['folder'],
+  files: DriveFile[],
+): 'ok' | 'cancelled' | 'failed' | 'expired' {
+  if (status !== 'done') return status;
+  const got = kind === 'folder' ? !!folder : files.length > 0;
+  return got ? 'ok' : 'cancelled';
+}
+
 /**
  * Connectors → Google Drive → Settings, for one AI agent (design
  * docs/features/google-drive/design.md): the folder (picked in Google's file picker), Save files,
@@ -94,21 +122,12 @@ export function DriveSettingsCard({
   };
   const dirty = !!value && !!saved && fingerprint(value) !== fingerprint(saved);
 
-  /** What the picker gave: a folder (another one clears the picked files) or files to add. */
   const apply = (
     kind: Picking['kind'],
     folder: DriveAgentSettings['folder'],
     files: DriveFile[],
   ) => {
-    if (!value) return;
-    if (kind === 'folder' && folder) {
-      const changed = value.folder?.id !== folder.id;
-      set({ folder, ...(changed ? { files: [] } : {}) });
-      return;
-    }
-    const known = new Set(value.files.map((f) => f.id));
-    const added = files.filter((f) => !known.has(f.id));
-    set({ files: [...value.files, ...added].slice(0, DRIVE_MAX_FILES) });
+    if (value) setDraft(applyPicked(value, kind, folder, files));
   };
 
   const pickStatus = progress.data?.status;
@@ -117,9 +136,9 @@ export function DriveSettingsCard({
   useEffect(() => {
     if (!picking || !pickStatus || pickStatus === 'pending') return;
     setPicking(null);
-    const got = picking.kind === 'folder' ? !!pickedFolder : (pickedFiles?.length ?? 0) > 0;
-    if (pickStatus === 'done' && got) apply(picking.kind, pickedFolder, pickedFiles ?? []);
-    else setPickError(pickStatus === 'done' ? 'cancelled' : pickStatus);
+    const outcome = pickOutcome(picking.kind, pickStatus, pickedFolder, pickedFiles ?? []);
+    if (outcome === 'ok') apply(picking.kind, pickedFolder, pickedFiles ?? []);
+    else setPickError(outcome);
     // apply reads the current draft; the poll result is what changes here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picking, pickStatus, pickedFolder, pickedFiles]);
