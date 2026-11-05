@@ -933,6 +933,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
   CSP stays `script-src 'self'`. Serve it on its own host-only page with a CSP limited to that vendor, guarded by a
   one-time token, and hand it an access token once (`connectors/google-sheets/picker-page.ts`).
+- Google `drive.file` grants only what the app created and each item picked in the picker: a picked folder lets the
+  app create inside it, but its existing files stay 404 until each is picked. Design "read files" as files the admin
+  picks; reading a whole folder needs a restricted scope (security assessment), so never assume it.
 - Stop a Playwright run with its servers: killing only `playwright` leaves the e2e web servers on 7497/7498 holding the
   ports, and the next `npm run e2e` hangs at "WebServer" without a test result. Check `ps` for old `cli.ts --port` processes.
 - A destructive elevated step (remove a service, move data) can still be checked on the owner's live PC: keep
