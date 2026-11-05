@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
-import { join, posix } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { exec as sudoExec } from '@vscode/sudo-prompt';
 import { servicePortFile, serviceRunDir } from '../paths.js';
 import { activeProduct, type Product } from '../product.js';
@@ -135,6 +135,31 @@ export function serviceCommand(
         macRuntimeBundle(d.appBundle, d.product ?? activeProduct()),
       )
     : cmd;
+}
+
+/**
+ * Opens the logs folder. The macOS service keeps its logs in a root-only folder that Finder cannot open,
+ * so its copyLogs() copy (made after the admin prompt) is opened instead.
+ */
+export async function openLogsFolder(o: {
+  serviceMode: boolean;
+  dataDir: string;
+  machineDataDir: string;
+  service: Pick<ServiceManager, 'copyLogs'>;
+  openPath: (path: string) => Promise<unknown>;
+  exists: (path: string) => boolean;
+  log: (s: string) => void;
+}): Promise<void> {
+  if (o.serviceMode && o.service.copyLogs) {
+    try {
+      await o.openPath(await o.service.copyLogs());
+    } catch (err) {
+      o.log(`could not copy the service logs: ${String(err)}`);
+    }
+    return;
+  }
+  const dir = join(o.serviceMode ? o.machineDataDir : o.dataDir, 'logs');
+  await o.openPath(o.exists(dir) ? dir : dirname(dir));
 }
 
 /** The administrator prompt was refused (or never shown): the elevated script did not run at all. */

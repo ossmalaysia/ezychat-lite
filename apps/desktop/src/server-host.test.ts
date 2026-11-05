@@ -5,6 +5,7 @@ import { createServer, type AddressInfo } from 'node:net';
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import {
+  applyLaunchdExitCodes,
   applyRuntimeVersion,
   isShutdownMessage,
   launchdExitCode,
@@ -271,5 +272,49 @@ describe('launchdExitCode', () => {
   it('keeps crashes and clean exits as they are', () => {
     for (const code of [0, 1, 5, 137]) expect(launchdExitCode(code)).toBe(code);
     expect(launchdExitCode(undefined)).toBeUndefined();
+  });
+});
+
+describe('applyLaunchdExitCodes', () => {
+  const fake = () => {
+    const seen: (number | undefined)[] = [];
+    const proc = {
+      exit: ((code?: number) => seen.push(code)) as unknown as (code?: number) => never,
+    };
+    return { proc, seen };
+  };
+  it('under launchd turns a locked data folder into a clean exit', () => {
+    const { proc, seen } = fake();
+    applyLaunchdExitCodes(proc, { WATI_SERVICE_MANAGER: 'launchd' });
+    proc.exit(3);
+    proc.exit(1);
+    expect(seen).toEqual([0, 1]);
+  });
+  it('leaves the exit codes alone elsewhere', () => {
+    const { proc, seen } = fake();
+    applyLaunchdExitCodes(proc, {});
+    proc.exit(3);
+    expect(seen).toEqual([3]);
+  });
+});
+
+describe('startArgs under launchd', () => {
+  it('applies the launchd exit codes before the server starts', async () => {
+    const seen: (number | undefined)[] = [];
+    const proc = {
+      exit: ((code?: number) => seen.push(code)) as unknown as (code?: number) => never,
+    };
+    await startArgs(
+      ['--data', '/nowhere', '--port', '7420'],
+      () => undefined,
+      async (p) => p,
+      () => {},
+      proc,
+      {
+        WATI_SERVICE_MANAGER: 'launchd',
+      },
+    );
+    proc.exit(3);
+    expect(seen).toEqual([0]);
   });
 });
