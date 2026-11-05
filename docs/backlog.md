@@ -5,14 +5,11 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
-- Windows updater rollback empties the install folder when the new installer is blocked (seen 2026-11-05, Enterprise
-  0.1.25 → 0.1.26 with McAfee, twice): `apps/desktop/src/updater/install.ts` sets `$replacementStarted` before
-  `Start-Process` of the installer, so a blocked start (nothing replaced) still runs the rollback; the rollback removes
-  `$installDir` with `Remove-Item -Recurse`, and a failure on the folder itself skips the copy of `old-app`. Set the
-  flag only once the installer started (a blocked start only restarts the old service), remove only the folder's
-  contents, always attempt the copy-back, and test a blocked installer and a folder held open. Then: a clear "your
-  antivirus blocked the update" message without offering the same version again, and an owner decision on a delay
-  before offering new releases (frequent releases are always new, low-reputation installers).
+- Windows updater after an antivirus block (seen 2026-11-05, Enterprise 0.1.25 → 0.1.26 with McAfee, twice): the
+  rollback that emptied Program Files is fixed (`WINDOWS_START_INSTALLER`, `WINDOWS_RESTORE_OLD_APP` in
+  `apps/desktop/src/updater/install.ts`). Still to do: show the blocked-installer result in the app's own language
+  and do not offer the same version again for some days, and an owner decision on a delay before offering new
+  releases (frequent releases are always new, low-reputation installers).
 - `e2e/devbuild-multi-inbox-check.mjs` fails from its second step on a fresh `--fake-wa --mode dev --max-inboxes 3`
   server (one inbox, adding Catering answers 409), also with `main`'s copy of the script (found 2026-10-30 in a cloud
   session while verifying PR ossmalaysia/ezychat-lite#229). Find whether the CLI start line or the limit changed.
