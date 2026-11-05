@@ -133,6 +133,43 @@ export class SheetsClient extends GoogleClient {
   }
 
   /**
+   * Creates a spreadsheet in the signed-in account with these grid tabs (`drive.file` covers files
+   * the app creates) and returns its id. Nothing is written into the cells here.
+   */
+  async create(
+    token: string,
+    name: string,
+    tabs: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const { json } = await this.api('/spreadsheets', token, {
+      method: 'POST',
+      signal,
+      body: JSON.stringify({
+        properties: { title: name },
+        sheets: tabs.map((title) => ({ properties: { title } })),
+      }),
+    });
+    const id = str(json.spreadsheetId);
+    if (!id) throw new GoogleError('rejected');
+    return id;
+  }
+
+  /** Writes cells as typed (USER_ENTERED): `data` is A1 ranges with their rows. */
+  async writeCells(
+    token: string,
+    id: string,
+    data: ReadonlyArray<{ range: string; values: string[][] }>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    await this.api(`/spreadsheets/${encodeURIComponent(id)}/values:batchUpdate`, token, {
+      method: 'POST',
+      signal,
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+    });
+  }
+
+  /**
    * Adds `rows` below the last row of the tab's table. RAW (default): never parsed as formulas.
    * USER_ENTERED: as if typed (formulas, numbers, dates); the caller escapes text with a `'`.
    */

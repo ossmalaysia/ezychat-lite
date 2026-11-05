@@ -414,6 +414,93 @@ describe('Google Sheets: Settings', () => {
     );
   });
 
+  it('creates a new blank sheet with its tabs, columns and access, then uses it', async () => {
+    const w = connected();
+    const fetchMock = stubServer(w);
+    page(`${GS}?tab=settings`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('sheets-create-open'));
+    const dialog = await screen.findByTestId('sheets-create');
+    expect(
+      within(dialog).getByText('EzyChat creates it in your Google account and uses it for Aina.'),
+    ).toBeTruthy();
+    // Nothing filled in: it says what is missing and sends nothing.
+    await user.click(within(dialog).getByRole('button', { name: 'Create sheet' }));
+    expect(
+      within(dialog).getByText(
+        'Give the sheet a name, and each tab its own name and at least one column.',
+      ),
+    ).toBeTruthy();
+    await user.type(within(dialog).getByLabelText('Sheet name'), 'Orders 2026');
+    const [first] = within(dialog).getAllByTestId('sheets-create-tab');
+    await user.type(within(first!).getByLabelText('Tab name'), 'Orders');
+    await user.type(within(first!).getByLabelText('Column names'), 'Date, Name, , Item, Qty');
+    // A second tab, then removed again; a third one on Read.
+    await user.click(within(dialog).getByRole('button', { name: 'Add a tab' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Tab 2' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add a tab' }));
+    const second = within(dialog).getAllByTestId('sheets-create-tab')[1]!;
+    await user.type(within(second).getByLabelText('Tab name'), 'Menu');
+    await user.type(within(second).getByLabelText('Column names'), 'Item, Price');
+    const access = within(second).getByRole('radiogroup', {
+      name: 'What the agent may do with Menu',
+    });
+    await user.click(within(access).getByRole('radio', { name: 'Read' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create sheet' }));
+    await waitFor(() =>
+      expect(writes(fetchMock)).toContain('POST /api/connectors/google-sheets/agents/1/create'),
+    );
+    expect(w.sheetCreated).toEqual([
+      {
+        name: 'Orders 2026',
+        tabs: [
+          { title: 'Orders', columns: ['Date', 'Name', 'Item', 'Qty'], access: 'add' },
+          { title: 'Menu', columns: ['Item', 'Price'], access: 'read' },
+        ],
+      },
+    ]);
+    expect(toast.success).toHaveBeenCalledWith('Sheet created in your Google account');
+    await waitFor(() => expect(screen.queryByTestId('sheets-create')).toBeNull());
+    expect(
+      await within(screen.getByTestId('sheets-chosen')).findByText('Orders 2026'),
+    ).toBeTruthy();
+    const menu = await screen.findByRole('radiogroup', { name: 'Menu' });
+    expect(within(menu).getByRole('radio', { name: 'Read' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+  });
+
+  it('creates a sheet from the Claims template layout, and shows a refusal', async () => {
+    const w = connected({
+      fail: { 'POST /connectors/google-sheets/agents/1/create': 400 },
+    });
+    stubServer(w);
+    page(`${GS}?tab=settings`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('sheets-create-open'));
+    const dialog = await screen.findByTestId('sheets-create');
+    await user.click(within(dialog).getByTestId('sheets-create-start'));
+    await user.click(await screen.findByRole('option', { name: 'Claims agent layout' }));
+    expect((within(dialog).getByLabelText('Sheet name') as HTMLInputElement).value).toBe('Claims');
+    const tab = within(dialog).getByTestId('sheets-create-tab');
+    expect((within(tab).getByLabelText('Column names') as HTMLInputElement).value).toBe(
+      'Date, Name, WhatsApp, Group, Policy no, Amount, What happened, Source',
+    );
+    expect(
+      within(within(tab).getByRole('radiogroup'))
+        .getByRole('radio', { name: 'Add rows' })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    await user.click(within(dialog).getByRole('button', { name: 'Create sheet' }));
+    expect(await within(dialog).findByText('Boom')).toBeTruthy();
+    // Back to blank empties the boxes; Cancel closes without creating.
+    await user.click(within(dialog).getByTestId('sheets-create-start'));
+    await user.click(await screen.findByRole('option', { name: 'Blank sheet' }));
+    expect((within(dialog).getByLabelText('Sheet name') as HTMLInputElement).value).toBe('');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByTestId('sheets-create')).toBeNull());
+  });
+
   it('keeps the saved tabs when Google cannot be read', async () => {
     const saved = {
       ...DEFAULT_SHEETS_SETTINGS,

@@ -111,6 +111,49 @@ export const DEFAULT_SHEETS_SETTINGS: SheetsAgentSettings = {
   tabs: [],
 };
 
+/** A cell in A1 notation (columns A–Z, rows 2–1000; row 1 holds the column names): a layout formula. */
+export const SHEET_CELL = /^[A-Z](?:[2-9]|[1-9]\d{1,2}|1000)$/;
+export const SHEET_LAYOUT_TABS = 20;
+export const SHEET_LAYOUT_COLUMNS = 26;
+export const SHEET_LAYOUT_FORMULAS = 50;
+
+/**
+ * A new spreadsheet to create (design docs/features/group-agents/design.md, Part E): its name and
+ * tabs, each with its column names (the first row), the agent's access and optional formulas. Sent
+ * by `POST /api/connectors/google-sheets/agents/:agentId/create` (admins) and carried by an AI
+ * agent template (`AgentTemplateEntry.sheet`). Formulas pass the same outside-reach check as the
+ * AI's.
+ */
+export const SheetLayoutTab = z.object({
+  title: z.string().trim().min(1).max(SHEET_TAB_CHARACTERS),
+  columns: z
+    .array(z.string().trim().min(1).max(100))
+    .min(1)
+    .max(SHEET_LAYOUT_COLUMNS),
+  access: SheetTabAccess.default('off'),
+  formulas: z
+    .array(
+      z.object({
+        cell: z.string().regex(SHEET_CELL),
+        formula: z.string().trim().startsWith('=').max(1000),
+      }),
+    )
+    .max(SHEET_LAYOUT_FORMULAS)
+    .optional(),
+});
+export type SheetLayoutTab = z.infer<typeof SheetLayoutTab>;
+export const SheetLayout = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    tabs: z.array(SheetLayoutTab).min(1).max(SHEET_LAYOUT_TABS),
+  })
+  .refine((l) => new Set(l.tabs.map((t) => t.title)).size === l.tabs.length, {
+    path: ['tabs'],
+    message: 'a tab is listed twice',
+  });
+export type SheetLayout = z.infer<typeof SheetLayout>;
+export type SheetLayoutInput = z.input<typeof SheetLayout>;
+
 /**
  * Columns EzyChat fills in itself when a tab has them (matched ignoring case and spacing): the
  * date, the person's name and WhatsApp number, the group's name, the source (file name or message)

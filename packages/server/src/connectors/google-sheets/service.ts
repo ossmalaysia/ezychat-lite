@@ -9,6 +9,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
   SHEETS_LEAD_COLUMNS,
+  SheetLayout,
   SheetsAgentSettings,
   googleSheetUrl,
   spreadsheetIdFromLink,
@@ -59,6 +60,7 @@ import {
   SHEETS_REQUIRED_SCOPES,
   SHEETS_SCOPES,
   SheetsClient,
+  tabRange,
   type SheetValueInput,
   type SpreadsheetMeta,
 } from './sheets.js';
@@ -737,6 +739,80 @@ export function createGoogleSheetsService(
         'AI added a sheet row',
       );
       return { ok: true, already: false, tab };
+    },
+
+    /**
+     * Creates a spreadsheet for an agent (admins; design group-agents Part E): the tabs with their
+     * column names in the first row and the layout's formulas (USER_ENTERED, an admin's action),
+     * then saves it as the agent's spreadsheet with the layout's tab access. A formula that reaches
+     * outside the sheet refuses the whole layout before anything is created (400
+     * `formula_blocked`). Audited with the spreadsheet id and counts, never names or cells.
+     */
+    async createSpreadsheet(
+      agentId: number,
+      input: SheetLayout,
+      actor: { userId: number; ip: string | null },
+    ): Promise<SheetsAgentSettings> {
+      if (!agentById(ctx.db, agentId)) throw errors.notFound('Agent');
+      const layout = SheetLayout.parse(input);
+      if (!linked()) throw new HttpError(409, 'not_connected', 'Connect a Google account first');
+      const formulas = layout.tabs.flatMap((tab) =>
+        (tab.formulas ?? []).map((f) => ({ tab: tab.title, ...f })),
+      );
+      if (formulas.some((f) => formulaReachesOut(f.formula)))
+        throw new HttpError(
+          400,
+          'formula_blocked',
+          'A formula reaches outside the sheet (a web address or a function such as IMPORTRANGE)',
+        );
+      const data = [
+        ...layout.tabs.map((tab) => ({
+          range: tabRange(tab.title, 'A1'),
+          values: [tab.columns.map(asText)],
+        })),
+        ...formulas.map((f) => ({ range: tabRange(f.tab, f.cell), values: [[f.formula]] })),
+      ];
+      let id: string;
+      try {
+        id = await account.withToken(async (token) => {
+          const created = await client!.create(
+            token,
+            layout.name,
+            layout.tabs.map((tab) => tab.title),
+          );
+          await client!.writeCells(token, created, data);
+          return created;
+        });
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw googleHttpError(error);
+      }
+      audit(ctx.db, {
+        userId: actor.userId,
+        action: 'google_sheets.spreadsheet_created',
+        ip: actor.ip,
+        meta: { agentId, spreadsheetId: id, tabs: layout.tabs.length, formulas: formulas.length },
+      });
+      log.info(
+        {
+          event: 'google_sheets_created',
+          agentId,
+          tabs: layout.tabs.length,
+          formulas: formulas.length,
+        },
+        'Spreadsheet created',
+      );
+      return service.putSettings(
+        agentId,
+        {
+          spreadsheetId: id,
+          spreadsheetName: layout.name,
+          tabs: layout.tabs
+            .filter((tab) => tab.access !== 'off')
+            .map((tab) => ({ title: tab.title, access: tab.access })),
+        },
+        actor,
+      );
     },
 
     /**

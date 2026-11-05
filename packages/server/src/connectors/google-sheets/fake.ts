@@ -82,6 +82,9 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     return true;
   }
 
+  /** Spreadsheets created so far (their ids count up). */
+  private created = 0;
+
   /** The `valueInputOption` of each append, in order (RAW or USER_ENTERED; nothing is evaluated). */
   readonly valueInputs: string[] = [];
 
@@ -101,6 +104,51 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     const method = (init?.method ?? 'GET').toUpperCase();
     const denied = this.authorize(url.pathname, init);
     if (denied) return denied;
+    if (url.pathname === '/v4/spreadsheets' && method === 'POST') {
+      this.calls.push('create');
+      const body = JSON.parse(String(init?.body)) as {
+        properties: { title: string };
+        sheets: Array<{ properties: { title: string } }>;
+      };
+      const id = `fake-created-${String(++this.created).padStart(4, '0')}-0000000000000000`;
+      this.sheets.set(id, {
+        name: body.properties.title,
+        tabs: new Map(body.sheets.map((sheet) => [sheet.properties.title, [] as string[][]])),
+      });
+      // drive.file: a file the app created is the app's.
+      this.granted.add(id);
+      return json(200, { spreadsheetId: id });
+    }
+    const update = /^\/v4\/spreadsheets\/([^/]+)\/values:batchUpdate$/.exec(url.pathname);
+    if (update && method === 'POST') {
+      const sheet = this.granted.has(decodeURIComponent(update[1]!))
+        ? this.sheets.get(decodeURIComponent(update[1]!))
+        : undefined;
+      if (!sheet) return json(404, { error: { code: 404 } });
+      this.calls.push('batchUpdate');
+      const body = JSON.parse(String(init?.body)) as {
+        valueInputOption: string;
+        data: Array<{ range: string; values: string[][] }>;
+      };
+      this.valueInputs.push(body.valueInputOption);
+      // Stored as sent: the fake evaluates nothing.
+      for (const { range, values } of body.data) {
+        const m = /^'((?:[^']|'')*)'!([A-Z])(\d+)$/.exec(range);
+        const tab = m ? sheet.tabs.get(m[1]!.replace(/''/g, "'")) : undefined;
+        if (!m || !tab) return json(400, { error: { code: 400, message: 'Unable to parse range' } });
+        const col0 = m[2]!.charCodeAt(0) - 65;
+        values.forEach((row, r) => {
+          const at = Number(m[3]) - 1 + r;
+          while (tab.length <= at) tab.push([]);
+          row.forEach((cell, c) => {
+            const line = tab[at]!;
+            while (line.length < col0 + c) line.push('');
+            line[col0 + c] = String(cell);
+          });
+        });
+      }
+      return json(200, { totalUpdatedCells: body.data.length });
+    }
     const batch = /^\/v4\/spreadsheets\/([^/]+)\/values:batchGet$/.exec(url.pathname);
     if (batch && method === 'GET') {
       const sheet = this.granted.has(decodeURIComponent(batch[1]!))

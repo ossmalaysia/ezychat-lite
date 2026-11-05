@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { formatRelative } from '../../lib/format';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
 import { ToolSwitchRow } from './connector-ui';
+import { CreateSheetDialog } from './CreateSheetDialog';
 import { diffTabs, isAutoColumn, normalizeTabs, tabsToSave, type TabMarks } from './sheets-tabs';
 
 interface Picking {
@@ -74,6 +75,7 @@ export function SheetsSettingsCard({
   const [info, setInfo] = useState<SpreadsheetInfo | null>(null);
   /** The tabs before the admin pressed Refresh (marks what changed); null = nothing to compare. */
   const [before, setBefore] = useState<SpreadsheetInfo | null>(null);
+  const [creating, setCreating] = useState(false);
   const headingId = useId();
   const saved = query.data;
   const value = draft ?? saved;
@@ -276,18 +278,28 @@ export function SheetsSettingsCard({
               )}
               {!picking && (
                 <div className="flex flex-col items-start gap-2">
-                  <Button
-                    size="touch"
-                    variant={value.spreadsheetId ? 'outline' : 'default'}
-                    disabled={picker.isPending}
-                    onClick={() => void choose()}
-                    data-testid="sheets-choose"
-                  >
-                    <Pending show={picker.isPending} />
-                    {value.spreadsheetId
-                      ? t('connectors.sheets.chooseAnother')
-                      : t('connectors.sheets.choose')}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="touch"
+                      variant={value.spreadsheetId ? 'outline' : 'default'}
+                      disabled={picker.isPending}
+                      onClick={() => void choose()}
+                      data-testid="sheets-choose"
+                    >
+                      <Pending show={picker.isPending} />
+                      {value.spreadsheetId
+                        ? t('connectors.sheets.chooseAnother')
+                        : t('connectors.sheets.choose')}
+                    </Button>
+                    <Button
+                      size="touch"
+                      variant="outline"
+                      onClick={() => setCreating(true)}
+                      data-testid="sheets-create-open"
+                    >
+                      {t('connectors.sheets.create.open')}
+                    </Button>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {t('connectors.sheets.chooseHint')}
                   </p>
@@ -419,6 +431,18 @@ export function SheetsSettingsCard({
                 ))}
               </ul>
             </div>
+            <CreateSheetDialog
+              agentId={agentId}
+              name={name}
+              open={creating}
+              onOpenChange={setCreating}
+              onCreated={() => {
+                // The new sheet is saved: its tabs are read from Google as on opening.
+                setDraft(undefined);
+                setInfo(null);
+                setBefore(null);
+              }}
+            />
             {save.error && <Banner tone="danger">{errorMessage(save.error)}</Banner>}
             <SaveBar dirty={dirty} inset="card">
               <Button size="touch" disabled={!dirty || save.isPending} onClick={submit}>
