@@ -7,12 +7,15 @@ Branch: `claude/google-drive-connector` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | Mock + design.md (google-drive); drive.file scope, option A; awaiting owner confirmation | 4d07b20 | 2026-11-05 |
 | Dev | done | Server (connectors/google-drive, migration 034, routes, tools, Lite import) + web (GoogleDrive page, settings card, agent row, chat line) | 2dd1876 | 2026-11-05 |
-| Unit tests | todo |  |  |  |
-| E2E | todo |  |  |  |
-| Dev Build | todo |  |  |  |
+| Unit tests | pass | Full suite 422 files / 4995 tests passed; changed-lines coverage 97.8 % (851/870); typecheck + lint clean | cfb145c | 2026-11-05 |
+| E2E | todo | Main session runs npm run e2e (one consolidated round) | cfb145c | 2026-11-05 |
+| Dev Build | todo | Fake Google only here; real Google sign-in and picker untested | cfb145c | 2026-11-05 |
 | Screen review | todo |  |  |  |
 
 ## Log
 
 - 2026-11-05 Design: done — Mock + design.md (google-drive); drive.file scope, option A; awaiting owner confirmation (4d07b20)
 - 2026-11-05 Dev: done — Server (connectors/google-drive, migration 034, routes, tools, Lite import) + web (GoogleDrive page, settings card, agent row, chat line) (2dd1876)
+- 2026-11-05 Unit tests: pass — Full suite 422 files / 4995 tests passed; changed-lines coverage 97.8 % (851/870); typecheck + lint clean (cfb145c)
+- 2026-11-05 E2E: todo — Main session runs npm run e2e (one consolidated round) (cfb145c)
+- 2026-11-05 Dev Build: todo — Fake Google only here; real Google sign-in and picker untested (cfb145c)
