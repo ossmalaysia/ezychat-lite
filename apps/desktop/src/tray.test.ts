@@ -65,6 +65,22 @@ describe('createTray', () => {
     expect(labels(mock.trayMenu)).toContain('Quit');
   });
 
+  it('runs the matching action for every Dock item', () => {
+    const a = actions('Update to 1.2.3…');
+    createTray(icon, a, '1.0.0', 'en', 'darwin');
+    const click = (label: string) => mock.dockMenu?.find((i) => i.label === label)?.click?.();
+    click('Open');
+    click('Update to 1.2.3…');
+    click('Open admin → Cloudflare');
+    click('Reset admin password…');
+    expect(a.open).toHaveBeenCalledOnce();
+    expect(a.checkUpdates).toHaveBeenCalledOnce();
+    expect(a.openTunnelAdmin).toHaveBeenCalledOnce();
+    expect(a.resetAdmin).toHaveBeenCalledOnce();
+    mock.trayMenu.find((i) => i.label === 'Quit')?.click?.();
+    expect(a.quit).toHaveBeenCalledOnce();
+  });
+
   it('refreshes the Dock menu with the tray menu', () => {
     let label: string | null = null;
     const a = { ...actions(), updateLabel: () => label };
