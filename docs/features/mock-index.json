@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "google-drive",
+      "creationOrder": 33,
+      "createdAt": "2026-11-05",
+      "design": "docs/features/google-drive/design.md",
+      "mock": "docs/features/google-drive/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "group-management",
+      "baselineGitRevision": "26116d59b3b9ca31b202163dc599cb96b1bf6f5e",
+      "coverage": "Full app clone of the confirmed group-management reference; Admin → Connectors gallery card (Google Drive beside Google Calendar), connector page Overview (about with Save / Find / Read, Google account card: not connected, stand-in consent with the drive.file wording, connected, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (not connected, no folder, stand-in folder picker and blocked window, folder chosen with Open in Google Drive, Save files switch off by default with a folder per day / per customer / the folder itself, file types and the save rules, Read files with Add files picker, file list with a no-text warning and remove, When to use Drive with the instructions link, Save bar, paused banner), Mock only chat simulator (photo saved, PDF, question answered from a picked file, Safety-locked file, too large, paused hand-over), Activity (saved, read, skipped, failed), agent page Connectors row; state in the browser (localStorage); desktop 1280 / mobile 360 touch, light/dark (drive-shots.mjs)",
+      "note": "Inherits the coverage gaps of group-management (message-edit-delete, whatsapp-safety, group-agents and claims-template screens). Google Sheets has no mock page in the baseline (shipped without one): its gallery card stays the baseline coming-soon card."
+    },
+    {
       "feature": "template-store",
       "creationOrder": 32,
       "createdAt": "2026-11-04",
@@ -81,7 +93,12 @@
       "note": "Portal side (Feedback management) is mocked in anchorsprint/anchor-licence-portal docs/features/feedback.",
       "confirmedAt": "2026-11-03",
       "gitRevision": "f3eaf7bcf7792fb4e058103b9bd9f93e9fcc4ed6",
-      "confirmation": "Owner viewed the screenshots (app dialog states and portal Feedback pages) and wrote 2026-11-03 \"ok build until it work then pr and merge verify\"; open questions as proposed."
+      "confirmation": "Owner viewed the screenshots (app dialog states and portal Feedback pages) and wrote 2026-11-03 \"ok build until it work then pr and merge verify\"; open questions as proposed.",
+      "archived": {
+        "folderRemovedAt": "2026-11-05",
+        "lastRevision": "32a58d6d6450d9625da87694cb480cf35f1b4565",
+        "reason": "retention: sixth feature folder (google-drive)"
+      }
     },
     {
       "feature": "google-sheets",
