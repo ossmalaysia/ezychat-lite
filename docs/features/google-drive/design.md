@@ -175,7 +175,8 @@ page errors, no horizontal overflow). Retention: `in-app-feedback` (creationOrde
 Confirmation: owner (Jazz) 2026-11-05, first on the agnostic rule ("so the connetor should be use case agnostic, Agent
 will have instruction in agent setting, not on connector"; the mock was revised, rule recorded in
 `docs/connector-design.md`), then relayed verbatim by the main session: "what confirm drive, google drive need allow
-read and write" = confirmed with both capabilities (Save files = write, Read files = read) and decisions 1–7 as
+read and write", and in the owner's exact words relayed later the same day: "yes confirm drive, continue it,
+untill all working and create pr and merge and archive the session" = confirmed with both capabilities (Save files = write, Read files = read) and decisions 1–7 as
 proposed. Confirmed mock revision: `442b6317254a1a86b7df66bb86335f2d0047caec`.
 
 ## As built (differences from the text above)

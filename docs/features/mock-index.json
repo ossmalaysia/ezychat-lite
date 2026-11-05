@@ -11,7 +11,7 @@
     "mock": "docs/features/google-drive/mock/index.html",
     "design": "docs/features/google-drive/design.md",
     "confirmedAt": "2026-11-05",
-    "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then relayed by the main session: \"what confirm drive, google drive need allow read and write\" = confirmed with Save (write) and Read (read), decisions 1-7 as proposed.",
+    "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then \"yes confirm drive, continue it, untill all working and create pr and merge and archive the session\" (relayed verbatim by the main session) = confirmed with Save (write) and Read (read), decisions 1-7 as proposed.",
     "note": "Clone of group-management plus the Google Drive connector; inherits its coverage gaps (message-edit-delete, whatsapp-safety, group-agents, claims-template screens)."
   },
   "proposals": [
@@ -28,7 +28,7 @@
       "note": "Inherits the coverage gaps of group-management (message-edit-delete, whatsapp-safety, group-agents and claims-template screens). Google Sheets has no mock page in the baseline (shipped without one): its gallery card stays the baseline coming-soon card. Revised 2026-11-05 on owner feedback: connector is use-case agnostic (no file types, folder schemes or example instructions; docs/connector-design.md).",
       "confirmedAt": "2026-11-05",
       "gitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
-      "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then relayed by the main session: \"what confirm drive, google drive need allow read and write\" = confirmed with Save (write) and Read (read), decisions 1-7 as proposed."
+      "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then \"yes confirm drive, continue it, untill all working and create pr and merge and archive the session\" (relayed verbatim by the main session) = confirmed with Save (write) and Read (read), decisions 1-7 as proposed."
     },
     {
       "feature": "template-store",
