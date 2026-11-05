@@ -464,8 +464,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   search the open `docs(learnings)` PRs (`gh pr diff <n>`), not only `main`: one may already hold it. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
   commit. After a base PR is squash-merged, replay only your own commits
-  (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
-  conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
+  (`git rebase --onto origin/main <old base>`); a clean rebase or merge still needs a typecheck (semantic
+  conflicts) and a look at the import blocks of auto-merged files (both sides adding an import from the same module
+  leaves two lines that ESLint passes and SonarCloud flags, S3863), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
 - After merging `main` into the rename branch, `git grep -l "@wa-team-inbox/" -- apps packages e2e scripts`
   (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
