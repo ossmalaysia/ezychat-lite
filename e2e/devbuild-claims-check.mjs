@@ -302,5 +302,59 @@ check(
   JSON.stringify(row6),
 );
 
+// 7. Create a new sheet from the connector page (design group-agents Part E): a formula reaching
+//    outside the sheet refuses the whole layout; a clean one is created and becomes the agent's.
+const blocked = await api('POST', `/connectors/google-sheets/agents/${claims.id}/create`, {
+  name: 'Claims 2027',
+  tabs: [
+    {
+      title: 'Claims',
+      columns: ['Date', 'Amount'],
+      formulas: [{ cell: 'C2', formula: '=IMPORTXML("https://x.example","//a")' }],
+    },
+  ],
+});
+check(
+  blocked.status === 400 &&
+    (blocked.json?.error?.code ?? blocked.json?.error) === 'formula_blocked',
+  'a layout with a formula that reaches outside the sheet is refused',
+  JSON.stringify(blocked.json),
+);
+const made = await api('POST', `/connectors/google-sheets/agents/${claims.id}/create`, {
+  name: 'Claims 2027',
+  tabs: [
+    {
+      title: 'Claims',
+      columns: ['Date', 'Name', 'Group', 'Policy no', 'Amount', 'What happened'],
+      access: 'add',
+      formulas: [{ cell: 'H2', formula: '=SUM(E2:E1000)' }],
+    },
+    { title: 'Rates', columns: ['Plan', 'Rate'], access: 'read' },
+  ],
+});
+const newSheet = (await api('GET', '/dev/fake-google-sheets')).json.sheets.find(
+  (s) => s.id === made.json?.spreadsheetId,
+);
+check(
+  made.status === 200 &&
+    made.json?.spreadsheetName === 'Claims 2027' &&
+    made.json?.tabs?.length === 2 &&
+    newSheet?.tabs?.Claims?.[0]?.[3] === 'Policy no' &&
+    newSheet?.tabs?.Claims?.[1]?.[7] === '=SUM(E2:E1000)',
+  'a new sheet is created with its columns and formula and becomes the agent’s',
+  JSON.stringify({ saved: made.json, claims: newSheet?.tabs?.Claims }),
+);
+const before7 = (newSheet?.tabs?.Claims ?? []).length;
+await say(GROUPS[2][0], 'Policy no: P-500700\nWhat happened: Rear bumper\nAmount: 900');
+const reply7 = await aiAfter(GROUPS[2][0], 1);
+const rows7 = (await api('GET', '/dev/fake-google-sheets')).json.sheets.find(
+  (s) => s.id === made.json?.spreadsheetId,
+)?.tabs?.Claims;
+check(
+  !!reply7 && rows7?.length === before7 + 1 && rows7.at(-1).includes('P-500700'),
+  'the next claim lands in the new sheet',
+  JSON.stringify(rows7?.at(-1)),
+);
+
 console.log(failed ? `\n${failed} step(s) failed` : '\nAll steps passed');
 process.exit(failed ? 1 : 0);

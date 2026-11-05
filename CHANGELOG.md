@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the AI write figures it looked up in your sheet or worked out from the chat (such as a total), and allow formulas
   (numbers and dates are then saved as numbers and dates). Both are off by default. Formulas that reach outside your
   sheet are always blocked, and a formula a customer types is saved as plain text.
+- **Google Sheets: create a new sheet from the connector page.** Admins can create a spreadsheet in the connected
+  Google account, blank or from a template's layout (the Claims template has one), with its tabs, column names and
+  what the AI agent may do with each tab. It is used by the agent at once.
 
 ### Fixed
 
