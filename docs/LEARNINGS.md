@@ -1162,6 +1162,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   payload field by field; otherwise the chat line silently loses it.
 - Test media with a spoofed name (right-to-left override, `…\u202egpj.exe`) is rated High by WhatsApp Safety at ingest:
   use plain file names in fixtures unless the test is about Safety (then assert `levelOf`, no mock).
+- Parallel feature sessions pick the same next migration number: before naming `0NN_*.sql`, check the open PRs'
+  `db/migrations/` too; the PR that merges second renumbers its file (and its tests that drop tables by number).
 - A Lite → Enterprise import test that fakes "an older Lite" by dropping the newest tables must be extended with every
   new migration's tables, or it fails with "table already exists" (`lite-import-merge.test.ts`).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
