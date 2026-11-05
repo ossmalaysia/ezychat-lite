@@ -10,6 +10,8 @@ into AGENTS.md.
 
 ## Working method
 
+- Before you call a PR a break of an owner rule, read that rule in `origin/main`'s `AGENTS.md`: memory notes and older
+  checkouts lag rule changes ("No tracking in Lite" became "Anonymous usage stats only" with #285).
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
