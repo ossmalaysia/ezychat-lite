@@ -261,6 +261,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
   the tool call (exit 144): keep the server's PID from `$!` in a file and kill that. The `[a]gents` bracket trick
   does not help when the same tool call also starts or names that program.
+- Updating a branch from `main` right after a release commit can move your `[Unreleased]` CHANGELOG entry into the new
+  version's section with no conflict (the release only added a heading above it): read `CHANGELOG.md` after every
+  merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
+- The update helper is built by the app that is running, so an updater fix protects only updates that start from a
+  version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
+  an updater fix.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
