@@ -1672,11 +1672,11 @@
       },
       "google-drive": {
         "name": "Google Drive",
-        "short": "保存客户发送的文件；根据您选择的文件回答。",
-        "long": "AI 会把客户在 WhatsApp 发送的照片和文件保存到您选择的 Google Drive 文件夹，并根据您为它选择的 Drive 文件回答问题。",
+        "short": "保存聊天中的文件；读取您选择的文件。",
+        "long": "AI 助手可以把在 WhatsApp 中收到的文件保存到您选择的 Google Drive 文件夹，并读取您选择的 Drive 文件。保存或读取什么、何时进行，由每个助手的指令决定。",
         "tools": {
           "save": "保存文件",
-          "saveHint": "把客户在此聊天中发送的照片或文件保存到您的文件夹。",
+          "saveHint": "把在此聊天中收到的文件保存到助手的文件夹。",
           "find": "查找文件",
           "findHint": "在您选择的文件中找到合适的文件。",
           "read": "读取文件",
@@ -2012,11 +2012,11 @@
   },
   "mockDrive": {
     "name": "Google Drive",
-    "short": "保存客户发送的文件；根据您选择的文件回答。",
-    "long": "AI 会把客户在 WhatsApp 发送的照片和文件保存到您选择的 Google Drive 文件夹，并根据您为它选择的 Drive 文件回答问题。",
+    "short": "保存聊天中的文件；读取您选择的文件。",
+    "long": "AI 助手可以把在 WhatsApp 中收到的文件保存到您选择的 Google Drive 文件夹，并读取您选择的 Drive 文件。保存或读取什么、何时进行，由每个助手的指令决定。",
     "tools": {
       "save": "保存文件",
-      "saveHint": "把客户在此聊天中发送的照片或文件保存到您的文件夹。",
+      "saveHint": "把在此聊天中收到的文件保存到助手的文件夹。",
       "find": "查找文件",
       "findHint": "在您选择的文件中找到合适的文件。",
       "read": "读取文件",
@@ -2027,8 +2027,8 @@
     "privacy3": "活动只记录谁和何时。文件内容和名称保留在您的 Drive 中。",
     "accountTitle": "Google 账号",
     "accountDescription": "整个团队使用一个 Google 账号。它可以与 Google 日历或表格使用的账号不同。",
-    "what1": "把客户的照片、收据和表格保存到一个文件夹",
-    "what2": "根据 Drive 中的价目表、菜单和常见问题回答",
+    "what1": "让 AI 助手保存聊天中收到的文件",
+    "what2": "让 AI 助手读取您选择的 Drive 文件",
     "what3": "由您选择文件夹和文件；不会共享其他内容",
     "connect": "连接 Google Drive",
     "connectHint": "Google 会在浏览器中打开，无需复制或粘贴。",
@@ -2062,34 +2062,19 @@
     "needFolder": "请先选择文件夹。",
     "save": {
       "title": "保存文件",
-      "description": "当指令要求时，{{name}} 会保存客户发送的照片和文件。",
-      "into": "每个文件放入",
-      "intoDay": "每天一个文件夹",
-      "intoCustomer": "每位客户一个文件夹",
-      "intoFolder": "该文件夹本身",
-      "example": {
-        "day": "示例：{{folder}} › 2026-11-05 › {{file}}",
-        "customer": "示例：{{folder}} › Jay Low (+60 12-990 0001) › {{file}}",
-        "folder": "示例：{{folder}} › {{file}}"
-      },
-      "types": "可保存的文件",
-      "type": {
-        "photos": "照片",
-        "pdfs": "PDF",
-        "documents": "Word、Excel 和其他文件"
-      },
-      "rule1": "只保存客户在该聊天中发送的文件，绝不保存其他聊天的文件。",
+      "description": "{{name}} 可以把聊天中收到的文件保存到此文件夹。",
+      "rule1": "只保存在该聊天中收到的文件，绝不保存其他聊天的文件。",
       "rule2": "绝不保存被 WhatsApp 安全锁定的文件。",
       "rule3": "每个文件最大 {{mb}} MB。每个文件只保存一次。",
-      "rule4": "EzyChat 按日期和时间命名文件，而不是用客户的文件名。"
+      "rule4": "EzyChat 按日期和时间命名文件，而不是用发送者的文件名。"
     },
     "read": {
       "title": "读取文件",
       "description": "{{name}} 会根据您在这里选择的文件回答问题。",
-      "none": "还没有文件。添加 {{name}} 可以读取的文件，例如价目表或常见问题。",
+      "none": "还没有文件。添加 {{name}} 可以读取的文件。",
       "add": "添加文件",
       "remove": "移除 {{file}}",
-      "hint": "Google 文档、表格、PDF、Word 和文本文件，最多 {{max}} 个。绝不读取已保存的客户文件。",
+      "hint": "Google 文档、表格、PDF、Word 和文本文件，最多 {{max}} 个。绝不读取从聊天中保存的文件。",
       "characters_one": "{{count}} 个文字",
       "characters_other": "{{count}} 个文字",
       "noText": "未找到文字（扫描图片？）。AI 无法读取。"
@@ -2102,9 +2087,7 @@
       "word": "Word"
     },
     "when": {
-      "title": "何时使用 Drive",
-      "description": "{{name}} 按照它的指令行事。请说明保存哪些文件以及何时保存。",
-      "example": "当客户发送收据、理赔表格或问题照片时，把它保存到 Google Drive，并告诉客户已收到。",
+      "note": "{{name}} 保存或读取什么、何时进行，由它的指令决定。",
       "open": "编辑 {{name}} 的指令"
     },
     "picker": {
@@ -2143,18 +2126,13 @@
       "questionCustomer": "20 人的餐饮服务多少钱？",
       "lockedCustomer": "[文件] invoice.zip",
       "bigCustomer": "[视频] 发生了什么",
-      "savedLine": {
-        "day": "{{name}} 已把 {{file}} 保存到 {{folder}} › 今天的文件夹",
-        "customer": "{{name}} 已把 {{file}} 保存到 {{folder}} › {{customer}}",
-        "folder": "{{name}} 已把 {{file}} 保存到 {{folder}}"
-      },
+      "savedLine": "{{name}} 已把 {{file}} 保存到 {{folder}}",
       "saved": "谢谢，我们已收到您的文件，团队会尽快查看。",
       "readLine_one": "{{name}} 读取了 Google Drive 中的 {{count}} 个文件",
       "readLine_other": "{{name}} 读取了 Google Drive 中的 {{count}} 个文件",
       "answer": "20 人餐饮服务为 RM 450，请提前 3 天预订。（来自 {{file}}）",
       "noFiles": "{{name}} 没有可读取的文件，会根据业务资料回答，或转交团队。",
       "saveOff": "“保存文件”已关闭：{{name}} 不会保存。",
-      "typeOff": "未勾选此类文件：{{name}} 不会保存。",
       "handover": "团队成员很快会为您服务。",
       "handoverLine": "Google Drive 已暂停：已转交团队",
       "lockedReply": "{{name}} 不会保存被 WhatsApp 安全锁定的文件，并把聊天交给您的团队。",

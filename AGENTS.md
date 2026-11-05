@@ -323,7 +323,7 @@ atomic profile/audit commit, and ensure the JID still routes to that same chat a
 Audit stores scores, field names and message references, never values
 or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
 
-**Connectors** (design `docs/features/google-calendar/design.md`). Admin → Connectors (`admin/connectors/`) is a
+**Connectors** (design `docs/features/google-calendar/design.md`; rules `docs/connector-design.md`: use-case agnostic, scalable, adaptable; a connector grants access, the agent's instructions decide the use). Admin → Connectors (`admin/connectors/`) is a
 gallery (`catalog.ts`) with one page per connector; every ready connector is core, only the custom MCP connector is
 Enterprise (greyed out in Lite; an edition points a connector at its own page with `WebExtension.connectorLinks`).
 Coming-soon connectors have Vote / Ask for a connector: a WhatsApp link (`useAppLinks().connectorRequest`, `null`

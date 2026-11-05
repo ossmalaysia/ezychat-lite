@@ -1365,7 +1365,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   item: use `flatMap` so the helper keeps the filter. A deleted group message broke every live group AI turn.
 - A draft prompt that tells the model to use a value (a group member's name) must put that value in the fact-check
   `sources`, or the number check drops correct drafts ("Kopi88 Ali"). Group prompts send no customer details.
-- A connector gives access (which tabs, which tools), the agent's instructions say when and why: never hard-code a use case (leads, claims) into connector code; tool descriptions are built per turn from the allowed tabs and their live first rows.
+- Connectors are use-case agnostic (owner rule, `docs/connector-design.md`): a connector page holds only access (resource, one switch per capability), the agent's instructions say when, why and what for. No use-case settings on a connector page (file types, folder schemes, example instructions, "leads"/"claims"); tool names and descriptions are generic and built per turn from the agent's allowed resources; guards cover safety only.
 - A provider mode whose request format is undocumented for a content type (ChatGPT backend and PDFs) gets a text fallback, never a guessed part type.
 
 ## Desktop and web UI

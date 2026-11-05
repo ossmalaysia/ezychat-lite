@@ -7,7 +7,6 @@ import { useSyncExternalStore } from 'react';
  * shared Google sign-in (`connectors/google-account.ts`, scope `drive.file`), see ../../design.md.
  */
 export type DriveState = 'disconnected' | 'connected' | 'expired' | 'unavailable';
-export type SaveInto = 'folder' | 'day' | 'customer';
 export type DriveFileKind = 'doc' | 'sheet' | 'pdf' | 'text' | 'word';
 
 export interface DriveFolder {
@@ -26,9 +25,6 @@ export interface DriveFile {
 export interface DriveAgentSettings {
   folder: DriveFolder | null;
   save: boolean;
-  saveInto: SaveInto;
-  /** Which files the AI may save: photos, PDFs, other documents. */
-  types: { photos: boolean; pdfs: boolean; documents: boolean };
   read: boolean;
   /** The files the admin picked for the AI to read (inside the folder). */
   files: DriveFile[];
@@ -74,13 +70,11 @@ export const MAX_SAVE_MB = 25;
 export const DEFAULT_DRIVE_SETTINGS: DriveAgentSettings = {
   folder: null,
   save: false,
-  saveInto: 'day',
-  types: { photos: true, pdfs: true, documents: true },
   read: true,
   files: [],
 };
 
-const KEY = 'ezychat-mock-google-drive';
+const KEY = 'ezychat-mock-google-drive-v2';
 const initial = (): DriveMockState => ({
   state: 'disconnected',
   account: null,
@@ -91,6 +85,7 @@ const initial = (): DriveMockState => ({
 function load(): DriveMockState {
   try {
     const raw = localStorage.getItem(KEY);
+    // v2: settings without use-case options (owner 2026-11-05).
     if (raw) return { ...initial(), ...(JSON.parse(raw) as DriveMockState) };
   } catch {
     // Private window or blocked storage: start empty.

@@ -1,6 +1,6 @@
 # Google Drive connector
 
-Status: **proposal: mock built, owner confirmation pending** (see "Mock and confirmation").
+Status: **proposal: mock revised 2026-11-05 (use-case agnostic), owner confirmation pending** (see "Mock and confirmation").
 Created 2026-11-05 (creationOrder 33). Owner request (Jazz, 2026-11-05): a Google Drive connector so an AI agent can
 (1) save files to Google Drive and (2) read files from Google Drive, both through one connector. Built like Google
 Sheets (`packages/server/src/connectors/google-sheets/`, design in git history `docs/features/google-sheets/design.md`
@@ -15,8 +15,9 @@ A core (Lite and Enterprise) built-in connector, listed in Admin → Connectors 
   Calendar and Sheets, so disconnecting one never stops another. Scope `drive.file` only.
 - **Per AI agent**: one **folder** (picked in Google's own file picker), **Save files** (off by default; a change to
   the business's data), **Read files** (on by default once a folder is picked) with the list of **files the AI may
-  read** (picked in the picker, at most 50). What to save and when is said in the agent's **instructions** (the Sheets
-  pattern); the Settings tab shows an example line and links to the instructions.
+  read** (picked in the picker, at most 50). Nothing else: the connector is **use-case agnostic**
+  (`docs/connector-design.md`, owner 2026-11-05). What to save or read, when, and into which sub-folder is said in the
+  agent's **instructions** on the agent page; the Settings tab only links to them.
 - **AI tools** (core names reserved): `save_file_to_drive`, `list_drive_files`, `read_drive_file`.
 - **Activity** (who and when) and the chat line "Aina saved a file to Google Drive" / "Aina read a file".
 
@@ -60,13 +61,12 @@ already there (Sheets added it), keep the Picker API enabled; no new secret.
 
 ## Rules (fail closed)
 
-**Save files** (`save_file_to_drive {messageId}`):
+**Save files** (`save_file_to_drive {messageId, subfolder?}`):
 
 1. The tool takes the **id of a message in this chat** from the conversation the model sees (never a URL, path,
    bytes or a file name from the model). The server loads that stored message and checks: same chat, inbound
    (`from_me = 0`), not deleted, has media, media downloaded (history media `pending` is downloaded on demand first,
-   like `GET /api/media/:id`), type allowed by the agent's ticks (photos / PDFs / documents; never audio or video
-   in v1), size ≤ **25 MB**.
+   like `GET /api/media/:id`), any media type (photo, document, video, voice note), size ≤ **25 MB**.
 2. **WhatsApp Safety**: never a message with a High safety item or quarantined media (`safety_locked`), never a
    `cantInspect` ZIP. Refusal text tells the AI to hand over (`sensitive`), and Activity records "skipped".
 3. In a **group** (decided: allowed, like `add_sheet_row`, the one other write a group turn keeps): only when the
@@ -75,10 +75,10 @@ already there (Sheets added it), keep the Picker API enabled; no new secret.
 4. **Never twice**: table `drive_saved_files` keyed by (agent, chat, message id, folder id); a retry answers
    "already saved" and adds nothing.
 5. **Name**: EzyChat names it `YYYY-MM-DD HHmm <Photo|PDF|Document> <4-char ref>.<ext>` in the AI time zone, the
-   extension from the type read from the bytes (not the customer's file name). Sub-folder: a folder per day
-   (`YYYY-MM-DD`, default), a folder per customer (`<saved name or WhatsApp name> (+<number>)`, sanitised, max 80
-   characters; groups: the group's name) or the folder itself. Sub-folders are created by EzyChat (so `drive.file`
-   covers them) and remembered by id (`drive_folders`).
+   extension from the type read from the bytes (not the customer's file name). Sub-folder: optional `subfolder` the
+   agent passes when its instructions say so (e.g. "a folder per customer"); one level, sanitised (no `/`, control
+   or bidi characters, max 80 characters), else the folder itself. Sub-folders are created by EzyChat (so
+   `drive.file` covers them) and remembered by id (`drive_folders`).
 6. **Try it** never saves (`notRun`). Save files off, no folder, Google expired/unreachable → the tool is not
    offered or answers "not available"; a Google failure ends the turn with `lookup_failed` (hand-over), like Sheets.
 7. Upload: Drive API v3 multipart (≤ 5 MB) or resumable upload (> 5 MB), `uploadType` with `supportsAllDrives=true`,
@@ -132,15 +132,14 @@ en / ms / zh-CN; InfoTip `driveFiles` ("Why pick files?"); every screen at 360 p
   consent with the `drive.file` wording, connected, sign-in expired with Sign in again, unreachable, Disconnect
   confirm), Your data.
 - Settings: not connected; no folder; folder picker (and blocked window); folder chosen (Open in Google Drive, Choose
-  another folder: clears the picked files); Save files switch disabled without a folder, on with a folder per day /
-  per customer / the folder itself and an example path, file types, the four rules; Read files with the file list
-  (kind, text size, no-text warning, remove), Add files picker opened in the folder, at most 50; When to use Drive
-  (example instruction, link to the agent's instructions); Save bar (unsaved, discard); paused banner; 2+ agents
+  another folder: clears the picked files); Save files switch disabled without a folder, on with the four safety
+  rules; Read files with the file list (kind, text size, no-text warning, remove), Add files picker opened in the
+  folder, at most 50; one line linking to the agent's instructions; Save bar (unsaved, discard); paused banner; 2+ agents
   picker (inherited `AgentSettings`).
 - Activity: empty, saved, read, skipped (Safety, too large), failed.
 - Agent page → Connectors: "No folder chosen", "Saves files", "Reads N files", "Saves files and reads N files", Off.
-- Mock only simulator: photo saved (per sub-folder choice), PDF, question answered from a picked file, no readable
-  file, Save files off, type not ticked, Safety-locked, too large, paused → hand-over.
+- Mock only simulator: photo saved, PDF, question answered from a picked file, no readable file, Save files off,
+  Safety-locked, too large, paused → hand-over.
 
 ## Reused from the app
 
@@ -157,10 +156,11 @@ en / ms / zh-CN; InfoTip `driveFiles` ("Why pick files?"); every screen at 360 p
 ## Owner decisions (my calls, easy to change)
 
 1. Scope `drive.file`, read = files the admin picks (option A above).
-2. Save files **off** by default; Read files **on** once a folder is picked; default sub-folder **a folder per day**.
+2. Save files **off** by default; Read files **on** once a folder is picked. No use-case settings on the connector
+   (owner 2026-11-05): sub-folders and which files to keep come from the agent's instructions.
 3. Saving allowed in **groups** (sender of the batch only), like Sheets rows.
 4. Limits: 25 MB a saved file; 50 readable files per agent; 10 MB per read file and 20,000 characters per read.
-5. Photos, PDFs and documents only; no video or voice notes in v1.
+5. Any media type up to 25 MB (the instructions say which to keep).
 6. Separate Google sign-in from Calendar and Sheets.
 7. Beta badge in the connector list while it is new, like Sheets.
 

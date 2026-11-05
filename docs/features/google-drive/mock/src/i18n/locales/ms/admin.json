@@ -1673,11 +1673,11 @@
       },
       "google-drive": {
         "name": "Google Drive",
-        "short": "Simpan fail yang dihantar pelanggan; jawab daripada fail pilihan anda.",
-        "long": "AI menyimpan foto dan dokumen yang pelanggan hantar di WhatsApp ke dalam folder Google Drive pilihan anda, dan menjawab soalan daripada fail Drive yang anda pilih untuknya.",
+        "short": "Simpan fail daripada sembang; baca fail pilihan anda.",
+        "long": "Ejen AI boleh menyimpan fail yang dihantar di WhatsApp ke folder Google Drive pilihan anda, dan membaca fail Drive yang anda pilih. Arahan setiap ejen menentukan apa yang disimpan atau dibaca, dan bila.",
         "tools": {
           "save": "Simpan fail",
-          "saveHint": "Menyimpan foto atau dokumen yang pelanggan hantar dalam sembang ini ke folder anda.",
+          "saveHint": "Menyimpan fail yang dihantar dalam sembang ini ke folder ejen.",
           "find": "Cari fail",
           "findHint": "Mencari fail yang betul antara fail yang anda pilih.",
           "read": "Baca fail",
@@ -2013,11 +2013,11 @@
   },
   "mockDrive": {
     "name": "Google Drive",
-    "short": "Simpan fail yang dihantar pelanggan; jawab daripada fail pilihan anda.",
-    "long": "AI menyimpan foto dan dokumen yang pelanggan hantar di WhatsApp ke dalam folder Google Drive pilihan anda, dan menjawab soalan daripada fail Drive yang anda pilih untuknya.",
+    "short": "Simpan fail daripada sembang; baca fail pilihan anda.",
+    "long": "Ejen AI boleh menyimpan fail yang dihantar di WhatsApp ke folder Google Drive pilihan anda, dan membaca fail Drive yang anda pilih. Arahan setiap ejen menentukan apa yang disimpan atau dibaca, dan bila.",
     "tools": {
       "save": "Simpan fail",
-      "saveHint": "Menyimpan foto atau dokumen yang pelanggan hantar dalam sembang ini ke folder anda.",
+      "saveHint": "Menyimpan fail yang dihantar dalam sembang ini ke folder ejen.",
       "find": "Cari fail",
       "findHint": "Mencari fail yang betul antara fail yang anda pilih.",
       "read": "Baca fail",
@@ -2028,8 +2028,8 @@
     "privacy3": "Aktiviti hanya menyimpan siapa dan bila. Kandungan dan nama fail kekal dalam Drive anda.",
     "accountTitle": "Akaun Google",
     "accountDescription": "Satu akaun Google untuk seluruh pasukan. Ia boleh berbeza daripada akaun untuk Google Calendar atau Sheets.",
-    "what1": "Simpan foto, resit dan borang pelanggan dalam satu folder",
-    "what2": "Jawab daripada senarai harga, menu dan FAQ anda dalam Drive",
+    "what1": "Benarkan ejen AI menyimpan fail yang dihantar dalam sembang",
+    "what2": "Benarkan ejen AI membaca fail Drive pilihan anda",
     "what3": "Anda pilih folder dan fail; tiada yang lain dikongsi",
     "connect": "Sambung Google Drive",
     "connectHint": "Google dibuka dalam pelayar anda. Tiada apa untuk disalin atau ditampal.",
@@ -2063,34 +2063,19 @@
     "needFolder": "Pilih folder dahulu.",
     "save": {
       "title": "Simpan fail",
-      "description": "{{name}} menyimpan foto dan dokumen yang pelanggan hantar, apabila arahannya berkata begitu.",
-      "into": "Letak setiap fail dalam",
-      "intoDay": "Satu folder sehari",
-      "intoCustomer": "Satu folder setiap pelanggan",
-      "intoFolder": "Folder itu sendiri",
-      "example": {
-        "day": "Contoh: {{folder}} › 2026-11-05 › {{file}}",
-        "customer": "Contoh: {{folder}} › Jay Low (+60 12-990 0001) › {{file}}",
-        "folder": "Contoh: {{folder}} › {{file}}"
-      },
-      "types": "Fail yang boleh disimpan",
-      "type": {
-        "photos": "Foto",
-        "pdfs": "PDF",
-        "documents": "Word, Excel dan dokumen lain"
-      },
-      "rule1": "Hanya fail yang pelanggan hantar dalam sembang itu, bukan daripada sembang lain.",
+      "description": "{{name}} boleh menyimpan fail yang dihantar dalam sembang ke folder ini.",
+      "rule1": "Hanya fail yang dihantar dalam sembang itu, bukan daripada sembang lain.",
       "rule2": "Tidak sekali-kali fail yang dikunci oleh Keselamatan WhatsApp.",
       "rule3": "Sehingga {{mb}} MB setiap fail. Setiap fail disimpan sekali sahaja.",
-      "rule4": "EzyChat menamakan fail mengikut tarikh dan masa, bukan nama fail pelanggan."
+      "rule4": "EzyChat menamakan fail mengikut tarikh dan masa, bukan nama fail pengirim."
     },
     "read": {
       "title": "Baca fail",
       "description": "{{name}} menjawab soalan daripada fail yang anda pilih di sini.",
-      "none": "Belum ada fail. Tambah fail yang boleh dibaca oleh {{name}}, seperti senarai harga atau FAQ.",
+      "none": "Belum ada fail. Tambah fail yang boleh dibaca oleh {{name}}.",
       "add": "Tambah fail",
       "remove": "Buang {{file}}",
-      "hint": "Google Docs, Sheets, PDF, Word dan fail teks, sehingga {{max}}. Fail pelanggan yang disimpan tidak sekali-kali dibaca.",
+      "hint": "Google Docs, Sheets, PDF, Word dan fail teks, sehingga {{max}}. Fail yang disimpan daripada sembang tidak sekali-kali dibaca.",
       "characters_one": "{{count}} aksara teks",
       "characters_other": "{{count}} aksara teks",
       "noText": "Tiada teks ditemui (imej imbasan?). AI tidak dapat membacanya."
@@ -2103,9 +2088,7 @@
       "word": "Word"
     },
     "when": {
-      "title": "Bila menggunakan Drive",
-      "description": "{{name}} mengikut arahannya. Nyatakan fail mana untuk disimpan dan bila.",
-      "example": "Apabila pelanggan menghantar resit, borang tuntutan atau foto masalah, simpan ke Google Drive dan beritahu mereka ia sudah diterima.",
+      "note": "Apa yang {{name}} simpan atau baca, dan bila, ditentukan oleh arahannya.",
       "open": "Edit arahan {{name}}"
     },
     "picker": {
@@ -2144,18 +2127,13 @@
       "questionCustomer": "Berapa harga katering untuk 20 orang?",
       "lockedCustomer": "[Fail] invoice.zip",
       "bigCustomer": "[Video] apa yang berlaku",
-      "savedLine": {
-        "day": "{{name}} menyimpan {{file}} ke {{folder}} › folder hari ini",
-        "customer": "{{name}} menyimpan {{file}} ke {{folder}} › {{customer}}",
-        "folder": "{{name}} menyimpan {{file}} ke {{folder}}"
-      },
+      "savedLine": "{{name}} menyimpan {{file}} ke {{folder}}",
       "saved": "Terima kasih, kami telah menerima fail anda. Pasukan kami akan menyemaknya.",
       "readLine_one": "{{name}} membaca {{count}} fail dalam Google Drive",
       "readLine_other": "{{name}} membaca {{count}} fail dalam Google Drive",
       "answer": "Katering untuk 20 orang ialah RM 450, tempah 3 hari lebih awal. (daripada {{file}})",
       "noFiles": "{{name}} tiada fail untuk dibaca dan menjawab daripada Konteks perniagaan, atau menyerahkan.",
       "saveOff": "Simpan fail dimatikan: {{name}} tidak menyimpannya.",
-      "typeOff": "Jenis fail ini tidak ditanda: {{name}} tidak menyimpannya.",
       "handover": "Ahli pasukan kami akan membantu anda sebentar lagi.",
       "handoverLine": "Google Drive dijeda: diserahkan kepada pasukan",
       "lockedReply": "{{name}} tidak menyimpan fail yang dikunci oleh Keselamatan WhatsApp dan menyerahkan sembang kepada pasukan anda.",

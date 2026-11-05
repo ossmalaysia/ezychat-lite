@@ -1681,11 +1681,11 @@
       },
       "google-drive": {
         "name": "Google Drive",
-        "short": "Save files customers send; answer from files you choose.",
-        "long": "The AI saves photos and documents customers send on WhatsApp into a Google Drive folder you choose, and answers questions from the Drive files you pick for it.",
+        "short": "Save files from chats; read files you pick.",
+        "long": "AI agents can save files people send on WhatsApp into a Google Drive folder you choose, and read the Drive files you pick. Each agent's instructions say what to save or read, and when.",
         "tools": {
           "save": "Save a file",
-          "saveHint": "Saves a photo or document the customer sent in this chat into your folder.",
+          "saveHint": "Saves a file someone sent in this chat into the agent's folder.",
           "find": "Find a file",
           "findHint": "Finds the right file among the files you picked.",
           "read": "Read a file",
@@ -2021,11 +2021,11 @@
   },
   "mockDrive": {
     "name": "Google Drive",
-    "short": "Save files customers send; answer from files you choose.",
-    "long": "The AI saves photos and documents customers send on WhatsApp into a Google Drive folder you choose, and answers questions from the Drive files you pick for it.",
+    "short": "Save files from chats; read files you pick.",
+    "long": "AI agents can save files people send on WhatsApp into a Google Drive folder you choose, and read the Drive files you pick. Each agent's instructions say what to save or read, and when.",
     "tools": {
       "save": "Save a file",
-      "saveHint": "Saves a photo or document the customer sent in this chat into your folder.",
+      "saveHint": "Saves a file someone sent in this chat into the agent's folder.",
       "find": "Find a file",
       "findHint": "Finds the right file among the files you picked.",
       "read": "Read a file",
@@ -2036,8 +2036,8 @@
     "privacy3": "Activity keeps who and when only. File contents and names stay in your Drive.",
     "accountTitle": "Google account",
     "accountDescription": "One Google account for the whole team. It can be different from the one for Google Calendar or Sheets.",
-    "what1": "Save customers' photos, receipts and forms into one folder",
-    "what2": "Answer from your price lists, menus and FAQs in Drive",
+    "what1": "Let AI agents save files people send in chats",
+    "what2": "Let AI agents read Drive files you pick",
     "what3": "You choose the folder and files; nothing else is shared",
     "connect": "Connect Google Drive",
     "connectHint": "Google opens in your browser. Nothing to copy or paste.",
@@ -2071,34 +2071,19 @@
     "needFolder": "Choose a folder first.",
     "save": {
       "title": "Save files",
-      "description": "{{name}} saves photos and documents customers send, when its instructions say so.",
-      "into": "Put each file in",
-      "intoDay": "A folder per day",
-      "intoCustomer": "A folder per customer",
-      "intoFolder": "The folder itself",
-      "example": {
-        "day": "Example: {{folder}} › 2026-11-05 › {{file}}",
-        "customer": "Example: {{folder}} › Jay Low (+60 12-990 0001) › {{file}}",
-        "folder": "Example: {{folder}} › {{file}}"
-      },
-      "types": "Files it may save",
-      "type": {
-        "photos": "Photos",
-        "pdfs": "PDFs",
-        "documents": "Word, Excel and other documents"
-      },
-      "rule1": "Only a file the customer sent in that chat, never one from another chat.",
+      "description": "{{name}} may save files people send in a chat into this folder.",
+      "rule1": "Only a file someone sent in that chat, never one from another chat.",
       "rule2": "Never a file WhatsApp Safety locked.",
       "rule3": "Up to {{mb}} MB a file. Each file is saved once.",
-      "rule4": "EzyChat names the file by date and time, not by the customer's file name."
+      "rule4": "EzyChat names the file by date and time, not by the sender's file name."
     },
     "read": {
       "title": "Read files",
       "description": "{{name}} answers questions from the files you pick here.",
-      "none": "No files yet. Add the files {{name}} may read, such as a price list or FAQ.",
+      "none": "No files yet. Add the files {{name}} may read.",
       "add": "Add files",
       "remove": "Remove {{file}}",
-      "hint": "Google Docs, Sheets, PDF, Word and text files, up to {{max}}. Customers' saved files are never read.",
+      "hint": "Google Docs, Sheets, PDF, Word and text files, up to {{max}}. Files saved from chats are never read.",
       "characters_one": "{{count}} character of text",
       "characters_other": "{{count}} characters of text",
       "noText": "No text found (a scanned image?). The AI can't read it."
@@ -2111,9 +2096,7 @@
       "word": "Word"
     },
     "when": {
-      "title": "When to use Drive",
-      "description": "{{name}} follows its instructions. Say which files to save and when.",
-      "example": "When a customer sends a receipt, claim form or photo of a problem, save it to Google Drive and tell them it is received.",
+      "note": "What {{name}} saves or reads, and when, comes from its instructions.",
       "open": "Edit {{name}}'s instructions"
     },
     "picker": {
@@ -2152,18 +2135,13 @@
       "questionCustomer": "How much is catering for 20 people?",
       "lockedCustomer": "[File] invoice.zip",
       "bigCustomer": "[Video] what happened",
-      "savedLine": {
-        "day": "{{name}} saved {{file}} to {{folder}} › today's folder",
-        "customer": "{{name}} saved {{file}} to {{folder}} › {{customer}}",
-        "folder": "{{name}} saved {{file}} to {{folder}}"
-      },
+      "savedLine": "{{name}} saved {{file}} to {{folder}}",
       "saved": "Thank you, we received your file. Our team will check it.",
       "readLine_one": "{{name}} read {{count}} file in Google Drive",
       "readLine_other": "{{name}} read {{count}} files in Google Drive",
       "answer": "Catering for 20 is RM 450, order 3 days ahead. (from {{file}})",
       "noFiles": "{{name}} has no file to read and answers from its Business context, or hands over.",
       "saveOff": "Save files is off: {{name}} does not save it.",
-      "typeOff": "This kind of file is not ticked: {{name}} does not save it.",
       "handover": "A team member will help you shortly.",
       "handoverLine": "Google Drive is paused: handed over to the team",
       "lockedReply": "{{name}} does not save a file WhatsApp Safety locked and hands the chat to your team.",

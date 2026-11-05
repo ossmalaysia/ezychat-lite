@@ -6,7 +6,6 @@ import {
   FileText,
   FolderOpen,
   HardDrive,
-  ImageIcon,
   Save,
   ShieldCheck,
   Trash2,
@@ -22,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatRelative } from '@/lib/format';
@@ -41,7 +39,6 @@ import {
   useGoogleDrive,
   type DriveAgentSettings,
   type DriveFile,
-  type SaveInto,
 } from '@/mock/googleDrive';
 import { AgentSettings, ConnectorBreadcrumb } from './ConnectorDetailPage';
 import { ConnectorIcon, ConnectorStatusBadge } from './ConnectorsGalleryPage';
@@ -353,7 +350,6 @@ function DriveSettingsCard({ agentId, name }: Readonly<{ agentId: string; name: 
   const [picked, setPicked] = useState<string[]>([]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const paused = drive.state === 'expired' || drive.state === 'unavailable';
-  const intoId = useId();
   const update = (next: Partial<DriveAgentSettings>) => setDraft((d) => ({ ...d, ...next }));
   const openPicker = (kind: 'folder' | 'files') => {
     setPicked([]);
@@ -449,63 +445,6 @@ function DriveSettingsCard({ agentId, name }: Readonly<{ agentId: string; name: 
           )}
           {draft.folder && draft.save && (
             <>
-              <div className="flex flex-col gap-2">
-                <span id={intoId} className="text-sm font-medium">
-                  {t('mockDrive.save.into')}
-                </span>
-                <RadioGroup
-                  aria-labelledby={intoId}
-                  value={draft.saveInto}
-                  onValueChange={(v) => update({ saveInto: v as SaveInto })}
-                  className="gap-0"
-                >
-                  {(['day', 'customer', 'folder'] as const).map((value) => (
-                    <Label
-                      key={value}
-                      className="flex min-h-11 items-center gap-3 font-normal md:min-h-9"
-                    >
-                      <RadioGroupItem value={value} />
-                      {t(
-                        value === 'day'
-                          ? 'mockDrive.save.intoDay'
-                          : value === 'customer'
-                            ? 'mockDrive.save.intoCustomer'
-                            : 'mockDrive.save.intoFolder',
-                      )}
-                    </Label>
-                  ))}
-                </RadioGroup>
-                <p className="text-sm break-words text-muted-foreground">
-                  {t(`mockDrive.save.example.${draft.saveInto}`, {
-                    folder: draft.folder.name,
-                    file: savedFileName('photo', new Date(), 'jpg'),
-                  })}
-                </p>
-              </div>
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium">{t('mockDrive.save.types')}</legend>
-                {(
-                  [
-                    ['photos', ImageIcon],
-                    ['pdfs', FileText],
-                    ['documents', FileText],
-                  ] as const
-                ).map(([key, Icon]) => (
-                  <Label
-                    key={key}
-                    className="flex min-h-11 items-center gap-3 font-normal md:min-h-9"
-                  >
-                    <Checkbox
-                      checked={draft.types[key]}
-                      onCheckedChange={(on) =>
-                        update({ types: { ...draft.types, [key]: on === true } })
-                      }
-                    />
-                    <Icon className="size-4 text-muted-foreground" aria-hidden />
-                    {t(`mockDrive.save.type.${key}`)}
-                  </Label>
-                ))}
-              </fieldset>
               <ul className="flex flex-col gap-1.5 rounded-lg bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
                 {(['rule1', 'rule2', 'rule3', 'rule4'] as const).map((key) => (
                   <li key={key} className="flex items-start gap-2">
@@ -543,7 +482,7 @@ function DriveSettingsCard({ agentId, name }: Readonly<{ agentId: string; name: 
           {draft.folder && draft.read && (
             <>
               {draft.files.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('mockDrive.read.none')}</p>
+                <p className="text-sm text-muted-foreground">{t('mockDrive.read.none', { name })}</p>
               ) : (
                 <ul className="flex flex-col divide-y rounded-lg border" data-testid="drive-files">
                   {draft.files.map((f) => {
@@ -593,20 +532,15 @@ function DriveSettingsCard({ agentId, name }: Readonly<{ agentId: string; name: 
         </CardContent>
       </Card>
 
-      <Card className="gap-3">
-        <CardHeader>
-          <CardTitle>{t('mockDrive.when.title')}</CardTitle>
-          <CardDescription>{t('mockDrive.when.description', { name })}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <blockquote className="rounded-lg border-l-4 bg-muted/50 px-3 py-2 text-sm break-words">
-            {t('mockDrive.when.example')}
-          </blockquote>
-          <Button asChild variant="outline" size="touch" className="self-start">
-            <Link to={`/admin/members/ai/${agentId}`}>{t('mockDrive.when.open', { name })}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <p className="text-sm text-muted-foreground" data-testid="drive-instructions-note">
+        {t('mockDrive.when.note', { name })}{' '}
+        <Link
+          to={`/admin/members/ai/${agentId}`}
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t('mockDrive.when.open', { name })}
+        </Link>
+      </p>
 
       {draft.folder && <MockSimulator agentName={name} settings={saved} />}
 
@@ -798,11 +732,9 @@ function MockSimulator({
         reason: 'size',
       });
     } else {
-      const type = kind === 'photo' ? 'photos' : 'pdfs';
-      if (!settings.types[type]) say('ai', 'typeOff');
-      else {
+      {
         const file = savedFileName(kind, new Date(), kind === 'photo' ? 'jpg' : 'pdf');
-        say('event', `savedLine.${settings.saveInto}`, {
+        say('event', 'savedLine', {
           file,
           folder: settings.folder?.name ?? '',
           customer,
