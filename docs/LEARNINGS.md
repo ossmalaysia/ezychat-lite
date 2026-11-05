@@ -46,6 +46,21 @@ into AGENTS.md.
   screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
   in `design.md` only after that reply.
 
+- Hand-written request signing (SigV4 and the like) is tested against the vendor's published test vectors, not only
+  against our own fake: a fake built from the same code agrees with any bug. Keep the signer's optional headers
+  switchable so the official vectors can run unchanged.
+- `npx prettier --write packages/server/test/*.test.ts` rewrites unrelated files that were not formatted on `main`:
+  run Prettier on the files you changed by name, then check `git status` for files you did not mean to touch.
+- Research a vendor API from the vendor's own docs source when its site refuses automated readers (403): eStream's
+  `github.com/eStreamSoftware/docs-sqlacc` (Docusaurus source + screenshots) gave the SQL Account API host, SigV4
+  region/service and paging that `sql.com.my` and the wiki would not serve. Mark third-party API references as
+  unconfirmed in the design and leave what no official source shows as owner questions, never as guessed endpoints.
+  Ask the owner early for the vendor's own API collection (a Postman export from inside the product): it settled
+  the host, the balance fields and where phones live, which no public page did. Check whether list answers carry
+  detail rows; when they do not (SQL Account lists master fields only), a lookup index needs paced per-record reads.
+- `scripts/build-summary.mjs` needs `gh repo view` (GraphQL), which cloud sessions refuse: write the workbook rows by
+  hand in its table format there.
+
 - A bug report with a screenshot of the live app shows real customers: rebuild the case with demo names,
   companies and numbers in tests, docs and commits; grep the branch for the real values before pushing.
 
@@ -240,6 +255,7 @@ into AGENTS.md.
 - The Stop hook commits on every stop while subagents write: snapshot commits during parallel work carry `[skip ci]` so CI and its failure notices don't fire on half-written code; SonarCloud still runs on them, so read its issue list only on the integrated head.
 
 ## Git, GitHub and CI
+- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
 
 - A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
   `pull_request` runs need the merge commit. Merge main, then re-run e2e and the Dev Build check on the new head,
@@ -308,7 +324,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
-  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D).
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
+  names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
@@ -347,6 +364,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   (`ELECTRON_RUN_AS_NODE=1 electron -e "require(…)…"`); unmaintained `sudo-prompt` broke every Mac update and
   service change in every release, because no one ran a real Mac update (now `@vscode/sudo-prompt`). A
   platform-only privileged path gets one real run on that OS before its first release.
+  Never start a root helper with `nohup` on macOS: under the admin prompt (`@vscode/sudo-prompt`, no console)
+  it prints "can't detach from console" and exits without running the command, so every Mac update stopped
+  after the password (no `state.json`). Background with `&` and full redirection; the helper ignores `HUP`.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
   A critical `server-host` change gets the same packaged run, with the server started through the packaged
   `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
@@ -1002,6 +1022,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
+  New code meets Sonar's usual findings before the first push (and say so in a subagent's brief): no nested
+  ternaries (S3358), `toSorted`/`replaceAll`/`find`, no `async` without `await`, one import per module, no `await` inside a loop (S9382:
+  a deliberately sequential, paced loop becomes a recursive step function), functions under cognitive complexity 15: a first push of a new feature otherwise drew 42 findings.
   Tests of such a guard build paths from `os.tmpdir()`, never `/tmp`: macOS's temp folder is `/var/folders/…`.
 - Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
   signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
@@ -1423,6 +1446,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A provider mode whose request format is undocumented for a content type (ChatGPT backend and PDFs) gets a text fallback, never a guessed part type.
 
 ## Desktop and web UI
+- The persisted query cache (`api/query-persist.ts`) saves with a delay, so a reload can restore state from before the last mutation: never persist state a route guard acts on in a transitional form (e.g. `mustChangePassword`), and when an e2e step reloads right after a mutation and lands on an old page, suspect the restored copy first.
 
 - Every round trip counts over a slow tunnel (~0.7 s each): the live connection reloads every query when it joins,
   so a list already on screen waits for that reload (with a short fallback) instead of loading itself; an infinite

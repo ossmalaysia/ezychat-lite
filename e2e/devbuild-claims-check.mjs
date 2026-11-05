@@ -277,7 +277,7 @@ check(
 );
 check(!JSON.stringify(activity).includes('P-902341'), 'Activity never stores row values');
 
-// 6. "Allow formulas" on Claims (design group-agents Part D): values go in as typed, but a formula the
+// 6. "Allow formulas" on Claims (docs/connector-design.md, Part D): values go in as typed, but a formula the
 //    member wrote is kept as text (leading '), never run.
 const withFormulas = await api('PUT', `/connectors/google-sheets/agents/${claims.id}`, {
   spreadsheetId: sheetId,
@@ -302,7 +302,7 @@ check(
   JSON.stringify(row6),
 );
 
-// 7. Create a new sheet from the connector page (design group-agents Part E): a formula reaching
+// 7. Create a new sheet from the connector page (docs/connector-design.md, Part E): a formula reaching
 //    outside the sheet refuses the whole layout; a clean one is created and becomes the agent's.
 const blocked = await api('POST', `/connectors/google-sheets/agents/${claims.id}/create`, {
   name: 'Claims 2027',

@@ -742,7 +742,7 @@ export function createGoogleSheetsService(
     },
 
     /**
-     * Creates a spreadsheet for an agent (admins; design group-agents Part E): the tabs with their
+     * Creates a spreadsheet for an agent (admins; docs/connector-design.md Part E): the tabs with their
      * column names in the first row and the layout's formulas (USER_ENTERED, an admin's action),
      * then saves it as the agent's spreadsheet with the layout's tab access. A formula that reaches
      * outside the sheet refuses the whole layout before anything is created (400

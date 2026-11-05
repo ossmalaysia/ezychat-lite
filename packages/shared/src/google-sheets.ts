@@ -118,7 +118,7 @@ export const SHEET_LAYOUT_COLUMNS = 26;
 export const SHEET_LAYOUT_FORMULAS = 50;
 
 /**
- * A new spreadsheet to create (design docs/features/group-agents/design.md, Part E): its name and
+ * A new spreadsheet to create (docs/connector-design.md, Part E): its name and
  * tabs, each with its column names (the first row), the agent's access and optional formulas. Sent
  * by `POST /api/connectors/google-sheets/agents/:agentId/create` (admins) and carried by an AI
  * agent template (`AgentTemplateEntry.sheet`). Formulas pass the same outside-reach check as the
@@ -126,10 +126,7 @@ export const SHEET_LAYOUT_FORMULAS = 50;
  */
 export const SheetLayoutTab = z.object({
   title: z.string().trim().min(1).max(SHEET_TAB_CHARACTERS),
-  columns: z
-    .array(z.string().trim().min(1).max(100))
-    .min(1)
-    .max(SHEET_LAYOUT_COLUMNS),
+  columns: z.array(z.string().trim().min(1).max(100)).min(1).max(SHEET_LAYOUT_COLUMNS),
   access: SheetTabAccess.default('off'),
   formulas: z
     .array(

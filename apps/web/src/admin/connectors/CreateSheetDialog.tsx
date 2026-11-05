@@ -83,7 +83,7 @@ export function draftLayout(draft: Draft): SheetLayout | null {
 }
 
 /**
- * Connectors → Google Sheets → Settings → "Create a new sheet" (design group-agents Part E): a new
+ * Connectors → Google Sheets → Settings → "Create a new sheet" (docs/connector-design.md, Part E): a new
  * spreadsheet in the connected Google account, blank or from a template's layout, saved as the
  * agent's spreadsheet with each tab's access. Admins only; the AI never creates a sheet.
  */
