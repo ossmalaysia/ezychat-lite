@@ -357,6 +357,63 @@ describe('Google Sheets: Settings', () => {
     expect(w.sheetSettings[2]!.tabs).toEqual([{ title: 'Menu', access: 'read' }]);
   });
 
+  it('shows the two write switches only on Add rows, off by default, and saves them per tab', async () => {
+    const saved = {
+      ...DEFAULT_SHEETS_SETTINGS,
+      spreadsheetId: SHEET_ID,
+      spreadsheetName: 'Kopi Apong prices',
+      tabs: [
+        { title: 'Menu', access: 'read' as const },
+        { title: 'Leads', access: 'add' as const },
+      ],
+    };
+    const w = connected({ sheetSettings: { 1: saved } });
+    const fetchMock = stubServer(w);
+    page(`${GS}?tab=settings`);
+    const box = await screen.findByTestId('sheets-tab-permissions');
+    // Only the Add rows tab has them; the Read tab has none.
+    expect(screen.getAllByTestId('sheets-tab-permissions')).toHaveLength(1);
+    expect(box.getAttribute('aria-label')).toBe('What the AI may write in Leads');
+    const aiValues = within(box).getByRole('switch', {
+      name: 'Let the AI fill values it looked up or calculated',
+    });
+    const formulas = within(box).getByRole('switch', { name: 'Allow formulas' });
+    expect(aiValues.getAttribute('aria-checked')).toBe('false');
+    expect(formulas.getAttribute('aria-checked')).toBe('false');
+    expect(within(box).getByText(/It never makes one up\./)).toBeTruthy();
+    const user = userEvent.setup();
+    // The tip explains the risk in plain words.
+    await user.click(within(box).getByRole('button', { name: 'What can a formula do?' }));
+    expect(
+      await screen.findByText(/A formula can change your numbers\. EzyChat blocks formulas/),
+    ).toBeTruthy();
+    await user.keyboard('{Escape}');
+
+    await user.click(aiValues);
+    await user.click(formulas);
+    expect(formulas.getAttribute('aria-checked')).toBe('true');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(writes(fetchMock)).toContain('PUT /api/connectors/google-sheets/agents/1'),
+    );
+    expect(w.sheetSettings[1]!.tabs).toEqual([
+      { title: 'Leads', access: 'add', aiValues: true, formulas: true },
+      { title: 'Menu', access: 'read' },
+    ]);
+
+    // Read hides them and saves them off; back on Add rows they come back as they were.
+    const leads = screen.getByRole('radiogroup', { name: 'Leads' });
+    await user.click(within(leads).getByRole('radio', { name: 'Read' }));
+    expect(screen.queryByTestId('sheets-tab-permissions')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(w.sheetSettings[1]!.tabs).toEqual([
+        { title: 'Leads', access: 'read' },
+        { title: 'Menu', access: 'read' },
+      ]),
+    );
+  });
+
   it('keeps the saved tabs when Google cannot be read', async () => {
     const saved = {
       ...DEFAULT_SHEETS_SETTINGS,

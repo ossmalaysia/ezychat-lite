@@ -1160,7 +1160,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
-  `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`.
+  `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`. When an
+  admin switch allows USER_ENTERED, escape every value that is not the AI's own allowed formula with a leading `'`,
+  auto-filled ones too (a WhatsApp push name can be `=IMPORTXML(…)`), and check formulas fail closed (URL anywhere,
+  blocked function names and name parts), with a test per escape path.
 - A Lite → Enterprise import test that fakes "an older Lite" by dropping the newest tables must be extended with every
   new migration's tables, or it fails with "table already exists" (`lite-import-merge.test.ts`).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model

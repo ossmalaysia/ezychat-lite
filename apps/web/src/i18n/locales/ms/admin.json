@@ -1938,6 +1938,15 @@
       "newColumn": "lajur baharu",
       "columnsOf": "Lajur {{tab}}",
       "emptyFirstRow": "Tambah nama lajur dalam baris pertama tab ini sebelum AI boleh menggunakannya.",
+      "permissions": {
+        "groupLabel": "Apa yang boleh ditulis oleh AI dalam {{tab}}",
+        "aiValues": "Benarkan AI mengisi nilai yang dicari atau dikira",
+        "aiValuesHint": "Mati: AI hanya menulis apa yang ditulis atau dihantar oleh orang itu. Hidup: AI juga boleh menulis angka daripada tab Baca anda atau yang dikira daripada sembang, seperti jumlah. AI tidak sesekali mereka-reka nilai.",
+        "formulas": "Benarkan formula",
+        "formulasHint": "Nilai yang bermula dengan = menjadi formula, dan nombor serta tarikh disimpan sebagai nombor dan tarikh.",
+        "formulasTipTitle": "Apakah yang boleh dilakukan oleh formula?",
+        "formulasTipBody": "Formula boleh mengubah nombor anda. EzyChat menyekat formula yang mencapai luar helaian anda, seperti yang mempunyai alamat web atau IMPORTRANGE, dan formula yang ditaip oleh pelanggan sentiasa disimpan sebagai teks biasa."
+      },
       "goneBadge": "Tiada lagi dalam helaian",
       "goneHint": "Google tidak lagi menyenaraikan tab ini. Aksesnya dibuang apabila anda menyimpan.",
       "autoColumns": "Diisi oleh {{product}} apabila tab mempunyai lajur ini: {{columns}}. AI mengisi yang lain daripada mesej, foto dan PDF yang dihantar kepadanya.",

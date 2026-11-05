@@ -1954,6 +1954,15 @@
       "newColumn": "new column",
       "columnsOf": "Columns of {{tab}}",
       "emptyFirstRow": "Add column names in the first row of this tab before the AI can use it.",
+      "permissions": {
+        "groupLabel": "What the AI may write in {{tab}}",
+        "aiValues": "Let the AI fill values it looked up or calculated",
+        "aiValuesHint": "Off: the AI writes only what the person wrote or sent. On: it may also write figures from your Read tabs or worked out from the chat, such as a total. It never makes one up.",
+        "formulas": "Allow formulas",
+        "formulasHint": "A value that starts with = becomes a formula, and numbers and dates are saved as numbers and dates.",
+        "formulasTipTitle": "What can a formula do?",
+        "formulasTipBody": "A formula can change your numbers. EzyChat blocks formulas that reach outside your sheet, such as ones with a web address or IMPORTRANGE, and a formula a customer types is always saved as plain text."
+      },
       "goneBadge": "No longer in the sheet",
       "goneHint": "Google no longer lists this tab. Its access is removed when you save.",
       "autoColumns": "Filled in by {{product}} when the tab has these columns: {{columns}}. The AI fills the others from the messages, photos and PDFs it is sent.",

@@ -1935,6 +1935,15 @@
       "newColumn": "新列",
       "columnsOf": "{{tab}} 的列",
       "emptyFirstRow": "请先在此工作表的第一行添加列名，AI 才能使用它。",
+      "permissions": {
+        "groupLabel": "AI 可以在 {{tab}} 中写入的内容",
+        "aiValues": "允许 AI 填写查到或算出的数值",
+        "aiValuesHint": "关闭：AI 只写入对方写下或发送的内容。开启：AI 也可以写入从“读取”工作表查到的数字，或根据聊天算出的数字（例如总额）。AI 绝不会编造数值。",
+        "formulas": "允许公式",
+        "formulasHint": "以 = 开头的值会成为公式，数字和日期会按数字和日期保存。",
+        "formulasTipTitle": "公式能做什么？",
+        "formulasTipBody": "公式可能会改变您的数字。EzyChat 会阻止访问表格以外内容的公式（例如含网址或 IMPORTRANGE 的公式），客户输入的公式一律按普通文本保存。"
+      },
       "goneBadge": "已不在表格中",
       "goneHint": "Google 已不再列出此工作表。保存时会移除其权限。",
       "autoColumns": "工作表有这些列时由 {{product}} 自动填写：{{columns}}。其他列由 AI 根据收到的消息、照片和 PDF 填写。",

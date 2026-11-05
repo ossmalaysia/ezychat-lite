@@ -82,6 +82,9 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
     return true;
   }
 
+  /** The `valueInputOption` of each append, in order (RAW or USER_ENTERED; nothing is evaluated). */
+  readonly valueInputs: string[] = [];
+
   /** HTTP statuses the next appends answer instead of adding (e.g. 429: per-minute quota). */
   readonly appendStatuses: number[] = [];
 
@@ -145,8 +148,10 @@ export class FakeGoogleSheets extends FakeGoogleAuth {
       this.calls.push('append');
       const status = this.appendStatuses.shift();
       if (status) return json(status, { error: { code: status } });
-      if (url.searchParams.get('valueInputOption') !== 'RAW')
-        return json(400, { error: { code: 400 } });
+      const input = url.searchParams.get('valueInputOption');
+      if (input !== 'RAW' && input !== 'USER_ENTERED') return json(400, { error: { code: 400 } });
+      // Recorded only: the fake stores what was sent and evaluates nothing.
+      this.valueInputs.push(input);
       const body = JSON.parse(String(init?.body)) as { values: string[][] };
       tab.push(...body.values.map((row) => row.map(String)));
       return json(200, { updates: { updatedRows: body.values.length } });

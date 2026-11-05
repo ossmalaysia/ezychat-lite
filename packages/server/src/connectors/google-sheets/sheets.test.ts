@@ -69,6 +69,10 @@ describe('SheetsClient', () => {
       majorDimension: 'ROWS',
       values: [['=1+1']],
     });
+    const typed = client(answer(200, { updates: { updatedRows: 1 } }));
+    await typed.sheets.append('tok', 'abc', 'Leads', [['=1+1']], undefined, 'USER_ENTERED');
+    const [typedUrl] = (typed.fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(String(typedUrl)).toContain(':append?valueInputOption=USER_ENTERED&insertDataOption');
     await expect(
       client(answer(200, { updates: { updatedRows: 0 } })).sheets.append('t', 'a', 'L', [['x']]),
     ).rejects.toMatchObject({ kind: 'rejected' });

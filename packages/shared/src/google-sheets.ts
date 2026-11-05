@@ -71,6 +71,16 @@ export type SheetTabAccess = z.infer<typeof SheetTabAccess>;
 export const SheetTabSetting = z.object({
   title: z.string().trim().min(1).max(SHEET_TAB_CHARACTERS),
   access: SheetTabAccess,
+  /**
+   * Add rows only: the AI may fill values it looked up (a Read tab) or worked out from the chat,
+   * not only words the person wrote. Missing = off; the server keeps it only on Add rows.
+   */
+  aiValues: z.boolean().optional(),
+  /**
+   * Add rows only: values go in as if typed (`=…` becomes a formula, numbers and dates are parsed).
+   * Formulas that reach outside the sheet, and formulas the person wrote, are never run.
+   */
+  formulas: z.boolean().optional(),
 });
 export type SheetTabSetting = z.infer<typeof SheetTabSetting>;
 export const SHEETS_MAX_TABS = 50;
@@ -106,7 +116,14 @@ export const DEFAULT_SHEETS_SETTINGS: SheetsAgentSettings = {
  * date, the person's name and WhatsApp number, the group's name, the source (file name or message)
  * and the agent's name. The AI fills every other column.
  */
-export const SHEETS_AUTO_COLUMNS = ['Date', 'Name', 'WhatsApp', 'Group', 'AI agent', 'Source'] as const;
+export const SHEETS_AUTO_COLUMNS = [
+  'Date',
+  'Name',
+  'WhatsApp',
+  'Group',
+  'AI agent',
+  'Source',
+] as const;
 
 /** The columns of a lead row, in this order (written as the header of an empty tab). */
 export const SHEETS_LEAD_COLUMNS = [

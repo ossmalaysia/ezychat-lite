@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Google Sheets: let the AI fill worked-out values and formulas.** On a tab set to Add rows, an admin can now let
+  the AI write figures it looked up in your sheet or worked out from the chat (such as a total), and allow formulas
+  (numbers and dates are then saved as numbers and dates). Both are off by default. Formulas that reach outside your
+  sheet are always blocked, and a formula a customer types is saved as plain text.
+
 ### Fixed
 
 - **An update blocked by antivirus software no longer breaks EzyChat on Windows.** When an antivirus program stopped

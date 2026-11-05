@@ -256,6 +256,46 @@ describe('Google Sheets routes', () => {
       droppedTabs: 1,
     });
 
+    // The permission switches: kept only on Add rows, audited before/after per tab.
+    const switched = await put(url, admin, {
+      ...base,
+      tabs: [
+        { title: 'Prices', access: 'read', aiValues: true, formulas: true },
+        { title: 'Claims', access: 'add', aiValues: true, formulas: true },
+      ],
+    });
+    expect(switched.json()).toMatchObject({
+      tabs: [
+        { title: 'Prices', access: 'read' },
+        { title: 'Claims', access: 'add', aiValues: true, formulas: true },
+      ],
+    });
+    expect((switched.json() as { tabs: object[] }).tabs[0]).toEqual({
+      title: 'Prices',
+      access: 'read',
+    });
+    await put(url, admin, {
+      ...base,
+      tabs: [
+        { title: 'Prices', access: 'read' },
+        { title: 'Claims', access: 'add', aiValues: true },
+      ],
+    });
+    const metas = (
+      t.ctx.db
+        .prepare(
+          "SELECT meta FROM audit_log WHERE action = 'google_sheets.agent_settings' ORDER BY id",
+        )
+        .all() as Array<{ meta: string }>
+    ).map((row) => JSON.parse(row.meta) as Record<string, unknown>);
+    expect(metas.at(-2)!.permissions).toEqual([
+      { tab: 'Claims', switch: 'aiValues', before: false, after: true },
+      { tab: 'Claims', switch: 'formulas', before: false, after: true },
+    ]);
+    expect(metas.at(-1)!.permissions).toEqual([
+      { tab: 'Claims', switch: 'formulas', before: true, after: false },
+    ]);
+
     // Clearing the spreadsheet clears the tabs.
     const cleared = await put(url, admin, { ...(saved.json() as object), spreadsheetId: null });
     expect(cleared.json()).toEqual(DEFAULT_SHEETS_SETTINGS);

@@ -8,6 +8,7 @@ import {
   googleSheetUrl,
   type GoogleSheetsStatus,
   type SheetTabAccess,
+  type SheetTabSetting,
   type SpreadsheetInfo,
 } from '@ezychat/shared';
 import { errorMessage } from '../../api/client';
@@ -20,12 +21,14 @@ import {
   useSpreadsheetLookup,
 } from '../../api/connectors';
 import { Banner, SegmentedControl } from '@/components/app';
+import { InfoTip } from '@/components/app/InfoTip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatRelative } from '../../lib/format';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
+import { ToolSwitchRow } from './connector-ui';
 import { diffTabs, isAutoColumn, normalizeTabs, tabsToSave, type TabMarks } from './sheets-tabs';
 
 interface Picking {
@@ -167,12 +170,14 @@ export function SheetsSettingsCard({
     });
   };
 
-  const access = (title: string): SheetTabAccess =>
-    value?.tabs.find((x) => x.title === title)?.access ?? 'off';
-  const setAccess = (title: string, next: SheetTabAccess) => {
+  const tabSetting = (title: string): SheetTabSetting =>
+    value?.tabs.find((x) => x.title === title) ?? { title, access: 'off' };
+  /** Off removes the tab; the permission switches are kept while the admin edits. */
+  const setTab = (title: string, patch: Partial<SheetTabSetting>) => {
     if (!value) return;
     const rest = value.tabs.filter((x) => x.title !== title);
-    set({ tabs: next === 'off' ? rest : [...rest, { title, access: next }] });
+    const next = { ...tabSetting(title), ...patch };
+    set({ tabs: next.access === 'off' ? rest : [...rest, next] });
   };
   const marks = sheetInfo && before ? diffTabs(before, sheetInfo) : new Map<string, TabMarks>();
   const marked = [...marks.values()];
@@ -374,9 +379,9 @@ export function SheetsSettingsCard({
                         key={tab.title}
                         title={tab.title}
                         columns={tab.columns}
-                        access={access(tab.title)}
+                        setting={tabSetting(tab.title)}
                         marks={marks.get(tab.title)}
-                        onChange={(next) => setAccess(tab.title, next)}
+                        onChange={(patch) => setTab(tab.title, patch)}
                       />
                     ))}
                     {gone.map((tab) => (
@@ -428,22 +433,27 @@ export function SheetsSettingsCard({
   );
 }
 
-/** One tab of the spreadsheet: its column names (EzyChat's own tinted) and Off / Read / Add rows. */
+/**
+ * One tab of the spreadsheet: its column names (EzyChat's own tinted), Off / Read / Add rows and,
+ * on Add rows, what the AI may write beyond the person's own words (both switches off by default).
+ */
 function TabRow({
   title,
   columns,
-  access,
+  setting,
   marks,
   onChange,
 }: Readonly<{
   title: string;
   columns: readonly string[];
-  access: SheetTabAccess;
+  setting: SheetTabSetting;
   marks: TabMarks | undefined;
-  onChange: (access: SheetTabAccess) => void;
+  onChange: (patch: Partial<SheetTabSetting>) => void;
 }>) {
   const { t } = useTranslation('admin');
   const labelId = useId();
+  const switchId = useId();
+  const access = setting.access;
   // Add rows and Read need column names: a tab with an empty first row stays Off.
   const empty = columns.length === 0;
   const options = (empty ? (['off'] as const) : ACCESS).map((value) => ({
@@ -499,11 +509,40 @@ function TabRow({
             })}
           </ul>
         )}
+        {!empty && access === 'add' && (
+          <div
+            className="flex flex-col divide-y rounded-lg border"
+            role="group"
+            aria-label={t('connectors.sheets.permissions.groupLabel', { tab: title })}
+            data-testid="sheets-tab-permissions"
+          >
+            <ToolSwitchRow
+              id={`${switchId}-ai`}
+              label={t('connectors.sheets.permissions.aiValues')}
+              hint={t('connectors.sheets.permissions.aiValuesHint')}
+              checked={!!setting.aiValues}
+              onCheckedChange={(aiValues) => onChange({ aiValues })}
+            />
+            <ToolSwitchRow
+              id={`${switchId}-formulas`}
+              label={t('connectors.sheets.permissions.formulas')}
+              hint={t('connectors.sheets.permissions.formulasHint')}
+              tip={
+                <InfoTip
+                  title={t('connectors.sheets.permissions.formulasTipTitle')}
+                  body={t('connectors.sheets.permissions.formulasTipBody')}
+                />
+              }
+              checked={!!setting.formulas}
+              onCheckedChange={(formulas) => onChange({ formulas })}
+            />
+          </div>
+        )}
       </div>
       <SegmentedControl
         aria-labelledby={labelId}
         value={empty ? 'off' : access}
-        onValueChange={onChange}
+        onValueChange={(next: SheetTabAccess) => onChange({ access: next })}
         options={options}
         className="shrink-0 self-start"
       />
