@@ -21,7 +21,8 @@ Branch: `feat/quote-jump-to-original` · Every agent updates its stage with
 
 Owner request (2026-11-05, in his words): "improve the quote msg, when people quote msg, when click the quote msg it
 should try to go back source msg, unless the source msg [no] longer in our record". A small interaction on the existing
-bubble, so no feature folder or mock (the five-folder retention rule stays untouched).
+bubble, so no feature folder or mock (the five-folder retention rule stays untouched). Owner, same day, on scope:
+"this is small task, you can implement, test PR merge and archive sub session" (no mock round).
 
 - The quote inside a bubble is a button (accessible name "Go to the quoted message: <author> <preview>"); keyboard
   Enter/Space works; on touch a long press or swipe that starts on the quote is not a tap (`useSwipeReply.wasGesture`).
