@@ -654,6 +654,18 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   most and its click on a file input opens no OS dialog; a tab that reports viewport 0x0 or times out on
   screenshots is in a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
   Google Threat Intelligence (VirusTotal) docs.
+- An antivirus that blocks the update installer (Windows Update helper `helper-error.log`: "the file contains a virus
+  or potentially unwanted software") can leave `Program Files\<product>` empty: the rollback ran although nothing was
+  replaced (`$replacementStarted` was set before `Start-Process`), and its `Remove-Item $installDir -Recurse` deleted
+  every file, then failed on the folder itself (in use) before it copied `old-app` back. A state flag that gates a
+  destructive rollback is set only after the step it describes has really started. The full copy stays in `<ProgramData>\<product>-updates\<nonce>\old-app` (signed, data
+  untouched): recover by copying it back as admin and `Start-Service`, and tell the owner not to accept the update
+  again (each accept repeats the failure). McAfee for home users excludes single files, and each update try uses a
+  new `<nonce>` folder: update by hand instead (download the installer, verify SHA-256 and signer, exclude that file).
+  A manual installer run over a service install leaves the service Stopped (it fails to restart while files are
+  replaced): `Start-Service` as admin afterwards, then check `/api/health`. A VirusTotal checksum lookup of a new
+  release answers "Item not found" (no evidence either way); only an upload (public and permanent: owner's yes first)
+  gives a scan.
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
