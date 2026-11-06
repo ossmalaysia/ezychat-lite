@@ -5,7 +5,7 @@ Branch: `feat/new-chat` · Every agent updates its stage with
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | done | Mock + design.md (new-chat): google-drive clone + sql-accounting merge; 56 screenshots 1280/360, en/ms/zh-CN; waiting for owner confirmation | 171f3aa | 2026-11-06 |
+| Design | done | Mock rebased onto scheduled-tasks (latestConfirmed 426c2eb7) after it merged; creationOrder 36, group-management pruned; 56 screenshots 1280/360, en/ms/zh-CN; waiting for owner confirmation | 9b2a13e | 2026-11-06 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -15,3 +15,4 @@ Branch: `feat/new-chat` · Every agent updates its stage with
 ## Log
 
 - 2026-11-06 Design: done — Mock + design.md (new-chat): google-drive clone + sql-accounting merge; 56 screenshots 1280/360, en/ms/zh-CN; waiting for owner confirmation (171f3aa)
+- 2026-11-06 Design: done — Mock rebased onto scheduled-tasks (latestConfirmed 426c2eb7) after it merged; creationOrder 36, group-management pruned; 56 screenshots 1280/360, en/ms/zh-CN; waiting for owner confirmation (9b2a13e)

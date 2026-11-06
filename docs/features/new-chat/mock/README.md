@@ -1,8 +1,7 @@
 # New chat (message a number that is not in the inbox yet): interactive app proposal
 
-A clone of the owner-confirmed **google-drive** reference (the whole app, revision `442b6317`) with the confirmed
-**sql-accounting** changes merged in (revision `e33aabbd`, built in parallel from the same baseline) and the
-**new-chat** proposal on top: a **New chat** button in the chat list header starts a WhatsApp chat with a phone
+A clone of the owner-confirmed **scheduled-tasks** reference (the whole app, revision `426c2eb7`, which already
+carries google-drive and the sql-accounting screens) with the **new-chat** proposal on top: a **New chat** button in the chat list header starts a WhatsApp chat with a phone
 number that is not in the inbox yet. A linked phone checks the number is on WhatsApp (with a ban warning) and opens
 the chat with the normal composer; a Business API number starts with an approved template, and the chat exists only
 once it is sent. Admins can always do it; **Admin → Settings → General → New chats** lets team members do it too
@@ -18,8 +17,30 @@ Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`), click **Ne
 chat → Open chat), **Send from → Online orders** (Business API: choose a template, fill the variables, Send
 template), and the dashed **Mock only** buttons (WhatsApp offline, Daily limit, Template fails). Sign in as `daniel`
 for a team member: no button until an admin switches **Team members can start new chats** on and saves.
-`?edition=lite` shows Lite (one inbox, no Send from). Everything below is the inherited google-drive README (the
-SQL Account connector from the sql-accounting mock is also in Admin → Connectors); every inherited flow still works.
+`?edition=lite` shows Lite (one inbox, no Send from). Everything below is the inherited scheduled-tasks README; every inherited flow still works.
+
+---
+
+# Scheduled tasks for AI agents: interactive app proposal
+
+A clone of the owner-confirmed **google-drive** reference (the whole app, revision `442b6317`, with the confirmed
+**sql-accounting** screens merged in) with the **scheduled-tasks** proposal on top: each AI agent page gets a
+**Scheduled tasks** card. A task sends one message from the agent at a set time (Every day / Weekdays / Chosen days,
+business time zone) to one existing chat or group of its inbox, following a plain-words instruction; it may send
+nothing when there is nothing to tell. Scope, guards, tables and routes: [../design.md](../design.md).
+
+```bash
+npx tsx --conditions=ezychat-source docs/features/scheduled-tasks/mock/run.ts --fake-wa
+node docs/features/scheduled-tasks/mock/scheduled-shots.mjs   # PW_CHROMIUM=<chromium> if needed; fresh mock
+```
+
+Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`), **Admin → Members → Aina** and press **Turn on**
+(the seeded agent is off, which shows the paused banner). The **Scheduled tasks** card lists three tasks. Try: Add task
+(validation, Send to search, Chosen days, Preview), a task's ⋮ → History / Run now (sends into the real chat; open
+**Kopi Apong Staff** to see the **Scheduled · Morning bookings** mark), and the dashed **Mock only** box (AI connected,
+WhatsApp connected, Nothing to tell today, 24-hour window closed, Fill to 10 tasks, Reset demo). `?edition=enterprise`
+and agent **Sofia** show the empty card. Tasks and history are kept in this browser (localStorage); nothing calls a
+model. Everything below is the inherited google-drive README; every inherited flow still works.
 
 ---
 

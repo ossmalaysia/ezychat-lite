@@ -72,6 +72,7 @@ import { AgentTryIt } from './AgentTryIt';
 import { AgentConnectorsCard } from './AgentConnectorsCard';
 import { AgentGroupsCard } from './AgentGroupsCard';
 import { AgentResolutionCard } from './AgentResolutionCard';
+import { AgentScheduledTasksCard } from './AgentScheduledTasksCard';
 import { AiConnectionBanner } from './AiConnectionBanner';
 import { AiEditDialog } from './AiEditDialog';
 import { AiQuickConnect } from './AiQuickConnect';
@@ -730,6 +731,14 @@ function AgentEditor({
 
       {/* Proposed (ai-groups): answer in WhatsApp groups when mentioned, and in which groups. */}
       {agent && <AgentGroupsCard agent={agent} name={draft.name.trim() || title} />}
+
+      {/* Proposed (scheduled-tasks): messages this agent sends by itself at set times. */}
+      {agent && (
+        <AgentScheduledTasksCard
+          agent={{ id: agent.id, enabled }}
+          name={draft.name.trim() || title}
+        />
+      )}
 
       {agent && (
         <Card id={SECTION_TRY} tabIndex={-1} className="scroll-mt-4 gap-4 outline-none">

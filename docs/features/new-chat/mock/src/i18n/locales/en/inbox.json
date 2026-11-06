@@ -781,6 +781,10 @@
       "numbers": "Add member: a number ending in 0 is not on WhatsApp, ending in 7 needs an invite."
     }
   },
+  "mockScheduled": {
+    "mark": "Scheduled",
+    "markNamed": "Scheduled · {{name}}"
+  },
   "mockNewChat": {
     "button": "New chat",
     "buttonShort": "New",

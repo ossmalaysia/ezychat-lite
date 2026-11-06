@@ -28,6 +28,7 @@ import { CustomerDetails } from './CustomerPanel';
 import { MediaView } from './MediaView';
 import { ReactionBadges } from './ReactionBadges';
 import { ReactionPicker } from './ReactionPicker';
+import { ScheduledMark } from '../mock/ScheduledMark';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
@@ -314,6 +315,8 @@ export function MessageBubble({
             {outboundLabel}
           </p>
         )}
+        {/* Proposed (scheduled-tasks): a message a scheduled task sent carries a "Scheduled" mark. */}
+        {out && <ScheduledMark clientId={m.clientId} />}
         {m.quotedId && (
           <div className="mb-1 rounded-md border-l-4 border-primary bg-muted/70 px-2 py-1 text-xs">
             {quoted ? (

@@ -17,6 +17,7 @@ import { registerGrammarFix } from './grammar.js';
 import { registerFeedback } from './feedback.js';
 import { registerGroupAdmin } from './group-admin.js';
 import { registerSqlAccount } from './sql-account.js';
+import { registerScheduledTasks } from './scheduled-tasks.js';
 import { registerNewChat } from './new-chat.js';
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
@@ -43,6 +44,8 @@ export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: Fake
   registerGroupAdmin(app, ctx, wa);
   // Proposed (sql-accounting): the SQL Account connector (fake API, Mock only scenarios).
   registerSqlAccount(app, ctx);
+  // Proposed (scheduled-tasks): Run now sends the agent's message into the real chat.
+  registerScheduledTasks(app, ctx);
   // Proposed (new-chat): start a chat with a number that is not in the inbox yet.
   registerNewChat(app, ctx);
   let enabled = false;

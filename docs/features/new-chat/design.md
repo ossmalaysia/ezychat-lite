@@ -18,19 +18,17 @@ Owner decisions (2026-11-06):
 ## Mock and baseline
 
 - Mock: [mock/index.html](mock/index.html) (the whole app, run with `run.ts`), README [mock/README.md](mock/README.md).
-- Baseline: the latest owner-confirmed mock, **google-drive** (`docs/features/google-drive/mock`, revision
-  `442b6317254a1a86b7df66bb86335f2d0047caec`; the folder on `main` 171f3aa is byte-identical to it). Copied from the
-  working tree without its screenshots.
-- Merged in: **sql-accounting** (confirmed 2026-11-05, revision `e33aabbd3db038dabb0eb8375c96363f3a157d3b`), which
-  was built in parallel from the same group-management baseline. The mock index note asks the next clone to copy
-  its files in: `src/admin/SqlAccountPage.tsx`, `src/mock/sqlAccount.ts`, `sql-account.ts`, `sql-account-shots.mjs`
-  added; `connector-list.ts`, `proposal.ts`, `run.ts`, `AgentConnectorsCard.tsx`, `ConnectorDetailPage.tsx`,
-  `ConnectorsGalleryPage.tsx`, `lib/tips.ts`, `mock/connectorCatalog.ts` merged three ways with `git merge-file`
-  (group-management as the base; two conflicts resolved by keeping both sides), the `admin`/`common` catalogs merged
-  by key. So this mock is the first cumulative reference with **both** Google Drive and SQL Account.
-- `mock/reference.json` records the baseline, the merge, the files this proposal adds or changes and the frozen
-  hashes. `node docs/features/new-chat/mock/snapshot.mjs --check` passes. Note: the confirmed google-drive mock
-  already fails its own `--check` on 6 files (`inheritedFrozenDrift` lists them); they are copied unchanged.
+- Baseline: the latest owner-confirmed mock, **scheduled-tasks** (`docs/features/scheduled-tasks/mock`, revision
+  `426c2eb766f24e520fd4f59b66ab837c11296045`, confirmed 2026-11-06), copied from `main` afc97fd without its
+  screenshots. It is a clone of google-drive with the confirmed sql-accounting screens merged in, so this mock carries
+  Google Drive, SQL Account and Scheduled tasks.
+- History: this proposal was first built on google-drive (`442b6317`, plus its own sql-accounting merge, commit
+  `9b2a13e`). scheduled-tasks merged and became `latestConfirmed` while this PR was open, so the new-chat deltas were
+  moved onto a fresh copy of it (added files copied; `proposal.ts`/`run.ts` merged three ways with google-drive as
+  the base; catalog keys added by key). Nothing of the earlier own sql-accounting merge remains.
+- `mock/reference.json` records the baseline, the files this proposal adds or changes and the frozen hashes.
+  `node docs/features/new-chat/mock/snapshot.mjs --check` passes. The confirmed scheduled-tasks mock already fails its
+  own `--check` on 7 files (the index calls it advisory); `inheritedFrozenDrift` lists them, copied unchanged.
 
 Run (from the repository root, after `npm install`):
 
@@ -97,13 +95,12 @@ limit and template failure.
 
 ### Five-folder retention
 
-This is the sixth feature folder, so this PR removes the oldest, **claims-template** (creationOrder 30, an
-unconfirmed proposal; last revision on `main` 171f3aa, recoverable with
-`git checkout 171f3aa -- docs/features/claims-template`), and moves its index entry to `archived`.
-Two other sessions are adding **partner-role** and **scheduled-tasks** folders on their own branches at the same
-time; each may claim creationOrder 35 and prune the same folder. **Whichever PR merges later resolves the index**:
-renumber its creationOrder after the others, keep the five newest folders (pruning group-management, then
-template-store if needed) and keep `latestConfirmed` on the newest confirmed mock.
+scheduled-tasks merged first (creationOrder 35) and already pruned **claims-template**. This PR takes the next
+number, **36**, and prunes the then-oldest folder, **group-management** (creationOrder 31, confirmed; its confirmed
+revision `26116d59b3b9ca31b202163dc599cb96b1bf6f5e` stays recorded in the index; also recoverable with
+`git checkout afc97fd -- docs/features/group-management`), so five folders remain: template-store, google-drive,
+sql-accounting, scheduled-tasks, new-chat. **partner-role** (another session) is still on its own branch: whichever
+of the two merges later renumbers after the other and prunes the next oldest (template-store).
 
 ## Scope
 

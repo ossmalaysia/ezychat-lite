@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../../../../packages/server/src/context.js';
 import { createInboxSendPort } from '../../../../packages/server/src/mcp/send.js';
 import { seedGroups } from './groups.js';
+import { seedScheduledTasks } from './scheduled-tasks.js';
 
 /** Fictional data through the existing services and API, never a real linked WhatsApp account. */
 export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -158,6 +159,8 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
   await seedBooking(ctx, call);
   // Proposed (ai-groups): three groups where the agent answers when tagged or quoted (or stays off).
   await seedGroups(ctx, call);
+  // Proposed (scheduled-tasks): Kopi Apong Staff with yesterday's scheduled bookings message.
+  await seedScheduledTasks(ctx, call);
 }
 
 /**

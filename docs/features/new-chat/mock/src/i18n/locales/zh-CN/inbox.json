@@ -778,6 +778,10 @@
       "numbers": "添加成员：以 0 结尾的号码未使用 WhatsApp，以 7 结尾需要邀请。"
     }
   },
+  "mockScheduled": {
+    "mark": "定时",
+    "markNamed": "定时 · {{name}}"
+  },
   "mockNewChat": {
     "button": "新对话",
     "buttonShort": "新建",
