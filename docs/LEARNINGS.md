@@ -1208,6 +1208,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
+  `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
+  due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
+  starts and ticks in the running server.
 - "Can the AI run a turn?" is `AiService.answerReady()`; `connectionReady()` also needs the provider's customer
   extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
   task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
