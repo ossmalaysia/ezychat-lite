@@ -6,7 +6,7 @@ Branch: `feat/limited-agent-impl` · Every agent updates its stage with
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
 | Design | done | Owner-confirmed mock: docs/features/partner-role (PR #314, revision 846a09c) | f3bf2d9 | 2026-11-06 |
-| Dev | done | users.chat_scope + member_chats (036), scope in inboxes/access.ts, 404 outside, chat:<jid> rooms, notifications via usersWhoCanOpenChat, assignment, Ask Ezy/member chat refused, Members edit UI, en/ms/zh-CN | f3bf2d9 | 2026-11-06 |
+| Dev | done | users.chat_scope + member_chats (037), scope in inboxes/access.ts, 404 outside, chat:<jid> rooms, notifications via usersWhoCanOpenChat, assignment, Ask Ezy/member chat refused, Members edit UI, en/ms/zh-CN | f3bf2d9 | 2026-11-06 |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
 | Dev Build | todo |  |  |  |
@@ -15,4 +15,4 @@ Branch: `feat/limited-agent-impl` · Every agent updates its stage with
 ## Log
 
 - 2026-11-06 Design: done — Owner-confirmed mock: docs/features/partner-role (PR #314, revision 846a09c) (f3bf2d9)
-- 2026-11-06 Dev: done — users.chat_scope + member_chats (036), scope in inboxes/access.ts, 404 outside, chat:<jid> rooms, notifications via usersWhoCanOpenChat, assignment, Ask Ezy/member chat refused, Members edit UI, en/ms/zh-CN (f3bf2d9)
+- 2026-11-06 Dev: done — users.chat_scope + member_chats (037), scope in inboxes/access.ts, 404 outside, chat:<jid> rooms, notifications via usersWhoCanOpenChat, assignment, Ask Ezy/member chat refused, Members edit UI, en/ms/zh-CN (f3bf2d9)

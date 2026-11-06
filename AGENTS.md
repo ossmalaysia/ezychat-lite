@@ -634,7 +634,7 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   MCP tools are filtered; chat events go to `inbox:<id>` socket rooms (rebuilt live on access changes);
   push, assignment and AI hand-off only reach people who may open the chat's inbox. An edition limit
   never widens access: the "one inbox" shortcut also checks the stored rows.
-- Limited chat access (design `docs/features/partner-role/design.md`, migration 036): an agent with
+- Limited chat access (design `docs/features/partner-role/design.md`, migration 037): an agent with
   `users.chat_scope = 'chosen'` opens only the chats in `member_chats` (any active inbox; they replace inbox access).
   `scopeFor` returns an empty inbox scope for them **before** the single-inbox shortcut, so `canOpen(inboxId)` is
   false; one chat is checked with `canOpenChat` (`requireChatAccess`, `requireMessageAccess`, assignment, typing).

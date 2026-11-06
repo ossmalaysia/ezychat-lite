@@ -792,7 +792,7 @@ describe('mergeLiteInbox refusals and rollback', () => {
     db.exec(
       'DROP TABLE sql_account_agent_settings; DROP TABLE sql_account_links; DROP TABLE sql_account_seen_items; DROP TABLE sql_account_quotes; DROP TABLE sql_account_activity;',
     );
-    // and 036 (limited chat access)
+    // and 037 (limited chat access)
     db.exec('DROP TABLE member_chats; ALTER TABLE users DROP COLUMN chat_scope;');
     db.pragma('user_version = 27');
     db.close();

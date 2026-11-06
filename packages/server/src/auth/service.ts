@@ -70,7 +70,7 @@ interface UserRow {
   /** The AI agent of an AI member (`ai_agents.id`, joined); null for people and deleted agents. */
   ai_agent_id?: number | null;
   ai_deleted_at?: number | null;
-  /** 'chosen': an agent limited to chosen chats (migration 036). */
+  /** 'chosen': an agent limited to chosen chats (migration 037). */
   chat_scope?: string;
 }
 

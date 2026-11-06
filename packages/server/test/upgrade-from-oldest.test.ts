@@ -136,7 +136,7 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     expect(t.ctx.settings.get('fix_english_upgraded', null)).toBe(true);
     // 027: every existing agent keeps answering direct chats.
     expect(listAgents(t.ctx.db).every((agent) => agent.answerDirect)).toBe(true);
-    // 036: every existing user keeps seeing all chats; nobody is limited to chosen chats.
+    // 037: every existing user keeps seeing all chats; nobody is limited to chosen chats.
     expect(
       t.ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE chat_scope != 'all'").get(),
     ).toEqual({ n: 0 });
