@@ -137,7 +137,10 @@ function NewChatDialog({
   const phoneError = submitted && !digits;
   const offline = inbox?.status !== 'connected' || state.scenario === 'disconnected';
   const used = inbox ? (state.usedToday[inbox.id] ?? 0) : 0;
-  const limitReached = state.scenario === 'daily_limit' || used >= state.limits.perInboxPerDay;
+  const dailyLimit = state.limits.perInboxPerDay;
+  // Linked phones only; 0 = no limit (Settings → General → New chats).
+  const limitReached =
+    !api_ && (state.scenario === 'daily_limit' || (dailyLimit > 0 && used >= dailyLimit));
 
   const reset = () => {
     setExisting(undefined);
@@ -437,11 +440,9 @@ function NewChatDialog({
 
             {!api_ && !offline && !limitReached && (
               <p className="text-xs text-muted-foreground" data-testid="new-chat-usage">
-                {t('mockNewChat.usage', {
-                  used,
-                  limit: state.limits.perInboxPerDay,
-                  inbox: inbox?.name ?? '',
-                })}
+                {dailyLimit > 0
+                  ? t('mockNewChat.usage', { used, limit: dailyLimit, inbox: inbox?.name ?? '' })
+                  : t('mockNewChat.usageNoLimit', { used, inbox: inbox?.name ?? '' })}
               </p>
             )}
           </form>

@@ -13,6 +13,7 @@ export interface NewChatState {
   allowed: boolean;
   scenario: NewChatScenario;
   usedToday: Record<string, number>;
+  /** perInboxPerDay: the admin's setting (default 20; 0 = no limit), linked phones only. */
   limits: { perInboxPerDay: number; perUserPerHour: number };
 }
 

@@ -857,6 +857,7 @@
       "dailyLimit": "每日上限",
       "templateError": "模板失败",
       "hint": "以 0 结尾的号码没有 WhatsApp。012-555 0142 已有对话。"
-    }
+    },
+    "usageNoLimit": "{{inbox}} 今天已发起 {{used}} 个新对话（无每日上限）。"
   }
 }

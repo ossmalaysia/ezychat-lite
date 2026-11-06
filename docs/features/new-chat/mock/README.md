@@ -5,7 +5,8 @@ carries google-drive and the sql-accounting screens) with the **new-chat** propo
 number that is not in the inbox yet. A linked phone checks the number is on WhatsApp (with a ban warning) and opens
 the chat with the normal composer; a Business API number starts with an approved template, and the chat exists only
 once it is sent. Admins can always do it; **Admin → Settings → General → New chats** lets team members do it too
-(off by default). Scope, rules and open questions: [../design.md](../design.md).
+(off by default) and sets **New chats per day, per WhatsApp number** (default 20, 0 = no limit; confirmed
+2026-11-06). Scope, rules and decisions: [../design.md](../design.md).
 
 ```bash
 npx tsx --conditions=ezychat-source docs/features/new-chat/mock/run.ts --fake-wa

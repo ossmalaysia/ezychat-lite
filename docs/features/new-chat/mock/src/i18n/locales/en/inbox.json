@@ -860,6 +860,7 @@
       "dailyLimit": "Daily limit",
       "templateError": "Template fails",
       "hint": "A number ending in 0 is not on WhatsApp. 012-555 0142 already has a chat."
-    }
+    },
+    "usageNoLimit": "{{used}} new chats started today on {{inbox}} (no daily limit)."
   }
 }

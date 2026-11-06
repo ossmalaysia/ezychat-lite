@@ -857,6 +857,7 @@
       "dailyLimit": "Had harian",
       "templateError": "Templat gagal",
       "hint": "Nombor yang berakhir dengan 0 tiada WhatsApp. 012-555 0142 sudah mempunyai sembang."
-    }
+    },
+    "usageNoLimit": "{{used}} sembang baharu dimulakan hari ini di {{inbox}} (tiada had harian)."
   }
 }

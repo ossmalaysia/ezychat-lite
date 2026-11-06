@@ -199,7 +199,8 @@
       "mcpEnable": "已开启 AI 助手访问",
       "mcpDisable": "已关闭 AI 助手访问",
       "chatNewNumber": "与新号码开始对话",
-      "settingsNewChatStaff": "新对话设置已更改"
+      "settingsNewChatStaff": "新对话设置已更改",
+      "settingsNewChatDailyLimit": "新对话每日上限已更改"
     },
     "fields": {
       "chat": "对话",
@@ -2493,6 +2494,12 @@
     "staff": "团队成员可以发起新对话",
     "staffOn": "开启：每个人都可以从自己所属的收件箱发起新对话。",
     "staffOff": "关闭：只有管理员能看到“新对话”。",
-    "limits": "为保护号码不被封禁，每个 WhatsApp 号码每天最多发起 20 个新对话，每人每小时最多 5 个。"
+    "limitLabel": "每个 WhatsApp 号码每天的新对话数",
+    "limitUnit": "每天",
+    "limitInvalid": "请输入 0 到 1000 之间的整数。",
+    "limitHint": "统计每个已链接手机发起的新号码，包括团队和 AI 助手。0 = 不限制。Business API 号码由 Meta 限制。",
+    "limitNone": "不限制：团队和 AI 助手每天可以给任意数量的新号码发消息。",
+    "limitBanTitle": "上限过高可能导致号码被封禁",
+    "limitBanBody": "如果号码给很多没有要求联系的人发消息，WhatsApp 可能会封禁该号码。除非对方期待你的消息，否则请保持较低的上限。"
   }
 }

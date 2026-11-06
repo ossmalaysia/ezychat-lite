@@ -31,6 +31,7 @@ const LABEL_KEYS = {
   // Proposed (new-chat).
   'chat.new_number': 'audit.actions.chatNewNumber',
   'settings.new_chat_staff': 'audit.actions.settingsNewChatStaff',
+  'settings.new_chat_daily_limit': 'audit.actions.settingsNewChatDailyLimit',
   'logs.download': 'audit.actions.logsDownload',
   'ai.connection_update': 'audit.actions.aiConnectionUpdate',
   'ai.member_update': 'audit.actions.aiMemberUpdate',

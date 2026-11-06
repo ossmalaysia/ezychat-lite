@@ -88,7 +88,7 @@ for (const size of Object.keys(sizes)) {
   // Admin, Enterprise (three inboxes: two linked phones, one Business API).
   const a = await session('aisyah', { size });
   const { page, shot, step, api } = a;
-  await api('PUT', '/mock/new-chat', { staffEnabled: false });
+  await api('PUT', '/mock/new-chat', { staffEnabled: false, dailyLimit: 20 });
   await api('PUT', '/mock/new-chat/scenario', { scenario: 'normal' });
   await step('header', async () => {
     await page.goto('/');
@@ -182,6 +182,16 @@ for (const size of Object.keys(sizes)) {
     await shot('16-settings-off');
     await card.getByRole('switch').click();
     await shot('17-settings-on-unsaved');
+    // Owner 2026-11-06: the daily limit is an admin setting (default 20, 0 = no limit).
+    const limit = card.getByTestId('new-chat-daily-limit');
+    await limit.getByRole('spinbutton').fill('');
+    await limit.scrollIntoViewIfNeeded();
+    await shot('23-settings-limit-invalid');
+    await limit.getByRole('spinbutton').fill('0');
+    await shot('24-settings-limit-none');
+    await limit.getByRole('spinbutton').fill('10');
+    await limit.scrollIntoViewIfNeeded();
+    await shot('25-settings-limit-10');
     await card.getByRole('button', { name: 'Save' }).click();
     await page.waitForTimeout(500);
   });
@@ -209,7 +219,7 @@ for (const size of Object.keys(sizes)) {
   });
   await d.ctx.close();
   const admin2 = await session('aisyah', { size });
-  await admin2.api('PUT', '/mock/new-chat', { staffEnabled: false });
+  await admin2.api('PUT', '/mock/new-chat', { staffEnabled: false, dailyLimit: 20 });
   await admin2.ctx.close();
   const d2 = await session('daniel', { size });
   await d2.step('staff-off', async () => {

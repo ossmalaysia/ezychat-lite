@@ -20,7 +20,7 @@ import { getChats, getMessages } from '../../../../packages/server/src/wa-bridge
 /** Mock-only scenarios, switched from the dashed Mock only box in the dialog. */
 type Scenario = 'normal' | 'disconnected' | 'daily_limit' | 'template_error';
 
-const LIMITS = { perInboxPerDay: 20, perUserPerHour: 5 } as const;
+const PER_USER_PER_HOUR = 5;
 const OWN_NUMBERS = new Set(['60123456789', '60137770000', '60327855000', '60000000000']);
 
 export interface MockNewChatState {
@@ -31,7 +31,8 @@ export interface MockNewChatState {
   scenario: Scenario;
   /** New numbers checked today per inbox (shared with the MCP tool in the app). */
   usedToday: Record<string, number>;
-  limits: typeof LIMITS;
+  /** perInboxPerDay: the admin's setting (default 20; 0 = no limit). Linked phones only. */
+  limits: { perInboxPerDay: number; perUserPerHour: number };
 }
 
 const InboxKind = z.enum(['linked_phone', 'business_api']);
@@ -75,6 +76,8 @@ const fail = (status: number, code: string, message: string) =>
 
 export function registerNewChat(app: FastifyInstance, ctx: AppContext): void {
   let staffEnabled = false;
+  /** Settings → New chats per day, per WhatsApp number (0 = no limit). */
+  let dailyLimit = 20;
   let scenario: Scenario = 'normal';
   const usedToday = new Map<string, number>();
   /** user id → timestamps of the last hour's checks. */
@@ -89,7 +92,7 @@ export function registerNewChat(app: FastifyInstance, ctx: AppContext): void {
     allowed: user.role === 'admin' || staffEnabled,
     scenario,
     usedToday: Object.fromEntries(usedToday),
-    limits: LIMITS,
+    limits: { perInboxPerDay: dailyLimit, perUserPerHour: PER_USER_PER_HOUR },
   });
 
   const guard = (user: { role: string }) => {
@@ -116,6 +119,7 @@ export function registerNewChat(app: FastifyInstance, ctx: AppContext): void {
     const body = parse(
       z.object({
         staffEnabled: z.boolean().optional(),
+        dailyLimit: z.number().int().min(0).max(1000).optional(),
       }),
       req.body,
     );
@@ -127,6 +131,15 @@ export function registerNewChat(app: FastifyInstance, ctx: AppContext): void {
         meta: { before: staffEnabled, after: body.staffEnabled },
       });
       staffEnabled = body.staffEnabled;
+    }
+    if (body.dailyLimit !== undefined && body.dailyLimit !== dailyLimit) {
+      audit(ctx.db, {
+        userId: req.user!.id,
+        action: 'settings.new_chat_daily_limit',
+        ip: req.ip,
+        meta: { before: dailyLimit, after: body.dailyLimit },
+      });
+      dailyLimit = body.dailyLimit;
     }
     return state(req.user!);
   });
@@ -165,14 +178,15 @@ export function registerNewChat(app: FastifyInstance, ctx: AppContext): void {
     if (api && !body.template)
       throw fail(400, 'template_required', 'A new chat on this number starts with a template');
 
-    // Counted before WhatsApp is asked (every check asks about a stranger's number).
+    // Counted before WhatsApp is asked (every check asks about a stranger's number). The daily
+    // limit is for linked phones only (owner 2026-11-06); a Business API inbox has only the hourly one.
     const today = usedToday.get(body.inboxId) ?? 0;
-    if (scenario === 'daily_limit' || today >= LIMITS.perInboxPerDay)
-      throw fail(429, 'new_chat_daily_limit', 'This number started 20 new chats today');
+    if (!api && (scenario === 'daily_limit' || (dailyLimit > 0 && today >= dailyLimit)))
+      throw fail(429, 'new_chat_daily_limit', `This number started ${dailyLimit} new chats today`);
     const hour = (usedHour.get(user.id) ?? []).filter((at) => at > Date.now() - 3_600_000);
-    if (hour.length >= LIMITS.perUserPerHour)
+    if (hour.length >= PER_USER_PER_HOUR)
       throw fail(429, 'new_chat_hourly_limit', 'You started 5 new chats in the last hour');
-    usedToday.set(body.inboxId, today + 1);
+    if (!api) usedToday.set(body.inboxId, today + 1);
     usedHour.set(user.id, [...hour, Date.now()]);
 
     // Stand-in for WhatsApp answering (checkNumber / the template send).

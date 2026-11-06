@@ -1,7 +1,7 @@
 # New chat (message a number that is not in the inbox yet)
 
-Status: **proposal, waiting for the owner's confirmation of the mock.** No production code until then.
-Created 2026-11-06 (creationOrder 35). Branch `feat/new-chat`, workbook `docs/workbooks/feat__new-chat.md`.
+Status: **confirmed 2026-11-06** (with one change: the daily limit is an admin setting; see "Mock and confirmation
+record"). Production work on `feat/new-chat-impl`. Created 2026-11-06 (creationOrder 36). Branch `feat/new-chat`, workbook `docs/workbooks/feat__new-chat.md`.
 
 Owner request (Jazz, 2026-11-06, relayed by the main session): a **New chat** button that starts a conversation
 with a phone number that is not in the inbox yet. Lite core, so Lite and Enterprise both get it, for both
@@ -14,6 +14,14 @@ Owner decisions (2026-11-06):
 2. An admin switch in Settings lets team members (agents) start new chats too. **Off by default**; the admin can
    turn it on and off again. Audited with before/after.
 3. Keep it simple: one number at a time. No paste-a-list, no bulk, no CSV.
+4. (Confirmation, 2026-11-06) The daily new-number limit for a linked phone is an **admin setting**: Settings →
+   General → New chats → "New chats per day, per WhatsApp number", default **20**, the admin may raise or lower it,
+   **0 = no limit**, the WhatsApp ban warning beside it, audited before/after. Shared with MCP `send_to_new_number`,
+   which keeps its own per-token cap on top.
+5. (Confirmation) Counts in memory for v1; Business API new chats only the 5 an hour per user; the default country
+   code comes from the sending inbox's own number (+60 fallback); a new chat is assigned to the starter and the AI
+   does not answer until it is handed back.
+6. (Confirmation) Limited agents (`chat_scope = 'chosen'`, limit-an-agent feature #318) can never start a new chat.
 
 ## Mock and baseline
 
@@ -82,8 +90,11 @@ Open `http://localhost:7489/`, sign in as `aisyah` (admin) or `daniel` (team mem
 | 20  | Team member's inbox choice (only their inboxes)                       | `20-staff-inbox-choice`      |
 | 21  | Team member, switch off: no button                                    | `21-header-staff-off`        |
 | 22  | Lite (one inbox: no Send from)                                        | `22-dialog-lite`             |
+| 23  | Daily limit field empty → error (confirmation change)                 | `23-settings-limit-invalid`  |
+| 24  | Daily limit 0 → "No limit" text, ban warning                          | `24-settings-limit-none`     |
+| 25  | Daily limit 10 (unsaved) with the ban warning                         | `25-settings-limit-10`       |
 
-The run ends with `screenshots/new-chat-results.json`: 56 screenshots, 0 page errors, 0 horizontal overflow.
+The run ends with `screenshots/new-chat-results.json`: 62 screenshots, 0 page errors, 0 horizontal overflow.
 
 Mock simplifications (not the design): inboxes, the chat→inbox map and the edition live in the browser
 (localStorage), so a chat started in one browser shows under the first inbox in another; the server cannot tell
@@ -129,11 +140,12 @@ path, under its own token scope); a per-person on/off (the switch is team-wide).
 | Admin                                         | Always, from every active inbox                                                 |
 | Team member (agent), switch **off** (default) | Never; no button; the routes answer 403 `new_chat_not_allowed`                  |
 | Team member, switch **on**                    | Only from inboxes they belong to (`inbox_members`); others answer 404           |
+| Limited agent (`chat_scope = 'chosen'`)       | **Never**, whatever the switch says (403)                                       |
 | Partner role (Enterprise, another session)    | **Never**, whatever the switch says (403)                                       |
 | The AI member / AI agents                     | Never (no tool; `send_to_new_number` is MCP-only, token scope `inbox:send_new`) |
 | An MCP token                                  | Only through `send_to_new_number`, as today, now through the shared service     |
 
-The rule is an allowlist: `role === 'admin' || (role === 'agent' && new_chat_staff)`. Any other role an edition adds
+The rule is an allowlist: `role === 'admin' || (role === 'agent' && chat_scope !== 'chosen' && new_chat_staff)`. Any other role an edition adds
 is refused unless it changes this rule on purpose.
 
 ## Flow by connection type (decided from capabilities only)
@@ -182,17 +194,19 @@ name: null }, inboxId)`. Then the optional name is saved to `customer_profiles` 
 
 ## Limits (counted before WhatsApp is asked)
 
-| Limit                             | Value           | Scope / note                                                                                                |
-| --------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
-| New numbers per **inbox** per day | 20              | Shared by the app and MCP `send_to_new_number` (one budget per WhatsApp number). 429 `new_chat_daily_limit` |
-| New numbers per **user** per hour | 5               | App only. 429 `new_chat_hourly_limit` with `Retry-After`                                                    |
-| MCP per token per day             | 20              | Unchanged (`SEND_LIMITS.newNumbersPerDay`), on top of the inbox budget                                      |
-| Check route                       | 60/min per user | Plain rate limit (it never asks WhatsApp)                                                                   |
+| Limit                                          | Value                                                    | Scope / note                                                                                                                      |
+| ---------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| New numbers per **linked-phone inbox** per day | Setting `new_chat_daily_limit`, default 20; 0 = no limit | Shared by the app and MCP `send_to_new_number` (one budget per WhatsApp number). 429 `new_chat_daily_limit`. Not for Business API |
+| New numbers per **user** per hour              | 5                                                        | App only, every inbox type. 429 `new_chat_hourly_limit` with `Retry-After`                                                        |
+| MCP per token per day                          | 20                                                       | Unchanged (`SEND_LIMITS.newNumbersPerDay`), on top of the inbox budget                                                            |
+| Check route                                    | 60/min per user                                          | Plain rate limit (it never asks WhatsApp)                                                                                         |
 
 Counted on **Start**, before `checkNumber` (every check asks WhatsApp about a stranger's number); a "not on WhatsApp"
 answer still counts; an existing chat, a format error or an own number does not. In-memory `WindowLimiter`s, like
-MCP today (a restart resets them; see open question 2). The dialog shows "3 of 20 new chats used today on Kopi Apong"
-for checked inboxes. For a template-first inbox see open question 3.
+MCP today (a restart resets them; owner-confirmed for v1). The limit is read on every Start, so a change applies at
+once. The dialog shows "3 of 20 new chats used today on Kopi Apong" for linked-phone inboxes, or "3 new chats started
+today on Kopi Apong (no daily limit)" when the setting is 0. A Business API inbox has no daily count (Meta limits and
+charges business-started conversations); only the 5 an hour per user applies.
 
 ## Shared service (reuse MCP `send_to_new_number`)
 
@@ -222,17 +236,21 @@ type NewChatActor =
 - Group Info → Message (`groups/service.ts startChat`) stays as it is: it opens a chat with a known group member,
   needs no number check and is not limited; it only reuses the service's "existing chat" lookup.
 
-## Settings switch
+## Settings
 
-- Setting key **`new_chat_staff`** (`settings` table, `'1'`/`'0'`; missing = off, so existing installs need no
-  migration and stay admin-only).
-- `GET /api/settings` gains `newChatStaff: boolean` (zod default `false`); `PATCH /api/settings` `{ newChatStaff }`
-  (admins); audit **`settings.new_chat_staff`** `{ before, after }` (only when it changes).
+- **`new_chat_staff`** (`settings` table, `'1'`/`'0'`; missing = off, so existing installs need no migration and
+  stay admin-only).
+- **`new_chat_daily_limit`** (integer 0–1000 as text; missing = 20; 0 = no limit).
+- `GET /api/settings` gains `newChatStaff: boolean` (zod default `false`) and `newChatDailyLimit: number` (zod
+  default 20); `PATCH /api/settings` `{ newChatStaff?, newChatDailyLimit? }` (admins); audits
+  **`settings.new_chat_staff`** and **`settings.new_chat_daily_limit`** `{ before, after }`, each only when it changes.
 - Everyone learns whether they may start a chat from `GET /api/me` → `canStartNewChat: boolean` (computed on the
-  server from role + setting; zod default `false`), refreshed on the existing `settings:changed` socket event, so
-  the button appears or disappears without a reload.
+  server from role, chat scope and setting; zod default `false`), refreshed on the existing `settings:changed`
+  socket event, so the button appears or disappears without a reload.
 - Web: Settings → General card **New chats**: "Start a WhatsApp chat with a number that is not in the inbox yet.
-  Admins can always do this." Switch **Team members can start new chats**, the on/off line, the limits line, Save.
+  Admins can always do this." Switch **Team members can start new chats** with its on/off line; field **New chats per
+  day, per WhatsApp number** (`a day`, hint, "No limit" text at 0, error outside 0–1000) with the ban warning banner
+  "A high limit can get your number banned"; one Save.
 
 ## API contract (zod in `packages/shared/src/new-chat.ts`)
 
@@ -278,40 +296,42 @@ An edition limit never widens access.
 - `chat.new_number` `{ inboxId, chatJid, userId, via: 'app' | 'mcp', tokenId? }`, never the number's name or the
   message/template text. MCP writes this action too (replacing `mcp.new_chat`; old rows keep their label).
 - The optional name goes through the profile save, audited as today (`customer.profile_update`, field names only).
-- `settings.new_chat_staff` `{ before, after }`.
+- `settings.new_chat_staff` and `settings.new_chat_daily_limit` `{ before, after }`.
 - Logs (`mod: 'new-chat'`): inbox id, user id, via, outcome (`created`, `existing`, `not_on_whatsapp`, `limit`,
   `template_failed`), ms. Never the phone number, name or template values.
 
 ## Security invariant (proposed text for AGENTS.md)
 
 > - New chat (`chats/new-chat.ts`, `/api/inboxes/:id/new-chat[/check]`): only admins, or agents while
->   `new_chat_staff` is on, and only from inboxes they may open (else 404); every other role (partner, AI) is
->   refused. One number per request; counted before `checkNumber` (20 a day per inbox, shared with MCP
->   `send_to_new_number`; 5 an hour per user); a template-first inbox (`replyWindowHours`) creates the chat only after
+>   `new_chat_staff` is on, and only from inboxes they may open (else 404); limited agents (`chat_scope = 'chosen'`) and every
+>   other role (partner, AI) are refused. One number per request; counted before `checkNumber` (the admin's daily limit per linked
+>   phone, default 20, 0 = none, shared with MCP `send_to_new_number`; 5 an hour per user); a template-first inbox (`replyWindowHours`) creates the chat only after
 >   WhatsApp accepted the template. Audit `chat.new_number` and logs carry ids only, never the number's name or
 >   message text. The core decides the flow from `WaCapabilities`, never from an inbox type name.
 
 ## Migration and upgrade
 
-None. `new_chat_staff` missing = off; limits are in memory. `upgrade-from-oldest.test.ts` is unaffected. (If the
-owner wants limits to survive a restart, open question 2, that adds migration 036 `new_chat_counts`.)
+None. `new_chat_staff` missing = off, `new_chat_daily_limit` missing = 20; counts are in memory (confirmed for v1).
+`upgrade-from-oldest.test.ts` is unaffected.
 
 ## Test plan
 
 Unit (server, Vitest, fake WA and `fake-api` inbox):
 
 - `normalizePhone` table: local `01x`, `+60`, `60`, `0060`, spaces/dashes/brackets, `+65`, too short/long, letters.
-- Permissions: admin yes; agent off → 403; agent on → yes, only member inboxes (404 otherwise); a non-agent role
+- Permissions: admin yes; agent off → 403; agent on → yes, only member inboxes (404 otherwise); limited agent
+  (`chat_scope = 'chosen'`) → 403 with the switch on; a non-agent role
   (partner fixture) → 403 with the switch on; AI user → 403.
 - Existing chat: by phone JID, by LID through `jid_aliases`, inbox 2 key; another inbox's chat does not count.
 - Own number (any inbox, also a removed one) → 400; disconnected → 503; removed inbox → 409.
 - Counted before the check; not-on-WhatsApp counted; existing/invalid not counted; daily limit shared with MCP
-  (19 app + 1 MCP → the 21st refused on either path); hourly per user; `clientRequestId` retry counts once.
+  (19 app + 1 MCP → the 21st refused on either path); a changed limit applies at once; 0 = no limit; Business API
+  never counted daily; hourly per user; `clientRequestId` retry counts once.
 - Raced chat (inbound arrives during `checkNumber`) → `created: false`, no duplicate.
 - Template first: no `checkNumber` call; validation errors; send failure → no chat row, no message, no audit; success
   → one chat, one outbound message, `last_inbound_at` null, free text 409 `window_closed`.
 - Assignment event, profile name saved, audit meta exact (no text), log line fields.
-- Settings: PATCH audits before/after only on change; `canStartNewChat` in `/api/me`; socket refresh.
+- Settings: PATCH audits before/after only on change (both keys; limit range 0–1000); `canStartNewChat` in `/api/me`; socket refresh.
 - MCP `send_to_new_number` regression suite unchanged (except `chat.new_number` audit).
 
 Contract: `web-client-contract.test.ts` (literal paths). Web: dialog states (Testing Library), catalog tests for
@@ -322,21 +342,19 @@ real customer); Business API untested without an Enterprise `wa-cloud` number (s
 
 Screen review per AGENTS.md before done (1280/360, light/dark, all states above).
 
-## Open questions for the owner
+## Owner answers (2026-11-06)
 
-1. **One daily budget per WhatsApp number**, shared by the app and AI assistants (MCP), 20 a day: OK? (Recommended:
-   yes; MCP keeps its own 20 per token on top.)
-2. **Limits reset on restart** (in memory, like MCP today): OK, or keep counts in the database (one small migration)?
-   (Recommended: in memory for v1.)
-3. **Business API new chats**: count them in the 20/day (Meta already limits business-started conversations by tier,
-   and each costs money) or only the 5/hour per person? (Recommended: only 5/hour; Meta's tier governs the rest.)
-4. **Default country**: always +60, or the country code of the sending inbox's own number (a Singapore number would
-   default to +65)? (Recommended: the inbox's own country code, +60 fallback.)
-5. The new chat is assigned to the starter, so an AI agent does **not** answer the customer's reply until someone
-   unassigns it or hands it to the AI. OK? (Recommended: yes.)
+1. Daily budget per WhatsApp number shared by the app and MCP: **yes**, and it is an **admin setting** (default 20,
+   0 = no limit); MCP keeps its own 20 per token on top.
+2. Counts **in memory** for v1.
+3. Business API new chats: **only 5 an hour per user** (no daily count).
+4. Default country: **the sending inbox's own country code**, +60 fallback.
+5. Assigned to the starter; the AI **does not answer** until it is handed back.
 
 ## Mock and confirmation record
 
-| Date       | Event                                                                                         |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| 2026-11-06 | Mock and design created (this PR). Waiting for the owner's confirmation; nothing is approved. |
+| Date       | Event                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-06 | Mock and design created (this PR). Waiting for the owner's confirmation; nothing is approved.                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-11-06 | Rebased onto scheduled-tasks (latestConfirmed) after it merged; creationOrder 36.                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-11-06 | **Confirmed** by the owner (Jazz), relayed by the main session (session_01J4pmGkCf1Mvdepudm8WQAd): "The owner CONFIRMED the New chat mock on 2026-11-06, with one change": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning beside it, audited before/after, shared with MCP); suggested answers 1–5 stand; limited agents never start a new chat. Mock updated (Settings field, shots 23–25). |

@@ -199,7 +199,8 @@
       "mcpEnable": "Akses pembantu AI dihidupkan",
       "mcpDisable": "Akses pembantu AI dimatikan",
       "chatNewNumber": "Sembang dimulakan dengan nombor baharu",
-      "settingsNewChatStaff": "Tetapan sembang baharu ditukar"
+      "settingsNewChatStaff": "Tetapan sembang baharu ditukar",
+      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar"
     },
     "fields": {
       "chat": "Sembang",
@@ -2494,6 +2495,12 @@
     "staff": "Ahli pasukan boleh memulakan sembang baharu",
     "staffOn": "Hidup: semua orang boleh memulakan sembang baharu daripada peti masuk mereka.",
     "staffOff": "Mati: hanya pentadbir melihat Sembang baharu.",
-    "limits": "Setiap nombor WhatsApp boleh memulakan 20 sembang baharu sehari, dan setiap orang 5 sejam, untuk melindungi nombor daripada disekat."
+    "limitLabel": "Sembang baharu sehari, bagi setiap nombor WhatsApp",
+    "limitUnit": "sehari",
+    "limitInvalid": "Masukkan nombor bulat dari 0 hingga 1000.",
+    "limitHint": "Mengira nombor baharu yang dimulakan daripada setiap telefon yang dipautkan, oleh pasukan anda dan pembantu AI bersama-sama. 0 = tiada had. Nombor Business API dihadkan oleh Meta.",
+    "limitNone": "Tiada had: pasukan anda dan pembantu AI boleh menghantar mesej kepada seberapa banyak nombor baharu sehari.",
+    "limitBanTitle": "Had yang tinggi boleh menyebabkan nombor anda disekat",
+    "limitBanBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada ramai orang yang tidak memintanya. Kekalkan had yang rendah melainkan orang ini menjangkakan mesej anda."
   }
 }

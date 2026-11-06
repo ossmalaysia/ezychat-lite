@@ -201,7 +201,8 @@
       "mcpEnable": "AI assistant access turned on",
       "mcpDisable": "AI assistant access turned off",
       "chatNewNumber": "Chat started with a new number",
-      "settingsNewChatStaff": "New chats setting changed"
+      "settingsNewChatStaff": "New chats setting changed",
+      "settingsNewChatDailyLimit": "New chats daily limit changed"
     },
     "fields": {
       "chat": "Chat",
@@ -2502,6 +2503,12 @@
     "staff": "Team members can start new chats",
     "staffOn": "On: everyone can start new chats from the inbox they belong to.",
     "staffOff": "Off: only admins see New chat.",
-    "limits": "Each WhatsApp number can start 20 new chats a day, and each person 5 an hour, to protect the number from a ban."
+    "limitLabel": "New chats per day, per WhatsApp number",
+    "limitUnit": "a day",
+    "limitInvalid": "Enter a whole number from 0 to 1000.",
+    "limitHint": "Counts new numbers started from each linked phone, by your team and by AI assistants together. 0 = no limit. Business API numbers are limited by Meta instead.",
+    "limitNone": "No limit: your team and AI assistants can message as many new numbers a day as they like.",
+    "limitBanTitle": "A high limit can get your number banned",
+    "limitBanBody": "WhatsApp can ban a number that messages many people who did not ask for it. Keep the limit low unless these people expect your message."
   }
 }
