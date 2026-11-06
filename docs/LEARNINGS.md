@@ -199,6 +199,9 @@ into AGENTS.md.
   baseline> <parallel>` (the shared baseline folder is still in the tree), merge catalogs by key, then
   `snapshot.mjs --check`. A confirmed baseline may already fail its own `--check`: record that drift as inherited
   (copied unchanged) instead of re-hashing it away.
+- Before pruning a feature folder for retention, `git grep` for imports of it outside `docs/features` and run the
+  `scripts/*.test.mjs` suite: `template-store/publisher/` is live tooling (`scripts/template-store.test.mjs` imports
+  it), so prune the next oldest mock instead.
 - Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
   meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run.
 - A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
