@@ -9,18 +9,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useChats } from '../api/queries';
 import { encodeJid } from '../lib/jid';
 import { ChatAvatar } from '../inbox/ChatAvatar';
 import { GroupIcon } from '../inbox/ChatListItem';
-import { endAt, formatDay, ShareBadges, ShareOptions, type EndChoice } from '../inbox/PartnerShare';
+import { formatDay } from '../inbox/PartnerShare';
 import {
   longListShares,
-  startOfToday,
-  useExpireShare,
   usePartnerSettings,
   usePartnerState,
   useRemoveShare,
@@ -32,10 +28,9 @@ import {
 import { ConfirmDialog, ErrorState, ListSkeleton } from './adminUi';
 
 /**
- * Proposed (partner-role): Admin → Members → a partner. The chats this partner can see (add with an
- * optional end date and "from today on", remove), what partners can and cannot do, the team switch
- * for internal notes, and what changed. Production: `apps/web/src/admin/PartnerPage.tsx` on
- * `GET/POST/DELETE /api/users/:id/shares` and the `partner_notes` setting.
+ * Proposed (partner-role): Admin → Members → a partner. The chats this partner can see (share, stop
+ * sharing; full history, no end date), what partners can and cannot do, and what changed.
+ * Production: `apps/web/src/admin/PartnerPage.tsx` on `GET/POST/DELETE /api/users/:id/shares`.
  */
 export function PartnerPage() {
   const { userId } = useParams();
@@ -79,7 +74,6 @@ export function PartnerPage() {
       </div>
       <SharedChatsCard partner={partner} longList={!!q.data?.longList} />
       <PartnerCanCard />
-      <NotesCard on={!!q.data?.notesForPartners} />
       <ActivityCard partner={partner} rows={q.data?.log ?? []} />
       <MockBox partner={partner} longList={!!q.data?.longList} />
     </div>
@@ -149,7 +143,6 @@ function SharedChatsCard({ partner, longList }: { partner: PartnerRow; longList:
                         date: formatDay(s.grantedAt, i18n.language),
                       })}
                     </p>
-                    <ShareBadges share={s} className="mt-1" />
                   </div>
                   <div className="flex shrink-0 items-center">
                     {!s.id.startsWith('long-') && (
@@ -221,8 +214,6 @@ function AddChatDialog({ partner, onClose }: { partner: PartnerRow; onClose(): v
   const save = useSaveShare();
   const [search, setSearch] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
-  const [end, setEnd] = useState<EndChoice>('none');
-  const [todayOn, setTodayOn] = useState(false);
   const shared = new Set(partner.shares.map((s) => s.chatJid));
   const chats = [...(open.data?.pages ?? []), ...(done.data?.pages ?? [])]
     .flatMap((p) => p.chats)
@@ -235,8 +226,6 @@ function AddChatDialog({ partner, onClose }: { partner: PartnerRow; onClose(): v
       {
         userId: partner.userId,
         chatJid: picked,
-        expiresAt: endAt(end),
-        historyFrom: todayOn ? startOfToday() : null,
       },
       {
         onSuccess: () => {
@@ -309,13 +298,6 @@ function AddChatDialog({ partner, onClose }: { partner: PartnerRow; onClose(): v
             </li>
           ))}
         </ul>
-        <ShareOptions
-          end={end}
-          onEnd={setEnd}
-          todayOn={todayOn}
-          onTodayOn={setTodayOn}
-          idPrefix="add"
-        />
       </div>
     </ResponsiveDialog>
   );
@@ -324,7 +306,15 @@ function AddChatDialog({ partner, onClose }: { partner: PartnerRow; onClose(): v
 function PartnerCanCard() {
   const { t } = useTranslation(['admin', 'common']);
   const can = ['read', 'reply', 'suggest', 'takeOver', 'assignSelf'] as const;
-  const cannot = ['newChats', 'otherChats', 'numbers', 'admin', 'askEzy', 'export'] as const;
+  const cannot = [
+    'newChats',
+    'otherChats',
+    'notes',
+    'numbers',
+    'admin',
+    'askEzy',
+    'export',
+  ] as const;
   return (
     <Card className="gap-3">
       <CardHeader>
@@ -353,36 +343,9 @@ function PartnerCanCard() {
   );
 }
 
-function NotesCard({ on }: { on: boolean }) {
-  const { t } = useTranslation(['admin', 'common']);
-  const settings = usePartnerSettings();
-  return (
-    <Card className="gap-3">
-      <CardContent className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Label htmlFor="partner-notes" className="text-base font-semibold">
-            {t('partner.notes.label')}
-          </Label>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {on ? t('partner.notes.onHint') : t('partner.notes.offHint')}
-          </p>
-        </div>
-        <Switch
-          id="partner-notes"
-          checked={on}
-          disabled={settings.isPending}
-          onCheckedChange={(v) => settings.mutate({ notesForPartners: v })}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
 function ActivityCard({ partner, rows }: { partner: PartnerRow; rows: PartnerLogRow[] }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
-  const mine = rows.filter(
-    (r) => r.partner === partner.displayName || r.action === 'partner_notes.changed',
-  );
+  const mine = rows.filter((r) => r.partner === partner.displayName);
   return (
     <Card className="gap-3">
       <CardHeader>
@@ -421,8 +384,6 @@ function ActivityCard({ partner, rows }: { partner: PartnerRow; rows: PartnerLog
 function MockBox({ partner, longList }: { partner: PartnerRow; longList: boolean }) {
   const { t } = useTranslation(['admin', 'common']);
   const settings = usePartnerSettings();
-  const expire = useExpireShare();
-  const ending = partner.shares.find((s) => s.expiresAt !== null);
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-dashed px-3 py-3">
       <Badge variant="outline" className="self-start">
@@ -436,11 +397,6 @@ function MockBox({ partner, longList }: { partner: PartnerRow; longList: boolean
         >
           {longList ? t('partner.mock.shortList') : t('partner.mock.longList')}
         </Button>
-        {ending && (
-          <Button variant="link" className="h-auto p-0" onClick={() => expire.mutate(ending.id)}>
-            {t('partner.mock.expireNow', { chat: ending.chatName })}
-          </Button>
-        )}
       </div>
       <Banner tone="info">{t('partner.mock.signIn')}</Banner>
     </div>

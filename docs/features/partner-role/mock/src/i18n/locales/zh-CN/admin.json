@@ -2383,7 +2383,7 @@
     "page": {
       "noCompany": "合作伙伴（无公司）",
       "chatsTitle": "{{name}} 可以看到的聊天",
-      "chatsBody": "EzyChat 只向此合作伙伴显示这些聊天。移除后，聊天会立即从他们的屏幕上消失。",
+      "chatsBody": "EzyChat 只向此合作伙伴显示这些聊天及其完整记录。停止共享后，聊天会立即从他们的屏幕上消失。",
       "add": "共享聊天",
       "emptyTitle": "尚未共享任何聊天",
       "emptyBody": "{{name}} 可以登录，但在您共享聊天之前看不到任何聊天。可在此处或在聊天中共享。",
@@ -2395,10 +2395,10 @@
       "remove": "停止共享 {{name}}",
       "showMore": "再显示 {{count}} 个",
       "removeTitle": "停止共享 {{chat}}？",
-      "removeBody": "{{name}} 将无法再打开此聊天或看到新消息。他们已发送的内容会保留在聊天中。",
+      "removeBody": "{{name}} 将无法再打开此聊天。他们已发送的内容会保留在聊天中。",
       "removeConfirm": "停止共享",
       "addTitle": "与 {{name}} 共享聊天",
-      "addBody": "选择一个私聊或群组。合作伙伴可以在其中阅读和回复。",
+      "addBody": "选择一个私聊或群组。合作伙伴可以阅读完整记录并回复。",
       "pickLabel": "聊天",
       "pickPlaceholder": "搜索聊天",
       "pickNone": "没有其他可共享的聊天。"
@@ -2407,7 +2407,7 @@
       "header": "共享",
       "headerLabel_other": "与合作伙伴共享（{{count}} 位合作伙伴）",
       "title": "与合作伙伴共享",
-      "description": "合作伙伴只能看到您共享的聊天，并可在此阅读和回复。",
+      "description": "合作伙伴只能看到您共享的聊天及其完整记录，在您停止共享前可在此阅读和回复。",
       "sharedWith": "已共享给",
       "removeFor": "停止与 {{name}} 共享",
       "removed": "已停止与 {{name}} 共享",
@@ -2418,22 +2418,8 @@
       "noPartnersBody": "请先在“成员”中添加合作伙伴（选择“合作伙伴”角色）。",
       "invite": "前往成员",
       "allShared": "所有合作伙伴都已拥有此聊天。",
-      "endLabel": "停止共享",
-      "end": {
-        "none": "永不（直到您停止）",
-        "7": "7 天后",
-        "30": "30 天后",
-        "90": "90 天后"
-      },
-      "endHint": "到那天，聊天会自动从合作伙伴的屏幕上消失。",
-      "todayOnLabel": "仅显示今天起的消息",
-      "todayOnHint": "合作伙伴只能看到今天和之后的消息，看不到之前的记录。",
-      "fullHistoryHint": "关闭：合作伙伴可以看到完整的聊天记录。",
-      "whatDirect": "合作伙伴可以看到客户的名字和消息，看不到其电话号码和其他聊天。",
-      "whatGroup": "合作伙伴可以看到群组消息和成员名字，看不到成员的电话号码。",
-      "ends": "{{date}} 结束",
-      "endsIn_other": "{{count}} 天后结束",
-      "historyFrom": "从 {{date}} 起"
+      "whatDirect": "合作伙伴可以看到客户的名字和完整聊天记录，但看不到其电话号码、内部备注或其他聊天。",
+      "whatGroup": "合作伙伴可以看到群组的完整聊天记录和成员名字，但看不到成员电话号码或内部备注。"
     },
     "can": {
       "title": "合作伙伴可以做什么",
@@ -2448,16 +2434,12 @@
       "no": {
         "newChats": "发起新聊天或直接给群成员发消息",
         "otherChats": "查看或搜索您未共享的聊天",
+        "notes": "查看团队的内部备注",
         "numbers": "查看群成员的电话号码",
         "admin": "打开管理：成员、设置、报告、连接器、AI 客服",
         "askEzy": "使用 Ask Ezy、AI 助手访问（MCP）或发送反馈",
         "export": "下载日志或导出数据"
       }
-    },
-    "notes": {
-      "label": "合作伙伴可查看内部备注",
-      "offHint": "关闭：共享聊天中的备注仅限您的团队查看。",
-      "onHint": "开启：每位合作伙伴都能看到共享给他们的聊天中的备注。"
     },
     "activity": {
       "title": "变更记录",
@@ -2465,10 +2447,7 @@
       "empty": "暂无记录。",
       "partner_invited": "{{by}} 将 {{partner}} 添加为合作伙伴",
       "chat_share_added": "{{by}} 共享了 {{chat}}",
-      "chat_share_changed": "{{by}} 更改了 {{chat}} 的共享方式",
-      "chat_share_removed": "{{by}} 停止共享 {{chat}}",
-      "chat_share_expired": "{{chat}} 已停止共享（到期）",
-      "partner_notes_changed": "{{by}} 更改了合作伙伴能否查看内部备注"
+      "chat_share_removed": "{{by}} 停止共享 {{chat}}"
     },
     "view": {
       "bannerTitle": "合作伙伴访问 · {{company}}",
@@ -2476,8 +2455,7 @@
       "emptyTitle": "还没有共享给您的聊天",
       "emptyBody": "团队共享聊天后，它们会立即显示在这里。",
       "notSharedTitle": "已不再共享",
-      "notSharedBody": "此聊天已不再共享给您。如仍需要，请联系团队。",
-      "historyCut": "之前的消息未共享给您。您可以看到 {{date}} 起的消息。"
+      "notSharedBody": "此聊天已不再共享给您。如仍需要，请联系团队。"
     },
     "group": {
       "namesOnly": "不显示号码",
@@ -2486,8 +2464,7 @@
     "mock": {
       "longList": "显示长列表（40 个聊天）",
       "shortList": "返回真实列表",
-      "expireNow": "立即结束“{{chat}}”（模拟到期）",
-      "signIn": "退出后以 ravi（有 3 个聊天的合作伙伴）或 sofia（尚无聊天）登录，密码 demo-pass-123，即可查看合作伙伴的界面。"
+      "signIn": "退出后以 ravi（有 3 个聊天的合作伙伴）或 sofia（尚无聊天）登录，密码 demo-pass-123，即可查看合作伙伴的界面。在 ravi 打开聊天时停止共享，可看到“已不再共享”。"
     }
   }
 }

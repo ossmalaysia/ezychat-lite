@@ -1632,7 +1632,8 @@
       "src/i18n/locales/{en,ms,zh-CN}/admin.json",
       "src/i18n/locales/{en,ms,zh-CN}/common.json"
     ],
-    "seed": "Users ravi (partner, 3 shares) and sofia (partner, none); Kopi Lovers Club messages moved one day back and one new message today, so the from-today-on share shows its cut."
+    "seed": "Users ravi (partner, 3 shares: Priya Nair, Jason Lim, Kopi Lovers Club) and sofia (partner, none).",
+    "ownerScope": "2026-11-06: full history, internal notes always hidden, no end date (relayed by the main session)."
   },
   "previousProposal": {
     "feature": "google-drive",

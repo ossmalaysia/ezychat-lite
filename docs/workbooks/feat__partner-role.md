@@ -7,7 +7,7 @@ Design: [docs/features/partner-role/design.md](../features/partner-role/design.m
 
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
-| Design | doing | Design + HTML mock (docs/features/partner-role): 16 states, 64 screenshots desktop/mobile light/dark, 0 page errors; awaiting owner confirmation, no production code | 171f3aa | 2026-11-06 |
+| Design | doing | Owner simplified scope (full history, notes always hidden, no end date): design and mock updated, 64 screenshots retaken, 0 errors; awaiting mock confirmation | 62b35f9 | 2026-11-06 |
 | Dev | todo |  |  |  |
 | Unit tests | todo |  |  |  |
 | E2E | todo |  |  |  |
@@ -17,3 +17,4 @@ Design: [docs/features/partner-role/design.md](../features/partner-role/design.m
 ## Log
 
 - 2026-11-06 Design: doing — Design + HTML mock (docs/features/partner-role): 16 states, 64 screenshots desktop/mobile light/dark, 0 page errors; awaiting owner confirmation, no production code (171f3aa)
+- 2026-11-06 Design: doing — Owner simplified scope (full history, notes always hidden, no end date): design and mock updated, 64 screenshots retaken, 0 errors; awaiting mock confirmation (62b35f9)

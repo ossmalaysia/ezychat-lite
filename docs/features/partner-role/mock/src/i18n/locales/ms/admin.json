@@ -2385,7 +2385,7 @@
     "page": {
       "noCompany": "Rakan kongsi (tiada syarikat)",
       "chatsTitle": "Sembang yang {{name}} boleh lihat",
-      "chatsBody": "EzyChat hanya menunjukkan sembang ini kepada rakan kongsi ini. Buang satu dan ia hilang dari skrin mereka serta-merta.",
+      "chatsBody": "EzyChat hanya menunjukkan sembang ini kepada rakan kongsi ini, dengan seluruh sejarahnya. Henti berkongsi satu dan ia hilang dari skrin mereka serta-merta.",
       "add": "Kongsi sembang",
       "emptyTitle": "Belum ada sembang dikongsi",
       "emptyBody": "{{name}} boleh log masuk tetapi tidak melihat sebarang sembang sehingga anda berkongsi. Kongsi dari sini atau dari sembang itu sendiri.",
@@ -2398,10 +2398,10 @@
       "remove": "Henti berkongsi {{name}}",
       "showMore": "Tunjuk {{count}} lagi",
       "removeTitle": "Henti berkongsi {{chat}}?",
-      "removeBody": "{{name}} tidak lagi boleh membuka sembang ini atau melihat mesej baharu. Apa yang telah mereka hantar kekal dalam sembang.",
+      "removeBody": "{{name}} tidak lagi boleh membuka sembang ini. Apa yang telah mereka hantar kekal dalam sembang.",
       "removeConfirm": "Henti berkongsi",
       "addTitle": "Kongsi sembang dengan {{name}}",
-      "addBody": "Pilih sembang terus atau kumpulan. Rakan kongsi boleh membaca dan membalas di dalamnya.",
+      "addBody": "Pilih sembang terus atau kumpulan. Rakan kongsi membaca seluruh sejarahnya dan boleh membalas.",
       "pickLabel": "Sembang",
       "pickPlaceholder": "Cari sembang",
       "pickNone": "Tiada sembang lain untuk dikongsi."
@@ -2411,7 +2411,7 @@
       "headerLabel_one": "Kongsi dengan rakan kongsi ({{count}} rakan kongsi)",
       "headerLabel_other": "Kongsi dengan rakan kongsi ({{count}} rakan kongsi)",
       "title": "Kongsi dengan rakan kongsi",
-      "description": "Rakan kongsi hanya melihat sembang yang anda kongsi. Mereka boleh membaca dan membalas di sini.",
+      "description": "Rakan kongsi hanya melihat sembang yang anda kongsi, dengan seluruh sejarahnya. Mereka boleh membaca dan membalas di sini sehingga anda berhenti berkongsi.",
       "sharedWith": "Dikongsi dengan",
       "removeFor": "Henti berkongsi dengan {{name}}",
       "removed": "Berhenti berkongsi dengan {{name}}",
@@ -2422,23 +2422,8 @@
       "noPartnersBody": "Tambah rakan kongsi dalam Ahli dahulu (pilih peranan Rakan kongsi).",
       "invite": "Pergi ke Ahli",
       "allShared": "Setiap rakan kongsi sudah mempunyai sembang ini.",
-      "endLabel": "Henti berkongsi",
-      "end": {
-        "none": "Tidak (sehingga anda hentikan)",
-        "7": "Selepas 7 hari",
-        "30": "Selepas 30 hari",
-        "90": "Selepas 90 hari"
-      },
-      "endHint": "Pada hari itu sembang hilang dari skrin rakan kongsi dengan sendirinya.",
-      "todayOnLabel": "Hanya mesej dari hari ini",
-      "todayOnHint": "Rakan kongsi melihat mesej hari ini dan yang baharu, bukan sejarah sebelumnya.",
-      "fullHistoryHint": "Mati: rakan kongsi melihat seluruh sejarah sembang.",
-      "whatDirect": "Rakan kongsi melihat nama dan mesej pelanggan. Bukan nombor telefon mereka, bukan sembang lain.",
-      "whatGroup": "Rakan kongsi melihat mesej kumpulan dan nama ahli. Bukan nombor telefon ahli.",
-      "ends": "Tamat {{date}}",
-      "endsIn_one": "Tamat dalam {{count}} hari",
-      "endsIn_other": "Tamat dalam {{count}} hari",
-      "historyFrom": "Dari {{date}}"
+      "whatDirect": "Rakan kongsi melihat nama pelanggan dan seluruh sembang, tetapi bukan nombor telefon mereka, nota dalaman anda atau sembang lain.",
+      "whatGroup": "Rakan kongsi melihat seluruh sembang kumpulan dan nama ahli, tetapi bukan nombor telefon ahli atau nota dalaman anda."
     },
     "can": {
       "title": "Apa yang rakan kongsi boleh buat",
@@ -2453,16 +2438,12 @@
       "no": {
         "newChats": "Memulakan sembang baharu atau menghantar mesej terus kepada ahli kumpulan",
         "otherChats": "Melihat atau mencari sembang yang tidak anda kongsi",
+        "notes": "Melihat nota dalaman pasukan anda",
         "numbers": "Melihat nombor telefon ahli kumpulan",
         "admin": "Membuka Pentadbir: ahli, tetapan, laporan, penyambung, ejen AI",
         "askEzy": "Menggunakan Ask Ezy, akses pembantu AI (MCP) atau Hantar maklum balas",
         "export": "Memuat turun log atau mengeksport data"
       }
-    },
-    "notes": {
-      "label": "Rakan kongsi melihat nota dalaman",
-      "offHint": "Mati: nota dalam sembang dikongsi kekal dengan pasukan anda.",
-      "onHint": "Hidup: setiap rakan kongsi melihat nota sembang yang dikongsi dengan mereka."
     },
     "activity": {
       "title": "Apa yang berubah",
@@ -2470,10 +2451,7 @@
       "empty": "Belum ada apa-apa.",
       "partner_invited": "{{by}} menambah {{partner}} sebagai rakan kongsi",
       "chat_share_added": "{{by}} berkongsi {{chat}}",
-      "chat_share_changed": "{{by}} mengubah cara {{chat}} dikongsi",
-      "chat_share_removed": "{{by}} berhenti berkongsi {{chat}}",
-      "chat_share_expired": "{{chat}} tidak lagi dikongsi (tarikh tamat)",
-      "partner_notes_changed": "{{by}} mengubah sama ada rakan kongsi melihat nota dalaman"
+      "chat_share_removed": "{{by}} berhenti berkongsi {{chat}}"
     },
     "view": {
       "bannerTitle": "Akses rakan kongsi · {{company}}",
@@ -2482,8 +2460,7 @@
       "emptyTitle": "Belum ada sembang dikongsi dengan anda",
       "emptyBody": "Pasukan akan berkongsi sembang dengan anda. Ia muncul di sini sebaik sahaja dikongsi.",
       "notSharedTitle": "Tidak lagi dikongsi",
-      "notSharedBody": "Sembang ini tidak lagi dikongsi dengan anda. Tanya pasukan jika anda masih memerlukannya.",
-      "historyCut": "Mesej sebelumnya tidak dikongsi dengan anda. Anda melihat mesej dari {{date}}."
+      "notSharedBody": "Sembang ini tidak lagi dikongsi dengan anda. Tanya pasukan jika anda masih memerlukannya."
     },
     "group": {
       "namesOnly": "Nombor tidak ditunjukkan",
@@ -2492,8 +2469,7 @@
     "mock": {
       "longList": "Tunjuk senarai panjang (40 sembang)",
       "shortList": "Kembali ke senarai sebenar",
-      "expireNow": "Tamatkan \"{{chat}}\" sekarang (seolah-olah tarikhnya berlalu)",
-      "signIn": "Log keluar dan log masuk sebagai ravi (rakan kongsi dengan 3 sembang) atau sofia (belum ada sembang), kata laluan demo-pass-123, untuk melihat skrin rakan kongsi."
+      "signIn": "Log keluar dan log masuk sebagai ravi (rakan kongsi dengan 3 sembang) atau sofia (belum ada sembang), kata laluan demo-pass-123, untuk melihat skrin rakan kongsi. Henti berkongsi sembang semasa ravi membukanya untuk melihat \"Tidak lagi dikongsi\"."
     }
   }
 }

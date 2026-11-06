@@ -1,8 +1,8 @@
 // Screenshots of the proposed Partner role (partner-role) in the running seeded mock (run.ts --fake-wa),
 // desktop 1280 px and mobile 360 px (touch), light and dark: Members with the Partner role, the invite
-// form, the partner page (filled with an ending share and a "from today on" share, empty, long list,
-// Share a chat), the chat header Share dialog, and the partner's own screens (only shared chats, a
-// shared chat, the history cut in a group, Group info with names only, "No longer shared", the account
+// form, the partner page (filled, empty, long list, Share a chat), the chat header Share dialog, and
+// the partner's own screens (only shared chats, a shared chat, a shared group without notes, Group
+// info with names only, "No longer shared", the account
 // menu, a partner with no chats). The mock state is on the server, so run it on a fresh mock.
 // Reports page errors and horizontal overflow; ends with screenshots/results.json.
 // Usage: node docs/features/partner-role/mock/partner-shots.mjs [baseUrl]
@@ -124,9 +124,6 @@ for (const scheme of schemes)
       await page.goto(chat(FARAH));
       await page.getByTestId('share-with-partner').click();
       await page.getByTestId('share-dialog').waitFor();
-      await page.getByLabel('Only messages from today on').click();
-      await page.getByLabel('Stop sharing', { exact: true }).click();
-      await page.getByRole('option', { name: 'After 30 days' }).click();
       await shot('08-chat-share-new');
       await page.keyboard.press('Escape');
     });
@@ -147,12 +144,14 @@ for (const scheme of schemes)
     });
     await step('partner group', async () => {
       await page.goto(chat(KOPI));
-      await page.getByTestId('history-cut').waitFor();
-      await shot('11-partner-group-history');
+      await page.getByRole('heading', { name: 'Kopi Lovers Club' }).first().waitFor();
+      await page.waitForTimeout(800);
+      await shot('11-partner-group');
       await page.getByRole('button', { name: /Open group info/ }).click();
       await page.getByText('Nurul Huda').last().waitFor();
       await shot('12-partner-group-info');
       await page
+        .locator('[aria-label="Group info"]')
         .getByRole('button', { name: /Farah Aziz/ })
         .first()
         .click();

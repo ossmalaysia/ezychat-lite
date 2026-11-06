@@ -52,7 +52,7 @@ import { GroupChatMockControls } from '../mock/GroupsMockControls';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
 import { NotesPanel } from './NotesPanel';
 import { usePartnerMe } from '../mock/partnerRole';
-import { HistoryCutNote, NotSharedState, ShareWithPartnerDialog } from './PartnerShare';
+import { NotSharedState, ShareWithPartnerDialog } from './PartnerShare';
 import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
@@ -105,7 +105,6 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const partner = usePartnerMe();
   const share = partner.shares.find((s) => s.chatJid === jid);
-  const historyFrom = partner.isPartner ? (share?.historyFrom ?? null) : null;
   // Set by CustomerPanel while editing: switching panels or chats asks before losing changes.
   // It is the inbox page's navigation guard, so chat list links ask too.
   const customerGuard = useNavigationGuardRef();
@@ -127,24 +126,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const me = directory.me;
 
   const messages = useMemo(
-    () =>
-      flattenMessages(messagesQ.data as MessagesData | undefined).filter(
-        // Production: the server never sends a partner messages before `history_from`.
-        (m) => historyFrom === null || m.timestamp >= historyFrom,
-      ),
-    [messagesQ.data, historyFrom],
+    () => flattenMessages(messagesQ.data as MessagesData | undefined),
+    [messagesQ.data],
   );
   const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
-  // Proposed (partner-role): internal notes stay with the team unless the team switch shows them.
-  const notes = partner.isPartner && !partner.notes ? [] : notesQ.data;
+  // Proposed (partner-role): internal notes always stay with the team (production: the notes route
+  // answers [] / 403 to a partner and notes never reach their sockets).
+  const notes = partner.isPartner ? [] : notesQ.data;
   const items = useMemo(
-    () =>
-      buildTimeline(
-        messages,
-        (events ?? []).filter((e) => historyFrom === null || e.at >= historyFrom),
-        notes ?? [],
-      ),
-    [messages, events, notes, historyFrom],
+    () => buildTimeline(messages, events ?? [], notes ?? []),
+    [messages, events, notes],
   );
 
   // Mark read on open and whenever a new inbound message arrives while viewing.
@@ -330,7 +321,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
-          showNotes={!partner.isPartner || partner.notes}
+          showNotes={!partner.isPartner}
           onShare={signedIn?.role === 'admin' ? () => setShareOpen(true) : undefined}
           partnerView={partner.isPartner}
           onToggleNotes={() =>
@@ -369,7 +360,6 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         )}
         {/* Proposed (ai-groups): mock-only panel that simulates the AI in this group. */}
         {chat.type === 'group' && !partner.isPartner && <GroupChatMockControls jid={chat.jid} />}
-        {historyFrom !== null && <HistoryCutNote from={historyFrom} />}
         {shareOpen && <ShareWithPartnerDialog chat={chat} onClose={() => setShareOpen(false)} />}
         <MessageList
           items={items}

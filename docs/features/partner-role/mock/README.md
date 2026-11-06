@@ -13,12 +13,12 @@ node docs/features/partner-role/mock/partner-shots.mjs   # PW_CHROMIUM=<chromium
 Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`):
 
 1. **Admin → Members**: Ravi Kumar and Sofia Tan with the **Partner** role; Add member → Role: Partner + company.
-2. Click **Ravi Kumar**: the chats he can see (Jason Lim ends in 3 days, Kopi Lovers Club from today on), Share a
-   chat, remove, "Partners see internal notes", What changed; the dashed **Mock only** box shows a long list or ends a
-   share now.
-3. Open any chat → **Share** in the header: who has it, add a partner, end date, "Only messages from today on".
-4. Sign out, sign in as `ravi`: only the 3 shared chats, a partner banner, no Notes or Share, assign to self only,
-   Group info with names only, the history cut in Kopi Lovers Club; open another chat's link → **No longer shared**.
+2. Click **Ravi Kumar**: the chats he can see (whole history, no end date), Share a chat, Stop sharing, what
+   partners can and cannot do, What changed; the dashed **Mock only** box shows a long list.
+3. Open any chat → **Share** in the header: who has it, add a partner, stop sharing.
+4. Sign out, sign in as `ravi`: only the 3 shared chats, a partner banner, no Notes (internal notes are never shown to
+   partners) or Share, assign to self only, Group info with names only; open another chat's link, or stop sharing it
+   as admin while it is open → **No longer shared**.
    `sofia` has nothing shared yet.
 
 Partners are real `agent` users marked by the stand-in routes `/api/mock/partner-role*` (`partner-role.ts`), because the

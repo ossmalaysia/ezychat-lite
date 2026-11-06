@@ -167,7 +167,7 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
     id: auth.createUser({ ...user, role: 'agent', password, mustChangePassword: false }).id,
     company,
   }));
-  await seedPartners(ctx, users[0]!.id, partners, call);
+  seedPartners(users[0]!.id, partners);
 }
 
 /**

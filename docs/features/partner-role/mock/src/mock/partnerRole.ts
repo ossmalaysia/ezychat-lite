@@ -15,8 +15,6 @@ export interface PartnerShare {
   chatType: 'dm' | 'group';
   grantedBy: number;
   grantedAt: number;
-  expiresAt: number | null;
-  historyFrom: number | null;
 }
 
 export interface PartnerRow {
@@ -30,20 +28,13 @@ export interface PartnerRow {
 export interface PartnerLogRow {
   at: number;
   by: string;
-  action:
-    | 'partner.invited'
-    | 'chat_share.added'
-    | 'chat_share.changed'
-    | 'chat_share.removed'
-    | 'chat_share.expired'
-    | 'partner_notes.changed';
+  action: 'partner.invited' | 'chat_share.added' | 'chat_share.removed';
   partner: string;
   chat: string | null;
 }
 
 export interface PartnerState {
   me: { partner: false } | { partner: true; company: string; shares: PartnerShare[] };
-  notesForPartners: boolean;
   longList?: boolean;
   partners?: PartnerRow[];
   log?: PartnerLogRow[];
@@ -68,8 +59,6 @@ export function usePartnerMe(): {
   isPartner: boolean;
   company: string;
   shares: PartnerShare[];
-  /** Internal notes visible in shared chats (always true for the team). */
-  notes: boolean;
   loaded: boolean;
 } {
   const q = usePartnerState();
@@ -79,10 +68,9 @@ export function usePartnerMe(): {
         isPartner: true,
         company: me.company,
         shares: me.shares,
-        notes: q.data!.notesForPartners,
         loaded: true,
       }
-    : { isPartner: false, company: '', shares: [], notes: true, loaded: !!q.data };
+    : { isPartner: false, company: '', shares: [], loaded: !!q.data };
 }
 
 export function useIsPartner(): boolean {
@@ -112,36 +100,17 @@ export const useMarkPartner = () =>
   );
 
 export const useSaveShare = () =>
-  useChange(
-    (v: {
-      userId: number;
-      chatJid: string;
-      expiresAt: number | null;
-      historyFrom: number | null;
-    }) => api('/mock/partner-role/shares', { method: 'POST', body: v }),
+  useChange((v: { userId: number; chatJid: string }) =>
+    api('/mock/partner-role/shares', { method: 'POST', body: v }),
   );
 
 export const useRemoveShare = () =>
   useChange((id: string) => api(`/mock/partner-role/shares/${id}`, { method: 'DELETE' }));
 
-export const useExpireShare = () =>
-  useChange((id: string) => api(`/mock/partner-role/shares/${id}/expire`, { method: 'POST' }));
-
 export const usePartnerSettings = () =>
-  useChange((v: { notesForPartners?: boolean; longList?: boolean }) =>
+  useChange((v: { longList: boolean }) =>
     api('/mock/partner-role/settings', { method: 'PUT', body: v }),
   );
-
-export function startOfToday(): number {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-/** A share ending within 7 days shows "Ends in N days" in the warning tone. */
-export function endsSoon(share: Pick<PartnerShare, 'expiresAt'>, now = Date.now()): boolean {
-  return share.expiresAt !== null && share.expiresAt - now < 7 * DAY_MS;
-}
 
 /** Mock only: 40 fictional shares for the long-list state of the partner page. */
 export function longListShares(userId: number): PartnerShare[] {
@@ -177,7 +146,5 @@ export function longListShares(userId: number): PartnerShare[] {
     chatType: i % 9 === 4 ? 'group' : 'dm',
     grantedBy: 1,
     grantedAt: now - (i + 1) * DAY_MS,
-    expiresAt: i % 5 === 0 ? now + ((i % 3) + 1) * DAY_MS : null,
-    historyFrom: i % 4 === 0 ? now - i * DAY_MS : null,
   }));
 }

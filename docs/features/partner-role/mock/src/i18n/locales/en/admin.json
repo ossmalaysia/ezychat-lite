@@ -2393,7 +2393,7 @@
     "page": {
       "noCompany": "Partner (no company)",
       "chatsTitle": "Chats {{name}} can see",
-      "chatsBody": "EzyChat shows this partner only these chats. Remove one and it disappears from their screen at once.",
+      "chatsBody": "EzyChat shows this partner only these chats, with their whole history. Stop sharing one and it disappears from their screen at once.",
       "add": "Share a chat",
       "emptyTitle": "No chats shared yet",
       "emptyBody": "{{name}} can sign in but sees no chats until you share one. Share from here, or from the chat itself.",
@@ -2406,10 +2406,10 @@
       "remove": "Stop sharing {{name}}",
       "showMore": "Show {{count}} more",
       "removeTitle": "Stop sharing {{chat}}?",
-      "removeBody": "{{name}} can no longer open this chat or see new messages in it. What they already sent stays in the chat.",
+      "removeBody": "{{name}} can no longer open this chat. What they already sent stays in the chat.",
       "removeConfirm": "Stop sharing",
       "addTitle": "Share a chat with {{name}}",
-      "addBody": "Pick a direct chat or a group. The partner can read and reply in it.",
+      "addBody": "Pick a direct chat or a group. The partner reads its whole history and can reply.",
       "pickLabel": "Chats",
       "pickPlaceholder": "Search chats",
       "pickNone": "No other chats to share."
@@ -2419,7 +2419,7 @@
       "headerLabel_one": "Share with a partner ({{count}} partner)",
       "headerLabel_other": "Share with a partner ({{count}} partners)",
       "title": "Share with a partner",
-      "description": "A partner sees only the chats you share. They can read and reply here.",
+      "description": "A partner sees only the chats you share, with their whole history. They can read and reply here until you stop sharing.",
       "sharedWith": "Shared with",
       "removeFor": "Stop sharing with {{name}}",
       "removed": "Stopped sharing with {{name}}",
@@ -2430,23 +2430,8 @@
       "noPartnersBody": "Add a partner in Members first (choose the Partner role).",
       "invite": "Go to Members",
       "allShared": "Every partner already has this chat.",
-      "endLabel": "Stop sharing",
-      "end": {
-        "none": "Never (until you stop it)",
-        "7": "After 7 days",
-        "30": "After 30 days",
-        "90": "After 90 days"
-      },
-      "endHint": "On that day the chat disappears from the partner's screen by itself.",
-      "todayOnLabel": "Only messages from today on",
-      "todayOnHint": "The partner sees today's and new messages, not the earlier history.",
-      "fullHistoryHint": "Off: the partner sees the whole chat history.",
-      "whatDirect": "The partner sees the customer's name and messages. Not their phone number, not other chats.",
-      "whatGroup": "The partner sees the group's messages and member names. Not members' phone numbers.",
-      "ends": "Ends {{date}}",
-      "endsIn_one": "Ends in {{count}} day",
-      "endsIn_other": "Ends in {{count}} days",
-      "historyFrom": "From {{date}} on"
+      "whatDirect": "The partner sees the customer's name and the whole chat, but not their phone number, your internal notes or other chats.",
+      "whatGroup": "The partner sees the group's whole chat and member names, but not members' phone numbers or your internal notes."
     },
     "can": {
       "title": "What partners can do",
@@ -2461,16 +2446,12 @@
       "no": {
         "newChats": "Start new chats or message a group member directly",
         "otherChats": "See any chat you did not share, or search them",
+        "notes": "See your team's internal notes",
         "numbers": "See phone numbers of group members",
         "admin": "Open Admin: members, settings, reports, connectors, AI agents",
         "askEzy": "Use Ask Ezy, AI assistant access (MCP) or Send feedback",
         "export": "Download logs or export data"
       }
-    },
-    "notes": {
-      "label": "Partners see internal notes",
-      "offHint": "Off: notes in shared chats stay with your team.",
-      "onHint": "On: every partner sees the notes of the chats shared with them."
     },
     "activity": {
       "title": "What changed",
@@ -2478,10 +2459,7 @@
       "empty": "Nothing yet.",
       "partner_invited": "{{by}} added {{partner}} as a partner",
       "chat_share_added": "{{by}} shared {{chat}}",
-      "chat_share_changed": "{{by}} changed how {{chat}} is shared",
-      "chat_share_removed": "{{by}} stopped sharing {{chat}}",
-      "chat_share_expired": "{{chat}} stopped being shared (end date)",
-      "partner_notes_changed": "{{by}} changed whether partners see internal notes"
+      "chat_share_removed": "{{by}} stopped sharing {{chat}}"
     },
     "view": {
       "bannerTitle": "Partner access · {{company}}",
@@ -2490,8 +2468,7 @@
       "emptyTitle": "No chats shared with you yet",
       "emptyBody": "The team will share chats with you. They show up here as soon as they do.",
       "notSharedTitle": "No longer shared",
-      "notSharedBody": "This chat is no longer shared with you. Ask the team if you still need it.",
-      "historyCut": "Earlier messages are not shared with you. You see messages from {{date}} on."
+      "notSharedBody": "This chat is no longer shared with you. Ask the team if you still need it."
     },
     "group": {
       "namesOnly": "Number not shown",
@@ -2500,8 +2477,7 @@
     "mock": {
       "longList": "Show a long list (40 chats)",
       "shortList": "Back to the real list",
-      "expireNow": "End \"{{chat}}\" now (as if its date passed)",
-      "signIn": "Sign out and sign in as ravi (partner with 3 chats) or sofia (no chats yet), password demo-pass-123, to see the partner's own screen."
+      "signIn": "Sign out and sign in as ravi (partner with 3 chats) or sofia (no chats yet), password demo-pass-123, to see the partner's own screen. Stop sharing a chat while ravi has it open to see \"No longer shared\"."
     }
   }
 }
