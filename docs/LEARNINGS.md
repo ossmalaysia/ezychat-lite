@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- Do not edit, rename or check out files while a full `npm test` / `test:coverage` run is in progress: tests that
+  migrate a data dir mid-run see two schema versions ("duplicate column") and the result proves nothing. Run it again
+  on the final tree before reporting it.
 - Before you call a PR a break of an owner rule, read that rule in `origin/main`'s `AGENTS.md`: memory notes and older
   checkouts lag rule changes ("No tracking in Lite" became "Anonymous usage stats only" with #285).
 - A new connector modelled on an existing one fails SonarCloud's 3 % new-code duplication gate (tests count too) when
@@ -325,7 +328,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
-  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
   names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
