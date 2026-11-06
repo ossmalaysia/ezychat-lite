@@ -9,11 +9,21 @@
 /* global document -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { cookieSession } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7492);
-const OUT = resolve(process.argv[3] ?? 'new-chat-screens');
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
+  throw new Error('The port must be an integer between 1024 and 65535.');
+const inside = (base, path) => {
+  const rel = relative(base, path);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+const repo = resolve(import.meta.dirname, '..');
+const OUT = resolve(repo, process.argv[3] ?? 'new-chat-screens');
+if (!inside(repo, OUT) && !inside(resolve(tmpdir()), OUT))
+  throw new Error('The output folder must be inside the repository or the temp folder.');
 const BASE = `http://127.0.0.1:${PORT}`;
 mkdirSync(OUT, { recursive: true });
 
