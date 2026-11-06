@@ -7,7 +7,7 @@ import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
 
 const AgentParams = z.object({ agentId: z.coerce.number().int().positive() });
-const TaskParams = AgentParams.extend({ taskId: z.coerce.number().int().positive() });
+const TaskParams = AgentParams.extend({ id: z.coerce.number().int().positive() });
 
 /**
  * Scheduled tasks of an AI agent (docs/features/scheduled-tasks/design.md), admins only: the list,
@@ -32,21 +32,21 @@ export default async function scheduledTaskRoutes(app: FastifyInstance, ctx: App
   app.post('/ai/agents/:agentId/scheduled-tasks/preview', async (req) =>
     service().preview(agent(req), parse(ScheduledPreviewBody, req.body), actor(req)),
   );
-  app.patch('/ai/agents/:agentId/scheduled-tasks/:taskId', async (req) => {
-    const { agentId, taskId } = task(req);
+  app.patch('/ai/agents/:agentId/scheduled-tasks/:id', async (req) => {
+    const { agentId, id: taskId } = task(req);
     return service().update(agentId, taskId, parse(ScheduledTaskPatch, req.body), actor(req));
   });
-  app.delete('/ai/agents/:agentId/scheduled-tasks/:taskId', async (req) => {
-    const { agentId, taskId } = task(req);
+  app.delete('/ai/agents/:agentId/scheduled-tasks/:id', async (req) => {
+    const { agentId, id: taskId } = task(req);
     service().remove(agentId, taskId, actor(req));
     return { ok: true };
   });
-  app.get('/ai/agents/:agentId/scheduled-tasks/:taskId/runs', async (req) => {
-    const { agentId, taskId } = task(req);
+  app.get('/ai/agents/:agentId/scheduled-tasks/:id/runs', async (req) => {
+    const { agentId, id: taskId } = task(req);
     return service().runs(agentId, taskId);
   });
-  app.post('/ai/agents/:agentId/scheduled-tasks/:taskId/run', async (req) => {
-    const { agentId, taskId } = task(req);
+  app.post('/ai/agents/:agentId/scheduled-tasks/:id/run', async (req) => {
+    const { agentId, id: taskId } = task(req);
     return { run: await service().runNow(agentId, taskId, actor(req)) };
   });
 }
