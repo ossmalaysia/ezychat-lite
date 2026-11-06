@@ -1218,7 +1218,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   as "chat ownership changed".
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
-  chat key. Test service code by parsing bodies through the zod schema (`Schema.parse`), never passing raw objects: the
+  chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
+  Origin checks), and a second path parameter is named `:id` (the table's normaliser). Test service code by parsing bodies through the zod schema (`Schema.parse`), never passing raw objects: the
   defaults (`enabled: true`) only exist after the parse.
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
