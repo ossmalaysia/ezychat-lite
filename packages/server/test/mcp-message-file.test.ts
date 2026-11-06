@@ -186,7 +186,7 @@ describe('get_message_file over /mcp', () => {
       'document',
       pdfFixture('looks fine'),
       'application/pdf',
-      'invoice‮fdp.exe',
+      'invoice\u202efdp.exe',
     );
     expect(t.ctx.services.safety!.levelOf(id)).toBe('high');
     const r = await call({ messageId: id });
