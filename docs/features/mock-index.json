@@ -6,13 +6,13 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "google-drive",
-    "gitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
-    "mock": "docs/features/google-drive/mock/index.html",
-    "design": "docs/features/google-drive/design.md",
-    "confirmedAt": "2026-11-05",
-    "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then \"yes confirm drive, continue it, untill all working and create pr and merge and archive the session\" (relayed verbatim by the main session) = confirmed with Save (write) and Read (read), decisions 1-7 as proposed.",
-    "note": "Clone of group-management plus the Google Drive connector; inherits its coverage gaps (message-edit-delete, whatsapp-safety, group-agents, claims-template screens)."
+    "feature": "partner-role",
+    "gitRevision": "846a09cc9561a7a65e984572591e3ee458f47d2d",
+    "mock": "docs/features/partner-role/mock/index.html",
+    "design": "docs/features/partner-role/design.md",
+    "confirmedAt": "2026-11-06",
+    "confirmation": "Owner (Jazz) 2026-11-06, relayed by the main session: \"The owner CONFIRMED the simplified limited-agent mock (2026-11-06) with your proposed answers\" (chosen chats from any inbox replace inbox access; assign only chosen chats, removal unassigns) plus: no notification of any kind for chats a limited agent cannot see.",
+    "note": "Limited chat access (folder partner-role): clone of google-drive (442b6317) with sql-accounting (e33aabbd) merged in, plus the agent setting \"Chats this member can see\". Inherits the coverage gaps of google-drive."
   },
   "proposals": [
     {
@@ -21,11 +21,14 @@
       "createdAt": "2026-11-06",
       "design": "docs/features/partner-role/design.md",
       "mock": "docs/features/partner-role/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "google-drive",
       "baselineGitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
       "coverage": "Full app clone of the confirmed google-drive reference with the confirmed sql-accounting mock (e33aabbd) merged in; limited chat access: Members list note (Only N chosen chats / No chats chosen), Edit member 'Chats this member can see' (All chats default, Only chosen chats with list, remove, add search, none-chosen warning, 12 chosen with a long group name), the limited agent's view (only chosen chats, a chosen chat as a normal agent, Group info member without Open chat / Message, another chat's link 'You can't open this chat', nothing chosen 'No chats yet'); desktop 1280 / mobile 360, light/dark (member-chats-shots.mjs, 40 shots); en/ms/zh-CN.",
-      "note": "Proposal awaiting owner review. Folder keeps the name partner-role (PR #314); scope simplified by the owner 2026-11-06 to one agent setting (no new role). Stand-in routes /api/mock/member-chats*. Inherits the coverage gaps of google-drive."
+      "note": "Proposal awaiting owner review. Folder keeps the name partner-role (PR #314); scope simplified by the owner 2026-11-06 to one agent setting (no new role). Stand-in routes /api/mock/member-chats*. Inherits the coverage gaps of google-drive.",
+      "confirmedAt": "2026-11-06",
+      "gitRevision": "846a09cc9561a7a65e984572591e3ee458f47d2d",
+      "confirmation": "Owner (Jazz) 2026-11-06, relayed by the main session: \"The owner CONFIRMED the simplified limited-agent mock (2026-11-06) with your proposed answers\" (chosen chats from any inbox replace inbox access; assign only chosen chats, removal unassigns) plus: no notification of any kind for chats a limited agent cannot see."
     },
     {
       "feature": "sql-accounting",

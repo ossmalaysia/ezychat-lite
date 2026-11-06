@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "4d07b20",
   "appVersionAtProposal": "0.1.76",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "partner-role (limited chat access)",
   "createdAt": "2026-11-06",
   "branchBase": "171f3aa (main)",
@@ -1634,5 +1634,6 @@
     ],
     "seed": "Agents ravi (Only chosen chats: Priya Nair, Jason Lim, Kopi Lovers Club) and sofia (Only chosen chats, none).",
     "ownerScope": "2026-11-06 (relayed): no new role; one agent setting All chats / Only chosen chats; inside chosen chats a normal agent; only differences from the scope check."
-  }
+  },
+  "confirmedAt": "2026-11-06"
 }

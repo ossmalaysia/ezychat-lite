@@ -1,6 +1,6 @@
 # Limited chat access (an agent who sees only chosen chats)
 
-Status: **proposal: mock ready for owner review, not confirmed.** No production code until the owner confirms the mock.
+Status: **confirmed 2026-11-06** (mock revision `846a09c`); production on branch `feat/limited-agent-impl`.
 Created 2026-11-06 (creationOrder 35). The folder keeps its first name, `partner-role`, so PR #314 stays the same.
 
 Owner request (Jazz, 2026-11-06, relayed by the main session): let an admin give a support agent (for example an
@@ -100,7 +100,10 @@ inboxId)` is **false** for a `ChosenChats` scope, so nothing inbox-wide (counts,
   chat, never `inbox:<id>`. Chat events go to `inbox:<id>` **and** `chat:<jid>`; `syncInboxRooms` becomes `syncRooms`
   and also runs on `member_chats:changed` (no reconnect needed). `typing` is accepted only for a chosen chat.
 - **Push / notifications / AI hand-off**: recipients from `usersWhoCanOpenChat(jid)` = `usersWhoCanOpen(inbox)` minus
-  limited agents, plus limited agents who chose that chat.
+  limited agents, plus limited agents who chose that chat. **Owner rule (2026-11-06): a limited agent gets no
+  notification of any kind for a chat they cannot open**: new inbound messages, AI hand-offs ("needs a team member",
+  group hand-offs included), unassigned chats, the desktop `notification:new`, web push and socket events. Hand-off and
+  unassigned pushes go only to `usersWhoCanOpenChat`; each path has its own test.
 - **Assignment**: the `assignee_no_access` check uses `canOpenChat`, so a limited agent can be assigned only their chosen
   chats; removing a chat from their list unassigns them (system line, no customer message).
 - **Not available to a limited agent (403 `chat_scope_limited`)**: `POST /chats/:jid/members/:member/chat` (open or
@@ -141,7 +144,10 @@ Unit (server, `packages/server/test/member-chats.test.ts`, real `makeTestApp`):
   chat → 2xx / 404 / 403 as above; the test fails when a new `:jid` route is missing from the matrix.
 - lists/search/tags/stats; member chat 403; Ask Ezy 403; notes and members unchanged inside a chosen chat.
 - sockets: events of chosen chats only; add/remove re-syncs rooms without reconnect; typing filtered.
-- push and AI hand-off recipients; assignment only to chosen chats; removal unassigns.
+- notifications, one test each, for a limited agent and a chat outside their list (none received) and inside it
+  (received): inbound push, `notification:new`, AI hand-off push, group hand-off push, unassigned-chat push, web push to a
+  subscribed device, socket `message:new` / `chat:updated` / `message:reactions` / `typing`.
+- assignment only to chosen chats; removal unassigns.
 - `PUT /users/:id/chats` validation, idempotence, audit with ids only; `upgrade-from-oldest` runs 036.
 - Web unit: `MemberChatsField` (all/chosen, add, remove, none warning), Members note, list filter, "You can't open
   this chat". E2E `e2e/member-chats.spec.ts` (fake WA): admin limits an agent to one chat → agent sees only it, replies,
@@ -168,14 +174,16 @@ Also interactive (not shot): remove a chat in Edit member and Save while `ravi` 
 chat leaves the list and the open chat turns into "You can't open this chat" within seconds. Strings: `admin.json` →
 `limitedChats.*` in en / ms / zh-CN. Ask Ezy is not in the mock baseline, so its refusal has no screen.
 
-## Open questions for the owner
+## Owner answers (2026-11-06)
 
-1. **Chosen chats replace inbox access** (an admin may choose chats from any inbox; the agent's inbox list no longer
-   applies while limited). OK, or should chosen chats be limited to the agent's inboxes?
-2. **Assignment**: a limited agent can be assigned only their chosen chats. OK?
+1. **Chosen chats may come from any inbox**; they replace inbox access while the agent is limited.
+2. **A limited agent can be assigned only their chosen chats**, and removing a chat unassigns them.
+3. **No notification of any kind** for chats a limited agent cannot see (see Enforcement → Push).
 
 ## Mock and confirmation
 
 - 2026-11-06: first proposal (Partner role) built; owner simplified it twice the same day (no history limit, notes
-  always hidden, no end date; then no new role at all). This version: one setting on the agent. **Awaiting owner
-  confirmation of the mock.**
+  always hidden, no end date; then no new role at all). This version: one setting on the agent.
+- 2026-11-06: **owner confirmed** this mock (revision `846a09c`), relayed verbatim by the main session: "The owner
+  CONFIRMED the simplified limited-agent mock (2026-11-06) with your proposed answers" (both open questions as
+  proposed), plus the notification rule above.
