@@ -16,6 +16,20 @@
   },
   "proposals": [
     {
+      "feature": "new-chat",
+      "creationOrder": 35,
+      "createdAt": "2026-11-06",
+      "design": "docs/features/new-chat/design.md",
+      "mock": "docs/features/new-chat/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "google-drive",
+      "baselineGitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
+      "mergedFeature": "sql-accounting",
+      "mergedGitRevision": "e33aabbd3db038dabb0eb8375c96363f3a157d3b",
+      "coverage": "Full app clone of google-drive + sql-accounting merge; New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs, 56 shots, 0 problems)",
+      "note": "Parallel sessions (partner-role, scheduled-tasks) add folders at the same time and may also claim creationOrder 35 and prune claims-template; whichever PR merges later renumbers and resolves the index. latestConfirmed stays on google-drive until the owner confirms this mock; the next clone should start from the latestConfirmed and copy in the sql-accounting merge exactly as this folder did (design.md)."
+    },
+    {
       "feature": "sql-accounting",
       "creationOrder": 34,
       "createdAt": "2026-11-05",
@@ -70,18 +84,6 @@
       "coverage": "Full app clone of the confirmed in-app-feedback reference; Group info for EzyChat admins: description, Manage bar (Edit info, Add member, Invite link, Settings), join requests (approve/reject), Edit info dialog, Add member (ban-risk note, privacy refusal -> Send invite -> sent, not on WhatsApp), member actions (Make group admin, Remove as admin, Remove from group with confirm, creator protected), invite link (copy, reset with confirm), group settings (only admins send, only admins edit info, who can add, approve new members) with Recent changes, number not a group admin, WhatsApp offline, Business API connection (invite only, n of 8, remove only, no settings) via a Mock only switch, agent read-only; mock-only routes /api/mock/group-admin*; desktop 1280 / mobile 360 touch, light/dark (group-admin-shots.mjs)",
       "note": "Inherits the coverage gaps of in-app-feedback (message-edit-delete, whatsapp-safety, group-agents and claims-template screens still owed). Baseline drift: the feedback stand-in route now yields to the shipped core route. Parallel with claims-template (30), which does not touch Group info.",
       "confirmation": "Owner (Jazz) wrote 2026-11-04 \"go with your suggestion, run multiple subagent to implement independent part, only merge to main and archive it, we will release daily.\" = every open question as proposed (admins only, Send invite button, 20/day + 6/hour adds, settings + join requests in v1, Business API via core actions, EzyChat-made changes only, ships in Lite)."
-    },
-    {
-      "feature": "claims-template",
-      "creationOrder": 30,
-      "createdAt": "2026-11-04",
-      "design": "docs/features/claims-template/design.md",
-      "mock": "docs/features/claims-template/mock/index.html",
-      "status": "proposal",
-      "baselineFeature": "group-agents",
-      "baselineGitRevision": "c589b88a4479472c36aea90eea434e5867ceec6a",
-      "coverage": "Standalone preview built from the real catalogs (build-preview.mjs): template gallery with the Team and operations category and the Claims agent card, a new agent after Apply (name, Custom type, role, hand-over rules, Claim rules note, group-agent note), after Create agent (Direct chats off, Groups on, Claim rules item), an existing Lite agent (finish-steps note); en/ms/zh-CN, desktop 1280 / mobile 360, light/dark. The cumulative full-app clone is still owed (the latestConfirmed mock predates the template gallery).",
-      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed."
     },
     {
       "feature": "group-agents",
@@ -588,6 +590,24 @@
         "lastRevision": "610ca5e0ac2c624d3399eb187cecac5f65f010e4",
         "reason": "retention: sixth feature folder (custom-agents)"
       }
+    }
+  ],
+  "archived": [
+    {
+      "feature": "claims-template",
+      "creationOrder": 30,
+      "createdAt": "2026-11-04",
+      "design": "docs/features/claims-template/design.md",
+      "mock": "docs/features/claims-template/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "group-agents",
+      "baselineGitRevision": "c589b88a4479472c36aea90eea434e5867ceec6a",
+      "coverage": "Standalone preview built from the real catalogs (build-preview.mjs): template gallery with the Team and operations category and the Claims agent card, a new agent after Apply (name, Custom type, role, hand-over rules, Claim rules note, group-agent note), after Create agent (Direct chats off, Groups on, Claim rules item), an existing Lite agent (finish-steps note); en/ms/zh-CN, desktop 1280 / mobile 360, light/dark. The cumulative full-app clone is still owed (the latestConfirmed mock predates the template gallery).",
+      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed.",
+      "archived": true,
+      "archivedAt": "2026-11-06",
+      "archivedRevision": "171f3aa",
+      "archivedBy": "new-chat (five-folder retention)"
     }
   ]
 }
