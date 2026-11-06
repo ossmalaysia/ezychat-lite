@@ -1044,7 +1044,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   ends, not only the sign-out button: the `session:revoked` socket event and a 401 from `/api/me` too
   (`startQueryPersistence` `clearCaches`). Test each path.
 - A script that writes files to a folder named on the command line resolves it against the repository and refuses
-  anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise).
+  anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise). A new e2e screen script
+  starts from the `inside()` guard of `e2e/connectors-screens.mjs`, before its first push.
 - A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
   CSP stays `script-src 'self'`. Serve it on its own host-only page with a CSP limited to that vendor, guarded by a
   one-time token, and hand it an access token once (`connectors/google-sheets/picker-page.ts`).
