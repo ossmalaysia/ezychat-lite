@@ -23,20 +23,21 @@ function readRgbaPng(bytes: Buffer) {
   const raw = inflateSync(Buffer.concat(chunks));
   const stride = width * 4;
   const out = Buffer.alloc(stride * height);
+  const byte = (buf: Buffer, i: number) => buf[i] ?? 0;
   for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)];
+    const filter = byte(raw, y * (stride + 1));
     const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
     for (let x = 0; x < stride; x++) {
-      const a = x >= 4 ? out[y * stride + x - 4] : 0;
-      const b = y > 0 ? out[(y - 1) * stride + x] : 0;
-      const c = x >= 4 && y > 0 ? out[(y - 1) * stride + x - 4] : 0;
+      const a = x >= 4 ? byte(out, y * stride + x - 4) : 0;
+      const b = y > 0 ? byte(out, (y - 1) * stride + x) : 0;
+      const c = x >= 4 && y > 0 ? byte(out, (y - 1) * stride + x - 4) : 0;
       const p = a + b - c;
       const pa = Math.abs(p - a);
       const pb = Math.abs(p - b);
       const pc = Math.abs(p - c);
       const paeth = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
       const pred = [0, a, b, (a + b) >> 1, paeth][filter] ?? 0;
-      out[y * stride + x] = (line[x] + pred) & 0xff;
+      out[y * stride + x] = (byte(line, x) + pred) & 0xff;
     }
   }
   return { width, height, colourType, pixels: out };
