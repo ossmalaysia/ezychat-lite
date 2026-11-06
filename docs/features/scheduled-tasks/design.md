@@ -1,6 +1,6 @@
 # Scheduled tasks for AI agents
 
-Status: **proposal, waiting for the owner's confirmation of the mock** (no production code yet).
+Status: **confirmed 2026-11-06** (see "Mock and confirmation"); production on `feat/scheduled-tasks-impl`.
 Created 2026-11-06 (creationOrder 35). Owner request (Jazz, 2026-11-06, relayed by the main session): "every
 morning, message this person or group about something". Examples: weekdays at 8:30 post today's bookings from Google
 Calendar to the Staff group; every morning send a client a reminder; daily list overdue tasks from a Sheet in a
@@ -213,12 +213,14 @@ Agent page cards (`AgentResolutionCard`, `AgentGroupsCard`: Card + Proposed badg
 7. Business API: skip when the 24 h window is closed (no template in v1).
 8. Admins only (agents cannot see or edit tasks); the mark in the chat is visible to everyone with inbox access.
 
-## Open questions for the owner
+## Open questions for the owner (answered 2026-11-06: all as proposed)
 
 1. Is 10 tasks per agent right for Lite and Enterprise alike?
 2. Should a skipped/failed run notify admins (push), or only show in History? (Proposed: History only.)
 3. Business API inboxes: v1 skips outside the 24 h window. Add "send a template instead" later?
 4. Allow `add_sheet_row` (proposed) or keep scheduled turns strictly read-only?
+
+Answers: 1 yes, 10; 2 History only; 3 skip now, template later; 4 allowed. Owner decisions 1-8 stand as proposed.
 
 ## Mock and confirmation
 
@@ -246,4 +248,4 @@ Agent page cards (`AgentResolutionCard`, `AgentGroupsCard`: Card + Proposed badg
   `docs/features/partner-role` on its own branch at the same time. Whichever PR merges **second** resolves
   `mock-index.json` (both entries kept, next `creationOrder`) and removes the then-oldest folder
   (`group-management`, 31) so five remain.
-- Confirmation: **not yet**. Production work waits for the owner's confirmation of this mock.
+- Confirmation: Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) "with the proposed answers": 10 tasks per agent; skipped/failed runs in History only (no push); Business API outside the 24 h window skipped for now (template later); add_sheet_row allowed. Confirmed mock revision `426c2eb766f24e520fd4f59b66ab837c11296045`.
