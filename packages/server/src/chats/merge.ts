@@ -217,6 +217,8 @@ export function mergeChat(
       'INSERT OR IGNORE INTO member_chats (user_id, chat_jid, added_by, added_at) SELECT user_id, ?, added_by, added_at FROM member_chats WHERE chat_jid = ?',
     ).run(to, from);
     db.prepare('DELETE FROM member_chats WHERE chat_jid = ?').run(from);
+    // Scheduled tasks of AI agents send to the surviving chat (no foreign key).
+    db.prepare('UPDATE ai_scheduled_tasks SET chat_jid = ? WHERE chat_jid = ?').run(to, from);
     if (isAiMember(db, assigneeDropped)) {
       // A teammate took the chat from the AI Sales Agent: no AI follow-up may survive the merge.
       db.prepare(

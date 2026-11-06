@@ -405,7 +405,9 @@
       "showOriginal": "Show original (admins)",
       "hideOriginal": "Hide original",
       "noText": "No text (media only)"
-    }
+    },
+    "scheduled": "Scheduled",
+    "scheduledNamed": "Scheduled · {{name}}"
   },
   "media": {
     "types": {

@@ -136,6 +136,11 @@ into AGENTS.md.
   cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
   `PW_CHROMIUM` set to the browser binary (`/opt/pw-browsers/chromium-<rev>/chrome-linux64/chrome`; the
   `/opt/pw-browsers/chromium` folder alone fails to launch; no Edge there).
+- Mock seeds that place a message at a clock time ("yesterday 8:30") must compute it in the business zone
+  (`ai_timezone`, UTC+8), not with `setHours`: the cloud container runs in UTC, so a local-time seed shows 16:30 in
+  the Asia/Kuala_Lumpur screenshots. Browser-side seeds may use local time (the shot context sets `timezoneId`).
+- Merging two confirmed sibling mocks (same baseline): `git merge-file <ours> <base> <theirs>` per changed file;
+  catalog JSON conflicts are usually both sides appending keys at one spot, so keep both and re-check `JSON.parse`.
 - Mock shot scripts: wait for a locator, never `waitForLoadState('networkidle')` (the Socket.IO connection keeps
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
@@ -259,7 +264,7 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
-- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
+- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables; conflicts in `chats/merge.ts` (each feature's `chat_jid` table) and `CHANGELOG.md` keep both sides. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
 
 - A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
   `pull_request` runs need the merge commit. Merge main, then re-run e2e and the Dev Build check on the new head,
@@ -1216,6 +1221,19 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
+  `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
+  due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
+  starts and ticks in the running server.
+- "Can the AI run a turn?" is `AiService.answerReady()`; `connectionReady()` also needs the provider's customer
+  extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
+  task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
+  as "chat ownership changed".
+- A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
+  reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
+  chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
+  Origin checks), and a second path parameter is named `:id` (the table's normaliser). Test service code by parsing bodies through the zod schema (`Schema.parse`), never passing raw objects: the
+  defaults (`enabled: true`) only exist after the parse.
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
   `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`. When an
