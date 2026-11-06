@@ -1,4 +1,0 @@
-- Pelanggan mahu menempah, menukar atau membatalkan slot
-- Pelanggan bertanya tentang alahan, masalah kulit atau reaksi selepas rawatan
-- Pelanggan mahu membeli atau menggunakan pakej atau baucar
-- Pelanggan marah atau membuat aduan

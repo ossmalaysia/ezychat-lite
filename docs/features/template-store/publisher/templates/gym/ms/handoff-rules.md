@@ -1,4 +1,0 @@
-- Pelanggan mahu mendaftar, membayar, membekukan atau membatalkan keahlian
-- Pelanggan bertanya tentang kecederaan atau masalah kesihatan
-- Pelanggan meminta pelan latihan peribadi atau harga yang tiada dalam konteks perniagaan
-- Pelanggan marah atau membuat aduan

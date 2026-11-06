@@ -1,7 +1,7 @@
 # New chat (message a number that is not in the inbox yet)
 
 Status: **confirmed 2026-11-06** (with one change: the daily limit is an admin setting; see "Mock and confirmation
-record"). Production work on `feat/new-chat-impl`. Created 2026-11-06 (creationOrder 36). Branch `feat/new-chat`, workbook `docs/workbooks/feat__new-chat.md`.
+record"). Production work on `feat/new-chat-impl`. Created 2026-11-06 (creationOrder 37). Branch `feat/new-chat`, workbook `docs/workbooks/feat__new-chat.md`.
 
 Owner request (Jazz, 2026-11-06, relayed by the main session): a **New chat** button that starts a conversation
 with a phone number that is not in the inbox yet. Lite core, so Lite and Enterprise both get it, for both
@@ -106,12 +106,12 @@ limit and template failure.
 
 ### Five-folder retention
 
-scheduled-tasks merged first (creationOrder 35) and already pruned **claims-template**. This PR takes the next
-number, **36**, and prunes the then-oldest folder, **group-management** (creationOrder 31, confirmed; its confirmed
-revision `26116d59b3b9ca31b202163dc599cb96b1bf6f5e` stays recorded in the index; also recoverable with
-`git checkout afc97fd -- docs/features/group-management`), so five folders remain: template-store, google-drive,
-sql-accounting, scheduled-tasks, new-chat. **partner-role** (another session) is still on its own branch: whichever
-of the two merges later renumbers after the other and prunes the next oldest (template-store).
+scheduled-tasks (35) and partner-role (36) merged first; partner-role was built in parallel from google-drive. This
+mock takes creationOrder **37**. To keep five folders, this PR prunes **group-management** (31; confirmed revision
+`26116d59b3b9ca31b202163dc599cb96b1bf6f5e` stays in the index) and **template-store** (32; recoverable with
+`git checkout 3a287f5 -- docs/features/template-store`), and archives **claims-template** (30, folder already
+removed on `main`) in the index. Folders left: google-drive, sql-accounting, scheduled-tasks, partner-role, new-chat.
+`latestConfirmed` becomes new-chat; the next clone copies in partner-role's files (its design.md lists them).
 
 ## Scope
 

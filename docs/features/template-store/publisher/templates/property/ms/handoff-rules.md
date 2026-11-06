@@ -1,5 +1,0 @@
-- Pelanggan mahu menempah lawatan
-- Pelanggan mahu membuat tawaran, membayar deposit atau menandatangani perjanjian
-- Pelanggan bertanya tentang pinjaman, hal undang-undang atau cukai
-- Pelanggan bertanya tentang hartanah yang tiada dalam konteks perniagaan
-- Pelanggan marah atau membuat aduan

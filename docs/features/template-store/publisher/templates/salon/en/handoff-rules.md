@@ -1,4 +1,0 @@
-- The customer wants to book, change or cancel a slot
-- The customer asks about an allergy, a skin condition or a reaction after a treatment
-- The customer asks to buy or use a package or voucher
-- The customer is upset or makes a complaint

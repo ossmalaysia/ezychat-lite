@@ -1,5 +1,0 @@
-- Pelanggan mahu menempah, menukar atau membatalkan kerja
-- Pelanggan memerlukan sebut harga selepas pemeriksaan
-- Pelanggan melaporkan kebocoran gas, bahaya elektrik atau banjir
-- Pelanggan bertanya tentang tuntutan waranti
-- Pelanggan marah atau membuat aduan
