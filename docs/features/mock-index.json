@@ -6,13 +6,13 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "scheduled-tasks",
-    "gitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
-    "mock": "docs/features/scheduled-tasks/mock/index.html",
-    "design": "docs/features/scheduled-tasks/design.md",
+    "feature": "new-chat",
+    "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+    "mock": "docs/features/new-chat/mock/index.html",
+    "design": "docs/features/new-chat/design.md",
     "confirmedAt": "2026-11-06",
-    "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) \"with the proposed answers\": 10 tasks per agent; skipped/failed runs in History only (no push); Business API outside the 24 h window skipped for now (template later); add_sheet_row allowed.",
-    "note": "Clone of google-drive with the sql-accounting screens merged in, plus the Scheduled tasks card; inherits google-drive's coverage gaps (message-edit-delete, whatsapp-safety, group-agents, claims-template screens)."
+    "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat.",
+    "note": "Clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks) plus New chat; inherits scheduled-tasks' coverage gaps."
   },
   "proposals": [
     {
@@ -21,11 +21,14 @@
       "createdAt": "2026-11-06",
       "design": "docs/features/new-chat/design.md",
       "mock": "docs/features/new-chat/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "scheduled-tasks",
       "baselineGitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
-      "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
-      "note": "Parallel with partner-role (own branch): the later PR to merge renumbers after the other and prunes the next oldest folder (template-store). latestConfirmed stays on scheduled-tasks until the owner confirms this mock."
+      "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on) and daily limit field (invalid, 0 = no limit, 10, ban warning), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
+      "note": "Parallel with partner-role (own branch): the later PR to merge renumbers after the other and prunes the next oldest folder (template-store). Inherits scheduled-tasks' coverage gaps (message-edit-delete, whatsapp-safety, group-agents, claims-template screens).",
+      "confirmedAt": "2026-11-06",
+      "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+      "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat."
     },
     {
       "feature": "scheduled-tasks",
