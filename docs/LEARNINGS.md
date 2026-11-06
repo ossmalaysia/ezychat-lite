@@ -127,6 +127,9 @@ into AGENTS.md.
 - A mock for a new role or permission the server does not know yet: create real users with an existing role and mark
   them through a `/api/mock/<feature>` stand-in route; every mock-only access filter (e.g. `mock/inboxes` `canOpen`)
   must be bypassed for the new role, or its screens come up empty for a reason the design does not have.
+- When the owner cuts a mock's scope, restore each touched file from the baseline mock folder (`cp` from the source
+  feature, drop the added files and catalog keys) and rebuild the smaller change, instead of editing the old feature out:
+  leftovers (routes, keys, guards) survive a patch-out and drift from the design.
 - Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
   a faint, half-transparent card that reads like a z-index bug.
 - Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
