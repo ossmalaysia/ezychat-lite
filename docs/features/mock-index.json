@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "partner-role",
+      "creationOrder": 35,
+      "createdAt": "2026-11-06",
+      "design": "docs/features/partner-role/design.md",
+      "mock": "docs/features/partner-role/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "google-drive",
+      "baselineGitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
+      "coverage": "Full app clone of the confirmed google-drive reference with the confirmed sql-accounting mock (e33aabbd) merged in; Members with the Partner role and shared-chat count, Add member with Role: Partner + company, partner page (filled with ending and from-today-on shares, empty, 43-chat long list with search and Show more, Share a chat dialog, remove confirm, notes switch, What changed), chat header Share dialog (existing share, new share with end date and history switch, no partners), the partner's own view (only shared chats with a banner, shared chat without Notes/Share and self-only assignment, history cut in a group, Group info names only, member without number or Message, No longer shared, account menu, nothing shared); Mock only: long list, end a share now; desktop 1280 / mobile 360, light/dark (partner-shots.mjs, 64 shots); en/ms/zh-CN.",
+      "note": "Proposal awaiting owner review. Partners are agent users marked by the stand-in routes /api/mock/partner-role*. Inherits the coverage gaps of google-drive."
+    },
+    {
       "feature": "sql-accounting",
       "creationOrder": 34,
       "createdAt": "2026-11-05",
@@ -81,7 +93,12 @@
       "baselineFeature": "group-agents",
       "baselineGitRevision": "c589b88a4479472c36aea90eea434e5867ceec6a",
       "coverage": "Standalone preview built from the real catalogs (build-preview.mjs): template gallery with the Team and operations category and the Claims agent card, a new agent after Apply (name, Custom type, role, hand-over rules, Claim rules note, group-agent note), after Create agent (Direct chats off, Groups on, Claim rules item), an existing Lite agent (finish-steps note); en/ms/zh-CN, desktop 1280 / mobile 360, light/dark. The cumulative full-app clone is still owed (the latestConfirmed mock predates the template gallery).",
-      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed."
+      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed.",
+      "archived": {
+        "folderRemovedAt": "2026-11-06",
+        "lastRevision": "c0775617686625a9878aec06341cdfec66c03cea",
+        "reason": "retention: sixth feature folder (partner-role)"
+      }
     },
     {
       "feature": "group-agents",
