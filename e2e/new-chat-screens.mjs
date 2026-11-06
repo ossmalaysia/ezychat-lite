@@ -6,6 +6,7 @@
 // template step with the preview and the chat after it, Settings → General → New chats (off, on with the limit,
 // 0 = no limit, invalid), the audit rows and a team member's view. Reports page errors and horizontal overflow.
 // Usage: node e2e/new-chat-screens.mjs <port> <outDir>   (PW_CHROMIUM=<chromium> if Playwright's own is missing)
+/* global document -- used inside page.evaluate (runs in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
