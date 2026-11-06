@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "scheduled-tasks",
+      "creationOrder": 35,
+      "createdAt": "2026-11-06",
+      "design": "docs/features/scheduled-tasks/design.md",
+      "mock": "docs/features/scheduled-tasks/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "google-drive",
+      "baselineGitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
+      "coverage": "Full app clone of the confirmed google-drive reference with the confirmed sql-accounting screens merged in; agent page Scheduled tasks card (a few tasks with next run and last result, empty, 10 of 10 long list with Show all, paused banner for agent off / AI not connected / WhatsApp off), add/edit dialog (validation, Send to search over groups and people, time with business time zone, Every day / Weekdays / Chosen days, instruction, Preview would send / would send nothing), Run now (confirm, sent toast, 3-an-hour limit), History (sent / skipped / failed with reasons, Run now by), chat view with the Scheduled mark and the AI used line, Business API window closed via Mock only; en/ms/zh-CN; desktop 1280 / mobile 360 touch, light/dark (scheduled-shots.mjs)",
+      "note": "Parallel with partner-role (another session, own branch): the later PR to merge resolves this index (keep both entries, next creationOrder) and removes the then-oldest folder (group-management) so five remain. Inherits the coverage gaps of google-drive (message-edit-delete, whatsapp-safety, group-agents, claims-template screens). reference.json files manifest not refreshed (snapshot.mjs --check is advisory)."
+    },
+    {
       "feature": "sql-accounting",
       "creationOrder": 34,
       "createdAt": "2026-11-05",
@@ -81,7 +93,12 @@
       "baselineFeature": "group-agents",
       "baselineGitRevision": "c589b88a4479472c36aea90eea434e5867ceec6a",
       "coverage": "Standalone preview built from the real catalogs (build-preview.mjs): template gallery with the Team and operations category and the Claims agent card, a new agent after Apply (name, Custom type, role, hand-over rules, Claim rules note, group-agent note), after Create agent (Direct chats off, Groups on, Claim rules item), an existing Lite agent (finish-steps note); en/ms/zh-CN, desktop 1280 / mobile 360, light/dark. The cumulative full-app clone is still owed (the latestConfirmed mock predates the template gallery).",
-      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed."
+      "note": "Owner asked for the template on 2026-11-04 and said to go ahead with implementation; the mock is recorded for review, not yet confirmed.",
+      "archived": {
+        "folderRemovedAt": "2026-11-06",
+        "lastRevision": "c0775617686625a9878aec06341cdfec66c03cea",
+        "reason": "retention: sixth feature folder (scheduled-tasks)"
+      }
     },
     {
       "feature": "group-agents",
