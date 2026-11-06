@@ -1,7 +1,7 @@
 # Limited chat access (an agent who sees only chosen chats)
 
 Status: **confirmed 2026-11-06** (mock revision `846a09c`); production on branch `feat/limited-agent-impl`.
-Created 2026-11-06 (creationOrder 35). The folder keeps its first name, `partner-role`, so PR #314 stays the same.
+Created 2026-11-06 (creationOrder 36; built beside scheduled-tasks, 35). The folder keeps its first name, `partner-role`, so PR #314 stays the same.
 
 Owner request (Jazz, 2026-11-06, relayed by the main session): let an admin give a support agent (for example an
 outsourced one) access to **only the direct chats and groups the admin chooses**, in the Lite core (Lite and Enterprise).
