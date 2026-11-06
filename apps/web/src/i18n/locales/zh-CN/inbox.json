@@ -1038,7 +1038,6 @@
   },
   "newChat": {
     "button": "新对话",
-    "buttonShort": "新建",
     "title": "新对话",
     "description": "给还不在收件箱里的电话号码发消息。",
     "from": "发送号码",

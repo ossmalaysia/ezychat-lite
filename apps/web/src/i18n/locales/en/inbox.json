@@ -1043,7 +1043,6 @@
   },
   "newChat": {
     "button": "New chat",
-    "buttonShort": "New",
     "title": "New chat",
     "description": "Message a phone number that is not in your inbox yet.",
     "from": "Send from",

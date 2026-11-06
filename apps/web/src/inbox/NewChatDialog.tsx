@@ -72,8 +72,8 @@ export function NewChatButton() {
         data-testid="new-chat-button"
         onClick={() => setOpen(true)}
       >
+        {/* Icon only: the chat list header also holds Ask Ezy, Admin and the account menu. */}
         <MessageSquarePlus aria-hidden="true" />
-        <span className="max-sm:hidden">{t('newChat.buttonShort')}</span>
       </Button>
       {open && <NewChatDialog status={status.data} onClose={() => setOpen(false)} />}
     </>

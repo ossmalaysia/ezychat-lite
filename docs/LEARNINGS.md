@@ -192,6 +192,11 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- A new button in the chat list header must fit the 360 px list beside Ask Ezy, Admin and the account menu: make it
+  icon-only with `aria-label` + `title`, and measure the header children's right edges in the screen script (a mock
+  made before a later header button looks fine and still overflows in the app).
+- A Dev Build screen script that starts several chats runs into the product's own per-person limits (New chat: 5 an
+  hour): spread the runs over several seeded users instead of loosening the limit.
 - Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
   both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
   parallel feature's screens the next clone must add.
