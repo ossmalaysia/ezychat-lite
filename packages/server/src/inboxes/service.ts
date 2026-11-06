@@ -598,7 +598,7 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
           const row = repoChats.get(jid);
           return !!row && canOpenChat(ctx, viewer, row);
         })
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
     },
 
     directoryInboxIds(user, viewer) {
